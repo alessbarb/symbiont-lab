@@ -1094,6 +1094,19 @@ class PyBulletEmbodimentRuntime:
                 "passive_baseline_samples": int(sensorimotor.passive_baseline_samples),
                 "active_motor_repertoire": list(self.organism.active_motor_repertoire),
                 "motor_primitives": motor_primitives,
+                "episodes": [
+                    {
+                        "primitive_id": episode.primitive_id,
+                        "start_tick": int(episode.start_tick),
+                        "end_tick": int(episode.end_tick),
+                        "source": episode.source,
+                        "evidence_blocks": list(episode.evidence_blocks),
+                        "sample_index": int(episode.sample_index),
+                        "materialized": bool(episode.materialized),
+                        "competence": bool(episode.competence),
+                    }
+                    for episode in self.organism.sensorimotor_episodes
+                ],
                 "actuator_evidence": actuator_evidence,
             }
 

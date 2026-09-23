@@ -274,6 +274,24 @@ class MotorPrimitive:
 
 
 @dataclass(frozen=True, slots=True)
+class PrimitiveEpisode:
+    """Ephemeral provenance for one independently accepted motor episode.
+
+    This contains motor identity and timing only. It deliberately carries no
+    Physics3D geometry, anatomy, reward, utility or locomotion semantics.
+    """
+
+    primitive_id: str
+    start_tick: int
+    end_tick: int
+    source: str
+    evidence_blocks: tuple[int, ...]
+    sample_index: int
+    materialized: bool
+    competence: bool
+
+
+@dataclass(frozen=True, slots=True)
 class SensorimotorSnapshot:
     babbling_coverage: float
     known_patterns: int
@@ -382,6 +400,7 @@ class SensorimotorLearner:
         self._last_output_primitive_id: str | None = None
         self._last_output_source = "babbling"
         self._last_natural_competence_ids: tuple[str, ...] = ()
+        self._last_primitive_episodes: tuple[PrimitiveEpisode, ...] = ()
 
     def _invalidate_primitive_caches(self) -> None:
         self._primitives_cache = None
@@ -470,6 +489,40 @@ class SensorimotorLearner:
         intentionally not checkpointed and never schedules a replay.
         """
         return self._last_natural_competence_ids
+
+    @property
+    def last_primitive_episodes(self) -> tuple[PrimitiveEpisode, ...]:
+        """Episodes accepted during the latest observation tick only.
+
+        The stream is evaluator-facing provenance. It is reset at every
+        observe call and is intentionally absent from checkpoints.
+        """
+        return self._last_primitive_episodes
+
+    def _publish_primitive_episode(
+        self,
+        *,
+        primitive_id: str,
+        end_tick: int,
+        source: str,
+        evidence_blocks: frozenset[int],
+        sample_index: int,
+        materialized: bool,
+        competence: bool,
+    ) -> None:
+        self._last_primitive_episodes = (
+            *self._last_primitive_episodes,
+            PrimitiveEpisode(
+                primitive_id=str(primitive_id),
+                start_tick=int(end_tick) - _PRIMITIVE_TICKS,
+                end_tick=int(end_tick),
+                source=str(source),
+                evidence_blocks=tuple(sorted(int(item) for item in evidence_blocks)),
+                sample_index=int(sample_index),
+                materialized=bool(materialized),
+                competence=bool(competence),
+            ),
+        )
 
     @property
     def babbling_coverage(self) -> float:
@@ -686,6 +739,7 @@ class SensorimotorLearner:
         end_tick: int,
         may_create: bool,
         evidence_blocks: frozenset[int] | None = None,
+        source: str = "natural",
     ) -> str | None:
         sequence = self._matched_primitive_sequence(sequence)
         previous_end = self._last_episode_end_tick.get(sequence)
@@ -772,6 +826,15 @@ class SensorimotorLearner:
         if stat.count < 2:
             if self._primitives.pop(primitive_id, None) is not None:
                 self._invalidate_primitive_caches()
+            self._publish_primitive_episode(
+                primitive_id=primitive_id,
+                end_tick=end_tick,
+                source=source,
+                evidence_blocks=evidence_blocks,
+                sample_index=stat.count,
+                materialized=False,
+                competence=False,
+            )
             return None
 
         reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
@@ -784,6 +847,15 @@ class SensorimotorLearner:
         if controllability <= 0.002:
             if self._primitives.pop(primitive_id, None) is not None:
                 self._invalidate_primitive_caches()
+            self._publish_primitive_episode(
+                primitive_id=primitive_id,
+                end_tick=end_tick,
+                source=source,
+                evidence_blocks=evidence_blocks,
+                sample_index=stat.count,
+                materialized=False,
+                competence=False,
+            )
             return None
 
         self._primitives[primitive_id] = MotorPrimitive(
@@ -806,7 +878,20 @@ class SensorimotorLearner:
         self._enforce_primitive_bound()
 
         retained_primitive = self._primitives.get(primitive_id)
-        if retained_primitive is not None and retained_primitive.is_competence:
+        competence = bool(
+            retained_primitive is not None
+            and retained_primitive.is_competence
+        )
+        self._publish_primitive_episode(
+            primitive_id=primitive_id,
+            end_tick=end_tick,
+            source=source,
+            evidence_blocks=evidence_blocks,
+            sample_index=stat.count,
+            materialized=retained_primitive is not None,
+            competence=competence,
+        )
+        if competence:
             self._primitive_competence_tick.setdefault(sequence, int(end_tick))
             return primitive_id
         return None
@@ -821,6 +906,7 @@ class SensorimotorLearner:
         execution_primitive_id: str | None = None,
     ) -> None:
         self._last_natural_competence_ids = ()
+        self._last_primitive_episodes = ()
         normalized_motor_vector = {
             str(key): _finite_unit(value)
             for key, value in motor_vector.items()
@@ -925,6 +1011,7 @@ class SensorimotorLearner:
                     action_frame.tick // _BABBLE_EPOCH_TICKS
                     for action_frame in action_frames
                 ),
+                source="primitive",
             )
             return
 
@@ -957,6 +1044,7 @@ class SensorimotorLearner:
                 action_frame.tick // _BABBLE_EPOCH_TICKS
                 for action_frame in action_frames
             ),
+            source="natural",
         )
         if natural_competence is not None:
             self._last_natural_competence_ids = (natural_competence,)

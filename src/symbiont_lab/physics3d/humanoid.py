@@ -747,6 +747,8 @@ class HumanoidPhysics:
             )
         ]
         links = []
+        weighted_com = [0.0, 0.0, 0.0]
+        total_mass = 0.0
         for link_name, link_index in sorted(
             self._link_index_by_name.items(),
             key=lambda item: item[1],
@@ -754,6 +756,7 @@ class HumanoidPhysics:
             if link_index == -1:
                 link_position = base_position
                 link_orientation = base_orientation
+                link_com_position = base_position
             else:
                 link_state = p.getLinkState(
                     self.body_id,
@@ -765,6 +768,23 @@ class HumanoidPhysics:
                 # collision geometry are defined relative to this frame.
                 link_position = link_state[4]
                 link_orientation = link_state[5]
+                # PyBullet elements 0/1 are the inertial COM world pose.
+                link_com_position = link_state[0]
+
+            mass = 1.0
+            if hasattr(p, "getDynamicsInfo"):
+                dynamics = p.getDynamicsInfo(
+                    self.body_id,
+                    link_index,
+                    physicsClientId=self.client_id,
+                )
+                if dynamics and isinstance(dynamics[0], (int, float)):
+                    mass = max(0.0, float(dynamics[0]))
+            if mass > 0.0:
+                total_mass += mass
+                for axis in range(3):
+                    weighted_com[axis] += mass * float(link_com_position[axis])
+
             links.append(
                 {
                     "link_index": int(link_index),
@@ -787,6 +807,11 @@ class HumanoidPhysics:
                 and not isinstance(item[3], bool)
             }
         )
+        center_of_mass = (
+            [value / total_mass for value in weighted_com]
+            if total_mass > 0.0
+            else [float(value) for value in base_position]
+        )
         return {
             "schema_version": BODY_STATE_SCHEMA_VERSION,
             "body_kind": BODY_KIND,
@@ -794,6 +819,8 @@ class HumanoidPhysics:
             "base_orientation": [float(x) for x in base_orientation],
             "linear_velocity": [float(x) for x in linear_velocity],
             "angular_velocity": [float(x) for x in angular_velocity],
+            "center_of_mass": [float(x) for x in center_of_mass],
+            "total_mass": float(total_mass),
             "joints": joints,
             "links": links,
             "contact_links": active_links,

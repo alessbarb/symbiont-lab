@@ -219,3 +219,15 @@ Telemetry v3 stores observation. Event detectors, causal candidates, statistical
 summaries and scientific classifications should be generated later from the
 immutable run and versioned independently. This allows the same run to be
 reanalyzed with improved methods without rewriting experimental evidence.
+
+
+## Primitive episode provenance
+
+Telemetry v3 may include sensorimotor.episodes in the rich transition. These
+records correlate an organism-discovered opaque motor episode with its exact tick
+interval and independent evidence blocks. They carry no physical classification
+and do not feed back into the organism.
+
+Observer-side physical-effect studies may join this provenance with immutable
+pre.physical, physics and summary records. Derived classifications remain
+outside telemetry and outside the Symbiont checkpoint.

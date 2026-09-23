@@ -90,7 +90,12 @@ from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.selector import MotorIntentSelector
 from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
-from ...actuation.sensorimotor import MotorPrimitive, SensorimotorLearner, SensorimotorSnapshot
+from ...actuation.sensorimotor import (
+    MotorPrimitive,
+    PrimitiveEpisode,
+    SensorimotorLearner,
+    SensorimotorSnapshot,
+)
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -737,6 +742,13 @@ class OrganismRuntime:
         if self._sensorimotor_learner is None:
             return ()
         return self._sensorimotor_learner.primitives
+
+    @property
+    def sensorimotor_episodes(self) -> tuple[PrimitiveEpisode, ...]:
+        """Evaluator-only ephemeral provenance for the latest motor episodes."""
+        if self._sensorimotor_learner is None:
+            return ()
+        return self._sensorimotor_learner.last_primitive_episodes
 
     @property
     def actuator_causal_states(self) -> tuple[ActuatorCandidateState, ...]:

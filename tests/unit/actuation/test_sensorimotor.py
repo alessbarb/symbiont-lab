@@ -874,3 +874,32 @@ def test_bounded_primitive_pool_preserves_proven_competence():
         primitive.primitive_id for primitive in learner.primitives
     }
     assert competence.primitive_id in learner.available_cognitive_primitive_ids()
+
+
+
+def test_primitive_episode_provenance_is_ephemeral_and_independent():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-episode-provenance",
+        max_concurrent=4,
+    )
+
+    _teach_repeated_sequence(learner, episodes=2)
+
+    assert learner.last_primitive_episodes
+    episode = learner.last_primitive_episodes[-1]
+    assert episode.end_tick - episode.start_tick == 4
+    assert episode.sample_index >= 2
+    assert len(episode.evidence_blocks) >= 1
+    assert episode.source == "natural"
+
+    checkpoint = learner.checkpoint()
+    assert "episodes" not in checkpoint
+
+    learner.observe(
+        tick=episode.end_tick + 1,
+        body_state={"sense.a": 1.0, "sense.b": -1.0},
+        motor_vector={},
+        discovery_eligible=False,
+    )
+    assert learner.last_primitive_episodes == ()
