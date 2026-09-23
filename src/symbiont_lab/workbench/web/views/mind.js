@@ -902,14 +902,16 @@ function renderMotorLearning() {
   const sm=_snap.sensorimotor ?? {};
   const topology=_snap.topology ?? {nodes:[],edges:[]};
   const nodes=topology.nodes ?? [];
-  const motorEdges=finiteNumber(_tel.cognitiveMotorOutputEdges,currentMotorOutputEdges(topology));
+  const motorEdges=finiteNumber(_tel.cognitiveMotorOutputEdges ?? currentMotorOutputEdges(topology),0);
   const repertoire=finiteNumber(
-    _tel.motorRepertoireSize,
-    Array.isArray(sm.active_motor_repertoire)?sm.active_motor_repertoire.length:0,
+    _tel.motorRepertoireSize ?? (
+      Array.isArray(sm.active_motor_repertoire)?sm.active_motor_repertoire.length:0
+    ),
+    0,
   );
   const motorReadouts=finiteNumber(
-    _tel.motorReadoutNodes,
-    nodes.filter(n=>n.kind==='readout'&&(String(n.id).startsWith('readout_motor:')||String(n.id).startsWith('readout_primitive:'))).length,
+    _tel.motorReadoutNodes ?? nodes.filter(n=>n.kind==='readout'&&(String(n.id).startsWith('readout_motor:')||String(n.id).startsWith('readout_primitive:'))).length,
+    0,
   );
   const values=[
     ['Sensorimotor patterns', finiteNumber(_tel.sensorimotorPatterns ?? sm.known_patterns,0), true, 'EXISTS'],
@@ -3120,7 +3122,7 @@ function recordMindHistory() {
     concepts: nodes.filter(node => node.kind === 'concept').length,
     predictors: nodes.filter(node => node.kind === 'predictor').length,
     readouts: nodes.filter(node => node.kind === 'readout').length,
-    motorEdges: finiteNumber(_tel.cognitiveMotorOutputEdges, currentMotorOutputEdges(topology)),
+    motorEdges: finiteNumber(_tel.cognitiveMotorOutputEdges ?? currentMotorOutputEdges(topology), 0),
     edges: (topology.edges ?? []).length,
     schemaConfidence: finiteNumber(_tel.schemaConf, 0),
     predictionError: finiteNumber(_tel.predictionError, 0),
@@ -3132,10 +3134,12 @@ function recordMindHistory() {
     motorPrimitives: finiteNumber(_tel.motorPrimitives ?? sensorimotor.primitives, 0),
     cognitivePrimitives: finiteNumber(_tel.cognitiveMotorPrimitives ?? sensorimotor.cognitive_primitives, 0),
     repertoire: finiteNumber(
-      _tel.motorRepertoireSize,
-      Array.isArray(sensorimotor.active_motor_repertoire)
-        ? sensorimotor.active_motor_repertoire.length
-        : 0,
+      _tel.motorRepertoireSize ?? (
+        Array.isArray(sensorimotor.active_motor_repertoire)
+          ? sensorimotor.active_motor_repertoire.length
+          : 0
+      ),
+      0,
     ),
     selfRegions: (_snap.bodySchema?.parts ?? []).filter(part => part.kind === 'cognitive_region').length,
     selfDependencies: (_snap.bodySchema?.dependencies ?? []).length,
