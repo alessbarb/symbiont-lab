@@ -92,7 +92,7 @@ def _teach_repeated_sequence(
     )
     state = {"sense.a": 0.0, "sense.b": 0.0}
     tick = 0
-    for _ in range(episodes):
+    for episode_index in range(episodes):
         for step, vector in enumerate(sequence):
             learner.observe(
                 tick=tick,
@@ -115,14 +115,18 @@ def _teach_repeated_sequence(
             discovery_eligible=False,
         )
         tick += 1
-        while tick % 8:
-            learner.observe(
-                tick=tick,
-                body_state=state,
-                motor_vector={},
-                discovery_eligible=False,
-            )
-            tick += 1
+        # Independent recurrence must come from a later babbling block. Pad
+        # only between episodes; padding after the final episode would clear
+        # last_natural_competence_ids, which is intentionally one-tick evidence.
+        if episode_index + 1 < episodes:
+            while tick % 8:
+                learner.observe(
+                    tick=tick,
+                    body_state=state,
+                    motor_vector={},
+                    discovery_eligible=False,
+                )
+                tick += 1
 
 
 def test_single_episode_remains_candidate_until_independent_recurrence():
@@ -420,10 +424,14 @@ def test_babbling_can_discover_temporal_chunk_across_synergy_boundary():
         discovery_eligible=False,
     )
 
-    assert learner.primitives
+    checkpoint = learner.checkpoint()
+    assert checkpoint["primitive_stats"]
     assert any(
-        len(set(primitive.sequence)) > 1
-        for primitive in learner.primitives
+        len({
+            tuple((item[0], item[1]) for item in pattern)
+            for pattern in candidate["sequence"]
+        }) > 1
+        for candidate in checkpoint["primitive_stats"]
     )
 
 
@@ -540,11 +548,11 @@ def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mu
 
 @pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5, 6])
 def test_restore_rejects_every_pre_v7_schema_outright(legacy_schema):
-    """Older checkpoints cannot be represented honestly by the v6 learner.
+    """Older checkpoints cannot be represented honestly by the v7 learner.
 
-    Pre-L6 state may carry removed verification apparatus; v5 also contains
-    motor evidence gathered under uniform 1..N babbling, which systematically
-    favoured body-wide commands in high-dimensional bodies.
+    Pre-L6 state may carry removed verification apparatus; v5 contains motor
+    evidence gathered under uniform 1..N babbling, and v6 lacks provenance
+    needed to distinguish independent recurrence from temporal self-overlap.
     """
     learner = SensorimotorLearner(_ids(4), organism_id="org-legacy-schema")
     payload = learner.checkpoint()
@@ -803,13 +811,15 @@ def test_similar_natural_chunks_count_as_recurrence_not_new_skill():
         after={"sense.x": 0.05},
         end_tick=4,
         may_create=True,
+        evidence_blocks=frozenset({0}),
     )
     learner._record_primitive_episode(
         sequence=second,
         before={"sense.x": 0.0},
         after={"sense.x": 0.05},
-        end_tick=8,
+        end_tick=12,
         may_create=True,
+        evidence_blocks=frozenset({1}),
     )
 
     assert len(learner.primitives) == 1
