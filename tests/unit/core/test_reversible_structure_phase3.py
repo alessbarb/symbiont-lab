@@ -252,3 +252,41 @@ def test_retrospective_support_enters_normal_concept_birth_path() -> None:
         "sense_alpha",
         "sense_beta",
     )
+
+
+
+def test_retrospective_support_does_not_add_to_live_support() -> None:
+    limits, genome = _genome(interval=1, lifetime=8)
+    genome = replace(
+        genome,
+        structure=replace(genome.structure, minimum_support=3),
+    )
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode("sense_alpha", NodeKind.SENSE),
+            PlasticNode("sense_beta", NodeKind.SENSE),
+        ),
+        edges=(),
+        kernel_limits=limits,
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=genome,
+        kernel_limits=limits,
+        develop_senses=True,
+    )
+
+    bridge._concept_support[("sense_alpha", "sense_beta")] = 2
+    bridge.observe_retrospective_support(
+        ("sense_alpha", "sense_beta"),
+        support_epochs=2,
+    )
+    bridge.tick({}, tick=1)
+    assert bridge.concept_lineage == ()
+
+    bridge.observe_retrospective_support(
+        ("sense_alpha", "sense_beta"),
+        support_epochs=3,
+    )
+    bridge.tick({}, tick=2)
+    assert len(bridge.concept_lineage) == 1
