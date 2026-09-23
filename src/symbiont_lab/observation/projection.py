@@ -480,19 +480,23 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     raw_signal_knowledge = runtime.get("signal_knowledge")
     if isinstance(raw_signal_knowledge, (list, tuple)):
         discovery_counts: dict[str, int] = {}
+        profile_count = 0
         for item in raw_signal_knowledge:
             if not isinstance(item, Mapping):
                 continue
-            raw_status = (
-                item.get("status")
-                or item.get("state")
-                or item.get("stage")
-                or item.get("classification")
-            )
-            if raw_status is None:
-                continue
-            key = str(getattr(raw_status, "value", raw_status))
-            discovery_counts[key] = discovery_counts.get(key, 0) + 1
+            profile_count += 1
+            raw_claims = item.get("claims")
+            if isinstance(raw_claims, (list, tuple)):
+                for claim in raw_claims:
+                    if not isinstance(claim, Mapping):
+                        continue
+                    raw_status = claim.get("status")
+                    if raw_status is None:
+                        continue
+                    key = str(getattr(raw_status, "value", raw_status))
+                    discovery_counts[key] = discovery_counts.get(key, 0) + 1
+        if profile_count:
+            details["sensoryKnowledgeProfiles"] = profile_count
         if discovery_counts:
             details["sensoryDiscoveryCounts"] = discovery_counts
     if details:
