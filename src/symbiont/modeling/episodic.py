@@ -260,6 +260,7 @@ class ExperienceEpisode:
             )
             or tuple(sorted(set(self.occurrence_ticks))) != self.occurrence_ticks
             or self.occurrence_ticks[0] != self.start_tick
+            or any(tick > self.end_tick for tick in self.occurrence_ticks)
         ):
             raise EpisodicMemoryError("invalid episode occurrence ticks")
         if not self.trace:
@@ -299,7 +300,10 @@ class ExperienceEpisode:
             max_length=128,
             field="source_record_ids",
         )
-        if self.start_tick + max(step.tick_offset for step in self.trace) > self.end_tick:
+        trace_offsets = tuple(step.tick_offset for step in self.trace)
+        if tuple(sorted(trace_offsets)) != trace_offsets:
+            raise EpisodicMemoryError("episode trace must be temporally ordered")
+        if self.start_tick + max(trace_offsets) > self.end_tick:
             raise EpisodicMemoryError("episode trace exceeds episode tick range")
         for field_name in ("novelty", "surprise"):
             value = getattr(self, field_name)
@@ -1160,6 +1164,8 @@ class EpisodicExperienceMemory:
             raise EpisodicMemoryError("invalid episodic memory checkpoint")
         if payload.get("organism_id") != organism_id:
             raise EpisodicMemoryError("episodic memory organism mismatch")
+        if memory._json_size(payload) > memory._limits.max_episodic_checkpoint_bytes:
+            raise EpisodicMemoryError("episodic checkpoint exceeds kernel byte limit")
 
         raw_episodes = payload.get("episodes", [])
         if (
@@ -1185,6 +1191,9 @@ class EpisodicExperienceMemory:
         ]
         if len(memory._episodes) != len(raw_episodes):
             raise EpisodicMemoryError("episodic episode must be an object")
+        episode_ids_in_order = [episode.episode_id for episode in memory._episodes]
+        if len(set(episode_ids_in_order)) != len(episode_ids_in_order):
+            raise EpisodicMemoryError("duplicate episodic episode_id")
         memory._episode_payload_bytes = {
             episode.episode_id: memory._episode_size(episode)
             for episode in memory._episodes
