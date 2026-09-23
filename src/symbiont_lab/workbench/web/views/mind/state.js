@@ -109,6 +109,7 @@ export const graph = {
   atlasRegionHitAreas3d: [],
   regionLineage: new Map(),
   regionEvents: [],
+  regionEventHistory: [],
   atlasDiff: null,
   diffBaselineSnapshot: null,
   diffBaselineTick: null,
@@ -165,6 +166,7 @@ export function resetMindDataState() {
   graph.atlasRegionHitAreas3d = [];
   graph.regionLineage.clear();
   graph.regionEvents = [];
+  graph.regionEventHistory = [];
   graph.atlasDiff = null;
   graph.diffBaselineSnapshot = null;
   graph.diffBaselineTick = null;
