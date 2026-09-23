@@ -1,5 +1,5 @@
 from symbiont_lab.archive.studies import StudyArchive
-from symbiont_lab.server.state import StudyDashboardState, _parse_seeds
+from symbiont_lab.server.state import StudyRunState, _parse_seeds
 from symbiont_lab.experiments.spec import ExperimentSpec
 from symbiont_lab.studies.campaigns.comparative import run_comparative_study
 from symbiont_lab.studies.campaigns.interpretation import interpret_study
@@ -23,7 +23,7 @@ def test_study_progress_callback_reports_every_paired_run():
 
 
 def test_study_server_state_tracks_progress_and_result():
-    state = StudyDashboardState()
+    state = StudyRunState()
     assert state.start({"title": "test"}, 4)
     assert not state.start({"title": "other"}, 2)
     state.progress(2, 4, "baseline", 7)
@@ -43,7 +43,7 @@ def test_study_server_finish_adds_observer_interpretation():
         variant_value=0.1,
         seeds=(1, 2, 3),
     )
-    state = StudyDashboardState()
+    state = StudyRunState()
     assert state.start({"title": "test"}, 6)
     state.finish(study)
     payload = state.payload()
@@ -67,7 +67,7 @@ def test_study_server_payload_includes_record_and_campaign(tmp_path):
     interpretation = interpret_study(study)
     record = archive.append(spec, study, interpretation, source="test")
 
-    state = StudyDashboardState(archive=archive)
+    state = StudyRunState(archive=archive)
     initial = state.payload()
     assert initial["records"][0]["record_id"] == record.record_id
     assert initial["campaigns"][record.record_id]["status"] == "continue"

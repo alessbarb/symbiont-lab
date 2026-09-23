@@ -15,7 +15,7 @@ from symbiont_lab.studies.campaigns.comparative import StudyResult, run_comparat
 from symbiont_lab.studies.campaigns.interpretation import StudyInterpretation, interpret_study
 
 
-class DashboardState:
+class ExperimentRunState:
     def __init__(self, max_points: int = 600, archive: ExperimentArchive | None = None) -> None:
         self._lock = Lock()
         self._history: deque[dict[str, Any]] = deque(maxlen=max_points)
@@ -80,7 +80,7 @@ class DashboardState:
             }
 
 
-class StudyDashboardState:
+class StudyRunState:
     def __init__(self, archive: StudyArchive | None = None) -> None:
         self._lock = Lock()
         self.running = False
@@ -178,7 +178,7 @@ class StudyDashboardState:
             }
 
 
-def run_experiment(state: DashboardState, spec: ExperimentSpec) -> None:
+def run_experiment(state: ExperimentRunState, spec: ExperimentSpec) -> None:
     def publish(snapshot: SimulationSnapshot) -> None:
         state.add(snapshot)
         if spec.delay > 0:
@@ -209,8 +209,8 @@ def run_experiment(state: DashboardState, spec: ExperimentSpec) -> None:
 
 
 def start_experiment(
-    state: DashboardState,
-    study_state: StudyDashboardState,
+    state: ExperimentRunState,
+    study_state: StudyRunState,
     spec: ExperimentSpec,
 ) -> bool:
     if study_state.running or not state.start(spec):
@@ -225,12 +225,12 @@ def _parse_seeds(raw: object) -> tuple[int, ...]:
     if not seeds:
         raise ValueError("study requires at least one seed")
     if len(seeds) > 50:
-        raise ValueError("dashboard studies are limited to 50 seeds")
+        raise ValueError("server studies are limited to 50 seeds")
     return seeds
 
 
-def run_study_dashboard(
-    state: StudyDashboardState,
+def run_study_job(
+    state: StudyRunState,
     base_spec: ExperimentSpec,
     *,
     title: str,
@@ -269,8 +269,8 @@ def run_study_dashboard(
 
 
 def start_study(
-    experiment_state: DashboardState,
-    state: StudyDashboardState,
+    experiment_state: ExperimentRunState,
+    state: StudyRunState,
     base_spec: ExperimentSpec,
     *,
     title: str,
@@ -294,7 +294,7 @@ def start_study(
     if not state.start(config, len(seeds) * 2):
         return False
     Thread(
-        target=run_study_dashboard,
+        target=run_study_job,
         args=(state, base_spec),
         kwargs={
             "title": title,

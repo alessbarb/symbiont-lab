@@ -5,7 +5,7 @@ from symbiont.core.collective import CollectiveMemory
 from symbiont.core.memory import AgentMemory, Episode
 from symbiont.core.model import Observation
 from symbiont.simulation import run_simulation
-from symbiont_lab.server.state import DashboardState
+from symbiont_lab.server.state import ExperimentRunState
 
 
 def test_observation_contains_no_ground_truth_label():
@@ -92,7 +92,7 @@ def test_simulation_publishes_live_snapshots():
 
 
 def test_server_state_exposes_latest_history():
-    state = DashboardState(max_points=2)
+    state = ExperimentRunState(max_points=2)
     state.start({"seed": 7})
     snapshots = []
     run_simulation(hosts=5, steps=3, seed=7, on_snapshot=snapshots.append)
