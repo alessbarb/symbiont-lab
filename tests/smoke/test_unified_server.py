@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import builtins
 from contextlib import contextmanager
 from http.client import HTTPConnection
@@ -67,7 +68,7 @@ def test_api_state_exposes_source_availability() -> None:
     with running_server() as server:
         status, body = request(server, "/api/state")
         assert status == 200
-        payload = __import__("json").loads(body)
+        payload = json.loads(body)
         assert payload["sources"]["organism_stream"]["available"] is True
         assert payload["sources"]["observatory"]["available"] is False
         assert payload["sources"]["physics3d"]["state"] == "disabled"
