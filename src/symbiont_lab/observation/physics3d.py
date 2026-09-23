@@ -122,19 +122,22 @@ class Physics3DObservationBridge:
             return
         snapshot = mind_snapshot_from_rich_state(rich_state)
         tick = snapshot.get("tick")
+        try:
+            frame_tick = int(tick)
+        except (TypeError, ValueError):
+            frame_tick = None
+
         mind_event = {
             "type": "mind_snapshot",
             "source": "physics3d",
             "tick": tick,
             "organism_id": rich_state.get("organism_id"),
             "snapshot": snapshot,
-            "coherent_frame_follows": True,
+            "coherent_frame_follows": frame_tick is not None,
         }
         self._sink.push(mind_event)
 
-        try:
-            frame_tick = int(tick)
-        except (TypeError, ValueError):
+        if frame_tick is None:
             return
         components = self._pending_frames.pop(frame_tick, {})
         frame = ObservedFrame(
