@@ -34,9 +34,10 @@ import { classRatio, clamp01, finiteNumber, hashStr, pct, shortId } from './mind
 import { buildMindLayout } from './mind/layout.js';
 import { MindStreams } from './mind/streams.js';
 import { inspectorMetric, panelSection } from './mind/components.js';
-import { currentMotorOutputEdges, currentPhysiologyState } from './mind/derived.js';
+import { currentMotorOutputEdges, currentPhysiologyState, topologyComponentStats } from './mind/derived.js';
 import { renderMotorLearning } from './mind/motor-learning.js';
 import { renderOverview as renderOverviewPanel } from './mind/overview.js';
+import { nearestHistorySnapshot, recordMindHistory, renderHistory as renderHistoryPanel } from './mind/history.js';
 import {
   compass as _compass,
   graph as _graph,
@@ -79,81 +80,13 @@ function renderOverview() {
   renderOverviewPanel({ onOpenHistoryTick: openHistoryTick });
 }
 
+function renderHistory() {
+  renderHistoryPanel({ onOpenHistoryTick: openHistoryTick });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab switching
 // ─────────────────────────────────────────────────────────────────────────────
-
-function sparklineSvg(points, key, color, width=900, height=90) {
-  const svg=svgEl('svg',{viewBox:`0 0 ${width} ${height}`,role:'img'});
-  svg.style.cssText='width:100%;height:90px;display:block;';
-  if(points.length<2) return svg;
-  const values=points.map(p=>finiteNumber(p[key],0));
-  let lo=Math.min(...values), hi=Math.max(...values);
-  if(Math.abs(hi-lo)<1e-9){hi=lo+1;}
-  const t0=points[0].tick, t1=points[points.length-1].tick || t0+1;
-  const coords=points.map((p,i)=>{
-    const x=((p.tick-t0)/Math.max(1,t1-t0))*(width-20)+10;
-    const y=height-10-((values[i]-lo)/(hi-lo))*(height-20);
-    return [x,y];
-  });
-  const path=svgEl('path',{d:coords.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '),fill:'none',stroke:color,'stroke-width':'1.5'});
-  svg.appendChild(path);
-  return svg;
-}
-
-function renderHistory() {
-  const root=document.getElementById('mind-history-wrap');
-  if(!root) return;
-  root.innerHTML='';
-  const h=el('h2',''); h.style.cssText='font-size:16px;margin:0 0 4px;'; h.textContent='History';
-  const p=el('p',''); p.style.cssText='font-size:10px;color:var(--muted);margin:0 0 14px;'; p.textContent='Bounded observer-side history for this browser session. Click a milestone to inspect the nearest captured graph.';
-  root.append(h,p);
-
-  const charts=el('div',''); charts.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;';
-  const energy=panelSection('Energy / physiology');
-  energy.appendChild(sparklineSvg(_mindHistory.filter(x=>x.energy!=null),'energy',PAL.coral));
-  const edges=panelSection('Cognitive edges');
-  edges.appendChild(sparklineSvg(_mindHistory,'edges',PAL.violet));
-  const concepts=panelSection('Concept growth');
-  concepts.appendChild(sparklineSvg(_mindHistory,'concepts',PAL.cyan));
-  const predictors=panelSection('Predictor growth');
-  predictors.appendChild(sparklineSvg(_mindHistory,'predictors',PAL.amber));
-  const resource=panelSection('Resource progress');
-  resource.appendChild(sparklineSvg(_mindHistory,'resourceProgress',PAL.mint));
-  const motor=panelSection('Motor-output edges');
-  motor.appendChild(sparklineSvg(_mindHistory,'motorEdges','#e09f3e'));
-  charts.append(energy,edges,concepts,predictors,resource,motor); root.appendChild(charts);
-
-  const timeline=panelSection('Milestones');
-  timeline.style.marginTop='10px';
-  if(!_milestones.length){
-    const e=el('div',''); e.style.cssText='font-size:9px;color:var(--muted);'; e.textContent='No milestones yet.'; timeline.appendChild(e);
-  } else {
-    for(const m of _milestones){
-      const row=el('button',''); row.type='button'; row.style.cssText='width:100%;display:grid;grid-template-columns:60px 1fr;gap:10px;text-align:left;padding:8px 0;border:0;border-top:1px solid rgba(98,120,136,.14);background:none;color:var(--text);cursor:pointer;';
-      const t=el('strong',''); t.textContent=`t${m.tick}`; t.style.color=PAL.cyan;
-      const label=el('span',''); label.textContent=m.label; label.style.cssText='font-size:9px;';
-      row.append(t,label); row.addEventListener('click',()=>openHistoryTick(m.tick)); timeline.appendChild(row);
-    }
-  }
-  root.appendChild(timeline);
-
-  const latest=_mindHistory[_mindHistory.length-1];
-  if(latest){
-    const observer=panelSection('Observer analysis','Secondary analytical projection; not part of the organism.');
-    observer.style.marginTop='10px';
-    const coord=computeObserverMapCoordinates({
-      senses:_snap.senses,
-      cognition:_snap.cognition,
-      observerAnalysis:_snap.observerAnalysis,
-    });
-    const analysis=evaluateObserverRegime(coord,REGIMES);
-    inspectorMetric(observer,'Measured activity',pct(coord.activityNorm));
-    inspectorMetric(observer,'Predictive tension',pct(coord.predictiveTension));
-    inspectorMetric(observer,'Nearest reference zone',analysis.nearest?.name ?? '—');
-    root.appendChild(observer);
-  }
-}
 
 function switchTab(tabId) {
   _activeTab = tabId;
@@ -2625,145 +2558,6 @@ function ingestSnapshot(raw) {
   return true;
 }
 
-function snapshotForHistory() {
-  return {
-    topology: _snap.topology ? JSON.parse(JSON.stringify(_snap.topology)) : null,
-    cognition: _snap.cognition ? JSON.parse(JSON.stringify(_snap.cognition)) : null,
-    observerAnalysis: _snap.observerAnalysis ? JSON.parse(JSON.stringify(_snap.observerAnalysis)) : null,
-    observerSemantics: _snap.observerSemantics ? JSON.parse(JSON.stringify(_snap.observerSemantics)) : null,
-  };
-}
-
-function registerMilestone(kind, label, tick, tone = 'info') {
-  if (!Number.isFinite(tick) || tick <= 0) return;
-  if (_milestones.some(item => item.kind === kind)) return;
-  _milestones.push({ kind, label, tick, tone });
-  _milestones.sort((a, b) => a.tick - b.tick);
-}
-
-function recordSelfPersistence(tick) {
-  const schema = _snap.bodySchema ?? {};
-  const parts = Array.isArray(schema.parts) ? schema.parts : [];
-  const dependencies = Array.isArray(schema.dependencies) ? schema.dependencies : [];
-
-  for (const region of parts.filter(part => part.kind === 'cognitive_region')) {
-    const key = String(region.part_id ?? '');
-    if (!key) continue;
-    const state = _selfRegionHistory.get(key) ?? { firstTick: tick, lastTick: tick, observations: 0 };
-    state.lastTick = tick;
-    state.observations += 1;
-    _selfRegionHistory.set(key, state);
-  }
-
-  const currentKeys = new Set();
-  for (const dep of dependencies) {
-    const key = `${dep.source_id}→${dep.target_id}:${dep.relation ?? 'related'}`;
-    currentKeys.add(key);
-    const state = _selfDependencyHistory.get(key) ?? {
-      firstTick: tick,
-      lastTick: tick,
-      observations: 0,
-      dep: { ...dep },
-    };
-    state.lastTick = tick;
-    state.observations += 1;
-    state.dep = { ...dep };
-    _selfDependencyHistory.set(key, state);
-  }
-
-  for (const [key, state] of _selfDependencyHistory.entries()) {
-    state.current = currentKeys.has(key);
-    if (tick - state.lastTick > 512) _selfDependencyHistory.delete(key);
-  }
-}
-
-function recordMindHistory() {
-  const tick = finiteNumber(_tel.tick ?? _snap.tick, 0);
-  if (tick <= 0) return;
-
-  recordSelfPersistence(tick);
-  const topology = _snap.topology ?? { nodes: [], edges: [] };
-  const nodes = topology.nodes ?? [];
-  const sensorimotor = _snap.sensorimotor ?? {};
-  const outcome = _snap.outcome ?? {};
-  const selfSchema = _snap.bodySchema ?? {};
-  const point = {
-    tick,
-    concepts: nodes.filter(node => node.kind === 'concept').length,
-    predictors: nodes.filter(node => node.kind === 'predictor').length,
-    readouts: nodes.filter(node => node.kind === 'readout').length,
-    motorEdges: finiteNumber(_tel.cognitiveMotorOutputEdges ?? currentMotorOutputEdges(topology), 0),
-    edges: (topology.edges ?? []).length,
-    schemaConfidence: finiteNumber(_tel.schemaConf, 0),
-    predictionError: finiteNumber(_tel.predictionError, 0),
-    motorOrigin: _tel.motorOrigin ?? 'none',
-    energy: _tel.metabolicReserve,
-    physiology: currentPhysiologyState(),
-    resourceProgress: finiteNumber(_tel.resourceProgress ?? outcome.resource_progress, 0),
-    sensorimotorPatterns: finiteNumber(_tel.sensorimotorPatterns ?? sensorimotor.known_patterns, 0),
-    motorPrimitives: finiteNumber(_tel.motorPrimitives ?? sensorimotor.primitives, 0),
-    cognitivePrimitives: finiteNumber(_tel.cognitiveMotorPrimitives ?? sensorimotor.cognitive_primitives, 0),
-    repertoire: finiteNumber(
-      _tel.motorRepertoireSize ?? (
-        Array.isArray(sensorimotor.active_motor_repertoire)
-          ? sensorimotor.active_motor_repertoire.length
-          : 0
-      ),
-      0,
-    ),
-    selfRegions: (_snap.bodySchema?.parts ?? []).filter(part => part.kind === 'cognitive_region').length,
-    selfDependencies: (_snap.bodySchema?.dependencies ?? []).length,
-  };
-
-  const last = _mindHistory[_mindHistory.length - 1];
-  if (last?.tick === point.tick) return;
-  _mindHistory.push(point);
-  while (_mindHistory.length > 2048) _mindHistory.shift();
-
-  if (!_historySnapshots.length || tick - _historySnapshots[_historySnapshots.length - 1].tick >= 64) {
-    _historySnapshots.push({ tick, snapshot: snapshotForHistory() });
-    while (_historySnapshots.length > 96) _historySnapshots.shift();
-  }
-
-  // Never backdate a "first" event from an already-developed organism.
-  // We only name a first occurrence when this observer actually saw the
-  // transition from absent to present.
-  if (!last) {
-    registerMilestone('observer-attached', 'Observer attached', tick, 'info');
-  } else {
-    if (last.concepts === 0 && point.concepts > 0) registerMilestone('first-concept', 'First observed concept birth', tick, 'violet');
-    if (last.predictors === 0 && point.predictors > 0) registerMilestone('first-predictor', 'First observed predictor birth', tick, 'amber');
-    if (last.motorPrimitives === 0 && point.motorPrimitives > 0) registerMilestone('first-primitive', 'Motor primitives became available', tick, 'cyan');
-    if (last.repertoire === 0 && point.repertoire > 0) registerMilestone('first-repertoire', 'Motor repertoire became available', tick, 'mint');
-    if (last.motorEdges === 0 && point.motorEdges > 0) registerMilestone('first-motor-edge', 'First observed cognition → motor edge', tick, 'mint');
-
-    const lastCognitiveUse = ['cognition','mixed'].includes(last.motorOrigin) || String(last.motorOrigin).includes('primitive');
-    const cognitiveUse = ['cognition','mixed'].includes(point.motorOrigin) || String(point.motorOrigin).includes('primitive');
-    if (!lastCognitiveUse && cognitiveUse) {
-      registerMilestone('first-cognitive-motor-use', 'First observed cognitive motor use', tick, 'mint');
-    }
-
-    if (last.physiology !== point.physiology) {
-      if (point.physiology === 'stressed') registerMilestone('stressed', 'Physiology → stressed', tick, 'coral');
-      if (point.physiology === 'dormant') registerMilestone('dormant', 'Physiology → dormant', tick, 'amber');
-      if (point.physiology === 'dead') registerMilestone('death', 'Death', tick, 'coral');
-    }
-  }
-}
-
-function nearestHistorySnapshot(tick) {
-  let best = null;
-  let distance = Infinity;
-  for (const item of _historySnapshots) {
-    const d = Math.abs(item.tick - tick);
-    if (d < distance) {
-      best = item;
-      distance = d;
-    }
-  }
-  return best;
-}
-
 function openHistoryTick(tick) {
   _historySelectionTick = tick;
   const historical = nearestHistorySnapshot(tick);
@@ -2775,39 +2569,6 @@ function openHistoryTick(tick) {
   } else {
     renderHistory();
   }
-}
-
-function topologyComponentStats(topology = _snap.topology) {
-  const nodes = topology?.nodes ?? [];
-  const adjacency = new Map(nodes.map(node => [node.id, new Set()]));
-  for (const edge of topology?.edges ?? []) {
-    adjacency.get(edge.sourceId)?.add(edge.targetId);
-    adjacency.get(edge.targetId)?.add(edge.sourceId);
-  }
-  const unseen = new Set(nodes.map(node => node.id));
-  const sizes = [];
-  while (unseen.size) {
-    const seed = unseen.values().next().value;
-    unseen.delete(seed);
-    const stack = [seed];
-    let size = 0;
-    while (stack.length) {
-      const id = stack.pop();
-      size += 1;
-      for (const neighbor of adjacency.get(id) ?? []) {
-        if (unseen.delete(neighbor)) stack.push(neighbor);
-      }
-    }
-    sizes.push(size);
-  }
-  sizes.sort((a,b)=>b-a);
-  return {
-    count: sizes.length,
-    main: sizes[0] ?? 0,
-    isolates: sizes.filter(size=>size===1).length,
-    secondary: sizes.filter(size=>size>1).slice(1).length,
-    sizes,
-  };
 }
 
 function focusedSectorContext() {
