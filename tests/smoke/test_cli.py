@@ -596,7 +596,7 @@ def test_cli_evaluate_advisories_label_and_summary(tmp_path):
     log_path = tmp_path / "advisories.json"
     labels_path = tmp_path / "labels.json"
 
-    # Seed the advisory log directly for a deterministic CLI test, rather
+    # NOTE(test-fixture): Seed the advisory log directly for a deterministic CLI test, rather
     # than depending on a real regime shift actually occurring on this
     # machine's live CPU/disk readings.
     from symbiont.core.advisory import AdvisorySignal, DefensiveAdvisory, append_advisories_to_log

@@ -153,7 +153,7 @@ class _StructuralCandidate:
     producer_id: str
     eligible_tick: int
     mutations: tuple[Mutation, ...]
-    # Legacy checkpoint field retained for one-way compatibility only.
+    # NOTE(legacy): Legacy checkpoint field retained for one-way compatibility only.
     # Producer-level fair scheduling no longer accumulates access debt.
     contention_losses: int = 0
 
@@ -618,7 +618,7 @@ class CognitiveBridge:
         if not valid:
             return None, (), ()
 
-        # Legacy checkpoints may contain several candidates for one producer.
+        # NOTE(legacy): Legacy checkpoints may contain several candidates for one producer.
         # Collapse them locally before global arbitration so multiplicity can
         # never become additional structural voting power.
         nominees: dict[str, _StructuralCandidate] = {}
@@ -3317,7 +3317,7 @@ class CognitiveBridge:
                 default=0,
             ),
             representation_maturity=representation_maturity_counts,
-            # Legacy metric retained for snapshot compatibility. Producer-level
+            # NOTE(legacy): Legacy metric retained for snapshot compatibility. Producer-level
             # arbitration no longer accumulates contention debt.
             max_contention_losses=0,
         )

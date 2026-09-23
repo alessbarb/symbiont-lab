@@ -1,0 +1,17 @@
+{
+  "todo-tree.general.tags": [
+    "TODO",
+    "FIXME",
+    "BUG",
+    "HACK",
+    "WARN",
+    "WARNING",
+    "NOTE"
+  ],
+  "todo-tree.highlights.customHighlight": {
+    "TODO": { "icon": "check", "foreground": "#FFE56F" },
+    "FIXME": { "icon": "flame", "foreground": "#FF6B6B" },
+    "WARN": { "icon": "alert", "foreground": "#FF9F43" },
+    "NOTE": { "icon": "info", "foreground": "#54A0FF" }
+  }
+}

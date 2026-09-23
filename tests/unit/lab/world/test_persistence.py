@@ -113,13 +113,13 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
     assert pop_a.journal.snapshot() == pop_b.journal.snapshot()
 
     # Organism runtime deterministic internal state equivalence.
-    # Note: host statistical baselines (acclimation/rhythms/drift) undergo privacy-preserving
+    # NOTE: host statistical baselines (acclimation/rhythms/drift) undergo privacy-preserving
     # lossy quantization into discrete classes upon checkpoint export (symbiont design §14),
     # so continuous accumulation vs quantized-seed accumulation are compared on all exact keys.
     lossy_baseline_keys = {
         "acclimation", "rhythms", "drift", "sensory_development",
         "sensory_system", "signal_knowledge", "narrative_journal",
-        # Motor discovery may hold one in-flight t->t+1 percept comparison
+        # NOTE: Motor discovery may hold one in-flight t->t+1 percept comparison
         # at checkpoint time. Raw percept baselines are intentionally not
         # persisted; the probe phase is preserved but that incomplete sample
         # cold-starts on restore.

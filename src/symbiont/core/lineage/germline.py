@@ -509,7 +509,7 @@ class InheritancePackage:
     generation: int
 
     def __post_init__(self) -> None:
-        # Invariant B: reject any semantic or cognitive payload in loci or marks (AUD-042, AUD-044)
+        # WARN(Invariant B): reject any semantic or cognitive payload in loci or marks (AUD-042, AUD-044)
         forbidden_substrings = (
             "threat", "food", "body", "schema",
             "agency", "sensorimotor", "signal", "resource", "action",

@@ -79,7 +79,7 @@ def test_organism_limits_invariants() -> None:
     assert limits.max_dissent == 256
     assert limits.max_selection_opportunities == 64
 
-    # Crucial architectural assertion: OrganismLimits must NOT contain temporal dynamics
+    # WARN: Crucial architectural assertion: OrganismLimits must NOT contain temporal dynamics
     assert not hasattr(limits, "aging_ticks")
     assert not hasattr(limits, "waste_ticks")
     assert not hasattr(limits, "decay_interval")

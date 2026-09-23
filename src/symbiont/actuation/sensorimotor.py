@@ -1104,7 +1104,7 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         organism_id: str,
     ) -> "SensorimotorLearner":
-        # L6.1b: only the current schema is restorable. Pre-L6 schemas (1-4)
+        # WARN(fail-closed): L6.1b: only the current schema is restorable. Pre-L6 schemas (1-4)
         # could carry the removed scheduled-verification/investigation
         # apparatus (verification_count, investigation_id,
         # last_verification_epoch, replay_source=="verification") — there is
@@ -1313,7 +1313,7 @@ class SensorimotorLearner:
             for item in raw_primitives[:_MAX_PRIMITIVES]:
                 if not isinstance(item, Mapping):
                     raise ValueError("invalid motor primitive entry")
-                # A malformed or tampered primitive entry (wrong type, out of
+                # WARN(fail-closed): A malformed or tampered primitive entry (wrong type, out of
                 # range, coerced field) must fail the whole restore rather
                 # than be silently dropped: a partially-corrupted checkpoint
                 # is indistinguishable from a foreign one and must not
@@ -1351,7 +1351,7 @@ class SensorimotorLearner:
             )
             replay_source = payload.get("replay_source")
             if replay_source == "verification":
-                # An action the removed scheduler forced must never resurface
+                # WARN(integrity): An action the removed scheduler forced must never resurface
                 # as cognition-originated after restore — that would rewrite
                 # the organism's own causal history.
                 raise ValueError(

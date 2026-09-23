@@ -8,7 +8,7 @@ from typing import Iterable
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 
 
-# Private SLM v1 is deliberately conservative: speculative, predicted,
+# NOTE(design): Private SLM v1 is deliberately conservative: speculative, predicted,
 # contradicted and retired claims remain inspectable in the ledger but are not
 # next-token training targets. Later multi-task objectives may learn from those
 # states explicitly without conflating them with factual outcome evidence.

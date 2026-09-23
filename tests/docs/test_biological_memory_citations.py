@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .conftest import REPO_ROOT
 
-# src/symbiont/core/selfmodel.py is deliberately excluded: an unrelated
+# NOTE: src/symbiont/core/selfmodel.py is deliberately excluded: an unrelated
 # main-branch refactor (RecencyClass moved to symbiont.core.epistemic)
 # removed the docstring that carried this citation entirely, so there is
 # nothing left in that file to point at any docs/design/ path.

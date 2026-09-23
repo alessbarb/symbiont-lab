@@ -15,7 +15,7 @@ WEIGHT_CODEC_VERSION = 3
 WEIGHT_DEADBAND = 0.01
 _LEGACY_WEIGHT_CODEC_VERSION = 2
 _LEGACY_WEIGHT_CLASSES = 17
-# v3 keeps the same 17 classes but allocates substantially more resolution
+# NOTE: v3 keeps the same 17 classes but allocates substantially more resolution
 # near zero, where tentative and recently learned synapses actually live.
 _WEIGHT_MAGNITUDE_LEVELS = (
     0.0,
@@ -28,7 +28,7 @@ _WEIGHT_MAGNITUDE_LEVELS = (
     1.25,
     2.0,
 )
-# ELIGIBILITY_CLASSES/ELIGIBILITY_RANGE are no longer used by this module's
+# NOTE(backwards-compat): ELIGIBILITY_CLASSES/ELIGIBILITY_RANGE are no longer used by this module's
 # own checkpoint functions (eligibility is labile, design §10.3) but remain
 # public: observatory/adapter.py uses them to quantize live (RAM, per-tick)
 # eligibility for real-time display -- a display concern, not persistence.

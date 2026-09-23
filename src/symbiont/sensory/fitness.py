@@ -21,7 +21,7 @@ def sensory_fitness(
     if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(float(v)) for v in values):
         raise ValueError("sensory fitness inputs must be finite")
     p, d, n, q, r, c = (max(0.0, min(1.0, float(v))) for v in values)
-    # Reliability and novelty are evidence-quality multipliers, not utility
+    # WARN(invariant): Reliability and novelty are evidence-quality multipliers, not utility
     # sources. A perfectly healthy receptor with zero demonstrated downstream
     # contribution must remain utility-zero so structural selection can prune
     # ornamental perception instead of rewarding mere existence.

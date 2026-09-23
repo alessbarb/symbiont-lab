@@ -41,7 +41,7 @@ def load_base_genome(
     """Load and validate the canonical inherited genome."""
     codec = GenomeCodec()
     genome = codec.load(_load_default_json("base-genome.json"))
-    # Explicitly migrate the checked-in pre-0.60 canonical genome at birth.
+    # NOTE(migration): Explicitly migrate the checked-in pre-0.60 canonical genome at birth.
     # It remains byte/hash compatible for historical studies, while direct
     # GenomeCodec validation stays strict for arbitrary user payloads.
     validation_version = legacy_validation_version(genome.kernel_compatibility, running_version)

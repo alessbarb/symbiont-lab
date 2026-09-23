@@ -2438,7 +2438,7 @@ class OrganismRuntime:
         )
 
         # Source acquisition and perceptual attention are separate decisions.
-        # Legacy mode retains the historical capability allocation exactly.
+        # NOTE(legacy): Legacy mode retains the historical capability allocation exactly.
         # Adaptive mode allocates cognition among the percepts produced by
         # already-acquired sources; it cannot cause a new host read.
         perceptual_allocations: tuple[AttentionAllocation, ...] = ()

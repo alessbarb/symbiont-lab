@@ -59,7 +59,7 @@ def _resources() -> dict[str, ResourceLaw]:
         RESOURCE_IDS["resource-scarce-rich"]: ResourceLaw(
             capacity=4.0, renewal_rate=0.02, decay_rate=0.0, initial_quantity=4.0
         ),
-        # immediate benefit / deferred cost (§7): pool dynamics alone cannot
+        # TODO(deferred-cost): immediate benefit / deferred cost (§7): pool dynamics alone cannot
         # express the delayed-damage side of this resource -- that requires
         # a physiological effect mapping owned by the not-yet-built
         # symbiont_lab <-> MetabolicLedger adapter. Only the pool half of

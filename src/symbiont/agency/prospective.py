@@ -23,7 +23,7 @@ from .types import (
 )
 from .value import OutcomeValueLedger
 
-# How much confidence relaxation per non-selected candidate (unused in P0)
+# TODO(p1): How much confidence relaxation per non-selected candidate (unused in P0)
 _QUERY_BUDGET_DEFAULT = 8
 
 
@@ -160,7 +160,7 @@ class ProspectiveAgency:
             try:
                 prediction = predictor(candidate.action_id, context_tokens)
             except Exception:  # noqa: BLE001
-                # Fail-closed: skip this candidate if predictor raises
+                # WARN(fail-closed): skip this candidate if predictor raises
                 continue
 
             if not isinstance(prediction, CounterfactualPrediction):

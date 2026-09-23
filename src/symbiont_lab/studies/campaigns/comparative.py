@@ -16,7 +16,7 @@ COMPARABLE_PARAMETERS: dict[str, tuple[float, float]] = {
     "drift_magnitude": (0.0, 0.60),
 }
 
-# Research-facing names. Legacy detection_rate/precision/FPR remain available on
+# NOTE(legacy): Research-facing names. Legacy detection_rate/precision/FPR remain available on
 # SimulationResult but are intentionally excluded here because they describe
 # attention allocation, not classification.
 METRICS = (

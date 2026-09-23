@@ -345,7 +345,7 @@ def run(
 
     def _graceful_stop(signum, _frame) -> None:
         nonlocal stop_requested
-        # Defer shutdown until the current organism tick has returned. Raising
+        # WARN: Defer shutdown until the current organism tick has returned. Raising
         # here can interrupt runtime.tick() after signal knowledge has advanced
         # but before the kernel tick counter is incremented.
         stop_requested = True

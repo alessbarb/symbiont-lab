@@ -395,7 +395,7 @@ class ClaimGraph:
             raise ValueError("claim parent is not present")
         if claim.claim_id in claim.parent_claim_ids:
             raise ValueError("claim graph cycle rejected")
-        # A bounded DFS catches cycles even if a future caller changes the
+        # NOTE(cycle-detection): A bounded DFS catches cycles even if a future caller changes the
         # insertion order or restores a malformed graph.
         visiting: set[str] = set()
         def visit(node: str) -> None:

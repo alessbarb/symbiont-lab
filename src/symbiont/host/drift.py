@@ -206,7 +206,7 @@ class DriftAwareBaseline:
             self._fast_mean = value
             self._count += 1
             if self.is_established:
-                # Just became established this tick: snapshot today's noise
+                # NOTE: Just became established this tick: snapshot today's noise
                 # floor once, before any creep has had a chance to inflate
                 # the live variance — see the creep-detection note below for
                 # why this must not be the continuously-updated self.stdev.
@@ -260,7 +260,7 @@ class DriftAwareBaseline:
                 self._creep_streak = 0
                 self._creep_direction = 0
             else:
-                # Normalized against the *frozen* noise floor captured at
+                # NOTE(creep-detection): Normalized against the *frozen* noise floor captured at
                 # establishment/last confirmation, never the live self.stdev
                 # — the live variance is itself being dragged by the same
                 # creep this is trying to detect (the exact self-corrupting

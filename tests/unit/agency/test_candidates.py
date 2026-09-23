@@ -9,7 +9,7 @@ from symbiont.agency.candidates import _MAX_CANDIDATES, primitive_candidates
 from symbiont.agency.types import ProspectiveCandidate
 
 
-# Minimal MotorPrimitive stub — only needs primitive_id and is_competence
+# NOTE(stub): Minimal MotorPrimitive stub — only needs primitive_id and is_competence
 @dataclass
 class _FakePrimitive:
     primitive_id: str

@@ -115,7 +115,7 @@ def test_germline_state_strictly_bounds_marks_to_loci():
     assert "learning_rate" in germline.acquired_marks
     assert germline.effective_expression("learning_rate", 0.1) == pytest.approx(0.15)
 
-    # Attempting to add an invented locus or learned concept must fail closed (Invariant B)
+    # WARN(Invariant B): Attempting to add an invented locus or learned concept must fail closed (Invariant B)
     illegal_concept_mark = EpigeneticMark(locus="learned_threat_concept", delta=1.0)
     assert not germline.add_mark(illegal_concept_mark)
     assert "learned_threat_concept" not in germline.acquired_marks

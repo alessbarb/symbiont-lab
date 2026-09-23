@@ -84,7 +84,7 @@ def restore_actuation_state(
                 f"actuator_id field is {state.actuator_id!r} — key/field mismatch"
             )
         if state.probing_state == "active":
-            # Promotion is a historical event. Current cumulative correlation
+            # NOTE(promotion): Promotion is a historical event. Current cumulative correlation
             # may legitimately weaken after promotion as the organism gathers
             # more experience, so restore must validate the evidence that
             # promotion happened, not require today's effect_strength to still
@@ -93,7 +93,7 @@ def restore_actuation_state(
                 (relation.count for relation in state.effect_relations.values()),
                 default=0,
             )
-            # New checkpoints persist natural_promotion_samples only at the
+            # NOTE: New checkpoints persist natural_promotion_samples only at the
             # exact moment consider_natural_evidence() legitimately promotes
             # the candidate. That marker is therefore historical promotion
             # evidence in its own right; later correlation decay must not
@@ -102,7 +102,7 @@ def restore_actuation_state(
                 natural_min_samples = state.natural_promotion_samples
                 natural_promoted = strongest_relation_count >= natural_min_samples
             else:
-                # Legacy checkpoints predate the explicit promotion marker,
+                # NOTE(legacy): Legacy checkpoints predate the explicit promotion marker,
                 # or predate L6.2's removal of scheduled-probing promotion.
                 # Neither can prove natural promotion under the current
                 # contract, so this candidate must re-earn it.

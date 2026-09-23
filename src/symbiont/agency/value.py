@@ -215,7 +215,7 @@ class OutcomeValueLedger:
         for outcome_id, raw_stat in raw_stats.items():
             if len(ledger._stats) >= MAX_OUTCOME_VALUES:
                 break
-            # Schema/root corruption remains fail-closed above. Individual
+            # WARN(fail-closed): Schema/root corruption remains fail-closed above. Individual
             # bounded ledger entries are independently recoverable evidence:
             # skip one malformed item without discarding all valid phenotype.
             if not isinstance(outcome_id, str) or not isinstance(raw_stat, dict):

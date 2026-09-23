@@ -273,7 +273,7 @@ class PopulationGenesisRuntime:
         if requested <= 0.0:
             return
 
-        # Legacy apparatus path retained for non-canonical historical studies.
+        # NOTE(legacy): Legacy apparatus path retained for non-canonical historical studies.
         resource_id, _ = max(available, key=lambda item: (item[1], item[0]))
         granted = rig.runtime.request_resource_intake(
             requested,

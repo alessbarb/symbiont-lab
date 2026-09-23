@@ -46,7 +46,7 @@ class HeritageStressCondition:
 
     def as_dict(self) -> dict[str, object]:
         payload = asdict(self)
-        # Preserve the legacy serialized key so older research readers can still
+        # NOTE(legacy): Preserve the legacy serialized key so older research readers can still
         # load the record, but make its meaning explicit in the new schema.
         payload["corrected_reexports"] = self.direction_flips
         return payload

@@ -538,7 +538,7 @@ def _construct_organism(
         reading_providers=(reading_provider,),
     )
 
-    # Canonical clean World must not inject world resource topology into the
+    # NOTE(legacy): Canonical clean World must not inject world resource topology into the
     # organism. Legacy studies retain SharedHabitat-backed resource surfaces;
     # clean organisms receive physical energy only through the scalar body
     # absorption boundary.

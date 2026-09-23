@@ -72,7 +72,7 @@ class StructuralPlasticity:
         compatibility with direct unit/lab callers that already provide a
         prevalidated pair; the resident bridge always supplies both kinds.
         """
-        del tick  # retained in the public signature for future time-aware evidence
+        del tick  # TODO: retained in the public signature for future time-aware evidence
         if target_kind is NodeKind.SENSE:
             return
         if source_kind is NodeKind.SENSE and target_kind is NodeKind.SENSE:

@@ -657,7 +657,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         self._resolve_outcome_value_credit(tick=tick)
 
         if self._capture_private_experience:
-            # The canonical runtime may complete a terminal tick and transition
+            # WARN(invariant): The canonical runtime may complete a terminal tick and transition
             # physiology to DEAD before returning its passive result.  Once
             # death has occurred the organism must not mutate experience/model
             # state.  Drop the pending causal bridge rather than fabricating
@@ -688,7 +688,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         config["enable_prospective_agency"] = self._enable_prospective_agency
         payload["private_model_config"] = config
 
-        # Persist agency state (OutcomeValueLedger only; pending traces are NOT
+        # WARN(no-cross-restart-bridging): Persist agency state (OutcomeValueLedger only; pending traces are NOT
         # checkpointed — they cannot bridge across a restart without fabricating
         # a causal consequence that never happened in the restored timeline).
         if self._prospective_agency is not None:
@@ -713,11 +713,11 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 raise ValueError("invalid prospective agency checkpoint flag")
             constructor["enable_prospective_agency"] = value
         runtime = super().from_checkpoint(payload, **constructor)
-        # Never bridge t -> t+1 across a restart. The first post-restore tick
+        # WARN: Never bridge t -> t+1 across a restart. The first post-restore tick
         # establishes a new independent frame.
         runtime._pending_private_frame = None
 
-        # Restore agency OutcomeValueLedger. Pending outcome-value credit
+        # WARN: Restore agency OutcomeValueLedger. Pending outcome-value credit
         # traces are NOT restored — no cross-restart causal bridging.
         runtime._pending_outcome_value_credit = []
         if runtime._prospective_agency is not None:

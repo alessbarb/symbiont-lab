@@ -30,7 +30,7 @@ class Percept:
     unit: Unit
     quality: ReadingQuality
     privacy_class: ReadingPrivacyClass
-    # Organism-owned sensory metadata. Legacy callers may omit it; the
+    # NOTE(legacy): Organism-owned sensory metadata. Legacy callers may omit it; the
     # historical name/value/unit/quality contract remains unchanged.
     sensor_id: str | None = None
     modality_id: str | None = None

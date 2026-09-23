@@ -7,7 +7,7 @@ import pytest
 
 from .conftest import REPO_ROOT, VALID_TYPES
 
-# TODO(deferred — pending chapter authoring): spec check 7 is NOT implemented
+# TODO(deferred): spec check 7 is NOT implemented (pending chapter authoring with machine-readable markup)
 # here. Per the original docs-reorg-web-publication design spec's FUENTES.md
 # section, verification-test list, item 7 (see git history for that spec's
 # full text; the working-tree copy has been deleted):
@@ -153,7 +153,7 @@ def test_declared_symbol_exists_in_source(claim_rows):
         )
 
 
-# Scope note: a `#anchor` fragment in the Source column is only valid when
+# NOTE(scope): a `#anchor` fragment in the Source column is only valid when
 # the cited source is itself another docs/web/ chapter — chapters carry
 # explicit `<a id="...">` tags by this project's own convention (see
 # FUENTES.md's "Claims" section intro). Canonical normative/design docs under
