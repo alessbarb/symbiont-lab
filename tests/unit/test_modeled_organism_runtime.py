@@ -457,3 +457,45 @@ def test_private_corpus_replays_lived_history_after_live_ledger_eviction():
     assert corpus.manifest.record_count == 32
     assert "transition.test.0" in record_ids
     assert "transition.test.31" in record_ids
+
+
+
+def test_episodic_projection_counts_only_new_independent_epochs():
+    class BridgeProbe:
+        concept_lineage = ()
+
+        def __init__(self):
+            self.calls = []
+
+        def observe_retrospective_support(self, source_ids, *, independent_epochs):
+            self.calls.append((tuple(source_ids), independent_epochs))
+            return independent_epochs
+
+    runtime = ModeledOrganismRuntime(organism_id="episodic-projection")
+    probe = BridgeProbe()
+    runtime._cognitive_bridge = probe
+
+    def projected_record(tick: int) -> ExperienceRecord:
+        return ExperienceRecord(
+            record_id=f"transition.projected.{tick}",
+            organism_id=runtime.organism_id,
+            tick_class=tick,
+            context_tokens=("sense.alpha", "sense.beta"),
+            action_token="action.same",
+            outcome_tokens=("outcome.same",),
+            epistemic_status=EpistemicStatus.OBSERVED,
+            evidence_refs=(f"evidence.projected.{tick}",),
+            confidence_class=7,
+            source_kind=SourceKind.ACTION_OUTCOME,
+        )
+
+    for tick in (0, 32, 64, 96):
+        runtime.record_experience(projected_record(tick))
+
+    assert probe.calls == [(("alpha", "beta"), 3)]
+
+    runtime.record_experience(projected_record(128))
+    assert probe.calls[-1] == (("alpha", "beta"), 1)
+
+    checkpoint = runtime.checkpoint()
+    assert checkpoint["episodic_projected_epochs"]
