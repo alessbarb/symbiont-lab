@@ -291,7 +291,7 @@ def _migrate_v6_to_v7(payload: dict[str, Any]) -> dict[str, Any]:
     migrated = dict(payload)
     migrated["schema_version"] = 7
     # Older checkpoints have no valid identity key or claims.  Starting with
-    # an empty block is explicit and safer than deriving knowledge from legacy
+    # NOTE(legacy): an empty block is explicit and safer than deriving knowledge from legacy
     # narrative, adaptive correlations, or exact aggregates.
     migrated.setdefault("signal_knowledge", {"schema_version": 1, "last_tick": None, "profiles": []})
     return migrated

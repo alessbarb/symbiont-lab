@@ -870,7 +870,7 @@ class SensorimotorLearner:
         self._primitive_materialized_tick.setdefault(sequence, int(end_tick))
         self._invalidate_primitive_caches()
 
-        # A bounded repertoire must not evict a primitive that has already
+        # WARN(invariant): A bounded repertoire must not evict a primitive that has already
         # crossed the organism's own competence gate in favour of a
         # higher-amplitude but still unverified candidate. This changes no
         # threshold and introduces no semantics; it preserves consolidated

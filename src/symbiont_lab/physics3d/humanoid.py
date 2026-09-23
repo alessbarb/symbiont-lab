@@ -504,7 +504,7 @@ class HumanoidPhysics:
             index_by_joint_name[spec.name] for spec in JOINT_SPECS
         )
         # Stable ordinal identity is part of the opaque receptor/effector
-        # contract. Fail closed if Bullet ever reorders our generated tree.
+        # WARN(fail-closed): contract. Fail closed if Bullet ever reorders our generated tree.
         if self.motor_joint_indices != tuple(range(MOTOR_DOF)):
             raise RuntimeError(
                 "Bullet reordered anthropomorphic-v4 joints; opaque ordinal contract unsafe"

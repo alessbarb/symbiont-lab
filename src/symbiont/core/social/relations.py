@@ -20,7 +20,7 @@ class SocialRelation:
     conflicts: int = 0
     last_tick: int | None = None
     rejections: int = 0
-    # Context is an opaque local channel/resource token.  Relations in one
+    # WARN(fail-closed): Context is an opaque local channel/resource token.  Relations in one
     # channel must not silently become evidence for another channel.
     channel: str = "default"
     @property

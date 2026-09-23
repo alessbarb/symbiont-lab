@@ -351,7 +351,7 @@ class SymbiontGenome:
 
         active_specs = dict(specs) if specs is not None else dict(STANDARD_COGNITIVE_LOCI)
 
-        # AUD-019: Fail closed if any locus is unknown
+        # WARN(AUD-019): Fail closed if any locus is unknown
         unknown = set(loci_values.keys()) - set(active_specs.keys())
         if unknown:
             raise ValueError(f"unknown loci rejected by constitution: {sorted(unknown)}")

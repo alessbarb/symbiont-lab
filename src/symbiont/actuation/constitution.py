@@ -28,7 +28,7 @@ class MotorSlot:
     execution_threshold: float
 
     def __post_init__(self) -> None:
-        # A body's own slots must be internally valid regardless of how they
+        # WARN(invariant): A body's own slots must be internally valid regardless of how they
         # were constructed — GenomeCodec already validates MotorGenes before
         # derive_actuator_constitution ever runs, but a MotorSlot built
         # directly (bypassing that path) must not silently carry an

@@ -142,7 +142,7 @@ class OutcomeValueLedger:
             or not isinstance(intrinsic_value, (int, float))
             or not math.isfinite(float(intrinsic_value))
         ):
-            # Silently discard non-finite observations; they must not corrupt
+            # WARN(fail-closed): Silently discard non-finite observations; they must not corrupt
             # the Welford accumulator.
             return
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:

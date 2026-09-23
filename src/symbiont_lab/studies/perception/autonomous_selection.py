@@ -83,7 +83,7 @@ def _candidate_pool(seed: int) -> CandidatePool:
             transduction=transduction,
             tick=1,
         )
-        # Candidate order must not secretly change the functional hypothesis.
+        # WARN(integrity): Candidate order must not secretly change the functional hypothesis.
         sensor.gain = 1.0
         if transduction is TransductionKind.INTEGRATE:
             sensor.decay = 0.85

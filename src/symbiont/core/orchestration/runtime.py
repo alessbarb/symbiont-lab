@@ -175,7 +175,7 @@ class RuntimeTickResult:
     action_result: ActionExecutionResult | None = None
     development: DevelopmentalSnapshot | None = None
     sensory_phenotype: dict[str, Any] | None = None
-    # Bounded lifecycle facts emitted by the subject runtime.  The laboratory
+    # WARN(integrity): Bounded lifecycle facts emitted by the subject runtime.  The laboratory
     # may project these into its own taxonomy, but must not manufacture them
     # from snapshots after the fact.
     runtime_events: tuple[str, ...] = ()

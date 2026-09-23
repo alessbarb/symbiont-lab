@@ -312,7 +312,7 @@ class SequenceChannel:
                     delivery_status="delivered",
                 ))
             except ValueError:
-                # A full/malformed sink must not change delivery semantics.
+                # WARN(fail-closed): A full/malformed sink must not change delivery semantics.
                 pass
 
 

@@ -1144,7 +1144,7 @@ class EpisodicExperienceMemory:
         ).encode("utf-8")
         if len(encoded) > self._limits.max_episodic_checkpoint_bytes:
             # Pending state is intentionally not discarded merely because a
-            # save was requested. If the live invariant cannot hold, fail
+            # WARN(invariant): save was requested. If the live invariant cannot hold, fail
             # visibly rather than silently changing lived history.
             raise EpisodicMemoryError("episodic checkpoint exceeds kernel byte limit")
         return payload
