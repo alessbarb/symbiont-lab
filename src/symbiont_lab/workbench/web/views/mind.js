@@ -835,6 +835,40 @@ function renderOverview() {
   );
   root.appendChild(metrics);
 
+  if (_mindHistory.length > 1) {
+    const phaseStrip = panelSection('Observed physiology timeline','Session-local phase history; it never backdates states seen before attachment.');
+    phaseStrip.style.marginBottom='12px';
+    const track=el('div','');
+    track.style.cssText='height:18px;display:flex;overflow:hidden;border-radius:5px;background:rgba(98,120,136,.12);';
+    const points=_mindHistory;
+    const t0=points[0].tick;
+    const t1=points[points.length-1].tick;
+    const runs=[];
+    let runStart=points[0].tick;
+    let runState=points[0].physiology;
+    for(let i=1;i<points.length;i++){
+      if(points[i].physiology!==runState){
+        runs.push({state:runState,start:runStart,end:points[i].tick});
+        runStart=points[i].tick; runState=points[i].physiology;
+      }
+    }
+    runs.push({state:runState,start:runStart,end:t1+1});
+    for(const run of runs){
+      const seg=el('div','');
+      const width=Math.max(1,((run.end-run.start)/Math.max(1,t1-t0+1))*100);
+      const color=run.state==='dead'?PAL.coral:run.state==='dormant'?PAL.amber:run.state==='stressed'?'#d77676':PAL.mint;
+      seg.style.cssText=`width:${width}%;background:${color};opacity:.62;position:relative;`;
+      seg.title=`${run.state} · t${run.start}–t${run.end}`;
+      track.appendChild(seg);
+    }
+    phaseStrip.appendChild(track);
+    const labels=el('div','');
+    labels.style.cssText='display:flex;justify-content:space-between;margin-top:4px;font-size:8px;color:var(--muted);';
+    labels.innerHTML=`<span>t${t0}</span><span>t${t1}</span>`;
+    phaseStrip.appendChild(labels);
+    root.appendChild(phaseStrip);
+  }
+
   const grid=el('div','');
   grid.style.cssText='display:grid;grid-template-columns:1.15fr 1fr;gap:12px;';
 
