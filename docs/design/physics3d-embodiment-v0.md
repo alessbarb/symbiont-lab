@@ -916,10 +916,12 @@ replay state and horizon sample counts.
 
 Primitive discovery is deliberately reversible.
 
-One observed four-tick motor sequence creates at most a candidate. Sparse
-endogenous verification replays that exact sequence. The candidate becomes a
-cognitive action only after independent evidence shows a reproducible
-directional transformation of opaque body state.
+One observed four-tick motor sequence creates at most a candidate. The learner
+persists the candidate's first/last sample tick, first materialization tick and
+first competence tick so developmental specialization can be measured
+longitudinally without evaluator inference. The candidate becomes a cognitive
+action only after independent evidence shows a reproducible directional
+transformation of opaque body state.
 
 A later contradictory replay can lower controllability or remove the candidate.
 Physics3D never labels the sequence as walking, crawling, balance or progress.
