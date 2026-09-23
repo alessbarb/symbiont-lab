@@ -620,12 +620,30 @@ class EpisodicExperienceMemory:
             occurrence_ticks = tuple((*all_occurrences[:32], *all_occurrences[-32:]))
         else:
             occurrence_ticks = tuple(all_occurrences)
+        merged_start_tick = min(left.start_tick, right.start_tick)
+        representative_trace = tuple(
+            EpisodeStep(
+                tick_offset=(
+                    representative.start_tick
+                    + step.tick_offset
+                    - merged_start_tick
+                ),
+                source_record_id=step.source_record_id,
+                context_tokens=step.context_tokens,
+                action_token=step.action_token,
+                outcome_tokens=step.outcome_tokens,
+                evidence_refs=step.evidence_refs,
+                confidence_class=step.confidence_class,
+                source_kind=step.source_kind,
+            )
+            for step in representative.trace
+        )
         merged = ExperienceEpisode(
             episode_id="episode." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:32],
-            start_tick=min(left.start_tick, right.start_tick),
+            start_tick=merged_start_tick,
             end_tick=max(left.end_tick, right.end_tick),
             occurrence_ticks=occurrence_ticks,
-            trace=representative.trace,
+            trace=representative_trace,
             initial_context=initial,
             terminal_context=terminal,
             action_tokens=actions,
