@@ -2236,6 +2236,7 @@ function buildGraphModel() {
       activations: finiteNumber(n.activations, 0),
       causalRelationCount: finiteNumber(n.causalRelationCount, 0),
       actuatorIds: n.actuatorIds ?? [],
+      collapsedMotorDegree: finiteNumber(n.collapsedMotorDegree, 0),
       primitiveId: n.primitiveId ?? null,
       activeRepertoire: Boolean(n.activeRepertoire),
       effectorId: n.effectorId ?? null,
