@@ -814,3 +814,15 @@ def test_cognition_3d_preserves_sector_identity_and_anatomy() -> None:
     assert "sectorEmbedding" in projection
 
     assert "_graph.sectorLabels.clear()" not in asset
+
+
+
+def test_connected_view_preserves_cognitively_linked_motor_endpoints() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
+
+    assert "_graph.viewMode" in asset
+    assert "viewMode === 'connected'" in cartography
+    assert "edge.kind !== 'invokes'" in cartography
+    assert "target?.kind === 'actuator'" in cartography
+    assert "linkedMotorEndpoints" in cartography
