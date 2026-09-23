@@ -5,8 +5,8 @@
  *   mount(root: HTMLElement)  → void
  *   unmount()                 → void
  *
- * Displays one live symbiont organism across four sub-tabs:
- *   Phenotype / Self · Sensory Map · Cognition Graph · Observer Map
+ * Displays one live symbiont organism across six research tabs:
+ *   Overview · Identity · Sensory · Cognition · Motor Learning · History
  *
  * SSE endpoints consumed:
  *   /api/organism   — type:'cognition' | type:'vitals' events (lightweight telemetry)
@@ -72,9 +72,12 @@ let _localMindActive = false;  // Physics3D rich snapshot is authoritative when 
 let _rafId          = null;   // cognition-graph animation frame
 let _regimRafId     = null;   // regime-compass animation frame
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
-let _activeTab      = 'phenotype';
+let _activeTab      = 'overview';
 const _identityHistory = [];
 const _mindHistory = [];
+const _milestones = [];
+const _historySnapshots = [];
+let _historySelectionTick = null;
 
 // Lifecycle / UI state merged from the instance-oriented refactor.
 let _uid                    = 'default';
@@ -107,6 +110,11 @@ const _tel = {
   displacement:     null,
   mechanicalWork:   null,
   metabolicCost:    null,
+  metabolicReserve: null,
+  resourceDistance: null,
+  resourceRemaining: null,
+  absorbedEnergy: null,
+  activeEffectors: null,
 };
 
 // Snapshot-derived state (updated by /instance/:id/stream)
@@ -117,6 +125,7 @@ const _snap = {
   sensoryRelations: [],
   cognition:        null,
   topology:         null,
+  selfModel:        null,
   bodySchema:       null,
   sensoryPhenotype: null,
   metabolism:       null,
@@ -130,6 +139,8 @@ const _snap = {
   observerAnalysis:  null,
   observerSemantics: null,
   provenance:        null,
+  sensorimotor:      null,
+  outcome:           null,
 };
 
 // Cognition-graph physics state
@@ -148,6 +159,8 @@ const _graph = {
   communities:    new Map(),
   viewMode:       'connected',
   pathDepth:      2,
+  replaySnapshot: null,
+  replayTick:     null,
 };
 
 // Regime compass state
@@ -242,10 +255,12 @@ function buildLayout(root) {
   `;
 
   const TABS = [
+    { id: 'overview',   label: 'Overview' },
     { id: 'phenotype',  label: 'Identity' },
-    { id: 'sensory',    label: 'Sensory Map' },
+    { id: 'sensory',    label: 'Sensory' },
     { id: 'cognition',  label: 'Cognition' },
-    { id: 'regime',     label: 'Observer Map' },
+    { id: 'motor',      label: 'Motor Learning' },
+    { id: 'history',    label: 'History' },
   ];
 
   for (const tab of TABS) {
