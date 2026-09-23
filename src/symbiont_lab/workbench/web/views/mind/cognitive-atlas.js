@@ -24,6 +24,16 @@ function clamp01(value) {
   return Math.max(0, Math.min(1, finite(value, 0)));
 }
 
+function errorScore(value) {
+  if (Number.isFinite(Number(value))) return clamp01(Number(value) / 15);
+  const cls = String(value ?? '').toLowerCase();
+  if (cls === 'extreme') return 1;
+  if (cls === 'high') return 0.78;
+  if (cls === 'medium') return 0.5;
+  if (cls === 'low') return 0.24;
+  return 0;
+}
+
 function edgeEvidence(edge, maxima) {
   const support = Math.log1p(Math.max(0, finite(edge.support, 0))) / maxima.support;
   const stable = Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / maxima.stable;
@@ -66,7 +76,7 @@ export function atlasSignals(nodes, edges, tick = 0) {
           Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / maxima.stable
         ))
       : 0;
-    const error = clamp01(finite(node.errorCls, 0) / 15);
+    const error = errorScore(node.errorCls);
     const activity = clamp01(finite(node.activationLevel, 0) * 0.78 + recency * 0.22);
     const learning = clamp01(
       plasticity * 0.48 +
