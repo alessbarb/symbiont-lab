@@ -57,6 +57,7 @@ def test_physics3d_session_surfaces_runner_failure() -> None:
     )
     assert session.start() is True
     assert terminal.wait(timeout=2.0)
+    session.close(timeout=2.0)
 
     snapshot = session.snapshot()
     assert snapshot.state == Physics3DSessionState.FAILED
