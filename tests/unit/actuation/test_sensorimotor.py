@@ -115,6 +115,14 @@ def _teach_repeated_sequence(
             discovery_eligible=False,
         )
         tick += 1
+        while tick % 8:
+            learner.observe(
+                tick=tick,
+                body_state=state,
+                motor_vector={},
+                discovery_eligible=False,
+            )
+            tick += 1
 
 
 def test_single_episode_remains_candidate_until_independent_recurrence():
@@ -148,6 +156,74 @@ def test_single_episode_remains_candidate_until_independent_recurrence():
     assert lifecycle["last_sample_tick"] == 4
     assert lifecycle["materialized_tick"] is None
     assert lifecycle["competence_tick"] is None
+
+
+def test_adjacent_windows_from_same_babbling_block_do_not_count_as_recurrence():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-same-evidence-block",
+        max_concurrent=4,
+    )
+    sequence = (
+        (("actuator.0", 5),),
+        (("actuator.1", 5),),
+        (("actuator.2", 5),),
+        (("actuator.3", 5),),
+    )
+
+    learner._record_primitive_episode(
+        sequence=sequence,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.1},
+        end_tick=4,
+        may_create=True,
+        evidence_blocks=frozenset({0}),
+    )
+    learner._record_primitive_episode(
+        sequence=sequence,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.1},
+        end_tick=8,
+        may_create=True,
+        evidence_blocks=frozenset({0}),
+    )
+
+    assert learner.snapshot().recurrent_primitive_candidates == 0
+    assert learner.primitives == ()
+
+
+def test_same_sequence_in_disjoint_babbling_block_counts_as_recurrence():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-independent-evidence-block",
+        max_concurrent=4,
+    )
+    sequence = (
+        (("actuator.0", 5),),
+        (("actuator.1", 5),),
+        (("actuator.2", 5),),
+        (("actuator.3", 5),),
+    )
+
+    learner._record_primitive_episode(
+        sequence=sequence,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.1},
+        end_tick=4,
+        may_create=True,
+        evidence_blocks=frozenset({0}),
+    )
+    learner._record_primitive_episode(
+        sequence=sequence,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.1},
+        end_tick=12,
+        may_create=True,
+        evidence_blocks=frozenset({1}),
+    )
+
+    assert learner.primitives
+    assert learner.primitives[0].samples == 2
 
 
 def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
@@ -462,8 +538,8 @@ def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mu
         )
 
 
-@pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5])
-def test_restore_rejects_every_pre_v6_schema_outright(legacy_schema):
+@pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5, 6])
+def test_restore_rejects_every_pre_v7_schema_outright(legacy_schema):
     """Older checkpoints cannot be represented honestly by the v6 learner.
 
     Pre-L6 state may carry removed verification apparatus; v5 also contains
