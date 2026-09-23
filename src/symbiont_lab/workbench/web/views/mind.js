@@ -3242,9 +3242,6 @@ function installGraphListeners(canvas) {
       if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
     } else if (!pressedNode && dragDist < 5) {
       _graph.selectedNodeId = null;
-  _graph.sectorMemory.clear();
-  _graph.sectorLabels.clear();
-  _graph.nextSectorId = 1;
       renderCognitionInspector();
     }
     pressedNode = null;
