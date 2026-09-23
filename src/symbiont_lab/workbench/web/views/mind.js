@@ -23,6 +23,7 @@
 import { enrichGraphModel } from './mind/graph-model.js';
 import { filterGraphForView, graphSubgraphIds } from './mind/graph-selection.js';
 import { computeObserverMapCoordinates, evaluateObserverRegime } from './mind/observer-map-model.js';
+import { compactSelfLabel, observerContextForNode, sensorySemantic } from './mind/semantics.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -127,6 +128,7 @@ const _snap = {
   instanceId:       null,
   organismState:    null,
   observerAnalysis:  null,
+  observerSemantics: null,
   provenance:        null,
 };
 
@@ -829,8 +831,14 @@ function renderSensesPanel() {
     icon.textContent = sense.icon ?? '●';
 
     const copy = el('div', 'mind-sense-copy');
+    const semantic = sensorySemantic(_snap.observerSemantics, sense.id);
     const name = document.createElement('strong');
-    name.textContent = sense.name ?? sense.id;
+    name.textContent = semantic?.selfLabel ?? sense.name ?? sense.id;
+    const observerName = document.createElement('small');
+    observerName.style.cssText = 'display:block;color:var(--cyan);opacity:.82;margin-top:1px;';
+    observerName.textContent = semantic?.observerSummary
+      ? `Observer · ${semantic.observerSummary}`
+      : 'Observer · unresolved';
     const status = document.createElement('small');
 
     let utilPct = 0;
@@ -852,7 +860,7 @@ function renderSensesPanel() {
     barFill.style.background = barColor;
     barWrap.appendChild(barFill);
 
-    copy.append(name, status, barWrap);
+    copy.append(name, observerName, status, barWrap);
     row.append(icon, copy);
     list.appendChild(row);
   }
@@ -928,9 +936,16 @@ function renderPhenotype() {
       fill: sense.active ? PAL.cyan : PAL.muted, opacity: sense.active ? '0.85' : '0.35' });
     group.appendChild(dot);
 
-    // Label
+    // Dual semantic label: apparatus truth is observer-only; the opaque
+    // organism label remains available in the tooltip.
+    const semantic = sensorySemantic(_snap.observerSemantics, sense.id);
     const label = svgEl('text', { x: x + 12, y: y + 3, 'font-size': '10', fill: sense.active ? PAL.text : PAL.muted });
-    label.textContent = (sense.name ?? sense.id).slice(0, 22);
+    label.textContent = (semantic?.observerSummary ?? sense.name ?? sense.id).slice(0, 28);
+    const labelTitle = svgEl('title');
+    labelTitle.textContent = semantic?.observerSummary
+      ? `Observer: ${semantic.observerSummary}\nSelf: ${semantic.selfLabel ?? sense.id}`
+      : `Self: ${sense.name ?? sense.id}\nObserver: unresolved`;
+    label.appendChild(labelTitle);
     group.appendChild(label);
 
     // Connection to boundary
@@ -1227,7 +1242,19 @@ function renderSensoryMap() {
       'stroke-width': '0.7',
     });
     const tooltip = svgEl('title');
-    tooltip.textContent = `${node.kind} · ${node.id} · degree ${degree}`;
+    const semantic = sensorySemantic(_snap.observerSemantics, node.id);
+    const observerContext = observerContextForNode(
+      topology,
+      _snap.observerSemantics,
+      node.id,
+      2,
+    );
+    const observerText = semantic?.observerSummary
+      ? `Observer: ${semantic.observerSummary}`
+      : observerContext.summary
+        ? `Observer context: ${observerContext.summary}`
+        : 'Observer: unresolved';
+    tooltip.textContent = `${node.kind} · Self: ${node.id} · ${observerText} · degree ${degree}`;
     circle.appendChild(tooltip);
     circle.style.cursor = 'pointer';
     circle.addEventListener('click', () => selectCognitiveNode(node.id));
@@ -1671,9 +1698,11 @@ function buildGraphModel() {
       ? Math.min(1, Math.abs(finiteNumber(readoutRaw, 0)))
       : 0;
 
+    const semantic = sensorySemantic(_snap.observerSemantics, n.id);
     return {
       id: n.id,
       label: n.id,
+      observerLabel: semantic?.observerSummary ?? null,
       kind,
       color: colorMap[kind] ?? PAL.violet,
       baseRadius: baseRadiusMap[kind] ?? 6.4,
@@ -2022,8 +2051,15 @@ function drawGraphFrame(canvas) {
       ctx.fillStyle = isConn ? '#fff' : 'rgba(175,199,220,.7)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      const lbl = node.label.length > 14 ? node.label.slice(0, 6) + '…' + node.label.slice(-4) : node.label;
+      const observerLabel = node.observerLabel;
+      const primary = observerLabel ?? node.label;
+      const lbl = primary.length > 22 ? primary.slice(0, 18) + '…' : primary;
       ctx.fillText(lbl, node.x, node.y + r + 10);
+      if ((isHovered || isSelected) && observerLabel) {
+        ctx.font = '8px -apple-system, sans-serif';
+        ctx.fillStyle = 'rgba(175,199,220,.55)';
+        ctx.fillText(compactSelfLabel(node.label), node.x, node.y + r + 20);
+      }
     }
   }
 
@@ -2466,6 +2502,7 @@ function ingestSnapshot(raw) {
   _snap.instanceId         = snap.instance_id ?? snap.instanceId ?? null;
   _snap.organismState      = snap.organism_state ?? snap.organismState ?? null;
   _snap.observerAnalysis    = snap.observer_analysis ?? snap.observerAnalysis ?? null;
+  _snap.observerSemantics   = snap.observer_semantics ?? snap.observerSemantics ?? null;
   _snap.provenance          = snap.provenance ?? null;
   return true;
 }
@@ -2532,6 +2569,28 @@ function renderCognitionInspector() {
     panel.append(title, subtitle);
 
     const facts = cognitionNodeFacts(selected.id);
+    const observerContext = observerContextForNode(
+      _snap.topology,
+      _snap.observerSemantics,
+      selected.id,
+      2,
+    );
+    inspectorMetric(panel, 'Self label', selected.id, PAL.violet);
+    inspectorMetric(
+      panel,
+      observerContext.kind === 'exact-source' ? 'Observer truth' : 'Observer context',
+      observerContext.summary ?? 'unresolved',
+      observerContext.summary ? PAL.cyan : PAL.muted,
+    );
+    inspectorMetric(
+      panel,
+      'Semantic relation',
+      observerContext.kind === 'exact-source'
+        ? 'exact source mapping'
+        : observerContext.kind === 'sensory-context'
+          ? `linked within ${observerContext.distance} hops`
+          : 'unresolved',
+    );
     inspectorMetric(panel, 'Kind', selected.kind);
     inspectorMetric(panel, 'Degree', selected.neighbors?.size ?? 0);
     inspectorMetric(panel, 'Activity', pct(selected.activationLevel ?? 0), PAL.cyan);
