@@ -698,6 +698,88 @@ export function createCognitionController({
     ctx.restore();
   }
 
+  function currentDetailLevel() {
+    graph.detailLevel = atlasDetailLevel({
+      dimension: graph.dimension,
+      scale: graph.scale,
+      cameraDistance: graph.camera3d?.distance ?? 900,
+      focusedRegion: Boolean(graph.focusedSectorId),
+    });
+    return graph.detailLevel;
+  }
+
+  function visibleIdsForDetail(nodes, atlasPath) {
+    const structures = graph.cognitiveStructures ?? { hubs: [], bottlenecks: [] };
+    return atlasVisibleNodeIds(nodes, graph.detailLevel, {
+      selectedNodeId: graph.selectedNodeId,
+      pathNodeIds: [...(atlasPath?.nodeIds ?? [])],
+      hubIds: (structures.hubs ?? []).map(item => item.id),
+      bottleneckIds: (structures.bottlenecks ?? []).map(item => item.id),
+    });
+  }
+
+  function drawAtlasRegionLinks(ctx, geometry, tick) {
+    if (graph.detailLevel === 'nodes' || graph.focusedSectorId) return;
+    for (const link of graph.regionLinks ?? []) {
+      const a = geometry.get(link.a);
+      const b = geometry.get(link.b);
+      if (!a || !b) continue;
+      const idle = link.lastUseTick > 0
+        ? Math.max(0, tick - link.lastUseTick)
+        : 4096;
+      const recency = Math.exp(-idle / 768);
+      const strength = Math.min(1, Math.log1p(link.count) / 3.2);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = graph.atlasMode === 'activity'
+        ? `rgba(80,217,255,${0.12 + recency * 0.62})`
+        : `rgba(140,166,188,${0.12 + strength * 0.42})`;
+      ctx.lineWidth = 0.8 + strength * 2.1;
+      ctx.setLineDash(graph.detailLevel === 'regions' ? [] : [4, 5]);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawLearningFrontierZones(ctx, pointsById) {
+    if (graph.atlasMode !== 'learning') return;
+    for (const cluster of graph.learningFrontierClusters ?? []) {
+      const points = cluster.nodeIds.map(id => pointsById.get(id)).filter(Boolean);
+      if (!points.length) continue;
+      const x = points.reduce((sum, item) => sum + item.x, 0) / points.length;
+      const y = points.reduce((sum, item) => sum + item.y, 0) / points.length;
+      let radius = 18;
+      for (const point of points) {
+        radius = Math.max(
+          radius,
+          Math.hypot(point.x - x, point.y - y) + finiteNumber(point.radius, 5) + 8,
+        );
+      }
+      radius = Math.min(150, radius);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,189,84,${0.025 + cluster.meanScore * 0.06})`;
+      ctx.strokeStyle = `rgba(255,189,84,${0.24 + cluster.maxScore * 0.52})`;
+      ctx.lineWidth = 1 + cluster.maxScore * 1.5;
+      ctx.setLineDash([3, 5]);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '600 8px -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(255,205,120,.76)';
+      ctx.textAlign = 'left';
+      ctx.fillText(
+        `learning frontier · ${cluster.nodeIds.length} nodes · ${Math.round(cluster.maxScore * 100)}%`,
+        x - radius * 0.62,
+        y + radius + 11,
+      );
+      ctx.restore();
+    }
+  }
+
   function drawAtlasRegions3D(ctx, scene, sectorFocus) {
     graph.atlasRegionHitAreas3d = [];
     if (sectorFocus) return;
