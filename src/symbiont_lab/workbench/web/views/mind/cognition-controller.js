@@ -306,6 +306,12 @@ export function createCognitionController({
     graph.sectorLabels = reconciled.labels;
     graph.regionLineage = reconciled.lineage;
     graph.regionEvents = reconciled.events;
+    for (const event of reconciled.events) {
+      const key = JSON.stringify(event);
+      if (graph.regionEventHistory.some(item => item._key === key)) continue;
+      graph.regionEventHistory.push({ ...event, _key: key });
+    }
+    while (graph.regionEventHistory.length > 256) graph.regionEventHistory.shift();
     graph.nextSectorId = reconciled.nextOrdinal;
     graph.sectorMemory = new Map(
       [...reconciled.lineage.entries()].map(([label, record]) => [
