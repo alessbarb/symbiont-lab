@@ -15,6 +15,9 @@ from .humanoid import (
     MOTOR_DOF,
     TOTAL_RECEPTOR_COUNT,
     HumanoidPhysics,
+    effector_contract_ids,
+    interoceptive_receptor_contract_ids,
+    receptor_contract_ids,
 )
 
 
@@ -26,6 +29,9 @@ class BodyDescriptor:
     motor_dof: int
     receptor_count: int
     effector_count: int
+    receptor_ids: tuple[str, ...]
+    interoceptive_receptor_ids: tuple[str, ...]
+    effector_ids: tuple[str, ...]
     apparatus_factory: Callable[[Any, int], Any]
     ground_material: Any
 
@@ -65,6 +71,9 @@ ANTHROPOMORPHIC_V4 = BodyDescriptor(
     motor_dof=MOTOR_DOF,
     receptor_count=TOTAL_RECEPTOR_COUNT,
     effector_count=MOTOR_DOF * 2,
+    receptor_ids=receptor_contract_ids(),
+    interoceptive_receptor_ids=interoceptive_receptor_contract_ids(),
+    effector_ids=effector_contract_ids(),
     apparatus_factory=HumanoidPhysics,
     ground_material=GROUND_MATERIAL,
 )
