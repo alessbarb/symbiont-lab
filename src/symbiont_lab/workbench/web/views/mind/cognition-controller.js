@@ -1251,6 +1251,24 @@ export function createCognitionController({
     const zoomIn   = document.getElementById('mind-zoom-in');
     const zoomOut  = document.getElementById('mind-zoom-out');
     const resetBtn = document.getElementById('mind-graph-reset');
+    const timelineInput = document.getElementById('mind-atlas-timeline');
+    const timelineDiff = document.getElementById('mind-atlas-diff-btn');
+    const timelineLive = document.getElementById('mind-atlas-timeline-live');
+
+    updateTimelineControls();
+
+    if (timelineInput && !timelineInput.dataset.bound) {
+      timelineInput.dataset.bound = 'true';
+      timelineInput.addEventListener('input', () => replayHistoryIndex(timelineInput.value));
+    }
+    if (timelineDiff && !timelineDiff.dataset.bound) {
+      timelineDiff.dataset.bound = 'true';
+      timelineDiff.addEventListener('click', toggleDiffBaseline);
+    }
+    if (timelineLive && !timelineLive.dataset.bound) {
+      timelineLive.dataset.bound = 'true';
+      timelineLive.addEventListener('click', returnLive);
+    }
   
     if (fmriBtn && !fmriBtn.dataset.bound) {
       fmriBtn.dataset.bound = 'true';
@@ -1965,6 +1983,7 @@ export function createCognitionController({
   }
 
   function updateCognitionSummary() {
+    updateTimelineControls();
     const panel = document.getElementById('mind-cognition-summary');
     if (!panel) return;
     const source = graph.replaySnapshot ?? snap;
