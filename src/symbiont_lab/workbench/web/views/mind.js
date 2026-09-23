@@ -1896,8 +1896,7 @@ function drawGraphFrame(canvas) {
     s.x += node.x; s.y += node.y; s.n += 1; s.nodes.push(node);
     communityStats.set(node.community, s);
   }
-  let communityIndex = 0;
-  for (const s of communityStats.values()) {
+  for (const [communityId, s] of communityStats.entries()) {
     if (s.n < 3) continue;
     s.x /= s.n; s.y /= s.n;
     let radius = 0;
@@ -1906,8 +1905,7 @@ function drawGraphFrame(canvas) {
     }
     radius = Math.max(38, Math.min(180, radius + 18));
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
-    const color = palette[communityIndex % palette.length];
-    communityIndex += 1;
+    const color = palette[hashStr(String(communityId)) % palette.length];
     ctx.beginPath();
     ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
     ctx.fillStyle = `${color}0b`;
@@ -1917,6 +1915,15 @@ function drawGraphFrame(canvas) {
     ctx.fill();
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // Neutral observer label. It identifies a structural sector without
+    // pretending that the organism has assigned it a semantic category.
+    const sectorLabel = `S-${String(hashStr(String(communityId)) % 997).padStart(3, '0')}`;
+    ctx.font = '9px -apple-system, sans-serif';
+    ctx.fillStyle = `${color}99`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${sectorLabel} · ${s.n}`, s.x + radius * 0.58, s.y - radius * 0.58);
   }
 
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
@@ -2615,13 +2622,13 @@ function renderCognitionInspector() {
     panel.appendChild(empty);
   }
 
-  sectors.slice(0, 10).forEach((sector, index) => {
+  sectors.slice(0, 10).forEach((sector) => {
     const card = el('div', '');
     card.style.cssText = 'padding:8px 0;border-top:1px solid rgba(98,120,136,.16);';
     const head = el('div', '');
     head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:9px;';
     const name = el('strong', '');
-    name.textContent = `Sector ${index + 1}`;
+    name.textContent = `S-${String(hashStr(String(sector.id)) % 997).padStart(3, '0')}`;
     const count = el('span', '');
     count.style.color = 'var(--muted)';
     count.textContent = `${sector.ids.length} nodes`;
