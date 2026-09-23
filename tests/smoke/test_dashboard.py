@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from symbiont_lab.dashboard.server import make_server
-from symbiont_lab.dashboard.state import DashboardState, StudyDashboardState
+from symbiont_lab.server.server import make_server
+from symbiont_lab.server.state import DashboardState, StudyDashboardState
 
 
-def test_dashboard_server_instantiation():
+def test_server_instantiation():
     exp_state = DashboardState()
     std_state = StudyDashboardState()
     # Test that HTTP server can bind to ephemeral port (0)

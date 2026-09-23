@@ -1,5 +1,5 @@
 from symbiont_lab.archive.studies import StudyArchive
-from symbiont_lab.dashboard.state import StudyDashboardState, _parse_seeds
+from symbiont_lab.server.state import StudyDashboardState, _parse_seeds
 from symbiont_lab.experiments.spec import ExperimentSpec
 from symbiont_lab.studies.campaigns.comparative import run_comparative_study
 from symbiont_lab.studies.campaigns.interpretation import interpret_study
@@ -22,7 +22,7 @@ def test_study_progress_callback_reports_every_paired_run():
     assert study.baseline.runs == 3
 
 
-def test_study_dashboard_state_tracks_progress_and_result():
+def test_study_server_state_tracks_progress_and_result():
     state = StudyDashboardState()
     assert state.start({"title": "test"}, 4)
     assert not state.start({"title": "other"}, 2)
@@ -35,7 +35,7 @@ def test_study_dashboard_state_tracks_progress_and_result():
     assert state.payload()["error"] == "RuntimeError: boom"
 
 
-def test_study_dashboard_finish_adds_observer_interpretation():
+def test_study_server_finish_adds_observer_interpretation():
     study = run_comparative_study(
         ExperimentSpec(hosts=6, steps=20),
         parameter="poison_fraction",
@@ -53,7 +53,7 @@ def test_study_dashboard_finish_adds_observer_interpretation():
     assert payload["interpretation"]["follow_up"]["parameter"] == "poison_fraction"
 
 
-def test_study_dashboard_payload_includes_record_and_campaign(tmp_path):
+def test_study_server_payload_includes_record_and_campaign(tmp_path):
     archive = StudyArchive(tmp_path / "studies.jsonl")
     spec = ExperimentSpec(title="root", hosts=6, steps=20)
     study = run_comparative_study(

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import builtins
 from contextlib import contextmanager
 from http.client import HTTPConnection
 from threading import Thread
 from typing import Iterator
 
-from symbiont_lab.dashboard.state import DashboardState as LegacyDashboardState
 from symbiont_lab.server.organism_stream import OrganismStream
-from symbiont_lab.server.server import UnifiedLabServer, make_server
+from symbiont_lab.server.server import UnifiedLabServer, _default_observatory_dir, make_server
 from symbiont_lab.server.state import DashboardState
 
 
@@ -40,10 +40,6 @@ def request(
         return response.status, response.read()
     finally:
         conn.close()
-
-
-def test_unified_server_is_canonical_state_owner() -> None:
-    assert LegacyDashboardState is DashboardState
 
 
 def test_unified_server_starts_without_synthetic_telemetry() -> None:
@@ -150,3 +146,15 @@ def test_unified_server_refuses_non_loopback_binding() -> None:
         assert "127.0.0.1" in str(exc)
     else:
         raise AssertionError("expected non-loopback binding to be rejected")
+
+
+def test_observatory_default_is_optional(monkeypatch) -> None:
+    real_import = builtins.__import__
+
+    def without_observatory(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "observatory.config":
+            raise ImportError("observatory intentionally unavailable")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", without_observatory)
+    assert _default_observatory_dir() is None

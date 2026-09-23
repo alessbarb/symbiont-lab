@@ -122,6 +122,8 @@ const _snap = {
   displayId:        null,
   instanceId:       null,
   organismState:    null,
+  observerAnalysis:  null,
+  provenance:        null,
 };
 
 // Cognition-graph physics state
@@ -912,7 +914,7 @@ function renderPhenotype() {
   const topology = _snap.topology;
   const internalAnchors = topology?.nodes ? layoutInternalAnchors(topology.nodes) : [];
   internalAnchors.forEach(anchor => {
-    const errorCls = cognition?.predictionErrors?.[anchor.id];
+    const errorCls = (_snap.observerAnalysis?.predictionErrors ?? cognition?.predictionErrors)?.[anchor.id];
     if (errorCls && ['medium', 'high', 'extreme'].includes(errorCls)) {
       group.appendChild(svgEl('circle', { cx: anchor.x, cy: anchor.y, r: (anchor.r + 6),
         fill: 'none', stroke: PAL.coral, 'stroke-width': '1.2', 'stroke-dasharray': '3 2', opacity: '0.7' }));
@@ -1002,7 +1004,7 @@ function layoutInternalAnchors(nodes) {
 
 function makeInternalNode(anchor, cognition) {
   const { id, kind, x, y, r } = anchor;
-  const actClass = cognition?.activationClasses?.[id] ?? 0;
+  const actClass = (_snap.observerAnalysis?.activationClasses ?? cognition?.activationClasses)?.[id] ?? 0;
   const actLevel = actClass / 15;
   const color = { sense: PAL.cyan, readout: PAL.mint, state: '#4ecdc4', predictor: PAL.amber, gate: '#e09f3e', concept: PAL.violet }[kind] ?? PAL.violet;
   const opacity = String(0.55 + actLevel * 0.4);
@@ -1641,9 +1643,9 @@ function buildGraphModel() {
     return enrichGraphModel(nodes, edges);
   }
 
-  const errors   = cognition?.predictionErrors ?? {};
+  const errors   = (_snap.observerAnalysis?.predictionErrors ?? cognition?.predictionErrors) ?? {};
   const readouts = cognition?.readouts ?? {};
-  const actClass = cognition?.activationClasses ?? {};
+  const actClass = (_snap.observerAnalysis?.activationClasses ?? cognition?.activationClasses) ?? {};
   const stranded = cognition?.strandedConcepts ?? [];
 
   const colorMap = {
@@ -2566,6 +2568,8 @@ function ingestSnapshot(raw) {
   _snap.displayId          = snap.display_id ?? snap.displayId ?? null;
   _snap.instanceId         = snap.instance_id ?? snap.instanceId ?? null;
   _snap.organismState      = snap.organism_state ?? snap.organismState ?? null;
+  _snap.observerAnalysis    = snap.observer_analysis ?? snap.observerAnalysis ?? null;
+  _snap.provenance          = snap.provenance ?? null;
   return true;
 }
 

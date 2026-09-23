@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 import sys
 
-from symbiont_lab.dashboard.server import main as dashboard_main
 from symbiont_lab.experiments.manifest import RunManifest
 from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.experiments.spec import spec_from_payload
@@ -83,9 +82,6 @@ def main(argv: list[str] | None = None) -> None:
     simulate_p = subparsers.add_parser("simulate", help="Run a synthetic ecology simulation")
     build_simulate_parser(simulate_p)
 
-    dashboard_p = subparsers.add_parser("dashboard", help="Launch interactive localhost dashboard")
-    dashboard_p.add_argument("--port", type=int, default=8765, help="Port to listen on")
-
     experiment_p = subparsers.add_parser("experiment", help="Manage and run declarative experiments")
     build_experiment_parser(experiment_p)
 
@@ -158,9 +154,6 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.subcommand == "simulate":
         sys.exit(run_simulate_command(args))
-    elif args.subcommand == "dashboard":
-        sys.argv = ["symbiont-lab dashboard", "--port", str(args.port)]
-        dashboard_main()
     elif args.subcommand == "world":
         from symbiont_lab.cli.world import main as world_main
         world_argv = [
