@@ -1741,6 +1741,9 @@ function renderSelf() {
   const cognitiveRegions = parts.filter(part => part.kind === 'cognitive_region');
   const dependencies = schema.dependencies ?? [];
 
+  const perceptualSelf = _snap.selfModel ?? {};
+  const selfEntries = Object.entries(perceptualSelf);
+
   const h = el('h2', 'mind-self-heading');
   h.textContent = 'How it represents itself';
   h.style.cssText = 'font-size:14px;margin:0 0 5px;';
@@ -1749,6 +1752,37 @@ function renderSelf() {
   body.textContent =
     'Organism-owned BodySchema only: sensory parts, cognitive regions and functional dependencies treated as self.';
   panel.append(h, body);
+
+  const perceptual = el('section', '');
+  perceptual.style.cssText = 'margin:8px 0 12px;padding:9px 10px;border:1px solid rgba(80,217,255,.15);border-radius:8px;background:rgba(80,217,255,.025);';
+  const ptitle = el('strong','');
+  ptitle.style.cssText='display:block;font-size:10px;color:var(--cyan);margin-bottom:3px;';
+  ptitle.textContent='Perceptual self-model';
+  const pcopy = el('div','');
+  pcopy.style.cssText='font-size:8px;line-height:1.4;color:var(--muted);';
+  pcopy.textContent=`${selfEntries.length} established self-modeled receptors · organism-owned cost/health/confidence/maturity/recency classes`;
+  perceptual.append(ptitle,pcopy);
+
+  if (selfEntries.length) {
+    const dots=el('div','');
+    dots.style.cssText='display:flex;flex-wrap:wrap;gap:3px;margin-top:7px;';
+    selfEntries.slice(0,64).forEach(([id,entry])=>{
+      const dot=el('span','');
+      const confidence=classRatio(entry?.confidence_class,15);
+      const health=classRatio(entry?.health_class,15);
+      const maturity=classRatio(entry?.maturity_class,7);
+      dot.style.cssText=`width:${4+Math.round(maturity*5)}px;height:${4+Math.round(maturity*5)}px;border-radius:50%;display:block;background:${health>.7?PAL.cyan:health>.4?PAL.amber:PAL.coral};opacity:${0.25+confidence*0.7};`;
+      dot.title=`${id}\nhealth ${pct(health)} · confidence ${pct(confidence)} · maturity ${pct(maturity)} · recency class ${entry?.recency_class ?? '—'}`;
+      dots.appendChild(dot);
+    });
+    perceptual.appendChild(dots);
+  }
+  panel.appendChild(perceptual);
+
+  const schemaLabel=el('strong','');
+  schemaLabel.style.cssText='display:block;font-size:10px;color:var(--mint);margin:3px 0 5px;';
+  schemaLabel.textContent='Functional BodySchema';
+  panel.appendChild(schemaLabel);
 
   const summary = el('div', '');
   summary.style.cssText = 'display:flex;gap:16px;flex-wrap:wrap;margin:0 0 14px;font-size:11px;color:var(--muted);';
