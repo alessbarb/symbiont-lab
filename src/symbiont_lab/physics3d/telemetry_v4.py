@@ -456,8 +456,7 @@ class TelemetryV4Reader:
             raise ValueError(f"invalid telemetry anchor: {path.name}")
         return int(payload["tick"]), summary, state
 
-    def transitions(self) -> list[dict[str, Any]]:
-        records: list[dict[str, Any]] = []
+    def iter_transition_records(self) -> Iterator[dict[str, Any]]:
         previous_hash = ZERO_HASH
         expected_sequence = 0
         previous_tick: int | None = None
@@ -496,40 +495,51 @@ class TelemetryV4Reader:
                     previous_hash = str(claimed)
                     previous_tick = tick
                     expected_sequence += 1
-                records.append(item)
-        return records
+                yield item
+
+    def transitions(self) -> list[dict[str, Any]]:
+        """Compatibility materializer; prefer iter_transition_records()."""
+        return list(self.iter_transition_records())
 
     def _reconstruct_all(
         self,
     ) -> Iterator[tuple[int, dict[str, Any], dict[str, Any], dict[str, Any]]]:
-        records = self.transitions()
-        if not records:
-            return
         anchors = self._anchor_files()
         if not anchors:
-            raise ValueError("telemetry v4 run has no anchor")
+            return
         first_tick, first_anchor_path = anchors[0]
         anchor_tick, summary, state = self._load_anchor(first_anchor_path)
         if anchor_tick != first_tick:
             raise ValueError("telemetry anchor index mismatch")
 
-        first_index = None
-        for index, record in enumerate(records):
-            if int(record["tick"]) == anchor_tick:
-                first_index = index
-                break
-        if first_index is None:
-            raise ValueError("first telemetry anchor has no transition record")
+        found_anchor = False
+        for record in self.iter_transition_records():
+            record_tick = int(record["tick"])
+            if not found_anchor:
+                if record_tick < anchor_tick:
+                    continue
+                if record_tick > anchor_tick:
+                    raise ValueError(
+                        "first telemetry anchor has no transition record"
+                    )
+                if self.verify:
+                    if payload_sha256(summary) != record.get("summary_sha256"):
+                        raise ValueError(
+                            "telemetry summary hash mismatch at first anchor"
+                        )
+                    if payload_sha256(state) != record.get("state_sha256"):
+                        raise ValueError(
+                            "telemetry state hash mismatch at first anchor"
+                        )
+                found_anchor = True
+                yield (
+                    anchor_tick,
+                    deepcopy(summary),
+                    deepcopy(state),
+                    record,
+                )
+                continue
 
-        first_record = records[first_index]
-        if self.verify:
-            if payload_sha256(summary) != first_record.get("summary_sha256"):
-                raise ValueError("telemetry summary hash mismatch at first anchor")
-            if payload_sha256(state) != first_record.get("state_sha256"):
-                raise ValueError("telemetry state hash mismatch at first anchor")
-        yield anchor_tick, deepcopy(summary), deepcopy(state), first_record
-
-        for record in records[first_index + 1 :]:
             summary = self._patcher.apply(
                 summary,
                 record.get("summary_patch", ()),
@@ -543,13 +553,16 @@ class TelemetryV4Reader:
             if self.verify:
                 if payload_sha256(summary) != record.get("summary_sha256"):
                     raise ValueError(
-                        f"telemetry summary hash mismatch at tick {record.get('tick')}"
+                        f"telemetry summary hash mismatch at tick {record_tick}"
                     )
                 if payload_sha256(state) != record.get("state_sha256"):
                     raise ValueError(
-                        f"telemetry state hash mismatch at tick {record.get('tick')}"
+                        f"telemetry state hash mismatch at tick {record_tick}"
                     )
-            yield int(record["tick"]), deepcopy(summary), deepcopy(state), record
+            yield record_tick, deepcopy(summary), deepcopy(state), record
+
+        if not found_anchor:
+            raise ValueError("first telemetry anchor has no transition record")
 
     def state_at(self, tick: int) -> dict[str, Any]:
         requested = int(tick)
@@ -564,7 +577,7 @@ class TelemetryV4Reader:
         if requested == anchor_tick:
             return deepcopy(state)
 
-        for record in self.transitions():
+        for record in self.iter_transition_records():
             record_tick = int(record["tick"])
             if record_tick <= anchor_tick:
                 continue
@@ -638,28 +651,37 @@ def load_v4_transitions(
 
 def verify_v4_run(path: str | Path) -> dict[str, Any]:
     reader = TelemetryV4Reader(path, verify=True)
-    reconstructed = list(reader._reconstruct_all())
-    records = reader.transitions()
     manifest = reader.manifest
     anchors = reader._anchor_files()
+
+    record_count = 0
+    final_hash = None
+    for record in reader.iter_transition_records():
+        record_count += 1
+        final_hash = record.get("record_hash")
+
+    reconstructed_count = 0
+    first_tick = None
+    last_tick = None
+    for tick, _summary, _state, _record in reader._reconstruct_all():
+        reconstructed_count += 1
+        if first_tick is None:
+            first_tick = tick
+        last_tick = tick
+
     closed = manifest.get("ended_at_utc") is not None
-    final_hash = records[-1].get("record_hash") if records else None
     complete = (
         closed
-        and int(manifest.get("transition_records", -1)) == len(records)
+        and int(manifest.get("transition_records", -1)) == record_count
         and manifest.get("final_record_hash") == final_hash
-        and bool(anchors) == bool(records)
-        and len(reconstructed) == len(records)
+        and bool(anchors) == bool(record_count)
+        and reconstructed_count == record_count
     )
     return {
         "run_id": manifest.get("run_id"),
-        "records": len(records),
-        "first_tick": (
-            reconstructed[0][0] if reconstructed else None
-        ),
-        "last_tick": (
-            reconstructed[-1][0] if reconstructed else None
-        ),
+        "records": record_count,
+        "first_tick": first_tick,
+        "last_tick": last_tick,
         "anchors": len(anchors),
         "objects": sum(
             1 for _ in (reader.root / "objects" / "sha256").glob("*/*.json")
@@ -670,7 +692,6 @@ def verify_v4_run(path: str | Path) -> dict[str, Any]:
         "closed": closed,
         "complete": complete,
     }
-
 
 __all__ = [
     "AsyncTelemetryV4Writer",

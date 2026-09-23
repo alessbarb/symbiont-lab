@@ -207,3 +207,30 @@ def test_generic_persistence_api_auto_detects_v4(tmp_path):
 
     assert load_telemetry_records(writer.root) == load_v4_tick_records(writer.root)
     assert load_telemetry_transitions(writer.root) == load_v4_transitions(writer.root)
+
+
+def test_v4_reconstruction_streams_transition_records(tmp_path, monkeypatch):
+    writer = TelemetryV4Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=2,
+        run_id="streaming",
+    )
+    _write(writer)
+
+    reader = TelemetryV4Reader(writer.root)
+    monkeypatch.setattr(
+        reader,
+        "transitions",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("materializing transitions is forbidden")
+        ),
+    )
+
+    assert list(reader.iter_states()) == [_rich(tick) for tick in range(1, 7)]
+    assert reader.state_at(5) == _rich(5)
