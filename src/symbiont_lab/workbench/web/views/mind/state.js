@@ -101,6 +101,10 @@ export const graph = {
   sectorAnchors: new Map(),
   layoutAffinities: [],
   bridgeEdges: new Set(),
+  atlasSignals: new Map(),
+  atlasRegions: [],
+  atlasPath: null,
+  learningFrontier: [],
   hiddenMotor: { actuators: 0, motorEdges: 0 },
   dimension: '2d',
   threeDMode: 'relational',
@@ -142,4 +146,8 @@ export function resetMindDataState() {
   graph.world3d.clear();
   graph.velocity3d.clear();
   graph.projected3d.clear();
+  graph.atlasSignals.clear();
+  graph.atlasRegions = [];
+  graph.atlasPath = null;
+  graph.learningFrontier = [];
 }
