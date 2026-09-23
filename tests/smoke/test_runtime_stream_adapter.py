@@ -883,9 +883,8 @@ def test_cognition_sector_drilldown_remains_an_observer_selection_in_3d() -> Non
     assert "focusedSectorId" in asset
     assert "focusedSectorContext" in asset
     assert "Back to all sectors" in asset
-    assert "3D focus · organism edges + observer-selected neighborhood" in asset
     assert "sectorFocus && !sectorFocus.visible.has(node.id)" in asset
-    assert "observer-selected neighborhood" in asset
+    assert "observer-selected" not in asset
 
 
 def test_workbench_view_entrypoints_stay_modular() -> None:
