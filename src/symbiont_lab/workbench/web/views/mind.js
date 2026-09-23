@@ -902,16 +902,23 @@ function renderMotorLearning() {
   const sm=_snap.sensorimotor ?? {};
   const topology=_snap.topology ?? {nodes:[],edges:[]};
   const nodes=topology.nodes ?? [];
-  const motorEdges=currentMotorOutputEdges(topology);
-  const repertoire=Array.isArray(sm.active_motor_repertoire)?sm.active_motor_repertoire.length:0;
-  const motorReadouts=nodes.filter(n=>n.kind==='readout'&&(String(n.id).startsWith('readout_motor:')||String(n.id).startsWith('readout_primitive:'))).length;
+  const motorEdges=finiteNumber(_tel.cognitiveMotorOutputEdges,currentMotorOutputEdges(topology));
+  const repertoire=finiteNumber(
+    _tel.motorRepertoireSize,
+    Array.isArray(sm.active_motor_repertoire)?sm.active_motor_repertoire.length:0,
+  );
+  const motorReadouts=finiteNumber(
+    _tel.motorReadoutNodes,
+    nodes.filter(n=>n.kind==='readout'&&(String(n.id).startsWith('readout_motor:')||String(n.id).startsWith('readout_primitive:'))).length,
+  );
   const values=[
-    ['Sensorimotor patterns', finiteNumber(_tel.sensorimotorPatterns ?? sm.known_patterns,0), true],
-    ['Motor primitives', finiteNumber(_tel.motorPrimitives ?? sm.primitives,0), true],
-    ['Recurrent candidates', finiteNumber(sm.recurrent_primitive_candidates,0), true],
-    ['Motor repertoire', repertoire, repertoire>0],
-    ['Motor readouts', motorReadouts, motorReadouts>0],
-    ['Cognitive motor edges', motorEdges, motorEdges>0],
+    ['Sensorimotor patterns', finiteNumber(_tel.sensorimotorPatterns ?? sm.known_patterns,0), true, 'EXISTS'],
+    ['Motor primitives', finiteNumber(_tel.motorPrimitives ?? sm.primitives,0), true, 'LEARNED'],
+    ['Recurrent candidates', finiteNumber(_tel.recurrentPrimitiveCandidates ?? sm.recurrent_primitive_candidates,0), true, 'LEARNED'],
+    ['Motor repertoire', repertoire, repertoire>0, 'USABLE'],
+    ['Motor readouts', motorReadouts, motorReadouts>0, 'USABLE'],
+    ['Cognitive motor edges', motorEdges, motorEdges>0, 'USABLE'],
+    ['Actual cognitive control', _tel.motorOrigin ?? 'none', ['cognition','mixed'].includes(_tel.motorOrigin)||String(_tel.motorOrigin).includes('primitive'), 'USED'],
     ['Actual cognitive control', _tel.motorOrigin ?? 'none', ['cognition','mixed'].includes(_tel.motorOrigin)||String(_tel.motorOrigin).includes('primitive')],
   ];
 
@@ -919,12 +926,13 @@ function renderMotorLearning() {
   const p=el('p',''); p.style.cssText='font-size:10px;color:var(--muted);margin:0 0 16px;'; p.textContent='A funnel from discovered sensorimotor regularity to actual cognitive control.';
   root.append(h,p);
   const funnel=el('div',''); funnel.style.cssText='max-width:760px;margin:0 auto;';
-  values.forEach(([label,value,ok],i)=>{
+  values.forEach(([label,value,ok,level],i)=>{
     const width=100-i*7;
-    const row=el('div',''); row.style.cssText=`width:${width}%;margin:0 auto 4px;padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:10px;border:1px solid ${ok?'rgba(113,233,186,.24)':'rgba(98,120,136,.18)'};border-radius:8px;background:${ok?'rgba(113,233,186,.035)':'rgba(255,255,255,.012)'};`;
+    const row=el('div',''); row.style.cssText=`width:${width}%;margin:0 auto 4px;padding:10px 12px;display:grid;grid-template-columns:58px 1fr auto;gap:10px;border:1px solid ${ok?'rgba(113,233,186,.24)':'rgba(98,120,136,.18)'};border-radius:8px;background:${ok?'rgba(113,233,186,.035)':'rgba(255,255,255,.012)'};`;
+    const badge=el('span',''); badge.style.cssText='font-size:7px;letter-spacing:.08em;color:var(--muted);'; badge.textContent=level;
     const name=el('span',''); name.style.cssText='font-size:10px;color:var(--muted);'; name.textContent=label;
     const val=el('strong',''); val.style.cssText='font-size:12px;'; val.style.color=ok?PAL.mint:PAL.muted; val.textContent=String(value);
-    row.append(name,val); funnel.appendChild(row);
+    row.append(badge,name,val); funnel.appendChild(row);
     if(i<values.length-1){const a=el('div',''); a.textContent='↓'; a.style.cssText='text-align:center;color:rgba(98,120,136,.45);height:12px;'; funnel.appendChild(a);}
   });
   root.appendChild(funnel);
@@ -937,6 +945,9 @@ function renderMotorLearning() {
     ['Best directional consistency', sm.best_directional_consistency!=null?sm.best_directional_consistency.toFixed(3):'—'],
     ['Primitive replay', sm.replay_active?'active':'inactive'],
     ['Cognitive primitives', finiteNumber(_tel.cognitiveMotorPrimitives ?? sm.cognitive_primitives,0)],
+    ['Max primitive samples', finiteNumber(_tel.maxPrimitiveSamples ?? sm.max_primitive_samples,0)],
+    ['Full competence candidates', finiteNumber(_tel.fullCompetenceGateCandidates ?? sm.full_competence_gate_candidates,0)],
+    ['Cognitive motor edges', motorEdges],
     ['Current motor origin', _tel.motorOrigin ?? '—'],
   ].forEach(([k,v])=>inspectorMetric(diag,k,v));
   root.appendChild(diag);
