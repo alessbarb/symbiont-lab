@@ -499,15 +499,25 @@ class SensorimotorLearner:
         return 0.15 + 0.70 * raw
 
     def _babble_cardinality(self, epoch: int) -> int:
-        """Explore coordination dimensionality instead of imposing one size."""
+        """Explore all coordination scales with a low-dimensional prior.
+
+        Uniform sampling over 1..N has expected cardinality (N+1)/2 and therefore
+        makes body-wide commands the default in high-dimensional bodies.  Use a
+        log-uniform scale instead: small combinations are common, larger
+        combinations remain reachable, and no anatomical grouping is supplied.
+        """
+        if self._max_concurrent <= 1:
+            return 1
         digest = hashlib.sha256(
             f"sensorimotor-cardinality:{self._organism_id}:{epoch}".encode(
                 "utf-8"
             )
         ).digest()
-        return 1 + (
-            int.from_bytes(digest[:8], "big") % self._max_concurrent
+        unit = int.from_bytes(digest[:8], "big") / float((1 << 64) - 1)
+        cardinality = round(
+            math.exp(unit * math.log(float(self._max_concurrent)))
         )
+        return max(1, min(self._max_concurrent, cardinality))
 
     def _babble_vector(self, tick: int) -> dict[str, float]:
         epoch = tick // _BABBLE_EPOCH_TICKS
@@ -726,6 +736,16 @@ class SensorimotorLearner:
                 if primitive_id in retained_primitive_ids
             }
 
+        primitive_id = self._primitive_id_for_sequence(sequence)
+        # One episode is a hypothesis, not a learned motor primitive.  Candidate
+        # evidence stays in _primitive_stats until an independent recurrence
+        # exists.  This also prevents the zero-variance artefact of n=1 from
+        # materialising as an apparently high-quality primitive.
+        if stat.count < 2:
+            if self._primitives.pop(primitive_id, None) is not None:
+                self._invalidate_primitive_caches()
+            return None
+
         reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
         directional_consistency = self._directional_consistency(direction_stats)
         controllability = (
@@ -733,7 +753,6 @@ class SensorimotorLearner:
             * reproducibility
             * directional_consistency
         )
-        primitive_id = self._primitive_id_for_sequence(sequence)
         if controllability <= 0.002:
             if self._primitives.pop(primitive_id, None) is not None:
                 self._invalidate_primitive_caches()
@@ -1003,7 +1022,7 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 5,
+            "schema_version": 6,
             "actuator_ids": list(self._ids),
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
@@ -1076,13 +1095,13 @@ class SensorimotorLearner:
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=5,
+            maximum=6,
         )
-        if schema != 5:
+        if schema != 6:
             raise ValueError(
-                "unsupported sensorimotor checkpoint: schema_version must be 5 "
-                "(pre-L6 schemas may carry the removed verification/"
-                "investigation apparatus and cannot be migrated)"
+                "unsupported sensorimotor checkpoint: schema_version must be 6 "
+                "(older schemas either may carry removed verification apparatus "
+                "or were learned under the body-wide uniform-cardinality prior)"
             )
 
         expected = tuple(str(value) for value in actuator_ids)
