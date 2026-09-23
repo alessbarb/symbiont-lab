@@ -20,9 +20,8 @@
 // Constants & Palette
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { el, svgEl } from './shared/dom.js';
-import { GRAPH_PHYSICS, PAL } from './mind/config.js';
-import { finiteNumber, pct } from './mind/util.js';
+import { PAL } from './mind/config.js';
+import { pct } from './mind/util.js';
 import { buildMindLayout } from './mind/layout.js';
 import { MindStreams } from './mind/streams.js';
 import { applyTelemetryEvent } from './mind/telemetry.js';
@@ -33,12 +32,7 @@ import { createIdentitySensoryRenderer } from './mind/identity-sensory.js';
 import { createCognitionController } from './mind/cognition-controller.js';
 import {
   graph as _graph,
-  historySnapshots as _historySnapshots,
-  identityHistory as _identityHistory,
-  milestones as _milestones,
-  mindHistory as _mindHistory,
-  selfDependencyHistory as _selfDependencyHistory,
-  selfRegionHistory as _selfRegionHistory,
+  resetMindDataState,
   snap as _snap,
   tel as _tel,
 } from './mind/state.js';
@@ -317,17 +311,8 @@ export function mount(root) {
   _lastUITime = 0;
   _activeTab = 'overview';
 
-  // Reset telemetry + snapshot state
-  for (const k of Object.keys(_tel)) _tel[k] = null;
-  for (const k of Object.keys(_snap)) _snap[k] = Array.isArray(_snap[k]) ? [] : null;
-  _snap.senses = []; _snap.beliefs = []; _snap.sensoryDevelopment = [];
-  _snap.sensoryRelations = [];
-  _identityHistory.length = 0;
-  _mindHistory.length = 0;
-  _selfRegionHistory.clear();
-  _selfDependencyHistory.clear();
-  _graph.cachedPositions.clear(); _graph.alpha = 1; _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
-  _graph.selectedNodeId = null;
+  // Reset passive view state without changing organism state.
+  resetMindDataState();
 
   // Build DOM. Layout owns structure only; all stateful actions are delegated.
   buildMindLayout(root, {
