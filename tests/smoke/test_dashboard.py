@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from symbiont_lab.server.server import make_server
-from symbiont_lab.server.state import ExperimentRunState, StudyRunState
+from symbiont_lab.workbench.runs import ExperimentRunState, StudyRunState
 
 
 def test_server_instantiation():
