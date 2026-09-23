@@ -382,8 +382,8 @@ export function deriveCognitiveEpisodes(
   mindHistory = [],
   maxGapTicks = 160,
 ) {
-  if (Number.isFinite(Number(mindHistory))) {
-    maxGapTicks = Number(mindHistory);
+  if (typeof mindHistory === 'number' && Number.isFinite(mindHistory)) {
+    maxGapTicks = mindHistory;
     mindHistory = [];
   }
 
