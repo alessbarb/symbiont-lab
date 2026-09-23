@@ -79,8 +79,15 @@ export class MindStreams {
         data.source === 'physics3d' &&
         ['body', 'cognition', 'vitals'].includes(data.type)
       ) {
-        // Physics3D components are intentionally consumed only through the
-        // coherent observed_frame below/above. Body has its own stream consumer.
+        // Claim the local source immediately, but render Physics3D components
+        // only through the coherent observed_frame. Body has its own consumer.
+        this.localMindActive = true;
+        if (this.instance) {
+          this.instance.close();
+          this.instance = null;
+        }
+        this.activeInstance = null;
+        this.activeRunId = null;
         return;
       }
 
