@@ -99,9 +99,6 @@ export class HumanoidViewer {
     this.hasDensePoseStream = false;
     this.presentationSourceTimeMs = null;
     this.presentationStarted = false;
-    this.denseProducerTick = null;
-    this.denseProducerArrivalMs = null;
-    this.producerRateSamples.length = 0;
 
     // Dense physics poses arrive in per-cognition-tick batches. Track the
     // producer's actual wall-clock rate so the renderer consumes simulation
@@ -1324,6 +1321,9 @@ export class HumanoidViewer {
     this.poseIntervalsMs.length = 0;
     this.presentationSourceTimeMs = null;
     this.presentationStarted = false;
+    this.denseProducerTick = null;
+    this.denseProducerArrivalMs = null;
+    this.producerRateSamples.length = 0;
 
     // Restore the host element rather than blindly erasing styles it owned
     // before the viewer was mounted.
