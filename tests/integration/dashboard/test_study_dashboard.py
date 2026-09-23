@@ -1,5 +1,5 @@
 from symbiont_lab.archive.studies import StudyArchive
-from symbiont_lab.server.state import StudyRunState, _parse_seeds
+from symbiont_lab.workbench.runs import StudyRunState, _parse_seeds
 from symbiont_lab.experiments.spec import ExperimentSpec
 from symbiont_lab.studies.campaigns.comparative import run_comparative_study
 from symbiont_lab.studies.campaigns.interpretation import interpret_study
