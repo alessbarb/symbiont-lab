@@ -520,8 +520,12 @@ class EpisodicExperienceMemory:
         min_overlap: float = 0.5,
     ) -> int:
         """Associate a new representation with old episodes without rewriting them."""
-        if not isinstance(representation_id, str) or not representation_id:
-            raise EpisodicMemoryError("representation_id must be non-empty")
+        if (
+            not isinstance(representation_id, str)
+            or not representation_id
+            or len(representation_id) > 128
+        ):
+            raise EpisodicMemoryError("representation_id must be a bounded non-empty string")
         if not math.isfinite(min_overlap) or not 0.0 < min_overlap <= 1.0:
             raise EpisodicMemoryError("min_overlap must be within (0, 1]")
         support = set(_bounded_tokens(support_tokens))
@@ -539,9 +543,15 @@ class EpisodicExperienceMemory:
             if overlap < min_overlap:
                 continue
             bucket = self._interpretations.setdefault(episode.episode_id, set())
-            if representation_id not in bucket:
-                bucket.add(representation_id)
-                changed += 1
+            if representation_id in bucket:
+                continue
+            if (
+                len(bucket)
+                >= self._limits.max_episodic_interpretations_per_episode
+            ):
+                continue
+            bucket.add(representation_id)
+            changed += 1
         return changed
 
     def consolidate(self) -> tuple[ConsolidatedContingency, ...]:
@@ -742,7 +752,8 @@ class EpisodicExperienceMemory:
                 raise EpisodicMemoryError("interpretation references unknown episode")
             if (
                 not isinstance(raw_values, list)
-                or len(raw_values) > 128
+                or len(raw_values)
+                > memory._limits.max_episodic_interpretations_per_episode
                 or any(not isinstance(value, str) or not value for value in raw_values)
             ):
                 raise EpisodicMemoryError("invalid episodic interpretation values")
