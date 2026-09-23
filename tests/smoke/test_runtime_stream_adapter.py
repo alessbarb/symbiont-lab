@@ -473,6 +473,12 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "SEGMENT_ACTIVITY_JOINTS" in body
     assert "observer_resource" in body
     assert "pp / 100t" in body
+    assert "capturePoseFrame" in body
+    assert "interpolatePresentationPose" in body
+    assert "presentationDelayMs" in body
+    assert "slerpQuaternions" in body
+    assert "fitCameraToBody(now, delta)" in body
+    assert "this.baseNode.position.lerp(this.targetBasePos" not in body
 
 
 def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
