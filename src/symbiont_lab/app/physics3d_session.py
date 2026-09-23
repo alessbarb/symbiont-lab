@@ -82,7 +82,8 @@ class Physics3DSession:
             from symbiont_lab.physics3d.cli import run as run_physics3d
 
             with self._lock:
-                self._state = Physics3DSessionState.RUNNING
+                if self._state != Physics3DSessionState.STOPPING:
+                    self._state = Physics3DSessionState.RUNNING
             code = run_physics3d(
                 show_monitor=True,
                 headless=False,
@@ -124,7 +125,8 @@ class Physics3DSession:
         if thread is not None and thread.is_alive():
             thread.join(timeout=timeout)
         with self._lock:
-            if thread is not None and thread.is_alive() and self._state != Physics3DSessionState.FAILED:
+            if thread is not None and thread.is_alive():
+                self._state = Physics3DSessionState.FAILED
                 self._error = "Physics3D did not stop before shutdown timeout"
             self._bridge = None
 
