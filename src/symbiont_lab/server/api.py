@@ -28,7 +28,7 @@ from symbiont_lab.observation.observatory import (
 )
 from symbiont_lab.studies.campaigns.comparative import COMPARABLE_PARAMETERS
 from .state import DashboardState, StudyDashboardState, _parse_seeds
-from .organism_stream import OrganismStream
+from symbiont_lab.observation.bus import ObservationBus
 from .sse import CLIENT_ERRORS as _CLIENT_ERRORS
 from .sse import stream_fleet, stream_instance, stream_organism
 
@@ -49,7 +49,7 @@ def make_handler(
     study_state: StudyDashboardState,
     experiment_starter: Callable[[ExperimentSpec], bool],
     study_starter: Callable[..., bool],
-    organism_stream: OrganismStream,
+    organism_stream: ObservationBus,
     observatory_dir: Path | None,
     assets_dir: Path,
 ) -> type[BaseHTTPRequestHandler]:
