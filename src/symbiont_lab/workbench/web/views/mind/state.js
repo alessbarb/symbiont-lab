@@ -102,7 +102,10 @@ export const graph = {
   bridgeEdges: new Set(),
   hiddenMotor: { actuators: 0, motorEdges: 0 },
   dimension: '2d',
+  threeDMode: 'relational',
   camera3d: { yaw: -0.55, pitch: 0.34, distance: 900 },
+  world3d: new Map(),
+  velocity3d: new Map(),
   projected3d: new Map(),
   nextSectorId: 1,
 };
@@ -133,4 +136,7 @@ export function resetMindDataState() {
   graph.focusedSectorId = null;
   graph.replaySnapshot = null;
   graph.replayTick = null;
+  graph.world3d.clear();
+  graph.velocity3d.clear();
+  graph.projected3d.clear();
 }
