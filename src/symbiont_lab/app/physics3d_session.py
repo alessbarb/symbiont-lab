@@ -50,10 +50,12 @@ class Physics3DSession:
         self,
         observation_bus: ObservationBus,
         *,
+        runner: Callable[..., int] | None = None,
         on_terminal: Callable[[], None] | None = None,
     ) -> None:
         self._lock = threading.Lock()
         self._bus = observation_bus
+        self._runner = runner
         self._on_terminal = on_terminal
         self._bridge: Physics3DObservationBridge | None = None
         self._thread: threading.Thread | None = None
@@ -94,12 +96,14 @@ class Physics3DSession:
         if bridge is None:
             return
         try:
-            from symbiont_lab.physics3d.cli import run as run_physics3d
+            runner = self._runner
+            if runner is None:
+                from symbiont_lab.physics3d.cli import run as runner
 
             with self._lock:
                 if self._state != Physics3DSessionState.STOPPING:
                     self._state = Physics3DSessionState.RUNNING
-            code = run_physics3d(
+            code = runner(
                 show_monitor=True,
                 headless=False,
                 viewer_bridge=bridge,
