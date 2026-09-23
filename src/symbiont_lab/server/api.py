@@ -201,6 +201,14 @@ def make_handler(
                 self._json(404, {"error": "not found"})
                 return
 
+            if path.startswith("/api/instance/") and path.endswith("/history-summary"):
+                instance_id = path[len("/api/instance/"):-len("/history-summary")]
+                if observatory_dir and valid_instance_id(instance_id):
+                    self._serve_history_summary(instance_id)
+                    return
+                self._json(404, {"error": "not found"})
+                return
+
             self._json(404, {"error": "not found"})
 
         # ----------------------------------------------------------------
@@ -282,6 +290,13 @@ def make_handler(
             payload = observatory_source.manifest(instance_id)
             if payload is None:
                 self._json(404, {"error": "manifest not found"})
+                return
+            self._json(200, payload)
+
+        def _serve_history_summary(self, instance_id: str) -> None:
+            payload = observatory_source.history_summary(instance_id)
+            if payload is None:
+                self._json(404, {"error": "history summary not found"})
                 return
             self._json(200, payload)
 
