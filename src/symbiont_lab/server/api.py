@@ -28,7 +28,7 @@ from symbiont_lab.observation.observatory import (
 )
 from symbiont_lab.studies.campaigns.comparative import COMPARABLE_PARAMETERS
 from symbiont_lab.observation.bus import ObservationBus
-from .state import DashboardState, StudyDashboardState, _parse_seeds
+from .state import ExperimentRunState, StudyRunState, _parse_seeds
 from .sse import CLIENT_ERRORS as _CLIENT_ERRORS
 from .sse import stream_fleet, stream_instance, stream_organism
 
@@ -45,8 +45,8 @@ _MAX_BODY_BYTES = 32768
 
 
 def make_handler(
-    experiment_state: DashboardState,
-    study_state: StudyDashboardState,
+    experiment_state: ExperimentRunState,
+    study_state: StudyRunState,
     experiment_starter: Callable[[ExperimentSpec], bool],
     study_starter: Callable[..., bool],
     observation_bus: ObservationBus,
