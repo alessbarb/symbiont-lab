@@ -242,6 +242,50 @@ export function createCognitionController({
       enriched.edges,
       12,
     );
+
+    graph.cognitiveStructures = cognitiveStructures(enriched.nodes, enriched.edges);
+    graph.observedFlow = observedCognitiveFlow(
+      enriched.nodes,
+      enriched.edges,
+      atlasTick,
+      48,
+    );
+    graph.cognitiveEpisodes = deriveCognitiveEpisodes(historySnapshots, 160);
+
+    if (graph.diffBaselineSnapshot) {
+      graph.atlasDiff = atlasSnapshotDiff(
+        {
+          ...graph.diffBaselineSnapshot,
+          tick: graph.diffBaselineTick,
+        },
+        {
+          ...source,
+          tick: atlasTick,
+        },
+      );
+    } else {
+      graph.atlasDiff = null;
+    }
+
+    if (graph.atlasMode === 'diff') {
+      const changedNodes = new Set(graph.atlasDiff?.addedNodes ?? []);
+      for (const item of graph.atlasDiff?.predictionErrorChanges ?? []) {
+        changedNodes.add(item.id);
+      }
+      for (const item of graph.atlasDiff?.changedEdges ?? []) {
+        const [sourceId, targetId] = item.key.split('|');
+        changedNodes.add(sourceId);
+        changedNodes.add(targetId);
+      }
+      for (const key of graph.atlasDiff?.addedEdges ?? []) {
+        const [sourceId, targetId] = key.split('|');
+        changedNodes.add(sourceId);
+        changedNodes.add(targetId);
+      }
+      for (const node of enriched.nodes) {
+        node.atlasScore = changedNodes.has(node.id) ? 1 : 0.08;
+      }
+    }
     return enriched;
   }
   
@@ -588,6 +632,16 @@ export function createCognitionController({
     return `${edge.source?.id ?? edge.sourceId}|${edge.target?.id ?? edge.targetId}|${edge.kind ?? 'edge'}`;
   }
 
+  function currentAtlasEdgeScore(edge, tick) {
+    if (graph.atlasMode !== 'diff') {
+      return atlasEdgeScore(edge, graph.atlasMode, tick);
+    }
+    const key = atlasEdgeKey(edge);
+    if ((graph.atlasDiff?.addedEdges ?? []).includes(key)) return 1;
+    if ((graph.atlasDiff?.changedEdges ?? []).some(item => item.key === key)) return 0.82;
+    return 0.04;
+  }
+
   function atlasRegionScore(region) {
     return clamp01(finiteNumber(region?.[graph.atlasMode], 0));
   }
@@ -725,7 +779,7 @@ export function createCognitionController({
       const recency = Math.exp(-idle / 512);
       const evidenceWidth = 0.65 + Math.min(2.4, Math.log1p(support) * 0.34 + Math.log1p(stable) * 0.08);
 
-      const modeScore = atlasEdgeScore(edge, graph.atlasMode, liveTick);
+      const modeScore = currentAtlasEdgeScore(edge, liveTick);
       ctx.strokeStyle = cognitionEdgeColor(edge, focused);
       ctx.globalAlpha = focused
         ? 0.98
@@ -967,7 +1021,7 @@ export function createCognitionController({
       );
       const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
       const liveTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
-      const modeScore = atlasEdgeScore(edge, graph.atlasMode, liveTick);
+      const modeScore = currentAtlasEdgeScore(edge, liveTick);
       const pathEdge = atlasPath.edgeKeys.has(atlasEdgeKey(edge));
       if (focusId) {
         if (!isConn && !pathEdge) continue;
