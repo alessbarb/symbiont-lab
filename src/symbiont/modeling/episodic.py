@@ -53,9 +53,13 @@ class EpisodeStep:
     """One bounded, organism-native step inside an episodic trace."""
 
     tick_offset: int
+    source_record_id: str
     context_tokens: tuple[str, ...]
     action_token: str | None
     outcome_tokens: tuple[str, ...]
+    evidence_refs: tuple[str, ...]
+    confidence_class: int
+    source_kind: SourceKind
 
     def __post_init__(self) -> None:
         if (
@@ -64,8 +68,24 @@ class EpisodeStep:
             or self.tick_offset < 0
         ):
             raise EpisodicMemoryError("tick_offset must be a non-negative integer")
+        if (
+            not isinstance(self.source_record_id, str)
+            or not self.source_record_id
+            or len(self.source_record_id) > 128
+        ):
+            raise EpisodicMemoryError("invalid episode step source record id")
         if len(self.context_tokens) > 96 or len(self.outcome_tokens) > 32:
             raise EpisodicMemoryError("episode step exceeds token bound")
+        if len(self.evidence_refs) > 16:
+            raise EpisodicMemoryError("episode step exceeds evidence bound")
+        if (
+            isinstance(self.confidence_class, bool)
+            or not isinstance(self.confidence_class, int)
+            or not 0 <= self.confidence_class <= 7
+        ):
+            raise EpisodicMemoryError("invalid episode step confidence class")
+        if not isinstance(self.source_kind, SourceKind) or self.source_kind is SourceKind.MODEL:
+            raise EpisodicMemoryError("invalid episode step source kind")
         if self.action_token is not None and (
             not isinstance(self.action_token, str)
             or not self.action_token
@@ -73,36 +93,75 @@ class EpisodeStep:
         ):
             raise EpisodicMemoryError("invalid episode step action token")
 
+    def to_experience_record(
+        self,
+        *,
+        organism_id: str,
+        episode_start_tick: int,
+    ) -> ExperienceRecord:
+        """Reconstruct the original bounded factual record for cognitive replay."""
+        return ExperienceRecord(
+            record_id=self.source_record_id,
+            organism_id=organism_id,
+            tick_class=episode_start_tick + self.tick_offset,
+            context_tokens=self.context_tokens,
+            action_token=self.action_token,
+            outcome_tokens=self.outcome_tokens,
+            epistemic_status=EpistemicStatus.OBSERVED,
+            evidence_refs=self.evidence_refs,
+            confidence_class=self.confidence_class,
+            source_kind=self.source_kind,
+        )
+
     def checkpoint(self) -> dict[str, object]:
         return {
             "tick_offset": self.tick_offset,
+            "source_record_id": self.source_record_id,
             "context_tokens": list(self.context_tokens),
             "action_token": self.action_token,
             "outcome_tokens": list(self.outcome_tokens),
+            "evidence_refs": list(self.evidence_refs),
+            "confidence_class": self.confidence_class,
+            "source_kind": self.source_kind.value,
         }
 
     @classmethod
     def restore(cls, payload: Mapping[str, object]) -> "EpisodeStep":
         try:
             tick_offset = payload["tick_offset"]
+            source_record_id = payload["source_record_id"]
             raw_context = payload["context_tokens"]
             raw_outcomes = payload["outcome_tokens"]
+            raw_evidence = payload["evidence_refs"]
+            confidence_class = payload["confidence_class"]
+            raw_source_kind = payload["source_kind"]
             action = payload.get("action_token")
             if (
                 isinstance(tick_offset, bool)
                 or not isinstance(tick_offset, int)
+                or not isinstance(source_record_id, str)
+                or not source_record_id
                 or not isinstance(raw_context, list)
                 or not isinstance(raw_outcomes, list)
+                or not isinstance(raw_evidence, list)
                 or any(not isinstance(item, str) or not item for item in raw_context)
                 or any(not isinstance(item, str) or not item for item in raw_outcomes)
+                or any(not isinstance(item, str) or not item for item in raw_evidence)
+                or isinstance(confidence_class, bool)
+                or not isinstance(confidence_class, int)
+                or not isinstance(raw_source_kind, str)
                 or (action is not None and not isinstance(action, str))
             ):
                 raise EpisodicMemoryError("invalid episode step checkpoint")
             return cls(
                 tick_offset=tick_offset,
+                source_record_id=source_record_id,
                 context_tokens=tuple(raw_context),
                 action_token=action,
                 outcome_tokens=tuple(raw_outcomes),
+                evidence_refs=tuple(raw_evidence),
+                confidence_class=confidence_class,
+                source_kind=SourceKind(raw_source_kind),
             )
         except (KeyError, TypeError, ValueError) as exc:
             if isinstance(exc, EpisodicMemoryError):
@@ -459,9 +518,13 @@ class EpisodicExperienceMemory:
         trace = tuple(
             EpisodeStep(
                 tick_offset=max(0, record.tick_class - records[0].tick_class),
+                source_record_id=record.record_id,
                 context_tokens=_bounded_tokens(record.context_tokens, limit=96),
                 action_token=record.action_token,
                 outcome_tokens=_bounded_tokens(record.outcome_tokens, limit=32),
+                evidence_refs=_bounded_tokens(record.evidence_refs, limit=16),
+                confidence_class=record.confidence_class,
+                source_kind=record.source_kind,
             )
             for record in records
         )
@@ -620,6 +683,37 @@ class EpisodicExperienceMemory:
             self._interpretations.pop(episode.episode_id, None)
             self._retrieval_counts.pop(episode.episode_id, None)
             self._eviction_count += 1
+
+    def replay_records(self, *, max_records: int = 8192) -> tuple[ExperienceRecord, ...]:
+        """Return durable lived records for private cognitive retraining.
+
+        These are reconstructed only from factual episode traces. Compressed
+        episodes contribute their representative trace once; recurrence is not
+        expanded into duplicate training samples.
+        """
+        if (
+            isinstance(max_records, bool)
+            or not isinstance(max_records, int)
+            or max_records < 1
+            or max_records > 65536
+        ):
+            raise EpisodicMemoryError("max_records must be within [1, 65536]")
+        records: dict[str, ExperienceRecord] = {}
+        for episode in sorted(
+            self._episodes,
+            key=lambda item: (item.start_tick, item.episode_id),
+        ):
+            for step in episode.trace:
+                record = step.to_experience_record(
+                    organism_id=self._organism_id,
+                    episode_start_tick=episode.start_tick,
+                )
+                records.setdefault(record.record_id, record)
+        ordered = sorted(
+            records.values(),
+            key=lambda item: (item.tick_class, item.record_id),
+        )
+        return tuple(ordered[-max_records:])
 
     def retrieve(
         self,
