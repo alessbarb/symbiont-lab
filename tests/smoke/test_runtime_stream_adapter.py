@@ -322,13 +322,15 @@ def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
 
 def test_mind_cognition_layout_is_relationship_aware() -> None:
     asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    graph_model = (WEB_ROOT / "views" / "mind" / "graph-model.js").read_text(encoding="utf-8")
 
-    assert "deriveLocalCommunities" in asset
+    assert "enrichGraphModel" in asset
+    assert "deriveLocalCommunities" in graph_model
     assert "shared downstream/upstream partners" in asset
     assert "sameCommunity" in asset
     assert "communityCenters" in asset
-    assert "visualValue" in asset
-    assert "degreeNorm" in asset
+    assert "visualValue" in graph_model
+    assert "degreeNorm" in graph_model
 
 
 def test_mind_self_is_organism_owned_self_portrait() -> None:
