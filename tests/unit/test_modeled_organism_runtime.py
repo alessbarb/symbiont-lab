@@ -472,6 +472,7 @@ def test_episodic_projection_counts_only_new_independent_epochs():
             return independent_epochs
 
     runtime = ModeledOrganismRuntime(organism_id="episodic-projection")
+    original_bridge = runtime._cognitive_bridge
     probe = BridgeProbe()
     runtime._cognitive_bridge = probe
 
@@ -497,5 +498,6 @@ def test_episodic_projection_counts_only_new_independent_epochs():
     runtime.record_experience(projected_record(128))
     assert probe.calls[-1] == (("alpha", "beta"), 1)
 
+    runtime._cognitive_bridge = original_bridge
     checkpoint = runtime.checkpoint()
     assert checkpoint["episodic_projected_epochs"]
