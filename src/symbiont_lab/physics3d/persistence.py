@@ -10,7 +10,8 @@ import zipfile
 from typing import Iterable
 
 from .runtime import Tick3D
-from .telemetry import load_v3_tick_records
+from .telemetry import load_v3_tick_records, load_v3_transitions
+from .telemetry_v4 import load_v4_tick_records, load_v4_transitions
 
 
 def _atomic_write_json(path: Path, payload: dict) -> Path:
@@ -195,34 +196,48 @@ class TelemetryWriter:
             self._pending = 0
 
 
+def _resolve_telemetry_run(path: str | Path) -> tuple[str, Path]:
+    target = Path(path).expanduser()
+    if target.is_dir():
+        if (target / "transitions.ndjson").is_file():
+            return "v4", target
+        if (target / "ticks.ndjson").is_file():
+            return "v3", target
+        candidates = sorted(
+            (
+                child
+                for child in target.iterdir()
+                if child.is_dir()
+                and (
+                    (child / "transitions.ndjson").is_file()
+                    or (child / "ticks.ndjson").is_file()
+                )
+            ),
+            reverse=True,
+        )
+        if not candidates:
+            raise FileNotFoundError(f"telemetry run not found under: {target}")
+        latest = candidates[0]
+        if (latest / "transitions.ndjson").is_file():
+            return "v4", latest
+        return "v3", latest
+    if target.is_file():
+        return "legacy", target
+    raise FileNotFoundError(f"telemetry path not found: {target}")
+
+
 def load_telemetry_records(
     path: str | Path,
     *,
     ignore_errors: bool = False,
 ) -> list[dict]:
-    """Read canonical telemetry records in chronological order.
+    """Read compact Tick3D summaries from v4, v3, or historical NDJSON."""
+    version, target = _resolve_telemetry_run(path)
+    if version == "v4":
+        return load_v4_tick_records(target, verify=True)
+    if version == "v3":
+        return load_v3_tick_records(target, verify=True)
 
-    Telemetry v3 is a run directory. A telemetry root containing multiple v3
-    runs resolves to the latest run lexicographically by run id. Historical
-    single-file NDJSON remains readable for archived evidence.
-    """
-    target = Path(path).expanduser()
-    if target.is_dir():
-        if (target / "ticks.ndjson").is_file():
-            return load_v3_tick_records(target, verify=True)
-        candidates = sorted(
-            (
-                child for child in target.iterdir()
-                if child.is_dir() and (child / "ticks.ndjson").is_file()
-            ),
-            reverse=True,
-        )
-        if not candidates:
-            raise FileNotFoundError(f"telemetry v3 run not found under: {target}")
-        return load_v3_tick_records(candidates[0], verify=True)
-
-    if not target.is_file():
-        raise FileNotFoundError(f"telemetry file not found: {target}")
     records = []
     with target.open("r", encoding="utf-8") as handle:
         for line_no, line in enumerate(handle, start=1):
@@ -236,9 +251,24 @@ def load_telemetry_records(
             except json.JSONDecodeError as exc:
                 if ignore_errors:
                     continue
-                raise ValueError(f"corrupt telemetry record at line {line_no}: {exc}") from exc
+                raise ValueError(
+                    f"corrupt telemetry record at line {line_no}: {exc}"
+                ) from exc
     return records
 
+
+def load_telemetry_transitions(
+    path: str | Path,
+) -> list[dict]:
+    """Read fully materialized rich states independent of telemetry version."""
+    version, target = _resolve_telemetry_run(path)
+    if version == "v4":
+        return load_v4_transitions(target, verify=True)
+    if version == "v3":
+        return load_v3_transitions(target, verify=True)
+    raise ValueError(
+        "historical single-file telemetry has no reconstructible rich transitions"
+    )
 
 __all__ = [
     "TelemetryWriter",
@@ -246,6 +276,7 @@ __all__ = [
     "load_runtime_state_file",
     "load_symbiont_bundle",
     "load_telemetry_records",
+    "load_telemetry_transitions",
     "save_body_state_file",
     "save_runtime_state_file",
     "save_symbiont_bundle",

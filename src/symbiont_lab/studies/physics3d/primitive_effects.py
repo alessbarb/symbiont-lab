@@ -20,9 +20,9 @@ from symbiont_lab.physics3d.effects import (
     physical_state_from_payload,
     state_distance,
 )
-from symbiont_lab.physics3d.telemetry import (
-    load_v3_tick_records,
-    load_v3_transitions,
+from symbiont_lab.physics3d.persistence import (
+    load_telemetry_records,
+    load_telemetry_transitions,
 )
 
 
@@ -281,8 +281,8 @@ def analyze_primitive_effects(
     if replication_target < 1:
         raise ValueError("replication_target must be >= 1")
 
-    transitions = load_v3_transitions(telemetry_run, verify=True)
-    summaries = load_v3_tick_records(telemetry_run, verify=True)
+    transitions = load_telemetry_transitions(telemetry_run)
+    summaries = load_telemetry_records(telemetry_run)
     samples = _episode_samples(transitions, summaries)
 
     by_primitive: dict[str, list[PrimitiveEffectSample]] = {}
