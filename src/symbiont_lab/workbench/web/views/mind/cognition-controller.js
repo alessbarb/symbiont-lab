@@ -61,6 +61,7 @@ import {
   atlasVisibleNodeIds,
   learningFrontierClusters,
 } from './cognitive-lod.js';
+import { cognitiveSituation } from './cognitive-observatory.js';
 
 export function createCognitionController({
   getActiveTab = () => 'overview',
