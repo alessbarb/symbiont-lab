@@ -1004,40 +1004,47 @@ function switchTab(tabId) {
     btn.style.borderBottomColor = active ? `var(--cyan, ${PAL.cyan})` : 'transparent';
   });
 
-  const identityWrap = document.querySelector('#mind-identity-wrap');
-  const sensoryWrap  = document.querySelector('#mind-sensory-wrap');
-  const sensesPanel  = document.querySelector('#mind-senses-panel');
-  const cognitionInspector = document.querySelector('#mind-cognition-inspector');
-  const workspace    = document.querySelector('#mind-workspace');
-  const cognitionWrap= document.querySelector('#mind-cognition-wrap');
-  const regimeWrap   = document.querySelector('#mind-regime-wrap');
+  const ids = ['overview','phenotype','sensory','cognition','motor','history'];
+  const wraps = {
+    overview: document.querySelector('#mind-overview-wrap'),
+    phenotype: document.querySelector('#mind-identity-wrap'),
+    sensory: document.querySelector('#mind-sensory-wrap'),
+    cognition: document.querySelector('#mind-cognition-wrap'),
+    motor: document.querySelector('#mind-motor-wrap'),
+    history: document.querySelector('#mind-history-wrap'),
+  };
+  for (const id of ids) wraps[id]?.classList.toggle('hidden', id !== tabId);
+  document.querySelector('#mind-regime-wrap')?.classList.add('hidden');
 
-  if (identityWrap) identityWrap.classList.toggle('hidden', tabId !== 'phenotype');
-  if (sensoryWrap)  sensoryWrap.classList.toggle('hidden',  tabId !== 'sensory');
-  if (sensesPanel) sensesPanel.style.display =
-    (tabId === 'sensory' || tabId === 'regime') ? 'flex' : 'none';
-  if (cognitionInspector) cognitionInspector.style.display =
-    tabId === 'cognition' ? 'flex' : 'none';
+  const sensesPanel = document.querySelector('#mind-senses-panel');
+  const cognitionInspector = document.querySelector('#mind-cognition-inspector');
+  const workspace = document.querySelector('#mind-workspace');
+
+  if (sensesPanel) sensesPanel.style.display = tabId === 'sensory' ? 'flex' : 'none';
+  if (cognitionInspector) cognitionInspector.style.display = tabId === 'cognition' ? 'flex' : 'none';
   if (workspace) {
     workspace.style.gridTemplateColumns =
-      tabId === 'phenotype' ? '1fr' :
       tabId === 'cognition' ? '250px 1fr' :
-      '200px 1fr';
+      tabId === 'sensory' ? '220px 1fr' :
+      '1fr';
   }
-  if (cognitionWrap)cognitionWrap.classList.toggle('hidden', tabId !== 'cognition');
-  if (regimeWrap)   regimeWrap.classList.toggle('hidden',   tabId !== 'regime');
 
+  if (tabId === 'overview') renderOverview();
   if (tabId === 'phenotype') {
     renderPhenotype();
     renderIdentityGap();
     renderSelf();
   }
-  if (tabId === 'sensory')   renderSensoryMap();
+  if (tabId === 'sensory') {
+    renderSensesPanel();
+    renderSensoryMap();
+  }
   if (tabId === 'cognition') {
     startCognitionGraph();
     renderCognitionInspector();
   }
-  if (tabId === 'regime')    startRegimeCompass();
+  if (tabId === 'motor') renderMotorLearning();
+  if (tabId === 'history') renderHistory();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3318,7 +3325,7 @@ export function mount(root) {
   _rootStyleBeforeMount = root.style.cssText;
   _uid = Math.random().toString(36).slice(2, 9);
   _lastUITime = 0;
-  _activeTab = 'phenotype';
+  _activeTab = 'overview';
 
   // Reset telemetry + snapshot state
   for (const k of Object.keys(_tel)) _tel[k] = null;
@@ -3337,14 +3344,11 @@ export function mount(root) {
   // Show waiting overlay initially
   setWaiting(true, 'Connecting to organism streams…');
 
-  // Render the observed-vs-self comparison and initial telemetry immediately.
-  renderPhenotype();
-  renderIdentityGap();
-  renderSelf();
+  renderOverview();
   updateTelemetryStrip(true);
 
   // Apply initial tab style
-  switchTab('phenotype');
+  switchTab('overview');
 
   // SSE connections
   connectOrganismStream();
