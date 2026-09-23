@@ -21,6 +21,32 @@ def valid_instance_id(value: str) -> bool:
     return len(value) == 16 and all(char in "0123456789abcdef" for char in value)
 
 
+_MANIFEST_FIELDS = {
+    "manifest_version",
+    "organism_id",
+    "instance_id",
+    "run_id",
+    "last_sequence",
+    "tick",
+    "topology_revision",
+    "schema_version",
+    "kernel_version",
+    "checkpoint_sha256",
+    "topology_sha256",
+    "captured_at",
+    "git_commit",
+    "consistency",
+}
+
+
+def _read_json_object(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def _registry_api():
     try:
         from observatory.registry import classify_liveness, read_registry  # type: ignore
@@ -165,13 +191,29 @@ class ObservatorySource:
         return read_journal(journal_dir, run_id, positions)
 
     def manifest(self, instance_id: str) -> dict[str, Any] | None:
-        if self.root is None:
+        if self.root is None or not valid_instance_id(instance_id):
             return None
-        path = self.root / "instances" / f"{instance_id}.json"
-        if not path.is_file():
+        evidence = _read_json_object(
+            self.root / "manifests" / f"{instance_id}.manifest.json"
+        )
+        if evidence is not None and evidence.get("instance_id") == instance_id:
+            projected = {
+                key: value for key, value in evidence.items() if key in _MANIFEST_FIELDS
+            }
+            projected["projection"] = "observatory-provenance-v1"
+            return projected
+        # Compatibility fallback for resident heartbeat manifests. It is
+        # intentionally not promoted to the provenance projection.
+        return _read_json_object(self.root / "instances" / f"{instance_id}.json")
+
+    def history_summary(self, instance_id: str) -> dict[str, Any] | None:
+        record = self.instance_record(instance_id)
+        if self.root is None or record is None:
             return None
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        run_id = record.get("run_id")
+        if not run_id:
             return None
-        return payload if isinstance(payload, dict) else None
+        payload = _read_json_object(self.root / "summaries" / f"{run_id}.summary.json")
+        if payload is None or payload.get("run_id") != run_id:
+            return None
+        return payload
