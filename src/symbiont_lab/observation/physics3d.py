@@ -5,6 +5,7 @@ import threading
 from dataclasses import asdict, is_dataclass
 from typing import Any, Mapping, Protocol
 
+from .contracts import ObservedFrame
 from .projection import mind_snapshot_from_rich_state, runtime_tick_events
 
 
@@ -136,21 +137,20 @@ class Physics3DObservationBridge:
         except (TypeError, ValueError):
             return
         components = self._pending_frames.pop(frame_tick, {})
-        self._sink.push({
-            "type": "observed_frame",
-            "source": "physics3d",
-            "tick": frame_tick,
-            "organism_id": rich_state.get("organism_id"),
-            "body": components.get("body"),
-            "cognition": components.get("cognition"),
-            "vitals": components.get("vitals"),
-            "mind": snapshot,
-            "provenance": {
-                "owner": "observer",
-                "contract": "completed-render-frame-v1",
-                "feeds_back": False,
-            },
-        })
+        frame = ObservedFrame(
+            tick=frame_tick,
+            source="physics3d",
+            organism_id=(
+                str(rich_state["organism_id"])
+                if rich_state.get("organism_id") is not None
+                else None
+            ),
+            body=components.get("body"),
+            cognition=components.get("cognition"),
+            vitals=components.get("vitals"),
+            mind=snapshot,
+        )
+        self._sink.push(frame.as_event())
 
     def close(self) -> None:
         self.request_stop()
