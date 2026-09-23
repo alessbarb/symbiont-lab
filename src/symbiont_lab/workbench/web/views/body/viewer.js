@@ -1,0 +1,968 @@
+/**
+ * Stateful Three.js humanoid renderer.
+ * Public mounting belongs to ../body.js; this module owns only one viewer instance.
+ */
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { pbPos, pbQuat } from './coordinates.js';
+import {
+  JOINT_TOPOLOGY,
+  PANEL_FIELDS,
+  SEGMENTS,
+  SEGMENT_ACTIVITY_JOINTS,
+  SEGMENT_COLORS,
+} from './model.js';
+
+function el(tag, cls, styles = {}) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  Object.assign(node.style, styles);
+  return node;
+}
+
+export class HumanoidViewer {
+  constructor(rootElement, sseUrl = '/api/organism') {
+    if (!(rootElement instanceof HTMLElement)) {
+      throw new TypeError('HumanoidViewer requires a valid HTMLElement root');
+    }
+
+    this.root = rootElement;
+    this.rootStyleBeforeMount = rootElement.style.cssText;
+    this.sseUrl = sseUrl;
+    this.unmounted = false;
+
+    // Three.js instances
+    this.renderer = null;
+    this.scene = null;
+    this.camera = null;
+    this.controls = null;
+    this.baseNode = null;
+    this.dirLight = null;
+    this.lightOffset = new THREE.Vector3(2, 4, 3);
+    this.followBody = true;
+    this.followTarget = new THREE.Vector3();
+    this.followDelta = new THREE.Vector3();
+    
+    // Scene objects mapping
+    this.jointObjs = {};
+    this.linkObjs = {};
+    this.segmentMeshes = {};
+    this.jointMarkers = {};
+    this.jointActivity = new Map();
+
+    // Observer-side body history. These values never feed back into the organism.
+    this.previousObservedBasePos = null;
+    this.observerStartBasePos = null;
+    this.previousJointPositions = new Map();
+    this.distanceTravelled = 0;
+    this.activeJointCount = 0;
+    this.reserveHistory = [];
+    this.observerResourceBaseline = null;
+    this.observerPathAtResourceBaseline = 0;
+    this.resourceObject = null;
+    this.resourceGuide = null;
+    this.resourceGuidePositions = null;
+    this.resourceIndicator = null;
+    this.resourceIndicatorArrow = null;
+    this.resourceIndicatorLabel = null;
+    this.resourceScreenVector = new THREE.Vector3();
+    this.frameBounds = new THREE.Box3();
+    this.frameCenter = new THREE.Vector3();
+    this.frameSize = new THREE.Vector3();
+    this.lastFrameFitTime = 0;
+    this.bodyState = {
+      alive: null,
+      reserve: null,
+      reserveTrend: 0,
+      resourceProgress: null,
+      resourceDistance: null,
+      jointMotion: null,
+      contactCount: null,
+    };
+    
+    // Target state for Smooth Interpolation (Lerp)
+    this.targetBasePos = new THREE.Vector3(0, 1.05, 0);
+    this.targetBaseQuat = new THREE.Quaternion();
+    this.targetJointAngles = new Map();
+    this.clock = new THREE.Clock();
+
+    // UI Throttling State
+    this.panelEls = {};
+    this.statusEl = null;
+    this.uiStateQueue = {};
+    this.lastUIDrawTime = 0;
+    this.UI_UPDATE_INTERVAL_MS = 66; // ~15 FPS max for UI updates
+
+    // Event & Render handles
+    this.rafId = null;
+    this.sse = null;
+    this.resizeObs = null;
+
+    this.init();
+  }
+
+  init() {
+    this.buildDOM();
+    this.buildScene();
+    this.connectSSE();
+    this.animate();
+  }
+
+  buildDOM() {
+    this.root.style.cssText = `
+      height: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 304px;
+      overflow: hidden;
+      background: var(--bg-deep, #0d0d12);
+    `;
+
+    // Canvas Wrapper
+    this.canvasWrap = el('div', 'body-canvas-wrap', {
+      position: 'relative',
+      overflow: 'hidden',
+      background: 'var(--bg-deep, #0d0d12)',
+    });
+    this.root.appendChild(this.canvasWrap);
+
+    // Canvas
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.cssText = 'display: block; width: 100%; height: 100%;';
+    this.canvasWrap.appendChild(this.canvas);
+
+    // Status Overlay
+    this.statusEl = el('span', 'body-status-pill', {
+      pointerEvents: 'none',
+      userSelect: 'none',
+    });
+    this.statusEl.textContent = '○ Waiting for organism…';
+    this.canvasWrap.appendChild(this.statusEl);
+
+    this.situationEl = el('div', 'body-situation-overlay', {
+      position: 'absolute',
+      top: '15px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '3',
+      maxWidth: '58%',
+      padding: '7px 11px',
+      border: '1px solid rgba(116, 151, 178, 0.18)',
+      borderRadius: '8px',
+      background: 'rgba(7, 15, 22, 0.66)',
+      backdropFilter: 'blur(8px)',
+      color: 'var(--text, #e0e0e0)',
+      fontFamily: 'var(--mono, monospace)',
+      fontSize: '11px',
+      letterSpacing: '0.02em',
+      textAlign: 'center',
+      pointerEvents: 'none',
+      userSelect: 'none',
+    });
+    this.situationEl.textContent = 'Waiting for body telemetry';
+    this.canvasWrap.appendChild(this.situationEl);
+
+    this.resourceIndicator = el('div', 'body-resource-indicator', {
+      position: 'absolute',
+      zIndex: '3',
+      display: 'none',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '6px 8px',
+      border: '1px solid rgba(139, 207, 99, 0.35)',
+      borderRadius: '8px',
+      background: 'rgba(8, 17, 25, 0.80)',
+      color: '#a8df84',
+      fontFamily: 'var(--mono, monospace)',
+      fontSize: '11px',
+      pointerEvents: 'none',
+      userSelect: 'none',
+      transform: 'translate(-50%, -50%)',
+      whiteSpace: 'nowrap',
+      backdropFilter: 'blur(6px)',
+    });
+    this.resourceIndicatorArrow = document.createElement('span');
+    this.resourceIndicatorArrow.textContent = '➜';
+    this.resourceIndicatorArrow.style.cssText = 'display:inline-block;font-size:14px;line-height:1;transform-origin:50% 50%;';
+    this.resourceIndicatorLabel = document.createElement('span');
+    this.resourceIndicatorLabel.textContent = 'Resource';
+    this.resourceIndicator.appendChild(this.resourceIndicatorArrow);
+    this.resourceIndicator.appendChild(this.resourceIndicatorLabel);
+    this.canvasWrap.appendChild(this.resourceIndicator);
+
+    // Camera controls: BODY is body-centric by default, while Free preserves
+    // ordinary OrbitControls inspection when the observer wants it.
+    const cameraBar = el('div', 'body-camera-bar', {
+      position: 'absolute',
+      top: '14px',
+      left: '14px',
+      zIndex: '4',
+      display: 'flex',
+      gap: '7px',
+      alignItems: 'center',
+      padding: '5px',
+      border: '1px solid var(--line, #243342)',
+      borderRadius: '9px',
+      background: 'rgba(8, 17, 25, 0.82)',
+      backdropFilter: 'blur(8px)',
+      fontFamily: 'var(--mono, monospace)',
+      fontSize: '11px',
+    });
+    this.followButton = document.createElement('button');
+    this.followButton.type = 'button';
+    this.followButton.textContent = '● Follow body';
+    this.followButton.style.cssText = 'border:0;border-radius:6px;padding:6px 9px;background:rgba(80,250,123,.12);color:var(--mint,#50fa7b);font:inherit;cursor:pointer;';
+    this.followButton.addEventListener('click', () => {
+      this.followBody = !this.followBody;
+      this.followButton.textContent = this.followBody ? '● Follow body' : '○ Free camera';
+      this.followButton.style.color = this.followBody ? 'var(--mint,#50fa7b)' : 'var(--muted,#8a98a8)';
+      if (this.followBody) this.resetCameraToBody();
+    });
+
+    const resetButton = document.createElement('button');
+    resetButton.type = 'button';
+    resetButton.textContent = 'Reset view';
+    resetButton.style.cssText = 'border:0;border-radius:6px;padding:6px 9px;background:rgba(255,255,255,.045);color:var(--text,#e0e0e0);font:inherit;cursor:pointer;';
+    resetButton.addEventListener('click', () => this.resetCameraToBody());
+
+    cameraBar.appendChild(this.followButton);
+    cameraBar.appendChild(resetButton);
+    this.canvasWrap.appendChild(cameraBar);
+
+    // Side Panel
+    const panel = el('div', 'body-side-panel');
+    this.root.appendChild(panel);
+    this.buildPanel(panel);
+
+    // Resize Observer
+    this.resizeObs = new ResizeObserver(() => this.handleResize());
+    this.resizeObs.observe(this.canvasWrap);
+  }
+
+  buildPanel(container) {
+    container.style.cssText = `
+      background: linear-gradient(180deg, rgba(14, 25, 37, 0.96), rgba(10, 19, 28, 0.98));
+      border-left: 1px solid var(--line);
+      padding: 16px 15px 22px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      font-family: var(--mono, monospace);
+      font-size: 13px;
+      color: var(--text, #e0e0e0);
+      min-width: 0;
+      box-shadow: inset 1px 0 rgba(255,255,255,0.02);
+    `;
+
+    for (const f of PANEL_FIELDS) {
+      if (f.section !== undefined) {
+        const heading = document.createElement('div');
+        heading.textContent = f.section;
+        heading.style.cssText = `
+          color: var(--muted, #888);
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-top: 14px;
+          margin-bottom: 2px;
+          border-bottom: 1px solid var(--line, #333);
+          padding-bottom: 3px;
+        `;
+        container.appendChild(heading);
+        continue;
+      }
+
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; justify-content: space-between; align-items: baseline; gap: 8px;';
+
+      const labelEl = document.createElement('span');
+      labelEl.textContent = f.label;
+      labelEl.style.cssText = 'color: var(--muted, #888); font-size: 11px; white-space: nowrap;';
+
+      const valueEl = document.createElement('span');
+      valueEl.textContent = '—';
+      valueEl.style.cssText = 'font-family: var(--mono, monospace); font-size: 13px; color: var(--text, #e0e0e0); text-align: right;';
+
+      row.appendChild(labelEl);
+      row.appendChild(valueEl);
+      container.appendChild(row);
+
+      this.panelEls[f.id] = valueEl;
+
+      if (f.id === 'metabolic_reserve') {
+        const track = document.createElement('div');
+        track.style.cssText = 'height:5px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin:1px 0 4px;';
+        this.reserveBarFill = document.createElement('div');
+        this.reserveBarFill.style.cssText = 'height:100%;width:0%;border-radius:inherit;background:var(--mint,#50fa7b);transition:width 180ms linear,background 180ms linear;';
+        track.appendChild(this.reserveBarFill);
+        container.appendChild(track);
+      }
+    }
+  }
+
+  queueUIUpdate(id, text, color = null) {
+    this.uiStateQueue[id] = { text, color: color ?? 'var(--text, #e0e0e0)' };
+  }
+
+  flushUIUpdates() {
+    const now = performance.now();
+    if (now - this.lastUIDrawTime < this.UI_UPDATE_INTERVAL_MS) return;
+    
+    for (const [id, data] of Object.entries(this.uiStateQueue)) {
+      const el = this.panelEls[id];
+      if (el) {
+        if (el.textContent !== data.text) el.textContent = data.text;
+        if (el.style.color !== data.color) el.style.color = data.color;
+      }
+    }
+    this.uiStateQueue = {};
+    this.lastUIDrawTime = now;
+  }
+
+  buildScene() {
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.16;
+    this.renderer.setClearColor(0x111923, 1);
+
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.Fog(0x111923, 8, 22);
+
+    const ambient = new THREE.AmbientLight(0x63758f, 0.68);
+    this.scene.add(ambient);
+
+    // Directional light with dynamic shadow target
+    this.dirLight = new THREE.DirectionalLight(0xf2f7ff, 1.05);
+    this.dirLight.castShadow = true;
+    this.dirLight.shadow.mapSize.set(512, 512);
+    this.dirLight.shadow.camera.near = 0.5;
+    this.dirLight.shadow.camera.far = 20;
+    this.dirLight.shadow.camera.left = this.dirLight.shadow.camera.bottom = -3;
+    this.dirLight.shadow.camera.right = this.dirLight.shadow.camera.top = 3;
+    this.scene.add(this.dirLight);
+
+    const hemi = new THREE.HemisphereLight(0x9bc7e8, 0x465363, 0.78);
+    this.scene.add(hemi);
+
+    const fill = new THREE.DirectionalLight(0x8db6d8, 0.38);
+    fill.position.set(-3, 2.5, -2);
+    this.scene.add(fill);
+
+    const gridHelper = new THREE.GridHelper(100, 200, 0x35495b, 0x22313d);
+    gridHelper.material.transparent = true;
+    gridHelper.material.opacity = 0.48;
+    this.scene.add(gridHelper);
+
+    const groundGeo = new THREE.PlaneGeometry(100, 100);
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: 0x18212c, transparent: true, opacity: 0.78, roughness: 1, metalness: 0,
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
+
+    this.camera = new THREE.PerspectiveCamera(50, 1, 0.05, 50);
+    this.camera.position.set(2.2, 1.7, 3.2);
+
+    this.controls = new OrbitControls(this.camera, this.canvas);
+    this.controls.target.set(0, 0.9, 0);
+    this.controls.enableDamping = true;
+    this.controls.enablePan = false;
+    this.controls.rotateSpeed = 0.8;
+    this.controls.dampingFactor = 0.08;
+    this.controls.minDistance = 0.7;
+    this.controls.maxDistance = 10;
+    this.controls.maxPolarAngle = Math.PI * 0.92;
+
+    this.baseNode = new THREE.Object3D();
+    this.baseNode.name = 'humanoid_base';
+    this.baseNode.position.copy(this.targetBasePos);
+    this.scene.add(this.baseNode);
+
+    // Attach light target to baseNode for dynamic shadows
+    this.dirLight.target = this.baseNode;
+
+    this.buildSkeleton();
+    this.handleResize();
+  }
+
+  buildSkeleton() {
+    const linkNames = new Set(['pelvis']);
+    for (const j of JOINT_TOPOLOGY) {
+      linkNames.add(j.parent);
+      linkNames.add(j.child);
+    }
+
+    for (const name of linkNames) {
+      const node = new THREE.Object3D();
+      node.name = name;
+      this.linkObjs[name] = node;
+    }
+
+    for (const [segName, seg] of Object.entries(SEGMENTS)) {
+      const linkNode = this.linkObjs[segName];
+      if (!linkNode) continue;
+
+      const [w, d, h] = seg.wdh;
+      const [tx, ty, tz] = pbPos(...seg.offset);
+
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mat = new THREE.MeshStandardMaterial({
+        color: SEGMENT_COLORS[segName] ?? 0x888888,
+        roughness: 0.62,
+        metalness: 0.06,
+        emissive: 0x000000,
+        emissiveIntensity: 0,
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.name = `${segName}_mesh`;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.position.set(tx, ty, tz);
+      linkNode.add(mesh);
+      this.segmentMeshes[segName] = mesh;
+    }
+
+    for (const jdef of JOINT_TOPOLOGY) {
+      const parentNode = this.linkObjs[jdef.parent];
+      const childNode = this.linkObjs[jdef.child];
+      if (!parentNode || !childNode) {
+        console.warn(`[body.js] Unknown link in topology: ${jdef.parent} → ${jdef.child}`);
+        continue;
+      }
+
+      const [tx, ty, tz] = pbPos(...jdef.offset);
+      childNode.position.set(tx, ty, tz);
+      parentNode.add(childNode);
+
+      this.jointObjs[jdef.name] = childNode;
+      this.targetJointAngles.set(jdef.name, 0); // Initialize targets
+      this.jointActivity.set(jdef.name, 0);
+
+      const markerGeo = new THREE.SphereGeometry(0.026, 10, 8);
+      const markerMat = new THREE.MeshBasicMaterial({
+        color: 0x50fa9a,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const marker = new THREE.Mesh(markerGeo, markerMat);
+      marker.name = `${jdef.name}_activity_marker`;
+      marker.visible = false;
+      childNode.add(marker);
+      this.jointMarkers[jdef.name] = marker;
+    }
+
+    this.baseNode.add(this.linkObjs['pelvis']);
+
+    const resourceGeo = new THREE.SphereGeometry(0.18, 20, 14);
+    const resourceMat = new THREE.MeshStandardMaterial({
+      color: 0x8bcf63,
+      emissive: 0x294f1c,
+      emissiveIntensity: 0.55,
+      roughness: 0.55,
+      metalness: 0,
+    });
+    this.resourceObject = new THREE.Mesh(resourceGeo, resourceMat);
+    this.resourceObject.name = 'observer_resource';
+    this.resourceObject.castShadow = true;
+    this.resourceObject.receiveShadow = true;
+    this.resourceObject.visible = false;
+    this.scene.add(this.resourceObject);
+
+    const guideGeo = new THREE.BufferGeometry();
+    this.resourceGuidePositions = new Float32Array(6);
+    guideGeo.setAttribute('position', new THREE.BufferAttribute(this.resourceGuidePositions, 3));
+    const guideMat = new THREE.LineDashedMaterial({
+      color: 0x8bcf63,
+      transparent: true,
+      opacity: 0.18,
+      dashSize: 0.10,
+      gapSize: 0.10,
+    });
+    this.resourceGuide = new THREE.Line(guideGeo, guideMat);
+    this.resourceGuide.visible = false;
+    this.scene.add(this.resourceGuide);
+  }
+
+  resetCameraToBody() {
+    if (!this.camera || !this.controls || !this.baseNode) return;
+    this.baseNode.updateWorldMatrix(true, true);
+    this.frameBounds.setFromObject(this.baseNode);
+    if (!this.frameBounds.isEmpty()) {
+      this.frameBounds.getCenter(this.frameCenter);
+    } else {
+      this.frameCenter.copy(this.baseNode.position);
+      this.frameCenter.y += 0.5;
+    }
+    this.controls.target.copy(this.frameCenter);
+    this.camera.position.copy(this.frameCenter).add(new THREE.Vector3(2.25, 1.35, 2.85));
+    this.controls.update();
+  }
+
+  fitCameraToBody(now) {
+    if (!this.followBody || !this.baseNode || now - this.lastFrameFitTime < 120) return;
+    this.lastFrameFitTime = now;
+    this.baseNode.updateWorldMatrix(true, true);
+    this.frameBounds.setFromObject(this.baseNode);
+    if (this.frameBounds.isEmpty()) return;
+
+    this.frameBounds.getCenter(this.frameCenter);
+    this.frameBounds.getSize(this.frameSize);
+    const radius = Math.max(0.55, this.frameSize.length() * 0.5);
+    const halfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+    const desiredDistance = THREE.MathUtils.clamp((radius / Math.tan(halfFov)) * 1.28, 2.25, 5.2);
+
+    const viewDir = this.camera.position.clone().sub(this.controls.target);
+    if (viewDir.lengthSq() < 1e-6) viewDir.set(0.6, 0.35, 1);
+    viewDir.normalize();
+
+    this.controls.target.lerp(this.frameCenter, 0.16);
+    const desiredCamera = this.frameCenter.clone().addScaledVector(viewDir, desiredDistance);
+    this.camera.position.lerp(desiredCamera, 0.10);
+  }
+
+  updateResourceGuide() {
+    if (!this.resourceGuide || !this.resourceObject?.visible || !this.baseNode) return;
+    const start = this.baseNode.position;
+    const end = this.resourceObject.position;
+    this.resourceGuidePositions[0] = start.x;
+    this.resourceGuidePositions[1] = Math.max(0.03, start.y + 0.15);
+    this.resourceGuidePositions[2] = start.z;
+    this.resourceGuidePositions[3] = end.x;
+    this.resourceGuidePositions[4] = Math.max(0.03, end.y);
+    this.resourceGuidePositions[5] = end.z;
+    this.resourceGuide.geometry.attributes.position.needsUpdate = true;
+    this.resourceGuide.computeLineDistances();
+  }
+
+  updateResourceIndicator() {
+    if (!this.resourceIndicator || !this.resourceObject?.visible || !this.camera || !this.canvasWrap) {
+      if (this.resourceIndicator) this.resourceIndicator.style.display = 'none';
+      if (this.resourceGuide) this.resourceGuide.visible = false;
+      return;
+    }
+
+    this.resourceScreenVector.copy(this.resourceObject.position).project(this.camera);
+    const ndc = this.resourceScreenVector;
+    const inFront = ndc.z >= -1 && ndc.z <= 1;
+    const onScreen = inFront && Math.abs(ndc.x) <= 0.92 && Math.abs(ndc.y) <= 0.88;
+
+    // The world-space guide is only useful when both endpoints are actually
+    // visible. Off-screen resources use the edge cue instead.
+    if (this.resourceGuide) this.resourceGuide.visible = onScreen;
+    if (onScreen) {
+      this.resourceIndicator.style.display = 'none';
+      return;
+    }
+
+    let x = ndc.x;
+    let y = ndc.y;
+    if (!inFront || !Number.isFinite(x) || !Number.isFinite(y)) {
+      const worldDir = this.resourceObject.position.clone().sub(this.camera.position).normalize();
+      const cameraDir = new THREE.Vector3();
+      this.camera.getWorldDirection(cameraDir);
+      const right = new THREE.Vector3().crossVectors(cameraDir, this.camera.up).normalize();
+      const up = new THREE.Vector3().crossVectors(right, cameraDir).normalize();
+      x = worldDir.dot(right);
+      y = worldDir.dot(up);
+      if (worldDir.dot(cameraDir) < 0) {
+        x = -x || 1;
+        y = -y;
+      }
+    }
+
+    const len = Math.max(1e-6, Math.max(Math.abs(x), Math.abs(y)));
+    x /= len;
+    y /= len;
+    const marginX = 54;
+    const marginY = 50;
+    const halfW = Math.max(1, this.canvasWrap.clientWidth / 2 - marginX);
+    const halfH = Math.max(1, this.canvasWrap.clientHeight / 2 - marginY);
+    const px = this.canvasWrap.clientWidth / 2 + x * halfW;
+    const py = this.canvasWrap.clientHeight / 2 - y * halfH;
+
+    this.resourceIndicator.style.left = `${px}px`;
+    this.resourceIndicator.style.top = `${py}px`;
+    this.resourceIndicator.style.display = 'flex';
+    const angle = Math.atan2(-y, x) * 180 / Math.PI;
+    this.resourceIndicatorArrow.style.transform = `rotate(${angle}deg)`;
+    const distance = Number.isFinite(this.bodyState.resourceDistance)
+      ? ` · ${this.bodyState.resourceDistance.toFixed(2)} m`
+      : '';
+    this.resourceIndicatorLabel.textContent = `Resource${distance}`;
+  }
+
+  motorActivityLabel() {
+    const ratio = this.activeJointCount / Math.max(1, JOINT_TOPOLOGY.length);
+    if (ratio >= 0.6) return 'HIGH';
+    if (ratio >= 0.25) return 'MEDIUM';
+    if (ratio > 0) return 'LOW';
+    return 'QUIET';
+  }
+
+  updateBodySummary() {
+    const parts = [];
+    if (this.bodyState.alive === true) parts.push('Alive');
+    else if (this.bodyState.alive === false) parts.push('Dead');
+
+    if (Number.isFinite(this.bodyState.reserve)) {
+      const reservePct = Math.round(this.bodyState.reserve * 100);
+      const trend = this.bodyState.reserveTrend > 0.3 ? '↑' : this.bodyState.reserveTrend < -0.3 ? '↓' : '↔';
+      parts.push(`${reservePct}% reserve ${trend}`);
+    }
+
+    parts.push(`${this.motorActivityLabel().toLowerCase()} motor activity`);
+
+    if (Number.isFinite(this.bodyState.resourceProgress)) {
+      if (this.bodyState.resourceProgress > 0.02) parts.push('approaching resource');
+      else if (this.bodyState.resourceProgress < -0.02) parts.push('moving away from resource');
+      else parts.push('resource distance stable');
+    }
+
+    const summary = parts.length ? parts.join(' · ') : '—';
+    if (this.situationEl && this.situationEl.textContent !== summary) {
+      this.situationEl.textContent = summary;
+    }
+  }
+
+  handleResize() {
+    if (!this.canvasWrap) return;
+    const w = this.canvasWrap.clientWidth;
+    const h = this.canvasWrap.clientHeight;
+    if (w === 0 || h === 0) return;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h, false);
+  }
+
+  connectSSE() {
+    this.sse = new EventSource(this.sseUrl);
+    
+    this.sse.addEventListener('message', (ev) => {
+      if (this.unmounted) return;
+
+      let data;
+      try { data = JSON.parse(ev.data); } catch { return; }
+      if (!data || !data.type) return;
+
+      switch (data.type) {
+        case 'body':      this.handleBodyEvent(data);      break;
+        case 'cognition': this.handleCognitionEvent(data); break;
+        case 'vitals':    this.handleVitalsEvent(data);    break;
+      }
+    });
+
+    this.sse.onerror = () => {
+      if (this.unmounted) return;
+
+      if (this.statusEl) {
+        this.statusEl.textContent = '○ Connection lost — retrying…';
+        this.statusEl.style.color = 'var(--amber, #f1fa8c)';
+      }
+    };
+  }
+
+  handleBodyEvent(data) {
+    if (this.statusEl && this.statusEl.textContent !== '● Live') {
+      this.statusEl.textContent = '● Live';
+      this.statusEl.style.color = 'var(--mint, #50fa7b)';
+    }
+
+    // Store target positions instead of applying immediately (for lerping)
+    if (data.base_position) {
+      const nextPos = new THREE.Vector3(...pbPos(...data.base_position));
+      if (!this.observerStartBasePos) this.observerStartBasePos = nextPos.clone();
+      if (this.previousObservedBasePos) {
+        const step = nextPos.distanceTo(this.previousObservedBasePos);
+        if (Number.isFinite(step) && step < 2.0) this.distanceTravelled += step;
+      }
+      this.previousObservedBasePos = nextPos.clone();
+      this.targetBasePos.copy(nextPos);
+
+      const net = this.observerStartBasePos ? nextPos.distanceTo(this.observerStartBasePos) : 0;
+      const directionalEfficiency = this.distanceTravelled > 0.02
+        ? Math.max(0, Math.min(1, net / this.distanceTravelled))
+        : null;
+      this.queueUIUpdate('displacement', `${net.toFixed(2)} m`);
+      this.queueUIUpdate('distance_travelled', `${this.distanceTravelled.toFixed(2)} m`);
+      this.queueUIUpdate('locomotion_efficiency',
+        directionalEfficiency === null ? '—' : `${(directionalEfficiency * 100).toFixed(0)}%`);
+    }
+    if (data.base_orientation) {
+      this.targetBaseQuat.copy(pbQuat(...data.base_orientation));
+    }
+    if (Array.isArray(data.resource_position) && data.resource_position.length === 3 && this.resourceObject) {
+      this.resourceObject.position.set(...pbPos(...data.resource_position));
+      this.resourceObject.visible = true;
+      this.updateResourceGuide();
+    }
+    if (Array.isArray(data.joints)) {
+      let active = 0;
+      for (const j of data.joints) {
+        if (!j || !Number.isFinite(j.position)) continue;
+        const previous = this.previousJointPositions.get(j.name);
+        const delta = previous === undefined ? 0 : Math.abs(j.position - previous);
+        this.previousJointPositions.set(j.name, j.position);
+        this.targetJointAngles.set(j.name, j.position);
+
+        const activity = Math.min(1, delta / 0.045);
+        this.jointActivity.set(j.name, Math.max(activity, (this.jointActivity.get(j.name) ?? 0) * 0.7));
+        if (delta > 0.006) active += 1;
+      }
+      this.activeJointCount = active;
+      const motorActivity = this.motorActivityLabel();
+      const activityColor = motorActivity === 'HIGH'
+        ? 'var(--amber,#f1fa8c)'
+        : motorActivity === 'MEDIUM' ? 'var(--cyan,#8be9fd)' : null;
+      this.queueUIUpdate('motor_activity', motorActivity, activityColor);
+      this.queueUIUpdate('active_joints', `${active} / ${JOINT_TOPOLOGY.length}`, active > 0 ? 'var(--cyan,#8be9fd)' : null);
+      this.updateBodySummary();
+    }
+
+    // Queue UI updates (Throttling)
+    if (data.tick !== undefined) this.queueUIUpdate('tick', String(data.tick));
+    if (data.contact_count !== undefined) this.queueUIUpdate('contact_count', String(data.contact_count));
+    if (data.metabolic_reserve !== undefined) {
+      const reserve = Number(data.metabolic_reserve);
+      const pct = (reserve * 100).toFixed(0);
+      const color = reserve < 0.2
+        ? 'var(--coral, #ff5555)'
+        : reserve < 0.35
+          ? 'var(--amber, #f1fa8c)'
+          : 'var(--text, #e0e0e0)';
+      this.queueUIUpdate('metabolic_reserve', `${pct}%`, color);
+      this.bodyState.reserve = reserve;
+
+      if (Number.isFinite(reserve)) {
+        this.reserveHistory.push({ tick: Number(data.tick), value: reserve });
+        if (this.reserveHistory.length > 40) this.reserveHistory.shift();
+        const old = this.reserveHistory[0];
+        const delta = old ? reserve - old.value : 0;
+        const tickSpan = old && Number.isFinite(old.tick) && Number.isFinite(Number(data.tick))
+          ? Math.max(1, Number(data.tick) - old.tick)
+          : null;
+        const per100Ticks = tickSpan ? (delta * 10000) / tickSpan : 0;
+        this.bodyState.reserveTrend = per100Ticks;
+        const arrow = per100Ticks > 0.3 ? '↑' : per100Ticks < -0.3 ? '↓' : '↔';
+        const signed = per100Ticks >= 0 ? '+' : '';
+        this.queueUIUpdate('reserve_trend', tickSpan ? `${arrow} ${signed}${per100Ticks.toFixed(1)} pp / 100t` : '—',
+          per100Ticks < -1 ? 'var(--coral,#ff5555)' : per100Ticks > 1 ? 'var(--mint,#50fa7b)' : null);
+        if (this.reserveBarFill) {
+          this.reserveBarFill.style.width = `${Math.max(0, Math.min(100, reserve * 100))}%`;
+          this.reserveBarFill.style.background = reserve < 0.2
+            ? 'var(--coral,#ff5555)'
+            : reserve < 0.35 ? 'var(--amber,#f1fa8c)' : 'var(--mint,#50fa7b)';
+        }
+      }
+      this.updateBodySummary();
+    }
+  }
+
+  handleCognitionEvent(data) {
+    if (data.motor_origin !== undefined) this.queueUIUpdate('motor_origin', data.motor_origin);
+
+    const details = [];
+    if (data.schema_confidence !== undefined) details.push(`schema ${data.schema_confidence.toFixed(2)}`);
+    if (data.prediction_error !== undefined) details.push(`err ${data.prediction_error.toFixed(3)}`);
+    if (data.slm_active !== undefined) details.push(data.slm_active ? 'model active' : 'model inactive');
+    this.queueUIUpdate('cognitive_context', details.length ? details.join(' · ') : '—', 'var(--muted,#8a98a8)');
+  }
+
+  handleVitalsEvent(data) {
+    if (data.alive !== undefined) {
+      this.bodyState.alive = Boolean(data.alive);
+      this.queueUIUpdate('alive', data.alive ? '● Alive' : '○ Dead', data.alive ? 'var(--mint, #50fa7b)' : 'var(--coral, #ff5555)');
+    }
+    if (data.joint_motion !== undefined) {
+      this.bodyState.jointMotion = Number(data.joint_motion);
+    }
+    if (data.active_effectors !== undefined) {
+      this.queueUIUpdate('active_effectors', String(data.active_effectors));
+    }
+    if (data.resource_distance !== undefined) {
+      const resourceDistance = Number(data.resource_distance);
+      this.bodyState.resourceDistance = resourceDistance;
+      this.queueUIUpdate('resource_distance', `${Math.max(0, resourceDistance).toFixed(2)} m`);
+
+      if (this.observerResourceBaseline === null && Number.isFinite(resourceDistance)) {
+        this.observerResourceBaseline = resourceDistance;
+        this.observerPathAtResourceBaseline = this.distanceTravelled;
+      }
+      if (this.observerResourceBaseline !== null) {
+        const path = this.distanceTravelled - this.observerPathAtResourceBaseline;
+        if (path > 0.03) {
+          const progress = this.observerResourceBaseline - resourceDistance;
+          const effectiveness = Math.max(-1, Math.min(1, progress / path));
+          const label = effectiveness > 0.08
+            ? `${(effectiveness * 100).toFixed(0)}% toward`
+            : effectiveness < -0.08
+              ? `${Math.abs(effectiveness * 100).toFixed(0)}% away`
+              : 'neutral';
+          this.queueUIUpdate('motion_effectiveness', label,
+            effectiveness > 0.08 ? 'var(--mint,#50fa7b)' : effectiveness < -0.08 ? 'var(--coral,#ff5555)' : null);
+        } else {
+          this.queueUIUpdate('motion_effectiveness', '—');
+        }
+      }
+    }
+    if (data.resource_progress !== undefined) {
+      this.bodyState.resourceProgress = Number(data.resource_progress);
+      const sign = data.resource_progress > 0 ? '+' : '';
+      this.queueUIUpdate('resource_progress', `${sign}${data.resource_progress.toFixed(2)} m`,
+        data.resource_progress > 0.02 ? 'var(--mint,#50fa7b)' : data.resource_progress < -0.02 ? 'var(--coral,#ff5555)' : null);
+    }
+    // displacement_from_origin remains part of telemetry, but BODY compares
+    // net displacement and travelled distance over the same observer interval.
+    this.updateBodySummary();
+  }
+
+  animate = () => {
+    if (this.unmounted) return;
+
+    this.rafId = requestAnimationFrame(this.animate);
+    const delta = Math.min(Math.max(this.clock.getDelta(), 0.016), 0.05);
+    const lerpFactor = 1 - Math.exp(-delta * 10);
+
+    this.baseNode.position.lerp(this.targetBasePos, lerpFactor);
+    this.baseNode.quaternion.slerp(this.targetBaseQuat, lerpFactor);
+
+    for (const jdef of JOINT_TOPOLOGY) {
+      const targetAngle = this.targetJointAngles.get(jdef.name);
+      if (targetAngle === undefined) continue;
+
+      const node = this.jointObjs[jdef.name];
+      if (!node) continue;
+
+      switch (jdef.axis) {
+        case 'Y': node.rotation.y = THREE.MathUtils.lerp(node.rotation.y, targetAngle, lerpFactor); break;
+        case 'X': node.rotation.x = THREE.MathUtils.lerp(node.rotation.x, targetAngle, lerpFactor); break;
+        case 'Z': node.rotation.z = THREE.MathUtils.lerp(node.rotation.z, targetAngle, lerpFactor); break;
+      }
+    }
+
+    if (this.dirLight) {
+      this.dirLight.position.copy(this.baseNode.position).add(this.lightOffset);
+    }
+
+    // Activity is visible both at joints and over the body segment itself.
+    for (const [name, marker] of Object.entries(this.jointMarkers)) {
+      const activity = this.jointActivity.get(name) ?? 0;
+      const decayed = activity * 0.92;
+      this.jointActivity.set(name, decayed);
+      marker.visible = decayed > 0.08;
+      marker.material.opacity = Math.min(0.9, 0.12 + decayed * 0.78);
+      marker.scale.setScalar(0.75 + decayed * 0.9);
+    }
+    for (const [segmentName, jointNames] of Object.entries(SEGMENT_ACTIVITY_JOINTS)) {
+      const mesh = this.segmentMeshes[segmentName];
+      if (!mesh) continue;
+      const activity = Math.max(0, ...jointNames.map((name) => this.jointActivity.get(name) ?? 0));
+      mesh.material.emissive.setHex(activity > 0.06 ? 0x246b59 : 0x000000);
+      mesh.material.emissiveIntensity = Math.min(1.05, activity * 1.05);
+    }
+
+    this.updateResourceGuide();
+    this.fitCameraToBody(performance.now());
+
+    this.flushUIUpdates();
+    this.controls.update();
+    this.camera.updateMatrixWorld();
+    this.updateResourceIndicator();
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Tear down the viewer completely.
+   *
+   * Safe to call more than once. Stops rendering and streaming first, then
+   * disposes Three.js resources and finally releases DOM/object references.
+   */
+  unmount() {
+    if (this.unmounted) return;
+    this.unmounted = true;
+
+    // Stop asynchronous producers before disposing anything they can touch.
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+
+    if (this.sse) {
+      this.sse.close();
+      this.sse = null;
+    }
+
+    if (this.resizeObs) {
+      this.resizeObs.disconnect();
+      this.resizeObs = null;
+    }
+
+    // OrbitControls installs DOM listeners, so dispose it explicitly.
+    if (this.controls) {
+      this.controls.dispose();
+      this.controls = null;
+    }
+
+    // Dispose scene-owned GPU resources.
+    if (this.scene) {
+      this.scene.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((material) => material.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
+      this.scene.clear();
+      this.scene = null;
+    }
+
+    if (this.renderer) {
+      this.renderer.dispose();
+      this.renderer = null;
+    }
+
+    // Release data structures and Three.js object references.
+    this.camera = null;
+    this.baseNode = null;
+    this.dirLight = null;
+    this.canvas = null;
+    this.canvasWrap = null;
+    this.statusEl = null;
+    this.situationEl = null;
+    this.resourceObject = null;
+    this.resourceGuide = null;
+    this.resourceGuidePositions = null;
+    this.resourceIndicator = null;
+    this.resourceIndicatorArrow = null;
+    this.resourceIndicatorLabel = null;
+
+    this.jointObjs = {};
+    this.linkObjs = {};
+    this.segmentMeshes = {};
+    this.jointMarkers = {};
+    this.panelEls = {};
+    this.uiStateQueue = {};
+    this.targetJointAngles.clear();
+
+    // Restore the host element rather than blindly erasing styles it owned
+    // before the viewer was mounted.
+    if (this.root) {
+      while (this.root.firstChild) {
+        this.root.removeChild(this.root.firstChild);
+      }
+      this.root.style.cssText = this.rootStyleBeforeMount;
+      this.root = null;
+    }
+  }
+}
