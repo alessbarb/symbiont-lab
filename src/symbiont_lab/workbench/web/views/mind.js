@@ -2639,7 +2639,7 @@ function drawGraphFrame3D(canvas) {
     .sort((a,b) => b.depth - a.depth);
   for (const sector of sectorItems) {
     if (sector.points.length < 2) continue;
-    const sectorLabel = _graph.sectorLabels.get(sector.id) ?? 'S-???';
+    const sectorLabel = sector.stableLabel ?? _graph.sectorLabels.get(sector.id) ?? 'S-???';
     const description = _graph.sectorDescriptions.get(sector.id);
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
     const color = palette[hashStr(String(sector.id)) % palette.length];
@@ -2726,9 +2726,15 @@ function drawGraphFrame3D(canvas) {
     ctx.globalAlpha = focused ? 0.95 : 0.58;
     ctx.lineWidth = focused ? 2.3 : 1.0;
     ctx.setLineDash(edge.kind === 'causal_effect' ? [6,4] : []);
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lift = Math.max(10, Math.min(54, Math.hypot(dx, dy) * 0.12));
+    const curveSign = hashStr(`${edge.source.id}|${edge.target.id}`) % 2 ? 1 : -1;
+    const mx = (a.x + b.x) / 2 - dy * 0.10 * curveSign;
+    const my = (a.y + b.y) / 2 + dx * 0.10 * curveSign - lift;
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+    ctx.quadraticCurveTo(mx, my, b.x, b.y);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
@@ -2748,7 +2754,18 @@ function drawGraphFrame3D(canvas) {
 
     ctx.beginPath();
     ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = isHovered ? '#fff' : node.color;
+    const nodeGradient = ctx.createRadialGradient(
+      projected.x - radius * 0.34,
+      projected.y - radius * 0.38,
+      Math.max(1, radius * 0.12),
+      projected.x,
+      projected.y,
+      radius,
+    );
+    nodeGradient.addColorStop(0, isHovered ? '#ffffff' : '#dff8ff');
+    nodeGradient.addColorStop(0.18, isHovered ? '#ffffff' : node.color);
+    nodeGradient.addColorStop(1, '#06111d');
+    ctx.fillStyle = nodeGradient;
     const depthFog = Math.max(0.32, Math.min(1, 1 - projected.depth / 1500));
     ctx.globalAlpha = dimmed
       ? 0.08
@@ -2787,7 +2804,7 @@ function drawGraphFrame3D(canvas) {
   ctx.font = '9px -apple-system, sans-serif';
   ctx.fillStyle = 'rgba(98,120,136,.72)';
   ctx.textAlign = 'left';
-  ctx.fillText('3D · drag empty space to orbit · wheel to zoom', 16, height - 16);
+  ctx.fillText('3D anatomy · orbit to reveal depth · select a region node for local pathways', 16, height - 16);
 }
 
 function drawGraphFrame(canvas) {
