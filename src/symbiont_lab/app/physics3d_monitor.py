@@ -171,6 +171,14 @@ class MonitorSnapshot:
     prospective_value_samples: int = 0
     prospective_decision_margin: float | None = None
     prospective_cost: float = 0.0
+    recurrent_primitive_candidates: int = 0
+    max_primitive_samples: int = 0
+    full_competence_gate_candidates: int = 0
+    motor_readout_nodes: int = 0
+    primitive_readout_nodes: int = 0
+    cognitive_motor_output_edges: int = 0
+    cognitive_concepts: int = 0
+    cognitive_readouts: int = 0
 
 
 @dataclass(frozen=True, slots=True)
