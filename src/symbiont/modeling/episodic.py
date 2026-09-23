@@ -49,6 +49,68 @@ def _is_causal_observation(record: ExperienceRecord) -> bool:
 
 
 @dataclass(slots=True, frozen=True)
+class EpisodeStep:
+    """One bounded, organism-native step inside an episodic trace."""
+
+    tick_offset: int
+    context_tokens: tuple[str, ...]
+    action_token: str | None
+    outcome_tokens: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.tick_offset, bool)
+            or not isinstance(self.tick_offset, int)
+            or self.tick_offset < 0
+        ):
+            raise EpisodicMemoryError("tick_offset must be a non-negative integer")
+        if len(self.context_tokens) > 96 or len(self.outcome_tokens) > 32:
+            raise EpisodicMemoryError("episode step exceeds token bound")
+        if self.action_token is not None and (
+            not isinstance(self.action_token, str)
+            or not self.action_token
+            or len(self.action_token) > 96
+        ):
+            raise EpisodicMemoryError("invalid episode step action token")
+
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "tick_offset": self.tick_offset,
+            "context_tokens": list(self.context_tokens),
+            "action_token": self.action_token,
+            "outcome_tokens": list(self.outcome_tokens),
+        }
+
+    @classmethod
+    def restore(cls, payload: Mapping[str, object]) -> "EpisodeStep":
+        try:
+            tick_offset = payload["tick_offset"]
+            raw_context = payload["context_tokens"]
+            raw_outcomes = payload["outcome_tokens"]
+            action = payload.get("action_token")
+            if (
+                isinstance(tick_offset, bool)
+                or not isinstance(tick_offset, int)
+                or not isinstance(raw_context, list)
+                or not isinstance(raw_outcomes, list)
+                or any(not isinstance(item, str) or not item for item in raw_context)
+                or any(not isinstance(item, str) or not item for item in raw_outcomes)
+                or (action is not None and not isinstance(action, str))
+            ):
+                raise EpisodicMemoryError("invalid episode step checkpoint")
+            return cls(
+                tick_offset=tick_offset,
+                context_tokens=tuple(raw_context),
+                action_token=action,
+                outcome_tokens=tuple(raw_outcomes),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            if isinstance(exc, EpisodicMemoryError):
+                raise
+            raise EpisodicMemoryError("invalid episode step checkpoint") from exc
+
+
+@dataclass(slots=True, frozen=True)
 class ExperienceEpisode:
     """Immutable factual core of one bounded lived episode.
 
@@ -60,6 +122,7 @@ class ExperienceEpisode:
     episode_id: str
     start_tick: int
     end_tick: int
+    trace: tuple[EpisodeStep, ...]
     initial_context: tuple[str, ...]
     terminal_context: tuple[str, ...]
     action_tokens: tuple[str, ...]
@@ -76,6 +139,12 @@ class ExperienceEpisode:
             raise EpisodicMemoryError("episode_id must be a bounded non-empty string")
         if self.start_tick < 0 or self.end_tick < self.start_tick:
             raise EpisodicMemoryError("invalid episode tick range")
+        if not self.trace:
+            raise EpisodicMemoryError("episode trace must not be empty")
+        if len(self.trace) > 16:
+            raise EpisodicMemoryError("episode trace exceeds hard step bound")
+        if any(not isinstance(step, EpisodeStep) for step in self.trace):
+            raise EpisodicMemoryError("episode trace must contain EpisodeStep values")
         for field_name in (
             "initial_context",
             "terminal_context",
@@ -99,6 +168,7 @@ class ExperienceEpisode:
             "episode_id": self.episode_id,
             "start_tick": self.start_tick,
             "end_tick": self.end_tick,
+            "trace": [step.checkpoint() for step in self.trace],
             "initial_context": list(self.initial_context),
             "terminal_context": list(self.terminal_context),
             "action_tokens": list(self.action_tokens),
@@ -126,6 +196,11 @@ class ExperienceEpisode:
                 episode_id=str(payload["episode_id"]),
                 start_tick=int(payload["start_tick"]),
                 end_tick=int(payload["end_tick"]),
+                trace=tuple(
+                    EpisodeStep.restore(item)
+                    for item in payload["trace"]
+                    if isinstance(item, Mapping)
+                ),
                 initial_context=strings("initial_context", 256),
                 terminal_context=strings("terminal_context", 256),
                 action_tokens=strings("action_tokens", 64),
@@ -174,6 +249,7 @@ class EpisodicPrediction:
 class CognitiveReplay:
     episode_id: str
     similarity: float
+    trace: tuple[EpisodeStep, ...]
     context_tokens: tuple[str, ...]
     action_tokens: tuple[str, ...]
     outcome_tokens: tuple[str, ...]
@@ -362,10 +438,20 @@ class EpisodicExperienceMemory:
             f"{source_ids}|{actions}|{outcomes}"
         )
         episode_id = "episode." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
+        trace = tuple(
+            EpisodeStep(
+                tick_offset=max(0, record.tick_class - records[0].tick_class),
+                context_tokens=_bounded_tokens(record.context_tokens, limit=96),
+                action_token=record.action_token,
+                outcome_tokens=_bounded_tokens(record.outcome_tokens, limit=32),
+            )
+            for record in records
+        )
         episode = ExperienceEpisode(
             episode_id=episode_id,
             start_tick=records[0].tick_class,
             end_tick=records[-1].tick_class,
+            trace=trace,
             initial_context=initial,
             terminal_context=terminal,
             action_tokens=actions,
@@ -398,10 +484,19 @@ class EpisodicExperienceMemory:
         evidence = _bounded_tokens((*left.evidence_refs, *right.evidence_refs), limit=64)
         sources = _bounded_tokens((*left.source_record_ids, *right.source_record_ids), limit=64)
         material = f"compressed|{left.episode_id}|{right.episode_id}|{sources}"
+        representative = max(
+            (left, right),
+            key=lambda episode: (
+                episode.novelty + episode.surprise,
+                episode.end_tick,
+                episode.episode_id,
+            ),
+        )
         merged = ExperienceEpisode(
             episode_id="episode." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:32],
             start_tick=min(left.start_tick, right.start_tick),
             end_tick=max(left.end_tick, right.end_tick),
+            trace=representative.trace,
             initial_context=initial,
             terminal_context=terminal,
             action_tokens=actions,
@@ -689,6 +784,7 @@ class EpisodicExperienceMemory:
             CognitiveReplay(
                 episode_id=match.episode_id,
                 similarity=match.similarity,
+                trace=match.episode.trace,
                 context_tokens=match.episode.initial_context,
                 action_tokens=match.episode.action_tokens,
                 outcome_tokens=match.episode.outcome_tokens,
@@ -821,5 +917,6 @@ __all__ = [
     "EpisodicMemoryError",
     "EpisodicMemoryMetrics",
     "EpisodicPrediction",
+    "EpisodeStep",
     "ExperienceEpisode",
 ]
