@@ -180,6 +180,7 @@ const _graph = {
   sectorLabels:   new Map(),
   sectorDescriptions: new Map(),
   sectorAnchors:  new Map(),
+  layoutAffinities: [],
   bridgeEdges:    new Set(),
   hiddenMotor:    { actuators: 0, motorEdges: 0 },
   nextSectorId:   1,
@@ -2308,12 +2309,33 @@ function reconcileSectorLabels(communities, nodes) {
 }
 
 function initGraphPhysics(width, height) {
-  const { nodes: rawNodes, edges: rawEdges, adjacency, communities, components = [] } = buildGraphModel();
+  const {
+    nodes: rawNodes,
+    edges: rawEdges,
+    adjacency,
+    communities,
+    components = [],
+    layoutAffinities = [],
+    sectorDescriptions = new Map(),
+    sectorBridges: bridges = [],
+  } = buildGraphModel();
   const cx = width / 2, cy = height / 2;
   const nodeMap = new Map();
 
   _graph.communities = new Map();
   _graph.components = components;
+  _graph.layoutAffinities = layoutAffinities;
+  _graph.sectorDescriptions = sectorDescriptions;
+  _graph.bridgeEdges = new Set();
+  for (const bridge of bridges) {
+    const ranked = [...bridge.edges].sort((a,b) =>
+      finiteNumber(b.support,0) - finiteNumber(a.support,0) ||
+      Math.abs(finiteNumber(b.correlation,0)) - Math.abs(finiteNumber(a.correlation,0))
+    ).slice(0, 2);
+    for (const edge of ranked) {
+      _graph.bridgeEdges.add(`${edge.sourceId}|${edge.targetId}|${edge.kind}`);
+    }
+  }
   for (const raw of rawNodes) {
     if (!raw.community || raw.community === 'isolated') continue;
     if (!_graph.communities.has(raw.community)) {
@@ -2330,6 +2352,24 @@ function initGraphPhysics(width, height) {
     );
   } else {
     reconcileSectorLabels(_graph.communities, rawNodes);
+  }
+
+  const activeSectorLabels = new Set();
+  for (const communityId of _graph.communities.keys()) {
+    const label = _graph.sectorLabels.get(communityId);
+    if (!label) continue;
+    activeSectorLabels.add(label);
+    if (!_graph.sectorAnchors.has(label)) {
+      const ordinal = Math.max(1, parseInt(label.replace(/\D/g, ''), 10) || (hashStr(label) % 97) + 1);
+      const angle = ordinal * 2.399963229728653;
+      const ring = ordinal % 3;
+      const rx = Math.min(width * (0.20 + ring * 0.035), 320);
+      const ry = Math.min(height * (0.18 + ring * 0.03), 230);
+      _graph.sectorAnchors.set(label, {
+        x: cx + Math.cos(angle) * rx,
+        y: cy + Math.sin(angle) * ry,
+      });
+    }
   }
 
   _graph.nodes = rawNodes.map((raw, i) => {
@@ -2349,13 +2389,12 @@ function initGraphPhysics(width, height) {
         x = 22 + col * ((width - 44) / Math.max(1, cols - 1));
         y = height - 28 - row * 20;
       } else {
-        const componentAngle = ((raw.componentRank * 2.399) + ((seed % 100) / 100)) % (Math.PI * 2);
-        const componentRadius = raw.componentRank === 0 ? 70 : Math.min(260, 120 + raw.componentRank * 42);
-        const communitySeed = hashStr(raw.community ?? raw.id);
-        const communityAngle = ((communitySeed % 360) / 180) * Math.PI;
-        const localRadius = 20 + (seed % 5) * 16;
-        x = cx + Math.cos(componentAngle) * componentRadius + Math.cos(communityAngle) * localRadius;
-        y = cy + Math.sin(componentAngle) * componentRadius + Math.sin(communityAngle) * localRadius;
+        const sectorLabel = _graph.sectorLabels.get(raw.community);
+        const anchor = sectorLabel ? _graph.sectorAnchors.get(sectorLabel) : null;
+        const localAngle = ((seed % 360) / 180) * Math.PI;
+        const localRadius = 18 + (seed % 7) * 9;
+        x = (anchor?.x ?? cx) + Math.cos(localAngle) * localRadius;
+        y = (anchor?.y ?? cy) + Math.sin(localAngle) * localRadius;
       }
 
       node = {
@@ -2370,6 +2409,9 @@ function initGraphPhysics(width, height) {
       Object.assign(node, raw);
     }
     node.neighbors = adjacency.get(raw.id) ?? new Set();
+    const sectorLabel = _graph.sectorLabels.get(raw.community);
+    node.sectorLabel = sectorLabel ?? null;
+    node.sectorAnchor = sectorLabel ? (_graph.sectorAnchors.get(sectorLabel) ?? null) : null;
     nodeMap.set(node.id, node);
     return node;
   });
@@ -2381,6 +2423,14 @@ function initGraphPhysics(width, height) {
       target: nodeMap.get(e.targetId),
     }))
     .filter(e => e.source && e.target);
+
+  _graph.layoutAffinities = layoutAffinities
+    .map(link => ({
+      ...link,
+      source: nodeMap.get(link.sourceId),
+      target: nodeMap.get(link.targetId),
+    }))
+    .filter(link => link.source && link.target);
 
   _graph.alpha = 1.0;
   renderCognitionInspector();
