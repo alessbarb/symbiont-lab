@@ -30,6 +30,7 @@ from .apparatus import (
     physics3d_cognition,
     physics3d_sensory_system,
 )
+from .observer_semantics import sensory_semantics
 from .humanoid import (
     GROUND_MATERIAL,
     HumanoidPhysics,
@@ -1130,6 +1131,19 @@ class PyBulletEmbodimentRuntime:
                 "sensory_input": {
                     "monotonic_timestamp_ns": self._reading_provider.last_monotonic_timestamp_ns,
                     "values": dict(self._reading_provider.last_values),
+                },
+            },
+            "observer_semantics": {
+                "sensory": sensory_semantics(
+                    self.organism.sensory_system.sensors,
+                    interoceptive_source_ordinals=(
+                        self._body_interoception.source_ordinals_by_slot
+                    ),
+                ),
+                "provenance": {
+                    "owner": "observer",
+                    "source": "physics3d-apparatus",
+                    "feeds_back": False,
                 },
             },
             "runtime": {
