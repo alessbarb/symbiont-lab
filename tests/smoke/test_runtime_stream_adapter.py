@@ -111,70 +111,6 @@ def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
     assert '"tick":3' in events[1]
 
 
-def test_sse_event_identity_is_encoded_for_browser_resume() -> None:
-    encoded = _encode_sse({"type": "vitals", "tick": 4}, event_id="run-a:4")
-    assert encoded.startswith(b"id: run-a:4\ndata: ")
-    assert encoded.endswith(b"\n\n")
-
-
-def test_stream_replays_from_transport_sequence() -> None:
-    stream = ObservationBus(queue_size=8, history_size=8)
-    first_id = stream.push({"type": "vitals", "tick": 1})
-    stream.push({"type": "vitals", "tick": 2})
-    stream.push({"type": "cognition", "tick": 2})
-
-    consumer = stream.subscribe(after_sequence=first_id)
-    replayed = []
-    while not consumer.empty():
-        replayed.append(json.loads(consumer.get_nowait()))
-    stream.unsubscribe(consumer)
-
-    assert [event["tick"] for event in replayed] == [2, 2]
-    assert all(event["_stream_id"] > first_id for event in replayed)
-
-
-def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
-    stream = ObservationBus(queue_size=16)
-    bridge = Physics3DObservationBridge(stream)
-    consumer = stream.subscribe()
-
-    bridge.publish(
-        {
-            "tick": 55,
-            "symbiont_id": "symbiont:3d:test",
-            "alive": True,
-            "schema_confidence": 0.5,
-            "joint_motion": 0.1,
-        },
-        physical_state={
-            "base_position": [0.0, 0.0, 1.0],
-            "base_orientation": [0.0, 0.0, 0.0, 1.0],
-            "joints": [],
-        },
-    )
-    bridge.publish_rich_state({
-        "tick": 55,
-        "organism_id": "symbiont:3d:test",
-        "runtime": {"percepts": []},
-        "cognition": {},
-        "post": {},
-    })
-
-    payloads = []
-    while not consumer.empty():
-        payloads.append(json.loads(consumer.get_nowait()))
-    frame = next(item for item in payloads if item.get("type") == "observed_frame")
-
-    assert frame["tick"] == 55
-    assert frame["body"]["tick"] == 55
-    assert frame["cognition"]["tick"] == 55
-    assert frame["vitals"]["tick"] == 55
-    assert frame["mind"]["tick"] == 55
-    assert frame["provenance"]["projection"] == "observer-presentation-v1"
-    assert frame["provenance"]["contract"] == "completed-render-frame-v1"
-    assert frame["provenance"]["feeds_back"] is False
-
-
 
 def test_mind_projection_preserves_completely_absent_sections() -> None:
     snapshot = mind_snapshot_from_rich_state({"tick": 9})
@@ -853,55 +789,54 @@ def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
     assert "graphDimension" in asset
+    assert "graph3DMode" in asset
     assert "buildCognition3DScene" in asset
+    assert "relaxCognition3D" in asset
     assert "orbitCamera" in asset
     assert "zoomCamera" in asset
-    assert "3D anatomy · orbit to reveal depth" in asset
+    assert "RELATIONAL 3D" in asset
+    assert "PHYSICALIZED 3D" in asset
     assert "dimension: '2d'" in asset
+    assert "threeDMode: 'relational'" in asset
 
-    assert "worldDepthForNode" in projection
     assert "projectPoint3D" in projection
     assert "buildCognition3DScene" in projection
-    assert "motor_primitive" in projection
-    assert "actuator" in projection
-    assert "sectorDepth" in projection
+    assert "ensure3DState" in projection
+    assert "relaxCognition3D" in projection
 
 
-
-def test_cognition_3d_uses_true_relational_volume_not_a_rotated_plane() -> None:
+def test_cognition_3d_geometry_is_graph_derived_not_brain_shaped() -> None:
     asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
-    assert "depthFog" in asset
-    assert "wireframes" in projection
-    assert "sectorEmbedding" in projection
-    assert "rotateLocal" in projection
-    assert "worldPointForNode" in projection
-    assert "seedVolumePoint" in projection
-    assert "buildVolumetricLocalPositions" in projection
-    assert "point.x, point.y, point.z" in projection
+    assert "XYZ from graph evidence only" in asset
+    assert "no anatomical coordinates" in asset
+    assert "brainHull" not in projection
+    assert "functionalBias" not in projection
+    assert "sectorEmbedding" not in projection
+    assert "ellipsoidRing" not in projection
+    assert "seedVolumePoint" not in projection
     assert "kindDepth" not in projection
+    assert "neutralSeed" in projection
+    assert "Actual graph edges provide all attractive topology." in projection
 
 
-
-def test_cognition_3d_preserves_sector_identity_and_anatomy() -> None:
+def test_cognition_3d_physicalized_mode_is_isotropic_observer_experiment() -> None:
     asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
-    assert "sector.stableLabel" in asset
-    assert "quadraticCurveTo" in asset
-    assert "nodeGradient" not in asset
-    assert "ctx.fillStyle = isHovered ? '#ffffff' : node.color" in asset
-    assert "brainHull" in asset
+    assert "Physicalized" in asset
+    assert "observer experiment" in asset
+    assert "wiring" in asset
+    assert "density" in asset
 
-    assert "functionalBias" in projection
-    assert "ellipsoidRing" in projection
-    assert "stableLabel" in projection
-    assert "brainHull" in projection
-    assert "sectorEmbedding" in projection
-
-    assert "_graph.sectorLabels.clear()" not in asset
-
+    assert "physicalized" in projection
+    assert "Abstract packing pressure" in projection
+    assert "Strong, stable evidence is allowed to settle at shorter wiring length." in projection
+    assert "nodeVolumeRadius" in projection
+    assert "packingDensity" in projection
+    assert "functional direction" in projection
+    assert "node.kind" not in projection
 
 
 def test_connected_view_preserves_cognitively_linked_motor_endpoints() -> None:
@@ -943,16 +878,15 @@ def test_connected_motor_degree_survives_graph_model_projection() -> None:
 
 
 
-def test_cognition_sector_drilldown_is_shared_by_2d_and_3d() -> None:
+def test_cognition_sector_drilldown_remains_an_observer_selection_in_3d() -> None:
     asset = _mind_sources()
 
     assert "focusedSectorId" in asset
     assert "focusedSectorContext" in asset
     assert "Back to all sectors" in asset
-    assert "3D sector focus" in asset
-    assert "internal anatomy + real external bridges" in asset
+    assert "3D focus · organism edges + observer-selected neighborhood" in asset
     assert "sectorFocus && !sectorFocus.visible.has(node.id)" in asset
-    assert "sectorFocus && sector.id !== sectorFocus.sectorId" in asset
+    assert "observer-selected neighborhood" in asset
 
 
 def test_workbench_view_entrypoints_stay_modular() -> None:
@@ -977,3 +911,70 @@ def test_workbench_view_entrypoints_stay_modular() -> None:
     assert "./body/viewer.js" in body
     assert "./lab/render.js" in lab
     assert "./archive/render.js" in archive
+
+
+
+def test_sse_event_identity_is_encoded_for_browser_resume() -> None:
+    encoded = _encode_sse({"type": "vitals", "tick": 4}, event_id="run-a:4")
+    assert encoded.startswith(b"id: run-a:4\ndata: ")
+    assert encoded.endswith(b"\n\n")
+
+
+
+def test_stream_replays_from_transport_sequence() -> None:
+    stream = ObservationBus(queue_size=8, history_size=8)
+    first_id = stream.push({"type": "vitals", "tick": 1})
+    stream.push({"type": "vitals", "tick": 2})
+    stream.push({"type": "cognition", "tick": 2})
+
+    consumer = stream.subscribe(after_sequence=first_id)
+    replayed = []
+    while not consumer.empty():
+        replayed.append(json.loads(consumer.get_nowait()))
+    stream.unsubscribe(consumer)
+
+    assert [event["tick"] for event in replayed] == [2, 2]
+    assert all(event["_stream_id"] > first_id for event in replayed)
+
+
+
+def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
+    stream = ObservationBus(queue_size=16)
+    bridge = Physics3DObservationBridge(stream)
+    consumer = stream.subscribe()
+
+    bridge.publish(
+        {
+            "tick": 55,
+            "symbiont_id": "symbiont:3d:test",
+            "alive": True,
+            "schema_confidence": 0.5,
+            "joint_motion": 0.1,
+        },
+        physical_state={
+            "base_position": [0.0, 0.0, 1.0],
+            "base_orientation": [0.0, 0.0, 0.0, 1.0],
+            "joints": [],
+        },
+    )
+    bridge.publish_rich_state({
+        "tick": 55,
+        "organism_id": "symbiont:3d:test",
+        "runtime": {"percepts": []},
+        "cognition": {},
+        "post": {},
+    })
+
+    payloads = []
+    while not consumer.empty():
+        payloads.append(json.loads(consumer.get_nowait()))
+    frame = next(item for item in payloads if item.get("type") == "observed_frame")
+
+    assert frame["tick"] == 55
+    assert frame["body"]["tick"] == 55
+    assert frame["cognition"]["tick"] == 55
+    assert frame["vitals"]["tick"] == 55
+    assert frame["mind"]["tick"] == 55
+    assert frame["provenance"]["projection"] == "observer-presentation-v1"
+    assert frame["provenance"]["contract"] == "completed-render-frame-v1"
+    assert frame["provenance"]["feeds_back"] is False
