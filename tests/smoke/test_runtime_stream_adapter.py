@@ -778,3 +778,18 @@ def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
     assert "motor_primitive" in projection
     assert "actuator" in projection
     assert "sectorDepth" in projection
+
+
+
+def test_cognition_3d_uses_true_volumetric_sector_embedding() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
+
+    assert "great circles" in asset.lower()
+    assert "depthFog" in asset
+    assert "wireframes" in projection
+    assert "sectorEmbedding" in projection
+    assert "rotateLocal" in projection
+    assert "greatCircle" in projection
+    assert "worldPointForNode" in projection
+    assert "kindDepth" in projection
