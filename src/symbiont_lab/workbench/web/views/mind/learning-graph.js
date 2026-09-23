@@ -93,11 +93,19 @@ export function augmentLearnedGraph(
     if (!primitiveId) continue;
     const nodeId = `motor_primitive:${primitiveId}`;
     const actuators = primitiveActuators(primitive);
+    const observerParts = [...new Set(
+      actuators
+        .map(actuatorId => motorSemantics[actuatorId]?.joint)
+        .filter(Boolean)
+    )];
     nodes.push({
       id: nodeId,
       kind: 'motor_primitive',
       learnedLayer: 'motor',
       primitiveId,
+      observerLabel: observerParts.length
+        ? `${observerParts.slice(0, 3).join(' + ')}${observerParts.length > 3 ? ` +${observerParts.length - 3}` : ''} motor pattern`
+        : null,
       samples: finite(primitive.samples, 0),
       controllability: finite(primitive.controllability, 0),
       directionalConsistency: finite(primitive.directional_consistency, 0),
