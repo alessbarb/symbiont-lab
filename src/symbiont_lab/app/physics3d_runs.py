@@ -101,6 +101,7 @@ class Physics3DRunStore:
         body_registry: BodyRegistry = DEFAULT_BODY_REGISTRY,
     ) -> None:
         self.root = Path(root).expanduser()
+        self._include_legacy_default = self.root.resolve() == DEFAULT_LAB_STATE_ROOT.resolve()
         self.organisms_dir = self.root / "organisms"
         self.bodies_dir = self.root / "bodies"
         self.runs_dir = self.root / "runs"
@@ -164,7 +165,7 @@ class Physics3DRunStore:
             }
             items.append(item)
 
-        if DEFAULT_SYMBIONT_FILE.is_file():
+        if self._include_legacy_default and DEFAULT_SYMBIONT_FILE.is_file():
             summary = self._bundle_summary(DEFAULT_SYMBIONT_FILE)
             items.append({
                 **summary,
