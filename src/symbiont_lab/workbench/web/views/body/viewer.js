@@ -840,10 +840,14 @@ export class HumanoidViewer {
       const node = this.jointObjs[jdef.name];
       if (!node) continue;
 
+      // PyBullet (X,Y,Z) maps to Three.js (X,Z,-Y). The model's
+      // symbolic axes are already expressed in Three.js coordinates except
+      // roll/deviation ("Z"), which originates from Bullet +Y and therefore
+      // rotates around Three -Z.
       switch (jdef.axis) {
         case 'Y': node.rotation.y = THREE.MathUtils.lerp(node.rotation.y, targetAngle, lerpFactor); break;
         case 'X': node.rotation.x = THREE.MathUtils.lerp(node.rotation.x, targetAngle, lerpFactor); break;
-        case 'Z': node.rotation.z = THREE.MathUtils.lerp(node.rotation.z, targetAngle, lerpFactor); break;
+        case 'Z': node.rotation.z = THREE.MathUtils.lerp(node.rotation.z, -targetAngle, lerpFactor); break;
       }
     }
 
