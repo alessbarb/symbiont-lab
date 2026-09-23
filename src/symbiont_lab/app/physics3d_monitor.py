@@ -596,17 +596,62 @@ def record_to_snapshot(
     snap.setdefault("slm_best_baseline", None)
     snap.setdefault("slm_candidate_loss", None)
     snap.setdefault("slm_best_baseline_loss", None)
-    snap.setdefault("episodic_episodes", record.get("episodic_episodes", 0))
-    snap.setdefault("episodic_pending_records", record.get("episodic_pending_records", 0))
-    snap.setdefault("episodic_compressed_episodes", record.get("episodic_compressed_episodes", 0))
-    snap.setdefault("episodic_interpretations", record.get("episodic_interpretations", 0))
-    snap.setdefault("episodic_contingencies", record.get("episodic_contingencies", 0))
-    snap.setdefault("episodic_retrievals", record.get("episodic_retrievals", 0))
-    snap.setdefault("episodic_replays", record.get("episodic_replays", 0))
-    snap.setdefault("episodic_compactions", record.get("episodic_compactions", 0))
-    snap.setdefault("episodic_evictions", record.get("episodic_evictions", 0))
-    snap.setdefault("episodic_oldest_age", record.get("episodic_oldest_age", 0))
-    snap.setdefault("episodic_mean_age", record.get("episodic_mean_age", 0.0))
+    episodic = record.get("episodic_memory", {})
+    if not isinstance(episodic, Mapping):
+        episodic = {}
+    snap.setdefault(
+        "episodic_episodes",
+        record.get("episodic_episodes", episodic.get("episode_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_pending_records",
+        record.get("episodic_pending_records", episodic.get("pending_records", 0)),
+    )
+    snap.setdefault(
+        "episodic_compressed_episodes",
+        record.get(
+            "episodic_compressed_episodes",
+            episodic.get("compressed_episode_count", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_interpretations",
+        record.get(
+            "episodic_interpretations",
+            episodic.get("interpretation_count", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_contingencies",
+        record.get(
+            "episodic_contingencies",
+            episodic.get("consolidated_contingencies", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_retrievals",
+        record.get("episodic_retrievals", episodic.get("retrieval_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_replays",
+        record.get("episodic_replays", episodic.get("replay_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_compactions",
+        record.get("episodic_compactions", episodic.get("compaction_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_evictions",
+        record.get("episodic_evictions", episodic.get("eviction_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_oldest_age",
+        record.get("episodic_oldest_age", episodic.get("oldest_episode_age", 0)),
+    )
+    snap.setdefault(
+        "episodic_mean_age",
+        record.get("episodic_mean_age", episodic.get("mean_episode_age", 0.0)),
+    )
     snap.setdefault("symbiont_file", "")
     return snap
 
