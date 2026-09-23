@@ -284,3 +284,19 @@ def test_byte_pressure_is_enforced_before_checkpoint() -> None:
     assert len(encoded) <= limits.max_episodic_checkpoint_bytes
     assert len(memory.episodes) < 12
     assert memory.metrics(current_tick=120).eviction_count > 0
+
+
+
+def test_higher_order_interpretation_can_index_prior_interpretation() -> None:
+    memory = EpisodicExperienceMemory(ORG)
+    memory.observe(record(0, context=("sense.a", "sense.b")))
+    memory.flush()
+    episode_id = memory.episodes[0].episode_id
+
+    assert memory.reinterpret("concept.low", ("sense.a",), min_overlap=1.0) == 1
+    assert memory.reinterpret("concept.high", ("concept.low",), min_overlap=1.0) == 1
+
+    assert memory.interpretations_for(episode_id) == (
+        "concept.high",
+        "concept.low",
+    )
