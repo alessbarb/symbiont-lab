@@ -844,9 +844,6 @@ export function createCognitionController({
       graph.threeDMode,
     );
     const sectorFocus = focusedSectorContext();
-    graph.projected3d = sectorFocus
-      ? new Map([...scene.byId.entries()].filter(([id]) => sectorFocus.visible.has(id)))
-      : scene.byId;
 
     const now = performance.now();
     const focusId = hoveredNode?.id ?? graph.selectedNodeId;
@@ -855,8 +852,19 @@ export function createCognitionController({
       ? graphSubgraphIds(activeTopology, focusId, graph.pathDepth)
       : null;
     const atlasPath = atlasPathSets();
+    const detailLevel = currentDetailLevel();
+    const visibleIds = visibleIdsForDetail(nodes, atlasPath);
+    graph.detailVisibleIds = visibleIds;
+    graph.projected3d = new Map(
+      [...scene.byId.entries()].filter(([id]) =>
+        sectorFocus ? sectorFocus.visible.has(id) : visibleIds.has(id)
+      )
+    );
+    const atlasTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
 
     drawAtlasRegions3D(ctx, scene, sectorFocus);
+    drawAtlasRegionLinks(ctx, graph.atlasRegionGeometry3d, atlasTick);
+    drawLearningFrontierZones(ctx, scene.byId);
 
     // Objective connected-component labels remain secondary context in
     // Structure mode. Atlas regions are the primary observer-level anatomy.
@@ -889,7 +897,12 @@ export function createCognitionController({
         connectedIds?.has(edge.source.id) &&
         connectedIds?.has(edge.target.id)
       );
-      if (focusId && !isConn) continue;
+      const pathEdge = atlasPath.edgeKeys.has(atlasEdgeKey(edge));
+      const endpointsVisible =
+        visibleIds.has(edge.source.id) && visibleIds.has(edge.target.id);
+      if (!sectorFocus && detailLevel === 'regions' && !focusId && !pathEdge) continue;
+      if (!sectorFocus && detailLevel === 'meso' && !endpointsVisible && !pathEdge && !isConn) continue;
+      if (focusId && !isConn && !pathEdge) continue;
       if (sectorFocus) {
         const sourceLocal = sectorFocus.local.has(edge.source.id);
         const targetLocal = sectorFocus.local.has(edge.target.id);
@@ -901,7 +914,7 @@ export function createCognitionController({
         a,
         b,
         depth: (a.depth + b.depth) / 2,
-        focused: isConn || atlasPath.edgeKeys.has(atlasEdgeKey(edge)),
+        focused: isConn || pathEdge,
       });
     }
     visibleEdges.sort((a,b) => b.depth - a.depth);
@@ -949,8 +962,10 @@ export function createCognitionController({
     for (const projected of scene.projected) {
       const node = projected.node;
       if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
-      const isHovered = hoveredNode?.id === node.id;
+      const pathNode = atlasPath.nodeIds.has(node.id);
       const isSelected = graph.selectedNodeId === node.id;
+      const isHovered = hoveredNode?.id === node.id;
+      if (!sectorFocus && !visibleIds.has(node.id) && !pathNode && !isSelected && !isHovered) continue;
       const isConn = connectedIds?.has(node.id);
       const dimmed = Boolean(focusId && !isConn);
 
@@ -976,7 +991,6 @@ export function createCognitionController({
       } else {
         ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
       }
-      const pathNode = atlasPath.nodeIds.has(node.id);
       const modeScore = clamp01(finiteNumber(node.atlasScore, 0));
       ctx.fillStyle = isHovered ? '#ffffff' : node.color;
       const depthFog = Math.max(0.34, Math.min(1, 1 - projected.depth / 1800));
