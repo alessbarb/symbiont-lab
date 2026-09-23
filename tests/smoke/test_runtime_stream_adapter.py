@@ -484,6 +484,8 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "presentationDelayMs" in body
     assert "slerpQuaternions" in body
     assert "fitCameraToBody(now, delta)" in body
+    assert "maxExtrapolationAlpha = 1.28" in body
+    assert "this.poseCadenceMs * 0.50" in body
     assert "this.baseNode.position.lerp(this.targetBasePos" not in body
 
 
