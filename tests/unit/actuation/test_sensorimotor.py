@@ -411,6 +411,9 @@ def test_passive_drift_is_subtracted_from_motor_controllability():
         lambda payload: payload.update({"schema_version": True}),
         lambda payload: payload.update({"smoothing": float("nan")}),
         lambda payload: payload["primitives"][0].update({"samples": "2"}),
+        lambda payload: payload["primitives"][0].update(
+            {"samples": payload["primitives"][0]["samples"] + 1}
+        ),
     ),
 )
 def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
