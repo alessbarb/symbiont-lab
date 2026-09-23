@@ -163,6 +163,8 @@ def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
     assert frame["cognition"]["tick"] == 55
     assert frame["vitals"]["tick"] == 55
     assert frame["mind"]["tick"] == 55
+    assert frame["provenance"]["projection"] == "observer-presentation-v1"
+    assert frame["provenance"]["contract"] == "completed-render-frame-v1"
     assert frame["provenance"]["feeds_back"] is False
 
 
