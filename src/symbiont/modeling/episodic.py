@@ -196,6 +196,7 @@ class ExperienceEpisode:
     episode_id: str
     start_tick: int
     end_tick: int
+    occurrence_ticks: tuple[int, ...]
     trace: tuple[EpisodeStep, ...]
     initial_context: tuple[str, ...]
     terminal_context: tuple[str, ...]
@@ -213,6 +214,18 @@ class ExperienceEpisode:
             raise EpisodicMemoryError("episode_id must be a bounded non-empty string")
         if self.start_tick < 0 or self.end_tick < self.start_tick:
             raise EpisodicMemoryError("invalid episode tick range")
+        if (
+            not self.occurrence_ticks
+            or len(self.occurrence_ticks) > 64
+            or any(
+                isinstance(tick, bool)
+                or not isinstance(tick, int)
+                or tick < 0
+                for tick in self.occurrence_ticks
+            )
+            or tuple(sorted(set(self.occurrence_ticks))) != self.occurrence_ticks
+        ):
+            raise EpisodicMemoryError("invalid episode occurrence ticks")
         if not self.trace:
             raise EpisodicMemoryError("episode trace must not be empty")
         if len(self.trace) > 16:
@@ -242,6 +255,7 @@ class ExperienceEpisode:
             "episode_id": self.episode_id,
             "start_tick": self.start_tick,
             "end_tick": self.end_tick,
+            "occurrence_ticks": list(self.occurrence_ticks),
             "trace": [step.checkpoint() for step in self.trace],
             "initial_context": list(self.initial_context),
             "terminal_context": list(self.terminal_context),
@@ -271,6 +285,7 @@ class ExperienceEpisode:
             end_tick = payload["end_tick"]
             recurrence = payload.get("recurrence", 1)
             compressed = payload.get("compressed", False)
+            raw_occurrence_ticks = payload["occurrence_ticks"]
             raw_trace = payload["trace"]
             if (
                 not isinstance(episode_id, str)
@@ -282,6 +297,16 @@ class ExperienceEpisode:
                 or isinstance(recurrence, bool)
                 or not isinstance(recurrence, int)
                 or not isinstance(compressed, bool)
+                or not isinstance(raw_occurrence_ticks, list)
+                or not raw_occurrence_ticks
+                or len(raw_occurrence_ticks) > 64
+                or any(
+                    isinstance(tick, bool)
+                    or not isinstance(tick, int)
+                    or tick < 0
+                    for tick in raw_occurrence_ticks
+                )
+                or raw_occurrence_ticks != sorted(set(raw_occurrence_ticks))
                 or not isinstance(raw_trace, list)
                 or not raw_trace
                 or len(raw_trace) > 16
@@ -292,6 +317,7 @@ class ExperienceEpisode:
                 episode_id=episode_id,
                 start_tick=start_tick,
                 end_tick=end_tick,
+                occurrence_ticks=tuple(raw_occurrence_ticks),
                 trace=tuple(EpisodeStep.restore(item) for item in raw_trace),
                 initial_context=strings("initial_context", 256),
                 terminal_context=strings("terminal_context", 256),
@@ -547,6 +573,7 @@ class EpisodicExperienceMemory:
             episode_id=episode_id,
             start_tick=records[0].tick_class,
             end_tick=records[-1].tick_class,
+            occurrence_ticks=(records[0].tick_class,),
             trace=trace,
             initial_context=initial,
             terminal_context=terminal,
@@ -588,10 +615,16 @@ class EpisodicExperienceMemory:
                 episode.episode_id,
             ),
         )
+        all_occurrences = sorted(set((*left.occurrence_ticks, *right.occurrence_ticks)))
+        if len(all_occurrences) > 64:
+            occurrence_ticks = tuple((*all_occurrences[:32], *all_occurrences[-32:]))
+        else:
+            occurrence_ticks = tuple(all_occurrences)
         merged = ExperienceEpisode(
             episode_id="episode." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:32],
             start_tick=min(left.start_tick, right.start_tick),
             end_tick=max(left.end_tick, right.end_tick),
+            occurrence_ticks=occurrence_ticks,
             trace=representative.trace,
             initial_context=initial,
             terminal_context=terminal,
@@ -677,21 +710,26 @@ class EpisodicExperienceMemory:
                 raise EpisodicMemoryError(
                     "pending episodic state alone exceeds kernel byte limit"
                 )
-            best: tuple[float, int, int] | None = None
-            for left in range(len(self._episodes)):
-                for right in range(left + 1, len(self._episodes)):
-                    a = self._episodes[left]
-                    b = self._episodes[right]
-                    if self._episode_signature(a) != self._episode_signature(b):
-                        continue
-                    similarity = _jaccard(a.initial_context, b.initial_context)
-                    if similarity < 0.70:
-                        continue
-                    candidate = (similarity, left, right)
-                    if best is None or candidate[0] > best[0]:
-                        best = candidate
-            if best is not None:
-                self._merge_pair(best[1], best[2])
+            exact_index: dict[
+                tuple[
+                    tuple[str | None, tuple[str, ...]],
+                    tuple[str, ...],
+                ],
+                int,
+            ] = {}
+            compact_pair: tuple[int, int] | None = None
+            for index, episode in enumerate(self._episodes):
+                key = (
+                    self._episode_signature(episode),
+                    tuple(sorted(episode.initial_context)),
+                )
+                previous = exact_index.get(key)
+                if previous is not None:
+                    compact_pair = (previous, index)
+                    break
+                exact_index[key] = index
+            if compact_pair is not None:
+                self._merge_pair(*compact_pair)
                 continue
             victim = self._least_informative_index()
             episode = self._episodes.pop(victim)
@@ -831,7 +869,11 @@ class EpisodicExperienceMemory:
 
         consolidated: dict[str, ConsolidatedContingency] = {}
         for (action, outcomes), episodes in groups.items():
-            epochs = {episode.start_tick // self._limits.episodic_epoch_ticks for episode in episodes}
+            epochs = {
+                tick // self._limits.episodic_epoch_ticks
+                for episode in episodes
+                for tick in episode.occurrence_ticks
+            }
             if len(epochs) < self._limits.episodic_min_consolidation_epochs:
                 continue
             token_counts = Counter(
