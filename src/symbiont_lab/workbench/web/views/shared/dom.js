@@ -4,9 +4,10 @@ export function escapeHtml(value) {
   }[char]));
 }
 
-export function el(tag, className = '') {
+export function el(tag, className = '', styles = {}) {
   const node = document.createElement(tag);
   if (className) node.className = className;
+  Object.assign(node.style, styles);
   return node;
 }
 
