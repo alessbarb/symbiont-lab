@@ -1,6 +1,6 @@
 # Physics3D Telemetry v4.1 — Typed Temporal Streams
 
-Status: canonical writer for new Physics3D runs after cutover.
+Status: experimental candidate. The canonical writer remains v4.0 until the v4.1 golden-run acceptance gate passes.
 
 ## Purpose
 
@@ -340,6 +340,27 @@ The converter:
 5. compares canonical state and summary bytes for every tick.
 
 The source is never modified.
+
+## Golden-run finding — 2026-09-24
+
+The real v4.0 reference run contains 4,781 committed ticks and approximately
+1.3 GiB of telemetry evidence/checkpoints. A direct simulation of v4.1 layout
+revision 2 over the first 250 ticks produced approximately 80.2 MB of
+uncompressed evidence. The dominant failure was structural schema churn:
+`runtime.signal_knowledge` alone generated about 29.8 MB of schema definitions
+plus about 21.4 MB of structural frames in that window.
+
+A keyed path-delta prototype reduced the same 250-tick window to approximately
+24.9 MB, proving the direction is materially better, but this still projects
+above the <200 MB hard gate for the full run. Therefore layout revision 2 is not
+canonicalized and the default Physics3D writer remains v4.0.
+
+The next candidate must eliminate whole-tree structural schema revisions and
+pass the full golden-run gate before cutover.
+
+## Canonicalization gate
+
+v4.1 MUST NOT replace v4.0 as the default writer until all acceptance gates below pass on the real 4,781-tick reference run. A failed storage or reconstruction gate is a release blocker, not a warning.
 
 ## Acceptance gates
 
