@@ -95,7 +95,11 @@ export class HumanoidViewer {
     this.poseCadenceMs = null;
     this.poseIntervalsMs = [];
     this.presentationDelayMs = 120;
-    this.MAX_POSE_FRAMES = 8;
+    this.MAX_POSE_FRAMES = 12;
+    this.hasDensePoseStream = false;
+    this.presentationSourceTimeMs = null;
+    this.presentationStarted = false;
+    this.presentationBufferMs = 55;
     this.clock = new THREE.Clock();
     this.followDistance = 3.2;
 
@@ -669,7 +673,7 @@ export class HumanoidViewer {
     this.renderer.setSize(w, h, false);
   }
 
-  capturePoseFrame(receivedAt = performance.now()) {
+  capturePoseFrame(receivedAt = performance.now(), sourceTimeMs = null) {
     const previous = this.poseFrames[this.poseFrames.length - 1];
     if (previous) {
       const interval = receivedAt - previous.receivedAt;
@@ -703,6 +707,7 @@ export class HumanoidViewer {
 
     this.poseFrames.push({
       receivedAt,
+      sourceTimeMs: Number.isFinite(sourceTimeMs) ? sourceTimeMs : null,
       basePosition: this.targetBasePos.clone(),
       baseQuaternion: this.targetBaseQuat.clone(),
       jointAngles: new Map(this.targetJointAngles),
@@ -758,8 +763,59 @@ export class HumanoidViewer {
     }
   }
 
-  interpolatePresentationPose(now) {
+  interpolatePresentationPose(now, delta) {
     if (this.poseFrames.length === 0) return;
+
+    if (this.hasDensePoseStream) {
+      const sourceFrames = this.poseFrames.filter(
+        (frame) => Number.isFinite(frame.sourceTimeMs),
+      );
+      if (sourceFrames.length === 0) return;
+
+      const first = sourceFrames[0];
+      const latest = sourceFrames[sourceFrames.length - 1];
+
+      if (!this.presentationStarted) {
+        const bufferedMs = latest.sourceTimeMs - first.sourceTimeMs;
+        if (bufferedMs < this.presentationBufferMs && sourceFrames.length < 4) {
+          this.applyPresentationPose(first, first, 0);
+          return;
+        }
+        this.presentationStarted = true;
+        this.presentationSourceTimeMs = first.sourceTimeMs;
+      } else {
+        this.presentationSourceTimeMs += delta * 1000;
+      }
+
+      // Never run beyond the newest real physics sample.
+      this.presentationSourceTimeMs = Math.min(
+        this.presentationSourceTimeMs,
+        latest.sourceTimeMs,
+      );
+
+      while (
+        this.poseFrames.length > 2 &&
+        Number.isFinite(this.poseFrames[1].sourceTimeMs) &&
+        this.poseFrames[1].sourceTimeMs <= this.presentationSourceTimeMs
+      ) {
+        this.poseFrames.shift();
+      }
+
+      const from = this.poseFrames[0];
+      const to = this.poseFrames[1] ?? from;
+      const fromTime = from.sourceTimeMs ?? this.presentationSourceTimeMs;
+      const toTime = to.sourceTimeMs ?? fromTime;
+      const span = Math.max(1, toTime - fromTime);
+      const alpha = from === to
+        ? 0
+        : THREE.MathUtils.clamp(
+            (this.presentationSourceTimeMs - fromTime) / span,
+            0,
+            1,
+          );
+      this.applyPresentationPose(from, to, alpha);
+      return;
+    }
 
     const presentationTime = now - this.presentationDelayMs;
     while (
@@ -772,7 +828,6 @@ export class HumanoidViewer {
     const from = this.poseFrames[0];
     const to = this.poseFrames[1] ?? from;
     const span = Math.max(1, to.receivedAt - from.receivedAt);
-
     const alpha = from === to
       ? 0
       : THREE.MathUtils.clamp(
@@ -794,6 +849,7 @@ export class HumanoidViewer {
       if (!data || !data.type) return;
 
       switch (data.type) {
+        case 'body_pose': this.handleBodyPoseEvent(data);  break;
         case 'body':      this.handleBodyEvent(data);      break;
         case 'cognition': this.handleCognitionEvent(data); break;
         case 'vitals':    this.handleVitalsEvent(data);    break;
@@ -808,6 +864,66 @@ export class HumanoidViewer {
         this.statusEl.style.color = 'var(--amber, #f1fa8c)';
       }
     };
+  }
+
+  handleBodyPoseEvent(data) {
+    const sourceTimeMs = Number(data.simulation_time_s) * 1000;
+    if (!Number.isFinite(sourceTimeMs)) return;
+
+    this.hasDensePoseStream = true;
+
+    if (Array.isArray(data.base_position) && data.base_position.length === 3) {
+      this.targetBasePos.set(...pbPos(...data.base_position));
+    }
+    if (Array.isArray(data.base_orientation) && data.base_orientation.length === 4) {
+      this.targetBaseQuat.copy(pbQuat(...data.base_orientation));
+    }
+
+    if (Array.isArray(data.links) && data.links.length > 0) {
+      const world = new Map();
+      for (const link of data.links) {
+        if (
+          !link ||
+          typeof link.name !== 'string' ||
+          !Array.isArray(link.position) ||
+          link.position.length !== 3 ||
+          !Array.isArray(link.orientation) ||
+          link.orientation.length !== 4
+        ) continue;
+        world.set(link.name, {
+          position: new THREE.Vector3(...pbPos(...link.position)),
+          quaternion: pbQuat(...link.orientation),
+        });
+      }
+
+      const relative = new Map();
+      for (const jdef of JOINT_TOPOLOGY) {
+        const parent = world.get(jdef.parent);
+        const child = world.get(jdef.child);
+        if (!parent || !child) continue;
+
+        const inverseParent = parent.quaternion.clone().invert();
+        relative.set(jdef.child, {
+          position: child.position.clone()
+            .sub(parent.position)
+            .applyQuaternion(inverseParent),
+          quaternion: inverseParent.clone().multiply(child.quaternion),
+        });
+      }
+      if (relative.size > 0) {
+        this.targetLinkTransforms = relative;
+        this.hasAuthoritativeLinkPoses = true;
+      }
+    }
+
+    if (Array.isArray(data.joints)) {
+      for (const joint of data.joints) {
+        if (!joint || !Number.isFinite(joint.position)) continue;
+        this.targetJointAngles.set(joint.name, joint.position);
+      }
+    }
+
+    this.capturePoseFrame(performance.now(), sourceTimeMs);
   }
 
   handleBodyEvent(data) {
@@ -825,7 +941,7 @@ export class HumanoidViewer {
         if (Number.isFinite(step) && step < 2.0) this.distanceTravelled += step;
       }
       this.previousObservedBasePos = nextPos.clone();
-      this.targetBasePos.copy(nextPos);
+      if (!this.hasDensePoseStream) this.targetBasePos.copy(nextPos);
 
       const net = this.observerStartBasePos ? nextPos.distanceTo(this.observerStartBasePos) : 0;
       const directionalEfficiency = this.distanceTravelled > 0.02
@@ -836,7 +952,7 @@ export class HumanoidViewer {
       this.queueUIUpdate('locomotion_efficiency',
         directionalEfficiency === null ? '—' : `${(directionalEfficiency * 100).toFixed(0)}%`);
     }
-    if (data.base_orientation) {
+    if (data.base_orientation && !this.hasDensePoseStream) {
       this.targetBaseQuat.copy(pbQuat(...data.base_orientation));
     }
     if (Array.isArray(data.links) && data.links.length > 0) {
@@ -872,7 +988,7 @@ export class HumanoidViewer {
           quaternion: localQuaternion,
         });
       }
-      if (relative.size > 0) {
+      if (relative.size > 0 && !this.hasDensePoseStream) {
         this.targetLinkTransforms = relative;
         this.hasAuthoritativeLinkPoses = true;
       }
@@ -889,7 +1005,7 @@ export class HumanoidViewer {
         const previous = this.previousJointPositions.get(j.name);
         const delta = previous === undefined ? 0 : Math.abs(j.position - previous);
         this.previousJointPositions.set(j.name, j.position);
-        this.targetJointAngles.set(j.name, j.position);
+        if (!this.hasDensePoseStream) this.targetJointAngles.set(j.name, j.position);
 
         const activity = Math.min(1, delta / 0.045);
         this.jointActivity.set(j.name, Math.max(activity, (this.jointActivity.get(j.name) ?? 0) * 0.7));
@@ -905,7 +1021,9 @@ export class HumanoidViewer {
       this.updateBodySummary();
     }
 
-    this.capturePoseFrame(performance.now());
+    if (!this.hasDensePoseStream) {
+      this.capturePoseFrame(performance.now());
+    }
 
     // Queue UI updates (Throttling)
     if (data.tick !== undefined) this.queueUIUpdate('tick', String(data.tick));
@@ -1013,7 +1131,7 @@ export class HumanoidViewer {
 
     // Physics/Symbiont remain untouched. Only the observer presentation clock
     // samples between real telemetry frames at display refresh rate.
-    this.interpolatePresentationPose(now);
+    this.interpolatePresentationPose(now, delta);
 
     if (this.dirLight) {
       this.dirLight.position.copy(this.baseNode.position).add(this.lightOffset);
@@ -1125,6 +1243,8 @@ export class HumanoidViewer {
     this.targetLinkTransforms.clear();
     this.poseFrames.length = 0;
     this.poseIntervalsMs.length = 0;
+    this.presentationSourceTimeMs = null;
+    this.presentationStarted = false;
 
     // Restore the host element rather than blindly erasing styles it owned
     // before the viewer was mounted.
