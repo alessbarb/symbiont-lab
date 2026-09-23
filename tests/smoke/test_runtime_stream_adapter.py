@@ -14,6 +14,7 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "cognitive-atlas.js",
         WEB_ROOT / "views" / "mind" / "cognitive-temporal.js",
         WEB_ROOT / "views" / "mind" / "cognitive-lod.js",
+        WEB_ROOT / "views" / "mind" / "cognitive-observatory.js",
         WEB_ROOT / "views" / "mind" / "overview.js",
         WEB_ROOT / "views" / "mind" / "motor-learning.js",
         WEB_ROOT / "views" / "mind" / "history.js",
@@ -1124,3 +1125,37 @@ def test_multiscale_atlas_does_not_make_hidden_nodes_clickable() -> None:
     assert "graph.detailVisibleIds && !graph.detailVisibleIds.has(n.id)" in asset
     assert "graph.projected3d = new Map(" in asset
     assert "visibleIds.has(id)" in asset
+
+
+def test_cognitive_observatory_synthesizes_current_evidence_without_intent_claims() -> None:
+    asset = _mind_sources()
+    observatory = (WEB_ROOT / "views" / "mind" / "cognitive-observatory.js").read_text(encoding="utf-8")
+
+    assert "export function cognitiveSituation(" in observatory
+    assert "claimsIntent: false" in observatory
+    assert "feedsBack: false" in observatory
+    assert "cognitive-observatory-v1" in observatory
+    assert "Current observed process" in asset
+    assert "Observer evidence only · no inferred intent · no feedback to Symbiont." in asset
+
+
+def test_cognitive_observatory_exposes_full_stage_counts_and_evidence() -> None:
+    observatory = (WEB_ROOT / "views" / "mind" / "cognitive-observatory.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
+
+    assert "const allActiveNodes" in observatory
+    assert "activeRegionCount: allActiveRegions.length" in observatory
+    for stage in ("Perception", "Integration", "Prediction", "Readout", "Motor capability"):
+        assert f"label: '{stage}'" in observatory
+    assert "Prediction pressure" in asset
+    assert "Recent relation coverage" in asset
+    assert "Observed motor paths" in asset
+
+
+def test_cognitive_observatory_keeps_atlas_as_spatial_instrument() -> None:
+    asset = _mind_sources()
+
+    assert "Cognitive Observatory · Atlas" in asset
+    assert "Cognitive Observatory" in asset
+    assert "Cognitive Atlas" in asset
+    assert "physical actuators hidden" in asset
