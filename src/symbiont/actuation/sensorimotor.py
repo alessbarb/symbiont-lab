@@ -360,6 +360,10 @@ class SensorimotorLearner:
         self._horizon_counts = {horizon: 0 for horizon in _HORIZONS}
 
         self._primitive_stats: dict[MotorSequence, _RunningStat] = {}
+        self._primitive_first_sample_tick: dict[MotorSequence, int] = {}
+        self._primitive_last_sample_tick: dict[MotorSequence, int] = {}
+        self._primitive_materialized_tick: dict[MotorSequence, int] = {}
+        self._primitive_competence_tick: dict[MotorSequence, int] = {}
         self._passive_effect_stat = _RunningStat()
         self._passive_direction_stats: dict[str, _RunningStat] = {}
         self._primitive_direction_stats: dict[
@@ -692,7 +696,10 @@ class SensorimotorLearner:
         raw_effect = self._body_delta(before, after)
         effect = max(0.0, raw_effect - self._passive_effect_stat.mean)
         stat = self._primitive_stats.setdefault(sequence, _RunningStat())
+        if stat.count == 0:
+            self._primitive_first_sample_tick[sequence] = int(end_tick)
         stat.observe(effect)
+        self._primitive_last_sample_tick[sequence] = int(end_tick)
         direction_stats = self._primitive_direction_stats.setdefault(sequence, {})
         for signal_id, delta in self._signed_body_delta(before, after).items():
             passive_stat = self._passive_direction_stats.get(signal_id)
@@ -721,6 +728,15 @@ class SensorimotorLearner:
                 for key, value in self._primitive_direction_stats.items()
                 if key in retained_sequences
             }
+            for lifecycle in (
+                self._primitive_first_sample_tick,
+                self._primitive_last_sample_tick,
+                self._primitive_materialized_tick,
+                self._primitive_competence_tick,
+            ):
+                stale = set(lifecycle) - retained_sequences
+                for key in stale:
+                    lifecycle.pop(key, None)
             retained_primitive_ids = {
                 self._primitive_id_for_sequence(key)
                 for key in retained_sequences
@@ -767,6 +783,7 @@ class SensorimotorLearner:
             controllability=controllability,
             directional_consistency=directional_consistency,
         )
+        self._primitive_materialized_tick.setdefault(sequence, int(end_tick))
         self._invalidate_primitive_caches()
 
         # A bounded repertoire must not evict a primitive that has already
@@ -778,6 +795,7 @@ class SensorimotorLearner:
 
         retained_primitive = self._primitives.get(primitive_id)
         if retained_primitive is not None and retained_primitive.is_competence:
+            self._primitive_competence_tick.setdefault(sequence, int(end_tick))
             return primitive_id
         return None
 
@@ -1053,6 +1071,10 @@ class SensorimotorLearner:
                 {
                     "sequence": _sequence_payload(sequence),
                     "stat": stat.checkpoint(),
+                    "first_sample_tick": self._primitive_first_sample_tick.get(sequence),
+                    "last_sample_tick": self._primitive_last_sample_tick.get(sequence),
+                    "materialized_tick": self._primitive_materialized_tick.get(sequence),
+                    "competence_tick": self._primitive_competence_tick.get(sequence),
                     "signals": {
                         signal_id: signal_stat.checkpoint()
                         for signal_id, signal_stat
@@ -1218,6 +1240,30 @@ class SensorimotorLearner:
                 if isinstance(raw_stat, Mapping):
                     learner._primitive_stats[sequence] = _RunningStat.restore(
                         raw_stat
+                    )
+                first_sample_tick = item.get("first_sample_tick")
+                last_sample_tick = item.get("last_sample_tick")
+                materialized_tick = item.get("materialized_tick")
+                competence_tick = item.get("competence_tick")
+                if first_sample_tick is not None:
+                    learner._primitive_first_sample_tick[sequence] = _require_int(
+                        first_sample_tick,
+                        field="primitive first_sample_tick",
+                    )
+                if last_sample_tick is not None:
+                    learner._primitive_last_sample_tick[sequence] = _require_int(
+                        last_sample_tick,
+                        field="primitive last_sample_tick",
+                    )
+                if materialized_tick is not None:
+                    learner._primitive_materialized_tick[sequence] = _require_int(
+                        materialized_tick,
+                        field="primitive materialized_tick",
+                    )
+                if competence_tick is not None:
+                    learner._primitive_competence_tick[sequence] = _require_int(
+                        competence_tick,
+                        field="primitive competence_tick",
                     )
                 raw_signals = item.get("signals", {})
                 if isinstance(raw_signals, Mapping):
