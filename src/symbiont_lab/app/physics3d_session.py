@@ -132,11 +132,16 @@ class Physics3DSession:
         with self._lock:
             bridge = self._bridge
             thread = self._thread
+            terminal = self._state in {
+                Physics3DSessionState.FAILED,
+                Physics3DSessionState.STOPPED,
+            }
             if thread is None or not thread.is_alive():
-                if self._state not in {Physics3DSessionState.FAILED, Physics3DSessionState.STOPPED}:
+                if not terminal:
                     self._state = Physics3DSessionState.STOPPED
                 return
-            self._state = Physics3DSessionState.STOPPING
+            if not terminal:
+                self._state = Physics3DSessionState.STOPPING
         if bridge is not None:
             bridge.request_stop()
 
