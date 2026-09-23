@@ -3256,8 +3256,11 @@ function renderCognitionInspector() {
     inspectorMetric(panel, 'Kind', selected.kind);
     inspectorMetric(panel, 'Degree', selected.neighbors?.size ?? 0);
     inspectorMetric(panel, 'Activity', pct(selected.activationLevel ?? 0), PAL.cyan);
-    inspectorMetric(panel, 'Visual value', pct(selected.visualValue ?? 0));
-    inspectorMetric(panel, 'Community', selected.community ?? 'isolated');
+    inspectorMetric(panel, 'Structural importance', pct(selected.structuralImportance ?? selected.visualValue ?? 0));
+    inspectorMetric(panel, 'Component', selected.isolated ? 'unintegrated' : `#${(selected.componentRank ?? 0) + 1} · ${selected.componentSize ?? 1} nodes`);
+    inspectorMetric(panel, 'Sector', selected.community && selected.community !== 'isolated'
+      ? (_graph.sectorLabels.get(selected.community) ?? 'unresolved')
+      : 'none');
     inspectorMetric(panel, 'Inbound / outbound', `${facts.inbound.length} / ${facts.outbound.length}`);
     inspectorMetric(panel, `Within ${_graph.pathDepth} hops`, facts.localIds.size);
     inspectorMetric(
@@ -3275,9 +3278,11 @@ function renderCognitionInspector() {
     panel.appendChild(relTitle);
 
     const direct = [
-      ...facts.inbound.map(edge => ({ dir: '←', other: edge.sourceId, kind: edge.kind ?? 'edge' })),
-      ...facts.outbound.map(edge => ({ dir: '→', other: edge.targetId, kind: edge.kind ?? 'edge' })),
-    ].slice(0, 12);
+      ...facts.inbound.map(edge => ({ dir: '←', other: edge.sourceId, edge })),
+      ...facts.outbound.map(edge => ({ dir: '→', other: edge.targetId, edge })),
+    ]
+      .sort((a,b) => finiteNumber(b.edge.support,0) - finiteNumber(a.edge.support,0))
+      .slice(0, 12);
 
     if (!direct.length) {
       const empty = el('div', '');
@@ -3294,8 +3299,9 @@ function renderCognitionInspector() {
           background:rgba(80,217,255,.025);color:var(--muted);
           font-size:8px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
         `;
-        row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · ${relation.kind}`;
-        row.title = relation.other;
+        row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · ${relation.edge.kind ?? 'edge'} · sup ${finiteNumber(relation.edge.support,0)}`;
+        row.title =
+          `${relation.other}\nkind ${relation.edge.kind ?? 'edge'} · weight ${finiteNumber(relation.edge.weight,0).toFixed(3)} · plasticity ${finiteNumber(relation.edge.plasticity,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · age ${finiteNumber(relation.edge.ageTicks,0)} · stable ${finiteNumber(relation.edge.stableTicks,0)} · last use t${finiteNumber(relation.edge.lastUseTick,0)}`;
         row.addEventListener('click', () => selectCognitiveNode(relation.other));
         panel.appendChild(row);
       }
