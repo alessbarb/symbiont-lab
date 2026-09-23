@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from symbiont_lab.workbench import WEB_ROOT
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
 from symbiont_lab.observation.projection import (
     mind_snapshot_from_rich_state,
@@ -289,15 +290,7 @@ def test_physics3d_topology_projection_keeps_nodes_beyond_128() -> None:
 
 
 def test_mind_asset_uses_body_schema_class_contract() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "existence_confidence_class" in asset
     assert "health_class" in asset
@@ -309,15 +302,7 @@ def test_mind_asset_uses_body_schema_class_contract() -> None:
 
 
 def test_mind_regime_is_explicitly_observer_side_and_finite_safe() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "Observer Map" in asset
     assert "OBSERVER MODEL" in asset
@@ -327,15 +312,7 @@ def test_mind_regime_is_explicitly_observer_side_and_finite_safe() -> None:
 
 
 def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "Body-derived sensory topology" in asset
     assert "topology.edges" in asset
@@ -344,15 +321,7 @@ def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
 
 
 def test_mind_cognition_layout_is_relationship_aware() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "deriveLocalCommunities" in asset
     assert "shared downstream/upstream partners" in asset
@@ -363,15 +332,7 @@ def test_mind_cognition_layout_is_relationship_aware() -> None:
 
 
 def test_mind_self_is_organism_owned_self_portrait() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "How it represents itself" in asset
     assert "Organism-owned BodySchema only" in asset
@@ -383,15 +344,7 @@ def test_mind_self_is_organism_owned_self_portrait() -> None:
 
 
 def test_mind_compares_phenotype_and_self_side_by_side() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "{ id: 'phenotype',  label: 'Identity' }" in asset
     assert "mind-identity-wrap" in asset
@@ -405,15 +358,7 @@ def test_mind_compares_phenotype_and_self_side_by_side() -> None:
 
 
 def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "Observed organism" in asset
     assert "Self-model" in asset
@@ -428,15 +373,7 @@ def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self()
 
 
 def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "viewMode:       'connected'" in asset
     assert "['full','Full']" in asset
@@ -449,15 +386,7 @@ def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
 
 
 def test_mind_tracks_cognitive_structure_over_time() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    asset = (
-        Path(symbiont_lab.server.__file__).parent
-        / "assets"
-        / "views"
-        / "mind.js"
-    ).read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "const _mindHistory = []" in asset
     assert "function recordMindHistory()" in asset
@@ -466,10 +395,7 @@ def test_mind_tracks_cognitive_structure_over_time() -> None:
 
 
 def test_body_and_mind_use_resource_delta_as_distance_not_percent() -> None:
-    from pathlib import Path
-    import symbiont_lab.server
-
-    root = Path(symbiont_lab.server.__file__).parent / "assets" / "views"
+    root = WEB_ROOT / "views"
     mind = (root / "mind.js").read_text(encoding="utf-8")
     body = (root / "body.js").read_text(encoding="utf-8")
 
