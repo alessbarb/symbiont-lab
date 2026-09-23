@@ -49,7 +49,7 @@ def make_handler(
     study_state: StudyDashboardState,
     experiment_starter: Callable[[ExperimentSpec], bool],
     study_starter: Callable[..., bool],
-    organism_stream: ObservationBus,
+    observation_bus: ObservationBus,
     observatory_dir: Path | None,
     assets_dir: Path,
 ) -> type[BaseHTTPRequestHandler]:
@@ -264,7 +264,7 @@ def make_handler(
         # Organism SSE
         # ----------------------------------------------------------------
         def _stream_organism(self) -> None:
-            stream_organism(self, organism_stream)
+            stream_organism(self, observation_bus)
 
         def _stream_fleet(self) -> None:
             stream_fleet(self, observatory_source)
