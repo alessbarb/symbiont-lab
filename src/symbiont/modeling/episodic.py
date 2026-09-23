@@ -418,6 +418,8 @@ class EpisodicExperienceMemory:
         self._interpretations: dict[str, set[str]] = {}
         self._retrieval_counts: Counter[str] = Counter()
         self._consolidated: dict[str, ConsolidatedContingency] = {}
+        self._episode_payload_bytes: dict[str, int] = {}
+        self._pending_payload_bytes = 0
         self._retrieval_count = 0
         self._replay_count = 0
         self._compaction_count = 0
@@ -437,6 +439,39 @@ class EpisodicExperienceMemory:
 
     def interpretations_for(self, episode_id: str) -> tuple[str, ...]:
         return tuple(sorted(self._interpretations.get(episode_id, ())))
+
+    @staticmethod
+    def _json_size(payload: object) -> int:
+        return len(
+            json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+
+    def _episode_size(self, episode: ExperienceEpisode) -> int:
+        return self._json_size(episode.checkpoint())
+
+    def _record_size(self, record: ExperienceRecord) -> int:
+        return self._json_size(record.canonical_payload())
+
+    def _estimated_persisted_size(self) -> int:
+        # Conservative structural allowance covers list/map separators,
+        # retrieval counters and metrics without serializing the whole memory.
+        interpretation_bytes = sum(
+            64
+            + len(episode_id)
+            + sum(len(value) + 8 for value in values)
+            for episode_id, values in self._interpretations.items()
+        )
+        structural_allowance = 16_384 + 192 * len(self._episodes)
+        return (
+            structural_allowance
+            + sum(self._episode_payload_bytes.values())
+            + self._pending_payload_bytes
+            + interpretation_bytes
+        )
 
     @staticmethod
     def _record_context(record: ExperienceRecord) -> tuple[str, ...]:
@@ -484,11 +519,17 @@ class EpisodicExperienceMemory:
             episode = self._finalize_pending()
             finalized = episode.episode_id if episode is not None else None
         self._pending.append(record)
+        self._pending_payload_bytes += self._record_size(record) + 1
 
         # Action-outcome transitions are already natural event boundaries.
         # Keeping at most a short contiguous run prevents one long motor regime
-        # from becoming a single uninformative lifetime episode.
-        if len(self._pending) >= self._limits.max_episodic_episode_records:
+        # from becoming a single uninformative lifetime episode. Resource
+        # pressure is also a legitimate generic boundary.
+        if (
+            len(self._pending) >= self._limits.max_episodic_episode_records
+            or self._estimated_persisted_size()
+            > self._limits.max_episodic_checkpoint_bytes
+        ):
             episode = self._finalize_pending()
             finalized = episode.episode_id if episode is not None else finalized
         return finalized
@@ -533,6 +574,7 @@ class EpisodicExperienceMemory:
             return None
         records = tuple(self._pending)
         self._pending.clear()
+        self._pending_payload_bytes = 0
         initial = _bounded_tokens(records[0].context_tokens)
         terminal = _bounded_tokens(
             (*records[-1].context_tokens, *records[-1].outcome_tokens),
@@ -585,6 +627,7 @@ class EpisodicExperienceMemory:
             surprise=self._surprise_for(records),
         )
         self._episodes.append(episode)
+        self._episode_payload_bytes[episode.episode_id] = self._episode_size(episode)
         self._enforce_capacity()
         self.consolidate()
         return episode
@@ -662,9 +705,12 @@ class EpisodicExperienceMemory:
             )[: self._limits.max_episodic_interpretations_per_episode]
         )
         retrievals = self._retrieval_counts.pop(left.episode_id, 0) + self._retrieval_counts.pop(right.episode_id, 0)
+        self._episode_payload_bytes.pop(left.episode_id, None)
+        self._episode_payload_bytes.pop(right.episode_id, None)
         for index in sorted((left_index, right_index), reverse=True):
             self._episodes.pop(index)
         self._episodes.append(merged)
+        self._episode_payload_bytes[merged.episode_id] = self._episode_size(merged)
         if interpretations:
             self._interpretations[merged.episode_id] = interpretations
         if retrievals:
@@ -709,20 +755,12 @@ class EpisodicExperienceMemory:
             },
         }
 
-    def _persisted_size(self) -> int:
-        return len(
-            json.dumps(
-                self._checkpoint_payload(),
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        )
-
     def _enforce_capacity(self) -> None:
         maximum = self._limits.max_episodic_episodes
         while (
             len(self._episodes) > maximum
-            or self._persisted_size() > self._limits.max_episodic_checkpoint_bytes
+            or self._estimated_persisted_size()
+            > self._limits.max_episodic_checkpoint_bytes
         ):
             if not self._episodes:
                 raise EpisodicMemoryError(
@@ -751,6 +789,7 @@ class EpisodicExperienceMemory:
                 continue
             victim = self._least_informative_index()
             episode = self._episodes.pop(victim)
+            self._episode_payload_bytes.pop(episode.episode_id, None)
             self._interpretations.pop(episode.episode_id, None)
             self._retrieval_counts.pop(episode.episode_id, None)
             self._eviction_count += 1
@@ -868,7 +907,10 @@ class EpisodicExperienceMemory:
             ):
                 continue
             bucket.add(representation_id)
-            if self._persisted_size() > self._limits.max_episodic_checkpoint_bytes:
+            if (
+                self._estimated_persisted_size()
+                > self._limits.max_episodic_checkpoint_bytes
+            ):
                 bucket.remove(representation_id)
                 if not bucket:
                     self._interpretations.pop(episode.episode_id, None)
@@ -1045,6 +1087,10 @@ class EpisodicExperienceMemory:
         ]
         if len(memory._episodes) != len(raw_episodes):
             raise EpisodicMemoryError("episodic episode must be an object")
+        memory._episode_payload_bytes = {
+            episode.episode_id: memory._episode_size(episode)
+            for episode in memory._episodes
+        }
 
         raw_pending = payload.get("pending", [])
         if (
@@ -1059,6 +1105,7 @@ class EpisodicExperienceMemory:
             if record.organism_id != organism_id or not _is_causal_observation(record):
                 raise EpisodicMemoryError("invalid pending causal record")
             memory._pending.append(record)
+            memory._pending_payload_bytes += memory._record_size(record) + 1
 
         episode_ids = {episode.episode_id for episode in memory._episodes}
         raw_interpretations = payload.get("interpretations", {})
@@ -1095,6 +1142,11 @@ class EpisodicExperienceMemory:
                 raise EpisodicMemoryError(f"invalid episodic metric {name}")
             setattr(memory, f"_{name}", value)
 
+        if (
+            memory._estimated_persisted_size()
+            > memory._limits.max_episodic_checkpoint_bytes
+        ):
+            raise EpisodicMemoryError("episodic checkpoint exceeds kernel byte limit")
         memory.consolidate()
         return memory
 
