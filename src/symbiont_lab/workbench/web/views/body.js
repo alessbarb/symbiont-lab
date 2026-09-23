@@ -135,7 +135,6 @@ const PANEL_FIELDS = [
   { id: 'tick',                  label: 'Tick' },
   { id: '__state',               label: null, section: 'Body state' },
   { id: 'alive',                 label: 'Life' },
-  { id: 'state_summary',         label: 'Situation' },
   { id: 'metabolic_reserve',     label: 'Metabolic reserve' },
   { id: 'reserve_trend',         label: 'Reserve trend' },
 
@@ -146,7 +145,8 @@ const PANEL_FIELDS = [
   { id: 'contact_count',         label: 'Ground contacts' },
   { id: 'displacement',          label: 'Net displacement' },
   { id: 'distance_travelled',    label: 'Distance travelled' },
-  { id: 'locomotion_efficiency', label: 'Locomotion efficiency' },
+  { id: 'locomotion_efficiency', label: 'Directional efficiency' },
+  { id: 'motion_effectiveness',  label: 'Motion effectiveness' },
 
   { id: '__environment',         label: null, section: 'Environment' },
   { id: 'resource_distance',     label: 'Resource distance' },
@@ -154,11 +154,26 @@ const PANEL_FIELDS = [
 
   { id: '__control',             label: null, section: 'Control context' },
   { id: 'motor_origin',          label: 'Motor origin' },
-  { id: 'schema_conf',           label: 'Schema confidence' },
-  { id: 'prediction_error',      label: 'Prediction error' },
-  { id: 'slm_active',            label: 'Private model' },
-  { id: 'prospective',           label: 'Prospective choice' },
+  { id: 'cognitive_context',     label: 'Cognitive detail' },
 ];
+
+const SEGMENT_ACTIVITY_JOINTS = {
+  pelvis: ['trunk_yaw', 'trunk_roll', 'trunk_pitch'],
+  torso: ['trunk_yaw', 'trunk_roll', 'trunk_pitch'],
+  head: ['neck_yaw', 'neck_pitch'],
+  left_upper_arm: ['left_shoulder_yaw', 'left_shoulder_roll', 'left_shoulder_pitch'],
+  left_forearm: ['left_elbow_pitch', 'left_forearm_roll'],
+  left_hand: ['left_wrist_pitch', 'left_wrist_deviation'],
+  right_upper_arm: ['right_shoulder_yaw', 'right_shoulder_roll', 'right_shoulder_pitch'],
+  right_forearm: ['right_elbow_pitch', 'right_forearm_roll'],
+  right_hand: ['right_wrist_pitch', 'right_wrist_deviation'],
+  left_thigh: ['left_hip_yaw', 'left_hip_roll', 'left_hip_pitch'],
+  left_shin: ['left_knee_pitch'],
+  left_foot: ['left_ankle_pitch', 'left_ankle_roll'],
+  right_thigh: ['right_hip_yaw', 'right_hip_roll', 'right_hip_pitch'],
+  right_shin: ['right_knee_pitch'],
+  right_foot: ['right_ankle_pitch', 'right_ankle_roll'],
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DOM helpers
@@ -201,15 +216,26 @@ export class HumanoidViewer {
     // Scene objects mapping
     this.jointObjs = {};
     this.linkObjs = {};
+    this.segmentMeshes = {};
     this.jointMarkers = {};
     this.jointActivity = new Map();
 
     // Observer-side body history. These values never feed back into the organism.
     this.previousObservedBasePos = null;
+    this.observerStartBasePos = null;
     this.previousJointPositions = new Map();
     this.distanceTravelled = 0;
     this.activeJointCount = 0;
     this.reserveHistory = [];
+    this.observerResourceBaseline = null;
+    this.observerPathAtResourceBaseline = 0;
+    this.resourceObject = null;
+    this.resourceGuide = null;
+    this.resourceGuidePositions = null;
+    this.frameBounds = new THREE.Box3();
+    this.frameCenter = new THREE.Vector3();
+    this.frameSize = new THREE.Vector3();
+    this.lastFrameFitTime = 0;
     this.bodyState = {
       alive: null,
       reserve: null,
@@ -277,6 +303,29 @@ export class HumanoidViewer {
     });
     this.statusEl.textContent = '○ Waiting for organism…';
     this.canvasWrap.appendChild(this.statusEl);
+
+    this.situationEl = el('div', 'body-situation-overlay', {
+      position: 'absolute',
+      top: '15px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '3',
+      maxWidth: '58%',
+      padding: '7px 11px',
+      border: '1px solid rgba(116, 151, 178, 0.18)',
+      borderRadius: '8px',
+      background: 'rgba(7, 15, 22, 0.66)',
+      backdropFilter: 'blur(8px)',
+      color: 'var(--text, #e0e0e0)',
+      fontFamily: 'var(--mono, monospace)',
+      fontSize: '11px',
+      letterSpacing: '0.02em',
+      textAlign: 'center',
+      pointerEvents: 'none',
+      userSelect: 'none',
+    });
+    this.situationEl.textContent = 'Waiting for body telemetry';
+    this.canvasWrap.appendChild(this.situationEl);
 
     // Camera controls: BODY is body-centric by default, while Free preserves
     // ordinary OrbitControls inspection when the observer wants it.
@@ -414,16 +463,18 @@ export class HumanoidViewer {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setClearColor(0x0d0d12, 1);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.16;
+    this.renderer.setClearColor(0x111923, 1);
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x0d0d12, 6, 16);
+    this.scene.fog = new THREE.Fog(0x111923, 8, 22);
 
-    const ambient = new THREE.AmbientLight(0x404060, 0.4);
+    const ambient = new THREE.AmbientLight(0x63758f, 0.68);
     this.scene.add(ambient);
 
     // Directional light with dynamic shadow target
-    this.dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    this.dirLight = new THREE.DirectionalLight(0xf2f7ff, 1.05);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.set(512, 512);
     this.dirLight.shadow.camera.near = 0.5;
@@ -432,17 +483,21 @@ export class HumanoidViewer {
     this.dirLight.shadow.camera.right = this.dirLight.shadow.camera.top = 3;
     this.scene.add(this.dirLight);
 
-    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x334455, 0.5);
+    const hemi = new THREE.HemisphereLight(0x9bc7e8, 0x465363, 0.78);
     this.scene.add(hemi);
 
-    const gridHelper = new THREE.GridHelper(100, 200, 0x2c3d4d, 0x1b2a36);
+    const fill = new THREE.DirectionalLight(0x8db6d8, 0.38);
+    fill.position.set(-3, 2.5, -2);
+    this.scene.add(fill);
+
+    const gridHelper = new THREE.GridHelper(100, 200, 0x35495b, 0x22313d);
     gridHelper.material.transparent = true;
-    gridHelper.material.opacity = 0.62;
+    gridHelper.material.opacity = 0.48;
     this.scene.add(gridHelper);
 
     const groundGeo = new THREE.PlaneGeometry(100, 100);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x111122, transparent: true, opacity: 0.6, roughness: 1, metalness: 0,
+      color: 0x18212c, transparent: true, opacity: 0.78, roughness: 1, metalness: 0,
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -497,7 +552,10 @@ export class HumanoidViewer {
       const geo = new THREE.BoxGeometry(w, h, d);
       const mat = new THREE.MeshStandardMaterial({
         color: SEGMENT_COLORS[segName] ?? 0x888888,
-        roughness: 0.7, metalness: 0.1,
+        roughness: 0.62,
+        metalness: 0.06,
+        emissive: 0x000000,
+        emissiveIntensity: 0,
       });
 
       const mesh = new THREE.Mesh(geo, mat);
@@ -506,6 +564,7 @@ export class HumanoidViewer {
       mesh.receiveShadow = true;
       mesh.position.set(tx, ty, tz);
       linkNode.add(mesh);
+      this.segmentMeshes[segName] = mesh;
     }
 
     for (const jdef of JOINT_TOPOLOGY) {
@@ -539,15 +598,87 @@ export class HumanoidViewer {
     }
 
     this.baseNode.add(this.linkObjs['pelvis']);
+
+    const resourceGeo = new THREE.SphereGeometry(0.18, 20, 14);
+    const resourceMat = new THREE.MeshStandardMaterial({
+      color: 0x8bcf63,
+      emissive: 0x294f1c,
+      emissiveIntensity: 0.55,
+      roughness: 0.55,
+      metalness: 0,
+    });
+    this.resourceObject = new THREE.Mesh(resourceGeo, resourceMat);
+    this.resourceObject.name = 'observer_resource';
+    this.resourceObject.castShadow = true;
+    this.resourceObject.receiveShadow = true;
+    this.resourceObject.visible = false;
+    this.scene.add(this.resourceObject);
+
+    const guideGeo = new THREE.BufferGeometry();
+    this.resourceGuidePositions = new Float32Array(6);
+    guideGeo.setAttribute('position', new THREE.BufferAttribute(this.resourceGuidePositions, 3));
+    const guideMat = new THREE.LineDashedMaterial({
+      color: 0x8bcf63,
+      transparent: true,
+      opacity: 0.42,
+      dashSize: 0.12,
+      gapSize: 0.08,
+    });
+    this.resourceGuide = new THREE.Line(guideGeo, guideMat);
+    this.resourceGuide.visible = false;
+    this.scene.add(this.resourceGuide);
   }
 
   resetCameraToBody() {
     if (!this.camera || !this.controls || !this.baseNode) return;
-    const target = this.baseNode.position.clone();
-    target.y += 0.55;
-    this.controls.target.copy(target);
-    this.camera.position.copy(target).add(new THREE.Vector3(2.35, 1.25, 3.05));
+    this.baseNode.updateWorldMatrix(true, true);
+    this.frameBounds.setFromObject(this.baseNode);
+    if (!this.frameBounds.isEmpty()) {
+      this.frameBounds.getCenter(this.frameCenter);
+    } else {
+      this.frameCenter.copy(this.baseNode.position);
+      this.frameCenter.y += 0.5;
+    }
+    this.controls.target.copy(this.frameCenter);
+    this.camera.position.copy(this.frameCenter).add(new THREE.Vector3(2.25, 1.35, 2.85));
     this.controls.update();
+  }
+
+  fitCameraToBody(now) {
+    if (!this.followBody || !this.baseNode || now - this.lastFrameFitTime < 120) return;
+    this.lastFrameFitTime = now;
+    this.baseNode.updateWorldMatrix(true, true);
+    this.frameBounds.setFromObject(this.baseNode);
+    if (this.frameBounds.isEmpty()) return;
+
+    this.frameBounds.getCenter(this.frameCenter);
+    this.frameBounds.getSize(this.frameSize);
+    const radius = Math.max(0.55, this.frameSize.length() * 0.5);
+    const halfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+    const desiredDistance = THREE.MathUtils.clamp((radius / Math.tan(halfFov)) * 1.28, 2.25, 5.2);
+
+    const viewDir = this.camera.position.clone().sub(this.controls.target);
+    if (viewDir.lengthSq() < 1e-6) viewDir.set(0.6, 0.35, 1);
+    viewDir.normalize();
+
+    this.controls.target.lerp(this.frameCenter, 0.16);
+    const desiredCamera = this.frameCenter.clone().addScaledVector(viewDir, desiredDistance);
+    this.camera.position.lerp(desiredCamera, 0.10);
+  }
+
+  updateResourceGuide() {
+    if (!this.resourceGuide || !this.resourceObject?.visible || !this.baseNode) return;
+    const start = this.baseNode.position;
+    const end = this.resourceObject.position;
+    this.resourceGuidePositions[0] = start.x;
+    this.resourceGuidePositions[1] = Math.max(0.03, start.y + 0.15);
+    this.resourceGuidePositions[2] = start.z;
+    this.resourceGuidePositions[3] = end.x;
+    this.resourceGuidePositions[4] = Math.max(0.03, end.y);
+    this.resourceGuidePositions[5] = end.z;
+    this.resourceGuide.geometry.attributes.position.needsUpdate = true;
+    this.resourceGuide.computeLineDistances();
+    this.resourceGuide.visible = true;
   }
 
   updateBodySummary() {
@@ -571,7 +702,10 @@ export class HumanoidViewer {
       else parts.push('no resource progress');
     }
 
-    this.queueUIUpdate('state_summary', parts.length ? parts.join(' · ') : '—');
+    const summary = parts.length ? parts.join(' · ') : '—';
+    if (this.situationEl && this.situationEl.textContent !== summary) {
+      this.situationEl.textContent = summary;
+    }
   }
 
   handleResize() {
@@ -620,16 +754,30 @@ export class HumanoidViewer {
     // Store target positions instead of applying immediately (for lerping)
     if (data.base_position) {
       const nextPos = new THREE.Vector3(...pbPos(...data.base_position));
+      if (!this.observerStartBasePos) this.observerStartBasePos = nextPos.clone();
       if (this.previousObservedBasePos) {
         const step = nextPos.distanceTo(this.previousObservedBasePos);
         if (Number.isFinite(step) && step < 2.0) this.distanceTravelled += step;
       }
       this.previousObservedBasePos = nextPos.clone();
       this.targetBasePos.copy(nextPos);
+
+      const net = this.observerStartBasePos ? nextPos.distanceTo(this.observerStartBasePos) : 0;
+      const directionalEfficiency = this.distanceTravelled > 0.02
+        ? Math.max(0, Math.min(1, net / this.distanceTravelled))
+        : null;
+      this.queueUIUpdate('displacement', `${net.toFixed(2)} m`);
       this.queueUIUpdate('distance_travelled', `${this.distanceTravelled.toFixed(2)} m`);
+      this.queueUIUpdate('locomotion_efficiency',
+        directionalEfficiency === null ? '—' : `${(directionalEfficiency * 100).toFixed(0)}%`);
     }
     if (data.base_orientation) {
       this.targetBaseQuat.copy(pbQuat(...data.base_orientation));
+    }
+    if (Array.isArray(data.resource_position) && data.resource_position.length === 3 && this.resourceObject) {
+      this.resourceObject.position.set(...pbPos(...data.resource_position));
+      this.resourceObject.visible = true;
+      this.updateResourceGuide();
     }
     if (Array.isArray(data.joints)) {
       let active = 0;
@@ -667,11 +815,15 @@ export class HumanoidViewer {
         if (this.reserveHistory.length > 40) this.reserveHistory.shift();
         const old = this.reserveHistory[0];
         const delta = old ? reserve - old.value : 0;
-        this.bodyState.reserveTrend = delta;
-        const arrow = delta > 0.003 ? '↑' : delta < -0.003 ? '↓' : '↔';
-        const signed = delta >= 0 ? '+' : '';
-        this.queueUIUpdate('reserve_trend', `${arrow} ${signed}${(delta * 100).toFixed(1)} pp`,
-          delta < -0.01 ? 'var(--coral,#ff5555)' : delta > 0.01 ? 'var(--mint,#50fa7b)' : null);
+        const tickSpan = old && Number.isFinite(old.tick) && Number.isFinite(Number(data.tick))
+          ? Math.max(1, Number(data.tick) - old.tick)
+          : null;
+        const per100Ticks = tickSpan ? (delta * 10000) / tickSpan : 0;
+        this.bodyState.reserveTrend = per100Ticks;
+        const arrow = per100Ticks > 0.3 ? '↑' : per100Ticks < -0.3 ? '↓' : '↔';
+        const signed = per100Ticks >= 0 ? '+' : '';
+        this.queueUIUpdate('reserve_trend', tickSpan ? `${arrow} ${signed}${per100Ticks.toFixed(1)} pp / 100t` : '—',
+          per100Ticks < -1 ? 'var(--coral,#ff5555)' : per100Ticks > 1 ? 'var(--mint,#50fa7b)' : null);
         if (this.reserveBarFill) {
           this.reserveBarFill.style.width = `${Math.max(0, Math.min(100, reserve * 100))}%`;
           this.reserveBarFill.style.background = reserve < 0.2
@@ -684,19 +836,13 @@ export class HumanoidViewer {
   }
 
   handleCognitionEvent(data) {
-    if (data.schema_confidence !== undefined) this.queueUIUpdate('schema_conf', data.schema_confidence.toFixed(3));
     if (data.motor_origin !== undefined) this.queueUIUpdate('motor_origin', data.motor_origin);
-    if (data.predictor_count !== undefined) this.queueUIUpdate('predictor_count', String(data.predictor_count));
-    if (data.prediction_error !== undefined) this.queueUIUpdate('prediction_error', data.prediction_error.toFixed(4));
-    
-    if (data.slm_active !== undefined) {
-      const active = Boolean(data.slm_active);
-      this.queueUIUpdate('slm_active', active ? 'active' : 'inactive', active ? 'var(--mint, #50fa7b)' : 'var(--muted, #888)');
-    }
-    if (data.prospective_selected !== undefined) {
-      const ev = data.prospective_expected_value !== undefined ? ` ${data.prospective_expected_value.toFixed(3)}` : '';
-      this.queueUIUpdate('prospective', data.prospective_selected ? `✓${ev}` : '✗', data.prospective_selected ? 'var(--cyan, #8be9fd)' : 'var(--muted, #888)');
-    }
+
+    const details = [];
+    if (data.schema_confidence !== undefined) details.push(`schema ${data.schema_confidence.toFixed(2)}`);
+    if (data.prediction_error !== undefined) details.push(`err ${data.prediction_error.toFixed(3)}`);
+    if (data.slm_active !== undefined) details.push(data.slm_active ? 'model active' : 'model inactive');
+    this.queueUIUpdate('cognitive_context', details.length ? details.join(' · ') : '—', 'var(--muted,#8a98a8)');
   }
 
   handleVitalsEvent(data) {
@@ -712,8 +858,30 @@ export class HumanoidViewer {
       this.queueUIUpdate('active_effectors', String(data.active_effectors));
     }
     if (data.resource_distance !== undefined) {
-      this.bodyState.resourceDistance = Number(data.resource_distance);
-      this.queueUIUpdate('resource_distance', `${Math.max(0, data.resource_distance).toFixed(2)} m`);
+      const resourceDistance = Number(data.resource_distance);
+      this.bodyState.resourceDistance = resourceDistance;
+      this.queueUIUpdate('resource_distance', `${Math.max(0, resourceDistance).toFixed(2)} m`);
+
+      if (this.observerResourceBaseline === null && Number.isFinite(resourceDistance)) {
+        this.observerResourceBaseline = resourceDistance;
+        this.observerPathAtResourceBaseline = this.distanceTravelled;
+      }
+      if (this.observerResourceBaseline !== null) {
+        const path = this.distanceTravelled - this.observerPathAtResourceBaseline;
+        if (path > 0.03) {
+          const progress = this.observerResourceBaseline - resourceDistance;
+          const effectiveness = Math.max(-1, Math.min(1, progress / path));
+          const label = effectiveness > 0.08
+            ? `${(effectiveness * 100).toFixed(0)}% toward`
+            : effectiveness < -0.08
+              ? `${Math.abs(effectiveness * 100).toFixed(0)}% away`
+              : 'neutral';
+          this.queueUIUpdate('motion_effectiveness', label,
+            effectiveness > 0.08 ? 'var(--mint,#50fa7b)' : effectiveness < -0.08 ? 'var(--coral,#ff5555)' : null);
+        } else {
+          this.queueUIUpdate('motion_effectiveness', '—');
+        }
+      }
     }
     if (data.resource_progress !== undefined) {
       this.bodyState.resourceProgress = Number(data.resource_progress);
@@ -721,14 +889,8 @@ export class HumanoidViewer {
       this.queueUIUpdate('resource_progress', `${sign}${data.resource_progress.toFixed(2)} m`,
         data.resource_progress > 0.02 ? 'var(--mint,#50fa7b)' : data.resource_progress < -0.02 ? 'var(--coral,#ff5555)' : null);
     }
-    if (data.displacement_from_origin !== undefined) {
-      const displacement = Number(data.displacement_from_origin);
-      this.queueUIUpdate('displacement', `${displacement.toFixed(2)} m`);
-      const efficiency = this.distanceTravelled > 0.05
-        ? Math.max(0, Math.min(1, displacement / this.distanceTravelled))
-        : 0;
-      this.queueUIUpdate('locomotion_efficiency', this.distanceTravelled > 0.05 ? `${(efficiency * 100).toFixed(0)}%` : '—');
-    }
+    // displacement_from_origin remains part of telemetry, but BODY compares
+    // net displacement and travelled distance over the same observer interval.
     this.updateBodySummary();
   }
 
@@ -760,8 +922,7 @@ export class HumanoidViewer {
       this.dirLight.position.copy(this.baseNode.position).add(this.lightOffset);
     }
 
-    // Activity markers turn body motion into something observable instead of
-    // forcing the observer to infer it from one aggregate scalar.
+    // Activity is visible both at joints and over the body segment itself.
     for (const [name, marker] of Object.entries(this.jointMarkers)) {
       const activity = this.jointActivity.get(name) ?? 0;
       const decayed = activity * 0.92;
@@ -770,15 +931,16 @@ export class HumanoidViewer {
       marker.material.opacity = Math.min(0.9, 0.12 + decayed * 0.78);
       marker.scale.setScalar(0.75 + decayed * 0.9);
     }
-
-    if (this.followBody && this.controls && this.camera) {
-      this.followTarget.copy(this.baseNode.position);
-      this.followTarget.y += 0.55;
-      const before = this.controls.target.clone();
-      this.controls.target.lerp(this.followTarget, 0.14);
-      this.followDelta.copy(this.controls.target).sub(before);
-      this.camera.position.add(this.followDelta);
+    for (const [segmentName, jointNames] of Object.entries(SEGMENT_ACTIVITY_JOINTS)) {
+      const mesh = this.segmentMeshes[segmentName];
+      if (!mesh) continue;
+      const activity = Math.max(0, ...jointNames.map((name) => this.jointActivity.get(name) ?? 0));
+      mesh.material.emissive.setHex(activity > 0.08 ? 0x173d36 : 0x000000);
+      mesh.material.emissiveIntensity = Math.min(0.72, activity * 0.72);
     }
+
+    this.updateResourceGuide();
+    this.fitCameraToBody(performance.now());
 
     this.flushUIUpdates();
     this.controls.update();
@@ -846,9 +1008,14 @@ export class HumanoidViewer {
     this.canvas = null;
     this.canvasWrap = null;
     this.statusEl = null;
+    this.situationEl = null;
+    this.resourceObject = null;
+    this.resourceGuide = null;
+    this.resourceGuidePositions = null;
 
     this.jointObjs = {};
     this.linkObjs = {};
+    this.segmentMeshes = {};
     this.jointMarkers = {};
     this.panelEls = {};
     this.uiStateQueue = {};
