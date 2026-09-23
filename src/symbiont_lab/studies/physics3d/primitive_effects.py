@@ -9,12 +9,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 from pathlib import Path
-from statistics import fmean, pstdev
+from statistics import fmean, median, pstdev
 from typing import Mapping
 
 from symbiont_lab.physics3d.effects import (
     PhysicalConsequence,
     PhysicalState,
+    StateDistance,
     physical_consequence,
     physical_state_from_payload,
     state_distance,
@@ -26,6 +27,25 @@ from symbiont_lab.physics3d.telemetry import (
 
 
 @dataclass(frozen=True, slots=True)
+class StateComparability:
+    """Transparent observer-side tolerances for matched initial states.
+
+    Every dimension is checked independently. The values are study apparatus
+    parameters; they are never exposed to or used by the organism.
+    """
+
+    orientation_angle_max: float = math.radians(15.0)
+    linear_velocity_delta_max: float = 0.25
+    angular_velocity_delta_max: float = 0.75
+    joint_rms_delta_max: float = 0.25
+    contact_jaccard_distance_max: float = 0.25
+    com_height_delta_max: float = 0.05
+
+
+DEFAULT_STATE_COMPARABILITY = StateComparability()
+
+
+@dataclass(frozen=True, slots=True)
 class PrimitiveEffectSample:
     primitive_id: str
     sample_index: int
@@ -33,6 +53,8 @@ class PrimitiveEffectSample:
     materialized: bool
     competence: bool
     evidence_blocks: tuple[int, ...]
+    start_tick: int
+    end_tick: int
     initial_state: PhysicalState
     consequence: PhysicalConsequence
 
@@ -41,10 +63,16 @@ class PrimitiveEffectSample:
 class PrimitiveEffectReport:
     primitive_id: str
     episodes: int
+    materialized: bool
+    competence: bool
+    independent_evidence_blocks: int
+    replication_target_met: bool
     body_translation_mean: tuple[float, float, float]
     com_translation_mean: tuple[float, float, float]
     translation_magnitude_mean: float
+    translation_magnitude_median: float
     translation_magnitude_std: float
+    translation_magnitude_cv: float | None
     directional_concentration: float
     rotation_mean: float
     rotation_std: float
@@ -59,6 +87,14 @@ class PrimitiveEffectReport:
     initial_joint_spread: float
     initial_contact_spread: float
     initial_com_height_spread: float
+    comparable_state_pairs: int
+    noncomparable_state_pairs: int
+    within_state_translation_delta_mean: float | None
+    between_state_translation_delta_mean: float | None
+    within_state_direction_delta_mean: float | None
+    between_state_direction_delta_mean: float | None
+    within_state_com_translation_delta_mean: float | None
+    between_state_com_translation_delta_mean: float | None
 
 
 def _mapping(value: object) -> Mapping[str, object]:
@@ -71,6 +107,48 @@ def _mean_vector(
     if not vectors:
         return (0.0, 0.0, 0.0)
     return tuple(fmean(vector[axis] for vector in vectors) for axis in range(3))
+
+
+def _vector_delta(
+    left: tuple[float, float, float],
+    right: tuple[float, float, float],
+) -> float:
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(left, right)))
+
+
+def _direction_delta(
+    left: PhysicalConsequence,
+    right: PhysicalConsequence,
+    *,
+    noise_floor: float = 1e-4,
+) -> float | None:
+    lx, ly, _ = left.translation_body
+    rx, ry, _ = right.translation_body
+    left_magnitude = math.hypot(lx, ly)
+    right_magnitude = math.hypot(rx, ry)
+    if left_magnitude <= noise_floor or right_magnitude <= noise_floor:
+        return None
+    cosine = (lx * rx + ly * ry) / (left_magnitude * right_magnitude)
+    return math.acos(max(-1.0, min(1.0, cosine)))
+
+
+def _states_comparable(
+    distance: StateDistance,
+    criteria: StateComparability,
+) -> bool:
+    return (
+        distance.orientation_angle <= criteria.orientation_angle_max
+        and distance.linear_velocity_delta <= criteria.linear_velocity_delta_max
+        and distance.angular_velocity_delta <= criteria.angular_velocity_delta_max
+        and distance.joint_rms_delta <= criteria.joint_rms_delta_max
+        and distance.contact_jaccard_distance
+        <= criteria.contact_jaccard_distance_max
+        and distance.com_height_delta <= criteria.com_height_delta_max
+    )
+
+
+def _mean_or_none(values: list[float]) -> float | None:
+    return fmean(values) if values else None
 
 
 def _directional_concentration(
@@ -185,6 +263,8 @@ def _episode_samples(
                     materialized=bool(raw_episode.get("materialized", False)),
                     competence=bool(raw_episode.get("competence", False)),
                     evidence_blocks=blocks,
+                    start_tick=start_tick,
+                    end_tick=end_tick,
                     initial_state=before,
                     consequence=consequence,
                 )
@@ -194,7 +274,13 @@ def _episode_samples(
 
 def analyze_primitive_effects(
     telemetry_run: str | Path,
+    *,
+    comparability: StateComparability = DEFAULT_STATE_COMPARABILITY,
+    replication_target: int = 8,
 ) -> tuple[PrimitiveEffectReport, ...]:
+    if replication_target < 1:
+        raise ValueError("replication_target must be >= 1")
+
     transitions = load_v3_transitions(telemetry_run, verify=True)
     summaries = load_v3_tick_records(telemetry_run, verify=True)
     samples = _episode_samples(transitions, summaries)
@@ -210,25 +296,72 @@ def analyze_primitive_effects(
         magnitudes = [item.translation_magnitude for item in effects]
         rotations = [item.rotation_angle for item in effects]
 
-        pair_distances = [
-            state_distance(initial[left], initial[right])
-            for left in range(len(initial))
-            for right in range(left + 1, len(initial))
-        ]
+        pair_distances: list[StateDistance] = []
+        comparable_translation: list[float] = []
+        noncomparable_translation: list[float] = []
+        comparable_direction: list[float] = []
+        noncomparable_direction: list[float] = []
+        comparable_com: list[float] = []
+        noncomparable_com: list[float] = []
+        comparable_pairs = 0
+        noncomparable_pairs = 0
+
+        for left in range(len(initial)):
+            for right in range(left + 1, len(initial)):
+                distance = state_distance(initial[left], initial[right])
+                pair_distances.append(distance)
+                comparable = _states_comparable(distance, comparability)
+                translation_delta = _vector_delta(
+                    effects[left].translation_body,
+                    effects[right].translation_body,
+                )
+                com_delta = _vector_delta(
+                    effects[left].com_translation_body,
+                    effects[right].com_translation_body,
+                )
+                direction_delta = _direction_delta(effects[left], effects[right])
+                if comparable:
+                    comparable_pairs += 1
+                    comparable_translation.append(translation_delta)
+                    comparable_com.append(com_delta)
+                    if direction_delta is not None:
+                        comparable_direction.append(direction_delta)
+                else:
+                    noncomparable_pairs += 1
+                    noncomparable_translation.append(translation_delta)
+                    noncomparable_com.append(com_delta)
+                    if direction_delta is not None:
+                        noncomparable_direction.append(direction_delta)
+
+        magnitude_mean = fmean(magnitudes)
+        magnitude_std = pstdev(magnitudes) if len(magnitudes) > 1 else 0.0
+        evidence_blocks = {
+            block
+            for sample in primitive_samples
+            for block in sample.evidence_blocks
+        }
 
         reports.append(
             PrimitiveEffectReport(
                 primitive_id=primitive_id,
                 episodes=len(effects),
+                materialized=any(item.materialized for item in primitive_samples),
+                competence=any(item.competence for item in primitive_samples),
+                independent_evidence_blocks=len(evidence_blocks),
+                replication_target_met=len(effects) >= replication_target,
                 body_translation_mean=_mean_vector(
                     [effect.translation_body for effect in effects]
                 ),
                 com_translation_mean=_mean_vector(
                     [effect.com_translation_body for effect in effects]
                 ),
-                translation_magnitude_mean=fmean(magnitudes),
-                translation_magnitude_std=(
-                    pstdev(magnitudes) if len(magnitudes) > 1 else 0.0
+                translation_magnitude_mean=magnitude_mean,
+                translation_magnitude_median=median(magnitudes),
+                translation_magnitude_std=magnitude_std,
+                translation_magnitude_cv=(
+                    magnitude_std / magnitude_mean
+                    if magnitude_mean > 1e-12
+                    else None
                 ),
                 directional_concentration=_directional_concentration(effects),
                 rotation_mean=fmean(rotations),
@@ -274,13 +407,35 @@ def analyze_primitive_effects(
                     fmean(item.com_height_delta for item in pair_distances)
                     if pair_distances else 0.0
                 ),
+                comparable_state_pairs=comparable_pairs,
+                noncomparable_state_pairs=noncomparable_pairs,
+                within_state_translation_delta_mean=_mean_or_none(
+                    comparable_translation
+                ),
+                between_state_translation_delta_mean=_mean_or_none(
+                    noncomparable_translation
+                ),
+                within_state_direction_delta_mean=_mean_or_none(
+                    comparable_direction
+                ),
+                between_state_direction_delta_mean=_mean_or_none(
+                    noncomparable_direction
+                ),
+                within_state_com_translation_delta_mean=_mean_or_none(
+                    comparable_com
+                ),
+                between_state_com_translation_delta_mean=_mean_or_none(
+                    noncomparable_com
+                ),
             )
         )
     return tuple(reports)
 
 
 __all__ = [
+    "DEFAULT_STATE_COMPARABILITY",
     "PrimitiveEffectReport",
     "PrimitiveEffectSample",
+    "StateComparability",
     "analyze_primitive_effects",
 ]

@@ -46,12 +46,38 @@ joint-pose change, contact changes, mechanical work and metabolic work cost.
 
 No scalar locomotion score is defined.
 
+## Replication
+
+An observed primitive effect is represented as a relation between the physical
+initial state, the opaque primitive identity and the measured consequence:
+
+    (S0, primitive) -> effect
+
+The offline assay records the episode count, independent evidence-block count,
+mean/median/dispersion of translation magnitude and directional concentration.
+The default replication target is eight observed episodes. This is an
+observer-side study target only; it is not a materialization or competence
+criterion inside Symbiont.
+
 ## Initial-state conditioning
 
 A primitive effect is not assumed to be state-independent. Comparability is
 preserved as separate dimensions: orientation, linear velocity, angular
 velocity, joint RMS, contact Jaccard distance and center-of-mass height.
 They are deliberately not collapsed into one hand-tuned score.
+
+The study may define transparent tolerances for those six dimensions. Two
+initial states are called comparable only when every dimension lies within its
+own tolerance. Reports then keep separate effect disagreement for comparable
+and non-comparable state pairs:
+
+- body-frame translation-vector difference;
+- body-frame direction-angle difference;
+- center-of-mass translation-vector difference.
+
+This lets the experiment test whether within-state effect variation is lower
+than between-state effect variation without teaching state semantics to the
+organism.
 
 ## Directional recurrence
 
@@ -60,17 +86,42 @@ the magnitude of the mean unit translation vector. It approaches 1 when effects
 point consistently in the same egocentric direction and approaches 0 when they
 cancel. A small noise floor excludes numerically meaningless directions.
 
+Directional concentration is not sufficient evidence on its own. Translation
+magnitude, COM motion, rotation, pose change, contacts, path efficiency and
+initial-state conditioning remain separate measurements.
+
 ## Causality
 
-The observational assay establishes association, not isolated causation. A
-later matched-control study may restore the same physical initial state and
-compare primitive execution against passive/no-motor evolution. That
-counterfactual belongs in studies and must not become an organism-side
-verification scheduler.
+The observational assay establishes association, not isolated causation.
+
+A matched-control Physics3D study must restore one shared physical initial state
+and evaluate three arms:
+
+1. primitive: replay the discovered motor coordination;
+2. passive: apply no motor command;
+3. motor control: preserve a comparable actuator/duration/command budget while
+   disrupting the primitive's temporal or coordination structure.
+
+The study analyzer compares primitive-minus-passive and
+primitive-minus-motor-control consequences separately. Passive dynamics are not
+treated as noise to erase: the first contrast measures the active contribution
+on top of the body's natural evolution, while the second asks whether the
+specific coordination matters beyond injecting a similar motor command budget.
+
+The matched-control analyzer remains in studies. It must not become an
+organism-side verification scheduler.
+
+## Generalization
+
+After a local causal effect is demonstrated, later studies may perturb the
+physical initial state and measure where the effect remains reproducible.
+Generalization is therefore a separate property from discovery and local
+causal efficacy.
 
 ## Interpretation rule
 
 A recurrent motor pattern can be called a candidate translational effect when
 its associated body-frame physical consequence is recurrent. It should not be
-called a locomotor skill until replay from comparable initial states demonstrates
-a reproducible causal translational consequence that can be reused or composed.
+called a locomotor skill until replay from comparable initial states
+demonstrates a reproducible causal translational consequence that can be reused
+or composed.
