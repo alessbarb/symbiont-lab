@@ -647,7 +647,7 @@ class EpisodicExperienceMemory:
 
     def _surprise_for(self, records: Sequence[ExperienceRecord]) -> float:
         outcomes = _bounded_tokens(
-            token for record in records for token in record.outcome_tokens,
+            (token for record in records for token in record.outcome_tokens),
             limit=128,
         )
         if not outcomes or not self._episodes:
