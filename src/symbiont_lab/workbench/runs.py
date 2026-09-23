@@ -342,9 +342,6 @@ def start_study(
     if experiment_state.running:
         coordinator.release("study")
         return False
-    if experiment_state.running:
-        coordinator.release("study")
-        return False
     config = {
         "title": title,
         "parameter": parameter,
