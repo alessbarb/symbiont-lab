@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from symbiont.modeling.experience import EpistemicStatus, ExperienceRecord, SourceKind
-from symbiont_lab.studies.learning.episodic_memory_utility import evaluate_episodic_predictive_utility
+from symbiont_lab.studies.learning.episodic_memory_utility import (
+    evaluate_episodic_predictive_utility,
+)
 
 
 ORG = "study-org"
@@ -24,13 +26,27 @@ def rec(tick: int, state: str, outcome: str) -> ExperienceRecord:
 
 def test_state_conditioned_memory_beats_action_only_when_action_is_ambiguous() -> None:
     train = tuple(
-        rec(tick * 10, "state.a" if tick % 2 == 0 else "state.b", "outcome.a" if tick % 2 == 0 else "outcome.b")\n        for tick in range(40)
+        rec(
+            tick * 10,
+            "state.a" if tick % 2 == 0 else "state.b",
+            "outcome.a" if tick % 2 == 0 else "outcome.b",
+        )
+        for tick in range(40)
     )
     test = tuple(
-        rec(1000 + tick * 10, "state.a" if tick % 2 == 0 else "state.b", "outcome.a" if tick % 2 == 0 else "outcome.b")\n        for tick in range(20)
+        rec(
+            1000 + tick * 10,
+            "state.a" if tick % 2 == 0 else "state.b",
+            "outcome.a" if tick % 2 == 0 else "outcome.b",
+        )
+        for tick in range(20)
     )
 
-    report = evaluate_episodic_predictive_utility(train, test, organism_id=ORG)
+    report = evaluate_episodic_predictive_utility(
+        train,
+        test,
+        organism_id=ORG,
+    )
 
     assert report.test_records == 20
     assert report.memory_coverage == 1.0
