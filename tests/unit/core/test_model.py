@@ -5,7 +5,7 @@ from symbiont.core.collective import CollectiveMemory
 from symbiont.core.memory import AgentMemory, Episode
 from symbiont.core.model import Observation
 from symbiont.simulation import run_simulation
-from symbiont_lab.server.state import ExperimentRunState
+from symbiont_lab.workbench.runs import ExperimentRunState
 
 
 def test_observation_contains_no_ground_truth_label():

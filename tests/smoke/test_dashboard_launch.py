@@ -1,4 +1,4 @@
-from symbiont_lab.server.state import ExperimentRunState
+from symbiont_lab.workbench.runs import ExperimentRunState
 from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
 
 

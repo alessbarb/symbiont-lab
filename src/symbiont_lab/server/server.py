@@ -21,7 +21,7 @@ from .api import make_handler
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.demo import DemoOrganismTelemetry
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
-from .state import ExperimentRunState, StudyRunState, start_experiment, start_study
+from symbiont_lab.workbench.runs import ExperimentRunState, StudyRunState, start_experiment, start_study
 
 _ASSETS = Path(__file__).parent / "assets"
 

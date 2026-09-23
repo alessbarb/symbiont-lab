@@ -1,4 +1,4 @@
-"""Canonical state and launch orchestration for the unified Symbiont Lab server."""
+"""Application-layer state and launch orchestration for the Symbiont Lab workbench."""
 from __future__ import annotations
 
 from collections import deque

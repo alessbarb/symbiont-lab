@@ -28,7 +28,7 @@ from symbiont_lab.observation.observatory import (
 )
 from symbiont_lab.studies.campaigns.comparative import COMPARABLE_PARAMETERS
 from symbiont_lab.observation.bus import ObservationBus
-from .state import ExperimentRunState, StudyRunState, _parse_seeds
+from symbiont_lab.workbench.runs import ExperimentRunState, StudyRunState, _parse_seeds
 from .sse import CLIENT_ERRORS as _CLIENT_ERRORS
 from .sse import stream_fleet, stream_instance, stream_organism
 
