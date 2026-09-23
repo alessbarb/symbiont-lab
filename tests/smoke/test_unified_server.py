@@ -8,7 +8,7 @@ from typing import Iterator
 
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.server.server import UnifiedLabServer, _default_observatory_dir, make_server
-from symbiont_lab.server.state import ExperimentRunState
+from symbiont_lab.workbench.runs import ExperimentRunState
 
 
 @contextmanager
