@@ -438,3 +438,33 @@ def test_v41_verify_detects_checkpoint_tampering(tmp_path):
 
     with pytest.raises(ValueError, match="checkpoint hash mismatch"):
         verify_v41_run(writer.root)
+
+
+def test_v41_state_at_rejects_self_consistent_but_divergent_anchor(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=2,
+        run_id="anchor-commitment",
+    )
+    _write(writer)
+
+    anchor = sorted((writer.root / "anchors").glob("*.json"))[1]
+    payload = json.loads(anchor.read_text(encoding="utf-8"))
+    payload.pop("anchor_sha256")
+    payload["state"]["future_unknown"]["payload"][0] = 999999
+    from symbiont_lab.physics3d.telemetry_compaction import payload_sha256
+    payload["anchor_sha256"] = payload_sha256(payload)
+    anchor.write_text(
+        json.dumps(payload, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    tick = int(payload["tick"])
+    with pytest.raises(ValueError, match="anchor state commitment mismatch"):
+        TelemetryV41Reader(writer.root).state_at(tick)

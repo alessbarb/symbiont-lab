@@ -833,22 +833,41 @@ class TelemetryV41Reader:
         for channel in removed.get("static", ()):
             static.values.pop(str(channel), None)
 
+    def _anchor_commit(self, anchor: Mapping[str, Any]) -> dict[str, Any]:
+        try:
+            commit = next(
+                self._iter_commits(
+                    start_offset=int(anchor.get("ticks_offset", 0))
+                )
+            )
+        except StopIteration as exc:
+            raise ValueError("telemetry anchor has no committed tick") from exc
+        anchor_tick = int(anchor["tick"])
+        if int(commit.get("tick", -1)) != anchor_tick:
+            raise ValueError("anchor/tick commit position mismatch")
+        if self.verify:
+            if commit.get("commit_hash") != anchor.get("commit_hash"):
+                raise ValueError("anchor/commit hash mismatch")
+            if payload_sha256(anchor["state"]) != commit.get("state_sha256"):
+                raise ValueError("anchor state commitment mismatch")
+            if payload_sha256(anchor["summary"]) != commit.get("summary_sha256"):
+                raise ValueError("anchor summary commitment mismatch")
+        return commit
+
     def _reconstruct_from_anchor(
         self,
         anchor: Mapping[str, Any],
         *,
         end_tick: int | None = None,
     ) -> Iterator[tuple[int, dict[str, Any], dict[str, Any], dict[str, Any]]]:
+        anchor_commit = self._anchor_commit(anchor)
         dense, structural, summary_reader, events, static, fallback = (
             self._prime_decoders(anchor)
         )
         anchor_tick = int(anchor["tick"])
         anchor_state = deepcopy(dict(anchor["state"]))
         anchor_summary = deepcopy(dict(anchor["summary"]))
-        yield anchor_tick, anchor_summary, anchor_state, {
-            "tick": anchor_tick,
-            "commit_hash": anchor.get("commit_hash"),
-        }
+        yield anchor_tick, anchor_summary, anchor_state, anchor_commit
         if end_tick is not None and anchor_tick >= int(end_tick):
             return
 
@@ -871,13 +890,6 @@ class TelemetryV41Reader:
                 if tick < anchor_tick:
                     continue
                 if tick == anchor_tick:
-                    if self.verify:
-                        if commit.get("commit_hash") != anchor.get("commit_hash"):
-                            raise ValueError("anchor/commit hash mismatch")
-                        if payload_sha256(anchor["state"]) != commit.get("state_sha256"):
-                            raise ValueError("anchor state commitment mismatch")
-                        if payload_sha256(anchor["summary"]) != commit.get("summary_sha256"):
-                            raise ValueError("anchor summary commitment mismatch")
                     continue
                 if end_tick is not None and tick > int(end_tick):
                     break
