@@ -1047,21 +1047,31 @@ export function createCognitionController({
       const breath = (fmriEnabled && node.activationLevel > 0)
         ? Math.sin(now * 0.003 + hashStr(node.id)) * (node.activationLevel * 2.0)
         : 0;
-      const r = ((isHovered || isSelected) ? node.radius * 1.35 : node.radius) + breath;
+      const pathNode = atlasPath.nodeIds.has(node.id);
+      const modeScore = clamp01(finiteNumber(node.atlasScore, 0));
+      const r = ((isHovered || isSelected)
+        ? node.radius * 1.35
+        : node.radius * (0.82 + modeScore * 0.28)) + breath;
   
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
       ctx.fillStyle = isHovered ? '#fff' : node.color;
       ctx.shadowColor = node.color;
-      ctx.shadowBlur  = isSelected ? 20 : isConn ? 14 : (fmriEnabled && node.activationLevel > 0 ? 4 + node.activationLevel * 12 : 3);
+      ctx.shadowBlur = isSelected
+        ? 20
+        : pathNode
+          ? 12
+          : isConn
+            ? 10
+            : (fmriEnabled && node.activationLevel > 0 ? 3 + node.activationLevel * 8 : 2);
       const graphTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
       const nodeIdleTicks = node.lastUseTick > 0 ? Math.max(0, graphTick - node.lastUseTick) : 2048;
       const nodeRecency = Math.exp(-nodeIdleTicks / 768);
-      // Size is structural importance, glow is current activity, opacity is
-      // recency of structural use. These dimensions deliberately stay separate.
       ctx.globalAlpha = dimmed
-        ? 0.12
-        : Math.min(1, 0.28 + nodeRecency * 0.52 + (isSelected || isHovered ? 0.2 : 0));
+        ? 0.08
+        : pathNode
+          ? 1
+          : Math.min(1, 0.18 + modeScore * 0.70 + nodeRecency * 0.12 + (isSelected || isHovered ? 0.15 : 0));
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.shadowBlur  = 0;
@@ -1100,6 +1110,7 @@ export function createCognitionController({
         isHovered ||
         isSelected ||
         isConn ||
+        pathNode ||
         node.replayActive ||
         node.prospectiveSelected ||
         (scale >= 1.65 && node.visualValue > 0.55)
