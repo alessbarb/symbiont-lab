@@ -48,3 +48,8 @@ def test_run_store_catalogs_managed_runs(tmp_path) -> None:
     assert runs[0]["run_id"] == launch.run_id
     assert runs[0]["status"] == "running"
     assert store.bodies()[0]["body_kind"] == "anthropomorphic-v4"
+
+
+def test_injected_run_store_does_not_import_global_legacy_subject(tmp_path) -> None:
+    store = Physics3DRunStore(tmp_path)
+    assert store.organisms() == []
