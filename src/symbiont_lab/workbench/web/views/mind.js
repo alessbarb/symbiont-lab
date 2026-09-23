@@ -2532,7 +2532,14 @@ function drawGraphFrame(canvas) {
     ctx.fillStyle = isHovered ? '#fff' : node.color;
     ctx.shadowColor = node.color;
     ctx.shadowBlur  = isSelected ? 20 : isConn ? 14 : (fmriEnabled && node.activationLevel > 0 ? 4 + node.activationLevel * 12 : 3);
-    ctx.globalAlpha = dimmed ? 0.15 : (fmriEnabled ? 0.5 + node.activationLevel * 0.48 : 0.75);
+    const graphTick = finiteNumber(_graph.replayTick ?? _tel.tick, 0);
+    const nodeIdleTicks = node.lastUseTick > 0 ? Math.max(0, graphTick - node.lastUseTick) : 2048;
+    const nodeRecency = Math.exp(-nodeIdleTicks / 768);
+    // Size is structural importance, glow is current activity, opacity is
+    // recency of structural use. These dimensions deliberately stay separate.
+    ctx.globalAlpha = dimmed
+      ? 0.12
+      : Math.min(1, 0.28 + nodeRecency * 0.52 + (isSelected || isHovered ? 0.2 : 0));
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.shadowBlur  = 0;
