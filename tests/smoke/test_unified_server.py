@@ -6,7 +6,7 @@ from http.client import HTTPConnection
 from threading import Thread
 from typing import Iterator
 
-from symbiont_lab.server.organism_stream import OrganismStream
+from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.server.server import UnifiedLabServer, _default_observatory_dir, make_server
 from symbiont_lab.server.state import DashboardState
 
@@ -43,8 +43,8 @@ def request(
 
 
 def test_unified_server_starts_without_synthetic_telemetry() -> None:
-    stream = OrganismStream()
-    server = make_server(host="127.0.0.1", port=0, organism_stream=stream)
+    stream = ObservationBus()
+    server = make_server(host="127.0.0.1", port=0, observation_bus=stream)
     try:
         assert server.demo_telemetry is None
         assert not stream.has_data
