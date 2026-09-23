@@ -22,14 +22,17 @@ export class MindStreams {
     this.activeInstance = null;
     this.activeRunId = null;
     this.localMindActive = false;
+    this.closed = true;
   }
 
   connect() {
+    this.closed = false;
     this.connectOrganism();
     this.connectFleet();
   }
 
   close() {
+    this.closed = true;
     for (const key of ['organism', 'fleet', 'instance']) {
       const source = this[key];
       if (source) {
@@ -107,6 +110,7 @@ export class MindStreams {
 
     try {
       const response = await fetch('/api/state', { cache: 'no-store' });
+      if (this.closed) return;
       if (response.ok) {
         const state = await response.json();
         const observatory = state?.sources?.observatory;
@@ -122,6 +126,8 @@ export class MindStreams {
       // Source discovery is advisory. The EventSource attempt below remains
       // the transport-level fallback for older or partially available servers.
     }
+
+    if (this.closed) return;
 
     try {
       this.fleet = new EventSource('/fleet');
