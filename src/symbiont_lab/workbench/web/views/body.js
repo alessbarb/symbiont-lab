@@ -139,18 +139,18 @@ const PANEL_FIELDS = [
   { id: 'reserve_trend',         label: 'Reserve trend' },
 
   { id: '__motion',              label: null, section: 'Motion' },
-  { id: 'joint_motion',          label: 'Joint activity' },
+  { id: 'motor_activity',        label: 'Motor activity' },
   { id: 'active_joints',         label: 'Active joints' },
   { id: 'active_effectors',      label: 'Active effectors' },
   { id: 'contact_count',         label: 'Ground contacts' },
-  { id: 'displacement',          label: 'Net displacement' },
   { id: 'distance_travelled',    label: 'Distance travelled' },
-  { id: 'locomotion_efficiency', label: 'Directional efficiency' },
-  { id: 'motion_effectiveness',  label: 'Motion effectiveness' },
+  { id: 'displacement',          label: 'Net displacement' },
+  { id: 'locomotion_efficiency', label: 'Path efficiency' },
 
   { id: '__environment',         label: null, section: 'Environment' },
   { id: 'resource_distance',     label: 'Resource distance' },
   { id: 'resource_progress',     label: 'Resource progress' },
+  { id: 'motion_effectiveness',  label: 'Approach efficiency' },
 
   { id: '__control',             label: null, section: 'Control context' },
   { id: 'motor_origin',          label: 'Motor origin' },
@@ -232,6 +232,10 @@ export class HumanoidViewer {
     this.resourceObject = null;
     this.resourceGuide = null;
     this.resourceGuidePositions = null;
+    this.resourceIndicator = null;
+    this.resourceIndicatorArrow = null;
+    this.resourceIndicatorLabel = null;
+    this.resourceScreenVector = new THREE.Vector3();
     this.frameBounds = new THREE.Box3();
     this.frameCenter = new THREE.Vector3();
     this.frameSize = new THREE.Vector3();
@@ -326,6 +330,34 @@ export class HumanoidViewer {
     });
     this.situationEl.textContent = 'Waiting for body telemetry';
     this.canvasWrap.appendChild(this.situationEl);
+
+    this.resourceIndicator = el('div', 'body-resource-indicator', {
+      position: 'absolute',
+      zIndex: '3',
+      display: 'none',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '6px 8px',
+      border: '1px solid rgba(139, 207, 99, 0.35)',
+      borderRadius: '8px',
+      background: 'rgba(8, 17, 25, 0.80)',
+      color: '#a8df84',
+      fontFamily: 'var(--mono, monospace)',
+      fontSize: '11px',
+      pointerEvents: 'none',
+      userSelect: 'none',
+      transform: 'translate(-50%, -50%)',
+      whiteSpace: 'nowrap',
+      backdropFilter: 'blur(6px)',
+    });
+    this.resourceIndicatorArrow = document.createElement('span');
+    this.resourceIndicatorArrow.textContent = '➜';
+    this.resourceIndicatorArrow.style.cssText = 'display:inline-block;font-size:14px;line-height:1;transform-origin:50% 50%;';
+    this.resourceIndicatorLabel = document.createElement('span');
+    this.resourceIndicatorLabel.textContent = 'Resource';
+    this.resourceIndicator.appendChild(this.resourceIndicatorArrow);
+    this.resourceIndicator.appendChild(this.resourceIndicatorLabel);
+    this.canvasWrap.appendChild(this.resourceIndicator);
 
     // Camera controls: BODY is body-centric by default, while Free preserves
     // ordinary OrbitControls inspection when the observer wants it.
@@ -620,9 +652,9 @@ export class HumanoidViewer {
     const guideMat = new THREE.LineDashedMaterial({
       color: 0x8bcf63,
       transparent: true,
-      opacity: 0.42,
-      dashSize: 0.12,
-      gapSize: 0.08,
+      opacity: 0.18,
+      dashSize: 0.10,
+      gapSize: 0.10,
     });
     this.resourceGuide = new THREE.Line(guideGeo, guideMat);
     this.resourceGuide.visible = false;
@@ -678,7 +710,71 @@ export class HumanoidViewer {
     this.resourceGuidePositions[5] = end.z;
     this.resourceGuide.geometry.attributes.position.needsUpdate = true;
     this.resourceGuide.computeLineDistances();
-    this.resourceGuide.visible = true;
+  }
+
+  updateResourceIndicator() {
+    if (!this.resourceIndicator || !this.resourceObject?.visible || !this.camera || !this.canvasWrap) {
+      if (this.resourceIndicator) this.resourceIndicator.style.display = 'none';
+      if (this.resourceGuide) this.resourceGuide.visible = false;
+      return;
+    }
+
+    this.resourceScreenVector.copy(this.resourceObject.position).project(this.camera);
+    const ndc = this.resourceScreenVector;
+    const inFront = ndc.z >= -1 && ndc.z <= 1;
+    const onScreen = inFront && Math.abs(ndc.x) <= 0.92 && Math.abs(ndc.y) <= 0.88;
+
+    // The world-space guide is only useful when both endpoints are actually
+    // visible. Off-screen resources use the edge cue instead.
+    if (this.resourceGuide) this.resourceGuide.visible = onScreen;
+    if (onScreen) {
+      this.resourceIndicator.style.display = 'none';
+      return;
+    }
+
+    let x = ndc.x;
+    let y = ndc.y;
+    if (!inFront || !Number.isFinite(x) || !Number.isFinite(y)) {
+      const worldDir = this.resourceObject.position.clone().sub(this.camera.position).normalize();
+      const cameraDir = new THREE.Vector3();
+      this.camera.getWorldDirection(cameraDir);
+      const right = new THREE.Vector3().crossVectors(cameraDir, this.camera.up).normalize();
+      const up = new THREE.Vector3().crossVectors(right, cameraDir).normalize();
+      x = worldDir.dot(right);
+      y = worldDir.dot(up);
+      if (worldDir.dot(cameraDir) < 0) {
+        x = -x || 1;
+        y = -y;
+      }
+    }
+
+    const len = Math.max(1e-6, Math.max(Math.abs(x), Math.abs(y)));
+    x /= len;
+    y /= len;
+    const marginX = 54;
+    const marginY = 50;
+    const halfW = Math.max(1, this.canvasWrap.clientWidth / 2 - marginX);
+    const halfH = Math.max(1, this.canvasWrap.clientHeight / 2 - marginY);
+    const px = this.canvasWrap.clientWidth / 2 + x * halfW;
+    const py = this.canvasWrap.clientHeight / 2 - y * halfH;
+
+    this.resourceIndicator.style.left = `${px}px`;
+    this.resourceIndicator.style.top = `${py}px`;
+    this.resourceIndicator.style.display = 'flex';
+    const angle = Math.atan2(-y, x) * 180 / Math.PI;
+    this.resourceIndicatorArrow.style.transform = `rotate(${angle}deg)`;
+    const distance = Number.isFinite(this.bodyState.resourceDistance)
+      ? ` · ${this.bodyState.resourceDistance.toFixed(2)} m`
+      : '';
+    this.resourceIndicatorLabel.textContent = `Resource${distance}`;
+  }
+
+  motorActivityLabel() {
+    const ratio = this.activeJointCount / Math.max(1, JOINT_TOPOLOGY.length);
+    if (ratio >= 0.6) return 'HIGH';
+    if (ratio >= 0.25) return 'MEDIUM';
+    if (ratio > 0) return 'LOW';
+    return 'QUIET';
   }
 
   updateBodySummary() {
@@ -687,19 +783,17 @@ export class HumanoidViewer {
     else if (this.bodyState.alive === false) parts.push('Dead');
 
     if (Number.isFinite(this.bodyState.reserve)) {
-      if (this.bodyState.reserve < 0.2) parts.push('critical reserve');
-      else if (this.bodyState.reserve < 0.35) parts.push('low reserve');
-      else parts.push('reserve stable');
+      const reservePct = Math.round(this.bodyState.reserve * 100);
+      const trend = this.bodyState.reserveTrend > 0.3 ? '↑' : this.bodyState.reserveTrend < -0.3 ? '↓' : '↔';
+      parts.push(`${reservePct}% reserve ${trend}`);
     }
 
-    if (Number.isFinite(this.bodyState.jointMotion)) {
-      parts.push(this.bodyState.jointMotion > 0.05 ? 'moving' : 'quiet');
-    }
+    parts.push(`${this.motorActivityLabel().toLowerCase()} motor activity`);
 
     if (Number.isFinite(this.bodyState.resourceProgress)) {
-      if (this.bodyState.resourceProgress > 0.02) parts.push('resource progress');
-      else if (this.bodyState.resourceProgress < -0.02) parts.push('moving away');
-      else parts.push('no resource progress');
+      if (this.bodyState.resourceProgress > 0.02) parts.push('approaching resource');
+      else if (this.bodyState.resourceProgress < -0.02) parts.push('moving away from resource');
+      else parts.push('resource distance stable');
     }
 
     const summary = parts.length ? parts.join(' · ') : '—';
@@ -793,7 +887,13 @@ export class HumanoidViewer {
         if (delta > 0.006) active += 1;
       }
       this.activeJointCount = active;
+      const motorActivity = this.motorActivityLabel();
+      const activityColor = motorActivity === 'HIGH'
+        ? 'var(--amber,#f1fa8c)'
+        : motorActivity === 'MEDIUM' ? 'var(--cyan,#8be9fd)' : null;
+      this.queueUIUpdate('motor_activity', motorActivity, activityColor);
       this.queueUIUpdate('active_joints', `${active} / ${JOINT_TOPOLOGY.length}`, active > 0 ? 'var(--cyan,#8be9fd)' : null);
+      this.updateBodySummary();
     }
 
     // Queue UI updates (Throttling)
@@ -852,7 +952,6 @@ export class HumanoidViewer {
     }
     if (data.joint_motion !== undefined) {
       this.bodyState.jointMotion = Number(data.joint_motion);
-      this.queueUIUpdate('joint_motion', data.joint_motion.toFixed(3));
     }
     if (data.active_effectors !== undefined) {
       this.queueUIUpdate('active_effectors', String(data.active_effectors));
@@ -935,8 +1034,8 @@ export class HumanoidViewer {
       const mesh = this.segmentMeshes[segmentName];
       if (!mesh) continue;
       const activity = Math.max(0, ...jointNames.map((name) => this.jointActivity.get(name) ?? 0));
-      mesh.material.emissive.setHex(activity > 0.08 ? 0x173d36 : 0x000000);
-      mesh.material.emissiveIntensity = Math.min(0.72, activity * 0.72);
+      mesh.material.emissive.setHex(activity > 0.06 ? 0x246b59 : 0x000000);
+      mesh.material.emissiveIntensity = Math.min(1.05, activity * 1.05);
     }
 
     this.updateResourceGuide();
@@ -944,6 +1043,8 @@ export class HumanoidViewer {
 
     this.flushUIUpdates();
     this.controls.update();
+    this.camera.updateMatrixWorld();
+    this.updateResourceIndicator();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -1012,6 +1113,9 @@ export class HumanoidViewer {
     this.resourceObject = null;
     this.resourceGuide = null;
     this.resourceGuidePositions = null;
+    this.resourceIndicator = null;
+    this.resourceIndicatorArrow = null;
+    this.resourceIndicatorLabel = null;
 
     this.jointObjs = {};
     this.linkObjs = {};
