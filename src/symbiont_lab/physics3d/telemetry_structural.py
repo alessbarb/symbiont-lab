@@ -4,6 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
+from .telemetry_compaction import canonical_json_bytes
 from .telemetry_numeric import (
     FrameSchemaRegistryReader,
     FrameSchemaRegistryWriter,
@@ -39,7 +40,9 @@ def _identity_token(value: Any) -> str:
     return f"s:{value}"
 
 
-def _key_for_list(items: list[Any]) -> str | None:
+def _key_tokens_for_list(
+    items: list[Any],
+) -> tuple[str, list[str]] | None:
     if not items or not all(isinstance(item, Mapping) for item in items):
         return None
     for candidate in _ID_CANDIDATES:
@@ -51,7 +54,18 @@ def _key_for_list(items: list[Any]) -> str | None:
                 break
             tokens.append(_identity_token(item[candidate]))
         if valid and len(tokens) == len(set(tokens)):
-            return candidate
+            return candidate, tokens
+
+    edge_fields = ("source_id", "target_id", "kind", "delay_ticks")
+    if all(all(field in item for field in edge_fields) for item in items):
+        tokens = [
+            "edge:" + canonical_json_bytes(
+                [item[field] for field in edge_fields]
+            ).decode("utf-8")
+            for item in items
+        ]
+        if len(tokens) == len(set(tokens)):
+            return "edge", tokens
     return None
 
 
@@ -67,19 +81,20 @@ def structural_view(value: Any) -> Any:
     if isinstance(value, tuple):
         value = list(value)
     if isinstance(value, list):
-        key = _key_for_list(value)
-        if key is None:
+        keyed = _key_tokens_for_list(value)
+        if keyed is None:
             return {"@l": [structural_view(item) for item in value]}
-        order: list[str] = []
-        items: list[list[Any]] = []
-        for item in value:
-            token = _identity_token(item[key])
-            order.append(token)
-            items.append([token, structural_view(dict(item))])
+        key_label, tokens = keyed
+        order = list(tokens)
+        pairs = [
+            [token, structural_view(dict(item))]
+            for item, token in zip(value, tokens, strict=True)
+        ]
+        pairs.sort(key=lambda pair: pair[0])
         return {
-            f"@k:{key}": {
+            f"@k:{key_label}": {
                 "o": order,
-                "i": items,
+                "i": pairs,
             }
         }
     return {"@v": deepcopy(value)}

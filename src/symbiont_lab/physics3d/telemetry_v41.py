@@ -228,7 +228,9 @@ class TelemetryV41Writer:
             "structures",
             "events",
             "anchors",
-            "checkpoints",
+            "checkpoints/organism",
+            "checkpoints/physical",
+            "checkpoints/extra",
             "objects/sha256",
             "indexes",
         ):
@@ -262,6 +264,17 @@ class TelemetryV41Writer:
             "anchor_index": (self.root / "indexes" / "anchors.ndjson").open(
                 "a", encoding="utf-8", buffering=8192, newline="\n"
             ),
+            "tick_index": (self.root / "indexes" / "ticks.ndjson").open(
+                "a", encoding="utf-8", buffering=8192, newline="\n"
+            ),
+            "event_index": (self.root / "indexes" / "events.ndjson").open(
+                "a", encoding="utf-8", buffering=8192, newline="\n"
+            ),
+            "structure_index": (
+                self.root / "indexes" / "structures.ndjson"
+            ).open(
+                "a", encoding="utf-8", buffering=8192, newline="\n"
+            ),
         }
 
         self._registry = FrameSchemaRegistryWriter(self._handles["schemas"])
@@ -293,10 +306,12 @@ class TelemetryV41Writer:
             "events": set(),
             "static": set(),
         }
+        self._last_post_physical: Any = None
         config = dict(effective_configuration or {})
         software = dict(software_identity or {})
         self.manifest: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
+            "layout_revision": 2,
             "envelope_type": ENVELOPE_TYPE,
             "run_id": self.run_id,
             "organism_id": str(organism_id),
@@ -330,30 +345,63 @@ class TelemetryV41Writer:
     def needs_snapshot(self, tick: int) -> bool:
         return self._sequence == 0 or int(tick) % self._snapshot_interval == 0
 
-    def _write_checkpoint(
+    def _write_checkpoint_component(
         self,
+        *,
         tick: int,
-        snapshot: Mapping[str, Any],
+        component: str,
+        state: Any,
     ) -> dict[str, Any]:
         payload = {
             "schema_version": SCHEMA_VERSION,
             "run_id": self.run_id,
             "tick": int(tick),
-            "snapshot": deepcopy(dict(snapshot)),
+            "component": str(component),
+            "state": deepcopy(state),
         }
         digest = payload_sha256(payload)
         payload["checkpoint_sha256"] = digest
         filename = f"tick-{tick:012d}.json"
+        relative = Path("checkpoints") / component / filename
         _write_json(
-            self.root / "checkpoints" / filename,
+            self.root / relative,
             payload,
             compact=True,
         )
-        self._checkpoint_count += 1
         return {
-            "path": f"checkpoints/{filename}",
+            "path": relative.as_posix(),
             "sha256": digest,
         }
+
+    def _write_checkpoint(
+        self,
+        tick: int,
+        snapshot: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        snapshot_dict = dict(snapshot)
+        references: dict[str, Any] = {}
+        for component in ("organism", "physical"):
+            if component in snapshot_dict:
+                references[component] = self._write_checkpoint_component(
+                    tick=tick,
+                    component=component,
+                    state=snapshot_dict[component],
+                )
+
+        extras = {
+            key: value
+            for key, value in snapshot_dict.items()
+            if key not in ("organism", "physical")
+        }
+        if extras:
+            references["extra"] = self._write_checkpoint_component(
+                tick=tick,
+                component="extra",
+                state=extras,
+            )
+
+        self._checkpoint_count += 1
+        return references
 
     def _write_anchor(
         self,
@@ -379,7 +427,14 @@ class TelemetryV41Writer:
             "stream_offsets": {
                 key: int(value)
                 for key, value in stream_offsets.items()
-                if key not in ("ticks", "schemas", "anchor_index")
+                if key not in (
+                    "ticks",
+                    "schemas",
+                    "anchor_index",
+                    "tick_index",
+                    "event_index",
+                    "structure_index",
+                )
             },
             "ticks_offset": int(tick_offset),
             "commit_hash": str(commit_hash),
@@ -416,7 +471,8 @@ class TelemetryV41Writer:
                 f"telemetry ticks must be strictly increasing: {tick} <= {self._last_tick}"
             )
 
-        partition = partition_state(state)
+        partition = partition_state(state, layout_revision=2)
+        stream_start_offsets = _stream_offsets(self._handles)
         emitted_hashes: dict[str, list[str]] = {
             "dense": [],
             "summary": [],
@@ -427,8 +483,27 @@ class TelemetryV41Writer:
         }
 
         for channel, value in partition.dense.items():
-            info = self._dense.append(tick, channel, value)
+            if (
+                channel == "pre.physical"
+                and self._last_post_physical is not None
+                and _exact_equal(value, self._last_post_physical)
+            ):
+                info = self._dense.append_copy(
+                    tick,
+                    channel,
+                    value,
+                    source_channel="post.physical",
+                )
+            else:
+                info = self._dense.append(tick, channel, value)
             emitted_hashes["dense"].append(str(info["record_sha256"]))
+
+        current_post_physical = partition.dense.get("post.physical")
+        self._last_post_physical = (
+            deepcopy(current_post_physical)
+            if current_post_physical is not None
+            else None
+        )
 
         for channel, value in partition.structural.items():
             info = self._structural.append(tick, channel, value)
@@ -490,7 +565,13 @@ class TelemetryV41Writer:
             checkpoint_ref = self._write_checkpoint(tick, full_snapshot)
 
         for name, handle in self._handles.items():
-            if name not in ("ticks", "anchor_index"):
+            if name not in (
+                "ticks",
+                "anchor_index",
+                "tick_index",
+                "event_index",
+                "structure_index",
+            ):
                 handle.flush()
 
         offsets = _stream_offsets(self._handles)
@@ -518,7 +599,13 @@ class TelemetryV41Writer:
             "stream_offsets": {
                 key: int(value)
                 for key, value in offsets.items()
-                if key not in ("ticks", "anchor_index")
+                if key not in (
+                    "ticks",
+                    "anchor_index",
+                    "tick_index",
+                    "event_index",
+                    "structure_index",
+                )
             },
             "stream_records": emitted_hashes,
         }
@@ -539,6 +626,37 @@ class TelemetryV41Writer:
         # Commit record is deliberately last: bytes after the previous commit
         # are not evidence until this append succeeds.
         _append_line(self._handles["ticks"], commit)
+
+        # Indexes are derivative accelerators, never canonical evidence. They
+        # are written only after the tick commit succeeds.
+        _append_line(
+            self._handles["tick_index"],
+            {
+                "tick": tick,
+                "offset": tick_offset,
+                "commit_hash": commit_hash,
+            },
+        )
+        if offsets["events"] > stream_start_offsets["events"]:
+            _append_line(
+                self._handles["event_index"],
+                {
+                    "tick": tick,
+                    "offset": stream_start_offsets["events"],
+                    "end_offset": offsets["events"],
+                    "records": len(emitted_hashes["events"]),
+                },
+            )
+        if offsets["structural"] > stream_start_offsets["structural"]:
+            _append_line(
+                self._handles["structure_index"],
+                {
+                    "tick": tick,
+                    "offset": stream_start_offsets["structural"],
+                    "end_offset": offsets["structural"],
+                    "records": len(emitted_hashes["structural"]),
+                },
+            )
 
         self._sequence += 1
         self._last_tick = tick
@@ -570,6 +688,10 @@ class TelemetryV41Writer:
             "static": self._handles["static"].tell(),
             "fallback": self._handles["fallback"].tell(),
             "ticks": self._handles["ticks"].tell(),
+            "anchor_index": self._handles["anchor_index"].tell(),
+            "tick_index": self._handles["tick_index"].tell(),
+            "event_index": self._handles["event_index"].tell(),
+            "structure_index": self._handles["structure_index"].tell(),
         }
         for handle in self._handles.values():
             handle.close()
@@ -793,7 +915,12 @@ class TelemetryV41Reader:
     def _prime_decoders(self, anchor: Mapping[str, Any]):
         state = anchor["state"]
         summary = anchor["summary"]
-        partition = partition_state(state)
+        partition = partition_state(
+            state,
+            layout_revision=int(
+                self.manifest.get("layout_revision", 1) or 1
+            ),
+        )
 
         dense = FrameStreamReader(self.registry)
         dense_schemas = dict(anchor.get("schemas", {}).get("dense", {}))
@@ -1093,6 +1220,50 @@ class TelemetryV41Reader:
                 continue
             yield summary
 
+    def _event_seek_offset(self, start_tick: int | None) -> int:
+        if start_tick is None:
+            return 0
+        index_path = self.root / "indexes" / "events.ndjson"
+        event_path = self._stream_path("events")
+        if not index_path.is_file() or not event_path.is_file():
+            return 0
+
+        requested = int(start_tick)
+        candidate_tick = None
+        candidate_offset = None
+        try:
+            with index_path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    item = json.loads(line)
+                    tick = int(item.get("tick", -1))
+                    if tick >= requested:
+                        candidate_tick = tick
+                        candidate_offset = int(item.get("offset", -1))
+                        break
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return 0
+
+        if candidate_tick is None or candidate_offset is None or candidate_offset < 0:
+            return 0
+
+        # Indexes are derivative and untrusted. Validate the candidate against
+        # canonical event bytes before using it; otherwise fall back to scan.
+        try:
+            with event_path.open("r", encoding="utf-8") as handle:
+                handle.seek(candidate_offset)
+                line = handle.readline()
+                if not line.strip():
+                    return 0
+                item = json.loads(line)
+                if int(item.get("t", -1)) != candidate_tick:
+                    return 0
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return 0
+        return candidate_offset
+
+
     def iter_events(
         self,
         *,
@@ -1104,6 +1275,7 @@ class TelemetryV41Reader:
         if not path.is_file():
             return
         with path.open("r", encoding="utf-8") as handle:
+            handle.seek(self._event_seek_offset(start_tick))
             for line in handle:
                 if not line.strip():
                     continue
@@ -1140,15 +1312,13 @@ def load_v41_transitions(
     return list(TelemetryV41Reader(path, verify=verify).iter_states())
 
 
-def _verify_checkpoint_reference(
+def _verify_checkpoint_file(
     root: Path,
     commit: Mapping[str, Any],
+    reference: Mapping[str, Any],
+    *,
+    component: str | None,
 ) -> None:
-    reference = commit.get("checkpoint")
-    if reference is None:
-        return
-    if not isinstance(reference, Mapping):
-        raise ValueError("invalid telemetry checkpoint reference")
     relative = Path(str(reference.get("path", "")))
     if (
         not relative.parts
@@ -1170,6 +1340,42 @@ def _verify_checkpoint_reference(
         raise ValueError(f"telemetry checkpoint tick mismatch: {relative}")
     if payload.get("run_id") != commit.get("run_id"):
         raise ValueError(f"telemetry checkpoint run mismatch: {relative}")
+    if component is not None and payload.get("component") != component:
+        raise ValueError(
+            f"telemetry checkpoint component mismatch: {relative}"
+        )
+
+
+def _verify_checkpoint_reference(
+    root: Path,
+    commit: Mapping[str, Any],
+) -> None:
+    reference = commit.get("checkpoint")
+    if reference is None:
+        return
+    if not isinstance(reference, Mapping):
+        raise ValueError("invalid telemetry checkpoint reference")
+
+    # Early v4.1 wrote one combined checkpoint envelope.
+    if "path" in reference:
+        _verify_checkpoint_file(
+            root,
+            commit,
+            reference,
+            component=None,
+        )
+        return
+
+    # Layout revision 2 stores organism and physical evidence independently.
+    for component, component_ref in reference.items():
+        if not isinstance(component_ref, Mapping):
+            raise ValueError("invalid telemetry checkpoint component reference")
+        _verify_checkpoint_file(
+            root,
+            commit,
+            component_ref,
+            component=str(component),
+        )
 
 
 def verify_v41_run(path: str | Path) -> dict[str, Any]:

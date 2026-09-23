@@ -56,13 +56,21 @@ telemetry-v4.1/<run-id>/
     tick-XXXXXXXXXXXX.json
 
   checkpoints/
-    tick-XXXXXXXXXXXX.json
+    organism/
+      tick-XXXXXXXXXXXX.json
+    physical/
+      tick-XXXXXXXXXXXX.json
+    extra/
+      tick-XXXXXXXXXXXX.json
 
   objects/
     sha256/aa/<hash>.json
 
   indexes/
     anchors.ndjson
+    ticks.ndjson
+    events.ndjson
+    structures.ndjson
 ```
 
 ## Temporal classes
@@ -71,8 +79,10 @@ telemetry-v4.1/<run-id>/
 
 Frequently changing JSON shapes with mostly stable structure:
 
-- `pre`
-- `post`
+- `pre.physical`
+- `post.physical`
+- residual `pre` / `post`
+- `physics.raw_substeps`
 - residual `runtime` state
 - residual `cognition` state
 - `action`
@@ -95,12 +105,18 @@ Long-lived state with stable entity identity:
 - `body_schema`
 - `runtime.signal_knowledge`
 - `runtime.sensory_phenotype`
+- `runtime.narrative`
+- `runtime.signal_references`
 - `self_model`
 - residual `sensorimotor`
 
 Lists containing stable IDs such as `node_id`, `primitive_id`,
 `actuator_id`, `signal_id`, etc. are transformed into a reversible keyed
-internal AST plus an explicit order vector. This keeps scalar evolution inside
+internal AST plus an explicit order vector. Cognitive edges without their own
+ID use an observer-only composite identity derived from
+`(source_id, target_id, kind, delay_ticks)` when that tuple is unique.
+Keyed entity storage is sorted by identity while the independent order vector
+preserves the exact original list order. This keeps scalar evolution inside
 existing entities from becoming list replacement.
 
 The internal AST is tagged at every node, so arbitrary user/runtime JSON cannot
@@ -167,6 +183,16 @@ or:
 
 The sparse form is used only when its canonical JSON encoding is smaller.
 
+A third exact frame mode, `copy`, is available for cross-channel temporal
+identity. In particular, when and only when canonical bytes prove that
+
+```text
+pre.physical[t] == post.physical[t-1]
+```
+
+the writer stores a reference to the previous post-physics channel instead of
+repeating the values. No continuity assumption is made.
+
 Signed zero is compared via canonical JSON, so `0.0` and `-0.0` are not
 compacted away as equal.
 
@@ -181,8 +207,11 @@ Anchors contain only reconstruction state:
 - tick-stream offset;
 - committed tick hash.
 
-Large organism/physical snapshots live under `checkpoints/` and are referenced
-from tick commits. They are not embedded in anchors.
+Large organism and physical snapshots live independently under
+`checkpoints/organism/` and `checkpoints/physical/`. Additional apparatus
+snapshot material, if any, is isolated under `checkpoints/extra/`. Tick commits
+reference each component by path and SHA-256. Checkpoints are not embedded in
+anchors.
 
 This prevents the former 15–20 MB organism checkpoint from inflating every
 telemetry anchor.
@@ -207,6 +236,11 @@ A commit contains:
 Only data reachable from the last valid tick commit is committed evidence.
 Trailing stream bytes after a crash are uncommitted and ignored.
 
+After a successful tick commit, derivative indexes are appended for tick,
+event-stream, and structural-stream offsets. These indexes are accelerators
+only: they are never canonical evidence, and a missing or incomplete index
+must not make committed evidence disappear.
+
 ## Reader
 
 `TelemetryV41Reader` supports:
@@ -214,6 +248,7 @@ Trailing stream bytes after a crash are uncommitted and ignored.
 ```python
 state_at(tick)
 summary_at(tick)
+iter_records(...)
 iter_states(...)
 iter_summaries(...)
 iter_events(...)
@@ -229,6 +264,21 @@ Random access:
 
 Sequential iteration streams records with constant per-stream lookahead rather
 than loading the full run into memory.
+
+## Layout revisions
+
+The physical schema version remains `4.1`, while the manifest carries a
+`layout_revision`.
+
+- revision 1 is the initial v4.1 layout that grouped `pre`, `post`, and
+  `runtime` more coarsely;
+- revision 2 is the canonical layout described here, with nested physical
+  streams, narrative/signal-reference structural channels, cross-tick copy
+  frames, split checkpoints, and derivative indexes.
+
+Readers treat a v4.1 manifest with no `layout_revision` as revision 1. This
+preserves readability of runs produced during the initial v4.1 rollout without
+mutating historical evidence.
 
 ## Version-neutral API
 
@@ -256,6 +306,7 @@ Historical summary-only NDJSON remains supported only through
 ```bash
 symbiont-telemetry-benchmark RUN
 symbiont-telemetry-benchmark RUN --compare OTHER_RUN
+symbiont-telemetry-benchmark RUN --gate --expected-ticks 4781
 ```
 
 Reports:
@@ -267,7 +318,12 @@ Reports:
 - storage ratio;
 - fallback bytes/fraction;
 - stream breakdown;
-- sampled `state_at` latency.
+- sampled `state_at` latency;
+- integrity verification for v4.1 runs.
+
+With `--gate`, the command evaluates the canonical acceptance limits and exits
+with code 2 when any gate fails. `--expected-ticks` can pin the golden run to
+its expected population, e.g. 4,781 ticks.
 
 ### Converter
 

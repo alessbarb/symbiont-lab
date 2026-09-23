@@ -4,6 +4,7 @@ from symbiont_lab.physics3d.telemetry_tools import (
     benchmark_run,
     compare_runs,
     convert_run,
+    evaluate_acceptance_gates,
 )
 from symbiont_lab.physics3d.telemetry_v4 import TelemetryV4Writer
 from symbiont_lab.physics3d.telemetry_v41 import TelemetryV41Reader
@@ -102,3 +103,61 @@ def test_compare_runs_returns_storage_delta(tmp_path):
 
     assert "saved_bytes" in comparison
     assert comparison["left"]["ticks"] == comparison["right"]["ticks"] == 3
+
+
+def test_acceptance_gate_passes_for_valid_small_v41_run(tmp_path):
+    source_writer = TelemetryV4Writer(
+        tmp_path / "source",
+        organism_id="test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        run_id="old",
+    )
+    for tick in range(1, 5):
+        source_writer.append({"tick": tick}, rich_state=_state(tick))
+    source_writer.close()
+    report = convert_run(source_writer.root, tmp_path / "converted", run_id="new")
+    benchmark = benchmark_run(report.destination_run)
+
+    gate = evaluate_acceptance_gates(
+        benchmark,
+        expected_ticks=4,
+        max_evidence_bytes=10 * 1024 * 1024,
+        max_fallback_fraction=1.0,
+        max_state_at_p95_ms=10_000.0,
+    )
+
+    assert gate["passed"] is True
+    assert all(gate["checks"].values())
+
+
+def test_acceptance_gate_reports_each_failed_constraint():
+    report = {
+        "version": "v4.1",
+        "ticks": 3,
+        "evidence_bytes_excluding_checkpoints": 500,
+        "fallback_fraction": 0.25,
+        "integrity": {"complete": False},
+        "state_at_ms": {"p95": 250.0},
+    }
+
+    gate = evaluate_acceptance_gates(
+        report,
+        expected_ticks=4,
+        max_evidence_bytes=100,
+        max_fallback_fraction=0.05,
+        max_state_at_p95_ms=100.0,
+    )
+
+    assert gate["passed"] is False
+    assert gate["checks"] == {
+        "version_is_v41": True,
+        "integrity_complete": False,
+        "evidence_bytes": False,
+        "fallback_fraction": False,
+        "state_at_p95_ms": False,
+        "expected_ticks": False,
+    }

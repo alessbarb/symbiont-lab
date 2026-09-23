@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import time
-from typing import Any
+from typing import Any, Mapping
 
 from .telemetry_compaction import canonical_json_bytes
 from .telemetry_reader import detect_telemetry_run, open_telemetry
@@ -201,6 +201,11 @@ def benchmark_run(path: str | Path) -> dict[str, Any]:
         else None
     )
     manifest = _read_manifest(root)
+    integrity = (
+        verify_v41_run(root)
+        if version == "v4.1"
+        else None
+    )
     fallback_bytes = int(
         (
             manifest.get("compaction", {})
@@ -228,6 +233,7 @@ def benchmark_run(path: str | Path) -> dict[str, Any]:
         "fallback_fraction": (
             fallback_bytes / evidence_bytes if evidence_bytes else 0.0
         ),
+        "integrity": integrity,
         "breakdown": breakdown,
         "state_at_ms": {
             "samples": latencies_ms,
@@ -238,6 +244,61 @@ def benchmark_run(path: str | Path) -> dict[str, Any]:
             ),
             "p95": p95,
             "max": max(sorted_latency) if sorted_latency else None,
+        },
+    }
+
+
+def evaluate_acceptance_gates(
+    report: Mapping[str, Any],
+    *,
+    max_evidence_bytes: int = 200 * 1024 * 1024,
+    max_fallback_fraction: float = 0.05,
+    max_state_at_p95_ms: float = 100.0,
+    expected_ticks: int | None = None,
+) -> dict[str, Any]:
+    version = str(report.get("version", ""))
+    integrity = report.get("integrity")
+    integrity_complete = (
+        isinstance(integrity, Mapping)
+        and bool(integrity.get("complete"))
+    )
+    evidence_bytes = int(
+        report.get("evidence_bytes_excluding_checkpoints", 0) or 0
+    )
+    fallback_fraction = float(report.get("fallback_fraction", 0.0) or 0.0)
+    state_at = report.get("state_at_ms", {})
+    p95_raw = (
+        state_at.get("p95")
+        if isinstance(state_at, Mapping)
+        else None
+    )
+    p95_ms = float(p95_raw) if p95_raw is not None else float("inf")
+    ticks = int(report.get("ticks", 0) or 0)
+
+    checks = {
+        "version_is_v41": version == "v4.1",
+        "integrity_complete": integrity_complete,
+        "evidence_bytes": evidence_bytes <= int(max_evidence_bytes),
+        "fallback_fraction": fallback_fraction <= float(max_fallback_fraction),
+        "state_at_p95_ms": p95_ms <= float(max_state_at_p95_ms),
+        "expected_ticks": (
+            True if expected_ticks is None else ticks == int(expected_ticks)
+        ),
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "observed": {
+            "ticks": ticks,
+            "evidence_bytes_excluding_checkpoints": evidence_bytes,
+            "fallback_fraction": fallback_fraction,
+            "state_at_p95_ms": p95_raw,
+        },
+        "limits": {
+            "expected_ticks": expected_ticks,
+            "max_evidence_bytes": int(max_evidence_bytes),
+            "max_fallback_fraction": float(max_fallback_fraction),
+            "max_state_at_p95_ms": float(max_state_at_p95_ms),
         },
     }
 
@@ -261,5 +322,6 @@ __all__ = [
     "ConversionReport",
     "benchmark_run",
     "compare_runs",
+    "evaluate_acceptance_gates",
     "convert_run",
 ]

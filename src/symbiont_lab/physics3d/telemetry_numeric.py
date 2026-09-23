@@ -159,6 +159,38 @@ class FrameStreamWriter:
     def drop(self, channel: str) -> None:
         self._previous.pop(str(channel), None)
 
+    def append_copy(
+        self,
+        tick: int,
+        channel: str,
+        value: Any,
+        *,
+        source_channel: str,
+    ) -> dict[str, Any]:
+        template, values = _template_and_values(value)
+        schema_id, created = self.registry.resolve(channel, template)
+        if created:
+            self.schema_changes += 1
+        record = {
+            "t": int(tick),
+            "c": str(channel),
+            "s": schema_id,
+            "m": "c",
+            "f": str(source_channel),
+        }
+        encoded = canonical_json_bytes(record)
+        self.handle.write(encoded.decode("utf-8"))
+        self.handle.write("\n")
+        self._previous[channel] = (schema_id, deepcopy(values))
+        self.records += 1
+        self.bytes_written += len(encoded) + 1
+        return {
+            "channel": str(channel),
+            "schema_id": schema_id,
+            "mode": "c",
+            "record_sha256": payload_sha256(record),
+        }
+
     def schema_state(self) -> dict[str, int]:
         return {
             channel: schema_id
@@ -248,6 +280,16 @@ class FrameStreamReader:
             if not isinstance(raw_values, list):
                 raise ValueError("full frame values must be a list")
             values = deepcopy(raw_values)
+        elif mode == "c":
+            source_channel = str(record.get("f", ""))
+            if not source_channel or source_channel not in self.values:
+                raise ValueError(
+                    f"copy frame source is unavailable: {source_channel!r}"
+                )
+            source_value = deepcopy(self.values[source_channel])
+            source_template, values = _template_and_values(source_value)
+            if payload_sha256(source_template) != payload_sha256(template):
+                raise ValueError("copy frame source does not match target schema")
         elif mode == "s":
             previous = self._previous.get(channel)
             if previous is None or previous[0] != schema_id:

@@ -263,11 +263,29 @@ def test_v41_separates_checkpoints_from_anchors(tmp_path):
     _write(writer)
 
     anchors = sorted((writer.root / "anchors").glob("*.json"))
-    checkpoints = sorted((writer.root / "checkpoints").glob("*.json"))
+    organism_checkpoints = sorted(
+        (writer.root / "checkpoints" / "organism").glob("*.json")
+    )
+    physical_checkpoints = sorted(
+        (writer.root / "checkpoints" / "physical").glob("*.json")
+    )
     assert anchors
-    assert checkpoints
-    assert all('"snapshot"' not in path.read_text(encoding="utf-8") for path in anchors)
-    assert any('"snapshot"' in path.read_text(encoding="utf-8") for path in checkpoints)
+    assert organism_checkpoints
+    assert physical_checkpoints
+    assert all(
+        '"snapshot"' not in path.read_text(encoding="utf-8")
+        for path in anchors
+    )
+    organism_payload = json.loads(
+        organism_checkpoints[0].read_text(encoding="utf-8")
+    )
+    physical_payload = json.loads(
+        physical_checkpoints[0].read_text(encoding="utf-8")
+    )
+    assert organism_payload["component"] == "organism"
+    assert physical_payload["component"] == "physical"
+    assert "state" in organism_payload
+    assert "state" in physical_payload
 
 
 def test_v41_events_are_not_repeated_as_accumulated_snapshots(tmp_path):
@@ -335,12 +353,20 @@ def test_v41_detects_frame_tampering(tmp_path):
 
     path = writer.root / "frames" / "dense.ndjson"
     lines = path.read_text(encoding="utf-8").splitlines()
-    item = json.loads(lines[-1])
+    target_index = next(
+        index
+        for index in range(len(lines) - 1, -1, -1)
+        if (
+            json.loads(lines[index])["m"] in ("f", "s")
+            and json.loads(lines[index]).get("v")
+        )
+    )
+    item = json.loads(lines[target_index])
     if item["m"] == "f":
         item["v"][0] = "tampered"
     else:
         item["v"][0][1] = "tampered"
-    lines[-1] = json.dumps(item, separators=(",", ":"))
+    lines[target_index] = json.dumps(item, separators=(",", ":"))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="dense record commitment mismatch"):
@@ -428,9 +454,11 @@ def test_v41_verify_detects_checkpoint_tampering(tmp_path):
     )
     _write(writer)
 
-    checkpoint = sorted((writer.root / "checkpoints").glob("*.json"))[-1]
+    checkpoint = sorted(
+        (writer.root / "checkpoints" / "organism").glob("*.json")
+    )[-1]
     payload = json.loads(checkpoint.read_text(encoding="utf-8"))
-    payload["snapshot"]["organism"]["large"] = "tampered"
+    payload["state"]["large"] = "tampered"
     checkpoint.write_text(
         json.dumps(payload, separators=(",", ":")) + "\n",
         encoding="utf-8",
@@ -533,3 +561,137 @@ def test_v41_channel_disappearance_resets_writer_and_reader_baselines(tmp_path):
         if item["c"] == "sensorimotor.episodes"
     ]
     assert [item["o"] for item in episode_records] == ["reset", "reset"]
+
+
+def test_v41_uses_exact_previous_post_copy_for_matching_pre_physical(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=100,
+        run_id="physical-copy",
+    )
+    first_post = {
+        "base_position": [1.0, 2.0, 3.0],
+        "joints": [{"joint_index": 0, "position": 0.2}],
+    }
+    writer.append(
+        {"tick": 1},
+        rich_state={
+            "tick": 1,
+            "pre": {"physical": {"base_position": [0.0, 0.0, 0.0]}},
+            "post": {"physical": first_post},
+        },
+    )
+    writer.append(
+        {"tick": 2},
+        rich_state={
+            "tick": 2,
+            "pre": {"physical": first_post},
+            "post": {
+                "physical": {
+                    "base_position": [1.1, 2.0, 3.0],
+                    "joints": [{"joint_index": 0, "position": 0.3}],
+                }
+            },
+        },
+    )
+    writer.close()
+
+    records = [
+        json.loads(line)
+        for line in (writer.root / "frames" / "dense.ndjson")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    copies = [
+        item for item in records
+        if item["t"] == 2
+        and item["c"] == "pre.physical"
+        and item["m"] == "c"
+    ]
+    assert len(copies) == 1
+    assert copies[0]["f"] == "post.physical"
+    assert TelemetryV41Reader(writer.root).state_at(2)["pre"]["physical"] == first_post
+
+
+def test_v41_writes_derivative_tick_event_and_structure_indexes(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=3,
+        run_id="indexes",
+    )
+    _write(writer)
+
+    tick_index = writer.root / "indexes" / "ticks.ndjson"
+    event_index = writer.root / "indexes" / "events.ndjson"
+    structure_index = writer.root / "indexes" / "structures.ndjson"
+    assert tick_index.stat().st_size > 0
+    assert event_index.stat().st_size > 0
+    assert structure_index.stat().st_size > 0
+
+    reader = TelemetryV41Reader(writer.root)
+    events = list(
+        reader.iter_events(
+            event_type="runtime.knowledge_events",
+            start_tick=4,
+        )
+    )
+    assert all(item["tick"] >= 4 for item in events)
+
+
+def test_v41_manifest_declares_layout_revision_two(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        run_id="layout-revision",
+    )
+    writer.append({"tick": 1}, rich_state={"tick": 1})
+    writer.close()
+
+    manifest = json.loads(
+        (writer.root / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["layout_revision"] == 2
+
+
+def test_v41_corrupt_event_index_falls_back_to_canonical_scan(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=3,
+        run_id="corrupt-index",
+    )
+    _write(writer)
+
+    index_path = writer.root / "indexes" / "events.ndjson"
+    index_path.write_text("{not-json}\n", encoding="utf-8")
+
+    reader = TelemetryV41Reader(writer.root)
+    events = list(
+        reader.iter_events(
+            event_type="runtime.knowledge_events",
+            start_tick=2,
+        )
+    )
+    assert [item["tick"] for item in events] == [2, 4, 6]

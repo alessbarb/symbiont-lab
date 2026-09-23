@@ -63,7 +63,7 @@ STATIC_RULES: tuple[LayoutRule, ...] = (
     ),
 )
 
-STRUCTURAL_RULES: tuple[LayoutRule, ...] = (
+LEGACY_V41_STRUCTURAL_RULES: tuple[LayoutRule, ...] = (
     LayoutRule(
         "cognitive_topology",
         ("cognitive_topology",),
@@ -96,7 +96,78 @@ STRUCTURAL_RULES: tuple[LayoutRule, ...] = (
     ),
 )
 
+STRUCTURAL_RULES: tuple[LayoutRule, ...] = (
+    LayoutRule(
+        "cognitive_topology",
+        ("cognitive_topology",),
+        TemporalClass.STRUCTURAL,
+    ),
+    LayoutRule(
+        "body_schema",
+        ("body_schema",),
+        TemporalClass.STRUCTURAL,
+    ),
+    LayoutRule(
+        "runtime.signal_knowledge",
+        ("runtime", "signal_knowledge"),
+        TemporalClass.STRUCTURAL,
+    ),
+    LayoutRule(
+        "runtime.sensory_phenotype",
+        ("runtime", "sensory_phenotype"),
+        TemporalClass.STRUCTURAL,
+    ),
+    LayoutRule(
+        "runtime.narrative",
+        ("runtime", "narrative"),
+        TemporalClass.STRUCTURAL,
+    ),
+    LayoutRule(
+        "runtime.signal_references",
+        ("runtime", "signal_references"),
+        TemporalClass.STRUCTURAL,
+    ),
+    LayoutRule(
+        "self_model",
+        ("self_model",),
+        TemporalClass.STRUCTURAL,
+    ),
+    LayoutRule(
+        "sensorimotor",
+        ("sensorimotor",),
+        TemporalClass.STRUCTURAL,
+    ),
+)
+
+LEGACY_V41_DENSE_RULES: tuple[LayoutRule, ...] = (
+    LayoutRule("pre", ("pre",), TemporalClass.DENSE),
+    LayoutRule("post", ("post",), TemporalClass.DENSE),
+    LayoutRule("runtime", ("runtime",), TemporalClass.DENSE),
+    LayoutRule("cognition", ("cognition",), TemporalClass.DENSE),
+    LayoutRule("action", ("action",), TemporalClass.DENSE),
+    LayoutRule("physics", ("physics",), TemporalClass.DENSE),
+    LayoutRule("outcome", ("outcome",), TemporalClass.DENSE),
+    LayoutRule("timing_ms", ("timing_ms",), TemporalClass.DENSE),
+    LayoutRule("slm", ("slm",), TemporalClass.DENSE),
+    LayoutRule("episodic_memory", ("episodic_memory",), TemporalClass.DENSE),
+)
+
 DENSE_RULES: tuple[LayoutRule, ...] = (
+    LayoutRule(
+        "pre.physical",
+        ("pre", "physical"),
+        TemporalClass.DENSE,
+    ),
+    LayoutRule(
+        "post.physical",
+        ("post", "physical"),
+        TemporalClass.DENSE,
+    ),
+    LayoutRule(
+        "physics.raw_substeps",
+        ("physics", "raw_substeps"),
+        TemporalClass.DENSE,
+    ),
     LayoutRule("pre", ("pre",), TemporalClass.DENSE),
     LayoutRule("post", ("post",), TemporalClass.DENSE),
     LayoutRule("runtime", ("runtime",), TemporalClass.DENSE),
@@ -180,12 +251,23 @@ class PartitionedState:
     fallback: dict[str, Any]
 
 
-def partition_state(state: Mapping[str, Any]) -> PartitionedState:
+def partition_state(
+    state: Mapping[str, Any],
+    *,
+    layout_revision: int = 2,
+) -> PartitionedState:
     """Split one logical state according to the v4.1 temporal contract.
 
     Nested event/structural paths are extracted before their parents. Anything
     not covered by the declared layout remains in exact fallback storage.
     """
+    if int(layout_revision) <= 1:
+        structural_rules = LEGACY_V41_STRUCTURAL_RULES
+        dense_rules = LEGACY_V41_DENSE_RULES
+    else:
+        structural_rules = STRUCTURAL_RULES
+        dense_rules = DENSE_RULES
+
     residual = deepcopy(dict(state))
     events: dict[str, Any] = {}
     static: dict[str, Any] = {}
@@ -202,12 +284,12 @@ def partition_state(state: Mapping[str, Any]) -> PartitionedState:
         if value is not _MISSING:
             static[rule.channel] = value
 
-    for rule in STRUCTURAL_RULES:
+    for rule in structural_rules:
         value = pop_path(residual, rule.path)
         if value is not _MISSING:
             structural[rule.channel] = value
 
-    for rule in DENSE_RULES:
+    for rule in dense_rules:
         value = pop_path(residual, rule.path)
         if value is not _MISSING:
             dense[rule.channel] = value
@@ -240,9 +322,37 @@ def reassemble_state(
     fallback: Mapping[str, Any],
 ) -> dict[str, Any]:
     state = deepcopy(dict(fallback))
-    for source in (static, structural, dense, events):
+    classified: list[tuple[int, int, str, Any]] = []
+    source_priority = {
+        "static": 0,
+        "dense": 1,
+        "structural": 2,
+        "events": 3,
+    }
+    for source_name, source in (
+        ("static", static),
+        ("dense", dense),
+        ("structural", structural),
+        ("events", events),
+    ):
         for channel, value in source.items():
-            set_path(state, rule_for_channel(channel).path, value)
+            rule = rule_for_channel(channel)
+            classified.append(
+                (
+                    len(rule.path),
+                    source_priority[source_name],
+                    channel,
+                    value,
+                )
+            )
+
+    # Parent paths must be materialized before extracted children. Otherwise a
+    # later parent assignment would erase already reconstructed nested state.
+    for _depth, _priority, channel, value in sorted(
+        classified,
+        key=lambda item: (item[0], item[1], item[2]),
+    ):
+        set_path(state, rule_for_channel(channel).path, value)
     return state
 
 
@@ -260,6 +370,8 @@ __all__ = [
     "ALL_RULES",
     "DENSE_RULES",
     "EVENT_RULES",
+    "LEGACY_V41_DENSE_RULES",
+    "LEGACY_V41_STRUCTURAL_RULES",
     "LayoutRule",
     "PartitionedState",
     "STATIC_RULES",
