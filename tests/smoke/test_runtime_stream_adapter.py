@@ -758,3 +758,23 @@ def test_cognition_map_uses_emergent_functional_cartography() -> None:
     assert "expandedActuators" in cartography
     assert "causal_effect" in cartography
     assert "motor_component" in cartography
+
+
+
+def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
+
+    assert "graphDimension" in asset
+    assert "buildCognition3DScene" in asset
+    assert "orbitCamera" in asset
+    assert "zoomCamera" in asset
+    assert "drag empty space to orbit" in asset
+    assert "dimension:      '2d'" in asset
+
+    assert "worldDepthForNode" in projection
+    assert "projectPoint3D" in projection
+    assert "buildCognition3DScene" in projection
+    assert "motor_primitive" in projection
+    assert "actuator" in projection
+    assert "sectorDepth" in projection
