@@ -323,29 +323,6 @@ export function buildMindLayout(root, {
   historyWrap.id = 'mind-history-wrap';
   historyWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
 
-  // Observer map retained as a secondary analytical surface for History.
-  // It is no longer a primary navigation tab.
-    // Regime canvas
-  const regimeWrap = el('div', 'mind-regime-wrap hidden');
-  regimeWrap.id = 'mind-regime-wrap';
-  regimeWrap.style.cssText = 'position: absolute; inset: 0; overflow: hidden;';
-  const regimeCanvas = document.createElement('canvas');
-  regimeCanvas.id = 'mind-regime-canvas';
-  regimeCanvas.style.cssText = 'display: block; width: 100%; height: 100%;';
-  const regimeHud = buildRegimeHud();
-  const regimeControls = el('div', '');
-  regimeControls.style.cssText = `
-    position: absolute; bottom: 14px; right: 14px;
-    display: flex; gap: 6px;
-  `;
-  const btnContour = makeControlBtn('🗺️', 'Toggle contours', true); btnContour.id = 'mind-contour-btn';
-  const btnTrail   = makeControlBtn('〰️', 'Toggle trail', true);    btnTrail.id   = 'mind-trail-btn';
-  const btnRegReset= makeControlBtn('⟲', 'Reset compass', false);   btnRegReset.id= 'mind-regime-reset';
-  regimeControls.append(btnContour, btnTrail, btnRegReset);
-  regimeWrap.appendChild(regimeCanvas);
-  regimeWrap.appendChild(regimeHud);
-  regimeWrap.appendChild(regimeControls);
-
   // Waiting overlay (when no organism is active yet)
   const waitingOverlay = el('div', 'mind-waiting');
   waitingOverlay.id = 'mind-waiting';
@@ -369,7 +346,7 @@ export function buildMindLayout(root, {
   waitingOverlay.append(waitSpinner, waitText);
 
   // Assemble canvas area
-  canvasArea.append(overviewWrap, identityWrap, sensoryWrap, cognitionWrap, motorWrap, historyWrap, regimeWrap, waitingOverlay);
+  canvasArea.append(overviewWrap, identityWrap, sensoryWrap, cognitionWrap, motorWrap, historyWrap, waitingOverlay);
   workspace.append(sensesPanel, cognitionInspector, canvasArea);
   root.appendChild(workspace);
 
@@ -509,29 +486,4 @@ function buildTelemHTML() {
   return items.map(i =>
     `<span class="mind-telem-item"><span>${i.label}: </span><b id="${i.id}">${i.init}</b></span>`
   ).join('');
-}
-
-function buildRegimeHud() {
-  const hud = el('div', 'mind-compass-hud');
-  hud.id = 'mind-compass-hud';
-  hud.innerHTML = `
-    <h3 id="mind-compass-title">—</h3>
-    <p id="mind-compass-sub">Waiting for telemetry…</p>
-    <span id="mind-compass-badge" class="mind-compass-badge familiar">—</span>
-    <div class="mind-compass-metric">
-      <div class="mind-compass-metric-head">
-        <span>Reference distance</span><strong id="mind-compass-novelty">—</strong>
-      </div>
-      <div class="mind-compass-meter">
-        <div class="mind-compass-meter-fill" id="mind-compass-novelty-bar" style="width:0%;background:${PAL.mint}"></div>
-      </div>
-    </div>
-    <div class="mind-compass-metric" style="margin-top:8px">
-      <div class="mind-compass-metric-head">
-        <span>Observer drift</span><strong id="mind-compass-drift">0.000 units/tick</strong>
-      </div>
-    </div>
-    <p class="mind-compass-exp" id="mind-compass-exp">Awaiting real-time data…</p>
-  `;
-  return hud;
 }
