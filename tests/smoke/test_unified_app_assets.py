@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
 import threading
 import time
 import urllib.request
 
 from symbiont_lab.server.server import make_server
+from symbiont_lab.workbench import WEB_ROOT
 
 
 def test_unified_server_serves_native_spa_assets() -> None:
@@ -58,7 +58,7 @@ def test_unified_server_emits_live_organism_sse() -> None:
 
 
 def test_lab_view_does_not_assign_type_to_textarea() -> None:
-    js_path = Path(__file__).resolve().parents[2] / "src" / "symbiont_lab" / "server" / "assets" / "views" / "lab.js"
+    js_path = WEB_ROOT / "views" / "lab.js"
     js = js_path.read_text(encoding="utf-8")
     assert "input.type = type === 'textarea' ? 'text' : type;" not in js
 
