@@ -103,7 +103,6 @@ export const graph = {
   hiddenMotor: { actuators: 0, motorEdges: 0 },
   dimension: '2d',
   threeDMode: 'relational',
-  physicalIOVisible: false,
   camera3d: { yaw: -0.55, pitch: 0.34, distance: 900 },
   world3d: new Map(),
   velocity3d: new Map(),
@@ -135,7 +134,6 @@ export function resetMindDataState() {
   graph.hoveredNode = null;
   graph.selectedNodeId = null;
   graph.focusedSectorId = null;
-  graph.physicalIOVisible = false;
   graph.replaySnapshot = null;
   graph.replayTick = null;
   graph.world3d.clear();
