@@ -104,7 +104,7 @@ def test_sensorimotor_primitive_formation_is_channel_identity_agnostic():
     )
     state = {"interoceptive.channel_7": 0.0}
     tick = 0
-    for _ in range(2):
+    for episode_index in range(2):
         for step, vector in enumerate(sequence):
             learner.observe(
                 tick=tick,
@@ -126,6 +126,15 @@ def test_sensorimotor_primitive_formation_is_channel_identity_agnostic():
             discovery_eligible=False,
         )
         tick += 1
+        if episode_index == 0:
+            while tick % 8:
+                learner.observe(
+                    tick=tick,
+                    body_state=state,
+                    motor_vector={},
+                    discovery_eligible=False,
+                )
+                tick += 1
 
     assert learner.primitives
     assert learner.cognitive_primitives
