@@ -28,12 +28,15 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
             "predictor_count": 17,
             "prediction_error": 0.11,
             "joint_motion": 0.18,
+            "active_effectors": 6,
             "contact_count": 2,
             "mechanical_work_joules": 1.2,
             "metabolic_work_cost": 0.02,
             "slm_active": True,
             "motor_origin": "cognition",
+            "resource_distance": 2.4,
             "resource_progress": 0.64,
+            "resource_remaining": 0.55,
             "metabolic_reserve_ratio": 0.72,
             "prospective_selected": True,
             "prospective_expected_value": 0.88,
@@ -50,6 +53,9 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
     assert '"type":"cognition"' in joined
     assert '"type":"vitals"' in joined
     assert '"motor_origin":"cognition"' in joined
+    assert '"active_effectors":6' in joined
+    assert '"resource_distance":2.4' in joined
+    assert '"resource_remaining":0.55' in joined
     assert '"prospective_expected_value":0.88' in joined
     assert '"instance_id":"0123456789abcdef"' in joined
     assert '"run_id":"run-12"' in joined
@@ -408,10 +414,25 @@ def test_body_and_mind_use_resource_delta_as_distance_not_percent() -> None:
     body = (root / "body.js").read_text(encoding="utf-8")
 
     assert "Resource Δ" in mind
-    assert "Resource Δdistance" in body
+    assert "Resource progress" in body
+    assert "Resource distance" in body
     assert "resourceProgress.toFixed(2)} m" in mind
     assert "data.resource_progress.toFixed(2)} m" in body
+    assert "data.resource_distance).toFixed(2)} m" in body
     assert "resource_progress * 100" not in body
+
+
+def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
+    body = (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8")
+
+    assert "Follow body" in body
+    assert "resetCameraToBody" in body
+    assert "Distance travelled" in body
+    assert "Locomotion efficiency" in body
+    assert "Active joints" in body
+    assert "Observer-side body history" in body
+    assert "jointActivity" in body
+    assert "state_summary" in body
 
 
 def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
