@@ -300,3 +300,20 @@ def test_higher_order_interpretation_can_index_prior_interpretation() -> None:
         "concept.high",
         "concept.low",
     )
+
+
+
+def test_replay_records_preserve_exact_causal_record_content() -> None:
+    original = record(
+        7,
+        context=("sense.a", "sense.a", "state.a"),
+        outcomes=("outcome.x", "outcome.x"),
+    )
+    memory = EpisodicExperienceMemory(ORG)
+    memory.observe(original)
+    memory.flush()
+
+    replayed = memory.replay_records()
+
+    assert replayed == (original,)
+    assert replayed[0].content_hash == original.content_hash
