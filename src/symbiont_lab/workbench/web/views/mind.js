@@ -170,6 +170,7 @@ const _graph = {
   panY:           0,
   hoveredNode:    null,
   selectedNodeId: null,
+  focusedSectorId: null,
   fmriEnabled:    true,
   communities:    new Map(),
   components:     [],
@@ -3957,8 +3958,14 @@ function renderCognitionInspector() {
   }
 
   sectors.slice(0, 10).forEach((sector) => {
-    const card = el('div', '');
-    card.style.cssText = 'padding:8px 0;border-top:1px solid rgba(98,120,136,.16);';
+    const card = el('button', '');
+    card.type = 'button';
+    card.dataset.sectorId = sector.id;
+    card.style.cssText = [
+      'display:block;width:100%;text-align:left;padding:8px 0',
+      'border:0;border-top:1px solid rgba(98,120,136,.16)',
+      'background:transparent;color:inherit;cursor:pointer',
+    ].join(';');
     const head = el('div', '');
     head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:9px;';
     const name = el('strong', '');
@@ -3978,12 +3985,19 @@ function renderCognitionInspector() {
     activity.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;';
     activity.textContent = `mean activity ${pct(sector.activity)} · observer interpretation only`;
     card.append(head, composition, activity);
+    card.addEventListener('click', () => {
+      _graph.focusedSectorId = sector.id;
+      _graph.selectedNodeId = null;
+      renderCognitionInspector();
+      _graph.alpha = Math.max(_graph.alpha, 0.12);
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+    });
     panel.appendChild(card);
   });
 
   const hint = el('div', '');
   hint.style.cssText = 'margin-top:12px;padding:8px;border:1px solid rgba(80,217,255,.14);border-radius:6px;font-size:8px;line-height:1.45;color:var(--muted);';
-  hint.textContent = 'Click a node to inspect its real graph neighborhood and follow direct relations.';
+  hint.textContent = 'Click a sector to focus its local anatomy and real bridges. Click a node for exact relations.';
   panel.appendChild(hint);
 }
 
