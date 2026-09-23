@@ -30,6 +30,7 @@ import { renderOverview as renderOverviewPanel } from './mind/overview.js';
 import { nearestHistorySnapshot, recordMindHistory, renderHistory as renderHistoryPanel } from './mind/history.js';
 import { createIdentitySensoryRenderer } from './mind/identity-sensory.js';
 import { createCognitionController } from './mind/cognition-controller.js';
+import { currentPhysiologyState } from './mind/derived.js';
 import {
   graph as _graph,
   resetMindDataState,
@@ -396,7 +397,4 @@ export function unmount() {
   }
 
   _rootStyleBeforeMount = '';
-  _activeInstance = null;
-  _activeRunId = null;
-  _localMindActive = false;
 }
