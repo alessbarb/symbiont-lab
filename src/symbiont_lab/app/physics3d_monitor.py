@@ -158,17 +158,17 @@ class MonitorSnapshot:
     sensorimotor_h16_samples: int
     sensorimotor_h64_samples: int
     passive_baseline_samples: int
-    episodic_episodes: int
-    episodic_pending_records: int
-    episodic_compressed_episodes: int
-    episodic_interpretations: int
-    episodic_contingencies: int
-    episodic_retrievals: int
-    episodic_replays: int
-    episodic_compactions: int
-    episodic_evictions: int
-    episodic_oldest_age: int
-    episodic_mean_age: float
+    episodic_episodes: int = 0
+    episodic_pending_records: int = 0
+    episodic_compressed_episodes: int = 0
+    episodic_interpretations: int = 0
+    episodic_contingencies: int = 0
+    episodic_retrievals: int = 0
+    episodic_replays: int = 0
+    episodic_compactions: int = 0
+    episodic_evictions: int = 0
+    episodic_oldest_age: int = 0
+    episodic_mean_age: float = 0.0
     motor_origin_detail: str = "none"
     motor_origin_primitive_prospective: int = 0
     prospective_reason: str | None = None
