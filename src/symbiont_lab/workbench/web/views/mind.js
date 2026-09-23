@@ -3623,6 +3623,8 @@ function renderCognitionInspector() {
     clear.textContent = 'Clear selection';
     clear.addEventListener('click', () => {
       _graph.selectedNodeId = null;
+      const canvas = document.getElementById('mind-cognition-canvas');
+      if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
       renderCognitionInspector();
       _graph.alpha = Math.max(_graph.alpha, 0.08);
       if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
@@ -3676,7 +3678,8 @@ function renderCognitionInspector() {
     const head = el('div', '');
     head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:9px;';
     const name = el('strong', '');
-    name.textContent = _graph.sectorLabels.get(sector.id) ?? 'S-???';
+    const description = _graph.sectorDescriptions.get(sector.id);
+    name.textContent = `${_graph.sectorLabels.get(sector.id) ?? 'S-???'} · ${description?.interpretation ?? 'emergent sector'}`;
     const count = el('span', '');
     count.style.color = 'var(--muted)';
     count.textContent = `${sector.ids.length} nodes`;
@@ -3689,7 +3692,7 @@ function renderCognitionInspector() {
       .join(' · ');
     const activity = el('div', '');
     activity.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;';
-    activity.textContent = `mean activity ${pct(sector.activity)}`;
+    activity.textContent = `mean activity ${pct(sector.activity)} · observer interpretation only`;
     card.append(head, composition, activity);
     panel.appendChild(card);
   });
@@ -3737,7 +3740,8 @@ function updateCognitionSummary() {
   panel.innerHTML =
     `<strong style="color:var(--text)">Complete learned structure${replayLabel}</strong><br>` +
     `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
-    `<span style="color:var(--muted)">${current.edges} visible learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
+    `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
+    `<span style="color:var(--muted)">map: ${_graph.hiddenMotor.actuators} actuators + ${_graph.hiddenMotor.motorEdges} low-level motor edges collapsed · select a primitive to expand</span><br>` +
     `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
     `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · view ${_graph.viewMode}</span><br>` +
     `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${_tel.motorOrigin ?? '—'}</span>`;
