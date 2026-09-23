@@ -21,6 +21,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { enrichGraphModel } from './mind/graph-model.js';
+import { filterGraphForView, graphSubgraphIds } from './mind/graph-selection.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -1558,57 +1559,11 @@ function renderSelf() {
 // Cognition Graph (force-directed canvas; adapted from observatory/render/cognition-graph.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function graphSubgraphIds(focusId, depth = 2) {
-  if (!focusId) return null;
-  const topology = _snap.topology ?? { nodes: [], edges: [] };
-  const adjacency = new Map();
-  for (const node of topology.nodes ?? []) adjacency.set(node.id, new Set());
-  for (const edge of topology.edges ?? []) {
-    adjacency.get(edge.sourceId)?.add(edge.targetId);
-    adjacency.get(edge.targetId)?.add(edge.sourceId);
-  }
-  const visited = new Set([focusId]);
-  let frontier = new Set([focusId]);
-  for (let step = 0; step < depth; step++) {
-    const next = new Set();
-    for (const id of frontier) {
-      for (const neighbor of adjacency.get(id) ?? []) {
-        if (!visited.has(neighbor)) {
-          visited.add(neighbor);
-          next.add(neighbor);
-        }
-      }
-    }
-    frontier = next;
-    if (!frontier.size) break;
-  }
-  return visited;
-}
-
 function selectCognitiveNode(nodeId) {
   _graph.selectedNodeId = nodeId || null;
   switchTab('cognition');
   const canvas = document.getElementById('mind-cognition-canvas');
   if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
-}
-
-function filterGraphForView(nodes, edges) {
-  const degree = new Map(nodes.map(node => [node.id, 0]));
-  for (const edge of edges) {
-    degree.set(edge.sourceId, (degree.get(edge.sourceId) ?? 0) + 1);
-    degree.set(edge.targetId, (degree.get(edge.targetId) ?? 0) + 1);
-  }
-  let visible = nodes;
-  if (_graph.viewMode === 'connected') {
-    visible = nodes.filter(node => (degree.get(node.id) ?? 0) > 0);
-  } else if (_graph.viewMode === 'core') {
-    visible = nodes.filter(node => node.kind !== 'sense' && (degree.get(node.id) ?? 0) > 0);
-  }
-  const keep = new Set(visible.map(node => node.id));
-  return {
-    nodes: visible,
-    edges: edges.filter(edge => keep.has(edge.sourceId) && keep.has(edge.targetId)),
-  };
 }
 
 function buildGraphModel() {
@@ -1698,7 +1653,7 @@ function buildGraphModel() {
       kind: e.kind ?? 'excitatory',
     }));
 
-  const filtered = filterGraphForView(rawNodes, edges);
+  const filtered = filterGraphForView(rawNodes, edges, _graph.viewMode);
   return enrichGraphModel(filtered.nodes, filtered.edges);
 }
 
@@ -1923,7 +1878,7 @@ function drawGraphFrame(canvas) {
   }
 
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
-  const connectedIds = focusId ? graphSubgraphIds(focusId, _graph.pathDepth) : null;
+  const connectedIds = focusId ? graphSubgraphIds(_snap.topology, focusId, _graph.pathDepth) : null;
 
   // Edges
   for (const edge of edges) {
