@@ -86,6 +86,18 @@ def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
 
 
 
+def test_mind_projection_preserves_completely_absent_sections() -> None:
+    snapshot = mind_snapshot_from_rich_state({"tick": 9})
+
+    assert snapshot == {"tick": 9}
+    assert "cognition" not in snapshot
+    assert "senses" not in snapshot
+    assert "beliefs" not in snapshot
+    assert "topology" not in snapshot
+    assert "observer_analysis" not in snapshot
+    assert "sampling" not in snapshot
+
+
 def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
     stream = OrganismStream()
     bridge = Physics3DObservationBridge(stream)
