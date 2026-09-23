@@ -283,7 +283,9 @@ class PyBulletEmbodimentRuntime:
             }
 
         if physical_state is None:
-            body_interoception = OpaqueBodyInteroception()
+            body_interoception = OpaqueBodyInteroception(
+                receptor_ids=self.body_descriptor.interoceptive_receptor_ids
+            )
         else:
             raw_interoception = physical_state.get("body_interoception")
             if not isinstance(raw_interoception, Mapping):
@@ -292,7 +294,8 @@ class PyBulletEmbodimentRuntime:
                     "opaque interoception mapping is missing"
                 )
             body_interoception = OpaqueBodyInteroception.from_checkpoint(
-                raw_interoception
+                raw_interoception,
+                receptor_ids=self.body_descriptor.interoceptive_receptor_ids,
             )
         self._body_interoception = body_interoception
 
@@ -308,6 +311,7 @@ class PyBulletEmbodimentRuntime:
             self.apparatus,
             body_state_getter=lambda: self.organism.living_body_state,
             interoception=body_interoception,
+            expected_receptor_ids=self.body_descriptor.receptor_ids,
         )
         discovery_provider = PhysicsDiscoveryProvider(reading_provider.receptor_ids)
         self._reading_provider = reading_provider
