@@ -746,6 +746,34 @@ class HumanoidPhysics:
                 zip(self.motor_joint_indices, raw_joint_states)
             )
         ]
+        links = []
+        for link_name, link_index in sorted(
+            self._link_index_by_name.items(),
+            key=lambda item: item[1],
+        ):
+            if link_index == -1:
+                link_position = base_position
+                link_orientation = base_orientation
+            else:
+                link_state = p.getLinkState(
+                    self.body_id,
+                    link_index,
+                    computeForwardKinematics=True,
+                    physicsClientId=self.client_id,
+                )
+                # World link-frame pose, not inertial COM pose. Visual and
+                # collision geometry are defined relative to this frame.
+                link_position = link_state[4]
+                link_orientation = link_state[5]
+            links.append(
+                {
+                    "link_index": int(link_index),
+                    "link_name": str(link_name),
+                    "position": [float(x) for x in link_position],
+                    "orientation": [float(x) for x in link_orientation],
+                }
+            )
+
         contacts = cast(
             Sequence[Sequence[object]],
             p.getContactPoints(bodyA=self.body_id, physicsClientId=self.client_id),
@@ -767,6 +795,7 @@ class HumanoidPhysics:
             "linear_velocity": [float(x) for x in linear_velocity],
             "angular_velocity": [float(x) for x in angular_velocity],
             "joints": joints,
+            "links": links,
             "contact_links": active_links,
             "contact_count": len(contacts),
         }
