@@ -603,6 +603,7 @@ export function createCognitionController({
   }
 
   function drawAtlasRegions3D(ctx, scene, sectorFocus) {
+    graph.atlasRegionHitAreas3d = [];
     if (sectorFocus) return;
     for (const region of graph.atlasRegions ?? []) {
       const projected = region.nodeIds
@@ -616,6 +617,7 @@ export function createCognitionController({
         radius = Math.max(radius, Math.hypot(item.x - x, item.y - y) + item.radius + 10);
       }
       radius = Math.min(190, radius);
+      graph.atlasRegionHitAreas3d.push({ id: region.id, x, y, radius });
       const score = atlasRegionScore(region);
       const active = graph.focusedSectorId === region.id;
       ctx.beginPath();
@@ -901,6 +903,7 @@ export function createCognitionController({
     // Draw relationship sectors behind the graph. Sectors are computed from the
     // current layout of topology-derived local communities; they are not organism
     // concepts and therefore carry no semantic labels.
+    graph.atlasRegionHitAreas2d = [];
     const communityStats = new Map();
     for (const node of nodes) {
       if (!node.community || node.community === 'isolated') continue;
@@ -917,6 +920,7 @@ export function createCognitionController({
         radius = Math.max(radius, Math.hypot(node.x - s.x, node.y - s.y) + node.radius);
       }
       radius = Math.max(38, Math.min(180, radius + 18));
+      graph.atlasRegionHitAreas2d.push({ id: communityId, x: s.x, y: s.y, radius });
       const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
       const color = palette[hashStr(String(communityId)) % palette.length];
       const atlasRegion = (graph.atlasRegions ?? []).find(region => region.id === communityId);
@@ -1288,6 +1292,25 @@ export function createCognitionController({
       }
       return null;
     }
+
+    function findRegion(mx, my) {
+      const areas = graph.dimension === '3d'
+        ? (graph.atlasRegionHitAreas3d ?? [])
+        : (graph.atlasRegionHitAreas2d ?? []);
+      const point = graph.dimension === '3d'
+        ? { x: mx, y: my }
+        : {
+            x: (mx - graph.panX) / graph.scale,
+            y: (my - graph.panY) / graph.scale,
+          };
+      let best = null;
+      for (const area of areas) {
+        const distance = Math.hypot(point.x - area.x, point.y - area.y);
+        if (distance > area.radius) continue;
+        if (!best || area.radius < best.radius) best = area;
+      }
+      return best;
+    }
   
     canvas.addEventListener('wheel', ev => {
       ev.preventDefault();
@@ -1366,8 +1389,12 @@ export function createCognitionController({
       }
     };
   
-    windowMouseUp = () => {
+    windowMouseUp = ev => {
       const clicked = pressedNode && dragDist < 5 ? pressedNode : null;
+      const coords = canvasCoords(ev);
+      const clickedRegion = !clicked && dragDist < 5
+        ? findRegion(coords.x, coords.y)
+        : null;
       if (draggedNode) { draggedNode.pinned = false; draggedNode = null; }
       if (clicked) {
         graph.selectedNodeId = graph.selectedNodeId === clicked.id ? null : clicked.id;
@@ -1376,8 +1403,17 @@ export function createCognitionController({
         renderCognitionInspector();
         graph.alpha = Math.max(graph.alpha, 0.08);
         if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
+      } else if (clickedRegion) {
+        graph.focusedSectorId = graph.focusedSectorId === clickedRegion.id
+          ? null
+          : clickedRegion.id;
+        graph.selectedNodeId = null;
+        renderCognitionInspector();
+        graph.alpha = Math.max(graph.alpha, 0.12);
+        if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
       } else if (!pressedNode && dragDist < 5) {
         graph.selectedNodeId = null;
+        graph.focusedSectorId = null;
         renderCognitionInspector();
       }
       pressedNode = null;
