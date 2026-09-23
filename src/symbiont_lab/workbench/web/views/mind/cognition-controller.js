@@ -919,42 +919,48 @@ export function createCognitionController({
       radius = Math.max(38, Math.min(180, radius + 18));
       const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
       const color = palette[hashStr(String(communityId)) % palette.length];
+      const atlasRegion = (graph.atlasRegions ?? []).find(region => region.id === communityId);
+      const regionScore = atlasRegionScore(atlasRegion);
+      const focusedRegion = graph.focusedSectorId === communityId;
+      const fillAlpha = Math.round((0.035 + regionScore * 0.09) * 255).toString(16).padStart(2,'0');
+      const strokeAlpha = Math.round((0.22 + regionScore * 0.48) * 255).toString(16).padStart(2,'0');
       ctx.beginPath();
       ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `${color}0b`;
-      ctx.strokeStyle = `${color}20`;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 7]);
+      ctx.fillStyle = `${color}${fillAlpha}`;
+      ctx.strokeStyle = `${color}${strokeAlpha}`;
+      ctx.lineWidth = focusedRegion ? 2 : 0.9 + regionScore * 1.4;
+      ctx.setLineDash(focusedRegion ? [] : [4, 7]);
       ctx.fill();
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.setLineDash([]);
   
-      // Neutral observer label. It identifies a structural sector without
-      // pretending that the organism has assigned it a semantic category.
       const sectorLabel = graph.sectorLabels.get(communityId) ?? 'S-???';
       const sectorDescription = graph.sectorDescriptions.get(communityId);
+      const labelX = s.x - radius * 0.72;
+      const labelY = s.y - radius - 10;
       ctx.font = '600 10px -apple-system, sans-serif';
-      ctx.fillStyle = `${color}cc`;
+      ctx.fillStyle = `${color}e6`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(
-        `${sectorLabel} · ${sectorDescription?.interpretation ?? 'emergent sector'}`,
-        s.x + radius * 0.50,
-        s.y - radius * 0.62,
+        `${sectorLabel} · ${sectorDescription?.interpretation ?? 'emergent region'}`,
+        labelX,
+        labelY,
       );
       ctx.font = '8px -apple-system, sans-serif';
-      ctx.fillStyle = 'rgba(175,199,220,.48)';
+      ctx.fillStyle = 'rgba(175,199,220,.62)';
       ctx.fillText(
-        `${s.n} nodes · observer interpretation`,
-        s.x + radius * 0.50,
-        s.y - radius * 0.62 + 12,
+        `${s.n} nodes · ${atlasModeMeta().label.toLowerCase()} ${Math.round(regionScore * 100)}% · ${atlasRegion?.bridges ?? 0} bridges`,
+        labelX,
+        labelY + 12,
       );
     }
   
     const focusId = hoveredNode?.id ?? graph.selectedNodeId;
     const activeTopology = currentRenderedTopology();
     const connectedIds = focusId ? graphSubgraphIds(activeTopology, focusId, graph.pathDepth) : null;
+    const atlasPath = atlasPathSets();
   
     // Edges: global view shows only a sparse inter-sector backbone.
     // Internal relations are encoded spatially and revealed on inspection.
@@ -966,13 +972,19 @@ export function createCognitionController({
         edge.source.community === edge.target.community
       );
       const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
+      const liveTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+      const modeScore = atlasEdgeScore(edge, graph.atlasMode, liveTick);
+      const pathEdge = atlasPath.edgeKeys.has(atlasEdgeKey(edge));
       if (focusId) {
-        if (!isConn) continue;
+        if (!isConn && !pathEdge) continue;
       } else if (sectorFocus) {
         const sourceLocal = sectorFocus.local.has(edge.source.id);
         const targetLocal = sectorFocus.local.has(edge.target.id);
         if (!(sourceLocal || targetLocal)) continue;
-      } else if (sameSector || !graph.bridgeEdges.has(bridgeKey)) {
+      } else if (graph.atlasMode === 'structure') {
+        if (sameSector && modeScore < 0.58) continue;
+        if (!sameSector && !graph.bridgeEdges.has(bridgeKey) && modeScore < 0.46) continue;
+      } else if (modeScore < 0.16) {
         continue;
       }
       const dimmed = false;
@@ -988,12 +1000,19 @@ export function createCognitionController({
       ctx.moveTo(edge.source.x, edge.source.y);
       ctx.lineTo(edge.target.x, edge.target.y);
       const supportScale = Math.min(1, Math.log1p(Math.max(0, edge.support ?? 0)) / 7);
-      const liveTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
       const idleTicks = Math.max(0, liveTick - finiteNumber(edge.lastUseTick, liveTick));
       const recency = Math.exp(-idleTicks / 512);
       ctx.strokeStyle = color;
-      ctx.globalAlpha = dimmed ? 0.18 : Math.max(0.18, 0.35 + recency * 0.65);
-      ctx.lineWidth   = isConn ? 2.8 : 0.8 + supportScale * 2.4;
+      ctx.globalAlpha = pathEdge
+        ? 0.98
+        : dimmed
+          ? 0.12
+          : Math.max(0.08, 0.10 + modeScore * 0.72 + recency * 0.18);
+      ctx.lineWidth = pathEdge
+        ? 3.1
+        : isConn
+          ? 2.8
+          : 0.55 + supportScale * 1.6 + modeScore * 1.2;
       ctx.setLineDash(edge.kind === 'inhibitory' ? [4, 4] : edge.kind === 'gating' ? [2, 3] : edge.kind === 'causal_effect' ? [6, 3] : []);
       ctx.stroke();
       ctx.setLineDash([]);
