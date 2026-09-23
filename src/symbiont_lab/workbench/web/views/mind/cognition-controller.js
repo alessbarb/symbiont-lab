@@ -101,13 +101,17 @@ export function createCognitionController({
       source.sensorimotor ?? snap.sensorimotor,
       source.observerSemantics ?? snap.observerSemantics,
       source.prospectiveAgency ?? null,
+      { includePhysicalIO: graph.physicalIOVisible },
     );
     const cartography = cartographicGraph(
       learned.nodes,
       learned.edges,
       graph.selectedNodeId,
       graph.viewMode,
-      { expandMotorSubstrate: graph.dimension === '3d' },
+      {
+        expandMotorSubstrate: graph.physicalIOVisible,
+        showPhysicalIO: graph.physicalIOVisible,
+      },
     );
     graph.hiddenMotor = cartography.hidden;
     const completeTopology = { nodes: cartography.nodes, edges: cartography.edges };
@@ -120,6 +124,7 @@ export function createCognitionController({
       gate: '#e09f3e',
       concept: PAL.violet,
       motor_primitive: '#ff8fd8',
+      receptor: '#77bfff',
       actuator: '#8fe3ff',
     };
     const baseRadiusMap = {
@@ -130,6 +135,7 @@ export function createCognitionController({
       gate: 6.8,
       concept: 6.4,
       motor_primitive: 8.4,
+      receptor: 5.8,
       actuator: 6.8,
     };
   
@@ -172,6 +178,8 @@ export function createCognitionController({
         primitiveId: n.primitiveId ?? null,
         activeRepertoire: Boolean(n.activeRepertoire),
         effectorId: n.effectorId ?? null,
+        physicalSourceId: n.physicalSourceId ?? null,
+        observerDerived: Boolean(n.observerDerived),
       };
     });
   
@@ -198,10 +206,18 @@ export function createCognitionController({
     const enriched = enrichGraphModel(filtered.nodes, filtered.edges);
   
     const affinities = buildLayoutAffinities(enriched.nodes, enriched.edges);
-    const sectors = deriveFunctionalSectors(enriched.nodes, affinities);
+    const physicalKinds = new Set(['receptor', 'actuator']);
+    const sectorEligible = enriched.nodes.filter(node => !physicalKinds.has(node.kind));
+    const sectorEligibleIds = new Set(sectorEligible.map(node => node.id));
+    const sectorAffinities = affinities.filter(link =>
+      sectorEligibleIds.has(link.sourceId) && sectorEligibleIds.has(link.targetId)
+    );
+    const sectors = deriveFunctionalSectors(sectorEligible, sectorAffinities);
     const sectorNodes = new Map();
     for (const node of enriched.nodes) {
-      node.community = sectors.get(node.id) ?? 'isolated';
+      node.community = physicalKinds.has(node.kind)
+        ? 'isolated'
+        : (sectors.get(node.id) ?? 'isolated');
       if (node.community === 'isolated') continue;
       if (!sectorNodes.has(node.community)) sectorNodes.set(node.community, []);
       sectorNodes.get(node.community).push(node);
@@ -337,9 +353,15 @@ export function createCognitionController({
         let x;
         let y;
   
-        if (raw.isolated) {
-          // Objective unintegrated pool: disconnected nodes occupy a peripheral
-          // band instead of participating in the same force field as cognition.
+        if (raw.kind === 'receptor' || raw.kind === 'actuator') {
+          const physicalPeers = rawNodes.filter(item => item.kind === raw.kind);
+          const physicalIndex = physicalPeers.findIndex(item => item.id === raw.id);
+          const span = Math.max(1, physicalPeers.length - 1);
+          x = raw.kind === 'receptor' ? 26 : width - 26;
+          y = 44 + (height - 88) * (physicalIndex / span);
+        } else if (raw.isolated) {
+          // Objective unintegrated pool: disconnected cognitive nodes occupy a
+          // peripheral band without being promoted into a functional sector.
           const cols = Math.max(8, Math.floor(width / 34));
           const isolatedIndex = rawNodes.slice(0, i + 1).filter(item => item.isolated).length - 1;
           const col = isolatedIndex % cols;
@@ -1703,6 +1725,14 @@ export function createCognitionController({
     renderCognitionInspector();
   }
 
+  function setPhysicalIOVisible(visible) {
+    graph.physicalIOVisible = Boolean(visible);
+    const canvas = document.getElementById('mind-cognition-canvas');
+    if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    updateCognitionSummary();
+    renderCognitionInspector();
+  }
+
   function returnLive() {
     graph.replaySnapshot = null;
     graph.replayTick = null;
@@ -1748,6 +1778,7 @@ export function createCognitionController({
     setDimension,
     set3DMode,
     setViewMode,
+    setPhysicalIOVisible,
     start: startCognitionGraph,
     stop,
     updateSummary: updateCognitionSummary,
