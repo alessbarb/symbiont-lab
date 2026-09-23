@@ -523,8 +523,8 @@ def test_physics3d_engine_decouples_body_and_rich_viewer_cadence() -> None:
         WEB_ROOT.parent.parent / "physics3d" / "engine.py"
     ).read_text(encoding="utf-8")
 
-    assert "body_render_due = viewer is not None" in engine
     assert "rich_render_due = (" in engine
+    assert "body_render_due = rich_render_due" in engine
     assert "if body_render_due and viewer is not None:" in engine
     assert "drain_presentation_pose_frames()" in engine
     assert "publish_pose_frame(" in engine
