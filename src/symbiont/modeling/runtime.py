@@ -630,7 +630,34 @@ class ModeledOrganismRuntime(OrganismRuntime):
         }
 
     def build_private_corpus(self, *, max_records: int = 8192) -> TrainingCorpus:
-        return build_training_corpus(self._experience_ledger.records, max_records=max_records)
+        if (
+            isinstance(max_records, bool)
+            or not isinstance(max_records, int)
+            or not 3 <= max_records <= 65536
+        ):
+            raise ValueError("max_records must be an integer within [3, 65536]")
+
+        # The live ledger is intentionally short and causal. Episodic memory
+        # extends the organism's usable past after older causal records age out
+        # of that ledger. Never duplicate a lived record or overwrite a
+        # conflicting record id silently.
+        combined: dict[str, ExperienceRecord] = {}
+        for record in self._episodic_memory.replay_records(max_records=max_records):
+            combined[record.record_id] = record
+        for record in self._experience_ledger.records:
+            previous = combined.get(record.record_id)
+            if previous is not None and previous.content_hash != record.content_hash:
+                raise ValueError("episodic/live experience record mismatch")
+            combined[record.record_id] = record
+
+        ordered = sorted(
+            combined.values(),
+            key=lambda record: (record.tick_class, record.record_id),
+        )
+        # Keep the most recent bounded causal history. Older episodes remain in
+        # episodic memory and can re-enter future corpora as capacity permits.
+        selected = tuple(ordered[-max_records:])
+        return build_training_corpus(selected, max_records=max_records)
 
     def build_private_tokenizer(self, corpus: TrainingCorpus | None = None) -> NativeTokenizer:
         selected = corpus or self.build_private_corpus()
