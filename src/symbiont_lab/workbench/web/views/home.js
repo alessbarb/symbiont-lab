@@ -60,6 +60,16 @@ function selectedOrganism() {
   return catalog.organisms.find(item => item.ref === organismRef) ?? null;
 }
 
+function isCompatible() {
+  if (organismMode === 'new') return true;
+  const organism = selectedOrganism();
+  const body = catalog.bodies.find(item => item.body_kind === selectedBody);
+  if (!organism || !body) return false;
+  if (organism.receptor_count == null || organism.effector_count == null) return true;
+  return Number(organism.receptor_count) === Number(body.receptor_count) &&
+    Number(organism.effector_count) === Number(body.effector_count);
+}
+
 function compatibilityText() {
   if (organismMode === 'new') return 'A new organism will encounter this body without prior sensorimotor knowledge.';
   const organism = selectedOrganism();
@@ -70,7 +80,7 @@ function compatibilityText() {
     (Number(organism.receptor_count) === Number(body.receptor_count) &&
      Number(organism.effector_count) === Number(body.effector_count))
   );
-  if (!same) return 'Novel sensorimotor contract. The Lab will connect the apparatus but will not teach channel meaning.';
+  if (!same) return 'Incompatible opaque sensorimotor contract. This transplant is blocked rather than inventing a mapping.';
   if (bodyMode === 'resume') return 'Resume requires the organism’s last physical body checkpoint.';
   return 'Same opaque sensorimotor contract; physical state will start fresh.';
 }
@@ -152,7 +162,7 @@ function render() {
       </div>
       <div class="home-start-bar">
         <div><strong>${organismMode === 'new' ? 'New Symbiont' : esc(selectedOrganism()?.organism_id || organismRef)}</strong><span> → ${esc(selectedBody)} · ${bodyMode}</span></div>
-        <button class="btn btn-primary" id="home-start" ${selectedBody && (organismMode === 'new' || organismRef) ? '' : 'disabled'}>Start run</button>
+        <button class="btn btn-primary" id="home-start" ${selectedBody && (organismMode === 'new' || organismRef) && isCompatible() ? '' : 'disabled'}>Start run</button>
       </div>
       <section class="card home-recent"><h3 class="card-title">Recent runs</h3>${recentRuns()}</section>
     </div>`;
