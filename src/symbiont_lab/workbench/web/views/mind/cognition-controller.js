@@ -862,8 +862,8 @@ export function createCognitionController({
       if (graph.dimension === '3d') {
         const physicalized = graph.threeDMode === 'physicalized';
         note.textContent = physicalized
-          ? `PHYSICALIZED 3D · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`
-          : `RELATIONAL 3D · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · ◇ primitive · ○ readout · no anatomical coordinates`;
+          ? `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`
+          : `RELATIONAL 3D · ${atlasModeMeta().label.toUpperCase()} · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · ◇ primitive · ○ readout · no anatomical coordinates`;
       } else {
         note.textContent = '2D observer cartography';
       }
@@ -1800,12 +1800,12 @@ export function createCognitionController({
       ? ` · focus ${graph.sectorLabels.get(graph.focusedSectorId) ?? 'sector'}`
       : '';
     panel.innerHTML =
-      `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
+      `<strong style="color:var(--text)">Cognitive Atlas${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
       `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable)<br>` +
       `<span style="color:var(--muted)">${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
-      `<span style="color:var(--muted)">map: physical actuators hidden · ${graph.hiddenMotor.motorEdges} physical motor relations collapsed</span><br>` +
+      `<span style="color:var(--muted)">mode ${atlasModeMeta().label} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden</span><br>` +
       `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
-      `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · view ${graph.viewMode}</span><br>` +
+      `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontier ?? []).length}</span><br>` +
       `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
   }
 
@@ -1833,6 +1833,18 @@ export function createCognitionController({
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     renderCognitionInspector();
+  }
+
+  function setAtlasMode(mode) {
+    if (!ATLAS_MODES.some(item => item.id === mode)) return;
+    graph.atlasMode = mode;
+    graph.viewMode = 'full';
+    const canvas = document.getElementById('mind-cognition-canvas');
+    if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    updateCognitionSummary();
+    renderCognitionInspector();
+    graph.alpha = Math.max(graph.alpha, 0.22);
+    if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
   }
 
   function returnLive() {
@@ -1880,6 +1892,7 @@ export function createCognitionController({
     setDimension,
     set3DMode,
     setViewMode,
+    setAtlasMode,
     start: startCognitionGraph,
     stop,
     updateSummary: updateCognitionSummary,
