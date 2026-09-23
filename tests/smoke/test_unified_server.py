@@ -44,7 +44,7 @@ def request(
 
 def test_unified_server_starts_without_synthetic_telemetry() -> None:
     stream = ObservationBus()
-    server = make_server(host="127.0.0.1", port=0, organism_stream=stream)
+    server = make_server(host="127.0.0.1", port=0, observation_bus=stream)
     try:
         assert server.demo_telemetry is None
         assert not stream.has_data
