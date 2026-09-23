@@ -196,15 +196,13 @@ class ObservatorySource:
         evidence = _read_json_object(
             self.root / "manifests" / f"{instance_id}.manifest.json"
         )
-        if evidence is not None and evidence.get("instance_id") == instance_id:
-            projected = {
-                key: value for key, value in evidence.items() if key in _MANIFEST_FIELDS
-            }
-            projected["projection"] = "observatory-provenance-v1"
-            return projected
-        # Compatibility fallback for resident heartbeat manifests. It is
-        # intentionally not promoted to the provenance projection.
-        return _read_json_object(self.root / "instances" / f"{instance_id}.json")
+        if evidence is None or evidence.get("instance_id") != instance_id:
+            return None
+        projected = {
+            key: value for key, value in evidence.items() if key in _MANIFEST_FIELDS
+        }
+        projected["projection"] = "observatory-provenance-v1"
+        return projected
 
     def history_summary(self, instance_id: str) -> dict[str, Any] | None:
         record = self.instance_record(instance_id)
