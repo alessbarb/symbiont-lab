@@ -289,6 +289,14 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
                     node["id"] = str(item.get("node_id") or item.get("id"))
                 if item.get("kind") is not None:
                     node["kind"] = str(item["kind"])
+                if item.get("predicts_node_id") is not None:
+                    node["predictsNodeId"] = str(item["predicts_node_id"])
+                for source_key, target_key in (("bias", "bias"), ("tau", "tau")):
+                    if item.get(source_key) is not None:
+                        try:
+                            node[target_key] = float(item[source_key])
+                        except (TypeError, ValueError):
+                            pass
                 if node:
                     nodes.append(node)
         edges = []
@@ -303,6 +311,20 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
                     edge["targetId"] = str(target)
                 if item.get("kind") is not None:
                     edge["kind"] = str(item["kind"])
+                for source_key, target_key, caster in (
+                    ("weight", "weight", float),
+                    ("plasticity", "plasticity", float),
+                    ("delay_ticks", "delayTicks", int),
+                    ("support", "support", int),
+                    ("age_ticks", "ageTicks", int),
+                    ("stable_ticks", "stableTicks", int),
+                    ("last_use_tick", "lastUseTick", int),
+                ):
+                    if item.get(source_key) is not None:
+                        try:
+                            edge[target_key] = caster(item[source_key])
+                        except (TypeError, ValueError):
+                            pass
                 if edge:
                     edges.append(edge)
         mind_topology = {"nodes": nodes, "edges": edges}
@@ -355,6 +377,15 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     physiology = post.get("physiology")
     if not isinstance(physiology, Mapping):
         physiology = None
+    self_model = rich_state.get("self_model")
+    if not isinstance(self_model, Mapping):
+        self_model = None
+    sensorimotor = rich_state.get("sensorimotor")
+    if not isinstance(sensorimotor, Mapping):
+        sensorimotor = None
+    outcome = rich_state.get("outcome")
+    if not isinstance(outcome, Mapping):
+        outcome = None
 
     snapshot: dict[str, Any] = {}
     organism_facts: list[str] = []
@@ -372,6 +403,9 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     if topology_present:
         snapshot["topology"] = mind_topology
         organism_facts.append("topology")
+    if self_model is not None:
+        snapshot["self_model"] = dict(self_model)
+        organism_facts.append("self_model")
     if "body_schema" in rich_state:
         snapshot["body_schema"] = rich_state.get("body_schema")
         organism_facts.append("body_schema")
@@ -387,6 +421,12 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     if physiology is not None:
         snapshot["organism_state"] = physiology
         organism_facts.append("organism_state")
+    if sensorimotor is not None:
+        snapshot["sensorimotor"] = dict(sensorimotor)
+        organism_facts.append("sensorimotor")
+    if outcome is not None:
+        snapshot["outcome"] = dict(outcome)
+        organism_facts.append("outcome")
     if observer_analysis:
         snapshot["observer_analysis"] = observer_analysis
         if "activationClasses" in observer_analysis:
@@ -425,6 +465,27 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             details["homeostaticDeviation"] = float(runtime["homeostatic_deviation"])
         except (TypeError, ValueError):
             pass
+    raw_events = runtime.get("runtime_events")
+    if isinstance(raw_events, (list, tuple)):
+        details["runtimeEvents"] = [str(item) for item in raw_events[-32:]]
+    raw_signal_knowledge = runtime.get("signal_knowledge")
+    if isinstance(raw_signal_knowledge, (list, tuple)):
+        discovery_counts: dict[str, int] = {}
+        for item in raw_signal_knowledge:
+            if not isinstance(item, Mapping):
+                continue
+            raw_status = (
+                item.get("status")
+                or item.get("state")
+                or item.get("stage")
+                or item.get("classification")
+            )
+            if raw_status is None:
+                continue
+            key = str(getattr(raw_status, "value", raw_status))
+            discovery_counts[key] = discovery_counts.get(key, 0) + 1
+        if discovery_counts:
+            details["sensoryDiscoveryCounts"] = discovery_counts
     if details:
         snapshot["details"] = details
 
