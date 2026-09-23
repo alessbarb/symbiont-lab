@@ -22,20 +22,6 @@ function hashUnit(value, salt = '') {
   return (hashString(`${value}|${salt}`) % 100000) / 100000;
 }
 
-function kindDepth(kind) {
-  switch (kind) {
-    case 'sense': return 34;
-    case 'predictor': return 22;
-    case 'state': return 16;
-    case 'concept': return 0;
-    case 'gate': return -12;
-    case 'readout': return -24;
-    case 'motor_primitive': return -44;
-    case 'actuator': return -66;
-    default: return 0;
-  }
-}
-
 function rotateLocal(point, yaw, pitch, roll) {
   const cy = Math.cos(yaw), sy = Math.sin(yaw);
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
@@ -124,7 +110,79 @@ export function projectPoint3D(point, camera, width, height) {
   };
 }
 
-function buildSectorWorld(nodes, width, height) {
+function seedVolumePoint(nodeId) {
+  const u = hashUnit(nodeId, 'volume-u') * 2 - 1;
+  const theta = hashUnit(nodeId, 'volume-theta') * Math.PI * 2;
+  const radial = Math.cbrt(0.12 + hashUnit(nodeId, 'volume-radius') * 0.88);
+  const planar = Math.sqrt(Math.max(0, 1 - u * u));
+  return {
+    x: Math.cos(theta) * planar * radial,
+    y: Math.sin(theta) * planar * radial,
+    z: u * radial,
+  };
+}
+
+function buildVolumetricLocalPositions(members, edges) {
+  const ids = new Set(members.map(node => node.id));
+  const neighbors = new Map(members.map(node => [node.id, []]));
+  for (const edge of edges ?? []) {
+    if (!ids.has(edge.source.id) || !ids.has(edge.target.id)) continue;
+    neighbors.get(edge.source.id)?.push(edge.target.id);
+    neighbors.get(edge.target.id)?.push(edge.source.id);
+  }
+
+  const seeds = new Map(members.map(node => [node.id, seedVolumePoint(node.id)]));
+  let positions = new Map(
+    [...seeds.entries()].map(([id, point]) => [id, { ...point }])
+  );
+
+  // Relationship smoothing in all three axes. A retained seed component keeps
+  // the embedding volumetric and prevents collapse onto a line or plane.
+  for (let round = 0; round < 7; round++) {
+    const next = new Map();
+    for (const node of members) {
+      const current = positions.get(node.id);
+      const seed = seeds.get(node.id);
+      const linked = neighbors.get(node.id) ?? [];
+      if (!linked.length) {
+        next.set(node.id, { ...current });
+        continue;
+      }
+      let x = 0, y = 0, z = 0, count = 0;
+      for (const id of linked) {
+        const point = positions.get(id);
+        if (!point) continue;
+        x += point.x; y += point.y; z += point.z; count += 1;
+      }
+      if (!count) {
+        next.set(node.id, { ...current });
+        continue;
+      }
+      x /= count; y /= count; z /= count;
+
+      const relationPull = 0.43;
+      const seedRetention = 0.34;
+      const selfRetention = 1 - relationPull - seedRetention;
+      const point = {
+        x: current.x * selfRetention + x * relationPull + seed.x * seedRetention,
+        y: current.y * selfRetention + y * relationPull + seed.y * seedRetention,
+        z: current.z * selfRetention + z * relationPull + seed.z * seedRetention,
+      };
+
+      // Keep every point inside the unit ball while preserving all three axes.
+      const length = Math.hypot(point.x, point.y, point.z);
+      if (length > 0.96) {
+        const factor = 0.96 / length;
+        point.x *= factor; point.y *= factor; point.z *= factor;
+      }
+      next.set(node.id, point);
+    }
+    positions = next;
+  }
+  return positions;
+}
+
+function buildSectorWorld(nodes, edges, width, height) {
   const groups = new Map();
   for (const node of nodes) {
     const key = node.community ?? 'isolated';
@@ -138,27 +196,30 @@ function buildSectorWorld(nodes, width, height) {
     .sort((a,b) => String(a[0]).localeCompare(String(b[0])));
 
   const embeddings = new Map();
-  const localCenters = new Map();
+  const localPositions = new Map();
 
   sectors.forEach(([key, members], index) => {
     embeddings.set(key, sectorEmbedding(key, index + 1, scale, members));
-    localCenters.set(key, {
-      x: members.reduce((sum, node) => sum + Number(node.x ?? 0), 0) / members.length,
-      y: members.reduce((sum, node) => sum + Number(node.y ?? 0), 0) / members.length,
-    });
+    localPositions.set(
+      key,
+      buildVolumetricLocalPositions(
+        members,
+        (edges ?? []).filter(edge =>
+          members.some(node => node.id === edge.source.id) &&
+          members.some(node => node.id === edge.target.id)
+        ),
+      ),
+    );
   });
 
-  return { groups, embeddings, localCenters, scale };
+  return { groups, embeddings, localPositions, scale };
 }
 
-function worldPointForNode(node, embedding, localCenter) {
-  const localScale = 0.72;
+function worldPointForNode(node, embedding, localPosition, axes) {
   const local = {
-    x: (Number(node.x ?? 0) - localCenter.x) * localScale,
-    y: (Number(node.y ?? 0) - localCenter.y) * localScale,
-    z:
-      kindDepth(node.kind) +
-      (hashUnit(node.id, 'thickness') - 0.5) * 52,
+    x: localPosition.x * axes.x,
+    y: localPosition.y * axes.y,
+    z: localPosition.z * axes.z,
   };
   const rotated = rotateLocal(
     local,
@@ -192,8 +253,8 @@ function ellipsoidRing(center, axes, axis, embedding, camera, width, height) {
   return points;
 }
 
-export function buildCognition3DScene(nodes, camera, width, height) {
-  const { groups, embeddings, localCenters, scale } = buildSectorWorld(nodes, width, height);
+export function buildCognition3DScene(nodes, edges, camera, width, height) {
+  const { groups, embeddings, localPositions, scale } = buildSectorWorld(nodes, edges, width, height);
 
   const hullEmbedding = { yaw: 0.08, pitch: -0.06, roll: 0.02 };
   const hullCenter = { x: 0, y: 0, z: 0 };
@@ -207,6 +268,17 @@ export function buildCognition3DScene(nodes, camera, width, height) {
     ellipsoidRing(hullCenter, hullAxes, 'xz', hullEmbedding, camera, width, height),
     ellipsoidRing(hullCenter, hullAxes, 'yz', hullEmbedding, camera, width, height),
   ];
+
+  const sectorAxes = new Map();
+  for (const [key, members] of groups.entries()) {
+    if (key === 'isolated') continue;
+    const base = scale * (0.070 + Math.min(0.055, Math.sqrt(members.length) * 0.006));
+    sectorAxes.set(key, {
+      x: base * (1.00 + hashUnit(key, 'volume-x') * 0.30),
+      y: base * (0.78 + hashUnit(key, 'volume-y') * 0.30),
+      z: base * (0.82 + hashUnit(key, 'volume-z') * 0.34),
+    });
+  }
 
   const worldById = new Map();
   const projected = [];
@@ -233,7 +305,8 @@ export function buildCognition3DScene(nodes, camera, width, height) {
     const world = worldPointForNode(
       node,
       embeddings.get(node.community),
-      localCenters.get(node.community),
+      localPositions.get(node.community).get(node.id),
+      sectorAxes.get(node.community),
     );
     const point = projectPoint3D(world, camera, width, height);
     worldById.set(node.id, world);
@@ -253,21 +326,8 @@ export function buildCognition3DScene(nodes, camera, width, height) {
     if (key === 'isolated' || !embeddings.has(key)) continue;
     const embedding = embeddings.get(key);
     const memberWorld = members.map(node => worldById.get(node.id)).filter(Boolean);
-    const maxDistance = Math.max(
-      36,
-      ...memberWorld.map(point => Math.hypot(
-        point.x - embedding.center.x,
-        point.y - embedding.center.y,
-        point.z - embedding.center.z,
-      )),
-    );
-    const radius = maxDistance + 28;
-    const sizeFactor = 1 + Math.min(0.45, members.length / 120);
-    const axes = {
-      x: radius * sizeFactor,
-      y: radius * (0.72 + hashUnit(key, 'axis-y') * 0.18),
-      z: radius * (0.60 + hashUnit(key, 'axis-z') * 0.24),
-    };
+    const axes = sectorAxes.get(key);
+    const radius = Math.max(axes.x, axes.y, axes.z);
     const centerProjected = projectPoint3D(
       embedding.center,
       camera,

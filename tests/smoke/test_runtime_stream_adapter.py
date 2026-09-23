@@ -781,18 +781,19 @@ def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
 
 
 
-def test_cognition_3d_uses_true_volumetric_sector_embedding() -> None:
+def test_cognition_3d_uses_true_relational_volume_not_a_rotated_plane() -> None:
     asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
-    assert "great circles" in asset.lower()
     assert "depthFog" in asset
     assert "wireframes" in projection
     assert "sectorEmbedding" in projection
     assert "rotateLocal" in projection
-    assert "greatCircle" in projection
     assert "worldPointForNode" in projection
-    assert "kindDepth" in projection
+    assert "seedVolumePoint" in projection
+    assert "buildVolumetricLocalPositions" in projection
+    assert "point.x, point.y, point.z" in projection
+    assert "kindDepth" not in projection
 
 
 
@@ -802,7 +803,8 @@ def test_cognition_3d_preserves_sector_identity_and_anatomy() -> None:
 
     assert "sector.stableLabel" in asset
     assert "quadraticCurveTo" in asset
-    assert "nodeGradient" in asset
+    assert "nodeGradient" not in asset
+    assert "ctx.fillStyle = isHovered ? '#ffffff' : node.color" in asset
     assert "brainHull" in asset
 
     assert "functionalBias" in projection
