@@ -2634,21 +2634,45 @@ function drawGraphFrame(canvas) {
     // Neutral observer label. It identifies a structural sector without
     // pretending that the organism has assigned it a semantic category.
     const sectorLabel = _graph.sectorLabels.get(communityId) ?? 'S-???';
-    ctx.font = '9px -apple-system, sans-serif';
-    ctx.fillStyle = `${color}99`;
+    const sectorDescription = _graph.sectorDescriptions.get(communityId);
+    ctx.font = '600 10px -apple-system, sans-serif';
+    ctx.fillStyle = `${color}cc`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${sectorLabel} · ${s.n}`, s.x + radius * 0.58, s.y - radius * 0.58);
+    ctx.fillText(
+      `${sectorLabel} · ${sectorDescription?.interpretation ?? 'emergent sector'}`,
+      s.x + radius * 0.50,
+      s.y - radius * 0.62,
+    );
+    ctx.font = '8px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(175,199,220,.48)';
+    ctx.fillText(
+      `${s.n} nodes · observer interpretation`,
+      s.x + radius * 0.50,
+      s.y - radius * 0.62 + 12,
+    );
   }
 
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
   const activeTopology = currentRenderedTopology();
   const connectedIds = focusId ? graphSubgraphIds(activeTopology, focusId, _graph.pathDepth) : null;
 
-  // Edges
+  // Edges: global view shows only a sparse inter-sector backbone.
+  // Internal relations are encoded spatially and revealed on inspection.
   for (const edge of edges) {
     const isConn = Boolean(focusId && connectedIds?.has(edge.source.id) && connectedIds?.has(edge.target.id));
-    const dimmed = Boolean(focusId && !isConn);
+    const sameSector = (
+      edge.source.community &&
+      edge.source.community !== 'isolated' &&
+      edge.source.community === edge.target.community
+    );
+    const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
+    if (!focusId) {
+      if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) continue;
+    } else if (!isConn) {
+      continue;
+    }
+    const dimmed = false;
     let color;
     if (edge.kind === 'inhibitory')  color = `rgba(255,127,131,${isConn ? .95 : dimmed ? .04 : .35})`;
     else if (edge.kind === 'predictive') color = `rgba(255,189,84,${isConn ? .95 : dimmed ? .04 : .40})`;
@@ -2747,8 +2771,16 @@ function drawGraphFrame(canvas) {
       ctx.fillText(node.readoutVal, node.x, node.y);
     }
 
-    // Label below (visible at close zoom or for readout/sense)
-    if (!dimmed && (isConn || scale >= 1.35 || node.kind === 'readout' || node.visualValue > 0.72)) {
+    // Node names are detail, not the global map. Sector labels carry the
+    // overview; individual labels appear on focus, activity, or deep zoom.
+    if (!dimmed && (
+      isHovered ||
+      isSelected ||
+      isConn ||
+      node.replayActive ||
+      node.prospectiveSelected ||
+      (scale >= 1.65 && node.visualValue > 0.55)
+    )) {
       ctx.font = '10px -apple-system, sans-serif';
       ctx.fillStyle = isConn ? '#fff' : 'rgba(175,199,220,.7)';
       ctx.textAlign = 'center';
