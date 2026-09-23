@@ -10,8 +10,7 @@ import zipfile
 from typing import Iterable
 
 from .runtime import Tick3D
-from .telemetry import load_v3_tick_records, load_v3_transitions
-from .telemetry_v4 import load_v4_tick_records, load_v4_transitions
+from .telemetry_reader import detect_telemetry_run, open_telemetry
 
 
 def _atomic_write_json(path: Path, payload: dict) -> Path:
@@ -196,47 +195,15 @@ class TelemetryWriter:
             self._pending = 0
 
 
-def _resolve_telemetry_run(path: str | Path) -> tuple[str, Path]:
-    target = Path(path).expanduser()
-    if target.is_dir():
-        if (target / "transitions.ndjson").is_file():
-            return "v4", target
-        if (target / "ticks.ndjson").is_file():
-            return "v3", target
-        candidates = sorted(
-            (
-                child
-                for child in target.iterdir()
-                if child.is_dir()
-                and (
-                    (child / "transitions.ndjson").is_file()
-                    or (child / "ticks.ndjson").is_file()
-                )
-            ),
-            reverse=True,
-        )
-        if not candidates:
-            raise FileNotFoundError(f"telemetry run not found under: {target}")
-        latest = candidates[0]
-        if (latest / "transitions.ndjson").is_file():
-            return "v4", latest
-        return "v3", latest
-    if target.is_file():
-        return "legacy", target
-    raise FileNotFoundError(f"telemetry path not found: {target}")
-
-
 def load_telemetry_records(
     path: str | Path,
     *,
     ignore_errors: bool = False,
 ) -> list[dict]:
-    """Read compact Tick3D summaries from v4, v3, or historical NDJSON."""
-    version, target = _resolve_telemetry_run(path)
-    if version == "v4":
-        return load_v4_tick_records(target, verify=True)
-    if version == "v3":
-        return load_v3_tick_records(target, verify=True)
+    """Read Tick3D summaries through the version-neutral telemetry API."""
+    version, target = detect_telemetry_run(path)
+    if version != "legacy":
+        return list(open_telemetry(target).iter_summaries())
 
     records = []
     with target.open("r", encoding="utf-8") as handle:
@@ -257,18 +224,15 @@ def load_telemetry_records(
     return records
 
 
-def load_telemetry_transitions(
-    path: str | Path,
-) -> list[dict]:
-    """Read fully materialized rich states independent of telemetry version."""
-    version, target = _resolve_telemetry_run(path)
-    if version == "v4":
-        return load_v4_transitions(target, verify=True)
-    if version == "v3":
-        return load_v3_transitions(target, verify=True)
-    raise ValueError(
-        "historical single-file telemetry has no reconstructible rich transitions"
-    )
+def load_telemetry_transitions(path: str | Path) -> list[dict]:
+    """Read fully reconstructed rich states independent of storage version."""
+    version, target = detect_telemetry_run(path)
+    if version == "legacy":
+        raise ValueError(
+            "historical single-file telemetry has no reconstructible rich transitions"
+        )
+    return list(open_telemetry(target).iter_states())
+
 
 __all__ = [
     "TelemetryWriter",
@@ -277,6 +241,7 @@ __all__ = [
     "load_symbiont_bundle",
     "load_telemetry_records",
     "load_telemetry_transitions",
+    "open_telemetry",
     "save_body_state_file",
     "save_runtime_state_file",
     "save_symbiont_bundle",

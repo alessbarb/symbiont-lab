@@ -27,7 +27,7 @@ from .persistence import (
 )
 from .runtime import PhysicsServerDisconnected, PyBulletEmbodimentRuntime
 from .slm import Physics3DSlmManager
-from .telemetry_v4 import AsyncTelemetryV4Writer
+from .telemetry_v41 import AsyncTelemetryV41Writer
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
@@ -38,7 +38,7 @@ DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont"
 LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
 DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v4.json"
-DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "telemetry-v4"
+DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "telemetry-v4.1"
 
 
 def _archive_existing_subject(
@@ -377,7 +377,7 @@ def run(
     if viewer is not None and viewer.poll_stop():
         stop_requested = True
 
-    telemetry = AsyncTelemetryV4Writer(
+    telemetry = AsyncTelemetryV41Writer(
         telemetry_file,
         organism_id=runtime.organism_id,
         start_tick=runtime.tick_count,

@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         nargs="?",
         const=str(DEFAULT_TELEMETRY_FILE),
         default=None,
-        help="launch Mission Control replay from a telemetry v3 run/root (or archived NDJSON)",
+        help="launch Mission Control replay from a telemetry run/root (v3, v4.0, v4.1 or archived NDJSON)",
     )
     parser.add_argument(
         "--headless",
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
         "--telemetry-file",
         type=Path,
         default=DEFAULT_TELEMETRY_FILE,
-        help="telemetry v3 root directory; each execution creates an immutable run",
+        help="telemetry v4.1 root directory; each execution creates an immutable run",
     )
     parser.add_argument(
         "--telemetry-physics-trace",
