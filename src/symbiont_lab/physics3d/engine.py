@@ -423,6 +423,9 @@ def run(
             runtime_elapsed = time.perf_counter() - cycle_started
 
             rich_state = runtime.passive_telemetry_state()
+            episodic_snapshot = getattr(runtime.organism, "episodic_memory_snapshot", None)
+            if callable(episodic_snapshot):
+                rich_state["episodic_memory"] = episodic_snapshot()
             if slm is not None:
                 rich_state["slm"] = {
                     "training": bool(slm.training),
