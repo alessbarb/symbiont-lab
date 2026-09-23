@@ -134,6 +134,9 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
         physical_state={
             "base_position": [1.0, 2.0, 0.9],
             "base_orientation": [0.0, 0.0, 0.0, 1.0],
+            "locomotion_resource": {
+                "position": [3.0, 0.0, 0.18],
+            },
             "joints": [
                 {"joint_index": 7, "position": 0.42},
             ],
@@ -148,6 +151,7 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
     assert '"source":"physics3d"' in joined
     assert '"alive":false' in joined
     assert '"base_position":[1.0,2.0,0.9]' in joined
+    assert '"resource_position":[3.0,0.0,0.18]' in joined
     assert '"name":"left_shoulder_pitch"' in joined
     assert '"position":0.42' in joined
 
@@ -427,12 +431,18 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
 
     assert "Follow body" in body
     assert "resetCameraToBody" in body
+    assert "fitCameraToBody" in body
     assert "Distance travelled" in body
-    assert "Locomotion efficiency" in body
+    assert "Directional efficiency" in body
+    assert "Motion effectiveness" in body
     assert "Active joints" in body
     assert "Observer-side body history" in body
     assert "jointActivity" in body
-    assert "state_summary" in body
+    assert "body-situation-overlay" in body
+    assert "toneMappingExposure = 1.16" in body
+    assert "SEGMENT_ACTIVITY_JOINTS" in body
+    assert "observer_resource" in body
+    assert "pp / 100t" in body
 
 
 def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
