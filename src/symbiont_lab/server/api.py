@@ -52,6 +52,8 @@ def make_handler(
     observation_bus: ObservationBus,
     observatory_dir: Path | None,
     assets_dir: Path,
+    *,
+    source_status: Callable[[], dict[str, Any]] | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     observatory_source = ObservatorySource(observatory_dir)
 
@@ -168,6 +170,8 @@ def make_handler(
             if path == "/api/state":
                 payload = experiment_state.payload()
                 payload["study"] = study_state.payload()
+                if source_status is not None:
+                    payload["sources"] = source_status()
                 self._json(200, payload)
                 return
 
