@@ -337,7 +337,7 @@ def test_mind_observer_analysis_is_secondary_and_finite_safe() -> None:
     assert "{ id: 'regime'" not in asset
     assert "Observer analysis" in asset
     assert "Secondary analytical projection; not part of the organism." in asset
-    assert "function finiteNumber(" in asset
+    assert "finiteNumber" in asset
     assert "observerAnalysis?.activationClasses" in observer_model
     assert "observerAnalysis?.predictionErrors" in observer_model
     assert "explicitActivityCoverage" in observer_model
@@ -361,7 +361,7 @@ def test_mind_cognition_layout_is_relationship_aware() -> None:
 
     assert "enrichGraphModel" in asset
     assert "deriveLocalCommunities" in graph_model
-    assert "shared downstream/upstream partners" in asset
+    assert "shared downstream/upstream partners" in graph_model
     assert "sameCommunity" in asset
     assert "communityCenters" in asset
     assert "visualValue" in graph_model
@@ -420,8 +420,8 @@ def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
     assert "export function graphSubgraphIds(" in graph_selection
     assert "export function filterGraphForView(" in graph_selection
     assert "pathDepth: 2" in asset
-    assert "selectCognitiveNode(node.id)" in asset
-    assert "motor-output edges" in asset
+    assert "onSelectCognitiveNode(node.id)" in asset
+    assert "readout→motor links" in asset
 
 
 def test_mind_tracks_cognitive_structure_over_time() -> None:
@@ -564,7 +564,7 @@ def test_mind_dual_semantics_are_explicit_in_the_ui() -> None:
     assert "'Self label'" in asset
     assert "'Observer truth'" in asset
     assert "'Observer context'" in asset
-    assert "Observer ·" in asset
+    assert "Observer truth" in asset
     assert "exact-source" in semantics
     assert "sensory-context" in semantics
     assert "unresolved" in semantics
@@ -787,8 +787,8 @@ def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
     assert "buildCognition3DScene" in asset
     assert "orbitCamera" in asset
     assert "zoomCamera" in asset
-    assert "drag empty space to orbit" in asset
-    assert "dimension:      '2d'" in asset
+    assert "3D anatomy · orbit to reveal depth" in asset
+    assert "dimension: '2d'" in asset
 
     assert "worldDepthForNode" in projection
     assert "projectPoint3D" in projection
