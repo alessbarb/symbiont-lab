@@ -1579,6 +1579,34 @@ export function createCognitionController({
         }
       }
   
+      if (graph.atlasPath?.nodeIds?.length > 1) {
+        const pathTitle = el('div', '');
+        pathTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+        pathTitle.textContent = 'Cognitive pathway';
+        panel.appendChild(pathTitle);
+
+        const pathCopy = el('div', '');
+        pathCopy.style.cssText = 'font-size:8px;line-height:1.5;color:var(--muted);margin-bottom:6px;';
+        pathCopy.textContent = graph.atlasPath.nodeIds
+          .map(id => {
+            const node = graph.nodes.find(item => item.id === id);
+            return node ? `${node.kind}: ${shortId(node.id, 9, 5)}` : shortId(id, 9, 5);
+          })
+          .join(' → ');
+        panel.appendChild(pathCopy);
+
+        for (const id of graph.atlasPath.nodeIds) {
+          const node = graph.nodes.find(item => item.id === id);
+          if (!node) continue;
+          const row = el('button', '');
+          row.type = 'button';
+          row.style.cssText = 'display:block;width:100%;text-align:left;margin:3px 0;padding:5px 6px;border:1px solid rgba(80,217,255,.16);border-radius:5px;background:rgba(80,217,255,.025);color:var(--muted);font-size:8px;cursor:pointer;';
+          row.textContent = `${node.kind} · ${node.observerLabel ?? shortId(node.id, 10, 5)}`;
+          row.addEventListener('click', () => selectCognitiveNode(node.id));
+          panel.appendChild(row);
+        }
+      }
+
       const clear = el('button', 'mind-ctrl-btn');
       clear.type = 'button';
       clear.style.cssText = 'margin-top:12px;width:100%;';
@@ -1680,11 +1708,10 @@ export function createCognitionController({
   
     const title = el('div', '');
     title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);margin-bottom:3px;';
-    title.textContent = 'Structural sectors';
+    title.textContent = 'Cognitive Atlas';
     const subtitle = el('div', '');
     subtitle.style.cssText = 'font-size:9px;line-height:1.45;color:var(--muted);margin-bottom:10px;';
-    subtitle.textContent =
-      'Observer layout derived only from graph relations. Sectors are not concepts invented for the Symbiont.';
+    subtitle.textContent = `${atlasModeMeta().label} · ${atlasModeMeta().description}. Regions are observer-derived from graph relations and never fed back to Symbiont.`;
     panel.append(title, subtitle);
   
     const componentSizes = (graph.components ?? []).map(component => component.length);
@@ -1706,7 +1733,8 @@ export function createCognitionController({
         const activity = sectorNodes.length
           ? sectorNodes.reduce((sum, node) => sum + finiteNumber(node.activationLevel, 0), 0) / sectorNodes.length
           : 0;
-        return { id, ids, sectorNodes, kinds, activity };
+        const atlasRegion = (graph.atlasRegions ?? []).find(region => region.id === id) ?? null;
+        return { id, ids, sectorNodes, kinds, activity, atlasRegion };
       })
       .sort((a, b) => b.ids.length - a.ids.length);
   
@@ -1743,7 +1771,8 @@ export function createCognitionController({
         .join(' · ');
       const activity = el('div', '');
       activity.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;';
-      activity.textContent = `mean activity ${pct(sector.activity)} · observer interpretation only`;
+      const regionScore = atlasRegionScore(sector.atlasRegion);
+      activity.textContent = `${atlasModeMeta().label.toLowerCase()} ${pct(regionScore)} · activity ${pct(sector.activity)} · ${sector.atlasRegion?.bridges ?? 0} bridges`;
       card.append(head, composition, activity);
       card.addEventListener('click', () => {
         graph.focusedSectorId = sector.id;
@@ -1755,9 +1784,25 @@ export function createCognitionController({
       panel.appendChild(card);
     });
   
+    if ((graph.learningFrontier ?? []).length) {
+      const frontierTitle = el('div', '');
+      frontierTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      frontierTitle.textContent = 'Learning frontier';
+      panel.appendChild(frontierTitle);
+      for (const item of (graph.learningFrontier ?? []).slice(0, 6)) {
+        const row = el('button', '');
+        row.type = 'button';
+        row.style.cssText = 'display:flex;width:100%;justify-content:space-between;gap:8px;padding:5px 0;border:0;border-top:1px solid rgba(98,120,136,.12);background:transparent;color:var(--muted);font-size:8px;cursor:pointer;text-align:left;';
+        const label = item.node.observerLabel ?? shortId(item.node.id, 10, 5);
+        row.innerHTML = `<span><strong style="color:var(--text)">${label}</strong><br>${item.node.kind}</span><span>${Math.round(item.score * 100)}%</span>`;
+        row.addEventListener('click', () => selectCognitiveNode(item.node.id));
+        panel.appendChild(row);
+      }
+    }
+
     const hint = el('div', '');
     hint.style.cssText = 'margin-top:12px;padding:8px;border:1px solid rgba(80,217,255,.14);border-radius:6px;font-size:8px;line-height:1.45;color:var(--muted);';
-    hint.textContent = 'Click a sector to focus its local anatomy and real bridges. Click a node for exact relations.';
+    hint.textContent = 'Region → local graph → node → exact evidence. Select a node to reveal a real cognitive pathway when one exists.';
     panel.appendChild(hint);
   }
   
