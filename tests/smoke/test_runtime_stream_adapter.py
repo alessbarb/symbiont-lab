@@ -2,18 +2,16 @@ from __future__ import annotations
 
 import json
 
-from symbiont_lab.server.organism_stream import (
-    OrganismStream,
-    Physics3DStreamBridge,
-    _mind_snapshot_from_rich_state,
-    stream_runtime_tick,
+from symbiont_lab.observation.physics3d import Physics3DObservationBridge
+from symbiont_lab.observation.projection import (
+    mind_snapshot_from_rich_state,
+    runtime_tick_events,
 )
+from symbiont_lab.server.organism_stream import OrganismStream
 
 
 def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
-    stream = OrganismStream()
-    stream_runtime_tick(
-        stream,
+    events = runtime_tick_events(
         {
             "tick": 12,
             "instance_id": "0123456789abcdef",
@@ -42,16 +40,11 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
                 {"name": "left_shoulder_pitch", "position": 0.5},
                 {"name": "right_shoulder_pitch", "position": -0.5},
             ],
-        },
+        }
     )
 
-    events = []
-    queue = stream.subscribe()
-    while not queue.empty():
-        events.append(queue.get_nowait())
-
-    assert len(events) >= 3
-    joined = "\n".join(events)
+    assert len(events) == 3
+    joined = "\n".join(json.dumps(event, separators=(",", ":")) for event in events)
     assert '"type":"body"' in joined
     assert '"type":"cognition"' in joined
     assert '"type":"vitals"' in joined
@@ -63,11 +56,7 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
 
 
 def test_stream_does_not_invent_absent_observations() -> None:
-    stream = OrganismStream()
-    stream_runtime_tick(stream, {"tick": 3})
-
-    queue = stream.subscribe()
-    events = [json.loads(queue.get_nowait()) for _ in range(queue.qsize())]
+    events = list(runtime_tick_events({"tick": 3}))
     by_type = {event["type"]: event for event in events}
 
     assert by_type["body"] == {"type": "body", "tick": 3}
@@ -97,9 +86,21 @@ def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
 
 
 
+def test_mind_projection_preserves_completely_absent_sections() -> None:
+    snapshot = mind_snapshot_from_rich_state({"tick": 9})
+
+    assert snapshot == {"tick": 9}
+    assert "cognition" not in snapshot
+    assert "senses" not in snapshot
+    assert "beliefs" not in snapshot
+    assert "topology" not in snapshot
+    assert "observer_analysis" not in snapshot
+    assert "sampling" not in snapshot
+
+
 def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
     stream = OrganismStream()
-    bridge = Physics3DStreamBridge(stream)
+    bridge = Physics3DObservationBridge(stream)
     queue = stream.subscribe()
 
     bridge.publish(
@@ -146,7 +147,7 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
 
 
 def test_physics3d_bridge_emits_stop_command_on_shutdown() -> None:
-    bridge = Physics3DStreamBridge(OrganismStream())
+    bridge = Physics3DObservationBridge(OrganismStream())
     assert bridge.poll_commands() == []
 
     bridge.request_stop()
@@ -157,7 +158,7 @@ def test_physics3d_bridge_emits_stop_command_on_shutdown() -> None:
 
 
 def test_physics3d_rich_state_projects_into_mind_contract() -> None:
-    snapshot = _mind_snapshot_from_rich_state({
+    snapshot = mind_snapshot_from_rich_state({
         "tick": 33,
         "organism_id": "symbiont:3d:test",
         "runtime": {
@@ -215,8 +216,8 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
     assert snapshot["tick"] == 33
     assert snapshot["display_id"] == "symbiont:3d:test"
     assert snapshot["senses"][0]["id"] == "rec.0"
-    assert snapshot["senses"][0]["active"] is True
-    assert snapshot["senses"][1]["active"] is False
+    assert "active" not in snapshot["senses"][0]
+    assert "active" not in snapshot["senses"][1]
     assert snapshot["beliefs"][0]["certainty"] == 0.8
     assert snapshot["cognition"]["topologyHealth"] == "connected"
     assert snapshot["observer_analysis"]["predictionErrors"]["concept.1"] == "medium"
@@ -228,7 +229,7 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
 
 def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
     stream = OrganismStream()
-    bridge = Physics3DStreamBridge(stream)
+    bridge = Physics3DObservationBridge(stream)
     queue = stream.subscribe()
 
     bridge.publish_rich_state({
@@ -480,23 +481,14 @@ def test_body_and_mind_use_resource_delta_as_distance_not_percent() -> None:
 
 
 def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
-    stream = OrganismStream()
-    stream_runtime_tick(
-        stream,
-        {
-            "tick": 5,
-            "predictor_count": 7,
-            "sensorimotor_patterns": 13,
-            "motor_primitives": 4,
-            "cognitive_motor_primitives": 2,
-        },
-    )
-
-    queue = stream.subscribe()
-    joined = "\n".join(
-        queue.get_nowait()
-        for _ in range(queue.qsize())
-    )
+    events = runtime_tick_events({
+        "tick": 5,
+        "predictor_count": 7,
+        "sensorimotor_patterns": 13,
+        "motor_primitives": 4,
+        "cognitive_motor_primitives": 2,
+    })
+    joined = "\n".join(json.dumps(event, separators=(",", ":")) for event in events)
     assert '"predictor_count":7' in joined
     assert '"sensorimotor_patterns":13' in joined
     assert '"motor_primitives":4' in joined
