@@ -108,10 +108,7 @@ export function createCognitionController({
       learned.edges,
       graph.selectedNodeId,
       graph.viewMode,
-      {
-        expandMotorSubstrate: graph.physicalIOVisible,
-        showPhysicalIO: graph.physicalIOVisible,
-      },
+      { expandMotorSubstrate: graph.physicalIOVisible },
     );
     graph.hiddenMotor = cartography.hidden;
     const completeTopology = { nodes: cartography.nodes, edges: cartography.edges };
@@ -202,7 +199,23 @@ export function createCognitionController({
         samples: finiteNumber(e.samples, 0),
       }));
   
-    const filtered = filterGraphForView(rawNodes, edges, graph.viewMode);
+    let filtered = filterGraphForView(rawNodes, edges, graph.viewMode);
+    if (graph.physicalIOVisible) {
+      const physicalKinds = new Set(['receptor', 'actuator']);
+      const physicalNodes = rawNodes.filter(node => physicalKinds.has(node.kind));
+      const mergedNodes = [...filtered.nodes];
+      const mergedIds = new Set(mergedNodes.map(node => node.id));
+      for (const node of physicalNodes) {
+        if (!mergedIds.has(node.id)) {
+          mergedNodes.push(node);
+          mergedIds.add(node.id);
+        }
+      }
+      const mergedEdges = edges.filter(edge =>
+        mergedIds.has(edge.sourceId) && mergedIds.has(edge.targetId)
+      );
+      filtered = { nodes: mergedNodes, edges: mergedEdges };
+    }
     const enriched = enrichGraphModel(filtered.nodes, filtered.edges);
   
     const affinities = buildLayoutAffinities(enriched.nodes, enriched.edges);
@@ -1661,19 +1674,22 @@ export function createCognitionController({
       source.sensorimotor ?? snap.sensorimotor,
       source.observerSemantics ?? snap.observerSemantics,
       source.prospectiveAgency ?? null,
+      { includePhysicalIO: graph.physicalIOVisible },
     );
     const nodes = learned.nodes;
     const topologyEdges = learned.edges;
+    const learnedEdges = topologyEdges.filter(edge => edge.learnedLayer !== 'physical');
     const current = {
       concepts: nodes.filter(node => node.kind === 'concept').length,
       predictors: nodes.filter(node => node.kind === 'predictor').length,
-      edges: topologyEdges.length,
+      edges: learnedEdges.length,
       motorEdges: topologyEdges.filter(edge =>
         String(edge.sourceId ?? '').startsWith('readout_motor:') ||
         String(edge.sourceId ?? '').startsWith('readout_primitive:')
       ).length,
       primitives: learned.counts.primitives,
       cognitivePrimitives: learned.counts.cognitivePrimitives,
+      receptors: learned.counts.receptors,
       actuators: learned.counts.actuators,
       causalEffects: learned.counts.causalEffects,
       cognitiveMotorLinks: learned.counts.cognitiveMotorLinks,
@@ -1692,6 +1708,7 @@ export function createCognitionController({
     panel.innerHTML =
       `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
       `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
+      `<span style="color:${graph.physicalIOVisible ? 'var(--cyan)' : 'var(--muted)'}">Physical I/O ${graph.physicalIOVisible ? `ON · ${current.receptors} receptors · ${current.actuators} actuators` : 'OFF'}</span><br>` +
       `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
       `<span style="color:var(--muted)">map: ${graph.dimension === '3d' ? 'complete learned motor substrate expanded' : `${graph.hiddenMotor.actuators} actuators + ${graph.hiddenMotor.motorEdges} low-level motor edges collapsed${graph.viewMode === 'connected' ? ' · connected motor capabilities preserved while substrate stays collapsed' : ' · select a primitive to expand'}`}</span><br>` +
       `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
