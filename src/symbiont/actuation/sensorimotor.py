@@ -1322,6 +1322,19 @@ class SensorimotorLearner:
                     item,
                     allowed_ids=allowed,
                 )
+                supporting_stat = learner._primitive_stats.get(primitive.sequence)
+                if (
+                    supporting_stat is None
+                    or supporting_stat.count < 2
+                    or primitive.samples != supporting_stat.count
+                    or primitive.sequence not in learner._primitive_materialized_tick
+                ):
+                    raise ValueError("motor primitive lacks recurrent supporting evidence")
+                if (
+                    primitive.is_competence
+                    and primitive.sequence not in learner._primitive_competence_tick
+                ):
+                    raise ValueError("motor competence lacks competence chronology")
                 learner._primitives[primitive.primitive_id] = primitive
                 learner._primitive_id_by_sequence[primitive.sequence] = primitive.primitive_id
 
