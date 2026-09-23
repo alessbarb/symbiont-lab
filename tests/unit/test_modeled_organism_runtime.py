@@ -9,6 +9,7 @@ from symbiont.cognition.genome import GenomeCodec
 from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.modeling import (
     ArchitectureId,
+    ExperienceLedger,
     ExperienceRecord,
     EpistemicStatus,
     ModelArtifactManifest,
@@ -379,3 +380,80 @@ def test_private_training_settlement_ids_survive_checkpoint():
         request_id=request.request_id,
         steps_completed=12,
     ) is False
+
+
+
+def test_observed_transitions_feed_episodic_memory_and_survive_checkpoint():
+    runtime = ModeledOrganismRuntime(organism_id="episodic-runtime")
+    runtime.record_experience(_transition(runtime, 0))
+    runtime.record_experience(_transition(runtime, 10))
+    runtime.episodic_memory.flush()
+
+    assert runtime.episodic_memory.episodes
+    snapshot = runtime.episodic_memory_snapshot()
+    assert snapshot["episode_count"] >= 1
+
+    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    assert restored.episodic_memory.episodes == runtime.episodic_memory.episodes
+
+
+def test_model_records_never_enter_episodic_memory():
+    runtime = ModeledOrganismRuntime(organism_id="episodic-anti-self-confirm")
+    runtime.record_experience(ExperienceRecord(
+        record_id="model.episodic-test",
+        organism_id=runtime.organism_id,
+        tick_class=0,
+        context_tokens=("model.context",),
+        action_token=None,
+        outcome_tokens=("model.outcome",),
+        epistemic_status=EpistemicStatus.PREDICTED,
+        evidence_refs=(),
+        confidence_class=4,
+        source_kind=SourceKind.MODEL,
+    ))
+
+    assert runtime.episodic_memory.episodes == ()
+    assert runtime.episodic_memory.metrics(current_tick=0).pending_records == 0
+
+
+
+def test_pre_episodic_checkpoint_migrates_retained_causal_history():
+    runtime = ModeledOrganismRuntime(organism_id="episodic-migration")
+    runtime.record_experience(_transition(runtime, 0))
+    runtime.record_experience(_transition(runtime, 10))
+
+    legacy = runtime.checkpoint()
+    legacy.pop("episodic_memory", None)
+
+    restored = ModeledOrganismRuntime.from_checkpoint(legacy)
+
+    assert restored.episodic_memory.episodes
+    source_ids = {
+        source_id
+        for episode in restored.episodic_memory.episodes
+        for source_id in episode.source_record_ids
+    }
+    assert "transition.test.0" in source_ids
+    assert "transition.test.10" in source_ids
+
+
+
+def test_private_corpus_replays_lived_history_after_live_ledger_eviction():
+    organism_id = "episodic-corpus-replay"
+    runtime = ModeledOrganismRuntime(
+        organism_id=organism_id,
+        experience_ledger=ExperienceLedger(organism_id, max_records=16),
+    )
+    for tick in range(32):
+        runtime.record_experience(_transition(runtime, tick))
+
+    assert len(runtime.experience_ledger.records) == 16
+    assert runtime.experience_ledger.get("transition.test.0") is None
+
+    corpus = runtime.build_private_corpus(max_records=64)
+    records = (*corpus.train, *corpus.validation, *corpus.test)
+    record_ids = {record.record_id for record in records}
+
+    assert corpus.manifest.record_count == 32
+    assert "transition.test.0" in record_ids
+    assert "transition.test.31" in record_ids

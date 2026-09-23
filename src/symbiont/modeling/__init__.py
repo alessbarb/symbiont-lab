@@ -18,6 +18,17 @@ from .gateway import (
     TokenPrediction,
 )
 from .ledger import ExperienceLedger
+from .episodic import (
+    CognitiveReplay,
+    ConsolidatedContingency,
+    EpisodeMatch,
+    EpisodeStep,
+    EpisodicExperienceMemory,
+    EpisodicMemoryError,
+    EpisodicMemoryMetrics,
+    EpisodicPrediction,
+    ExperienceEpisode,
+)
 from .culture import (
     ClaimGraph,
     CompositeGraph,
@@ -70,6 +81,15 @@ __all__ = [
     "CorpusManifest",
     "EpistemicStatus",
     "ExperienceLedger",
+    "ExperienceEpisode",
+    "EpisodeMatch",
+    "EpisodeStep",
+    "EpisodicExperienceMemory",
+    "EpisodicMemoryError",
+    "EpisodicMemoryMetrics",
+    "EpisodicPrediction",
+    "CognitiveReplay",
+    "ConsolidatedContingency",
     "ClaimGraph",
     "CompositeGraph",
     "CulturalAction",

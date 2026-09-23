@@ -1,0 +1,28 @@
+schema_version = 1
+
+[experiment]
+id = "learning.episodic-memory-utility"
+title = "Episodic State-Conditioned Predictive Utility"
+protocol = "learning.episodic-memory-utility"
+protocol_version = 1
+hypothesis = """
+A bounded episodic memory that retrieves prior lived experience by current
+organism-native state and action predicts held-out outcomes better than
+action-only and global-frequency baselines when one action has
+state-conditioned consequences.
+"""
+success_criteria = """
+Across independent seeds, episodic prediction has full or near-full coverage
+and positive mean top-1 accuracy gain versus both action-only and global
+baselines on the held-out temporal suffix.
+"""
+
+[world]
+steps = 256
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true

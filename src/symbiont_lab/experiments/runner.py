@@ -132,6 +132,7 @@ class ExperimentRunner:
             raw_metrics = result.as_dict()
         elif spec.protocol in {
             "learning.predictive-utility",
+            "learning.episodic-memory-utility",
             "learning.private-model-utility",
             "learning.private-model-controls",
             "learning.temporal-private-model-controls",

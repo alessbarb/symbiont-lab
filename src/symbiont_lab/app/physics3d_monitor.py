@@ -158,6 +158,17 @@ class MonitorSnapshot:
     sensorimotor_h16_samples: int
     sensorimotor_h64_samples: int
     passive_baseline_samples: int
+    episodic_episodes: int = 0
+    episodic_pending_records: int = 0
+    episodic_compressed_episodes: int = 0
+    episodic_interpretations: int = 0
+    episodic_contingencies: int = 0
+    episodic_retrievals: int = 0
+    episodic_replays: int = 0
+    episodic_compactions: int = 0
+    episodic_evictions: int = 0
+    episodic_oldest_age: int = 0
+    episodic_mean_age: float = 0.0
     motor_origin_detail: str = "none"
     motor_origin_primitive_prospective: int = 0
     prospective_reason: str | None = None
@@ -585,6 +596,62 @@ def record_to_snapshot(
     snap.setdefault("slm_best_baseline", None)
     snap.setdefault("slm_candidate_loss", None)
     snap.setdefault("slm_best_baseline_loss", None)
+    episodic = record.get("episodic_memory", {})
+    if not isinstance(episodic, Mapping):
+        episodic = {}
+    snap.setdefault(
+        "episodic_episodes",
+        record.get("episodic_episodes", episodic.get("episode_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_pending_records",
+        record.get("episodic_pending_records", episodic.get("pending_records", 0)),
+    )
+    snap.setdefault(
+        "episodic_compressed_episodes",
+        record.get(
+            "episodic_compressed_episodes",
+            episodic.get("compressed_episode_count", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_interpretations",
+        record.get(
+            "episodic_interpretations",
+            episodic.get("interpretation_count", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_contingencies",
+        record.get(
+            "episodic_contingencies",
+            episodic.get("consolidated_contingencies", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_retrievals",
+        record.get("episodic_retrievals", episodic.get("retrieval_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_replays",
+        record.get("episodic_replays", episodic.get("replay_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_compactions",
+        record.get("episodic_compactions", episodic.get("compaction_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_evictions",
+        record.get("episodic_evictions", episodic.get("eviction_count", 0)),
+    )
+    snap.setdefault(
+        "episodic_oldest_age",
+        record.get("episodic_oldest_age", episodic.get("oldest_episode_age", 0)),
+    )
+    snap.setdefault(
+        "episodic_mean_age",
+        record.get("episodic_mean_age", episodic.get("mean_episode_age", 0.0)),
+    )
     snap.setdefault("symbiont_file", "")
     return snap
 
@@ -1380,6 +1447,35 @@ def _viewer_main(
         v = tk.StringVar(value="—")
         slm_vars[k] = v
         tk.Label(slm_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
+
+    # Card 4: Episodic memory
+    memory_content = make_card(right_panel, "Episodic memory", blue)
+    memory_vars = {}
+    for r_i, (k, l_txt) in enumerate((
+        ("episodes", "Episodios / Pendientes"),
+        ("compression", "Comprimidos / Evictions"),
+        ("interpretations", "Interpretaciones / Contingencias"),
+        ("activity", "Retrievals / Replay"),
+        ("age", "Edad media / Máxima"),
+    )):
+        tk.Label(
+            memory_content,
+            text=l_txt,
+            bg=sub_bg,
+            fg=muted,
+            font=("TkDefaultFont", 7),
+            anchor="w",
+        ).grid(row=r_i, column=0, sticky="w", pady=1)
+        v = tk.StringVar(value="—")
+        memory_vars[k] = v
+        tk.Label(
+            memory_content,
+            textvariable=v,
+            bg=sub_bg,
+            fg=fg,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="e",
+        ).grid(row=r_i, column=1, sticky="e", pady=1)
 
     # Deep-dive controls. The default view keeps the organism central; technical
     # panels are available on demand without removing any evaluator data.
@@ -3078,6 +3174,25 @@ def _viewer_main(
             slm_vars["loss"].set(f"{float(cand_loss):.3f} vs {float(base_loss):.3f}")
         else:
             slm_vars["loss"].set("—")
+
+        # Card 4: Episodic memory
+        epi_count = int(payload.get("episodic_episodes", 0))
+        epi_pending = int(payload.get("episodic_pending_records", 0))
+        epi_compressed = int(payload.get("episodic_compressed_episodes", 0))
+        epi_evictions = int(payload.get("episodic_evictions", 0))
+        epi_interpretations = int(payload.get("episodic_interpretations", 0))
+        epi_contingencies = int(payload.get("episodic_contingencies", 0))
+        epi_retrievals = int(payload.get("episodic_retrievals", 0))
+        epi_replays = int(payload.get("episodic_replays", 0))
+        epi_mean_age = float(payload.get("episodic_mean_age", 0.0))
+        epi_oldest_age = int(payload.get("episodic_oldest_age", 0))
+        memory_vars["episodes"].set(f"{epi_count:,} / {epi_pending:,}")
+        memory_vars["compression"].set(f"{epi_compressed:,} / {epi_evictions:,}")
+        memory_vars["interpretations"].set(
+            f"{epi_interpretations:,} / {epi_contingencies:,}"
+        )
+        memory_vars["activity"].set(f"{epi_retrievals:,} / {epi_replays:,}")
+        memory_vars["age"].set(f"{epi_mean_age:.0f} / {epi_oldest_age:,} ticks")
 
         # Bottom timing & checkpoint
         cycle_t = float(payload["cycle_ms"])

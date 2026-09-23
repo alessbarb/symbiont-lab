@@ -26,8 +26,32 @@ class KernelLimits:
     max_incoming_consolidated_weight_norm: float = 8.0
     reacclimation_ticks: int = 32
 
+    # Resident episodic-experience memory. These are kernel ceilings, never
+    # organism-learnable parameters. The memory stores only opaque tokens
+    # already available to the organism, never lab/world ground truth.
+    max_episodic_episodes: int = 512
+    max_episodic_episode_records: int = 16
+    max_episodic_retrieval_candidates: int = 16
+    max_episodic_replay_items: int = 8
+    max_episodic_interpretations_per_episode: int = 32
+    max_episodic_checkpoint_bytes: int = 2 * 1024 * 1024
+    episodic_epoch_ticks: int = 32
+    episodic_min_consolidation_epochs: int = 3
+
     def __post_init__(self) -> None:
         for field in fields(self):
             value = getattr(self, field.name)
             if value <= 0:
                 raise ValueError(f"{field.name} must be positive")
+        if self.max_episodic_episode_records > 256:
+            raise ValueError(
+                "max_episodic_episode_records must be <= 256"
+            )
+        if (
+            self.max_episodic_replay_items
+            > self.max_episodic_retrieval_candidates
+        ):
+            raise ValueError(
+                "max_episodic_replay_items must be <= "
+                "max_episodic_retrieval_candidates"
+            )

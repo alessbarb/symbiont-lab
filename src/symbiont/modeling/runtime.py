@@ -15,6 +15,12 @@ from .corpus import TrainingCorpus, build_training_corpus
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .gateway import PrivateModelBridge
 from .ledger import ExperienceLedger
+from .episodic import (
+    CognitiveReplay,
+    EpisodeMatch,
+    EpisodicExperienceMemory,
+    EpisodicPrediction,
+)
 from .culture import (
     CulturalAction,
     CulturalComposite,
@@ -92,6 +98,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         *,
         model_registry: ModelRegistry | None = None,
         experience_ledger: ExperienceLedger | None = None,
+        episodic_memory: EpisodicExperienceMemory | None = None,
         private_model_bridge: PrivateModelBridge | None = None,
         social_evidence_ledger: SocialEvidenceLedger | None = None,
         model_request_base_cost: float = 0.01,
@@ -122,6 +129,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise ValueError("experience ledger belongs to a different organism")
         self._model_registry = model_registry or ModelRegistry(self.organism_id)
         self._experience_ledger = experience_ledger or ExperienceLedger(self.organism_id)
+        if episodic_memory is not None and episodic_memory.organism_id != self.organism_id:
+            raise ValueError("episodic memory belongs to a different organism")
+        self._episodic_memory = episodic_memory or EpisodicExperienceMemory(
+            self.organism_id,
+            kernel_limits=self._kernel_limits,
+        )
         if social_evidence_ledger is not None and social_evidence_ledger.organism_id != self.organism_id:
             raise ValueError("social evidence ledger belongs to a different organism")
         self._social_evidence_ledger = social_evidence_ledger or SocialEvidenceLedger(self.organism_id)
@@ -162,6 +175,16 @@ class ModeledOrganismRuntime(OrganismRuntime):
     @property
     def experience_ledger(self) -> ExperienceLedger:
         return self._experience_ledger
+
+    @property
+    def episodic_memory(self) -> EpisodicExperienceMemory:
+        """Resident long-horizon experience memory.
+
+        The laboratory may inspect aggregate metrics through passive adapters,
+        but episode creation, retrieval, reinterpretation and consolidation are
+        organism-owned.
+        """
+        return self._episodic_memory
 
     @property
     def social_evidence_ledger(self) -> SocialEvidenceLedger:
@@ -481,6 +504,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
             and record.epistemic_status is EpistemicStatus.OBSERVED
             and record.source_kind is not SourceKind.MODEL
         ):
+            # Episodic memory sees only independently observed causal records.
+            # Model proposals/validations never become lived experience.
+            self._episodic_memory.observe(record)
+            self._refresh_episodic_interpretations()
             self._private_learning_total_transition_count += 1
             self._private_learning_new_transition_count += 1
             self._private_learning_latest_transition_tick = max(
@@ -499,8 +526,138 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 record.epistemic_status is EpistemicStatus.CONTRADICTED
             )
 
+    def _refresh_episodic_interpretations(self) -> int:
+        """Let newly learned graph representations reinterpret old experience.
+
+        Concept lineage is generic cognitive provenance, not semantic ground
+        truth. The factual episode core stays immutable; only a revisable
+        interpretation index is extended.
+        """
+        bridge = getattr(self, "_cognitive_bridge", None)
+        if bridge is None:
+            return 0
+        changed = 0
+        lineages = bridge.concept_lineage
+        # Concept lineage may contain concepts built from older concepts.
+        # Iterate to a fixed point so retrospective indexing can propagate
+        # through the hierarchy without depending on lexical concept IDs.
+        for _pass in range(max(1, len(lineages))):
+            pass_changed = 0
+            for lineage in lineages:
+                support: list[str] = []
+                for parent_id in lineage.parent_ids:
+                    support.extend(
+                        (
+                            parent_id,
+                            f"sense.{parent_id}",
+                            f"concept.{parent_id}",
+                        )
+                    )
+                pass_changed += self._episodic_memory.reinterpret(
+                    lineage.concept_id,
+                    tuple(support),
+                    min_overlap=0.5,
+                )
+            changed += pass_changed
+            if pass_changed == 0:
+                break
+        return changed
+
+    def recall_experiences(
+        self,
+        context_tokens: tuple[str, ...],
+        *,
+        action_token: str | None = None,
+        k: int | None = None,
+    ) -> tuple[EpisodeMatch, ...]:
+        """Retrieve similar lived episodes without selecting or executing an action."""
+        if self._physiology.state is VitalState.DEAD:
+            return ()
+        return self._episodic_memory.retrieve(
+            context_tokens,
+            action_token=action_token,
+            k=k,
+        )
+
+    def predict_from_experience(
+        self,
+        context_tokens: tuple[str, ...],
+        *,
+        action_token: str | None,
+        k: int | None = None,
+    ) -> EpisodicPrediction | None:
+        """State-conditioned prediction from lived experience only."""
+        if self._physiology.state is VitalState.DEAD:
+            return None
+        return self._episodic_memory.predict(
+            context_tokens,
+            action_token=action_token,
+            k=k,
+        )
+
+    def cognitive_replay(
+        self,
+        context_tokens: tuple[str, ...],
+        *,
+        action_token: str | None = None,
+        k: int | None = None,
+    ) -> tuple[CognitiveReplay, ...]:
+        """Reactivate past episode representations without motor execution."""
+        if self._physiology.state is VitalState.DEAD:
+            return ()
+        return self._episodic_memory.cognitive_replay(
+            context_tokens,
+            action_token=action_token,
+            k=k,
+        )
+
+    def episodic_memory_snapshot(self) -> dict[str, object]:
+        """Passive, aggregate Observatory surface with no control path."""
+        metrics = self._episodic_memory.metrics(current_tick=self._tick_count)
+        return {
+            "schema_version": self._episodic_memory.SCHEMA_VERSION,
+            "episode_count": metrics.episode_count,
+            "pending_records": metrics.pending_records,
+            "compressed_episode_count": metrics.compressed_episode_count,
+            "interpretation_count": metrics.interpretation_count,
+            "consolidated_contingencies": metrics.consolidated_contingencies,
+            "retrieval_count": metrics.retrieval_count,
+            "replay_count": metrics.replay_count,
+            "compaction_count": metrics.compaction_count,
+            "eviction_count": metrics.eviction_count,
+            "oldest_episode_age": metrics.oldest_episode_age,
+            "mean_episode_age": metrics.mean_episode_age,
+        }
+
     def build_private_corpus(self, *, max_records: int = 8192) -> TrainingCorpus:
-        return build_training_corpus(self._experience_ledger.records, max_records=max_records)
+        if (
+            isinstance(max_records, bool)
+            or not isinstance(max_records, int)
+            or not 3 <= max_records <= 65536
+        ):
+            raise ValueError("max_records must be an integer within [3, 65536]")
+
+        # The live ledger is intentionally short and causal. Episodic memory
+        # extends the organism's usable past after older causal records age out
+        # of that ledger. Never duplicate a lived record or overwrite a
+        # conflicting record id silently.
+        combined: dict[str, ExperienceRecord] = {}
+        for record in self._episodic_memory.replay_records(max_records=max_records):
+            combined[record.record_id] = record
+        for record in self._experience_ledger.records:
+            previous = combined.get(record.record_id)
+            if previous is not None and previous.content_hash != record.content_hash:
+                raise ValueError("episodic/live experience record mismatch")
+            combined[record.record_id] = record
+
+        ordered = sorted(
+            combined.values(),
+            key=lambda record: (record.tick_class, record.record_id),
+        )
+        # Keep the most recent bounded causal history. Older episodes remain in
+        # episodic memory and can re-enter future corpora as capacity permits.
+        selected = tuple(ordered[-max_records:])
+        return build_training_corpus(selected, max_records=max_records)
 
     def build_private_tokenizer(self, corpus: TrainingCorpus | None = None) -> NativeTokenizer:
         selected = corpus or self.build_private_corpus()
@@ -1045,6 +1202,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload = super().checkpoint()
         payload["private_model_registry"] = self._model_registry.checkpoint()
         payload["experience_ledger"] = self._experience_ledger.checkpoint()
+        payload["episodic_memory"] = self._episodic_memory.checkpoint()
         payload["social_evidence_ledger"] = self._social_evidence_ledger.checkpoint()
         payload["private_model_config"] = {
             "model_request_base_cost": self._model_request_base_cost,
@@ -1090,6 +1248,19 @@ class ModeledOrganismRuntime(OrganismRuntime):
             payload.get("experience_ledger"),
             organism_id=runtime.organism_id,
         )
+        raw_episodic_memory = payload.get("episodic_memory")
+        runtime._episodic_memory = EpisodicExperienceMemory.restore(
+            raw_episodic_memory,
+            organism_id=runtime.organism_id,
+            kernel_limits=runtime._kernel_limits,
+        )
+        if raw_episodic_memory is None:
+            # One-way migration for checkpoints created before episodic memory
+            # existed. Reconstruct only from the bounded causal ledger already
+            # owned by the organism; no lab/world data is imported.
+            for record in runtime._experience_ledger.records:
+                runtime._episodic_memory.observe(record)
+            runtime._episodic_memory.flush()
         runtime._social_evidence_ledger = SocialEvidenceLedger.restore(
             payload.get("social_evidence_ledger"), organism_id=runtime.organism_id
         )

@@ -173,3 +173,20 @@ __all__ += [
     "run_prospective_embodied_trial",
     "run_prospective_embodied_study",
 ]
+
+
+from .episodic_memory_utility import (
+    EpisodicUtilityReport,
+    EpisodicUtilitySeedResult,
+    EpisodicUtilityStudy,
+    evaluate_episodic_predictive_utility,
+    run_episodic_memory_utility_study,
+)
+
+__all__ += [
+    "EpisodicUtilityReport",
+    "EpisodicUtilitySeedResult",
+    "EpisodicUtilityStudy",
+    "evaluate_episodic_predictive_utility",
+    "run_episodic_memory_utility_study",
+]
