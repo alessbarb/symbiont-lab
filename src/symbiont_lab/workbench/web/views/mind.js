@@ -3093,6 +3093,7 @@ function startCognitionGraph() {
     resetBtn.dataset.bound = 'true';
     resetBtn.addEventListener('click', () => {
       _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
+      _graph.camera3d = { yaw: -0.55, pitch: 0.34, distance: 900 };
       _graph.cachedPositions.clear();
       _graph.alpha = 1.0;
     });
@@ -3103,6 +3104,7 @@ function installGraphListeners(canvas) {
   let isPanning = false, isDragging = false, draggedNode = null;
   let pressedNode = null;
   let panStartX = 0, panStartY = 0, dragDist = 0;
+  let orbitLastX = 0, orbitLastY = 0;
 
   function canvasCoords(event) {
     const rect = canvas.getBoundingClientRect();
@@ -3111,6 +3113,15 @@ function installGraphListeners(canvas) {
     return { x: (event.clientX - rect.left) * sx, y: (event.clientY - rect.top) * sy };
   }
   function findNode(mx, my) {
+    if (_graph.dimension === '3d') {
+      const projected = [...(_graph.projected3d?.values?.() ?? [])];
+      projected.sort((a,b) => a.depth - b.depth);
+      for (let i = projected.length - 1; i >= 0; i--) {
+        const item = projected[i];
+        if (Math.hypot(item.x - mx, item.y - my) <= item.radius + 7) return item.node;
+      }
+      return null;
+    }
     const wx = (mx - _graph.panX) / _graph.scale;
     const wy = (my - _graph.panY) / _graph.scale;
     for (let i = _graph.nodes.length - 1; i >= 0; i--) {
@@ -3122,12 +3133,16 @@ function installGraphListeners(canvas) {
 
   canvas.addEventListener('wheel', ev => {
     ev.preventDefault();
-    const factor = ev.deltaY < 0 ? 1.12 : 0.89;
-    const ns = Math.min(5, Math.max(0.2, _graph.scale * factor));
-    const { x, y } = canvasCoords(ev);
-    _graph.panX = x - (x - _graph.panX) * (ns / _graph.scale);
-    _graph.panY = y - (y - _graph.panY) * (ns / _graph.scale);
-    _graph.scale = ns;
+    if (_graph.dimension === '3d') {
+      _graph.camera3d = zoomCamera(_graph.camera3d, ev.deltaY);
+    } else {
+      const factor = ev.deltaY < 0 ? 1.12 : 0.89;
+      const ns = Math.min(5, Math.max(0.2, _graph.scale * factor));
+      const { x, y } = canvasCoords(ev);
+      _graph.panX = x - (x - _graph.panX) * (ns / _graph.scale);
+      _graph.panY = y - (y - _graph.panY) * (ns / _graph.scale);
+      _graph.scale = ns;
+    }
     _graph.alpha = Math.max(_graph.alpha, 0.1);
     if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
   }, { passive: false });
@@ -3138,6 +3153,15 @@ function installGraphListeners(canvas) {
     const node = findNode(x, y);
     dragDist = 0;
     pressedNode = node;
+    if (_graph.dimension === '3d') {
+      if (!node) {
+        isPanning = true;
+        orbitLastX = x;
+        orbitLastY = y;
+        canvas.style.cursor = 'grabbing';
+      }
+      return;
+    }
     if (node) { isDragging = true; draggedNode = node; node.pinned = true; node.vx = node.vy = 0; }
     else { isPanning = true; panStartX = x - _graph.panX; panStartY = y - _graph.panY; canvas.style.cursor = 'grabbing'; }
   });
@@ -3149,6 +3173,23 @@ function installGraphListeners(canvas) {
 
   _graphWindowMouseMove = ev => {
     const { x, y } = canvasCoords(ev);
+    if (_graph.dimension === '3d') {
+      if (isPanning) {
+        const dx = x - orbitLastX;
+        const dy = y - orbitLastY;
+        dragDist += Math.abs(dx) + Math.abs(dy);
+        _graph.camera3d = orbitCamera(_graph.camera3d, dx, dy);
+        orbitLastX = x;
+        orbitLastY = y;
+        _graph.alpha = Math.max(_graph.alpha, 0.08);
+        if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+      } else {
+        _graph.hoveredNode = findNode(x, y);
+        canvas.style.cursor = _graph.hoveredNode ? 'pointer' : 'grab';
+        if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+      }
+      return;
+    }
     if (isDragging && draggedNode) {
       dragDist += Math.abs(ev.movementX) + Math.abs(ev.movementY);
       draggedNode.x = (x - _graph.panX) / _graph.scale;
@@ -3172,6 +3213,8 @@ function installGraphListeners(canvas) {
     if (draggedNode) { draggedNode.pinned = false; draggedNode = null; }
     if (clicked) {
       _graph.selectedNodeId = _graph.selectedNodeId === clicked.id ? null : clicked.id;
+      const graphCanvas = document.getElementById('mind-cognition-canvas');
+      if (graphCanvas) initGraphPhysics(graphCanvas.width || 900, graphCanvas.height || 600);
       renderCognitionInspector();
       _graph.alpha = Math.max(_graph.alpha, 0.08);
       if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
