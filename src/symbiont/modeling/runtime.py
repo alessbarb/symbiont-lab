@@ -508,6 +508,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
             # Model proposals/validations never become lived experience.
             self._episodic_memory.observe(record)
             self._refresh_episodic_interpretations()
+            # Projection is idempotent inside CognitiveBridge. Retrying on
+            # every lived transition lets old evidence become usable after a
+            # previously unknown sense is admitted to the graph.
+            self._project_episodic_consolidation()
             self._private_learning_total_transition_count += 1
             self._private_learning_new_transition_count += 1
             self._private_learning_latest_transition_tick = max(
@@ -562,6 +566,31 @@ class ModeledOrganismRuntime(OrganismRuntime):
             if pass_changed == 0:
                 break
         return changed
+
+    @staticmethod
+    def _episodic_graph_sense_ids(context_tokens: tuple[str, ...]) -> tuple[str, ...]:
+        """Map private opaque context tokens back to existing graph sense ids."""
+        return tuple(sorted({
+            token.removeprefix("sense.")
+            for token in context_tokens
+            if token.startswith("sense.") and len(token) > len("sense.")
+        }))
+
+    def _project_episodic_consolidation(self) -> int:
+        """Expose consolidated episodic co-occurrence to normal concept formation."""
+        bridge = getattr(self, "_cognitive_bridge", None)
+        if bridge is None:
+            return 0
+        gained = 0
+        for contingency in self._episodic_memory.consolidated:
+            source_ids = self._episodic_graph_sense_ids(
+                contingency.context_tokens
+            )
+            gained += bridge.observe_retrospective_support(
+                source_ids,
+                support_epochs=contingency.support_epochs,
+            )
+        return gained
 
     def recall_experiences(
         self,
@@ -1261,6 +1290,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             for record in runtime._experience_ledger.records:
                 runtime._episodic_memory.observe(record)
             runtime._episodic_memory.flush()
+        runtime._project_episodic_consolidation()
         runtime._social_evidence_ledger = SocialEvidenceLedger.restore(
             payload.get("social_evidence_ledger"), organism_id=runtime.organism_id
         )

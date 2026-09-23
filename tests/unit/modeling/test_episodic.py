@@ -365,3 +365,42 @@ def test_restore_rejects_duplicate_episode_ids() -> None:
 
     with pytest.raises(EpisodicMemoryError, match="duplicate"):
         EpisodicExperienceMemory.restore(payload, organism_id=ORG)
+
+
+
+def test_consolidated_contingency_identity_is_stable_as_support_grows() -> None:
+    limits = replace(
+        KernelLimits(),
+        episodic_epoch_ticks=10,
+        episodic_min_consolidation_epochs=3,
+    )
+    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
+    for tick in (0, 10, 20):
+        memory.observe(
+            record(
+                tick,
+                context=("sense.a", "sense.b"),
+                action="action.p",
+                outcomes=("outcome.x",),
+            )
+        )
+        memory.flush()
+
+    first = memory.consolidate()
+    assert len(first) == 1
+    first_id = first[0].contingency_id
+
+    memory.observe(
+        record(
+            30,
+            context=("sense.a", "sense.b", "state.extra"),
+            action="action.p",
+            outcomes=("outcome.x",),
+        )
+    )
+    memory.flush()
+    second = memory.consolidate()
+
+    assert len(second) == 1
+    assert second[0].contingency_id == first_id
+    assert second[0].support_epochs == 4
