@@ -1,8 +1,4 @@
-"""Thread-safe fan-out of live organism telemetry to SSE subscribers.
-
-This module is transport only. Observer-side semantic projection lives in
-symbiont_lab.observation.
-"""
+"""Thread-safe fan-out bus for passive organism observation events."""
 from __future__ import annotations
 
 import json
@@ -13,8 +9,8 @@ from typing import Any
 _DEFAULT_QUEUE_SIZE = 64
 
 
-class OrganismStream:
-    """Pub-sub hub: one or more producers -> bounded SSE consumer queues."""
+class ObservationBus:
+    """Pub-sub hub: one or more producers -> bounded consumer queues."""
 
     def __init__(self, *, queue_size: int = _DEFAULT_QUEUE_SIZE) -> None:
         if queue_size < 1:
@@ -25,7 +21,6 @@ class OrganismStream:
         self._last_by_type: dict[str, str] = {}
 
     def push(self, event: dict[str, Any]) -> None:
-        """Push an event, dropping stale queued telemetry for slow consumers."""
         data = json.dumps(event, separators=(",", ":"), ensure_ascii=False)
         with self._lock:
             event_type = str(event.get("type") or "")
@@ -43,7 +38,6 @@ class OrganismStream:
                     pass
 
     def subscribe(self) -> queue.Queue[str]:
-        """Register a client and replay the latest state of each event type."""
         consumer: queue.Queue[str] = queue.Queue(maxsize=self._queue_size)
         with self._lock:
             for data in self._last_by_type.values():
@@ -64,4 +58,3 @@ class OrganismStream:
     def has_data(self) -> bool:
         with self._lock:
             return bool(self._last_by_type)
-
