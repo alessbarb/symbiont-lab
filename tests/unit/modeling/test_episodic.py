@@ -231,3 +231,22 @@ def test_checkpoint_fails_closed_on_wrong_schema_or_organism() -> None:
 
     with pytest.raises(EpisodicMemoryError):
         EpisodicExperienceMemory.restore(payload, organism_id="other")
+
+
+
+def test_reinterpretations_are_kernel_bounded() -> None:
+    limits = replace(
+        KernelLimits(),
+        max_episodic_interpretations_per_episode=2,
+    )
+    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
+    memory.observe(record(0, context=("sense.a", "sense.b")))
+    memory.flush()
+
+    assert memory.reinterpret("concept.1", ("sense.a",), min_overlap=1.0) == 1
+    assert memory.reinterpret("concept.2", ("sense.a",), min_overlap=1.0) == 1
+    assert memory.reinterpret("concept.3", ("sense.a",), min_overlap=1.0) == 0
+    assert memory.interpretations_for(memory.episodes[0].episode_id) == (
+        "concept.1",
+        "concept.2",
+    )
