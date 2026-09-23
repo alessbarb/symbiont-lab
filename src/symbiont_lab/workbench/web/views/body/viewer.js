@@ -93,8 +93,9 @@ export class HumanoidViewer {
     // cadence but remains bounded and affects presentation only.
     this.poseFrames = [];
     this.poseCadenceMs = null;
-    this.presentationDelayMs = 80;
-    this.MAX_POSE_FRAMES = 4;
+    this.poseIntervalsMs = [];
+    this.presentationDelayMs = 120;
+    this.MAX_POSE_FRAMES = 8;
     this.clock = new THREE.Clock();
     this.followDistance = 3.2;
 
@@ -672,11 +673,24 @@ export class HumanoidViewer {
     const previous = this.poseFrames[this.poseFrames.length - 1];
     if (previous) {
       const interval = receivedAt - previous.receivedAt;
-      if (Number.isFinite(interval) && interval >= 8 && interval <= 500) {
+      if (Number.isFinite(interval) && interval >= 8 && interval <= 2000) {
         this.poseCadenceMs = this.poseCadenceMs === null
           ? interval
           : this.poseCadenceMs * 0.82 + interval * 0.18;
-        this.presentationDelayMs = THREE.MathUtils.clamp(this.poseCadenceMs * 1.35, 50, 180);
+
+        this.poseIntervalsMs.push(interval);
+        if (this.poseIntervalsMs.length > 8) this.poseIntervalsMs.shift();
+
+        // Stay close to live time instead of replaying a whole telemetry
+        // interval behind the experiment. A smaller adaptive delay absorbs
+        // ordinary jitter; short gaps are bridged by tightly bounded visual
+        // extrapolation in interpolatePresentationPose().
+        const recentWorstInterval = Math.max(...this.poseIntervalsMs);
+        const bufferedCadence = Math.max(
+          this.poseCadenceMs * 0.50,
+          recentWorstInterval * 0.30,
+        );
+        this.presentationDelayMs = THREE.MathUtils.clamp(bufferedCadence, 40, 500);
       }
     }
 
@@ -759,9 +773,17 @@ export class HumanoidViewer {
     const from = this.poseFrames[0];
     const to = this.poseFrames[1] ?? from;
     const span = Math.max(1, to.receivedAt - from.receivedAt);
-    const alpha = from === to
+
+    // Interpolate normally while presentation time is between two real
+    // samples. If the render clock catches the newest sample before the next
+    // SSE frame arrives, continue only a short distance along the measured
+    // A→B motion. This is presentation-only dead reckoning: it is discarded
+    // as soon as the next authoritative frame arrives and never feeds back.
+    const rawAlpha = from === to
       ? 0
-      : THREE.MathUtils.clamp((presentationTime - from.receivedAt) / span, 0, 1);
+      : (presentationTime - from.receivedAt) / span;
+    const maxExtrapolationAlpha = 1.28;
+    const alpha = THREE.MathUtils.clamp(rawAlpha, 0, maxExtrapolationAlpha);
     this.applyPresentationPose(from, to, alpha);
   }
 
@@ -1106,6 +1128,7 @@ export class HumanoidViewer {
     this.targetJointAngles.clear();
     this.targetLinkTransforms.clear();
     this.poseFrames.length = 0;
+    this.poseIntervalsMs.length = 0;
 
     // Restore the host element rather than blindly erasing styles it owned
     // before the viewer was mounted.
