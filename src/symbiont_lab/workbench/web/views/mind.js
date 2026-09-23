@@ -722,15 +722,12 @@ function makeControlBtn(text, title, active) {
 function buildTelemHTML() {
   const items = [
     { id: 'mind-t-tick',     label: 'Tick',       init: '—' },
-    { id: 'mind-t-alive',    label: 'Status',      init: '—' },
-    { id: 'mind-t-schema',   label: 'Schema conf', init: '—' },
-    { id: 'mind-t-preds',    label: 'Cog pred.',   init: '—' },
-    { id: 'mind-t-sm',       label: 'SM patterns', init: '—' },
-    { id: 'mind-t-prims',    label: 'Motor prim.', init: '—' },
-    { id: 'mind-t-motor',    label: 'Motor',       init: '—' },
-    { id: 'mind-t-error',    label: 'Pred. error', init: '—' },
-    { id: 'mind-t-resource', label: 'Resource Δ',  init: '—' },
-    { id: 'mind-t-instance', label: 'Instance',    init: '—' },
+    { id: 'mind-t-phase',    label: 'Physiology', init: '—' },
+    { id: 'mind-t-energy',   label: 'Energy',     init: '—' },
+    { id: 'mind-t-resource', label: 'Resource Δ', init: '—' },
+    { id: 'mind-t-cognition',label: 'Cognition',  init: '—' },
+    { id: 'mind-t-motor',    label: 'Motor',      init: '—' },
+    { id: 'mind-t-instance', label: 'Instance',   init: '—' },
   ];
   return items.map(i =>
     `<span class="mind-telem-item"><span>${i.label}: </span><b id="${i.id}">${i.init}</b></span>`
@@ -1068,18 +1065,39 @@ function updateTelemetryStrip(force = false) {
   const now = performance.now();
   if (!force && now - _lastUITime < UI_THROTTLE_MS) return;
 
-  setTelem('mind-t-tick',     _tel.tick != null ? `t${_tel.tick}` : '—');
-  setTelem('mind-t-alive',    _tel.alive === true ? '● Alive' : (_tel.alive === false ? '○ Dead' : '—'),
-    _tel.alive === true ? PAL.mint : (_tel.alive === false ? PAL.coral : null));
-  setTelem('mind-t-schema',   _tel.schemaConf != null ? `${(_tel.schemaConf * 100).toFixed(0)}%` : '—');
-  setTelem('mind-t-preds',    _tel.predictorCount != null ? String(_tel.predictorCount) : '—');
-  setTelem('mind-t-sm',       _tel.sensorimotorPatterns != null ? String(_tel.sensorimotorPatterns) : '—');
-  setTelem('mind-t-prims',    _tel.motorPrimitives != null
-    ? `${_tel.motorPrimitives}/${_tel.cognitiveMotorPrimitives ?? 0}`
-    : '—');
-  setTelem('mind-t-motor',    _tel.motorOrigin ?? '—');
-  setTelem('mind-t-error',    _tel.predictionError != null ? _tel.predictionError.toFixed(4) : '—');
-  setTelem('mind-t-resource', _tel.resourceProgress != null ? `${_tel.resourceProgress.toFixed(2)} m` : '—');
+  const topology = _snap.topology ?? { nodes: [] };
+  const nodes = topology.nodes ?? [];
+  const concepts = _tel.cognitiveConcepts ?? nodes.filter(node => node.kind === 'concept').length;
+  const predictors = _tel.predictorCount ?? nodes.filter(node => node.kind === 'predictor').length;
+  const physiology = currentPhysiologyState();
+
+  setTelem('mind-t-tick', _tel.tick != null ? `t${_tel.tick}` : '—');
+  setTelem(
+    'mind-t-phase',
+    physiology.toUpperCase(),
+    physiology === 'dead' ? PAL.coral :
+      physiology === 'dormant' ? PAL.amber :
+      physiology === 'stressed' ? PAL.coral : PAL.mint,
+  );
+  setTelem(
+    'mind-t-energy',
+    _tel.metabolicReserve != null ? pct(_tel.metabolicReserve) : '—',
+    _tel.metabolicReserve != null && _tel.metabolicReserve < 0.2 ? PAL.coral : null,
+  );
+  setTelem(
+    'mind-t-resource',
+    _tel.resourceProgress != null
+      ? `${_tel.resourceProgress >= 0 ? '+' : ''}${_tel.resourceProgress.toFixed(2)} m`
+      : '—',
+  );
+  setTelem('mind-t-cognition', `${concepts}C / ${predictors}P`, PAL.violet);
+  setTelem(
+    'mind-t-motor',
+    _tel.motorOrigin ?? '—',
+    ['cognition','mixed'].includes(_tel.motorOrigin) || String(_tel.motorOrigin).includes('primitive')
+      ? PAL.mint
+      : _tel.motorOrigin === 'babbling' ? PAL.amber : null,
+  );
   setTelem('mind-t-instance', _snap.displayId ?? _snap.instanceId ?? '—');
   _lastUITime = now;
 }
