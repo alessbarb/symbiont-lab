@@ -28,39 +28,9 @@ import { augmentLearnedGraph } from './mind/learning-graph.js';
 import { cartographicGraph } from './mind/cartographic-view.js';
 import { buildLayoutAffinities, deriveFunctionalSectors, describeFunctionalSector, sectorBridges } from './mind/functional-sectors.js';
 import { buildCognition3DScene, orbitCamera, zoomCamera } from './mind/cognition-3d.js';
-
-const NS = 'http://www.w3.org/2000/svg';
-
-const PAL = {
-  cyan:   '#50d9ff',
-  violet: '#a777ff',
-  amber:  '#ffbd54',
-  coral:  '#ff7f83',
-  mint:   '#71e9ba',
-  muted:  '#627888',
-  text:   '#c8d8e4',
-  bg:     '#060e18',
-  surface:'#0b1929',
-  line:   '#1a2d40',
-};
-
-// Observer-defined reference zones. These are analytical overlays only:
- // they are not learned categories, attractors or concepts owned by Symbiont.
-const REGIMES = [
-  { id: 'low_activity',       name: 'Baja actividad',       x: -160, y:  130, color: PAL.cyan,  radius: 95,  description: 'Observer projection: low measured activity and low predictive tension.' },
-  { id: 'sustained_activity', name: 'Actividad sostenida',  x:  170, y:  110, color: PAL.mint,  radius: 100, description: 'Observer projection: sustained activity with comparatively low predictive tension.' },
-  { id: 'transient_activity', name: 'Actividad transitoria',x:  -40, y:  -50, color: PAL.amber, radius: 90,  description: 'Observer projection: intermediate activity with elevated short-term predictive tension.' },
-  { id: 'high_tension',       name: 'Tensión elevada',      x:  180, y: -170, color: PAL.coral, radius: 95,  description: 'Observer projection: high activity and/or predictive tension.' },
-];
-
-// Physics constants for the Cognition force-directed graph
-const REPULSION    = 7500;
-const SPRING_K     = 0.045;
-const SPRING_LEN   = 80;
-const CENTER_G     = 0.015;
-const DAMPING      = 0.86;
-const ALPHA_DECAY  = 0.985;
-const ALPHA_MIN    = 0.001;
+import { el, svgEl } from './shared/dom.js';
+import { GRAPH_PHYSICS, PAL, REGIMES } from './mind/config.js';
+import { classRatio, clamp01, finiteNumber, hashStr, pct, shortId } from './mind/util.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level state (single active view by public API contract)
@@ -206,53 +176,6 @@ const _compass = {
 // SVG & DOM helpers
 // ─────────────────────────────────────────────────────="
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** Create an SVG element with a namespace and optional attributes. */
-function svgEl(tag, attrs = {}) {
-  const node = document.createElementNS(NS, tag);
-  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
-  return node;
-}
-
-/** Create an HTML element with optional className and inline styles. */
-function el(tag, cls = '', styles = {}) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  Object.assign(e.style, styles);
-  return e;
-}
-
-/** Format a ratio (0–1) as a percentage string. */
-function pct(value) {
-  return `${Math.round(Math.max(0, Math.min(1, value ?? 0)) * 100)}%`;
-}
-
-function finiteNumber(value, fallback = 0) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : fallback;
-}
-
-function clamp01(value) {
-  return Math.max(0, Math.min(1, finiteNumber(value, 0)));
-}
-
-function classRatio(value, maximum) {
-  const number = finiteNumber(value, 0);
-  return maximum > 0 ? clamp01(number / maximum) : 0;
-}
-
-function shortId(value, head = 10, tail = 6) {
-  const text = String(value ?? '');
-  if (text.length <= head + tail + 1) return text;
-  return `${text.slice(0, head)}…${text.slice(-tail)}`;
-}
-
-/** Hash a string to an integer (for deterministic seeding). */
-function hashStr(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout HTML
@@ -2513,7 +2436,7 @@ function stepGraphPhysics(width, height) {
 
       // Unrelated nodes repel more strongly, making visual sectors emerge.
       const repulsionScale = directlyRelated ? 0.25 : sameCommunity ? 0.62 : 1.28;
-      const force = ((REPULSION * repulsionScale) / distSq) * alpha;
+      const force = ((GRAPH_PHYSICS.repulsion * repulsionScale) / distSq) * alpha;
       const fx = (dx / dist) * force, fy = (dy / dist) * force;
       if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
       if (!b.pinned) { b.vx += fx; b.vy += fy; }
@@ -2545,7 +2468,7 @@ function stepGraphPhysics(width, height) {
       edge.kind === 'predictive' ? 76 :
       edge.kind === 'gating' ? 72 : 88;
     const disp = dist - desired;
-    const force = disp * SPRING_K * relationStrength * alpha;
+    const force = disp * GRAPH_PHYSICS.springK * relationStrength * alpha;
     const fx = (dx / dist) * force, fy = (dy / dist) * force;
     if (!edge.source.pinned) { edge.source.vx += fx; edge.source.vy += fy; }
     if (!edge.target.pinned) { edge.target.vx -= fx; edge.target.vy -= fy; }
@@ -2585,8 +2508,8 @@ function stepGraphPhysics(width, height) {
     }
 
     // Very weak global gravity keeps the overall "brain" compact.
-    node.vx += (cx - node.x) * (CENTER_G * 0.28) * alpha;
-    node.vy += (cy - node.y) * (CENTER_G * 0.28) * alpha;
+    node.vx += (cx - node.x) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
+    node.vy += (cy - node.y) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
 
     const radial = Math.hypot(node.x - cx, node.y - cy);
     const maxRadius = Math.min(width, height) * 0.43;
@@ -2596,13 +2519,13 @@ function stepGraphPhysics(width, height) {
       node.vy += ((cy - node.y) / radial) * excess * 0.018 * alpha;
     }
 
-    node.vx *= DAMPING;
-    node.vy *= DAMPING;
+    node.vx *= GRAPH_PHYSICS.damping;
+    node.vy *= GRAPH_PHYSICS.damping;
     node.x += node.vx;
     node.y += node.vy;
   }
 
-  _graph.alpha = Math.max(ALPHA_MIN, _graph.alpha * ALPHA_DECAY);
+  _graph.alpha = Math.max(GRAPH_PHYSICS.alphaMin, _graph.alpha * GRAPH_PHYSICS.alphaDecay);
 }
 
 function cognitionEdgeColor(edge, focused = false) {
@@ -3085,7 +3008,7 @@ function cognitionAnimLoop() {
   stepGraphPhysics(canvas.width, canvas.height);
   drawGraphFrame(canvas);
 
-  const keepRunning = _graph.alpha > ALPHA_MIN || _graph.isRunning;
+  const keepRunning = _graph.alpha > GRAPH_PHYSICS.alphaMin || _graph.isRunning;
   if (keepRunning) {
     _rafId = requestAnimationFrame(cognitionAnimLoop);
   } else {
