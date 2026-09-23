@@ -1241,30 +1241,55 @@ class SensorimotorLearner:
                     learner._primitive_stats[sequence] = _RunningStat.restore(
                         raw_stat
                     )
-                first_sample_tick = item.get("first_sample_tick")
-                last_sample_tick = item.get("last_sample_tick")
-                materialized_tick = item.get("materialized_tick")
-                competence_tick = item.get("competence_tick")
-                if first_sample_tick is not None:
-                    learner._primitive_first_sample_tick[sequence] = _require_int(
-                        first_sample_tick,
-                        field="primitive first_sample_tick",
-                    )
-                if last_sample_tick is not None:
-                    learner._primitive_last_sample_tick[sequence] = _require_int(
-                        last_sample_tick,
-                        field="primitive last_sample_tick",
-                    )
-                if materialized_tick is not None:
-                    learner._primitive_materialized_tick[sequence] = _require_int(
-                        materialized_tick,
+                if "first_sample_tick" not in item or "last_sample_tick" not in item:
+                    raise ValueError("missing primitive lifecycle chronology")
+                first_sample_tick = _require_int(
+                    item.get("first_sample_tick"),
+                    field="primitive first_sample_tick",
+                )
+                last_sample_tick = _require_int(
+                    item.get("last_sample_tick"),
+                    field="primitive last_sample_tick",
+                )
+                if last_sample_tick < first_sample_tick:
+                    raise ValueError("invalid primitive lifecycle chronology")
+                learner._primitive_first_sample_tick[sequence] = first_sample_tick
+                learner._primitive_last_sample_tick[sequence] = last_sample_tick
+
+                materialized_tick_raw = item.get("materialized_tick")
+                competence_tick_raw = item.get("competence_tick")
+                materialized_tick = (
+                    _require_int(
+                        materialized_tick_raw,
                         field="primitive materialized_tick",
                     )
-                if competence_tick is not None:
-                    learner._primitive_competence_tick[sequence] = _require_int(
-                        competence_tick,
+                    if materialized_tick_raw is not None
+                    else None
+                )
+                competence_tick = (
+                    _require_int(
+                        competence_tick_raw,
                         field="primitive competence_tick",
                     )
+                    if competence_tick_raw is not None
+                    else None
+                )
+                if materialized_tick is not None:
+                    if materialized_tick < first_sample_tick:
+                        raise ValueError("invalid primitive materialization chronology")
+                    learner._primitive_materialized_tick[sequence] = materialized_tick
+                if competence_tick is not None:
+                    if materialized_tick is None or competence_tick < materialized_tick:
+                        raise ValueError("invalid primitive competence chronology")
+                    learner._primitive_competence_tick[sequence] = competence_tick
+
+                restored_stat = learner._primitive_stats.get(sequence)
+                if (
+                    restored_stat is not None
+                    and restored_stat.count < 2
+                    and (materialized_tick is not None or competence_tick is not None)
+                ):
+                    raise ValueError("single-sample primitive cannot be materialized")
                 raw_signals = item.get("signals", {})
                 if isinstance(raw_signals, Mapping):
                     learner._primitive_direction_stats[sequence] = {
