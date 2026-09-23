@@ -22,6 +22,7 @@
 
 import { enrichGraphModel } from './mind/graph-model.js';
 import { filterGraphForView, graphSubgraphIds } from './mind/graph-selection.js';
+import { computeObserverMapCoordinates, evaluateObserverRegime } from './mind/observer-map-model.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -2147,68 +2148,6 @@ function installGraphListeners(canvas) {
 // Regime Compass (adapted from observatory/render/regime-compass.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computeRegimeCoords() {
-  const senses = _snap.senses ?? [];
-  const cognition = _snap.cognition ?? {};
-
-  const activeRatio = senses.length
-    ? senses.filter(s => s.active).length / senses.length
-    : 0;
-
-  const activationValues = Object.values(cognition.activationClasses ?? {})
-    .map(value => classRatio(value, 15));
-  const meanActivation = activationValues.length
-    ? activationValues.reduce((sum, value) => sum + value, 0) / activationValues.length
-    : 0;
-
-  const readoutValues = Object.values(cognition.readouts ?? {})
-    .map(value => Math.min(1, Math.abs(finiteNumber(value, 0))));
-  const meanReadout = readoutValues.length
-    ? readoutValues.reduce((sum, value) => sum + value, 0) / readoutValues.length
-    : 0;
-
-  // Observer-defined activity projection; no semantic claim is fed back to Symbiont.
-  const activityNorm = clamp01(
-    activeRatio * 0.45 +
-    meanActivation * 0.35 +
-    meanReadout * 0.20
-  );
-
-  const errMap = { zero: 0, trace: 0.08, low: 0.25, medium: 0.55, high: 0.8, extreme: 1 };
-  const errorValues = Object.values(cognition.predictionErrors ?? {})
-    .map(value => errMap[value] ?? 0);
-  const meanError = errorValues.length
-    ? errorValues.reduce((sum, value) => sum + value, 0) / errorValues.length
-    : 0;
-
-  const failurePenalty = clamp01(
-    finiteNumber(cognition.safetyState?.consecutiveFailures, 0) / 4
-  );
-  const predictiveTension = clamp01(meanError * 0.8 + failurePenalty * 0.2);
-
-  return {
-    x: (activityNorm - 0.5) * 520,
-    y: (0.5 - predictiveTension) * 440,
-    activityNorm,
-    predictiveTension,
-  };
-}
-
-function evaluateRegime(pos) {
-  let minD = Infinity;
-  let nearest = REGIMES[0];
-  for (const zone of REGIMES) {
-    const d = Math.hypot(pos.x - zone.x, pos.y - zone.y);
-    if (d < minD) {
-      minD = d;
-      nearest = zone;
-    }
-  }
-  const distancePct = Math.max(0, Math.min(100, Math.round((minD / 300) * 100)));
-  const insideReference = minD <= nearest.radius * 1.35;
-  return { nearest, minD, distancePct, insideReference };
-}
-
 function updateRegimeHud(analysis) {
   const { nearest, distancePct, insideReference } = analysis;
   const titleEl = document.getElementById('mind-compass-title');
@@ -2300,7 +2239,11 @@ function drawRegimeFrame(canvas) {
   }
 
   // Trail
-  const coord = computeRegimeCoords();
+  const coord = computeObserverMapCoordinates({
+    senses: _snap.senses,
+    cognition: _snap.cognition,
+    observerAnalysis: _snap.observerAnalysis,
+  });
   const tick = finiteNumber(_tel.tick, 0);
   if (_compass.lastCoord) {
     const dt = Math.max(1, tick - finiteNumber(_compass.lastCoord.tick, tick - 1));
@@ -2317,7 +2260,7 @@ function drawRegimeFrame(canvas) {
   }
   _compass.lastCoord = { ...coord, tick };
 
-  const analysis = evaluateRegime(coord);
+  const analysis = evaluateObserverRegime(coord, REGIMES);
   updateRegimeHud(analysis);
 
   if (_compass.showTrail && _compass.trail.length > 1) {
