@@ -936,9 +936,16 @@ function renderPhenotype() {
       fill: sense.active ? PAL.cyan : PAL.muted, opacity: sense.active ? '0.85' : '0.35' });
     group.appendChild(dot);
 
-    // Label
+    // Dual semantic label: apparatus truth is observer-only; the opaque
+    // organism label remains available in the tooltip.
+    const semantic = sensorySemantic(_snap.observerSemantics, sense.id);
     const label = svgEl('text', { x: x + 12, y: y + 3, 'font-size': '10', fill: sense.active ? PAL.text : PAL.muted });
-    label.textContent = (sense.name ?? sense.id).slice(0, 22);
+    label.textContent = (semantic?.observerSummary ?? sense.name ?? sense.id).slice(0, 28);
+    const labelTitle = svgEl('title');
+    labelTitle.textContent = semantic?.observerSummary
+      ? `Observer: ${semantic.observerSummary}\nSelf: ${semantic.selfLabel ?? sense.id}`
+      : `Self: ${sense.name ?? sense.id}\nObserver: unresolved`;
+    label.appendChild(labelTitle);
     group.appendChild(label);
 
     // Connection to boundary
