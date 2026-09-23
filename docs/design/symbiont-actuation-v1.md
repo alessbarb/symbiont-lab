@@ -758,10 +758,12 @@ whether a channel could be explored.
 Babbling is bounded, deterministic for one organism identity, multi-channel and
 temporally correlated. It supplies no gait, sequence, anatomy or utility.
 
-Up to four channels can participate concurrently. Channel sets persist over a
-short epoch while amplitude evolves smoothly. Coverage bias favors
-under-exercised constitutional channels, preventing one easy actuator from
-monopolizing development.
+Every constitutional actuator remains available, but coordination cardinality is
+sampled with a logarithmic low-dimensional prior rather than uniformly over
+`1..N`. Small combinations are therefore common, while broad and whole-body
+coordination remains possible. Channel sets persist over a short epoch while
+amplitude evolves smoothly. Coverage bias favors under-exercised constitutional
+channels, preventing one easy actuator from monopolizing development.
 
 ### Sensorimotor dynamics
 
