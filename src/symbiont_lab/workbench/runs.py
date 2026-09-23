@@ -200,7 +200,7 @@ def run_experiment(state: ExperimentRunState, spec: ExperimentSpec) -> None:
         record = None
         if state.archive is not None:
             try:
-                record = state.archive.append(spec, result, source="server")
+                record = state.archive.append(spec, result, source="workbench")
             except OSError as exc:
                 state.archive_failed(exc)
         state.finish(record)
@@ -225,7 +225,7 @@ def _parse_seeds(raw: object) -> tuple[int, ...]:
     if not seeds:
         raise ValueError("study requires at least one seed")
     if len(seeds) > 50:
-        raise ValueError("server studies are limited to 50 seeds")
+        raise ValueError("workbench studies are limited to 50 seeds")
     return seeds
 
 
@@ -258,7 +258,7 @@ def run_study_job(
                     base_spec,
                     result,
                     interpretation,
-                    source="server",
+                    source="workbench",
                     parent_record_id=parent_record_id,
                 )
             except OSError as exc:
