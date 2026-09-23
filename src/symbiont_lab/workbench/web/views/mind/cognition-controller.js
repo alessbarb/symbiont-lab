@@ -601,6 +601,48 @@ export function createCognitionController({
   function atlasRegionScore(region) {
     return clamp01(finiteNumber(region?.[graph.atlasMode], 0));
   }
+
+  function drawAtlasRegions3D(ctx, scene, sectorFocus) {
+    if (sectorFocus) return;
+    for (const region of graph.atlasRegions ?? []) {
+      const projected = region.nodeIds
+        .map(id => scene.byId.get(id))
+        .filter(Boolean);
+      if (projected.length < 2) continue;
+      const x = projected.reduce((sum, item) => sum + item.x, 0) / projected.length;
+      const y = projected.reduce((sum, item) => sum + item.y, 0) / projected.length;
+      let radius = 24;
+      for (const item of projected) {
+        radius = Math.max(radius, Math.hypot(item.x - x, item.y - y) + item.radius + 10);
+      }
+      radius = Math.min(190, radius);
+      const score = atlasRegionScore(region);
+      const active = graph.focusedSectorId === region.id;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(80,217,255,${0.025 + score * 0.075})`;
+      ctx.strokeStyle = active
+        ? 'rgba(200,216,228,.78)'
+        : `rgba(80,217,255,${0.14 + score * 0.38})`;
+      ctx.lineWidth = active ? 1.8 : 0.8 + score * 1.2;
+      ctx.setLineDash(active ? [] : [5, 7]);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.textAlign = 'left';
+      ctx.font = '600 10px -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(200,216,228,.82)';
+      ctx.fillText(`${region.label} · ${region.interpretation}`, x - radius * 0.68, y - radius - 9);
+      ctx.font = '8px -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(140,166,188,.72)';
+      ctx.fillText(
+        `${region.total} nodes · ${atlasModeMeta().label.toLowerCase()} ${Math.round(score * 100)}% · ${region.bridges} bridges`,
+        x - radius * 0.68,
+        y - radius + 3,
+      );
+    }
+  }
   
   function drawGraphFrame3D(canvas) {
     updateCognitionSummary();
@@ -630,10 +672,13 @@ export function createCognitionController({
     const connectedIds = focusId
       ? graphSubgraphIds(activeTopology, focusId, graph.pathDepth)
       : null;
+    const atlasPath = atlasPathSets();
 
-    // Objective connected-component labels only. No brain hull, no sector
-    // volumes, no functional-axis placement.
-    if (!sectorFocus) {
+    drawAtlasRegions3D(ctx, scene, sectorFocus);
+
+    // Objective connected-component labels remain secondary context in
+    // Structure mode. Atlas regions are the primary observer-level anatomy.
+    if (!sectorFocus && graph.atlasMode === 'structure') {
       for (const component of scene.components ?? []) {
         if (component.count < 2) continue;
         ctx.font = '8px -apple-system, sans-serif';
@@ -674,7 +719,7 @@ export function createCognitionController({
         a,
         b,
         depth: (a.depth + b.depth) / 2,
-        focused: isConn,
+        focused: isConn || atlasPath.edgeKeys.has(atlasEdgeKey(edge)),
       });
     }
     visibleEdges.sort((a,b) => b.depth - a.depth);
@@ -688,9 +733,14 @@ export function createCognitionController({
       const recency = Math.exp(-idle / 512);
       const evidenceWidth = 0.65 + Math.min(2.4, Math.log1p(support) * 0.34 + Math.log1p(stable) * 0.08);
 
+      const modeScore = atlasEdgeScore(edge, graph.atlasMode, liveTick);
       ctx.strokeStyle = cognitionEdgeColor(edge, focused);
-      ctx.globalAlpha = focused ? 0.96 : Math.max(0.12, 0.22 + recency * 0.58);
-      ctx.lineWidth = focused ? Math.max(2.4, evidenceWidth) : evidenceWidth;
+      ctx.globalAlpha = focused
+        ? 0.98
+        : Math.max(0.06, 0.08 + modeScore * 0.72 + recency * 0.20);
+      ctx.lineWidth = focused
+        ? Math.max(2.6, evidenceWidth)
+        : Math.max(0.55, evidenceWidth * (0.45 + modeScore * 0.85));
       ctx.setLineDash(edge.kind === 'causal_effect' ? [5,4] : []);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -744,13 +794,17 @@ export function createCognitionController({
       } else {
         ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
       }
+      const pathNode = atlasPath.nodeIds.has(node.id);
+      const modeScore = clamp01(finiteNumber(node.atlasScore, 0));
       ctx.fillStyle = isHovered ? '#ffffff' : node.color;
       const depthFog = Math.max(0.34, Math.min(1, 1 - projected.depth / 1800));
       ctx.globalAlpha = dimmed
-        ? 0.07
-        : Math.min(1, (0.30 + nodeRecency * 0.42 + activityGlow * 0.22) * depthFog);
+        ? 0.05
+        : pathNode
+          ? 0.98
+          : Math.min(1, (0.16 + modeScore * 0.62 + nodeRecency * 0.12 + activityGlow * 0.10) * depthFog);
       ctx.shadowColor = node.color;
-      ctx.shadowBlur = isSelected ? 18 : activityGlow * 13;
+      ctx.shadowBlur = isSelected ? 18 : pathNode ? 11 : activityGlow * 9;
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
@@ -794,7 +848,7 @@ export function createCognitionController({
         ctx.stroke();
       }
 
-      if (isHovered || isSelected || isConn) {
+      if (isHovered || isSelected || isConn || atlasPath.nodeIds.has(node.id)) {
         const label = node.observerLabel ?? compactSelfLabel(node.label ?? node.id, 12, 6);
         ctx.font = isSelected ? '600 10px -apple-system, sans-serif' : '9px -apple-system, sans-serif';
         ctx.fillStyle = isSelected ? '#fff' : 'rgba(200,216,228,.82)';
