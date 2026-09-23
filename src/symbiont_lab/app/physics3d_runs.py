@@ -266,8 +266,9 @@ class Physics3DRunStore:
                     int(previous_receptors) != descriptor.receptor_count
                     or int(previous_effectors) != descriptor.effector_count
                 ):
-                    # Contract changes are allowed, but they must be explicit in the manifest.
-                    pass
+                    raise ValueError(
+                        "selected body has an incompatible opaque sensorimotor contract"
+                    )
             if body_mode == "resume" and previous_kind != body_kind:
                 raise ValueError("resume requires the same body kind")
 
@@ -303,7 +304,7 @@ class Physics3DRunStore:
                 meta.get("receptor_count") in (None, descriptor.receptor_count)
                 and meta.get("effector_count") in (None, descriptor.effector_count)
             )
-            compatibility = "same-contract" if same_contract else "novel-contract"
+            compatibility = "same-contract" if same_contract else "incompatible"
 
         launch = Physics3DLaunchSpec(
             run_id=run_id,
