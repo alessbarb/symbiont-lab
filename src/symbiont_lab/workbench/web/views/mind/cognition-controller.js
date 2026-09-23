@@ -685,7 +685,17 @@ export function createCognitionController({
 
       const radius = projected.radius * (isHovered || isSelected ? 1.28 : 1);
       ctx.beginPath();
-      ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
+      if (node.kind === 'motor_primitive') {
+        ctx.moveTo(projected.x, projected.y - radius);
+        ctx.lineTo(projected.x + radius, projected.y);
+        ctx.lineTo(projected.x, projected.y + radius);
+        ctx.lineTo(projected.x - radius, projected.y);
+        ctx.closePath();
+      } else if (node.kind === 'actuator') {
+        ctx.rect(projected.x - radius * 0.8, projected.y - radius * 0.8, radius * 1.6, radius * 1.6);
+      } else {
+        ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
+      }
       ctx.fillStyle = isHovered ? '#ffffff' : node.color;
       const depthFog = Math.max(0.34, Math.min(1, 1 - projected.depth / 1800));
       ctx.globalAlpha = dimmed
@@ -696,6 +706,16 @@ export function createCognitionController({
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+
+      if (node.kind === 'readout') {
+        ctx.strokeStyle = PAL.mint;
+        ctx.globalAlpha = dimmed ? 0.08 : 0.72;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(projected.x, projected.y, radius + 2.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
 
       if (node.errorCls) {
         const errorLevel = classRatio(node.errorCls, 15);
@@ -740,8 +760,8 @@ export function createCognitionController({
       if (graph.dimension === '3d') {
         const physicalized = graph.threeDMode === 'physicalized';
         note.textContent = physicalized
-          ? `PHYSICALIZED 3D · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · no anatomical coordinates`
-          : `RELATIONAL 3D · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · no anatomical coordinates`;
+          ? `PHYSICALIZED 3D · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · □ actuator · ○ readout · no anatomical coordinates`
+          : `RELATIONAL 3D · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · ◇ primitive · □ actuator · ○ readout · no anatomical coordinates`;
       } else {
         note.textContent = '2D observer cartography';
       }
