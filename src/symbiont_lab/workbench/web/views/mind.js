@@ -1468,6 +1468,9 @@ function renderSensoryMap() {
   }
 
   const connectedSensors = sensorNodes.filter(n => (outgoing.get(n.id) ?? []).length > 0);
+  const sensory = sensoryFacts();
+  const sampledSensors = sensory.filter(sensor => sensor.sampled);
+  const usefulSensors = sensory.filter(sensor => sensor.utility > 0);
   const concepts = internalNodes.filter(n => n.kind === 'concept');
   const predictors = internalNodes.filter(n => n.kind === 'predictor');
   const readouts = internalNodes.filter(n => n.kind === 'readout');
@@ -1476,7 +1479,7 @@ function renderSensoryMap() {
   title.textContent = 'Body-derived sensory topology';
   mapSvg.appendChild(title);
   const summary = svgEl('text', { x: 28, y: 47, fill: PAL.muted, 'font-size': '10' });
-  summary.textContent = `${sensorNodes.length} senses · ${connectedSensors.length} connected · ${concepts.length} concepts · ${predictors.length} predictors · ${readouts.length} readouts · ${topoEdges.length} edges`;
+  summary.textContent = `${sensory.length || sensorNodes.length} available · ${sampledSensors.length} sampled now · ${usefulSensors.length} utility > 0 · ${connectedSensors.length} cognition-integrated · ${concepts.length} concepts`;
   mapSvg.appendChild(summary);
 
   const sensorArea = { x: 45, y: 80, w: 300, h: 470 };
@@ -1592,7 +1595,15 @@ function renderSensoryMap() {
   mapSvg.appendChild(sensorLabel);
 
   if (detail) {
-    detail.textContent = 'Observer view of the actual CognitiveGraph. Hover a node for its opaque ID and degree; lines are learned graph edges, not inferred UI links.';
+    const discovery = _snap.details?.sensoryDiscoveryCounts ?? {};
+    const discoveryText = Object.entries(discovery)
+      .sort((a,b) => b[1]-a[1])
+      .map(([state,count]) => `${state} ${count}`)
+      .join(' · ');
+    detail.textContent =
+      `Sensory funnel: available ${sensory.length || sensorNodes.length} → sampled ${sampledSensors.length} → useful-now ${usefulSensors.length} → cognition-integrated ${connectedSensors.length}. ` +
+      (discoveryText ? `Discovery hypotheses: ${discoveryText}. ` : '') +
+      'These sets overlap; the arrows are a reading aid, not a claim that every stage is a strict subset.';
   }
 }
 
