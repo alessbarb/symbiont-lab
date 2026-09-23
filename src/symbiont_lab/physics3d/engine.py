@@ -482,6 +482,9 @@ def run(
                 )
 
             if render_due and viewer is not None:
+                episodic_state = rich_state.get("episodic_memory", {})
+                if not isinstance(episodic_state, dict):
+                    episodic_state = {}
                 viewer.publish(
                     MonitorSnapshot(
                         tick=record.tick,
@@ -563,6 +566,35 @@ def run(
                         sensorimotor_h16_samples=record.sensorimotor_h16_samples,
                         sensorimotor_h64_samples=record.sensorimotor_h64_samples,
                         passive_baseline_samples=record.passive_baseline_samples,
+                        episodic_episodes=int(episodic_state.get("episode_count", 0)),
+                        episodic_pending_records=int(episodic_state.get("pending_records", 0)),
+                        episodic_compressed_episodes=int(
+                            episodic_state.get("compressed_episode_count", 0)
+                        ),
+                        episodic_interpretations=int(
+                            episodic_state.get("interpretation_count", 0)
+                        ),
+                        episodic_contingencies=int(
+                            episodic_state.get("consolidated_contingencies", 0)
+                        ),
+                        episodic_retrievals=int(
+                            episodic_state.get("retrieval_count", 0)
+                        ),
+                        episodic_replays=int(
+                            episodic_state.get("replay_count", 0)
+                        ),
+                        episodic_compactions=int(
+                            episodic_state.get("compaction_count", 0)
+                        ),
+                        episodic_evictions=int(
+                            episodic_state.get("eviction_count", 0)
+                        ),
+                        episodic_oldest_age=int(
+                            episodic_state.get("oldest_episode_age", 0)
+                        ),
+                        episodic_mean_age=float(
+                            episodic_state.get("mean_episode_age", 0.0)
+                        ),
                         motor_origin_detail=record.motor_origin_detail,
                         motor_origin_primitive_prospective=record.motor_origin_primitive_prospective,
                         prospective_reason=record.prospective_reason,
