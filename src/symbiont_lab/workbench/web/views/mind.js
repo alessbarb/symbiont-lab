@@ -27,6 +27,7 @@ import { compactSelfLabel, observerContextForNode, sensorySemantic } from './min
 import { augmentLearnedGraph } from './mind/learning-graph.js';
 import { cartographicGraph } from './mind/cartographic-view.js';
 import { buildLayoutAffinities, deriveFunctionalSectors, describeFunctionalSector, sectorBridges } from './mind/functional-sectors.js';
+import { buildCognition3DScene, orbitCamera, zoomCamera } from './mind/cognition-3d.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -183,6 +184,9 @@ const _graph = {
   layoutAffinities: [],
   bridgeEdges:    new Set(),
   hiddenMotor:    { actuators: 0, motorEdges: 0 },
+  dimension:      '2d',
+  camera3d:       { yaw: -0.55, pitch: 0.34, distance: 900 },
+  projected3d:    new Map(),
   nextSectorId:   1,
 };
 
@@ -509,12 +513,29 @@ function buildLayout(root) {
     position:absolute;top:12px;right:12px;z-index:2;
     display:flex;gap:4px;
   `;
+  const dimensionGroup = el('div', '');
+  dimensionGroup.style.cssText = 'display:flex;gap:4px;margin-right:8px;padding-right:8px;border-right:1px solid rgba(98,120,136,.22);';
+  for (const [dimension, label] of [['2d','2D'], ['3d','3D']]) {
+    const button = makeControlBtn(label, `Cognition projection: ${label}`, dimension === _graph.dimension);
+    button.dataset.graphDimension = dimension;
+    button.addEventListener('click', () => {
+      _graph.dimension = dimension;
+      dimensionGroup.querySelectorAll('button').forEach(item => {
+        item.classList.toggle('active', item.dataset.graphDimension === dimension);
+      });
+      _graph.alpha = Math.max(_graph.alpha, 0.12);
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+    });
+    dimensionGroup.appendChild(button);
+  }
+  cognitionModeControls.appendChild(dimensionGroup);
+
   for (const [mode, label] of [['full','Full'], ['connected','Connected'], ['core','Core']]) {
     const button = makeControlBtn(label, `Cognition view: ${label}`, mode === _graph.viewMode);
     button.dataset.graphMode = mode;
     button.addEventListener('click', () => {
       _graph.viewMode = mode;
-      cognitionModeControls.querySelectorAll('button').forEach(item => {
+      cognitionModeControls.querySelectorAll('[data-graph-mode]').forEach(item => {
         item.classList.toggle('active', item.dataset.graphMode === mode);
       });
       const canvas = document.getElementById('mind-cognition-canvas');
@@ -2578,7 +2599,190 @@ function stepGraphPhysics(width, height) {
   _graph.alpha = Math.max(ALPHA_MIN, _graph.alpha * ALPHA_DECAY);
 }
 
+function cognitionEdgeColor(edge, focused = false) {
+  const alpha = focused ? 0.96 : 0.48;
+  if (edge.kind === 'inhibitory') return `rgba(255,127,131,${alpha})`;
+  if (edge.kind === 'predictive') return `rgba(255,189,84,${alpha})`;
+  if (edge.kind === 'gating') return `rgba(224,159,62,${alpha})`;
+  if (edge.kind === 'invokes') return `rgba(255,143,216,${alpha})`;
+  if (edge.kind === 'motor_component') return `rgba(143,227,255,${alpha})`;
+  if (edge.kind === 'causal_effect') return `rgba(113,233,186,${alpha})`;
+  return `rgba(80,217,255,${alpha})`;
+}
+
+function drawGraphFrame3D(canvas) {
+  updateCognitionSummary();
+  const ctx = canvas.getContext('2d');
+  const { width, height } = canvas;
+  const { nodes, edges, hoveredNode, fmriEnabled } = _graph;
+  ctx.clearRect(0, 0, width, height);
+  if (!nodes.length) return;
+
+  const scene = buildCognition3DScene(
+    nodes,
+    _graph.camera3d,
+    width,
+    height,
+  );
+  _graph.projected3d = scene.byId;
+
+  const now = performance.now();
+  const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
+  const activeTopology = currentRenderedTopology();
+  const connectedIds = focusId
+    ? graphSubgraphIds(activeTopology, focusId, _graph.pathDepth)
+    : null;
+
+  // Functional regions become translucent volumes. The volume is an
+  // observer-side projection of the same emergent sectors used in 2D.
+  const sectorItems = [...scene.sectors.values()]
+    .sort((a,b) => b.depth - a.depth);
+  for (const sector of sectorItems) {
+    if (sector.points.length < 2) continue;
+    const sectorLabel = _graph.sectorLabels.get(sector.id) ?? 'S-???';
+    const description = _graph.sectorDescriptions.get(sector.id);
+    const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
+    const color = palette[hashStr(String(sector.id)) % palette.length];
+    const depthScale = Math.max(0.42, Math.min(1.35, 1 - sector.depth / 1600));
+    const rx = Math.max(30, sector.radius * depthScale);
+    const ry = Math.max(22, rx * 0.70);
+
+    const grad = ctx.createRadialGradient(
+      sector.x - rx * 0.18,
+      sector.y - ry * 0.15,
+      4,
+      sector.x,
+      sector.y,
+      rx,
+    );
+    grad.addColorStop(0, `${color}18`);
+    grad.addColorStop(0.72, `${color}0b`);
+    grad.addColorStop(1, `${color}02`);
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = `${color}38`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 7]);
+    ctx.beginPath();
+    ctx.ellipse(sector.x, sector.y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font = '600 10px -apple-system, sans-serif';
+    ctx.fillStyle = `${color}d0`;
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      `${sectorLabel} · ${description?.interpretation ?? 'emergent sector'}`,
+      sector.x,
+      sector.y - ry - 10,
+    );
+  }
+
+  // Sparse long-range tract system. Internal connectivity remains implicit
+  // until a node is focused, exactly like the 2D cartography.
+  const visibleEdges = [];
+  for (const edge of edges) {
+    const a = scene.byId.get(edge.source.id);
+    const b = scene.byId.get(edge.target.id);
+    if (!a || !b) continue;
+    const isConn = Boolean(
+      focusId &&
+      connectedIds?.has(edge.source.id) &&
+      connectedIds?.has(edge.target.id)
+    );
+    const sameSector = (
+      edge.source.community &&
+      edge.source.community !== 'isolated' &&
+      edge.source.community === edge.target.community
+    );
+    const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
+    if (!focusId) {
+      if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) continue;
+    } else if (!isConn) {
+      continue;
+    }
+    visibleEdges.push({
+      edge,
+      a,
+      b,
+      depth: (a.depth + b.depth) / 2,
+      focused: isConn,
+    });
+  }
+  visibleEdges.sort((a,b) => b.depth - a.depth);
+
+  for (const item of visibleEdges) {
+    const { edge, a, b, focused } = item;
+    ctx.strokeStyle = cognitionEdgeColor(edge, focused);
+    ctx.globalAlpha = focused ? 0.95 : 0.58;
+    ctx.lineWidth = focused ? 2.3 : 1.0;
+    ctx.setLineDash(edge.kind === 'causal_effect' ? [6,4] : []);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  // Painter's algorithm: far nodes first, near nodes last.
+  for (const projected of scene.projected) {
+    const node = projected.node;
+    const isHovered = hoveredNode?.id === node.id;
+    const isSelected = _graph.selectedNodeId === node.id;
+    const isConn = connectedIds?.has(node.id);
+    const dimmed = Boolean(focusId && !isConn);
+    const breath = (fmriEnabled && node.activationLevel > 0)
+      ? Math.sin(now * 0.003 + hashStr(node.id)) * node.activationLevel * 1.6
+      : 0;
+    const radius = projected.radius * (isHovered || isSelected ? 1.28 : 1) + breath;
+
+    ctx.beginPath();
+    ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = isHovered ? '#fff' : node.color;
+    ctx.globalAlpha = dimmed ? 0.10 : Math.max(0.30, Math.min(1, projected.scale * 0.82));
+    ctx.shadowColor = node.color;
+    ctx.shadowBlur = isSelected ? 20 : isConn ? 13 : node.activationLevel > 0 ? 4 + node.activationLevel * 9 : 2;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+
+    if (isSelected) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(projected.x, projected.y, radius + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (node.replayActive || node.prospectiveSelected) {
+      ctx.strokeStyle = node.replayActive ? PAL.mint : PAL.amber;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(projected.x, projected.y, radius + 7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (isHovered || isSelected || isConn) {
+      const label = node.observerLabel ?? compactSelfLabel(node.label ?? node.id, 12, 6);
+      ctx.font = isSelected ? '600 10px -apple-system, sans-serif' : '9px -apple-system, sans-serif';
+      ctx.fillStyle = isSelected ? '#fff' : 'rgba(200,216,228,.82)';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, projected.x, projected.y + radius + 12);
+    }
+  }
+
+  ctx.font = '9px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(98,120,136,.72)';
+  ctx.textAlign = 'left';
+  ctx.fillText('3D · drag empty space to orbit · wheel to zoom', 16, height - 16);
+}
+
 function drawGraphFrame(canvas) {
+  if (_graph.dimension === '3d') {
+    drawGraphFrame3D(canvas);
+    return;
+  }
   updateCognitionSummary();
   const ctx = canvas.getContext('2d');
   const { width, height } = canvas;
@@ -2868,27 +3072,38 @@ function startCognitionGraph() {
   if (zoomIn && !zoomIn.dataset.bound) {
     zoomIn.dataset.bound = 'true';
     zoomIn.addEventListener('click', () => {
-      const cx = canvas.width / 2, cy = canvas.height / 2;
-      const ns = Math.min(5, _graph.scale * 1.25);
-      _graph.panX = cx - (cx - _graph.panX) * (ns / _graph.scale);
-      _graph.panY = cy - (cy - _graph.panY) * (ns / _graph.scale);
-      _graph.scale = ns;
+      if (_graph.dimension === '3d') {
+        _graph.camera3d = zoomCamera(_graph.camera3d, -1);
+      } else {
+        const cx = canvas.width / 2, cy = canvas.height / 2;
+        const ns = Math.min(5, _graph.scale * 1.25);
+        _graph.panX = cx - (cx - _graph.panX) * (ns / _graph.scale);
+        _graph.panY = cy - (cy - _graph.panY) * (ns / _graph.scale);
+        _graph.scale = ns;
+      }
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
     });
   }
   if (zoomOut && !zoomOut.dataset.bound) {
     zoomOut.dataset.bound = 'true';
     zoomOut.addEventListener('click', () => {
-      const cx = canvas.width / 2, cy = canvas.height / 2;
-      const ns = Math.max(0.2, _graph.scale * 0.8);
-      _graph.panX = cx - (cx - _graph.panX) * (ns / _graph.scale);
-      _graph.panY = cy - (cy - _graph.panY) * (ns / _graph.scale);
-      _graph.scale = ns;
+      if (_graph.dimension === '3d') {
+        _graph.camera3d = zoomCamera(_graph.camera3d, 1);
+      } else {
+        const cx = canvas.width / 2, cy = canvas.height / 2;
+        const ns = Math.max(0.2, _graph.scale * 0.8);
+        _graph.panX = cx - (cx - _graph.panX) * (ns / _graph.scale);
+        _graph.panY = cy - (cy - _graph.panY) * (ns / _graph.scale);
+        _graph.scale = ns;
+      }
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
     });
   }
   if (resetBtn && !resetBtn.dataset.bound) {
     resetBtn.dataset.bound = 'true';
     resetBtn.addEventListener('click', () => {
       _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
+      _graph.camera3d = { yaw: -0.55, pitch: 0.34, distance: 900 };
       _graph.cachedPositions.clear();
       _graph.alpha = 1.0;
     });
@@ -2899,6 +3114,7 @@ function installGraphListeners(canvas) {
   let isPanning = false, isDragging = false, draggedNode = null;
   let pressedNode = null;
   let panStartX = 0, panStartY = 0, dragDist = 0;
+  let orbitLastX = 0, orbitLastY = 0;
 
   function canvasCoords(event) {
     const rect = canvas.getBoundingClientRect();
@@ -2907,6 +3123,15 @@ function installGraphListeners(canvas) {
     return { x: (event.clientX - rect.left) * sx, y: (event.clientY - rect.top) * sy };
   }
   function findNode(mx, my) {
+    if (_graph.dimension === '3d') {
+      const projected = [...(_graph.projected3d?.values?.() ?? [])];
+      projected.sort((a,b) => a.depth - b.depth);
+      for (let i = projected.length - 1; i >= 0; i--) {
+        const item = projected[i];
+        if (Math.hypot(item.x - mx, item.y - my) <= item.radius + 7) return item.node;
+      }
+      return null;
+    }
     const wx = (mx - _graph.panX) / _graph.scale;
     const wy = (my - _graph.panY) / _graph.scale;
     for (let i = _graph.nodes.length - 1; i >= 0; i--) {
@@ -2918,12 +3143,16 @@ function installGraphListeners(canvas) {
 
   canvas.addEventListener('wheel', ev => {
     ev.preventDefault();
-    const factor = ev.deltaY < 0 ? 1.12 : 0.89;
-    const ns = Math.min(5, Math.max(0.2, _graph.scale * factor));
-    const { x, y } = canvasCoords(ev);
-    _graph.panX = x - (x - _graph.panX) * (ns / _graph.scale);
-    _graph.panY = y - (y - _graph.panY) * (ns / _graph.scale);
-    _graph.scale = ns;
+    if (_graph.dimension === '3d') {
+      _graph.camera3d = zoomCamera(_graph.camera3d, ev.deltaY);
+    } else {
+      const factor = ev.deltaY < 0 ? 1.12 : 0.89;
+      const ns = Math.min(5, Math.max(0.2, _graph.scale * factor));
+      const { x, y } = canvasCoords(ev);
+      _graph.panX = x - (x - _graph.panX) * (ns / _graph.scale);
+      _graph.panY = y - (y - _graph.panY) * (ns / _graph.scale);
+      _graph.scale = ns;
+    }
     _graph.alpha = Math.max(_graph.alpha, 0.1);
     if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
   }, { passive: false });
@@ -2934,6 +3163,15 @@ function installGraphListeners(canvas) {
     const node = findNode(x, y);
     dragDist = 0;
     pressedNode = node;
+    if (_graph.dimension === '3d') {
+      if (!node) {
+        isPanning = true;
+        orbitLastX = x;
+        orbitLastY = y;
+        canvas.style.cursor = 'grabbing';
+      }
+      return;
+    }
     if (node) { isDragging = true; draggedNode = node; node.pinned = true; node.vx = node.vy = 0; }
     else { isPanning = true; panStartX = x - _graph.panX; panStartY = y - _graph.panY; canvas.style.cursor = 'grabbing'; }
   });
@@ -2945,6 +3183,23 @@ function installGraphListeners(canvas) {
 
   _graphWindowMouseMove = ev => {
     const { x, y } = canvasCoords(ev);
+    if (_graph.dimension === '3d') {
+      if (isPanning) {
+        const dx = x - orbitLastX;
+        const dy = y - orbitLastY;
+        dragDist += Math.abs(dx) + Math.abs(dy);
+        _graph.camera3d = orbitCamera(_graph.camera3d, dx, dy);
+        orbitLastX = x;
+        orbitLastY = y;
+        _graph.alpha = Math.max(_graph.alpha, 0.08);
+        if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+      } else {
+        _graph.hoveredNode = findNode(x, y);
+        canvas.style.cursor = _graph.hoveredNode ? 'pointer' : 'grab';
+        if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+      }
+      return;
+    }
     if (isDragging && draggedNode) {
       dragDist += Math.abs(ev.movementX) + Math.abs(ev.movementY);
       draggedNode.x = (x - _graph.panX) / _graph.scale;
@@ -2968,6 +3223,8 @@ function installGraphListeners(canvas) {
     if (draggedNode) { draggedNode.pinned = false; draggedNode = null; }
     if (clicked) {
       _graph.selectedNodeId = _graph.selectedNodeId === clicked.id ? null : clicked.id;
+      const graphCanvas = document.getElementById('mind-cognition-canvas');
+      if (graphCanvas) initGraphPhysics(graphCanvas.width || 900, graphCanvas.height || 600);
       renderCognitionInspector();
       _graph.alpha = Math.max(_graph.alpha, 0.08);
       if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
@@ -3737,8 +3994,9 @@ function updateCognitionSummary() {
   const sign = value => value > 0 ? `+${value}` : String(value);
   const components = topologyComponentStats({ nodes, edges: topologyEdges });
   const replayLabel = _graph.replayTick != null ? ` · replay t${_graph.replayTick}` : ' · LIVE';
+  const projectionLabel = ` · ${_graph.dimension.toUpperCase()}`;
   panel.innerHTML =
-    `<strong style="color:var(--text)">Complete learned structure${replayLabel}</strong><br>` +
+    `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}</strong><br>` +
     `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
     `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
     `<span style="color:var(--muted)">map: ${_graph.hiddenMotor.actuators} actuators + ${_graph.hiddenMotor.motorEdges} low-level motor edges collapsed · select a primitive to expand</span><br>` +
