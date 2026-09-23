@@ -919,7 +919,6 @@ function renderMotorLearning() {
     ['Motor readouts', motorReadouts, motorReadouts>0, 'USABLE'],
     ['Cognitive motor edges', motorEdges, motorEdges>0, 'USABLE'],
     ['Actual cognitive control', _tel.motorOrigin ?? 'none', ['cognition','mixed'].includes(_tel.motorOrigin)||String(_tel.motorOrigin).includes('primitive'), 'USED'],
-    ['Actual cognitive control', _tel.motorOrigin ?? 'none', ['cognition','mixed'].includes(_tel.motorOrigin)||String(_tel.motorOrigin).includes('primitive')],
   ];
 
   const h=el('h2',''); h.style.cssText='font-size:16px;margin:0 0 4px;'; h.textContent='Motor learning';
