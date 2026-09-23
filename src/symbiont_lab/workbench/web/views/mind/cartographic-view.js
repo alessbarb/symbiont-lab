@@ -5,9 +5,23 @@
  * low-level motor substrate until a motor primitive is selected.
  */
 
-export function cartographicGraph(nodes, edges, selectedNodeId = null) {
+export function cartographicGraph(nodes, edges, selectedNodeId = null, viewMode = 'full') {
   const selected = nodes.find(node => node.id === selectedNodeId) ?? null;
   const expandedActuators = new Set();
+
+  // Connected means cognitively reachable, not merely visible after
+  // progressive disclosure. Preserve motor endpoints of real readout→motor
+  // links before applying the generic degree filter.
+  if (viewMode === 'connected') {
+    for (const edge of edges) {
+      if (edge.kind !== 'invokes') continue;
+      const source = nodes.find(node => node.id === edge.sourceId);
+      const target = nodes.find(node => node.id === edge.targetId);
+      if (source?.kind === 'readout' && target?.kind === 'actuator') {
+        expandedActuators.add(target.id);
+      }
+    }
+  }
 
   if (selected?.kind === 'motor_primitive') {
     for (const id of selected.actuatorIds ?? []) expandedActuators.add(String(id));
@@ -39,5 +53,8 @@ export function cartographicGraph(nodes, edges, selectedNodeId = null) {
       ).length,
     },
     expandedMotor: expandedActuators.size > 0,
+    linkedMotorEndpoints: viewMode === 'connected'
+      ? expandedActuators.size
+      : 0,
   };
 }
