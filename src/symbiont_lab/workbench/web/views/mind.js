@@ -2643,30 +2643,39 @@ function drawGraphFrame3D(canvas) {
     const description = _graph.sectorDescriptions.get(sector.id);
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
     const color = palette[hashStr(String(sector.id)) % palette.length];
-    const depthScale = Math.max(0.42, Math.min(1.35, 1 - sector.depth / 1600));
-    const rx = Math.max(30, sector.radius * depthScale);
-    const ry = Math.max(22, rx * 0.70);
 
+    // True volumetric sector cue: three projected great circles around the
+    // same 3D center. Their shape changes with camera orbit.
+    for (const [index, ring] of sector.wireframes.entries()) {
+      if (!ring?.length) continue;
+      ctx.beginPath();
+      ring.forEach((point, i) => {
+        if (i === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+      ctx.strokeStyle = `${color}${index === 0 ? '2e' : index === 1 ? '22' : '18'}`;
+      ctx.lineWidth = index === 0 ? 1.1 : 0.8;
+      ctx.setLineDash(index === 0 ? [5, 7] : [2, 8]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    const haloRadius = Math.max(24, sector.radius * sector.scale * 0.58);
     const grad = ctx.createRadialGradient(
-      sector.x - rx * 0.18,
-      sector.y - ry * 0.15,
-      4,
+      sector.x - haloRadius * 0.18,
+      sector.y - haloRadius * 0.18,
+      3,
       sector.x,
       sector.y,
-      rx,
+      haloRadius,
     );
-    grad.addColorStop(0, `${color}18`);
-    grad.addColorStop(0.72, `${color}0b`);
-    grad.addColorStop(1, `${color}02`);
+    grad.addColorStop(0, `${color}16`);
+    grad.addColorStop(0.7, `${color}07`);
+    grad.addColorStop(1, 'transparent');
     ctx.fillStyle = grad;
-    ctx.strokeStyle = `${color}38`;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 7]);
     ctx.beginPath();
-    ctx.ellipse(sector.x, sector.y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.arc(sector.x, sector.y, haloRadius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.stroke();
-    ctx.setLineDash([]);
 
     ctx.font = '600 10px -apple-system, sans-serif';
     ctx.fillStyle = `${color}d0`;
@@ -2674,7 +2683,7 @@ function drawGraphFrame3D(canvas) {
     ctx.fillText(
       `${sectorLabel} · ${description?.interpretation ?? 'emergent sector'}`,
       sector.x,
-      sector.y - ry - 10,
+      sector.y - haloRadius - 12,
     );
   }
 
@@ -2740,7 +2749,10 @@ function drawGraphFrame3D(canvas) {
     ctx.beginPath();
     ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
     ctx.fillStyle = isHovered ? '#fff' : node.color;
-    ctx.globalAlpha = dimmed ? 0.10 : Math.max(0.30, Math.min(1, projected.scale * 0.82));
+    const depthFog = Math.max(0.32, Math.min(1, 1 - projected.depth / 1500));
+    ctx.globalAlpha = dimmed
+      ? 0.08
+      : Math.max(0.22, Math.min(1, projected.scale * 0.78 * depthFog));
     ctx.shadowColor = node.color;
     ctx.shadowBlur = isSelected ? 20 : isConn ? 13 : node.activationLevel > 0 ? 4 + node.activationLevel * 9 : 2;
     ctx.fill();
