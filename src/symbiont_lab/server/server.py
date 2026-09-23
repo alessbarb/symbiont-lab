@@ -18,8 +18,9 @@ from pathlib import Path
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
 from .api import make_handler
+from symbiont_lab.observation.bus import ObservationBus
+from symbiont_lab.observation.demo import DemoObservationSource
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
-from .organism_stream import DemoOrganismTelemetry, OrganismStream
 from .state import DashboardState, StudyDashboardState, start_experiment, start_study
 
 _ASSETS = Path(__file__).parent / "assets"
@@ -40,7 +41,7 @@ class UnifiedLabServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    demo_telemetry: DemoOrganismTelemetry | None = None
+    demo_telemetry: DemoObservationSource | None = None
     physics_bridge: Physics3DObservationBridge | None = None
     physics_thread: threading.Thread | None = None
 
@@ -68,7 +69,7 @@ def make_server(
     *,
     experiment_state: DashboardState | None = None,
     study_state: StudyDashboardState | None = None,
-    organism_stream: OrganismStream | None = None,
+    organism_stream: ObservationBus | None = None,
     observatory_dir: Path | None = None,
     demo: bool = False,
     physics3d: bool = False,
@@ -79,7 +80,7 @@ def make_server(
 
     exp_state = experiment_state or DashboardState()
     std_state = study_state or StudyDashboardState()
-    stream = organism_stream or OrganismStream()
+    stream = organism_stream or ObservationBus()
 
     exp_starter = lambda spec: start_experiment(exp_state, std_state, spec)
     std_starter = lambda spec, **kw: start_study(exp_state, std_state, spec, **kw)
@@ -93,7 +94,7 @@ def make_server(
         raise ValueError("demo and physics3d telemetry are mutually exclusive")
 
     if demo:
-        demo_telemetry = DemoOrganismTelemetry(stream)
+        demo_telemetry = DemoObservationSource(stream)
         demo_telemetry.start()
         server.demo_telemetry = demo_telemetry
 
@@ -158,7 +159,7 @@ def main(argv: list[str] | None = None) -> None:
 
     exp_state = DashboardState(archive=archive)
     std_state = StudyDashboardState(archive=study_archive)
-    stream = OrganismStream()
+    stream = ObservationBus()
 
     server = make_server(
         port=args.port,
