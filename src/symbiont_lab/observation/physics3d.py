@@ -41,6 +41,91 @@ class Physics3DObservationBridge:
     def request_stop(self) -> None:
         self._stop.set()
 
+    def publish_pose_frame(
+        self,
+        *,
+        physical_state: Mapping[str, object],
+        physics_step: int,
+        simulation_time_s: float,
+    ) -> None:
+        """Publish one lightweight observer-only physical pose frame."""
+        if self._stop.is_set():
+            return
+
+        joints: list[dict[str, object]] = []
+        try:
+            from symbiont_lab.physics3d.humanoid import JOINT_SPECS
+        except ImportError:
+            JOINT_SPECS = ()
+
+        raw_joints = physical_state.get("joints", ())
+        if isinstance(raw_joints, (list, tuple)):
+            for item in raw_joints:
+                if not isinstance(item, Mapping):
+                    continue
+                try:
+                    index = int(item.get("joint_index", -1))
+                except (TypeError, ValueError):
+                    continue
+                name = (
+                    JOINT_SPECS[index].name
+                    if 0 <= index < len(JOINT_SPECS)
+                    else f"joint_{index}"
+                )
+                try:
+                    position = float(item["position"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                joints.append({"name": name, "position": position})
+
+        links: list[dict[str, object]] = []
+        raw_links = physical_state.get("links", ())
+        if isinstance(raw_links, (list, tuple)):
+            for item in raw_links:
+                if not isinstance(item, Mapping):
+                    continue
+                position = item.get("position")
+                orientation = item.get("orientation")
+                if (
+                    item.get("link_name") is None
+                    or not isinstance(position, (list, tuple))
+                    or len(position) != 3
+                    or not isinstance(orientation, (list, tuple))
+                    or len(orientation) != 4
+                ):
+                    continue
+                try:
+                    links.append(
+                        {
+                            "name": str(item["link_name"]),
+                            "position": [float(value) for value in position],
+                            "orientation": [float(value) for value in orientation],
+                        }
+                    )
+                except (TypeError, ValueError):
+                    continue
+
+        event: dict[str, Any] = {
+            "type": "body_pose",
+            "source": "physics3d",
+            "physics_step": int(physics_step),
+            "simulation_time_s": float(simulation_time_s),
+            "joints": joints,
+            "links": links,
+            "provenance": {
+                "owner": "observer",
+                "feeds_back": False,
+                "sampling_hz": 60,
+            },
+        }
+        base_position = physical_state.get("base_position")
+        if isinstance(base_position, (list, tuple)) and len(base_position) == 3:
+            event["base_position"] = [float(value) for value in base_position]
+        base_orientation = physical_state.get("base_orientation")
+        if isinstance(base_orientation, (list, tuple)) and len(base_orientation) == 4:
+            event["base_orientation"] = [float(value) for value in base_orientation]
+        self._sink.push(event)
+
     def publish(self, snapshot: Any, *, physical_state: dict[str, object]) -> None:
         if self._stop.is_set():
             return
