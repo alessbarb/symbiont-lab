@@ -2844,6 +2844,7 @@ function drawGraphFrame(canvas) {
   ctx.scale(scale, scale);
 
   const now = performance.now();
+  const sectorFocus = focusedSectorContext();
 
   const isolatedCount = nodes.filter(node => node.isolated).length;
   if (isolatedCount && _graph.viewMode === 'full') {
@@ -2865,6 +2866,7 @@ function drawGraphFrame(canvas) {
   }
   for (const [communityId, s] of communityStats.entries()) {
     if (s.n < 3) continue;
+    if (sectorFocus && communityId !== sectorFocus.sectorId) continue;
     s.x /= s.n; s.y /= s.n;
     let radius = 0;
     for (const node of s.nodes) {
@@ -2920,9 +2922,13 @@ function drawGraphFrame(canvas) {
       edge.source.community === edge.target.community
     );
     const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
-    if (!focusId) {
-      if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) continue;
-    } else if (!isConn) {
+    if (focusId) {
+      if (!isConn) continue;
+    } else if (sectorFocus) {
+      const sourceLocal = sectorFocus.local.has(edge.source.id);
+      const targetLocal = sectorFocus.local.has(edge.target.id);
+      if (!(sourceLocal || targetLocal)) continue;
+    } else if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) {
       continue;
     }
     const dimmed = false;
@@ -2970,6 +2976,7 @@ function drawGraphFrame(canvas) {
 
   // Nodes
   for (const node of nodes) {
+    if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
     const isHovered = hoveredNode && hoveredNode.id === node.id;
     const isSelected = _graph.selectedNodeId === node.id;
     const isConn = connectedIds && connectedIds.has(node.id);
