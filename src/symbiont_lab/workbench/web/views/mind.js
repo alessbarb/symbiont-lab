@@ -753,6 +753,247 @@ function buildRegimeHud() {
 // Tab switching
 // ─────────────────────────────────────────────────────────────────────────────
 
+function panelSection(title, subtitle = '') {
+  const section = el('section', '');
+  section.style.cssText = 'border:1px solid var(--line);border-radius:10px;background:rgba(8,21,34,.72);padding:13px 14px;min-width:0;';
+  const h = el('h3', '');
+  h.style.cssText = 'font-size:12px;margin:0;color:var(--text);';
+  h.textContent = title;
+  section.appendChild(h);
+  if (subtitle) {
+    const p = el('p', '');
+    p.style.cssText = 'margin:3px 0 10px;font-size:9px;line-height:1.4;color:var(--muted);';
+    p.textContent = subtitle;
+    section.appendChild(p);
+  }
+  return section;
+}
+
+function bigMetric(label, value, tone = null) {
+  const wrap = el('div', '');
+  wrap.style.cssText = 'padding:9px 10px;border:1px solid rgba(98,120,136,.16);border-radius:8px;background:rgba(255,255,255,.015);';
+  const l = el('div', '');
+  l.style.cssText='font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);';
+  l.textContent = label;
+  const v = el('strong','');
+  v.style.cssText='display:block;margin-top:3px;font-size:18px;line-height:1;color:var(--text);';
+  if (tone) v.style.color = tone;
+  v.textContent=String(value);
+  wrap.append(l,v);
+  return wrap;
+}
+
+function renderOverview() {
+  const root = document.getElementById('mind-overview-wrap');
+  if (!root) return;
+  root.innerHTML = '';
+
+  const topology = _snap.topology ?? {nodes:[], edges:[]};
+  const nodes = topology.nodes ?? [];
+  const sensorimotor = _snap.sensorimotor ?? {};
+  const outcome = _snap.outcome ?? {};
+  const physiology = currentPhysiologyState();
+  const concepts = nodes.filter(n => n.kind === 'concept').length;
+  const predictors = nodes.filter(n => n.kind === 'predictor').length;
+  const motorEdges = currentMotorOutputEdges(topology);
+  const energy = _tel.metabolicReserve;
+  const repertoire = Array.isArray(sensorimotor.active_motor_repertoire) ? sensorimotor.active_motor_repertoire.length : 0;
+  const readoutCount = nodes.filter(n => n.kind === 'readout' && (String(n.id).startsWith('readout_motor:') || String(n.id).startsWith('readout_primitive:'))).length;
+
+  const heading = el('div','');
+  heading.style.cssText='display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:14px;';
+  const copy=el('div','');
+  const h=el('h2',''); h.style.cssText='font-size:16px;margin:0;color:var(--text);'; h.textContent='Organism overview';
+  const sub=el('p',''); sub.style.cssText='font-size:10px;color:var(--muted);margin:4px 0 0;'; sub.textContent='What exists, what has been learned, and what the organism can actually use.';
+  copy.append(h,sub);
+  const phase=el('strong',''); phase.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:.08em;'; phase.style.color =
+    physiology==='dead'?PAL.coral:physiology==='dormant'?PAL.amber:physiology==='stressed'?PAL.coral:PAL.mint;
+  phase.textContent=physiology;
+  heading.append(copy,phase);
+  root.appendChild(heading);
+
+  const metrics=el('div','');
+  metrics.style.cssText='display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin-bottom:12px;';
+  metrics.append(
+    bigMetric('Tick', _tel.tick ?? '—'),
+    bigMetric('Energy', energy != null ? pct(energy) : '—', energy != null && energy < .2 ? PAL.coral : PAL.mint),
+    bigMetric('Resource progress', _tel.resourceProgress != null ? `${_tel.resourceProgress >=0?'+':''}${_tel.resourceProgress.toFixed(2)} m` : '—'),
+    bigMetric('Cognition', `${concepts} C · ${predictors} P`, PAL.violet),
+    bigMetric('Motor origin', _tel.motorOrigin ?? '—', _tel.motorOrigin === 'babbling' ? PAL.amber : PAL.mint),
+  );
+  root.appendChild(metrics);
+
+  const grid=el('div','');
+  grid.style.cssText='display:grid;grid-template-columns:1.15fr 1fr;gap:12px;';
+
+  const pipeline=panelSection('Learning pipeline','Three distinct levels: exists → learned → usable.');
+  const stages=[
+    ['Sensory system', `${_snap.sensoryPhenotype?.sensors?.length ?? nodes.filter(n=>n.kind==='sense').length} sensors`, true],
+    ['Sensorimotor patterns', `${_tel.sensorimotorPatterns ?? sensorimotor.known_patterns ?? 0}`, (_tel.sensorimotorPatterns ?? sensorimotor.known_patterns ?? 0) > 0],
+    ['Motor primitives', `${_tel.motorPrimitives ?? sensorimotor.primitives ?? 0}`, (_tel.motorPrimitives ?? sensorimotor.primitives ?? 0) > 0],
+    ['Cognitive structure', `${concepts} concepts · ${predictors} predictors`, concepts > 0],
+    ['Motor repertoire', `${repertoire}`, repertoire > 0],
+    ['Motor readouts', `${readoutCount}`, readoutCount > 0],
+    ['Cognition → motor edges', `${motorEdges}`, motorEdges > 0],
+    ['Cognitive motor use', _tel.motorOrigin ?? 'none', ['cognition','mixed'].includes(_tel.motorOrigin) || String(_tel.motorOrigin).includes('primitive')],
+  ];
+  stages.forEach(([label,value,ok],idx)=>{
+    const row=el('div','');
+    row.style.cssText='display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid rgba(98,120,136,.12);font-size:9px;';
+    const dot=el('span',''); dot.textContent=ok?'●':'○'; dot.style.color=ok?PAL.mint:PAL.muted;
+    const name=el('span',''); name.textContent=label; name.style.color='var(--text)';
+    const val=el('strong',''); val.textContent=value; val.style.color=ok?'var(--text)':'var(--muted)';
+    row.append(dot,name,val); pipeline.appendChild(row);
+    if(idx<stages.length-1){
+      const arrow=el('div',''); arrow.textContent='↓'; arrow.style.cssText='margin:-2px 0 -2px 4px;color:rgba(98,120,136,.45);font-size:9px;';
+      pipeline.appendChild(arrow);
+    }
+  });
+
+  const outcomePanel=panelSection('Outcome','External behavioral result; not a reward signal fed into cognition.');
+  const startDist=finiteNumber(outcome.initial_resource_distance, NaN);
+  const minDist=finiteNumber(outcome.minimum_resource_distance, NaN);
+  const currentDist=finiteNumber(_tel.resourceDistance ?? outcome.current_resource_distance, NaN);
+  const consumed=finiteNumber(_tel.absorbedEnergy ?? outcome.absorbed_energy, 0);
+  [
+    ['Start distance', Number.isFinite(startDist)?`${startDist.toFixed(2)} m`:'—'],
+    ['Best distance', Number.isFinite(minDist)?`${minDist.toFixed(2)} m`:'—'],
+    ['Current distance', Number.isFinite(currentDist)?`${currentDist.toFixed(2)} m`:'—'],
+    ['Progress', _tel.resourceProgress!=null?`${_tel.resourceProgress>=0?'+':''}${_tel.resourceProgress.toFixed(2)} m`:'—'],
+    ['Consumed energy', consumed.toFixed(2)],
+    ['Resource remaining', _tel.resourceRemaining!=null?_tel.resourceRemaining.toFixed(2):outcome.resource_remaining ?? '—'],
+  ].forEach(([k,v])=>inspectorMetric(outcomePanel,k,v));
+
+  grid.append(pipeline,outcomePanel);
+  root.appendChild(grid);
+
+  const timeline=panelSection('Major milestones','First-occurrence lifecycle and learning events captured in the current browser session.');
+  timeline.style.marginTop='12px';
+  if(!_milestones.length){
+    const empty=el('div',''); empty.style.cssText='font-size:9px;color:var(--muted);'; empty.textContent='No milestones recorded yet.'; timeline.appendChild(empty);
+  } else {
+    const strip=el('div',''); strip.style.cssText='display:flex;gap:6px;align-items:flex-start;overflow-x:auto;padding:4px 0 2px;';
+    for(const m of _milestones){
+      const b=el('button',''); b.type='button'; b.style.cssText='min-width:110px;text-align:left;padding:7px 8px;border:1px solid rgba(98,120,136,.2);border-radius:7px;background:rgba(255,255,255,.015);color:var(--text);cursor:pointer;';
+      b.innerHTML=`<strong style="font-size:9px">t${m.tick}</strong><br><span style="font-size:8px;color:var(--muted)">${m.label}</span>`;
+      b.addEventListener('click',()=>openHistoryTick(m.tick)); strip.appendChild(b);
+    }
+    timeline.appendChild(strip);
+  }
+  root.appendChild(timeline);
+}
+
+function renderMotorLearning() {
+  const root=document.getElementById('mind-motor-wrap');
+  if(!root) return;
+  root.innerHTML='';
+  const sm=_snap.sensorimotor ?? {};
+  const topology=_snap.topology ?? {nodes:[],edges:[]};
+  const nodes=topology.nodes ?? [];
+  const motorEdges=currentMotorOutputEdges(topology);
+  const repertoire=Array.isArray(sm.active_motor_repertoire)?sm.active_motor_repertoire.length:0;
+  const motorReadouts=nodes.filter(n=>n.kind==='readout'&&(String(n.id).startsWith('readout_motor:')||String(n.id).startsWith('readout_primitive:'))).length;
+  const values=[
+    ['Sensorimotor patterns', finiteNumber(_tel.sensorimotorPatterns ?? sm.known_patterns,0), true],
+    ['Motor primitives', finiteNumber(_tel.motorPrimitives ?? sm.primitives,0), true],
+    ['Recurrent candidates', finiteNumber(sm.recurrent_primitive_candidates,0), true],
+    ['Motor repertoire', repertoire, repertoire>0],
+    ['Motor readouts', motorReadouts, motorReadouts>0],
+    ['Cognitive motor edges', motorEdges, motorEdges>0],
+    ['Actual cognitive control', _tel.motorOrigin ?? 'none', ['cognition','mixed'].includes(_tel.motorOrigin)||String(_tel.motorOrigin).includes('primitive')],
+  ];
+
+  const h=el('h2',''); h.style.cssText='font-size:16px;margin:0 0 4px;'; h.textContent='Motor learning';
+  const p=el('p',''); p.style.cssText='font-size:10px;color:var(--muted);margin:0 0 16px;'; p.textContent='A funnel from discovered sensorimotor regularity to actual cognitive control.';
+  root.append(h,p);
+  const funnel=el('div',''); funnel.style.cssText='max-width:760px;margin:0 auto;';
+  values.forEach(([label,value,ok],i)=>{
+    const width=100-i*7;
+    const row=el('div',''); row.style.cssText=`width:${width}%;margin:0 auto 4px;padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:10px;border:1px solid ${ok?'rgba(113,233,186,.24)':'rgba(98,120,136,.18)'};border-radius:8px;background:${ok?'rgba(113,233,186,.035)':'rgba(255,255,255,.012)'};`;
+    const name=el('span',''); name.style.cssText='font-size:10px;color:var(--muted);'; name.textContent=label;
+    const val=el('strong',''); val.style.cssText='font-size:12px;'; val.style.color=ok?PAL.mint:PAL.muted; val.textContent=String(value);
+    row.append(name,val); funnel.appendChild(row);
+    if(i<values.length-1){const a=el('div',''); a.textContent='↓'; a.style.cssText='text-align:center;color:rgba(98,120,136,.45);height:12px;'; funnel.appendChild(a);}
+  });
+  root.appendChild(funnel);
+
+  const diag=panelSection('Why is control blocked?','Current readiness gates from the passive runtime snapshot.');
+  diag.style.cssText += ';max-width:760px;margin:16px auto 0;';
+  [
+    ['Babbling coverage', sm.babbling_coverage!=null?pct(sm.babbling_coverage):'—'],
+    ['Best controllability', sm.best_controllability!=null?sm.best_controllability.toFixed(3):'—'],
+    ['Best directional consistency', sm.best_directional_consistency!=null?sm.best_directional_consistency.toFixed(3):'—'],
+    ['Primitive replay', sm.replay_active?'active':'inactive'],
+    ['Cognitive primitives', finiteNumber(_tel.cognitiveMotorPrimitives ?? sm.cognitive_primitives,0)],
+    ['Current motor origin', _tel.motorOrigin ?? '—'],
+  ].forEach(([k,v])=>inspectorMetric(diag,k,v));
+  root.appendChild(diag);
+}
+
+function sparklineSvg(points, key, color, width=900, height=90) {
+  const svg=svgEl('svg',{viewBox:`0 0 ${width} ${height}`,role:'img'});
+  svg.style.cssText='width:100%;height:90px;display:block;';
+  if(points.length<2) return svg;
+  const values=points.map(p=>finiteNumber(p[key],0));
+  let lo=Math.min(...values), hi=Math.max(...values);
+  if(Math.abs(hi-lo)<1e-9){hi=lo+1;}
+  const t0=points[0].tick, t1=points[points.length-1].tick || t0+1;
+  const coords=points.map((p,i)=>{
+    const x=((p.tick-t0)/Math.max(1,t1-t0))*(width-20)+10;
+    const y=height-10-((values[i]-lo)/(hi-lo))*(height-20);
+    return [x,y];
+  });
+  const path=svgEl('path',{d:coords.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '),fill:'none',stroke:color,'stroke-width':'1.5'});
+  svg.appendChild(path);
+  return svg;
+}
+
+function renderHistory() {
+  const root=document.getElementById('mind-history-wrap');
+  if(!root) return;
+  root.innerHTML='';
+  const h=el('h2',''); h.style.cssText='font-size:16px;margin:0 0 4px;'; h.textContent='History';
+  const p=el('p',''); p.style.cssText='font-size:10px;color:var(--muted);margin:0 0 14px;'; p.textContent='Bounded observer-side history for this browser session. Click a milestone to inspect the nearest captured graph.';
+  root.append(h,p);
+
+  const charts=el('div',''); charts.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;';
+  const energy=panelSection('Energy / physiology');
+  energy.appendChild(sparklineSvg(_mindHistory.filter(x=>x.energy!=null),'energy',PAL.coral));
+  const growth=panelSection('Cognitive growth');
+  growth.appendChild(sparklineSvg(_mindHistory,'edges',PAL.violet));
+  charts.append(energy,growth); root.appendChild(charts);
+
+  const timeline=panelSection('Milestones');
+  timeline.style.marginTop='10px';
+  if(!_milestones.length){
+    const e=el('div',''); e.style.cssText='font-size:9px;color:var(--muted);'; e.textContent='No milestones yet.'; timeline.appendChild(e);
+  } else {
+    for(const m of _milestones){
+      const row=el('button',''); row.type='button'; row.style.cssText='width:100%;display:grid;grid-template-columns:60px 1fr;gap:10px;text-align:left;padding:8px 0;border:0;border-top:1px solid rgba(98,120,136,.14);background:none;color:var(--text);cursor:pointer;';
+      const t=el('strong',''); t.textContent=`t${m.tick}`; t.style.color=PAL.cyan;
+      const label=el('span',''); label.textContent=m.label; label.style.cssText='font-size:9px;';
+      row.append(t,label); row.addEventListener('click',()=>openHistoryTick(m.tick)); timeline.appendChild(row);
+    }
+  }
+  root.appendChild(timeline);
+
+  const latest=_mindHistory[_mindHistory.length-1];
+  if(latest){
+    const observer=panelSection('Observer analysis','Secondary analytical projection; not part of the organism.');
+    observer.style.marginTop='10px';
+    const coord=computeObserverMapCoordinates({
+      senses:_snap.senses,
+      cognition:_snap.cognition,
+      observerAnalysis:_snap.observerAnalysis,
+    });
+    const analysis=evaluateObserverRegime(coord,REGIMES);
+    inspectorMetric(observer,'Measured activity',pct(coord.activityNorm));
+    inspectorMetric(observer,'Predictive tension',pct(coord.predictiveTension));
+    inspectorMetric(observer,'Nearest reference zone',analysis.nearest?.name ?? '—');
+    root.appendChild(observer);
+  }
+}
+
 function switchTab(tabId) {
   _activeTab = tabId;
 
