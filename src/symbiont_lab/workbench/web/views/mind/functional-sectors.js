@@ -39,7 +39,7 @@ export function buildLayoutAffinities(nodes, edges) {
         edge.kind === 'invokes' ? 1.45 :
         edge.kind === 'causal_effect' ? 1.2 :
         1,
-      source: 'structural',
+      basis: 'structural',
     });
   }
 
@@ -58,7 +58,7 @@ export function buildLayoutAffinities(nodes, edges) {
         sourceId: a.id,
         targetId: b.id,
         strength: 0.9 + overlap * 1.8,
-        source: 'motor-similarity',
+        basis: 'motor-similarity',
       });
     }
   }
