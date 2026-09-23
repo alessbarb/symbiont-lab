@@ -303,11 +303,15 @@ def test_mind_asset_uses_body_schema_class_contract() -> None:
 
 def test_mind_regime_is_explicitly_observer_side_and_finite_safe() -> None:
     asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    observer_model = (WEB_ROOT / "views" / "mind" / "observer-map-model.js").read_text(encoding="utf-8")
 
     assert "Observer Map" in asset
     assert "OBSERVER MODEL" in asset
     assert "observer-side projection" in asset
     assert "function finiteNumber(" in asset
+    assert "observerAnalysis?.activationClasses" in observer_model
+    assert "observerAnalysis?.predictionErrors" in observer_model
+    assert "explicitActivityCoverage" in observer_model
     assert "learned attractors" not in asset
 
 
