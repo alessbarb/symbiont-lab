@@ -69,23 +69,7 @@ def convert_run(
     )
     ticks = 0
     try:
-        state_iter = reader.iter_states()
-        summary_iter = reader.iter_summaries()
-        while True:
-            try:
-                state = next(state_iter)
-            except StopIteration:
-                try:
-                    next(summary_iter)
-                except StopIteration:
-                    break
-                raise ValueError("source telemetry has more summaries than states")
-            try:
-                summary = next(summary_iter)
-            except StopIteration as exc:
-                raise ValueError(
-                    "source telemetry has more states than summaries"
-                ) from exc
+        for state, summary in reader.iter_records():
             if int(state.get("tick", -1)) != int(summary.get("tick", -2)):
                 raise ValueError("source telemetry state/summary tick mismatch")
             writer.append(summary, rich_state=state)
@@ -101,26 +85,18 @@ def convert_run(
     # Prove exact logical equivalence against the immutable source.
     source_reader = open_telemetry(source_root)
     target_reader = open_telemetry(destination)
-    source_states = source_reader.iter_states()
-    target_states = target_reader.iter_states()
-    source_summaries = source_reader.iter_summaries()
-    target_summaries = target_reader.iter_summaries()
     checked = 0
-    while True:
-        try:
-            left_state = next(source_states)
-        except StopIteration:
-            try:
-                next(target_states)
-            except StopIteration:
-                break
-            raise ValueError("converted telemetry contains extra states")
-        try:
-            right_state = next(target_states)
-            left_summary = next(source_summaries)
-            right_summary = next(target_summaries)
-        except StopIteration as exc:
-            raise ValueError("converted telemetry ended before source") from exc
+    for (
+        left_state,
+        left_summary,
+    ), (
+        right_state,
+        right_summary,
+    ) in zip(
+        source_reader.iter_records(),
+        target_reader.iter_records(),
+        strict=True,
+    ):
         if canonical_json_bytes(left_state) != canonical_json_bytes(right_state):
             raise ValueError(
                 f"converted state differs at tick {left_state.get('tick')}"
@@ -182,11 +158,7 @@ def benchmark_run(path: str | Path) -> dict[str, Any]:
     reader = open_telemetry(root)
     ticks: list[int] = []
     raw_bytes = 0
-    for state, summary in zip(
-        reader.iter_states(),
-        reader.iter_summaries(),
-        strict=True,
-    ):
+    for state, summary in reader.iter_records():
         tick = int(summary.get("tick", state.get("tick", -1)))
         ticks.append(tick)
         raw_bytes += len(canonical_json_bytes(state))

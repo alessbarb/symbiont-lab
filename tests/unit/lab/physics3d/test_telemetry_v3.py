@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from symbiont_lab.physics3d.persistence import load_telemetry_records
+from symbiont_lab.physics3d.telemetry_reader import open_telemetry
 from symbiont_lab.physics3d.telemetry import (
     AsyncTelemetryV3Writer,
     TelemetryV3Writer,
@@ -310,3 +311,24 @@ def test_async_writer_propagates_worker_failure(tmp_path):
     finally:
         with suppress(RuntimeError):
             writer.close()
+
+
+def test_version_neutral_v3_reader_streams_state_and_summary_together(tmp_path):
+    writer = TelemetryV3Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="new",
+        run_id="run-neutral",
+    )
+    _write_three_ticks(writer)
+
+    reader = open_telemetry(writer.root)
+    records = list(reader.iter_records())
+
+    assert [state["tick"] for state, _summary in records] == [1, 2, 3]
+    assert [summary["tick"] for _state, summary in records] == [1, 2, 3]
+    assert records[-1][0] == _rich(3)

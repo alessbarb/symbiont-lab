@@ -402,11 +402,11 @@ class AsyncTelemetryV3Writer:
         self._raise_worker_error()
 
 
-def load_v3_envelopes(
+def iter_v3_envelopes(
     path: str | Path,
     *,
     verify: bool = True,
-) -> list[dict[str, Any]]:
+):
     root = Path(path).expanduser()
     if root.is_file():
         root = root.parent
@@ -414,7 +414,6 @@ def load_v3_envelopes(
     if not core_path.is_file():
         raise FileNotFoundError(f"telemetry v3 ticks not found: {core_path}")
 
-    envelopes: list[dict[str, Any]] = []
     previous_hash = ZERO_HASH
     expected_sequence = 0
     previous_tick: int | None = None
@@ -424,6 +423,10 @@ def load_v3_envelopes(
             if not line:
                 continue
             envelope = json.loads(line)
+            if not isinstance(envelope, dict):
+                raise ValueError(
+                    f"invalid telemetry envelope at line {line_no}"
+                )
             if verify:
                 if int(envelope.get("sequence", -1)) != expected_sequence:
                     raise ValueError(
@@ -450,9 +453,16 @@ def load_v3_envelopes(
                 previous_tick = tick
                 previous_hash = str(claimed)
                 expected_sequence += 1
-            if isinstance(envelope, dict):
-                envelopes.append(envelope)
-    return envelopes
+            yield envelope
+
+
+def load_v3_envelopes(
+    path: str | Path,
+    *,
+    verify: bool = True,
+) -> list[dict[str, Any]]:
+    """Compatibility materializer; prefer iter_v3_envelopes()."""
+    return list(iter_v3_envelopes(path, verify=verify))
 
 
 def load_v3_tick_records(
@@ -461,7 +471,7 @@ def load_v3_tick_records(
     verify: bool = True,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    for envelope in load_v3_envelopes(path, verify=verify):
+    for envelope in iter_v3_envelopes(path, verify=verify):
         payload = envelope.get("payload", {})
         summary = payload.get("summary", {}) if isinstance(payload, dict) else {}
         if isinstance(summary, dict):
@@ -475,7 +485,7 @@ def load_v3_transitions(
     verify: bool = True,
 ) -> list[dict[str, Any]]:
     transitions: list[dict[str, Any]] = []
-    for envelope in load_v3_envelopes(path, verify=verify):
+    for envelope in iter_v3_envelopes(path, verify=verify):
         payload = envelope.get("payload", {})
         transition = (
             payload.get("transition", {})
@@ -518,14 +528,18 @@ def verify_v3_run(path: str | Path) -> dict[str, Any]:
     root = Path(path).expanduser()
     manifest_path = root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    records = load_v3_tick_records(root, verify=True)
 
+    record_count = 0
+    first_tick = None
+    last_tick = None
     last_record_hash = None
-    core_path = root / "ticks.ndjson"
-    with core_path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            if line.strip():
-                last_record_hash = json.loads(line).get("record_hash")
+    for envelope in iter_v3_envelopes(root, verify=True):
+        tick = int(envelope.get("tick", -1))
+        record_count += 1
+        if first_tick is None:
+            first_tick = tick
+        last_tick = tick
+        last_record_hash = envelope.get("record_hash")
 
     snapshots_valid = True
     snapshot_files = sorted((root / "snapshots").glob("tick-*.json"))
@@ -539,15 +553,15 @@ def verify_v3_run(path: str | Path) -> dict[str, Any]:
     closed = manifest.get("ended_at_utc") is not None
     complete = (
         closed
-        and int(manifest.get("tick_records", -1)) == len(records)
+        and int(manifest.get("tick_records", -1)) == record_count
         and manifest.get("final_record_hash") == last_record_hash
         and snapshots_valid
     )
     return {
         "run_id": manifest.get("run_id"),
-        "records": len(records),
-        "first_tick": records[0]["tick"] if records else None,
-        "last_tick": records[-1]["tick"] if records else None,
+        "records": record_count,
+        "first_tick": first_tick,
+        "last_tick": last_tick,
         "manifest_tick_records": manifest.get("tick_records"),
         "manifest_final_record_hash": manifest.get("final_record_hash"),
         "actual_final_record_hash": last_record_hash,
@@ -556,11 +570,11 @@ def verify_v3_run(path: str | Path) -> dict[str, Any]:
         "complete": complete,
     }
 
-
 __all__ = [
     "ENVELOPE_TYPE",
     "SCHEMA_VERSION",
     "TelemetryV3Writer",
+    "iter_v3_envelopes",
     "load_v3_deltas",
     "load_v3_envelopes",
     "load_v3_tick_records",

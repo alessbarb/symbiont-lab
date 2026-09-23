@@ -606,6 +606,19 @@ class TelemetryV4Reader:
                 return deepcopy(state)
         raise KeyError(f"telemetry tick not found: {requested}")
 
+    def iter_records(
+        self,
+        *,
+        start_tick: int | None = None,
+        end_tick: int | None = None,
+    ) -> Iterator[tuple[dict[str, Any], dict[str, Any]]]:
+        for tick, summary, state, _record in self._reconstruct_all():
+            if start_tick is not None and tick < int(start_tick):
+                continue
+            if end_tick is not None and tick > int(end_tick):
+                break
+            yield state, summary
+
     def iter_states(
         self,
         *,

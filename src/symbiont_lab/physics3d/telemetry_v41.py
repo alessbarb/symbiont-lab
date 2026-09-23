@@ -1039,6 +1039,24 @@ class TelemetryV41Reader:
                 return summary
         raise KeyError(f"telemetry tick not found: {requested}")
 
+    def iter_records(
+        self,
+        *,
+        start_tick: int | None = None,
+        end_tick: int | None = None,
+    ) -> Iterator[tuple[dict[str, Any], dict[str, Any]]]:
+        anchors = self._anchor_files()
+        if not anchors:
+            return
+        anchor = self._load_anchor(anchors[0][1])
+        for tick, summary, state, _commit in self._reconstruct_from_anchor(
+            anchor,
+            end_tick=end_tick,
+        ):
+            if start_tick is not None and tick < int(start_tick):
+                continue
+            yield state, summary
+
     def iter_states(
         self,
         *,

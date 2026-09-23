@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Iterator, Protocol
 
-from .telemetry import load_v3_tick_records, load_v3_transitions
+from .telemetry import iter_v3_envelopes
 from .telemetry_v4 import TelemetryV4Reader
 from .telemetry_v41 import TelemetryV41Reader
 
@@ -39,39 +39,55 @@ class _V3Reader:
     def __init__(self, root: Path) -> None:
         self.root = root
 
-    def iter_states(self, *, start_tick=None, end_tick=None):
-        for state in load_v3_transitions(self.root, verify=True):
-            tick = int(state.get("tick", -1))
+    def iter_records(self, *, start_tick=None, end_tick=None):
+        for envelope in iter_v3_envelopes(self.root, verify=True):
+            payload = envelope.get("payload", {})
+            if not isinstance(payload, dict):
+                continue
+            state = payload.get("transition", {})
+            summary = payload.get("summary", {})
+            if not isinstance(state, dict) or not isinstance(summary, dict):
+                continue
+            tick = int(state.get("tick", summary.get("tick", -1)))
             if start_tick is not None and tick < int(start_tick):
                 continue
             if end_tick is not None and tick > int(end_tick):
                 break
+            yield dict(state), dict(summary)
+
+    def iter_states(self, *, start_tick=None, end_tick=None):
+        for state, _summary in self.iter_records(
+            start_tick=start_tick,
+            end_tick=end_tick,
+        ):
             yield state
 
     def iter_summaries(self, *, start_tick=None, end_tick=None):
-        for summary in load_v3_tick_records(self.root, verify=True):
-            tick = int(summary.get("tick", -1))
-            if start_tick is not None and tick < int(start_tick):
-                continue
-            if end_tick is not None and tick > int(end_tick):
-                break
+        for _state, summary in self.iter_records(
+            start_tick=start_tick,
+            end_tick=end_tick,
+        ):
             yield summary
 
     def state_at(self, tick: int):
         requested = int(tick)
-        for state in self.iter_states(start_tick=requested, end_tick=requested):
+        for state, _summary in self.iter_records(
+            start_tick=requested,
+            end_tick=requested,
+        ):
             return state
         raise KeyError(f"telemetry tick not found: {requested}")
 
     def summary_at(self, tick: int):
         requested = int(tick)
-        for summary in self.iter_summaries(start_tick=requested, end_tick=requested):
+        for _state, summary in self.iter_records(
+            start_tick=requested,
+            end_tick=requested,
+        ):
             return summary
         raise KeyError(f"telemetry tick not found: {requested}")
 
     def iter_events(self, *, event_type=None, start_tick=None, end_tick=None):
-        # v3 has no physical event stream. Expose observer event snapshots from
-        # reconstructed state without fabricating a new event identity.
         for state in self.iter_states(start_tick=start_tick, end_tick=end_tick):
             tick = int(state.get("tick", -1))
             candidates = {
