@@ -16,6 +16,7 @@ from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_study
 from symbiont_lab.studies.heritage.replicated import run_replicated_heritage_stress_study
 from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
 from symbiont_lab.studies.learning.predictive_utility import run_predictive_utility_study
+from symbiont_lab.studies.learning.episodic_memory_utility import run_episodic_memory_utility_study
 from symbiont_lab.studies.learning.continuous_temporal_challenge import run_continuous_temporal_challenge
 from symbiont_lab.studies.learning.continuous_temporal_controls import run_continuous_temporal_controls
 from symbiont_lab.studies.learning.cognitive_ecology_embodiment import run_cognitive_ecology_embodiment_study
@@ -99,6 +100,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "heritage.ecological-shift": run_ecological_shift_study,
     "campaign.comparative": run_comparative_study,
     "learning.predictive-utility": run_predictive_utility_study,
+    "learning.episodic-memory-utility": run_episodic_memory_utility_study,
     "learning.continuous-temporal-challenge": run_continuous_temporal_challenge,
     "learning.continuous-temporal-controls": run_continuous_temporal_controls,
     "learning.cognitive-ecology-embodiment": run_cognitive_ecology_embodiment_study,
