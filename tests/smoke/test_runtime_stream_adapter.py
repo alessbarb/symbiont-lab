@@ -410,18 +410,20 @@ def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self()
 
 
 
-def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
+def test_mind_cognition_uses_atlas_modes_and_route_tracing() -> None:
     asset = _mind_sources()
+    atlas = (WEB_ROOT / "views" / "mind" / "cognitive-atlas.js").read_text(encoding="utf-8")
     graph_selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
 
-    assert "viewMode: 'connected'" in asset
-    assert "['full','Full']" in asset
-    assert "['connected','Connected']" in asset
-    assert "['core','Core']" in asset
+    for mode in ("Structure", "Activity", "Learning", "Prediction", "Motor", "Evidence"):
+        assert f"label: '{mode}'" in atlas
+    assert "atlasMode: 'structure'" in asset
+    assert "setAtlasMode" in asset
+    assert "export function cognitivePath(" in atlas
+    assert "export function atlasRegions(" in atlas
+    assert "export function learningFrontier(" in atlas
     assert "export function graphSubgraphIds(" in graph_selection
-    assert "export function filterGraphForView(" in graph_selection
     assert "pathDepth: 2" in asset
-    assert "onSelectCognitiveNode(node.id)" in asset
     assert "readout→motor links" in asset
 
 
@@ -491,15 +493,17 @@ def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
 
 
 
-def test_mind_cognition_has_contextual_inspector() -> None:
+def test_mind_cognition_has_contextual_atlas_inspector() -> None:
     asset = _mind_sources()
 
-    assert "Cognitive Inspector" in asset
+    assert "Atlas Inspector" in asset
     assert "function renderCognitionInspector()" in asset
-    assert "Structural sectors" in asset
+    assert "Cognitive Atlas" in asset
     assert "Motor path nearby" in asset
     assert "Direct relations" in asset
-    assert "Click a sector to focus its local anatomy and real bridges" in asset
+    assert "Cognitive pathway" in asset
+    assert "Learning frontier" in asset
+    assert "Region → local graph → node → exact evidence" in asset
     assert "graph.selectedNodeId === clicked.id ? null : clicked.id" in asset
 
 
@@ -986,3 +990,29 @@ def test_cognition_map_keeps_only_nonphysical_motor_relations_visible() -> None:
     assert "edge.kind !== 'causal_effect'" in cartography
     assert "edge.kind === 'invokes'" in asset
 
+
+
+def test_cognitive_atlas_regions_are_first_class_and_clickable() -> None:
+    asset = _mind_sources()
+
+    assert "atlasRegions(" in asset
+    assert "atlasRegionScore(" in asset
+    assert "drawAtlasRegions3D(" in asset
+    assert "atlasRegionHitAreas2d" in asset
+    assert "atlasRegionHitAreas3d" in asset
+    assert "findRegion(" in asset
+    assert "clickedRegion" in asset
+
+
+def test_cognitive_atlas_modes_drive_node_and_edge_salience() -> None:
+    asset = _mind_sources()
+    atlas = (WEB_ROOT / "views" / "mind" / "cognitive-atlas.js").read_text(encoding="utf-8")
+
+    assert "atlasEdgeScore(edge, graph.atlasMode" in asset
+    assert "node.atlasScore" in asset
+    assert "atlasPath.edgeKeys" in asset
+    assert "atlasPath.nodeIds" in asset
+
+    assert "export function atlasSignals(" in atlas
+    assert "export function atlasModeScore(" in atlas
+    assert "export function atlasEdgeScore(" in atlas
