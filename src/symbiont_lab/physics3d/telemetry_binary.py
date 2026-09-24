@@ -325,6 +325,20 @@ def _template_and_values(value: Any) -> tuple[Any, list[Any]]:
     return visit(value), values
 
 
+def _template_leaf_count(template: Any) -> int:
+    tag = template[0]
+    if tag == "v":
+        return 1
+    if tag == "l":
+        return sum(_template_leaf_count(child) for child in template[1])
+    if tag == "d":
+        return sum(
+            _template_leaf_count(child)
+            for _key, child in template[1]
+        )
+    raise ValueError(f"unknown binary frame template tag: {tag!r}")
+
+
 def _inflate(template: Any, values: list[Any], index: list[int]) -> Any:
     tag = template[0]
     if tag == "v":
@@ -666,6 +680,8 @@ class BinaryDenseReader:
         stored_channel, stored_template = self.schemas.schema(resolved)
         if stored_channel != channel or stored_template != template:
             raise ValueError("anchor value does not match binary frame schema")
+        if len(values) != _template_leaf_count(template):
+            raise ValueError("anchor value leaf count does not match schema")
         self._previous[channel] = (resolved, deepcopy(values))
         self.values[channel] = deepcopy(value)
 
@@ -685,20 +701,41 @@ class BinaryDenseReader:
             source_template, values = _template_and_values(value)
             if source_template != template:
                 raise ValueError("binary copy source shape mismatch")
+            if len(values) != _template_leaf_count(template):
+                raise ValueError("binary copy leaf count mismatch")
         elif mode == _MODE_FULL:
             values = deepcopy(list(record.get("v", ())))
-            value = _inflate(template, values, [0])
+            expected = _template_leaf_count(template)
+            if len(values) != expected:
+                raise ValueError(
+                    f"binary full frame leaf count mismatch: "
+                    f"{len(values)} != {expected}"
+                )
+            cursor = [0]
+            value = _inflate(template, values, cursor)
+            if cursor[0] != len(values):
+                raise ValueError("binary full frame has unused values")
         elif mode == _MODE_SPARSE:
             previous = self._previous.get(channel)
             if previous is None or previous[0] != schema_id:
                 raise ValueError(f"binary sparse frame has no base: {channel!r}")
             values = deepcopy(previous[1])
+            expected = _template_leaf_count(template)
+            if len(values) != expected:
+                raise ValueError("binary sparse base leaf count mismatch")
+            seen: set[int] = set()
             for raw_index, item in record.get("v", ()):
                 index = int(raw_index)
                 if index < 0 or index >= len(values):
                     raise ValueError("binary sparse frame index out of range")
+                if index in seen:
+                    raise ValueError("duplicate binary sparse frame index")
+                seen.add(index)
                 values[index] = deepcopy(item)
-            value = _inflate(template, values, [0])
+            cursor = [0]
+            value = _inflate(template, values, cursor)
+            if cursor[0] != len(values):
+                raise ValueError("binary sparse frame has unused values")
         else:
             raise ValueError(f"unknown binary dense mode: {mode}")
 

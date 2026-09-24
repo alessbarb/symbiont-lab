@@ -194,3 +194,32 @@ def test_binary_event_writer_batches_ephemeral_events(tmp_path):
         reader.apply(record)
 
     assert reader.values["runtime.knowledge_events"] == events
+
+
+def test_binary_dense_reader_rejects_wrong_full_leaf_count(tmp_path):
+    strings_path = tmp_path / "strings.bin"
+    schemas_path = tmp_path / "schemas.bin"
+    frames_path = tmp_path / "frames.bin"
+
+    with (
+        strings_path.open("wb") as strings_handle,
+        schemas_path.open("wb") as schema_handle,
+        frames_path.open("wb") as frame_handle,
+    ):
+        strings = BinaryStringTableWriter(strings_handle)
+        schemas = BinaryFrameSchemaWriter(schema_handle, strings)
+        writer = BinaryDenseWriter(frame_handle, schemas, strings)
+        writer.append(1, "dense", {"a": 1.0, "b": 2.0})
+
+    strings = BinaryStringTableReader(strings_path)
+    schemas = BinaryFrameSchemaReader(schemas_path, strings)
+    reader = BinaryDenseReader(schemas, strings)
+    with frames_path.open("rb") as handle:
+        iterator = BinaryRecordIterator(handle, reader.decode_record)
+        record = iterator.next()
+    assert record is not None
+    record["v"] = record["v"][:-1]
+
+    import pytest
+    with pytest.raises(ValueError, match="leaf count mismatch"):
+        reader.apply(record)
