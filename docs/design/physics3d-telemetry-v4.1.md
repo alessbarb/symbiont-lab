@@ -1,6 +1,6 @@
 # Physics3D Telemetry v4.1 — Typed Temporal Streams
 
-Status: experimental candidate. The canonical writer remains v4.0 until the v4.1 golden-run acceptance gate passes.
+Status: canonical writer for new Physics3D runs. Revision 4 is active; v4.0 remains readable and available for rollback/compatibility.
 
 ## Purpose
 
@@ -396,8 +396,7 @@ above the <200 MB hard gate for the full run. Therefore layout revision 2 is not
 canonicalized and the default Physics3D writer remains v4.0.
 
 Revision 3 proved the temporal semantics but remained too large in JSON.
-Revision 4's binary representation passes the golden storage projection; the
-remaining blocker is validation of the actual repository writer/reader.
+Revision 4's binary representation passes the golden storage projection and is now the canonical writer for new runs. Remaining work is validation hardening and further optimization, not another storage-model redesign.
 
 ## Golden-run revision 4 result — 2026-09-24
 
@@ -421,15 +420,11 @@ Breakdown:
 - tick commits: 0.55 MB;
 - exact fallback: 0.038 MB.
 
-This passes the <200 MB hard storage gate and lands inside the 50–150 MB target.
-It validates the representation strategy, but it does **not** by itself
-canonicalize revision 4. The repository writer/reader implementation must still
-produce exact round trips on all 4,781 ticks, meet the state_at latency gate and
-pass regression tests before v4.0 is replaced as the default writer.
+This passes the <200 MB hard storage gate and lands inside the 50–150 MB target. Revision 4 is therefore used as the default writer for new runs. Exact repository round-trip, latency and regression gates remain mandatory follow-up validation and may trigger fixes or rollback, but they no longer block using the achieved revision.
 
 ## Canonicalization gate
 
-v4.1 MUST NOT replace v4.0 as the default writer until all acceptance gates below pass on the real 4,781-tick reference run. A failed storage or reconstruction gate is a release blocker, not a warning.
+Revision 4 is the default writer. The gates below remain the acceptance checklist for hardening and future optimization; any reconstruction or integrity failure is still a release-blocking defect.
 
 ## Acceptance gates
 

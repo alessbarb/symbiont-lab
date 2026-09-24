@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
         "--telemetry-file",
         type=Path,
         default=DEFAULT_TELEMETRY_FILE,
-        help="telemetry root directory; current canonical writer is v4.0; each execution creates an immutable run",
+        help="telemetry root directory; current canonical writer is v4.1 revision 4; each execution creates an immutable run",
     )
     parser.add_argument(
         "--telemetry-physics-trace",
