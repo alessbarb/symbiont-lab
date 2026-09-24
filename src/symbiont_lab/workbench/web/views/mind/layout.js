@@ -372,7 +372,7 @@ export function buildMindLayout(root, {
   // ── Bottom telemetry strip ───────────────────────────────────────────────────
   const telemStrip = el('footer', 'mind-telemetry-strip');
   telemStrip.id = 'mind-telem-strip';
-  telemStrip.innerHTML = buildTelemHTML();
+  buildTelemNodes(telemStrip);
   root.appendChild(telemStrip);
 
 
@@ -386,17 +386,25 @@ function makeControlBtn(text, title, active) {
   return btn;
 }
 
-function buildTelemHTML() {
+function buildTelemNodes(parent) {
   const items = [
-    { id: 'mind-t-tick',     label: 'Tick',       init: '—' },
-    { id: 'mind-t-phase',    label: 'Physiology', init: '—' },
-    { id: 'mind-t-energy',   label: 'Energy',     init: '—' },
-    { id: 'mind-t-resource', label: 'Resource Δ', init: '—' },
-    { id: 'mind-t-cognition',label: 'Cognition',  init: '—' },
-    { id: 'mind-t-motor',    label: 'Motor',      init: '—' },
-    { id: 'mind-t-instance', label: 'Instance',   init: '—' },
+    { id: 'mind-t-tick',      label: 'Tick',       init: '—' },
+    { id: 'mind-t-phase',     label: 'Physiology', init: '—' },
+    { id: 'mind-t-energy',    label: 'Energy',     init: '—' },
+    { id: 'mind-t-resource',  label: 'Resource Δ', init: '—' },
+    { id: 'mind-t-cognition', label: 'Cognition',  init: '—' },
+    { id: 'mind-t-motor',     label: 'Motor',      init: '—' },
+    { id: 'mind-t-instance',  label: 'Instance',   init: '—' },
   ];
-  return items.map(i =>
-    `<span class="mind-telem-item"><span>${i.label}: </span><b id="${i.id}">${i.init}</b></span>`
-  ).join('');
+
+  for (const item of items) {
+    const wrap = el('span', 'mind-telem-item');
+    const label = el('span', '');
+    label.textContent = `${item.label}: `;
+    const value = el('b', '');
+    value.id = item.id;
+    value.textContent = item.init;
+    wrap.append(label, value);
+    parent.appendChild(wrap);
+  }
 }
