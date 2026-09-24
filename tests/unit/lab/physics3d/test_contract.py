@@ -602,15 +602,14 @@ def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
 
 
 
-def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
+def test_physics3d_newborns_use_mode_free_sensorimotor_constitution():
     import symbiont_lab.physics3d.apparatus as apparatus
     import symbiont_lab.physics3d.runtime as runtime
 
     runtime_source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     exclusion_source = inspect.getsource(apparatus.actuator_exclusion_groups)
 
-    assert 'motor_exploration_mode="babbling"' in runtime_source
-    assert 'effective.get("motor_exploration_mode") != "babbling"' in runtime_source
+    assert "motor_exploration_mode" not in runtime_source
     assert '"genome_symbiont_physics3d_v9"' not in runtime_source
     assert "missing canonical genome identity" in runtime_source
     assert "exclusive_actuator_groups=exclusive_groups" in runtime_source
