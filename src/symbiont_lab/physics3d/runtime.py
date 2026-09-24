@@ -29,6 +29,7 @@ from .apparatus import (
     PhysicsDiscoveryProvider,
     PhysicsReadingProvider,
     actuator_to_effector_map,
+    actuator_exclusion_groups,
     body_schema_summary,
     physics3d_cognition,
     physics3d_sensory_system,
@@ -370,16 +371,9 @@ class PyBulletEmbodimentRuntime:
                 raise RuntimeError(
                     "Physics3D motor constitution does not match physical effector surface"
                 )
-            effector_index = {
-                effector_id: index
-                for index, effector_id in enumerate(self.apparatus.effector_ids)
-            }
-            exclusive_groups = tuple(
-                (
-                    actuator_ids[effector_index[binding.positive_port]],
-                    actuator_ids[effector_index[binding.negative_port]],
-                )
-                for binding in self.apparatus.motor_bindings
+            exclusive_groups = actuator_exclusion_groups(
+                actuator_constitution,
+                self.apparatus,
             )
 
             return PrivateModelOrganismRuntime(
@@ -542,6 +536,18 @@ class PyBulletEmbodimentRuntime:
         self._actuator_to_effector = actuator_to_effector_map(
             constitution, self.apparatus
         )
+        expected_motor_units = actuator_exclusion_groups(
+            constitution,
+            self.apparatus,
+        )
+        if (
+            self.organism.sensorimotor_exclusive_actuator_groups
+            != expected_motor_units
+        ):
+            raise RuntimeError(
+                "Physics3D checkpoint motor-unit constitution does not match "
+                "the attached physical apparatus"
+            )
 
         if gui:
             p.resetDebugVisualizerCamera(
