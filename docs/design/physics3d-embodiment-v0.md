@@ -457,9 +457,10 @@ The default transduction is explicit and reproducible:
 0.001 metabolic maintenance units / measured joule
 ```
 
-with a hard per-cognitive-tick cap of `0.05` metabolic units before entering
-the organism. The canonical runtime itself additionally bounds queued embodied
-work to `0.25`.
+with no hidden per-tick saturation. The conversion coefficient must be finite
+and non-negative; measured finite work remains proportional across its full
+range. The canonical runtime likewise accumulates the complete finite embodied
+work scalar rather than clipping it before metabolism.
 
 The cost is queued after physical integration and consumed by the next
 canonical metabolism/physiology tick after ordinary replenishment. Pending work
