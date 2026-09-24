@@ -290,3 +290,54 @@ def test_retrospective_support_does_not_add_to_live_support() -> None:
     )
     bridge.tick({}, tick=2)
     assert len(bridge.concept_lineage) == 1
+
+
+
+def test_developmental_node_budget_expands_when_supported_structure_is_blocked() -> None:
+    limits, genome = _genome(interval=1, lifetime=8, sense_budget=2)
+    genome = replace(
+        genome,
+        development=replace(
+            genome.development,
+            soft_node_budget=3,
+            soft_edge_budget=8,
+        ),
+        structure=replace(genome.structure, minimum_support=2),
+    )
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode("sense_alpha", NodeKind.SENSE),
+            PlasticNode("sense_beta", NodeKind.SENSE),
+            PlasticNode("readout_core", NodeKind.READOUT),
+        ),
+        edges=(),
+        kernel_limits=limits,
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=genome,
+        kernel_limits=limits,
+        develop_senses=True,
+    )
+    assert bridge._soft_node_limit == 3
+
+    bridge.observe_retrospective_support(
+        ("sense_alpha", "sense_beta"),
+        support_epochs=2,
+    )
+    result = bridge.tick({}, tick=1)
+
+    assert result.node_budget > 3
+    assert result.node_budget <= limits.max_nodes
+    assert any(
+        node.kind is NodeKind.CONCEPT
+        for node in bridge.graph.nodes
+    )
+
+    restored = CognitiveBridge.restore(
+        bridge.export_checkpoint(),
+        genome=genome,
+        kernel_limits=limits,
+    )
+    assert restored is not None
+    assert restored._soft_node_limit == result.node_budget
