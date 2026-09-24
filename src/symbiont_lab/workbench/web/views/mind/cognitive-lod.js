@@ -110,11 +110,12 @@ export function atlasRegionLinks(nodes, edges) {
     const a = source?.community;
     const b = target?.community;
     if (!a || !b || a === 'isolated' || b === 'isolated' || a === b) continue;
-    const key = [a,b].sort().join('|');
+    const ordered = [a,b].sort();
+    const key = ordered.join('|');
     const item = grouped.get(key) ?? {
       key,
-      a,
-      b,
+      a: ordered[0],
+      b: ordered[1],
       count: 0,
       support: 0,
       stableTicks: 0,
@@ -124,7 +125,7 @@ export function atlasRegionLinks(nodes, edges) {
       reverse: 0,
     };
     item.count += 1;
-    const [first] = [a,b].sort();
+    const first = ordered[0];
     if (a === first) item.forward += 1;
     else item.reverse += 1;
     item.support += Math.max(0, finite(edge.support, 0));
