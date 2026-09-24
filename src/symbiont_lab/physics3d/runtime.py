@@ -141,11 +141,11 @@ class Tick3D:
     motor_repertoire_size: int
     sensorimotor_coverage: float
     sensorimotor_patterns: int
-    motor_primitives: int
-    cognitive_motor_primitives: int
+    motor_competence_candidates: int
+    cognitive_motor_competence_candidates: int
     primitive_candidates: int
-    recurrent_primitive_candidates: int
-    max_primitive_samples: int
+    recurrent_competence_candidates: int
+    max_competence_samples: int
     sample_gate_candidates: int
     controllability_gate_candidates: int
     variance_gate_candidates: int
@@ -156,7 +156,7 @@ class Tick3D:
     lowest_recurrent_effect_variance: float | None
     best_motor_controllability: float
     best_motor_directional_consistency: float
-    primitive_replay_active: bool
+    competence_replay_active: bool
     sensorimotor_h1_samples: int
     sensorimotor_h4_samples: int
     sensorimotor_h16_samples: int
@@ -165,7 +165,7 @@ class Tick3D:
     cognitive_concepts: int
     cognitive_readouts: int
     motor_readout_nodes: int
-    primitive_readout_nodes: int
+    competence_readout_nodes: int
     cognitive_motor_output_edges: int
     structural_candidates: int
     structural_producers: int
@@ -1762,10 +1762,10 @@ class PyBulletEmbodimentRuntime:
             sensorimotor_patterns=int(
                 sensorimotor.known_patterns if sensorimotor is not None else 0
             ),
-            motor_primitives=int(
+            motor_competence_candidates=int(
                 sensorimotor.primitives if sensorimotor is not None else 0
             ),
-            cognitive_motor_primitives=int(
+            cognitive_motor_competence_candidates=int(
                 sensorimotor.cognitive_primitives
                 if sensorimotor is not None
                 else 0
@@ -1773,10 +1773,10 @@ class PyBulletEmbodimentRuntime:
             primitive_candidates=int(
                 sensorimotor.primitive_candidates if sensorimotor is not None else 0
             ),
-            recurrent_primitive_candidates=int(
+            recurrent_competence_candidates=int(
                 sensorimotor.recurrent_primitive_candidates if sensorimotor is not None else 0
             ),
-            max_primitive_samples=int(
+            max_competence_samples=int(
                 sensorimotor.max_primitive_samples if sensorimotor is not None else 0
             ),
             sample_gate_candidates=int(
@@ -1813,7 +1813,7 @@ class PyBulletEmbodimentRuntime:
                 if sensorimotor is not None
                 else 0.0
             ),
-            primitive_replay_active=bool(
+            competence_replay_active=bool(
                 sensorimotor.replay_active if sensorimotor is not None else False
             ),
             sensorimotor_h1_samples=int(horizon_counts.get(1, 0)),
@@ -1828,7 +1828,7 @@ class PyBulletEmbodimentRuntime:
             cognitive_concepts=int(concept_count),
             cognitive_readouts=int(readout_count),
             motor_readout_nodes=int(motor_readout_nodes),
-            primitive_readout_nodes=int(primitive_readout_nodes),
+            competence_readout_nodes=int(primitive_readout_nodes),
             cognitive_motor_output_edges=int(
                 self._cognitive_motor_output_edge_count()
             ),
