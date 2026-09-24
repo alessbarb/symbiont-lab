@@ -29,6 +29,7 @@ export function applyMindSnapshot(raw) {
   snap.observerSemantics = source.observer_semantics ?? source.observerSemantics ?? null;
   snap.provenance = source.provenance ?? null;
   snap.sensorimotor = source.sensorimotor ?? null;
+  snap.embodiment = source.embodiment ?? null;
   snap.outcome = source.outcome ?? null;
   return true;
 }

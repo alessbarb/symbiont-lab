@@ -444,9 +444,40 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         outcome = None
 
     snapshot: dict[str, Any] = {}
+    embodiment_source = rich_state
+    if isinstance(runtime, Mapping) and any(
+        key in runtime
+        for key in ("embodiment_epoch", "reacclimating", "reacclimation_remaining")
+    ):
+        embodiment_source = runtime
+    elif isinstance(cognition, Mapping) and any(
+        key in cognition
+        for key in ("embodiment_epoch", "reacclimating", "reacclimation_remaining")
+    ):
+        embodiment_source = cognition
+    embodiment: dict[str, Any] = {}
+    if embodiment_source.get("embodiment_epoch") is not None:
+        try:
+            embodiment["epoch"] = int(embodiment_source["embodiment_epoch"])
+        except (TypeError, ValueError):
+            pass
+    if isinstance(embodiment_source.get("reacclimating"), bool):
+        embodiment["reacclimating"] = embodiment_source["reacclimating"]
+    if embodiment_source.get("reacclimation_remaining") is not None:
+        try:
+            embodiment["reacclimationRemaining"] = int(
+                embodiment_source["reacclimation_remaining"]
+            )
+        except (TypeError, ValueError):
+            pass
+    if embodiment:
+        snapshot["embodiment"] = embodiment
+
     organism_facts: list[str] = []
     observer_derived: list[str] = []
 
+    if embodiment:
+        organism_facts.append("embodiment")
     if runtime_present and "percepts" in runtime:
         snapshot["senses"] = senses
         organism_facts.append("senses")

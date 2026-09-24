@@ -23,6 +23,7 @@ export function applyTelemetryEvent(data) {
     tel.reacclimationRemaining = data.reacclimation_remaining ?? tel.reacclimationRemaining;
     tel.reacclimating = data.reacclimating ?? tel.reacclimating;
     tel.motorOrigin = data.motor_origin ?? tel.motorOrigin;
+    tel.motorOriginDetail = data.motor_origin_detail ?? tel.motorOriginDetail;
     tel.predictorCount = data.predictor_count ?? tel.predictorCount;
     tel.sensorimotorPatterns = data.sensorimotor_patterns ?? tel.sensorimotorPatterns;
     tel.motorPrimitives = data.motor_primitives ?? tel.motorPrimitives;

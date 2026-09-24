@@ -27,6 +27,7 @@ import { MindStreams } from './mind/streams.js';
 import { applyTelemetryEvent } from './mind/telemetry.js';
 import { applyMindSnapshot } from './mind/snapshot.js';
 import { renderMotorLearning } from './mind/motor-learning.js';
+import { recordMotorHistory } from './mind/motor-learning-history.js';
 import { renderOverview as renderOverviewPanel } from './mind/overview.js';
 import { nearestHistorySnapshot, recordMindHistory, renderHistory as renderHistoryPanel } from './mind/history.js';
 import { createIdentitySensoryRenderer } from './mind/identity-sensory.js';
@@ -224,6 +225,7 @@ function openHistoryTick(tick) {
 function refreshSnapshotViews() {
   setWaiting(false, null);
   recordMindHistory();
+  recordMotorHistory();
   updateTelemetryStrip();
   if (_activeTab === 'overview') renderOverview();
   if (_activeTab === 'phenotype') {

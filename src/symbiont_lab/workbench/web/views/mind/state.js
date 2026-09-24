@@ -11,6 +11,8 @@ export const milestones = [];
 export const historySnapshots = [];
 export const selfRegionHistory = new Map();
 export const selfDependencyHistory = new Map();
+export const motorHistory = [];
+export const motorEpochEvents = [];
 
 export const streamState = {
   status: 'disconnected',
@@ -204,6 +206,8 @@ export function resetMindDataState() {
   historySnapshots.length = 0;
   selfRegionHistory.clear();
   selfDependencyHistory.clear();
+  motorHistory.length = 0;
+  motorEpochEvents.length = 0;
   observerUsage.startedAt = Date.now();
   observerUsage.modeChanges = {};
   observerUsage.dimensionChanges = {};
