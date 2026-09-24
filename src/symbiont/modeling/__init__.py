@@ -17,7 +17,7 @@ from .gateway import (
     PrivateModelGateway,
     TokenPrediction,
 )
-from .ledger import ExperienceLedger
+from .ledger import ExperienceLedger, HistoricalExperienceArchive
 from .episodic import (
     CognitiveReplay,
     ConsolidatedContingency,
@@ -82,6 +82,7 @@ __all__ = [
     "CorpusManifest",
     "EpistemicStatus",
     "ExperienceLedger",
+    "HistoricalExperienceArchive",
     "ExperienceEpisode",
     "EpisodeMatch",
     "EpisodeStep",
