@@ -1597,11 +1597,14 @@ export function createCognitionController({
         ctx.globalAlpha = 1;
       }
 
-      if (node.errorCls) {
-        const errorLevel = classRatio(node.errorCls, 15);
+      if (node.errorCls || node.predictionError > 0) {
+        const errorLevel = node.predictionError > 0
+          ? clamp01(node.predictionError)
+          : clamp01(node.atlasSignals?.error);
         if (errorLevel > 0) {
+          const errorPulse = 0.75 + Math.sin(now * 0.006 + hashStr(node.id)) * 0.25;
           ctx.strokeStyle = PAL.coral;
-          ctx.globalAlpha = 0.18 + errorLevel * 0.55;
+          ctx.globalAlpha = (0.18 + errorLevel * 0.55) * errorPulse;
           ctx.lineWidth = 1 + errorLevel * 1.5;
           ctx.beginPath();
           ctx.arc(projected.x, projected.y, radius + 3 + errorLevel * 4, 0, Math.PI * 2);
@@ -1908,15 +1911,21 @@ export function createCognitionController({
         ctx.stroke();
       }
   
-      // Error ring
-      if (node.errorCls && ['medium', 'high', 'extreme'].includes(node.errorCls)) {
+      // Prediction-error ring. Numeric error drives radius/opacity when available.
+      const predictionError = node.predictionError > 0
+        ? clamp01(node.predictionError)
+        : clamp01(node.atlasSignals?.error);
+      if (predictionError > 0.08 || (node.errorCls && ['medium', 'high', 'extreme'].includes(node.errorCls))) {
+        const errorPulse = 0.72 + Math.sin(now * 0.006 + hashStr(node.id)) * 0.28;
         ctx.beginPath();
-        ctx.arc(node.x, node.y, r + 3.5, 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, r + 3.5 + predictionError * 4, 0, Math.PI * 2);
         ctx.strokeStyle = PAL.coral;
-        ctx.lineWidth = 1.4;
+        ctx.globalAlpha = (0.35 + predictionError * 0.55) * errorPulse;
+        ctx.lineWidth = 1.1 + predictionError * 1.2;
         ctx.setLineDash([2, 2]);
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
       }
   
       // Readout label
