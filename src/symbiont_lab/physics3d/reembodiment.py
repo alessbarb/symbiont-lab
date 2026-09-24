@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-import hashlib
-import json
 from typing import Any, Mapping
 
 from .longitudinal import (
@@ -34,23 +32,6 @@ class EmbodimentContract:
             "receptor_count": self.receptor_count,
             "effector_count": self.effector_count,
         }
-
-
-def _canonical_hash(payload: object) -> str:
-    raw = json.dumps(
-        payload,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        allow_nan=False,
-    ).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
-
-
-def _genome_identity_hash(payload: object) -> str:
-    # Must match Genome.genome_hash exactly (default json separators included).
-    raw = json.dumps(payload, sort_keys=True).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _body_vital_state(payload: Mapping[str, Any]) -> str:
@@ -501,26 +482,9 @@ def prepare_fresh_embodiment_checkpoint(
         if key in fresh:
             result[key] = deepcopy(fresh[key])
 
-    # Only the motor constitution itself changes when the opaque contract changes.
-    if not same_contract:
-        old_genome = result.get("genome")
-        new_genome = fresh.get("genome")
-        if isinstance(old_genome, dict) and isinstance(new_genome, Mapping):
-            if "motor" in new_genome:
-                old_genome["motor"] = deepcopy(new_genome["motor"])
-            else:
-                old_genome.pop("motor", None)
-            genome_fields = {
-                key: value
-                for key, value in old_genome.items()
-                if key != "genome_hash"
-            }
-            old_genome["genome_hash"] = _genome_identity_hash(genome_fields)
-            fingerprint = result.get("constitution_fingerprint")
-            if not isinstance(fingerprint, dict):
-                fingerprint = {"schema_version": 1}
-                result["constitution_fingerprint"] = fingerprint
-            fingerprint["genome_hash"] = _canonical_hash(old_genome)
+    # Genome v2 is body-independent. Re-embodiment changes physiology,
+    # sensory/actuator surfaces and acquired embodiment state only; genotype
+    # and genome hashes remain byte-for-byte unchanged.
 
     relation = (
         "same-known"
