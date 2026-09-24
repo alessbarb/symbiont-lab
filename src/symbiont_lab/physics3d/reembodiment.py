@@ -353,6 +353,52 @@ def _active_private_model_id(checkpoint: Mapping[str, Any]) -> str | None:
     return None
 
 
+def _carry_sensorimotor_v2_knowledge(
+    previous: Mapping[str, Any],
+    fresh_actuation: dict[str, Any],
+) -> dict[str, Any]:
+    """Retain organism knowledge while resetting current-body execution state."""
+    previous_actuation = previous.get("actuation")
+    if not isinstance(previous_actuation, Mapping):
+        return fresh_actuation
+    prior_v2 = previous_actuation.get("sensorimotor_v2")
+    if not isinstance(prior_v2, Mapping):
+        return fresh_actuation
+
+    result = deepcopy(fresh_actuation)
+    fresh_v2 = result.get("sensorimotor_v2")
+    retained = deepcopy(dict(prior_v2))
+
+    # The current surface binding belongs to the fresh body contract. Learned
+    # competence bindings inside retained["competences"] remain untouched and
+    # therefore stay non-executable until new evidence rebinds them.
+    if isinstance(fresh_v2, Mapping):
+        fresh_binding = fresh_v2.get("surface_binding")
+        if isinstance(fresh_binding, Mapping):
+            retained["surface_binding"] = deepcopy(dict(fresh_binding))
+
+    # Current exploration/controller traces are body-local execution state,
+    # not abstract organism knowledge.
+    retained["exploration"] = {
+        "strength_memory": {},
+        "active_preference": [],
+    }
+    raw_composition = retained.get("composition")
+    if isinstance(raw_composition, Mapping):
+        composition = deepcopy(dict(raw_composition))
+        composition["predecessor_id"] = None
+        composition["active_children"] = []
+        composition["active_index"] = 0
+        composition["effect_by_commitment"] = {}
+        retained["composition"] = composition
+
+    result["sensorimotor_v2"] = retained
+    result["action_commitment"] = None
+    result["last_executed_primitive_id"] = None
+    result["pending_motor_observation"] = []
+    result["pending_proprioception"] = {}
+    return result
+
 def prepare_fresh_embodiment_checkpoint(
     previous: Mapping[str, Any],
     fresh: Mapping[str, Any],
@@ -470,7 +516,11 @@ def prepare_fresh_embodiment_checkpoint(
     fresh_actuation = deepcopy(fresh.get("actuation"))
     if not isinstance(fresh_actuation, dict):
         fresh_actuation = {"enabled": False}
-    result["actuation"] = inject_memory_candidates(fresh_actuation, known_memory)
+    fresh_actuation = inject_memory_candidates(fresh_actuation, known_memory)
+    result["actuation"] = _carry_sensorimotor_v2_knowledge(
+        previous,
+        fresh_actuation,
+    )
 
     # General cognition persists, embodiment-specific motor authority does not.
     if historical_bridge is not None:
