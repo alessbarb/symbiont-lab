@@ -428,6 +428,23 @@ Al alcanzar `EXCRETED`, el elemento se purga definitivamente de la memoria y se 
 
 ---
 
+### 3.6b Separación temporal entre identidad y cuerpo
+
+Tras introducir re-embodiment, el tiempo se divide en dominios distintos:
+
+```text
+symbiont_tick     -> historia continua de identidad
+body_age_ticks    -> edad fisiológica del body actual
+structure age     -> recencia/edad local de conocimiento
+```
+
+La senescencia y la muerte pertenecen al Body. Un Symbiont puede persistir
+dormant después de la muerte de un body y continuar posteriormente en un body
+fresco. El tick histórico nunca puede escribirse como edad fisiológica.
+
+Especificación normativa:
+[Symbiont / Body temporal separation](design/symbiont-body-temporal-separation-v1.md).
+
 ### 3.7 Ontogenia, Reproducción, Linaje y Población
 
 La reproducción canónica pertenece al **Living Body**, no a la saturación
