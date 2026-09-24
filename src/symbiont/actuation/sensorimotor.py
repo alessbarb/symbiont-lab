@@ -1418,7 +1418,11 @@ class SensorimotorLearner:
             raise ValueError("sensorimotor actuator constitution mismatch")
         allowed = set(expected)
 
-        raw_groups = payload.get("exclusive_actuator_groups", [])
+        if "exclusive_actuator_groups" not in payload:
+            raise ValueError(
+                "sensorimotor v9 checkpoint is missing exclusive actuator groups"
+            )
+        raw_groups = payload.get("exclusive_actuator_groups")
         if not isinstance(raw_groups, list):
             raise ValueError("invalid exclusive actuator groups")
         exclusive_groups: list[tuple[str, ...]] = []
