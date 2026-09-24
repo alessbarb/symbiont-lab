@@ -547,11 +547,18 @@ class EpisodicExperienceMemory:
         *,
         include_effect: bool = False,
     ) -> float:
-        sense = _jaccard(left.sense_ids, right.sense_ids)
-        concept = _jaccard(left.concept_ids, right.concept_ids)
-        internal = _jaccard(left.internal_tokens, right.internal_tokens)
-        action = 1.0 if left.action_token == right.action_token else 0.0
-        state = 0.42 * sense + 0.28 * concept + 0.15 * internal + 0.15 * action
+        components: list[tuple[float, float]] = []
+        if left.sense_ids or right.sense_ids:
+            components.append((0.42, _jaccard(left.sense_ids, right.sense_ids)))
+        if left.concept_ids or right.concept_ids:
+            components.append((0.28, _jaccard(left.concept_ids, right.concept_ids)))
+        if left.internal_tokens or right.internal_tokens:
+            components.append((0.15, _jaccard(left.internal_tokens, right.internal_tokens)))
+        components.append(
+            (0.15, 1.0 if left.action_token == right.action_token else 0.0)
+        )
+        total_weight = sum(weight for weight, _ in components)
+        state = sum(weight * value for weight, value in components) / total_weight
         if not include_effect:
             return state
         effect = _jaccard(left.effect_features, right.effect_features)
@@ -1091,7 +1098,9 @@ class EpisodicExperienceMemory:
         return payload
 
     def checkpoint(self) -> dict[str, object]:
-        payload = self._checkpoint_payload(include_pending=True)
+        # A restart is a causal discontinuity. Pending observations remain
+        # ephemeral and are deliberately not bridged across checkpoints.
+        payload = self._checkpoint_payload(include_pending=False)
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         if len(encoded) > self._limits.max_episodic_checkpoint_bytes:
             raise EpisodicMemoryError("episodic checkpoint exceeds kernel byte limit")
@@ -1201,62 +1210,7 @@ class EpisodicExperienceMemory:
                 if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
                     setattr(memory, f"_{name}", value)
 
-        # Pending v2 observations are sealed into their own pre-restart episode;
-        # they never bridge causal segmentation across a restart.
-        raw_pending = payload.get("pending", [])
-        if isinstance(raw_pending, list):
-            for item in raw_pending[: limits.max_episodic_episode_records]:
-                if not isinstance(item, Mapping):
-                    continue
-                projection_raw = item.get("projection")
-                if not isinstance(projection_raw, Mapping):
-                    continue
-                tick = item.get("tick")
-                record_id = item.get("record_id")
-                content_hash = item.get("content_hash")
-                source_kind = item.get("source_kind")
-                evidence = item.get("evidence_refs", [])
-                if (
-                    isinstance(tick, int)
-                    and not isinstance(tick, bool)
-                    and isinstance(record_id, str)
-                    and isinstance(content_hash, str)
-                    and isinstance(source_kind, str)
-                    and isinstance(evidence, list)
-                ):
-                    # A tiny synthetic shell is used only to preserve provenance
-                    # and segmentation. It is never emitted as causal evidence.
-                    shell = ExperienceRecord(
-                        record_id=record_id,
-                        organism_id=organism_id,
-                        tick_class=tick,
-                        context_tokens=("internal.restored-episodic-pending",),
-                        action_token=None,
-                        outcome_tokens=("outcome.restored-episodic-pending",),
-                        epistemic_status=EpistemicStatus.OBSERVED,
-                        evidence_refs=tuple(str(ref) for ref in evidence[:16]) or ("evidence.restored",),
-                        confidence_class=7,
-                        source_kind=SourceKind(source_kind),
-                    )
-                    if shell.content_hash != content_hash:
-                        # The shell cannot reproduce the original raw record,
-                        # so keep only its compact projection and provenance by
-                        # sealing a migrated observation with a stable identity.
-                        shell = ExperienceRecord(
-                            record_id=record_id,
-                            organism_id=organism_id,
-                            tick_class=tick,
-                            context_tokens=("internal.compact-provenance",),
-                            action_token=None,
-                            outcome_tokens=("outcome.compact-provenance",),
-                            epistemic_status=EpistemicStatus.OBSERVED,
-                            evidence_refs=tuple(str(ref) for ref in evidence[:16]) or ("evidence.restored",),
-                            confidence_class=7,
-                            source_kind=SourceKind(source_kind),
-                        )
-                    memory.observe(shell, EpisodicProjection.restore(projection_raw))
-            memory.flush()
-
+        # Pending observations are intentionally absent from v2 checkpoints.
         memory.consolidate()
         memory._enforce_capacity()
         return memory
