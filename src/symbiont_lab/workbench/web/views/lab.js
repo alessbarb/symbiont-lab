@@ -12,3 +12,5 @@ export function mount(root, state = null) {
 export function update(root, state) {
   renderLab(root, state);
 }
+
+export function unmount() {}
