@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from .humanoid import CONTACT_LINK_NAMES, JOINT_SPECS
 
 
 _INTEROCEPTIVE_SOURCE_LABELS = (
@@ -24,13 +23,15 @@ def _humanize(token: str) -> str:
 
 def receptor_ground_truth(
     *,
+    joint_specs: Iterable[object],
+    contact_region_names: tuple[str, ...],
     interoceptive_source_ordinals: tuple[int, ...],
 ) -> dict[str, dict[str, str]]:
     """Return exact evaluator meaning for every canonical opaque receptor."""
     labels: dict[str, dict[str, str]] = {}
     ordinal = 0
 
-    for spec in JOINT_SPECS:
+    for spec in joint_specs:
         joint = _humanize(spec.name)
         labels[f"rec.{ordinal}"] = {
             "label": f"{joint} angle",
@@ -64,8 +65,7 @@ def receptor_ground_truth(
         }
         ordinal += 1
 
-    contact_regions = ("pelvis", *CONTACT_LINK_NAMES)
-    for region in contact_regions:
+    for region in contact_region_names:
         labels[f"rec.{ordinal}"] = {
             "label": f"{_humanize(region)} contact",
             "category": "contact",
@@ -78,7 +78,7 @@ def receptor_ground_truth(
     }
     ordinal += 1
 
-    for region in contact_regions:
+    for region in contact_region_names:
         labels[f"rec.{ordinal}"] = {
             "label": f"{_humanize(region)} contact load",
             "category": "contact",
@@ -100,10 +100,14 @@ def receptor_ground_truth(
 def sensory_semantics(
     sensors: Iterable[object],
     *,
+    joint_specs: Iterable[object],
+    contact_region_names: tuple[str, ...],
     interoceptive_source_ordinals: tuple[int, ...],
 ) -> dict[str, dict[str, object]]:
     """Map organism-owned cognitive sensor names to apparatus ground truth."""
     truth = receptor_ground_truth(
+        joint_specs=joint_specs,
+        contact_region_names=contact_region_names,
         interoceptive_source_ordinals=interoceptive_source_ordinals,
     )
     result: dict[str, dict[str, object]] = {}
@@ -145,6 +149,8 @@ def sensory_semantics(
 
 def motor_semantics(
     actuator_to_effector: dict[str, str],
+    *,
+    joint_specs: tuple[object, ...],
 ) -> dict[str, dict[str, str]]:
     """Map opaque organism actuator ids to evaluator-only physical meaning."""
     result: dict[str, dict[str, str]] = {}
@@ -154,10 +160,10 @@ def motor_semantics(
         except (IndexError, ValueError):
             continue
         joint_ordinal = ordinal // 2
-        if not 0 <= joint_ordinal < len(JOINT_SPECS):
+        if not 0 <= joint_ordinal < len(joint_specs):
             continue
         direction = "positive" if ordinal % 2 == 0 else "negative"
-        joint = _humanize(JOINT_SPECS[joint_ordinal].name)
+        joint = _humanize(str(getattr(joint_specs[joint_ordinal], "name")))
         result[str(actuator_id)] = {
             "self_label": str(actuator_id),
             "effector_id": str(effector_id),

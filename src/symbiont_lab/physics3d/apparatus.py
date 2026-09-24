@@ -255,7 +255,7 @@ class PhysicsReadingProvider:
 
 def actuator_to_effector_map(
     constitution: ActuatorConstitution,
-    apparatus: HumanoidPhysics,
+    apparatus: Any,
 ) -> dict[str, str]:
     """Bind opaque inherited actuator ordinals to opaque physical ports."""
     actuator_ids = constitution.actuator_ids

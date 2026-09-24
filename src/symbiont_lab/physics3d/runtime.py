@@ -1279,11 +1279,18 @@ class PyBulletEmbodimentRuntime:
             "observer_semantics": {
                 "sensory": sensory_semantics(
                     self.organism.sensory_system.sensors,
+                    joint_specs=self.body_descriptor.observer_joint_specs,
+                    contact_region_names=(
+                        self.body_descriptor.observer_contact_region_names
+                    ),
                     interoceptive_source_ordinals=(
                         self._body_interoception.source_ordinals_by_slot
                     ),
                 ),
-                "motor": motor_semantics(self._actuator_to_effector),
+                "motor": motor_semantics(
+                    self._actuator_to_effector,
+                    joint_specs=self.body_descriptor.observer_joint_specs,
+                ),
                 "provenance": {
                     "owner": "observer",
                     "source": "physics3d-apparatus",
