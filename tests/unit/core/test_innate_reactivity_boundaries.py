@@ -40,10 +40,11 @@ def test_regulation_contains_no_anatomical_motor_mapping() -> None:
         assert not names.intersection(forbidden_identifiers)
 
 
-def test_runtime_fast_path_still_activates_through_sensorimotor_learner() -> None:
+def test_runtime_protection_enters_universal_action_arbitration() -> None:
     source = Path(
         "src/symbiont/core/orchestration/runtime.py"
     ).read_text(encoding="utf-8")
-    assert '"primitive_reactive"' in source
-    assert "self._sensorimotor_learner.activate_primitive(" in source
-    assert "self._action_arbitrator.choose_reactive(" in source
+    assert "ActionSource.PROTECTION" in source
+    assert "self._action_arbitrator.choose(" in source
+    assert '"primitive_reactive"' not in source
+    assert "choose_reactive(" not in source
