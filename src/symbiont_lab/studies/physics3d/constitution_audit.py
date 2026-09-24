@@ -5,7 +5,7 @@ import json
 import math
 from pathlib import Path
 from statistics import fmean
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from symbiont_lab.physics3d.humanoid import (
     GROUND_MATERIAL,
