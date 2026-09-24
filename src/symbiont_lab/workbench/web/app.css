@@ -706,3 +706,63 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   text-align: right;
   overflow-wrap: anywhere;
 }
+
+
+/* ── Cognition inspector primitives ──────────────────────────────── */
+.mind-inspector-line {
+  font-size: 8px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.mind-inspector-line strong { color: var(--text); }
+.mind-inspector-divider {
+  padding: 5px 0;
+  border-top: 1px solid rgba(98, 120, 136, 0.12);
+}
+.mind-inspector-stage {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr) 42px;
+  gap: 6px;
+  align-items: center;
+  font-size: 8px;
+  color: var(--muted);
+}
+.mind-inspector-stage-meter {
+  height: 3px;
+  background: rgba(98, 120, 136, 0.18);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.mind-inspector-stage-fill {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+}
+.mind-inspector-stage-count { text-align: right; }
+.mind-inspector-objective {
+  padding: 8px 0 10px;
+  border-top: 1px solid rgba(98, 120, 136, 0.16);
+}
+.mind-inspector-structure-button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+.mind-inspector-structure-button strong { color: var(--text); }
+.mind-cognition-summary-title {
+  color: var(--text);
+  font-size: 9px;
+  line-height: 1.45;
+}
+.mind-cognition-summary-line {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
