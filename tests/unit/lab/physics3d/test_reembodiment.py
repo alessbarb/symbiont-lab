@@ -293,7 +293,7 @@ def test_known_contract_return_recovers_hypotheses_without_restoring_authority()
     returned = prepare_fresh_embodiment_checkpoint(
         crawler,
         _fresh(slots=62),
-        contract=EmbodimentContract("anthropomorphic-v4", 107, 62),
+        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
     )
 
     current = returned["embodiment_lifecycle"]["current"]
