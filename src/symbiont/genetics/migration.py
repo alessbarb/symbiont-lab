@@ -30,7 +30,6 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
     v2: dict[str, Any] = {
         "schema_version": 2,
         "genome_id": str(payload["genome_id"]).replace("genome_", "genome_v2_", 1),
-        "parent_ids": [str(payload["genome_id"])],
         "kernel_compatibility": ">=0.80,<0.90",
         "development": {
             "soft_node_budget": int(development["soft_node_budget"]),
@@ -120,10 +119,6 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
             "sensorimotor_mutation_scale": sigma,
             "structure_mutation_scale": sigma,
             "recombination_linkage": 0.5,
-        },
-        "inheritance": {
-            "epigenetic_decay": 0.2,
-            "max_epigenetic_marks": 8,
         },
     }
     # Historical MotorGenes intentionally have no target in Genome v2. The
