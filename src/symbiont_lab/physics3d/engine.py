@@ -48,9 +48,18 @@ def _archive_existing_subject(
     body_file: Path,
     telemetry_file: Path,
 ) -> Path | None:
+    candidates = [symbiont_file, body_file, telemetry_file]
+    if (
+        symbiont_file == DEFAULT_SYMBIONT_FILE
+        and body_file == DEFAULT_BODY_FILE
+        and LEGACY_BODY_FILE not in candidates
+    ):
+        # Preserve the final v4 pose as historical apparatus evidence when the
+        # default subject is moved to the v5 constitution.
+        candidates.append(LEGACY_BODY_FILE)
     existing = tuple(
         path
-        for path in (symbiont_file, body_file, telemetry_file)
+        for path in candidates
         if path.exists() and (path != telemetry_file or path.is_file())
     )
     if not existing:
