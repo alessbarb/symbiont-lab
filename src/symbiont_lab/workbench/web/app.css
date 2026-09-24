@@ -223,7 +223,7 @@ body {
   background: rgba(255, 255, 255, 0.02);
 }
 
-.mind-tab[aria-pressed="true"] {
+.mind-tab[aria-selected="true"] {
   color: var(--cyan);
   background: linear-gradient(180deg, transparent, rgba(80, 217, 255, 0.05));
   border-bottom: 2px solid var(--cyan);
@@ -797,7 +797,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   border-radius: 6px 6px 0 0;
   transition: color 0.15s, border-color 0.15s;
 }
-.mind-tab[aria-pressed="true"] {
+.mind-tab[aria-selected="true"] {
   color: var(--cyan);
   border-bottom-color: var(--cyan);
 }
