@@ -110,9 +110,6 @@ class Physics3DSession:
             if runner is None:
                 from symbiont_lab.physics3d.engine import run as runner
 
-            with self._lock:
-                if self._state != Physics3DSessionState.STOPPING:
-                    self._state = Physics3DSessionState.RUNNING
             runner_kwargs: dict[str, object] = {
                 "show_monitor": True,
                 "headless": False,
@@ -120,6 +117,20 @@ class Physics3DSession:
             }
             if launch is not None:
                 runner_kwargs.update(launch.runner_kwargs())
+
+            if self._runner is None:
+                def _ready() -> None:
+                    with self._lock:
+                        if self._state != Physics3DSessionState.STOPPING:
+                            self._state = Physics3DSessionState.RUNNING
+                runner_kwargs["ready_callback"] = _ready
+            else:
+                # Test/custom runners do not need to know the engine callback
+                # contract; reaching the runner is sufficient readiness.
+                with self._lock:
+                    if self._state != Physics3DSessionState.STOPPING:
+                        self._state = Physics3DSessionState.RUNNING
+
             code = runner(**runner_kwargs)
             with self._lock:
                 self._exit_code = int(code)
