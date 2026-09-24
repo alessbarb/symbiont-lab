@@ -19,6 +19,7 @@ from .humanoid import (
     END_RANGE_STIFFNESS,
     JOINT_LIMIT_SOLVER_TOLERANCE,
     MECHANICAL_LIMIT_GUARD,
+    ActuatorWork,
     MotorBinding,
     SegmentSpec,
     JointSpec,
@@ -511,7 +512,7 @@ class ArticulatedPhysics:
                 physicsClientId=self.client_id,
             )
 
-    def mechanical_work_step(self, dt: float) -> float:
+    def actuator_work_step(self, dt: float) -> ActuatorWork:
         if not math.isfinite(float(dt)) or dt <= 0.0:
             raise ValueError("dt must be finite and positive")
         active = [
@@ -520,7 +521,7 @@ class ArticulatedPhysics:
             if abs(float(torque)) > 1e-9
         ]
         if not active:
-            return 0.0
+            return ActuatorWork(0.0, 0.0, 0.0, 0.0)
         indices = [item[0] for item in active]
         states = (
             self.p.getJointStates(self.body_id, indices, physicsClientId=self.client_id)
@@ -530,10 +531,24 @@ class ArticulatedPhysics:
                 for idx in indices
             ]
         )
-        return float(sum(
-            abs(torque * float(state[1])) * float(dt)
-            for (_, torque), state in zip(active, states)
-        ))
+        positive = 0.0
+        negative = 0.0
+        for (_, torque), state in zip(active, states):
+            work = torque * float(state[1]) * float(dt)
+            if work >= 0.0:
+                positive += work
+            else:
+                negative += -work
+        return ActuatorWork(
+            positive_j=float(positive),
+            negative_j=float(negative),
+            absolute_j=float(positive + negative),
+            net_j=float(positive - negative),
+        )
+
+    def mechanical_work_step(self, dt: float) -> float:
+        """Compatibility scalar: absolute commanded actuator effort."""
+        return self.actuator_work_step(dt).absolute_j
 
     def export_physical_state(self) -> dict[str, object]:
         base_position, base_orientation = self.p.getBasePositionAndOrientation(
