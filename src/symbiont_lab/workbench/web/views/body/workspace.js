@@ -95,11 +95,19 @@ export class BodyWorkspace {
 
   mount(root, canvasWrap, panel) {
     this.nav = node('div', 'body-tabs');
+    this.nav.setAttribute('role', 'tablist');
+    this.nav.setAttribute('aria-label', 'Body view tabs');
     for (const [id, label] of TABS) {
       const b = node('button', 'body-tab', label);
       b.type = 'button';
+      b.id = `body-tab-${id}`;
       b.dataset.tab = id;
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-controls', 'body-inspector-panel');
+      b.setAttribute('aria-selected', String(id === this.activeTab));
+      b.tabIndex = id === this.activeTab ? 0 : -1;
       b.addEventListener('click', () => this.setTab(id));
+      b.addEventListener('keydown', (event) => this.handleTabKey(event, id));
       this.nav.appendChild(b);
     }
     root.appendChild(this.nav);
@@ -110,7 +118,10 @@ export class BodyWorkspace {
     canvasWrap.appendChild(this.overlay);
 
     this.panel = panel;
+    panel.id = 'body-inspector-panel';
     panel.classList.add('body-inspector');
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', 'body-tab-overview');
     this.setTab('overview');
   }
 
@@ -118,7 +129,13 @@ export class BodyWorkspace {
   setTab(tab) {
     if (!TABS.some(([id]) => id === tab)) return;
     this.activeTab = tab;
-    this.nav?.querySelectorAll('.body-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    this.nav?.querySelectorAll('.body-tab').forEach((button) => {
+      const active = button.dataset.tab === tab;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+    this.panel?.setAttribute('aria-labelledby', `body-tab-${tab}`);
     const dataView = tab === 'physiology' || tab === 'history';
     this.overlay?.classList.toggle('visible', dataView);
     if (tab !== 'anatomy') this.clearSegmentHighlight();
