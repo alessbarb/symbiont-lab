@@ -181,7 +181,7 @@ function routeToView(viewId, { updateHash = true } = {}) {
   currentView = next;
 
   if (updateHash && window.location.hash !== `#${next}`) {
-    history.replaceState(null, '', `#${next}`);
+    history.pushState(null, '', `#${next}`);
   }
 
   activateRail(next);
@@ -237,12 +237,16 @@ function boot() {
   runtimeState.start();
 }
 
-window.addEventListener('hashchange', () => {
+function syncHistoryRoute() {
   const next = parseHash();
   if (next !== currentView) routeToView(next, { updateHash: false });
-});
+}
 
-window.addEventListener('pagehide', () => runtimeState.stop(), { once: true });
+window.addEventListener('hashchange', syncHistoryRoute);
+window.addEventListener('popstate', syncHistoryRoute);
+
+window.addEventListener('pagehide', () => runtimeState.stop());
+window.addEventListener('pageshow', () => runtimeState.start());
 window.routeToView = routeToView;
 window.switchView = switchView;
 window.addEventListener('DOMContentLoaded', boot);
