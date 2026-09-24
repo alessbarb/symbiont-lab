@@ -199,9 +199,12 @@ class PyBulletEmbodimentRuntime:
         if (
             isinstance(mechanical_work_cost_per_joule, bool)
             or not isinstance(mechanical_work_cost_per_joule, (int, float))
-            or not 0.0 <= float(mechanical_work_cost_per_joule) <= 0.1
+            or not math.isfinite(float(mechanical_work_cost_per_joule))
+            or float(mechanical_work_cost_per_joule) < 0.0
         ):
-            raise ValueError("mechanical_work_cost_per_joule must be within [0, 0.1]")
+            raise ValueError(
+                "mechanical_work_cost_per_joule must be finite and non-negative"
+            )
         self.mechanical_work_cost_per_joule = float(mechanical_work_cost_per_joule)
         self.capture_physics_trace = bool(capture_physics_trace)
         self.body_descriptor = DEFAULT_BODY_REGISTRY.get(body_kind)
@@ -1213,10 +1216,13 @@ class PyBulletEmbodimentRuntime:
         physics_ms = (time.perf_counter() - physics_started) * 1000.0
         diagnostics_started = time.perf_counter()
 
-        metabolic_work_cost = min(
-            0.05,
-            mechanical_work_joules * self.mechanical_work_cost_per_joule,
+        metabolic_work_cost = (
+            mechanical_work_joules * self.mechanical_work_cost_per_joule
         )
+        if not math.isfinite(metabolic_work_cost):
+            raise RuntimeError(
+                "non-finite metabolic work cost derived from physical work"
+            )
         if metabolic_work_cost > 0.0:
             self.organism.register_embodied_work(metabolic_work_cost)
 
