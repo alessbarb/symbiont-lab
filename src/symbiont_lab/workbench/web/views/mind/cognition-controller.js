@@ -33,7 +33,7 @@ import {
   sectorBridges,
 } from './functional-sectors.js';
 import { enrichGraphModel } from './graph-model.js';
-import { filterGraphForView } from './graph-selection.js';
+import { filterGraphForView, graphSubgraphIds } from './graph-selection.js';
 import {
   compactSelfLabel,
   sensorySemantic,
@@ -112,6 +112,53 @@ export function createCognitionController({
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
   }
   
+  function focusedSectorContext() {
+    const sectorId = graph.focusedSectorId;
+    if (!sectorId) return null;
+
+    const local = new Set(
+      graph.nodes
+        .filter((node) => node.community === sectorId)
+        .map((node) => node.id),
+    );
+    if (!local.size) return null;
+
+    const bridges = new Set();
+    for (const edge of graph.edges) {
+      const sourceLocal = local.has(edge.source.id);
+      const targetLocal = local.has(edge.target.id);
+      if (sourceLocal === targetLocal) continue;
+      bridges.add(sourceLocal ? edge.target.id : edge.source.id);
+    }
+
+    return {
+      sectorId,
+      local,
+      bridges,
+      visible: new Set([...local, ...bridges]),
+    };
+  }
+
+  function currentRenderedTopology() {
+    return {
+      nodes: graph.nodes.map((node) => ({ id: node.id, kind: node.kind })),
+      edges: graph.edges.map((edge) => ({
+        sourceId: edge.source.id,
+        targetId: edge.target.id,
+        kind: edge.kind,
+        support: edge.support,
+        weight: edge.weight,
+        plasticity: edge.plasticity,
+        ageTicks: edge.ageTicks,
+        stableTicks: edge.stableTicks,
+        lastUseTick: edge.lastUseTick,
+        correlation: edge.correlation,
+        samples: edge.samples,
+        learnedLayer: edge.learnedLayer,
+      })),
+    };
+  }
+
   function buildGraphModel() {
     const source = graph.replaySnapshot ?? snap;
     const topology = source.topology;
