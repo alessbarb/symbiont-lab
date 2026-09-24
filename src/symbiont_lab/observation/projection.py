@@ -58,6 +58,8 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
 
     body: dict[str, Any] = {**identity, "type": "body"}
     _copy_number(body, tick, "tick", cast=int)
+    if tick.get("body_kind") is not None:
+        body["body_kind"] = str(tick["body_kind"])
     if isinstance(tick.get("base_position"), (list, tuple)):
         try:
             body["base_position"] = [float(v) for v in tick["base_position"]]
