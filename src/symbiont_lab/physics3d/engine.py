@@ -603,6 +603,18 @@ def run(
                         episodic_compressed_episodes=int(
                             episodic_state.get("compressed_episode_count", 0)
                         ),
+                        episodic_total_occurrences=int(
+                            episodic_state.get("total_occurrences", 0)
+                        ),
+                        episodic_mean_recurrence=float(
+                            episodic_state.get("mean_recurrence", 0.0)
+                        ),
+                        episodic_exceptions=int(
+                            episodic_state.get("exception_count", 0)
+                        ),
+                        episodic_checkpoint_bytes=int(
+                            episodic_state.get("checkpoint_bytes", 0)
+                        ),
                         episodic_interpretations=int(
                             episodic_state.get("interpretation_count", 0)
                         ),
