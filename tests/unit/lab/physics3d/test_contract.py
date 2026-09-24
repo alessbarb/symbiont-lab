@@ -1010,3 +1010,30 @@ def test_actuator_work_metabolic_conversion_is_proportional_without_cap():
     ):
         with pytest.raises(ValueError):
             metabolic_cost_from_actuator_work(work, rate)
+
+
+
+def test_articulated_body_reports_signed_and_absolute_actuator_work():
+    from symbiont_lab.physics3d.articulated import ArticulatedPhysics
+
+    class Bullet:
+        def getJointStates(self, _body_id, indices, **_kwargs):
+            velocities = {0: 2.0, 1: -3.0}
+            return tuple(
+                (0.0, velocities[index], 0.0, 0.0)
+                for index in indices
+            )
+
+    body = ArticulatedPhysics.__new__(ArticulatedPhysics)
+    body.p = Bullet()
+    body.client_id = 1
+    body.body_id = 2
+    body._applied_torque_by_joint = {0: 4.0, 1: 5.0}
+
+    work = body.actuator_work_step(0.5)
+
+    assert work.positive_j == pytest.approx(4.0)
+    assert work.negative_j == pytest.approx(7.5)
+    assert work.absolute_j == pytest.approx(11.5)
+    assert work.net_j == pytest.approx(-3.5)
+    assert body.mechanical_work_step(0.5) == pytest.approx(11.5)
