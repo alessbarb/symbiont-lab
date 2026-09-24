@@ -139,13 +139,12 @@ def test_babbling_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
         running_version=(0, 80, 0),
     )
     runtime = OrganismRuntime(
-        organism_id="motor-babbling-runtime",
+        organism_id="motor-exploration-runtime",
         genome=genome,
         cognitive_graph=graph,
         kernel_limits=limits,
         actuation_enabled=True,
-        actuator_constitution=derive_actuator_constitution(8, physical_contract="unit-babbling-runtime-v2"),
-        motor_exploration_mode="babbling",
+        actuator_constitution=derive_actuator_constitution(8, physical_contract="unit-exploration-runtime-v2"),
         bootstrap_semantic_senses=False,
         discover_senses=False,
         min_samples=1,
@@ -156,10 +155,10 @@ def test_babbling_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
 
     before = runtime.sensorimotor_snapshot
     assert before is not None
-    assert before.babbling_coverage > 0.0
+    assert before.exploration_coverage > 0.0
 
     payload = runtime.checkpoint()
-    assert payload["actuation"]["exploration_mode"] == "babbling"
+    assert "exploration_mode" not in payload["actuation"]
     assert isinstance(payload["actuation"]["sensorimotor"], dict)
 
     restored = OrganismRuntime.from_checkpoint(
