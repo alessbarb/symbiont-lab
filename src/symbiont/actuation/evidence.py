@@ -28,11 +28,13 @@ class SensorimotorTransition:
     context_ref: str
     commitment_id: str
     controller_id: str
+    competence_id: str | None
     state_before_ref: str
     motor_command_ref: str
     actuation_ref: str
     prediction_ref: str | None
     state_after_ref: str
+    observed_effect_id: str | None = None
     physiological_delta_ref: str | None = None
 
     def __post_init__(self) -> None:
@@ -50,6 +52,8 @@ class SensorimotorTransition:
         ):
             if not value:
                 raise ValueError("transition references must not be empty")
+        if self.observed_effect_id is not None and not self.observed_effect_id.startswith("effect."):
+            raise ValueError("observed effect must be organism-owned")
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +61,8 @@ class CausalEvidence:
     evidence_id: str
     transition_id: str
     action_ref: str
+    competence_id: str | None
+    effect_id: str | None
     context_ref: str
     prior_state_ref: str
     resulting_state_ref: str
@@ -71,7 +77,7 @@ class CausalEvidence:
 class CausalEvidenceLedger:
     """Single bounded factual source for all sensorimotor inference views."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(self, *, capacity: int = 4096) -> None:
         if capacity < 1:
@@ -84,6 +90,8 @@ class CausalEvidenceLedger:
             evidence_id=f"causal.{transition.transition_id}",
             transition_id=transition.transition_id,
             action_ref=transition.motor_command_ref,
+            competence_id=transition.competence_id,
+            effect_id=transition.observed_effect_id,
             context_ref=transition.context_ref,
             prior_state_ref=transition.state_before_ref,
             resulting_state_ref=transition.state_after_ref,
@@ -99,6 +107,27 @@ class CausalEvidenceLedger:
     def evidence(self) -> tuple[CausalEvidence, ...]:
         return tuple(self._evidence)
 
+    def effect_opportunities(
+        self,
+        effect_id: str,
+        *,
+        competence_id: str,
+        context_ref: str | None = None,
+    ) -> tuple[int, int, int, int]:
+        """Return action opportunities/successes and alternative opportunities/successes."""
+        action_n = action_success = other_n = other_success = 0
+        for item in self._evidence:
+            if context_ref is not None and item.context_ref != context_ref:
+                continue
+            hit = item.effect_id == effect_id
+            if item.competence_id == competence_id:
+                action_n += 1
+                action_success += int(hit)
+            else:
+                other_n += 1
+                other_success += int(hit)
+        return action_n, action_success, other_n, other_success
+
     def checkpoint(self) -> dict[str, object]:
         return {
             "schema_version": self.SCHEMA_VERSION,
@@ -108,6 +137,8 @@ class CausalEvidenceLedger:
                     "evidence_id": item.evidence_id,
                     "transition_id": item.transition_id,
                     "action_ref": item.action_ref,
+                    "competence_id": item.competence_id,
+                    "effect_id": item.effect_id,
                     "context_ref": item.context_ref,
                     "prior_state_ref": item.prior_state_ref,
                     "resulting_state_ref": item.resulting_state_ref,
@@ -120,7 +151,8 @@ class CausalEvidenceLedger:
 
     @classmethod
     def restore(cls, payload: dict[str, object]) -> "CausalEvidenceLedger":
-        if payload.get("schema_version") != cls.SCHEMA_VERSION:
+        version = payload.get("schema_version")
+        if version not in (1, cls.SCHEMA_VERSION):
             raise ValueError("unsupported causal-evidence checkpoint")
         obj = cls(capacity=int(payload.get("capacity", 4096)))
         raw = payload.get("evidence", [])
@@ -129,5 +161,9 @@ class CausalEvidenceLedger:
         for item in raw[-obj._capacity:]:
             if not isinstance(item, dict):
                 raise ValueError("invalid causal evidence item")
-            obj._evidence.append(CausalEvidence(**item))
+            normalized = dict(item)
+            if version == 1:
+                normalized.setdefault("competence_id", None)
+                normalized.setdefault("effect_id", None)
+            obj._evidence.append(CausalEvidence(**normalized))
         return obj
