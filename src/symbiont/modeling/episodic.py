@@ -501,6 +501,10 @@ class EpisodicMemoryMetrics:
     episode_count: int
     pending_records: int
     compressed_episode_count: int
+    total_occurrences: int
+    mean_recurrence: float
+    exception_count: int
+    checkpoint_bytes: int
     interpretation_count: int
     consolidated_contingencies: int
     retrieval_count: int
@@ -1129,10 +1133,19 @@ class EpisodicExperienceMemory:
 
     def metrics(self, *, current_tick: int) -> EpisodicMemoryMetrics:
         ages = [max(0, current_tick - episode.end_tick) for episode in self._episodes]
+        total_occurrences = sum(episode.recurrence for episode in self._episodes)
         return EpisodicMemoryMetrics(
             episode_count=len(self._episodes),
             pending_records=len(self._pending),
             compressed_episode_count=sum(episode.recurrence > 1 for episode in self._episodes),
+            total_occurrences=total_occurrences,
+            mean_recurrence=(
+                total_occurrences / len(self._episodes)
+                if self._episodes
+                else 0.0
+            ),
+            exception_count=sum(len(episode.exceptions) for episode in self._episodes),
+            checkpoint_bytes=self._estimated_size(),
             interpretation_count=sum(len(values) for values in self._interpretations.values()),
             consolidated_contingencies=len(self._consolidated),
             retrieval_count=self._retrieval_count,
