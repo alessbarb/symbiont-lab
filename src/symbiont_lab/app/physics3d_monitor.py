@@ -949,7 +949,7 @@ def _viewer_main(
     # Section: Contact Sensors
     tk.Label(
         left_panel,
-        text="Ground contacts",
+        text="Body contacts",
         bg=panel,
         fg=muted,
         font=("TkDefaultFont", 8, "bold"),
