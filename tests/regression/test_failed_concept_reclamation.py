@@ -40,6 +40,7 @@ def test_failed_concept_bundle_is_pruned_then_garbage_collected() -> None:
         edge.plasticity = 0.0
         edge.support = genome.structure.minimum_support
         edge.last_use_tick = 6
+    bridge._concept_last_active_tick.clear()
 
     for tick in range(7, 19):
         bridge.tick({}, tick=tick)

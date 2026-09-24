@@ -6,7 +6,7 @@ def test_relation_valence_is_evidence_based():
 
 def test_engine_supports_exchange_and_finite_competition():
  from symbiont.core.interactions import EcologicalResourcePool
- from symbiont.core.social import SocialInteractionEngine
+ from symbiont.core.social.engine import SocialInteractionEngine
  e=SocialInteractionEngine(EcologicalResourcePool({"food":1.0}))
  assert e.exchange("a","b","food",0.4).granted == 0.4
  out=e.compete([("a","food",0.8),("b","food",0.8)])
@@ -298,7 +298,7 @@ def test_runtime_death_releases_social_membership_once() -> None:
     social = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
     social.admit("a")
     metabolism = MetabolicLedger(replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")})
-    metabolism.charge("maintenance", 2.0)
+    metabolism.charge("maintenance", metabolism.body_state.energy_reserve)
     runtime = OrganismRuntime(organism_id="a", social_habitat=social, metabolism=metabolism, explicit_metabolism=True,
                               physiology=PhysiologyController())
     runtime.tick()
