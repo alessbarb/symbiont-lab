@@ -29,7 +29,14 @@ from .evidence import (
     SensorimotorTransition,
 )
 from .exploration import ExplorationPolicy, ExplorationSignals
-from .model import (\n    AgencyEstimate,\n    AgencyModel,\n    ControllabilityEstimate,\n    ControllabilityModel,\n    EffectPrediction,\n    SensorimotorModel,\n)
+from .model import (
+    AgencyEstimate,
+    AgencyModel,
+    ControllabilityEstimate,
+    ControllabilityModel,
+    EffectPrediction,
+    SensorimotorModel,
+)
 from .surface import (
     ActuatorChannel,
     ActuatorConstitution,
@@ -47,6 +54,8 @@ __all__ = [
     "ActionJustification",
     "ActionProposal",
     "ActionSource",
+    "AgencyEstimate",
+    "AgencyModel",
     "Actuation",
     "ActuatorChannel",
     "ActuatorConstitution",
@@ -63,6 +72,7 @@ __all__ = [
     "CompositionEngine",
     "ControllabilityEstimate",
     "ControllabilityModel",
+    "EffectPrediction",
     "EffectRepresentation",
     "EffectSpace",
     "EffectTarget",
@@ -72,6 +82,7 @@ __all__ = [
     "MotorCompetence",
     "MotorIntent",
     "PredictionError",
+    "SensorimotorModel",
     "SensorimotorTransition",
     "SensorimotorV2Snapshot",
     "SequentialCompositionEvidence",
