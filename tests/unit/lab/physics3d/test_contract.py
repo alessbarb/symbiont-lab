@@ -993,3 +993,20 @@ def test_apparatus_motor_unit_contract_requires_complete_disjoint_coverage():
     )
     with pytest.raises(ValueError, match="disjoint directional pairs"):
         actuator_exclusion_groups(constitution, overlapping)
+
+
+
+def test_actuator_work_metabolic_conversion_is_proportional_without_cap():
+    from symbiont_lab.physics3d.runtime import metabolic_cost_from_actuator_work
+
+    assert metabolic_cost_from_actuator_work(100.0, 0.1) == pytest.approx(10.0)
+    assert metabolic_cost_from_actuator_work(1000.0, 0.001) == pytest.approx(1.0)
+
+    for work, rate in (
+        (-1.0, 0.1),
+        (1.0, -0.1),
+        (float("inf"), 0.1),
+        (1.0, float("nan")),
+    ):
+        with pytest.raises(ValueError):
+            metabolic_cost_from_actuator_work(work, rate)
