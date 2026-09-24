@@ -374,7 +374,7 @@ def test_borderline_family_variant_is_retained_as_bounded_exception() -> None:
     memory.observe(
         record(10, outcomes=variant_outcomes),
         projection(
-            senses=("sensor.a", "sensor.b", "sensor.d"),
+            senses=("sensor.d", "sensor.e", "sensor.f"),
             concepts=("concept.shared",),
             outcomes=variant_outcomes,
         ),
@@ -388,7 +388,7 @@ def test_borderline_family_variant_is_retained_as_bounded_exception() -> None:
 
     match = memory.retrieve(
         EpisodicProjection(
-            sense_ids=("sensor.a", "sensor.b", "sensor.d"),
+            sense_ids=("sensor.d", "sensor.e", "sensor.f"),
             concept_ids=("concept.shared",),
             internal_tokens=("internal.pressure.low",),
             action_token="action.motor.composite",
