@@ -14,6 +14,7 @@ import {
 } from './model.js';
 import { BodyWorkspace } from './workspace.js';
 import { mountBodyCameraControls } from './camera-controls.js';
+import { BODY_PRESENTATION } from './presentation-config.js';
 
 
 function el(tag, cls, styles = {}) {
@@ -105,8 +106,8 @@ export class BodyViewer {
     this.poseFrames = [];
     this.poseCadenceMs = null;
     this.poseIntervalsMs = [];
-    this.presentationDelayMs = 120;
-    this.MAX_POSE_FRAMES = 32;
+    this.presentationDelayMs = BODY_PRESENTATION.interpolation.initialDelayMs;
+    this.MAX_POSE_FRAMES = BODY_PRESENTATION.interpolation.maxPoseFrames;
     this.hasDensePoseStream = false;
     this.presentationSourceTimeMs = null;
     this.presentationStarted = false;
@@ -116,20 +117,20 @@ export class BodyViewer {
     // time at the rate it is really being produced instead of assuming 1x.
     this.denseProducerTick = null;
     this.denseProducerArrivalMs = null;
-    this.denseTickSpanMs = 1000 / 24;
+    this.denseTickSpanMs = 1000 / BODY_PRESENTATION.interpolation.nominalDenseHz;
     this.producerRateSamples = [];
     this.producerRate = 1;
     this.presentationPlaybackRate = 1;
     this.presentationBufferMs = 1.5 * this.denseTickSpanMs;
     this.clock = new THREE.Clock();
-    this.followDistance = 3.2;
+    this.followDistance = BODY_PRESENTATION.camera.initialDistance;
 
     // UI Throttling State
     this.panelEls = {};
     this.statusEl = null;
     this.uiStateQueue = {};
     this.lastUIDrawTime = 0;
-    this.UI_UPDATE_INTERVAL_MS = 66; // ~15 FPS max for UI updates
+    this.UI_UPDATE_INTERVAL_MS = BODY_PRESENTATION.uiUpdateIntervalMs;
     this.workspace = new BodyWorkspace(this);
 
     // Event & Render handles
@@ -316,7 +317,7 @@ export class BodyViewer {
 
   buildScene() {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, BODY_PRESENTATION.maxPixelRatio));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -381,8 +382,8 @@ export class BodyViewer {
     this.controls.enablePan = false;
     this.controls.rotateSpeed = 0.8;
     this.controls.dampingFactor = 0.08;
-    this.controls.minDistance = 0.7;
-    this.controls.maxDistance = 10;
+    this.controls.minDistance = BODY_PRESENTATION.camera.minOrbitDistance;
+    this.controls.maxDistance = BODY_PRESENTATION.camera.maxOrbitDistance;
     this.controls.maxPolarAngle = Math.PI * 0.92;
 
     this.baseNode = new THREE.Object3D();
@@ -554,7 +555,7 @@ export class BodyViewer {
 
     // Bounds are relatively expensive, so refresh the desired framing at a
     // modest rate. Motion toward that target still happens every render frame.
-    if (now - this.lastFrameFitTime >= 120) {
+    if (now - this.lastFrameFitTime >= BODY_PRESENTATION.camera.boundsRefreshMs) {
       this.lastFrameFitTime = now;
       this.baseNode.updateWorldMatrix(true, true);
       this.frameBounds.setFromObject(this.baseNode);
@@ -564,9 +565,9 @@ export class BodyViewer {
         const radius = Math.max(0.55, this.frameSize.length() * 0.5);
         const halfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
         this.followDistance = THREE.MathUtils.clamp(
-          (radius / Math.tan(halfFov)) * 1.28,
-          2.25,
-          5.2,
+          (radius / Math.tan(halfFov)) * BODY_PRESENTATION.camera.framingMargin,
+          BODY_PRESENTATION.camera.minFollowDistance,
+          BODY_PRESENTATION.camera.maxFollowDistance,
         );
         this.followTarget.copy(this.frameCenter);
       }
@@ -576,8 +577,8 @@ export class BodyViewer {
     if (viewDir.lengthSq() < 1e-6) viewDir.set(0.6, 0.35, 1);
     viewDir.normalize();
 
-    const targetAlpha = 1 - Math.exp(-delta * 8);
-    const cameraAlpha = 1 - Math.exp(-delta * 6);
+    const targetAlpha = 1 - Math.exp(-delta * BODY_PRESENTATION.camera.targetResponsiveness);
+    const cameraAlpha = 1 - Math.exp(-delta * BODY_PRESENTATION.camera.cameraResponsiveness);
     this.controls.target.lerp(this.followTarget, targetAlpha);
     this.followDelta.copy(this.followTarget).addScaledVector(viewDir, this.followDistance);
     this.camera.position.lerp(this.followDelta, cameraAlpha);
@@ -668,9 +669,9 @@ export class BodyViewer {
     const point = position.clone();
     point.y = Math.max(0.025, point.y * 0.02);
     const last = this.trajectoryPoints[this.trajectoryPoints.length - 1];
-    if (last && last.distanceTo(point) < 0.012) return;
+    if (last && last.distanceTo(point) < BODY_PRESENTATION.trajectory.minPointDistance) return;
     this.trajectoryPoints.push(point);
-    if (this.trajectoryPoints.length > 220) this.trajectoryPoints.shift();
+    if (this.trajectoryPoints.length > BODY_PRESENTATION.trajectory.maxPoints) this.trajectoryPoints.shift();
     this.trajectoryLine.geometry.dispose();
     this.trajectoryLine.geometry = new THREE.BufferGeometry().setFromPoints(this.trajectoryPoints);
   }
@@ -722,7 +723,11 @@ export class BodyViewer {
     if (!Number.isFinite(tick) || !Number.isFinite(tickSpanMs) || tickSpanMs <= 0) return;
 
     this.denseTickSpanMs = tickSpanMs;
-    this.presentationBufferMs = THREE.MathUtils.clamp(tickSpanMs * 1.5, 45, 220);
+    this.presentationBufferMs = THREE.MathUtils.clamp(
+      tickSpanMs * 1.5,
+      BODY_PRESENTATION.interpolation.minBufferMs,
+      BODY_PRESENTATION.interpolation.maxBufferMs,
+    );
 
     if (this.denseProducerTick === null) {
       this.denseProducerTick = tick;
@@ -737,9 +742,15 @@ export class BodyViewer {
     if (tickDelta > 0 && Number.isFinite(wallDelta) && wallDelta > 1) {
       const producedSimulationMs = tickDelta * tickSpanMs;
       const sample = producedSimulationMs / wallDelta;
-      if (Number.isFinite(sample) && sample >= 0.05 && sample <= 4) {
+      if (
+        Number.isFinite(sample) &&
+        sample >= BODY_PRESENTATION.interpolation.producerRateMin &&
+        sample <= BODY_PRESENTATION.interpolation.producerRateMax
+      ) {
         this.producerRateSamples.push(sample);
-        if (this.producerRateSamples.length > 12) this.producerRateSamples.shift();
+        if (this.producerRateSamples.length > BODY_PRESENTATION.interpolation.producerSampleWindow) {
+          this.producerRateSamples.shift();
+        }
 
         const sorted = [...this.producerRateSamples].sort((a, b) => a - b);
         const middle = Math.floor(sorted.length / 2);
@@ -749,7 +760,7 @@ export class BodyViewer {
         if (this.producerRateSamples.length === 1) {
           this.producerRate = median;
         } else {
-          this.producerRate += (median - this.producerRate) * 0.22;
+          this.producerRate += (median - this.producerRate) * BODY_PRESENTATION.interpolation.producerSmoothing;
         }
       }
     }
