@@ -141,7 +141,10 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
 
     assert transformed["organism_id"] == previous["organism_id"]
     assert transformed["experience_ledger"] == previous["experience_ledger"]
-    assert transformed["private_model_registry"] == previous["private_model_registry"]
+    records = transformed["private_model_registry"]["records"]
+    assert len(records) == 1
+    assert records[0]["model_id"] == "model-1"
+    assert records[0]["state"] == "degraded"
 
     active_nodes = {
         node["node_id"]
@@ -171,6 +174,7 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
         "readout_primitive:primitive.old",
     }
     assert len(archived["edges"]) == 2
+    assert history[-1]["active_private_model_id"] == "model-1"
     assert transformed["embodiment_lifecycle"]["current"]["contract_relation"] == "changed"
 
 
