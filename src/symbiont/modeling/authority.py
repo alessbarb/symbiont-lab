@@ -231,8 +231,12 @@ class ModelArtifactManifest:
             or any(c not in "0123456789abcdef" for c in self.ancestor_model_id)
         ):
             raise ValueError("ancestor_model_id must be a sha256 digest or null")
-        if isinstance(self.generation, bool) or not isinstance(self.generation, int) or not 0 <= self.generation <= 256:
-            raise ValueError("generation outside supported bounds")
+        if (
+            isinstance(self.generation, bool)
+            or not isinstance(self.generation, int)
+            or not 0 <= self.generation <= 2_147_483_647
+        ):
+            raise ValueError("generation outside serialization safety bounds")
         if self.adaptation_reason is not None and (
             not isinstance(self.adaptation_reason, str) or not self.adaptation_reason or len(self.adaptation_reason) > 256
         ):
