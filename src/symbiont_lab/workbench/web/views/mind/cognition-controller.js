@@ -60,6 +60,7 @@ import {
   atlasRegionLinks,
   atlasVisibleNodeIds,
   learningFrontierClusters,
+  reconcileFrontierEvolution,
 } from './cognitive-lod.js';
 import { cognitiveSituation } from './cognitive-observatory.js';
 import {
@@ -249,12 +250,22 @@ export function createCognitionController({
       node.atlasSignals = graph.atlasSignals.get(node.id) ?? null;
     }
     graph.learningFrontier = learningFrontier(enriched.nodes, graph.atlasSignals, 10);
-    graph.learningFrontierClusters = learningFrontierClusters(
+    const nextFrontierClusters = learningFrontierClusters(
       enriched.nodes,
       enriched.edges,
       graph.atlasSignals,
       0.30,
     );
+    graph.learningFrontierClusters = reconcileFrontierEvolution(
+      nextFrontierClusters,
+      graph.previousFrontierClusters,
+    );
+    graph.previousFrontierClusters = graph.learningFrontierClusters.map(cluster => ({
+      ...cluster,
+      nodeIds: [...cluster.nodeIds],
+      boundaryIds: [...cluster.boundaryIds],
+      communities: [...cluster.communities],
+    }));
     graph.regionLinks = atlasRegionLinks(enriched.nodes, enriched.edges);
     graph.atlasPath = cognitivePath(
       graph.selectedNodeId,
@@ -768,6 +779,7 @@ export function createCognitionController({
       scale: graph.scale,
       cameraDistance: graph.camera3d?.distance ?? 900,
       focusedRegion: Boolean(graph.focusedSectorId),
+      previousLevel: graph.detailLevel,
     });
     return graph.detailLevel;
   }
@@ -2360,7 +2372,9 @@ export function createCognitionController({
         block.innerHTML =
           `<strong style="color:var(--text)">${cluster.nodeIds.length} learning nodes</strong> · ` +
           `peak ${Math.round(cluster.maxScore * 100)}% · mean ${Math.round(cluster.meanScore * 100)}%<br>` +
-          `${cluster.boundaryIds.length} boundary contacts · ${cluster.communities.length} regions`;
+          `${cluster.boundaryIds.length} boundary contacts · ${cluster.communities.length} regions · ` +
+          `${cluster.observations ?? 1} observations<br>` +
+          `+${cluster.enteredIds?.length ?? 0} entered · -${cluster.exitedIds?.length ?? 0} exited · continuity ${Math.round((cluster.previousOverlap ?? 0) * 100)}%`;
         panel.appendChild(block);
         for (const id of cluster.nodeIds.slice(0, 3)) {
           const node = graph.nodes.find(item => item.id === id);
