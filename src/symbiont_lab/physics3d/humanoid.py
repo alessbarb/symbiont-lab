@@ -876,7 +876,7 @@ class HumanoidPhysics:
         self,
         payload: Mapping[str, object],
         *,
-        strict_anatomical_limits: bool = False,
+        strict_anatomical_limits: bool = True,
     ) -> None:
         if payload.get("schema_version") != BODY_STATE_SCHEMA_VERSION:
             raise ValueError("unsupported physics body state schema")
