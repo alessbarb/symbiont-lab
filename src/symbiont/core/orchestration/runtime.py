@@ -3457,19 +3457,15 @@ class OrganismRuntime:
                     raise CheckpointError(f"invalid motor selector checkpoint: {exc}") from exc
                 raw_sensorimotor = raw_actuation.get("sensorimotor")
                 if motor_exploration_mode == "babbling":
+                    if not isinstance(raw_sensorimotor, dict):
+                        raise CheckpointError(
+                            "babbling checkpoint is missing canonical sensorimotor state"
+                        )
                     try:
-                        sensorimotor_learner = (
-                            SensorimotorLearner.restore(
-                                raw_sensorimotor,
-                                actuator_ids=actuator_constitution.actuator_ids,
-                                organism_id=str(normalized.get("organism_id") or ""),
-                            )
-                            if isinstance(raw_sensorimotor, dict)
-                            else SensorimotorLearner(
-                                actuator_constitution.actuator_ids,
-                                organism_id=str(normalized.get("organism_id") or ""),
-                                max_concurrent=None,
-                            )
+                        sensorimotor_learner = SensorimotorLearner.restore(
+                            raw_sensorimotor,
+                            actuator_ids=actuator_constitution.actuator_ids,
+                            organism_id=str(normalized.get("organism_id") or ""),
                         )
                     except (TypeError, ValueError, KeyError) as exc:
                         raise CheckpointError(
