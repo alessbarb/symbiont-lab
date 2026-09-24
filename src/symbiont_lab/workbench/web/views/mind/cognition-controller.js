@@ -2288,7 +2288,7 @@ export function createCognitionController({
   function renderCognitionInspector() {
     const panel = document.getElementById('mind-cognition-inspector-body');
     if (!panel) return;
-    panel.innerHTML = '';
+    panel.replaceChildren();
   
     const selected = graph.nodes.find(node => node.id === graph.selectedNodeId) ?? null;
     if (selected) {
@@ -2748,16 +2748,20 @@ export function createCognitionController({
       episodeTitle.textContent = 'Recent Cognitive Episodes';
       panel.appendChild(episodeTitle);
       for (const episode of graph.cognitiveEpisodes.slice(-3).reverse()) {
-        const row = el('div', '');
-        row.style.cssText = 'padding:5px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);line-height:1.4;';
         const totals = episode.totals ?? {};
         const context = episode.context ?? {};
-        row.innerHTML =
-          `<strong style="color:var(--text)">t${episode.startTick}–t${episode.endTick}</strong> · ` +
-          `${episode.events.length} windows<br>` +
+        const row = el('div', 'mind-inspector-episode');
+        appendInspectorLine(row, [
+          { text: `t${episode.startTick}–t${episode.endTick}`, strong: true },
+          ` · ${episode.events.length} windows`,
+        ]);
+        appendInspectorLine(row, [
           `+${totals.addedNodes ?? 0}/-${totals.removedNodes ?? 0} nodes · ` +
-          `+${totals.addedEdges ?? 0}/-${totals.removedEdges ?? 0} relations` +
-          (context.motorOrigins?.length ? `<br>motor: ${context.motorOrigins.join(' → ')}` : '');
+          `+${totals.addedEdges ?? 0}/-${totals.removedEdges ?? 0} relations`,
+        ]);
+        if (context.motorOrigins?.length) {
+          appendInspectorLine(row, [`motor: ${context.motorOrigins.join(' → ')}`]);
+        }
         panel.appendChild(row);
       }
     }
@@ -2768,15 +2772,31 @@ export function createCognitionController({
       diffTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
       diffTitle.textContent = `Diff from t${graph.diffBaselineTick ?? '—'}`;
       panel.appendChild(diffTitle);
-      const diffSummary = el('div', '');
-      diffSummary.style.cssText = 'font-size:8px;line-height:1.45;color:var(--muted);';
+      const diffSummary = el('div', 'mind-inspector-diff');
       const diffInsight = summarizeDiff(diff, graph.nodes, graph.atlasRegions);
-      diffSummary.innerHTML =
-        `+${diff.addedNodes.length} nodes · -${diff.removedNodes.length} nodes · +${diff.addedEdges.length} relations · -${diff.removedEdges.length} relations · ${diff.changedEdges.length} changed` +
-        (diffInsight?.topRegion ? `<br>top changed region: <strong style="color:var(--text)">${diffInsight.topRegion.label ?? diffInsight.topRegion.id}</strong>` : '') +
-        (diffInsight?.topNode ? `<br>most changed node: <strong style="color:var(--text)">${shortId(diffInsight.topNode.id, 10, 5)}</strong>` : '') +
-        `<br>largest delta type: <strong style="color:var(--text)">${diffInsight?.largestDeltaType ?? 'none'}</strong>` +
-        `<br>cognition→motor linkage changed: <strong style="color:var(--text)">${diffInsight?.motorLinkageChanged ? 'yes' : 'no'}</strong>`;
+      appendInspectorLine(diffSummary, [
+        `+${diff.addedNodes.length} nodes · -${diff.removedNodes.length} nodes · +${diff.addedEdges.length} relations · -${diff.removedEdges.length} relations · ${diff.changedEdges.length} changed`,
+      ]);
+      if (diffInsight?.topRegion) {
+        appendInspectorLine(diffSummary, [
+          'top changed region: ',
+          { text: diffInsight.topRegion.label ?? diffInsight.topRegion.id, strong: true },
+        ]);
+      }
+      if (diffInsight?.topNode) {
+        appendInspectorLine(diffSummary, [
+          'most changed node: ',
+          { text: shortId(diffInsight.topNode.id, 10, 5), strong: true },
+        ]);
+      }
+      appendInspectorLine(diffSummary, [
+        'largest delta type: ',
+        { text: diffInsight?.largestDeltaType ?? 'none', strong: true },
+      ]);
+      appendInspectorLine(diffSummary, [
+        'cognition→motor linkage changed: ',
+        { text: diffInsight?.motorLinkageChanged ? 'yes' : 'no', strong: true },
+      ]);
       panel.appendChild(diffSummary);
     }
 
@@ -2803,14 +2823,17 @@ export function createCognitionController({
       frontierTitle.textContent = 'Learning frontier zones';
       panel.appendChild(frontierTitle);
       for (const cluster of graph.learningFrontierClusters.slice(0, 5)) {
-        const block = el('div', '');
-        block.style.cssText = 'padding:6px 0;border-top:1px solid rgba(98,120,136,.12);font-size:8px;line-height:1.4;color:var(--muted);';
-        block.innerHTML =
-          `<strong style="color:var(--text)">${cluster.nodeIds.length} learning nodes</strong> · ` +
-          `peak ${Math.round(cluster.maxScore * 100)}% · mean ${Math.round(cluster.meanScore * 100)}%<br>` +
-          `${cluster.boundaryIds.length} boundary contacts · ${cluster.communities.length} regions · ` +
-          `${cluster.observations ?? 1} observations<br>` +
-          `+${cluster.enteredIds?.length ?? 0} entered · -${cluster.exitedIds?.length ?? 0} exited · continuity ${Math.round((cluster.previousOverlap ?? 0) * 100)}%`;
+        const block = el('div', 'mind-inspector-frontier');
+        appendInspectorLine(block, [
+          { text: `${cluster.nodeIds.length} learning nodes`, strong: true },
+          ` · peak ${Math.round(cluster.maxScore * 100)}% · mean ${Math.round(cluster.meanScore * 100)}%`,
+        ]);
+        appendInspectorLine(block, [
+          `${cluster.boundaryIds.length} boundary contacts · ${cluster.communities.length} regions · ${cluster.observations ?? 1} observations`,
+        ]);
+        appendInspectorLine(block, [
+          `+${cluster.enteredIds?.length ?? 0} entered · -${cluster.exitedIds?.length ?? 0} exited · continuity ${Math.round((cluster.previousOverlap ?? 0) * 100)}%`,
+        ]);
         panel.appendChild(block);
         for (const id of cluster.nodeIds.slice(0, 3)) {
           const node = graph.nodes.find(item => item.id === id);
