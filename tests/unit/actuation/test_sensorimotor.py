@@ -548,7 +548,7 @@ def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mu
 
 @pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5, 6, 7, 8])
 def test_restore_rejects_every_pre_v9_schema_outright(legacy_schema):
-    """Older checkpoints cannot be represented honestly by the v9 learner.
+    """Pre-v9 checkpoints cannot be represented honestly by the current learner.
 
     They may carry removed verification apparatus, body-wide cardinality bias,
     density-biased recurrence evidence, or no mutually-exclusive motor-unit
@@ -968,7 +968,7 @@ def test_sensorimotor_pre_v9_checkpoint_is_not_reinterpreted_as_current_evidence
     payload["schema_version"] = 7
     payload.pop("historical_candidates")
 
-    with pytest.raises(ValueError, match="schema_version must be 9"):
+    with pytest.raises(ValueError, match="schema_version must be 9 or 10"):
         SensorimotorLearner.restore(
             payload,
             actuator_ids=_ids(4),
@@ -996,7 +996,7 @@ def test_exclusive_motor_groups_never_babble_antagonistic_channels_together():
 
     assert seen == set(ids)
     checkpoint = learner.checkpoint()
-    assert checkpoint["schema_version"] == 9
+    assert checkpoint["schema_version"] == 10
     assert checkpoint["exclusive_actuator_groups"] == [list(group) for group in groups]
 
     restored = SensorimotorLearner.restore(
@@ -1005,6 +1005,45 @@ def test_exclusive_motor_groups_never_babble_antagonistic_channels_together():
         organism_id="org-exclusive-units",
     )
     assert restored._exclusive_actuator_groups == groups
+
+
+def test_v9_checkpoint_migrates_onto_validated_current_body_scope():
+    ids = _ids(4)
+    learner = SensorimotorLearner(
+        ids,
+        organism_id="org-v9-migrate",
+        embodiment_fingerprint="body-a",
+    )
+    payload = learner.checkpoint()
+    payload["schema_version"] = 9
+    payload.pop("embodiment_fingerprint", None)
+
+    restored = SensorimotorLearner.restore(
+        payload,
+        actuator_ids=ids,
+        organism_id="org-v9-migrate",
+        embodiment_fingerprint="body-b",
+    )
+
+    assert restored.embodiment_fingerprint == "body-b"
+
+
+def test_v10_checkpoint_rejects_different_body_scope():
+    ids = _ids(4)
+    learner = SensorimotorLearner(
+        ids,
+        organism_id="org-v10-scope",
+        embodiment_fingerprint="body-a",
+    )
+    payload = learner.checkpoint()
+
+    with pytest.raises(ValueError, match="embodiment scope mismatch"):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=ids,
+            organism_id="org-v10-scope",
+            embodiment_fingerprint="body-b",
+        )
 
 
 def test_sequence_distance_does_not_let_dense_support_dilute_channel_changes():
