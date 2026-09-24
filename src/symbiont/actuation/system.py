@@ -1,28 +1,24 @@
 from __future__ import annotations
 
-from .health import ActuatorState
+from .surface import ActuatorSurface
 from .types import Actuation, MotorIntent
 
 
 class ActuatorSystem:
-    """Resolves a MotorIntent into an Actuation, given the body's own state.
+    """Validate and hand a command across the opaque body boundary.
 
-    Pure with respect to World: nothing here knows what ``delivered``
-    causes outside the organism (spec §2 — the World consequence is never
-    part of Actuation).
+    It does not simulate actuator health, reliability, cost or environmental
+    effect.  Those are body-side consequences.
     """
 
-    def execute(self, intent: MotorIntent, state: ActuatorState) -> Actuation:
-        if intent.actuator_id != state.actuator_id:
-            raise ValueError(
-                f"intent for {intent.actuator_id!r} cannot be executed against state for {state.actuator_id!r}"
-            )
-        delivered = intent.activation * state.health * state.reliability
-        cost = state.cost * intent.activation
+    def execute(
+        self,
+        intent: MotorIntent,
+        surface: ActuatorSurface,
+    ) -> Actuation:
+        delivered = surface.validate(intent.actuator_id, intent.activation)
         return Actuation(
             actuator_id=intent.actuator_id,
             requested=intent.activation,
             delivered=delivered,
-            cost=cost,
-            health_at_execution=state.health,
         )
