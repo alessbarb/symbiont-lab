@@ -1623,6 +1623,12 @@ class SensorimotorLearner:
                     item,
                     allowed_ids=allowed,
                 )
+                if not learner._sequence_respects_exclusive_groups(
+                    primitive.sequence
+                ):
+                    raise ValueError(
+                        "motor primitive violates exclusive actuator groups"
+                    )
                 supporting_stat = learner._primitive_stats.get(primitive.sequence)
                 if (
                     supporting_stat is None
@@ -1652,6 +1658,10 @@ class SensorimotorLearner:
                 sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
                 if len(sequence) != _PRIMITIVE_TICKS:
                     raise ValueError("historical primitive has invalid temporal duration")
+                if not learner._sequence_respects_exclusive_groups(sequence):
+                    # Historical memory is non-authoritative, but an impossible
+                    # motor hypothesis must not be reintroduced into matching.
+                    continue
                 if (
                     primitive_id in learner._primitives
                     or sequence in learner._primitive_id_by_sequence
@@ -1709,6 +1719,7 @@ class SensorimotorLearner:
                 continue
             if (
                 len(sequence) != _PRIMITIVE_TICKS
+                or not self._sequence_respects_exclusive_groups(sequence)
                 or primitive_id in self._primitives
                 or sequence in self._primitive_id_by_sequence
             ):
