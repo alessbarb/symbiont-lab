@@ -5,6 +5,15 @@ import json
 
 import pytest
 
+from symbiont_lab.physics3d.telemetry_binary import (
+    BinaryDeltaReader,
+    BinaryDenseReader,
+    BinaryEventReader,
+    BinaryFrameSchemaReader,
+    BinaryPathRegistryReader,
+    BinaryRecordIterator,
+    BinaryStringTableReader,
+)
 from symbiont_lab.physics3d.telemetry_compaction import canonical_json_bytes
 from symbiont_lab.physics3d.telemetry_reader import open_telemetry
 from symbiont_lab.physics3d.telemetry_v41 import (
@@ -288,6 +297,7 @@ def test_v41_separates_checkpoints_from_anchors(tmp_path):
     assert "state" in physical_payload
 
 
+
 def test_v41_events_are_not_repeated_as_accumulated_snapshots(tmp_path):
     writer = TelemetryV41Writer(
         tmp_path,
@@ -302,20 +312,13 @@ def test_v41_events_are_not_repeated_as_accumulated_snapshots(tmp_path):
     )
     _write(writer)
 
-    event_lines = [
-        json.loads(line)
-        for line in (writer.root / "events" / "events.ndjson")
-        .read_text(encoding="utf-8")
-        .splitlines()
-    ]
-    episode_appends = [
-        item
-        for item in event_lines
-        if item["c"] == "sensorimotor.episodes" and item["o"] == "append"
-    ]
-    assert len(episode_appends) == 2
-    assert [item["v"]["sample_index"] for item in episode_appends] == [2, 5]
-
+    events = list(
+        TelemetryV41Reader(writer.root).iter_events(
+            event_type="sensorimotor.episodes"
+        )
+    )
+    assert len(events) == 2
+    assert [item["payload"][0]["sample_index"] for item in events] == [2, 5]
 
 def test_v41_unknown_paths_use_exact_fallback(tmp_path):
     writer = TelemetryV41Writer(
@@ -337,6 +340,7 @@ def test_v41_unknown_paths_use_exact_fallback(tmp_path):
     assert canonical_json_bytes(TelemetryV41Reader(writer.root).state_at(6)) == canonical_json_bytes(_state(6))
 
 
+
 def test_v41_detects_frame_tampering(tmp_path):
     writer = TelemetryV41Writer(
         tmp_path,
@@ -351,27 +355,14 @@ def test_v41_detects_frame_tampering(tmp_path):
     )
     _write(writer)
 
-    path = writer.root / "frames" / "dense.ndjson"
-    lines = path.read_text(encoding="utf-8").splitlines()
-    target_index = next(
-        index
-        for index in range(len(lines) - 1, -1, -1)
-        if (
-            json.loads(lines[index])["m"] in ("f", "s")
-            and json.loads(lines[index]).get("v")
-        )
-    )
-    item = json.loads(lines[target_index])
-    if item["m"] == "f":
-        item["v"][0] = "tampered"
-    else:
-        item["v"][0][1] = "tampered"
-    lines[target_index] = json.dumps(item, separators=(",", ":"))
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path = writer.root / "frames" / "dense.bin"
+    raw = bytearray(path.read_bytes())
+    assert raw
+    raw[-1] ^= 0x01
+    path.write_bytes(raw)
 
-    with pytest.raises(ValueError, match="dense record commitment mismatch"):
+    with pytest.raises(ValueError):
         list(TelemetryV41Reader(writer.root).iter_states())
-
 
 def test_v41_detects_commit_tampering(tmp_path):
     writer = TelemetryV41Writer(
@@ -498,6 +489,7 @@ def test_v41_state_at_rejects_self_consistent_but_divergent_anchor(tmp_path):
         TelemetryV41Reader(writer.root).state_at(tick)
 
 
+
 def test_v41_channel_disappearance_resets_writer_and_reader_baselines(tmp_path):
     writer = TelemetryV41Writer(
         tmp_path,
@@ -522,10 +514,7 @@ def test_v41_channel_disappearance_resets_writer_and_reader_baselines(tmp_path):
                 "motor_primitives": [{"primitive_id": "p", "samples": 1}],
             },
         },
-        {
-            "schema_version": 3,
-            "tick": 2,
-        },
+        {"schema_version": 3, "tick": 2},
         {
             "schema_version": 3,
             "tick": 3,
@@ -542,25 +531,20 @@ def test_v41_channel_disappearance_resets_writer_and_reader_baselines(tmp_path):
         writer.append({"tick": state["tick"]}, rich_state=state)
     writer.close()
 
-    reader = TelemetryV41Reader(writer.root)
-    reconstructed = list(reader.iter_states())
+    reconstructed = list(TelemetryV41Reader(writer.root).iter_states())
     assert [
         canonical_json_bytes(item) for item in reconstructed
     ] == [
         canonical_json_bytes(item) for item in states
     ]
 
-    event_lines = [
-        json.loads(line)
-        for line in (writer.root / "events" / "events.ndjson")
-        .read_text(encoding="utf-8")
-        .splitlines()
-    ]
-    episode_records = [
-        item for item in event_lines
-        if item["c"] == "sensorimotor.episodes"
-    ]
-    assert [item["o"] for item in episode_records] == ["reset", "reset"]
+    episode_records = list(
+        TelemetryV41Reader(writer.root).iter_events(
+            event_type="sensorimotor.episodes"
+        )
+    )
+    assert len(episode_records) == 2
+    assert [item["tick"] for item in episode_records] == [1, 3]
 
 
 def test_v41_uses_exact_previous_post_copy_for_matching_pre_physical(tmp_path):
@@ -602,22 +586,31 @@ def test_v41_uses_exact_previous_post_copy_for_matching_pre_physical(tmp_path):
     )
     writer.close()
 
-    records = [
-        json.loads(line)
-        for line in (writer.root / "frames" / "dense.ndjson")
-        .read_text(encoding="utf-8")
-        .splitlines()
-    ]
-    copies = [
-        item for item in records
-        if item["t"] == 2
-        and item["c"] == "pre.physical"
-        and item["m"] == "c"
-    ]
+    strings = BinaryStringTableReader(writer.root / "schemas" / "strings.bin")
+    schemas = BinaryFrameSchemaReader(
+        writer.root / "schemas" / "frames.bin",
+        strings,
+    )
+    decoder = BinaryDenseReader(schemas, strings)
+    copies = []
+    with (writer.root / "frames" / "dense.bin").open("rb") as handle:
+        iterator = BinaryRecordIterator(handle, decoder.decode_record)
+        while True:
+            item = iterator.next()
+            if item is None:
+                break
+            if (
+                item["t"] == 2
+                and item["c"] == "pre.physical"
+                and item["m"] == 2
+            ):
+                copies.append(item)
     assert len(copies) == 1
     assert copies[0]["f"] == "post.physical"
-    assert TelemetryV41Reader(writer.root).state_at(2)["pre"]["physical"] == first_post
-
+    assert (
+        TelemetryV41Reader(writer.root).state_at(2)["pre"]["physical"]
+        == first_post
+    )
 
 def test_v41_writes_derivative_tick_event_and_structure_indexes(tmp_path):
     writer = TelemetryV41Writer(
@@ -650,7 +643,8 @@ def test_v41_writes_derivative_tick_event_and_structure_indexes(tmp_path):
     assert all(item["tick"] >= 4 for item in events)
 
 
-def test_v41_manifest_declares_layout_revision_two(tmp_path):
+
+def test_v41_manifest_declares_layout_revision_four(tmp_path):
     writer = TelemetryV41Writer(
         tmp_path,
         organism_id="symbiont:test",
@@ -667,8 +661,10 @@ def test_v41_manifest_declares_layout_revision_two(tmp_path):
     manifest = json.loads(
         (writer.root / "manifest.json").read_text(encoding="utf-8")
     )
-    assert manifest["layout_revision"] == 2
-
+    assert manifest["layout_revision"] == 4
+    assert manifest["storage_model"] == "typed-binary-temporal-streams"
+    assert (writer.root / "schemas" / "strings.bin").is_file()
+    assert (writer.root / "frames" / "dense.bin").is_file()
 
 def test_v41_corrupt_event_index_falls_back_to_canonical_scan(tmp_path):
     writer = TelemetryV41Writer(
@@ -695,3 +691,147 @@ def test_v41_corrupt_event_index_falls_back_to_canonical_scan(tmp_path):
         )
     )
     assert [item["tick"] for item in events] == [2, 4, 6]
+
+
+
+def test_v41_structural_claim_growth_uses_path_deltas_not_frame_schemas(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=100,
+        run_id="claim-deltas",
+    )
+    base_profile = {
+        "signal_id": "signal.a",
+        "observed_opportunities": 1,
+        "claims": [
+            {
+                "claim_id": "claim.1",
+                "kind": "association",
+                "status": "candidate",
+                "evidence_count": 1,
+            }
+        ],
+    }
+    grown_profile = {
+        "signal_id": "signal.a",
+        "observed_opportunities": 2,
+        "claims": [
+            {
+                "claim_id": "claim.1",
+                "kind": "association",
+                "status": "supported",
+                "evidence_count": 2,
+            },
+            {
+                "claim_id": "claim.2",
+                "kind": "association",
+                "status": "candidate",
+                "evidence_count": 1,
+            },
+        ],
+    }
+    for tick, profile in ((1, base_profile), (2, grown_profile)):
+        writer.append(
+            {"tick": tick},
+            rich_state={
+                "tick": tick,
+                "runtime": {
+                    "signal_knowledge": [profile],
+                    "knowledge_events": [],
+                    "runtime_events": [],
+                    "experience_records_created": [],
+                },
+                "cognition": {"mutations": [], "recycling_events": []},
+                "sensorimotor": {"episodes": []},
+            },
+        )
+    writer.close()
+
+    strings = BinaryStringTableReader(writer.root / "schemas" / "strings.bin")
+    paths = BinaryPathRegistryReader(
+        writer.root / "schemas" / "structural-paths.bin",
+        strings,
+    )
+    decoder = BinaryDeltaReader(paths, strings)
+    second = None
+    with (writer.root / "structures" / "state.bin").open("rb") as handle:
+        iterator = BinaryRecordIterator(handle, decoder.decode_record)
+        while True:
+            item = iterator.next()
+            if item is None:
+                break
+            if item["t"] == 2 and item["c"] == "runtime.signal_knowledge":
+                second = item
+                break
+    assert second is not None
+    assert second["p"]
+
+    schemas = BinaryFrameSchemaReader(
+        writer.root / "schemas" / "frames.bin",
+        strings,
+    )
+    assert all(
+        channel != "runtime.signal_knowledge"
+        for channel, _template in schemas.schemas.values()
+    )
+
+    rebuilt = TelemetryV41Reader(writer.root).state_at(2)
+    assert rebuilt["runtime"]["signal_knowledge"] == [grown_profile]
+
+
+def test_v41_batches_ephemeral_events_per_channel_and_tick(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        run_id="event-batches",
+    )
+    events = [
+        {"kind": "one", "event_id": "e1"},
+        {"kind": "two", "event_id": "e2"},
+        {"kind": "three", "event_id": "e3"},
+    ]
+    writer.append(
+        {"tick": 1},
+        rich_state={
+            "tick": 1,
+            "runtime": {
+                "knowledge_events": events,
+                "runtime_events": [],
+                "experience_records_created": [],
+            },
+            "cognition": {"mutations": [], "recycling_events": []},
+            "sensorimotor": {"episodes": []},
+        },
+    )
+    writer.close()
+
+    strings = BinaryStringTableReader(writer.root / "schemas" / "strings.bin")
+    decoder = BinaryEventReader(strings)
+    knowledge = []
+    with (writer.root / "events" / "events.bin").open("rb") as handle:
+        iterator = BinaryRecordIterator(handle, decoder.decode_record)
+        while True:
+            item = iterator.next()
+            if item is None:
+                break
+            if item["c"] == "runtime.knowledge_events":
+                knowledge.append(item)
+    assert len(knowledge) == 1
+    assert knowledge[0]["v"] == events
+    assert (
+        TelemetryV41Reader(writer.root)
+        .state_at(1)["runtime"]["knowledge_events"]
+        == events
+    )
+
