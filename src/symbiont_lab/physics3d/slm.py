@@ -351,7 +351,7 @@ class Physics3DSlmManager:
         """Retire old non-active candidates before bounded registry saturation."""
         records = runtime.model_registry.records
         checkpoint = runtime.model_registry.checkpoint()
-        capacity = int(checkpoint.get("max_models", 16))
+        capacity = int(checkpoint.get("max_models", 64))
         if len(records) < capacity:
             return
 
