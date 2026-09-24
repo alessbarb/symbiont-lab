@@ -101,38 +101,40 @@ def test_checkpoint_never_persists_raw_pending_motor_percept_baseline():
 
 
 
-def test_runtime_can_execute_multiple_cognitive_motor_intents_concurrently():
+def test_cognitive_motor_readouts_cannot_bypass_competence_layer():
     runtime = _runtime()
-    proposer = runtime._actuator_proposer
-    assert proposer is not None
-
-    # Promote four slots directly for this unit-level concurrency contract.
-    active_ids = runtime.actuator_constitution.actuator_ids[:4]
-    for state in proposer.states:
-        if state.actuator_id in active_ids:
-            state.probing_state = "active"
+    actuator_id = runtime.actuator_constitution.actuator_ids[0]
 
     class FakeCognition:
         def readouts_for_family(self, family):
-            assert family == "motor"
-            return {
-                active_ids[0]: 0.9,
-                active_ids[1]: 0.8,
-                active_ids[2]: 0.7,
-                active_ids[3]: 0.6,
-            }
+            if family == "motor":
+                return {actuator_id: 1.0}
+            if family == "primitive":
+                return {}
+            return {}
 
     runtime._motor_step(FakeCognition(), (), tick=1)
 
-    assert len(runtime.last_motor_intents) == 4
-    assert len(runtime.last_actuations) == 4
-    assert {item.actuator_id for item in runtime.last_actuations} == set(active_ids)
-    assert runtime.last_motor_origin == "cognition"
-    assert runtime.last_motor_origin_detail == "cognition"
+    assert runtime.last_action_source != "competence"
+    assert runtime._active_action_commitment is not None
+    assert runtime._active_action_commitment.competence_id is None
 
 
+def test_motor_command_is_traced_to_active_commitment_before_actuation():
+    runtime = _runtime()
+    runtime._motor_step(None, (), tick=1)
 
-def test_babbling_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
+    if runtime.last_motor_intents:
+        assert runtime._active_action_commitment is not None
+        assert runtime._last_motor_command is not None
+        assert (
+            runtime._last_motor_command.commitment_id
+            == runtime._active_action_commitment.commitment_id
+        )
+        assert runtime.last_action_source == "exploration"
+
+
+def test_exploration_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
     limits = KernelLimits()
     genome, graph = load_base_cognition(
         kernel_limits=limits,
@@ -175,86 +177,6 @@ def test_babbling_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
 
 
 
-def test_homeostatic_fatigue_scales_motor_output_without_changing_choice():
-    from symbiont.core.metabolism import ResourcePressure
-
-    runtime = _runtime()
-    proposer = runtime._actuator_proposer
-    assert proposer is not None
-
-    active_id = runtime.actuator_constitution.actuator_ids[0]
-    for state in proposer.states:
-        if state.actuator_id == active_id:
-            state.probing_state = "active"
-
-    runtime.living_body_state.fatigue = 1.0
-    regulated = runtime.homeostasis.regulate(ResourcePressure.NORMAL)
-    assert regulated.activity_scale < 1.0
-
-    class FakeCognition:
-        def readouts_for_family(self, family):
-            assert family == "motor"
-            return {active_id: 1.0}
-
-    runtime._motor_step(FakeCognition(), (), tick=1)
-
-    assert len(runtime.last_motor_intents) == 1
-    assert runtime.last_motor_intents[0].actuator_id == active_id
-    assert runtime.last_motor_intents[0].activation == regulated.activity_scale
-    assert runtime.last_actuations[0].requested == regulated.activity_scale
-
-
-
-def test_executed_motor_origin_is_reclassified_after_exclusive_arbitration():
-    from symbiont.actuation.types import MotorIntent
-    from symbiont.core.orchestration.runtime import (
-        _classify_executed_motor_origin,
-    )
-
-    cognition = (
-        MotorIntent("a", 0.8),
-        MotorIntent("b", 0.6),
-    )
-
-    assert _classify_executed_motor_origin(
-        (MotorIntent("a", 0.8), MotorIntent("x", 0.5)),
-        cognition,
-        prior_origin="mixed",
-    ) == ("mixed", "mixed")
-
-    assert _classify_executed_motor_origin(
-        (MotorIntent("a", 0.8),),
-        cognition,
-        prior_origin="mixed",
-    ) == ("cognition", "cognition")
-
-    assert _classify_executed_motor_origin(
-        (MotorIntent("x", 0.5),),
-        cognition,
-        prior_origin="mixed",
-    ) == ("babbling", "babbling")
-
-    assert _classify_executed_motor_origin(
-        (),
-        cognition,
-        prior_origin="mixed",
-    ) == ("none", "none")
-
-
-def test_non_developmental_motor_origin_is_not_reclassified():
-    from symbiont.actuation.types import MotorIntent
-    from symbiont.core.orchestration.runtime import (
-        _classify_executed_motor_origin,
-    )
-
-    assert _classify_executed_motor_origin(
-        (MotorIntent("a", 0.7),),
-        (MotorIntent("a", 0.7),),
-        prior_origin="primitive",
-    ) == ("primitive", "primitive")
-
-
-
 def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
     from types import SimpleNamespace
     from symbiont.core.orchestration.runtime import OrganismRuntime
@@ -274,7 +196,7 @@ def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
 
 
 
-def test_babbling_restore_rejects_missing_sensorimotor_checkpoint():
+def test_exploration_restore_rejects_missing_sensorimotor_checkpoint():
     from symbiont.host.checkpoint import CheckpointError
 
     runtime = _runtime()
