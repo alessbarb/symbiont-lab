@@ -268,7 +268,7 @@ def run(
     elif physical_state is not None:
         embodiment_mode = "resume"
     else:
-        embodiment_mode = "transplant"
+        embodiment_mode = "reembodiment"
 
     time_step = 1.0 / float(hz)
     cognition_period = 1.0 / float(cognition_hz)
