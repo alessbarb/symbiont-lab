@@ -808,10 +808,13 @@ class SensorimotorLearner:
                 self._primitive_id_for_sequence(key)
                 for key in retained_sequences
             }
+            historical_sequences = set(
+                self._historical_primitive_candidates.values()
+            )
             self._primitive_id_by_sequence = {
                 key: primitive_id
                 for key, primitive_id in self._primitive_id_by_sequence.items()
-                if key in retained_sequences
+                if key in retained_sequences or key in historical_sequences
             }
             self._primitives = {
                 primitive_id: primitive
@@ -1226,7 +1229,7 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         organism_id: str,
     ) -> "SensorimotorLearner":
-        # WARN(fail-closed): L6.1b: only the current schema is restorable. Pre-L6 schemas (1-4)
+        # WARN(fail-closed): v7 and v8 are restorable. Pre-L6 schemas (1-4)
         # could carry the removed scheduled-verification/investigation
         # apparatus (verification_count, investigation_id,
         # last_verification_epoch, replay_source=="verification") — there is
@@ -1484,10 +1487,13 @@ class SensorimotorLearner:
                 sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
                 if len(sequence) != _PRIMITIVE_TICKS:
                     raise ValueError("historical primitive has invalid temporal duration")
-                if primitive_id in learner._primitives:
+                if (
+                    primitive_id in learner._primitives
+                    or sequence in learner._primitive_id_by_sequence
+                ):
                     continue
                 learner._historical_primitive_candidates[primitive_id] = sequence
-                learner._primitive_id_by_sequence.setdefault(sequence, primitive_id)
+                learner._primitive_id_by_sequence[sequence] = primitive_id
         replay_id = payload.get("replay_id")
         if replay_id is not None and not isinstance(replay_id, str):
             raise ValueError("invalid sensorimotor replay id")
@@ -1536,10 +1542,16 @@ class SensorimotorLearner:
                 sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
             except ValueError:
                 continue
-            if len(sequence) != _PRIMITIVE_TICKS or primitive_id in self._primitives:
+            if (
+                len(sequence) != _PRIMITIVE_TICKS
+                or primitive_id in self._primitives
+                or sequence in self._primitive_id_by_sequence
+            ):
                 continue
+            if len(self._historical_primitive_candidates) >= _MAX_PRIMITIVES:
+                break
             self._historical_primitive_candidates[primitive_id] = sequence
-            self._primitive_id_by_sequence.setdefault(sequence, primitive_id)
+            self._primitive_id_by_sequence[sequence] = primitive_id
             added += 1
         return added
     def has_cognitive_primitive(self, primitive_id: str) -> bool:
