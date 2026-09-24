@@ -262,23 +262,36 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
                 belief["dissent"] = item.get("dissent") is not None
             beliefs.append(belief)
 
+    activation_values: dict[str, float] = {}
     activation_classes: dict[str, int] = {}
     raw_activations = cognition.get("activations")
     if isinstance(raw_activations, Mapping):
         for key, value in raw_activations.items():
             try:
-                activation_classes[str(key)] = max(0, min(15, int(round(abs(float(value)) * 15.0))))
+                numeric = float(value)
+                activation_values[str(key)] = numeric
+                activation_classes[str(key)] = max(
+                    0,
+                    min(15, int(round(abs(numeric) * 15.0))),
+                )
             except (TypeError, ValueError):
                 continue
 
     prediction_errors: dict[str, str] = {}
+    prediction_error_values: dict[str, float] = {}
     raw_errors = cognition.get("prediction_errors")
     if isinstance(raw_errors, (list, tuple)):
         for item in raw_errors:
             if not isinstance(item, Mapping):
                 continue
             target = str(item.get("target_id") or item.get("predictor_id") or "")
+            try:
+                numeric_error = float(item.get("error"))
+            except (TypeError, ValueError):
+                numeric_error = None
             classification = _prediction_class(item.get("error"))
+            if target and numeric_error is not None:
+                prediction_error_values[target] = numeric_error
             if target and classification is not None:
                 prediction_errors[target] = classification
 
@@ -316,9 +329,15 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
 
     observer_analysis: dict[str, Any] = {}
     derivation: dict[str, str] = {}
+    if activation_values:
+        observer_analysis["activationValues"] = activation_values
+        derivation["activationValues"] = "observer-preserved numeric activation from cognition telemetry"
     if activation_classes:
         observer_analysis["activationClasses"] = activation_classes
         derivation["activationClasses"] = "observer quantization of absolute activation into 0..15"
+    if prediction_error_values:
+        observer_analysis["predictionErrorValues"] = prediction_error_values
+        derivation["predictionErrorValues"] = "observer-preserved numeric prediction error"
     if prediction_errors:
         observer_analysis["predictionErrors"] = prediction_errors
         derivation["predictionErrors"] = "observer classification of numeric prediction error"
