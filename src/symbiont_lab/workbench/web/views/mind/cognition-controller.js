@@ -68,6 +68,17 @@ import {
   recordObserverUsage,
   summarizeDiff,
 } from './cognitive-refinement.js';
+import {
+  blendRegionShape,
+  boundaryPointToward,
+  boundaryTension,
+  densityHotspots,
+  functionalCenter,
+  organicRegionShape,
+  polygonContains,
+  protoSubregions,
+  traceRegionPath,
+} from './cognitive-regions.js';
 
 export function createCognitionController({
   getActiveTab = () => 'overview',
@@ -782,6 +793,130 @@ export function createCognitionController({
       previousLevel: graph.detailLevel,
     });
     return graph.detailLevel;
+  }
+
+  function regionInternalEdgeCount(regionId) {
+    return graph.edges.filter(edge =>
+      edge.source?.community === regionId &&
+      edge.target?.community === regionId
+    ).length;
+  }
+
+  function rememberCenterTrail(store, regionId, point, tick) {
+    const trail = store.get(regionId) ?? [];
+    const previous = trail[trail.length - 1];
+    if (!previous || Math.hypot(previous.x - point.x, previous.y - point.y) > 2 || tick - previous.tick >= 16) {
+      trail.push({ x: point.x, y: point.y, tick });
+      while (trail.length > 24) trail.shift();
+      store.set(regionId, trail);
+    }
+    return trail;
+  }
+
+  function regionGeometry(region, points, dimension, tick) {
+    const previousStore = dimension === '3d'
+      ? graph.regionShapeHistory3d
+      : graph.regionShapeHistory2d;
+    const trailStore = dimension === '3d'
+      ? graph.regionCenterTrails3d
+      : graph.regionCenterTrails2d;
+    const raw = organicRegionShape(points, {
+      padding: dimension === '3d' ? 12 : 18,
+      bins: Math.max(14, Math.min(26, points.length + 8)),
+      smoothPasses: 2,
+      sampleCount: 44,
+    });
+    const previous = previousStore.get(region.id);
+    const shape = blendRegionShape(previous, raw, graph.replaySnapshot ? 1 : 0.24);
+    previousStore.set(region.id, shape);
+    const center = functionalCenter(points, graph.atlasMode);
+    const trail = rememberCenterTrail(trailStore, region.id, center, tick);
+    const internalEdges = regionInternalEdgeCount(region.id);
+    return {
+      ...shape,
+      functionalCenter: center,
+      trail,
+      tension: boundaryTension(region, internalEdges),
+      hotspots: densityHotspots(points, {
+        maxHotspots: 4,
+        bandwidth: dimension === '3d' ? 34 : 52,
+      }),
+    };
+  }
+
+  function drawRegionDensity(ctx, shape, color) {
+    if (!['activity','learning','prediction','dynamics'].includes(graph.atlasMode)) return;
+    if (!shape?.hotspots?.length || !traceRegionPath(ctx, shape)) return;
+    ctx.save();
+    ctx.clip();
+    const maxDensity = Math.max(...shape.hotspots.map(item => item.density), 1);
+    for (const hotspot of shape.hotspots) {
+      const strength = Math.min(1, hotspot.density / maxDensity);
+      const radius = Math.max(24, shape.radius * (0.18 + strength * 0.20));
+      const gradient = ctx.createRadialGradient(
+        hotspot.x, hotspot.y, 0,
+        hotspot.x, hotspot.y, radius,
+      );
+      gradient.addColorStop(0, `${color}${Math.round((0.05 + strength * 0.10) * 255).toString(16).padStart(2,'0')}`);
+      gradient.addColorStop(1, `${color}00`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(hotspot.x - radius, hotspot.y - radius, radius * 2, radius * 2);
+    }
+    ctx.restore();
+  }
+
+  function drawFunctionalCenter(ctx, shape, color) {
+    if (!['structure','anatomy','dynamics'].includes(graph.atlasMode)) return;
+    const center = shape.functionalCenter;
+    if (!center) return;
+    ctx.save();
+    const trail = shape.trail ?? [];
+    if (trail.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(trail[0].x, trail[0].y);
+      for (let i = 1; i < trail.length; i++) ctx.lineTo(trail[i].x, trail[i].y);
+      ctx.strokeStyle = `${color}36`;
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([2,4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, 2.6, 0, Math.PI * 2);
+    ctx.fillStyle = `${color}cc`;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawProtoSubregions(ctx, region, points, shape, color) {
+    if (graph.atlasMode !== 'anatomy' || graph.detailLevel === 'regions') return;
+    const memberIds = new Set(region.nodeIds);
+    const regionNodes = graph.nodes.filter(node => memberIds.has(node.id));
+    const components = protoSubregions(regionNodes, graph.edges, { minimumSize: 3 });
+    graph.protoSubregions.set(region.id, components);
+    if (!components.length) return;
+    const pointById = new Map(points.map(point => [point.id, point]));
+    ctx.save();
+    if (traceRegionPath(ctx, shape)) ctx.clip();
+    for (const component of components.slice(0, 4)) {
+      const subPoints = component.map(id => pointById.get(id)).filter(Boolean);
+      if (subPoints.length < 3) continue;
+      const subShape = organicRegionShape(subPoints, {
+        padding: 8,
+        bins: Math.max(10, subPoints.length + 4),
+        smoothPasses: 2,
+        sampleCount: 32,
+      });
+      if (!traceRegionPath(ctx, subShape)) continue;
+      ctx.fillStyle = `${color}0b`;
+      ctx.strokeStyle = `${color}4c`;
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([2,5]);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
   }
 
   function visibleIdsForDetail(nodes, atlasPath) {
