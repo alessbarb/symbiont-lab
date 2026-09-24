@@ -1142,198 +1142,243 @@ class OrganismRuntime:
         ):
             return
 
-        active_repertoire = self._actuator_proposer.active_repertoire
         self._last_motor_origin = "none"
         self._last_motor_origin_detail = "none"
         intents: tuple[MotorIntent, ...] = ()
         pending: list[tuple[str, float, dict[str, float] | None]] = []
-
-        cognitive_intents: tuple[MotorIntent, ...] = ()
-        if cognition is not None and active_repertoire:
-            readouts = cognition.readouts_for_family("motor")
-            eligible = {
-                actuator_id: value
-                for actuator_id, value in readouts.items()
-                if actuator_id in active_repertoire
-            }
-            cognitive_intents = self._motor_intent_selector.select_many(
-                eligible,
-                max_concurrent=len(active_repertoire),
-            )
-
-        primitive_execution: tuple[MotorIntent, ...] = ()
         primitive_selected_now = False
-        if self._sensorimotor_learner is not None:
-            # Fast acquired response: constitutional urgency may reuse only a
-            # primitive that the organism has already discovered and for which
-            # repeated real experience showed immediate relief. It never emits
-            # actuator commands directly.
-            if self._sensorimotor_learner.active_primitive_id is None:
-                reactive_candidates = (
-                    self._sensorimotor_learner.available_cognitive_primitive_ids()
-                )
-                reactive_decision = self._action_arbitrator.choose_reactive(
-                    state=reactive_state,
-                    memory=self._reactive_memory,
-                    candidate_ids=reactive_candidates,
-                )
-                if (
-                    reactive_decision.primitive_id is not None
-                    and self._sensorimotor_learner.activate_primitive(
-                        reactive_decision.primitive_id
-                    )
-                ):
-                    primitive_selected_now = True
-                    self._last_motor_origin_detail = "protection"
 
-            # An already-started learned skill is an atomic temporal action:
-            # continue it before considering a new cognitive primitive.
-            if self._sensorimotor_learner.active_primitive_id is not None:
-                primitive_execution = self._sensorimotor_learner.motor_intents(tick)
-            elif cognition is not None:
-                # (2) Prospective agency hook — base returns None; overridden by
-                #     PrivateModelOrganismRuntime when model-based agency is active.
-                candidate_ids = self._sensorimotor_learner.available_cognitive_primitive_ids()
-                acquired_primitive_id = self._choose_acquired_primitive(
-                    cognition=cognition,
-                    percepts=percepts,
-                    candidate_ids=candidate_ids,
-                    signal_references=signal_references or {},
-                    tick=tick,
-                )
-                if acquired_primitive_id is not None and self._sensorimotor_learner.activate_primitive(acquired_primitive_id):
-                    primitive_selected_now = True
-                    self._last_motor_origin_detail = "prospection"
-                    primitive_execution = self._sensorimotor_learner.motor_intents(tick)
-                else:
-                    # (3) Cognitive readout primitive selection (existing path)
-                    primitive_readouts = cognition.readouts_for_family("primitive")
-                    eligible_primitives = [
-                        (float(value), str(primitive_id))
-                        for primitive_id, value in primitive_readouts.items()
-                        if (
-                            isinstance(value, (int, float))
-                            and not isinstance(value, bool)
-                            and math.isfinite(float(value))
-                            and float(value)
-                            >= self._motor_intent_selector.selection_threshold
-                        )
-                    ]
-                    if eligible_primitives:
-                        _, primitive_id = sorted(
-                            eligible_primitives,
-                            key=lambda item: (-item[0], item[1]),
-                        )[0]
-                        if self._sensorimotor_learner.activate_primitive(primitive_id):
-                            primitive_selected_now = True
-                            primitive_execution = (
-                                self._sensorimotor_learner.motor_intents(tick)
-                            )
+        if self._sensorimotor_learner is None:
+            raise RuntimeError("actuation requires sensorimotor learner")
 
-        if primitive_execution:
-            intents = primitive_execution
-            self._last_executed_primitive_id = (
-                self._sensorimotor_learner.last_output_primitive_id
-                if self._sensorimotor_learner is not None
-                else None
+        # A learned controller that naturally reached the end of its sequence
+        # completes its commitment before a new deliberative selection.
+        if (
+            self._active_action_commitment is not None
+            and self._active_action_commitment.active
+            and self._active_action_commitment.competence_id is not None
+            and self._sensorimotor_learner.active_primitive_id is None
+        ):
+            self._active_action_commitment.terminate(
+                tick=tick,
+                status=CommitmentStatus.COMPLETED,
+                reason="competence_completed",
             )
-            self._last_motor_origin = "competence"
-            if (
-                self._last_executed_primitive_id is not None
-                and reactive_state.withdrawal > 0.05
-            ):
-                self._pending_reactive_credit = (
-                    reactive_state.signature,
-                    self._last_executed_primitive_id,
-                    homeostatic_baseline,
+
+        candidate_ids = self._sensorimotor_learner.available_cognitive_primitive_ids()
+        proposals: list[ActionProposal] = []
+
+        # Innate reactivity contributes urgency and a learned response candidate;
+        # it never writes a motor command itself.
+        reactive_candidate = self._reactive_memory.best(
+            signature=reactive_state.signature,
+            candidates=candidate_ids,
+        )
+        if reactive_state.withdrawal >= 0.55 and reactive_candidate is not None:
+            proposal_id = "proposal." + hashlib.sha256(
+                f"{self._organism_id}:{tick}:protection:{reactive_candidate}".encode("utf-8")
+            ).hexdigest()[:24]
+            proposals.append(
+                ActionProposal(
+                    proposal_id=proposal_id,
+                    source=ActionSource.PROTECTION,
+                    effect_target_id=None,
+                    competence_id=reactive_candidate,
+                    justification=ActionJustification(
+                        originating_need_id=f"internal.{reactive_state.signature}",
+                        competence_id=reactive_candidate,
+                    ),
+                    evaluation=ActionEvaluation(
+                        homeostatic_relevance=reactive_state.withdrawal,
+                        protective_relevance=reactive_state.withdrawal,
+                        effect_confidence=min(1.0, reactive_state.withdrawal),
+                        uncertainty=max(0.0, 1.0 - reactive_state.withdrawal),
+                    ),
                 )
-            # Preserve prospective/reactive provenance if already set.
-            # Every other current primitive execution was selected through a
-            # cognitive primitive path; scheduled verification no longer exists.
-            if self._last_motor_origin_detail not in {
-                "prospection",
-                "protection",
-            }:
-                self._last_motor_origin_detail = "competence"
+            )
 
-        else:
-            if self._sensorimotor_learner is None:
-                raise RuntimeError("actuation requires sensorimotor learner")
-
-            # Sensorimotor learning is independent from cognitive admission.
-            # Current-state learner output here must be ordinary exploration;
-            # primitives are handled atomically above and no passive/verification
-            # scheduler exists.
-            developmental_intents = self._sensorimotor_learner.motor_intents(tick)
-            output_source = self._sensorimotor_learner.last_output_source
-            if output_source != "exploration":
-                raise RuntimeError(
-                    "unexpected sensorimotor output source during exploration development: "
-                    f"{output_source}"
+        # Prospective agency proposes an already acquired competence.  It does
+        # not activate it; final ownership belongs to the universal arbitrator.
+        prospective_id: str | None = None
+        if cognition is not None and candidate_ids:
+            prospective_id = self._choose_acquired_primitive(
+                cognition=cognition,
+                percepts=percepts,
+                candidate_ids=candidate_ids,
+                signal_references=signal_references or {},
+                tick=tick,
+            )
+        if prospective_id is not None and prospective_id in candidate_ids:
+            proposal_id = "proposal." + hashlib.sha256(
+                f"{self._organism_id}:{tick}:prospection:{prospective_id}".encode("utf-8")
+            ).hexdigest()[:24]
+            proposals.append(
+                ActionProposal(
+                    proposal_id=proposal_id,
+                    source=ActionSource.PROSPECTION,
+                    effect_target_id=None,
+                    competence_id=prospective_id,
+                    justification=ActionJustification(
+                        competence_id=prospective_id,
+                    ),
+                    evaluation=ActionEvaluation(
+                        effect_confidence=0.75,
+                        controllability=0.75,
+                        uncertainty=0.25,
+                    ),
                 )
+            )
 
-            # A one-channel exploration episode is a clean natural causal
-            # probe for the direct actuator proposer. Multi-channel
-            # synergies stay exclusively in the sensorimotor learner
-            # because their effects cannot be attributed to one actuator.
-            if len(developmental_intents) == 1:
-                isolated = developmental_intents[0]
-                pending.append(
-                    (
-                        isolated.actuator_id,
-                        float(isolated.activation),
-                        baseline,
+        # Cognitive motor reuse is competence-level only.  The historical
+        # cognition->individual-actuator path is intentionally gone.
+        if cognition is not None and candidate_ids:
+            primitive_readouts = cognition.readouts_for_family("primitive")
+            for primitive_id in candidate_ids:
+                raw = primitive_readouts.get(primitive_id)
+                if (
+                    isinstance(raw, (int, float))
+                    and not isinstance(raw, bool)
+                    and math.isfinite(float(raw))
+                    and float(raw) >= self._motor_intent_selector.selection_threshold
+                ):
+                    strength = max(0.0, min(1.0, float(raw)))
+                    proposal_id = "proposal." + hashlib.sha256(
+                        f"{self._organism_id}:{tick}:competence:{primitive_id}".encode("utf-8")
+                    ).hexdigest()[:24]
+                    proposals.append(
+                        ActionProposal(
+                            proposal_id=proposal_id,
+                            source=ActionSource.COMPETENCE,
+                            effect_target_id=None,
+                            competence_id=primitive_id,
+                            justification=ActionJustification(
+                                competence_id=primitive_id,
+                            ),
+                            evaluation=ActionEvaluation(
+                                effect_confidence=strength,
+                                controllability=strength,
+                                uncertainty=1.0 - strength,
+                            ),
+                        )
                     )
+
+        # Exploration is permanently available, but its pressure is organism
+        # owned and can become very small.  There is no developmental mode.
+        exploration_drive = (
+            self._gene_expression_state.exploration_drive
+            if self._gene_expression_state is not None
+            else 0.25
+        )
+        exploration_drive = max(0.0, min(1.0, float(exploration_drive)))
+        if exploration_drive > 0.0:
+            proposal_id = "proposal." + hashlib.sha256(
+                f"{self._organism_id}:{tick}:exploration".encode("utf-8")
+            ).hexdigest()[:24]
+            proposals.append(
+                ActionProposal(
+                    proposal_id=proposal_id,
+                    source=ActionSource.EXPLORATION,
+                    effect_target_id=None,
+                    competence_id=None,
+                    justification=ActionJustification(
+                        originating_need_id="internal.sensorimotor-uncertainty",
+                    ),
+                    evaluation=ActionEvaluation(
+                        epistemic_relevance=exploration_drive,
+                        uncertainty=max(0.05, exploration_drive),
+                    ),
                 )
+            )
 
-            merged: list[MotorIntent] = []
-            seen: set[str] = set()
+        decision = self._action_arbitrator.choose(
+            proposals=tuple(proposals),
+            current=self._active_action_commitment,
+            tick=tick,
+        )
 
-            # During sensorimotor development, cognition receives one slot
-            # while the remaining capacity stays available for body-wide
-            # exploration. This prevents an early repetitive readout from
-            # monopolizing the body before its dynamics are learned.
-            if cognitive_intents:
-                intent = cognitive_intents[0]
-                merged.append(intent)
-                seen.add(intent.actuator_id)
+        selected = decision.proposal
+        if selected is not None:
+            if self._active_action_commitment is not None and self._active_action_commitment.active:
+                self._active_action_commitment.terminate(
+                    tick=tick,
+                    status=CommitmentStatus.INTERRUPTED,
+                    reason=decision.reason,
+                )
+                self._sensorimotor_learner.interrupt_active_competence()
 
-            for intent in developmental_intents:
-                if intent.actuator_id in seen:
-                    continue
-                merged.append(intent)
-                seen.add(intent.actuator_id)
+            controller_id = (
+                f"controller.{selected.competence_id}"
+                if selected.competence_id is not None
+                else "controller.sensorimotor-exploration"
+            )
+            commitment_id = "commitment." + hashlib.sha256(
+                f"{selected.proposal_id}:{tick}".encode("utf-8")
+            ).hexdigest()[:24]
+            self._last_action_proposal = selected
+            self._active_action_commitment = ActionCommitment(
+                commitment_id=commitment_id,
+                proposal_id=selected.proposal_id,
+                effect_target_id=selected.effect_target_id,
+                competence_id=selected.competence_id,
+                started_tick=tick,
+                controller_id=controller_id,
+                surface_fingerprint=(
+                    self._actuator_constitution.contract_fingerprint
+                    if self._actuator_constitution is not None
+                    else None
+                ),
+                maximum_duration=(8 if selected.source is ActionSource.EXPLORATION else None),
+            )
 
-            intents = tuple(merged)
-            if cognitive_intents and developmental_intents:
-                self._last_motor_origin = "exploration"
-                self._last_motor_origin_detail = "exploration"
-            elif cognitive_intents:
-                self._last_motor_origin = "competence"
-                self._last_motor_origin_detail = "competence"
-            elif developmental_intents:
-                self._last_motor_origin = "exploration"
-                self._last_motor_origin_detail = "exploration"
+            if selected.competence_id is not None:
+                if self._sensorimotor_learner.activate_primitive(selected.competence_id):
+                    primitive_selected_now = True
+                    intents = self._sensorimotor_learner.motor_intents(tick)
+                    self._last_executed_primitive_id = (
+                        self._sensorimotor_learner.last_output_primitive_id
+                    )
+                else:
+                    self._active_action_commitment.terminate(
+                        tick=tick,
+                        status=CommitmentStatus.FAILED,
+                        reason="competence_controller_unavailable",
+                    )
+                    intents = ()
+            else:
+                intents = self._sensorimotor_learner.motor_intents(tick)
+
+            self._last_motor_origin = selected.source.value
+            self._last_motor_origin_detail = selected.source.value
+
+        elif decision.keep_current and self._active_action_commitment is not None:
+            source_value = "competence" if self._active_action_commitment.competence_id else "exploration"
+            if self._last_action_proposal is not None:
+                source_value = self._last_action_proposal.source.value
+            if self._active_action_commitment.competence_id is not None:
+                if self._sensorimotor_learner.active_primitive_id is not None:
+                    intents = self._sensorimotor_learner.motor_intents(tick)
+                    self._last_executed_primitive_id = (
+                        self._sensorimotor_learner.last_output_primitive_id
+                    )
+            else:
+                intents = self._sensorimotor_learner.motor_intents(tick)
+            self._last_motor_origin = source_value
+            self._last_motor_origin_detail = source_value
+
+        if self._last_motor_origin == "exploration" and len(intents) == 1:
+            isolated = intents[0]
+            pending.append(
+                (
+                    isolated.actuator_id,
+                    float(isolated.activation),
+                    baseline,
+                )
+            )
 
         if self._sensorimotor_learner is not None and intents:
             intents = self._sensorimotor_learner.constrain_intents(intents)
             surviving_ids = {intent.actuator_id for intent in intents}
-            cognitive_ids = {
-                intent.actuator_id for intent in cognitive_intents
-            }
-
-            # Direct actuator-effect probes are valid only when the surviving
-            # command is genuinely developmental.  If cognition requested the
-            # same opaque actuator, the resulting bodily consequence cannot be
-            # attributed to exploration even though the physical channel matches.
-            pending = [
-                item
-                for item in pending
-                if (
-                    item[0] in surviving_ids
-                    and item[0] not in cognitive_ids
-                )
-            ]
+            pending = [item for item in pending if item[0] in surviving_ids]
 
         activity_scale = self._homeostasis.activity_scale
         if activity_scale < 1.0:
@@ -1366,68 +1411,10 @@ class OrganismRuntime:
                 )
             return
 
-        # Sensorimotor v2 provenance is established before physical execution.
-        # Feedback corrections below inherit this commitment instead of creating
-        # fresh deliberative actions on every tick.
-        source_name = (
-            self._last_motor_origin_detail
-            if self._last_motor_origin_detail in {item.value for item in ActionSource}
-            else "exploration"
-        )
-        source = ActionSource(source_name)
-        competence_id = self._last_executed_primitive_id
-        needs_new_commitment = (
-            self._active_action_commitment is None
-            or not self._active_action_commitment.active
-            or self._active_action_commitment.competence_id != competence_id
-            or self._last_motor_origin_detail != source.value
-        )
-        if needs_new_commitment:
-            if self._active_action_commitment is not None and self._active_action_commitment.active:
-                self._active_action_commitment.terminate(
-                    tick=tick,
-                    status=CommitmentStatus.INTERRUPTED,
-                    reason="action_reselected",
-                )
-            proposal_id = "proposal." + hashlib.sha256(
-                f"{self._organism_id}:{tick}:{source.value}:{competence_id or 'direct'}".encode("utf-8")
-            ).hexdigest()[:24]
-            self._last_action_proposal = ActionProposal(
-                proposal_id=proposal_id,
-                source=source,
-                effect_target_id=None,
-                competence_id=competence_id,
-                justification=ActionJustification(
-                    competence_id=competence_id,
-                ),
-                evaluation=ActionEvaluation(
-                    epistemic_relevance=(1.0 if source is ActionSource.EXPLORATION else 0.0),
-                    homeostatic_relevance=(reactive_state.withdrawal if source is ActionSource.PROTECTION else 0.0),
-                    protective_relevance=(reactive_state.withdrawal if source is ActionSource.PROTECTION else 0.0),
-                    uncertainty=(1.0 if source is ActionSource.EXPLORATION else 0.5),
-                ),
-            )
-            commitment_id = "commitment." + hashlib.sha256(
-                f"{proposal_id}:{tick}".encode("utf-8")
-            ).hexdigest()[:24]
-            self._active_action_commitment = ActionCommitment(
-                commitment_id=commitment_id,
-                proposal_id=proposal_id,
-                effect_target_id=None,
-                competence_id=competence_id,
-                started_tick=tick,
-                controller_id=(
-                    f"controller.{competence_id}"
-                    if competence_id is not None
-                    else "controller.sensorimotor-exploration"
-                ),
-                surface_fingerprint=(
-                    self._actuator_constitution.contract_fingerprint
-                    if self._actuator_constitution is not None
-                    else None
-                ),
-            )
-        assert self._active_action_commitment is not None
+        # Low-level feedback/control commands inherit the selected commitment;
+        # they are not new deliberative actions.
+        if self._active_action_commitment is None or not self._active_action_commitment.active:
+            raise RuntimeError("motor output has no active organism-owned commitment")
         self._last_motor_command = MotorCommand(
             commitment_id=self._active_action_commitment.commitment_id,
             controller_id=self._active_action_commitment.controller_id,
@@ -1487,23 +1474,6 @@ class OrganismRuntime:
                 "motor_command_ref": "command." + _canonical_hash(command_payload)[:24],
                 "actuation_ref": "actuation." + _canonical_hash(actuation_payload)[:24],
             }
-
-        if cognitive_intents and active_concepts:
-            executed_ids = {
-                actuation.actuator_id
-                for actuation in actuations
-                if actuation.delivered > 0.0
-            }
-            for intent in cognitive_intents:
-                if intent.actuator_id not in executed_ids:
-                    continue
-                self._schedule_homeostatic_action_credit(
-                    family="motor",
-                    action_id=intent.actuator_id,
-                    concept_ids=active_concepts,
-                    baseline_error=homeostatic_baseline,
-                    tick=tick,
-                )
 
         if (
             primitive_selected_now
