@@ -63,7 +63,7 @@ class CompetenceCandidate:
 class MotorCompetence:
     competence_id: str
     controller_id: str
-    effect_id: str
+    effect_id: str | None
     evidence: CompetenceEvidence
     surface_binding: str | None = None
     parent_competence_ids: tuple[str, ...] = ()
@@ -79,6 +79,22 @@ class MotorCompetence:
             CompetenceMaturity.ESTABLISHED,
             CompetenceMaturity.ROBUST,
         }
+
+    def bind_from_evidence(
+        self,
+        *,
+        surface_fingerprint: str,
+        effect_id: str | None,
+        evidence_refs: tuple[str, ...],
+    ) -> None:
+        """Rebind only from new organism-owned evidence, never from fingerprint alone."""
+        if not evidence_refs:
+            raise ValueError("competence rebinding requires organism-owned evidence")
+        self.surface_binding = surface_fingerprint
+        self.effect_id = effect_id
+        self.evidence.controllability_evidence_refs = tuple(
+            dict.fromkeys(self.evidence.controllability_evidence_refs + evidence_refs)
+        )
 
 
 class CompetenceLibrary:
