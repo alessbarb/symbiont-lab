@@ -291,7 +291,6 @@ export function mount(root) {
     graph3DMode: _graph.threeDMode,
     graphAtlasMode: _graph.atlasMode,
     onTabChange: switchTab,
-    onDimensionChange: (dimension) => cognition.setDimension(dimension),
     on3DModeChange: (mode) => cognition.set3DMode(mode),
     onAtlasModeChange: (mode) => cognition.setAtlasMode(mode),
     onReturnLive: () => cognition.returnLive(),
