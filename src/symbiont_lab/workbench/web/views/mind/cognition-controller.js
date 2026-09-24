@@ -1370,16 +1370,20 @@ export function createCognitionController({
       ctx.lineWidth = focused
         ? Math.max(2.6, evidenceWidth)
         : Math.max(0.55, evidenceWidth * (0.45 + modeScore * 0.85));
+      const edgeAnim = presentation.edgePresentation(edge, now);
+      const animatedBX = a.x + (b.x - a.x) * edgeAnim.progress;
+      const animatedBY = a.y + (b.y - a.y) * edgeAnim.progress;
+      ctx.globalAlpha *= edgeAnim.opacity;
       ctx.setLineDash(edge.kind === 'causal_effect' ? [5,4] : []);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(animatedBX, animatedBY);
       ctx.stroke();
       ctx.setLineDash([]);
 
       // Recent-use pulse: direction is source -> target. This is a visual
       // encoding of last_use_tick, not simulated neural activity.
-      if (idle <= 48) {
+      if (idle <= 48 && edgeAnim.progress > 0.88) {
         const phase = ((now * 0.00045) + ((liveTick - idle) % 17) / 17) % 1;
         const px = a.x + (b.x - a.x) * phase;
         const py = a.y + (b.y - a.y) * phase;
@@ -1391,6 +1395,9 @@ export function createCognitionController({
       }
       ctx.globalAlpha = 1;
     }
+
+    drawPresentationGhostEdges(ctx, now);
+    drawPresentationGhostNodes(ctx, now);
 
     // Painter's algorithm: far nodes first, near nodes last.
     for (const projected of scene.projected) {
@@ -1650,18 +1657,22 @@ export function createCognitionController({
       else if (edge.kind === 'motor_component') color = `rgba(143,227,255,${isConn ? .98 : dimmed ? .05 : .58})`;
       else if (edge.kind === 'causal_effect') color = `rgba(113,233,186,${isConn ? .98 : dimmed ? .05 : .62})`;
       else                             color = `rgba(80,217,255,${isConn ? .95 : dimmed ? .04 : .28})`;
+      const edgeAnim = presentation.edgePresentation(edge, now);
+      const animatedTargetX = edge.source.x + (edge.target.x - edge.source.x) * edgeAnim.progress;
+      const animatedTargetY = edge.source.y + (edge.target.y - edge.source.y) * edgeAnim.progress;
       ctx.beginPath();
       ctx.moveTo(edge.source.x, edge.source.y);
-      ctx.lineTo(edge.target.x, edge.target.y);
+      ctx.lineTo(animatedTargetX, animatedTargetY);
       const supportScale = Math.min(1, Math.log1p(Math.max(0, edge.support ?? 0)) / 7);
       const idleTicks = Math.max(0, liveTick - finiteNumber(edge.lastUseTick, liveTick));
       const recency = Math.exp(-idleTicks / 512);
       ctx.strokeStyle = color;
-      ctx.globalAlpha = pathEdge
+      const baseEdgeAlpha = pathEdge
         ? 0.98
         : dimmed
           ? 0.12
           : Math.max(0.08, 0.10 + modeScore * 0.72 + recency * 0.18);
+      ctx.globalAlpha = baseEdgeAlpha * edgeAnim.opacity;
       ctx.lineWidth = pathEdge
         ? 3.1
         : isConn
@@ -1671,14 +1682,14 @@ export function createCognitionController({
       ctx.stroke();
       ctx.setLineDash([]);
       // Arrowhead
-      if (!dimmed) {
-        const dx = edge.target.x - edge.source.x, dy = edge.target.y - edge.source.y;
+      if (!dimmed && edgeAnim.progress > 0.82) {
+        const dx = animatedTargetX - edge.source.x, dy = animatedTargetY - edge.source.y;
         const dist = Math.hypot(dx, dy);
         if (dist > 14) {
           const angle = Math.atan2(dy, dx);
           const tr = (edge.target.radius ?? 6) + 3;
-          const tx = edge.target.x - Math.cos(angle) * tr;
-          const ty = edge.target.y - Math.sin(angle) * tr;
+          const tx = animatedTargetX - Math.cos(angle) * tr;
+          const ty = animatedTargetY - Math.sin(angle) * tr;
           const al = isConn ? 6 : 4;
           ctx.fillStyle = color;
           ctx.beginPath();
@@ -1691,6 +1702,9 @@ export function createCognitionController({
       }
     }
   
+    drawPresentationGhostEdges(ctx, now);
+    drawPresentationGhostNodes(ctx, now);
+
     // Nodes
     for (const node of nodes) {
       if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
