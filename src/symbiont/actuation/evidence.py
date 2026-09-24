@@ -35,6 +35,7 @@ class SensorimotorTransition:
     prediction_ref: str | None
     state_after_ref: str
     observed_effect_id: str | None = None
+    prediction_error: PredictionError | None = None
     physiological_delta_ref: str | None = None
 
     def __post_init__(self) -> None:
