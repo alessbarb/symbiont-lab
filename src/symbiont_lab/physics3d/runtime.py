@@ -1379,12 +1379,12 @@ class PyBulletEmbodimentRuntime:
             sensorimotor_payload = {
                 "exploration_coverage": float(sensorimotor.exploration_coverage),
                 "known_patterns": int(sensorimotor.known_patterns),
-                "competence_candidates": int(sensorimotor.primitives),
-                "motor_competences": int(sensorimotor.cognitive_primitives),
+                "competence_candidates": int(sensorimotor.competence_chunks),
+                "motor_competences": int(sensorimotor.established_competences),
                 "best_controllability": float(sensorimotor.best_controllability),
                 "best_directional_consistency": float(sensorimotor.best_directional_consistency),
                 "replay_active": bool(sensorimotor.replay_active),
-                "active_competence_id": sensorimotor.replay_primitive_id,
+                "active_competence_id": sensorimotor.active_competence_id,
                 "horizon_samples": {
                     str(key): int(value)
                     for key, value in dict(sensorimotor.horizon_samples).items()
@@ -1616,13 +1616,13 @@ class PyBulletEmbodimentRuntime:
             "sensorimotor": {
                 **sensorimotor_payload,
                 "competence_candidates": int(
-                    sensorimotor.primitive_candidates if sensorimotor is not None else 0
+                    sensorimotor.competence_candidates if sensorimotor is not None else 0
                 ),
                 "recurrent_competence_candidates": int(
-                    sensorimotor.recurrent_primitive_candidates if sensorimotor is not None else 0
+                    sensorimotor.recurrent_competence_candidates if sensorimotor is not None else 0
                 ),
                 "max_competence_samples": int(
-                    sensorimotor.max_primitive_samples if sensorimotor is not None else 0
+                    sensorimotor.max_competence_samples if sensorimotor is not None else 0
                 ),
                 "sample_gate_candidates": int(
                     sensorimotor.sample_gate_candidates if sensorimotor is not None else 0
@@ -1769,21 +1769,21 @@ class PyBulletEmbodimentRuntime:
                 sensorimotor.known_patterns if sensorimotor is not None else 0
             ),
             motor_competence_candidates=int(
-                sensorimotor.primitives if sensorimotor is not None else 0
+                sensorimotor.competence_chunks if sensorimotor is not None else 0
             ),
             motor_competences=int(
-                sensorimotor.cognitive_primitives
+                sensorimotor.established_competences
                 if sensorimotor is not None
                 else 0
             ),
             competence_candidates=int(
-                sensorimotor.primitive_candidates if sensorimotor is not None else 0
+                sensorimotor.competence_candidates if sensorimotor is not None else 0
             ),
             recurrent_competence_candidates=int(
-                sensorimotor.recurrent_primitive_candidates if sensorimotor is not None else 0
+                sensorimotor.recurrent_competence_candidates if sensorimotor is not None else 0
             ),
             max_competence_samples=int(
-                sensorimotor.max_primitive_samples if sensorimotor is not None else 0
+                sensorimotor.max_competence_samples if sensorimotor is not None else 0
             ),
             sample_gate_candidates=int(
                 sensorimotor.sample_gate_candidates if sensorimotor is not None else 0
