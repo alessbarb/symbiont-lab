@@ -1,71 +1,34 @@
-"""Candidate repertoire builder for L8 Prospective Agency.
-
-Constructs the set of motor primitives the organism is eligible to consider
-prospectively. Only evidence-backed primitives whose readout has actually
-entered the cognitive graph are included. The sequence implementation of each
-primitive is never exposed to agency.
-"""
+"""Prospective candidate repertoire from learned motor competences."""
 from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 
+from symbiont.actuation.competence import CompetenceMaturity, MotorCompetence
 from .types import ProspectiveCandidate
 
-# Default maximum candidates per deliberation cycle (P0)
 _MAX_CANDIDATES = 8
 
-def primitive_candidates(
-    primitives: Collection["MotorPrimitive"],  # type: ignore[name-defined]  # noqa: F821
-    primitive_readouts: Mapping[str, float],
+
+def competence_candidates(
+    competences: Collection[MotorCompetence],
+    competence_readouts: Mapping[str, float],
     *,
     max_candidates: int = _MAX_CANDIDATES,
 ) -> tuple[ProspectiveCandidate, ...]:
-    """Build the organism's current prospective action repertoire.
-
-    Conditions for inclusion:
-    1. ``primitive.is_competence`` — evidence gate must be satisfied
-    2. A readout for the primitive exists in ``primitive_readouts``
-
-    Execution state is handled before deliberation. Readout amplitude does not
-    remove an otherwise cognitively represented action from prospective choice.
-
-    Controllability is used as a competence gate (``is_competence`` already
-    incorporates it) but is NOT used as a ranking criterion here. The order
-    is deterministic by ``primitive_id`` so repeated calls with the same
-    inputs produce the same set.
-
-    Args:
-        primitives: All known motor primitives from the sensorimotor learner.
-        primitive_readouts: Current cognitive readout strengths by primitive ID.
-        max_candidates: Hard cap on returned candidates (min(8, arg) in P0).
-
-    Returns:
-        A tuple of ProspectiveCandidate, sorted by primitive_id (deterministic).
-    """
     if isinstance(max_candidates, bool) or not isinstance(max_candidates, int):
         raise ValueError("max_candidates must be an integer")
-    limit = min(int(max_candidates), _MAX_CANDIDATES)
-
-    eligible: list[str] = []
-    for primitive in primitives:
-        pid = primitive.primitive_id
-        # Gate 1: evidence-backed competence
-        if not primitive.is_competence:
-            continue
-        # Gate 2: structural cognitive admission must exist.
-        if pid not in primitive_readouts:
-            continue
-        eligible.append(pid)
-
-    # Deterministic order: sorted by primitive_id string
-    eligible.sort()
-
+    limit = min(max(0, int(max_candidates)), _MAX_CANDIDATES)
+    eligible = sorted(
+        competence.competence_id
+        for competence in competences
+        if competence.maturity
+        in {CompetenceMaturity.ESTABLISHED, CompetenceMaturity.ROBUST}
+        and competence.competence_id in competence_readouts
+    )
     return tuple(
-        ProspectiveCandidate(action_id=pid, family="primitive")
-        for pid in eligible[:limit]
+        ProspectiveCandidate(action_id=competence_id, family="competence")
+        for competence_id in eligible[:limit]
     )
 
 
-__all__ = [
-    "primitive_candidates",
-]
+__all__ = ["competence_candidates"]
