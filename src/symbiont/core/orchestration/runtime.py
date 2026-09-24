@@ -2772,7 +2772,7 @@ class OrganismRuntime:
             self._resting_requested = False
         resting_for_tick = self._resting_requested
         physiology_snapshot = self._physiology.advance(
-            metabolism_snapshot, tick=self._tick_count,
+            metabolism_snapshot, tick=self._living_body_state.age_ticks,
             resting=resting_for_tick or homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"),
         )
         self._resolve_homeostatic_action_credit(tick=self._tick_count + 1)
@@ -2906,8 +2906,7 @@ class OrganismRuntime:
         self._last_runtime_vital_state = current_state
         self._last_runtime_development_phase = current_phase
         self._tick_count += 1
-        if self._living_body_state.alive:
-            self._living_body_state.age_ticks = self._tick_count
+        self._living_body_state.advance_age()
         journal_entry = {
             "tick": self._tick_count,
             "vital_state": physiology_snapshot.state.value if physiology_snapshot else "active",
