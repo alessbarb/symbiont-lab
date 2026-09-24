@@ -935,21 +935,57 @@ export function createCognitionController({
       const a = geometry.get(link.a);
       const b = geometry.get(link.b);
       if (!a || !b) continue;
+      const start = boundaryPointToward(a, b.center ?? b);
+      const end = boundaryPointToward(b, a.center ?? a);
       const idle = link.lastUseTick > 0
         ? Math.max(0, tick - link.lastUseTick)
         : 4096;
       const recency = Math.exp(-idle / 768);
       const strength = Math.min(1, Math.log1p(link.count) / 3.2);
+      const supportStrength = Math.min(1, Math.log1p(link.support ?? 0) / 7);
+      const directionTotal = Math.max(1, (link.forward ?? 0) + (link.reverse ?? 0));
+      const directionBias = ((link.forward ?? 0) - (link.reverse ?? 0)) / directionTotal;
+      const anatomy = graph.atlasMode === 'anatomy';
+      const dynamics = graph.atlasMode === 'dynamics' || graph.atlasMode === 'activity';
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = graph.atlasMode === 'activity'
-        ? `rgba(80,217,255,${0.12 + recency * 0.62})`
-        : `rgba(140,166,188,${0.12 + strength * 0.42})`;
-      ctx.lineWidth = 0.8 + strength * 2.1;
-      ctx.setLineDash(graph.detailLevel === 'regions' ? [] : [4, 5]);
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.strokeStyle = dynamics
+        ? `rgba(80,217,255,${0.16 + recency * 0.66})`
+        : anatomy
+          ? `rgba(200,216,228,${0.16 + strength * 0.54})`
+          : `rgba(140,166,188,${0.10 + strength * 0.38})`;
+      ctx.lineWidth = 1 + strength * 3.1 + supportStrength * 1.2;
+      ctx.setLineDash(graph.detailLevel === 'regions' || anatomy ? [] : [4, 5]);
       ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (Math.abs(directionBias) >= 0.28 && (anatomy || dynamics)) {
+        const forward = directionBias > 0;
+        const from = forward ? start : end;
+        const to = forward ? end : start;
+        const t = 0.62;
+        const x = from.x + (to.x - from.x) * t;
+        const y = from.y + (to.y - from.y) * t;
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const size = 4 + strength * 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(
+          x - Math.cos(angle - Math.PI / 6) * size,
+          y - Math.sin(angle - Math.PI / 6) * size,
+        );
+        ctx.lineTo(
+          x - Math.cos(angle + Math.PI / 6) * size,
+          y - Math.sin(angle + Math.PI / 6) * size,
+        );
+        ctx.closePath();
+        ctx.fillStyle = dynamics
+          ? 'rgba(80,217,255,.68)'
+          : 'rgba(200,216,228,.58)';
+        ctx.fill();
+      }
       ctx.restore();
     }
   }
