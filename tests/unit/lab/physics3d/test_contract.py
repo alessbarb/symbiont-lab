@@ -603,17 +603,23 @@ def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
 
 
 def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
+    import symbiont_lab.physics3d.apparatus as apparatus
     import symbiont_lab.physics3d.runtime as runtime
 
-    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
-    assert 'motor_exploration_mode="babbling"' in source
-    assert 'effective.get("motor_exploration_mode") != "babbling"' in source
-    assert '"genome_symbiont_physics3d_v9"' not in source
-    assert "missing canonical genome identity" in source
-    assert "exclusive_actuator_groups=exclusive_groups" in source
-    assert "physics3d_actuator_surface(" in source
-    assert "binding.positive_port" in source
-    assert "binding.negative_port" in source
+    runtime_source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
+    exclusion_source = inspect.getsource(apparatus.actuator_exclusion_groups)
+
+    assert 'motor_exploration_mode="babbling"' in runtime_source
+    assert 'effective.get("motor_exploration_mode") != "babbling"' in runtime_source
+    assert '"genome_symbiont_physics3d_v9"' not in runtime_source
+    assert "missing canonical genome identity" in runtime_source
+    assert "exclusive_actuator_groups=exclusive_groups" in runtime_source
+    assert "physics3d_actuator_surface(" in runtime_source
+
+    # The physical directional-pair mapping belongs to the apparatus adapter,
+    # not to the runtime constructor or the genome.
+    assert "binding.positive_port" in exclusion_source
+    assert "binding.negative_port" in exclusion_source
 
 
 
