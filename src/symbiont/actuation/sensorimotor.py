@@ -1470,9 +1470,9 @@ class SensorimotorLearner:
         if isinstance(raw_babble_ids, list):
             restored_ids = tuple(str(value) for value in raw_babble_ids)
             if all(value in allowed for value in restored_ids):
-                # Force the next babbling epoch to derive its concurrent set
-                # from the full actuator constitution rather than preserving
-                # a legacy truncated checkpoint subset.
+                # Re-derive the next concurrent set from the current opaque
+                # motor-unit constitution.  The smoothed scalar levels are
+                # durable, but an in-flight selection is not causal evidence.
                 learner._babble_ids = ()
 
         raw_horizon_stats = payload.get("horizon_stats", [])
@@ -1496,6 +1496,10 @@ class SensorimotorLearner:
                     )[0]
                 except ValueError:
                     continue
+                if not learner._pattern_respects_exclusive_groups(pattern):
+                    raise ValueError(
+                        "sensorimotor horizon evidence violates exclusive actuator groups"
+                    )
                 raw_stat = item.get("stat", {})
                 if isinstance(raw_stat, Mapping):
                     learner._horizon_stats[(horizon, pattern)] = (
