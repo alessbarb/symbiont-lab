@@ -367,8 +367,20 @@ export function createCognitionController({
   }
   
   function initGraphPhysics(width, height) {
-    const previousNodes = [...graph.nodes];
-    const previousEdges = [...graph.edges];
+    const previousNodes = graph.dimension === '3d'
+      ? graph.nodes.map(node => {
+          const projected = graph.projected3d?.get?.(node.id);
+          return projected
+            ? { ...node, x: projected.x, y: projected.y, radius: projected.radius }
+            : { ...node };
+        })
+      : graph.nodes.map(node => ({ ...node }));
+    const previousNodeMap = new Map(previousNodes.map(node => [node.id, node]));
+    const previousEdges = graph.edges.map(edge => ({
+      ...edge,
+      source: previousNodeMap.get(edge.source?.id ?? edge.sourceId) ?? edge.source,
+      target: previousNodeMap.get(edge.target?.id ?? edge.targetId) ?? edge.target,
+    }));
     const {
       nodes: rawNodes,
       edges: rawEdges,
@@ -1180,6 +1192,47 @@ export function createCognitionController({
         labelX,
         labelY + 12,
       );
+    }
+  }
+
+  function drawPresentationGhostEdges(ctx, timestamp = performance.now()) {
+    for (const ghost of presentation.ghostEdgePresentation(timestamp)) {
+      if (!ghost.source || !ghost.target) continue;
+      ctx.save();
+      ctx.globalAlpha = ghost.opacity * 0.48;
+      ctx.strokeStyle = ghost.kind === 'inhibitory'
+        ? 'rgba(255,127,131,.7)'
+        : ghost.kind === 'predictive'
+          ? 'rgba(255,189,84,.72)'
+          : 'rgba(140,166,188,.65)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3,5]);
+      ctx.beginPath();
+      ctx.moveTo(ghost.source.x, ghost.source.y);
+      ctx.lineTo(ghost.target.x, ghost.target.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawPresentationGhostNodes(ctx, timestamp = performance.now()) {
+    for (const ghost of presentation.ghostNodePresentation(timestamp)) {
+      ctx.save();
+      ctx.globalAlpha = ghost.opacity * 0.72;
+      ctx.fillStyle = ghost.color ?? 'rgba(175,199,220,.7)';
+      const radius = Math.max(1, (ghost.radius ?? 6) * ghost.scale);
+      ctx.beginPath();
+      if (ghost.kind === 'motor_primitive') {
+        ctx.moveTo(ghost.x, ghost.y - radius);
+        ctx.lineTo(ghost.x + radius, ghost.y);
+        ctx.lineTo(ghost.x, ghost.y + radius);
+        ctx.lineTo(ghost.x - radius, ghost.y);
+        ctx.closePath();
+      } else {
+        ctx.arc(ghost.x, ghost.y, radius, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -2869,6 +2922,7 @@ export function createCognitionController({
     const dimensionChanged = graph.dimension !== dimension;
     graph.threeDMode = mode;
     graph.dimension = dimension;
+    if (dimensionChanged) presentation.reset();
     graph.autoFramePending = true;
     graph.manualViewOverride = false;
     recordObserverUsage(observerUsage, 'dimension', dimension);
