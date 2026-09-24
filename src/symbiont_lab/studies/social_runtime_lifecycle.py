@@ -1,12 +1,11 @@
 """Evaluator-only social restart, lineage and death-boundary study."""
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass
-from dataclasses import replace
-from importlib import resources
 
-from symbiont.cognition.genome import GenomeCodec
+from symbiont import __version__ as symbiont_version
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.metabolism import MetabolicLedger
@@ -31,10 +30,8 @@ class SocialRuntimeLifecycleStudy:
 
 def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
     """Check social checkpoint/restart alongside bounded birth and death."""
-    genome_payload = json.loads(
-        resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
-    )
-    genome = replace(GenomeCodec().load(genome_payload), kernel_compatibility=">=0.79")
+    version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="social-lifecycle", capacity=2)
     social = SocialHabitat(EcologicalResourcePool({"food": 4.0}), max_members=3)
     social.admit("parent")
