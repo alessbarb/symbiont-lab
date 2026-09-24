@@ -17,6 +17,7 @@ from typing import Mapping, Any
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import LivingBodyState, VitalState
 from symbiont.cognition.limits import KernelLimits
+from symbiont.actuation.sensorimotor import SensorimotorLearner
 from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -35,6 +36,7 @@ from .observer_semantics import motor_semantics, sensory_semantics
 from .bodies import DEFAULT_BODY_REGISTRY
 from .humanoid import apply_surface_material, configure_physics_solver
 from .resource import PhysicalResource
+from .settling import settle_passive_body
 from .reembodiment import (
     EmbodimentContract,
     migrate_temporal_domains,
@@ -378,6 +380,15 @@ class PyBulletEmbodimentRuntime:
                 auto_promote_predictors=True,
                 actuation_enabled=True,
                 motor_exploration_mode="babbling",
+                sensorimotor_learner=SensorimotorLearner(
+                    tuple(self.apparatus.effector_ids),
+                    organism_id=subject_id,
+                    max_concurrent=None,
+                    exclusive_actuator_groups=tuple(
+                        (binding.positive_port, binding.negative_port)
+                        for binding in self.apparatus.motor_bindings
+                    ),
+                ),
             )
 
         if runtime_checkpoint is None:
@@ -532,43 +543,27 @@ class PyBulletEmbodimentRuntime:
         angular_threshold: float = 0.05,
         joint_threshold: float = 0.08,
     ) -> int:
-        """Let a newborn body reach passive mechanical equilibrium before tick 0."""
-        self.apparatus.apply_effectors({})
-        stable = 0
-        for step in range(1, max_steps + 1):
-            self.apparatus.prepare_physics_substep()
-            self.p.stepSimulation(physicsClientId=self.client_id)
-
-            linear_velocity, angular_velocity = self.p.getBaseVelocity(
-                self.apparatus.body_id,
-                physicsClientId=self.client_id,
+        """Require passive mechanical equilibrium before organism tick 0."""
+        result = settle_passive_body(
+            self.p,
+            self.client_id,
+            self.apparatus,
+            max_steps=max_steps,
+            stable_samples=stable_samples,
+            linear_threshold=linear_threshold,
+            angular_threshold=angular_threshold,
+            joint_threshold=joint_threshold,
+        )
+        self._settling_result = result
+        if not result.converged:
+            raise RuntimeError(
+                "Physics3D body failed passive settling: "
+                f"steps={result.steps}, "
+                f"linear={result.max_linear_speed_m_s:.6f}m/s, "
+                f"angular={result.max_angular_speed_rad_s:.6f}rad/s, "
+                f"joint={result.max_joint_speed_rad_s:.6f}rad/s"
             )
-            max_linear = max(abs(float(value)) for value in linear_velocity)
-            max_angular = max(abs(float(value)) for value in angular_velocity)
-            if hasattr(self.p, "getJointStates"):
-                raw_joint_states = self.p.getJointStates(
-                    self.apparatus.body_id,
-                    self.apparatus.motor_joint_indices,
-                    physicsClientId=self.client_id,
-                )
-            else:
-                raw_joint_states = [
-                    self.p.getJointState(self.apparatus.body_id, j, physicsClientId=self.client_id)
-                    for j in self.apparatus.motor_joint_indices
-                ]
-            max_joint = max((abs(float(state[1])) for state in raw_joint_states), default=0.0)
-
-            if (
-                max_linear <= linear_threshold
-                and max_angular <= angular_threshold
-                and max_joint <= joint_threshold
-            ):
-                stable += 1
-                if stable >= stable_samples:
-                    return step
-            else:
-                stable = 0
-        return max_steps
+        return result.steps
 
     @property
     def tick_count(self) -> int:
