@@ -20,18 +20,30 @@ class CompetenceEvidence:
     controllability_evidence_refs: tuple[str, ...] = ()
     support: int = 0
     failures: int = 0
+    reproducibility: float = 0.0
+    controllability: float = 0.0
+    directional_consistency: float = 0.0
 
     @property
     def maturity(self) -> CompetenceMaturity:
-        # Maturity is a projection of evidence and is never persisted separately.
-        useful = max(0, self.support - self.failures)
-        if useful >= 32 and self.failures <= max(1, self.support // 8):
+        """Evidence projection only; no separately mutable maturity truth."""
+        if (
+            self.support < 2
+            or self.controllability <= 0.002
+            or self.reproducibility < (2.0 / 3.0)
+            or self.directional_consistency < 0.60
+        ):
+            if self.support >= 2 and self.controllability > 0.0:
+                return CompetenceMaturity.EMERGING
+            return CompetenceMaturity.CANDIDATE
+        if (
+            self.support >= 8
+            and self.reproducibility >= 0.85
+            and self.directional_consistency >= 0.80
+            and self.failures <= max(1, self.support // 8)
+        ):
             return CompetenceMaturity.ROBUST
-        if useful >= 8:
-            return CompetenceMaturity.ESTABLISHED
-        if useful >= 3:
-            return CompetenceMaturity.EMERGING
-        return CompetenceMaturity.CANDIDATE
+        return CompetenceMaturity.ESTABLISHED
 
 
 @dataclass(slots=True)
