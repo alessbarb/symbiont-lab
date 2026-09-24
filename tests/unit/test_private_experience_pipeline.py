@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from types import SimpleNamespace
 
 from symbiont.actuation.types import Actuation
+from symbiont.cognition.types import NodeKind
 from symbiont.core.runtime import RuntimeTickResult
 from symbiont.modeling import (
     EpistemicStatus,
@@ -356,3 +358,53 @@ def test_observed_outcome_credit_resolves_against_pre_consequence_baseline(monke
     )
     assert estimate is not None
     assert estimate.mean_value == pytest.approx(0.6)
+
+
+
+def test_private_frame_episodic_projection_uses_direct_cognitive_ids():
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-cognitive-episode",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    runtime._cognitive_bridge = SimpleNamespace(
+        graph=SimpleNamespace(
+            nodes=(
+                SimpleNamespace(node_id="sensor.identity.alpha", kind=NodeKind.SENSE),
+                SimpleNamespace(node_id="sensor.identity.beta", kind=NodeKind.SENSE),
+                SimpleNamespace(node_id="concept.000001", kind=NodeKind.CONCEPT),
+            )
+        )
+    )
+    cognition = SimpleNamespace(
+        activations={
+            "sensor.identity.alpha": 0.9,
+            "sensor.identity.beta": 0.4,
+            "concept.000001": 0.8,
+        },
+        active_concept_ids=("concept.000001",),
+    )
+    result = RuntimeTickResult(
+        tick=1,
+        snapshot=None,
+        percepts=(),
+        drift_observations={},
+        allocations=(),
+        investigated_capability=None,
+        evidence_gathered=0,
+        dissent=None,
+        narrative=(),
+        cognition=cognition,
+    )
+
+    frame = runtime._capture_private_frame(result)
+
+    assert frame.episodic_projection.sense_ids == (
+        "sensor.identity.alpha",
+        "sensor.identity.beta",
+    )
+    assert frame.episodic_projection.concept_ids == ("concept.000001",)
+    assert all(
+        not sense_id.startswith("signal.")
+        for sense_id in frame.episodic_projection.sense_ids
+    )
