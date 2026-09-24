@@ -1,7 +1,7 @@
 /**
  * Body view entrypoint.
  *
- * Humanoid rendering lives in ./body/viewer.js.
+ * Morphology-neutral rendering lives in ./body/viewer.js.
  */
 import { BodyViewer, HumanoidViewer } from './body/viewer.js';
 
