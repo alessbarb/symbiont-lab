@@ -901,7 +901,7 @@ export function createCognitionController({
     ctx.clearRect(0, 0, width, height);
     if (!nodes.length) return;
 
-    const scene = buildCognition3DScene(
+    let scene = buildCognition3DScene(
       nodes,
       edges,
       graph.camera3d,
@@ -910,6 +910,20 @@ export function createCognitionController({
       graph.world3d,
       graph.threeDMode,
     );
+    if (graph.autoFramePending && !graph.manualViewOverride && scene.metrics?.occupiedRadius > 0) {
+      const distance = Math.min(1500, Math.max(420, scene.metrics.occupiedRadius * 3.0 + 220));
+      graph.camera3d = { ...graph.camera3d, distance };
+      graph.autoFramePending = false;
+      scene = buildCognition3DScene(
+        nodes,
+        edges,
+        graph.camera3d,
+        width,
+        height,
+        graph.world3d,
+        graph.threeDMode,
+      );
+    }
     const sectorFocus = focusedSectorContext();
 
     const now = performance.now();
@@ -1493,6 +1507,7 @@ export function createCognitionController({
     if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
   
     // Button bindings
+    const flowBtn  = document.getElementById('mind-flow-trace-btn');
     const fmriBtn  = document.getElementById('mind-fmri-btn');
     const zoomIn   = document.getElementById('mind-zoom-in');
     const zoomOut  = document.getElementById('mind-zoom-out');
@@ -1516,6 +1531,16 @@ export function createCognitionController({
       timelineLive.addEventListener('click', returnLive);
     }
   
+    if (flowBtn && !flowBtn.dataset.bound) {
+      flowBtn.dataset.bound = 'true';
+      flowBtn.addEventListener('click', () => {
+        graph.flowTraceEnabled = !graph.flowTraceEnabled;
+        flowBtn.classList.toggle('active', graph.flowTraceEnabled);
+        recordObserverUsage(observerUsage, 'flow-trace');
+        graph.alpha = Math.max(graph.alpha, 0.12);
+        if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
+      });
+    }
     if (fmriBtn && !fmriBtn.dataset.bound) {
       fmriBtn.dataset.bound = 'true';
       fmriBtn.addEventListener('click', () => {
@@ -1526,6 +1551,8 @@ export function createCognitionController({
     if (zoomIn && !zoomIn.dataset.bound) {
       zoomIn.dataset.bound = 'true';
       zoomIn.addEventListener('click', () => {
+        graph.manualViewOverride = true;
+        graph.autoFramePending = false;
         if (graph.dimension === '3d') {
           graph.camera3d = zoomCamera(graph.camera3d, -1);
         } else {
@@ -1541,6 +1568,8 @@ export function createCognitionController({
     if (zoomOut && !zoomOut.dataset.bound) {
       zoomOut.dataset.bound = 'true';
       zoomOut.addEventListener('click', () => {
+        graph.manualViewOverride = true;
+        graph.autoFramePending = false;
         if (graph.dimension === '3d') {
           graph.camera3d = zoomCamera(graph.camera3d, 1);
         } else {
@@ -1812,6 +1841,18 @@ export function createCognitionController({
     return { inbound, outbound, localIds, reachesMotor };
   }
   
+  function inspectorGroup(parent, title, open = true) {
+    const group = document.createElement('details');
+    group.open = open;
+    group.style.cssText = 'margin:9px 0;border-top:1px solid rgba(98,120,136,.14);padding-top:4px;';
+    const summary = document.createElement('summary');
+    summary.textContent = title;
+    summary.style.cssText = 'cursor:pointer;font-size:9px;font-weight:650;color:var(--text);padding:4px 0;';
+    group.appendChild(summary);
+    parent.appendChild(group);
+    return group;
+  }
+
   function renderCognitionInspector() {
     const panel = document.getElementById('mind-cognition-inspector-body');
     if (!panel) return;
@@ -1826,6 +1867,11 @@ export function createCognitionController({
       subtitle.style.cssText = 'font-size:9px;color:var(--muted);margin-bottom:10px;';
       subtitle.textContent = `${selected.kind} · selected node`;
       panel.append(title, subtitle);
+      const identityGroup = inspectorGroup(panel, 'Identity', true);
+      const topologyGroup = inspectorGroup(panel, 'Topology', true);
+      const dynamicsGroup = inspectorGroup(panel, 'Dynamics', false);
+      const roleGroup = inspectorGroup(panel, 'Role', true);
+      const relationsGroup = inspectorGroup(panel, 'Relations & pathway', true);
   
       const facts = cognitionNodeFacts(selected.id);
       const observerContext = observerContextForNode(
@@ -1842,9 +1888,9 @@ export function createCognitionController({
           }
         : null;
       const displayedSemantic = motorSemantic ?? observerContext;
-      inspectorMetric(panel, 'Self label', selected.id, PAL.violet);
+      inspectorMetric(identityGroup, 'Self label', selected.id, PAL.violet);
       inspectorMetric(
-        panel,
+        identityGroup,
         displayedSemantic.kind === 'exact-source'
           ? 'Observer truth'
           : displayedSemantic.kind === 'composition'
@@ -1854,7 +1900,7 @@ export function createCognitionController({
         displayedSemantic.summary ? PAL.cyan : PAL.muted,
       );
       inspectorMetric(
-        panel,
+        identityGroup,
         'Semantic relation',
         displayedSemantic.kind === 'exact-source'
           ? 'exact source mapping'
@@ -1864,34 +1910,34 @@ export function createCognitionController({
               ? `linked within ${displayedSemantic.distance} hops`
               : 'unresolved',
       );
-      inspectorMetric(panel, 'Kind', selected.kind);
+      inspectorMetric(identityGroup, 'Kind', selected.kind);
       if (selected.kind === 'motor_primitive') {
-        inspectorMetric(panel, 'Cognitive reuse', selected.cognitivePrimitive ? 'eligible' : 'not yet');
-        inspectorMetric(panel, 'Samples', selected.samples);
-        inspectorMetric(panel, 'Controllability', selected.controllability.toFixed(4), PAL.mint);
-        inspectorMetric(panel, 'Directional consistency', pct(selected.directionalConsistency));
-        inspectorMetric(panel, 'Effect variance', selected.effectVariance.toFixed(4));
-        inspectorMetric(panel, 'Actuators', selected.actuatorIds.length);
-        inspectorMetric(panel, 'Replay', selected.replayActive ? 'active now' : 'inactive', selected.replayActive ? PAL.mint : PAL.muted);
+        inspectorMetric(roleGroup, 'Cognitive reuse', selected.cognitivePrimitive ? 'eligible' : 'not yet');
+        inspectorMetric(roleGroup, 'Samples', selected.samples);
+        inspectorMetric(roleGroup, 'Controllability', selected.controllability.toFixed(4), PAL.mint);
+        inspectorMetric(roleGroup, 'Directional consistency', pct(selected.directionalConsistency));
+        inspectorMetric(roleGroup, 'Effect variance', selected.effectVariance.toFixed(4));
+        inspectorMetric(roleGroup, 'Actuators', selected.actuatorIds.length);
+        inspectorMetric(roleGroup, 'Replay', selected.replayActive ? 'active now' : 'inactive', selected.replayActive ? PAL.mint : PAL.muted);
       }
       if (selected.kind === 'actuator') {
-        inspectorMetric(panel, 'Observer effector', selected.observerLabel ?? 'unresolved', PAL.cyan);
-        inspectorMetric(panel, 'Motor repertoire', selected.activeRepertoire ? 'active' : 'not promoted');
-        inspectorMetric(panel, 'Effect strength', selected.effectStrength.toFixed(3), PAL.mint);
-        inspectorMetric(panel, 'Effect relations', selected.causalRelationCount);
-        inspectorMetric(panel, 'Activations observed', selected.activations);
+        inspectorMetric(roleGroup, 'Observer effector', selected.observerLabel ?? 'unresolved', PAL.cyan);
+        inspectorMetric(roleGroup, 'Motor repertoire', selected.activeRepertoire ? 'active' : 'not promoted');
+        inspectorMetric(roleGroup, 'Effect strength', selected.effectStrength.toFixed(3), PAL.mint);
+        inspectorMetric(roleGroup, 'Effect relations', selected.causalRelationCount);
+        inspectorMetric(roleGroup, 'Activations observed', selected.activations);
       }
-      inspectorMetric(panel, 'Degree', selected.neighbors?.size ?? 0);
-      inspectorMetric(panel, 'Activity', pct(selected.activationLevel ?? 0), PAL.cyan);
-      inspectorMetric(panel, 'Structural importance', pct(selected.structuralImportance ?? selected.visualValue ?? 0));
-      inspectorMetric(panel, 'Component', selected.isolated ? 'unintegrated' : `#${(selected.componentRank ?? 0) + 1} · ${selected.componentSize ?? 1} nodes`);
-      inspectorMetric(panel, 'Sector', selected.community && selected.community !== 'isolated'
+      inspectorMetric(topologyGroup, 'Degree', selected.neighbors?.size ?? 0);
+      inspectorMetric(dynamicsGroup, 'Activity', pct(selected.activationLevel ?? 0), PAL.cyan);
+      inspectorMetric(topologyGroup, 'Structural importance', pct(selected.structuralImportance ?? selected.visualValue ?? 0));
+      inspectorMetric(topologyGroup, 'Component', selected.isolated ? 'unintegrated' : `#${(selected.componentRank ?? 0) + 1} · ${selected.componentSize ?? 1} nodes`);
+      inspectorMetric(topologyGroup, 'Sector', selected.community && selected.community !== 'isolated'
         ? (graph.sectorLabels.get(selected.community) ?? 'unresolved')
         : 'none');
-      inspectorMetric(panel, 'Inbound / outbound', `${facts.inbound.length} / ${facts.outbound.length}`);
-      inspectorMetric(panel, `Within ${graph.pathDepth} hops`, facts.localIds.size);
+      inspectorMetric(topologyGroup, 'Inbound / outbound', `${facts.inbound.length} / ${facts.outbound.length}`);
+      inspectorMetric(topologyGroup, `Within ${graph.pathDepth} hops`, facts.localIds.size);
       inspectorMetric(
-        panel,
+        roleGroup,
         'Motor path nearby',
         facts.reachesMotor ? 'yes' : 'no',
         facts.reachesMotor ? PAL.mint : PAL.muted,
@@ -1911,24 +1957,24 @@ export function createCognitionController({
         .filter(path => path.nodeIds.includes(selected.id))
         .length;
       inspectorMetric(
-        panel,
+        roleGroup,
         'Higher-order role',
         structureRoles.length ? structureRoles.join(' · ') : 'none detected',
         structureRoles.length ? PAL.amber : PAL.muted,
       );
       inspectorMetric(
-        panel,
+        roleGroup,
         'Recent flow paths',
         flowCount,
         flowCount ? PAL.cyan : PAL.muted,
       );
-      if (selected.errorCls) inspectorMetric(panel, 'Prediction error', selected.errorCls, PAL.coral);
-      if (selected.readoutVal != null) inspectorMetric(panel, 'Readout', selected.readoutVal, PAL.mint);
+      if (selected.errorCls) inspectorMetric(dynamicsGroup, 'Prediction error', selected.errorCls, PAL.coral);
+      if (selected.readoutVal != null) inspectorMetric(dynamicsGroup, 'Readout', selected.readoutVal, PAL.mint);
   
       const relTitle = el('div', '');
       relTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
       relTitle.textContent = 'Direct relations';
-      panel.appendChild(relTitle);
+      relationsGroup.appendChild(relTitle);
   
       const direct = [
         ...facts.inbound.map(edge => ({ dir: '←', other: edge.sourceId, edge })),
@@ -1941,7 +1987,7 @@ export function createCognitionController({
         const empty = el('div', '');
         empty.style.cssText = 'font-size:9px;color:var(--muted);';
         empty.textContent = 'No direct graph relations.';
-        panel.appendChild(empty);
+        relationsGroup.appendChild(empty);
       } else {
         for (const relation of direct) {
           const row = el('button', '');
@@ -1956,7 +2002,7 @@ export function createCognitionController({
           row.title =
             `${relation.other}\nkind ${relation.edge.kind ?? 'edge'} · weight ${finiteNumber(relation.edge.weight,0).toFixed(3)} · plasticity ${finiteNumber(relation.edge.plasticity,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · age ${finiteNumber(relation.edge.ageTicks,0)} · stable ${finiteNumber(relation.edge.stableTicks,0)} · last use t${finiteNumber(relation.edge.lastUseTick,0)}`;
           row.addEventListener('click', () => selectCognitiveNode(relation.other));
-          panel.appendChild(row);
+          relationsGroup.appendChild(row);
         }
       }
   
@@ -1964,7 +2010,7 @@ export function createCognitionController({
         const pathTitle = el('div', '');
         pathTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
         pathTitle.textContent = 'Cognitive pathway';
-        panel.appendChild(pathTitle);
+        relationsGroup.appendChild(pathTitle);
 
         const pathCopy = el('div', '');
         pathCopy.style.cssText = 'font-size:8px;line-height:1.5;color:var(--muted);margin-bottom:6px;';
@@ -1974,7 +2020,7 @@ export function createCognitionController({
             return node ? `${node.kind}: ${shortId(node.id, 9, 5)}` : shortId(id, 9, 5);
           })
           .join(' → ');
-        panel.appendChild(pathCopy);
+        relationsGroup.appendChild(pathCopy);
 
         for (const id of graph.atlasPath.nodeIds) {
           const node = graph.nodes.find(item => item.id === id);
@@ -1984,7 +2030,7 @@ export function createCognitionController({
           row.style.cssText = 'display:block;width:100%;text-align:left;margin:3px 0;padding:5px 6px;border:1px solid rgba(80,217,255,.16);border-radius:5px;background:rgba(80,217,255,.025);color:var(--muted);font-size:8px;cursor:pointer;';
           row.textContent = `${node.kind} · ${node.observerLabel ?? shortId(node.id, 10, 5)}`;
           row.addEventListener('click', () => selectCognitiveNode(node.id));
-          panel.appendChild(row);
+          relationsGroup.appendChild(row);
         }
       }
 
@@ -2277,8 +2323,12 @@ export function createCognitionController({
       panel.appendChild(diffTitle);
       const diffSummary = el('div', '');
       diffSummary.style.cssText = 'font-size:8px;line-height:1.45;color:var(--muted);';
-      diffSummary.textContent =
-        `+${diff.addedNodes.length} nodes · -${diff.removedNodes.length} nodes · +${diff.addedEdges.length} relations · -${diff.removedEdges.length} relations · ${diff.changedEdges.length} changed`;
+      const diffInsight = summarizeDiff(diff, graph.nodes, graph.atlasRegions);
+      diffSummary.innerHTML =
+        `+${diff.addedNodes.length} nodes · -${diff.removedNodes.length} nodes · +${diff.addedEdges.length} relations · -${diff.removedEdges.length} relations · ${diff.changedEdges.length} changed` +
+        (diffInsight?.topRegion ? `<br>top changed region: <strong style="color:var(--text)">${diffInsight.topRegion.label ?? diffInsight.topRegion.id}</strong>` : '') +
+        (diffInsight?.topNode ? `<br>most changed node: <strong style="color:var(--text)">${shortId(diffInsight.topNode.id, 10, 5)}</strong>` : '') +
+        `<br>largest delta type: <strong style="color:var(--text)">${diffInsight?.largestDeltaType ?? 'none'}</strong>`;
       panel.appendChild(diffSummary);
     }
 
@@ -2324,6 +2374,15 @@ export function createCognitionController({
         }
       }
     }
+
+    const usage = el('div', '');
+    usage.style.cssText = 'margin-top:12px;padding-top:8px;border-top:1px solid rgba(98,120,136,.12);font-size:8px;line-height:1.45;color:var(--muted);';
+    const topMode = Object.entries(observerUsage.modeChanges ?? {})
+      .sort((a,b) => b[1] - a[1])[0];
+    usage.textContent =
+      `observer use · selections ${observerUsage.selections} · regions ${observerUsage.regionFocuses} · timeline ${observerUsage.timelineScrubs} · diff ${observerUsage.diffUses} · traces ${observerUsage.flowTraces}` +
+      (topMode ? ` · top mode ${topMode[0]}` : '');
+    panel.appendChild(usage);
 
     const hint = el('div', '');
     hint.style.cssText = 'margin-top:12px;padding:8px;border:1px solid rgba(80,217,255,.14);border-radius:6px;font-size:8px;line-height:1.45;color:var(--muted);';
