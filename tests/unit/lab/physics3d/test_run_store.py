@@ -31,7 +31,7 @@ def test_new_organism_cannot_resume_body(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
     with pytest.raises(ValueError, match="cannot resume"):
         store.prepare({
-            "body_kind": "anthropomorphic-v4",
+            "body_kind": "anthropomorphic-v5",
             "organism": {"mode": "new"},
             "body": {"mode": "resume"},
         })
