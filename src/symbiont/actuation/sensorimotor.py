@@ -681,6 +681,14 @@ class SensorimotorLearner:
         self._replay_source = "cognition"
         return True
 
+    def interrupt_active_competence(self) -> str | None:
+        """Interrupt only the current learned controller, preserving all evidence."""
+        active = self._replay_id
+        self._replay_id = None
+        self._replay_step = 0
+        self._replay_source = None
+        return active
+
     def _hash_unit(self, actuator_id: str, epoch: int) -> float:
         digest = hashlib.sha256(
             f"sensorimotor-exploration:{self._organism_id}:{actuator_id}:{epoch}".encode(
