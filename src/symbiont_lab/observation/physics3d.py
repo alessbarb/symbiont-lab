@@ -13,11 +13,11 @@ from .projection import mind_snapshot_from_rich_state, runtime_tick_events
 def _body_descriptor_for_state(physical_state: Mapping[str, object]):
     from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
 
-    body_kind = str(physical_state.get("body_kind") or "anthropomorphic-v4")
+    body_kind = str(physical_state.get("body_kind") or "anthropomorphic-v5")
     try:
         return DEFAULT_BODY_REGISTRY.get(body_kind)
     except ValueError:
-        return DEFAULT_BODY_REGISTRY.get("anthropomorphic-v4")
+        return DEFAULT_BODY_REGISTRY.get("anthropomorphic-v5")
 
 
 class EventSink(Protocol):
