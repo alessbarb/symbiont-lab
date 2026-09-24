@@ -1071,3 +1071,19 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   color: var(--muted);
 }
 .mind-identity-change strong { color: var(--text); }
+
+
+.mind-inspector-episode,
+.mind-inspector-frontier {
+  padding: 5px 0;
+  border-top: 1px solid rgba(98, 120, 136, 0.10);
+}
+.mind-inspector-frontier {
+  padding: 6px 0;
+  border-top-color: rgba(98, 120, 136, 0.12);
+}
+.mind-inspector-diff {
+  font-size: 8px;
+  line-height: 1.45;
+  color: var(--muted);
+}
