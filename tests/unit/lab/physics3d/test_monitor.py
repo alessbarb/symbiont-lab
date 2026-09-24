@@ -84,25 +84,24 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         absorbed_energy=2.0,
         metabolic_reserve_ratio=0.75,
         displacement_from_origin=0.4,
-        motor_origin="cognition",
+        action_source="competence",
         initial_resource_distance=3.05,
         minimum_resource_distance=2.10,
         resource_progress=0.95,
-        motor_origin_cognition=12,
-        motor_origin_babbling=80,
-        motor_origin_primitive=3,
-        motor_origin_mixed=7,
-        motor_origin_spontaneous=34,
-        motor_origin_probe=5,
-        motor_origin_none=49,
+        action_source_competence=12,
+        action_source_exploration=80,
+        action_source_protection=3,
+        action_source_prospection=7,
+        action_source_regulation=34,
+        action_source_none=49,
         motor_repertoire_size=6,
         sensorimotor_coverage=1.0,
         sensorimotor_patterns=23,
-        motor_primitives=4,
-        cognitive_motor_primitives=2,
+        motor_competence_candidates=4,
+        motor_competences=2,
         best_motor_controllability=0.42,
         best_motor_directional_consistency=0.81,
-        primitive_replay_active=True,
+        competence_replay_active=True,
         sensorimotor_h1_samples=100,
         sensorimotor_h4_samples=90,
         sensorimotor_h16_samples=70,
@@ -142,25 +141,25 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.absorbed_energy == 2.0
     assert snapshot.metabolic_reserve_ratio == 0.75
     assert snapshot.displacement_from_origin == 0.4
-    assert snapshot.motor_origin == "cognition"
+    assert snapshot.action_source == "competence"
     assert snapshot.initial_resource_distance == 3.05
     assert snapshot.minimum_resource_distance == 2.10
     assert snapshot.resource_progress == 0.95
-    assert snapshot.motor_origin_cognition == 12
-    assert snapshot.motor_origin_babbling == 80
-    assert snapshot.motor_origin_primitive == 3
-    assert snapshot.motor_origin_mixed == 7
-    assert snapshot.motor_origin_spontaneous == 34
-    assert snapshot.motor_origin_probe == 5
-    assert snapshot.motor_origin_none == 49
+    assert snapshot.action_source_competence == 12
+    assert snapshot.action_source_exploration == 80
+    assert snapshot.action_source_protection == 3
+    assert snapshot.action_source_prospection == 7
+    assert snapshot.action_source_regulation == 34
+    assert snapshot.action_source_none == 5
+    assert snapshot.action_source_none == 49
     assert snapshot.motor_repertoire_size == 6
     assert snapshot.sensorimotor_coverage == 1.0
     assert snapshot.sensorimotor_patterns == 23
-    assert snapshot.motor_primitives == 4
-    assert snapshot.cognitive_motor_primitives == 2
+    assert snapshot.motor_competence_candidates == 4
+    assert snapshot.motor_competences == 2
     assert snapshot.best_motor_controllability == 0.42
     assert snapshot.best_motor_directional_consistency == 0.81
-    assert snapshot.primitive_replay_active is True
+    assert snapshot.competence_replay_active is True
     assert snapshot.sensorimotor_h64_samples == 20
     assert snapshot.passive_baseline_samples == 6
 
@@ -230,7 +229,7 @@ def test_record_to_snapshot_conversion():
         "mechanical_work_joules": 0.12,
         "metabolic_work_cost": 0.00012,
         "base_position": [0.1, 0.2, 0.85],
-        "motor_origin": "primitive",
+        "action_source": "competence",
         "resource_distance": 1.25,
         "resource_progress": 0.75,
     }
@@ -240,7 +239,7 @@ def test_record_to_snapshot_conversion():
     assert snap["symbiont_id"] == "test:organism"
     assert snap["schema_confidence"] == 0.88
     assert snap["height"] == 0.85
-    assert snap["motor_origin"] == "primitive"
+    assert snap["action_source"] == "competence"
     assert snap["resource_distance"] == 1.25
     assert snap["resource_progress"] == 0.75
 
@@ -291,22 +290,22 @@ def test_snapshot_to_physical_state_with_full_and_fallback_data():
 def test_event_transition_reports_only_evidence_backed_changes():
     previous = {
         "tick": 99,
-        "motor_origin": "babbling",
+        "action_source": "exploration",
         "minimum_resource_distance": 2.0,
         "absorbed_energy": 1.0,
-        "motor_primitives": 1,
-        "cognitive_motor_primitives": 0,
+        "motor_competence_candidates": 1,
+        "motor_competences": 0,
         "schema_parts": 3,
         "predictor_count": 1,
         "displacement_from_origin": 0.04,
     }
     current = {
         "tick": 100,
-        "motor_origin": "primitive",
+        "action_source": "competence",
         "minimum_resource_distance": 1.85,
         "absorbed_energy": 1.25,
-        "motor_primitives": 2,
-        "cognitive_motor_primitives": 1,
+        "motor_competence_candidates": 2,
+        "motor_competences": 1,
         "schema_parts": 4,
         "predictor_count": 2,
         "displacement_from_origin": 0.06,
@@ -317,21 +316,21 @@ def test_event_transition_reports_only_evidence_backed_changes():
     categories = {event["kind"]: event["category"] for event in events}
 
     assert kinds == {
-        "motor_origin",
+        "action_source",
         "resource_minimum",
         "energy_absorbed",
-        "motor_primitive",
-        "cognitive_primitive",
+        "motor_competence_candidate",
+        "motor_competence",
         "schema_part",
         "predictor",
         "displacement_milestone",
     }
     assert all(event["tick"] == 100 for event in events)
-    assert categories["motor_origin"] == "behavior"
+    assert categories["action_source"] == "behavior"
     assert categories["resource_minimum"] == "environment"
     assert categories["energy_absorbed"] == "survival"
-    assert categories["motor_primitive"] == "learning"
-    assert categories["cognitive_primitive"] == "learning"
+    assert categories["motor_competence_candidate"] == "learning"
+    assert categories["motor_competence"] == "learning"
     assert categories["predictor"] == "learning"
     assert categories["schema_part"] == "body"
     assert categories["displacement_milestone"] == "body"
@@ -340,11 +339,11 @@ def test_event_transition_reports_only_evidence_backed_changes():
 def test_event_transition_is_quiet_without_change():
     snapshot = {
         "tick": 10,
-        "motor_origin": "none",
+        "action_source": "none",
         "minimum_resource_distance": 3.0,
         "absorbed_energy": 0.0,
         "motor_primitives": 0,
-        "cognitive_motor_primitives": 0,
+        "motor_competences": 0,
         "schema_parts": 0,
         "predictor_count": 0,
         "displacement_from_origin": 0.0,
