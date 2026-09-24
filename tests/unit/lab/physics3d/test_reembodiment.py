@@ -281,6 +281,88 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
     assert transformed["embodiment_lifecycle"]["current"]["contract_relation"] == "changed"
 
 
+def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> None:
+    previous = _checkpoint(vital_state="active")
+    previous["actuation"]["sensorimotor_v2"] = {
+        "schema_version": 1,
+        "surface_binding": {
+            "contract_fingerprint": "surface.old",
+            "known_channel_ids": ["actuator.a"],
+        },
+        "effect_space": {"schema_version": 1, "support": []},
+        "causal_evidence": {"schema_version": 2, "evidence": []},
+        "exploration": {
+            "strength_memory": {"actuator.a": 0.8},
+            "active_preference": ["actuator.a"],
+        },
+        "competences": [{
+            "competence_id": "competence.old",
+            "controller_id": "controller.old",
+            "effect_id": "effect.old",
+            "surface_binding": "surface.old",
+            "controller_strategy_ref": "seed.old",
+            "parent_competence_ids": [],
+            "support": 8,
+            "failures": 0,
+            "reproducibility": 0.9,
+            "controllability": 0.7,
+            "directional_consistency": 0.9,
+        }],
+        "composition": {
+            "engine": {
+                "schema_version": 1,
+                "max_relations": 512,
+                "sequential": [],
+            },
+            "predecessor_id": "competence.old",
+            "active_children": ["competence.old"],
+            "active_index": 0,
+            "effect_by_commitment": {"commitment.old": "effect.old"},
+        },
+    }
+    previous["actuation"]["action_commitment"] = {"commitment_id": "old"}
+
+    fresh = _fresh(slots=40)
+    fresh["actuation"]["sensorimotor_v2"] = {
+        "schema_version": 1,
+        "surface_binding": {
+            "contract_fingerprint": "surface.new",
+            "known_channel_ids": ["actuator.new"],
+        },
+        "effect_space": {"schema_version": 1, "support": []},
+        "causal_evidence": {"schema_version": 2, "evidence": []},
+        "exploration": {"strength_memory": {}, "active_preference": []},
+        "competences": [],
+        "composition": {
+            "engine": {
+                "schema_version": 1,
+                "max_relations": 512,
+                "sequential": [],
+            },
+            "predecessor_id": None,
+            "active_children": [],
+            "active_index": 0,
+            "effect_by_commitment": {},
+        },
+    }
+
+    transformed = prepare_fresh_embodiment_checkpoint(
+        previous,
+        fresh,
+        contract=EmbodimentContract("compact-v1", 84, 40),
+    )
+    v2 = transformed["actuation"]["sensorimotor_v2"]
+    assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
+    assert v2["competences"][0]["surface_binding"] == "surface.old"
+    assert v2["competences"][0]["support"] == 8
+    assert v2["effect_space"] == previous["actuation"]["sensorimotor_v2"]["effect_space"]
+    assert v2["causal_evidence"] == previous["actuation"]["sensorimotor_v2"]["causal_evidence"]
+    assert v2["exploration"] == {"strength_memory": {}, "active_preference": []}
+    assert v2["composition"]["predecessor_id"] is None
+    assert v2["composition"]["active_children"] == []
+    assert v2["composition"]["effect_by_commitment"] == {}
+    assert transformed["actuation"]["action_commitment"] is None
+
 def test_stopping_marks_symbiont_dormant_without_changing_body_death_state() -> None:
     payload = deepcopy(_checkpoint(vital_state="active"))
     updated = update_lifecycle_for_checkpoint(
