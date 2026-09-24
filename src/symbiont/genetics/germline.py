@@ -44,6 +44,25 @@ class EpigeneticMark:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class EpigeneticProtocol:
+    """Optional transgenerational extension, outside the baseline genotype."""
+
+    enabled: bool = False
+    acquired_capture_enabled: bool = False
+    decay: float = 0.2
+    max_marks: int = 8
+    min_capture_delta: float = 0.02
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.decay <= 1.0:
+            raise ValueError("epigenetic decay must be in [0,1]")
+        if self.max_marks < 1:
+            raise ValueError("max_marks must be positive")
+        if not math.isfinite(self.min_capture_delta) or self.min_capture_delta < 0.0:
+            raise ValueError("min_capture_delta must be finite and non-negative")
+
+
 @dataclass(slots=True)
 class GermlineState:
     """Lifetime germline metadata; acquired capture is disabled by default."""
@@ -90,13 +109,18 @@ class GermlineState:
         *,
         genome: Genome,
         schema: GenomeSchema = DEFAULT_GENOME_SCHEMA,
-        min_delta: float = 0.02,
+        protocol: EpigeneticProtocol | None = None,
     ) -> tuple[str, ...]:
-        """Capture only when an experiment explicitly enables this channel."""
-        if not self.acquired_capture_enabled:
+        """Capture only under an explicitly enabled transgenerational protocol."""
+        active = protocol or EpigeneticProtocol()
+        if not (
+            self.acquired_capture_enabled
+            and active.enabled
+            and active.acquired_capture_enabled
+        ):
             return ()
         captured: list[str] = []
-        max_marks = genome.inheritance.max_epigenetic_marks
+        max_marks = active.max_marks
         for locus, current in sorted(current_expression.items()):
             if len(self.acquired_marks) >= max_marks and locus not in self.acquired_marks:
                 break
@@ -105,7 +129,7 @@ class GermlineState:
                 continue
             birth = float(self.birth_expression.get(locus, flatten_genes(genome)[locus]))
             delta = float(current) - birth
-            if abs(delta) < min_delta:
+            if abs(delta) < active.min_capture_delta:
                 continue
             self.acquired_marks[locus] = EpigeneticMark(locus=locus, delta=delta)
             captured.append(locus)
@@ -128,7 +152,7 @@ def create_offspring_package(
     generation: int,
     second_parent_genome: Genome | None = None,
     schema: GenomeSchema = DEFAULT_GENOME_SCHEMA,
-    transmit_epigenetics: bool = False,
+    epigenetic_protocol: EpigeneticProtocol | None = None,
 ) -> InheritancePackage:
     """Create offspring without learned cognitive or embodiment state."""
     if second_parent_genome is None:
@@ -145,7 +169,8 @@ def create_offspring_package(
         parents = (parent_genome.genome_id, second_parent_genome.genome_id)
 
     marks: list[EpigeneticMark] = []
-    if transmit_epigenetics:
+    protocol = epigenetic_protocol or EpigeneticProtocol()
+    if protocol.enabled:
         candidates = {
             **parent_germline.inherited_marks,
             **parent_germline.acquired_marks,
@@ -153,10 +178,10 @@ def create_offspring_package(
         for locus, mark in sorted(candidates.items()):
             if not schema.spec(locus).regulable:
                 continue
-            decayed = mark.decay(parent_genome.inheritance.epigenetic_decay)
+            decayed = mark.decay(protocol.decay)
             if decayed is not None:
                 marks.append(decayed)
-        marks = marks[: child.inheritance.max_epigenetic_marks]
+        marks = marks[: protocol.max_marks]
 
     return InheritancePackage(
         genome=child,
@@ -168,6 +193,7 @@ def create_offspring_package(
 
 __all__ = [
     "EpigeneticMark",
+    "EpigeneticProtocol",
     "GermlineState",
     "InheritancePackage",
     "create_offspring_package",
