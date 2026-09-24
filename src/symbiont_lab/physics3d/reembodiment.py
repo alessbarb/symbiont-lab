@@ -37,6 +37,12 @@ def _canonical_hash(payload: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _genome_identity_hash(payload: object) -> str:
+    # Must match Genome.genome_hash exactly (default json separators included).
+    raw = json.dumps(payload, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def _body_vital_state(payload: Mapping[str, Any]) -> str:
     living = payload.get("living_body")
     if isinstance(living, Mapping):
@@ -184,13 +190,14 @@ def prepare_fresh_embodiment_checkpoint(
                 for key, value in old_genome.items()
                 if key != "genome_hash"
             }
-            genome_hash = _canonical_hash(genome_fields)
-            old_genome["genome_hash"] = genome_hash
+            old_genome["genome_hash"] = _genome_identity_hash(genome_fields)
             fingerprint = result.get("constitution_fingerprint")
             if not isinstance(fingerprint, dict):
                 fingerprint = {"schema_version": 1}
                 result["constitution_fingerprint"] = fingerprint
-            fingerprint["genome_hash"] = genome_hash
+            # Runtime constitution fingerprints hash the exported genome
+            # checkpoint, including its own genome_hash field.
+            fingerprint["genome_hash"] = _canonical_hash(old_genome)
 
     result["embodiment_lifecycle"] = {
         "schema_version": _SCHEMA_VERSION,
