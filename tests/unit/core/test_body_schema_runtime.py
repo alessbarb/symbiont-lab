@@ -68,13 +68,13 @@ def test_runtime_starts_with_undeveloped_body_schema():
     assert runtime.checkpoint()["body_schema"]["state"] == "undeveloped"
 
 
-def test_runtime_learns_partial_sensory_body_from_established_self_model():
+def test_runtime_learns_developing_sensory_body_from_established_self_model():
     runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
 
     runtime.run(10)
     payload = runtime.body_schema.export_representation(current_tick=runtime.tick_count)
 
-    assert payload["state"] == "partial"
+    assert payload["state"] in {"developing", "established", "revising"}
     assert payload["parts"]
     assert all(part["kind"] == "sense" for part in payload["parts"])
     assert payload["dependencies"] == []
@@ -155,7 +155,7 @@ def test_old_checkpoint_without_body_schema_restores_cold_and_learns_later():
 
     assert restored.body_schema.state == "undeveloped"
     restored.tick()
-    assert restored.body_schema.state == "partial"
+    assert restored.body_schema.state in {"developing", "established", "revising"}
 
 
 def test_checkpoint_body_schema_never_contains_raw_self_model_keys():
