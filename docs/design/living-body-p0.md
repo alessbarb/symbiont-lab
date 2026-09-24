@@ -316,7 +316,7 @@ The canonical Physics3D surface now separates physical sensing from
 physiological transduction:
 
 ```text
-PyBullet anthropomorphic-v4 body physics
+PyBullet anthropomorphic-v5 body physics
   -> rec.0 ... rec.102
 
 LivingBodyState
@@ -425,8 +425,8 @@ The child starts physically immature and cognitively germinal. Acquired
 cognitive state is not copied. A denied birth consumes no parental energy.
 
 Physics3D is constitution `genome_symbiont_physics3d_v9` with the
-31-DoF `anthropomorphic-v4` body. Earlier Physics3D subjects must start fresh:
-body-state schema v4 deliberately fails closed rather than adapting the old
+31-DoF `anthropomorphic-v5` body. Earlier Physics3D subjects must start fresh:
+body-state schema v5 deliberately fails closed rather than adapting v4
 14-DoF constitution.
 
 
@@ -480,7 +480,7 @@ As of the P0 audit:
   receptors: reserve ratio, structural integrity, temperature and fatigue;
 - fifteen local somatic-load channels are derived directly from PyBullet
   contact force, paired with fifteen independent contact-presence channels;
-- anthropomorphic-v4 exposes 31 motor DoF, 62 paired opaque effector ports,
+- anthropomorphic-v5 exposes 31 motor DoF, 62 paired opaque effector ports,
   103 physical receptors and four opaque interoceptive receptors;
 - the complete Physics3D sensory contract is 107 opaque `rec.N` slots and its
   cognitive sense-node capacity is 128, so the apparatus does not silently
