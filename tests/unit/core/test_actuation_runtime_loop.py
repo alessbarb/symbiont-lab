@@ -175,59 +175,6 @@ def test_babbling_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
 
 
 
-def test_pending_primitive_verification_context_survives_checkpoint_roundtrip():
-    limits = KernelLimits()
-    genome, graph = load_base_cognition(
-        kernel_limits=limits,
-        running_version=(0, 80, 0),
-    )
-    runtime = OrganismRuntime(
-        organism_id="motor-primitive-context-runtime",
-        genome=genome,
-        cognitive_graph=graph,
-        kernel_limits=limits,
-        actuation_enabled=True,
-        motor_exploration_mode="babbling",
-        bootstrap_semantic_senses=False,
-        discover_senses=False,
-        min_samples=1,
-    )
-    runtime._pending_primitive_choice_context = (
-        "primitive.test",
-        ("concept.a", "concept.b"),
-        123,
-        1,
-    )
-
-    payload = runtime.checkpoint()
-    pending = payload["actuation"]["pending_primitive_choice_context"]
-    assert pending == {
-        "primitive_id": "primitive.test",
-        "concept_ids": ["concept.a", "concept.b"],
-        "complete_tick": 123,
-        "samples_before": 1,
-    }
-
-    restored = OrganismRuntime.from_checkpoint(
-        payload,
-        min_samples=1,
-        bootstrap_semantic_senses=False,
-        discover_senses=False,
-        kernel_limits=limits,
-    )
-
-    assert restored._pending_primitive_choice_context == (
-        "primitive.test",
-        ("concept.a", "concept.b"),
-        123,
-        1,
-    )
-
-
-
-
-
-
 def test_homeostatic_fatigue_scales_motor_output_without_changing_choice():
     from symbiont.core.metabolism import ResourcePressure
 
@@ -339,6 +286,27 @@ def test_babbling_restore_rejects_missing_sensorimotor_checkpoint():
         CheckpointError,
         match="missing canonical sensorimotor state",
     ):
+        OrganismRuntime.from_checkpoint(
+            payload,
+            bootstrap_semantic_senses=False,
+            discover_senses=False,
+        )
+
+
+
+def test_restore_rejects_removed_pending_primitive_verification_state():
+    runtime = _runtime(motor_exploration_mode="babbling")
+    payload = runtime.checkpoint()
+    payload["actuation"]["pending_primitive_choice_context"] = {
+        "primitive_id": "primitive.legacy",
+        "concept_ids": ["concept.a"],
+        "complete_tick": 12,
+        "samples_before": 1,
+    }
+
+    from symbiont.host.checkpoint import CheckpointError
+
+    with pytest.raises(CheckpointError, match="removed primitive verification state"):
         OrganismRuntime.from_checkpoint(
             payload,
             bootstrap_semantic_senses=False,
