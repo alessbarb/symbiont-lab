@@ -53,3 +53,20 @@ def test_run_store_catalogs_managed_runs(tmp_path) -> None:
 def test_injected_run_store_does_not_import_global_legacy_subject(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
     assert store.organisms() == []
+
+
+def test_catalog_summary_does_not_materialize_private_models(tmp_path, monkeypatch) -> None:
+    from symbiont_lab.physics3d import persistence
+
+    organism_dir = tmp_path / "organisms" / "org-test"
+    organism_dir.mkdir(parents=True)
+    bundle = organism_dir / "organism.symbiont"
+    with persistence.zipfile.ZipFile(bundle, "w") as archive:
+        archive.writestr("runtime.json", '{"organism_id":"symbiont:test","saved_at_tick":7}')
+        archive.writestr("models/" + "a" * 64 + ".pt", b"large-model-placeholder")
+
+    store = Physics3DRunStore(tmp_path)
+    items = store.organisms()
+
+    assert items[0]["organism_id"] == "symbiont:test"
+    assert not (organism_dir / ".catalog-models").exists()
