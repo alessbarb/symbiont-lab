@@ -688,7 +688,7 @@ class OrganismRuntime:
         self._pending_sensorimotor_transition: dict[str, Any] | None = None
         self._last_sensorimotor_transition: SensorimotorTransition | None = None
         self._pending_motor_observation: tuple[
-            tuple[str, float, dict[str, float] | None, bool], ...
+            tuple[str, float, dict[str, float] | None], ...
         ] = ()
         self._pending_proprioception: dict[str, float] = {}
         # Ephemeral delayed-credit traces. They are intentionally not
