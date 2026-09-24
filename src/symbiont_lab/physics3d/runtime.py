@@ -463,12 +463,15 @@ class PyBulletEmbodimentRuntime:
             raw_genome = runtime_checkpoint.get("genome")
             if (
                 not isinstance(raw_genome, Mapping)
-                or raw_genome.get("genome_id")
-                != "genome_symbiont_physics3d_v9"
+                or not isinstance(raw_genome.get("genome_id"), str)
+                or not raw_genome.get("genome_id")
             ):
                 raise RuntimeError(
-                    "checkpoint is not from the canonical Physics3D Symbiont lineage"
+                    "Physics3D checkpoint is missing canonical genome identity"
                 )
+            # Genome identity is organism state, not a Physics3D body type.
+            # The strict Genome codec below validates/migrates its schema and
+            # hashes; Physics3D must not require a body-specific genome id.
 
             restored_payload = dict(runtime_checkpoint)
             self._reembodied = physical_state is None
