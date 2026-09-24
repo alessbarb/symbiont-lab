@@ -316,8 +316,8 @@ export function recordMindHistory() {
     physiology: currentPhysiologyState(),
     resourceProgress: finiteNumber(tel.resourceProgress ?? outcome.resource_progress, 0),
     sensorimotorPatterns: finiteNumber(tel.sensorimotorPatterns ?? sensorimotor.known_patterns, 0),
-    motorPrimitives: finiteNumber(tel.motorPrimitives ?? sensorimotor.primitives, 0),
-    cognitivePrimitives: finiteNumber(tel.cognitiveMotorPrimitives ?? sensorimotor.cognitive_primitives, 0),
+    motorCompetences: finiteNumber(tel.motorCompetences ?? sensorimotor.competence_chunks, 0),
+    cognitiveCompetences: finiteNumber(tel.cognitiveMotorCompetences ?? sensorimotor.established_competences, 0),
     repertoire: finiteNumber(
       tel.motorRepertoireSize ?? (
         Array.isArray(sensorimotor.active_motor_repertoire)
@@ -351,8 +351,8 @@ export function recordMindHistory() {
   if (last.predictors === 0 && point.predictors > 0) {
     registerMilestone('first-predictor', 'First observed predictor birth', tick, 'amber');
   }
-  if (last.motorPrimitives === 0 && point.motorPrimitives > 0) {
-    registerMilestone('first-primitive', 'Motor primitives became available', tick, 'cyan');
+  if (last.motorCompetences === 0 && point.motorCompetences > 0) {
+    registerMilestone('first-primitive', 'Motor competences became available', tick, 'cyan');
   }
   if (last.repertoire === 0 && point.repertoire > 0) {
     registerMilestone('first-repertoire', 'Motor repertoire became available', tick, 'mint');
