@@ -1128,3 +1128,18 @@ def test_restore_rejects_v9_horizon_evidence_that_violates_exclusive_motor_unit(
             actuator_ids=ids,
             organism_id="org-invalid-horizon-restore",
         )
+
+
+
+def test_restore_rejects_v9_checkpoint_missing_motor_unit_contract():
+    ids = _ids(4)
+    learner = SensorimotorLearner(ids, organism_id="org-v9-missing-groups")
+    payload = learner.checkpoint()
+    payload.pop("exclusive_actuator_groups")
+
+    with pytest.raises(ValueError, match="missing exclusive actuator groups"):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=ids,
+            organism_id="org-v9-missing-groups",
+        )
