@@ -79,7 +79,9 @@ export function atlasSignals(nodes, edges, tick = 0) {
           Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / maxima.stable
         ))
       : 0;
-    const error = errorScore(node.errorCls);
+    const error = node.predictionError != null
+      ? clamp01(Math.abs(finite(node.predictionError, 0)))
+      : errorScore(node.errorCls);
     const activity = clamp01(finite(node.activationLevel, 0) * 0.78 + recency * 0.22);
     const learning = clamp01(
       plasticity * 0.48 +
