@@ -106,6 +106,7 @@ from ...actuation.action import (
 )
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.effects import EffectSpace
+from ...actuation.competence import CompetenceLibrary, MotorCompetence
 from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from ...actuation.sensorimotor import (
     MotorPrimitive,
@@ -678,6 +679,7 @@ class OrganismRuntime:
         self._last_motor_command: MotorCommand | None = None
         self._effect_space = EffectSpace()
         self._causal_evidence = CausalEvidenceLedger()
+        self._competence_library = CompetenceLibrary()
         self._pending_sensorimotor_transition: dict[str, Any] | None = None
         self._last_sensorimotor_transition: SensorimotorTransition | None = None
         self._pending_motor_observation: tuple[
@@ -1038,6 +1040,33 @@ class OrganismRuntime:
         """
         return None
 
+    def _refresh_competence_library(self) -> None:
+        """Project sequence evidence into the v2 competence repertoire.
+
+        A sequence supplies a controller seed and evidence only.  No effect
+        binding is fabricated: that remains unresolved until EffectSpace
+        correspondence is learned.
+        """
+        if self._sensorimotor_learner is None or self._actuator_constitution is None:
+            return
+        for primitive in self._sensorimotor_learner.primitives:
+            if not primitive.established:
+                continue
+            existing = self._competence_library.get(primitive.primitive_id)
+            if existing is None:
+                self._competence_library.add(
+                    MotorCompetence(
+                        competence_id=primitive.primitive_id,
+                        controller_id=f"controller.{primitive.primitive_id}",
+                        effect_id=None,
+                        evidence=primitive.competence_evidence,
+                        surface_binding=self._actuator_constitution.contract_fingerprint,
+                        controller_strategy_ref=primitive.primitive_id,
+                    )
+                )
+            else:
+                existing.evidence = primitive.competence_evidence
+
     def _motor_step(
         self,
         cognition: CognitiveBridgeResult | None,
@@ -1165,7 +1194,12 @@ class OrganismRuntime:
                 reason="competence_completed",
             )
 
-        candidate_ids = self._sensorimotor_learner.available_cognitive_primitive_ids()
+        self._refresh_competence_library()
+        candidate_ids = tuple(
+            competence.competence_id
+            for competence in self._competence_library.items
+            if competence.executable
+        )
         proposals: list[ActionProposal] = []
 
         # Innate reactivity contributes urgency and a learned response candidate;
@@ -3205,6 +3239,21 @@ class OrganismRuntime:
                     },
                     "effect_space": self._effect_space.checkpoint(),
                     "causal_evidence": self._causal_evidence.checkpoint(),
+                    "competences": [
+                        {
+                            "competence_id": item.competence_id,
+                            "controller_id": item.controller_id,
+                            "effect_id": item.effect_id,
+                            "surface_binding": item.surface_binding,
+                            "controller_strategy_ref": item.controller_strategy_ref,
+                            "support": item.evidence.support,
+                            "failures": item.evidence.failures,
+                            "reproducibility": item.evidence.reproducibility,
+                            "controllability": item.evidence.controllability,
+                            "directional_consistency": item.evidence.directional_consistency,
+                        }
+                        for item in self._competence_library.items
+                    ],
                 },
             }
         else:
