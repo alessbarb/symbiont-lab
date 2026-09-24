@@ -211,6 +211,28 @@ def _detach_body_specific_cognition(
     }
 
 
+def _degrade_active_private_model(
+    checkpoint: dict[str, Any],
+) -> str | None:
+    """Keep prior private models but remove old-body inference authority."""
+    registry = checkpoint.get("private_model_registry")
+    if not isinstance(registry, dict):
+        return None
+    records = registry.get("records")
+    if not isinstance(records, list):
+        return None
+
+    active_id: str | None = None
+    for record in records:
+        if not isinstance(record, dict) or record.get("state") != "active":
+            continue
+        model_id = record.get("model_id")
+        if isinstance(model_id, str):
+            active_id = model_id
+        record["state"] = "degraded"
+    return active_id
+
+
 def _fresh_actuation_with_transfer(
     previous: Mapping[str, Any],
     fresh: Mapping[str, Any],
@@ -306,6 +328,13 @@ def prepare_fresh_embodiment_checkpoint(
         # in the previous epoch above and must be reacquired from new evidence.
         if historical_bridge is not None:
             result["cognitive_bridge"] = historical_bridge
+
+        # Private model artifacts remain part of the Symbiont, but an ACTIVE
+        # model learned under another body contract loses inference authority.
+        # It can later be superseded/revalidated from new lived evidence.
+        historical_active_model = _degrade_active_private_model(result)
+        if history:
+            history[-1]["active_private_model_id"] = historical_active_model
 
         # Start a new active schema.  The previous schema is retained above as
         # historical evidence; there is deliberately no old->new channel map.
