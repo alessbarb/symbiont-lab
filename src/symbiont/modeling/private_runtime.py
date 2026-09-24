@@ -316,7 +316,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 executed_pid is not None
                 and motor_origin in {
                     "primitive_cognition",
-                    "primitive_verification",
+                    "primitive_reactive",
                     "primitive_prospective",
                 }
             )
