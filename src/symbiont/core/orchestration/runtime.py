@@ -1015,7 +1015,7 @@ class OrganismRuntime:
             )
         self._pending_homeostatic_action_credit = remaining
 
-    def _choose_acquired_primitive(
+    def _choose_acquired_competence(
         self,
         *,
         cognition: "CognitiveBridgeResult",
@@ -1235,7 +1235,7 @@ class OrganismRuntime:
         # not activate it; final ownership belongs to the universal arbitrator.
         prospective_id: str | None = None
         if cognition is not None and candidate_ids:
-            prospective_id = self._choose_acquired_primitive(
+            prospective_id = self._choose_acquired_competence(
                 cognition=cognition,
                 percepts=percepts,
                 candidate_ids=candidate_ids,
