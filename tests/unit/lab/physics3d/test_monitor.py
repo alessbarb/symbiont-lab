@@ -49,7 +49,14 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         active_effectors=2,
         joint_motion=1.2,
         contact_count=3,
+        ground_contact_count=2,
+        self_contact_count=1,
+        resource_contact_count=0,
         mechanical_work_joules=1.25,
+        positive_actuator_work_joules=1.0,
+        negative_actuator_work_joules=0.25,
+        absolute_actuator_work_joules=1.25,
+        net_actuator_work_joules=0.75,
         metabolic_work_cost=0.00125,
         height=0.5,
         checkpoint_age=7,
@@ -119,7 +126,15 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.organism_ms == 7.0
     assert snapshot.physics_ms == 4.0
     assert snapshot.diagnostics_ms == 1.5
+    assert snapshot.contact_count == 3
+    assert snapshot.ground_contact_count == 2
+    assert snapshot.self_contact_count == 1
+    assert snapshot.resource_contact_count == 0
     assert snapshot.mechanical_work_joules == 1.25
+    assert snapshot.positive_actuator_work_joules == 1.0
+    assert snapshot.negative_actuator_work_joules == 0.25
+    assert snapshot.absolute_actuator_work_joules == 1.25
+    assert snapshot.net_actuator_work_joules == 0.75
     assert snapshot.metabolic_work_cost == 0.00125
     assert snapshot.resource_distance == 1.8
     assert snapshot.resource_field == 0.30
