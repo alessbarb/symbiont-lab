@@ -205,6 +205,9 @@ class CognitiveBridgeResult:
     oldest_structural_wait_ticks: int = 0
     representation_maturity: Mapping[str, int] | None = None
     max_contention_losses: int = 0
+    node_budget: int = 0
+    edge_budget: int = 0
+    sense_budget: int = 0
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
         if family == "core":
@@ -287,6 +290,19 @@ class CognitiveBridge:
         self._last_consolidated_producer_id: str | None = None
         self._next_concept_index: int = 1
         self._topology_revision = 0
+        self._adaptive_node_budget = min(
+            self._kernel_limits.max_nodes,
+            max(len(graph.nodes), self._genome.development.soft_node_budget),
+        )
+        self._adaptive_edge_budget = min(
+            self._kernel_limits.max_edges,
+            max(len(graph.edges), self._genome.development.soft_edge_budget),
+        )
+        sense_count = sum(1 for node in graph.nodes if node.kind is NodeKind.SENSE)
+        self._adaptive_sense_budget = min(
+            self._adaptive_node_budget,
+            max(sense_count, self._genome.development.sense_node_budget),
+        )
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._recovery_pending = False
         self._weight_tracker = WeightStabilityTracker(kernel_limits=kernel_limits)
@@ -1263,15 +1279,54 @@ class CognitiveBridge:
         return changed
     @property
     def _soft_node_limit(self) -> int:
-        return min(self._genome.development.soft_node_budget, self._kernel_limits.max_nodes)
+        return self._adaptive_node_budget
 
     @property
     def _sense_node_limit(self) -> int:
-        return min(self._genome.development.sense_node_budget, self._soft_node_limit)
+        return min(self._adaptive_sense_budget, self._adaptive_node_budget)
 
     @property
     def _soft_edge_limit(self) -> int:
-        return min(self._genome.development.soft_edge_budget, self._kernel_limits.max_edges)
+        return self._adaptive_edge_budget
+
+    def _expand_resource_budgets(
+        self,
+        *,
+        need_nodes: bool = False,
+        need_edges: bool = False,
+        need_senses: bool = False,
+    ) -> bool:
+        """Expand developmental resource budgets without changing kernel safety caps.
+
+        The genome defines the starting phenotype. Sustained structural demand
+        may grow that phenotype in bounded steps; growth never bypasses the
+        owner-configured kernel ceiling.
+        """
+        changed = False
+        if need_nodes and self._adaptive_node_budget < self._kernel_limits.max_nodes:
+            step = max(8, math.ceil(self._adaptive_node_budget * 0.125))
+            self._adaptive_node_budget = min(
+                self._kernel_limits.max_nodes,
+                self._adaptive_node_budget + step,
+            )
+            changed = True
+        if need_edges and self._adaptive_edge_budget < self._kernel_limits.max_edges:
+            step = max(64, math.ceil(self._adaptive_edge_budget * 0.125))
+            self._adaptive_edge_budget = min(
+                self._kernel_limits.max_edges,
+                self._adaptive_edge_budget + step,
+            )
+            changed = True
+        if need_senses:
+            ceiling = self._adaptive_node_budget
+            if self._adaptive_sense_budget < ceiling:
+                step = max(8, math.ceil(self._adaptive_sense_budget * 0.125))
+                self._adaptive_sense_budget = min(
+                    ceiling,
+                    self._adaptive_sense_budget + step,
+                )
+                changed = True
+        return changed
 
     def _seed_new_edges(self) -> None:
         current_keys = {(edge.source_id, edge.target_id, edge.kind.value) for edge in self._graph.edges}
@@ -1298,6 +1353,14 @@ class CognitiveBridge:
         graph = self._graph
         admitted = 0
         sense_count = len(existing_senses)
+        if (
+            len(graph.nodes) >= self._soft_node_limit
+            or sense_count >= self._sense_node_limit
+        ):
+            self._expand_resource_budgets(
+                need_nodes=len(graph.nodes) >= self._soft_node_limit,
+                need_senses=sense_count >= self._sense_node_limit,
+            )
         for sense_id in candidates:
             if len(graph.nodes) >= self._soft_node_limit or sense_count >= self._sense_node_limit:
                 break
@@ -2323,6 +2386,11 @@ class CognitiveBridge:
             ],
             "consolidation_generation": self._consolidation_generation,
             "last_consolidated_producer_id": self._last_consolidated_producer_id,
+            "adaptive_resource_budgets": {
+                "nodes": self._adaptive_node_budget,
+                "edges": self._adaptive_edge_budget,
+                "senses": self._adaptive_sense_budget,
+            },
         }
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
@@ -2648,6 +2716,38 @@ class CognitiveBridge:
             safety_state=safety_state,
             develop_senses=develop_senses,
         )
+        raw_budgets = payload.get("adaptive_resource_budgets")
+        if raw_budgets is not None:
+            if not isinstance(raw_budgets, Mapping):
+                raise GraphError("adaptive_resource_budgets must be an object")
+            for field, ceiling in (
+                ("nodes", kernel_limits.max_nodes),
+                ("edges", kernel_limits.max_edges),
+                ("senses", kernel_limits.max_nodes),
+            ):
+                value = raw_budgets.get(field)
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, int)
+                    or value <= 0
+                    or value > ceiling
+                ):
+                    raise GraphError(f"invalid adaptive {field} budget")
+            bridge._adaptive_node_budget = max(
+                len(graph.nodes),
+                int(raw_budgets["nodes"]),
+            )
+            bridge._adaptive_edge_budget = max(
+                len(graph.edges),
+                int(raw_budgets["edges"]),
+            )
+            sense_count = sum(
+                1 for node in graph.nodes if node.kind is NodeKind.SENSE
+            )
+            bridge._adaptive_sense_budget = min(
+                bridge._adaptive_node_budget,
+                max(sense_count, int(raw_budgets["senses"])),
+            )
         raw_tick = payload.get("tick", 0)
         if isinstance(raw_tick, bool) or not isinstance(raw_tick, int) or raw_tick < 0:
             raise GraphError("tick must be a non-negative integer")
@@ -3207,6 +3307,24 @@ class CognitiveBridge:
                     remaining -= len(repair_mutations)
                     planning_graph = repaired_graph
 
+            pending_node_demand = any(
+                candidate.required_nodes > 0
+                for candidate in self._structural_candidates.values()
+            )
+            pending_edge_demand = any(
+                candidate.required_edges > 0
+                for candidate in self._structural_candidates.values()
+            ) or bool(self._shadow_predictions)
+            self._expand_resource_budgets(
+                need_nodes=(
+                    pending_node_demand
+                    and len(planning_graph.nodes) >= self._soft_node_limit
+                ),
+                need_edges=(
+                    pending_edge_demand
+                    and len(planning_graph.edges) >= self._soft_edge_limit
+                ),
+            )
             edge_slots = max(0, self._soft_edge_limit - len(planning_graph.edges))
             node_slots = max(0, self._soft_node_limit - len(planning_graph.nodes))
 
@@ -3379,4 +3497,7 @@ class CognitiveBridge:
             # NOTE(legacy): Legacy metric retained for snapshot compatibility. Producer-level
             # arbitration no longer accumulates contention debt.
             max_contention_losses=0,
+            node_budget=self._adaptive_node_budget,
+            edge_budget=self._adaptive_edge_budget,
+            sense_budget=self._adaptive_sense_budget,
         )
