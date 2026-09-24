@@ -839,22 +839,28 @@ export function createCognitionController({
     const trailStore = dimension === '3d'
       ? graph.regionCenterTrails3d
       : graph.regionCenterTrails2d;
+    const stableLabel = graph.sectorLabels.get(region.id) ?? region.label ?? String(region.id);
     const raw = organicRegionShape(points, {
       padding: dimension === '3d' ? 12 : 18,
       bins: Math.max(14, Math.min(26, points.length + 8)),
       smoothPasses: 2,
       sampleCount: 44,
     });
-    const previous = previousStore.get(region.id);
-    const shape = blendRegionShape(previous, raw, graph.replaySnapshot ? 1 : 0.24);
-    previousStore.set(region.id, shape);
+    const presented = presentation.regionPresentation(stableLabel, raw, {
+      replay: Boolean(graph.replaySnapshot),
+      timestamp: performance.now(),
+    });
+    const shape = presented.shape;
+    previousStore.set(stableLabel, shape);
     const center = functionalCenter(points, graph.atlasMode);
-    const trail = rememberCenterTrail(trailStore, region.id, center, tick);
+    const trail = rememberCenterTrail(trailStore, stableLabel, center, tick);
     const internalEdges = regionInternalEdgeCount(region.id);
     return {
       ...shape,
       functionalCenter: center,
       trail,
+      presentationOpacity: presented.opacity,
+      animationPhase: presented.phase,
       tension: boundaryTension(region, internalEdges),
       hotspots: densityHotspots(points, {
         maxHotspots: 4,
@@ -964,14 +970,20 @@ export function createCognitionController({
       ? 0.32 + score * 0.44
       : 0.14 + score * 0.38;
     const tension = shape.tension ?? 0;
+    const structuralTransition =
+      String(shape.animationPhase ?? '').startsWith('split-') ||
+      String(shape.animationPhase ?? '').startsWith('merge-');
 
     ctx.save();
+    ctx.globalAlpha = shape.presentationOpacity ?? 1;
     if (traceRegionPath(ctx, shape)) {
       ctx.fillStyle = `${color}${Math.round(fillAlpha * 255).toString(16).padStart(2,'0')}`;
       ctx.strokeStyle = active
         ? 'rgba(220,232,240,.88)'
         : `${color}${Math.round(strokeAlpha * 255).toString(16).padStart(2,'0')}`;
-      ctx.lineWidth = active ? 2.2 : 0.9 + score * 1.3 + (1 - tension) * 0.45;
+      ctx.lineWidth = active
+        ? 2.2
+        : (0.9 + score * 1.3 + (1 - tension) * 0.45) * (structuralTransition ? 1.22 : 1);
       // High bridge tension = more permeable/discontinuous frontier.
       ctx.setLineDash(
         active ? [] :
@@ -989,6 +1001,41 @@ export function createCognitionController({
     drawProtoSubregions(ctx, region, points, shape, color);
     drawFunctionalCenter(ctx, shape, color);
     return shape;
+  }
+
+  function drawPresentationRegionOverlays(ctx, timestamp = performance.now()) {
+    ctx.save();
+    for (const ghost of presentation.ghostRegionPresentation(timestamp)) {
+      if (!traceRegionPath(ctx, ghost.shape)) continue;
+      ctx.globalAlpha = ghost.opacity * 0.34;
+      ctx.fillStyle = 'rgba(140,166,188,.22)';
+      ctx.strokeStyle = 'rgba(175,199,220,.48)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4,6]);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    for (const bridge of presentation.regionMergeBridges(timestamp)) {
+      const from = boundaryPointToward(bridge.from, bridge.to.center ?? bridge.to);
+      const to = boundaryPointToward(bridge.to, bridge.from.center ?? bridge.from);
+      const distance = Math.hypot(to.x - from.x, to.y - from.y);
+      if (distance <= 1) continue;
+      ctx.globalAlpha = 0.16 + bridge.strength * 0.34;
+      ctx.strokeStyle = 'rgba(175,199,220,.72)';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(
+        3,
+        Math.min(18, Math.min(bridge.from.radius ?? 20, bridge.to.radius ?? 20) * 0.24 * bridge.strength),
+      );
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
+    ctx.restore();
   }
 
   function drawAtlasRegionLinks(ctx, geometry, tick) {
