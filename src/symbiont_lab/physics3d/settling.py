@@ -10,9 +10,9 @@ class SettlingResult:
     steps: int
     stable_samples_required: int
     stable_samples_observed: int
-    max_linear_speed_m_s: float
-    max_angular_speed_rad_s: float
-    max_joint_speed_rad_s: float
+    residual_linear_speed_m_s: float
+    residual_angular_speed_rad_s: float
+    residual_joint_speed_rad_s: float
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -82,9 +82,9 @@ def settle_passive_body(
                     steps=step,
                     stable_samples_required=stable_samples,
                     stable_samples_observed=stable,
-                    max_linear_speed_m_s=last_linear,
-                    max_angular_speed_rad_s=last_angular,
-                    max_joint_speed_rad_s=last_joint,
+                    residual_linear_speed_m_s=last_linear,
+                    residual_angular_speed_rad_s=last_angular,
+                    residual_joint_speed_rad_s=last_joint,
                 )
         else:
             stable = 0
