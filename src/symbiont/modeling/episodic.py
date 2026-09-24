@@ -283,6 +283,7 @@ class ExperienceEpisode:
     concept_support: dict[str, int]
     internal_support: dict[str, int]
     effect_support: dict[str, int]
+    exceptions: tuple[EpisodicProjection, ...]
     evidence_refs: tuple[str, ...]
     source_record_ids: tuple[str, ...]
     novelty: float
@@ -320,6 +321,12 @@ class ExperienceEpisode:
                 raise EpisodicMemoryError(f"invalid {name}")
         if self.action_token is not None and not _valid_token(self.action_token):
             raise EpisodicMemoryError("invalid episode action")
+        if (
+            not isinstance(self.exceptions, tuple)
+            or len(self.exceptions) > 4
+            or any(not isinstance(item, EpisodicProjection) for item in self.exceptions)
+        ):
+            raise EpisodicMemoryError("invalid episodic exceptions")
         if any(not math.isfinite(value) or not 0.0 <= value <= 1.0 for value in (self.novelty, self.surprise)):
             raise EpisodicMemoryError("invalid episodic novelty/surprise")
 
@@ -376,6 +383,7 @@ class ExperienceEpisode:
             "concept_support": dict(sorted(self.concept_support.items())),
             "internal_support": dict(sorted(self.internal_support.items())),
             "effect_support": dict(sorted(self.effect_support.items())),
+            "exceptions": [item.checkpoint() for item in self.exceptions],
             "evidence_refs": list(self.evidence_refs),
             "source_record_ids": list(self.source_record_ids),
             "novelty": self.novelty,
@@ -411,7 +419,14 @@ class ExperienceEpisode:
                 raise EpisodicMemoryError("invalid episode collections")
             raw_evidence = payload.get("evidence_refs", [])
             raw_sources = payload.get("source_record_ids", [])
-            if not isinstance(raw_evidence, list) or not isinstance(raw_sources, list):
+            raw_exceptions = payload.get("exceptions", [])
+            if (
+                not isinstance(raw_evidence, list)
+                or not isinstance(raw_sources, list)
+                or not isinstance(raw_exceptions, list)
+                or len(raw_exceptions) > 4
+                or any(not isinstance(item, Mapping) for item in raw_exceptions)
+            ):
                 raise EpisodicMemoryError("invalid episode provenance")
             return cls(
                 episode_id=str(payload["episode_id"]),
@@ -424,6 +439,10 @@ class ExperienceEpisode:
                 concept_support=support("concept_support", 16, recurrence),
                 internal_support=support("internal_support", 16, recurrence),
                 effect_support=support("effect_support", 32, recurrence),
+                exceptions=tuple(
+                    EpisodicProjection.restore(item)
+                    for item in raw_exceptions
+                ),
                 evidence_refs=_bounded_unique((str(item) for item in raw_evidence), limit=32),
                 source_record_ids=_bounded_unique((str(item) for item in raw_sources), limit=32),
                 novelty=float(payload["novelty"]),
@@ -584,6 +603,25 @@ class EpisodicExperienceMemory:
             return summary
         return 0.72 * summary + 0.28 * channels
 
+    def _family_match(
+        self,
+        episode: ExperienceEpisode,
+        projection: EpisodicProjection,
+    ) -> tuple[float, float]:
+        candidates = (episode.projection, *episode.exceptions)
+        best_state = 0.0
+        best_effect = 0.0
+        best_joint = -1.0
+        for candidate in candidates:
+            state = self.projection_similarity(candidate, projection)
+            effect = self._effect_similarity(candidate, projection)
+            joint = 0.62 * state + 0.38 * effect
+            if joint > best_joint:
+                best_joint = joint
+                best_state = state
+                best_effect = effect
+        return best_state, best_effect
+
     @staticmethod
     def _aggregate_projection(items: Sequence[_PendingObservation]) -> EpisodicProjection:
         if not items:
@@ -691,8 +729,10 @@ class EpisodicExperienceMemory:
             current = episode.projection
             if current.action_token != projection.action_token:
                 continue
-            state_similarity = self.projection_similarity(current, projection)
-            effect_similarity = self._effect_similarity(current, projection)
+            state_similarity, effect_similarity = self._family_match(
+                episode,
+                projection,
+            )
             if (
                 state_similarity < self._STATE_FAMILY_THRESHOLD
                 or effect_similarity < self._EFFECT_FAMILY_THRESHOLD
@@ -722,6 +762,7 @@ class EpisodicExperienceMemory:
                 concept_support={token: 1 for token in projection.concept_ids},
                 internal_support={token: 1 for token in projection.internal_tokens},
                 effect_support={token: 1 for token in projection.effect_features},
+                exceptions=(),
                 evidence_refs=evidence,
                 source_record_ids=sources,
                 novelty=novelty,
@@ -740,6 +781,14 @@ class EpisodicExperienceMemory:
                 steps=steps,
                 evidence=evidence,
                 sources=sources,
+                state_similarity=self.projection_similarity(
+                    episode.projection,
+                    projection,
+                ),
+                effect_similarity=self._effect_similarity(
+                    episode.projection,
+                    projection,
+                ),
             )
             episode_id = episode.episode_id
             self._compaction_count += 1
@@ -773,6 +822,8 @@ class EpisodicExperienceMemory:
         steps: tuple[EpisodeStep, ...],
         evidence: tuple[str, ...],
         sources: tuple[str, ...],
+        state_similarity: float,
+        effect_similarity: float,
     ) -> None:
         episode.recurrence += 1
         episode.compressed = True
@@ -785,6 +836,17 @@ class EpisodicExperienceMemory:
         self._bounded_support_merge(episode.concept_support, projection.concept_ids, maximum=16)
         self._bounded_support_merge(episode.internal_support, projection.internal_tokens, maximum=16)
         self._bounded_support_merge(episode.effect_support, projection.effect_features, maximum=32)
+
+        if state_similarity < 0.66 or effect_similarity < 0.60:
+            is_new_exception = all(
+                self.projection_similarity(existing, projection, include_effect=True) < 0.85
+                for existing in episode.exceptions
+            )
+            if is_new_exception:
+                exceptions = (*episode.exceptions, projection)
+                if len(exceptions) > 4:
+                    exceptions = exceptions[-4:]
+                episode.exceptions = tuple(exceptions)
 
         # Keep a few provenance exemplars, biased toward temporal diversity.
         combined_steps = list(episode.trace)
@@ -909,7 +971,10 @@ class EpisodicExperienceMemory:
         for episode in self._episodes:
             if action_token is not None and episode.action_token != action_token:
                 continue
-            similarity = self.projection_similarity(episode.projection, query)
+            similarity = max(
+                self.projection_similarity(candidate, query)
+                for candidate in (episode.projection, *episode.exceptions)
+            )
             if similarity <= 0.0:
                 continue
             matches.append(
