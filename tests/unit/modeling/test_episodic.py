@@ -349,3 +349,52 @@ def test_episodic_memory_does_not_fabricate_raw_replay_records() -> None:
     memory.observe(record(0), projection())
     memory.flush()
     assert memory.replay_records() == ()
+
+
+
+def test_borderline_family_variant_is_retained_as_bounded_exception() -> None:
+    memory = EpisodicExperienceMemory(ORG)
+    base_outcomes = (
+        "outcome.sense.channel.a.up.3",
+        "outcome.sense.channel.b.up.3",
+    )
+    variant_outcomes = (
+        "outcome.sense.channel.a.up.4",
+        "outcome.sense.channel.c.up.4",
+    )
+    memory.observe(
+        record(0, outcomes=base_outcomes),
+        projection(
+            senses=("sensor.a", "sensor.b", "sensor.c"),
+            concepts=("concept.shared",),
+            outcomes=base_outcomes,
+        ),
+    )
+    memory.flush()
+    memory.observe(
+        record(10, outcomes=variant_outcomes),
+        projection(
+            senses=("sensor.a", "sensor.b", "sensor.d"),
+            concepts=("concept.shared",),
+            outcomes=variant_outcomes,
+        ),
+    )
+    memory.flush()
+
+    assert len(memory.episodes) == 1
+    family = memory.episodes[0]
+    assert family.recurrence == 2
+    assert 1 <= len(family.exceptions) <= 4
+
+    match = memory.retrieve(
+        EpisodicProjection(
+            sense_ids=("sensor.a", "sensor.b", "sensor.d"),
+            concept_ids=("concept.shared",),
+            internal_tokens=("internal.pressure.low",),
+            action_token="action.motor.composite",
+        ),
+        action_token="action.motor.composite",
+        k=1,
+    )
+    assert match
+    assert match[0].episode_id == family.episode_id
