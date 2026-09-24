@@ -51,9 +51,16 @@ def test_saturated_dependency_counters_remain_revisable():
     tick += 1
     schema.observe_cognition(_observation((2, 12)), tick=tick)
     tick += 1
+    schema.observe_cognition(_observation((2, 12)), tick=tick)
+    tick += 1
     for _ in range(300):
         schema.observe_cognition(_observation((1, 12), (2, 12)), tick=tick)
         tick += 1
+    while tick % 4 != 0:
+        schema.observe_cognition(_observation((1, 12), (2, 12)), tick=tick)
+        tick += 1
+    schema.observe_cognition(_observation((1, 12), (2, 12)), tick=tick)
+    tick += 1
     while tick % 4 != 0:
         schema.observe_cognition(_observation((1, 12), (2, 12)), tick=tick)
         tick += 1
@@ -102,6 +109,8 @@ def test_precedence_does_not_cross_a_missing_cognitive_observation_tick():
     schema = BodySchemaEngine(id_salt="c" * 32)
     tick = _learn_singleton(schema, 1, 0)
     tick = _learn_singleton(schema, 2, tick)
+    schema.observe_cognition(_observation((2, 12)), tick=tick)
+    tick += 1
     schema.observe_cognition(_observation((2, 12)), tick=tick)
     tick += 1
     schema.observe_cognition(_observation((2, 12)), tick=tick)
@@ -218,6 +227,8 @@ def test_initial_singletons_merge_after_later_pair_evidence_becomes_cohesive():
     tick += 1
     schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)
     tick += 1
+    schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)
+    tick += 1
 
     after = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
     assert any(
@@ -265,6 +276,8 @@ def test_region_merge_filter_skips_unaffected_region_pairs():
     for _ in range(3):
         schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)
         tick += 1
+    schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)
+    tick += 1
     schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)
     tick += 1
     schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)

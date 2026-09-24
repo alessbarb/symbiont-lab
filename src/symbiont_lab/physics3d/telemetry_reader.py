@@ -146,6 +146,14 @@ class _V4ReaderAdapter:
             end_tick=end_tick,
         )
 
+    def iter_records(self, *, start_tick=None, end_tick=None):
+        for state, summary in zip(
+            self.iter_states(start_tick=start_tick, end_tick=end_tick),
+            self.iter_summaries(start_tick=start_tick, end_tick=end_tick)
+        ):
+            yield state, summary
+
+
     def iter_summaries(self, *, start_tick=None, end_tick=None):
         yield from self._reader.iter_summaries(
             start_tick=start_tick,
