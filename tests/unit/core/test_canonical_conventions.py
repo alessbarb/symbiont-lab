@@ -69,7 +69,7 @@ def test_epistemic_conventions_invariants() -> None:
 def test_organism_limits_invariants() -> None:
     limits = OrganismLimits()
     assert limits.max_host_checkpoint_bytes == 32 * 1024 * 1024
-    assert limits.max_knowledge_checkpoint_bytes == 1024 * 1024
+    assert limits.max_knowledge_checkpoint_bytes == 4 * 1024 * 1024
     assert limits.max_exchange_bytes == 4096
     assert limits.max_sensory_parts == 512
     assert limits.max_cognitive_regions == 128
