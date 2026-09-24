@@ -463,7 +463,7 @@ class OrganismRuntime:
             if metabolism is not None
             else MetabolicLedger(
                 replenishment=(
-                    {k: 0.0 for k in ("observation", "competence", "persistence", "maintenance")}
+                    {k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
                     if self._explicit_metabolism
                     else None
                 ),
@@ -1801,7 +1801,7 @@ class OrganismRuntime:
         if self._social_habitat is None:
             raise ValueError("no social habitat is attached")
         outcome = self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
-        self._charge_metabolism("competence", self._social_exchange_cost)
+        self._charge_metabolism("cognition", self._social_exchange_cost)
         self._social_ledger.observe(
             self._organism_id, target_id, benefit=outcome.granted,
             reciprocal=outcome.relation.reciprocal_observations > 0,
@@ -1908,7 +1908,7 @@ class OrganismRuntime:
         if any(source_id != self._organism_id for source_id, _, _ in requests):
             raise ValueError("competition requests must originate from this runtime")
         outcomes = self._social_habitat.compete(requests)
-        self._charge_metabolism("competence", self._social_exchange_cost * len(requests))
+        self._charge_metabolism("cognition", self._social_exchange_cost * len(requests))
         requested = {(source, resource): amount for source, resource, amount in requests}
         for outcome in outcomes:
             loss = max(0.0, requested.get((outcome.source_id, outcome.resource), outcome.granted) - outcome.granted)
@@ -2121,7 +2121,7 @@ class OrganismRuntime:
         habitat = self._resource_habitats.get(resource_id) if resource_id is not None else self._habitat
         if habitat is None:
             raise ValueError("no shared habitat is attached")
-        if kind not in {"observation", "competence", "persistence", "maintenance"} or isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or amount <= 0.0:
+        if kind not in {"observation", "cognition", "persistence", "maintenance"} or isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or amount <= 0.0:
             raise ValueError("invalid resource intake")
         # Physical body headroom is authoritative. The requested accounting
         # kind may receive bookkeeping credit, but it cannot gate or create
@@ -2615,7 +2615,7 @@ class OrganismRuntime:
             for allocation in allocations
         )
         self._charge_metabolism(
-            "competence",
+            "cognition",
             (len(allocations) - interoceptive_allocations) * 0.02
             + interoceptive_allocations * 0.005,
         )
@@ -2742,7 +2742,7 @@ class OrganismRuntime:
         sensory_mutations = self._sensory_system.plastic_step(tick=self._tick_count + 1)
         if sensory_mutations:
             self._charge_metabolism(
-                "competence",
+                "cognition",
                 sum(min(0.01, mutation.cost * 0.01) for mutation in sensory_mutations),
             )
 
