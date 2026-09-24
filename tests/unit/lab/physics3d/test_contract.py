@@ -609,6 +609,10 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
     assert '"genome_symbiont_physics3d_v9"' in source
+    assert "exclusive_actuator_groups=exclusive_groups" in source
+    assert "load_actuator_constitution(genome)" in source
+    assert "binding.positive_port" in source
+    assert "binding.negative_port" in source
 
 
 
@@ -794,3 +798,66 @@ def test_monitor_uses_visual_only_non_strict_body_projection():
 
     source = inspect.getsource(monitor._viewer_main)
     assert "strict_anatomical_limits=False" in source
+
+
+
+def test_passive_postural_tone_is_body_owned_and_bounded():
+    from symbiont_lab.physics3d.humanoid import (
+        PASSIVE_TONE_TORQUE_CAP_FRACTION,
+        _neutral_rest_position,
+        _passive_postural_tone,
+    )
+
+    for spec in JOINT_SPECS:
+        rest = _neutral_rest_position(spec)
+        assert spec.lower <= rest <= spec.upper
+        at_rest = _passive_postural_tone(
+            spec,
+            position=rest,
+            velocity=0.0,
+        )
+        assert at_rest == pytest.approx(0.0)
+
+        displaced = _passive_postural_tone(
+            spec,
+            position=rest + 0.1,
+            velocity=0.0,
+        )
+        assert displaced <= 0.0
+        assert abs(displaced) <= (
+            spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION + 1e-12
+        )
+
+
+def test_actuator_work_decomposition_keeps_absolute_effort_distinct_from_net():
+    from symbiont_lab.physics3d.humanoid import ActuatorWork
+
+    work = ActuatorWork(
+        positive_j=4.0,
+        negative_j=1.5,
+        absolute_j=5.5,
+        net_j=2.5,
+    )
+    assert work.absolute_j == work.positive_j + work.negative_j
+    assert work.net_j == work.positive_j - work.negative_j
+
+
+def test_runtime_physics_trace_initializes_joint_payload_before_append():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(
+        runtime.PyBulletEmbodimentRuntime._physics_trace_sample
+    )
+    assert "joints: list[dict[str, object]] = []" in source
+    assert source.index("joints: list") < source.index("joints.append")
+
+
+def test_runtime_settling_fails_closed_instead_of_treating_timeout_as_success():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(
+        runtime.PyBulletEmbodimentRuntime._settle_new_body
+    )
+    assert "settle_passive_body" in source
+    assert "if not result.converged" in source
+    assert "raise RuntimeError" in source
