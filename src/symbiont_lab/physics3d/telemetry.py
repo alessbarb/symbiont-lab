@@ -163,6 +163,9 @@ class TelemetryV3Writer:
                 "oldest_structural_wait_ticks",
                 "representation_maturity",
                 "max_contention_losses",
+                "node_budget",
+                "edge_budget",
+                "sense_budget",
             )
             return {key: current.get(key) for key in keys}
         if component == "sensorimotor":
