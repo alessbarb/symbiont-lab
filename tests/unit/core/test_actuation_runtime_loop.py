@@ -251,3 +251,53 @@ def test_homeostatic_fatigue_scales_motor_output_without_changing_choice():
     assert runtime.last_motor_intents[0].actuator_id == active_id
     assert runtime.last_motor_intents[0].activation == regulated.activity_scale
     assert runtime.last_actuations[0].requested == regulated.activity_scale
+
+
+
+def test_executed_motor_origin_is_reclassified_after_exclusive_arbitration():
+    from symbiont.actuation.types import MotorIntent
+    from symbiont.core.orchestration.runtime import (
+        _classify_executed_motor_origin,
+    )
+
+    cognition = (
+        MotorIntent("a", 0.8),
+        MotorIntent("b", 0.6),
+    )
+
+    assert _classify_executed_motor_origin(
+        (MotorIntent("a", 0.8), MotorIntent("x", 0.5)),
+        cognition,
+        prior_origin="mixed",
+    ) == ("mixed", "mixed")
+
+    assert _classify_executed_motor_origin(
+        (MotorIntent("a", 0.8),),
+        cognition,
+        prior_origin="mixed",
+    ) == ("cognition", "cognition")
+
+    assert _classify_executed_motor_origin(
+        (MotorIntent("x", 0.5),),
+        cognition,
+        prior_origin="mixed",
+    ) == ("babbling", "babbling")
+
+    assert _classify_executed_motor_origin(
+        (),
+        cognition,
+        prior_origin="mixed",
+    ) == ("none", "none")
+
+
+def test_non_developmental_motor_origin_is_not_reclassified():
+    from symbiont.actuation.types import MotorIntent
+    from symbiont.core.orchestration.runtime import (
+        _classify_executed_motor_origin,
+    )
+
+    assert _classify_executed_motor_origin(
+        (MotorIntent("a", 0.7),),
+        (MotorIntent("a", 0.7),),
+        prior_origin="primitive",
+    ) == ("primitive", "primitive")
