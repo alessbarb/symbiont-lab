@@ -14,7 +14,6 @@ export function buildMindLayout(root, {
   graph3DMode = 'relational',
   graphAtlasMode = 'structure',
   onTabChange = () => {},
-  onDimensionChange = () => {},
   on3DModeChange = () => {},
   onAtlasModeChange = () => {},
   onReturnLive = () => {},
@@ -273,38 +272,26 @@ export function buildMindLayout(root, {
     position:absolute;top:12px;right:12px;z-index:2;
     display:flex;gap:4px;max-width:min(980px,calc(100% - 360px));flex-wrap:wrap;justify-content:flex-end;
   `;
-  const dimensionGroup = el('div', '');
-  dimensionGroup.style.cssText = 'display:flex;gap:4px;margin-right:8px;padding-right:8px;border-right:1px solid rgba(98,120,136,.22);';
-  for (const [dimension, label] of [['2d','2D'], ['3d','3D']]) {
-    const button = makeControlBtn(label, `Cognition projection: ${label}`, dimension === graphDimension);
-    button.dataset.graphDimension = dimension;
+  const viewModeGroup = el('div', '');
+  viewModeGroup.style.cssText = 'display:flex;gap:4px;margin-right:8px;padding-right:8px;border-right:1px solid rgba(98,120,136,.22);';
+  const activeViewMode = graphDimension === '3d' && graph3DMode === 'physicalized'
+    ? 'physicalized'
+    : 'relational';
+  for (const [viewMode, label, title] of [
+    ['relational', 'Relational', 'Relational observer cartography'],
+    ['physicalized', 'Physicalized', 'Physicalized 3D observer projection'],
+  ]) {
+    const button = makeControlBtn(label, title, viewMode === activeViewMode);
+    button.dataset.graph3dMode = viewMode;
     button.addEventListener('click', () => {
-      dimensionGroup.querySelectorAll('button').forEach(item => {
-        item.classList.toggle('active', item.dataset.graphDimension === dimension);
+      viewModeGroup.querySelectorAll('button').forEach(item => {
+        item.classList.toggle('active', item.dataset.graph3dMode === viewMode);
       });
-      onDimensionChange(dimension);
+      on3DModeChange(viewMode);
     });
-    dimensionGroup.appendChild(button);
+    viewModeGroup.appendChild(button);
   }
-  cognitionModeControls.appendChild(dimensionGroup);
-
-  const mode3DGroup = el('div', '');
-  mode3DGroup.style.cssText = 'display:flex;gap:4px;margin-right:8px;padding-right:8px;border-right:1px solid rgba(98,120,136,.22);';
-  for (const [mode3d, label] of [['relational','Relational'], ['physicalized','Physicalized']]) {
-    const button = makeControlBtn(label, `3D geometry: ${label}`, mode3d === graph3DMode);
-    button.dataset.graph3dMode = mode3d;
-    button.addEventListener('click', () => {
-      mode3DGroup.querySelectorAll('button').forEach(item => {
-        item.classList.toggle('active', item.dataset.graph3dMode === mode3d);
-      });
-      dimensionGroup.querySelectorAll('button').forEach(item => {
-        item.classList.toggle('active', item.dataset.graphDimension === '3d');
-      });
-      on3DModeChange(mode3d);
-    });
-    mode3DGroup.appendChild(button);
-  }
-  cognitionModeControls.appendChild(mode3DGroup);
+  cognitionModeControls.appendChild(viewModeGroup);
 
   const atlasModeGroup = el('div', '');
   atlasModeGroup.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;';
