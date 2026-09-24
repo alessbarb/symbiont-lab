@@ -68,6 +68,7 @@ import {
   recordObserverUsage,
   summarizeDiff,
 } from './cognitive-refinement.js';
+import { createCognitivePresentationAnimator } from './cognitive-animation.js';
 import {
   blendRegionShape,
   boundaryPointToward,
@@ -87,6 +88,7 @@ export function createCognitionController({
   let rafId = null;
   let windowMouseMove = null;
   let windowMouseUp = null;
+  const presentation = createCognitivePresentationAnimator();
 
   function selectCognitiveNode(nodeId) {
     graph.selectedNodeId = nodeId || null;
@@ -351,6 +353,10 @@ export function createCognitionController({
     graph.sectorLabels = reconciled.labels;
     graph.regionLineage = reconciled.lineage;
     graph.regionEvents = reconciled.events;
+    presentation.registerRegionEvents(reconciled.events, {
+      replay: Boolean(graph.replaySnapshot),
+      timestamp: performance.now(),
+    });
     for (const event of reconciled.events) {
       const key = JSON.stringify(event);
       if (graph.regionEventHistory.some(item => item._key === key)) continue;
@@ -361,6 +367,8 @@ export function createCognitionController({
   }
   
   function initGraphPhysics(width, height) {
+    const previousNodes = [...graph.nodes];
+    const previousEdges = [...graph.edges];
     const {
       nodes: rawNodes,
       edges: rawEdges,
@@ -499,6 +507,17 @@ export function createCognitionController({
         target: nodeMap.get(e.targetId),
       }))
       .filter(e => e.source && e.target);
+
+    presentation.syncTopology(
+      previousNodes,
+      graph.nodes,
+      previousEdges,
+      graph.edges,
+      {
+        replay: Boolean(graph.replaySnapshot),
+        timestamp: performance.now(),
+      },
+    );
 
     ensure3DState(
       graph.nodes,
