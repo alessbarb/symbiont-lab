@@ -177,3 +177,37 @@ def test_observatory_default_is_optional(monkeypatch) -> None:
 
     monkeypatch.setattr(builtins, "__import__", without_observatory)
     assert _default_observatory_dir() is None
+
+
+def test_physics3d_catalog_endpoints_are_available(tmp_path) -> None:
+    with running_server(physics_state_root=tmp_path) as server:
+        status, body = request(server, "/api/bodies")
+        assert status == 200
+        payload = json.loads(body)
+        assert payload["items"][0]["body_kind"] == "anthropomorphic-v4"
+
+        status, body = request(server, "/api/organisms")
+        assert status == 200
+        assert json.loads(body)["items"] == []
+
+        status, body = request(server, "/api/runs")
+        assert status == 200
+        assert json.loads(body)["items"] == []
+
+
+def test_physics3d_start_validates_launch_before_spawning(tmp_path) -> None:
+    with running_server(physics_state_root=tmp_path) as server:
+        payload = json.dumps({
+            "body_kind": "anthropomorphic-v4",
+            "organism": {"mode": "new"},
+            "body": {"mode": "resume"},
+        }).encode()
+        status, body = request(
+            server,
+            "/api/runs",
+            method="POST",
+            body=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        assert status == 400
+        assert b"cannot resume" in body

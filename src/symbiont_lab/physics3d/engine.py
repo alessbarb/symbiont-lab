@@ -178,6 +178,7 @@ def run(
     cognition_hz: int = 24,
     mechanical_work_cost_per_joule: float = 0.001,
     telemetry_physics_trace: bool = False,
+    body_kind: str = "anthropomorphic-v4",
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
@@ -274,6 +275,7 @@ def run(
         physics_substeps_per_tick=physics_substeps_per_tick,
         mechanical_work_cost_per_joule=mechanical_work_cost_per_joule,
         capture_physics_trace=telemetry_physics_trace,
+        body_kind=body_kind,
         runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
     )
@@ -284,6 +286,7 @@ def run(
     telemetry_configuration["telemetry_physics_trace"] = bool(
         telemetry_physics_trace
     )
+    telemetry_configuration["body_kind"] = body_kind
     runtime_checkpoint_for_identity = runtime.checkpoint()
     raw_genome = runtime_checkpoint_for_identity.get("genome", {})
     software_identity = {

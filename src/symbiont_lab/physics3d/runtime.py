@@ -31,12 +31,8 @@ from .apparatus import (
     physics3d_sensory_system,
 )
 from .observer_semantics import motor_semantics, sensory_semantics
-from .humanoid import (
-    GROUND_MATERIAL,
-    HumanoidPhysics,
-    apply_surface_material,
-    configure_physics_solver,
-)
+from .bodies import DEFAULT_BODY_REGISTRY
+from .humanoid import apply_surface_material, configure_physics_solver
 from .resource import PhysicalResource
 
 
@@ -158,6 +154,7 @@ class PyBulletEmbodimentRuntime:
         physics_substeps_per_tick: int = 10,
         mechanical_work_cost_per_joule: float = 0.001,
         capture_physics_trace: bool = False,
+        body_kind: str = "anthropomorphic-v4",
         runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
         organism_id: str | None = None,
@@ -183,6 +180,7 @@ class PyBulletEmbodimentRuntime:
             raise ValueError("mechanical_work_cost_per_joule must be within [0, 0.1]")
         self.mechanical_work_cost_per_joule = float(mechanical_work_cost_per_joule)
         self.capture_physics_trace = bool(capture_physics_trace)
+        self.body_descriptor = DEFAULT_BODY_REGISTRY.get(body_kind)
         mode = p.GUI if gui else p.DIRECT
         self.client_id = p.connect(mode)
         if self.client_id < 0:
@@ -206,11 +204,11 @@ class PyBulletEmbodimentRuntime:
             p,
             self.plane_id,
             -1,
-            GROUND_MATERIAL,
+            self.body_descriptor.ground_material,
             client_id=self.client_id,
         )
 
-        self.apparatus = HumanoidPhysics(p, self.client_id)
+        self.apparatus = self.body_descriptor.apparatus_factory(p, self.client_id)
         if physical_state is not None:
             self.apparatus.restore_physical_state(physical_state)
         else:
@@ -285,7 +283,9 @@ class PyBulletEmbodimentRuntime:
             }
 
         if physical_state is None:
-            body_interoception = OpaqueBodyInteroception()
+            body_interoception = OpaqueBodyInteroception(
+                receptor_ids=self.body_descriptor.interoceptive_receptor_ids
+            )
         else:
             raw_interoception = physical_state.get("body_interoception")
             if not isinstance(raw_interoception, Mapping):
@@ -294,7 +294,8 @@ class PyBulletEmbodimentRuntime:
                     "opaque interoception mapping is missing"
                 )
             body_interoception = OpaqueBodyInteroception.from_checkpoint(
-                raw_interoception
+                raw_interoception,
+                receptor_ids=self.body_descriptor.interoceptive_receptor_ids,
             )
         self._body_interoception = body_interoception
 
@@ -310,6 +311,7 @@ class PyBulletEmbodimentRuntime:
             self.apparatus,
             body_state_getter=lambda: self.organism.living_body_state,
             interoception=body_interoception,
+            expected_receptor_ids=self.body_descriptor.receptor_ids,
         )
         discovery_provider = PhysicsDiscoveryProvider(reading_provider.receptor_ids)
         self._reading_provider = reading_provider

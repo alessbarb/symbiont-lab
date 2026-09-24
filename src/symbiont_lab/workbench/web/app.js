@@ -1,9 +1,10 @@
+import { mount as mountHome, update as updateHome, unmount as unmountHome } from './views/home.js';
 import { mount as mountMind, unmount as unmountMind } from './views/mind.js';
 import { mount as mountLab, update as updateLab } from './views/lab.js';
 import { mount as mountArchive, update as updateArchive } from './views/archive.js';
 
 const ROOT_ID = 'view-root';
-let currentView = 'lab';
+let currentView = 'home';
 let currentState = null;
 let stateTimer = null;
 let mountedModule = null;
@@ -11,12 +12,13 @@ let bodyModule = null;
 let bodyLoadToken = 0;
 
 const NAV_ITEMS = [
-  { id: 'lab', label: 'Lab', icon: '⚗' },
+  { id: 'home', label: 'Home', icon: '⌂' },
+  { id: 'experiments', label: 'Experiments', icon: '⚗' },
   { id: 'body', label: 'Body', icon: '⬡' },
   { id: 'mind', label: 'Mind', icon: '◎' },
   { id: 'archive', label: 'Archive', icon: '▤' },
 ];
-const HASH_TARGETS = ['#lab', '#body', '#mind', '#archive'];
+const HASH_TARGETS = ['#home', '#experiments', '#lab', '#body', '#mind', '#archive'];
 
 function setStatus(text) {
   const status = document.getElementById('sb-status');
@@ -40,9 +42,11 @@ function setDetail(text, visible = true) {
 
 function updateStatusBar(state) {
   if (!state) return;
-  const running = Boolean(state.running || state.study?.running);
+  const physics = state.sources?.physics3d ?? {};
+  const physicsRunning = ['starting','running','stopping'].includes(physics.state);
+  const running = Boolean(state.running || state.study?.running || physicsRunning);
   setStatus(running ? 'running' : 'ready');
-  setRunState(state.running ? `run #${state.experiment_number ?? 0}` : state.study?.running ? `study ${state.study.phase ?? 'active'}` : 'no active run');
+  setRunState(physicsRunning ? (physics.run_id || 'Physics3D') : state.running ? `run #${state.experiment_number ?? 0}` : state.study?.running ? `study ${state.study.phase ?? 'active'}` : 'no active run');
 
   const current = state.current ?? {};
   if (current?.step != null && current?.total_steps) {
@@ -57,9 +61,8 @@ function updateStatusBar(state) {
 
 function parseHash() {
   const hash = window.location.hash.trim();
-  if (!hash || !HASH_TARGETS.includes(hash)) {
-    return 'lab';
-  }
+  if (!hash || !HASH_TARGETS.includes(hash)) return 'home';
+  if (hash === '#lab') return 'experiments';
   return hash.replace('#', '');
 }
 
@@ -78,8 +81,17 @@ function clearMountedView() {
 
   if (mountedModule === 'body' && bodyModule?.unmount) bodyModule.unmount();
   if (mountedModule === 'mind') unmountMind();
+  if (mountedModule === 'home') unmountHome();
   root.innerHTML = '';
   mountedModule = null;
+}
+
+function renderHomeView(state) {
+  const root = document.getElementById(ROOT_ID);
+  if (!root) return;
+  clearMountedView();
+  mountedModule = 'home';
+  mountHome(root, state);
 }
 
 function renderLabView(state) {
@@ -140,7 +152,8 @@ function routeToView(viewId) {
   window.location.hash = viewId;
   activateRail(viewId);
 
-  if (viewId === 'lab') renderLabView(currentState);
+  if (viewId === 'home') renderHomeView(currentState);
+  else if (viewId === 'experiments') renderLabView(currentState);
   else if (viewId === 'body') renderBodyView();
   else if (viewId === 'mind') renderMindView();
   else if (viewId === 'archive') renderArchiveView(currentState);
@@ -159,6 +172,7 @@ async function fetchState() {
     currentState = await response.json();
     updateStatusBar(currentState);
 
+    if (mountedModule === 'home') updateHome(document.getElementById(ROOT_ID), currentState);
     if (mountedModule === 'lab') updateLab(document.getElementById(ROOT_ID), currentState);
     if (mountedModule === 'archive') updateArchive(document.getElementById(ROOT_ID), currentState);
   } catch (error) {
@@ -190,7 +204,8 @@ function boot() {
   currentView = view;
   activateRail(view);
 
-  if (view === 'lab') renderLabView(currentState);
+  if (view === 'home') renderHomeView(currentState);
+  else if (view === 'experiments') renderLabView(currentState);
   else if (view === 'body') renderBodyView();
   else if (view === 'mind') renderMindView();
   else if (view === 'archive') renderArchiveView(currentState);

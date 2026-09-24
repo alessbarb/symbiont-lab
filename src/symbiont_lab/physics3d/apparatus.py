@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 import time
+from typing import Any
 
 from symbiont import __version__ as symbiont_version
 from symbiont.actuation.constitution import ActuatorConstitution
@@ -34,7 +35,6 @@ from .humanoid import (
     HumanoidPhysics,
     effector_contract_ids,
     interoceptive_receptor_contract_ids,
-    receptor_contract_ids,
 )
 
 
@@ -198,10 +198,11 @@ class PhysicsReadingProvider:
 
     def __init__(
         self,
-        apparatus: HumanoidPhysics,
+        apparatus: Any,
         *,
         body_state_getter: Callable[[], LivingBodyState] | None = None,
         interoception: OpaqueBodyInteroception | None = None,
+        expected_receptor_ids: Sequence[str] | None = None,
     ) -> None:
         self.apparatus = apparatus
         self._body_state_getter = body_state_getter
@@ -214,8 +215,9 @@ class PhysicsReadingProvider:
             tuple(apparatus.receptor_ids)
             + (() if self.interoception is None else self.interoception.receptor_ids)
         )
-        if body_state_getter is not None and self.receptor_ids != receptor_contract_ids():
-            raise ValueError("Physics3D receptor surface does not match canonical contract")
+        expected = None if expected_receptor_ids is None else tuple(str(item) for item in expected_receptor_ids)
+        if expected is not None and self.receptor_ids != expected:
+            raise ValueError("Physics3D receptor surface does not match selected body contract")
         self.last_values: dict[str, float] = {}
         self.last_monotonic_timestamp_ns: int | None = None
 

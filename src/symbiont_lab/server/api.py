@@ -10,6 +10,11 @@ Routes:
   GET  /instances/<id>        → SSE: single organism journal stream
   GET  /api/instance/<id>/manifest → JSON: instance manifest
   GET  /api/instance/<id>/history-summary → JSON: run history summary
+  GET  /api/bodies            → available Physics3D body contracts
+  GET  /api/organisms         → persisted Symbiont identities
+  GET  /api/runs              → managed Physics3D run history
+  POST /api/runs              → start a managed Physics3D run
+  POST /api/runs/stop         → stop the active Physics3D run
   POST /api/experiments/start → start an experiment run
   POST /api/studies/start     → start a comparative study
 """
@@ -55,6 +60,11 @@ def make_handler(
     assets_dir: Path,
     *,
     source_status: Callable[[], dict[str, Any]] | None = None,
+    body_catalog: Callable[[], list[dict[str, object]]] | None = None,
+    organism_catalog: Callable[[], list[dict[str, Any]]] | None = None,
+    run_catalog: Callable[[], list[dict[str, Any]]] | None = None,
+    physics_run_starter: Callable[[dict[str, Any]], dict[str, object]] | None = None,
+    physics_run_stopper: Callable[[], bool] | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     observatory_source = ObservatorySource(observatory_dir)
 
@@ -180,6 +190,18 @@ def make_handler(
                 self._stream_organism()
                 return
 
+            if path == "/api/bodies" and body_catalog is not None:
+                self._json(200, {"items": body_catalog()})
+                return
+
+            if path == "/api/organisms" and organism_catalog is not None:
+                self._json(200, {"items": organism_catalog()})
+                return
+
+            if path == "/api/runs" and run_catalog is not None:
+                self._json(200, {"items": run_catalog()})
+                return
+
             # ── Observatory SSE (optional) ───────────────────────────────
 
             if path == "/fleet":
@@ -229,6 +251,28 @@ def make_handler(
                 return
 
             path = urlparse(self.path).path
+            if path == "/api/runs":
+                if physics_run_starter is None:
+                    self._json(503, {"error": "Physics3D run service unavailable"})
+                    return
+                try:
+                    started = physics_run_starter(payload)
+                except ValueError as exc:
+                    self._json(400, {"error": str(exc)})
+                    return
+                except RuntimeError as exc:
+                    self._json(409, {"error": str(exc)})
+                    return
+                self._json(202, {"started": True, **started})
+                return
+
+            if path == "/api/runs/stop":
+                if physics_run_stopper is None or not physics_run_stopper():
+                    self._json(409, {"error": "no active Physics3D run"})
+                    return
+                self._json(202, {"stopping": True})
+                return
+
             if path == "/api/experiments/start":
                 spec = spec_from_payload(payload, experiment_state.spec)
                 if not experiment_starter(spec):
