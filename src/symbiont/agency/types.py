@@ -26,9 +26,9 @@ _VALID_REASONS: frozenset[str] = frozenset(
 class ProspectiveCandidate:
     """One action the organism is considering prospectively.
 
-    ``family`` is opaque; currently only ``"primitive"`` is issued by the
-    candidate repertoire builder. Agency must not interpret its value beyond
-    routing to the matching predictor.
+    ``family`` is opaque; Sensorimotor v2 normally issues
+    ``"competence"``. Agency must not interpret its value beyond routing to
+    the matching predictor.
     """
 
     action_id: str
