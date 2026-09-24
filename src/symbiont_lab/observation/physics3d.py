@@ -9,6 +9,17 @@ from .contracts import ObservedFrame
 from .projection import mind_snapshot_from_rich_state, runtime_tick_events
 
 
+
+def _body_descriptor_for_state(physical_state: Mapping[str, object]):
+    from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
+
+    body_kind = str(physical_state.get("body_kind") or "anthropomorphic-v4")
+    try:
+        return DEFAULT_BODY_REGISTRY.get(body_kind)
+    except ValueError:
+        return DEFAULT_BODY_REGISTRY.get("anthropomorphic-v4")
+
+
 class EventSink(Protocol):
     def push(self, event: dict[str, Any]) -> None: ...
 
@@ -55,11 +66,9 @@ class Physics3DObservationBridge:
         if self._stop.is_set():
             return
 
+        descriptor = _body_descriptor_for_state(physical_state)
+        joint_specs = descriptor.observer_joint_specs
         joints: list[dict[str, object]] = []
-        try:
-            from symbiont_lab.physics3d.humanoid import JOINT_SPECS
-        except ImportError:
-            JOINT_SPECS = ()
 
         raw_joints = physical_state.get("joints", ())
         if isinstance(raw_joints, (list, tuple)):
@@ -71,8 +80,8 @@ class Physics3DObservationBridge:
                 except (TypeError, ValueError):
                     continue
                 name = (
-                    JOINT_SPECS[index].name
-                    if 0 <= index < len(JOINT_SPECS)
+                    joint_specs[index].name
+                    if 0 <= index < len(joint_specs)
                     else f"joint_{index}"
                 )
                 try:
@@ -111,6 +120,7 @@ class Physics3DObservationBridge:
         event: dict[str, Any] = {
             "type": "body_pose",
             "source": "physics3d",
+            "body_kind": descriptor.body_kind,
             "tick": int(tick),
             "substep_index": int(substep_index),
             "physics_step": int(physics_step),
@@ -143,11 +153,9 @@ class Physics3DObservationBridge:
         else:
             raise TypeError("Physics3D snapshot must be a dataclass or mapping")
 
+        descriptor = _body_descriptor_for_state(physical_state)
+        joint_specs = descriptor.observer_joint_specs
         joints: list[dict[str, object]] = []
-        try:
-            from symbiont_lab.physics3d.humanoid import JOINT_SPECS
-        except ImportError:
-            JOINT_SPECS = ()
 
         raw_joints = physical_state.get("joints", ())
         if isinstance(raw_joints, (list, tuple)):
@@ -159,8 +167,8 @@ class Physics3DObservationBridge:
                 except (TypeError, ValueError):
                     continue
                 joint: dict[str, object] = {}
-                if 0 <= index < len(JOINT_SPECS):
-                    joint["name"] = JOINT_SPECS[index].name
+                if 0 <= index < len(joint_specs):
+                    joint["name"] = joint_specs[index].name
                 else:
                     joint["name"] = f"joint_{index}"
                 if item.get("position") is not None:
@@ -200,6 +208,7 @@ class Physics3DObservationBridge:
         projected = {
             **record,
             "source": "physics3d",
+            "body_kind": descriptor.body_kind,
             "joints": joints,
             "links": links,
         }

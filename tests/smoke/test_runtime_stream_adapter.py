@@ -294,6 +294,33 @@ def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
     assert payload["base_position"] == [1.0, 2.0, 0.9]
 
 
+def test_physics3d_bridge_projects_active_morphology_without_humanoid_names() -> None:
+    stream = ObservationBus()
+    bridge = Physics3DObservationBridge(stream)
+    queue = stream.subscribe()
+
+    bridge.publish_pose_frame(
+        physical_state={
+            "body_kind": "crawler-v1",
+            "base_position": [0.0, 0.0, 0.4],
+            "base_orientation": [0.0, 0.0, 0.0, 1.0],
+            "joints": [{"joint_index": 0, "position": 0.2}],
+            "links": [],
+        },
+        tick=2,
+        substep_index=1,
+        physics_step=2,
+        simulation_time_s=2.0 / 240.0,
+        tick_simulation_span_s=10.0 / 240.0,
+    )
+
+    payload = json.loads(queue.get_nowait())
+    assert payload["body_kind"] == "crawler-v1"
+    assert payload["joints"] == [
+        {"name": "front_left_hip_yaw", "position": 0.2}
+    ]
+
+
 def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
     stream = ObservationBus()
     bridge = Physics3DObservationBridge(stream)
@@ -1375,3 +1402,17 @@ def test_physicalized_3d_zoom_is_continuous_and_scene_relative() -> None:
     assert "sceneRadius: graph.sceneRadius3d" in asset
     assert "graph.sceneRadius3d = scene.metrics.occupiedRadius" in asset
     assert "zoomCamera(graph.camera3d, ev.deltaY" in asset
+
+
+
+def test_body_viewer_selects_observer_model_by_body_kind() -> None:
+    body = "\n".join([
+        (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8"),
+        (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8"),
+    ])
+    assert "BodyViewer" in body
+    assert "bodyModelFromCatalog" in body
+    assert "observer_model" in body
+    assert "ensureBodyModel(data.body_kind)" in body
+    assert "this.bodyModel.joints" in body
+    assert "rebuildSkeleton" in body

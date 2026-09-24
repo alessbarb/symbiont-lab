@@ -1,17 +1,17 @@
 /**
  * Body view entrypoint.
  *
- * Humanoid rendering lives in ./body/viewer.js.
+ * Morphology-neutral rendering lives in ./body/viewer.js.
  */
-import { HumanoidViewer } from './body/viewer.js';
+import { BodyViewer, HumanoidViewer } from './body/viewer.js';
 
-export { HumanoidViewer };
+export { BodyViewer, HumanoidViewer };
 
 let globalInstance = null;
 
 export function mount(root) {
   if (globalInstance) unmount();
-  globalInstance = new HumanoidViewer(root);
+  globalInstance = new BodyViewer(root);
   return globalInstance;
 }
 
