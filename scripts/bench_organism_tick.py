@@ -52,7 +52,6 @@ def make_organism(organism_id: str, genome) -> OrganismRuntime:
             8,
             physical_contract="benchmark-body-v2",
         ),
-        motor_exploration_mode="babbling",
         bootstrap_semantic_senses=True,
         discover_senses=False,
         min_samples=1,
