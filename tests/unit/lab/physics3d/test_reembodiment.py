@@ -154,7 +154,7 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     transformed = prepare_fresh_embodiment_checkpoint(
         previous,
         _fresh(),
-        contract=EmbodimentContract("anthropomorphic-v4", 107, 62),
+        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
     )
 
     assert transformed["organism_id"] == "symbiont:persistent"
@@ -256,7 +256,7 @@ def test_stopping_marks_symbiont_dormant_without_changing_body_death_state() -> 
     payload = deepcopy(_checkpoint(vital_state="active"))
     updated = update_lifecycle_for_checkpoint(
         payload,
-        contract=EmbodimentContract("anthropomorphic-v4", 107, 62),
+        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
         state="dormant",
     )
     assert updated["living_body"]["vital_state"] == "active"
@@ -369,7 +369,7 @@ def test_dead_checkpoint_closes_epoch_summary_and_archives_memory() -> None:
 
     updated = update_lifecycle_for_checkpoint(
         payload,
-        contract=EmbodimentContract("anthropomorphic-v4", 107, 62),
+        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
         state="dormant",
         metrics={
             "absorbed_material_total": 12.0,
