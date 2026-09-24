@@ -568,6 +568,66 @@ class SensorimotorLearner:
             ),
         )
 
+    def constrain_intents(
+        self,
+        intents: Sequence[MotorIntent],
+    ) -> tuple[MotorIntent, ...]:
+        """Enforce apparatus-declared opaque mutual exclusion.
+
+        The constraint carries no anatomy or preferred direction.  If several
+        channels from one physical motor unit are requested concurrently, only
+        the strongest request survives; ties are resolved by opaque id.
+        """
+        if not intents or not self._exclusive_actuator_groups:
+            return tuple(intents)
+
+        by_id = {intent.actuator_id: intent for intent in intents}
+        suppressed: set[str] = set()
+        for group in self._exclusive_actuator_groups:
+            requested = [
+                by_id[actuator_id]
+                for actuator_id in group
+                if actuator_id in by_id
+            ]
+            if len(requested) <= 1:
+                continue
+            winner = min(
+                requested,
+                key=lambda intent: (
+                    -float(intent.activation),
+                    intent.actuator_id,
+                ),
+            )
+            suppressed.update(
+                intent.actuator_id
+                for intent in requested
+                if intent.actuator_id != winner.actuator_id
+            )
+        return tuple(
+            intent
+            for intent in intents
+            if intent.actuator_id not in suppressed
+        )
+
+    def _pattern_respects_exclusive_groups(
+        self,
+        pattern: MotorPattern,
+    ) -> bool:
+        active = {actuator_id for actuator_id, level in pattern if level > 0}
+        return all(
+            sum(actuator_id in active for actuator_id in group) <= 1
+            for group in self._exclusive_actuator_groups
+        )
+
+    def _sequence_respects_exclusive_groups(
+        self,
+        sequence: MotorSequence,
+    ) -> bool:
+        return all(
+            self._pattern_respects_exclusive_groups(pattern)
+            for pattern in sequence
+        )
+
     @property
     def babbling_coverage(self) -> float:
         used = sum(1 for count in self._use_counts.values() if count > 0)
@@ -1325,15 +1385,10 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         organism_id: str,
     ) -> "SensorimotorLearner":
-        # WARN(fail-closed): v7 and v8 are restorable. Pre-L6 schemas (1-4)
-        # could carry the removed scheduled-verification/investigation
-        # apparatus (verification_count, investigation_id,
-        # last_verification_epoch, replay_source=="verification") — there is
-        # no decontaminated equivalent to migrate that state into, and
-        # remapping a "verification" replay onto "cognition" would rewrite
-        # the organism's own history (an experimentally-forced action would
-        # appear, after restore, as if cognition had chosen it). Fail closed
-        # instead, exactly like the v8->v9 ActionKind removal.
+        # WARN(fail-closed): v9 changes both the physical motor-unit contract
+        # and the statistics used to decide recurrence/controllability.  Older
+        # learned evidence cannot be reinterpreted without rewriting causal
+        # history, so only the current schema is restorable.
         schema = _require_int(
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
@@ -1467,6 +1522,10 @@ class SensorimotorLearner:
                     )
                 except ValueError:
                     continue
+                if not learner._sequence_respects_exclusive_groups(sequence):
+                    raise ValueError(
+                        "sensorimotor sequence violates exclusive actuator groups"
+                    )
                 raw_stat = item.get("stat", {})
                 if isinstance(raw_stat, Mapping):
                     learner._primitive_stats[sequence] = _RunningStat.restore(
