@@ -148,6 +148,18 @@ export function buildMindLayout(root, {
   const cognitionSummary = el('div', 'mind-cognition-summary');
   cognitionSummary.id = 'mind-cognition-summary';
 
+  const cognitionLiveFocus = el('aside', 'mind-cognition-live-focus');
+  cognitionLiveFocus.id = 'mind-cognition-live-focus';
+  cognitionLiveFocus.setAttribute('aria-label', 'Current cognitive activity focus');
+
+  const cognitionEventStream = el('aside', 'mind-cognition-event-stream');
+  cognitionEventStream.id = 'mind-cognition-event-stream';
+  cognitionEventStream.setAttribute('aria-label', 'Recent cognitive events');
+
+  const cognitionLiveTimeline = el('div', 'mind-cognition-live-timeline');
+  cognitionLiveTimeline.id = 'mind-cognition-live-timeline';
+  cognitionLiveTimeline.setAttribute('aria-label', 'Recent live cognitive activity');
+
   const cognitionModeControls = el('div', 'mind-cognition-mode-controls');
   const viewModeGroup = el('div', 'mind-cognition-view-modes');
   const activeViewMode = graphDimension === '3d' && graph3DMode === 'physicalized'
@@ -224,8 +236,11 @@ export function buildMindLayout(root, {
   cognitionWrap.append(
     cognitionCanvas,
     cognitionSummary,
+    cognitionLiveFocus,
+    cognitionEventStream,
     cognitionModeControls,
     atlasTimeline,
+    cognitionLiveTimeline,
     cognition3DNote,
     cognitionControls,
   );
