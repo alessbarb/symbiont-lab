@@ -1253,11 +1253,45 @@ class OrganismRuntime:
         if self._sensorimotor_learner is not None and intents:
             intents = self._sensorimotor_learner.constrain_intents(intents)
             surviving_ids = {intent.actuator_id for intent in intents}
+            cognitive_ids = {
+                intent.actuator_id for intent in cognitive_intents
+            }
+
+            # Direct actuator-effect probes are valid only when the surviving
+            # command is genuinely developmental.  If cognition requested the
+            # same opaque actuator, the resulting bodily consequence cannot be
+            # attributed to babbling even though the physical channel matches.
             pending = [
                 item
                 for item in pending
-                if item[0] in surviving_ids
+                if (
+                    item[0] in surviving_ids
+                    and item[0] not in cognitive_ids
+                )
             ]
+
+            # Origin telemetry must describe the command that will actually be
+            # executed after opaque motor-unit arbitration, not the requests
+            # that existed before mutually-exclusive channels were resolved.
+            if self._last_motor_origin in {"mixed", "cognition", "babbling"}:
+                surviving_cognitive = any(
+                    intent.actuator_id in cognitive_ids for intent in intents
+                )
+                surviving_developmental = any(
+                    intent.actuator_id not in cognitive_ids for intent in intents
+                )
+                if surviving_cognitive and surviving_developmental:
+                    self._last_motor_origin = "mixed"
+                    self._last_motor_origin_detail = "mixed"
+                elif surviving_cognitive:
+                    self._last_motor_origin = "cognition"
+                    self._last_motor_origin_detail = "cognition"
+                elif surviving_developmental:
+                    self._last_motor_origin = "babbling"
+                    self._last_motor_origin_detail = "babbling"
+                else:
+                    self._last_motor_origin = "none"
+                    self._last_motor_origin_detail = "none"
 
         activity_scale = self._homeostasis.activity_scale
         if activity_scale < 1.0:
