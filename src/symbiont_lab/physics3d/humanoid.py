@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import cast
 
 
-BODY_KIND = "anthropomorphic-v4"
-BODY_STATE_SCHEMA_VERSION = 4
+BODY_KIND = "anthropomorphic-v5"
+BODY_STATE_SCHEMA_VERSION = 5
 JOINT_LIMIT_SOLVER_TOLERANCE = math.radians(0.5)
 MECHANICAL_LIMIT_GUARD = math.radians(2.0)
 PHYSICS_SOLVER_ITERATIONS = 120
@@ -162,7 +162,7 @@ JOINT_SPECS: tuple[JointSpec, ...] = (
     JointSpec("right_ankle_roll", (0.0, 1.0, 0.0), _deg(-15), _deg(15), 10.0, 1.6, 5.0),
 )
 if len(JOINT_SPECS) != MOTOR_DOF:
-    raise RuntimeError("anthropomorphic-v4 must expose exactly 31 motor DoF")
+    raise RuntimeError("anthropomorphic-v5 must expose exactly 31 motor DoF")
 
 JOINT_LIMITS: dict[int, JointLimit] = {
     ordinal: JointLimit(spec.lower, spec.upper)
@@ -349,7 +349,7 @@ def build_anthropomorphic_urdf() -> str:
         )
     return (
         "<?xml version=\"1.0\"?>\n"
-        "<robot name=\"symbiont_anthropomorphic_v4\">"
+        "<robot name=\"symbiont_anthropomorphic_v5\">"
         + "".join(link_xml)
         + "".join(joint_xml)
         + "\n</robot>\n"
@@ -482,7 +482,7 @@ class HumanoidPhysics:
         with tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".urdf",
-            prefix="symbiont-anthropomorphic-v4-",
+            prefix="symbiont-anthropomorphic-v5-",
             encoding="utf-8",
             delete=False,
         ) as handle:
@@ -504,7 +504,7 @@ class HumanoidPhysics:
         finally:
             Path(urdf_path).unlink(missing_ok=True)
         if int(body_id) < 0:
-            raise RuntimeError("failed to load anthropomorphic-v4 URDF")
+            raise RuntimeError("failed to load anthropomorphic-v5 URDF")
         return int(body_id)
 
     @staticmethod
@@ -518,7 +518,7 @@ class HumanoidPhysics:
         joint_count = int(p.getNumJoints(self.body_id, physicsClientId=self.client_id))
         if joint_count != MOTOR_DOF:
             raise RuntimeError(
-                f"anthropomorphic-v4 loaded {joint_count} joints, expected {MOTOR_DOF}"
+                f"anthropomorphic-v5 loaded {joint_count} joints, expected {MOTOR_DOF}"
             )
 
         index_by_joint_name: dict[str, int] = {}
@@ -545,7 +545,7 @@ class HumanoidPhysics:
         # WARN(fail-closed): contract. Fail closed if Bullet ever reorders our generated tree.
         if self.motor_joint_indices != tuple(range(MOTOR_DOF)):
             raise RuntimeError(
-                "Bullet reordered anthropomorphic-v4 joints; opaque ordinal contract unsafe"
+                "Bullet reordered anthropomorphic-v5 joints; opaque ordinal contract unsafe"
             )
 
         self._joint_ordinal_by_index = {
@@ -558,7 +558,7 @@ class HumanoidPhysics:
             *(index_by_link_name[name] for name in CONTACT_LINK_NAMES),
         )
         if len(self._contact_links) != SOMATIC_REGION_COUNT:
-            raise RuntimeError("anthropomorphic-v4 somatic surface is incomplete")
+            raise RuntimeError("anthropomorphic-v5 somatic surface is incomplete")
 
         self._direct_pairs = {
             tuple(sorted((parent_by_index[index], index)))
