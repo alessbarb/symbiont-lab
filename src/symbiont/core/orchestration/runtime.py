@@ -2109,7 +2109,7 @@ class OrganismRuntime:
         return self._living_body_state
 
     def register_embodied_work(self, amount: float) -> None:
-        """Queue a bounded scalar physical-work cost for the next physiology tick.
+        """Queue a scalar physical-work cost for the next physiology tick.
 
         The apparatus may report measured physical work, but it may not choose
         an internal resource compartment or attach anatomical/action semantics.
@@ -2123,10 +2123,10 @@ class OrganismRuntime:
             or amount < 0.0
         ):
             raise ValueError("embodied work must be finite and non-negative")
-        self._pending_embodied_work = min(
-            0.25,
-            self._pending_embodied_work + float(amount),
-        )
+        accumulated = self._pending_embodied_work + float(amount)
+        if not math.isfinite(accumulated):
+            raise ValueError("embodied work accumulation overflowed")
+        self._pending_embodied_work = accumulated
 
     def absorb_metabolic_energy(self, amount: float) -> float:
         """Absorb anonymous physical energy into the one conserved body pool."""
@@ -3750,7 +3750,7 @@ class OrganismRuntime:
             isinstance(raw_embodied_work, bool)
             or not isinstance(raw_embodied_work, (int, float))
             or not math.isfinite(float(raw_embodied_work))
-            or not 0.0 <= float(raw_embodied_work) <= 0.25
+            or float(raw_embodied_work) < 0.0
         ):
             raise CheckpointError("invalid pending_embodied_work checkpoint")
         runtime._pending_embodied_work = float(raw_embodied_work)
