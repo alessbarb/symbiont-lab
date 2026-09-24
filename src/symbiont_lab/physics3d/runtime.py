@@ -17,6 +17,7 @@ from typing import Mapping, Any
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import LivingBodyState, VitalState
 from symbiont.cognition.limits import KernelLimits
+from symbiont.cognition.birth import load_actuator_constitution
 from symbiont.actuation.sensorimotor import SensorimotorLearner
 from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
@@ -363,6 +364,17 @@ class PyBulletEmbodimentRuntime:
                 energy_reserve=physical_energy_capacity,
                 max_energy=physical_energy_capacity,
             )
+            actuator_constitution = load_actuator_constitution(genome)
+            actuator_ids = actuator_constitution.actuator_ids
+            if len(actuator_ids) != len(self.apparatus.effector_ids):
+                raise RuntimeError(
+                    "Physics3D motor constitution does not match physical effector surface"
+                )
+            exclusive_groups = tuple(
+                (actuator_ids[index], actuator_ids[index + 1])
+                for index in range(0, len(actuator_ids), 2)
+            )
+
             return PrivateModelOrganismRuntime(
                 organism_id=subject_id,
                 host_lifecycle=host_lifecycle,
@@ -388,13 +400,10 @@ class PyBulletEmbodimentRuntime:
                 actuation_enabled=True,
                 motor_exploration_mode="babbling",
                 sensorimotor_learner=SensorimotorLearner(
-                    tuple(self.apparatus.effector_ids),
+                    actuator_ids,
                     organism_id=subject_id,
                     max_concurrent=None,
-                    exclusive_actuator_groups=tuple(
-                        (binding.positive_port, binding.negative_port)
-                        for binding in self.apparatus.motor_bindings
-                    ),
+                    exclusive_actuator_groups=exclusive_groups,
                 ),
             )
 
