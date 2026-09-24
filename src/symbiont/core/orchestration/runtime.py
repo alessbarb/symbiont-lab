@@ -1250,6 +1250,9 @@ class OrganismRuntime:
                 self._last_motor_origin = "spontaneous"
                 self._last_motor_origin_detail = "spontaneous"
 
+        if self._sensorimotor_learner is not None and intents:
+            intents = self._sensorimotor_learner.constrain_intents(intents)
+
         activity_scale = self._homeostasis.activity_scale
         if activity_scale < 1.0:
             intents = tuple(
