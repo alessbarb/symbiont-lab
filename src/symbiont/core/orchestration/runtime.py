@@ -674,8 +674,7 @@ class OrganismRuntime:
         self._last_actuation: Actuation | None = None
         self._last_motor_intents: tuple[MotorIntent, ...] = ()
         self._last_actuations: tuple[Actuation, ...] = ()
-        self._last_motor_origin = "none"
-        self._last_motor_origin_detail = "none"
+        self._last_action_source = "none"
         self._last_executed_primitive_id: str | None = None
         self._last_action_proposal: ActionProposal | None = None
         self._active_action_commitment: ActionCommitment | None = None
@@ -1030,19 +1029,11 @@ class OrganismRuntime:
         signal_references: dict[str, str],
         tick: int,
     ) -> str | None:
-        """Hook for model-based prospective primitive selection.
+        """Hook for model-based prospective competence selection.
 
-        Base implementation always returns ``None``, preserving the existing
-        cognitive-readout and exploration behaviour unchanged. Subclasses that
-        have a private model may override this to consult ``ProspectiveAgency``
-        and return a primitive ID to activate.
-
-        Invariants enforced by callers:
-        - Returned ID must be a string or None.
-        - If returned, it will be passed to ``activate_primitive()``; that call
-          is authoritative — a rejected ID falls back to the existing path.
-        - This method must not execute motors, record experience, or import
-          from symbiont_lab/evaluator.
+        The base runtime abstains. Model-enabled runtimes may return an opaque
+        competence id, but this hook never executes a controller or emits a
+        MotorCommand; the universal ActionArbitrator remains authoritative.
         """
         return None
 
@@ -1209,8 +1200,7 @@ class OrganismRuntime:
         ):
             return
 
-        self._last_motor_origin = "none"
-        self._last_motor_origin_detail = "none"
+        self._last_action_source = "none"
         intents: tuple[MotorIntent, ...] = ()
         pending: list[tuple[str, float, dict[str, float] | None]] = []
         primitive_selected_now = False
@@ -1419,8 +1409,7 @@ class OrganismRuntime:
             else:
                 intents = self._sensorimotor_learner.motor_intents(tick)
 
-            self._last_motor_origin = selected.source.value
-            self._last_motor_origin_detail = selected.source.value
+            self._last_action_source = selected.source.value
 
         elif decision.keep_current and self._active_action_commitment is not None:
             source_value = "competence" if self._active_action_commitment.competence_id else "exploration"
@@ -1434,10 +1423,9 @@ class OrganismRuntime:
                     )
             else:
                 intents = self._sensorimotor_learner.motor_intents(tick)
-            self._last_motor_origin = source_value
-            self._last_motor_origin_detail = source_value
+            self._last_action_source = source_value
 
-        if self._last_motor_origin == "exploration" and len(intents) == 1:
+        if self._last_action_source == "exploration" and len(intents) == 1:
             isolated = intents[0]
             pending.append(
                 (
@@ -1604,14 +1592,9 @@ class OrganismRuntime:
 
 
     @property
-    def last_motor_origin(self) -> str:
-        """Evaluator-only provenance of the latest motor intent."""
-        return self._last_motor_origin
-
-    @property
-    def last_motor_origin_detail(self) -> str:
-        """Evaluator-only detailed provenance for learned primitive execution."""
-        return self._last_motor_origin_detail
+    def last_action_source(self) -> str:
+        """Passive provenance of the current organism-owned action commitment."""
+        return self._last_action_source
 
     @property
     def narrative_journal(self) -> tuple[dict[str, Any], ...]:
