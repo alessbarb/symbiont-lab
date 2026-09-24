@@ -132,6 +132,7 @@ export const graph = {
   detailVisibleIds: new Set(),
   regionLinks: [],
   learningFrontierClusters: [],
+  previousFrontierClusters: [],
   cognitiveSituation: null,
   flowTraceEnabled: false,
   autoFramePending: true,
@@ -199,6 +200,7 @@ export function resetMindDataState() {
   graph.detailVisibleIds.clear();
   graph.regionLinks = [];
   graph.learningFrontierClusters = [];
+  graph.previousFrontierClusters = [];
   graph.cognitiveSituation = null;
   graph.flowTraceEnabled = false;
   graph.autoFramePending = true;
