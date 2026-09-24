@@ -270,6 +270,53 @@ def actuator_to_effector_map(
     }
 
 
+def actuator_exclusion_groups(
+    constitution: ActuatorConstitution,
+    apparatus: Any,
+) -> tuple[tuple[str, str], ...]:
+    """Project apparatus mutual exclusion into organism-owned opaque ids.
+
+    The apparatus may know which physical ports are opposite directions of one
+    degree of freedom.  The returned contract exposes only opaque actuator ids,
+    never joint names, axes, signs or anatomy.
+    """
+    actuator_ids = constitution.actuator_ids
+    effector_ids = tuple(str(value) for value in apparatus.effector_ids)
+    if len(actuator_ids) != len(effector_ids):
+        raise ValueError(
+            "physical body effector surface must exactly match motor constitution"
+        )
+    effector_index = {
+        effector_id: index
+        for index, effector_id in enumerate(effector_ids)
+    }
+    groups: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for binding in apparatus.motor_bindings:
+        positive = str(binding.positive_port)
+        negative = str(binding.negative_port)
+        if positive not in effector_index or negative not in effector_index:
+            raise ValueError(
+                "physical motor binding references unknown effector port"
+            )
+        group = (
+            actuator_ids[effector_index[positive]],
+            actuator_ids[effector_index[negative]],
+        )
+        if group[0] == group[1] or seen.intersection(group):
+            raise ValueError(
+                "physical motor bindings must define disjoint directional pairs"
+            )
+        seen.update(group)
+        groups.append(group)
+
+    if seen != set(actuator_ids):
+        raise ValueError(
+            "physical motor bindings must cover the complete actuator constitution"
+        )
+    return tuple(groups)
+
+
 def body_schema_summary(runtime) -> dict[str, float | int]:
     """Return evaluator-only BodySchema structure without exposing opaque IDs."""
     representation = runtime.body_schema.export_representation(
@@ -302,6 +349,7 @@ __all__ = [
     "PhysicsDiscoveryProvider",
     "PhysicsReadingProvider",
     "actuator_to_effector_map",
+    "actuator_exclusion_groups",
     "body_schema_summary",
     "physics3d_cognition",
     "physics3d_sensory_system",
