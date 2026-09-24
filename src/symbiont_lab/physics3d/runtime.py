@@ -60,6 +60,8 @@ class Tick3D:
     schema_dependency_evidence: int
     schema_dependencies: int
     embodiment_epoch: int
+    body_age_ticks: int
+    body_senescence: float
     reacclimation_remaining: int
     reacclimating: bool
     predictor_count: int
@@ -444,6 +446,25 @@ class PyBulletEmbodimentRuntime:
             )
             self._embodiment_contract = contract
 
+        current_lifecycle = (
+            self._embodiment_lifecycle.get("current")
+            if isinstance(self._embodiment_lifecycle, Mapping)
+            else None
+        )
+        raw_epoch_metrics = (
+            current_lifecycle.get("metrics")
+            if isinstance(current_lifecycle, Mapping)
+            else None
+        )
+        raw_epoch_metrics = raw_epoch_metrics if isinstance(raw_epoch_metrics, Mapping) else {}
+        self._epoch_metrics: dict[str, Any] = {
+            "absorbed_material_total": float(raw_epoch_metrics.get("absorbed_material_total") or 0.0),
+            "mechanical_work_total": float(raw_epoch_metrics.get("mechanical_work_total") or 0.0),
+            "physiological_cost_total": float(raw_epoch_metrics.get("physiological_cost_total") or 0.0),
+            "reacclimation_ticks_consumed": int(raw_epoch_metrics.get("reacclimation_ticks_consumed") or 0),
+            "reacclimation_completed": bool(raw_epoch_metrics.get("reacclimation_completed", False)),
+            "vital_state_ticks": dict(raw_epoch_metrics.get("vital_state_ticks") or {}),
+        }
         self._last_physical_tick = self.tick_count
         self._telemetry_seen_experience_ids = {
             str(record.record_id)
@@ -588,6 +609,7 @@ class PyBulletEmbodimentRuntime:
             payload,
             contract=self._embodiment_contract,
             state=lifecycle_state,
+            metrics=self._epoch_metrics,
         )
         self._embodiment_lifecycle = deepcopy(payload["embodiment_lifecycle"])
         return payload
@@ -1212,6 +1234,33 @@ class PyBulletEmbodimentRuntime:
                 "actuator_evidence": actuator_evidence,
             }
 
+        self._epoch_metrics["absorbed_material_total"] = float(
+            self._epoch_metrics.get("absorbed_material_total", 0.0)
+        ) + float(absorbed_energy)
+        self._epoch_metrics["mechanical_work_total"] = float(
+            self._epoch_metrics.get("mechanical_work_total", 0.0)
+        ) + float(mechanical_work_joules)
+        self._epoch_metrics["physiological_cost_total"] = float(
+            self._epoch_metrics.get("physiological_cost_total", 0.0)
+        ) + float(metabolic_work_cost)
+        if self.organism.reacclimation_remaining > 0:
+            self._epoch_metrics["reacclimation_ticks_consumed"] = int(
+                self._epoch_metrics.get("reacclimation_ticks_consumed", 0)
+            ) + 1
+        else:
+            self._epoch_metrics["reacclimation_completed"] = True
+        state_name = str(
+            getattr(
+                getattr(result, "physiology", None),
+                "state",
+                "unknown",
+            ).value
+            if getattr(getattr(result, "physiology", None), "state", None) is not None
+            else "unknown"
+        )
+        vital_counts = self._epoch_metrics.setdefault("vital_state_ticks", {})
+        if isinstance(vital_counts, dict):
+            vital_counts[state_name] = int(vital_counts.get(state_name, 0)) + 1
         physiology_state = getattr(result, "physiology", None)
         prospective_decision = self.organism.last_prospective_decision
         prospective_reason = (
@@ -1444,6 +1493,8 @@ class PyBulletEmbodimentRuntime:
             schema_dependency_evidence=int(schema["dependency_evidence"]),
             schema_dependencies=int(schema["dependencies"]),
             embodiment_epoch=self.embodiment_epoch,
+            body_age_ticks=int(self.organism.living_body_state.age_ticks),
+            body_senescence=float(self.organism.living_body_state.senescence),
             reacclimation_remaining=int(self.organism.reacclimation_remaining),
             reacclimating=bool(self.organism.reacclimation_remaining > 0),
             predictor_count=predictor_count,
