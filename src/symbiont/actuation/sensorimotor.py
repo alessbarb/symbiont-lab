@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Mapping, Sequence
 
 from .types import MotorIntent
+from .competence import CompetenceEvidence, CompetenceMaturity
 
 
 _HORIZONS = (1, 4, 16, 64)
@@ -200,22 +201,32 @@ class MotorPrimitive:
         return len(self.sequence)
 
     @property
-    def is_competence(self) -> bool:
-        """Whether repeated evidence supports cognitive reuse.
-
-        This is deliberately semantic-free: competence means that invoking the
-        opaque motor chunk has produced a reproducible residual body-state
-        transition. It says nothing about locomotion, anatomy or utility.
-        Evidence accumulates only from naturally occurring recurrences of
-        this pattern (organic exploration or later cognitive reuse) — nothing
-        schedules a retest to manufacture samples faster.
-        """
-        return (
-            self.samples >= 2
-            and self.controllability > 0.002
-            and self.effect_variance <= 0.02
-            and self.directional_consistency >= 0.60
+    def competence_evidence(self) -> CompetenceEvidence:
+        reproducibility = 1.0 / (1.0 + 25.0 * max(0.0, self.effect_variance))
+        return CompetenceEvidence(
+            controller_seed_ref=self.primitive_id,
+            support=self.samples,
+            failures=0,
+            reproducibility=reproducibility,
+            controllability=self.controllability,
+            directional_consistency=self.directional_consistency,
         )
+
+    @property
+    def maturity(self) -> CompetenceMaturity:
+        return self.competence_evidence.maturity
+
+    @property
+    def established(self) -> bool:
+        return self.maturity in {
+            CompetenceMaturity.ESTABLISHED,
+            CompetenceMaturity.ROBUST,
+        }
+
+    @property
+    def is_competence(self) -> bool:
+        """Legacy observation alias; v2 control uses evidence-derived maturity."""
+        return self.established
 
     def intents_at(self, step: int) -> tuple[MotorIntent, ...]:
         if not 0 <= step < len(self.sequence):
@@ -476,7 +487,7 @@ class SensorimotorLearner:
         retained = sorted(
             self._primitives.values(),
             key=lambda item: (
-                -int(item.is_competence),
+                -int(item.established),
                 -item.controllability,
                 -item.directional_consistency,
                 -item.samples,
@@ -517,7 +528,7 @@ class SensorimotorLearner:
     def cognitive_primitives(self) -> tuple[MotorPrimitive, ...]:
         """Return every currently supported motor competence.
 
-        Cognitive availability is evidence-gated by ``is_competence`` but is
+        Cognitive availability is evidence-gated by evidence-derived maturity but is
         not arbitrarily truncated. The finite primitive pool remains the
         resource bound; structural contention separately limits what can enter
         the cognitive graph.
@@ -526,7 +537,7 @@ class SensorimotorLearner:
             eligible = [
                 primitive
                 for primitive in self.primitives
-                if primitive.is_competence
+                if primitive.established
             ]
             self._cognitive_primitives_cache = tuple(
                 sorted(
@@ -1085,7 +1096,7 @@ class SensorimotorLearner:
         retained_primitive = self._primitives.get(primitive_id)
         competence = bool(
             retained_primitive is not None
-            and retained_primitive.is_competence
+            and retained_primitive.established
         )
         self._publish_primitive_episode(
             primitive_id=primitive_id,
@@ -1700,7 +1711,7 @@ class SensorimotorLearner:
                 ):
                     raise ValueError("motor primitive lacks recurrent supporting evidence")
                 if (
-                    primitive.is_competence
+                    primitive.established
                     and primitive.sequence not in learner._primitive_competence_tick
                 ):
                     raise ValueError("motor competence lacks competence chronology")
@@ -1806,12 +1817,12 @@ class SensorimotorLearner:
         runtime for activation. The motor sequence is never exposed here.
         """
         primitive = self._primitives.get(str(primitive_id))
-        return primitive is not None and primitive.is_competence
+        return primitive is not None and primitive.established
 
     def available_cognitive_primitive_ids(self) -> tuple[str, ...]:
         """Return the ordered set of currently available cognitive primitive IDs.
 
-        Only primitives that satisfy ``is_competence`` are included. Order is
+        Only primitives that satisfy evidence-derived maturity are included. Order is
         deterministic (sorted by primitive_id). The motor sequence of each
         primitive is intentionally withheld — agency selects by opaque ID and
         the runtime activates via ``activate_primitive()``.
