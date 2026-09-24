@@ -672,11 +672,6 @@ class SensorimotorLearner:
         used = sum(1 for count in self._use_counts.values() if count > 0)
         return used / len(self._use_counts)
 
-    @property
-    def babbling_coverage(self) -> float:
-        """Legacy telemetry alias; never used for control."""
-        return self.exploration_coverage
-
     def primitive_intents(self, primitive_id: str) -> tuple[MotorIntent, ...]:
         primitive = self._primitives.get(str(primitive_id))
         if primitive is None or primitive not in self.cognitive_primitives:
