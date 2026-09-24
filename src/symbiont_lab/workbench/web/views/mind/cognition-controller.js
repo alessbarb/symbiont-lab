@@ -1373,12 +1373,10 @@ export function createCognitionController({
     const note = document.getElementById('mind-cognition-3d-note');
     if (note) {
       if (graph.dimension === '3d') {
-        const physicalized = graph.threeDMode === 'physicalized';
-        note.textContent = physicalized
-          ? `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`
-          : `RELATIONAL 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · ◇ primitive · ○ readout · no anatomical coordinates`;
+        note.textContent =
+          `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`;
       } else {
-        note.textContent = '2D observer cartography';
+        note.textContent = 'RELATIONAL · 2D observer cartography';
       }
     }
 
