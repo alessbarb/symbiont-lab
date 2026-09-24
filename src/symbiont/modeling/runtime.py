@@ -1557,7 +1557,11 @@ class ModeledOrganismRuntime(OrganismRuntime):
 
         if self._social_habitat is not None:
             child.join_social_habitat(self._social_habitat)
-        if child.model_registry.records or child.experience_ledger.records:
+        if (
+            child.model_registry.records
+            or child.experience_ledger.records
+            or child.experience_archive.records
+        ):
             raise RuntimeError("private model/corpus inheritance invariant violated")
         if child.symbol_grounding_ledger.exposures or child.symbol_grounding_ledger.associations:
             raise RuntimeError("symbol grounding inheritance invariant violated")
