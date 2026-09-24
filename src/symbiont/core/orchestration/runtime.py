@@ -92,7 +92,6 @@ from ...cognition.birth import load_base_graph
 from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
-from ...actuation.health import ActuatorState
 from ...actuation.proposer import ActuatorProposer
 from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.selector import MotorIntentSelector
@@ -284,7 +283,6 @@ class OrganismRuntime:
         actuation_enabled: bool = False,
         actuator_constitution: ActuatorConstitution | None = None,
         actuator_proposer: ActuatorProposer | None = None,
-        actuator_states: dict[str, ActuatorState] | None = None,
         motor_intent_selector: MotorIntentSelector | None = None,
         actuator_system: ActuatorSystem | None = None,
         sensorimotor_learner: SensorimotorLearner | None = None,
@@ -665,7 +663,6 @@ class OrganismRuntime:
         self._actuation_enabled = bool(actuation_enabled)
         self._actuator_constitution: ActuatorConstitution | None = None
         self._actuator_proposer: ActuatorProposer | None = None
-        self._actuator_states: dict[str, ActuatorState] = {}
         self._motor_intent_selector: MotorIntentSelector | None = None
         self._actuator_system: ActuatorSystem | None = None
         self._sensorimotor_learner: SensorimotorLearner | None = None
@@ -716,15 +713,6 @@ class OrganismRuntime:
                 if actuator_proposer is not None
                 else ActuatorProposer(actuator_constitution, organism_id=self._organism_id)
             )
-            expected_ids = set(actuator_constitution.actuator_ids)
-            if actuator_states is None:
-                self._actuator_states = {
-                    slot.actuator_id: ActuatorState.from_slot(slot) for slot in actuator_constitution.slots
-                }
-            else:
-                if set(actuator_states) != expected_ids:
-                    raise ValueError("actuator_states must exactly match ActuatorConstitution")
-                self._actuator_states = dict(actuator_states)
             self._motor_intent_selector = motor_intent_selector or MotorIntentSelector()
             self._actuator_system = actuator_system or ActuatorSystem()
             self._sensorimotor_learner = (
@@ -1452,28 +1440,24 @@ class OrganismRuntime:
 
         actuations: list[Actuation] = []
         proprioception: dict[str, float] = {}
-        total_cost = 0.0
+        if self._actuator_constitution is None:
+            raise RuntimeError("actuation enabled without actuator surface")
         for intent in intents:
-            state = self._actuator_states.get(intent.actuator_id)
-            if state is None:
-                raise ValueError(
-                    f"motor intent references unknown actuator {intent.actuator_id!r}"
-                )
-            actuation = self._actuator_system.execute(intent, state)
+            actuation = self._actuator_system.execute(
+                intent,
+                self._actuator_constitution,
+            )
             actuations.append(actuation)
-            total_cost += actuation.cost
             aid = actuation.actuator_id
             proprioception.update({
                 f"motor.requested_activation.{aid}": actuation.requested,
                 f"motor.delivered_activation.{aid}": actuation.delivered,
-                f"motor.load.{aid}": actuation.cost,
             })
 
         self._last_motor_intents = tuple(intents)
         self._last_actuations = tuple(actuations)
         self._last_motor_intent = self._last_motor_intents[0]
         self._last_actuation = self._last_actuations[0]
-        self._charge_metabolism("maintenance", total_cost)
         self._pending_proprioception = proprioception
 
         if self._last_motor_command is not None and self._active_action_commitment is not None:
@@ -3205,12 +3189,13 @@ class OrganismRuntime:
                     {
                         "slot_id": slot.slot_id,
                         "actuator_id": slot.actuator_id,
-                        "basal_cost": slot.basal_cost,
-                        "initial_health": slot.initial_health,
-                        "execution_threshold": slot.execution_threshold,
+                        "command_min": slot.command_min,
+                        "command_max": slot.command_max,
+                        "neutral": slot.neutral,
+                        "available": slot.available,
                     }
                     for slot in self._actuator_constitution.slots
-                ]
+                ],
             }
             pending_motor = [
                 {
@@ -3224,10 +3209,6 @@ class OrganismRuntime:
                 "enabled": True,
                 "constitution": constitution_payload,
                 "proposer": export_actuation_state(self._actuator_proposer),
-                "states": {
-                    actuator_id: state.to_payload()
-                    for actuator_id, state in sorted(self._actuator_states.items())
-                },
                 "selection_threshold": (
                     self._motor_intent_selector.selection_threshold
                     if self._motor_intent_selector is not None
@@ -3469,7 +3450,6 @@ class OrganismRuntime:
         actuation_enabled = False
         actuator_constitution = None
         actuator_proposer = None
-        actuator_states = None
         motor_intent_selector = None
         sensorimotor_learner = None
         pending_motor_observation = ()
@@ -3501,9 +3481,10 @@ class OrganismRuntime:
                         ActuatorChannel(
                             slot_id=str(item["slot_id"]),
                             actuator_id=str(item["actuator_id"]),
-                            basal_cost=float(item["basal_cost"]),
-                            initial_health=float(item["initial_health"]),
-                            execution_threshold=float(item["execution_threshold"]),
+                            command_min=float(item.get("command_min", 0.0)),
+                            command_max=float(item.get("command_max", 1.0)),
+                            neutral=float(item.get("neutral", 0.0)),
+                            available=bool(item.get("available", True)),
                         )
                         for item in raw_slots
                     )
@@ -3537,19 +3518,6 @@ class OrganismRuntime:
                     )
                 except (KeyError, TypeError, ValueError) as exc:
                     raise CheckpointError(f"invalid actuator proposer checkpoint: {exc}") from exc
-                raw_states = raw_actuation.get("states")
-                if not isinstance(raw_states, dict) or set(raw_states) != set(actuator_constitution.actuator_ids):
-                    raise CheckpointError("actuator states must exactly match constitution")
-                try:
-                    actuator_states = {
-                        actuator_id: ActuatorState.from_payload(raw_states[actuator_id])
-                        for actuator_id in actuator_constitution.actuator_ids
-                    }
-                except (KeyError, TypeError, ValueError) as exc:
-                    raise CheckpointError(f"invalid actuator state checkpoint: {exc}") from exc
-                for actuator_id, state in actuator_states.items():
-                    if state.actuator_id != actuator_id:
-                        raise CheckpointError("actuator state key/id mismatch")
                 try:
                     motor_intent_selector = MotorIntentSelector(
                         selection_threshold=raw_actuation.get("selection_threshold", 0.1)
@@ -3713,7 +3681,6 @@ class OrganismRuntime:
         constructor_kwargs.pop("actuation_enabled", None)
         constructor_kwargs.pop("actuator_constitution", None)
         constructor_kwargs.pop("actuator_proposer", None)
-        constructor_kwargs.pop("actuator_states", None)
         constructor_kwargs.pop("motor_intent_selector", None)
         constructor_kwargs.pop("actuator_system", None)
         constructor_kwargs.pop("sensorimotor_learner", None)
@@ -3772,7 +3739,6 @@ class OrganismRuntime:
             actuation_enabled=actuation_enabled,
             actuator_constitution=actuator_constitution,
             actuator_proposer=actuator_proposer,
-            actuator_states=actuator_states,
             motor_intent_selector=motor_intent_selector,
             sensorimotor_learner=sensorimotor_learner,
         )
