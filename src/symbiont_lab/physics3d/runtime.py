@@ -117,17 +117,15 @@ class Tick3D:
     absorbed_energy: float
     metabolic_reserve_ratio: float
     displacement_from_origin: float
-    motor_origin: str
-    motor_origin_detail: str
+    action_source: str
     initial_resource_distance: float
     minimum_resource_distance: float
     resource_progress: float
-    motor_origin_cognition: int
-    motor_origin_babbling: int
-    motor_origin_primitive: int
-    motor_origin_primitive_cognition: int
-    motor_origin_primitive_reactive: int
-    motor_origin_primitive_prospective: int
+    action_source_exploration: int
+    action_source_competence: int
+    action_source_protection: int
+    action_source_prospection: int
+    action_source_regulation: int
     prospective_reason: str | None
     prospective_candidates: int
     prospective_selected: bool
@@ -139,10 +137,7 @@ class Tick3D:
     prospective_value_samples: int
     prospective_decision_margin: float | None
     prospective_cost: float
-    motor_origin_mixed: int
-    motor_origin_spontaneous: int
-    motor_origin_probe: int
-    motor_origin_none: int
+    action_source_none: int
     motor_repertoire_size: int
     sensorimotor_coverage: float
     sensorimotor_patterns: int
@@ -305,27 +300,41 @@ class PyBulletEmbodimentRuntime:
             self._minimum_resource_distance = float(
                 evaluator_state.get("minimum_resource_distance", current_distance)
             )
-            raw_counts = evaluator_state.get("motor_origin_counts", {})
+            raw_counts = evaluator_state.get(
+                "action_source_counts",
+                evaluator_state.get("motor_origin_counts", {}),
+            )
             if not isinstance(raw_counts, Mapping):
                 raw_counts = {}
-            self._motor_origin_counts = {
-                key: int(raw_counts.get(key, 0))
-                for key in (
-                    "cognition", "babbling", "primitive", "mixed",
-                    "spontaneous", "probe", "none"
-                )
+            self._action_source_counts = {
+                "exploration": int(
+                    raw_counts.get("exploration", raw_counts.get("babbling", 0))
+                ),
+                "competence": int(
+                    raw_counts.get(
+                        "competence",
+                        int(raw_counts.get("cognition", 0))
+                        + int(raw_counts.get("primitive", 0)),
+                    )
+                ),
+                "protection": int(raw_counts.get("protection", 0)),
+                "prospection": int(raw_counts.get("prospection", 0)),
+                "regulation": int(raw_counts.get("regulation", 0)),
+                "none": int(raw_counts.get("none", 0)),
             }
         else:
             self._initial_resource_distance = current_distance
             self._minimum_resource_distance = current_distance
-            self._motor_origin_counts = {
-                "cognition": 0,
-                "babbling": 0,
-                "primitive": 0,
-                "mixed": 0,
-                "spontaneous": 0,
-                "probe": 0,
-                "none": 0,
+            self._action_source_counts = {
+                key: 0
+                for key in (
+                    "exploration",
+                    "competence",
+                    "protection",
+                    "prospection",
+                    "regulation",
+                    "none",
+                )
             }
 
         if physical_state is None:
@@ -675,7 +684,7 @@ class PyBulletEmbodimentRuntime:
         state["locomotion_evaluator"] = {
             "initial_resource_distance": float(self._initial_resource_distance),
             "minimum_resource_distance": float(self._minimum_resource_distance),
-            "motor_origin_counts": dict(self._motor_origin_counts),
+            "action_source_counts": dict(self._action_source_counts),
         }
         return state
 
@@ -923,8 +932,7 @@ class PyBulletEmbodimentRuntime:
                 }
             )
         return {
-            "origin": str(self.organism.last_motor_origin),
-            "origin_detail": str(self.organism.last_motor_origin_detail),
+            "action_source": str(self.organism.last_action_source),
             "actuations": actuations,
         }
 
@@ -1306,19 +1314,10 @@ class PyBulletEmbodimentRuntime:
             self._minimum_resource_distance,
             resource_distance,
         )
-        motor_origin = str(self.organism.last_motor_origin)
-        if motor_origin not in self._motor_origin_counts:
-            motor_origin = "none"
-        self._motor_origin_counts[motor_origin] += 1
-        motor_origin_detail = str(self.organism.last_motor_origin_detail)
-        if not hasattr(self, "_motor_origin_detail_counts"):
-            self._motor_origin_detail_counts = {
-                "primitive_cognition": 0,
-                "primitive_reactive": 0,
-                "primitive_prospective": 0,
-            }
-        if motor_origin_detail in self._motor_origin_detail_counts:
-            self._motor_origin_detail_counts[motor_origin_detail] += 1
+        action_source = str(self.organism.last_action_source)
+        if action_source not in self._action_source_counts:
+            action_source = "none"
+        self._action_source_counts[action_source] += 1
         reserve_snapshot = self.organism.metabolism.snapshot()
         body_energy = self.organism.living_body_state
         reserve_ratio_after = body_energy.energy_reserve / max(
@@ -1345,7 +1344,7 @@ class PyBulletEmbodimentRuntime:
         )
         sensorimotor_payload = {}
         if sensorimotor is not None:
-            motor_primitives = [
+            motor_competence_candidates = [
                 {
                     **primitive.checkpoint(),
                     "cognitive": bool(primitive.is_competence),
@@ -1372,24 +1371,24 @@ class PyBulletEmbodimentRuntime:
                     "relations": relations,
                 })
             sensorimotor_payload = {
-                "babbling_coverage": float(sensorimotor.babbling_coverage),
+                "exploration_coverage": float(sensorimotor.exploration_coverage),
                 "known_patterns": int(sensorimotor.known_patterns),
-                "primitives": int(sensorimotor.primitives),
-                "cognitive_primitives": int(sensorimotor.cognitive_primitives),
+                "competence_candidates": int(sensorimotor.primitives),
+                "motor_competences": int(sensorimotor.cognitive_primitives),
                 "best_controllability": float(sensorimotor.best_controllability),
                 "best_directional_consistency": float(sensorimotor.best_directional_consistency),
                 "replay_active": bool(sensorimotor.replay_active),
-                "replay_primitive_id": sensorimotor.replay_primitive_id,
+                "active_competence_id": sensorimotor.replay_primitive_id,
                 "horizon_samples": {
                     str(key): int(value)
                     for key, value in dict(sensorimotor.horizon_samples).items()
                 },
                 "passive_baseline_samples": int(sensorimotor.passive_baseline_samples),
                 "active_motor_repertoire": list(self.organism.active_motor_repertoire),
-                "motor_primitives": motor_primitives,
+                "motor_competence_candidates": motor_competence_candidates,
                 "episodes": [
                     {
-                        "primitive_id": episode.primitive_id,
+                        "competence_candidate_id": episode.primitive_id,
                         "start_tick": int(episode.start_tick),
                         "end_tick": int(episode.end_tick),
                         "source": episode.source,
@@ -1706,25 +1705,17 @@ class PyBulletEmbodimentRuntime:
             absorbed_energy=float(absorbed_energy),
             metabolic_reserve_ratio=float(reserve_ratio_after),
             displacement_from_origin=float(displacement),
-            motor_origin=motor_origin,
-            motor_origin_detail=motor_origin_detail,
+            action_source=action_source,
             initial_resource_distance=float(self._initial_resource_distance),
             minimum_resource_distance=float(self._minimum_resource_distance),
             resource_progress=float(
                 self._initial_resource_distance - resource_distance
             ),
-            motor_origin_cognition=int(self._motor_origin_counts["cognition"]),
-            motor_origin_babbling=int(self._motor_origin_counts["babbling"]),
-            motor_origin_primitive=int(self._motor_origin_counts["primitive"]),
-            motor_origin_primitive_cognition=int(
-                self._motor_origin_detail_counts["primitive_cognition"]
-            ),
-            motor_origin_primitive_reactive=int(
-                self._motor_origin_detail_counts["primitive_reactive"]
-            ),
-            motor_origin_primitive_prospective=int(
-                self._motor_origin_detail_counts["primitive_prospective"]
-            ),
+            action_source_exploration=int(self._action_source_counts["exploration"]),
+            action_source_competence=int(self._action_source_counts["competence"]),
+            action_source_protection=int(self._action_source_counts["protection"]),
+            action_source_prospection=int(self._action_source_counts["prospection"]),
+            action_source_regulation=int(self._action_source_counts["regulation"]),
             prospective_reason=prospective_reason,
             prospective_candidates=int(
                 self.organism.last_prospective_query_count
@@ -1761,15 +1752,12 @@ class PyBulletEmbodimentRuntime:
                 if prospective_decision is not None else None
             ),
             prospective_cost=float(self.organism.last_prospective_cost),
-            motor_origin_mixed=int(self._motor_origin_counts["mixed"]),
-            motor_origin_spontaneous=int(self._motor_origin_counts["spontaneous"]),
-            motor_origin_probe=int(self._motor_origin_counts["probe"]),
-            motor_origin_none=int(self._motor_origin_counts["none"]),
+            action_source_none=int(self._action_source_counts["none"]),
             motor_repertoire_size=int(
                 len(self.organism.active_motor_repertoire)
             ),
             sensorimotor_coverage=float(
-                sensorimotor.babbling_coverage if sensorimotor is not None else 0.0
+                sensorimotor.exploration_coverage if sensorimotor is not None else 0.0
             ),
             sensorimotor_patterns=int(
                 sensorimotor.known_patterns if sensorimotor is not None else 0
