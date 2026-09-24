@@ -70,7 +70,6 @@ import {
 } from './cognitive-refinement.js';
 import { createCognitivePresentationAnimator } from './cognitive-animation.js';
 import {
-  blendRegionShape,
   boundaryPointToward,
   boundaryTension,
   densityHotspots,
@@ -1081,6 +1080,7 @@ export function createCognitionController({
       const anatomy = graph.atlasMode === 'anatomy';
       const dynamics = graph.atlasMode === 'dynamics' || graph.atlasMode === 'activity';
       ctx.save();
+      ctx.globalAlpha = corridorAnim.opacity;
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
       ctx.lineTo(animatedEnd.x, animatedEnd.y);
@@ -1096,7 +1096,7 @@ export function createCognitionController({
 
       if (Math.abs(directionBias) >= 0.28 && (anatomy || dynamics)) {
         const forward = directionBias > 0;
-        const from = forward ? start : end;
+        const from = forward ? start : animatedEnd;
         const to = forward ? animatedEnd : start;
         const t = 0.62;
         const x = from.x + (to.x - from.x) * t;
@@ -1204,6 +1204,7 @@ export function createCognitionController({
         labelX,
         labelY + 12,
       );
+      ctx.globalAlpha = 1;
     }
   }
 
