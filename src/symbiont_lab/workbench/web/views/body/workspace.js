@@ -159,6 +159,9 @@ export class BodyWorkspace {
       tick,
       reserve: numeric(this.metrics.get('metabolic_reserve')),
       contacts: numeric(this.metrics.get('contact_count')),
+      groundContacts: numeric(this.metrics.get('ground_contact_count')),
+      selfContacts: numeric(this.metrics.get('self_contact_count')),
+      resourceContacts: numeric(this.metrics.get('resource_contact_count')),
       displacement: numeric(this.metrics.get('displacement')),
       path: numeric(this.metrics.get('distance_travelled')),
       resource: numeric(this.metrics.get('resource_distance')),
@@ -205,7 +208,7 @@ export class BodyWorkspace {
       this.rows(['alive','metabolic_reserve','reserve_trend']) +
       `<div class="body-mini-chart">${sparkline(reserve)}</div></div>` +
       '<div class="body-section"><div class="body-section-title">Movement</div>' +
-      this.rows(['motor_activity','active_joints','active_effectors','contact_count','distance_travelled','displacement']) +
+      this.rows(['motor_activity','active_joints','active_effectors','contact_count','ground_contact_count','self_contact_count','distance_travelled','displacement']) +
       '</div><div class="body-section"><div class="body-section-title">Environment</div>' +
       this.rows(['resource_distance','resource_progress','motion_effectiveness']) +
       '</div><div class="body-section"><div class="body-section-title">Control</div>' +
@@ -250,7 +253,7 @@ export class BodyWorkspace {
     const path = this.history.map(x => x.path).filter(Number.isFinite);
     this.panel.innerHTML = this.head('Body · Motion', 'Movement evidence', 'Distinguish motion, displacement and emerging coordination.') +
       '<div class="body-section"><div class="body-section-title">Current motion</div>' +
-      this.rows(['motor_activity','active_joints','contact_count','distance_travelled','displacement','locomotion_efficiency']) +
+      this.rows(['motor_activity','active_joints','contact_count','ground_contact_count','self_contact_count','distance_travelled','displacement','locomotion_efficiency']) +
       `<div class="body-mini-chart">${sparkline(disp.length ? disp : path)}</div></div>` +
       '<div class="body-section"><div class="body-section-title">Control transition</div>' +
       this.rows(['motor_origin','cognitive_context']) + '</div>';
@@ -263,7 +266,7 @@ export class BodyWorkspace {
       this.rows(['resource_distance','resource_progress','motion_effectiveness']) +
       `<div class="body-mini-chart">${sparkline(resource)}</div></div>` +
       '<div class="body-section"><div class="body-section-title">Contact</div>' +
-      this.rows(['contact_count','active_effectors','displacement']) +
+      this.rows(['contact_count','ground_contact_count','self_contact_count','resource_contact_count','active_effectors','displacement']) +
       '</div><div class="body-section"><div class="body-section-title">Interpretation boundary</div><div class="body-inspector-sub">This view reports observed relationships only. It does not infer intention or feed labels back into Symbiont.</div></div>';
   }
 
@@ -278,14 +281,14 @@ export class BodyWorkspace {
   renderPhysiology() {
     if (!this.overlayContent) return;
     const reserve = this.history.map(x=>x.reserve).filter(Number.isFinite);
-    const contacts = this.history.map(x=>x.contacts).filter(Number.isFinite);
+    const contacts = this.history.map(x=>x.groundContacts).filter(Number.isFinite);
     const active = this.history.map(x=>x.activeJoints).filter(Number.isFinite);
     const progress = this.history.map(x=>x.progress).filter(Number.isFinite);
     this.overlayContent.innerHTML = this.viewHeader('Physiology', 'How physical activity, contact and reserve evolve together.') +
-      `<div class="body-card-grid">${metricCard('Reserve',this.m('metabolic_reserve'))}${metricCard('Reserve trend',this.m('reserve_trend'))}${metricCard('Motor activity',this.m('motor_activity'))}${metricCard('Ground contacts',this.m('contact_count'))}</div>` +
+      `<div class="body-card-grid">${metricCard('Reserve',this.m('metabolic_reserve'))}${metricCard('Reserve trend',this.m('reserve_trend'))}${metricCard('Motor activity',this.m('motor_activity'))}${metricCard('Ground contacts',this.m('ground_contact_count'))}</div>` +
       `<div class="body-chart-grid">${this.chart('Metabolic reserve',reserve,'mint')}${this.chart('Active joints',active)}${this.chart('Ground contacts',contacts,'amber')}${this.chart('Resource progress',progress,'violet')}</div>`;
     this.panel.innerHTML = this.head('Body · Physiology', 'Physical cost and state', 'Live evidence from the body, without introducing goals or reward.') +
-      this.rows(['alive','metabolic_reserve','reserve_trend','motor_activity','active_joints','contact_count']);
+      this.rows(['alive','metabolic_reserve','reserve_trend','motor_activity','active_joints','contact_count','ground_contact_count','self_contact_count']);
   }
 
   deriveEpisodes() {
