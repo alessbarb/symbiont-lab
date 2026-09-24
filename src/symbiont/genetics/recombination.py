@@ -62,7 +62,6 @@ def recombine_genomes(
             choose_a = linked_choice if use_linked else rng.random() < 0.5
             _set_path(payload, locus, a[locus] if choose_a else b[locus])
 
-    payload["parent_ids"] = [parent_a.genome_id, parent_b.genome_id]
     payload["genome_id"] = new_genome_id or f"genome_recombined_{seed & 0xffffffff:08x}"
     return GenomeCodec(schema).load(payload)
 
