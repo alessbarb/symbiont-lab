@@ -829,7 +829,11 @@ class OrganismRuntime:
                 and math.isfinite(float(percept.value))
             )
         }
-        return dict(sorted(values.items())[:32])
+        # Direct actuator-effect learning must see the same complete
+        # currently perceived non-command body surface as the temporal learner.
+        # Lexicographic truncation over opaque ids would make later channels
+        # causally invisible for reasons unrelated to the body or organism.
+        return dict(sorted(values.items()))
 
     def _sensorimotor_body_snapshot(
         self,
