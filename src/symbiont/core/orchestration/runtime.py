@@ -82,7 +82,7 @@ from ..embodiment.ontogeny import OntogenyController, OntogenySnapshot
 from ..lineage.heredity import HeritableGenome, _ALLOWED_LOCI
 from ..lineage.inheritance import EpigeneticPrior, mutate_genome
 from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
-from ...cognition.birth import load_base_graph, load_actuator_constitution
+from ...cognition.birth import load_base_graph
 from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.health import ActuatorState
@@ -693,9 +693,9 @@ class OrganismRuntime:
         ] = []
         if self._actuation_enabled:
             if actuator_constitution is None:
-                if genome is None:
-                    raise ValueError("actuation_enabled requires genome or actuator_constitution")
-                actuator_constitution = load_actuator_constitution(genome)
+                raise ValueError(
+                    "actuation_enabled requires an explicit body-owned actuator_constitution"
+                )
             self._actuator_constitution = actuator_constitution
             if not self._living_body_state.structure_states:
                 # A body with actuation but no per-structure tracking yet —
