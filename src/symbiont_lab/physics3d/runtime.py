@@ -126,6 +126,12 @@ class Tick3D:
     action_source_protection: int
     action_source_prospection: int
     action_source_regulation: int
+    active_commitment_id: str | None
+    effect_count: int
+    causal_evidence_count: int
+    motor_competence_count: int
+    composition_count: int
+    unbound_competence_count: int
     prospective_reason: str | None
     prospective_candidates: int
     prospective_selected: bool
@@ -1348,6 +1354,23 @@ class PyBulletEmbodimentRuntime:
         body_schema_representation = self.organism.body_schema.export_representation(
             current_tick=self.tick_count
         )
+        active_commitment = getattr(
+            self.organism,
+            "_active_action_commitment",
+            None,
+        )
+        effects = self.organism.effect_representations
+        causal_evidence = self.organism.causal_evidence
+        motor_competences = self.organism.motor_competences
+        compositions = tuple(
+            self.organism._composition_engine.established
+        )
+        unbound_competences = tuple(
+            item
+            for item in motor_competences
+            if item.surface_binding is None or item.effect_id is None
+        )
+
         sensorimotor_payload = {}
         if sensorimotor is not None:
             motor_competence_candidates = [
@@ -1394,6 +1417,43 @@ class PyBulletEmbodimentRuntime:
                     for episode in self.organism.sensorimotor_competence_episodes
                 ],
                 "actuator_evidence": actuator_evidence,
+                "v2": {
+                    "active_commitment_id": (
+                        active_commitment.commitment_id
+                        if active_commitment is not None
+                        and active_commitment.active
+                        else None
+                    ),
+                    "effect_count": len(effects),
+                    "causal_evidence_count": len(causal_evidence),
+                    "motor_competence_count": len(motor_competences),
+                    "composition_count": len(compositions),
+                    "unbound_competence_count": len(unbound_competences),
+                    "effects": [
+                        {
+                            "effect_id": item.effect_id,
+                            "support": item.support,
+                            "confidence": item.confidence,
+                            "feature_refs": list(item.feature_refs),
+                        }
+                        for item in effects
+                    ],
+                    "competences": [
+                        {
+                            "competence_id": item.competence_id,
+                            "effect_id": item.effect_id,
+                            "maturity": item.maturity.value,
+                            "surface_binding": item.surface_binding,
+                            "parents": list(item.parent_competence_ids),
+                            "executable": item.executable,
+                        }
+                        for item in motor_competences
+                    ],
+                    "compositions": [
+                        item.checkpoint()
+                        for item in compositions
+                    ],
+                },
             }
 
         self._epoch_metrics["absorbed_material_total"] = float(
@@ -1710,6 +1770,17 @@ class PyBulletEmbodimentRuntime:
             action_source_protection=int(self._action_source_counts["protection"]),
             action_source_prospection=int(self._action_source_counts["prospection"]),
             action_source_regulation=int(self._action_source_counts["regulation"]),
+            active_commitment_id=(
+                active_commitment.commitment_id
+                if active_commitment is not None
+                and active_commitment.active
+                else None
+            ),
+            effect_count=len(effects),
+            causal_evidence_count=len(causal_evidence),
+            motor_competence_count=len(motor_competences),
+            composition_count=len(compositions),
+            unbound_competence_count=len(unbound_competences),
             prospective_reason=prospective_reason,
             prospective_candidates=int(
                 self.organism.last_prospective_query_count
