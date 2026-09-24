@@ -1777,6 +1777,7 @@ export function createCognitionController({
         graph.manualViewOverride = true;
         graph.autoFramePending = false;
         if (graph.dimension === '3d') {
+          invalidateProjectedRegionHistory3D();
           graph.camera3d = zoomCamera(graph.camera3d, -1);
         } else {
           const cx = canvas.width / 2, cy = canvas.height / 2;
@@ -1794,6 +1795,7 @@ export function createCognitionController({
         graph.manualViewOverride = true;
         graph.autoFramePending = false;
         if (graph.dimension === '3d') {
+          invalidateProjectedRegionHistory3D();
           graph.camera3d = zoomCamera(graph.camera3d, 1);
         } else {
           const cx = canvas.width / 2, cy = canvas.height / 2;
@@ -1810,6 +1812,7 @@ export function createCognitionController({
       resetBtn.addEventListener('click', () => {
         graph.scale = 1; graph.panX = 0; graph.panY = 0;
         graph.camera3d = { yaw: -0.55, pitch: 0.34, distance: 900 };
+        invalidateProjectedRegionHistory3D();
         graph.autoFramePending = true;
         graph.manualViewOverride = false;
         graph.focusedSectorId = null;
@@ -1879,6 +1882,7 @@ export function createCognitionController({
       graph.manualViewOverride = true;
       graph.autoFramePending = false;
       if (graph.dimension === '3d') {
+        invalidateProjectedRegionHistory3D();
         graph.camera3d = zoomCamera(graph.camera3d, ev.deltaY);
       } else {
         const factor = ev.deltaY < 0 ? 1.12 : 0.89;
@@ -1900,6 +1904,7 @@ export function createCognitionController({
       pressedNode = node;
       if (graph.dimension === '3d') {
         if (!node) {
+          invalidateProjectedRegionHistory3D();
           graph.manualViewOverride = true;
           graph.autoFramePending = false;
           isPanning = true;
@@ -1925,6 +1930,7 @@ export function createCognitionController({
           const dx = x - orbitLastX;
           const dy = y - orbitLastY;
           dragDist += Math.abs(dx) + Math.abs(dy);
+          invalidateProjectedRegionHistory3D();
           graph.camera3d = orbitCamera(graph.camera3d, dx, dy);
           orbitLastX = x;
           orbitLastY = y;
@@ -2311,7 +2317,7 @@ export function createCognitionController({
       if (regionShape) {
         inspectorMetric(panel, 'Boundary tension', pct(regionShape.tension ?? 0), (regionShape.tension ?? 0) > 0.6 ? PAL.amber : PAL.muted);
         inspectorMetric(panel, 'Proto-subregions', proto.length, proto.length ? PAL.violet : PAL.muted);
-        inspectorMetric(panel, 'Functional center', `${regionShape.functionalCenter?.x?.toFixed?.(0) ?? '—'}, ${regionShape.functionalCenter?.y?.toFixed?.(0) ?? '—'}`);
+        inspectorMetric(panel, 'Cartographic functional center', `${regionShape.functionalCenter?.x?.toFixed?.(0) ?? '—'}, ${regionShape.functionalCenter?.y?.toFixed?.(0) ?? '—'}`);
         const trail = regionShape.trail ?? [];
         const displacement = trail.length > 1
           ? Math.hypot(
@@ -2319,7 +2325,7 @@ export function createCognitionController({
               trail[trail.length - 1].y - trail[0].y,
             )
           : 0;
-        inspectorMetric(panel, 'Center displacement', displacement.toFixed(1));
+        inspectorMetric(panel, 'Center displacement (observer layout)', displacement.toFixed(1));
       }
       inspectorMetric(panel, 'External bridge endpoints', sectorFocus.bridges.size);
       inspectorMetric(panel, 'Cross-region relations', bridgeEdges.length);
@@ -2768,12 +2774,18 @@ export function createCognitionController({
       `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
   }
 
+  function invalidateProjectedRegionHistory3D() {
+    graph.regionShapeHistory3d.clear();
+    graph.regionCenterTrails3d.clear();
+  }
+
   function setDimension(dimension) {
     graph.dimension = dimension;
     recordObserverUsage(observerUsage, 'dimension', dimension);
     graph.autoFramePending = true;
     graph.manualViewOverride = false;
     if (dimension === '3d') {
+      invalidateProjectedRegionHistory3D();
       ensure3DState(graph.nodes, graph.edges, graph.world3d, graph.velocity3d);
     }
     const note = document.getElementById('mind-cognition-3d-note');
@@ -2785,6 +2797,7 @@ export function createCognitionController({
   function set3DMode(mode) {
     if (!['relational','physicalized'].includes(mode)) return;
     graph.threeDMode = mode;
+    invalidateProjectedRegionHistory3D();
     graph.alpha = Math.max(graph.alpha, 0.35);
     if (graph.dimension !== '3d') graph.dimension = '3d';
     if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
