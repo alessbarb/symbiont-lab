@@ -1481,7 +1481,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             return None
 
         inherited = self._next_heritable_genome()
-        child_genome_id = inherited.identity if inherited is not None else self._genome.genome_id
+        child_genome_id = inherited.genome_id if inherited is not None else self._genome.genome_id
         record = self._birth_authority.birth(
             genome_id=child_genome_id,
             parent_ids=(self._organism_id,),
@@ -1517,7 +1517,6 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 bootstrap_semantic_senses=self._bootstrap_semantic_senses,
                 sensory_system=self._sensory_system.germinal_copy(),
                 genome=child_genome,
-                heritable_genome=inherited,
                 mutation_seed=self._mutation_seed + self._generation + 1,
                 epigenetic_priors=self._epigenetic_priors,
                 epigenetic_decay=self._epigenetic_decay,
