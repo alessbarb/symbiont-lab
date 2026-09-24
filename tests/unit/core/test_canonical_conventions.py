@@ -68,16 +68,16 @@ def test_epistemic_conventions_invariants() -> None:
 
 def test_organism_limits_invariants() -> None:
     limits = OrganismLimits()
-    assert limits.max_host_checkpoint_bytes == 2 * 1024 * 1024
-    assert limits.max_knowledge_checkpoint_bytes == 256 * 1024
+    assert limits.max_host_checkpoint_bytes == 32 * 1024 * 1024
+    assert limits.max_knowledge_checkpoint_bytes == 1024 * 1024
     assert limits.max_exchange_bytes == 4096
-    assert limits.max_sensory_parts == 256
-    assert limits.max_cognitive_regions == 32
+    assert limits.max_sensory_parts == 512
+    assert limits.max_cognitive_regions == 128
     assert limits.max_body_parts == 288
-    assert limits.max_body_dependencies == 256
+    assert limits.max_body_dependencies == 1024
     assert limits.max_degradation_items == 256
     assert limits.max_dissent == 256
-    assert limits.max_selection_opportunities == 64
+    assert limits.max_selection_opportunities == 256
 
     # WARN: Crucial architectural assertion: OrganismLimits must NOT contain temporal dynamics
     assert not hasattr(limits, "aging_ticks")
