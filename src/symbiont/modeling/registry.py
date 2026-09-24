@@ -71,8 +71,12 @@ class ModelRecord:
         if any(isinstance(value, bool) or not isinstance(value, int) or not -32768 <= value <= 32767
                for value in self.evaluation_summary):
             raise ValueError("evaluation summary entries must be bounded integers")
-        if isinstance(self.generation, bool) or not isinstance(self.generation, int) or not 0 <= self.generation <= 256:
-            raise ValueError("generation outside supported bounds")
+        if (
+            isinstance(self.generation, bool)
+            or not isinstance(self.generation, int)
+            or not 0 <= self.generation <= 2_147_483_647
+        ):
+            raise ValueError("generation outside serialization safety bounds")
 
     @classmethod
     def from_artifact(cls, artifact: ModelArtifactManifest) -> "ModelRecord":
@@ -161,11 +165,11 @@ class ModelRegistry:
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, organism_id: str, *, max_models: int = 16) -> None:
+    def __init__(self, organism_id: str, *, max_models: int = 64) -> None:
         if not isinstance(organism_id, str) or not organism_id or len(organism_id) > 128:
             raise ValueError("organism_id must be a bounded non-empty string")
-        if isinstance(max_models, bool) or not isinstance(max_models, int) or not 1 <= max_models <= 128:
-            raise ValueError("max_models must be within [1, 128]")
+        if isinstance(max_models, bool) or not isinstance(max_models, int) or not 1 <= max_models <= 1024:
+            raise ValueError("max_models must be within [1, 1024]")
         self._organism_id = organism_id
         self._max_models = max_models
         self._records: dict[str, ModelRecord] = {}
@@ -251,7 +255,7 @@ class ModelRegistry:
             raise ValueError("invalid private model registry checkpoint")
         if payload.get("organism_id") != organism_id:
             raise ValueError("model registry checkpoint organism mismatch")
-        max_models = payload.get("max_models", 16)
+        max_models = payload.get("max_models", 64)
         if isinstance(max_models, bool) or not isinstance(max_models, int):
             raise ValueError("invalid model registry capacity")
         registry = cls(organism_id, max_models=max_models)
