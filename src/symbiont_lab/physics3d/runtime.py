@@ -431,6 +431,7 @@ class PyBulletEmbodimentRuntime:
                     organism_id=subject_id,
                     max_concurrent=None,
                     exclusive_actuator_groups=exclusive_groups,
+                    embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                 ),
             )
 
