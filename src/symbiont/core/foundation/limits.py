@@ -41,8 +41,8 @@ class OrganismLimits:
     max_dissent: int = 256
 
     # Inheritance channels
-    max_epigenetic_priors: int = 16
-    max_cultural_artifacts: int = 32
+    max_epigenetic_priors: int = 64
+    max_cultural_artifacts: int = 128
 
     # Host sensory acclimation & discovery
     max_capabilities: int = 512
@@ -52,10 +52,10 @@ class OrganismLimits:
     max_trust_contexts: int = 1024
 
     # Endogenous signal knowledge
-    max_knowledge_profiles: int = 64
-    max_knowledge_claims: int = 192
-    max_knowledge_claims_per_signal: int = 4
-    max_pending_trials: int = 128
+    max_knowledge_profiles: int = 256
+    max_knowledge_claims: int = 1024
+    max_knowledge_claims_per_signal: int = 16
+    max_pending_trials: int = 512
 
     def __post_init__(self) -> None:
         for field in fields(self):
