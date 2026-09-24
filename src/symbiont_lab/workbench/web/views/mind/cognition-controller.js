@@ -2418,14 +2418,8 @@ export function createCognitionController({
         relationsGroup.appendChild(empty);
       } else {
         for (const relation of direct) {
-          const row = el('button', '');
+          const row = el('button', 'mind-inspector-relation-button mind-inspector-relation-compact');
           row.type = 'button';
-          row.style.cssText = `
-            width:100%;display:block;text-align:left;padding:5px 6px;margin:3px 0;
-            border:1px solid rgba(98,120,136,.16);border-radius:5px;
-            background:rgba(80,217,255,.025);color:var(--muted);
-            font-size:8px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-          `;
           row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · ${relation.edge.kind ?? 'edge'} · sup ${finiteNumber(relation.edge.support,0)}`;
           row.title =
             `${relation.other}\nkind ${relation.edge.kind ?? 'edge'} · weight ${finiteNumber(relation.edge.weight,0).toFixed(3)} · plasticity ${finiteNumber(relation.edge.plasticity,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · age ${finiteNumber(relation.edge.ageTicks,0)} · stable ${finiteNumber(relation.edge.stableTicks,0)} · last use t${finiteNumber(relation.edge.lastUseTick,0)}`;
