@@ -384,13 +384,18 @@ export function orbitCamera(camera, deltaX, deltaY) {
   };
 }
 
-export function zoomCamera(camera, delta) {
+export function zoomCamera(camera, delta, {
+  sceneRadius = 220,
+  sensitivity = 0.00135,
+} = {}) {
+  const radius = Math.max(60, finite(sceneRadius, 220));
+  const minDistance = Math.max(150, radius * 0.82 + 70);
+  const maxDistance = Math.max(1200, radius * 7.5 + 520);
+  const current = finite(camera?.distance, 900);
+  const wheelDelta = clamp(finite(delta, 0), -240, 240);
+  const factor = Math.exp(wheelDelta * sensitivity);
   return {
     ...camera,
-    distance: clamp(
-      finite(camera?.distance, 900) * (delta < 0 ? 0.9 : 1.1),
-      360,
-      2200,
-    ),
+    distance: clamp(current * factor, minDistance, maxDistance),
   };
 }
