@@ -9,8 +9,8 @@ from .experience import ExperienceRecord
 
 
 _RESERVED = ("<PAD>", "<UNK>", "<BOS>", "<EOS>", "<SEP>")
-_MAX_VOCAB = 8192
-_MAX_SEQUENCE = 512
+_MAX_VOCAB = 32768
+_MAX_SEQUENCE = 2048
 
 
 def _record_tokens(record: ExperienceRecord) -> tuple[str, ...]:
