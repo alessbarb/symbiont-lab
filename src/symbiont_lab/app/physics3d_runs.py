@@ -12,6 +12,7 @@ from typing import Any
 from symbiont_lab.physics3d.bodies import BodyRegistry, DEFAULT_BODY_REGISTRY
 from symbiont_lab.physics3d.engine import (
     DEFAULT_BODY_FILE,
+    LEGACY_BODY_FILE,
     DEFAULT_STATE_DIR,
     DEFAULT_SYMBIONT_FILE,
 )
@@ -206,7 +207,7 @@ class Physics3DRunStore:
                 "legacy": True,
                 "bundle_available": True,
                 "body_kind": "anthropomorphic-v4",
-                "last_body_ref": "legacy-default" if DEFAULT_BODY_FILE.is_file() else None,
+                "last_body_ref": "legacy-default" if LEGACY_BODY_FILE.is_file() else None,
             })
         items.sort(key=lambda item: str(item.get("updated_at") or item.get("created_at") or ""), reverse=True)
         return items
@@ -232,23 +233,23 @@ class Physics3DRunStore:
         if not destination.exists():
             shutil.copy2(DEFAULT_SYMBIONT_FILE, destination)
         last_body_ref = None
-        if DEFAULT_BODY_FILE.is_file():
+        if LEGACY_BODY_FILE.is_file():
             last_body_ref = f"body-legacy-{safe}"
             body_dir = self.bodies_dir / last_body_ref
             body_dir.mkdir(parents=True, exist_ok=True)
             body_destination = body_dir / "body.json"
             if not body_destination.exists():
-                shutil.copy2(DEFAULT_BODY_FILE, body_destination)
+                shutil.copy2(LEGACY_BODY_FILE, body_destination)
             _write_json(body_dir / "metadata.json", {
                 "ref": last_body_ref,
                 "body_kind": "anthropomorphic-v4",
                 "created_at": _now(),
                 "updated_at": _now(),
-                "migrated_from": str(DEFAULT_BODY_FILE),
+                "migrated_from": str(LEGACY_BODY_FILE),
                 "organism_ref": ref,
                 "checkpoint_available": True,
             })
-        descriptor = self.body_registry.get("anthropomorphic-v4")
+        descriptor = self.body_registry.get("anthropomorphic-v5")
         metadata = {
             **summary,
             "ref": ref,
@@ -264,7 +265,7 @@ class Physics3DRunStore:
         return ref
 
     def prepare(self, payload: dict[str, Any]) -> Physics3DLaunchSpec:
-        body_kind = str(payload.get("body_kind") or "anthropomorphic-v4")
+        body_kind = str(payload.get("body_kind") or "anthropomorphic-v5")
         descriptor = self.body_registry.get(body_kind)
         organism = payload.get("organism", {})
         body = payload.get("body", {})
