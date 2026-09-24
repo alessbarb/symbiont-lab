@@ -853,6 +853,9 @@ class PyBulletEmbodimentRuntime:
             "oldest_structural_wait_ticks": int(getattr(cognition, "oldest_structural_wait_ticks", 0)),
             "representation_maturity": dict(getattr(cognition, "representation_maturity", {}) or {}),
             "max_contention_losses": int(getattr(cognition, "max_contention_losses", 0)),
+            "node_budget": int(getattr(cognition, "node_budget", 0)),
+            "edge_budget": int(getattr(cognition, "edge_budget", 0)),
+            "sense_budget": int(getattr(cognition, "sense_budget", 0)),
         }
 
     def _action_payload(self) -> dict[str, object]:
