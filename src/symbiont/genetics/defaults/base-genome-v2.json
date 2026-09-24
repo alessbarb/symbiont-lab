@@ -3,9 +3,9 @@
   "genome_id": "genome_symbiont_base_v2",
   "kernel_compatibility": ">=0.80,<0.90",
   "development": {
-    "soft_node_budget": 64,
-    "soft_edge_budget": 384,
-    "sense_node_budget": 32,
+    "soft_node_budget": 192,
+    "soft_edge_budget": 1536,
+    "sense_node_budget": 128,
     "capacity_growth_sensitivity": 0.5,
     "consolidation_interval_ticks": 32
   },
