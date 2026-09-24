@@ -158,3 +158,10 @@ def test_cognition_inspector_is_extracted_from_controller():
     assert "createCognitionInspector" in controller
     assert "function renderCognitionInspector" not in controller
     assert "function renderCognitionInspector" in inspector
+
+
+def test_cognition_renderer_keeps_shared_graph_helpers():
+    controller = _read("views/mind/cognition-controller.js")
+    assert "function focusedSectorContext()" in controller
+    assert "function currentRenderedTopology()" in controller
+    assert "graphSubgraphIds" in controller
