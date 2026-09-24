@@ -50,6 +50,7 @@ class PhysicsServerDisconnected(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class Tick3D:
     tick: int
+    symbiont_tick: int
     alive: bool
     base_position: tuple[float, float, float]
     base_orientation: tuple[float, float, float, float]
@@ -1492,6 +1493,7 @@ class PyBulletEmbodimentRuntime:
 
         return Tick3D(
             tick=self.tick_count,
+            symbiont_tick=self.tick_count,
             alive=(
                 result.physiology is None
                 or result.physiology.state is not VitalState.DEAD
