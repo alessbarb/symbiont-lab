@@ -1308,13 +1308,34 @@ class OrganismRuntime:
             digest = hashlib.sha256(
                 f"basal-motor-noise:{self._organism_id}:{tick}".encode("utf-8")
             ).digest()
-            if digest[0] < 64 and self._actuator_constitution is not None:
+            exploration_drive = (
+                self._gene_expression_state.exploration_drive
+                if self._gene_expression_state is not None
+                else 0.25
+            )
+            threshold = max(0, min(255, round(255.0 * exploration_drive)))
+            if (
+                digest[0] < threshold
+                and self._actuator_constitution is not None
+                and self._actuator_constitution.actuator_ids
+            ):
                 ids = self._actuator_constitution.actuator_ids
                 pending_id = ids[int.from_bytes(digest[1:5], "big") % len(ids)]
-                pending_activation = 0.25 + (
+                random_fraction = (
                     int.from_bytes(digest[5:9], "big")
                     / float((1 << 32) - 1)
-                ) * 0.75
+                )
+                # Expression regulates exploratory amplitude without encoding a
+                # body-specific movement or externally valued direction.
+                pending_activation = max(
+                    0.0,
+                    min(
+                        1.0,
+                        0.05
+                        + exploration_drive
+                        * (0.25 + 0.75 * random_fraction),
+                    ),
+                )
                 intents = (
                     MotorIntent(
                         actuator_id=pending_id,
@@ -3039,6 +3060,14 @@ class OrganismRuntime:
             runtime_events.extend(("death", "resource_release"))
         self._last_runtime_vital_state = current_state
         self._last_runtime_development_phase = current_phase
+
+        # Evidence from tick t regulates the operating phenotype for t+1.
+        self._update_gene_expression(
+            cognition=cognition_result,
+            drift_observations=drift_observations,
+            metabolic_pressure=metabolism_snapshot.pressure.value,
+        )
+
         self._tick_count += 1
         self._living_body_state.advance_age()
         journal_entry = {
@@ -3089,6 +3118,11 @@ class OrganismRuntime:
             actuation=self._last_actuation,
             motor_intents=self._last_motor_intents,
             actuations=self._last_actuations,
+            gene_expression=(
+                self._gene_expression_state.as_dict()
+                if self._gene_expression_state is not None
+                else None
+            ),
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
