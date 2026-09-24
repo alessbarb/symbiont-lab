@@ -216,6 +216,8 @@ export function createCognitivePresentationAnimator({
   const lastRegionShapes = new Map();
   const regionTargets = new Map();
   let initialized = false;
+  let corridorsInitialized = false;
+  let previousCorridorKeys = new Set();
 
   function putAnimation(key, animation) {
     const timestamp = now();
@@ -301,6 +303,44 @@ export function createCognitivePresentationAnimator({
         durationMs: durationFor('edgeExit', reducedMotion),
       });
     }
+  }
+
+  function syncCorridors(currentLinks, {
+    replay = false,
+    timestamp = now(),
+  } = {}) {
+    const currentKeys = new Set((currentLinks ?? []).map(link => String(link.key)));
+    if (!corridorsInitialized) {
+      corridorsInitialized = true;
+      previousCorridorKeys = currentKeys;
+      return;
+    }
+    if (!replay) {
+      const added = [...currentKeys].filter(key => !previousCorridorKeys.has(key)).sort();
+      added.forEach((key, index) => {
+        putAnimation(`corridor:${key}`, {
+          kind: 'corridorBirth',
+          entityId: key,
+          startedAt: timestamp,
+          delayMs: Math.min(index * 32, 260),
+          durationMs: durationFor('corridorBirth', reducedMotion),
+        });
+      });
+    }
+    previousCorridorKeys = currentKeys;
+  }
+
+  function corridorPresentation(key, timestamp = now()) {
+    const animation = animations.get(`corridor:${key}`);
+    if (!animation || !active(animation, timestamp)) {
+      if (animation) animations.delete(`corridor:${key}`);
+      return { progress: 1, opacity: 1 };
+    }
+    const p = animationProgress(animation, timestamp);
+    return {
+      progress: easeOutCubic(p),
+      opacity: easeOutCubic(Math.min(1, p * 1.45)),
+    };
   }
 
   function registerRegionEvents(events, {
@@ -574,11 +614,15 @@ export function createCognitivePresentationAnimator({
     lastRegionShapes.clear();
     regionTargets.clear();
     initialized = false;
+    corridorsInitialized = false;
+    previousCorridorKeys = new Set();
   }
 
   return {
     durations: DURATIONS,
     syncTopology,
+    syncCorridors,
+    corridorPresentation,
     registerRegionEvents,
     nodePresentation,
     edgePresentation,
