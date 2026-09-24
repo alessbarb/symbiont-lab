@@ -425,7 +425,6 @@ class PyBulletEmbodimentRuntime:
                 min_samples=1,
                 auto_promote_predictors=True,
                 actuation_enabled=True,
-                motor_exploration_mode="babbling",
                 sensorimotor_learner=SensorimotorLearner(
                     actuator_ids,
                     organism_id=subject_id,
@@ -454,11 +453,6 @@ class PyBulletEmbodimentRuntime:
                 raise RuntimeError(
                     "Physics3D locomotion constitution requires a canonical "
                     "Physics3D Symbiont checkpoint"
-                )
-            if effective.get("motor_exploration_mode") != "babbling":
-                raise RuntimeError(
-                    "Physics3D sensorimotor-development constitution requires "
-                    "babbling-capable checkpoint state"
                 )
             raw_genome = runtime_checkpoint.get("genome")
             if (
