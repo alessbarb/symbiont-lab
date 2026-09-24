@@ -75,7 +75,7 @@ from ..signals.knowledge_checkpoint import validate_checkpoint
 from ..embodiment.metabolism import MetabolicLedger, MetabolicSnapshot
 from ..embodiment.assimilation import InformationAssimilator, AssimilationDecision
 from ..embodiment.homeostasis import HomeostaticController, HomeostaticSnapshot
-from ..regulation import ActionArbitrator, InnateReactivity, ReactiveMemory
+from ..regulation import ActionArbitrator, InnateReactivity, ReactiveMemory, ReactiveState
 from ..social.ecology import SharedHabitat
 from ..social.trust import SourceTrustModel
 from ..social.relations import (InteractionOutcome, RelationLedger, RelationValence,
@@ -92,15 +92,31 @@ from ...cognition.birth import load_base_graph
 from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
-from ...actuation.health import ActuatorState
 from ...actuation.proposer import ActuatorProposer
 from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.selector import MotorIntentSelector
 from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
+from ...actuation.action import (
+    ActionEvaluation,
+    ActionJustification,
+    ActionProposal,
+    ActionSource,
+    MotorCommand,
+)
+from ...actuation.commitment import ActionCommitment, CommitmentStatus
+from ...actuation.effects import EffectSpace
+from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
+from ...actuation.evidence import (
+    CausalEvidenceLedger,
+    PredictionError,
+    SensorimotorTransition,
+)
+from ...actuation.model import AgencyModel, ControllabilityModel, SensorimotorModel
+from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
+from ...actuation.composition import CompositionEngine
+from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import (
-    MotorPrimitive,
-    PrimitiveEpisode,
     SensorimotorLearner,
     SensorimotorSnapshot,
 )
@@ -191,44 +207,15 @@ class RuntimeTickResult:
     actuation: Actuation | None = None
     motor_intents: tuple[MotorIntent, ...] = ()
     actuations: tuple[Actuation, ...] = ()
+    action_commitment: ActionCommitment | None = None
+    motor_command: MotorCommand | None = None
+    sensorimotor_transition: SensorimotorTransition | None = None
+    sensorimotor_v2: SensorimotorV2Snapshot | None = None
     gene_expression: dict[str, object] | None = None
 
 
 class OrganismDeadError(RuntimeError):
     """Raised when execution is requested after irreversible death."""
-
-
-def _classify_executed_motor_origin(
-    intents: tuple[MotorIntent, ...],
-    cognitive_intents: tuple[MotorIntent, ...],
-    *,
-    prior_origin: str,
-) -> tuple[str, str]:
-    """Classify the motor command that survives physical-unit arbitration.
-
-    Only the developmental direct-motor families are reclassified here.
-    Primitive/reactive/prospective provenance is already isolated upstream.
-    """
-    if prior_origin not in {"mixed", "cognition", "babbling"}:
-        return prior_origin, prior_origin
-
-    cognitive_ids = {
-        intent.actuator_id for intent in cognitive_intents
-    }
-    surviving_cognitive = any(
-        intent.actuator_id in cognitive_ids for intent in intents
-    )
-    surviving_developmental = any(
-        intent.actuator_id not in cognitive_ids for intent in intents
-    )
-
-    if surviving_cognitive and surviving_developmental:
-        return "mixed", "mixed"
-    if surviving_cognitive:
-        return "cognition", "cognition"
-    if surviving_developmental:
-        return "babbling", "babbling"
-    return "none", "none"
 
 
 class OrganismRuntime:
@@ -304,11 +291,9 @@ class OrganismRuntime:
         actuation_enabled: bool = False,
         actuator_constitution: ActuatorConstitution | None = None,
         actuator_proposer: ActuatorProposer | None = None,
-        actuator_states: dict[str, ActuatorState] | None = None,
         motor_intent_selector: MotorIntentSelector | None = None,
         actuator_system: ActuatorSystem | None = None,
         sensorimotor_learner: SensorimotorLearner | None = None,
-        motor_exploration_mode: str = "spontaneous",
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -317,11 +302,6 @@ class OrganismRuntime:
         if (tick_count < 0 or generation < 0
                 or social_exchange_quantum <= 0.0 or social_exchange_cost < 0.0):
             raise ValueError("invalid tick, generation, social quantum or social cost")
-        if motor_exploration_mode not in {"spontaneous", "babbling"}:
-            raise ValueError(
-                "motor_exploration_mode must be spontaneous or babbling"
-            )
-
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
         self._bootstrap_semantic_senses = bootstrap_semantic_senses
@@ -689,10 +669,8 @@ class OrganismRuntime:
                 self._cognitive_bridge.set_expression_state(self._gene_expression_state)
             self._cognitive_bridge.bind_contention_identity(self._organism_id)
         self._actuation_enabled = bool(actuation_enabled)
-        self._motor_exploration_mode = motor_exploration_mode
         self._actuator_constitution: ActuatorConstitution | None = None
         self._actuator_proposer: ActuatorProposer | None = None
-        self._actuator_states: dict[str, ActuatorState] = {}
         self._motor_intent_selector: MotorIntentSelector | None = None
         self._actuator_system: ActuatorSystem | None = None
         self._sensorimotor_learner: SensorimotorLearner | None = None
@@ -700,11 +678,30 @@ class OrganismRuntime:
         self._last_actuation: Actuation | None = None
         self._last_motor_intents: tuple[MotorIntent, ...] = ()
         self._last_actuations: tuple[Actuation, ...] = ()
-        self._last_motor_origin = "none"
-        self._last_motor_origin_detail = "none"
+        self._last_action_source = "none"
         self._last_executed_primitive_id: str | None = None
+        self._last_action_proposal: ActionProposal | None = None
+        self._active_action_commitment: ActionCommitment | None = None
+        self._last_motor_command: MotorCommand | None = None
+        self._effect_space = EffectSpace()
+        self._causal_evidence = CausalEvidenceLedger()
+        self._competence_library = CompetenceLibrary()
+        self._sensorimotor_model = SensorimotorModel()
+        self._controllability_model = ControllabilityModel()
+        self._agency_model = AgencyModel()
+        self._exploration_policy = ExplorationPolicy()
+        self._exploration_strength_memory: dict[str, float] = {}
+        self._active_exploration_preference: tuple[str, ...] = ()
+        self._last_exploration_signals: dict[str, ExplorationSignals] = {}
+        self._composition_engine = CompositionEngine()
+        self._composition_predecessor_id: str | None = None
+        self._active_composition_children: tuple[str, ...] = ()
+        self._active_composition_index = 0
+        self._effect_by_commitment: dict[str, str] = {}
+        self._pending_sensorimotor_transition: dict[str, Any] | None = None
+        self._last_sensorimotor_transition: SensorimotorTransition | None = None
         self._pending_motor_observation: tuple[
-            tuple[str, float, dict[str, float] | None, bool], ...
+            tuple[str, float, dict[str, float] | None], ...
         ] = ()
         self._pending_proprioception: dict[str, float] = {}
         # Ephemeral delayed-credit traces. They are intentionally not
@@ -736,28 +733,18 @@ class OrganismRuntime:
                 if actuator_proposer is not None
                 else ActuatorProposer(actuator_constitution, organism_id=self._organism_id)
             )
-            expected_ids = set(actuator_constitution.actuator_ids)
-            if actuator_states is None:
-                self._actuator_states = {
-                    slot.actuator_id: ActuatorState.from_slot(slot) for slot in actuator_constitution.slots
-                }
-            else:
-                if set(actuator_states) != expected_ids:
-                    raise ValueError("actuator_states must exactly match ActuatorConstitution")
-                self._actuator_states = dict(actuator_states)
             self._motor_intent_selector = motor_intent_selector or MotorIntentSelector()
             self._actuator_system = actuator_system or ActuatorSystem()
-            if motor_exploration_mode == "babbling":
-                self._sensorimotor_learner = (
-                    sensorimotor_learner
-                    if sensorimotor_learner is not None
-                    else SensorimotorLearner(
-                        actuator_constitution.actuator_ids,
-                        organism_id=self._organism_id,
-                        max_concurrent=None,
-                        embodiment_fingerprint=actuator_constitution.contract_fingerprint,
-                    )
+            self._sensorimotor_learner = (
+                sensorimotor_learner
+                if sensorimotor_learner is not None
+                else SensorimotorLearner(
+                    actuator_constitution.actuator_ids,
+                    organism_id=self._organism_id,
+                    max_concurrent=None,
+                    embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                 )
+            )
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
@@ -887,18 +874,117 @@ class OrganismRuntime:
         return self._sensorimotor_learner.exclusive_actuator_groups
 
     @property
-    def sensorimotor_primitives(self) -> tuple[MotorPrimitive, ...]:
-        """Evaluator-only read view of organism-discovered motor primitives."""
+    def sensorimotor_competence_candidates(self) -> tuple[dict[str, object], ...]:
+        """Passive candidate view; legacy sequence objects never cross this boundary."""
         if self._sensorimotor_learner is None:
             return ()
-        return self._sensorimotor_learner.primitives
+        return tuple(
+            {
+                "candidate_id": item.primitive_id,
+                "embodiment_fingerprint": item.embodiment_fingerprint,
+                "sequence": [
+                    [[actuator_id, level] for actuator_id, level in pattern]
+                    for pattern in item.sequence
+                ],
+                "samples": item.samples,
+                "effect_mean": item.effect_mean,
+                "effect_variance": item.effect_variance,
+                "controllability": item.controllability,
+                "directional_consistency": item.directional_consistency,
+                "maturity": item.maturity.value,
+                "established": item.established,
+            }
+            for item in self._sensorimotor_learner.primitives
+        )
 
     @property
-    def sensorimotor_episodes(self) -> tuple[PrimitiveEpisode, ...]:
-        """Evaluator-only ephemeral provenance for the latest motor episodes."""
+    def sensorimotor_competence_episodes(self) -> tuple[dict[str, object], ...]:
+        """Latest evidence episodes projected into v2 competence terminology."""
         if self._sensorimotor_learner is None:
             return ()
-        return self._sensorimotor_learner.last_primitive_episodes
+        return tuple(
+            {
+                "candidate_id": episode.primitive_id,
+                "start_tick": episode.start_tick,
+                "end_tick": episode.end_tick,
+                "source": episode.source,
+                "evidence_blocks": episode.evidence_blocks,
+                "sample_index": episode.sample_index,
+                "materialized": episode.materialized,
+                "established": episode.competence,
+            }
+            for episode in self._sensorimotor_learner.last_primitive_episodes
+        )
+
+    def _sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
+        if not self._actuation_enabled:
+            return None
+        legacy_snapshot = (
+            self._sensorimotor_learner.snapshot()
+            if self._sensorimotor_learner is not None
+            else None
+        )
+        progress_values = [
+            max(0.0, float(item.learning_progress))
+            for item in self._last_exploration_signals.values()
+        ]
+        active = self._active_action_commitment
+        return SensorimotorV2Snapshot(
+            effect_count=len(self._effect_space.effects),
+            causal_evidence_count=len(self._causal_evidence.evidence),
+            competence_count=len(self._competence_library.items),
+            established_competence_count=sum(
+                1 for item in self._competence_library.items if item.executable
+            ),
+            competence_candidate_count=(
+                legacy_snapshot.competence_candidates
+                if legacy_snapshot is not None
+                else 0
+            ),
+            controllability_estimate_count=len(
+                self._controllability_model.estimates
+            ),
+            predictive_context_count=self._sensorimotor_model.context_count,
+            agency_estimate_count=len(self._agency_model.estimates),
+            composition_evidence_count=len(self._composition_engine.evidence),
+            established_composition_count=len(self._composition_engine.established),
+            body_schema_sensorimotor_relations=(
+                self._body_schema.sensorimotor_dependency_evidence_count
+            ),
+            active_commitment_id=(
+                active.commitment_id
+                if active is not None and active.active
+                else None
+            ),
+            active_competence_id=(
+                active.competence_id
+                if active is not None and active.active
+                else None
+            ),
+            action_source=self._last_action_source,
+            exploration_preference=self._active_exploration_preference,
+            mean_learning_progress=(
+                sum(progress_values) / len(progress_values)
+                if progress_values
+                else 0.0
+            ),
+        )
+
+    @property
+    def sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
+        return self._sensorimotor_v2_snapshot()
+    @property
+    def motor_competences(self) -> tuple[MotorCompetence, ...]:
+        """Canonical learned competence view used outside the legacy learner."""
+        return self._competence_library.items
+
+    @property
+    def effect_representations(self):
+        return self._effect_space.effects
+
+    @property
+    def causal_evidence(self):
+        return self._causal_evidence.evidence
 
     @property
     def actuator_causal_states(self) -> tuple[ActuatorCandidateState, ...]:
@@ -1046,7 +1132,7 @@ class OrganismRuntime:
             )
         self._pending_homeostatic_action_credit = remaining
 
-    def _choose_acquired_primitive(
+    def _choose_acquired_competence(
         self,
         *,
         cognition: "CognitiveBridgeResult",
@@ -1055,21 +1141,231 @@ class OrganismRuntime:
         signal_references: dict[str, str],
         tick: int,
     ) -> str | None:
-        """Hook for model-based prospective primitive selection.
+        """Hook for model-based prospective competence selection.
 
-        Base implementation always returns ``None``, preserving the existing
-        cognitive-readout and babbling behaviour unchanged. Subclasses that
-        have a private model may override this to consult ``ProspectiveAgency``
-        and return a primitive ID to activate.
-
-        Invariants enforced by callers:
-        - Returned ID must be a string or None.
-        - If returned, it will be passed to ``activate_primitive()``; that call
-          is authoritative — a rejected ID falls back to the existing path.
-        - This method must not execute motors, record experience, or import
-          from symbiont_lab/evaluator.
+        The base runtime abstains. Model-enabled runtimes may return an opaque
+        competence id, but this hook never executes a controller or emits a
+        MotorCommand; the universal ActionArbitrator remains authoritative.
         """
         return None
+
+    def _flatten_competence_controller(
+        self,
+        competence_id: str,
+        *,
+        seen: frozenset[str] = frozenset(),
+    ) -> tuple[str, ...]:
+        if competence_id in seen:
+            raise RuntimeError("cyclic competence composition")
+        competence = self._competence_library.get(competence_id)
+        if competence is None or not competence.parent_competence_ids:
+            return (competence_id,)
+        next_seen = seen | {competence_id}
+        flattened: list[str] = []
+        for child_id in competence.parent_competence_ids:
+            flattened.extend(
+                self._flatten_competence_controller(
+                    child_id,
+                    seen=next_seen,
+                )
+            )
+        return tuple(flattened)
+
+    def _activate_competence_controller(self, competence_id: str) -> bool:
+        if self._sensorimotor_learner is None:
+            return False
+        leaves = self._flatten_competence_controller(competence_id)
+        if not leaves:
+            return False
+        self._active_composition_children = leaves if len(leaves) > 1 else ()
+        self._active_composition_index = 0
+        return self._sensorimotor_learner.activate_primitive(leaves[0])
+
+    def _materialize_composition(
+        self,
+        evidence,
+    ) -> MotorCompetence | None:
+        if not evidence.established or self._actuator_constitution is None:
+            return None
+        digest = hashlib.sha256(
+            (
+                f"{evidence.first_competence_id}>"
+                f"{evidence.second_competence_id}>"
+                f"{evidence.effect_id}"
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+        competence_id = f"competence.composed.{digest}"
+        existing = self._competence_library.get(competence_id)
+        evidence_ref = f"composition.{digest}"
+        derived = CompetenceEvidence(
+            controller_seed_ref=f"sequence:{evidence.first_competence_id}>{evidence.second_competence_id}",
+            effect_evidence_refs=(evidence.effect_id,),
+            controllability_evidence_refs=(evidence_ref,),
+            support=evidence.support,
+            failures=evidence.failures,
+            reproducibility=evidence.reproducibility,
+            controllability=evidence.reproducibility,
+            directional_consistency=1.0,
+        )
+        if existing is not None:
+            existing.evidence = derived
+            return existing
+        competence = MotorCompetence(
+            competence_id=competence_id,
+            controller_id=f"controller.{competence_id}",
+            effect_id=evidence.effect_id,
+            evidence=derived,
+            surface_binding=self._actuator_constitution.contract_fingerprint,
+            parent_competence_ids=(
+                evidence.first_competence_id,
+                evidence.second_competence_id,
+            ),
+            controller_strategy_ref=derived.controller_seed_ref,
+        )
+        self._competence_library.add(competence)
+        return competence
+
+    def _record_competence_completion(
+        self,
+        competence_id: str,
+        *,
+        commitment_id: str,
+    ) -> None:
+        effect_id = self._effect_by_commitment.pop(commitment_id, None)
+        predecessor = self._composition_predecessor_id
+        if predecessor is not None and predecessor != competence_id:
+            if effect_id is None:
+                self._composition_engine.observe_absence(
+                    predecessor,
+                    competence_id,
+                )
+            else:
+                evidence = self._composition_engine.observe(
+                    predecessor,
+                    competence_id,
+                    effect_id,
+                    success=True,
+                )
+                self._materialize_composition(evidence)
+        self._composition_predecessor_id = competence_id
+
+    def _advance_or_complete_competence(
+        self,
+        *,
+        tick: int,
+    ) -> None:
+        commitment = self._active_action_commitment
+        if (
+            commitment is None
+            or not commitment.active
+            or commitment.competence_id is None
+            or self._sensorimotor_learner is None
+            or self._sensorimotor_learner.active_primitive_id is not None
+        ):
+            return
+        if (
+            self._active_composition_children
+            and self._active_composition_index + 1
+            < len(self._active_composition_children)
+        ):
+            self._active_composition_index += 1
+            child_id = self._active_composition_children[
+                self._active_composition_index
+            ]
+            if self._sensorimotor_learner.activate_primitive(child_id):
+                return
+            commitment.terminate(
+                tick=tick,
+                status=CommitmentStatus.FAILED,
+                reason="composed_child_unavailable",
+            )
+            self._active_composition_children = ()
+            self._active_composition_index = 0
+            return
+
+        completed_id = commitment.competence_id
+        completed_commitment_id = commitment.commitment_id
+        commitment.terminate(
+            tick=tick,
+            status=CommitmentStatus.COMPLETED,
+            reason="competence_completed",
+        )
+        self._record_competence_completion(
+            completed_id,
+            commitment_id=completed_commitment_id,
+        )
+        self._active_composition_children = ()
+        self._active_composition_index = 0
+
+    def _rank_exploration_opportunities(
+        self,
+        *,
+        exploration_drive: float,
+        reactive_state: ReactiveState,
+    ) -> tuple[str, ...]:
+        """Choose an opaque local opportunity from organism-owned evidence only."""
+        if self._actuator_proposer is None:
+            self._last_exploration_signals = {}
+            return ()
+        opportunities: list[tuple[str, ExplorationSignals]] = []
+        current_strengths: dict[str, float] = {}
+        physiological_cost = max(
+            0.0,
+            min(1.0, 1.0 - float(self._homeostasis.activity_scale)),
+        )
+        risk = max(0.0, min(1.0, float(reactive_state.withdrawal)))
+        for state in self._actuator_proposer.states:
+            activations = max(0, int(state.activations))
+            strength = max(0.0, min(1.0, float(state.effect_strength)))
+            previous = self._exploration_strength_memory.get(
+                state.actuator_id,
+                strength,
+            )
+            progress = max(0.0, strength - previous)
+            current_strengths[state.actuator_id] = strength
+            signals = ExplorationSignals(
+                uncertainty=max(0.0, 1.0 - min(1.0, activations / 12.0)),
+                novelty=1.0 / (1.0 + activations),
+                learning_progress=progress,
+                effect_relevance=max(0.0, min(1.0, exploration_drive)),
+                controllability_potential=(
+                    None if activations == 0 else strength
+                ),
+                physiological_cost=physiological_cost,
+                risk=risk,
+            )
+            opportunities.append((state.actuator_id, signals))
+        self._exploration_strength_memory.update(current_strengths)
+        self._last_exploration_signals = dict(opportunities)
+        chosen = self._exploration_policy.choose(tuple(opportunities))
+        return (chosen,) if chosen is not None else ()
+
+    def _refresh_competence_library(self) -> None:
+        """Project sequence evidence into the v2 competence repertoire.
+
+        A sequence supplies a controller seed and evidence only.  No effect
+        binding is fabricated: that remains unresolved until EffectSpace
+        correspondence is learned.
+        """
+        if self._sensorimotor_learner is None or self._actuator_constitution is None:
+            return
+        for primitive in self._sensorimotor_learner.primitives:
+            if not primitive.established:
+                continue
+            existing = self._competence_library.get(primitive.primitive_id)
+            if existing is None:
+                self._competence_library.add(
+                    MotorCompetence(
+                        competence_id=primitive.primitive_id,
+                        controller_id=f"controller.{primitive.primitive_id}",
+                        effect_id=None,
+                        evidence=primitive.competence_evidence,
+                        surface_binding=self._actuator_constitution.contract_fingerprint,
+                        controller_strategy_ref=primitive.primitive_id,
+                    )
+                )
+            else:
+                existing.evidence = primitive.competence_evidence
 
     def _motor_step(
         self,
@@ -1081,6 +1377,127 @@ class OrganismRuntime:
     ) -> None:
         baseline = self._motor_percept_snapshot(percepts)
         sensorimotor_body_state = self._sensorimotor_body_snapshot(percepts)
+
+        # Complete t-1 -> t only when the bodily consequence is actually
+        # observable.  A command is never credited with a same-tick effect.
+        self._last_sensorimotor_transition = None
+        if self._pending_sensorimotor_transition is not None:
+            previous = self._pending_sensorimotor_transition
+            before_state = previous["state_before"]
+            raw_changes = {
+                name: float(sensorimotor_body_state[name]) - float(before_state[name])
+                for name in sorted(set(before_state) & set(sensorimotor_body_state))
+            }
+            references = signal_references or {}
+            opaque_changes: dict[str, float] = {}
+            for name, delta in raw_changes.items():
+                opaque = references.get(name)
+                if opaque is None and name.startswith(
+                    ("signal.", "latent.", "part.", "channel.", "internal.", "effect.")
+                ):
+                    opaque = name
+                if opaque is not None:
+                    opaque_changes[str(opaque)] = delta
+            observed_effect = self._effect_space.observe(opaque_changes)
+
+            predicted_effect_id = previous.get("predicted_effect_id")
+            prediction_confidence = float(
+                previous.get("prediction_confidence", 0.0)
+            )
+            observed_effect_id = (
+                observed_effect.effect_id
+                if observed_effect is not None
+                else None
+            )
+            prediction_error = None
+            if predicted_effect_id is not None:
+                matched = predicted_effect_id == observed_effect_id
+                prediction_error = PredictionError(
+                    magnitude=0.0 if matched else 1.0,
+                    uncertainty=max(
+                        0.0,
+                        min(1.0, 1.0 - prediction_confidence),
+                    ),
+                    novelty=0.0 if matched else 1.0,
+                )
+
+            transition = SensorimotorTransition(
+                transition_id="transition." + hashlib.sha256(
+                    f"{self._organism_id}:{previous['tick']}:{tick}:{previous['motor_command_ref']}".encode("utf-8")
+                ).hexdigest()[:24],
+                tick_start=int(previous["tick"]),
+                tick_end=tick,
+                context_ref=str(previous["context_ref"]),
+                commitment_id=str(previous["commitment_id"]),
+                controller_id=str(previous["controller_id"]),
+                competence_id=(
+                    str(previous["competence_id"])
+                    if previous.get("competence_id") is not None
+                    else None
+                ),
+                state_before_ref=str(previous["state_before_ref"]),
+                motor_command_ref=str(previous["motor_command_ref"]),
+                actuation_ref=str(previous["actuation_ref"]),
+                prediction_ref=(
+                    str(previous["prediction_id"])
+                    if previous.get("prediction_id") is not None
+                    else None
+                ),
+                state_after_ref="state." + _canonical_hash(
+                    {"values": dict(sorted(sensorimotor_body_state.items()))}
+                )[:24],
+                observed_effect_id=observed_effect_id,
+                prediction_error=prediction_error,
+                physiological_delta_ref=None,
+            )
+            causal = self._causal_evidence.observe(transition)
+            self._sensorimotor_model.observe(causal)
+            if observed_effect is not None:
+                self._effect_by_commitment[
+                    transition.commitment_id
+                ] = observed_effect.effect_id
+
+            if transition.competence_id is not None and observed_effect is not None:
+                self._body_schema.observe_sensorimotor_evidence(
+                    competence_id=transition.competence_id,
+                    effect_id=observed_effect.effect_id,
+                    tick=tick,
+                )
+                competence = self._competence_library.get(transition.competence_id)
+                if competence is not None:
+                    current_surface = (
+                        self._actuator_constitution.contract_fingerprint
+                        if self._actuator_constitution is not None
+                        else None
+                    )
+                    if current_surface is not None:
+                        competence.bind_from_evidence(
+                            surface_fingerprint=current_surface,
+                            effect_id=observed_effect.effect_id,
+                            evidence_refs=(causal.evidence_id,),
+                        )
+                    self._controllability_model.update_from_ledger(
+                        self._causal_evidence,
+                        effect_id=observed_effect.effect_id,
+                        competence_id=transition.competence_id,
+                        context_id=transition.context_ref,
+                        tick=tick,
+                    )
+                    self._agency_model.update_from_ledger(
+                        self._causal_evidence,
+                        effect_id=observed_effect.effect_id,
+                        competence_id=transition.competence_id,
+                        context_id=transition.context_ref,
+                        tick=tick,
+                        prediction_match=(
+                            None
+                            if prediction_error is None
+                            else 1.0 - prediction_error.magnitude
+                        ),
+                    )
+            self._last_sensorimotor_transition = transition
+            self._pending_sensorimotor_transition = None
+
         homeostatic_baseline = self._homeostasis.deviation()
         reactive_state = self._innate_reactivity.evaluate(
             percepts=baseline,
@@ -1102,7 +1519,7 @@ class OrganismRuntime:
         )
 
         # A competence may have crossed its evidence gate on the previous
-        # natural babbling window. By this tick its readout can have been
+        # natural exploration window. By this tick its readout can have been
         # admitted normally; record the causal context without scheduling or
         # forcing any replay.
         if (
@@ -1130,257 +1547,266 @@ class OrganismRuntime:
         ):
             return
 
-        active_repertoire = self._actuator_proposer.active_repertoire
-        self._last_motor_origin = "none"
-        self._last_motor_origin_detail = "none"
+        self._last_action_source = "none"
         intents: tuple[MotorIntent, ...] = ()
         pending: list[tuple[str, float, dict[str, float] | None]] = []
-
-        cognitive_intents: tuple[MotorIntent, ...] = ()
-        if cognition is not None and active_repertoire:
-            readouts = cognition.readouts_for_family("motor")
-            eligible = {
-                actuator_id: value
-                for actuator_id, value in readouts.items()
-                if actuator_id in active_repertoire
-            }
-            cognitive_intents = self._motor_intent_selector.select_many(
-                eligible,
-                max_concurrent=len(active_repertoire),
-            )
-
-        primitive_execution: tuple[MotorIntent, ...] = ()
         primitive_selected_now = False
-        if self._sensorimotor_learner is not None:
-            # Fast acquired response: constitutional urgency may reuse only a
-            # primitive that the organism has already discovered and for which
-            # repeated real experience showed immediate relief. It never emits
-            # actuator commands directly.
-            if self._sensorimotor_learner.active_primitive_id is None:
-                reactive_candidates = (
-                    self._sensorimotor_learner.available_cognitive_primitive_ids()
+
+        if self._sensorimotor_learner is None:
+            raise RuntimeError("actuation requires sensorimotor learner")
+
+        # Advance an internal composed controller or close one completed
+        # competence before opening deliberation again.
+        self._advance_or_complete_competence(tick=tick)
+
+        self._refresh_competence_library()
+        candidate_ids = tuple(
+            competence.competence_id
+            for competence in self._competence_library.items
+            if competence.executable
+        )
+        proposals: list[ActionProposal] = []
+
+        # Innate reactivity contributes urgency and a learned response candidate;
+        # it never writes a motor command itself.
+        reactive_candidate = self._reactive_memory.best(
+            signature=reactive_state.signature,
+            candidates=candidate_ids,
+        )
+        if reactive_state.withdrawal >= 0.55 and reactive_candidate is not None:
+            proposal_id = "proposal." + hashlib.sha256(
+                f"{self._organism_id}:{tick}:protection:{reactive_candidate}".encode("utf-8")
+            ).hexdigest()[:24]
+            proposals.append(
+                ActionProposal(
+                    proposal_id=proposal_id,
+                    source=ActionSource.PROTECTION,
+                    effect_target_id=None,
+                    competence_id=reactive_candidate,
+                    justification=ActionJustification(
+                        originating_need_id=f"internal.{reactive_state.signature}",
+                        competence_id=reactive_candidate,
+                    ),
+                    evaluation=ActionEvaluation(
+                        homeostatic_relevance=reactive_state.withdrawal,
+                        protective_relevance=reactive_state.withdrawal,
+                        effect_confidence=min(1.0, reactive_state.withdrawal),
+                        uncertainty=max(0.0, 1.0 - reactive_state.withdrawal),
+                    ),
                 )
-                reactive_decision = self._action_arbitrator.choose_reactive(
-                    state=reactive_state,
-                    memory=self._reactive_memory,
-                    candidate_ids=reactive_candidates,
+            )
+
+        # Prospective agency proposes an already acquired competence.  It does
+        # not activate it; final ownership belongs to the universal arbitrator.
+        prospective_id: str | None = None
+        if cognition is not None and candidate_ids:
+            prospective_id = self._choose_acquired_competence(
+                cognition=cognition,
+                percepts=percepts,
+                candidate_ids=candidate_ids,
+                signal_references=signal_references or {},
+                tick=tick,
+            )
+        if prospective_id is not None and prospective_id in candidate_ids:
+            proposal_id = "proposal." + hashlib.sha256(
+                f"{self._organism_id}:{tick}:prospection:{prospective_id}".encode("utf-8")
+            ).hexdigest()[:24]
+            proposals.append(
+                ActionProposal(
+                    proposal_id=proposal_id,
+                    source=ActionSource.PROSPECTION,
+                    effect_target_id=None,
+                    competence_id=prospective_id,
+                    justification=ActionJustification(
+                        competence_id=prospective_id,
+                    ),
+                    evaluation=ActionEvaluation(
+                        effect_confidence=0.75,
+                        controllability=0.75,
+                        uncertainty=0.25,
+                    ),
                 )
+            )
+
+        # Cognitive motor reuse is competence-level only.  The historical
+        # cognition->individual-actuator path is intentionally gone.
+        if cognition is not None and candidate_ids:
+            primitive_readouts = cognition.readouts_for_family("primitive")
+            for primitive_id in candidate_ids:
+                raw = primitive_readouts.get(primitive_id)
                 if (
-                    reactive_decision.primitive_id is not None
-                    and self._sensorimotor_learner.activate_primitive(
-                        reactive_decision.primitive_id
-                    )
+                    isinstance(raw, (int, float))
+                    and not isinstance(raw, bool)
+                    and math.isfinite(float(raw))
+                    and float(raw) >= self._motor_intent_selector.selection_threshold
                 ):
-                    primitive_selected_now = True
-                    self._last_motor_origin_detail = "primitive_reactive"
-
-            # An already-started learned skill is an atomic temporal action:
-            # continue it before considering a new cognitive primitive.
-            if self._sensorimotor_learner.active_primitive_id is not None:
-                primitive_execution = self._sensorimotor_learner.motor_intents(tick)
-            elif cognition is not None:
-                # (2) Prospective agency hook — base returns None; overridden by
-                #     PrivateModelOrganismRuntime when model-based agency is active.
-                candidate_ids = self._sensorimotor_learner.available_cognitive_primitive_ids()
-                acquired_primitive_id = self._choose_acquired_primitive(
-                    cognition=cognition,
-                    percepts=percepts,
-                    candidate_ids=candidate_ids,
-                    signal_references=signal_references or {},
-                    tick=tick,
-                )
-                if acquired_primitive_id is not None and self._sensorimotor_learner.activate_primitive(acquired_primitive_id):
-                    primitive_selected_now = True
-                    self._last_motor_origin_detail = "primitive_prospective"
-                    primitive_execution = self._sensorimotor_learner.motor_intents(tick)
-                else:
-                    # (3) Cognitive readout primitive selection (existing path)
-                    primitive_readouts = cognition.readouts_for_family("primitive")
-                    eligible_primitives = [
-                        (float(value), str(primitive_id))
-                        for primitive_id, value in primitive_readouts.items()
-                        if (
-                            isinstance(value, (int, float))
-                            and not isinstance(value, bool)
-                            and math.isfinite(float(value))
-                            and float(value)
-                            >= self._motor_intent_selector.selection_threshold
+                    strength = max(0.0, min(1.0, float(raw)))
+                    proposal_id = "proposal." + hashlib.sha256(
+                        f"{self._organism_id}:{tick}:competence:{primitive_id}".encode("utf-8")
+                    ).hexdigest()[:24]
+                    proposals.append(
+                        ActionProposal(
+                            proposal_id=proposal_id,
+                            source=ActionSource.COMPETENCE,
+                            effect_target_id=None,
+                            competence_id=primitive_id,
+                            justification=ActionJustification(
+                                competence_id=primitive_id,
+                            ),
+                            evaluation=ActionEvaluation(
+                                effect_confidence=strength,
+                                controllability=strength,
+                                uncertainty=1.0 - strength,
+                            ),
                         )
-                    ]
-                    if eligible_primitives:
-                        _, primitive_id = sorted(
-                            eligible_primitives,
-                            key=lambda item: (-item[0], item[1]),
-                        )[0]
-                        if self._sensorimotor_learner.activate_primitive(primitive_id):
-                            primitive_selected_now = True
-                            primitive_execution = (
-                                self._sensorimotor_learner.motor_intents(tick)
-                            )
-
-        if primitive_execution:
-            intents = primitive_execution
-            self._last_executed_primitive_id = (
-                self._sensorimotor_learner.last_output_primitive_id
-                if self._sensorimotor_learner is not None
-                else None
-            )
-            self._last_motor_origin = "primitive"
-            if (
-                self._last_executed_primitive_id is not None
-                and reactive_state.withdrawal > 0.05
-            ):
-                self._pending_reactive_credit = (
-                    reactive_state.signature,
-                    self._last_executed_primitive_id,
-                    homeostatic_baseline,
-                )
-            # Preserve prospective/reactive provenance if already set.
-            # Every other current primitive execution was selected through a
-            # cognitive primitive path; scheduled verification no longer exists.
-            if self._last_motor_origin_detail not in {
-                "primitive_prospective",
-                "primitive_reactive",
-            }:
-                self._last_motor_origin_detail = "primitive_cognition"
-
-        elif self._motor_exploration_mode == "babbling":
-            if self._sensorimotor_learner is None:
-                raise RuntimeError("babbling mode requires sensorimotor learner")
-
-            # Sensorimotor learning is independent from cognitive admission.
-            # Current-state learner output here must be ordinary babbling;
-            # primitives are handled atomically above and no passive/verification
-            # scheduler exists.
-            developmental_intents = self._sensorimotor_learner.motor_intents(tick)
-            output_source = self._sensorimotor_learner.last_output_source
-            if output_source != "babbling":
-                raise RuntimeError(
-                    "unexpected sensorimotor output source during babbling development: "
-                    f"{output_source}"
-                )
-
-            # A one-channel babbling episode is a clean natural causal
-            # probe for the direct actuator proposer. Multi-channel
-            # synergies stay exclusively in the sensorimotor learner
-            # because their effects cannot be attributed to one actuator.
-            if len(developmental_intents) == 1:
-                isolated = developmental_intents[0]
-                pending.append(
-                    (
-                        isolated.actuator_id,
-                        float(isolated.activation),
-                        baseline,
                     )
+
+        # Exploration is permanently available, but its pressure is organism
+        # owned and can become very small.  There is no developmental mode.
+        exploration_drive = (
+            self._gene_expression_state.exploration_drive
+            if self._gene_expression_state is not None
+            else 0.25
+        )
+        exploration_drive = max(0.0, min(1.0, float(exploration_drive)))
+        ranked_exploration = self._rank_exploration_opportunities(
+            exploration_drive=exploration_drive,
+            reactive_state=reactive_state,
+        )
+        if exploration_drive > 0.0 and ranked_exploration:
+            preferred_id = ranked_exploration[0]
+            signals = self._last_exploration_signals[preferred_id]
+            proposal_id = "proposal." + hashlib.sha256(
+                f"{self._organism_id}:{tick}:exploration:{preferred_id}".encode("utf-8")
+            ).hexdigest()[:24]
+            proposals.append(
+                ActionProposal(
+                    proposal_id=proposal_id,
+                    source=ActionSource.EXPLORATION,
+                    effect_target_id=None,
+                    competence_id=None,
+                    justification=ActionJustification(
+                        originating_need_id="internal.sensorimotor-uncertainty",
+                        evidence_refs=(f"channel.{preferred_id}",),
+                    ),
+                    evaluation=ActionEvaluation(
+                        epistemic_relevance=max(
+                            exploration_drive,
+                            max(0.0, signals.learning_progress),
+                        ),
+                        effect_confidence=(
+                            signals.controllability_potential
+                            if signals.controllability_potential is not None
+                            else 0.0
+                        ),
+                        controllability=signals.controllability_potential,
+                        uncertainty=max(0.0, min(1.0, signals.uncertainty)),
+                        estimated_cost=signals.physiological_cost,
+                        estimated_risk=signals.risk,
+                    ),
                 )
-
-            merged: list[MotorIntent] = []
-            seen: set[str] = set()
-
-            # During sensorimotor development, cognition receives one slot
-            # while the remaining capacity stays available for body-wide
-            # exploration. This prevents an early repetitive readout from
-            # monopolizing the body before its dynamics are learned.
-            if cognitive_intents:
-                intent = cognitive_intents[0]
-                merged.append(intent)
-                seen.add(intent.actuator_id)
-
-            for intent in developmental_intents:
-                if intent.actuator_id in seen:
-                    continue
-                merged.append(intent)
-                seen.add(intent.actuator_id)
-
-            intents = tuple(merged)
-            if cognitive_intents and developmental_intents:
-                self._last_motor_origin = "mixed"
-                self._last_motor_origin_detail = "mixed"
-            elif cognitive_intents:
-                self._last_motor_origin = "cognition"
-                self._last_motor_origin_detail = "cognition"
-            elif developmental_intents:
-                self._last_motor_origin = "babbling"
-                self._last_motor_origin_detail = "babbling"
-
-        elif cognitive_intents:
-            intents = cognitive_intents
-            self._last_motor_origin = "cognition"
-            self._last_motor_origin_detail = "cognition"
-
-        if not intents and self._motor_exploration_mode == "spontaneous":
-            digest = hashlib.sha256(
-                f"basal-motor-noise:{self._organism_id}:{tick}".encode("utf-8")
-            ).digest()
-            exploration_drive = (
-                self._gene_expression_state.exploration_drive
-                if self._gene_expression_state is not None
-                else 0.25
             )
-            threshold = max(0, min(255, round(255.0 * exploration_drive)))
-            if (
-                digest[0] < threshold
-                and self._actuator_constitution is not None
-                and self._actuator_constitution.actuator_ids
-            ):
-                ids = self._actuator_constitution.actuator_ids
-                pending_id = ids[int.from_bytes(digest[1:5], "big") % len(ids)]
-                random_fraction = (
-                    int.from_bytes(digest[5:9], "big")
-                    / float((1 << 32) - 1)
+
+        decision = self._action_arbitrator.choose(
+            proposals=tuple(proposals),
+            current=self._active_action_commitment,
+            tick=tick,
+        )
+
+        selected = decision.proposal
+        if selected is not None:
+            if self._active_action_commitment is not None and self._active_action_commitment.active:
+                self._active_action_commitment.terminate(
+                    tick=tick,
+                    status=CommitmentStatus.INTERRUPTED,
+                    reason=decision.reason,
                 )
-                # Expression regulates exploratory amplitude without encoding a
-                # body-specific movement or externally valued direction.
-                pending_activation = max(
-                    0.0,
-                    min(
-                        1.0,
-                        0.05
-                        + exploration_drive
-                        * (0.25 + 0.75 * random_fraction),
-                    ),
+                self._sensorimotor_learner.interrupt_active_competence()
+                self._active_composition_children = ()
+                self._active_composition_index = 0
+
+            controller_id = (
+                f"controller.{selected.competence_id}"
+                if selected.competence_id is not None
+                else "controller.sensorimotor-exploration"
+            )
+            commitment_id = "commitment." + hashlib.sha256(
+                f"{selected.proposal_id}:{tick}".encode("utf-8")
+            ).hexdigest()[:24]
+            self._last_action_proposal = selected
+            self._active_exploration_preference = (
+                ranked_exploration
+                if selected.source is ActionSource.EXPLORATION
+                else ()
+            )
+            self._active_action_commitment = ActionCommitment(
+                commitment_id=commitment_id,
+                proposal_id=selected.proposal_id,
+                effect_target_id=selected.effect_target_id,
+                competence_id=selected.competence_id,
+                started_tick=tick,
+                controller_id=controller_id,
+                surface_fingerprint=(
+                    self._actuator_constitution.contract_fingerprint
+                    if self._actuator_constitution is not None
+                    else None
+                ),
+                maximum_duration=(8 if selected.source is ActionSource.EXPLORATION else None),
+            )
+
+            if selected.competence_id is not None:
+                if self._activate_competence_controller(selected.competence_id):
+                    primitive_selected_now = True
+                    intents = self._sensorimotor_learner.motor_intents(tick)
+                    self._last_executed_primitive_id = (
+                        self._sensorimotor_learner.last_output_primitive_id
+                    )
+                else:
+                    self._active_action_commitment.terminate(
+                        tick=tick,
+                        status=CommitmentStatus.FAILED,
+                        reason="competence_controller_unavailable",
+                    )
+                    intents = ()
+            else:
+                intents = self._sensorimotor_learner.motor_intents(
+                    tick,
+                    exploration_preference=self._active_exploration_preference,
                 )
-                intents = (
-                    MotorIntent(
-                        actuator_id=pending_id,
-                        activation=pending_activation,
-                    ),
+
+            self._last_action_source = selected.source.value
+
+        elif decision.keep_current and self._active_action_commitment is not None:
+            source_value = "competence" if self._active_action_commitment.competence_id else "exploration"
+            if self._last_action_proposal is not None:
+                source_value = self._last_action_proposal.source.value
+            if self._active_action_commitment.competence_id is not None:
+                if self._sensorimotor_learner.active_primitive_id is not None:
+                    intents = self._sensorimotor_learner.motor_intents(tick)
+                    self._last_executed_primitive_id = (
+                        self._sensorimotor_learner.last_output_primitive_id
+                    )
+            else:
+                intents = self._sensorimotor_learner.motor_intents(
+                    tick,
+                    exploration_preference=self._active_exploration_preference,
                 )
-                pending.append((pending_id, pending_activation, baseline))
-                self._last_motor_origin = "spontaneous"
-                self._last_motor_origin_detail = "spontaneous"
+            self._last_action_source = source_value
+
+        if self._last_action_source == "exploration" and len(intents) == 1:
+            isolated = intents[0]
+            pending.append(
+                (
+                    isolated.actuator_id,
+                    float(isolated.activation),
+                    baseline,
+                )
+            )
 
         if self._sensorimotor_learner is not None and intents:
             intents = self._sensorimotor_learner.constrain_intents(intents)
             surviving_ids = {intent.actuator_id for intent in intents}
-            cognitive_ids = {
-                intent.actuator_id for intent in cognitive_intents
-            }
-
-            # Direct actuator-effect probes are valid only when the surviving
-            # command is genuinely developmental.  If cognition requested the
-            # same opaque actuator, the resulting bodily consequence cannot be
-            # attributed to babbling even though the physical channel matches.
-            pending = [
-                item
-                for item in pending
-                if (
-                    item[0] in surviving_ids
-                    and item[0] not in cognitive_ids
-                )
-            ]
-
-            # Origin telemetry must describe the command that will actually be
-            # executed after opaque motor-unit arbitration, not the requests
-            # that existed before mutually-exclusive channels were resolved.
-            (
-                self._last_motor_origin,
-                self._last_motor_origin_detail,
-            ) = _classify_executed_motor_origin(
-                intents,
-                cognitive_intents,
-                prior_origin=self._last_motor_origin,
-            )
+            pending = [item for item in pending if item[0] in surviving_ids]
 
         activity_scale = self._homeostasis.activity_scale
         if activity_scale < 1.0:
@@ -1413,48 +1839,96 @@ class OrganismRuntime:
                 )
             return
 
+        # Low-level feedback/control commands inherit the selected commitment;
+        # they are not new deliberative actions.
+        if self._active_action_commitment is None or not self._active_action_commitment.active:
+            raise RuntimeError("motor output has no active organism-owned commitment")
+        self._last_motor_command = MotorCommand(
+            commitment_id=self._active_action_commitment.commitment_id,
+            controller_id=self._active_action_commitment.controller_id,
+            competence_id=self._active_action_commitment.competence_id,
+            channels=tuple(
+                (intent.actuator_id, float(intent.activation))
+                for intent in intents
+            ),
+        )
+
         actuations: list[Actuation] = []
         proprioception: dict[str, float] = {}
-        total_cost = 0.0
+        if self._actuator_constitution is None:
+            raise RuntimeError("actuation enabled without actuator surface")
         for intent in intents:
-            state = self._actuator_states.get(intent.actuator_id)
-            if state is None:
-                raise ValueError(
-                    f"motor intent references unknown actuator {intent.actuator_id!r}"
-                )
-            actuation = self._actuator_system.execute(intent, state)
+            actuation = self._actuator_system.execute(
+                intent,
+                self._actuator_constitution,
+            )
             actuations.append(actuation)
-            total_cost += actuation.cost
             aid = actuation.actuator_id
             proprioception.update({
                 f"motor.requested_activation.{aid}": actuation.requested,
                 f"motor.delivered_activation.{aid}": actuation.delivered,
-                f"motor.load.{aid}": actuation.cost,
             })
 
         self._last_motor_intents = tuple(intents)
         self._last_actuations = tuple(actuations)
         self._last_motor_intent = self._last_motor_intents[0]
         self._last_actuation = self._last_actuations[0]
-        self._charge_metabolism("maintenance", total_cost)
         self._pending_proprioception = proprioception
 
-        if cognitive_intents and active_concepts:
-            executed_ids = {
-                actuation.actuator_id
-                for actuation in actuations
-                if actuation.delivered > 0.0
-            }
-            for intent in cognitive_intents:
-                if intent.actuator_id not in executed_ids:
-                    continue
-                self._schedule_homeostatic_action_credit(
-                    family="motor",
-                    action_id=intent.actuator_id,
-                    concept_ids=active_concepts,
-                    baseline_error=homeostatic_baseline,
-                    tick=tick,
+        if self._last_motor_command is not None and self._active_action_commitment is not None:
+            context_ref = "context." + hashlib.sha256(
+                (
+                    (
+                        self._actuator_constitution.contract_fingerprint
+                        if self._actuator_constitution is not None
+                        else "no-surface"
+                    )
+                    + "|"
+                    + ("|".join(active_concepts) or "opaque")
+                ).encode("utf-8")
+            ).hexdigest()[:24]
+            prediction = (
+                self._sensorimotor_model.predict(
+                    competence_id=self._active_action_commitment.competence_id,
+                    context_id=context_ref,
                 )
+                if self._active_action_commitment.competence_id is not None
+                else None
+            )
+            command_payload = {
+                "channels": [
+                    [actuator_id, activation]
+                    for actuator_id, activation in self._last_motor_command.channels
+                ]
+            }
+            actuation_payload = {
+                "delivered": [
+                    [item.actuator_id, float(item.delivered)]
+                    for item in self._last_actuations
+                ]
+            }
+            self._pending_sensorimotor_transition = {
+                "tick": tick,
+                "commitment_id": self._active_action_commitment.commitment_id,
+                "controller_id": self._active_action_commitment.controller_id,
+                "competence_id": self._active_action_commitment.competence_id,
+                "context_ref": context_ref,
+                "prediction_id": (
+                    prediction.prediction_id if prediction is not None else None
+                ),
+                "predicted_effect_id": (
+                    prediction.effect_id if prediction is not None else None
+                ),
+                "prediction_confidence": (
+                    prediction.confidence if prediction is not None else 0.0
+                ),
+                "state_before": dict(sensorimotor_body_state),
+                "state_before_ref": "state." + _canonical_hash(
+                    {"values": dict(sorted(sensorimotor_body_state.items()))}
+                )[:24],
+                "motor_command_ref": "command." + _canonical_hash(command_payload)[:24],
+                "actuation_ref": "actuation." + _canonical_hash(actuation_payload)[:24],
+            }
 
         if (
             primitive_selected_now
@@ -1488,14 +1962,8 @@ class OrganismRuntime:
                     for actuation in self._last_actuations
                     if actuation.delivered > 0.0
                 },
-                discovery_eligible=(
-                    self._last_motor_origin != "primitive"
-                ),
-                execution_primitive_id=(
-                    self._last_executed_primitive_id
-                    if self._last_motor_origin == "primitive"
-                    else None
-                ),
+                discovery_eligible=(self._last_executed_primitive_id is None),
+                execution_primitive_id=self._last_executed_primitive_id,
             )
 
             # Natural recurrence is the missing non-circular path from a
@@ -1518,14 +1986,9 @@ class OrganismRuntime:
 
 
     @property
-    def last_motor_origin(self) -> str:
-        """Evaluator-only provenance of the latest motor intent."""
-        return self._last_motor_origin
-
-    @property
-    def last_motor_origin_detail(self) -> str:
-        """Evaluator-only detailed provenance for learned primitive execution."""
-        return self._last_motor_origin_detail
+    def last_action_source(self) -> str:
+        """Passive provenance of the current organism-owned action commitment."""
+        return self._last_action_source
 
     @property
     def narrative_journal(self) -> tuple[dict[str, Any], ...]:
@@ -1575,7 +2038,6 @@ class OrganismRuntime:
             "mutation_seed": self._mutation_seed,
             "epigenetic_decay": self._epigenetic_decay,
             "actuation_enabled": self._actuation_enabled,
-            "motor_exploration_mode": self._motor_exploration_mode,
             "motor_selection_threshold": (
                 self._motor_intent_selector.selection_threshold
                 if self._motor_intent_selector is not None
@@ -3092,6 +3554,10 @@ class OrganismRuntime:
             actuation=self._last_actuation,
             motor_intents=self._last_motor_intents,
             actuations=self._last_actuations,
+            action_commitment=self._active_action_commitment,
+            motor_command=self._last_motor_command,
+            sensorimotor_transition=self._last_sensorimotor_transition,
+            sensorimotor_v2=self._sensorimotor_v2_snapshot(),
             gene_expression=(
                 self._gene_expression_state.as_dict()
                 if self._gene_expression_state is not None
@@ -3144,12 +3610,13 @@ class OrganismRuntime:
                     {
                         "slot_id": slot.slot_id,
                         "actuator_id": slot.actuator_id,
-                        "basal_cost": slot.basal_cost,
-                        "initial_health": slot.initial_health,
-                        "execution_threshold": slot.execution_threshold,
+                        "command_min": slot.command_min,
+                        "command_max": slot.command_max,
+                        "neutral": slot.neutral,
+                        "available": slot.available,
                     }
                     for slot in self._actuator_constitution.slots
-                ]
+                ],
             }
             pending_motor = [
                 {
@@ -3163,16 +3630,11 @@ class OrganismRuntime:
                 "enabled": True,
                 "constitution": constitution_payload,
                 "proposer": export_actuation_state(self._actuator_proposer),
-                "states": {
-                    actuator_id: state.to_payload()
-                    for actuator_id, state in sorted(self._actuator_states.items())
-                },
                 "selection_threshold": (
                     self._motor_intent_selector.selection_threshold
                     if self._motor_intent_selector is not None
                     else 0.1
                 ),
-                "exploration_mode": self._motor_exploration_mode,
                 "pending_motor_observation": pending_motor,
                 "pending_proprioception": dict(sorted(self._pending_proprioception.items())),
                 "sensorimotor": (
@@ -3181,6 +3643,54 @@ class OrganismRuntime:
                     else None
                 ),
                 "last_executed_primitive_id": self._last_executed_primitive_id,
+                "action_commitment": (
+                    self._active_action_commitment.checkpoint()
+                    if self._active_action_commitment is not None
+                    else None
+                ),
+                "sensorimotor_v2": {
+                    "schema_version": 1,
+                    "surface_binding": {
+                        "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
+                        "known_channel_ids": list(self._actuator_constitution.actuator_ids),
+                    },
+                    "effect_space": self._effect_space.checkpoint(),
+                    "causal_evidence": self._causal_evidence.checkpoint(),
+                    "exploration": {
+                        "strength_memory": dict(
+                            sorted(self._exploration_strength_memory.items())
+                        ),
+                        "active_preference": list(
+                            self._active_exploration_preference
+                        ),
+                    },
+                    "competences": [
+                        {
+                            "competence_id": item.competence_id,
+                            "controller_id": item.controller_id,
+                            "effect_id": item.effect_id,
+                            "surface_binding": item.surface_binding,
+                            "controller_strategy_ref": item.controller_strategy_ref,
+                            "parent_competence_ids": list(
+                                item.parent_competence_ids
+                            ),
+                            "support": item.evidence.support,
+                            "failures": item.evidence.failures,
+                            "reproducibility": item.evidence.reproducibility,
+                            "controllability": item.evidence.controllability,
+                            "directional_consistency": item.evidence.directional_consistency,
+                        }
+                        for item in self._competence_library.items
+                    ],
+                    "composition": {
+                        "engine": self._composition_engine.checkpoint(),
+                        "predecessor_id": self._composition_predecessor_id,
+                        "active_children": list(
+                            self._active_composition_children
+                        ),
+                        "active_index": self._active_composition_index,
+                    },
+                },
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -3395,10 +3905,8 @@ class OrganismRuntime:
         actuation_enabled = False
         actuator_constitution = None
         actuator_proposer = None
-        actuator_states = None
         motor_intent_selector = None
         sensorimotor_learner = None
-        motor_exploration_mode = "spontaneous"
         pending_motor_observation = ()
         pending_proprioception: dict[str, float] = {}
         raw_actuation = normalized.get("actuation")
@@ -3409,19 +3917,13 @@ class OrganismRuntime:
             if not isinstance(enabled, bool):
                 raise CheckpointError("actuation.enabled must be boolean")
             actuation_enabled = enabled
-            raw_mode = raw_actuation.get("exploration_mode", "spontaneous")
+            raw_mode = raw_actuation.get("exploration_mode")
             if raw_mode == "structured_probe":
-                # L6.2 removes the scheduled ON/OFF probing-calendar
-                # apparatus from canonical core entirely — there is no
-                # decontaminated equivalent to migrate this mode into (same
-                # discipline as the v8->v9 ActionKind removal).
                 raise CheckpointError(
-                    "checkpoint carries the removed structured_probe motor "
-                    "exploration mode; it cannot be restored"
+                    "checkpoint carries removed scheduled motor probing state"
                 )
-            if raw_mode not in {"spontaneous", "babbling"}:
-                raise CheckpointError("invalid motor exploration mode")
-            motor_exploration_mode = str(raw_mode)
+            # Legacy spontaneous/exploration mode is read only for migration;
+            # Sensorimotor v2 has no runtime motor mode.
             if enabled:
                 raw_constitution = raw_actuation.get("constitution")
                 if not isinstance(raw_constitution, dict):
@@ -3434,9 +3936,10 @@ class OrganismRuntime:
                         ActuatorChannel(
                             slot_id=str(item["slot_id"]),
                             actuator_id=str(item["actuator_id"]),
-                            basal_cost=float(item["basal_cost"]),
-                            initial_health=float(item["initial_health"]),
-                            execution_threshold=float(item["execution_threshold"]),
+                            command_min=float(item.get("command_min", 0.0)),
+                            command_max=float(item.get("command_max", 1.0)),
+                            neutral=float(item.get("neutral", 0.0)),
+                            available=bool(item.get("available", True)),
                         )
                         for item in raw_slots
                     )
@@ -3470,19 +3973,6 @@ class OrganismRuntime:
                     )
                 except (KeyError, TypeError, ValueError) as exc:
                     raise CheckpointError(f"invalid actuator proposer checkpoint: {exc}") from exc
-                raw_states = raw_actuation.get("states")
-                if not isinstance(raw_states, dict) or set(raw_states) != set(actuator_constitution.actuator_ids):
-                    raise CheckpointError("actuator states must exactly match constitution")
-                try:
-                    actuator_states = {
-                        actuator_id: ActuatorState.from_payload(raw_states[actuator_id])
-                        for actuator_id in actuator_constitution.actuator_ids
-                    }
-                except (KeyError, TypeError, ValueError) as exc:
-                    raise CheckpointError(f"invalid actuator state checkpoint: {exc}") from exc
-                for actuator_id, state in actuator_states.items():
-                    if state.actuator_id != actuator_id:
-                        raise CheckpointError("actuator state key/id mismatch")
                 try:
                     motor_intent_selector = MotorIntentSelector(
                         selection_threshold=raw_actuation.get("selection_threshold", 0.1)
@@ -3490,11 +3980,9 @@ class OrganismRuntime:
                 except ValueError as exc:
                     raise CheckpointError(f"invalid motor selector checkpoint: {exc}") from exc
                 raw_sensorimotor = raw_actuation.get("sensorimotor")
-                if motor_exploration_mode == "babbling":
+                if raw_sensorimotor is not None:
                     if not isinstance(raw_sensorimotor, dict):
-                        raise CheckpointError(
-                            "babbling checkpoint is missing canonical sensorimotor state"
-                        )
+                        raise CheckpointError("invalid canonical sensorimotor state")
                     try:
                         sensorimotor_learner = SensorimotorLearner.restore(
                             raw_sensorimotor,
@@ -3648,7 +4136,6 @@ class OrganismRuntime:
         constructor_kwargs.pop("actuation_enabled", None)
         constructor_kwargs.pop("actuator_constitution", None)
         constructor_kwargs.pop("actuator_proposer", None)
-        constructor_kwargs.pop("actuator_states", None)
         constructor_kwargs.pop("motor_intent_selector", None)
         constructor_kwargs.pop("actuator_system", None)
         constructor_kwargs.pop("sensorimotor_learner", None)
@@ -3707,13 +4194,181 @@ class OrganismRuntime:
             actuation_enabled=actuation_enabled,
             actuator_constitution=actuator_constitution,
             actuator_proposer=actuator_proposer,
-            actuator_states=actuator_states,
             motor_intent_selector=motor_intent_selector,
             sensorimotor_learner=sensorimotor_learner,
-            motor_exploration_mode=motor_exploration_mode,
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception
+        if isinstance(raw_actuation, dict):
+            raw_commitment = raw_actuation.get("action_commitment")
+            if isinstance(raw_commitment, dict):
+                restored_commitment = ActionCommitment.restore(raw_commitment)
+                current_surface = (
+                    runtime._actuator_constitution.contract_fingerprint
+                    if runtime._actuator_constitution is not None
+                    else None
+                )
+                if restored_commitment.compatible_with(current_surface):
+                    runtime._active_action_commitment = restored_commitment
+                else:
+                    restored_commitment.terminate(
+                        tick=runtime._tick_count,
+                        status=CommitmentStatus.INCOMPATIBLE,
+                        reason="surface_contract_changed",
+                    )
+                    runtime._active_action_commitment = restored_commitment
+            raw_v2 = raw_actuation.get("sensorimotor_v2")
+            if isinstance(raw_v2, dict):
+                try:
+                    if raw_v2.get("schema_version") != 1:
+                        raise ValueError(
+                            "unsupported sensorimotor v2 checkpoint schema"
+                        )
+                    raw_effects = raw_v2.get("effect_space")
+                    raw_evidence = raw_v2.get("causal_evidence")
+                    if isinstance(raw_effects, dict):
+                        runtime._effect_space = EffectSpace.restore(raw_effects)
+                    if isinstance(raw_evidence, dict):
+                        runtime._causal_evidence = CausalEvidenceLedger.restore(raw_evidence)
+                        runtime._body_schema.rebuild_sensorimotor_view(
+                            runtime._causal_evidence.evidence
+                        )
+                        runtime._sensorimotor_model.rebuild(
+                            runtime._causal_evidence
+                        )
+                        runtime._controllability_model.rebuild(
+                            runtime._causal_evidence
+                        )
+                        runtime._agency_model.rebuild(
+                            runtime._causal_evidence
+                        )
+                    raw_exploration = raw_v2.get("exploration")
+                    if isinstance(raw_exploration, dict):
+                        raw_strength = raw_exploration.get("strength_memory", {})
+                        if isinstance(raw_strength, dict):
+                            runtime._exploration_strength_memory = {
+                                str(key): max(0.0, min(1.0, float(value)))
+                                for key, value in raw_strength.items()
+                                if str(key) in set(
+                                    runtime._actuator_constitution.actuator_ids
+                                    if runtime._actuator_constitution is not None
+                                    else ()
+                                )
+                            }
+                        raw_preference = raw_exploration.get(
+                            "active_preference",
+                            [],
+                        )
+                        if isinstance(raw_preference, list):
+                            known = set(
+                                runtime._actuator_constitution.actuator_ids
+                                if runtime._actuator_constitution is not None
+                                else ()
+                            )
+                            runtime._active_exploration_preference = tuple(
+                                str(value)
+                                for value in raw_preference
+                                if str(value) in known
+                            )
+                    raw_competences = raw_v2.get("competences", [])
+                    if isinstance(raw_competences, list):
+                        restored_library = CompetenceLibrary()
+                        for item in raw_competences:
+                            if not isinstance(item, dict):
+                                raise ValueError("invalid competence checkpoint item")
+                            competence_id = item.get("competence_id")
+                            controller_id = item.get("controller_id")
+                            if not isinstance(competence_id, str) or not isinstance(controller_id, str):
+                                raise ValueError("invalid competence checkpoint identifiers")
+                            restored_library.add(
+                                MotorCompetence(
+                                    competence_id=competence_id,
+                                    controller_id=controller_id,
+                                    effect_id=(
+                                        str(item["effect_id"])
+                                        if item.get("effect_id") is not None
+                                        else None
+                                    ),
+                                    evidence=CompetenceEvidence(
+                                        controller_seed_ref=str(
+                                            item.get("controller_strategy_ref")
+                                            or competence_id
+                                        ),
+                                        support=int(item.get("support", 0)),
+                                        failures=int(item.get("failures", 0)),
+                                        reproducibility=float(item.get("reproducibility", 0.0)),
+                                        controllability=float(item.get("controllability", 0.0)),
+                                        directional_consistency=float(
+                                            item.get("directional_consistency", 0.0)
+                                        ),
+                                    ),
+                                    surface_binding=(
+                                        str(item["surface_binding"])
+                                        if item.get("surface_binding") is not None
+                                        else None
+                                    ),
+                                    controller_strategy_ref=(
+                                        str(item["controller_strategy_ref"])
+                                        if item.get("controller_strategy_ref") is not None
+                                        else None
+                                    ),
+                                    parent_competence_ids=tuple(
+                                        str(value)
+                                        for value in item.get(
+                                            "parent_competence_ids",
+                                            [],
+                                        )
+                                    ),
+                                )
+                            )
+                        runtime._competence_library = restored_library
+                    raw_composition = raw_v2.get("composition")
+                    if isinstance(raw_composition, dict):
+                        raw_engine = raw_composition.get("engine")
+                        if isinstance(raw_engine, dict):
+                            runtime._composition_engine = CompositionEngine.restore(
+                                raw_engine
+                            )
+                        predecessor = raw_composition.get("predecessor_id")
+                        runtime._composition_predecessor_id = (
+                            str(predecessor)
+                            if predecessor is not None
+                            else None
+                        )
+                        children = raw_composition.get("active_children", [])
+                        if isinstance(children, list):
+                            runtime._active_composition_children = tuple(
+                                str(value) for value in children
+                            )
+                        runtime._active_composition_index = int(
+                            raw_composition.get("active_index", 0)
+                        )
+                        known_competences = {
+                            item.competence_id
+                            for item in runtime._competence_library.items
+                        }
+                        if (
+                            runtime._active_action_commitment is None
+                            or not runtime._active_action_commitment.active
+                            or not runtime._active_composition_children
+                            or any(
+                                child not in known_competences
+                                for child in runtime._active_composition_children
+                            )
+                            or runtime._active_composition_index < 0
+                            or runtime._active_composition_index
+                            >= len(runtime._active_composition_children)
+                        ):
+                            runtime._active_composition_children = ()
+                            runtime._active_composition_index = 0
+                        if (
+                            runtime._composition_predecessor_id is not None
+                            and runtime._composition_predecessor_id
+                            not in known_competences
+                        ):
+                            runtime._composition_predecessor_id = None
+                except (TypeError, ValueError, KeyError) as exc:
+                    raise CheckpointError(f"invalid sensorimotor v2 checkpoint: {exc}") from exc
         raw_reactivity = normalized.get("innate_reactivity")
         if raw_reactivity is not None:
             if (

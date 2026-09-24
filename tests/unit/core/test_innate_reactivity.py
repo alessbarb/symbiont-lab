@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from symbiont.actuation.action import (
+    ActionEvaluation,
+    ActionJustification,
+    ActionProposal,
+    ActionSource,
+)
+
 from symbiont.core.regulation import (
     ActionArbitrator,
     InnateReactivity,
@@ -59,26 +66,38 @@ def test_negative_experience_prevents_fast_response() -> None:
     ) is None
 
 
-def test_arbitrator_never_invents_motor_action() -> None:
-    memory = ReactiveMemory()
-    state = ReactiveState(
-        interrupt=1.0,
-        withdrawal=1.0,
-        stabilization=0.8,
-        conservation=0.5,
-        attention=1.0,
-        deviation=0.7,
-        deviation_velocity=0.2,
-        surprise=0.8,
-        signature="r3:s3:c1",
+def test_arbitrator_never_invents_protective_motor_action() -> None:
+    decision = ActionArbitrator().choose(
+        proposals=(),
+        current=None,
+        tick=1,
     )
-    decision = ActionArbitrator().choose_reactive(
-        state=state,
-        memory=memory,
-        candidate_ids=("primitive.a", "primitive.b"),
+    assert decision.proposal is None
+    assert decision.reason == "no_valid_proposal"
+
+    proposal = ActionProposal(
+        proposal_id="proposal.protection",
+        source=ActionSource.PROTECTION,
+        effect_target_id=None,
+        competence_id="competence.safe",
+        justification=ActionJustification(
+            competence_id="competence.safe",
+        ),
+        evaluation=ActionEvaluation(
+            protective_relevance=1.0,
+            homeostatic_relevance=1.0,
+            effect_confidence=0.8,
+            controllability=0.8,
+            uncertainty=0.2,
+        ),
     )
-    assert decision.primitive_id is None
-    assert decision.reason == "acute_no_learned_response"
+    selected = ActionArbitrator().choose(
+        proposals=(proposal,),
+        current=None,
+        tick=1,
+    )
+    assert selected.proposal is proposal
+    assert selected.reason == "protective_dominance"
 
 
 def test_reactive_checkpoint_roundtrip() -> None:

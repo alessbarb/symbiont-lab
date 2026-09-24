@@ -5,7 +5,7 @@ evaluator. All types are immutable and semantically opaque.
 """
 from __future__ import annotations
 
-from .candidates import primitive_candidates
+from .candidates import competence_candidates
 from .checkpoint import PROSPECTIVE_AGENCY_SCHEMA_VERSION
 from .policy import EvaluatedCandidate, ProspectivePolicy
 from .prospective import ProspectiveAgency
@@ -36,7 +36,7 @@ __all__ = [
     "AgencyReadiness",
     "check_readiness",
     # Candidates
-    "primitive_candidates",
+    "competence_candidates",
     # Checkpoint
     "PROSPECTIVE_AGENCY_SCHEMA_VERSION",
 ]

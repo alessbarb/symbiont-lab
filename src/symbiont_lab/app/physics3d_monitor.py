@@ -134,30 +134,35 @@ class MonitorSnapshot:
     absorbed_energy: float
     metabolic_reserve_ratio: float
     displacement_from_origin: float
-    motor_origin: str
+    action_source: str
     initial_resource_distance: float
     minimum_resource_distance: float
     resource_progress: float
-    motor_origin_cognition: int
-    motor_origin_babbling: int
-    motor_origin_primitive: int
-    motor_origin_mixed: int
-    motor_origin_spontaneous: int
-    motor_origin_probe: int
-    motor_origin_none: int
+    action_source_exploration: int
+    action_source_competence: int
+    action_source_protection: int
+    action_source_prospection: int
+    action_source_regulation: int
+    action_source_none: int
     motor_repertoire_size: int
     sensorimotor_coverage: float
     sensorimotor_patterns: int
-    motor_primitives: int
-    cognitive_motor_primitives: int
+    motor_competence_candidates: int
+    motor_competences: int
     best_motor_controllability: float
     best_motor_directional_consistency: float
-    primitive_replay_active: bool
+    competence_replay_active: bool
     sensorimotor_h1_samples: int
     sensorimotor_h4_samples: int
     sensorimotor_h16_samples: int
     sensorimotor_h64_samples: int
     passive_baseline_samples: int
+    active_commitment_id: str | None = None
+    effect_count: int = 0
+    causal_evidence_count: int = 0
+    motor_competence_count: int = 0
+    composition_count: int = 0
+    unbound_competence_count: int = 0
     episodic_episodes: int = 0
     episodic_pending_records: int = 0
     episodic_compressed_episodes: int = 0
@@ -173,8 +178,6 @@ class MonitorSnapshot:
     episodic_evictions: int = 0
     episodic_oldest_age: int = 0
     episodic_mean_age: float = 0.0
-    motor_origin_detail: str = "none"
-    motor_origin_primitive_prospective: int = 0
     prospective_reason: str | None = None
     prospective_candidates: int = 0
     prospective_selected: bool = False
@@ -186,11 +189,11 @@ class MonitorSnapshot:
     prospective_value_samples: int = 0
     prospective_decision_margin: float | None = None
     prospective_cost: float = 0.0
-    recurrent_primitive_candidates: int = 0
-    max_primitive_samples: int = 0
+    recurrent_competence_candidates: int = 0
+    max_competence_samples: int = 0
     full_competence_gate_candidates: int = 0
     motor_readout_nodes: int = 0
-    primitive_readout_nodes: int = 0
+    competence_readout_nodes: int = 0
     cognitive_motor_output_edges: int = 0
     cognitive_concepts: int = 0
     cognitive_readouts: int = 0
@@ -242,14 +245,14 @@ def _event_transition(
     tick = int(current.get("tick", 0))
     events: list[dict[str, object]] = []
 
-    prev_origin = str(previous.get("motor_origin", "none"))
-    cur_origin = str(current.get("motor_origin", "none"))
+    prev_origin = str(previous.get("action_source", "none"))
+    cur_origin = str(current.get("action_source", "none"))
     if cur_origin != prev_origin:
         events.append({
             "tick": tick,
-            "kind": "motor_origin",
+            "kind": "action_source",
             "category": "behavior",
-            "label": f"Origen motor: {prev_origin} → {cur_origin}",
+            "label": f"Fuente de acción: {prev_origin} → {cur_origin}",
         })
 
     prev_min = float(previous.get("minimum_resource_distance", float("inf")))
@@ -273,8 +276,8 @@ def _event_transition(
         })
 
     for field, kind, noun in (
-        ("motor_primitives", "motor_primitive", "Primitiva motora"),
-        ("cognitive_motor_primitives", "cognitive_primitive", "Primitiva cognitiva"),
+        ("motor_competence_candidates", "motor_competence_candidate", "Candidata motora"),
+        ("motor_competences", "motor_competence", "Competencia motora"),
         ("schema_parts", "schema_part", "Parte BodySchema"),
         ("predictor_count", "predictor", "Predictor activo"),
     ):
@@ -282,8 +285,8 @@ def _event_transition(
         after = int(current.get(field, before))
         if after > before:
             category = "learning" if kind in {
-                "motor_primitive",
-                "cognitive_primitive",
+                "motor_competence_candidate",
+                "motor_competence",
                 "predictor",
             } else "body"
             events.append({
@@ -1101,9 +1104,9 @@ def _viewer_main(
     hud_top.grid(row=0, column=0, sticky="ew")
     hud_top.grid_columnconfigure(1, weight=1)
 
-    motor_origin_badge = tk.Label(
+    action_source_badge = tk.Label(
         hud_top,
-        text="ORIGEN: BABBLING",
+        text="ACCIÓN: EXPLORATION",
         bg="#0891b2",
         fg="#ffffff",
         font=("TkDefaultFont", 8, "bold"),
@@ -1111,7 +1114,7 @@ def _viewer_main(
         pady=3,
         relief="flat",
     )
-    motor_origin_badge.grid(row=0, column=0, sticky="w")
+    action_source_badge.grid(row=0, column=0, sticky="w")
 
     resource_hud_badge = tk.Label(
         hud_top,
@@ -2876,13 +2879,12 @@ def _viewer_main(
         "behavior": "CONDUCTA",
     }
 
-    motor_origin_colors = {
-        "cognition": "#1d4ed8",
-        "babbling": "#0891b2",
-        "primitive": "#059669",
-        "mixed": "#7c3aed",
-        "spontaneous": "#d97706",
-        "probe": "#0f766e",
+    action_source_colors = {
+        "exploration": "#0891b2",
+        "competence": "#1d4ed8",
+        "protection": "#dc2626",
+        "prospection": "#7c3aed",
+        "regulation": "#d97706",
         "none": "#374151",
     }
 
@@ -2995,15 +2997,15 @@ def _viewer_main(
         mech_vars["cost"].set(f"{float(payload['metabolic_work_cost']):.5f}")
 
         # HUD Top
-        origin = str(payload.get("motor_origin", "none"))
-        origin_detail = str(payload.get("motor_origin_detail", "none"))
-        badge_color = motor_origin_colors.get(origin, "#374151")
+        origin = str(payload.get("action_source", "none"))
+        origin_detail = str(payload.get("action_source", "none"))
+        badge_color = action_source_colors.get(origin, "#374151")
         origin_label = (
-            "PROSPECTIVE"
-            if origin_detail == "primitive_prospective"
+            "PROSPECTION"
+            if origin == "prospection"
             else origin.upper()
         )
-        motor_origin_badge.configure(text=f"ORIGEN: {origin_label}", bg=badge_color)
+        action_source_badge.configure(text=f"ACCIÓN: {origin_label}", bg=badge_color)
 
         dist = float(payload.get("resource_distance", 0.0))
         prog = float(payload.get("resource_progress", 0.0))
@@ -3024,8 +3026,8 @@ def _viewer_main(
             movement_state = "ALTO"
         situation_vars["behavior"].set(f"Motion  {movement_state.title()} · {motion:.2f} rad/s")
 
-        primitive_active = bool(payload.get("primitive_replay_active", False))
-        cognitive_primitives = int(payload.get("cognitive_motor_primitives", 0))
+        competence_active = bool(payload.get("competence_replay_active", False))
+        motor_competences_count = int(payload.get("motor_competences", 0))
         sensorimotor_patterns = int(payload.get("sensorimotor_patterns", 0))
         prospective_selected = bool(payload.get("prospective_selected", False))
         prospective_candidates = int(payload.get("prospective_candidates", 0))
@@ -3034,9 +3036,9 @@ def _viewer_main(
             learning_state = "AGENCIA PROSPECTIVA"
         elif prospective_candidates > 0:
             learning_state = f"DELIBERA · {prospective_reason or 'SIN ELECCIÓN'}"
-        elif primitive_active:
-            learning_state = "REUTILIZA PRIMITIVA"
-        elif origin == "cognition" and cognitive_primitives > 0:
+        elif competence_active:
+            learning_state = "REUTILIZA COMPETENCIA"
+        elif origin == "competence" and motor_competences_count > 0:
             learning_state = "APLICANDO"
         elif int(payload.get("predictor_count", 0)) > 0 or sensorimotor_patterns > 0:
             learning_state = "APRENDIENDO"
@@ -3125,7 +3127,7 @@ def _viewer_main(
             )
         )
         knowledge_vars["agency"].set(
-            f"{int(payload.get('cognitive_motor_primitives', 0))} cognitive primitives · "
+            f"{int(payload.get('motor_competences', 0))} motor competences · "
             f"{agency_state}"
         )
 
@@ -3177,20 +3179,19 @@ def _viewer_main(
         cov = float(payload["sensorimotor_coverage"]) * 100.0
         eco_vars["repertoire"].set(f"{rep_size} pat. (cobertura {cov:.1f}%)")
 
-        m_prim = int(payload["motor_primitives"])
-        c_prim = int(payload["cognitive_motor_primitives"])
-        eco_vars["primitives"].set(f"{m_prim} prim. ({c_prim} cognitivas)")
+        m_prim = int(payload["motor_competence_candidates"])
+        c_prim = int(payload["motor_competences"])
+        eco_vars["competences"].set(f"{m_prim} candidatas · {c_prim} competencias")
 
         ctrl = float(payload["best_motor_controllability"])
         cons = float(payload["best_motor_directional_consistency"])
         eco_vars["control"].set(f"ctrl {ctrl:.2f} · dir {cons:.2f}")
 
-        eco_vars["origins"].set(
-            f"C:{int(payload['motor_origin_cognition'])} "
-            f"B:{int(payload.get('motor_origin_babbling', 0))} "
-            f"P:{int(payload.get('motor_origin_primitive', 0))} "
-            f"M:{int(payload.get('motor_origin_mixed', 0))} "
-            f"S:{int(payload['motor_origin_spontaneous'])}"
+        eco_vars["sources"].set(
+            f"E:{int(payload.get('action_source_exploration', 0))} "
+            f"C:{int(payload.get('action_source_competence', 0))} "
+            f"P:{int(payload.get('action_source_protection', 0))} "
+            f"R:{int(payload.get('action_source_prospection', 0))}"
         )
 
         # Card 3: Private SLM

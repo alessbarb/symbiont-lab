@@ -27,7 +27,7 @@ _CONDITIONS = (
     "no_counterfactual",
     "shuffled_model",
     "shuffled_value",
-    "babbling_only",
+    "exploration_only",
 )
 
 
@@ -45,7 +45,7 @@ class ProspectiveEmbodiedCondition:
     resource_progress_delta: float
     absorbed_energy: float
     prospective_selected_ticks: int
-    primitive_prospective_ticks: int
+    prospection_ticks: int
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -59,16 +59,16 @@ class ProspectiveEmbodiedTrial:
     readiness_tick: int | None
     readiness_reason: str
     final_tick: int
-    first_cognitive_primitive_tick: int | None
-    first_primitive_readout_tick: int | None
+    first_motor_competence_tick: int | None
+    first_competence_readout_tick: int | None
     active_model_id: str | None
-    motor_primitives: int
-    cognitive_primitives: int
-    primitive_readout_nodes: int
+    motor_competence_candidates: int
+    motor_competences: int
+    competence_readout_nodes: int
     known_outcome_values: int
-    primitive_candidates: int
-    recurrent_primitive_candidates: int
-    max_primitive_samples: int
+    competence_candidates: int
+    recurrent_competence_candidates: int
+    max_competence_samples: int
     sample_gate_candidates: int
     controllability_gate_candidates: int
     variance_gate_candidates: int
@@ -84,15 +84,15 @@ class ProspectiveEmbodiedTrial:
     oldest_structural_wait_ticks: int
     peak_structural_candidates: int
     peak_structural_wait_ticks: int
-    cognitive_primitive_ticks: int
-    primitive_readout_ticks: int
-    cognitive_without_readout_ticks: int
-    cognitive_primitive_set_changes: int
-    primitive_readout_set_changes: int
-    unique_cognitive_primitive_ids: tuple[str, ...]
-    unique_primitive_readout_ids: tuple[str, ...]
-    final_cognitive_primitive_ids: tuple[str, ...]
-    final_primitive_readout_ids: tuple[str, ...]
+    motor_competence_ticks: int
+    competence_readout_ticks: int
+    competence_without_readout_ticks: int
+    motor_competence_set_changes: int
+    competence_readout_set_changes: int
+    unique_motor_competence_ids: tuple[str, ...]
+    unique_competence_readout_ids: tuple[str, ...]
+    final_motor_competence_ids: tuple[str, ...]
+    final_competence_readout_ids: tuple[str, ...]
     conditions: tuple[ProspectiveEmbodiedCondition, ...]
 
     def as_dict(self) -> dict[str, object]:
@@ -218,11 +218,11 @@ def _apply_condition(
         applicable = _shuffle_outcome_value_identity(runtime)
         _freeze_outcome_value_learning(runtime)
         return applicable
-    if condition == "babbling_only":
+    if condition == "exploration_only":
         _disable_counterfactual(runtime)
         # This is an intentionally strong baseline. Removing the graph from the
         # matched experimental twin prevents direct cognitive/readout motor use
-        # while leaving sensorimotor babbling and body mechanics intact.
+        # while leaving sensorimotor exploration and body mechanics intact.
         runtime.organism._cognitive_bridge = None
         return True
     raise ValueError(f"unsupported prospective condition: {condition}")
@@ -267,7 +267,7 @@ def _run_condition(
             absorbed_total += max(0.0, float(last.absorbed_energy))
             selected_ticks += int(last.prospective_selected)
             prospective_motor_ticks += int(
-                last.motor_origin_detail == "primitive_prospective"
+                last.action_source == "prospection"
             )
             if not last.alive:
                 break
@@ -290,7 +290,7 @@ def _run_condition(
             resource_progress_delta=last.resource_progress - start_progress,
             absorbed_energy=float(absorbed_total),
             prospective_selected_ticks=selected_ticks,
-            primitive_prospective_ticks=prospective_motor_ticks,
+            prospection_ticks=prospective_motor_ticks,
         )
 
 
@@ -312,16 +312,16 @@ def run_prospective_embodied_trial(
         readiness_tick: int | None = None
         readiness_reason = "no_prospective_selection"
         final_tick = 0
-        first_cognitive_primitive_tick: int | None = None
-        first_primitive_readout_tick: int | None = None
+        first_motor_competence_tick: int | None = None
+        first_competence_readout_tick: int | None = None
         active_model_id: str | None = None
-        motor_primitives = 0
-        cognitive_primitives = 0
-        primitive_readout_nodes = 0
+        motor_competence_candidates = 0
+        motor_competences = 0
+        competence_readout_nodes = 0
         known_outcome_values = 0
-        primitive_candidates = 0
-        recurrent_primitive_candidates = 0
-        max_primitive_samples = 0
+        competence_candidates = 0
+        recurrent_competence_candidates = 0
+        max_competence_samples = 0
         sample_gate_candidates = 0
         controllability_gate_candidates = 0
         variance_gate_candidates = 0
@@ -337,17 +337,17 @@ def run_prospective_embodied_trial(
         oldest_structural_wait_ticks = 0
         peak_structural_candidates = 0
         peak_structural_wait_ticks = 0
-        cognitive_primitive_ticks = 0
-        primitive_readout_ticks = 0
-        cognitive_without_readout_ticks = 0
-        cognitive_primitive_set_changes = 0
-        primitive_readout_set_changes = 0
-        unique_cognitive_primitive_ids: set[str] = set()
-        unique_primitive_readout_ids: set[str] = set()
+        motor_competence_ticks = 0
+        competence_readout_ticks = 0
+        competence_without_readout_ticks = 0
+        motor_competence_set_changes = 0
+        competence_readout_set_changes = 0
+        unique_motor_competence_ids: set[str] = set()
+        unique_competence_readout_ids: set[str] = set()
         previous_cognitive_primitive_ids: tuple[str, ...] = ()
         previous_primitive_readout_ids: tuple[str, ...] = ()
-        final_cognitive_primitive_ids: tuple[str, ...] = ()
-        final_primitive_readout_ids: tuple[str, ...] = ()
+        final_motor_competence_ids: tuple[str, ...] = ()
+        final_competence_readout_ids: tuple[str, ...] = ()
         start_displacement = 0.0
         start_progress = 0.0
 
@@ -376,23 +376,23 @@ def run_prospective_embodied_trial(
                         active.model_id if active is not None else None
                     )
                     final_tick = tick.tick
-                    motor_primitives = tick.motor_primitives
-                    cognitive_primitives = tick.cognitive_motor_primitives
-                    primitive_readout_nodes = tick.primitive_readout_nodes
+                    motor_competence_candidates = tick.motor_competence_candidates
+                    motor_competences = tick.cognitive_motor_competence_candidates
+                    competence_readout_nodes = tick.competence_readout_nodes
                     if (
-                        first_cognitive_primitive_tick is None
-                        and cognitive_primitives > 0
+                        first_motor_competence_tick is None
+                        and motor_competences > 0
                     ):
-                        first_cognitive_primitive_tick = tick.tick
+                        first_motor_competence_tick = tick.tick
                     if (
-                        first_primitive_readout_tick is None
-                        and primitive_readout_nodes > 0
+                        first_competence_readout_tick is None
+                        and competence_readout_nodes > 0
                     ):
-                        first_primitive_readout_tick = tick.tick
+                        first_competence_readout_tick = tick.tick
                     known_outcome_values = _value_entry_count(runtime)
-                    primitive_candidates = tick.primitive_candidates
-                    recurrent_primitive_candidates = tick.recurrent_primitive_candidates
-                    max_primitive_samples = tick.max_primitive_samples
+                    competence_candidates = tick.competence_candidates
+                    recurrent_competence_candidates = tick.recurrent_competence_candidates
+                    max_competence_samples = tick.max_competence_samples
                     sample_gate_candidates = tick.sample_gate_candidates
                     controllability_gate_candidates = tick.controllability_gate_candidates
                     variance_gate_candidates = tick.variance_gate_candidates
@@ -437,24 +437,24 @@ def run_prospective_embodied_trial(
                         )
 
                     if current_cognitive_ids:
-                        cognitive_primitive_ticks += 1
+                        motor_competence_ticks += 1
                     if current_readout_ids:
-                        primitive_readout_ticks += 1
+                        competence_readout_ticks += 1
                     if current_cognitive_ids and not current_readout_ids:
-                        cognitive_without_readout_ticks += 1
+                        competence_without_readout_ticks += 1
                     if current_cognitive_ids != previous_cognitive_primitive_ids:
                         if final_tick > 1:
-                            cognitive_primitive_set_changes += 1
+                            motor_competence_set_changes += 1
                         previous_cognitive_primitive_ids = current_cognitive_ids
                     if current_readout_ids != previous_primitive_readout_ids:
                         if final_tick > 1:
-                            primitive_readout_set_changes += 1
+                            competence_readout_set_changes += 1
                         previous_primitive_readout_ids = current_readout_ids
 
-                    unique_cognitive_primitive_ids.update(current_cognitive_ids)
-                    unique_primitive_readout_ids.update(current_readout_ids)
-                    final_cognitive_primitive_ids = current_cognitive_ids
-                    final_primitive_readout_ids = current_readout_ids
+                    unique_motor_competence_ids.update(current_cognitive_ids)
+                    unique_competence_readout_ids.update(current_readout_ids)
+                    final_motor_competence_ids = current_cognitive_ids
+                    final_competence_readout_ids = current_readout_ids
 
                     if tick.prospective_selected and not slm.training:
                         checkpoint = runtime.checkpoint()
@@ -496,16 +496,16 @@ def run_prospective_embodied_trial(
                 readiness_tick=readiness_tick,
                 readiness_reason=readiness_reason,
                 final_tick=int(final_tick),
-                first_cognitive_primitive_tick=first_cognitive_primitive_tick,
-                first_primitive_readout_tick=first_primitive_readout_tick,
+                first_motor_competence_tick=first_motor_competence_tick,
+                first_competence_readout_tick=first_competence_readout_tick,
                 active_model_id=active_model_id,
-                motor_primitives=int(motor_primitives),
-                cognitive_primitives=int(cognitive_primitives),
-                primitive_readout_nodes=int(primitive_readout_nodes),
+                motor_competence_candidates=int(motor_competence_candidates),
+                motor_competences=int(motor_competences),
+                competence_readout_nodes=int(competence_readout_nodes),
                 known_outcome_values=int(known_outcome_values),
-                primitive_candidates=int(primitive_candidates),
-                recurrent_primitive_candidates=int(recurrent_primitive_candidates),
-                max_primitive_samples=int(max_primitive_samples),
+                competence_candidates=int(competence_candidates),
+                recurrent_competence_candidates=int(recurrent_competence_candidates),
+                max_competence_samples=int(max_competence_samples),
                 sample_gate_candidates=int(sample_gate_candidates),
                 controllability_gate_candidates=int(controllability_gate_candidates),
                 variance_gate_candidates=int(variance_gate_candidates),
@@ -523,15 +523,15 @@ def run_prospective_embodied_trial(
                 oldest_structural_wait_ticks=int(oldest_structural_wait_ticks),
                 peak_structural_candidates=int(peak_structural_candidates),
                 peak_structural_wait_ticks=int(peak_structural_wait_ticks),
-                cognitive_primitive_ticks=int(cognitive_primitive_ticks),
-                primitive_readout_ticks=int(primitive_readout_ticks),
-                cognitive_without_readout_ticks=int(cognitive_without_readout_ticks),
-                cognitive_primitive_set_changes=int(cognitive_primitive_set_changes),
-                primitive_readout_set_changes=int(primitive_readout_set_changes),
-                unique_cognitive_primitive_ids=tuple(sorted(unique_cognitive_primitive_ids)),
-                unique_primitive_readout_ids=tuple(sorted(unique_primitive_readout_ids)),
-                final_cognitive_primitive_ids=tuple(final_cognitive_primitive_ids),
-                final_primitive_readout_ids=tuple(final_primitive_readout_ids),
+                motor_competence_ticks=int(motor_competence_ticks),
+                competence_readout_ticks=int(competence_readout_ticks),
+                competence_without_readout_ticks=int(competence_without_readout_ticks),
+                motor_competence_set_changes=int(motor_competence_set_changes),
+                competence_readout_set_changes=int(competence_readout_set_changes),
+                unique_motor_competence_ids=tuple(sorted(unique_motor_competence_ids)),
+                unique_competence_readout_ids=tuple(sorted(unique_competence_readout_ids)),
+                final_motor_competence_ids=tuple(final_motor_competence_ids),
+                final_competence_readout_ids=tuple(final_competence_readout_ids),
                 conditions=(),
             )
 
@@ -556,16 +556,16 @@ def run_prospective_embodied_trial(
             readiness_tick=readiness_tick,
             readiness_reason=readiness_reason,
             final_tick=int(final_tick),
-            first_cognitive_primitive_tick=first_cognitive_primitive_tick,
-            first_primitive_readout_tick=first_primitive_readout_tick,
+            first_motor_competence_tick=first_motor_competence_tick,
+            first_competence_readout_tick=first_competence_readout_tick,
             active_model_id=active_model_id,
-            motor_primitives=int(motor_primitives),
-            cognitive_primitives=int(cognitive_primitives),
-            primitive_readout_nodes=int(primitive_readout_nodes),
+            motor_competence_candidates=int(motor_competence_candidates),
+            motor_competences=int(motor_competences),
+            competence_readout_nodes=int(competence_readout_nodes),
             known_outcome_values=int(known_outcome_values),
-            primitive_candidates=int(primitive_candidates),
-            recurrent_primitive_candidates=int(recurrent_primitive_candidates),
-            max_primitive_samples=int(max_primitive_samples),
+            competence_candidates=int(competence_candidates),
+            recurrent_competence_candidates=int(recurrent_competence_candidates),
+            max_competence_samples=int(max_competence_samples),
             sample_gate_candidates=int(sample_gate_candidates),
             controllability_gate_candidates=int(controllability_gate_candidates),
             variance_gate_candidates=int(variance_gate_candidates),
@@ -583,15 +583,15 @@ def run_prospective_embodied_trial(
             oldest_structural_wait_ticks=int(oldest_structural_wait_ticks),
             peak_structural_candidates=int(peak_structural_candidates),
             peak_structural_wait_ticks=int(peak_structural_wait_ticks),
-            cognitive_primitive_ticks=int(cognitive_primitive_ticks),
-            primitive_readout_ticks=int(primitive_readout_ticks),
-            cognitive_without_readout_ticks=int(cognitive_without_readout_ticks),
-            cognitive_primitive_set_changes=int(cognitive_primitive_set_changes),
-            primitive_readout_set_changes=int(primitive_readout_set_changes),
-            unique_cognitive_primitive_ids=tuple(sorted(unique_cognitive_primitive_ids)),
-            unique_primitive_readout_ids=tuple(sorted(unique_primitive_readout_ids)),
-            final_cognitive_primitive_ids=tuple(final_cognitive_primitive_ids),
-            final_primitive_readout_ids=tuple(final_primitive_readout_ids),
+            motor_competence_ticks=int(motor_competence_ticks),
+            competence_readout_ticks=int(competence_readout_ticks),
+            competence_without_readout_ticks=int(competence_without_readout_ticks),
+            motor_competence_set_changes=int(motor_competence_set_changes),
+            competence_readout_set_changes=int(competence_readout_set_changes),
+            unique_motor_competence_ids=tuple(sorted(unique_motor_competence_ids)),
+            unique_competence_readout_ids=tuple(sorted(unique_competence_readout_ids)),
+            final_motor_competence_ids=tuple(final_motor_competence_ids),
+            final_competence_readout_ids=tuple(final_competence_readout_ids),
             conditions=conditions,
         )
 

@@ -20,8 +20,8 @@ class AgencyReadiness:
 def check_readiness(
     *,
     has_active_model: bool,
-    cognitive_primitive_count: int,
-    has_primitive_readouts: bool,
+    competence_count: int,
+    has_competence_readouts: bool,
     context_token_count: int,
     has_outcome_evidence: bool,
     organism_alive: bool,
@@ -30,8 +30,8 @@ def check_readiness(
 
     P0 gate conditions:
     - ACTIVE private model present
-    - At least 1 cognitive primitive available
-    - At least 1 primitive readout available
+    - At least 1 motor competence available
+    - At least 1 competence readout available
     - Cognitive context is non-empty
     - At least 1 outcome with learned value exists
     - Organism is alive
@@ -46,10 +46,10 @@ def check_readiness(
         failed.append("organism_dead")
     if not has_active_model:
         failed.append("no_active_model")
-    if cognitive_primitive_count < 1:
-        failed.append("no_cognitive_primitives")
-    if not has_primitive_readouts:
-        failed.append("no_primitive_readouts")
+    if competence_count < 1:
+        failed.append("no_competences")
+    if not has_competence_readouts:
+        failed.append("no_competence_readouts")
     if context_token_count < 1:
         failed.append("empty_context")
     if not has_outcome_evidence:

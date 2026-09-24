@@ -119,7 +119,6 @@ def test_organism_runtime_populates_structures_from_actuator_slots():
     runtime = OrganismRuntime(
         actuation_enabled=True,
         actuator_constitution=constitution,
-        motor_exploration_mode="spontaneous",
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )

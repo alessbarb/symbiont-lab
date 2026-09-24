@@ -29,7 +29,6 @@ def _runtime(interoception_mode: str) -> OrganismRuntime:
         genome=_reproduction_genome(),
         actuation_enabled=True,
         actuator_constitution=derive_actuator_constitution(8, physical_contract="interoception-probe-v2"),
-        motor_exploration_mode="babbling",
         bootstrap_semantic_senses=True,
         discover_senses=True,
         min_samples=1,

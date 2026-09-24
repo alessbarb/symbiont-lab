@@ -129,8 +129,8 @@ class ProspectiveAgency:
         candidate_list = list(candidates)
         readiness = check_readiness(
             has_active_model=has_active_model,
-            cognitive_primitive_count=len(candidate_list),
-            has_primitive_readouts=bool(candidate_list),
+            competence_count=len(candidate_list),
+            has_competence_readouts=bool(candidate_list),
             context_token_count=len(context_tokens),
             has_outcome_evidence=self._ledger.known_outcome_count > 0,
             organism_alive=organism_alive,
@@ -191,8 +191,8 @@ class ProspectiveAgency:
         mapping = {
             "organism_dead": "physiology_dead",
             "no_active_model": "no_active_model",
-            "no_cognitive_primitives": "no_candidates",
-            "no_primitive_readouts": "no_candidates",
+            "no_competences": "no_candidates",
+            "no_competence_readouts": "no_candidates",
             "empty_context": "no_active_model",
             "no_outcome_evidence": "no_value_evidence",
         }

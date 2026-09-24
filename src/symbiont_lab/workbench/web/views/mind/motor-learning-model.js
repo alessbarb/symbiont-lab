@@ -53,7 +53,7 @@ function evidenceFrom({ tel, snap }) {
     cognitivePrimitives: finite(tel.cognitiveMotorPrimitives ?? sm.cognitive_primitives, 0),
     samples: finite(tel.maxPrimitiveSamples ?? sm.max_primitive_samples, 0),
     competence: finite(tel.fullCompetenceGateCandidates ?? sm.full_competence_gate_candidates, 0),
-    coverage: Number.isFinite(Number(sm.babbling_coverage)) ? Number(sm.babbling_coverage) : null,
+    coverage: Number.isFinite(Number(sm.exploration_coverage)) ? Number(sm.exploration_coverage) : null,
     controllability: Number.isFinite(Number(sm.best_controllability)) ? Number(sm.best_controllability) : null,
     directionalConsistency: Number.isFinite(Number(sm.best_directional_consistency))
       ? Number(sm.best_directional_consistency)
@@ -101,7 +101,7 @@ export function deriveMotorStage({ evidence, observation }) {
     };
   }
   return {
-    id: 'babbling',
+    id: 'exploration',
     index: 0,
     confidence: 'high',
     evidence: ['no reusable recurrent motor structure is yet visible'],
@@ -118,7 +118,7 @@ export function deriveAgencyStatus({ evidence, observation }) {
   if (
     evidence.cognitivePrimitives === 0 &&
     evidence.competence === 0 &&
-    String(evidence.origin).toLowerCase() === 'babbling'
+    String(evidence.origin).toLowerCase() === 'exploration'
   ) {
     return { status: 'absent', origin: evidence.origin };
   }
@@ -138,7 +138,7 @@ export function deriveMotorBottleneck({ evidence, observation }) {
     return {
       id: 'exploration',
       title: 'Motor space exploration is incomplete',
-      body: 'The currently observed body has not yet reached complete babbling coverage.',
+      body: 'The currently observed body has not yet reached complete exploration coverage.',
       focus: 'exploration coverage',
     };
   }

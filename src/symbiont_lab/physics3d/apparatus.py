@@ -78,9 +78,6 @@ def physics3d_actuator_surface(
     """Build the current body's opaque actuator surface outside the genome."""
     return derive_actuator_constitution(
         tuple(str(value) for value in effector_ids),
-        basal_cost=0.002,
-        initial_health=1.0,
-        execution_threshold=0.05,
         physical_contract=physical_contract,
     )
 

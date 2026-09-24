@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.cognition.genome import MotorGenes
 from symbiont.actuation.checkpoint import export_actuation_state, restore_actuation_state
 from symbiont.actuation.constitution import derive_actuator_constitution
 from symbiont.actuation.proposer import ActuatorProposer

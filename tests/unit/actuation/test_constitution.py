@@ -32,10 +32,13 @@ def test_body_contract_metadata_changes_fingerprint_not_opaque_channel_ids():
     assert first.contract_fingerprint != second.contract_fingerprint
 
 
-def test_slot_params_do_not_affect_actuator_identity():
-    cheap = derive_actuator_constitution(2, basal_cost=0.01)
-    expensive = derive_actuator_constitution(2, basal_cost=0.5)
-    assert cheap.actuator_ids == expensive.actuator_ids
+def test_surface_exposes_only_legal_command_contract():
+    surface = derive_actuator_constitution(2)
+    channel = surface.slots[0]
+    assert (channel.command_min, channel.neutral, channel.command_max) == (0.0, 0.0, 1.0)
+    assert channel.available is True
+    assert not hasattr(channel, "initial_health")
+    assert not hasattr(channel, "basal_cost")
 
 
 def test_constitution_slots_are_immutable_tuple_not_dict():

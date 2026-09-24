@@ -500,10 +500,6 @@ class PopulationGenesisRuntime:
                 raise RuntimeError(
                     f"experimental contamination: local physical interaction body changed for {organism_id}"
                 )
-            if getattr(runtime, "_motor_exploration_mode", None) != "spontaneous":
-                raise RuntimeError(
-                    f"experimental contamination: structured motor probing enabled for {organism_id}"
-                )
             bound_ids = {item.actuator_id for item in bindings}
             if not (set(actuator_ids) - bound_ids):
                 raise RuntimeError(

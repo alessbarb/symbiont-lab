@@ -196,6 +196,10 @@ class BodySchemaEngine:
         # ephemeral and therefore defaults to True on every construction/restore.
         self._full_structural_review_required = True
         self._pending_structural_channels: set[str] = set()
+        # Reconstructible view over the canonical CausalEvidenceLedger.
+        # It is deliberately not checkpointed here: the ledger is the factual
+        # source of truth and restore replays it into this derived view.
+        self._sensorimotor_support: dict[tuple[str, str], tuple[int, int]] = {}
 
     @property
     def state(self) -> str:
@@ -238,6 +242,52 @@ class BodySchemaEngine:
     @property
     def dependency_evidence_count(self) -> int:
         return len(self._dependency_evidence)
+    @property
+    def sensorimotor_dependency_evidence_count(self) -> int:
+        return len(self._sensorimotor_support)
+
+    def observe_sensorimotor_evidence(
+        self,
+        *,
+        competence_id: str,
+        effect_id: str,
+        tick: int,
+    ) -> None:
+        # Derive bounded functional-body evidence from canonical causal facts.
+        # No actuator anatomy, Physics3D topology or task label is accepted.
+        if tick < 0:
+            raise ValueError("tick must be non-negative")
+        if not isinstance(competence_id, str) or not competence_id:
+            raise ValueError("competence_id must be a non-empty string")
+        if not isinstance(effect_id, str) or not effect_id.startswith("effect."):
+            raise ValueError("effect_id must be organism-owned")
+        key = (competence_id, effect_id)
+        support, _last = self._sensorimotor_support.get(key, (0, tick))
+        self._sensorimotor_support[key] = (min(255, support + 1), tick)
+        if len(self._sensorimotor_support) > 512:
+            retained = sorted(
+                self._sensorimotor_support.items(),
+                key=lambda item: (-item[1][0], -item[1][1], item[0]),
+            )[:512]
+            self._sensorimotor_support = dict(retained)
+
+    def rebuild_sensorimotor_view(self, evidence: tuple[object, ...]) -> None:
+        # Rebuild this inference after restore from the canonical ledger.
+        self._sensorimotor_support = {}
+        for item in evidence:
+            competence_id = getattr(item, "competence_id", None)
+            effect_id = getattr(item, "effect_id", None)
+            tick = getattr(item, "observation_tick", None)
+            if (
+                isinstance(competence_id, str)
+                and isinstance(effect_id, str)
+                and isinstance(tick, int)
+            ):
+                self.observe_sensorimotor_evidence(
+                    competence_id=competence_id,
+                    effect_id=effect_id,
+                    tick=tick,
+                )
 
     def _enforce_sensory_bound(self) -> None:
         if len(self._parts) <= MAX_SENSORY_PARTS:

@@ -12,7 +12,7 @@ def _ids(count: int = 8) -> tuple[str, ...]:
     return tuple(f"actuator.{index}" for index in range(count))
 
 
-def test_babbling_covers_all_actuators_without_single_channel_monopoly():
+def test_exploration_covers_all_actuators_without_single_channel_monopoly():
     learner = SensorimotorLearner(
         _ids(),
         organism_id="org-babble",
@@ -26,10 +26,10 @@ def test_babbling_covers_all_actuators_without_single_channel_monopoly():
         seen.update(intent.actuator_id for intent in intents)
 
     assert seen == set(_ids())
-    assert learner.babbling_coverage == 1.0
+    assert learner.exploration_coverage == 1.0
 
 
-def test_babbling_holds_channel_set_within_short_epoch():
+def test_exploration_holds_channel_set_within_short_epoch():
     learner = SensorimotorLearner(
         _ids(),
         organism_id="org-hold",
@@ -116,7 +116,7 @@ def _teach_repeated_sequence(
             discovery_eligible=False,
         )
         tick += 1
-        # Independent recurrence must come from a later babbling block. Pad
+        # Independent recurrence must come from a later exploration block. Pad
         # only between episodes; padding after the final episode would clear
         # last_natural_competence_ids, which is intentionally one-tick evidence.
         if episode_index + 1 < episodes:
@@ -154,7 +154,7 @@ def test_single_episode_remains_candidate_until_independent_recurrence():
     assert result is None
     assert learner.primitives == ()
     snapshot = learner.snapshot()
-    assert snapshot.primitive_candidates == 1
+    assert snapshot.competence_candidates == 1
     assert snapshot.recurrent_primitive_candidates == 0
     lifecycle = learner.checkpoint()["primitive_stats"][0]
     assert lifecycle["first_sample_tick"] == 4
@@ -163,7 +163,7 @@ def test_single_episode_remains_candidate_until_independent_recurrence():
     assert lifecycle["competence_tick"] is None
 
 
-def test_adjacent_windows_from_same_babbling_block_do_not_count_as_recurrence():
+def test_adjacent_windows_from_same_exploration_block_do_not_count_as_recurrence():
     learner = SensorimotorLearner(
         _ids(4),
         organism_id="org-same-evidence-block",
@@ -193,11 +193,11 @@ def test_adjacent_windows_from_same_babbling_block_do_not_count_as_recurrence():
         evidence_blocks=frozenset({0}),
     )
 
-    assert learner.snapshot().recurrent_primitive_candidates == 0
+    assert learner.snapshot().recurrent_competence_candidates == 0
     assert learner.primitives == ()
 
 
-def test_same_sequence_in_disjoint_babbling_block_counts_as_recurrence():
+def test_same_sequence_in_disjoint_exploration_block_counts_as_recurrence():
     learner = SensorimotorLearner(
         _ids(4),
         organism_id="org-independent-evidence-block",
@@ -387,7 +387,7 @@ def test_inconsistent_repetition_retracts_false_motor_primitive():
 
 
 
-def test_babbling_can_discover_temporal_chunk_across_synergy_boundary():
+def test_exploration_can_discover_temporal_chunk_across_synergy_boundary():
     learner = SensorimotorLearner(
         _ids(8),
         organism_id="org-cross-synergy",
@@ -606,7 +606,7 @@ def test_restore_rejects_in_flight_replay_with_missing_or_unknown_source():
         )
 
 
-def test_default_babbling_prefers_low_dimensional_coordination_without_forbidding_broad_patterns():
+def test_default_exploration_prefers_low_dimensional_coordination_without_forbidding_broad_patterns():
     learner = SensorimotorLearner(
         _ids(62),
         organism_id="org-variable-cardinality",

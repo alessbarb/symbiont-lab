@@ -90,7 +90,7 @@ export function renderOverview({ onOpenHistoryTick = () => {} } = {}) {
   const stages=[
     ['Sensory system', `${snap.sensoryPhenotype?.sensors?.length ?? nodes.filter(n=>n.kind==='sense').length} sensors`, true],
     ['Sensorimotor patterns', `${tel.sensorimotorPatterns ?? sensorimotor.known_patterns ?? 0}`, (tel.sensorimotorPatterns ?? sensorimotor.known_patterns ?? 0) > 0],
-    ['Motor primitives', `${tel.motorPrimitives ?? sensorimotor.primitives ?? 0}`, (tel.motorPrimitives ?? sensorimotor.primitives ?? 0) > 0],
+    ['Motor competences', `${tel.motorCompetences ?? sensorimotor.competence_chunks ?? 0}`, (tel.motorCompetences ?? sensorimotor.competence_chunks ?? 0) > 0],
     ['Cognitive structure', `${concepts} concepts · ${predictors} predictors`, concepts > 0],
     ['Motor repertoire', `${repertoire}`, repertoire > 0],
     ['Motor readouts', `${readoutCount}`, readoutCount > 0],

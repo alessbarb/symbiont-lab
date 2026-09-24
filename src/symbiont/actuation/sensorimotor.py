@@ -7,11 +7,12 @@ from dataclasses import dataclass
 from typing import Mapping, Sequence
 
 from .types import MotorIntent
+from .competence import CompetenceEvidence, CompetenceMaturity
 
 
 _HORIZONS = (1, 4, 16, 64)
 _PRIMITIVE_TICKS = 4
-_BABBLE_EPOCH_TICKS = 8
+_EXPLORATION_EPOCH_TICKS = 8
 # Safety ceilings. Similar motor chunks are already folded into recurring
 # sequence families by _matched_primitive_sequence; these bounds should not
 # become the organism's effective motor-development ceiling.
@@ -200,22 +201,32 @@ class MotorPrimitive:
         return len(self.sequence)
 
     @property
-    def is_competence(self) -> bool:
-        """Whether repeated evidence supports cognitive reuse.
-
-        This is deliberately semantic-free: competence means that invoking the
-        opaque motor chunk has produced a reproducible residual body-state
-        transition. It says nothing about locomotion, anatomy or utility.
-        Evidence accumulates only from naturally occurring recurrences of
-        this pattern (organic babbling or later cognitive reuse) — nothing
-        schedules a retest to manufacture samples faster.
-        """
-        return (
-            self.samples >= 2
-            and self.controllability > 0.002
-            and self.effect_variance <= 0.02
-            and self.directional_consistency >= 0.60
+    def competence_evidence(self) -> CompetenceEvidence:
+        reproducibility = 1.0 / (1.0 + 25.0 * max(0.0, self.effect_variance))
+        return CompetenceEvidence(
+            controller_seed_ref=self.primitive_id,
+            support=self.samples,
+            failures=0,
+            reproducibility=reproducibility,
+            controllability=self.controllability,
+            directional_consistency=self.directional_consistency,
         )
+
+    @property
+    def maturity(self) -> CompetenceMaturity:
+        return self.competence_evidence.maturity
+
+    @property
+    def established(self) -> bool:
+        return self.maturity in {
+            CompetenceMaturity.ESTABLISHED,
+            CompetenceMaturity.ROBUST,
+        }
+
+    @property
+    def is_competence(self) -> bool:
+        """Legacy observation alias; v2 control uses evidence-derived maturity."""
+        return self.established
 
     def intents_at(self, step: int) -> tuple[MotorIntent, ...]:
         if not 0 <= step < len(self.sequence):
@@ -307,13 +318,13 @@ class PrimitiveEpisode:
 
 @dataclass(frozen=True, slots=True)
 class SensorimotorSnapshot:
-    babbling_coverage: float
+    exploration_coverage: float
     known_patterns: int
-    primitives: int
-    cognitive_primitives: int
-    primitive_candidates: int
-    recurrent_primitive_candidates: int
-    max_primitive_samples: int
+    competence_chunks: int
+    established_competences: int
+    competence_candidates: int
+    recurrent_competence_candidates: int
+    max_competence_samples: int
     sample_gate_candidates: int
     controllability_gate_candidates: int
     variance_gate_candidates: int
@@ -325,7 +336,7 @@ class SensorimotorSnapshot:
     best_controllability: float
     best_directional_consistency: float
     replay_active: bool
-    replay_primitive_id: str | None
+    active_competence_id: str | None
     horizon_samples: tuple[tuple[int, int], ...]
     passive_baseline_samples: int
 
@@ -344,10 +355,10 @@ class SensorimotorLearner:
     """Learn body dynamics and reusable actions without anatomy semantics.
 
     Development begins with deterministic organism-owned correlated motor
-    babbling. Four consecutive actually-delivered motor vectors form a
+    exploration. Four consecutive actually-delivered motor vectors form a
     candidate temporal chunk. The chunk becomes cognitively available only
     after independent naturally-occurring repetitions of it — organic
-    babbling recurrence, or later reuse from cognition — support a
+    exploration recurrence, or later reuse from cognition — support a
     reproducible, directionally consistent bodily consequence (L6.1: no
     scheduled replay forces this; evidence accumulates only from whatever
     repetition actually happens).
@@ -421,8 +432,8 @@ class SensorimotorLearner:
             for actuator_id in ids
             if actuator_id not in grouped_ids
         )
-        self._babble_units = (*self._exclusive_actuator_groups, *singleton_units)
-        concurrency_ceiling = len(self._babble_units)
+        self._exploration_units = (*self._exclusive_actuator_groups, *singleton_units)
+        concurrency_ceiling = len(self._exploration_units)
         self._max_concurrent = (
             concurrency_ceiling
             if max_concurrent is None
@@ -432,8 +443,8 @@ class SensorimotorLearner:
 
         self._levels = {aid: 0.0 for aid in ids}
         self._use_counts = {aid: 0 for aid in ids}
-        self._babble_epoch = -1
-        self._babble_ids: tuple[str, ...] = ()
+        self._exploration_epoch = -1
+        self._exploration_ids: tuple[str, ...] = ()
 
         self._frames: deque[_Frame] = deque(maxlen=max(_HORIZONS) + _PRIMITIVE_TICKS + 2)
         self._horizon_stats: dict[tuple[int, MotorPattern], _RunningStat] = {}
@@ -461,7 +472,7 @@ class SensorimotorLearner:
         self._replay_step = 0
         self._replay_source: str | None = None
         self._last_output_primitive_id: str | None = None
-        self._last_output_source = "babbling"
+        self._last_output_source = "exploration"
         self._last_natural_competence_ids: tuple[str, ...] = ()
         self._last_primitive_episodes: tuple[PrimitiveEpisode, ...] = ()
 
@@ -476,7 +487,7 @@ class SensorimotorLearner:
         retained = sorted(
             self._primitives.values(),
             key=lambda item: (
-                -int(item.is_competence),
+                -int(item.established),
                 -item.controllability,
                 -item.directional_consistency,
                 -item.samples,
@@ -517,7 +528,7 @@ class SensorimotorLearner:
     def cognitive_primitives(self) -> tuple[MotorPrimitive, ...]:
         """Return every currently supported motor competence.
 
-        Cognitive availability is evidence-gated by ``is_competence`` but is
+        Cognitive availability is evidence-gated by evidence-derived maturity but is
         not arbitrarily truncated. The finite primitive pool remains the
         resource bound; structural contention separately limits what can enter
         the cognitive graph.
@@ -526,7 +537,7 @@ class SensorimotorLearner:
             eligible = [
                 primitive
                 for primitive in self.primitives
-                if primitive.is_competence
+                if primitive.established
             ]
             self._cognitive_primitives_cache = tuple(
                 sorted(
@@ -657,7 +668,7 @@ class SensorimotorLearner:
         )
 
     @property
-    def babbling_coverage(self) -> float:
+    def exploration_coverage(self) -> float:
         used = sum(1 for count in self._use_counts.values() if count > 0)
         return used / len(self._use_counts)
 
@@ -676,19 +687,27 @@ class SensorimotorLearner:
         self._replay_source = "cognition"
         return True
 
+    def interrupt_active_competence(self) -> str | None:
+        """Interrupt only the current learned controller, preserving all evidence."""
+        active = self._replay_id
+        self._replay_id = None
+        self._replay_step = 0
+        self._replay_source = None
+        return active
+
     def _hash_unit(self, actuator_id: str, epoch: int) -> float:
         digest = hashlib.sha256(
-            f"sensorimotor-babble:{self._organism_id}:{actuator_id}:{epoch}".encode(
+            f"sensorimotor-exploration:{self._organism_id}:{actuator_id}:{epoch}".encode(
                 "utf-8"
             )
         ).digest()
         return int.from_bytes(digest[:8], "big") / float((1 << 64) - 1)
 
     def _target_for(self, actuator_id: str, tick: int) -> float:
-        raw = self._hash_unit(actuator_id, tick // _BABBLE_EPOCH_TICKS)
+        raw = self._hash_unit(actuator_id, tick // _EXPLORATION_EPOCH_TICKS)
         return 0.15 + 0.70 * raw
 
-    def _babble_cardinality(self, epoch: int) -> int:
+    def _exploration_cardinality(self, epoch: int) -> int:
         """Explore all coordination scales with a low-dimensional prior.
 
         Uniform sampling over 1..N has expected cardinality (N+1)/2 and therefore
@@ -696,7 +715,7 @@ class SensorimotorLearner:
         log-uniform scale instead: small combinations are common, larger
         combinations remain reachable, and no anatomical grouping is supplied.
         """
-        if self._max_concurrent <= 1 or len(self._babble_units) <= 1:
+        if self._max_concurrent <= 1 or len(self._exploration_units) <= 1:
             return 1
         digest = hashlib.sha256(
             f"sensorimotor-cardinality:{self._organism_id}:{epoch}".encode(
@@ -709,22 +728,43 @@ class SensorimotorLearner:
         )
         return max(1, min(self._max_concurrent, cardinality))
 
-    def _babble_vector(self, tick: int) -> dict[str, float]:
-        epoch = tick // _BABBLE_EPOCH_TICKS
-        if epoch != self._babble_epoch or not self._babble_ids:
+    def _exploration_vector(
+        self,
+        tick: int,
+        *,
+        preferred_actuator_ids: tuple[str, ...] = (),
+    ) -> dict[str, float]:
+        epoch = tick // _EXPLORATION_EPOCH_TICKS
+        valid_preference = tuple(
+            actuator_id
+            for actuator_id in preferred_actuator_ids
+            if actuator_id in self._use_counts
+        )
+        preference_changed = bool(
+            valid_preference
+            and not set(valid_preference).intersection(self._exploration_ids)
+        )
+        if (
+            epoch != self._exploration_epoch
+            or not self._exploration_ids
+            or preference_changed
+        ):
             scored_units = []
-            for unit_index, unit in enumerate(self._babble_units):
+            for unit_index, unit in enumerate(self._exploration_units):
                 use_count = min(self._use_counts[actuator_id] for actuator_id in unit)
                 tie_break = min(
                     self._hash_unit(actuator_id, epoch)
                     for actuator_id in unit
                 )
-                scored_units.append(
-                    (use_count, -tie_break, unit_index, unit)
+                preferred = int(
+                    not any(actuator_id in valid_preference for actuator_id in unit)
                 )
-            cardinality = self._babble_cardinality(epoch)
+                scored_units.append(
+                    (preferred, use_count, -tie_break, unit_index, unit)
+                )
+            cardinality = self._exploration_cardinality(epoch)
             chosen_units = [
-                item[3]
+                item[4]
                 for item in sorted(scored_units)[:cardinality]
             ]
 
@@ -734,8 +774,11 @@ class SensorimotorLearner:
                 # one opaque channel for this epoch.  Fairness is based on the
                 # organism's own use history; the apparatus never supplies
                 # "positive", "negative", joint or anatomical semantics.
+                preferred_in_unit = [
+                    value for value in unit if value in valid_preference
+                ]
                 actuator_id = min(
-                    unit,
+                    preferred_in_unit or list(unit),
                     key=lambda value: (
                         self._use_counts[value],
                         -self._hash_unit(value, epoch),
@@ -743,30 +786,35 @@ class SensorimotorLearner:
                     ),
                 )
                 selected.append(actuator_id)
-            self._babble_ids = tuple(selected)
-            self._babble_epoch = epoch
+            self._exploration_ids = tuple(selected)
+            self._exploration_epoch = epoch
 
         vector: dict[str, float] = {}
         for actuator_id in self._ids:
             target = (
                 self._target_for(actuator_id, tick)
-                if actuator_id in self._babble_ids
+                if actuator_id in self._exploration_ids
                 else 0.0
             )
             current = self._levels[actuator_id]
             current += self._smoothing * (target - current)
             self._levels[actuator_id] = current
 
-        for actuator_id in self._babble_ids:
+        for actuator_id in self._exploration_ids:
             value = self._levels[actuator_id]
             if value >= 0.08:
                 vector[actuator_id] = value
                 self._use_counts[actuator_id] += 1
         return vector
 
-    def motor_intents(self, tick: int) -> tuple[MotorIntent, ...]:
+    def motor_intents(
+        self,
+        tick: int,
+        *,
+        exploration_preference: tuple[str, ...] = (),
+    ) -> tuple[MotorIntent, ...]:
         self._last_output_primitive_id = None
-        self._last_output_source = "babbling"
+        self._last_output_source = "exploration"
 
         if self._replay_id is not None:
             primitive = self._primitives.get(self._replay_id)
@@ -787,7 +835,10 @@ class SensorimotorLearner:
             self._replay_step = 0
             self._replay_source = None
 
-        vector = self._babble_vector(tick)
+        vector = self._exploration_vector(
+            tick,
+            preferred_actuator_ids=exploration_preference,
+        )
         return tuple(
             MotorIntent(actuator_id=actuator_id, activation=value)
             for actuator_id, value in sorted(vector.items())
@@ -934,7 +985,7 @@ class SensorimotorLearner:
             return None
         if evidence_blocks is None:
             evidence_blocks = frozenset(
-                tick // _BABBLE_EPOCH_TICKS
+                tick // _EXPLORATION_EPOCH_TICKS
                 for tick in range(end_tick - _PRIMITIVE_TICKS, end_tick)
             )
         previous_blocks = self._primitive_last_evidence_blocks.get(sequence)
@@ -1072,7 +1123,7 @@ class SensorimotorLearner:
         retained_primitive = self._primitives.get(primitive_id)
         competence = bool(
             retained_primitive is not None
-            and retained_primitive.is_competence
+            and retained_primitive.established
         )
         self._publish_primitive_episode(
             primitive_id=primitive_id,
@@ -1200,7 +1251,7 @@ class SensorimotorLearner:
                 end_tick=frame.tick,
                 may_create=False,
                 evidence_blocks=frozenset(
-                    action_frame.tick // _BABBLE_EPOCH_TICKS
+                    action_frame.tick // _EXPLORATION_EPOCH_TICKS
                     for action_frame in action_frames
                 ),
                 source="primitive",
@@ -1219,7 +1270,7 @@ class SensorimotorLearner:
         # New candidates arise only from organism-generated non-primitive
         # activity and only on non-overlapping chunk boundaries.
         # Candidate windows are sampled every two ticks. This preserves
-        # bounded growth while allowing four-step chunks to straddle babbling
+        # bounded growth while allowing four-step chunks to straddle exploration
         # epoch boundaries, so learned primitives can contain changing actuator
         # combinations rather than only amplitude changes on one fixed subset.
         may_create = (
@@ -1233,7 +1284,7 @@ class SensorimotorLearner:
             end_tick=frame.tick,
             may_create=may_create,
             evidence_blocks=frozenset(
-                action_frame.tick // _BABBLE_EPOCH_TICKS
+                action_frame.tick // _EXPLORATION_EPOCH_TICKS
                 for action_frame in action_frames
             ),
             source="natural",
@@ -1299,13 +1350,13 @@ class SensorimotorLearner:
             pattern for _horizon, pattern in self._horizon_stats
         }
         return SensorimotorSnapshot(
-            babbling_coverage=self.babbling_coverage,
+            exploration_coverage=self.exploration_coverage,
             known_patterns=len(known_patterns),
-            primitives=len(self._primitives),
-            cognitive_primitives=len(self.cognitive_primitives),
-            primitive_candidates=len(candidate_metrics),
-            recurrent_primitive_candidates=len(recurrent),
-            max_primitive_samples=max(
+            competence_chunks=len(self._primitives),
+            established_competences=len(self.cognitive_primitives),
+            competence_candidates=len(candidate_metrics),
+            recurrent_competence_candidates=len(recurrent),
+            max_competence_samples=max(
                 (item[0] for item in candidate_metrics),
                 default=0,
             ),
@@ -1330,7 +1381,7 @@ class SensorimotorLearner:
             best_controllability=float(best),
             best_directional_consistency=float(best_direction),
             replay_active=self._replay_id is not None,
-            replay_primitive_id=self._replay_id,
+            active_competence_id=self._replay_id,
             horizon_samples=tuple(
                 (horizon, self._horizon_counts[horizon])
                 for horizon in _HORIZONS
@@ -1340,7 +1391,7 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 10,
+            "schema_version": 11,
             "actuator_ids": list(self._ids),
             "embodiment_fingerprint": self._embodiment_fingerprint,
             "exclusive_actuator_groups": [
@@ -1349,8 +1400,8 @@ class SensorimotorLearner:
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
             "use_counts": dict(self._use_counts),
-            "babble_epoch": self._babble_epoch,
-            "babble_ids": list(self._babble_ids),
+            "exploration_epoch": self._exploration_epoch,
+            "exploration_ids": list(self._exploration_ids),
             "horizon_stats": [
                 {
                     "horizon": horizon,
@@ -1430,11 +1481,11 @@ class SensorimotorLearner:
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=10,
+            maximum=11,
         )
-        if schema not in (9, 10):
+        if schema not in (9, 10, 11):
             raise ValueError(
-                "unsupported sensorimotor checkpoint: schema_version must be 9 or 10"
+                "unsupported sensorimotor checkpoint: schema_version must be 9, 10 or 11"
             )
 
         expected = tuple(str(value) for value in actuator_ids)
@@ -1469,7 +1520,7 @@ class SensorimotorLearner:
             embodiment_fingerprint=embodiment_fingerprint,
             exclusive_actuator_groups=exclusive_groups,
         )
-        if schema == 10:
+        if schema >= 10:
             stored_scope = payload.get("embodiment_fingerprint")
             if stored_scope != learner.embodiment_fingerprint:
                 raise ValueError("sensorimotor embodiment scope mismatch")
@@ -1497,22 +1548,22 @@ class SensorimotorLearner:
                 for actuator_id in expected
             }
 
-        raw_babble_epoch = payload.get("babble_epoch", -1)
+        raw_exploration_epoch = payload.get("exploration_epoch", payload.get("babble_epoch", -1))
         if (
-            isinstance(raw_babble_epoch, bool)
-            or not isinstance(raw_babble_epoch, int)
-            or raw_babble_epoch < -1
+            isinstance(raw_exploration_epoch, bool)
+            or not isinstance(raw_exploration_epoch, int)
+            or raw_exploration_epoch < -1
         ):
             raise ValueError("invalid sensorimotor babble epoch")
-        learner._babble_epoch = raw_babble_epoch
-        raw_babble_ids = payload.get("babble_ids", [])
-        if isinstance(raw_babble_ids, list):
-            restored_ids = tuple(str(value) for value in raw_babble_ids)
+        learner._exploration_epoch = raw_exploration_epoch
+        raw_exploration_ids = payload.get("exploration_ids", payload.get("babble_ids", []))
+        if isinstance(raw_exploration_ids, list):
+            restored_ids = tuple(str(value) for value in raw_exploration_ids)
             if all(value in allowed for value in restored_ids):
                 # Re-derive the next concurrent set from the current opaque
                 # motor-unit constitution.  The smoothed scalar levels are
                 # durable, but an in-flight selection is not causal evidence.
-                learner._babble_ids = ()
+                learner._exploration_ids = ()
 
         raw_horizon_stats = payload.get("horizon_stats", [])
         if isinstance(raw_horizon_stats, list):
@@ -1687,7 +1738,7 @@ class SensorimotorLearner:
                 ):
                     raise ValueError("motor primitive lacks recurrent supporting evidence")
                 if (
-                    primitive.is_competence
+                    primitive.established
                     and primitive.sequence not in learner._primitive_competence_tick
                 ):
                     raise ValueError("motor competence lacks competence chronology")
@@ -1793,12 +1844,12 @@ class SensorimotorLearner:
         runtime for activation. The motor sequence is never exposed here.
         """
         primitive = self._primitives.get(str(primitive_id))
-        return primitive is not None and primitive.is_competence
+        return primitive is not None and primitive.established
 
     def available_cognitive_primitive_ids(self) -> tuple[str, ...]:
         """Return the ordered set of currently available cognitive primitive IDs.
 
-        Only primitives that satisfy ``is_competence`` are included. Order is
+        Only primitives that satisfy evidence-derived maturity are included. Order is
         deterministic (sorted by primitive_id). The motor sequence of each
         primitive is intentionally withheld — agency selects by opaque ID and
         the runtime activates via ``activate_primitive()``.
