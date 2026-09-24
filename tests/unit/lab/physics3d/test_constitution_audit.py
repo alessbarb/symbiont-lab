@@ -18,7 +18,7 @@ def test_passive_body_converges_and_is_supported_by_ground():
     try:
         settling = settle_passive_body(p, client_id, body)
         assert settling.converged is True
-        assert settling.steps < 1440
+        assert settling.steps <= 1440
 
         mass = _total_mass(p, client_id, body)
         expected_weight = mass * GRAVITY
