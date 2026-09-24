@@ -1196,6 +1196,15 @@ export class BodyViewer {
     // Queue UI updates (Throttling)
     if (data.tick !== undefined) this.queueUIUpdate('tick', String(data.tick));
     if (data.contact_count !== undefined) this.queueUIUpdate('contact_count', String(data.contact_count));
+    if (data.ground_contact_count !== undefined) {
+      this.queueUIUpdate('ground_contact_count', String(data.ground_contact_count));
+    }
+    if (data.self_contact_count !== undefined) {
+      this.queueUIUpdate('self_contact_count', String(data.self_contact_count));
+    }
+    if (data.resource_contact_count !== undefined) {
+      this.queueUIUpdate('resource_contact_count', String(data.resource_contact_count));
+    }
     if (data.metabolic_reserve !== undefined) {
       const reserve = Number(data.metabolic_reserve);
       const pct = (reserve * 100).toFixed(0);
