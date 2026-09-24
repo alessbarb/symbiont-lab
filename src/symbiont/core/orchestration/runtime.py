@@ -106,6 +106,8 @@ from ...actuation.action import (
     MotorCommand,
 )
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
+from ...actuation.effects import EffectSpace
+from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from ...actuation.sensorimotor import (
     MotorPrimitive,
     PrimitiveEpisode,
@@ -201,6 +203,7 @@ class RuntimeTickResult:
     actuations: tuple[Actuation, ...] = ()
     action_commitment: ActionCommitment | None = None
     motor_command: MotorCommand | None = None
+    sensorimotor_transition: SensorimotorTransition | None = None
     gene_expression: dict[str, object] | None = None
 
 
@@ -676,6 +679,10 @@ class OrganismRuntime:
         self._last_action_proposal: ActionProposal | None = None
         self._active_action_commitment: ActionCommitment | None = None
         self._last_motor_command: MotorCommand | None = None
+        self._effect_space = EffectSpace()
+        self._causal_evidence = CausalEvidenceLedger()
+        self._pending_sensorimotor_transition: dict[str, Any] | None = None
+        self._last_sensorimotor_transition: SensorimotorTransition | None = None
         self._pending_motor_observation: tuple[
             tuple[str, float, dict[str, float] | None, bool], ...
         ] = ()
@@ -1053,6 +1060,51 @@ class OrganismRuntime:
     ) -> None:
         baseline = self._motor_percept_snapshot(percepts)
         sensorimotor_body_state = self._sensorimotor_body_snapshot(percepts)
+
+        # Complete t-1 -> t only when the bodily consequence is actually
+        # observable.  A command is never credited with a same-tick effect.
+        self._last_sensorimotor_transition = None
+        if self._pending_sensorimotor_transition is not None:
+            previous = self._pending_sensorimotor_transition
+            before_state = previous["state_before"]
+            raw_changes = {
+                name: float(sensorimotor_body_state[name]) - float(before_state[name])
+                for name in sorted(set(before_state) & set(sensorimotor_body_state))
+            }
+            references = signal_references or {}
+            opaque_changes: dict[str, float] = {}
+            for name, delta in raw_changes.items():
+                opaque = references.get(name)
+                if opaque is None and name.startswith(
+                    ("signal.", "latent.", "part.", "channel.", "internal.", "effect.")
+                ):
+                    opaque = name
+                if opaque is not None:
+                    opaque_changes[str(opaque)] = delta
+            self._effect_space.observe(opaque_changes)
+
+            transition = SensorimotorTransition(
+                transition_id="transition." + hashlib.sha256(
+                    f"{self._organism_id}:{previous['tick']}:{tick}:{previous['motor_command_ref']}".encode("utf-8")
+                ).hexdigest()[:24],
+                tick_start=int(previous["tick"]),
+                tick_end=tick,
+                context_ref=str(previous["context_ref"]),
+                commitment_id=str(previous["commitment_id"]),
+                controller_id=str(previous["controller_id"]),
+                state_before_ref=str(previous["state_before_ref"]),
+                motor_command_ref=str(previous["motor_command_ref"]),
+                actuation_ref=str(previous["actuation_ref"]),
+                prediction_ref=None,
+                state_after_ref="state." + _canonical_hash(
+                    {"values": dict(sorted(sensorimotor_body_state.items()))}
+                )[:24],
+                physiological_delta_ref=None,
+            )
+            self._causal_evidence.observe(transition)
+            self._last_sensorimotor_transition = transition
+            self._pending_sensorimotor_transition = None
+
         homeostatic_baseline = self._homeostasis.deviation()
         reactive_state = self._innate_reactivity.evaluate(
             percepts=baseline,
@@ -1423,6 +1475,34 @@ class OrganismRuntime:
         self._last_actuation = self._last_actuations[0]
         self._charge_metabolism("maintenance", total_cost)
         self._pending_proprioception = proprioception
+
+        if self._last_motor_command is not None and self._active_action_commitment is not None:
+            command_payload = {
+                "channels": [
+                    [actuator_id, activation]
+                    for actuator_id, activation in self._last_motor_command.channels
+                ]
+            }
+            actuation_payload = {
+                "delivered": [
+                    [item.actuator_id, float(item.delivered)]
+                    for item in self._last_actuations
+                ]
+            }
+            self._pending_sensorimotor_transition = {
+                "tick": tick,
+                "commitment_id": self._active_action_commitment.commitment_id,
+                "controller_id": self._active_action_commitment.controller_id,
+                "context_ref": "context." + hashlib.sha256(
+                    ("|".join(active_concepts) or "opaque").encode("utf-8")
+                ).hexdigest()[:24],
+                "state_before": dict(sensorimotor_body_state),
+                "state_before_ref": "state." + _canonical_hash(
+                    {"values": dict(sorted(sensorimotor_body_state.items()))}
+                )[:24],
+                "motor_command_ref": "command." + _canonical_hash(command_payload)[:24],
+                "actuation_ref": "actuation." + _canonical_hash(actuation_payload)[:24],
+            }
 
         if cognitive_intents and active_concepts:
             executed_ids = {
@@ -3072,6 +3152,7 @@ class OrganismRuntime:
             actuations=self._last_actuations,
             action_commitment=self._active_action_commitment,
             motor_command=self._last_motor_command,
+            sensorimotor_transition=self._last_sensorimotor_transition,
             gene_expression=(
                 self._gene_expression_state.as_dict()
                 if self._gene_expression_state is not None
@@ -3165,6 +3246,15 @@ class OrganismRuntime:
                     if self._active_action_commitment is not None
                     else None
                 ),
+                "sensorimotor_v2": {
+                    "schema_version": 1,
+                    "surface_binding": {
+                        "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
+                        "known_channel_ids": list(self._actuator_constitution.actuator_ids),
+                    },
+                    "effect_space": self._effect_space.checkpoint(),
+                    "causal_evidence": self._causal_evidence.checkpoint(),
+                },
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -3706,6 +3796,17 @@ class OrganismRuntime:
                         reason="surface_contract_changed",
                     )
                     runtime._active_action_commitment = restored_commitment
+            raw_v2 = raw_actuation.get("sensorimotor_v2")
+            if isinstance(raw_v2, dict):
+                try:
+                    raw_effects = raw_v2.get("effect_space")
+                    raw_evidence = raw_v2.get("causal_evidence")
+                    if isinstance(raw_effects, dict):
+                        runtime._effect_space = EffectSpace.restore(raw_effects)
+                    if isinstance(raw_evidence, dict):
+                        runtime._causal_evidence = CausalEvidenceLedger.restore(raw_evidence)
+                except (TypeError, ValueError, KeyError) as exc:
+                    raise CheckpointError(f"invalid sensorimotor v2 checkpoint: {exc}") from exc
         raw_reactivity = normalized.get("innate_reactivity")
         if raw_reactivity is not None:
             if (
