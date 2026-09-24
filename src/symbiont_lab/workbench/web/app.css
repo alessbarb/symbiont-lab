@@ -1087,3 +1087,230 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   line-height: 1.45;
   color: var(--muted);
 }
+
+
+/* ── Mind structural layout ──────────────────────────────────────── */
+.mind-canvas-area {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.mind-identity-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px minmax(0, 1fr);
+  gap: 1px;
+  background: var(--line);
+  min-width: 0;
+  min-height: 0;
+}
+.mind-identity-pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-deep);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.mind-identity-heading {
+  padding: 10px 14px 9px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(11, 25, 41, 0.82);
+}
+.mind-identity-title {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+}
+.mind-identity-subtitle {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.mind-phenotype-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+}
+.mind-self-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px 24px;
+  background: var(--bg-deep);
+}
+.mind-identity-gap {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: rgba(7, 18, 30, 0.96);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  padding: 12px 11px 18px;
+}
+
+.mind-sensory-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  background: var(--bg-deep);
+  padding: 24px;
+}
+.mind-sensory-map-svg {
+  width: 100%;
+  max-height: 100%;
+  flex: 1;
+}
+.mind-sensory-detail {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 8px 16px;
+  text-align: center;
+  max-width: 600px;
+}
+
+.mind-cognition-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.mind-cognition-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mind-cognition-summary {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(6, 14, 24, 0.82);
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--muted);
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.mind-cognition-mode-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  max-width: min(980px, calc(100% - 360px));
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.mind-cognition-view-modes {
+  display: flex;
+  gap: 4px;
+  margin-right: 8px;
+  padding-right: 8px;
+  border-right: 1px solid rgba(98, 120, 136, 0.22);
+}
+.mind-atlas-mode-group {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.mind-atlas-timeline {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 360px;
+  max-width: 48%;
+  padding: 5px 7px;
+  border: 1px solid rgba(98, 120, 136, 0.22);
+  border-radius: 7px;
+  background: rgba(6, 14, 24, 0.84);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.mind-atlas-timeline-label {
+  font-size: 8px;
+  color: var(--muted);
+  min-width: 72px;
+  white-space: nowrap;
+}
+.mind-atlas-timeline-input {
+  flex: 1;
+  min-width: 120px;
+  accent-color: var(--cyan);
+}
+.mind-cognition-3d-note {
+  position: absolute;
+  left: 12px;
+  bottom: 14px;
+  z-index: 2;
+  max-width: 360px;
+  padding: 6px 8px;
+  border: 1px solid rgba(98, 120, 136, 0.18);
+  border-radius: 6px;
+  background: rgba(6, 14, 24, 0.78);
+  font-size: 8px;
+  line-height: 1.35;
+  color: var(--muted);
+  pointer-events: none;
+}
+.mind-cognition-controls {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  display: flex;
+  gap: 6px;
+}
+
+.mind-overview-wrap,
+.mind-motor-wrap,
+.mind-history-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  background: var(--bg-deep);
+  padding: 18px 20px 28px;
+}
+
+.mind-waiting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--bg-deep);
+  color: var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+.mind-wait-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--cyan);
+  animation: mind-spin 1.2s linear infinite;
+}
