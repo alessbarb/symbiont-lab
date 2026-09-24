@@ -106,7 +106,7 @@ from ...actuation.action import (
 )
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.effects import EffectSpace
-from ...actuation.competence import CompetenceLibrary, MotorCompetence
+from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
 from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from ...actuation.sensorimotor import (
     MotorPrimitive,
@@ -3790,6 +3790,51 @@ class OrganismRuntime:
                         runtime._effect_space = EffectSpace.restore(raw_effects)
                     if isinstance(raw_evidence, dict):
                         runtime._causal_evidence = CausalEvidenceLedger.restore(raw_evidence)
+                    raw_competences = raw_v2.get("competences", [])
+                    if isinstance(raw_competences, list):
+                        restored_library = CompetenceLibrary()
+                        for item in raw_competences:
+                            if not isinstance(item, dict):
+                                raise ValueError("invalid competence checkpoint item")
+                            competence_id = item.get("competence_id")
+                            controller_id = item.get("controller_id")
+                            if not isinstance(competence_id, str) or not isinstance(controller_id, str):
+                                raise ValueError("invalid competence checkpoint identifiers")
+                            restored_library.add(
+                                MotorCompetence(
+                                    competence_id=competence_id,
+                                    controller_id=controller_id,
+                                    effect_id=(
+                                        str(item["effect_id"])
+                                        if item.get("effect_id") is not None
+                                        else None
+                                    ),
+                                    evidence=CompetenceEvidence(
+                                        controller_seed_ref=str(
+                                            item.get("controller_strategy_ref")
+                                            or competence_id
+                                        ),
+                                        support=int(item.get("support", 0)),
+                                        failures=int(item.get("failures", 0)),
+                                        reproducibility=float(item.get("reproducibility", 0.0)),
+                                        controllability=float(item.get("controllability", 0.0)),
+                                        directional_consistency=float(
+                                            item.get("directional_consistency", 0.0)
+                                        ),
+                                    ),
+                                    surface_binding=(
+                                        str(item["surface_binding"])
+                                        if item.get("surface_binding") is not None
+                                        else None
+                                    ),
+                                    controller_strategy_ref=(
+                                        str(item["controller_strategy_ref"])
+                                        if item.get("controller_strategy_ref") is not None
+                                        else None
+                                    ),
+                                )
+                            )
+                        runtime._competence_library = restored_library
                 except (TypeError, ValueError, KeyError) as exc:
                     raise CheckpointError(f"invalid sensorimotor v2 checkpoint: {exc}") from exc
         raw_reactivity = normalized.get("innate_reactivity")
