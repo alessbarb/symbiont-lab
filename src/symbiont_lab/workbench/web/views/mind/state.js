@@ -190,6 +190,10 @@ export function resetMindDataState() {
   graph.focusedSectorId = null;
   graph.atlasMode = 'structure';
   graph.viewMode = 'full';
+  graph.dimension = '2d';
+  graph.threeDMode = 'relational';
+  graph.camera3d = { yaw: -0.55, pitch: 0.34, distance: 900 };
+  graph.sceneRadius3d = 220;
   graph.replaySnapshot = null;
   graph.replayTick = null;
   graph.world3d.clear();
