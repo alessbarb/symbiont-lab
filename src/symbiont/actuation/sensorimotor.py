@@ -1700,6 +1700,12 @@ class SensorimotorLearner:
         for item in raw_historical:
             if not isinstance(item, Mapping):
                 raise ValueError("invalid historical primitive candidate")
+            if (
+                schema == 10
+                and item.get("embodiment_fingerprint")
+                != learner.embodiment_fingerprint
+            ):
+                raise ValueError("historical primitive embodiment scope mismatch")
             primitive_id = item.get("primitive_id")
             if not isinstance(primitive_id, str) or not primitive_id:
                 raise ValueError("invalid historical primitive id")
