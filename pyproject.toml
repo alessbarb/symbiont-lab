@@ -38,6 +38,10 @@ exclude = ["tests*", "observatory.tests*", "research*", "docs*", "scripts*"]
   "web/*.css",
   "web/*.js",
   "web/views/*.js",
+  "web/views/body/*.js",
+  "web/views/lab/*.js",
+  "web/views/archive/*.js",
+  "web/views/shared/*.js",
   "web/views/mind/*.js",
 ]
 "observatory" = [
