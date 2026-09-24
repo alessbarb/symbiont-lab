@@ -378,7 +378,10 @@ def run(
             train_interval=slm_train_interval,
             device=slm_device,
         )
-        slm.attach_existing(runtime.organism)
+        slm.attach_existing(
+            runtime.organism,
+            candidate_model_ids=runtime.historical_private_model_candidates,
+        )
 
     remaining = None if ticks <= 0 else ticks
     record = None
