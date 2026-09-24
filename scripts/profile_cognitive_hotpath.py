@@ -49,7 +49,6 @@ def make_organism(*, synthetic: bool) -> OrganismRuntime:
             8,
             physical_contract="cognitive-profile-v2",
         ),
-        motor_exploration_mode="babbling",
         bootstrap_semantic_senses=not synthetic,
         discover_senses=False,
         min_samples=1,
