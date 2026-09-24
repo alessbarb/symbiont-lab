@@ -453,9 +453,18 @@ def _single_joint_trials(
     amplitude: float,
     drive_steps: int,
     time_step: float,
+    joint_indices: Sequence[int] | None = None,
 ) -> list[dict[str, object]]:
     trials: list[dict[str, object]] = []
-    for index, spec in enumerate(JOINT_SPECS):
+    selected_indices = (
+        tuple(range(len(JOINT_SPECS)))
+        if joint_indices is None
+        else tuple(int(value) for value in joint_indices)
+    )
+    if any(not 0 <= index < len(JOINT_SPECS) for index in selected_indices):
+        raise ValueError("single_joint_indices contains an invalid joint index")
+    for index in selected_indices:
+        spec = JOINT_SPECS[index]
         trial = _run_motor_trial(
             (index,),
             amplitudes={index: amplitude},
@@ -479,6 +488,7 @@ def run_constitution_audit(
     motor_amplitude: float = 0.35,
     motor_drive_steps: int = 240,
     dimensionality_repeats: int = 4,
+    single_joint_indices: Iterable[int] | None = None,
 ) -> dict[str, object]:
     if time_step <= 0.0 or not math.isfinite(time_step):
         raise ValueError("time_step must be finite and positive")
@@ -545,6 +555,11 @@ def run_constitution_audit(
         amplitude=motor_amplitude,
         drive_steps=motor_drive_steps,
         time_step=time_step,
+        joint_indices=(
+            None
+            if single_joint_indices is None
+            else tuple(single_joint_indices)
+        ),
     )
 
     return {
