@@ -98,6 +98,14 @@ from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.selector import MotorIntentSelector
 from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
+from ...actuation.action import (
+    ActionEvaluation,
+    ActionJustification,
+    ActionProposal,
+    ActionSource,
+    MotorCommand,
+)
+from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.sensorimotor import (
     MotorPrimitive,
     PrimitiveEpisode,
@@ -191,44 +199,13 @@ class RuntimeTickResult:
     actuation: Actuation | None = None
     motor_intents: tuple[MotorIntent, ...] = ()
     actuations: tuple[Actuation, ...] = ()
+    action_commitment: ActionCommitment | None = None
+    motor_command: MotorCommand | None = None
     gene_expression: dict[str, object] | None = None
 
 
 class OrganismDeadError(RuntimeError):
     """Raised when execution is requested after irreversible death."""
-
-
-def _classify_executed_motor_origin(
-    intents: tuple[MotorIntent, ...],
-    cognitive_intents: tuple[MotorIntent, ...],
-    *,
-    prior_origin: str,
-) -> tuple[str, str]:
-    """Classify the motor command that survives physical-unit arbitration.
-
-    Only the developmental direct-motor families are reclassified here.
-    Primitive/reactive/prospective provenance is already isolated upstream.
-    """
-    if prior_origin not in {"mixed", "cognition", "babbling"}:
-        return prior_origin, prior_origin
-
-    cognitive_ids = {
-        intent.actuator_id for intent in cognitive_intents
-    }
-    surviving_cognitive = any(
-        intent.actuator_id in cognitive_ids for intent in intents
-    )
-    surviving_developmental = any(
-        intent.actuator_id not in cognitive_ids for intent in intents
-    )
-
-    if surviving_cognitive and surviving_developmental:
-        return "mixed", "mixed"
-    if surviving_cognitive:
-        return "cognition", "cognition"
-    if surviving_developmental:
-        return "babbling", "babbling"
-    return "none", "none"
 
 
 class OrganismRuntime:
@@ -308,7 +285,6 @@ class OrganismRuntime:
         motor_intent_selector: MotorIntentSelector | None = None,
         actuator_system: ActuatorSystem | None = None,
         sensorimotor_learner: SensorimotorLearner | None = None,
-        motor_exploration_mode: str = "spontaneous",
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -317,11 +293,6 @@ class OrganismRuntime:
         if (tick_count < 0 or generation < 0
                 or social_exchange_quantum <= 0.0 or social_exchange_cost < 0.0):
             raise ValueError("invalid tick, generation, social quantum or social cost")
-        if motor_exploration_mode not in {"spontaneous", "babbling"}:
-            raise ValueError(
-                "motor_exploration_mode must be spontaneous or babbling"
-            )
-
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
         self._bootstrap_semantic_senses = bootstrap_semantic_senses
@@ -492,7 +463,7 @@ class OrganismRuntime:
             if metabolism is not None
             else MetabolicLedger(
                 replenishment=(
-                    {k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
+                    {k: 0.0 for k in ("observation", "competence", "persistence", "maintenance")}
                     if self._explicit_metabolism
                     else None
                 ),
@@ -689,7 +660,6 @@ class OrganismRuntime:
                 self._cognitive_bridge.set_expression_state(self._gene_expression_state)
             self._cognitive_bridge.bind_contention_identity(self._organism_id)
         self._actuation_enabled = bool(actuation_enabled)
-        self._motor_exploration_mode = motor_exploration_mode
         self._actuator_constitution: ActuatorConstitution | None = None
         self._actuator_proposer: ActuatorProposer | None = None
         self._actuator_states: dict[str, ActuatorState] = {}
@@ -703,6 +673,9 @@ class OrganismRuntime:
         self._last_motor_origin = "none"
         self._last_motor_origin_detail = "none"
         self._last_executed_primitive_id: str | None = None
+        self._last_action_proposal: ActionProposal | None = None
+        self._active_action_commitment: ActionCommitment | None = None
+        self._last_motor_command: MotorCommand | None = None
         self._pending_motor_observation: tuple[
             tuple[str, float, dict[str, float] | None, bool], ...
         ] = ()
@@ -747,17 +720,16 @@ class OrganismRuntime:
                 self._actuator_states = dict(actuator_states)
             self._motor_intent_selector = motor_intent_selector or MotorIntentSelector()
             self._actuator_system = actuator_system or ActuatorSystem()
-            if motor_exploration_mode == "babbling":
-                self._sensorimotor_learner = (
-                    sensorimotor_learner
-                    if sensorimotor_learner is not None
-                    else SensorimotorLearner(
-                        actuator_constitution.actuator_ids,
-                        organism_id=self._organism_id,
-                        max_concurrent=None,
-                        embodiment_fingerprint=actuator_constitution.contract_fingerprint,
-                    )
+            self._sensorimotor_learner = (
+                sensorimotor_learner
+                if sensorimotor_learner is not None
+                else SensorimotorLearner(
+                    actuator_constitution.actuator_ids,
+                    organism_id=self._organism_id,
+                    max_concurrent=None,
+                    embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                 )
+            )
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
@@ -1058,7 +1030,7 @@ class OrganismRuntime:
         """Hook for model-based prospective primitive selection.
 
         Base implementation always returns ``None``, preserving the existing
-        cognitive-readout and babbling behaviour unchanged. Subclasses that
+        cognitive-readout and exploration behaviour unchanged. Subclasses that
         have a private model may override this to consult ``ProspectiveAgency``
         and return a primitive ID to activate.
 
@@ -1102,7 +1074,7 @@ class OrganismRuntime:
         )
 
         # A competence may have crossed its evidence gate on the previous
-        # natural babbling window. By this tick its readout can have been
+        # natural exploration window. By this tick its readout can have been
         # admitted normally; record the causal context without scheduling or
         # forcing any replay.
         if (
@@ -1172,7 +1144,7 @@ class OrganismRuntime:
                     )
                 ):
                     primitive_selected_now = True
-                    self._last_motor_origin_detail = "primitive_reactive"
+                    self._last_motor_origin_detail = "protection"
 
             # An already-started learned skill is an atomic temporal action:
             # continue it before considering a new cognitive primitive.
@@ -1191,7 +1163,7 @@ class OrganismRuntime:
                 )
                 if acquired_primitive_id is not None and self._sensorimotor_learner.activate_primitive(acquired_primitive_id):
                     primitive_selected_now = True
-                    self._last_motor_origin_detail = "primitive_prospective"
+                    self._last_motor_origin_detail = "prospection"
                     primitive_execution = self._sensorimotor_learner.motor_intents(tick)
                 else:
                     # (3) Cognitive readout primitive selection (existing path)
@@ -1225,7 +1197,7 @@ class OrganismRuntime:
                 if self._sensorimotor_learner is not None
                 else None
             )
-            self._last_motor_origin = "primitive"
+            self._last_motor_origin = "competence"
             if (
                 self._last_executed_primitive_id is not None
                 and reactive_state.withdrawal > 0.05
@@ -1239,28 +1211,28 @@ class OrganismRuntime:
             # Every other current primitive execution was selected through a
             # cognitive primitive path; scheduled verification no longer exists.
             if self._last_motor_origin_detail not in {
-                "primitive_prospective",
-                "primitive_reactive",
+                "prospection",
+                "protection",
             }:
-                self._last_motor_origin_detail = "primitive_cognition"
+                self._last_motor_origin_detail = "competence"
 
-        elif self._motor_exploration_mode == "babbling":
+        else:
             if self._sensorimotor_learner is None:
-                raise RuntimeError("babbling mode requires sensorimotor learner")
+                raise RuntimeError("actuation requires sensorimotor learner")
 
             # Sensorimotor learning is independent from cognitive admission.
-            # Current-state learner output here must be ordinary babbling;
+            # Current-state learner output here must be ordinary exploration;
             # primitives are handled atomically above and no passive/verification
             # scheduler exists.
             developmental_intents = self._sensorimotor_learner.motor_intents(tick)
             output_source = self._sensorimotor_learner.last_output_source
-            if output_source != "babbling":
+            if output_source != "exploration":
                 raise RuntimeError(
-                    "unexpected sensorimotor output source during babbling development: "
+                    "unexpected sensorimotor output source during exploration development: "
                     f"{output_source}"
                 )
 
-            # A one-channel babbling episode is a clean natural causal
+            # A one-channel exploration episode is a clean natural causal
             # probe for the direct actuator proposer. Multi-channel
             # synergies stay exclusively in the sensorimotor learner
             # because their effects cannot be attributed to one actuator.
@@ -1294,61 +1266,14 @@ class OrganismRuntime:
 
             intents = tuple(merged)
             if cognitive_intents and developmental_intents:
-                self._last_motor_origin = "mixed"
-                self._last_motor_origin_detail = "mixed"
+                self._last_motor_origin = "exploration"
+                self._last_motor_origin_detail = "exploration"
             elif cognitive_intents:
-                self._last_motor_origin = "cognition"
-                self._last_motor_origin_detail = "cognition"
+                self._last_motor_origin = "competence"
+                self._last_motor_origin_detail = "competence"
             elif developmental_intents:
-                self._last_motor_origin = "babbling"
-                self._last_motor_origin_detail = "babbling"
-
-        elif cognitive_intents:
-            intents = cognitive_intents
-            self._last_motor_origin = "cognition"
-            self._last_motor_origin_detail = "cognition"
-
-        if not intents and self._motor_exploration_mode == "spontaneous":
-            digest = hashlib.sha256(
-                f"basal-motor-noise:{self._organism_id}:{tick}".encode("utf-8")
-            ).digest()
-            exploration_drive = (
-                self._gene_expression_state.exploration_drive
-                if self._gene_expression_state is not None
-                else 0.25
-            )
-            threshold = max(0, min(255, round(255.0 * exploration_drive)))
-            if (
-                digest[0] < threshold
-                and self._actuator_constitution is not None
-                and self._actuator_constitution.actuator_ids
-            ):
-                ids = self._actuator_constitution.actuator_ids
-                pending_id = ids[int.from_bytes(digest[1:5], "big") % len(ids)]
-                random_fraction = (
-                    int.from_bytes(digest[5:9], "big")
-                    / float((1 << 32) - 1)
-                )
-                # Expression regulates exploratory amplitude without encoding a
-                # body-specific movement or externally valued direction.
-                pending_activation = max(
-                    0.0,
-                    min(
-                        1.0,
-                        0.05
-                        + exploration_drive
-                        * (0.25 + 0.75 * random_fraction),
-                    ),
-                )
-                intents = (
-                    MotorIntent(
-                        actuator_id=pending_id,
-                        activation=pending_activation,
-                    ),
-                )
-                pending.append((pending_id, pending_activation, baseline))
-                self._last_motor_origin = "spontaneous"
-                self._last_motor_origin_detail = "spontaneous"
+                self._last_motor_origin = "exploration"
+                self._last_motor_origin_detail = "exploration"
 
         if self._sensorimotor_learner is not None and intents:
             intents = self._sensorimotor_learner.constrain_intents(intents)
@@ -1360,7 +1285,7 @@ class OrganismRuntime:
             # Direct actuator-effect probes are valid only when the surviving
             # command is genuinely developmental.  If cognition requested the
             # same opaque actuator, the resulting bodily consequence cannot be
-            # attributed to babbling even though the physical channel matches.
+            # attributed to exploration even though the physical channel matches.
             pending = [
                 item
                 for item in pending
@@ -1369,18 +1294,6 @@ class OrganismRuntime:
                     and item[0] not in cognitive_ids
                 )
             ]
-
-            # Origin telemetry must describe the command that will actually be
-            # executed after opaque motor-unit arbitration, not the requests
-            # that existed before mutually-exclusive channels were resolved.
-            (
-                self._last_motor_origin,
-                self._last_motor_origin_detail,
-            ) = _classify_executed_motor_origin(
-                intents,
-                cognitive_intents,
-                prior_origin=self._last_motor_origin,
-            )
 
         activity_scale = self._homeostasis.activity_scale
         if activity_scale < 1.0:
@@ -1412,6 +1325,78 @@ class OrganismRuntime:
                     execution_primitive_id=None,
                 )
             return
+
+        # Sensorimotor v2 provenance is established before physical execution.
+        # Feedback corrections below inherit this commitment instead of creating
+        # fresh deliberative actions on every tick.
+        source_name = (
+            self._last_motor_origin_detail
+            if self._last_motor_origin_detail in {item.value for item in ActionSource}
+            else "exploration"
+        )
+        source = ActionSource(source_name)
+        competence_id = self._last_executed_primitive_id
+        needs_new_commitment = (
+            self._active_action_commitment is None
+            or not self._active_action_commitment.active
+            or self._active_action_commitment.competence_id != competence_id
+            or self._last_motor_origin_detail != source.value
+        )
+        if needs_new_commitment:
+            if self._active_action_commitment is not None and self._active_action_commitment.active:
+                self._active_action_commitment.terminate(
+                    tick=tick,
+                    status=CommitmentStatus.INTERRUPTED,
+                    reason="action_reselected",
+                )
+            proposal_id = "proposal." + hashlib.sha256(
+                f"{self._organism_id}:{tick}:{source.value}:{competence_id or 'direct'}".encode("utf-8")
+            ).hexdigest()[:24]
+            self._last_action_proposal = ActionProposal(
+                proposal_id=proposal_id,
+                source=source,
+                effect_target_id=None,
+                competence_id=competence_id,
+                justification=ActionJustification(
+                    competence_id=competence_id,
+                ),
+                evaluation=ActionEvaluation(
+                    epistemic_relevance=(1.0 if source is ActionSource.EXPLORATION else 0.0),
+                    homeostatic_relevance=(reactive_state.withdrawal if source is ActionSource.PROTECTION else 0.0),
+                    protective_relevance=(reactive_state.withdrawal if source is ActionSource.PROTECTION else 0.0),
+                    uncertainty=(1.0 if source is ActionSource.EXPLORATION else 0.5),
+                ),
+            )
+            commitment_id = "commitment." + hashlib.sha256(
+                f"{proposal_id}:{tick}".encode("utf-8")
+            ).hexdigest()[:24]
+            self._active_action_commitment = ActionCommitment(
+                commitment_id=commitment_id,
+                proposal_id=proposal_id,
+                effect_target_id=None,
+                competence_id=competence_id,
+                started_tick=tick,
+                controller_id=(
+                    f"controller.{competence_id}"
+                    if competence_id is not None
+                    else "controller.sensorimotor-exploration"
+                ),
+                surface_fingerprint=(
+                    self._actuator_constitution.contract_fingerprint
+                    if self._actuator_constitution is not None
+                    else None
+                ),
+            )
+        assert self._active_action_commitment is not None
+        self._last_motor_command = MotorCommand(
+            commitment_id=self._active_action_commitment.commitment_id,
+            controller_id=self._active_action_commitment.controller_id,
+            competence_id=self._active_action_commitment.competence_id,
+            channels=tuple(
+                (intent.actuator_id, float(intent.activation))
+                for intent in intents
+            ),
+        )
 
         actuations: list[Actuation] = []
         proprioception: dict[str, float] = {}
@@ -1488,14 +1473,8 @@ class OrganismRuntime:
                     for actuation in self._last_actuations
                     if actuation.delivered > 0.0
                 },
-                discovery_eligible=(
-                    self._last_motor_origin != "primitive"
-                ),
-                execution_primitive_id=(
-                    self._last_executed_primitive_id
-                    if self._last_motor_origin == "primitive"
-                    else None
-                ),
+                discovery_eligible=(self._last_executed_primitive_id is None),
+                execution_primitive_id=self._last_executed_primitive_id,
             )
 
             # Natural recurrence is the missing non-circular path from a
@@ -1575,7 +1554,6 @@ class OrganismRuntime:
             "mutation_seed": self._mutation_seed,
             "epigenetic_decay": self._epigenetic_decay,
             "actuation_enabled": self._actuation_enabled,
-            "motor_exploration_mode": self._motor_exploration_mode,
             "motor_selection_threshold": (
                 self._motor_intent_selector.selection_threshold
                 if self._motor_intent_selector is not None
@@ -1823,7 +1801,7 @@ class OrganismRuntime:
         if self._social_habitat is None:
             raise ValueError("no social habitat is attached")
         outcome = self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
-        self._charge_metabolism("cognition", self._social_exchange_cost)
+        self._charge_metabolism("competence", self._social_exchange_cost)
         self._social_ledger.observe(
             self._organism_id, target_id, benefit=outcome.granted,
             reciprocal=outcome.relation.reciprocal_observations > 0,
@@ -1930,7 +1908,7 @@ class OrganismRuntime:
         if any(source_id != self._organism_id for source_id, _, _ in requests):
             raise ValueError("competition requests must originate from this runtime")
         outcomes = self._social_habitat.compete(requests)
-        self._charge_metabolism("cognition", self._social_exchange_cost * len(requests))
+        self._charge_metabolism("competence", self._social_exchange_cost * len(requests))
         requested = {(source, resource): amount for source, resource, amount in requests}
         for outcome in outcomes:
             loss = max(0.0, requested.get((outcome.source_id, outcome.resource), outcome.granted) - outcome.granted)
@@ -2143,7 +2121,7 @@ class OrganismRuntime:
         habitat = self._resource_habitats.get(resource_id) if resource_id is not None else self._habitat
         if habitat is None:
             raise ValueError("no shared habitat is attached")
-        if kind not in {"observation", "cognition", "persistence", "maintenance"} or isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or amount <= 0.0:
+        if kind not in {"observation", "competence", "persistence", "maintenance"} or isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or amount <= 0.0:
             raise ValueError("invalid resource intake")
         # Physical body headroom is authoritative. The requested accounting
         # kind may receive bookkeeping credit, but it cannot gate or create
@@ -2637,7 +2615,7 @@ class OrganismRuntime:
             for allocation in allocations
         )
         self._charge_metabolism(
-            "cognition",
+            "competence",
             (len(allocations) - interoceptive_allocations) * 0.02
             + interoceptive_allocations * 0.005,
         )
@@ -2764,7 +2742,7 @@ class OrganismRuntime:
         sensory_mutations = self._sensory_system.plastic_step(tick=self._tick_count + 1)
         if sensory_mutations:
             self._charge_metabolism(
-                "cognition",
+                "competence",
                 sum(min(0.01, mutation.cost * 0.01) for mutation in sensory_mutations),
             )
 
@@ -3092,6 +3070,8 @@ class OrganismRuntime:
             actuation=self._last_actuation,
             motor_intents=self._last_motor_intents,
             actuations=self._last_actuations,
+            action_commitment=self._active_action_commitment,
+            motor_command=self._last_motor_command,
             gene_expression=(
                 self._gene_expression_state.as_dict()
                 if self._gene_expression_state is not None
@@ -3172,7 +3152,6 @@ class OrganismRuntime:
                     if self._motor_intent_selector is not None
                     else 0.1
                 ),
-                "exploration_mode": self._motor_exploration_mode,
                 "pending_motor_observation": pending_motor,
                 "pending_proprioception": dict(sorted(self._pending_proprioception.items())),
                 "sensorimotor": (
@@ -3181,6 +3160,11 @@ class OrganismRuntime:
                     else None
                 ),
                 "last_executed_primitive_id": self._last_executed_primitive_id,
+                "action_commitment": (
+                    self._active_action_commitment.checkpoint()
+                    if self._active_action_commitment is not None
+                    else None
+                ),
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -3398,7 +3382,6 @@ class OrganismRuntime:
         actuator_states = None
         motor_intent_selector = None
         sensorimotor_learner = None
-        motor_exploration_mode = "spontaneous"
         pending_motor_observation = ()
         pending_proprioception: dict[str, float] = {}
         raw_actuation = normalized.get("actuation")
@@ -3409,19 +3392,13 @@ class OrganismRuntime:
             if not isinstance(enabled, bool):
                 raise CheckpointError("actuation.enabled must be boolean")
             actuation_enabled = enabled
-            raw_mode = raw_actuation.get("exploration_mode", "spontaneous")
+            raw_mode = raw_actuation.get("exploration_mode")
             if raw_mode == "structured_probe":
-                # L6.2 removes the scheduled ON/OFF probing-calendar
-                # apparatus from canonical core entirely — there is no
-                # decontaminated equivalent to migrate this mode into (same
-                # discipline as the v8->v9 ActionKind removal).
                 raise CheckpointError(
-                    "checkpoint carries the removed structured_probe motor "
-                    "exploration mode; it cannot be restored"
+                    "checkpoint carries removed scheduled motor probing state"
                 )
-            if raw_mode not in {"spontaneous", "babbling"}:
-                raise CheckpointError("invalid motor exploration mode")
-            motor_exploration_mode = str(raw_mode)
+            # Legacy spontaneous/exploration mode is read only for migration;
+            # Sensorimotor v2 has no runtime motor mode.
             if enabled:
                 raw_constitution = raw_actuation.get("constitution")
                 if not isinstance(raw_constitution, dict):
@@ -3490,11 +3467,9 @@ class OrganismRuntime:
                 except ValueError as exc:
                     raise CheckpointError(f"invalid motor selector checkpoint: {exc}") from exc
                 raw_sensorimotor = raw_actuation.get("sensorimotor")
-                if motor_exploration_mode == "babbling":
+                if raw_sensorimotor is not None:
                     if not isinstance(raw_sensorimotor, dict):
-                        raise CheckpointError(
-                            "babbling checkpoint is missing canonical sensorimotor state"
-                        )
+                        raise CheckpointError("invalid canonical sensorimotor state")
                     try:
                         sensorimotor_learner = SensorimotorLearner.restore(
                             raw_sensorimotor,
@@ -3710,10 +3685,27 @@ class OrganismRuntime:
             actuator_states=actuator_states,
             motor_intent_selector=motor_intent_selector,
             sensorimotor_learner=sensorimotor_learner,
-            motor_exploration_mode=motor_exploration_mode,
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception
+        if isinstance(raw_actuation, dict):
+            raw_commitment = raw_actuation.get("action_commitment")
+            if isinstance(raw_commitment, dict):
+                restored_commitment = ActionCommitment.restore(raw_commitment)
+                current_surface = (
+                    runtime._actuator_constitution.contract_fingerprint
+                    if runtime._actuator_constitution is not None
+                    else None
+                )
+                if restored_commitment.compatible_with(current_surface):
+                    runtime._active_action_commitment = restored_commitment
+                else:
+                    restored_commitment.terminate(
+                        tick=runtime._tick_count,
+                        status=CommitmentStatus.INCOMPATIBLE,
+                        reason="surface_contract_changed",
+                    )
+                    runtime._active_action_commitment = restored_commitment
         raw_reactivity = normalized.get("innate_reactivity")
         if raw_reactivity is not None:
             if (
