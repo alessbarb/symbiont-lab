@@ -8,7 +8,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { pbPos, pbQuat } from './coordinates.js';
 import {
   JOINT_TOPOLOGY,
-  PANEL_FIELDS,
   SEGMENTS,
   SEGMENT_ACTIVITY_JOINTS,
   SEGMENT_COLORS,
@@ -148,6 +147,8 @@ export class BodyViewer {
     this.resourceIndicatorArrow = null;
     this.resourceIndicatorLabel = null;
     this.resourceScreenVector = new THREE.Vector3();
+    this.trajectoryPoints = [];
+    this.trajectoryLine = null;
     this.frameBounds = new THREE.Box3();
     this.frameCenter = new THREE.Vector3();
     this.frameSize = new THREE.Vector3();
@@ -463,6 +464,17 @@ export class BodyViewer {
     gridHelper.material.opacity = 0.48;
     this.scene.add(gridHelper);
 
+    const trajectoryGeometry = new THREE.BufferGeometry();
+    const trajectoryMaterial = new THREE.LineBasicMaterial({
+      color: 0x4dcce8,
+      transparent: true,
+      opacity: 0.52,
+    });
+    this.trajectoryLine = new THREE.Line(trajectoryGeometry, trajectoryMaterial);
+    this.trajectoryLine.visible = false;
+    this.trajectoryLine.renderOrder = 2;
+    this.scene.add(this.trajectoryLine);
+
     const groundGeo = new THREE.PlaneGeometry(100, 100);
     const groundMat = new THREE.MeshStandardMaterial({
       color: 0x18212c, transparent: true, opacity: 0.78, roughness: 1, metalness: 0,
@@ -752,6 +764,27 @@ export class BodyViewer {
       ? ` · ${this.bodyState.resourceDistance.toFixed(2)} m`
       : '';
     this.resourceIndicatorLabel.textContent = `Resource${distance}`;
+  }
+
+  setObserverMode(mode) {
+    if (this.trajectoryLine) {
+      this.trajectoryLine.visible = mode === 'motion' || mode === 'interaction';
+    }
+    if (this.resourceGuide) {
+      this.resourceGuide.material.opacity = mode === 'interaction' ? 0.72 : 0.38;
+    }
+  }
+
+  updateTrajectory(position) {
+    if (!position || !this.trajectoryLine) return;
+    const point = position.clone();
+    point.y = Math.max(0.025, point.y * 0.02);
+    const last = this.trajectoryPoints[this.trajectoryPoints.length - 1];
+    if (last && last.distanceTo(point) < 0.012) return;
+    this.trajectoryPoints.push(point);
+    if (this.trajectoryPoints.length > 220) this.trajectoryPoints.shift();
+    this.trajectoryLine.geometry.dispose();
+    this.trajectoryLine.geometry = new THREE.BufferGeometry().setFromPoints(this.trajectoryPoints);
   }
 
   motorActivityLabel() {
@@ -1176,6 +1209,7 @@ export class BodyViewer {
         if (Number.isFinite(step) && step < 2.0) this.distanceTravelled += step;
       }
       this.previousObservedBasePos = nextPos.clone();
+      this.updateTrajectory(nextPos);
       if (!this.hasDensePoseStream) this.targetBasePos.copy(nextPos);
 
       const net = this.observerStartBasePos ? nextPos.distanceTo(this.observerStartBasePos) : 0;
@@ -1472,6 +1506,8 @@ export class BodyViewer {
     this.resourceIndicator = null;
     this.resourceIndicatorArrow = null;
     this.resourceIndicatorLabel = null;
+    this.trajectoryLine = null;
+    this.trajectoryPoints.length = 0;
 
     this.jointObjs = {};
     this.linkObjs = {};
