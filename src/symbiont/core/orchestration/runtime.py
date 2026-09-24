@@ -70,6 +70,7 @@ from ..signals.knowledge_checkpoint import validate_checkpoint
 from ..embodiment.metabolism import MetabolicLedger, MetabolicSnapshot
 from ..embodiment.assimilation import InformationAssimilator, AssimilationDecision
 from ..embodiment.homeostasis import HomeostaticController, HomeostaticSnapshot
+from ..regulation import ActionArbitrator, InnateReactivity, ReactiveMemory
 from ..social.ecology import SharedHabitat
 from ..social.trust import SourceTrustModel
 from ..social.relations import (InteractionOutcome, RelationLedger, RelationValence,
@@ -549,6 +550,13 @@ class OrganismRuntime:
             ):
                 raise ValueError("physiology contradicts living body vital state")
         self._physiology = PhysiologyController(body_state=self._living_body_state)
+        self._innate_reactivity = InnateReactivity()
+        self._reactive_memory = ReactiveMemory()
+        self._action_arbitrator = ActionArbitrator()
+        # One-tick causal trace only. A restart deliberately breaks this trace;
+        # established reactive associations are checkpointed separately.
+        self._pending_reactive_credit: tuple[str, str, float] | None = None
+        self._last_reactive_state = None
         self._ontogeny = OntogenyController(
             config=self._physiology_config,
             body_state=self._living_body_state,
@@ -930,6 +938,19 @@ class OrganismRuntime:
         baseline = self._motor_percept_snapshot(percepts)
         sensorimotor_body_state = self._sensorimotor_body_snapshot(percepts)
         homeostatic_baseline = self._homeostasis.deviation()
+        reactive_state = self._innate_reactivity.evaluate(
+            percepts=baseline,
+            homeostatic_deviation=homeostatic_baseline,
+        )
+        self._last_reactive_state = reactive_state
+        if self._pending_reactive_credit is not None:
+            signature, primitive_id, pressure_before = self._pending_reactive_credit
+            self._reactive_memory.observe(
+                signature=signature,
+                primitive_id=primitive_id,
+                relief=pressure_before - homeostatic_baseline,
+            )
+            self._pending_reactive_credit = None
         active_concepts = (
             tuple(sorted(getattr(cognition, "active_concept_ids", ())))
             if cognition is not None
@@ -987,6 +1008,28 @@ class OrganismRuntime:
         primitive_execution: tuple[MotorIntent, ...] = ()
         primitive_selected_now = False
         if self._sensorimotor_learner is not None:
+            # Fast acquired response: constitutional urgency may reuse only a
+            # primitive that the organism has already discovered and for which
+            # repeated real experience showed immediate relief. It never emits
+            # actuator commands directly.
+            if self._sensorimotor_learner.active_primitive_id is None:
+                reactive_candidates = (
+                    self._sensorimotor_learner.available_cognitive_primitive_ids()
+                )
+                reactive_decision = self._action_arbitrator.choose_reactive(
+                    state=reactive_state,
+                    memory=self._reactive_memory,
+                    candidate_ids=reactive_candidates,
+                )
+                if (
+                    reactive_decision.primitive_id is not None
+                    and self._sensorimotor_learner.activate_primitive(
+                        reactive_decision.primitive_id
+                    )
+                ):
+                    primitive_selected_now = True
+                    self._last_motor_origin_detail = "primitive_reactive"
+
             # An already-started learned skill is an atomic temporal action:
             # continue it before considering a new cognitive primitive.
             if self._sensorimotor_learner.active_primitive_id is not None:
@@ -1039,9 +1082,21 @@ class OrganismRuntime:
                 else None
             )
             self._last_motor_origin = "primitive"
-            # Preserve "primitive_prospective" if the hook already set it;
+            if (
+                self._last_executed_primitive_id is not None
+                and reactive_state.withdrawal > 0.05
+            ):
+                self._pending_reactive_credit = (
+                    reactive_state.signature,
+                    self._last_executed_primitive_id,
+                    homeostatic_baseline,
+                )
+            # Preserve prospective/reactive provenance if already set;
             # otherwise derive from the sensorimotor source tag as before.
-            if self._last_motor_origin_detail != "primitive_prospective":
+            if self._last_motor_origin_detail not in {
+                "primitive_prospective",
+                "primitive_reactive",
+            }:
                 primitive_source = (
                     self._sensorimotor_learner.last_output_source
                     if self._sensorimotor_learner is not None
@@ -3062,6 +3117,11 @@ class OrganismRuntime:
         payload["assimilation"] = self._assimilator.checkpoint()
         payload["living_body"] = self._living_body_state.checkpoint()
         payload["homeostasis"] = self._homeostasis.checkpoint()
+        payload["innate_reactivity"] = {
+            "schema_version": 1,
+            "reactivity": self._innate_reactivity.checkpoint(),
+            "memory": self._reactive_memory.checkpoint(),
+        }
         payload["physiology"] = self._physiology.checkpoint()
         payload["social_ledger"] = self._social_ledger.checkpoint()
         payload["social_resource_ledger"] = self._social_resource_ledger.checkpoint()
@@ -3535,6 +3595,24 @@ class OrganismRuntime:
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception
+        raw_reactivity = normalized.get("innate_reactivity")
+        if raw_reactivity is not None:
+            if (
+                not isinstance(raw_reactivity, dict)
+                or raw_reactivity.get("schema_version") != 1
+            ):
+                raise CheckpointError("invalid innate reactivity checkpoint")
+            try:
+                runtime._innate_reactivity = InnateReactivity.restore(
+                    raw_reactivity.get("reactivity")
+                )
+                runtime._reactive_memory = ReactiveMemory.restore(
+                    raw_reactivity.get("memory")
+                )
+            except (TypeError, ValueError, KeyError) as exc:
+                raise CheckpointError(
+                    f"invalid innate reactivity checkpoint: {exc}"
+                ) from exc
         raw_last_primitive = (
             raw_actuation.get("last_executed_primitive_id")
             if isinstance(raw_actuation, dict)
