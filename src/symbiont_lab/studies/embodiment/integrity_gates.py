@@ -9,7 +9,8 @@ from dataclasses import asdict, dataclass
 import inspect
 from typing import Sequence
 
-from symbiont.core.germline import GermlineState
+from symbiont.genetics.genome import flatten_genes
+from symbiont.genetics.germline import GermlineState
 from symbiont.core.symbiont import Symbiont
 from symbiont_lab.world.adapter import _construct_organism
 from symbiont_lab.world.genesis_v1 import build_ground_truth
@@ -77,10 +78,8 @@ def run_embodiment_integrity_gates(
     )
 
     germline_methods = (
-        GermlineState.add_mark,
         GermlineState.capture_acquired_variation,
-        GermlineState.effective_expression,
-        GermlineState.generational_decay,
+        GermlineState.effective_value,
     )
     germline_param_names = {
         name.lower()
@@ -97,7 +96,7 @@ def run_embodiment_integrity_gates(
         for token in forbidden_germline_tokens
     )
 
-    genome_values = dict(genome.loci_values) if genome is not None else {}
+    genome_values = flatten_genes(genome) if genome is not None else {}
     genome_text = repr(sorted(genome_values.items())).lower()
     identity_tokens = (
         "world", "resource", "hazard", "body", "embodiment",
