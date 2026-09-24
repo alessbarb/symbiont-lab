@@ -321,6 +321,12 @@ class ActuationBinding:
     actuator_id: str
     effect: str
     argument: str
+    minimum_activation: float = 0.05
+
+    def __post_init__(self) -> None:
+        threshold = float(self.minimum_activation)
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("binding minimum_activation must be within [0, 1]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -356,7 +362,7 @@ class ActuationBindingConstitution:
     @property
     def fingerprint(self) -> str:
         payload = [
-            {"actuator_id": item.actuator_id, "effect": item.effect, "argument": item.argument}
+            {"actuator_id": item.actuator_id, "effect": item.effect, "argument": item.argument, "minimum_activation": item.minimum_activation}
             for item in sorted(self.bindings, key=lambda value: value.actuator_id)
         ]
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -386,11 +392,9 @@ class ActuationAdapter:
     def translate(self, actuation: Actuation | None) -> WorldAction | None:
         if actuation is None:
             return None
-        slot = self.constitution.slot_for(actuation.actuator_id)
-        if actuation.delivered < slot.execution_threshold:
-            return None
+        self.constitution.slot_for(actuation.actuator_id)
         binding = self.binding.binding_for(actuation.actuator_id)
-        if binding is None:
+        if binding is None or actuation.delivered < binding.minimum_activation:
             return None
         if binding.effect == "move":
             return WorldAction(move=binding.argument)
@@ -557,10 +561,7 @@ def _construct_organism(
     genome = _load_base_genome()
     actuator_constitution = derive_actuator_constitution(
         8,
-        basal_cost=0.05,
-        initial_health=1.0,
-        execution_threshold=0.5,
-        physical_contract="genesis-world-body-v2",
+        physical_contract="genesis-world-body-v3",
     )
     actuation_binding = actuation_binding or default_world_actuation_binding(actuator_constitution)
     actuation_adapter = ActuationAdapter(actuator_constitution, actuation_binding)
