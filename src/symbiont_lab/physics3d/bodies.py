@@ -22,6 +22,8 @@ from .humanoid import (
     TOTAL_RECEPTOR_COUNT,
     CONTACT_LINK_NAMES,
     JOINT_SPECS,
+    JOINT_TOPOLOGY,
+    SEGMENTS,
     HumanoidPhysics,
     effector_contract_ids,
     interoceptive_receptor_contract_ids,
@@ -44,6 +46,9 @@ class BodyDescriptor:
     ground_material: Any
     observer_joint_specs: tuple[Any, ...] = ()
     observer_contact_region_names: tuple[str, ...] = ()
+    observer_segments: Any = None
+    observer_joint_topology: tuple[Any, ...] = ()
+    observer_base_link_name: str | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -55,6 +60,33 @@ class BodyDescriptor:
             "receptor_count": self.receptor_count,
             "effector_count": self.effector_count,
             "available": True,
+            "observer_model": {
+                "base_link": self.observer_base_link_name,
+                "segments": {
+                    str(name): {
+                        "size": [float(value) for value in segment.size],
+                        "origin": [float(value) for value in segment.origin],
+                    }
+                    for name, segment in (
+                        self.observer_segments.items()
+                        if self.observer_segments is not None
+                        else ()
+                    )
+                },
+                "joints": [
+                    {
+                        "name": str(topology.joint_name),
+                        "parent": str(topology.parent_link),
+                        "child": str(topology.child_link),
+                        "origin": [float(value) for value in topology.origin],
+                        "axis": [
+                            float(value)
+                            for value in self.observer_joint_specs[index].axis
+                        ],
+                    }
+                    for index, topology in enumerate(self.observer_joint_topology)
+                ],
+            },
         }
 
 
@@ -88,6 +120,9 @@ ANTHROPOMORPHIC_V4 = BodyDescriptor(
     ground_material=GROUND_MATERIAL,
     observer_joint_specs=JOINT_SPECS,
     observer_contact_region_names=("pelvis", *CONTACT_LINK_NAMES),
+    observer_segments=SEGMENTS,
+    observer_joint_topology=JOINT_TOPOLOGY,
+    observer_base_link_name="pelvis",
 )
 
 CRAWLER_V1 = BodyDescriptor(
@@ -107,6 +142,9 @@ CRAWLER_V1 = BodyDescriptor(
         CRAWLER_SPEC.base_link_name,
         *CRAWLER_SPEC.contact_link_names,
     ),
+    observer_segments=CRAWLER_SPEC.segments,
+    observer_joint_topology=CRAWLER_SPEC.joint_topology,
+    observer_base_link_name=CRAWLER_SPEC.base_link_name,
 )
 
 ASYMMETRIC_V1 = BodyDescriptor(
@@ -126,6 +164,9 @@ ASYMMETRIC_V1 = BodyDescriptor(
         ASYMMETRIC_SPEC.base_link_name,
         *ASYMMETRIC_SPEC.contact_link_names,
     ),
+    observer_segments=ASYMMETRIC_SPEC.segments,
+    observer_joint_topology=ASYMMETRIC_SPEC.joint_topology,
+    observer_base_link_name=ASYMMETRIC_SPEC.base_link_name,
 )
 
 DEFAULT_BODY_REGISTRY = BodyRegistry((
