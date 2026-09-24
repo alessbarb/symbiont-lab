@@ -1634,3 +1634,11 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   line-height: 1.45;
   color: var(--muted);
 }
+
+
+.mind-inspector-relation-compact {
+  background: rgba(80, 217, 255, 0.025);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
