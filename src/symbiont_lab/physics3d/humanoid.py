@@ -25,6 +25,9 @@ PHYSICS_CONSTRAINT_ERP = 0.8
 END_RANGE_MARGIN = math.radians(6.0)
 END_RANGE_STIFFNESS = 18.0
 END_RANGE_DAMPING = 1.5
+PASSIVE_TONE_STIFFNESS_FRACTION = 0.55
+PASSIVE_TONE_DAMPING_FRACTION = 0.35
+PASSIVE_TONE_TORQUE_CAP_FRACTION = 0.45
 MOTOR_DOF = 31
 SOMATIC_REGION_COUNT = 15
 GLOBAL_KINEMATIC_RECEPTORS = 10
@@ -68,6 +71,14 @@ class MotorBinding:
     joint_index: int
     positive_port: str
     negative_port: str
+
+
+@dataclass(frozen=True, slots=True)
+class ActuatorWork:
+    positive_j: float
+    negative_j: float
+    absolute_j: float
+    net_j: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -372,6 +383,33 @@ def _end_range_resistance(
         torque = -END_RANGE_STIFFNESS * (position - upper_zone) - END_RANGE_DAMPING * velocity
     bound = spec.max_motor_torque * 1.5
     return max(-bound, min(bound, torque))
+
+
+
+def _neutral_rest_position(spec: JointSpec) -> float:
+    lower, upper = mechanical_joint_limits(spec)
+    return max(lower, min(upper, 0.0))
+
+
+def _passive_postural_tone(
+    spec: JointSpec,
+    *,
+    position: float,
+    velocity: float,
+) -> float:
+    """Elastic/damped body property, not a controller or learned target.
+
+    Every joint has a neutral mechanical rest configuration.  This is the
+    digital analogue of passive tissue elasticity and resting muscle tone:
+    it contains no task, gait, balance strategy or anatomy visible to the
+    organism.  The apparatus owns it exactly like mass, inertia and friction.
+    """
+    rest = _neutral_rest_position(spec)
+    stiffness = spec.max_motor_torque * PASSIVE_TONE_STIFFNESS_FRACTION
+    damping = spec.passive_damping * PASSIVE_TONE_DAMPING_FRACTION
+    torque = stiffness * (rest - position) - damping * velocity
+    cap = spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION
+    return max(-cap, min(cap, torque))
 
 
 def _restore_vector(
@@ -965,10 +1003,19 @@ class HumanoidPhysics:
             zip(self.motor_joint_indices, states)
         ):
             spec = JOINT_SPECS[ordinal]
-            passive = _end_range_resistance(
-                spec,
-                position=float(state[0]),
-                velocity=float(state[1]),
+            position = float(state[0])
+            velocity = float(state[1])
+            passive = (
+                _passive_postural_tone(
+                    spec,
+                    position=position,
+                    velocity=velocity,
+                )
+                + _end_range_resistance(
+                    spec,
+                    position=position,
+                    velocity=velocity,
+                )
             )
             commanded = float(self._applied_torque_by_joint.get(joint_index, 0.0))
             self.p.setJointMotorControl2(
@@ -979,7 +1026,7 @@ class HumanoidPhysics:
                 physicsClientId=self.client_id,
             )
 
-    def mechanical_work_step(self, dt: float) -> float:
+    def actuator_work_step(self, dt: float) -> ActuatorWork:
         if not math.isfinite(float(dt)) or dt <= 0.0:
             raise ValueError("dt must be finite and positive")
         active = [
@@ -988,7 +1035,7 @@ class HumanoidPhysics:
             if abs(float(torque)) > 1e-9
         ]
         if not active:
-            return 0.0
+            return ActuatorWork(0.0, 0.0, 0.0, 0.0)
         indices = [item[0] for item in active]
         p = self.p
         if hasattr(p, "getJointStates"):
@@ -1000,9 +1047,22 @@ class HumanoidPhysics:
                 p.getJointState(self.body_id, i, physicsClientId=self.client_id)
                 for i in indices
             ]
-        return float(
-            sum(
-                abs(torque * float(state[1])) * float(dt)
-                for (_, torque), state in zip(active, raw_states)
-            )
+
+        positive = 0.0
+        negative = 0.0
+        for (_, torque), state in zip(active, raw_states):
+            work = torque * float(state[1]) * float(dt)
+            if work >= 0.0:
+                positive += work
+            else:
+                negative += -work
+        return ActuatorWork(
+            positive_j=float(positive),
+            negative_j=float(negative),
+            absolute_j=float(positive + negative),
+            net_j=float(positive - negative),
         )
+
+    def mechanical_work_step(self, dt: float) -> float:
+        """Absolute commanded actuator work retained as the metabolic effort scalar."""
+        return self.actuator_work_step(dt).absolute_j
