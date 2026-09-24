@@ -256,7 +256,17 @@ class PyBulletEmbodimentRuntime:
 
         self.apparatus = self.body_descriptor.apparatus_factory(p, self.client_id)
         if physical_state is not None:
-            self.apparatus.restore_physical_state(physical_state)
+            # A durable checkpoint may contain a finite PyBullet solver
+            # penetration beyond the declared anatomical envelope. Resuming a
+            # living body projects that observed state back onto the current
+            # mechanical manifold instead of rejecting the whole organism.
+            # Direct restore_physical_state() calls remain strict by default,
+            # so malformed/incompatible states still fail closed unless this
+            # explicit runtime-resume path is used.
+            self.apparatus.restore_physical_state(
+                physical_state,
+                strict_anatomical_limits=False,
+            )
         else:
             self._settle_new_body()
 
