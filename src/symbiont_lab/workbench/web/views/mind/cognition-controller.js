@@ -1168,6 +1168,7 @@ export function createCognitionController({
 
       const labelX = shape.center.x - shape.radius * 0.52;
       const labelY = shape.center.y - shape.radius - 10;
+      ctx.globalAlpha = shape.presentationOpacity ?? 1;
       ctx.textAlign = 'left';
       ctx.font = '600 10px -apple-system, sans-serif';
       ctx.fillStyle = `${color}e6`;
@@ -1239,6 +1240,7 @@ export function createCognitionController({
     const atlasTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
 
     drawAtlasRegions3D(ctx, scene, sectorFocus);
+    drawPresentationRegionOverlays(ctx, now);
     drawAtlasRegionLinks(ctx, graph.atlasRegionGeometry3d, atlasTick);
     drawLearningFrontierZones(ctx, scene.byId);
 
@@ -1515,6 +1517,7 @@ export function createCognitionController({
       const sectorDescription = graph.sectorDescriptions.get(communityId);
       const labelX = shape.center.x - shape.radius * 0.55;
       const labelY = shape.center.y - shape.radius - 10;
+      ctx.globalAlpha = shape.presentationOpacity ?? 1;
       ctx.font = '600 10px -apple-system, sans-serif';
       ctx.fillStyle = `${color}e6`;
       ctx.textAlign = 'left';
@@ -1531,7 +1534,10 @@ export function createCognitionController({
         labelX,
         labelY + 12,
       );
+      ctx.globalAlpha = 1;
     }
+
+    drawPresentationRegionOverlays(ctx, now);
 
     const focusId = hoveredNode?.id ?? graph.selectedNodeId;
     const activeTopology = currentRenderedTopology();
