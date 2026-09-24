@@ -199,7 +199,29 @@ class BodySchemaEngine:
 
     @property
     def state(self) -> str:
-        return "partial" if self.part_count else "undeveloped"
+        """Evidence state, never a claim of anatomical completeness."""
+        if self.part_count == 0:
+            return "undeveloped"
+        if self._full_structural_review_required or self._pending_structural_channels:
+            return "revising" if self._regions else "developing"
+
+        mature_sensory = sum(
+            1
+            for part in self._parts.values()
+            if part.maturity_class >= 4 and part.confidence_class >= 3
+        )
+        enough_sensory = (
+            self.sensory_part_count > 0
+            and mature_sensory >= max(1, self.sensory_part_count // 2)
+        )
+        stable_regions = sum(
+            1
+            for region in self._regions.values()
+            if region.maturity_class >= 4 and region.confidence_class >= 3
+        )
+        if enough_sensory and (stable_regions > 0 or self.sensory_part_count >= 4):
+            return "established"
+        return "developing"
 
     @property
     def part_count(self) -> int:
