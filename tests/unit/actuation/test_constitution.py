@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from symbiont.actuation.constitution import (
@@ -39,8 +41,8 @@ def test_slot_params_do_not_affect_actuator_identity():
 def test_constitution_slots_are_immutable_tuple_not_dict():
     constitution = derive_actuator_constitution(2)
     assert isinstance(constitution.slots, tuple)
-    with pytest.raises(AttributeError):
-        constitution.slots = ()  # type: ignore[misc]
+    with pytest.raises(FrozenInstanceError):
+        constitution.channels = ()  # type: ignore[misc]
 
 
 def test_slot_for_looks_up_by_actuator_id():
