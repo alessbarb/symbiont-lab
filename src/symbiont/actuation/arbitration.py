@@ -64,18 +64,62 @@ class ActionArbitrator:
         if not valid:
             return ArbitrationDecision(None, current is not None and current.active, "no_valid_proposal")
 
-        # Contextual lexicographic ordering: physiology first, then epistemic
-        # relevance, then confidence.  No hidden scalar reward is introduced.
-        chosen = max(
-            valid,
-            key=lambda p: (
-                p.evaluation.homeostatic_relevance,
-                p.evaluation.epistemic_relevance,
-                p.evaluation.effect_confidence,
-                -(p.evaluation.estimated_cost or 0.0),
-                p.proposal_id,
-            ),
-        )
+        # Established/prospective control dominates open-ended exploration when
+        # the organism itself has activated that competence.  This is source
+        # dominance, not a weighted reward sum.
+        learned = [
+            proposal
+            for proposal in valid
+            if proposal.source in {ActionSource.PROSPECTION, ActionSource.COMPETENCE}
+            and proposal.competence_id is not None
+        ]
+        if learned:
+            chosen = max(
+                learned,
+                key=lambda p: (
+                    p.evaluation.effect_confidence,
+                    p.evaluation.controllability
+                    if p.evaluation.controllability is not None
+                    else -1.0,
+                    -(p.evaluation.uncertainty),
+                    p.proposal_id,
+                ),
+            )
+            return ArbitrationDecision(chosen, False, "learned_control")
+
+        regulatory = [
+            proposal
+            for proposal in valid
+            if proposal.source is ActionSource.REGULATION
+        ]
+        if regulatory:
+            chosen = max(
+                regulatory,
+                key=lambda p: (
+                    p.evaluation.homeostatic_relevance,
+                    p.evaluation.effect_confidence,
+                    p.proposal_id,
+                ),
+            )
+            return ArbitrationDecision(chosen, False, "regulatory_control")
+
+        exploratory = [
+            proposal
+            for proposal in valid
+            if proposal.source is ActionSource.EXPLORATION
+        ]
+        if exploratory:
+            chosen = max(
+                exploratory,
+                key=lambda p: (
+                    p.evaluation.epistemic_relevance,
+                    p.evaluation.uncertainty,
+                    p.proposal_id,
+                ),
+            )
+            return ArbitrationDecision(chosen, False, "epistemic_exploration")
+
+        chosen = sorted(valid, key=lambda p: p.proposal_id)[0]
         return ArbitrationDecision(chosen, False, "selected")
 
     def choose_reactive(self, *, state, memory, candidate_ids: tuple[str, ...]):
