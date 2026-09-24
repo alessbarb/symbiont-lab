@@ -116,3 +116,7 @@ A later matched-control study should compare full reactivity against no
 reactivity, shuffled associations, prospective-only and babbling-only
 conditions using latency-to-relief, peak deviation, cumulative damage and
 false reactive activations.
+
+## Validation
+
+The implementation branch is validated by the repository CI and remains a draft until its constitutional, runtime, and regression checks are green.
