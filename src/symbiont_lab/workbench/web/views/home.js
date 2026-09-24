@@ -124,6 +124,7 @@ function render() {
             <p class="eyebrow">Active run</p>
             <h2>${esc(physics.run_id || 'Physics3D')}</h2>
             <p>${esc(physics.organism_ref || '')} → ${esc(physics.body_kind || '')}</p>
+            ${physics.state === 'starting' ? `<p>Startup: ${esc(physics.startup_phase || 'launching')}</p>` : ''}
           </div>
           <div class="home-actions">
             <button class="btn" data-open="body">Open Body</button>
