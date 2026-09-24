@@ -1,24 +1,46 @@
 import { mount as mountHome, update as updateHome, unmount as unmountHome } from './views/home.js';
 import { mount as mountMind, update as updateMind, unmount as unmountMind } from './views/mind.js';
-import { mount as mountLab, update as updateLab } from './views/lab.js';
-import { mount as mountArchive, update as updateArchive } from './views/archive.js';
+import { mount as mountLab, update as updateLab, unmount as unmountLab } from './views/lab.js';
+import { mount as mountArchive, update as updateArchive, unmount as unmountArchive } from './views/archive.js';
+import { RuntimeStatePoller } from './runtime-state.js';
 
 const ROOT_ID = 'view-root';
+const ROUTE_ALIASES = { lab: 'experiments' };
+const ROUTES = {
+  home: {
+    mount: (root, state) => mountHome(root, state),
+    update: (root, state) => updateHome(root, state),
+    unmount: () => unmountHome(),
+  },
+  experiments: {
+    mount: (root, state) => mountLab(root, state),
+    update: (root, state) => updateLab(root, state),
+    unmount: () => unmountLab(),
+  },
+  mind: {
+    mount: (root, state) => mountMind(root, state),
+    update: (root, state) => updateMind(root, state),
+    unmount: () => unmountMind(),
+  },
+  archive: {
+    mount: (root, state) => mountArchive(root, state),
+    update: (root, state) => updateArchive(root, state),
+    unmount: () => unmountArchive(),
+  },
+  body: {
+    load: () => import('./views/body.js'),
+  },
+};
+
 let currentView = 'home';
 let currentState = null;
-let stateTimer = null;
+let mountedView = null;
 let mountedModule = null;
-let bodyModule = null;
-let bodyLoadToken = 0;
+let loadToken = 0;
 
-const NAV_ITEMS = [
-  { id: 'home', label: 'Home', icon: '⌂' },
-  { id: 'experiments', label: 'Experiments', icon: '⚗' },
-  { id: 'body', label: 'Body', icon: '⬡' },
-  { id: 'mind', label: 'Mind', icon: '◎' },
-  { id: 'archive', label: 'Archive', icon: '▤' },
-];
-const HASH_TARGETS = ['#home', '#experiments', '#lab', '#body', '#mind', '#archive'];
+function rootNode() {
+  return document.getElementById(ROOT_ID);
+}
 
 function setStatus(text) {
   const status = document.getElementById('sb-status');
@@ -43,13 +65,22 @@ function setDetail(text, visible = true) {
 function updateStatusBar(state) {
   if (!state) return;
   const physics = state.sources?.physics3d ?? {};
-  const physicsRunning = ['starting','running','stopping'].includes(physics.state);
+  const physicsRunning = ['starting', 'running', 'stopping'].includes(physics.state);
   const running = Boolean(state.running || state.study?.running || physicsRunning);
+
   setStatus(running ? 'running' : 'ready');
-  setRunState(physicsRunning ? (physics.run_id || 'Physics3D') : state.running ? `run #${state.experiment_number ?? 0}` : state.study?.running ? `study ${state.study.phase ?? 'active'}` : 'no active run');
+  setRunState(
+    physicsRunning
+      ? (physics.run_id || 'Physics3D')
+      : state.running
+        ? `run #${state.experiment_number ?? 0}`
+        : state.study?.running
+          ? `study ${state.study.phase ?? 'active'}`
+          : 'no active run',
+  );
 
   const current = state.current ?? {};
-  if (current?.step != null && current?.total_steps) {
+  if (current.step != null && current.total_steps) {
     const pct = ((current.step / current.total_steps) * 100).toFixed(1);
     setDetail(`${pct}% complete`, true);
   } else if (state.study?.phase) {
@@ -59,169 +90,159 @@ function updateStatusBar(state) {
   }
 }
 
+function normalizeRoute(value) {
+  const route = String(value ?? '').replace(/^#/, '').trim();
+  const normalized = ROUTE_ALIASES[route] ?? route;
+  return Object.hasOwn(ROUTES, normalized) ? normalized : 'home';
+}
+
 function parseHash() {
-  const hash = window.location.hash.trim();
-  if (!hash || !HASH_TARGETS.includes(hash)) return 'home';
-  if (hash === '#lab') return 'experiments';
-  return hash.replace('#', '');
+  return normalizeRoute(window.location.hash);
 }
 
 function activateRail(viewId) {
   document.querySelectorAll('.rail-item').forEach((node) => {
-    const active = node.dataset.view === viewId;
+    const route = normalizeRoute(node.hash);
+    const active = route === viewId;
     node.classList.toggle('active', active);
-    node.setAttribute('aria-current', active ? 'page' : 'false');
+    if (active) node.setAttribute('aria-current', 'page');
+    else node.removeAttribute('aria-current');
   });
 }
 
+function focusViewRoot() {
+  const root = rootNode();
+  if (!root) return;
+  requestAnimationFrame(() => root.focus({ preventScroll: true }));
+}
+
 function clearMountedView() {
-  const root = document.getElementById(ROOT_ID);
-  if (!root) return;
-  bodyLoadToken += 1;
-
-  if (mountedModule === 'body' && bodyModule?.unmount) bodyModule.unmount();
-  if (mountedModule === 'mind') unmountMind();
-  if (mountedModule === 'home') unmountHome();
-  root.innerHTML = '';
-  mountedModule = null;
-}
-
-function renderHomeView(state) {
-  const root = document.getElementById(ROOT_ID);
-  if (!root) return;
-  clearMountedView();
-  mountedModule = 'home';
-  mountHome(root, state);
-}
-
-function renderLabView(state) {
-  const root = document.getElementById(ROOT_ID);
-  if (!root) return;
-  clearMountedView();
-  mountedModule = 'lab';
-  mountLab(root, state);
-}
-
-function renderArchiveView(state) {
-  const root = document.getElementById(ROOT_ID);
-  if (!root) return;
-  clearMountedView();
-  mountedModule = 'archive';
-  mountArchive(root, state);
-}
-
-async function renderBodyView() {
-  const root = document.getElementById(ROOT_ID);
+  const root = rootNode();
   if (!root) return;
 
-  clearMountedView();
-  mountedModule = 'body';
-  const token = ++bodyLoadToken;
-
-  const loading = document.createElement('div');
-  loading.className = 'empty-state';
-  loading.textContent = 'Loading 3D body viewer…';
-  root.appendChild(loading);
-
+  loadToken += 1;
   try {
-    bodyModule ??= await import('./views/body.js');
-    if (token !== bodyLoadToken || currentView !== 'body') return;
-    root.innerHTML = '';
-    bodyModule.mount(root);
-  } catch (error) {
-    if (token !== bodyLoadToken || currentView !== 'body') return;
-    root.innerHTML = '';
-    const failure = document.createElement('div');
-    failure.className = 'empty-state';
-    failure.textContent = 'Body viewer unavailable. The 3D module could not be loaded.';
-    root.appendChild(failure);
-    setDetail(String(error), true);
+    mountedModule?.unmount?.();
+  } finally {
+    mountedModule = null;
+    mountedView = null;
+    root.replaceChildren();
   }
 }
 
-function renderMindView() {
-  const root = document.getElementById(ROOT_ID);
+function renderFailure(message, error = null) {
+  const root = rootNode();
   if (!root) return;
-  clearMountedView();
-  mountedModule = 'mind';
-  mountMind(root, currentState);
+  root.replaceChildren();
+  const failure = document.createElement('div');
+  failure.className = 'empty-state';
+  failure.textContent = message;
+  root.appendChild(failure);
+  if (error) setDetail(String(error), true);
 }
 
-function routeToView(viewId) {
-  currentView = viewId;
-  window.location.hash = viewId;
-  activateRail(viewId);
+async function mountRoute(viewId) {
+  const root = rootNode();
+  if (!root) return;
 
-  if (viewId === 'home') renderHomeView(currentState);
-  else if (viewId === 'experiments') renderLabView(currentState);
-  else if (viewId === 'body') renderBodyView();
-  else if (viewId === 'mind') renderMindView();
-  else if (viewId === 'archive') renderArchiveView(currentState);
+  clearMountedView();
+  mountedView = viewId;
+  const route = ROUTES[viewId];
+  const token = ++loadToken;
+
+  if (route.load) {
+    const loading = document.createElement('div');
+    loading.className = 'empty-state';
+    loading.textContent = 'Loading 3D body viewer…';
+    root.appendChild(loading);
+
+    try {
+      const module = await route.load();
+      if (token !== loadToken || currentView !== viewId) return;
+      root.replaceChildren();
+      mountedModule = module;
+      module.mount(root, currentState);
+      focusViewRoot();
+    } catch (error) {
+      if (token !== loadToken || currentView !== viewId) return;
+      mountedView = null;
+      renderFailure('Body viewer unavailable. The 3D module could not be loaded.', error);
+    }
+    return;
+  }
+
+  mountedModule = route;
+  route.mount(root, currentState);
+  focusViewRoot();
+}
+
+function routeToView(viewId, { updateHash = true } = {}) {
+  const next = normalizeRoute(viewId);
+  currentView = next;
+
+  if (updateHash && window.location.hash !== `#${next}`) {
+    history.replaceState(null, '', `#${next}`);
+  }
+
+  activateRail(next);
+  void mountRoute(next);
 }
 
 function switchView(viewId) {
   routeToView(viewId);
 }
 
-async function fetchState() {
-  try {
-    const response = await fetch('/api/state', { cache: 'no-store' });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    currentState = await response.json();
-    updateStatusBar(currentState);
+function applyRuntimeState(state) {
+  currentState = state;
+  updateStatusBar(state);
 
-    if (mountedModule === 'home') updateHome(document.getElementById(ROOT_ID), currentState);
-    if (mountedModule === 'lab') updateLab(document.getElementById(ROOT_ID), currentState);
-    if (mountedModule === 'archive') updateArchive(document.getElementById(ROOT_ID), currentState);
-    if (mountedModule === 'mind') updateMind(document.getElementById(ROOT_ID), currentState);
-  } catch (error) {
-    setStatus('offline');
-    setRunState('cannot reach server');
-    setDetail(String(error), true);
-  }
+  const root = rootNode();
+  if (!root || mountedView !== currentView) return;
+  mountedModule?.update?.(root, state);
+}
+
+function applyRuntimeError(error) {
+  setStatus('offline');
+  setRunState('cannot reach server');
+  setDetail(String(error), true);
+}
+
+const runtimeState = new RuntimeStatePoller({
+  onState: applyRuntimeState,
+  onError: applyRuntimeError,
+});
+
+async function fetchState() {
+  await runtimeState.refresh();
 }
 
 function initNavigation() {
-  const root = document.getElementById(ROOT_ID);
-  if (!root) return;
-
   document.querySelectorAll('.rail-item').forEach((item) => {
     item.addEventListener('click', (event) => {
-      event.preventDefault();
-      const next = item.dataset.view;
-      if (next) switchView(next);
+      const target = normalizeRoute(item.hash);
+      if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        routeToView(target);
+      }
     });
   });
 }
 
 function boot() {
-  const root = document.getElementById(ROOT_ID);
-  if (!root) return;
-
+  if (!rootNode()) return;
   initNavigation();
-  const view = parseHash();
-  currentView = view;
-  activateRail(view);
-
-  if (view === 'home') renderHomeView(currentState);
-  else if (view === 'experiments') renderLabView(currentState);
-  else if (view === 'body') renderBodyView();
-  else if (view === 'mind') renderMindView();
-  else if (view === 'archive') renderArchiveView(currentState);
-
-  fetchState();
-  stateTimer = window.setInterval(fetchState, 2500);
+  currentView = parseHash();
+  activateRail(currentView);
+  void mountRoute(currentView);
+  runtimeState.start();
 }
 
 window.addEventListener('hashchange', () => {
   const next = parseHash();
-  if (next && next !== currentView) {
-    routeToView(next);
-  }
+  if (next !== currentView) routeToView(next, { updateHash: false });
 });
 
+window.addEventListener('pagehide', () => runtimeState.stop(), { once: true });
 window.routeToView = routeToView;
 window.switchView = switchView;
 window.addEventListener('DOMContentLoaded', boot);
