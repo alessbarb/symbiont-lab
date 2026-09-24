@@ -438,25 +438,31 @@ def test_pre_episodic_checkpoint_migrates_retained_causal_history():
 
 
 
-def test_private_corpus_uses_only_authoritative_raw_ledger_after_eviction():
-    organism_id = "episodic-corpus-ledger"
+def test_private_corpus_retains_exact_historical_evidence_after_hot_ledger_eviction():
+    organism_id = "causal-archive"
     runtime = ModeledOrganismRuntime(
         organism_id=organism_id,
         experience_ledger=ExperienceLedger(organism_id, max_records=16),
     )
-    for tick in range(32):
+    for tick in range(64):
         runtime.record_experience(_transition(runtime, tick))
 
     assert len(runtime.experience_ledger.records) == 16
     assert runtime.experience_ledger.get("transition.test.0") is None
+    assert runtime.experience_archive.records
+    assert runtime.experience_archive.seen_count == 48
 
-    corpus = runtime.build_private_corpus(max_records=64)
+    corpus = runtime.build_private_corpus(max_records=32)
     records = (*corpus.train, *corpus.validation, *corpus.test)
-    record_ids = {record.record_id for record in records}
+    ticks = {record.tick_class for record in records}
 
-    assert corpus.manifest.record_count == 16
-    assert "transition.test.0" not in record_ids
-    assert "transition.test.31" in record_ids
+    assert corpus.manifest.record_count == 32
+    assert max(ticks) == 63
+    assert any(tick < 48 for tick in ticks)
+
+    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    assert restored.experience_archive.records == runtime.experience_archive.records
+    assert restored.experience_archive.seen_count == runtime.experience_archive.seen_count
 
 
 
