@@ -107,8 +107,12 @@ from ...actuation.action import (
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.effects import EffectSpace
 from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
-from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
-from ...actuation.model import ControllabilityModel
+from ...actuation.evidence import (
+    CausalEvidenceLedger,
+    PredictionError,
+    SensorimotorTransition,
+)
+from ...actuation.model import AgencyModel, ControllabilityModel, SensorimotorModel
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.composition import CompositionEngine
 from ...actuation.state import SensorimotorV2Snapshot
@@ -682,7 +686,9 @@ class OrganismRuntime:
         self._effect_space = EffectSpace()
         self._causal_evidence = CausalEvidenceLedger()
         self._competence_library = CompetenceLibrary()
+        self._sensorimotor_model = SensorimotorModel()
         self._controllability_model = ControllabilityModel()
+        self._agency_model = AgencyModel()
         self._exploration_policy = ExplorationPolicy()
         self._exploration_strength_memory: dict[str, float] = {}
         self._active_exploration_preference: tuple[str, ...] = ()
@@ -1392,6 +1398,27 @@ class OrganismRuntime:
                     opaque_changes[str(opaque)] = delta
             observed_effect = self._effect_space.observe(opaque_changes)
 
+            predicted_effect_id = previous.get("predicted_effect_id")
+            prediction_confidence = float(
+                previous.get("prediction_confidence", 0.0)
+            )
+            observed_effect_id = (
+                observed_effect.effect_id
+                if observed_effect is not None
+                else None
+            )
+            prediction_error = None
+            if predicted_effect_id is not None:
+                matched = predicted_effect_id == observed_effect_id
+                prediction_error = PredictionError(
+                    magnitude=0.0 if matched else 1.0,
+                    uncertainty=max(
+                        0.0,
+                        min(1.0, 1.0 - prediction_confidence),
+                    ),
+                    novelty=0.0 if matched else 1.0,
+                )
+
             transition = SensorimotorTransition(
                 transition_id="transition." + hashlib.sha256(
                     f"{self._organism_id}:{previous['tick']}:{tick}:{previous['motor_command_ref']}".encode("utf-8")
@@ -1409,18 +1436,20 @@ class OrganismRuntime:
                 state_before_ref=str(previous["state_before_ref"]),
                 motor_command_ref=str(previous["motor_command_ref"]),
                 actuation_ref=str(previous["actuation_ref"]),
-                prediction_ref=None,
+                prediction_ref=(
+                    str(previous["prediction_id"])
+                    if previous.get("prediction_id") is not None
+                    else None
+                ),
                 state_after_ref="state." + _canonical_hash(
                     {"values": dict(sorted(sensorimotor_body_state.items()))}
                 )[:24],
-                observed_effect_id=(
-                    observed_effect.effect_id
-                    if observed_effect is not None
-                    else None
-                ),
+                observed_effect_id=observed_effect_id,
+                prediction_error=prediction_error,
                 physiological_delta_ref=None,
             )
             causal = self._causal_evidence.observe(transition)
+            self._sensorimotor_model.observe(causal)
             if observed_effect is not None:
                 self._effect_by_commitment[
                     transition.commitment_id
@@ -1451,6 +1480,18 @@ class OrganismRuntime:
                         competence_id=transition.competence_id,
                         context_id=transition.context_ref,
                         tick=tick,
+                    )
+                    self._agency_model.update_from_ledger(
+                        self._causal_evidence,
+                        effect_id=observed_effect.effect_id,
+                        competence_id=transition.competence_id,
+                        context_id=transition.context_ref,
+                        tick=tick,
+                        prediction_match=(
+                            None
+                            if prediction_error is None
+                            else 1.0 - prediction_error.magnitude
+                        ),
                     )
             self._last_sensorimotor_transition = transition
             self._pending_sensorimotor_transition = None
@@ -1833,6 +1874,25 @@ class OrganismRuntime:
         self._pending_proprioception = proprioception
 
         if self._last_motor_command is not None and self._active_action_commitment is not None:
+            context_ref = "context." + hashlib.sha256(
+                (
+                    (
+                        self._actuator_constitution.contract_fingerprint
+                        if self._actuator_constitution is not None
+                        else "no-surface"
+                    )
+                    + "|"
+                    + ("|".join(active_concepts) or "opaque")
+                ).encode("utf-8")
+            ).hexdigest()[:24]
+            prediction = (
+                self._sensorimotor_model.predict(
+                    competence_id=self._active_action_commitment.competence_id,
+                    context_id=context_ref,
+                )
+                if self._active_action_commitment.competence_id is not None
+                else None
+            )
             command_payload = {
                 "channels": [
                     [actuator_id, activation]
@@ -1850,17 +1910,16 @@ class OrganismRuntime:
                 "commitment_id": self._active_action_commitment.commitment_id,
                 "controller_id": self._active_action_commitment.controller_id,
                 "competence_id": self._active_action_commitment.competence_id,
-                "context_ref": "context." + hashlib.sha256(
-                    (
-                        (
-                            self._actuator_constitution.contract_fingerprint
-                            if self._actuator_constitution is not None
-                            else "no-surface"
-                        )
-                        + "|"
-                        + ("|".join(active_concepts) or "opaque")
-                    ).encode("utf-8")
-                ).hexdigest()[:24],
+                "context_ref": context_ref,
+                "prediction_id": (
+                    prediction.prediction_id if prediction is not None else None
+                ),
+                "predicted_effect_id": (
+                    prediction.effect_id if prediction is not None else None
+                ),
+                "prediction_confidence": (
+                    prediction.confidence if prediction is not None else 0.0
+                ),
                 "state_before": dict(sensorimotor_body_state),
                 "state_before_ref": "state." + _canonical_hash(
                     {"values": dict(sorted(sensorimotor_body_state.items()))}
@@ -4167,6 +4226,15 @@ class OrganismRuntime:
                         runtime._causal_evidence = CausalEvidenceLedger.restore(raw_evidence)
                         runtime._body_schema.rebuild_sensorimotor_view(
                             runtime._causal_evidence.evidence
+                        )
+                        runtime._sensorimotor_model.rebuild(
+                            runtime._causal_evidence
+                        )
+                        runtime._controllability_model.rebuild(
+                            runtime._causal_evidence
+                        )
+                        runtime._agency_model.rebuild(
+                            runtime._causal_evidence
                         )
                     raw_exploration = raw_v2.get("exploration")
                     if isinstance(raw_exploration, dict):
