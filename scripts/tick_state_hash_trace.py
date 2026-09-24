@@ -50,7 +50,6 @@ def main() -> None:
             8,
             physical_contract="state-hash-probe-v2",
         ),
-        motor_exploration_mode="babbling",
         bootstrap_semantic_senses=False,
         discover_senses=False,
         min_samples=1,
