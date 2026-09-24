@@ -320,11 +320,11 @@ class PrimitiveEpisode:
 class SensorimotorSnapshot:
     exploration_coverage: float
     known_patterns: int
-    primitives: int
-    cognitive_primitives: int
-    primitive_candidates: int
-    recurrent_primitive_candidates: int
-    max_primitive_samples: int
+    competence_chunks: int
+    established_competences: int
+    competence_candidates: int
+    recurrent_competence_candidates: int
+    max_competence_samples: int
     sample_gate_candidates: int
     controllability_gate_candidates: int
     variance_gate_candidates: int
@@ -336,7 +336,7 @@ class SensorimotorSnapshot:
     best_controllability: float
     best_directional_consistency: float
     replay_active: bool
-    replay_primitive_id: str | None
+    active_competence_id: str | None
     horizon_samples: tuple[tuple[int, int], ...]
     passive_baseline_samples: int
 
@@ -1320,11 +1320,11 @@ class SensorimotorLearner:
         return SensorimotorSnapshot(
             exploration_coverage=self.exploration_coverage,
             known_patterns=len(known_patterns),
-            primitives=len(self._primitives),
-            cognitive_primitives=len(self.cognitive_primitives),
-            primitive_candidates=len(candidate_metrics),
-            recurrent_primitive_candidates=len(recurrent),
-            max_primitive_samples=max(
+            competence_chunks=len(self._primitives),
+            established_competences=len(self.cognitive_primitives),
+            competence_candidates=len(candidate_metrics),
+            recurrent_competence_candidates=len(recurrent),
+            max_competence_samples=max(
                 (item[0] for item in candidate_metrics),
                 default=0,
             ),
@@ -1349,7 +1349,7 @@ class SensorimotorLearner:
             best_controllability=float(best),
             best_directional_consistency=float(best_direction),
             replay_active=self._replay_id is not None,
-            replay_primitive_id=self._replay_id,
+            active_competence_id=self._replay_id,
             horizon_samples=tuple(
                 (horizon, self._horizon_counts[horizon])
                 for horizon in _HORIZONS
