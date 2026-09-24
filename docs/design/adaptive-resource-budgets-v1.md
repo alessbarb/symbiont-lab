@@ -106,6 +106,20 @@ The private model registry starts at 64 records and can be configured up to
 Model-generation counters no longer stop at generation 256. The remaining
 2^31-1 bound is serialization protection, not a developmental target.
 
+Private-model training defaults remain modest, but validation ceilings are now
+safety bounds rather than near-term developmental limits:
+
+- up to 128M parameters;
+- context windows up to 2048 tokens;
+- up to 262k examples;
+- up to 4096 epochs / 10M steps when independently authorized;
+- native vocabulary up to 32768 tokens.
+
+Exact causal records can now carry up to 512 context tokens and 128 outcome
+tokens. Physics3D private capture admits up to 128 senses and 64 temporal
+outcomes, so a body-sized sensory surface no longer loses half its channels
+before training.
+
 ## Episodic memory
 
 Episodic memory remains governed primarily by its 2 MiB byte budget. Flat
@@ -126,6 +140,10 @@ Because graph plasticity, historical causal evidence and other learned state
 can now legitimately exceed the old aggregate checkpoint size, host persistence
 is protected by a higher 32 MiB safety ceiling. Subsystems retain their own
 smaller budgets.
+
+Endogenous signal knowledge now permits up to 256 profiles / 1024 claims and a
+4 MiB knowledge checkpoint. Epigenetic/cultural channels are widened to 64/128,
+while acquired causal and cognitive memories remain explicitly non-heritable.
 
 ## Invariants
 
