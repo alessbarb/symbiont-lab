@@ -14,6 +14,28 @@ import {
 } from './state.js';
 import { finiteNumber, pct } from './util.js';
 import { deriveCognitiveEpisodes } from './cognitive-temporal.js';
+import { episodeImpact } from './cognitive-refinement.js';
+
+let activeEpisodeId = null;
+
+function episodeEventWeight(event) {
+  const diff = event?.diff;
+  const structural = diff ? (
+    (diff.addedNodes?.length ?? 0) * 2 +
+    (diff.removedNodes?.length ?? 0) * 2 +
+    (diff.addedEdges?.length ?? 0) * 0.45 +
+    (diff.removedEdges?.length ?? 0) * 0.45 +
+    (diff.changedEdges?.length ?? 0) * 0.16 +
+    (diff.predictionErrorChanges?.length ?? 0) * 0.4
+  ) : 0;
+  return structural + (event?.contextChanges?.length ?? 0) * 3;
+}
+
+function episodeFocusTick(episode) {
+  const event = [...(episode?.events ?? [])]
+    .sort((a,b) => episodeEventWeight(b) - episodeEventWeight(a))[0];
+  return event?.endTick ?? episode?.endTick ?? null;
+}
 
 function sparklineSvg(points, key, color, width = 900, height = 90) {
   const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img' });
@@ -105,6 +127,39 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
     'Observer-derived clusters of contiguous structural change between captured snapshots.',
   );
   episodePanel.style.marginTop = '10px';
+  if (episodes.length) {
+    const nav = el('div', '');
+    nav.style.cssText = 'display:flex;align-items:center;gap:6px;margin:0 0 6px;';
+    const prev = el('button', 'mind-ctrl-btn');
+    prev.type = 'button';
+    prev.textContent = '← Previous';
+    const next = el('button', 'mind-ctrl-btn');
+    next.type = 'button';
+    next.textContent = 'Next →';
+    const active = el('span', '');
+    active.style.cssText = 'margin-left:auto;font-size:8px;color:var(--muted);';
+    const activeIndex = Math.max(0, episodes.findIndex(item => item.id === activeEpisodeId));
+    active.textContent = activeEpisodeId
+      ? `${activeIndex + 1}/${episodes.length}`
+      : `${episodes.length} episodes`;
+    const openEpisode = index => {
+      if (!episodes.length) return;
+      const bounded = Math.max(0, Math.min(episodes.length - 1, index));
+      const episode = episodes[bounded];
+      activeEpisodeId = episode.id;
+      const tick = episodeFocusTick(episode);
+      if (tick != null) onOpenHistoryTick(tick);
+    };
+    prev.addEventListener('click', () => openEpisode(
+      activeEpisodeId ? Math.max(0, activeIndex - 1) : Math.max(0, episodes.length - 2)
+    ));
+    next.addEventListener('click', () => openEpisode(
+      activeEpisodeId ? Math.min(episodes.length - 1, activeIndex + 1) : episodes.length - 1
+    ));
+    nav.append(prev, next, active);
+    episodePanel.appendChild(nav);
+  }
+
   if (!episodes.length) {
     const empty = el('div', '');
     empty.style.cssText = 'font-size:9px;color:var(--muted);';
@@ -112,13 +167,14 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
     episodePanel.appendChild(empty);
   } else {
     for (const episode of episodes.slice(-12).reverse()) {
+      const impact = episodeImpact(episode);
       const row = el('button', '');
       row.type = 'button';
       row.style.cssText = [
         'width:100%;display:grid;grid-template-columns:92px 1fr;gap:10px',
         'text-align:left;padding:8px 0;border:0',
         'border-top:1px solid rgba(98,120,136,.14)',
-        'background:none;color:var(--text);cursor:pointer',
+        `background:${episode.id === activeEpisodeId ? 'rgba(80,217,255,.055)' : 'none'};color:var(--text);cursor:pointer`,
       ].join(';');
       const when = el('strong', '');
       when.style.cssText = 'font-size:9px;color:var(--cyan);';
@@ -132,16 +188,27 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
         totals.physiologyTransitions ? `${totals.physiologyTransitions} physiology transitions` : null,
         totals.predictionShifts ? `${totals.predictionShifts} prediction shifts` : null,
       ].filter(Boolean).join(' · ');
+      const subevents = [
+        totals.addedNodes || totals.removedNodes ? 'structural growth' : null,
+        totals.predictionErrorChanges || totals.predictionShifts ? 'prediction shift' : null,
+        totals.motorTransitions ? 'motor transition' : null,
+        totals.physiologyTransitions ? 'physiology transition' : null,
+      ].filter(Boolean);
       detail.innerHTML =
-        `<strong style="color:var(--text)">${episode.events.length} observed change windows</strong><br>` +
+        `<strong style="color:var(--text)">${episode.events.length} observed change windows · impact ${impact.label} ${Math.round(impact.score * 100)}%</strong><br>` +
         `+${totals.addedNodes}/-${totals.removedNodes} nodes · ` +
         `+${totals.addedEdges}/-${totals.removedEdges} relations · ` +
         `${totals.changedEdges} relation updates · ` +
         `${totals.predictionErrorChanges} prediction-error changes` +
+        (subevents.length ? `<br>${subevents.join(' · ')} · dominant ${impact.dominant}` : '') +
         (contextBits ? `<br>${contextBits}` : '') +
         (context.motorOrigins?.length ? `<br>motor: ${context.motorOrigins.join(' → ')}` : '');
       row.append(when, detail);
-      row.addEventListener('click', () => onOpenHistoryTick(episode.endTick));
+      row.addEventListener('click', () => {
+        activeEpisodeId = episode.id;
+        const tick = episodeFocusTick(episode);
+        if (tick != null) onOpenHistoryTick(tick);
+      });
       episodePanel.appendChild(row);
     }
   }

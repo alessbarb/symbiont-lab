@@ -368,13 +368,14 @@ export function buildMindLayout(root, {
     position: absolute; bottom: 14px; right: 14px;
     display: flex; gap: 6px;
   `;
-  const btnFmri  = makeControlBtn('⚡', 'Toggle fMRI', true);  btnFmri.id = 'mind-fmri-btn';
+  const btnFlow  = makeControlBtn('Trace', 'Trace recently observed cognitive flow', false); btnFlow.id = 'mind-flow-trace-btn';
+  const btnFmri  = makeControlBtn('⚡', 'Toggle activity glow', true);  btnFmri.id = 'mind-fmri-btn';
   const btnZoomIn= makeControlBtn('+', 'Zoom in', false);       btnZoomIn.id = 'mind-zoom-in';
   const btnZoomOut=makeControlBtn('−', 'Zoom out', false);      btnZoomOut.id = 'mind-zoom-out';
   const btnReset = makeControlBtn('⟲', 'Reset', false);         btnReset.id = 'mind-graph-reset';
   const btnLive = makeControlBtn('LIVE', 'Return to live cognition', false); btnLive.id = 'mind-graph-live';
   btnLive.addEventListener('click', onReturnLive);
-  cognitionControls.append(btnLive, btnFmri, btnZoomIn, btnZoomOut, btnReset);
+  cognitionControls.append(btnLive, btnFlow, btnFmri, btnZoomIn, btnZoomOut, btnReset);
   cognitionWrap.append(
     cognitionCanvas,
     cognitionSummary,
