@@ -1105,3 +1105,26 @@ def test_restore_rejects_v9_primitive_that_violates_exclusive_motor_unit():
             actuator_ids=ids,
             organism_id="org-invalid-exclusive-restore",
         )
+
+
+
+def test_restore_rejects_v9_horizon_evidence_that_violates_exclusive_motor_unit():
+    ids = _ids(4)
+    learner = SensorimotorLearner(
+        ids,
+        organism_id="org-invalid-horizon-restore",
+        exclusive_actuator_groups=((ids[0], ids[1]),),
+    )
+    payload = learner.checkpoint()
+    payload["horizon_stats"] = [{
+        "horizon": 1,
+        "pattern": [[ids[0], 5], [ids[1], 4]],
+        "stat": {"count": 2, "mean": 0.1, "m2": 0.0},
+    }]
+
+    with pytest.raises(ValueError, match="horizon evidence violates"):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=ids,
+            organism_id="org-invalid-horizon-restore",
+        )
