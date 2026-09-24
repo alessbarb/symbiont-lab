@@ -13,11 +13,6 @@ class ArbitrationDecision:
     keep_current: bool
     reason: str
 
-    @property
-    def primitive_id(self) -> str | None:
-        """Legacy read shim; v2 does not arbitrate primitive ids."""
-        return None
-
 
 class ActionArbitrator:
     """Select commitments without collapsing evaluations to a hand-written reward."""
@@ -121,16 +116,3 @@ class ActionArbitrator:
 
         chosen = sorted(valid, key=lambda p: p.proposal_id)[0]
         return ArbitrationDecision(chosen, False, "selected")
-
-    def choose_reactive(self, *, state, memory, candidate_ids: tuple[str, ...]):
-        """Compatibility shim for v1 callers during checkpoint migration.
-
-        It never executes motors; it only reports a learned candidate id.
-        """
-        from symbiont.core.regulation.arbitration_legacy import LegacyArbitrationDecision
-        if float(state.withdrawal) < 0.55:
-            return LegacyArbitrationDecision(None, "ordinary")
-        candidate = memory.best(signature=state.signature, candidates=candidate_ids)
-        if candidate is None:
-            return LegacyArbitrationDecision(None, "acute_no_learned_response")
-        return LegacyArbitrationDecision(candidate, "reactive_learned_relief")
