@@ -67,10 +67,8 @@ class DevelopmentGenes:
 @dataclass(frozen=True, slots=True)
 class PlasticityGenes:
     learning_rate: AdaptiveGeneRange
-    forgetting_rate: AdaptiveGeneRange
     eligibility_decay: float
     structural_plasticity: AdaptiveGeneRange
-    consolidation_sensitivity: AdaptiveGeneRange
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,10 +88,6 @@ class SensorimotorGenes:
     uncertainty_exploration_gain: float
     prediction_error_exploration_gain: float
     exploration_habituation: float
-    contingency_sensitivity: float
-    contingency_window_ticks: int
-    controllability_sensitivity: float
-    body_schema_adaptation_rate: float
     reacclimation_sensitivity: float
 
 
@@ -103,7 +97,6 @@ class StructuralGenes:
     pruning_threshold: AdaptiveGeneRange
     minimum_support: int
     tentative_lifetime_ticks: int
-    complexity_pressure: AdaptiveGeneRange
 
     @property
     def grow_threshold(self) -> float:
@@ -235,10 +228,8 @@ def _gene_tree(genome: Genome) -> dict[str, Any]:
         "development": asdict(genome.development),
         "plasticity": {
             "learning_rate": _range_to_dict(genome.plasticity.learning_rate),
-            "forgetting_rate": _range_to_dict(genome.plasticity.forgetting_rate),
             "eligibility_decay": genome.plasticity.eligibility_decay,
             "structural_plasticity": _range_to_dict(genome.plasticity.structural_plasticity),
-            "consolidation_sensitivity": _range_to_dict(genome.plasticity.consolidation_sensitivity),
         },
         "regulation": asdict(genome.regulation),
         "sensorimotor": asdict(genome.sensorimotor),
@@ -247,7 +238,6 @@ def _gene_tree(genome: Genome) -> dict[str, Any]:
             "pruning_threshold": _range_to_dict(genome.structure.pruning_threshold),
             "minimum_support": genome.structure.minimum_support,
             "tentative_lifetime_ticks": genome.structure.tentative_lifetime_ticks,
-            "complexity_pressure": _range_to_dict(genome.structure.complexity_pressure),
         },
         "evolvability": asdict(genome.evolvability),
     }
@@ -364,14 +354,12 @@ class GenomeCodec:
         p = _require_mapping(
             payload["plasticity"],
             "plasticity",
-            {"learning_rate", "forgetting_rate", "eligibility_decay", "structural_plasticity", "consolidation_sensitivity"},
+            {"learning_rate", "eligibility_decay", "structural_plasticity"},
         )
         plasticity = PlasticityGenes(
             learning_rate=_load_range(p["learning_rate"], "plasticity.learning_rate"),
-            forgetting_rate=_load_range(p["forgetting_rate"], "plasticity.forgetting_rate"),
             eligibility_decay=float(_number(p["eligibility_decay"], "plasticity.eligibility_decay")),
             structural_plasticity=_load_range(p["structural_plasticity"], "plasticity.structural_plasticity"),
-            consolidation_sensitivity=_load_range(p["consolidation_sensitivity"], "plasticity.consolidation_sensitivity"),
         )
 
         r = _require_mapping(
@@ -384,31 +372,26 @@ class GenomeCodec:
         s = _require_mapping(
             payload["sensorimotor"],
             "sensorimotor",
-            {"spontaneous_activity_baseline", "uncertainty_exploration_gain", "prediction_error_exploration_gain", "exploration_habituation", "contingency_sensitivity", "contingency_window_ticks", "controllability_sensitivity", "body_schema_adaptation_rate", "reacclimation_sensitivity"},
+            {"spontaneous_activity_baseline", "uncertainty_exploration_gain", "prediction_error_exploration_gain", "exploration_habituation", "reacclimation_sensitivity"},
         )
         sensorimotor = SensorimotorGenes(
             spontaneous_activity_baseline=float(_number(s["spontaneous_activity_baseline"], "sensorimotor.spontaneous_activity_baseline")),
             uncertainty_exploration_gain=float(_number(s["uncertainty_exploration_gain"], "sensorimotor.uncertainty_exploration_gain")),
             prediction_error_exploration_gain=float(_number(s["prediction_error_exploration_gain"], "sensorimotor.prediction_error_exploration_gain")),
             exploration_habituation=float(_number(s["exploration_habituation"], "sensorimotor.exploration_habituation")),
-            contingency_sensitivity=float(_number(s["contingency_sensitivity"], "sensorimotor.contingency_sensitivity")),
-            contingency_window_ticks=int(_number(s["contingency_window_ticks"], "sensorimotor.contingency_window_ticks", integer=True)),
-            controllability_sensitivity=float(_number(s["controllability_sensitivity"], "sensorimotor.controllability_sensitivity")),
-            body_schema_adaptation_rate=float(_number(s["body_schema_adaptation_rate"], "sensorimotor.body_schema_adaptation_rate")),
             reacclimation_sensitivity=float(_number(s["reacclimation_sensitivity"], "sensorimotor.reacclimation_sensitivity")),
         )
 
         st = _require_mapping(
             payload["structure"],
             "structure",
-            {"growth_threshold", "pruning_threshold", "minimum_support", "tentative_lifetime_ticks", "complexity_pressure"},
+            {"growth_threshold", "pruning_threshold", "minimum_support", "tentative_lifetime_ticks"},
         )
         structure = StructuralGenes(
             growth_threshold=_load_range(st["growth_threshold"], "structure.growth_threshold"),
             pruning_threshold=_load_range(st["pruning_threshold"], "structure.pruning_threshold"),
             minimum_support=int(_number(st["minimum_support"], "structure.minimum_support", integer=True)),
             tentative_lifetime_ticks=int(_number(st["tentative_lifetime_ticks"], "structure.tentative_lifetime_ticks", integer=True)),
-            complexity_pressure=_load_range(st["complexity_pressure"], "structure.complexity_pressure"),
         )
 
         e = _require_mapping(
