@@ -1,7 +1,9 @@
 """Explicit migration from the historical cognition Genome v1 to Genome v2."""
 from __future__ import annotations
 
-import copy
+from dataclasses import replace
+import hashlib
+import json
 from typing import Any, Mapping
 
 from .genome import Genome, GenomeCodec
@@ -104,8 +106,97 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
     return v2
 
 
+
+def apply_legacy_heritable_payload(
+    genome: Genome,
+    payload: Mapping[str, object],
+    *,
+    kernel_limits: object,
+) -> Genome:
+    """Project historical HeritableGenome state into Genome v2 once.
+
+    Only loci that still have a causal v2 meaning are migrated. Removed loci
+    are deliberately not preserved as dead configuration.
+    """
+    genome_id = payload.get("genome_id")
+    raw_loci = payload.get("loci", ())
+    identity = payload.get("identity")
+    if not isinstance(genome_id, str) or not isinstance(raw_loci, (list, tuple)):
+        raise ValueError("malformed legacy HeritableGenome payload")
+
+    loci: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    allowed = {
+        "initial_concepts",
+        "soft_node_budget",
+        "soft_edge_budget",
+        "learning_rate",
+        "forgetting_rate",
+    }
+    for item in raw_loci:
+        if (
+            not isinstance(item, (list, tuple))
+            or len(item) != 2
+            or not isinstance(item[0], str)
+            or isinstance(item[1], bool)
+            or not isinstance(item[1], (int, float))
+        ):
+            raise ValueError("malformed legacy HeritableGenome locus")
+        key = item[0]
+        if key not in allowed or key in seen:
+            raise ValueError("unknown or duplicate legacy HeritableGenome locus")
+        seen.add(key)
+        loci.append((key, float(item[1])))
+
+    legacy_material = {
+        "genome_id": genome_id,
+        "loci": tuple(loci),
+    }
+    legacy_identity = "genome_" + hashlib.sha256(
+        json.dumps(
+            legacy_material,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()[:16]
+    if identity not in (None, legacy_identity):
+        raise ValueError("legacy HeritableGenome identity mismatch")
+
+    values = dict(loci)
+    development = genome.development
+    node_ceiling = min(
+        int(kernel_limits.max_nodes),
+        max(1, round(values.get("soft_node_budget", development.soft_node_budget))),
+    )
+    edge_ceiling = min(
+        int(kernel_limits.max_edges),
+        max(1, round(values.get("soft_edge_budget", development.soft_edge_budget))),
+    )
+    development = replace(
+        development,
+        soft_node_budget=node_ceiling,
+        soft_edge_budget=edge_ceiling,
+        sense_node_budget=min(development.sense_node_budget, node_ceiling),
+    )
+
+    plasticity = genome.plasticity
+    if "learning_rate" in values:
+        spec = plasticity.learning_rate
+        baseline = max(spec.minimum, min(spec.maximum, values["learning_rate"]))
+        plasticity = replace(
+            plasticity,
+            learning_rate=replace(spec, baseline=baseline),
+        )
+
+    return replace(
+        genome,
+        genome_id=legacy_identity,
+        development=development,
+        plasticity=plasticity,
+    )
+
 def migrate_v1_genome(payload: Mapping[str, object]) -> Genome:
     return GenomeCodec().load(migrate_v1_payload(payload))
 
 
-__all__ = ["migrate_v1_genome", "migrate_v1_payload"]
+__all__ = ["apply_legacy_heritable_payload", "migrate_v1_genome", "migrate_v1_payload"]
