@@ -1650,30 +1650,29 @@ class SensorimotorLearner:
                 learner._primitives[primitive.primitive_id] = primitive
                 learner._primitive_id_by_sequence[primitive.sequence] = primitive.primitive_id
 
-        if schema >= 8:
-            raw_historical = payload.get("historical_candidates", [])
-            if not isinstance(raw_historical, list) or len(raw_historical) > _MAX_PRIMITIVES:
-                raise ValueError("invalid historical primitive candidates")
-            for item in raw_historical:
-                if not isinstance(item, Mapping):
-                    raise ValueError("invalid historical primitive candidate")
-                primitive_id = item.get("primitive_id")
-                if not isinstance(primitive_id, str) or not primitive_id:
-                    raise ValueError("invalid historical primitive id")
-                sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
-                if len(sequence) != _PRIMITIVE_TICKS:
-                    raise ValueError("historical primitive has invalid temporal duration")
-                if not learner._sequence_respects_exclusive_groups(sequence):
-                    # Historical memory is non-authoritative, but an impossible
-                    # motor hypothesis must not be reintroduced into matching.
-                    continue
-                if (
-                    primitive_id in learner._primitives
-                    or sequence in learner._primitive_id_by_sequence
-                ):
-                    continue
-                learner._historical_primitive_candidates[primitive_id] = sequence
-                learner._primitive_id_by_sequence[sequence] = primitive_id
+        raw_historical = payload.get("historical_candidates", [])
+        if not isinstance(raw_historical, list) or len(raw_historical) > _MAX_PRIMITIVES:
+            raise ValueError("invalid historical primitive candidates")
+        for item in raw_historical:
+            if not isinstance(item, Mapping):
+                raise ValueError("invalid historical primitive candidate")
+            primitive_id = item.get("primitive_id")
+            if not isinstance(primitive_id, str) or not primitive_id:
+                raise ValueError("invalid historical primitive id")
+            sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
+            if len(sequence) != _PRIMITIVE_TICKS:
+                raise ValueError("historical primitive has invalid temporal duration")
+            if not learner._sequence_respects_exclusive_groups(sequence):
+                # Historical memory is non-authoritative, but an impossible
+                # motor hypothesis must not be reintroduced into matching.
+                continue
+            if (
+                primitive_id in learner._primitives
+                or sequence in learner._primitive_id_by_sequence
+            ):
+                continue
+            learner._historical_primitive_candidates[primitive_id] = sequence
+            learner._primitive_id_by_sequence[sequence] = primitive_id
         replay_id = payload.get("replay_id")
         if replay_id is not None and not isinstance(replay_id, str):
             raise ValueError("invalid sensorimotor replay id")
