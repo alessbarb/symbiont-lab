@@ -22,7 +22,7 @@ class BehavioralAblationCondition:
     mixed_motor_ticks: int
     primitive_motor_ticks: int
     primitive_cognition_ticks: int
-    primitive_verification_ticks: int
+    primitive_reactive_ticks: int
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -206,7 +206,7 @@ def _run_clone(
         mixed_ticks = 0
         primitive_ticks = 0
         primitive_cognition_ticks = 0
-        primitive_verification_ticks = 0
+        primitive_reactive_ticks = 0
 
         for _ in range(horizon_ticks):
             last = runtime.step()
@@ -218,8 +218,8 @@ def _run_clone(
             primitive_cognition_ticks += int(
                 last.motor_origin_detail == "primitive_cognition"
             )
-            primitive_verification_ticks += int(
-                last.motor_origin_detail == "primitive_verification"
+            primitive_reactive_ticks += int(
+                last.motor_origin_detail == "primitive_reactive"
             )
             if not last.alive:
                 break
@@ -236,7 +236,7 @@ def _run_clone(
             mixed_motor_ticks=mixed_ticks,
             primitive_motor_ticks=primitive_ticks,
             primitive_cognition_ticks=primitive_cognition_ticks,
-            primitive_verification_ticks=primitive_verification_ticks,
+            primitive_reactive_ticks=primitive_reactive_ticks,
         )
 
 
