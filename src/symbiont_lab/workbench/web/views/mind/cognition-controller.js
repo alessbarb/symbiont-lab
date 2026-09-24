@@ -63,6 +63,11 @@ import {
 } from './cognitive-lod.js';
 import { cognitiveSituation } from './cognitive-observatory.js';
 import {
+  buildCognitiveFrame,
+  recordCognitiveFrame,
+  renderCognitiveLivePanels,
+} from './cognitive-live.js';
+import {
   prioritizedLabelIds,
   recordObserverUsage,
 } from './cognitive-refinement.js';
@@ -195,8 +200,10 @@ export function createCognitionController({
     }
   
     const errors   = (source.observerAnalysis?.predictionErrors ?? cognition?.predictionErrors) ?? {};
+    const errorValues = source.observerAnalysis?.predictionErrorValues ?? {};
     const readouts = cognition?.readouts ?? {};
     const actClass = (source.observerAnalysis?.activationClasses ?? cognition?.activationClasses) ?? {};
+    const activationValues = source.observerAnalysis?.activationValues ?? {};
     const stranded = cognition?.strandedConcepts ?? [];
   
     const learned = augmentLearnedGraph(
@@ -235,7 +242,18 @@ export function createCognitionController({
   
     const rawNodes = completeTopology.nodes.map(n => {
       const kind = n.kind ?? 'concept';
-      const activationLevel = classRatio(actClass[n.id] ?? 0, 15);
+      const continuousActivation = activationValues[n.id];
+      const activationLevel = continuousActivation != null
+        ? clamp01(Math.abs(finiteNumber(continuousActivation, 0)))
+        : classRatio(actClass[n.id] ?? 0, 15);
+      const rawError = errors[n.id];
+      const predictionError = Math.abs(finiteNumber(
+        errorValues[n.id] ?? (typeof rawError === 'object' ? rawError?.value : 0),
+        0,
+      ));
+      const errorClass = typeof rawError === 'string'
+        ? rawError
+        : rawError?.class ?? null;
       const readoutRaw = readouts[n.id];
       const readoutMagnitude = readoutRaw != null
         ? Math.min(1, Math.abs(finiteNumber(readoutRaw, 0)))
@@ -253,7 +271,8 @@ export function createCognitionController({
           ? 1
           : activationLevel,
         readoutMagnitude,
-        errorCls: errors[n.id] ?? null,
+        errorCls: errorClass,
+        predictionError,
         readoutVal: readoutRaw != null ? finiteNumber(readoutRaw, 0).toFixed(3) : null,
         isStranded: stranded.includes(n.id),
         learnedLayer: n.learnedLayer ?? null,
@@ -586,6 +605,24 @@ export function createCognitionController({
         target: nodeMap.get(e.targetId),
       }))
       .filter(e => e.source && e.target);
+
+    const liveFrame = buildCognitiveFrame({
+      nodes: graph.nodes,
+      edges: graph.edges,
+      regions: graph.atlasRegions,
+      signals: graph.atlasSignals,
+      flow: graph.observedFlow,
+      situation: graph.cognitiveSituation,
+      previousFrame: graph.liveFrame,
+      tick: finiteNumber(graph.replayTick ?? tel.tick, 0),
+      selectedNodeId: graph.selectedNodeId,
+      motorOrigin: tel.motorOrigin ?? 'none',
+      activeEffectors: tel.activeEffectors,
+      jointMotion: tel.jointMotion,
+      regionEvents: graph.regionEvents,
+    });
+    recordCognitiveFrame(graph, liveFrame);
+    renderCognitiveLivePanels(graph);
 
     presentation.syncTopology(
       previousNodes,
@@ -2176,6 +2213,7 @@ export function createCognitionController({
 
   function updateCognitionSummary() {
     updateTimelineControls();
+    renderCognitiveLivePanels(graph);
     const panel = document.getElementById('mind-cognition-summary');
     if (!panel) return;
     const source = graph.replaySnapshot ?? snap;
