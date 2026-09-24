@@ -52,7 +52,7 @@ def physics3d_sensory_system() -> SensorySystem:
     prioritization by the lab.
     """
     limits = SensoryLimits(
-        max_active_sensors=128,
+        max_active_sensors=256,
         max_sensor_checkpoint_bytes=1024 * 1024,
     )
     return SensorySystem(
@@ -67,8 +67,8 @@ def physics3d_cognition(
     """Canonical germinal cognition with a body-compatible opaque motor surface."""
     if motor_slots is None:
         motor_slots = len(effector_contract_ids())
-    if motor_slots < 1 or motor_slots > 64:
-        raise ValueError("motor_slots must be within [1, 64]")
+    if motor_slots < 1 or motor_slots > 256:
+        raise ValueError("motor_slots must be within [1, 256]")
     limits = KernelLimits() if kernel_limits is None else kernel_limits
     genome, graph = load_base_cognition(
         kernel_limits=limits,
