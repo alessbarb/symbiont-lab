@@ -80,7 +80,7 @@ def test_physics3d_session_passes_managed_launch_to_runner(tmp_path) -> None:
         run_id="run-test",
         organism_ref="org-test",
         body_ref="body-test",
-        body_kind="anthropomorphic-v4",
+        body_kind="anthropomorphic-v5",
         organism_mode="existing",
         body_mode="fresh",
         symbiont_file=tmp_path / "organism.symbiont",
@@ -92,7 +92,7 @@ def test_physics3d_session_passes_managed_launch_to_runner(tmp_path) -> None:
     assert terminal.wait(timeout=2.0)
     session.close(timeout=2.0)
 
-    assert captured["body_kind"] == "anthropomorphic-v4"
+    assert captured["body_kind"] == "anthropomorphic-v5"
     assert captured["fresh_body"] is True
     assert captured["new_symbiont"] is False
     assert captured["symbiont_file"] == launch.symbiont_file
