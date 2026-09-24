@@ -239,7 +239,7 @@ class TelemetryV41Writer:
         embodiment_mode: str,
         effective_configuration: Mapping[str, Any] | None = None,
         software_identity: Mapping[str, Any] | None = None,
-        snapshot_interval: int = 1024,
+        snapshot_interval: int = 256,
         flush_every: int = 64,
         run_id: str | None = None,
     ) -> None:
@@ -982,6 +982,51 @@ class TelemetryV41Reader:
             raise ValueError(f"telemetry anchor hash mismatch: {path.name}")
         return payload
 
+    def _nearest_anchor_path(self, tick: int) -> Path:
+        requested = int(tick)
+        index_path = self.root / "indexes" / "anchors.ndjson"
+        candidate: Path | None = None
+        if index_path.is_file():
+            try:
+                with index_path.open("r", encoding="utf-8") as handle:
+                    for line in handle:
+                        if not line.strip():
+                            continue
+                        item = json.loads(line)
+                        item_tick = int(item.get("tick", -1))
+                        if item_tick > requested:
+                            break
+                        raw_path = Path(str(item.get("path", "")))
+                        if (
+                            not raw_path.parts
+                            or raw_path.is_absolute()
+                            or ".." in raw_path.parts
+                        ):
+                            raise ValueError("unsafe telemetry anchor index path")
+                        path = self.root / raw_path
+                        if not path.is_file():
+                            raise FileNotFoundError(path)
+                        candidate = path
+            except (
+                OSError,
+                ValueError,
+                TypeError,
+                json.JSONDecodeError,
+            ):
+                candidate = None
+        if candidate is not None:
+            return candidate
+
+        candidates = [
+            item for item in self._anchor_files()
+            if item[0] <= requested
+        ]
+        if not candidates:
+            raise KeyError(
+                f"no telemetry anchor at or before tick {requested}"
+            )
+        return candidates[-1][1]
+
     def _iter_commits(
         self,
         *,
@@ -1334,13 +1379,7 @@ class TelemetryV41Reader:
 
     def state_at(self, tick: int) -> dict[str, Any]:
         requested = int(tick)
-        candidates = [
-            item for item in self._anchor_files()
-            if item[0] <= requested
-        ]
-        if not candidates:
-            raise KeyError(f"no telemetry state at or before tick {requested}")
-        _anchor_tick, path = candidates[-1]
+        path = self._nearest_anchor_path(requested)
         anchor = self._load_anchor(path)
         for current_tick, _summary, state, _commit in self._reconstruct_from_anchor(
             anchor,
@@ -1352,13 +1391,9 @@ class TelemetryV41Reader:
 
     def summary_at(self, tick: int) -> dict[str, Any]:
         requested = int(tick)
-        candidates = [
-            item for item in self._anchor_files()
-            if item[0] <= requested
-        ]
-        if not candidates:
-            raise KeyError(f"no telemetry summary at or before tick {requested}")
-        anchor = self._load_anchor(candidates[-1][1])
+        anchor = self._load_anchor(
+            self._nearest_anchor_path(requested)
+        )
         for current_tick, summary, _state, _commit in self._reconstruct_from_anchor(
             anchor,
             end_tick=requested,

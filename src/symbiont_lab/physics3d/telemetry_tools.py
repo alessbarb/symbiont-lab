@@ -58,12 +58,15 @@ def convert_run(
             ),
             "telemetry_conversion_source": version,
         },
-        snapshot_interval=int(
-            manifest.get(
-                "anchor_interval",
-                manifest.get("snapshot_interval", 1024),
-            )
-            or 1024
+        snapshot_interval=min(
+            256,
+            int(
+                manifest.get(
+                    "anchor_interval",
+                    manifest.get("snapshot_interval", 256),
+                )
+                or 256
+            ),
         ),
         run_id=target_run_id,
     )

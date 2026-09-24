@@ -284,7 +284,9 @@ iter_events(...)
 
 Random access:
 
-1. locate nearest anchor <= T;
+1. locate nearest anchor <= T through the derivative anchor index; validate the
+   selected anchor and fall back to a full anchor scan if the index is missing
+   or corrupt;
 2. prime stream decoders from anchor state and active schemas;
 3. seek each stream to the anchor byte offset;
 4. replay only committed ticks through T;
@@ -436,6 +438,8 @@ run:
 - target 50–150 MB;
 - fallback < 5% of evidence bytes;
 - state_at p95 < 100 ms;
+- revision 4 uses a default 256-tick anchor interval to bound random-access
+  replay while remaining inside the storage target;
 - no lost ticks;
 - bounded async writer queue;
 - v3/v4.0/v4.1 compatibility;

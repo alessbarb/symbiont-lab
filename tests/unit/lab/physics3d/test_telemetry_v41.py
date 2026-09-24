@@ -835,3 +835,48 @@ def test_v41_batches_ephemeral_events_per_channel_and_tick(tmp_path):
         == events
     )
 
+
+
+def test_v41_random_access_uses_nearest_anchor_index_and_survives_corruption(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=2,
+        run_id="anchor-index",
+    )
+    originals, _summaries = _write(writer)
+
+    reader = TelemetryV41Reader(writer.root)
+    assert canonical_json_bytes(reader.state_at(6)) == canonical_json_bytes(
+        originals[5]
+    )
+
+    index_path = writer.root / "indexes" / "anchors.ndjson"
+    index_path.write_text("{corrupt-index}\n", encoding="utf-8")
+
+    reader = TelemetryV41Reader(writer.root)
+    assert canonical_json_bytes(reader.state_at(6)) == canonical_json_bytes(
+        originals[5]
+    )
+
+
+def test_v41_default_anchor_interval_is_256(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        run_id="anchor-default",
+    )
+    try:
+        assert writer.manifest["anchor_interval"] == 256
+    finally:
+        writer.close()
