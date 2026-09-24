@@ -280,6 +280,10 @@ export function createCognitionController({
       communities: [...cluster.communities],
     }));
     graph.regionLinks = atlasRegionLinks(enriched.nodes, enriched.edges);
+    presentation.syncCorridors(graph.regionLinks, {
+      replay: Boolean(graph.replaySnapshot),
+      timestamp: performance.now(),
+    });
     graph.atlasPath = cognitivePath(
       graph.selectedNodeId,
       enriched.nodes,
@@ -337,6 +341,7 @@ export function createCognitionController({
   }
   
   function reconcileSectorLabels(communities, nodes, tick) {
+    const hadLineage = graph.regionLineage.size > 0;
     const current = new Map();
     for (const node of nodes) {
       if (!node.community || node.community === 'isolated') continue;
@@ -353,10 +358,12 @@ export function createCognitionController({
     graph.sectorLabels = reconciled.labels;
     graph.regionLineage = reconciled.lineage;
     graph.regionEvents = reconciled.events;
-    presentation.registerRegionEvents(reconciled.events, {
-      replay: Boolean(graph.replaySnapshot),
-      timestamp: performance.now(),
-    });
+    if (hadLineage) {
+      presentation.registerRegionEvents(reconciled.events, {
+        replay: Boolean(graph.replaySnapshot),
+        timestamp: performance.now(),
+      });
+    }
     for (const event of reconciled.events) {
       const key = JSON.stringify(event);
       if (graph.regionEventHistory.some(item => item._key === key)) continue;
@@ -1058,6 +1065,11 @@ export function createCognitionController({
       if (!a || !b) continue;
       const start = boundaryPointToward(a, b.center ?? b);
       const end = boundaryPointToward(b, a.center ?? a);
+      const corridorAnim = presentation.corridorPresentation(link.key, performance.now());
+      const animatedEnd = {
+        x: start.x + (end.x - start.x) * corridorAnim.progress,
+        y: start.y + (end.y - start.y) * corridorAnim.progress,
+      };
       const idle = link.lastUseTick > 0
         ? Math.max(0, tick - link.lastUseTick)
         : 4096;
@@ -1071,7 +1083,7 @@ export function createCognitionController({
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
-      ctx.lineTo(end.x, end.y);
+      ctx.lineTo(animatedEnd.x, animatedEnd.y);
       ctx.strokeStyle = dynamics
         ? `rgba(80,217,255,${0.16 + recency * 0.66})`
         : anatomy
@@ -1085,7 +1097,7 @@ export function createCognitionController({
       if (Math.abs(directionBias) >= 0.28 && (anatomy || dynamics)) {
         const forward = directionBias > 0;
         const from = forward ? start : end;
-        const to = forward ? end : start;
+        const to = forward ? animatedEnd : start;
         const t = 0.62;
         const x = from.x + (to.x - from.x) * t;
         const y = from.y + (to.y - from.y) * t;
@@ -1511,7 +1523,7 @@ export function createCognitionController({
         ctx.stroke();
       }
 
-      if (isHovered || isSelected || labelIds.has(node.id)) {
+      if (nodeAnim.opacity > 0.52 && (isHovered || isSelected || labelIds.has(node.id))) {
         const label = node.observerLabel ?? compactSelfLabel(node.label ?? node.id, 12, 6);
         ctx.font = isSelected ? '600 10px -apple-system, sans-serif' : '9px -apple-system, sans-serif';
         ctx.fillStyle = isSelected ? '#fff' : 'rgba(200,216,228,.82)';
@@ -1815,7 +1827,7 @@ export function createCognitionController({
   
       // Node names are detail, not the global map. Sector labels carry the
       // overview; individual labels appear on focus, activity, or deep zoom.
-      if (!dimmed && (
+      if (nodeAnim.opacity > 0.52 && !dimmed && (
         isHovered ||
         isSelected ||
         labelIds.has(node.id) ||
@@ -1878,7 +1890,10 @@ export function createCognitionController({
     }
     drawGraphFrame(canvas);
   
-    const keepRunning = graph.alpha > GRAPH_PHYSICS.alphaMin || graph.isRunning;
+    const keepRunning =
+      graph.alpha > GRAPH_PHYSICS.alphaMin ||
+      presentation.hasActiveAnimations(performance.now()) ||
+      graph.isRunning;
     if (keepRunning) {
       rafId = requestAnimationFrame(cognitionAnimLoop);
     } else {
