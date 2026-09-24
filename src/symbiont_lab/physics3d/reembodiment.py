@@ -57,6 +57,65 @@ def _legacy_contract(_payload: Mapping[str, Any]) -> EmbodimentContract:
     return EmbodimentContract("anthropomorphic-v4", 107, 62)
 
 
+def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Repair the legacy global-tick -> Body-age contamination when unambiguous.
+
+    This migration fixes clock coordinates only. It deliberately does not
+    reverse senescence, wear, energy loss or any other historical physiology
+    already produced under the contaminated clock.
+    """
+    result = deepcopy(dict(payload))
+    lifecycle = result.get("embodiment_lifecycle")
+    living = result.get("living_body")
+    if not isinstance(lifecycle, Mapping) or not isinstance(living, dict):
+        return result
+    if lifecycle.get("schema_version") != _SCHEMA_VERSION:
+        return result
+    current = lifecycle.get("current")
+    if not isinstance(current, Mapping):
+        return result
+
+    saved_tick = result.get("saved_at_tick")
+    started_tick = current.get("started_tick")
+    stored_age = living.get("age_ticks")
+    if any(isinstance(v, bool) or not isinstance(v, int) for v in (saved_tick, started_tick, stored_age)):
+        return result
+    if started_tick <= 0 or saved_tick < started_tick:
+        return result
+
+    expected_age = saved_tick - started_tick
+    if stored_age == expected_age:
+        return result
+
+    # Legacy Physics3D wrote Body age from the global runtime tick. Accept a
+    # one-tick tolerance because checkpoints are taken after tick completion.
+    if abs(stored_age - saved_tick) > 1:
+        return result
+
+    old_age = stored_age
+    living["age_ticks"] = expected_age
+    raw_death = living.get("death_tick")
+    if isinstance(raw_death, int) and not isinstance(raw_death, bool):
+        if abs(raw_death - old_age) <= 1 or abs(raw_death - saved_tick) <= 1:
+            living["death_tick"] = expected_age
+
+    physiology = result.get("physiology")
+    if isinstance(physiology, dict):
+        raw_phys_death = physiology.get("death_tick")
+        if isinstance(raw_phys_death, int) and not isinstance(raw_phys_death, bool):
+            if abs(raw_phys_death - old_age) <= 1 or abs(raw_phys_death - saved_tick) <= 1:
+                physiology["death_tick"] = expected_age
+
+    result["temporal_migration"] = {
+        "schema_version": 1,
+        "kind": "global_tick_to_body_age",
+        "source_age_ticks": old_age,
+        "body_age_ticks": expected_age,
+        "started_at_symbiont_tick": started_tick,
+        "saved_at_symbiont_tick": saved_tick,
+    }
+    return result
+
 def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
     raw = payload.get("embodiment_lifecycle")
     if isinstance(raw, Mapping) and raw.get("schema_version") == _SCHEMA_VERSION:
@@ -414,6 +473,7 @@ def update_lifecycle_for_checkpoint(
 __all__ = [
     "EmbodimentContract",
     "lifecycle_summary",
+    "migrate_temporal_domains",
     "prepare_fresh_embodiment_checkpoint",
     "update_lifecycle_for_checkpoint",
 ]
