@@ -22,7 +22,8 @@ export function buildMindLayout(root, {
   root.classList.add('mind-view-root');
 
   // ── Tab bar ─────────────────────────────────────────────────────────────────
-  const tabBar = el('nav', 'mind-tab-bar');
+  const tabBar = el('div', 'mind-tab-bar');
+  tabBar.setAttribute('role', 'tablist');
   tabBar.setAttribute('aria-label', 'Mind view tabs');
 
   const TABS = [
@@ -37,8 +38,12 @@ export function buildMindLayout(root, {
   for (const tab of TABS) {
     const btn = el('button', 'mind-tab');
     btn.dataset.tab = tab.id;
+    btn.id = `mind-tab-${tab.id}`;
     btn.textContent = tab.label;
-    btn.setAttribute('aria-pressed', tab.id === activeTab ? 'true' : 'false');
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', String(tab.id === activeTab));
+    btn.setAttribute('aria-controls', `mind-panel-${tab.id}`);
+    btn.tabIndex = tab.id === activeTab ? 0 : -1;
     btn.addEventListener('click', () => onTabChange(tab.id));
     tabBar.appendChild(btn);
   }
@@ -78,6 +83,9 @@ export function buildMindLayout(root, {
   // Phenotype / Self comparison — observed expression vs organism-owned self-model
   const identityWrap = el('div', 'mind-identity-wrap');
   identityWrap.id = 'mind-identity-wrap';
+  identityWrap.setAttribute('role', 'tabpanel');
+  identityWrap.setAttribute('aria-labelledby', 'mind-tab-phenotype');
+  identityWrap.id = 'mind-panel-phenotype';
   identityWrap.style.cssText = `
     position: absolute; inset: 0;
     display: grid;
@@ -161,6 +169,9 @@ export function buildMindLayout(root, {
   // Sensory map placeholder panel
   const sensoryWrap = el('div', 'mind-sensory-wrap hidden');
   sensoryWrap.id = 'mind-sensory-wrap';
+  sensoryWrap.setAttribute('role', 'tabpanel');
+  sensoryWrap.setAttribute('aria-labelledby', 'mind-tab-sensory');
+  sensoryWrap.id = 'mind-panel-sensory';
   sensoryWrap.style.cssText = `
     position: absolute; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 14px;
@@ -189,6 +200,9 @@ export function buildMindLayout(root, {
   // Cognition canvas
   const cognitionWrap = el('div', 'mind-cognition-wrap hidden');
   cognitionWrap.id = 'mind-cognition-wrap';
+  cognitionWrap.setAttribute('role', 'tabpanel');
+  cognitionWrap.setAttribute('aria-labelledby', 'mind-tab-cognition');
+  cognitionWrap.id = 'mind-panel-cognition';
   cognitionWrap.style.cssText = 'position: absolute; inset: 0; overflow: hidden;';
   const cognitionCanvas = document.createElement('canvas');
   cognitionCanvas.id = 'mind-cognition-canvas';
@@ -309,14 +323,23 @@ export function buildMindLayout(root, {
 
   const overviewWrap = el('div', 'mind-overview-wrap hidden');
   overviewWrap.id = 'mind-overview-wrap';
+  overviewWrap.setAttribute('role', 'tabpanel');
+  overviewWrap.setAttribute('aria-labelledby', 'mind-tab-overview');
+  overviewWrap.id = 'mind-panel-overview';
   overviewWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
 
   const motorWrap = el('div', 'mind-motor-wrap hidden');
   motorWrap.id = 'mind-motor-wrap';
+  motorWrap.setAttribute('role', 'tabpanel');
+  motorWrap.setAttribute('aria-labelledby', 'mind-tab-motor');
+  motorWrap.id = 'mind-panel-motor';
   motorWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
 
   const historyWrap = el('div', 'mind-history-wrap hidden');
   historyWrap.id = 'mind-history-wrap';
+  historyWrap.setAttribute('role', 'tabpanel');
+  historyWrap.setAttribute('aria-labelledby', 'mind-tab-history');
+  historyWrap.id = 'mind-panel-history';
   historyWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
 
   // Waiting overlay (when no organism is active yet)
