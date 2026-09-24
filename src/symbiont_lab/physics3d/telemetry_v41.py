@@ -32,7 +32,13 @@ from .telemetry_schema import (
     partition_state,
     reassemble_state,
 )
-from .telemetry_structural import StructuralStreamReader, StructuralStreamWriter
+from .telemetry_structural import (
+    LegacyStructuralStreamReader,
+    StructuralDeltaReader,
+    StructuralDeltaWriter,
+    StructuralPathRegistryReader,
+    StructuralPathRegistryWriter,
+)
 
 
 SCHEMA_VERSION = "4.1"
@@ -240,6 +246,11 @@ class TelemetryV41Writer:
             "schemas": (self.root / "schemas" / "frames.ndjson").open(
                 "a", encoding="utf-8", buffering=65536, newline="\n"
             ),
+            "structural_paths": (
+                self.root / "schemas" / "structural-paths.ndjson"
+            ).open(
+                "a", encoding="utf-8", buffering=32768, newline="\n"
+            ),
             "dense": (self.root / "frames" / "dense.ndjson").open(
                 "a", encoding="utf-8", buffering=65536, newline="\n"
             ),
@@ -284,8 +295,11 @@ class TelemetryV41Writer:
         self._summary = FrameStreamWriter(
             self._handles["summary"], self._registry, stream_name="summary"
         )
-        self._structural = StructuralStreamWriter(
-            self._handles["structural"], self._registry
+        self._structural_paths = StructuralPathRegistryWriter(
+            self._handles["structural_paths"]
+        )
+        self._structural = StructuralDeltaWriter(
+            self._handles["structural"], self._structural_paths
         )
         self._events = EventStreamWriter(self._handles["events"])
         self._objects = ObjectStore(self.root / "objects" / "sha256")
@@ -311,7 +325,7 @@ class TelemetryV41Writer:
         software = dict(software_identity or {})
         self.manifest: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
-            "layout_revision": 2,
+            "layout_revision": 3,
             "envelope_type": ENVELOPE_TYPE,
             "run_id": self.run_id,
             "organism_id": str(organism_id),
@@ -430,6 +444,7 @@ class TelemetryV41Writer:
                 if key not in (
                     "ticks",
                     "schemas",
+                    "structural_paths",
                     "anchor_index",
                     "tick_index",
                     "event_index",
@@ -471,7 +486,7 @@ class TelemetryV41Writer:
                 f"telemetry ticks must be strictly increasing: {tick} <= {self._last_tick}"
             )
 
-        partition = partition_state(state, layout_revision=2)
+        partition = partition_state(state, layout_revision=3)
         stream_start_offsets = _stream_offsets(self._handles)
         emitted_hashes: dict[str, list[str]] = {
             "dense": [],
@@ -507,7 +522,10 @@ class TelemetryV41Writer:
 
         for channel, value in partition.structural.items():
             info = self._structural.append(tick, channel, value)
-            emitted_hashes["structural"].append(str(info["record_sha256"]))
+            if info is not None:
+                emitted_hashes["structural"].append(
+                    str(info["record_sha256"])
+                )
 
         for channel, value in partition.events.items():
             emitted_hashes["events"].extend(
@@ -601,6 +619,8 @@ class TelemetryV41Writer:
                 for key, value in offsets.items()
                 if key not in (
                     "ticks",
+                    "schemas",
+                    "structural_paths",
                     "anchor_index",
                     "tick_index",
                     "event_index",
@@ -681,6 +701,7 @@ class TelemetryV41Writer:
         self.flush()
         sizes = {
             "schemas": self._handles["schemas"].tell(),
+            "structural_paths": self._handles["structural_paths"].tell(),
             "dense": self._handles["dense"].tell(),
             "summary": self._handles["summary"].tell(),
             "structural": self._handles["structural"].tell(),
@@ -846,8 +867,14 @@ class TelemetryV41Reader:
         self.ticks_path = self.root / "ticks.ndjson"
         if not self.ticks_path.is_file():
             raise FileNotFoundError(f"telemetry tick commits not found: {self.ticks_path}")
+        self.layout_revision = int(
+            self.manifest.get("layout_revision", 1) or 1
+        )
         self.registry = FrameSchemaRegistryReader(
             self.root / "schemas" / "frames.ndjson"
+        )
+        self.structural_paths = StructuralPathRegistryReader(
+            self.root / "schemas" / "structural-paths.ndjson"
         )
         self.object_store = ObjectStore(self.root / "objects" / "sha256")
         self._patcher = StatePatcher(object_store=None)
@@ -917,9 +944,7 @@ class TelemetryV41Reader:
         summary = anchor["summary"]
         partition = partition_state(
             state,
-            layout_revision=int(
-                self.manifest.get("layout_revision", 1) or 1
-            ),
+            layout_revision=self.layout_revision,
         )
 
         dense = FrameStreamReader(self.registry)
@@ -931,16 +956,21 @@ class TelemetryV41Reader:
                 schema_id=dense_schemas.get(channel),
             )
 
-        structural = StructuralStreamReader(self.registry)
-        structural_schemas = dict(
-            anchor.get("schemas", {}).get("structural", {})
-        )
-        for channel, value in partition.structural.items():
-            structural.prime(
-                channel,
-                value,
-                schema_id=structural_schemas.get(channel),
+        if self.layout_revision >= 3:
+            structural = StructuralDeltaReader(self.structural_paths)
+            for channel, value in partition.structural.items():
+                structural.prime(channel, value)
+        else:
+            structural = LegacyStructuralStreamReader(self.registry)
+            structural_schemas = dict(
+                anchor.get("schemas", {}).get("structural", {})
             )
+            for channel, value in partition.structural.items():
+                structural.prime(
+                    channel,
+                    value,
+                    schema_id=structural_schemas.get(channel),
+                )
 
         summary_reader = FrameStreamReader(self.registry)
         summary_reader.prime(
@@ -962,7 +992,7 @@ class TelemetryV41Reader:
     def _apply_removed(
         removed: Mapping[str, Any],
         dense: FrameStreamReader,
-        structural: StructuralStreamReader,
+        structural: Any,
         events: EventStreamReader,
         static: _StaticStreamReader,
     ) -> None:

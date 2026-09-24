@@ -115,9 +115,11 @@ Lists containing stable IDs such as `node_id`, `primitive_id`,
 internal AST plus an explicit order vector. Cognitive edges without their own
 ID use an observer-only composite identity derived from
 `(source_id, target_id, kind, delay_ticks)` when that tuple is unique.
-Keyed entity storage is sorted by identity while the independent order vector
-preserves the exact original list order. This keeps scalar evolution inside
-existing entities from becoming list replacement.
+Revision 3 stores keyed entities as maps and emits only path-level `set/remove`
+deltas. Profiles use `signal_id`; signal-knowledge claims use `claim_id`; edges
+without their own ID use the observer-only composite identity above. The
+independent order vector preserves the exact original list order. This prevents
+claim/profile growth from creating a new whole-tree structural schema.
 
 The internal AST is tagged at every node, so arbitrary user/runtime JSON cannot
 collide with telemetry markers.
@@ -138,9 +140,10 @@ Cumulative stream:
 
 - `sensorimotor.episodes`
 
-Cumulative events are emitted as append records while the current list is an
-exact extension of the previous list. If the source ever rewrites history, the
-writer emits an exact reset snapshot rather than assuming append-only behavior.
+Ephemeral events are grouped into one record per channel/tick. Cumulative events
+are emitted as `append_many` batches while the current list is an exact extension
+of the previous list. If the source ever rewrites history, the writer emits an
+exact reset snapshot rather than assuming append-only behavior.
 
 ### Static objects
 
@@ -272,9 +275,11 @@ The physical schema version remains `4.1`, while the manifest carries a
 
 - revision 1 is the initial v4.1 layout that grouped `pre`, `post`, and
   `runtime` more coarsely;
-- revision 2 is the canonical layout described here, with nested physical
-  streams, narrative/signal-reference structural channels, cross-tick copy
-  frames, split checkpoints, and derivative indexes.
+- revision 2 introduced nested physical streams, narrative/signal-reference
+  structural channels, cross-tick copy frames, split checkpoints, and indexes;
+- revision 3 replaces whole-tree structural frame schemas with keyed path-deltas,
+  adds `claim_id` identity for signal-knowledge claims, and batches events per
+  channel/tick. Revision 3 is the current experimental candidate.
 
 Readers treat a v4.1 manifest with no `layout_revision` as revision 1. This
 preserves readability of runs produced during the initial v4.1 rollout without
@@ -355,8 +360,8 @@ A keyed path-delta prototype reduced the same 250-tick window to approximately
 above the <200 MB hard gate for the full run. Therefore layout revision 2 is not
 canonicalized and the default Physics3D writer remains v4.0.
 
-The next candidate must eliminate whole-tree structural schema revisions and
-pass the full golden-run gate before cutover.
+Revision 3 implements the required keyed path-delta structural codec. It must
+still pass the full 4,781-tick golden-run gate before any cutover.
 
 ## Canonicalization gate
 
