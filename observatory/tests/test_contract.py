@@ -99,7 +99,7 @@ class ObservatoryContractTests(unittest.TestCase):
         schema = json.loads((ROOT / "body_schema.schema.json").read_text(encoding="utf-8"))
         self.assertFalse(schema["additionalProperties"])
         self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2])
-        self.assertEqual(schema["properties"]["state"]["enum"], ["undeveloped", "partial"])
+        self.assertEqual(schema["properties"]["state"]["enum"], ["undeveloped", "partial", "developing", "established", "revising"])
         self.assertEqual(schema["properties"]["parts"]["maxItems"], 288)
         part = schema["properties"]["parts"]["items"]
         self.assertFalse(part["additionalProperties"])
