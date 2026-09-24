@@ -16,6 +16,7 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "cognitive-lod.js",
         WEB_ROOT / "views" / "mind" / "cognitive-observatory.js",
         WEB_ROOT / "views" / "mind" / "cognitive-refinement.js",
+        WEB_ROOT / "views" / "mind" / "cognitive-animation.js",
         WEB_ROOT / "views" / "mind" / "cognitive-regions.js",
         WEB_ROOT / "views" / "mind" / "overview.js",
         WEB_ROOT / "views" / "mind" / "motor-learning.js",
@@ -1509,3 +1510,68 @@ def test_mind_source_identity_boundary_clears_coherence_and_accepts_explicit_nul
     assert "_streamState.telemetryTick = null" in mind
     assert "_streamState.snapshotTick = null" in mind
     assert "_streamState.coherent = false" in mind
+
+
+def test_cognitive_presentation_animation_contract() -> None:
+    asset = _mind_sources()
+    animation = (WEB_ROOT / "views" / "mind" / "cognitive-animation.js").read_text(encoding="utf-8")
+
+    assert "createCognitivePresentationAnimator" in animation
+    assert "nodeSpawn: 780" in animation
+    assert "edgeBirth: 520" in animation
+    assert "regionMorph: 650" in animation
+    assert "regionBirth: 1350" in animation
+    assert "regionSplit: 2400" in animation
+    assert "regionMerge: 2150" in animation
+    assert "corridorBirth: 650" in animation
+    assert "prefers-reduced-motion: reduce" in animation
+    assert "Math.min(index * 38, 380)" in animation
+    assert "Math.min(index * 32, 260)" in animation
+    assert "split-anticipation" in animation
+    assert "split-separation" in animation
+    assert "split-settle" in animation
+    assert "merge-attraction" in animation
+    assert "merge-fusion" in animation
+    assert "merge-settle" in animation
+    assert "ghostNodePresentation" in animation
+    assert "ghostEdgePresentation" in animation
+    assert "ghostRegionPresentation" in animation
+
+    assert "presentation.nodePresentation(" in asset
+    assert "presentation.edgePresentation(" in asset
+    assert "presentation.regionPresentation(" in asset
+    assert "presentation.syncCorridors(graph.regionLinks" in asset
+    assert "presentation.hasActiveAnimations(" in asset
+    assert "const hadLineage = graph.regionLineage.size > 0" in asset
+    assert "resetPresentation: () => presentation.reset()" in asset
+
+    assert "snap." not in animation
+    assert "world3d" not in animation
+    assert "cognition." not in animation
+
+
+def test_cognitive_animation_is_time_based_not_frame_blended() -> None:
+    asset = _mind_sources()
+    animation = (WEB_ROOT / "views" / "mind" / "cognitive-animation.js").read_text(encoding="utf-8")
+
+    assert "animationProgress(animation, timestamp)" in animation
+    assert "startedAt" in animation
+    assert "durationMs" in animation
+    assert "interpolateRegionShape(" in animation
+    assert "easeInOutCubic(p)" in animation
+    assert "blendRegionShape(previous, raw, graph.replaySnapshot ? 1 : 0.24)" not in asset
+    assert "reducedMotion ? easeOutCubic(p) : easeOutBackSoft(p)" in animation
+
+
+def test_new_nodes_and_relations_animate_without_mutating_layout_truth() -> None:
+    asset = _mind_sources()
+
+    assert "nodeAnim.scale" in asset
+    assert "nodeAnim.opacity" in asset
+    assert "nodeAnim.pulse" in asset
+    assert "animatedTargetX" in asset
+    assert "animatedTargetY" in asset
+    assert "animatedBX" in asset
+    assert "animatedBY" in asset
+    assert "drawPresentationGhostNodes" in asset
+    assert "drawPresentationGhostEdges" in asset
