@@ -96,3 +96,46 @@ def test_mind_uses_real_tab_semantics():
     assert "setAttribute('aria-selected'" in layout
     assert "setAttribute('role', 'tabpanel')" in layout
     assert "aria-pressed" not in tabs
+
+
+def test_body_unmount_releases_browser_and_gpu_resources():
+    viewer = _read("views/body/viewer.js")
+    for required in (
+        "cancelAnimationFrame(this.rafId)",
+        "this.sse.close()",
+        "this.resizeObs.disconnect()",
+        "this.controls.dispose()",
+        "this.renderer.dispose()",
+        "this.workspace?.dispose()",
+    ):
+        assert required in viewer
+
+
+def test_mind_unmount_releases_streams_animation_and_observer():
+    mind = _read("views/mind.js")
+    for required in (
+        "cognition.stop()",
+        "_streams.close()",
+        "_resizeObs.disconnect()",
+        "resetPresentation()",
+    ):
+        assert required in mind
+
+
+def test_cognition_inspector_does_not_render_snapshot_data_with_inner_html():
+    cognition = _read("views/mind/cognition-controller.js")
+    assert "innerHTML" not in cognition
+
+
+def test_mind_layout_is_structural_not_inline_styled():
+    layout = _read("views/mind/layout.js")
+    assert ".style.cssText" not in layout
+    assert "innerHTML" not in layout
+
+
+def test_identity_sensory_only_keeps_data_driven_inline_styles():
+    identity = _read("views/mind/identity-sensory.js")
+    assert "innerHTML" not in identity
+    # Dynamic visual encodings remain legitimate: confidence/health dots and
+    # percentage bars depend on the current snapshot.
+    assert identity.count("style.cssText") <= 1
