@@ -118,24 +118,62 @@ export function buildMindLayout(root, {
 
   identityWrap.append(phenotypePane, gapPane, selfPane);
 
-  // Sensory map placeholder panel
+  // Sensory Intelligence Workbench — one live scene with analytical lenses.
   const sensoryWrap = el('div', 'mind-sensory-wrap hidden');
   sensoryWrap.id = 'mind-sensory-wrap';
   sensoryWrap.setAttribute('role', 'tabpanel');
   sensoryWrap.setAttribute('aria-labelledby', 'mind-tab-sensory');
-  // Sensory map SVG
+
+  const sensoryHeader = el('header', 'mind-sensory-header');
+  const sensoryHeading = el('div', 'mind-sensory-heading');
+  const sensoryTitle = el('strong', 'mind-sensory-title');
+  sensoryTitle.textContent = 'Sensory Intelligence';
+  const sensorySubtitle = el('span', 'mind-sensory-subtitle');
+  sensorySubtitle.textContent = 'Perception · integration · prediction · discovery';
+  sensoryHeading.append(sensoryTitle, sensorySubtitle);
+
+  const sensoryMetrics = el('div', 'mind-sensory-metrics');
+  sensoryMetrics.id = 'mind-sensory-metrics';
+
+  const sensoryLenses = el('div', 'mind-sensory-lenses');
+  sensoryLenses.setAttribute('role', 'group');
+  sensoryLenses.setAttribute('aria-label', 'Sensory analytical lens');
+  for (const [id, label, title] of [
+    ['topology', 'Topology', 'Learned sensory topology'],
+    ['activity', 'Activity', 'Emphasize currently sampled and active pathways'],
+    ['prediction', 'Prediction', 'Emphasize predictors and predictive pathways'],
+    ['novelty', 'Novelty', 'Emphasize uncertain, immature and weakly integrated receptors'],
+    ['sensorimotor', 'Sensorimotor', 'Emphasize readouts and sensor-to-action paths'],
+  ]) {
+    const button = makeControlBtn(label, title, id === 'topology');
+    button.dataset.sensoryLens = id;
+    sensoryLenses.appendChild(button);
+  }
+  sensoryHeader.append(sensoryHeading, sensoryMetrics, sensoryLenses);
+
+  const sensoryStage = el('div', 'mind-sensory-stage');
   const sensoryMapSvg = svgEl('svg', {
     id: 'mind-sensory-map-svg',
-    viewBox: '0 0 900 600',
+    viewBox: '0 0 1100 650',
     role: 'img',
-    'aria-label': 'Sensory map — receptor groups and activity levels',
+    'aria-label': 'Sensory intelligence map — receptors, concepts, predictors and readouts',
     class: 'mind-sensory-map-svg',
   });
+
+  const sensoryInspector = el('aside', 'mind-sensory-inspector');
+  sensoryInspector.id = 'mind-sensory-inspector';
+  sensoryInspector.setAttribute('aria-label', 'Sensory selection inspector');
+  sensoryStage.append(sensoryMapSvg, sensoryInspector);
+
+  const sensoryTimeline = el('div', 'mind-sensory-timeline');
+  sensoryTimeline.id = 'mind-sensory-timeline';
+  sensoryTimeline.setAttribute('aria-label', 'Recent sensory evolution');
+
   const sensoryDetail = el('div', 'mind-sensory-detail');
   sensoryDetail.id = 'mind-sensory-detail';
-  sensoryDetail.textContent = 'Select a sense channel to inspect its receptor bindings and downstream path.';
-  sensoryWrap.appendChild(sensoryMapSvg);
-  sensoryWrap.appendChild(sensoryDetail);
+  sensoryDetail.textContent = 'Sensory funnel: awaiting live sensory evidence.';
+
+  sensoryWrap.append(sensoryHeader, sensoryStage, sensoryTimeline, sensoryDetail);
 
   // Cognition canvas
   const cognitionWrap = el('div', 'mind-cognition-wrap hidden');
