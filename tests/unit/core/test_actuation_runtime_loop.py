@@ -320,3 +320,23 @@ def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
     assert len(snapshot) == 96
     assert snapshot["sense.000"] == 0.0
     assert snapshot["sense.095"] == 95.0
+
+
+
+def test_babbling_restore_rejects_missing_sensorimotor_checkpoint():
+    from symbiont.host.checkpoint import CheckpointError
+
+    runtime = _runtime_with_actuation(motor_exploration_mode="babbling")
+    payload = runtime.checkpoint()
+    assert isinstance(payload["actuation"]["sensorimotor"], dict)
+    del payload["actuation"]["sensorimotor"]
+
+    with pytest.raises(
+        CheckpointError,
+        match="missing canonical sensorimotor state",
+    ):
+        OrganismRuntime.from_checkpoint(
+            payload,
+            bootstrap_semantic_senses=False,
+            discover_senses=False,
+        )
