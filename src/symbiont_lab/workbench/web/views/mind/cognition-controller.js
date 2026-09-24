@@ -1422,7 +1422,11 @@ export function createCognitionController({
         ? Math.max(0, finiteNumber(node.activationLevel, 0))
         : 0;
 
-      const radius = projected.radius * (isHovered || isSelected ? 1.28 : 1);
+      const nodeAnim = presentation.nodePresentation(node.id, now);
+      const radius = Math.max(
+        0.8,
+        projected.radius * (isHovered || isSelected ? 1.28 : 1) * nodeAnim.scale,
+      );
       ctx.beginPath();
       if (node.kind === 'motor_primitive') {
         ctx.moveTo(projected.x, projected.y - radius);
@@ -1438,16 +1442,34 @@ export function createCognitionController({
       const modeScore = clamp01(finiteNumber(node.atlasScore, 0));
       ctx.fillStyle = isHovered ? '#ffffff' : node.color;
       const depthFog = Math.max(0.34, Math.min(1, 1 - projected.depth / 1800));
-      ctx.globalAlpha = dimmed
+      const baseNodeAlpha = dimmed
         ? 0.05
         : pathNode
           ? 0.98
           : Math.min(1, (0.16 + modeScore * 0.62 + nodeRecency * 0.12 + activityGlow * 0.10) * depthFog);
+      ctx.globalAlpha = baseNodeAlpha * nodeAnim.opacity;
       ctx.shadowColor = node.color;
       ctx.shadowBlur = isSelected ? 18 : pathNode ? 11 : activityGlow * 9;
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+
+      if (nodeAnim.pulse > 0 && nodeAnim.pulse < 1) {
+        const pulseEase = 1 - Math.pow(1 - nodeAnim.pulse, 3);
+        ctx.beginPath();
+        ctx.arc(
+          projected.x,
+          projected.y,
+          radius * (1.05 + pulseEase * 1.75),
+          0,
+          Math.PI * 2,
+        );
+        ctx.strokeStyle = node.color;
+        ctx.globalAlpha = (1 - pulseEase) * 0.40 * depthFog;
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       drawStructureRoleMarker(ctx, projected.x, projected.y, radius, node.id, depthFog);
 
       if (node.kind === 'readout') {
@@ -1721,9 +1743,11 @@ export function createCognitionController({
         ? Math.sin(now * 0.003 + hashStr(node.id)) * (node.activationLevel * 2.0)
         : 0;
       const modeScore = clamp01(finiteNumber(node.atlasScore, 0));
-      const r = ((isHovered || isSelected)
+      const nodeAnim = presentation.nodePresentation(node.id, now);
+      const baseRadius = (isHovered || isSelected)
         ? node.radius * 1.35
-        : node.radius * (0.82 + modeScore * 0.28)) + breath;
+        : node.radius * (0.82 + modeScore * 0.28);
+      const r = Math.max(0.6, (baseRadius + breath) * nodeAnim.scale);
   
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
@@ -1739,14 +1763,26 @@ export function createCognitionController({
       const graphTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
       const nodeIdleTicks = node.lastUseTick > 0 ? Math.max(0, graphTick - node.lastUseTick) : 2048;
       const nodeRecency = Math.exp(-nodeIdleTicks / 768);
-      ctx.globalAlpha = dimmed
+      const baseNodeAlpha = dimmed
         ? 0.08
         : pathNode
           ? 1
           : Math.min(1, 0.18 + modeScore * 0.70 + nodeRecency * 0.12 + (isSelected || isHovered ? 0.15 : 0));
+      ctx.globalAlpha = baseNodeAlpha * nodeAnim.opacity;
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.shadowBlur  = 0;
+
+      if (nodeAnim.pulse > 0 && nodeAnim.pulse < 1) {
+        const pulseEase = 1 - Math.pow(1 - nodeAnim.pulse, 3);
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r * (1.05 + pulseEase * 1.75), 0, Math.PI * 2);
+        ctx.strokeStyle = node.color;
+        ctx.globalAlpha = (1 - pulseEase) * 0.42;
+        ctx.lineWidth = 1.15;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       drawStructureRoleMarker(ctx, node.x, node.y, r, node.id);
   
       if (isSelected) {
