@@ -34,6 +34,11 @@ from .observer_semantics import motor_semantics, sensory_semantics
 from .bodies import DEFAULT_BODY_REGISTRY
 from .humanoid import apply_surface_material, configure_physics_solver
 from .resource import PhysicalResource
+from .reembodiment import (
+    EmbodimentContract,
+    prepare_fresh_embodiment_checkpoint,
+    update_lifecycle_for_checkpoint,
+)
 
 
 class PhysicsServerDisconnected(RuntimeError):
@@ -321,13 +326,17 @@ class PyBulletEmbodimentRuntime:
             reading_providers=(reading_provider,),
         )
 
-        if runtime_checkpoint is None:
-            genome, graph, kernel_limits = physics3d_cognition(
+        contract = EmbodimentContract(
+            body_kind=self.body_descriptor.body_kind,
+            receptor_count=self.body_descriptor.receptor_count,
+            effector_count=self.body_descriptor.effector_count,
+        )
+
+        def _fresh_organism(subject_id: str) -> PrivateModelOrganismRuntime:
+            genome, graph, resolved_limits = physics3d_cognition(
                 motor_slots=len(self.apparatus.effector_ids),
                 kernel_limits=kernel_limits,
             )
-            if organism_id is None:
-                organism_id = f"symbiont:3d:{secrets.token_hex(8)}"
             metabolic_capacity = {
                 kind: 400.0
                 for kind in ("observation", "cognition", "persistence", "maintenance")
@@ -337,13 +346,13 @@ class PyBulletEmbodimentRuntime:
                 energy_reserve=physical_energy_capacity,
                 max_energy=physical_energy_capacity,
             )
-            self.organism = PrivateModelOrganismRuntime(
-                organism_id=organism_id,
+            return PrivateModelOrganismRuntime(
+                organism_id=subject_id,
                 host_lifecycle=host_lifecycle,
                 host_reading_providers=(reading_provider,),
                 genome=genome,
                 cognitive_graph=graph,
-                kernel_limits=kernel_limits,
+                kernel_limits=resolved_limits,
                 mutation_seed=seed,
                 bootstrap_semantic_senses=False,
                 discover_senses=True,
@@ -362,19 +371,26 @@ class PyBulletEmbodimentRuntime:
                 actuation_enabled=True,
                 motor_exploration_mode="babbling",
             )
+
+        if runtime_checkpoint is None:
+            if organism_id is None:
+                organism_id = f"symbiont:3d:{secrets.token_hex(8)}"
+            self.organism = _fresh_organism(organism_id)
+            self._embodiment_contract = contract
+            self._reembodied = False
         else:
             effective = runtime_checkpoint.get("effective_config", {})
             if not isinstance(effective, Mapping) or not bool(
                 effective.get("explicit_metabolism", False)
             ):
                 raise RuntimeError(
-                    "Physics3D locomotion constitution requires a fresh subject; "
-                    "start once with --new-symbiont"
+                    "Physics3D locomotion constitution requires a canonical "
+                    "Physics3D Symbiont checkpoint"
                 )
             if effective.get("motor_exploration_mode") != "babbling":
                 raise RuntimeError(
                     "Physics3D sensorimotor-development constitution requires "
-                    "a fresh subject; start once with --new-symbiont"
+                    "babbling-capable checkpoint state"
                 )
             raw_genome = runtime_checkpoint.get("genome")
             if (
@@ -383,11 +399,26 @@ class PyBulletEmbodimentRuntime:
                 != "genome_symbiont_physics3d_v9"
             ):
                 raise RuntimeError(
-                    "Physics3D anthropomorphic-v4 constitution requires a fresh "
-                    "subject; start once with --new-symbiont"
+                    "checkpoint is not from the canonical Physics3D Symbiont lineage"
                 )
+
+            restored_payload = dict(runtime_checkpoint)
+            self._reembodied = physical_state is None
+            if self._reembodied:
+                subject_id = str(
+                    runtime_checkpoint.get("organism_id")
+                    or organism_id
+                    or f"symbiont:3d:{secrets.token_hex(8)}"
+                )
+                fresh_template = _fresh_organism(subject_id).checkpoint()
+                restored_payload = prepare_fresh_embodiment_checkpoint(
+                    runtime_checkpoint,
+                    fresh_template,
+                    contract=contract,
+                )
+
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
-                dict(runtime_checkpoint),
+                restored_payload,
                 host_lifecycle=host_lifecycle,
                 host_reading_providers=(reading_provider,),
                 bootstrap_semantic_senses=False,
@@ -398,6 +429,7 @@ class PyBulletEmbodimentRuntime:
                 min_samples=1,
                 auto_promote_predictors=True,
             )
+            self._embodiment_contract = contract
 
         self._last_physical_tick = self.tick_count
         self._telemetry_seen_experience_ids = {
@@ -524,9 +556,14 @@ class PyBulletEmbodimentRuntime:
                     raise
         return dict(self._last_physical_state), int(self._last_physical_tick)
 
-    def checkpoint(self) -> dict[str, Any]:
-        """Portable organism state; contains no PyBullet pose or anatomy."""
-        return self.organism.checkpoint()
+    def checkpoint(self, *, lifecycle_state: str = "active") -> dict[str, Any]:
+        """Portable Symbiont state plus body-independent embodiment history."""
+        payload = self.organism.checkpoint()
+        return update_lifecycle_for_checkpoint(
+            payload,
+            contract=self._embodiment_contract,
+            state=lifecycle_state,
+        )
 
     def passive_physical_state(self) -> dict[str, object]:
         """Return the last completed pose without querying/rendering PyBullet."""
