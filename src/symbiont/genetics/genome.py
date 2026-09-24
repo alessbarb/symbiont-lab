@@ -12,7 +12,6 @@ from .schema import DEFAULT_GENOME_SCHEMA, GenomeSchema
 
 _GENOME_ID_PATTERN = re.compile(r"^genome_[A-Za-z0-9_:+-]{1,96}$")
 _COMPAT_CLAUSE = re.compile(r"^(>=|<=|==|>|<)(\d+)\.(\d+)(?:\.(\d+))?$")
-_MAX_PARENT_IDS = 8
 
 
 class GenomeError(ValueError):
@@ -129,12 +128,6 @@ class EvolvabilityGenes:
 
 
 @dataclass(frozen=True, slots=True)
-class InheritanceGenes:
-    epigenetic_decay: float
-    max_epigenetic_marks: int
-
-
-@dataclass(frozen=True, slots=True)
 class MutationPolicyGenes:
     continuous_sigma: float
     max_fields_per_generation: int
@@ -160,7 +153,6 @@ class MotorGenes:
 class Genome:
     schema_version: int
     genome_id: str
-    parent_ids: tuple[str, ...]
     kernel_compatibility: str
     development: DevelopmentGenes
     plasticity: PlasticityGenes
@@ -168,7 +160,6 @@ class Genome:
     sensorimotor: SensorimotorGenes
     structure: StructuralGenes
     evolvability: EvolvabilityGenes
-    inheritance: InheritanceGenes
 
     @property
     def mutation_policy(self) -> MutationPolicyGenes:
@@ -259,7 +250,6 @@ def _gene_tree(genome: Genome) -> dict[str, Any]:
             "complexity_pressure": _range_to_dict(genome.structure.complexity_pressure),
         },
         "evolvability": asdict(genome.evolvability),
-        "inheritance": asdict(genome.inheritance),
     }
 
 
@@ -267,7 +257,6 @@ def _genome_to_plain_dict(genome: Genome) -> dict[str, Any]:
     return {
         "schema_version": genome.schema_version,
         "genome_id": genome.genome_id,
-        "parent_ids": list(genome.parent_ids),
         "kernel_compatibility": genome.kernel_compatibility,
         **_gene_tree(genome),
     }
@@ -329,7 +318,6 @@ class GenomeCodec:
     TOP_LEVEL = {
         "schema_version",
         "genome_id",
-        "parent_ids",
         "kernel_compatibility",
         "development",
         "plasticity",
@@ -337,7 +325,6 @@ class GenomeCodec:
         "sensorimotor",
         "structure",
         "evolvability",
-        "inheritance",
     }
 
     def __init__(self, schema: GenomeSchema = DEFAULT_GENOME_SCHEMA) -> None:
@@ -356,12 +343,6 @@ class GenomeCodec:
         genome_id = payload["genome_id"]
         if not isinstance(genome_id, str) or not _GENOME_ID_PATTERN.fullmatch(genome_id):
             raise GenomeError("invalid genome_id")
-        raw_parents = payload["parent_ids"]
-        if not isinstance(raw_parents, list) or len(raw_parents) > _MAX_PARENT_IDS:
-            raise GenomeError("parent_ids must be a bounded list")
-        parents = tuple(str(value) for value in raw_parents)
-        if any(not _GENOME_ID_PATTERN.fullmatch(value) for value in parents):
-            raise GenomeError("invalid parent genome id")
         compatibility = payload["kernel_compatibility"]
         if not isinstance(compatibility, str):
             raise GenomeError("kernel_compatibility must be a string")
@@ -437,16 +418,9 @@ class GenomeCodec:
         )
         evolvability = EvolvabilityGenes(**{key: float(_number(e[key], f"evolvability.{key}")) for key in e})
 
-        i = _require_mapping(payload["inheritance"], "inheritance", {"epigenetic_decay", "max_epigenetic_marks"})
-        inheritance = InheritanceGenes(
-            epigenetic_decay=float(_number(i["epigenetic_decay"], "inheritance.epigenetic_decay")),
-            max_epigenetic_marks=int(_number(i["max_epigenetic_marks"], "inheritance.max_epigenetic_marks", integer=True)),
-        )
-
         genome = Genome(
             schema_version=2,
             genome_id=genome_id,
-            parent_ids=parents,
             kernel_compatibility=compatibility,
             development=development,
             plasticity=plasticity,
@@ -454,7 +428,6 @@ class GenomeCodec:
             sensorimotor=sensorimotor,
             structure=structure,
             evolvability=evolvability,
-            inheritance=inheritance,
         )
         self._validate_schema(genome)
         return genome
@@ -489,7 +462,6 @@ __all__ = [
     "Genome",
     "GenomeCodec",
     "GenomeError",
-    "InheritanceGenes",
     "MotorGenes",
     "MutationPolicyGenes",
     "PlasticityGenes",
