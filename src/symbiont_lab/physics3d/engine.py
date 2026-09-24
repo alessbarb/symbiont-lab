@@ -37,7 +37,8 @@ DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
 DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont"
 LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
-DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v4.json"
+LEGACY_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v4.json"
+DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v5.json"
 DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "telemetry-v4.1"
 
 
@@ -214,7 +215,7 @@ def run(
     cognition_hz: int = 24,
     mechanical_work_cost_per_joule: float = 0.001,
     telemetry_physics_trace: bool = False,
-    body_kind: str = "anthropomorphic-v4",
+    body_kind: str = "anthropomorphic-v5",
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
