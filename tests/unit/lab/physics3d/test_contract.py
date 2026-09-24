@@ -861,3 +861,56 @@ def test_runtime_settling_fails_closed_instead_of_treating_timeout_as_success():
     assert "settle_passive_body" in source
     assert "if not result.converged" in source
     assert "raise RuntimeError" in source
+
+
+
+def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
+    from symbiont_lab.physics3d.engine import _require_current_motor_evidence
+
+    legacy = {
+        "actuation": {
+            "sensorimotor": {
+                "schema_version": 8,
+            },
+        },
+    }
+    with pytest.raises(RuntimeError, match="requires v9"):
+        _require_current_motor_evidence(
+            legacy,
+            fresh_body=False,
+            new_symbiont=False,
+        )
+
+    # Explicit re-embodiment is the honest path: the old learned motor state
+    # is not restored as current-body evidence.
+    _require_current_motor_evidence(
+        legacy,
+        fresh_body=True,
+        new_symbiont=False,
+    )
+
+    current = {
+        "actuation": {
+            "sensorimotor": {
+                "schema_version": 9,
+            },
+        },
+    }
+    _require_current_motor_evidence(
+        current,
+        fresh_body=False,
+        new_symbiont=False,
+    )
+
+
+def test_motor_step_applies_exclusion_before_execution_and_credit():
+    from symbiont.core.orchestration.runtime import OrganismRuntime
+
+    source = inspect.getsource(OrganismRuntime._motor_step)
+    constrain_at = source.index("constrain_intents")
+    execute_at = source.index("self._actuator_system.execute")
+    credit_at = source.index("executed_ids")
+
+    assert constrain_at < execute_at
+    assert execute_at < credit_at
+    assert "if intent.actuator_id not in executed_ids" in source
