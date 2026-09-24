@@ -68,7 +68,7 @@ class Physics3DLaunchSpec:
     def embodiment_mode(self) -> str:
         if self.new_symbiont:
             return "new"
-        return "resume" if self.body_mode == "resume" else "transplant"
+        return "resume" if self.body_mode == "resume" else "reembodiment"
 
     def runner_kwargs(self) -> dict[str, object]:
         return {
