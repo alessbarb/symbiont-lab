@@ -92,10 +92,11 @@ def _save_checkpoint(
     models_dir: Path,
     async_write: bool = False,
     active_thread: threading.Thread | None = None,
+    lifecycle_state: str = "active",
 ) -> threading.Thread | None:
     if active_thread is not None and active_thread.is_alive():
         active_thread.join()
-    runtime_payload = runtime.checkpoint()
+    runtime_payload = runtime.checkpoint(lifecycle_state=lifecycle_state)
     saved_tick = int(runtime_payload.get("saved_at_tick") or 0)
     signal_payload = runtime.organism.signal_knowledge.checkpoint()
     signal_tick = signal_payload.get("last_tick")
@@ -717,6 +718,7 @@ def run(
                 symbiont_file=symbiont_file,
                 body_file=body_file,
                 models_dir=models_dir,
+                lifecycle_state="dormant",
             )
         except Exception as exc:
             print(
