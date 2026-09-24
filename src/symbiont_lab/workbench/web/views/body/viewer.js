@@ -13,6 +13,7 @@ import {
   SEGMENT_COLORS,
 } from './model.js';
 import { BodyWorkspace } from './workspace.js';
+import { mountBodyCameraControls } from './camera-controls.js';
 
 
 function fallbackBodyModel() {
@@ -208,6 +209,7 @@ export class BodyViewer {
     this.rafId = null;
     this.sse = null;
     this.resizeObs = null;
+    this.cameraControls = null;
 
     this.init();
   }
@@ -245,23 +247,10 @@ export class BodyViewer {
   }
 
   buildDOM() {
-    this.root.style.cssText = `
-      height: 100%;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 330px;
-      grid-template-rows: 40px minmax(0, 1fr);
-      overflow: hidden;
-      background: var(--bg-deep, #0d0d12);
-    `;
+    this.root.classList.add('body-view-root');
 
     // Canvas Wrapper
-    this.canvasWrap = el('div', 'body-canvas-wrap', {
-      position: 'relative',
-      overflow: 'hidden',
-      background: 'var(--bg-deep, #0d0d12)',
-      gridColumn: '1',
-      gridRow: '2',
-    });
+    this.canvasWrap = el('div', 'body-canvas-wrap');
     this.root.appendChild(this.canvasWrap);
 
     // Canvas
@@ -349,44 +338,16 @@ export class BodyViewer {
     this.resourceIndicator.appendChild(this.resourceIndicatorLabel);
     this.canvasWrap.appendChild(this.resourceIndicator);
 
-    // Camera controls: BODY is body-centric by default, while Free preserves
-    // ordinary OrbitControls inspection when the observer wants it.
-    const cameraBar = el('div', 'body-camera-bar', {
-      position: 'absolute',
-      top: '14px',
-      left: '14px',
-      zIndex: '4',
-      display: 'flex',
-      gap: '7px',
-      alignItems: 'center',
-      padding: '5px',
-      border: '1px solid var(--line, #243342)',
-      borderRadius: '9px',
-      background: 'rgba(8, 17, 25, 0.82)',
-      backdropFilter: 'blur(8px)',
-      fontFamily: 'var(--mono, monospace)',
-      fontSize: '11px',
+    // Camera controls are presentation-only and live outside the renderer.
+    this.cameraControls = mountBodyCameraControls(this.canvasWrap, {
+      isFollowing: () => this.followBody,
+      onToggleFollow: () => {
+        this.followBody = !this.followBody;
+        if (this.followBody) this.resetCameraToBody();
+      },
+      onReset: () => this.resetCameraToBody(),
     });
-    this.followButton = document.createElement('button');
-    this.followButton.type = 'button';
-    this.followButton.textContent = '● Follow body';
-    this.followButton.style.cssText = 'border:0;border-radius:6px;padding:6px 9px;background:rgba(80,250,123,.12);color:var(--mint,#50fa7b);font:inherit;cursor:pointer;';
-    this.followButton.addEventListener('click', () => {
-      this.followBody = !this.followBody;
-      this.followButton.textContent = this.followBody ? '● Follow body' : '○ Free camera';
-      this.followButton.style.color = this.followBody ? 'var(--mint,#50fa7b)' : 'var(--muted,#8a98a8)';
-      if (this.followBody) this.resetCameraToBody();
-    });
-
-    const resetButton = document.createElement('button');
-    resetButton.type = 'button';
-    resetButton.textContent = 'Reset view';
-    resetButton.style.cssText = 'border:0;border-radius:6px;padding:6px 9px;background:rgba(255,255,255,.045);color:var(--text,#e0e0e0);font:inherit;cursor:pointer;';
-    resetButton.addEventListener('click', () => this.resetCameraToBody());
-
-    cameraBar.appendChild(this.followButton);
-    cameraBar.appendChild(resetButton);
-    this.canvasWrap.appendChild(cameraBar);
+    this.followButton = this.cameraControls.followButton;
 
     // Side Panel + Mind-style body workspace navigation.
     const panel = el('div', 'body-side-panel');
@@ -1462,6 +1423,8 @@ export class BodyViewer {
     }
 
     this.workspace?.dispose();
+    this.cameraControls?.dispose();
+    this.cameraControls = null;
 
     // OrbitControls installs DOM listeners, so dispose it explicitly.
     if (this.controls) {
@@ -1531,6 +1494,7 @@ export class BodyViewer {
       while (this.root.firstChild) {
         this.root.removeChild(this.root.firstChild);
       }
+      this.root.classList.remove('body-view-root');
       this.root.style.cssText = this.rootStyleBeforeMount;
       this.root = null;
     }
