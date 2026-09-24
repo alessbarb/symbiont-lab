@@ -1134,6 +1134,9 @@ export function createCognitionController({
       graph.world3d,
       graph.threeDMode,
     );
+    if (scene.metrics?.occupiedRadius > 0) {
+      graph.sceneRadius3d = scene.metrics.occupiedRadius;
+    }
     if (graph.autoFramePending && !graph.manualViewOverride && scene.metrics?.occupiedRadius > 0) {
       const distance = Math.min(1500, Math.max(420, scene.metrics.occupiedRadius * 3.0 + 220));
       graph.camera3d = { ...graph.camera3d, distance };
@@ -1778,7 +1781,9 @@ export function createCognitionController({
         graph.autoFramePending = false;
         if (graph.dimension === '3d') {
           invalidateProjectedRegionHistory3D();
-          graph.camera3d = zoomCamera(graph.camera3d, -1);
+          graph.camera3d = zoomCamera(graph.camera3d, -110, {
+            sceneRadius: graph.sceneRadius3d,
+          });
         } else {
           const cx = canvas.width / 2, cy = canvas.height / 2;
           const ns = Math.min(5, graph.scale * 1.25);
@@ -1796,7 +1801,9 @@ export function createCognitionController({
         graph.autoFramePending = false;
         if (graph.dimension === '3d') {
           invalidateProjectedRegionHistory3D();
-          graph.camera3d = zoomCamera(graph.camera3d, 1);
+          graph.camera3d = zoomCamera(graph.camera3d, 110, {
+            sceneRadius: graph.sceneRadius3d,
+          });
         } else {
           const cx = canvas.width / 2, cy = canvas.height / 2;
           const ns = Math.max(0.2, graph.scale * 0.8);
@@ -1812,6 +1819,7 @@ export function createCognitionController({
       resetBtn.addEventListener('click', () => {
         graph.scale = 1; graph.panX = 0; graph.panY = 0;
         graph.camera3d = { yaw: -0.55, pitch: 0.34, distance: 900 };
+        graph.sceneRadius3d = 220;
         invalidateProjectedRegionHistory3D();
         graph.autoFramePending = true;
         graph.manualViewOverride = false;
@@ -1883,7 +1891,9 @@ export function createCognitionController({
       graph.autoFramePending = false;
       if (graph.dimension === '3d') {
         invalidateProjectedRegionHistory3D();
-        graph.camera3d = zoomCamera(graph.camera3d, ev.deltaY);
+        graph.camera3d = zoomCamera(graph.camera3d, ev.deltaY, {
+          sceneRadius: graph.sceneRadius3d,
+        });
       } else {
         const factor = ev.deltaY < 0 ? 1.12 : 0.89;
         const ns = Math.min(5, Math.max(0.2, graph.scale * factor));
@@ -2780,26 +2790,32 @@ export function createCognitionController({
   }
 
   function setDimension(dimension) {
-    graph.dimension = dimension;
-    recordObserverUsage(observerUsage, 'dimension', dimension);
-    graph.autoFramePending = true;
-    graph.manualViewOverride = false;
-    if (dimension === '3d') {
-      invalidateProjectedRegionHistory3D();
-      ensure3DState(graph.nodes, graph.edges, graph.world3d, graph.velocity3d);
-    }
-    const note = document.getElementById('mind-cognition-3d-note');
-    if (note && dimension !== '3d') note.textContent = '2D observer cartography';
-    graph.alpha = Math.max(graph.alpha, 0.18);
-    if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
+    set3DMode(dimension === '3d' ? 'physicalized' : 'relational');
   }
 
   function set3DMode(mode) {
     if (!['relational','physicalized'].includes(mode)) return;
+    const dimension = mode === 'physicalized' ? '3d' : '2d';
+    const dimensionChanged = graph.dimension !== dimension;
     graph.threeDMode = mode;
+    graph.dimension = dimension;
+    graph.autoFramePending = true;
+    graph.manualViewOverride = false;
+    recordObserverUsage(observerUsage, 'dimension', dimension);
+
     invalidateProjectedRegionHistory3D();
+    if (dimension === '3d') {
+      ensure3DState(graph.nodes, graph.edges, graph.world3d, graph.velocity3d);
+    }
+
+    const note = document.getElementById('mind-cognition-3d-note');
+    if (note && dimension === '2d') note.textContent = 'RELATIONAL · 2D observer cartography';
+
+    if (dimensionChanged) {
+      const canvas = document.getElementById('mind-cognition-canvas');
+      if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    }
     graph.alpha = Math.max(graph.alpha, 0.35);
-    if (graph.dimension !== '3d') graph.dimension = '3d';
     if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
   }
 
