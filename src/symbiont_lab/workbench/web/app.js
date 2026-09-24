@@ -44,19 +44,19 @@ function rootNode() {
 
 function setStatus(text) {
   const status = document.getElementById('sb-status');
-  if (status) status.textContent = text;
+  if (status && status.textContent !== text) status.textContent = text;
 }
 
 function setRunState(text) {
   const node = document.getElementById('sb-run');
-  if (node) node.textContent = text;
+  if (node && node.textContent !== text) node.textContent = text;
 }
 
 function setDetail(text, visible = true) {
   const detail = document.getElementById('sb-detail');
   const sep = document.getElementById('sb-sep2');
   if (detail) {
-    detail.textContent = text;
+    if (detail.textContent !== text) detail.textContent = text;
     detail.hidden = !visible;
   }
   if (sep) sep.hidden = !visible;
