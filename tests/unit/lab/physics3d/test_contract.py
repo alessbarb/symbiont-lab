@@ -608,7 +608,8 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
-    assert '"genome_symbiont_physics3d_v9"' in source
+    assert '"genome_symbiont_physics3d_v9"' not in source
+    assert "missing canonical genome identity" in source
     assert "exclusive_actuator_groups=exclusive_groups" in source
     assert "load_actuator_constitution(genome)" in source
     assert "binding.positive_port" in source
@@ -683,9 +684,8 @@ def test_physics3d_l4_uses_one_physical_energy_pool_for_all_metabolism() -> None
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "physical_energy_capacity = sum(metabolic_capacity.values())" in source
     assert "living_body_state=living_body_state" in source
-    assert 'genome_symbiont_physics3d_v9' in inspect.getsource(
-        runtime.PyBulletEmbodimentRuntime.__init__
-    )
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
+    assert "genome_symbiont_physics3d_v9" not in source
 
 
 def _body_state_with_joint_position(joint_ordinal: int, position: float) -> dict:
