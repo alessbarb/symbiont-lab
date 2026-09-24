@@ -1837,7 +1837,7 @@ checkpoint             individual phenotype
 
 The two packaged resources are:
 
-- `src/symbiont/cognition/defaults/base-genome.json`
+- `src/symbiont/genetics/defaults/base-genome-v2.json`
 - `src/symbiont/cognition/defaults/base-graph.json`
 
 They are package data and are loaded through `symbiont.cognition.birth` rather
