@@ -289,7 +289,12 @@ function ingestTelemetryEvent(data, meta = {}) {
 }
 
 function updateMindSourceState(next) {
-  if (next.identityChanged) resetCurrentObservation();
+  if (next.identityChanged) {
+    resetCurrentObservation();
+    _streamState.telemetryTick = null;
+    _streamState.snapshotTick = null;
+    _streamState.coherent = false;
+  }
   Object.assign(_streamState, {
     status: next.status,
     source: next.source ?? null,

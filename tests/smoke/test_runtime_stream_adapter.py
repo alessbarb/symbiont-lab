@@ -1498,3 +1498,14 @@ def test_mind_has_observer_side_freshness_timeout_and_app_lifecycle_update() -> 
     assert "export function update(root, appState)" in mind
     assert "update as updateMind" in app
     assert "updateMind(document.getElementById(ROOT_ID), currentState)" in app
+
+
+def test_mind_source_identity_boundary_clears_coherence_and_accepts_explicit_nulls() -> None:
+    streams = (WEB_ROOT / "views" / "mind" / "streams.js").read_text(encoding="utf-8")
+    mind = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "Object.hasOwn(next, 'source')" in streams
+    assert "frameTick: data.tick ?? null" in streams
+    assert "_streamState.telemetryTick = null" in mind
+    assert "_streamState.snapshotTick = null" in mind
+    assert "_streamState.coherent = false" in mind

@@ -29,9 +29,9 @@ export class MindStreams {
   }
 
   emitSourceState(status, next = {}) {
-    const source = next.source ?? this.sourceIdentity.source ?? null;
-    const instanceId = next.instanceId ?? this.sourceIdentity.instanceId ?? null;
-    const runId = next.runId ?? this.sourceIdentity.runId ?? null;
+    const source = Object.hasOwn(next, 'source') ? next.source : this.sourceIdentity.source;
+    const instanceId = Object.hasOwn(next, 'instanceId') ? next.instanceId : this.sourceIdentity.instanceId;
+    const runId = Object.hasOwn(next, 'runId') ? next.runId : this.sourceIdentity.runId;
     const identityChanged =
       source !== this.sourceIdentity.source ||
       instanceId !== this.sourceIdentity.instanceId ||
@@ -94,7 +94,7 @@ export class MindStreams {
         this.activeInstance = null;
         this.activeRunId = null;
         for (const component of [data.body, data.cognition, data.vitals]) {
-          if (component?.type) this.onTelemetry(component);
+          if (component?.type) this.onTelemetry(component, { source: 'physics3d', instanceId: frameInstanceId, runId: frameRunId, coherentFrame: true, frameTick: data.tick ?? null });
         }
         if (data.mind) {
           this.onSnapshot(data.mind, {
