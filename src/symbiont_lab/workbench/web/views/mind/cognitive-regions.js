@@ -265,3 +265,17 @@ export function protoSubregions(regionNodes, edges, {
   }
   return components.sort((a,b) => b.length - a.length || a[0].localeCompare(b[0]));
 }
+
+export function boundaryPointToward(shape, target) {
+  const polygon = shape?.polygon ?? [];
+  const center = shape?.center ?? { x: 0, y: 0 };
+  if (!polygon.length) return center;
+  const dx = target.x - center.x;
+  const dy = target.y - center.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const ux = dx / length, uy = dy / length;
+  return polygon.reduce((best, point) => {
+    const projection = (point.x - center.x) * ux + (point.y - center.y) * uy;
+    return !best || projection > best.projection ? { point, projection } : best;
+  }, null)?.point ?? center;
+}
