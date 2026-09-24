@@ -26,7 +26,6 @@ END_RANGE_MARGIN = math.radians(6.0)
 END_RANGE_STIFFNESS = 18.0
 END_RANGE_DAMPING = 1.5
 PASSIVE_TONE_STIFFNESS_FRACTION = 0.55
-PASSIVE_TONE_DAMPING_FRACTION = 0.35
 PASSIVE_TONE_TORQUE_CAP_FRACTION = 0.45
 MOTOR_DOF = 31
 SOMATIC_REGION_COUNT = 15
@@ -397,17 +396,22 @@ def _passive_postural_tone(
     position: float,
     velocity: float,
 ) -> float:
-    """Elastic/damped body property, not a controller or learned target.
+    """Elastic body property, not a controller or learned target.
 
-    Every joint has a neutral mechanical rest configuration.  This is the
-    digital analogue of passive tissue elasticity and resting muscle tone:
+    Every joint has a neutral mechanical rest configuration.  URDF joint
+    damping supplies passive dissipation; this term supplies only elastic
+    neutral-rest tone.  This is the digital analogue of passive tissue
+    elasticity and resting muscle tone:
     it contains no task, gait, balance strategy or anatomy visible to the
     organism.  The apparatus owns it exactly like mass, inertia and friction.
     """
     rest = _neutral_rest_position(spec)
     stiffness = spec.max_motor_torque * PASSIVE_TONE_STIFFNESS_FRACTION
-    damping = spec.passive_damping * PASSIVE_TONE_DAMPING_FRACTION
-    torque = stiffness * (rest - position) - damping * velocity
+    # Joint damping is already an explicit URDF mechanical property.  Adding
+    # another proportional velocity term here would double-count the same
+    # passive dissipation.  Postural tone contributes only the neutral-rest
+    # elastic component; end-range tissue resistance has its own damping.
+    torque = stiffness * (rest - position)
     cap = spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION
     return max(-cap, min(cap, torque))
 
