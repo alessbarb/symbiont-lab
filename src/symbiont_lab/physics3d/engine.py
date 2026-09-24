@@ -159,7 +159,7 @@ def _print_headless_progress(
         f"  schema={getattr(record, 'schema_confidence', 0.0):.3f}"
         f"  parts={getattr(record, 'schema_parts', 0):>3}"
         f"  deps={getattr(record, 'schema_dependencies', 0):>3}"
-        f"  work={getattr(record, 'mechanical_work_joules', 0.0):.3f}J"
+        f"  effort={getattr(record, 'absolute_actuator_work_joules', getattr(record, 'mechanical_work_joules', 0.0)):.3f}J"
         f"  rt={realtime_ratio:.2f}x"
         f"  ckpt={checkpoint_age:>5}"
     )
