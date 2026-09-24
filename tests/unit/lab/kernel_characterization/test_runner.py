@@ -9,8 +9,8 @@ from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, run_k3, 
 def test_variant_does_not_change_canonical_defaults():
     variant = KernelVariant(max_nodes=64)
     assert variant.limits().max_nodes == 64
-    assert BASELINE_KERNEL.max_nodes == 192
-    assert BASELINE_KERNEL.max_edges == 1536
+    assert BASELINE_KERNEL.max_nodes == 768
+    assert BASELINE_KERNEL.max_edges == 6144
 
 
 def test_k1_is_deterministic_and_includes_control():
@@ -34,7 +34,7 @@ def test_k1_probe_is_capacity_sensitive_and_frontier_is_variant_level():
     errors = {row["max_nodes"]: row["prediction_error"] for row in raw}
     assert errors[64] > errors[192] > errors[512]
     assert all("seed" not in row for row in frontier)
-    assert summary["variants"][1]["max_nodes"] == 192
+    assert summary["variants"][1]["max_nodes"] == 768
 
 
 def test_write_run_contains_reproduction_artifacts(tmp_path):
