@@ -251,7 +251,13 @@ class PyBulletEmbodimentRuntime:
 
         self.apparatus = self.body_descriptor.apparatus_factory(p, self.client_id)
         if physical_state is not None:
-            self.apparatus.restore_physical_state(physical_state)
+            # Resume may contain finite solver penetration beyond the declared
+            # anatomical envelope. Project it back onto the current mechanical
+            # manifold here; direct apparatus restore remains strict by default.
+            self.apparatus.restore_physical_state(
+                physical_state,
+                strict_anatomical_limits=False,
+            )
         else:
             self._settle_new_body()
 
