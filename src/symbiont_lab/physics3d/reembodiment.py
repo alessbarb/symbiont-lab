@@ -519,6 +519,7 @@ def update_lifecycle_for_checkpoint(
     *,
     contract: EmbodimentContract,
     state: str,
+    metrics: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Attach execution lifecycle metadata without changing organism cognition."""
     if state not in {"active", "dormant", "suspended"}:
@@ -537,6 +538,18 @@ def update_lifecycle_for_checkpoint(
 
     current.update(contract.as_dict())
     current["body_vital_state"] = _body_vital_state(payload)
+    current.setdefault("started_tick", 0)
+    current.setdefault(
+        "contract_fingerprint",
+        contract_fingerprint(
+            payload,
+            receptor_count=contract.receptor_count,
+            effector_count=contract.effector_count,
+        ),
+    )
+    if metrics is not None:
+        current["metrics"] = deepcopy(dict(metrics))
+
     payload["embodiment_lifecycle"] = {
         "schema_version": _SCHEMA_VERSION,
         "state": state,
@@ -544,6 +557,29 @@ def update_lifecycle_for_checkpoint(
         "current": current,
         "history": history[-_MAX_EMBODIMENT_HISTORY:],
     }
+
+    if current["body_vital_state"] == "dead":
+        summary = build_epoch_summary(
+            payload,
+            epoch=epoch,
+            started_tick=int(current.get("started_tick") or 0),
+            contract_fingerprint_value=str(current["contract_fingerprint"]),
+            body_kind=str(contract.body_kind),
+            metrics=current.get("metrics") if isinstance(current.get("metrics"), Mapping) else {},
+            reembodied_alive=False,
+        )
+        append_epoch_summary(payload, summary)
+        current["closed"] = True
+        current["epoch_summary"] = deepcopy(summary)
+        _bridge, motor_surface = _detach_body_specific_cognition(payload)
+        payload["embodiment_memory"] = archive_contract_memory(
+            payload,
+            contract_fingerprint_value=str(current["contract_fingerprint"]),
+            epoch=epoch,
+            motor_cognitive_surface=motor_surface,
+            active_private_model_id=_active_private_model_id(payload),
+        )
+
     return payload
 
 
