@@ -120,8 +120,13 @@ export function atlasRegionLinks(nodes, edges) {
       stableTicks: 0,
       lastUseTick: 0,
       kinds: {},
+      forward: 0,
+      reverse: 0,
     };
     item.count += 1;
+    const [first] = [a,b].sort();
+    if (a === first) item.forward += 1;
+    else item.reverse += 1;
     item.support += Math.max(0, finite(edge.support, 0));
     item.stableTicks += Math.max(0, finite(edge.stableTicks, 0));
     item.lastUseTick = Math.max(item.lastUseTick, finite(edge.lastUseTick, 0));
