@@ -428,8 +428,12 @@ def _fixed_total_torque_trials(
     time_step: float,
     repeats: int,
 ) -> tuple[float, list[dict[str, object]]]:
-    # Reference budget is one trunk-yaw channel at the requested amplitude.
-    torque_budget = JOINT_SPECS[0].max_motor_torque * reference_amplitude
+    # Use a budget feasible for every individual DoF.  Otherwise low-torque
+    # joints would saturate at activation=1 and the supposedly fixed-total-
+    # torque arm would silently compare different total capacities.
+    torque_budget = min(
+        spec.max_motor_torque for spec in JOINT_SPECS
+    ) * reference_amplitude
     trials: list[dict[str, object]] = []
     for dimension in dimensions:
         for selected in _matched_index_sets(len(JOINT_SPECS), dimension, repeats):
