@@ -79,13 +79,12 @@ class BodyStructureState:
 
 @dataclass(slots=True)
 class LivingBodyState:
-    """Single persistent owner of physical physiological state.
+    """Single persistent owner of one Body physiological state.
 
-    Controllers may transform or project this state, but they must not keep
-    independent copies of energy, integrity, temperature, age or vital state.
+    ``age_ticks`` and ``death_tick`` are Body-local biological time. They are
+    deliberately independent from the persistent Symbiont historical tick.
     Cognition never receives these field names directly.
     """
-
     energy_reserve: float = 1.0
     max_energy: float = 2.0
     structural_integrity: float = 1.0
@@ -139,6 +138,13 @@ class LivingBodyState:
             raise ValueError("transitions must be non-negative")
         if self.vital_state is VitalState.DEAD and self.death_tick is None:
             raise ValueError("dead body requires death_tick")
+        if self.death_tick is not None:
+            if (
+                isinstance(self.death_tick, bool)
+                or not isinstance(self.death_tick, int)
+                or self.death_tick < 0
+            ):
+                raise ValueError("death_tick must be a non-negative Body-local age tick")
         for field_name in (
             "metabolic_capacity",
             "metabolic_replenishment",
@@ -191,6 +197,9 @@ class LivingBodyState:
         self.transitions += 1
 
     def transition(self, state: VitalState, *, tick: int) -> None:
+        """Transition physical viability using a Body-local age tick."""
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+            raise ValueError("physiology transition tick must be Body-local")
         state = VitalState(state)
         if self.vital_state is VitalState.DEAD:
             return
@@ -263,6 +272,7 @@ class LivingBodyState:
         self.apply_structural_delta(-amount)
 
     def advance_age(self) -> None:
+        """Advance this Body biological age by one executed live tick."""
         if self.alive:
             self.age_ticks += 1
 

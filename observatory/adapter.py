@@ -132,7 +132,7 @@ def _body_schema_state(body_schema: Any) -> dict[str, Any]:
     state = body_schema.get("state")
     raw_parts = body_schema.get("parts")
     raw_dependencies = body_schema.get("dependencies")
-    if state not in {"undeveloped", "partial"} or not isinstance(raw_parts, list) or not isinstance(raw_dependencies, list):
+    if state not in {"undeveloped", "partial", "developing", "established", "revising"} or not isinstance(raw_parts, list) or not isinstance(raw_dependencies, list):
         return fallback
     max_parts = MAX_SENSORY_PARTS if version == 1 else MAX_BODY_PARTS
     max_dependencies = 0 if version == 1 else MAX_BODY_DEPENDENCIES

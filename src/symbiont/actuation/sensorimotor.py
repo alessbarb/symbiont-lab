@@ -391,6 +391,7 @@ class SensorimotorLearner:
         self._last_episode_end_tick: dict[MotorSequence, int] = {}
         self._primitives: dict[str, MotorPrimitive] = {}
         self._primitive_id_by_sequence: dict[MotorSequence, str] = {}
+        self._historical_primitive_candidates: dict[str, MotorSequence] = {}
         self._primitives_cache: tuple[MotorPrimitive, ...] | None = None
         self._cognitive_primitives_cache: tuple[MotorPrimitive, ...] | None = None
 
@@ -807,10 +808,13 @@ class SensorimotorLearner:
                 self._primitive_id_for_sequence(key)
                 for key in retained_sequences
             }
+            historical_sequences = set(
+                self._historical_primitive_candidates.values()
+            )
             self._primitive_id_by_sequence = {
                 key: primitive_id
                 for key, primitive_id in self._primitive_id_by_sequence.items()
-                if key in retained_sequences
+                if key in retained_sequences or key in historical_sequences
             }
             self._primitives = {
                 primitive_id: primitive
@@ -868,6 +872,7 @@ class SensorimotorLearner:
             directional_consistency=directional_consistency,
         )
         self._primitive_materialized_tick.setdefault(sequence, int(end_tick))
+        self._historical_primitive_candidates.pop(primitive_id, None)
         self._invalidate_primitive_caches()
 
         # WARN(invariant): A bounded repertoire must not evict a primitive that has already
@@ -1148,7 +1153,7 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 7,
+            "schema_version": 8,
             "actuator_ids": list(self._ids),
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
@@ -1202,6 +1207,15 @@ class SensorimotorLearner:
             "primitives": [
                 primitive.checkpoint() for primitive in self.primitives
             ],
+            "historical_candidates": [
+                {
+                    "primitive_id": primitive_id,
+                    "sequence": _sequence_payload(sequence),
+                }
+                for primitive_id, sequence in sorted(
+                    self._historical_primitive_candidates.items()
+                )
+            ],
             "replay_id": self._replay_id,
             "replay_step": self._replay_step,
             "replay_source": self._replay_source,
@@ -1215,7 +1229,7 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         organism_id: str,
     ) -> "SensorimotorLearner":
-        # WARN(fail-closed): L6.1b: only the current schema is restorable. Pre-L6 schemas (1-4)
+        # WARN(fail-closed): v7 and v8 are restorable. Pre-L6 schemas (1-4)
         # could carry the removed scheduled-verification/investigation
         # apparatus (verification_count, investigation_id,
         # last_verification_epoch, replay_source=="verification") — there is
@@ -1228,11 +1242,11 @@ class SensorimotorLearner:
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=7,
+            maximum=8,
         )
-        if schema != 7:
+        if schema not in (7, 8):
             raise ValueError(
-                "unsupported sensorimotor checkpoint: schema_version must be 7 "
+                "unsupported sensorimotor checkpoint: schema_version must be 7 or 8 "
                 "(older schemas either may carry removed verification apparatus, "
                 "body-wide cardinality bias, or non-independent primitive evidence)"
             )
@@ -1460,6 +1474,26 @@ class SensorimotorLearner:
                 learner._primitives[primitive.primitive_id] = primitive
                 learner._primitive_id_by_sequence[primitive.sequence] = primitive.primitive_id
 
+        if schema >= 8:
+            raw_historical = payload.get("historical_candidates", [])
+            if not isinstance(raw_historical, list) or len(raw_historical) > _MAX_PRIMITIVES:
+                raise ValueError("invalid historical primitive candidates")
+            for item in raw_historical:
+                if not isinstance(item, Mapping):
+                    raise ValueError("invalid historical primitive candidate")
+                primitive_id = item.get("primitive_id")
+                if not isinstance(primitive_id, str) or not primitive_id:
+                    raise ValueError("invalid historical primitive id")
+                sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
+                if len(sequence) != _PRIMITIVE_TICKS:
+                    raise ValueError("historical primitive has invalid temporal duration")
+                if (
+                    primitive_id in learner._primitives
+                    or sequence in learner._primitive_id_by_sequence
+                ):
+                    continue
+                learner._historical_primitive_candidates[primitive_id] = sequence
+                learner._primitive_id_by_sequence[sequence] = primitive_id
         replay_id = payload.get("replay_id")
         if replay_id is not None and not isinstance(replay_id, str):
             raise ValueError("invalid sensorimotor replay id")
@@ -1490,6 +1524,36 @@ class SensorimotorLearner:
         learner._last_episode_end_tick.clear()
         return learner
 
+    @property
+    def historical_primitive_candidate_ids(self) -> tuple[str, ...]:
+        return tuple(sorted(self._historical_primitive_candidates))
+
+    def register_historical_primitive_candidates(
+        self, payloads: Sequence[Mapping[str, object]]
+    ) -> int:
+        """Register prior-body motor hypotheses without granting competence."""
+        allowed = set(self._ids)
+        added = 0
+        for item in payloads:
+            primitive_id = item.get("primitive_id")
+            if not isinstance(primitive_id, str) or not primitive_id:
+                continue
+            try:
+                sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
+            except ValueError:
+                continue
+            if (
+                len(sequence) != _PRIMITIVE_TICKS
+                or primitive_id in self._primitives
+                or sequence in self._primitive_id_by_sequence
+            ):
+                continue
+            if len(self._historical_primitive_candidates) >= _MAX_PRIMITIVES:
+                break
+            self._historical_primitive_candidates[primitive_id] = sequence
+            self._primitive_id_by_sequence[sequence] = primitive_id
+            added += 1
+        return added
     def has_cognitive_primitive(self, primitive_id: str) -> bool:
         """Return True iff primitive_id is currently a supported competence.
 

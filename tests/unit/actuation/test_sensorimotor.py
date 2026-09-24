@@ -548,7 +548,7 @@ def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mu
 
 @pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5, 6])
 def test_restore_rejects_every_pre_v7_schema_outright(legacy_schema):
-    """Older checkpoints cannot be represented honestly by the v7 learner.
+    """Older checkpoints cannot be represented honestly by the v7/v8 learner.
 
     Pre-L6 state may carry removed verification apparatus; v5 contains motor
     evidence gathered under uniform 1..N babbling, and v6 lacks provenance
@@ -903,3 +903,75 @@ def test_primitive_episode_provenance_is_ephemeral_and_independent():
         discovery_eligible=False,
     )
     assert learner.last_primitive_episodes == ()
+
+
+
+def test_historical_primitive_requires_fresh_evidence_before_cognitive_reuse():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-historical-revalidation",
+        max_concurrent=4,
+    )
+    historical_id = "primitive.historical"
+    sequence = (
+        (("actuator.0", 5),),
+        (("actuator.1", 5),),
+        (("actuator.2", 5),),
+        (("actuator.3", 5),),
+    )
+
+    added = learner.register_historical_primitive_candidates([
+        {
+            "primitive_id": historical_id,
+            "sequence": [
+                [["actuator.0", 5]],
+                [["actuator.1", 5]],
+                [["actuator.2", 5]],
+                [["actuator.3", 5]],
+            ],
+        }
+    ])
+
+    assert added == 1
+    assert learner.historical_primitive_candidate_ids == (historical_id,)
+    assert learner.available_cognitive_primitive_ids() == ()
+    assert learner.primitive_intents(historical_id) == ()
+
+    learner._record_primitive_episode(
+        sequence=sequence,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.1},
+        end_tick=4,
+        may_create=True,
+        evidence_blocks=frozenset({0}),
+    )
+    assert learner.available_cognitive_primitive_ids() == ()
+
+    learner._record_primitive_episode(
+        sequence=sequence,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.1},
+        end_tick=12,
+        may_create=True,
+        evidence_blocks=frozenset({1}),
+    )
+
+    assert learner.available_cognitive_primitive_ids() == (historical_id,)
+    assert learner.historical_primitive_candidate_ids == ()
+    assert learner.has_cognitive_primitive(historical_id)
+
+
+def test_sensorimotor_v7_checkpoint_remains_restore_compatible_without_memory_candidates():
+    learner = SensorimotorLearner(_ids(4), organism_id="org-v7-compat")
+    payload = learner.checkpoint()
+    payload["schema_version"] = 7
+    payload.pop("historical_candidates")
+
+    restored = SensorimotorLearner.restore(
+        payload,
+        actuator_ids=_ids(4),
+        organism_id="org-v7-compat",
+    )
+
+    assert restored.historical_primitive_candidate_ids == ()
+    assert restored.checkpoint()["schema_version"] == 8

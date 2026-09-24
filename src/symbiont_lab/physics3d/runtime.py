@@ -37,6 +37,7 @@ from .humanoid import apply_surface_material, configure_physics_solver
 from .resource import PhysicalResource
 from .reembodiment import (
     EmbodimentContract,
+    migrate_temporal_domains,
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
 )
@@ -49,6 +50,7 @@ class PhysicsServerDisconnected(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class Tick3D:
     tick: int
+    symbiont_tick: int
     alive: bool
     base_position: tuple[float, float, float]
     base_orientation: tuple[float, float, float, float]
@@ -59,6 +61,8 @@ class Tick3D:
     schema_dependency_evidence: int
     schema_dependencies: int
     embodiment_epoch: int
+    body_age_ticks: int
+    body_senescence: float
     reacclimation_remaining: int
     reacclimating: bool
     predictor_count: int
@@ -382,8 +386,12 @@ class PyBulletEmbodimentRuntime:
             self.organism = _fresh_organism(organism_id)
             self._embodiment_contract = contract
             self._embodiment_lifecycle: dict[str, Any] | None = None
+            self._embodiment_memory: dict[str, Any] | None = None
+            self._embodiment_epoch_summaries: list[dict[str, Any]] = []
+            self._temporal_migration: dict[str, Any] | None = None
             self._reembodied = False
         else:
+            runtime_checkpoint = migrate_temporal_domains(runtime_checkpoint)
             effective = runtime_checkpoint.get("effective_config", {})
             if not isinstance(effective, Mapping) or not bool(
                 effective.get("explicit_metabolism", False)
@@ -428,6 +436,28 @@ class PyBulletEmbodimentRuntime:
                 if isinstance(raw_lifecycle, dict)
                 else None
             )
+            raw_memory = restored_payload.get("embodiment_memory")
+            self._embodiment_memory = (
+                deepcopy(raw_memory)
+                if isinstance(raw_memory, dict)
+                else None
+            )
+            raw_summaries = restored_payload.get("embodiment_epoch_summaries")
+            self._embodiment_epoch_summaries = (
+                [
+                    deepcopy(item)
+                    for item in raw_summaries
+                    if isinstance(item, dict)
+                ]
+                if isinstance(raw_summaries, list)
+                else []
+            )
+            raw_migration = restored_payload.get("temporal_migration")
+            self._temporal_migration = (
+                deepcopy(raw_migration)
+                if isinstance(raw_migration, dict)
+                else None
+            )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
                 restored_payload,
                 host_lifecycle=host_lifecycle,
@@ -442,6 +472,25 @@ class PyBulletEmbodimentRuntime:
             )
             self._embodiment_contract = contract
 
+        current_lifecycle = (
+            self._embodiment_lifecycle.get("current")
+            if isinstance(self._embodiment_lifecycle, Mapping)
+            else None
+        )
+        raw_epoch_metrics = (
+            current_lifecycle.get("metrics")
+            if isinstance(current_lifecycle, Mapping)
+            else None
+        )
+        raw_epoch_metrics = raw_epoch_metrics if isinstance(raw_epoch_metrics, Mapping) else {}
+        self._epoch_metrics: dict[str, Any] = {
+            "absorbed_material_total": float(raw_epoch_metrics.get("absorbed_material_total") or 0.0),
+            "mechanical_work_total": float(raw_epoch_metrics.get("mechanical_work_total") or 0.0),
+            "physiological_cost_total": float(raw_epoch_metrics.get("physiological_cost_total") or 0.0),
+            "reacclimation_ticks_consumed": int(raw_epoch_metrics.get("reacclimation_ticks_consumed") or 0),
+            "reacclimation_completed": bool(raw_epoch_metrics.get("reacclimation_completed", False)),
+            "vital_state_ticks": dict(raw_epoch_metrics.get("vital_state_ticks") or {}),
+        }
         self._last_physical_tick = self.tick_count
         self._telemetry_seen_experience_ids = {
             str(record.record_id)
@@ -539,6 +588,18 @@ class PyBulletEmbodimentRuntime:
                 pass
         return 1
 
+    @property
+    def historical_private_model_candidates(self) -> tuple[str, ...]:
+        lifecycle = self._embodiment_lifecycle
+        current = lifecycle.get("current") if isinstance(lifecycle, Mapping) else None
+        raw = current.get("candidate_private_model_ids") if isinstance(current, Mapping) else None
+        if not isinstance(raw, list):
+            return ()
+        return tuple(
+            str(value)
+            for value in raw
+            if isinstance(value, str) and value
+        )
     def physics_connected(self) -> bool:
         if self.client_id < 0:
             return False
@@ -582,12 +643,42 @@ class PyBulletEmbodimentRuntime:
         payload = self.organism.checkpoint()
         if self._embodiment_lifecycle is not None:
             payload["embodiment_lifecycle"] = deepcopy(self._embodiment_lifecycle)
+        if self._embodiment_memory is not None:
+            payload["embodiment_memory"] = deepcopy(self._embodiment_memory)
+        if self._embodiment_epoch_summaries:
+            payload["embodiment_epoch_summaries"] = deepcopy(
+                self._embodiment_epoch_summaries
+            )
+        if self._temporal_migration is not None:
+            payload["temporal_migration"] = deepcopy(self._temporal_migration)
+
         payload = update_lifecycle_for_checkpoint(
             payload,
             contract=self._embodiment_contract,
             state=lifecycle_state,
+            metrics=self._epoch_metrics,
         )
         self._embodiment_lifecycle = deepcopy(payload["embodiment_lifecycle"])
+        raw_memory = payload.get("embodiment_memory")
+        self._embodiment_memory = (
+            deepcopy(raw_memory) if isinstance(raw_memory, dict) else None
+        )
+        raw_summaries = payload.get("embodiment_epoch_summaries")
+        self._embodiment_epoch_summaries = (
+            [
+                deepcopy(item)
+                for item in raw_summaries
+                if isinstance(item, dict)
+            ]
+            if isinstance(raw_summaries, list)
+            else []
+        )
+        raw_migration = payload.get("temporal_migration")
+        self._temporal_migration = (
+            deepcopy(raw_migration)
+            if isinstance(raw_migration, dict)
+            else self._temporal_migration
+        )
         return payload
 
     def passive_physical_state(self) -> dict[str, object]:
@@ -1210,6 +1301,33 @@ class PyBulletEmbodimentRuntime:
                 "actuator_evidence": actuator_evidence,
             }
 
+        self._epoch_metrics["absorbed_material_total"] = float(
+            self._epoch_metrics.get("absorbed_material_total", 0.0)
+        ) + float(absorbed_energy)
+        self._epoch_metrics["mechanical_work_total"] = float(
+            self._epoch_metrics.get("mechanical_work_total", 0.0)
+        ) + float(mechanical_work_joules)
+        self._epoch_metrics["physiological_cost_total"] = float(
+            self._epoch_metrics.get("physiological_cost_total", 0.0)
+        ) + float(metabolic_work_cost)
+        if self.organism.reacclimation_remaining > 0:
+            self._epoch_metrics["reacclimation_ticks_consumed"] = int(
+                self._epoch_metrics.get("reacclimation_ticks_consumed", 0)
+            ) + 1
+        else:
+            self._epoch_metrics["reacclimation_completed"] = True
+        state_name = str(
+            getattr(
+                getattr(result, "physiology", None),
+                "state",
+                "unknown",
+            ).value
+            if getattr(getattr(result, "physiology", None), "state", None) is not None
+            else "unknown"
+        )
+        vital_counts = self._epoch_metrics.setdefault("vital_state_ticks", {})
+        if isinstance(vital_counts, dict):
+            vital_counts[state_name] = int(vital_counts.get(state_name, 0)) + 1
         physiology_state = getattr(result, "physiology", None)
         prospective_decision = self.organism.last_prospective_decision
         prospective_reason = (
@@ -1429,6 +1547,7 @@ class PyBulletEmbodimentRuntime:
 
         return Tick3D(
             tick=self.tick_count,
+            symbiont_tick=self.tick_count,
             alive=(
                 result.physiology is None
                 or result.physiology.state is not VitalState.DEAD
@@ -1442,6 +1561,8 @@ class PyBulletEmbodimentRuntime:
             schema_dependency_evidence=int(schema["dependency_evidence"]),
             schema_dependencies=int(schema["dependencies"]),
             embodiment_epoch=self.embodiment_epoch,
+            body_age_ticks=int(self.organism.living_body_state.age_ticks),
+            body_senescence=float(self.organism.living_body_state.senescence),
             reacclimation_remaining=int(self.organism.reacclimation_remaining),
             reacclimating=bool(self.organism.reacclimation_remaining > 0),
             predictor_count=predictor_count,

@@ -8,7 +8,7 @@
   "required": ["schema_version", "state", "parts", "dependencies", "global_state"],
   "properties": {
     "schema_version": { "enum": [1, 2] },
-    "state": { "enum": ["undeveloped", "partial"] },
+    "state": { "enum": ["undeveloped", "partial", "developing", "established", "revising"] },
     "parts": {
       "type": "array",
       "maxItems": 288,

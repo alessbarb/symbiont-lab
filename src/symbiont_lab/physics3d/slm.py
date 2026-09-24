@@ -20,6 +20,7 @@ from typing import Any, Protocol, TypedDict
 from symbiont.modeling.authority import TrainingRequest
 from symbiont.modeling.corpus import TrainingCorpus
 from symbiont.modeling.gateway import PrivateModelBridge
+from symbiont.modeling.registry import ModelState
 from symbiont.modeling.tokenizer import NativeTokenizer
 from symbiont_lab.modeling.artifacts import FileArtifactStore
 from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
@@ -301,21 +302,49 @@ class Physics3DSlmManager:
             )
         )
 
-    def attach_existing(self, runtime: _PrivateModelRuntime) -> None:
+    def attach_existing(
+        self,
+        runtime: _PrivateModelRuntime,
+        *,
+        candidate_model_ids: tuple[str, ...] = (),
+    ) -> None:
+        """Attach ACTIVE inference or a known-contract SHADOW candidate.
+
+        Historical candidates never become ACTIVE here. A DEGRADED record may
+        re-enter SHADOW because registry transitions explicitly permit
+        DEGRADED -> SHADOW; activation still requires independent promotion.
+        """
         active = runtime.model_registry.active
-        if active is None:
+        if active is not None:
+            path = _tokenizer_path(self.models_dir, active.model_id)
+            if not path.is_file():
+                self._last_error = (
+                    "active SLM artifact exists but its tokenizer sidecar is missing"
+                )
+                return
+            try:
+                self._attach_model(runtime, active.model_id)
+                self._last_error = None
+            except Exception as exc:
+                self._last_error = f"{type(exc).__name__}: {exc}"
             return
-        path = _tokenizer_path(self.models_dir, active.model_id)
-        if not path.is_file():
-            self._last_error = (
-                "active SLM artifact exists but its tokenizer sidecar is missing"
-            )
-            return
-        try:
-            self._attach_model(runtime, active.model_id)
-            self._last_error = None
-        except Exception as exc:
-            self._last_error = f"{type(exc).__name__}: {exc}"
+
+        for model_id in candidate_model_ids:
+            record = runtime.model_registry.get(model_id)
+            if record is None or record.state not in {ModelState.DEGRADED, ModelState.SHADOW}:
+                continue
+            path = _tokenizer_path(self.models_dir, model_id)
+            if not path.is_file():
+                continue
+            try:
+                if record.state is ModelState.DEGRADED:
+                    runtime.model_registry.transition(model_id, ModelState.SHADOW)
+                self._attach_model(runtime, model_id)
+                self._last_error = None
+                return
+            except Exception as exc:
+                self._last_error = f"{type(exc).__name__}: {exc}"
+        runtime.attach_private_model_bridge(None)
 
     @staticmethod
     def _make_registry_room(runtime: _PrivateModelRuntime) -> None:

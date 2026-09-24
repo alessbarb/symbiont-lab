@@ -199,7 +199,29 @@ class BodySchemaEngine:
 
     @property
     def state(self) -> str:
-        return "partial" if self.part_count else "undeveloped"
+        """Evidence state, never a claim of anatomical completeness."""
+        if self.part_count == 0:
+            return "undeveloped"
+        # Restore-maintenance flags are intentionally excluded: public state
+        # must be derived from persisted evidence, not from ephemeral work that
+        # happens to be pending after process restart.
+        mature_sensory = sum(
+            1
+            for part in self._parts.values()
+            if part.maturity_class >= 4 and part.confidence_class >= 3
+        )
+        enough_sensory = (
+            self.sensory_part_count > 0
+            and mature_sensory >= max(1, self.sensory_part_count // 2)
+        )
+        stable_regions = sum(
+            1
+            for region in self._regions.values()
+            if region.maturity_class >= 4 and region.confidence_class >= 3
+        )
+        if enough_sensory and (stable_regions > 0 or self.sensory_part_count >= 4):
+            return "established"
+        return "developing"
 
     @property
     def part_count(self) -> int:
@@ -1223,8 +1245,15 @@ class BodySchemaEngine:
             raise ValueError("body_schema checkpoint is missing a valid private id_salt")
         model = cls(id_salt=id_salt)
         state = payload.get("state")
-        if state not in ("undeveloped", "partial"):
-            raise ValueError("body_schema state must be 'undeveloped' or 'partial'")
+        allowed_states = {
+            "undeveloped",
+            "partial",  # legacy observer/checkpoint state
+            "developing",
+            "established",
+            "revising",
+        }
+        if state not in allowed_states:
+            raise ValueError("invalid body_schema evidence state")
         raw_parts = payload.get("parts")
         if not isinstance(raw_parts, list):
             raise ValueError("body_schema parts must be an array")
@@ -1270,8 +1299,8 @@ class BodySchemaEngine:
 
         if state == "undeveloped" and model.part_count:
             raise ValueError("undeveloped body_schema cannot contain parts")
-        if state == "partial" and not model.part_count:
-            raise ValueError("partial body_schema must contain at least one part")
+        if state != "undeveloped" and not model.part_count:
+            raise ValueError("developed body_schema state requires at least one part")
         return model
 
 
