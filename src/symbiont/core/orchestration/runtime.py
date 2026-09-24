@@ -1370,6 +1370,11 @@ class OrganismRuntime:
                 ] = observed_effect.effect_id
 
             if transition.competence_id is not None and observed_effect is not None:
+                self._body_schema.observe_sensorimotor_evidence(
+                    competence_id=transition.competence_id,
+                    effect_id=observed_effect.effect_id,
+                    tick=tick,
+                )
                 competence = self._competence_library.get(transition.competence_id)
                 if competence is not None:
                     current_surface = (
@@ -4097,6 +4102,9 @@ class OrganismRuntime:
                         runtime._effect_space = EffectSpace.restore(raw_effects)
                     if isinstance(raw_evidence, dict):
                         runtime._causal_evidence = CausalEvidenceLedger.restore(raw_evidence)
+                        runtime._body_schema.rebuild_sensorimotor_view(
+                            runtime._causal_evidence.evidence
+                        )
                     raw_exploration = raw_v2.get("exploration")
                     if isinstance(raw_exploration, dict):
                         raw_strength = raw_exploration.get("strength_memory", {})
