@@ -920,8 +920,6 @@ class PyBulletEmbodimentRuntime:
                     "effector_id": self._actuator_to_effector.get(actuation.actuator_id),
                     "requested": float(actuation.requested),
                     "delivered": float(actuation.delivered),
-                    "cost": float(actuation.cost),
-                    "health_at_execution": float(actuation.health_at_execution),
                 }
             )
         return {
