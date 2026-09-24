@@ -1374,3 +1374,377 @@
   .mind-cognition-event-stream { display: none; }
   .mind-cognition-live-timeline { left: 12px; right: 12px; bottom: 50px; }
 }
+
+
+/* ── Sensory Intelligence Workbench ─────────────────────────────── */
+.mind-workspace[data-active-tab="sensory"] {
+  grid-template-columns: 238px minmax(0, 1fr);
+}
+
+.mind-senses-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mind-senses-panel .mind-side-list {
+  min-height: 0;
+  overflow: auto;
+}
+
+.mind-senses-summary-rich {
+  padding: 10px 11px 9px;
+  background: rgba(80, 217, 255, 0.018);
+}
+
+.mind-sensory-search {
+  box-sizing: border-box;
+  width: calc(100% - 16px);
+  margin: 8px;
+  padding: 7px 8px;
+  border: 1px solid rgba(98, 120, 136, 0.20);
+  border-radius: 6px;
+  outline: none;
+  background: rgba(4, 14, 24, 0.54);
+  color: var(--text);
+  font: inherit;
+  font-size: 8px;
+}
+
+.mind-sensory-search:focus {
+  border-color: rgba(80, 217, 255, 0.42);
+  box-shadow: 0 0 0 2px rgba(80, 217, 255, 0.05);
+}
+
+.mind-sensory-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 8px 8px;
+  border-bottom: 1px solid rgba(98, 120, 136, 0.13);
+}
+
+.mind-sensory-filter {
+  border: 1px solid rgba(98, 120, 136, 0.16);
+  border-radius: 5px;
+  padding: 3px 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 7px;
+  cursor: pointer;
+}
+
+.mind-sensory-filter:hover,
+.mind-sensory-filter.active {
+  color: var(--cyan);
+  border-color: rgba(80, 217, 255, 0.28);
+  background: rgba(80, 217, 255, 0.055);
+}
+
+.mind-sense-table-row.selected {
+  background: rgba(80, 217, 255, 0.08);
+  box-shadow: inset 2px 0 var(--cyan);
+}
+
+.mind-sensory-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) 38px auto;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg-deep);
+  color: var(--muted);
+}
+
+.mind-sensory-header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(210px, auto) minmax(300px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 58px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid rgba(98, 120, 136, 0.16);
+  background: rgba(8, 18, 29, 0.82);
+}
+
+.mind-sensory-heading {
+  min-width: 0;
+}
+
+.mind-sensory-title {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.mind-sensory-subtitle {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.mind-sensory-metrics {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.mind-sensory-metric {
+  min-width: 62px;
+  padding: 4px 7px 5px;
+  border-left: 1px solid rgba(98, 120, 136, 0.14);
+}
+
+.mind-sensory-metric small,
+.mind-sensory-metric b {
+  display: block;
+}
+
+.mind-sensory-metric small {
+  color: rgba(140, 166, 188, 0.62);
+  font-size: 6.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mind-sensory-metric b {
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.mind-sensory-lenses {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.mind-sensory-lenses .mind-ctrl-btn {
+  padding: 5px 7px;
+  font-size: 7px;
+}
+
+.mind-sensory-stage {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 42% 42%, rgba(80, 217, 255, 0.025), transparent 38%),
+    var(--bg-deep);
+}
+
+.mind-sensory-map-svg {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  min-width: 0;
+  min-height: 0;
+  display: block;
+}
+
+.mind-sensory-inspector {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 12px 18px;
+  border-left: 1px solid rgba(98, 120, 136, 0.16);
+  background: rgba(6, 15, 25, 0.86);
+}
+
+.mind-sensory-inspector-heading,
+.mind-sensory-inspector-section {
+  color: rgba(140, 166, 188, 0.58);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+}
+
+.mind-sensory-inspector-title {
+  display: block;
+  margin-top: 9px;
+  color: var(--text);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.mind-sensory-inspector-kind {
+  display: inline-block;
+  margin: 5px 0 8px;
+  padding: 2px 5px;
+  border: 1px solid rgba(177, 132, 255, 0.24);
+  border-radius: 4px;
+  background: rgba(177, 132, 255, 0.05);
+  color: var(--violet);
+  font-size: 7px;
+}
+
+.mind-sensory-inspector-copy {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.mind-sensory-inspector-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(98, 120, 136, 0.10);
+  font-size: 8px;
+}
+
+.mind-sensory-inspector-row span { color: var(--muted); }
+.mind-sensory-inspector-row b {
+  color: var(--text);
+  font-size: 8px;
+  font-weight: 550;
+}
+
+.mind-sensory-inspector-section {
+  margin-top: 13px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(98, 120, 136, 0.16);
+}
+
+.mind-sensory-inspector-empty {
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.mind-sensory-path {
+  display: block;
+  width: 100%;
+  margin-top: 3px;
+  padding: 5px 6px;
+  border: 1px solid rgba(98, 120, 136, 0.12);
+  border-radius: 5px;
+  background: rgba(255,255,255,0.012);
+  color: var(--muted);
+  font-size: 7.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mind-sensory-path:hover {
+  color: var(--cyan);
+  border-color: rgba(80, 217, 255, 0.22);
+  background: rgba(80, 217, 255, 0.035);
+}
+
+.mind-sensory-why {
+  display: grid;
+  gap: 4px;
+  margin-top: 13px;
+  padding: 9px;
+  border: 1px solid rgba(80, 217, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(80, 217, 255, 0.025);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.mind-sensory-why strong { color: var(--text); }
+.mind-sensory-why span { color: var(--muted); }
+
+.mind-sensory-timeline {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid rgba(98, 120, 136, 0.14);
+  border-bottom: 1px solid rgba(98, 120, 136, 0.10);
+  background: rgba(6, 15, 25, 0.82);
+}
+
+.mind-sensory-timeline-label,
+.mind-sensory-timeline-now {
+  color: rgba(140, 166, 188, 0.58);
+  font-size: 7px;
+}
+
+.mind-sensory-timeline-now { text-align: right; }
+
+.mind-sensory-timeline-bars {
+  min-width: 0;
+  height: 22px;
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.mind-sensory-timeline-bar {
+  flex: 1 1 3px;
+  min-width: 2px;
+  max-width: 8px;
+  height: 8%;
+  border-radius: 1px 1px 0 0;
+  background: var(--cyan);
+  opacity: 0.62;
+}
+
+.mind-sensory-timeline-bar.learning { background: var(--mint); }
+.mind-sensory-timeline-bar.error { background: var(--coral); opacity: 0.9; }
+
+.mind-sensory-detail {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-height: 26px;
+  padding: 6px 12px 7px;
+  color: rgba(140, 166, 188, 0.58);
+  background: rgba(4, 11, 18, 0.72);
+  font-size: 7.5px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+@media (max-width: 1180px) {
+  .mind-sensory-header {
+    grid-template-columns: minmax(190px, auto) 1fr;
+  }
+  .mind-sensory-lenses {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .mind-sensory-stage {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+}
+
+@media (max-width: 900px) {
+  .mind-workspace[data-active-tab="sensory"] {
+    grid-template-columns: 1fr;
+  }
+  .mind-sensory-header {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+  .mind-sensory-metrics {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+  .mind-sensory-stage {
+    grid-template-columns: 1fr;
+  }
+  .mind-sensory-inspector {
+    display: none;
+  }
+}
