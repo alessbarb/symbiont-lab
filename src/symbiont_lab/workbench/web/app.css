@@ -1038,3 +1038,36 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   margin-top: 10px;
   line-height: 1.4;
 }
+
+
+/* ── Mind identity / sensory primitives ──────────────────────────── */
+.mind-senses-summary {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 8px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.mind-senses-summary strong { color: var(--text); }
+.mind-senses-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px 34px 34px;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 7px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mind-identity-change {
+  display: grid;
+  gap: 2px;
+  padding: 9px 0;
+  border-top: 1px solid rgba(98, 120, 136, 0.18);
+  font-size: 8px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.mind-identity-change strong { color: var(--text); }
