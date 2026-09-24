@@ -853,14 +853,44 @@ def test_runtime_physics_trace_initializes_joint_payload_before_append():
 
 
 def test_runtime_settling_fails_closed_instead_of_treating_timeout_as_success():
-    import symbiont_lab.physics3d.runtime as runtime
+    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
-    source = inspect.getsource(
-        runtime.PyBulletEmbodimentRuntime._settle_new_body
-    )
-    assert "settle_passive_body" in source
-    assert "if not result.converged" in source
-    assert "raise RuntimeError" in source
+    class NeverSettlesBullet:
+        def stepSimulation(self, **_kwargs):
+            return None
+
+        def getBaseVelocity(self, *_args, **_kwargs):
+            return ((1.0, 0.0, 0.0), (0.0, 0.5, 0.0))
+
+        def getJointStates(self, *_args, **_kwargs):
+            return ((0.0, 0.25, 0.0, 0.0),)
+
+    class Body:
+        body_id = 1
+        motor_joint_indices = (0,)
+
+        def apply_effectors(self, _values):
+            return None
+
+        def prepare_physics_substep(self):
+            return None
+
+    runtime = PyBulletEmbodimentRuntime.__new__(PyBulletEmbodimentRuntime)
+    runtime.p = NeverSettlesBullet()
+    runtime.client_id = 7
+    runtime.apparatus = Body()
+
+    with pytest.raises(RuntimeError, match="failed passive settling"):
+        runtime._settle_new_body(
+            max_steps=3,
+            stable_samples=2,
+            linear_threshold=0.01,
+            angular_threshold=0.01,
+            joint_threshold=0.01,
+        )
+
+    assert runtime._settling_result.converged is False
+    assert runtime._settling_result.steps == 3
 
 
 
