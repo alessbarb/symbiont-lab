@@ -366,17 +366,37 @@ class Physics3DRunStore:
 
         organism_meta_path = self.organisms_dir / launch.organism_ref / "metadata.json"
         existing = _read_json(organism_meta_path)
+        body_checkpoint_available = launch.body_file.is_file()
+        persisted_body_kind = (
+            summary.get("body_kind")
+            or existing.get("body_kind")
+            or launch.body_kind
+        )
+        persisted_receptors = (
+            summary.get("receptor_count")
+            if summary.get("receptor_count") is not None
+            else existing.get("receptor_count", descriptor.receptor_count)
+        )
+        persisted_effectors = (
+            summary.get("effector_count")
+            if summary.get("effector_count") is not None
+            else existing.get("effector_count", descriptor.effector_count)
+        )
         organism_meta = {
             **existing,
             **summary,
             "ref": launch.organism_ref,
             "created_at": existing.get("created_at") or manifest.get("started_at") or _now(),
             "updated_at": _now(),
-            "body_kind": launch.body_kind,
-            "last_body_ref": launch.body_ref,
+            "body_kind": persisted_body_kind,
+            "last_body_ref": (
+                launch.body_ref
+                if body_checkpoint_available
+                else existing.get("last_body_ref")
+            ),
             "last_run_id": launch.run_id,
-            "receptor_count": descriptor.receptor_count,
-            "effector_count": descriptor.effector_count,
+            "receptor_count": persisted_receptors,
+            "effector_count": persisted_effectors,
         }
         _write_json(organism_meta_path, organism_meta)
 
@@ -388,10 +408,10 @@ class Physics3DRunStore:
             "updated_at": _now(),
             "last_run_id": launch.run_id,
             "organism_ref": launch.organism_ref,
-            "checkpoint_available": launch.body_file.is_file(),
+            "checkpoint_available": body_checkpoint_available,
             "vital_state": summary.get("vital_state"),
             "resumable": bool(
-                launch.body_file.is_file() and summary.get("vital_state") != "dead"
+                body_checkpoint_available and summary.get("vital_state") != "dead"
             ),
         }
         body_meta.setdefault("created_at", manifest.get("started_at") or _now())
