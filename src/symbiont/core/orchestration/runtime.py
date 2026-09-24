@@ -4220,6 +4220,10 @@ class OrganismRuntime:
             raw_v2 = raw_actuation.get("sensorimotor_v2")
             if isinstance(raw_v2, dict):
                 try:
+                    if raw_v2.get("schema_version") != 1:
+                        raise ValueError(
+                            "unsupported sensorimotor v2 checkpoint schema"
+                        )
                     raw_effects = raw_v2.get("effect_space")
                     raw_evidence = raw_v2.get("causal_evidence")
                     if isinstance(raw_effects, dict):
