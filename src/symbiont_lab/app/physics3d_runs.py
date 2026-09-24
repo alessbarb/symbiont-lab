@@ -137,6 +137,12 @@ class Physics3DRunStore:
         )
         lifecycle = lifecycle_summary(payload)
         current = lifecycle.get("current", {})
+        summaries = payload.get("embodiment_epoch_summaries")
+        summaries = summaries if isinstance(summaries, list) else []
+        memory = payload.get("embodiment_memory")
+        memories = memory.get("contracts") if isinstance(memory, dict) else []
+        memories = memories if isinstance(memories, list) else []
+        last_summary = summaries[-1] if summaries and isinstance(summaries[-1], dict) else None
         return {
             "organism_id": payload.get("organism_id"),
             "tick": int(payload.get("saved_at_tick") or 0),
@@ -152,6 +158,19 @@ class Physics3DRunStore:
             ),
             "genome_id": genome.get("genome_id") if isinstance(genome, dict) else None,
             "vital_state": vital_state,
+            "body_age_ticks": (
+                int(living_body.get("age_ticks") or 0)
+                if isinstance(living_body, dict)
+                else 0
+            ),
+            "body_senescence": (
+                float(living_body.get("senescence") or 0.0)
+                if isinstance(living_body, dict)
+                else 0.0
+            ),
+            "embodiment_summary_count": len(summaries),
+            "known_contract_count": len(memories),
+            "last_epoch_summary": last_summary,
             "symbiont_state": lifecycle.get("state", "dormant"),
             "embodiment_epoch": lifecycle.get("epoch", 1),
             "embodiment_history_count": lifecycle.get("history_count", 0),
