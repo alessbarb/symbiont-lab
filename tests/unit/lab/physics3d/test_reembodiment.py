@@ -42,7 +42,36 @@ def _checkpoint(*, vital_state: str = "dead") -> dict:
         "experience_ledger": {"records": [{"record_id": "experience-1"}]},
         "episodic_memory": {"episodes": [{"episode_id": "episode-1"}]},
         "private_model_registry": {"records": [{"model_id": "model-1", "state": "active"}]},
-        "cognitive_bridge": {"graph": {"nodes": [{"node_id": "concept.old"}]}},
+        "cognitive_bridge": {
+            "graph": {
+                "nodes": [
+                    {"node_id": "concept.old", "kind": "concept"},
+                    {"node_id": "readout_motor:actuator.old", "kind": "readout"},
+                    {"node_id": "readout_primitive:primitive.old", "kind": "readout"},
+                ],
+                "edges": [
+                    {
+                        "source_id": "concept.old",
+                        "target_id": "readout_motor:actuator.old",
+                        "kind": "excitatory",
+                    },
+                    {
+                        "source_id": "concept.old",
+                        "target_id": "readout_primitive:primitive.old",
+                        "kind": "excitatory",
+                    },
+                ],
+            },
+            "node_born_tick": {
+                "concept.old": 1,
+                "readout_motor:actuator.old": 2,
+                "readout_primitive:primitive.old": 3,
+            },
+            "structural_candidates": [
+                {"candidate_id": "motor:old", "family": "motor_readout"},
+                {"candidate_id": "concept:keep", "family": "concept"},
+            ],
+        },
     }
 
 
@@ -113,7 +142,18 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
     assert transformed["organism_id"] == previous["organism_id"]
     assert transformed["experience_ledger"] == previous["experience_ledger"]
     assert transformed["private_model_registry"] == previous["private_model_registry"]
-    assert transformed["cognitive_bridge"] == previous["cognitive_bridge"]
+
+    active_nodes = {
+        node["node_id"]
+        for node in transformed["cognitive_bridge"]["graph"]["nodes"]
+    }
+    assert "concept.old" in active_nodes
+    assert "readout_motor:actuator.old" not in active_nodes
+    assert "readout_primitive:primitive.old" not in active_nodes
+    assert transformed["cognitive_bridge"]["graph"]["edges"] == []
+    assert transformed["cognitive_bridge"]["structural_candidates"] == [
+        {"candidate_id": "concept:keep", "family": "concept"}
+    ]
 
     assert transformed["body_schema"]["state"] == "undeveloped"
     assert transformed["self_model"] == {}
@@ -125,6 +165,12 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
 
     history = transformed["embodiment_lifecycle"]["history"]
     assert history[-1]["body_schema"] == previous["body_schema"]
+    archived = history[-1]["motor_cognitive_surface"]
+    assert {node["node_id"] for node in archived["nodes"]} == {
+        "readout_motor:actuator.old",
+        "readout_primitive:primitive.old",
+    }
+    assert len(archived["edges"]) == 2
     assert transformed["embodiment_lifecycle"]["current"]["contract_relation"] == "changed"
 
 
