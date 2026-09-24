@@ -7,6 +7,15 @@ import hashlib
 import json
 from typing import Any, Mapping
 
+from .longitudinal import (
+    append_epoch_summary,
+    archive_contract_memory,
+    build_epoch_summary,
+    contract_fingerprint,
+    inject_memory_candidates,
+    memory_for_contract,
+)
+
 
 _MAX_EMBODIMENT_HISTORY = 8
 _SCHEMA_VERSION = 1
@@ -320,13 +329,34 @@ def _fresh_actuation_with_transfer(
     return fresh_actuation
 
 
+def _active_private_model_id(checkpoint: Mapping[str, Any]) -> str | None:
+    registry = checkpoint.get("private_model_registry")
+    records = registry.get("records") if isinstance(registry, Mapping) else None
+    if not isinstance(records, list):
+        return None
+    for record in records:
+        if (
+            isinstance(record, Mapping)
+            and record.get("state") == "active"
+            and isinstance(record.get("model_id"), str)
+        ):
+            return str(record["model_id"])
+    return None
+
+
 def prepare_fresh_embodiment_checkpoint(
     previous: Mapping[str, Any],
     fresh: Mapping[str, Any],
     *,
     contract: EmbodimentContract,
 ) -> dict[str, Any]:
-    """Move one persistent Symbiont into a fresh body without reviving the old body."""
+    """Move one persistent Symbiont into a fresh Body.
+
+    A fresh Body never inherits physiological age or current motor authority.
+    Body-specific knowledge is archived and may return only as a bounded
+    historical hypothesis under a matching opaque contract.
+    """
+    previous = migrate_temporal_domains(previous)
     result = deepcopy(dict(previous))
     prior_lifecycle = previous.get("embodiment_lifecycle")
     if isinstance(prior_lifecycle, Mapping) and prior_lifecycle.get("schema_version") == _SCHEMA_VERSION:
@@ -347,29 +377,68 @@ def prepare_fresh_embodiment_checkpoint(
         current = {**_legacy_contract(previous).as_dict(), "started_tick": 0}
         history = []
 
+    previous_contract = EmbodimentContract(
+        body_kind=str(current.get("body_kind") or "unknown"),
+        receptor_count=int(current.get("receptor_count") or 0),
+        effector_count=int(current.get("effector_count") or 0),
+    )
     same_contract = _same_contract(current, contract)
     saved_tick = int(previous.get("saved_at_tick") or 0)
-    historical_bridge, historical_motor_surface = _detach_body_specific_cognition(
-        previous
+    started_tick = int(current.get("started_tick") or 0)
+    previous_fingerprint = str(
+        current.get("contract_fingerprint")
+        or contract_fingerprint(
+            previous,
+            receptor_count=previous_contract.receptor_count,
+            effector_count=previous_contract.effector_count,
+        )
     )
+    new_fingerprint = contract_fingerprint(
+        fresh,
+        receptor_count=contract.receptor_count,
+        effector_count=contract.effector_count,
+    )
+
+    historical_bridge, historical_motor_surface = _detach_body_specific_cognition(previous)
+    active_model_id = _active_private_model_id(previous)
+    metrics = current.get("metrics") if isinstance(current.get("metrics"), Mapping) else {}
+    summary = build_epoch_summary(
+        previous,
+        epoch=epoch,
+        started_tick=started_tick,
+        contract_fingerprint_value=previous_fingerprint,
+        body_kind=previous_contract.body_kind,
+        metrics=metrics,
+        reembodied_alive=_body_vital_state(previous) != "dead",
+    )
+    append_epoch_summary(result, summary)
+
+    result["embodiment_memory"] = archive_contract_memory(
+        previous,
+        contract_fingerprint_value=previous_fingerprint,
+        epoch=epoch,
+        motor_cognitive_surface=historical_motor_surface,
+        active_private_model_id=active_model_id,
+    )
+    known_memory = memory_for_contract(result.get("embodiment_memory"), new_fingerprint)
+
     history.append({
         "epoch": epoch,
-        "body_kind": str(current.get("body_kind") or "unknown"),
-        "receptor_count": int(current.get("receptor_count") or 0),
-        "effector_count": int(current.get("effector_count") or 0),
-        "started_tick": int(current.get("started_tick") or 0),
+        "body_kind": previous_contract.body_kind,
+        "receptor_count": previous_contract.receptor_count,
+        "effector_count": previous_contract.effector_count,
+        "contract_fingerprint": previous_fingerprint,
+        "started_tick": started_tick,
         "ended_tick": saved_tick,
         "end_body_vital_state": _body_vital_state(previous),
         "body_schema": deepcopy(previous.get("body_schema")),
-        "motor_cognitive_surface": (
-            historical_motor_surface
-            if not same_contract
-            else None
-        ),
+        "motor_cognitive_surface": historical_motor_surface,
+        "active_private_model_id": active_model_id,
+        "epoch_summary": deepcopy(summary),
     })
     history = history[-_MAX_EMBODIMENT_HISTORY:]
 
-    # Physical physiology always belongs to the new body.
+    # A fresh Body owns fresh physiology regardless of Symbiont history.
     for key in ("living_body", "metabolism", "homeostasis", "physiology"):
         if key in fresh:
             result[key] = deepcopy(fresh[key])
@@ -377,30 +446,24 @@ def prepare_fresh_embodiment_checkpoint(
     result["resting_requested"] = False
     result["last_runtime_vital_state"] = "active"
 
-    result["actuation"] = _fresh_actuation_with_transfer(
-        previous, fresh, same_contract=same_contract
-    )
+    # Every fresh Body starts with fresh actuator health and learning surfaces.
+    fresh_actuation = deepcopy(fresh.get("actuation"))
+    if not isinstance(fresh_actuation, dict):
+        fresh_actuation = {"enabled": False}
+    result["actuation"] = inject_memory_candidates(fresh_actuation, known_memory)
 
+    # General cognition persists, embodiment-specific motor authority does not.
+    if historical_bridge is not None:
+        result["cognitive_bridge"] = historical_bridge
+    _degrade_active_private_model(result)
+
+    # Body-specific self knowledge is reacquired for every fresh Body.
+    for key in ("body_schema", "self_model", "sensory_development", "sensory_system"):
+        if key in fresh:
+            result[key] = deepcopy(fresh[key])
+
+    # Only the motor constitution itself changes when the opaque contract changes.
     if not same_contract:
-        # General cognition persists, but embodiment-specific motor/primitive
-        # output readouts are detached from the active graph. They are archived
-        # in the previous epoch above and must be reacquired from new evidence.
-        if historical_bridge is not None:
-            result["cognitive_bridge"] = historical_bridge
-
-        # Private model artifacts remain part of the Symbiont, but an ACTIVE
-        # model learned under another body contract loses inference authority.
-        # It can later be superseded/revalidated from new lived evidence.
-        historical_active_model = _degrade_active_private_model(result)
-        if history:
-            history[-1]["active_private_model_id"] = historical_active_model
-
-        # Start a new active schema.  The previous schema is retained above as
-        # historical evidence; there is deliberately no old->new channel map.
-        for key in ("body_schema", "self_model", "sensory_development", "sensory_system"):
-            if key in fresh:
-                result[key] = deepcopy(fresh[key])
-
         old_genome = result.get("genome")
         new_genome = fresh.get("genome")
         if isinstance(old_genome, dict) and isinstance(new_genome, Mapping):
@@ -418,24 +481,38 @@ def prepare_fresh_embodiment_checkpoint(
             if not isinstance(fingerprint, dict):
                 fingerprint = {"schema_version": 1}
                 result["constitution_fingerprint"] = fingerprint
-            # Runtime constitution fingerprints hash the exported genome
-            # checkpoint, including its own genome_hash field.
             fingerprint["genome_hash"] = _canonical_hash(old_genome)
 
+    relation = (
+        "same-known"
+        if same_contract and known_memory is not None
+        else "known-return"
+        if known_memory is not None
+        else "changed"
+    )
     result["embodiment_lifecycle"] = {
         "schema_version": _SCHEMA_VERSION,
         "state": "active",
         "epoch": epoch + 1,
         "current": {
             **contract.as_dict(),
+            "contract_fingerprint": new_fingerprint,
             "started_tick": saved_tick,
             "body_vital_state": "active",
-            "contract_relation": "same" if same_contract else "changed",
+            "contract_relation": relation,
+            "known_contract_memory": known_memory is not None,
+            "metrics": {
+                "absorbed_material_total": 0.0,
+                "mechanical_work_total": 0.0,
+                "physiological_cost_total": 0.0,
+                "reacclimation_ticks_consumed": 0,
+                "reacclimation_completed": False,
+                "vital_state_ticks": {},
+            },
         },
         "history": history,
     }
     return result
-
 
 def update_lifecycle_for_checkpoint(
     payload: dict[str, Any],
