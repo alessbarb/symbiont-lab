@@ -672,6 +672,12 @@ def run(
                         sensorimotor_h16_samples=record.sensorimotor_h16_samples,
                         sensorimotor_h64_samples=record.sensorimotor_h64_samples,
                         passive_baseline_samples=record.passive_baseline_samples,
+                        active_commitment_id=record.active_commitment_id,
+                        effect_count=record.effect_count,
+                        causal_evidence_count=record.causal_evidence_count,
+                        motor_competence_count=record.motor_competence_count,
+                        composition_count=record.composition_count,
+                        unbound_competence_count=record.unbound_competence_count,
                         episodic_episodes=int(episodic_state.get("episode_count", 0)),
                         episodic_pending_records=int(episodic_state.get("pending_records", 0)),
                         episodic_compressed_episodes=int(
