@@ -543,6 +543,7 @@ class EpisodicExperienceMemory:
         self._interpretations: dict[str, set[str]] = {}
         self._retrieval_counts: Counter[str] = Counter()
         self._consolidated: dict[str, ConsolidatedContingency] = {}
+        self._episode_payload_bytes: dict[str, int] = {}
         self._retrieval_count = 0
         self._replay_count = 0
         self._compaction_count = 0
@@ -773,6 +774,9 @@ class EpisodicExperienceMemory:
                 surprise=surprise,
             )
             self._episodes.append(episode)
+            self._episode_payload_bytes[episode.episode_id] = self._episode_size(
+                episode
+            )
             episode_id = episode.episode_id
         else:
             episode = self._episodes[best_index]
@@ -793,6 +797,9 @@ class EpisodicExperienceMemory:
                     episode.projection,
                     projection,
                 ),
+            )
+            self._episode_payload_bytes[episode.episode_id] = self._episode_size(
+                episode
             )
             episode_id = episode.episode_id
             self._compaction_count += 1
@@ -899,13 +906,34 @@ class EpisodicExperienceMemory:
             return 1.0
         return max(0.0, min(1.0, 1.0 - max(compatible)))
 
-    def _estimated_size(self) -> int:
+    @staticmethod
+    def _json_size(payload: object) -> int:
         return len(
             json.dumps(
-                self._checkpoint_payload(include_pending=False),
+                payload,
                 sort_keys=True,
                 separators=(",", ":"),
             ).encode()
+        )
+
+    def _episode_size(self, episode: ExperienceEpisode) -> int:
+        return self._json_size(episode.checkpoint())
+
+    def _estimated_size(self) -> int:
+        # Conservative bounded overhead for ids, retrieval counters,
+        # interpretations and checkpoint structure. Episode payloads themselves
+        # are tracked exactly and updated only when a family changes.
+        interpretation_bytes = sum(
+            len(episode_id)
+            + sum(len(value) + 8 for value in values)
+            + 64
+            for episode_id, values in self._interpretations.items()
+        )
+        structural_overhead = 4096 + 256 * len(self._episodes)
+        return (
+            structural_overhead
+            + sum(self._episode_payload_bytes.values())
+            + interpretation_bytes
         )
 
     def _least_informative_index(self) -> int:
@@ -930,6 +958,7 @@ class EpisodicExperienceMemory:
                 raise EpisodicMemoryError("episodic memory cannot satisfy kernel budget")
             victim = self._least_informative_index()
             episode = self._episodes.pop(victim)
+            self._episode_payload_bytes.pop(episode.episode_id, None)
             self._interpretations.pop(episode.episode_id, None)
             self._retrieval_counts.pop(episode.episode_id, None)
             self._eviction_count += 1
@@ -1191,9 +1220,23 @@ class EpisodicExperienceMemory:
     def checkpoint(self) -> dict[str, object]:
         # A restart is a causal discontinuity. Pending observations remain
         # ephemeral and are deliberately not bridged across checkpoints.
+        self._enforce_capacity()
         payload = self._checkpoint_payload(include_pending=False)
-        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-        if len(encoded) > self._limits.max_episodic_checkpoint_bytes:
+        encoded_size = self._json_size(payload)
+        while (
+            encoded_size > self._limits.max_episodic_checkpoint_bytes
+            and self._episodes
+        ):
+            victim = self._least_informative_index()
+            episode = self._episodes.pop(victim)
+            self._episode_payload_bytes.pop(episode.episode_id, None)
+            self._interpretations.pop(episode.episode_id, None)
+            self._retrieval_counts.pop(episode.episode_id, None)
+            self._eviction_count += 1
+            self.consolidate()
+            payload = self._checkpoint_payload(include_pending=False)
+            encoded_size = self._json_size(payload)
+        if encoded_size > self._limits.max_episodic_checkpoint_bytes:
             raise EpisodicMemoryError("episodic checkpoint exceeds kernel byte limit")
         return payload
 
@@ -1274,6 +1317,10 @@ class EpisodicExperienceMemory:
         ids = [episode.episode_id for episode in memory._episodes]
         if len(ids) != len(set(ids)):
             raise EpisodicMemoryError("duplicate episodic episode id")
+        memory._episode_payload_bytes = {
+            episode.episode_id: memory._episode_size(episode)
+            for episode in memory._episodes
+        }
 
         raw_interpretations = payload.get("interpretations", {})
         if not isinstance(raw_interpretations, Mapping):
