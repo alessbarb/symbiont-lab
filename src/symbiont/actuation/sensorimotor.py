@@ -478,6 +478,11 @@ class SensorimotorLearner:
         return primitive_id
 
     @property
+    def exclusive_actuator_groups(self) -> tuple[tuple[str, ...], ...]:
+        """Opaque apparatus constitution; contains no anatomy or direction labels."""
+        return self._exclusive_actuator_groups
+
+    @property
     def primitives(self) -> tuple[MotorPrimitive, ...]:
         if self._primitives_cache is None:
             self._primitives_cache = tuple(
