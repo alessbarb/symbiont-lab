@@ -386,6 +386,9 @@ class PyBulletEmbodimentRuntime:
             self.organism = _fresh_organism(organism_id)
             self._embodiment_contract = contract
             self._embodiment_lifecycle: dict[str, Any] | None = None
+            self._embodiment_memory: dict[str, Any] | None = None
+            self._embodiment_epoch_summaries: list[dict[str, Any]] = []
+            self._temporal_migration: dict[str, Any] | None = None
             self._reembodied = False
         else:
             runtime_checkpoint = migrate_temporal_domains(runtime_checkpoint)
@@ -431,6 +434,28 @@ class PyBulletEmbodimentRuntime:
             self._embodiment_lifecycle = (
                 deepcopy(raw_lifecycle)
                 if isinstance(raw_lifecycle, dict)
+                else None
+            )
+            raw_memory = restored_payload.get("embodiment_memory")
+            self._embodiment_memory = (
+                deepcopy(raw_memory)
+                if isinstance(raw_memory, dict)
+                else None
+            )
+            raw_summaries = restored_payload.get("embodiment_epoch_summaries")
+            self._embodiment_epoch_summaries = (
+                [
+                    deepcopy(item)
+                    for item in raw_summaries
+                    if isinstance(item, dict)
+                ]
+                if isinstance(raw_summaries, list)
+                else []
+            )
+            raw_migration = restored_payload.get("temporal_migration")
+            self._temporal_migration = (
+                deepcopy(raw_migration)
+                if isinstance(raw_migration, dict)
                 else None
             )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
@@ -618,6 +643,15 @@ class PyBulletEmbodimentRuntime:
         payload = self.organism.checkpoint()
         if self._embodiment_lifecycle is not None:
             payload["embodiment_lifecycle"] = deepcopy(self._embodiment_lifecycle)
+        if self._embodiment_memory is not None:
+            payload["embodiment_memory"] = deepcopy(self._embodiment_memory)
+        if self._embodiment_epoch_summaries:
+            payload["embodiment_epoch_summaries"] = deepcopy(
+                self._embodiment_epoch_summaries
+            )
+        if self._temporal_migration is not None:
+            payload["temporal_migration"] = deepcopy(self._temporal_migration)
+
         payload = update_lifecycle_for_checkpoint(
             payload,
             contract=self._embodiment_contract,
@@ -625,6 +659,26 @@ class PyBulletEmbodimentRuntime:
             metrics=self._epoch_metrics,
         )
         self._embodiment_lifecycle = deepcopy(payload["embodiment_lifecycle"])
+        raw_memory = payload.get("embodiment_memory")
+        self._embodiment_memory = (
+            deepcopy(raw_memory) if isinstance(raw_memory, dict) else None
+        )
+        raw_summaries = payload.get("embodiment_epoch_summaries")
+        self._embodiment_epoch_summaries = (
+            [
+                deepcopy(item)
+                for item in raw_summaries
+                if isinstance(item, dict)
+            ]
+            if isinstance(raw_summaries, list)
+            else []
+        )
+        raw_migration = payload.get("temporal_migration")
+        self._temporal_migration = (
+            deepcopy(raw_migration)
+            if isinstance(raw_migration, dict)
+            else self._temporal_migration
+        )
         return payload
 
     def passive_physical_state(self) -> dict[str, object]:
