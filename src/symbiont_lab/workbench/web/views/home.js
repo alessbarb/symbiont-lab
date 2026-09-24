@@ -18,6 +18,11 @@ async function jsonRequest(url, options = {}) {
   return payload;
 }
 
+async function loadState() {
+  state = await jsonRequest('/api/state');
+  lastPhysicsState = currentPhysics().state;
+}
+
 async function loadCatalog() {
   const [bodies, organisms, runs] = await Promise.all([
     jsonRequest('/api/bodies'),
@@ -132,12 +137,17 @@ function render() {
     return;
   }
 
+  const failure = physics.state === 'failed'
+    ? `<section class="card home-active"><div><p class="eyebrow">Physics3D failed to start</p><h2>Startup error</h2><p>${esc(physics.error || 'Unknown startup failure')}</p><pre>${esc(physics.traceback || '')}</pre></div></section>`
+    : '';
+
   rootNode.innerHTML = `
     <div class="view-shell home-shell">
       <div class="view-header">
         <div><p class="eyebrow">Symbiont Lab</p><h1>Start a run</h1></div>
         <span class="pill muted">No active embodiment</span>
       </div>
+      ${failure}
       <div class="home-launch-grid">
         <section class="card home-section">
           <div class="home-step">1</div>
@@ -185,7 +195,7 @@ async function startRun() {
         body: { mode: bodyMode },
       }),
     });
-    await loadCatalog();
+    await Promise.all([loadCatalog(), loadState()]);
   } catch (error) {
     window.alert(`Unable to start Physics3D run: ${error.message}`);
   }
@@ -229,7 +239,7 @@ export async function mount(root, nextState = null) {
   lastPhysicsState = currentPhysics().state;
   root.innerHTML = '<div class="empty-state">Loading run catalog…</div>';
   try {
-    await loadCatalog();
+    await Promise.all([loadCatalog(), loadState()]);
   } catch (error) {
     root.innerHTML = `<div class="empty-state">Run catalog unavailable: ${esc(error.message)}</div>`;
     return;
