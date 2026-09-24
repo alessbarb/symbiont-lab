@@ -33,6 +33,7 @@ import { nearestHistorySnapshot, recordMindHistory, renderHistory as renderHisto
 import { createIdentitySensoryRenderer } from './mind/identity-sensory.js';
 import { createCognitionController } from './mind/cognition-controller.js';
 import { currentPhysiologyState } from './mind/derived.js';
+import { applyMindTab } from './mind/tab-controller.js';
 import {
   graph as _graph,
   resetMindDataState,
@@ -92,55 +93,24 @@ function renderHistory() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function switchTab(tabId) {
-  _activeTab = tabId;
+  _activeTab = applyMindTab(tabId);
 
-  document.querySelectorAll('.mind-tab').forEach(btn => {
-    const active = btn.dataset.tab === tabId;
-    btn.setAttribute('aria-pressed', String(active));
-    btn.style.color = active ? `var(--cyan, ${PAL.cyan})` : `var(--muted, ${PAL.muted})`;
-    btn.style.borderBottomColor = active ? `var(--cyan, ${PAL.cyan})` : 'transparent';
-  });
-
-  const ids = ['overview','phenotype','sensory','cognition','motor','history'];
-  const wraps = {
-    overview: document.querySelector('#mind-overview-wrap'),
-    phenotype: document.querySelector('#mind-identity-wrap'),
-    sensory: document.querySelector('#mind-sensory-wrap'),
-    cognition: document.querySelector('#mind-cognition-wrap'),
-    motor: document.querySelector('#mind-motor-wrap'),
-    history: document.querySelector('#mind-history-wrap'),
-  };
-  for (const id of ids) wraps[id]?.classList.toggle('hidden', id !== tabId);
-
-  const sensesPanel = document.querySelector('#mind-senses-panel');
-  const cognitionInspector = document.querySelector('#mind-cognition-inspector');
-  const workspace = document.querySelector('#mind-workspace');
-
-  if (sensesPanel) sensesPanel.style.display = tabId === 'sensory' ? 'flex' : 'none';
-  if (cognitionInspector) cognitionInspector.style.display = tabId === 'cognition' ? 'flex' : 'none';
-  if (workspace) {
-    workspace.style.gridTemplateColumns =
-      tabId === 'cognition' ? '250px 1fr' :
-      tabId === 'sensory' ? '220px 1fr' :
-      '1fr';
-  }
-
-  if (tabId === 'overview') renderOverview();
-  if (tabId === 'phenotype') {
+  if (_activeTab === 'overview') renderOverview();
+  if (_activeTab === 'phenotype') {
     renderPhenotype();
     renderIdentityGap();
     renderSelf();
   }
-  if (tabId === 'sensory') {
+  if (_activeTab === 'sensory') {
     renderSensesPanel();
     renderSensoryMap();
   }
-  if (tabId === 'cognition') {
+  if (_activeTab === 'cognition') {
     cognition.start();
     cognition.renderInspector();
   }
-  if (tabId === 'motor') renderMotorLearning();
-  if (tabId === 'history') renderHistory();
+  if (_activeTab === 'motor') renderMotorLearning();
+  if (_activeTab === 'history') renderHistory();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
