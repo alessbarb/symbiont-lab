@@ -1252,6 +1252,12 @@ class OrganismRuntime:
 
         if self._sensorimotor_learner is not None and intents:
             intents = self._sensorimotor_learner.constrain_intents(intents)
+            surviving_ids = {intent.actuator_id for intent in intents}
+            pending = [
+                item
+                for item in pending
+                if item[0] in surviving_ids
+            ]
 
         activity_scale = self._homeostasis.activity_scale
         if activity_scale < 1.0:
@@ -1311,7 +1317,14 @@ class OrganismRuntime:
         self._pending_proprioception = proprioception
 
         if cognitive_intents and active_concepts:
+            executed_ids = {
+                actuation.actuator_id
+                for actuation in actuations
+                if actuation.delivered > 0.0
+            }
             for intent in cognitive_intents:
+                if intent.actuator_id not in executed_ids:
+                    continue
                 self._schedule_homeostatic_action_credit(
                     family="motor",
                     action_id=intent.actuator_id,
