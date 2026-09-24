@@ -851,12 +851,17 @@ class SensorimotorLearner:
             return 0.0
         magnitudes = sorted(
             (
-                abs(float(after[key]) - float(before[key]))
+                magnitude
                 for key in shared
+                if (
+                    magnitude := abs(
+                        float(after[key]) - float(before[key])
+                    )
+                ) > 1e-12
             ),
             reverse=True,
         )
-        support = magnitudes[: min(8, len(magnitudes))]
+        support = magnitudes[:8]
         return sum(support) / len(support) if support else 0.0
 
     @staticmethod
