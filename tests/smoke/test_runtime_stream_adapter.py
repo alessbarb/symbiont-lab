@@ -15,6 +15,7 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "cognitive-temporal.js",
         WEB_ROOT / "views" / "mind" / "cognitive-lod.js",
         WEB_ROOT / "views" / "mind" / "cognitive-observatory.js",
+        WEB_ROOT / "views" / "mind" / "cognitive-refinement.js",
         WEB_ROOT / "views" / "mind" / "overview.js",
         WEB_ROOT / "views" / "mind" / "motor-learning.js",
         WEB_ROOT / "views" / "mind" / "history.js",
@@ -1218,3 +1219,53 @@ def test_cognitive_observatory_keeps_atlas_as_spatial_instrument() -> None:
     assert "Cognitive Observatory" in asset
     assert "Cognitive Atlas" in asset
     assert "physical actuators hidden" in asset
+
+
+def test_cognitive_observatory_final_refinements_are_contractual() -> None:
+    asset = _mind_sources()
+    refinement = (WEB_ROOT / "views" / "mind" / "cognitive-refinement.js").read_text(encoding="utf-8")
+    lod = (WEB_ROOT / "views" / "mind" / "cognitive-lod.js").read_text(encoding="utf-8")
+    history = (WEB_ROOT / "views" / "mind" / "history.js").read_text(encoding="utf-8")
+
+    assert "export function prioritizedLabelIds(" in refinement
+    assert "export function labelBudget(" in refinement
+    assert "currentLabelIds(" in asset
+
+    for section in ("Identity", "Topology", "Dynamics", "Role", "Relations & pathway"):
+        assert f"inspectorGroup(panel, '{section}'" in asset
+
+    assert "function fit2DView(" in asset
+    assert "graph.autoFramePending" in asset
+    assert "graph.manualViewOverride" in asset
+    assert "scene.metrics.occupiedRadius * 3.0 + 220" in asset
+
+    assert "export function summarizeDiff(" in refinement
+    assert "top changed region" in asset
+    assert "most changed node" in asset
+    assert "cognition→motor linkage changed" in asset
+
+    assert "episodeFocusTick(" in history
+    assert "← Previous" in history
+    assert "Next →" in history
+    assert "episodeImpact(episode)" in history
+    assert "dominant ${impact.dominant}" in history
+
+    assert "export function reconcileFrontierEvolution(" in lod
+    assert "enteredIds" in lod
+    assert "exitedIds" in lod
+    assert "continuity ${Math.round((cluster.previousOverlap ?? 0) * 100)}%" in asset
+
+    assert "mind-flow-trace-btn" in asset
+    assert "flowTraceEnabled" in asset
+    assert "flowTrace.edgeKeys" in asset
+    assert "flowTrace.nodeIds" in asset
+
+    assert "previousLevel = 'meso'" in lod
+    assert "cameraDistance > 1320" in lod
+    assert "cameraDistance > 1120" in lod
+    assert "scale < 0.64" in lod
+    assert "scale < 0.82" in lod
+
+    assert "export function recordObserverUsage(" in refinement
+    assert "observer use · selections" in asset
+    assert "modeChanges" in asset
