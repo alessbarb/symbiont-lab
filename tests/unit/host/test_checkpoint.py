@@ -7,6 +7,7 @@ import pytest
 from symbiont.host.acclimation import HostAcclimation
 from symbiont.host.checkpoint import (
     CHECKPOINT_SCHEMA_VERSION,
+    MAX_HOST_CHECKPOINT_BYTES,
     CheckpointError,
     export_checkpoint,
     import_checkpoint,
@@ -258,7 +259,10 @@ def test_save_checkpoint_atomic_leaves_no_temp_file_behind(tmp_path):
 def test_save_checkpoint_rejects_over_limit_without_replacing_previous_file(tmp_path):
     path = tmp_path / "state.json"
     save_checkpoint_atomic({"schema_version": CHECKPOINT_SCHEMA_VERSION, "marker": "old"}, path)
-    oversized = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "blob": "x" * (2 * 1024 * 1024)}
+    oversized = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "blob": "x" * (MAX_HOST_CHECKPOINT_BYTES + 1024),
+    }
     with pytest.raises(CheckpointError, match="size limit"):
         save_checkpoint_atomic(oversized, path)
     assert load_checkpoint_file(path)["marker"] == "old"
