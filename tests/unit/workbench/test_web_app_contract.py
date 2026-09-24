@@ -23,7 +23,8 @@ def test_shell_uses_native_landmarks_and_focusable_view_root():
 def test_live_region_is_scoped_to_runtime_state_not_entire_footer():
     html = _read("app.html")
     assert '<footer class="statusbar">' in html
-    assert 'class="statusbar-state" role="status" aria-live="polite"' in html
+    assert 'class="statusbar-state"' in html
+    assert 'id="sb-status" class="sb-item" role="status" aria-live="polite"' in html
     assert '<footer class="statusbar" role="status"' not in html
 
 
@@ -139,3 +140,21 @@ def test_identity_sensory_only_keeps_data_driven_inline_styles():
     # Dynamic visual encodings remain legitimate: confidence/health dots and
     # percentage bars depend on the current snapshot.
     assert identity.count("style.cssText") <= 1
+
+
+def test_view_specific_css_is_split_from_app_shell():
+    html = _read("app.html")
+    app_css = _read("app.css")
+    assert 'href="/assets/body.css"' in html
+    assert 'href="/assets/mind.css"' in html
+    assert (WEB_ROOT / "body.css").is_file()
+    assert (WEB_ROOT / "mind.css").is_file()
+    assert len(app_css) < 20000
+
+
+def test_cognition_inspector_is_extracted_from_controller():
+    controller = _read("views/mind/cognition-controller.js")
+    inspector = _read("views/mind/cognition-inspector.js")
+    assert "createCognitionInspector" in controller
+    assert "function renderCognitionInspector" not in controller
+    assert "function renderCognitionInspector" in inspector
