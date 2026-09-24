@@ -1065,7 +1065,10 @@ export function createCognitionController({
       const isHovered = hoveredNode?.id === node.id;
       if (!sectorFocus && !visibleIds.has(node.id) && !pathNode && !isSelected && !isHovered) continue;
       const isConn = connectedIds?.has(node.id);
-      const dimmed = Boolean(focusId && !isConn);
+      const dimmed = Boolean(
+        (focusId && !isConn) ||
+        (graph.flowTraceEnabled && !flowTrace.nodeIds.has(node.id))
+      );
 
       const graphTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
       const nodeIdleTicks = node.lastUseTick > 0
@@ -1365,7 +1368,10 @@ export function createCognitionController({
       const isSelected = graph.selectedNodeId === node.id;
       if (!sectorFocus && !visibleIds.has(node.id) && !pathNode && !isSelected && !isHovered) continue;
       const isConn = connectedIds && connectedIds.has(node.id);
-      const dimmed = focusId && !isConn;
+      const dimmed = Boolean(
+        (focusId && !isConn) ||
+        (graph.flowTraceEnabled && !flowTrace.nodeIds.has(node.id))
+      );
       const breath = (fmriEnabled && node.activationLevel > 0)
         ? Math.sin(now * 0.003 + hashStr(node.id)) * (node.activationLevel * 2.0)
         : 0;
@@ -2340,7 +2346,8 @@ export function createCognitionController({
         `+${diff.addedNodes.length} nodes · -${diff.removedNodes.length} nodes · +${diff.addedEdges.length} relations · -${diff.removedEdges.length} relations · ${diff.changedEdges.length} changed` +
         (diffInsight?.topRegion ? `<br>top changed region: <strong style="color:var(--text)">${diffInsight.topRegion.label ?? diffInsight.topRegion.id}</strong>` : '') +
         (diffInsight?.topNode ? `<br>most changed node: <strong style="color:var(--text)">${shortId(diffInsight.topNode.id, 10, 5)}</strong>` : '') +
-        `<br>largest delta type: <strong style="color:var(--text)">${diffInsight?.largestDeltaType ?? 'none'}</strong>`;
+        `<br>largest delta type: <strong style="color:var(--text)">${diffInsight?.largestDeltaType ?? 'none'}</strong>` +
+        `<br>cognition→motor linkage changed: <strong style="color:var(--text)">${diffInsight?.motorLinkageChanged ? 'yes' : 'no'}</strong>`;
       panel.appendChild(diffSummary);
     }
 
