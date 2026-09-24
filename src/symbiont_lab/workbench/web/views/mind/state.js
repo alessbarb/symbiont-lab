@@ -139,6 +139,11 @@ export const graph = {
   manualViewOverride: false,
   atlasRegionGeometry2d: new Map(),
   atlasRegionGeometry3d: new Map(),
+  regionShapeHistory2d: new Map(),
+  regionShapeHistory3d: new Map(),
+  regionCenterTrails2d: new Map(),
+  regionCenterTrails3d: new Map(),
+  protoSubregions: new Map(),
   hiddenMotor: { actuators: 0, motorEdges: 0 },
   dimension: '2d',
   threeDMode: 'relational',
@@ -216,4 +221,9 @@ export function resetMindDataState() {
   graph.manualViewOverride = false;
   graph.atlasRegionGeometry2d.clear();
   graph.atlasRegionGeometry3d.clear();
+  graph.regionShapeHistory2d.clear();
+  graph.regionShapeHistory3d.clear();
+  graph.regionCenterTrails2d.clear();
+  graph.regionCenterTrails3d.clear();
+  graph.protoSubregions.clear();
 }
