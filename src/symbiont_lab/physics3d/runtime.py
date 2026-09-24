@@ -47,6 +47,25 @@ from .reembodiment import (
 )
 
 
+def metabolic_cost_from_actuator_work(
+    mechanical_work_joules: float,
+    cost_per_joule: float,
+) -> float:
+    """Convert measured commanded actuator work without hidden saturation."""
+    if any(
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or float(value) < 0.0
+        for value in (mechanical_work_joules, cost_per_joule)
+    ):
+        raise ValueError("actuator work and conversion rate must be finite and non-negative")
+    cost = float(mechanical_work_joules) * float(cost_per_joule)
+    if not math.isfinite(cost):
+        raise ValueError("actuator work conversion overflowed")
+    return cost
+
+
 class PhysicsServerDisconnected(RuntimeError):
     """Raised when the user closes the PyBullet GUI/server."""
 
@@ -1216,13 +1235,10 @@ class PyBulletEmbodimentRuntime:
         physics_ms = (time.perf_counter() - physics_started) * 1000.0
         diagnostics_started = time.perf_counter()
 
-        metabolic_work_cost = (
-            mechanical_work_joules * self.mechanical_work_cost_per_joule
+        metabolic_work_cost = metabolic_cost_from_actuator_work(
+            mechanical_work_joules,
+            self.mechanical_work_cost_per_joule,
         )
-        if not math.isfinite(metabolic_work_cost):
-            raise RuntimeError(
-                "non-finite metabolic work cost derived from physical work"
-            )
         if metabolic_work_cost > 0.0:
             self.organism.register_embodied_work(metabolic_work_cost)
 
