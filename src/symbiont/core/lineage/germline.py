@@ -37,7 +37,6 @@ def create_standard_genome(genome_id: str) -> Genome:
         if str(genome_id).startswith("genome_")
         else f"genome_{genome_id}"
     )
-    payload["parent_ids"] = []
     return GenomeCodec().load(payload)
 
 
