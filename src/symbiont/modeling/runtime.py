@@ -735,18 +735,35 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise ValueError("bridge must be a PrivateModelBridge")
         self._private_model_bridge = bridge
 
-    def _private_causal_records(self) -> tuple[ExperienceRecord, ...]:
-        """Return an exact bounded cross-lifetime sample of causal transitions."""
-        combined = {
-            record.record_id: record
-            for record in (
-                *self._experience_archive.records,
-                *self._experience_ledger.records,
-            )
+    def _private_causal_records(
+        self,
+        *,
+        max_records: int = 8192,
+    ) -> tuple[ExperienceRecord, ...]:
+        """Return exact recent + cross-lifetime sampled causal transitions."""
+        if (
+            isinstance(max_records, bool)
+            or not isinstance(max_records, int)
+            or max_records < 3
+        ):
+            raise ValueError("max_records must be an integer >= 3")
+        live = tuple(
+            record
+            for record in self._experience_ledger.records
             if record.record_id.startswith("transition.")
             and record.epistemic_status is EpistemicStatus.OBSERVED
             and record.source_kind is not SourceKind.MODEL
-        }
+        )
+        live = live[-min(len(live), max_records):]
+        slots = max(0, max_records - len(live))
+        archive = tuple(
+            record
+            for record in self._experience_archive.sample(slots)
+            if record.record_id.startswith("transition.")
+            and record.epistemic_status is EpistemicStatus.OBSERVED
+            and record.source_kind is not SourceKind.MODEL
+        )
+        combined = {record.record_id: record for record in (*archive, *live)}
         return tuple(
             sorted(
                 combined.values(),
