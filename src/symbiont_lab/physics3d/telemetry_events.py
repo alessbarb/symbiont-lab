@@ -47,13 +47,12 @@ class EventStreamWriter:
 
         current = [deepcopy(item) for item in value]
         if mode is TemporalClass.EVENT_EPHEMERAL:
-            for sequence, item in enumerate(current):
+            if current:
                 record = {
                     "t": int(tick),
                     "c": str(channel),
-                    "o": "event",
-                    "q": int(sequence),
-                    "v": item,
+                    "o": "events",
+                    "v": current,
                 }
                 hashes.append(self._write(record))
             return hashes
@@ -71,16 +70,14 @@ class EventStreamWriter:
 
         previous = self._previous_cumulative[channel]
         if _is_prefix(previous, current):
-            for sequence, item in enumerate(
-                current[len(previous):],
-                start=len(previous),
-            ):
+            appended = current[len(previous):]
+            if appended:
                 record = {
                     "t": int(tick),
                     "c": str(channel),
-                    "o": "append",
-                    "q": int(sequence),
-                    "v": item,
+                    "o": "append_many",
+                    "q": len(previous),
+                    "v": appended,
                 }
                 hashes.append(self._write(record))
         else:
@@ -135,6 +132,13 @@ class EventStreamReader:
                 raise ValueError("event reset payload must be a list")
             self.values[channel] = value
             return
+        if operation == "events":
+            if mode is not TemporalClass.EVENT_EPHEMERAL:
+                raise ValueError("events operation used for cumulative channel")
+            if not isinstance(value, list):
+                raise ValueError("events payload must be a list")
+            self.values[channel] = value
+            return
         if operation == "event":
             if mode is not TemporalClass.EVENT_EPHEMERAL:
                 raise ValueError("event operation used for cumulative channel")
@@ -146,6 +150,20 @@ class EventStreamReader:
             if sequence != expected:
                 raise ValueError("ephemeral event sequence gap")
             current.append(value)
+            return
+        if operation == "append_many":
+            if mode is not TemporalClass.EVENT_CUMULATIVE:
+                raise ValueError("append_many operation used for ephemeral channel")
+            if not isinstance(value, list):
+                raise ValueError("append_many payload must be a list")
+            current = self.values.setdefault(channel, [])
+            if not isinstance(current, list):
+                raise ValueError("cumulative event channel is not a list")
+            expected = len(current)
+            sequence = int(record.get("q", expected))
+            if sequence != expected:
+                raise ValueError("cumulative event sequence gap")
+            current.extend(value)
             return
         if operation == "append":
             if mode is not TemporalClass.EVENT_CUMULATIVE:

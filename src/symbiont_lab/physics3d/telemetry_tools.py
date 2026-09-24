@@ -126,15 +126,37 @@ def _tree_bytes(root: Path) -> int:
     )
 
 
+def _first_existing(*paths: Path) -> Path:
+    for path in paths:
+        if path.exists():
+            return path
+    return paths[0]
+
+
 def _v41_breakdown(root: Path) -> dict[str, int]:
     groups = {
         "ticks": root / "ticks.ndjson",
         "schemas": root / "schemas",
-        "dense": root / "frames" / "dense.ndjson",
-        "summary": root / "frames" / "summary.ndjson",
-        "fallback": root / "frames" / "fallback.ndjson",
-        "structural": root / "structures" / "state.ndjson",
-        "static": root / "structures" / "static.ndjson",
+        "dense": _first_existing(
+            root / "frames" / "dense.bin",
+            root / "frames" / "dense.ndjson",
+        ),
+        "summary": _first_existing(
+            root / "frames" / "summary.bin",
+            root / "frames" / "summary.ndjson",
+        ),
+        "fallback": _first_existing(
+            root / "frames" / "fallback.bin",
+            root / "frames" / "fallback.ndjson",
+        ),
+        "structural": _first_existing(
+            root / "structures" / "state.bin",
+            root / "structures" / "state.ndjson",
+        ),
+        "static": _first_existing(
+            root / "structures" / "static.bin",
+            root / "structures" / "static.ndjson",
+        ),
         "events": root / "events",
         "objects": root / "objects",
         "anchors": root / "anchors",

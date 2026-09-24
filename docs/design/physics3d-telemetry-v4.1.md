@@ -38,19 +38,21 @@ telemetry-v4.1/<run-id>/
   ticks.ndjson
 
   schemas/
-    frames.ndjson
+    strings.bin
+    frames.bin
+    structural-paths.bin
 
   frames/
-    dense.ndjson
-    summary.ndjson
-    fallback.ndjson
+    dense.bin
+    summary.bin
+    fallback.bin
 
   structures/
-    state.ndjson
-    static.ndjson
+    state.bin
+    static.bin
 
   events/
-    events.ndjson
+    events.bin
 
   anchors/
     tick-XXXXXXXXXXXX.json
@@ -115,9 +117,11 @@ Lists containing stable IDs such as `node_id`, `primitive_id`,
 internal AST plus an explicit order vector. Cognitive edges without their own
 ID use an observer-only composite identity derived from
 `(source_id, target_id, kind, delay_ticks)` when that tuple is unique.
-Keyed entity storage is sorted by identity while the independent order vector
-preserves the exact original list order. This keeps scalar evolution inside
-existing entities from becoming list replacement.
+Revision 3 stores keyed entities as maps and emits only path-level `set/remove`
+deltas. Profiles use `signal_id`; signal-knowledge claims use `claim_id`; edges
+without their own ID use the observer-only composite identity above. The
+independent order vector preserves the exact original list order. This prevents
+claim/profile growth from creating a new whole-tree structural schema.
 
 The internal AST is tagged at every node, so arbitrary user/runtime JSON cannot
 collide with telemetry markers.
@@ -138,9 +142,10 @@ Cumulative stream:
 
 - `sensorimotor.episodes`
 
-Cumulative events are emitted as append records while the current list is an
-exact extension of the previous list. If the source ever rewrites history, the
-writer emits an exact reset snapshot rather than assuming append-only behavior.
+Ephemeral events are grouped into one record per channel/tick. Cumulative events
+are emitted as `append_many` batches while the current list is an exact extension
+of the previous list. If the source ever rewrites history, the writer emits an
+exact reset snapshot rather than assuming append-only behavior.
 
 ### Static objects
 
@@ -195,6 +200,29 @@ repeating the values. No continuity assumption is made.
 
 Signed zero is compared via canonical JSON, so `0.0` and `-0.0` are not
 compacted away as equal.
+
+## Revision 4 binary encoding
+
+Revision 4 changes physical representation only. Temporal semantics, evidence,
+state hashes and observer ownership remain unchanged.
+
+Binary streams are length-prefixed records. Values use explicit type tags:
+
+- null / booleans as one-byte tags;
+- integers as lossless signed varints;
+- floats as exact IEEE-754 binary64, preserving signed zero;
+- strings as IDs into one append-only UTF-8 dictionary;
+- lists and mappings as typed containers;
+- mapping keys are also dictionary IDs.
+
+Dense frame schemas and structural paths are stored once using the same string
+dictionary. Binary record SHA-256 values are committed by the existing tick
+commit chain. Manifest, tick commits, anchors and derivative indexes remain
+human-readable JSON.
+
+This is not compression in the gzip/zstd sense and does not alter information:
+the gain comes from storing repeated field names, signal IDs, claim IDs and
+tokens once instead of on every JSON record.
 
 ## Anchors and checkpoints
 
@@ -272,9 +300,15 @@ The physical schema version remains `4.1`, while the manifest carries a
 
 - revision 1 is the initial v4.1 layout that grouped `pre`, `post`, and
   `runtime` more coarsely;
-- revision 2 is the canonical layout described here, with nested physical
-  streams, narrative/signal-reference structural channels, cross-tick copy
-  frames, split checkpoints, and derivative indexes.
+- revision 2 introduced nested physical streams, narrative/signal-reference
+  structural channels, cross-tick copy frames, split checkpoints, and indexes;
+- revision 3 replaces whole-tree structural frame schemas with keyed path-deltas,
+  adds `claim_id` identity for signal-knowledge claims, and batches events per
+  channel/tick;
+- revision 4 preserves revision 3 semantics but replaces verbose JSON payload
+  streams with exact typed binary records: a global string dictionary, unsigned/
+  signed varints, IEEE-754 float64, binary frame schemas and path IDs. Revision 4
+  is the current experimental candidate.
 
 Readers treat a v4.1 manifest with no `layout_revision` as revision 1. This
 preserves readability of runs produced during the initial v4.1 rollout without
@@ -355,8 +389,37 @@ A keyed path-delta prototype reduced the same 250-tick window to approximately
 above the <200 MB hard gate for the full run. Therefore layout revision 2 is not
 canonicalized and the default Physics3D writer remains v4.0.
 
-The next candidate must eliminate whole-tree structural schema revisions and
-pass the full golden-run gate before cutover.
+Revision 3 proved the temporal semantics but remained too large in JSON.
+Revision 4's binary representation passes the golden storage projection; the
+remaining blocker is validation of the actual repository writer/reader.
+
+## Golden-run revision 4 result — 2026-09-24
+
+A standalone implementation of the revision 4 physical encoding was run across
+all 4,781 ticks of the real v4.0 reference run. During that pass every
+reconstructed v4.0 state and Tick3D summary was checked against its committed
+SHA-256 before being measured.
+
+Estimated revision 4 evidence size: **125,965,909 bytes (125.97 MB)** excluding
+large organism/physical checkpoints.
+
+Breakdown:
+
+- dense frames: 57.26 MB;
+- structural deltas: 42.35 MB;
+- events: 8.97 MB;
+- global string dictionary: 7.80 MB;
+- Tick3D summary frames: 5.55 MB;
+- dense schemas: 2.97 MB;
+- anchors: 0.39 MB;
+- tick commits: 0.55 MB;
+- exact fallback: 0.038 MB.
+
+This passes the <200 MB hard storage gate and lands inside the 50–150 MB target.
+It validates the representation strategy, but it does **not** by itself
+canonicalize revision 4. The repository writer/reader implementation must still
+produce exact round trips on all 4,781 ticks, meet the state_at latency gate and
+pass regression tests before v4.0 is replaced as the default writer.
 
 ## Canonicalization gate
 
@@ -388,7 +451,9 @@ v4.1 does not implement:
 - float quantization;
 - gzip/zstd/zip;
 - Parquet/SQLite;
-- binary XOR/varint encoding.
+- float quantization or approximate numeric codecs;
+- gzip/zstd/zip as the primary storage model.
 
-Those may be evaluated after structural redundancy has been removed and the
-lossless typed-stream architecture has been validated on real runs.
+Binary typed records and varints are part of revision 4 because the golden run
+showed that JSON textual overhead remained the dominant blocker after temporal
+redundancy was removed.
