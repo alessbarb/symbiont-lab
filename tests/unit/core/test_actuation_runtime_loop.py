@@ -301,3 +301,22 @@ def test_non_developmental_motor_origin_is_not_reclassified():
         (MotorIntent("a", 0.7),),
         prior_origin="primitive",
     ) == ("primitive", "primitive")
+
+
+
+def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
+    from types import SimpleNamespace
+    from symbiont.core.orchestration.runtime import OrganismRuntime
+
+    runtime = OrganismRuntime.__new__(OrganismRuntime)
+    runtime._sensory_system = SimpleNamespace(sensors=())
+    percepts = tuple(
+        SimpleNamespace(name=f"sense.{index:03d}", value=float(index))
+        for index in range(96)
+    )
+
+    snapshot = runtime._motor_percept_snapshot(percepts)
+
+    assert len(snapshot) == 96
+    assert snapshot["sense.000"] == 0.0
+    assert snapshot["sense.095"] == 95.0
