@@ -120,6 +120,9 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
         if links:
             body["links"] = links
     _copy_number(body, tick, "contact_count", cast=int)
+    _copy_number(body, tick, "ground_contact_count", cast=int)
+    _copy_number(body, tick, "self_contact_count", cast=int)
+    _copy_number(body, tick, "resource_contact_count", cast=int)
     if tick.get("metabolic_reserve_ratio") is not None:
         _copy_number(body, tick, "metabolic_reserve_ratio", target_key="metabolic_reserve")
     elif tick.get("metabolic_reserve") is not None:
@@ -176,6 +179,10 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
     _copy_number(vitals, tick, "resource_remaining")
     _copy_number(vitals, tick, "displacement_from_origin")
     _copy_number(vitals, tick, "mechanical_work_joules")
+    _copy_number(vitals, tick, "positive_actuator_work_joules")
+    _copy_number(vitals, tick, "negative_actuator_work_joules")
+    _copy_number(vitals, tick, "absolute_actuator_work_joules")
+    _copy_number(vitals, tick, "net_actuator_work_joules")
     _copy_number(vitals, tick, "metabolic_work_cost")
 
     return body, cognition, vitals
