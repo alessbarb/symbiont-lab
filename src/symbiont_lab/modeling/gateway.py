@@ -55,11 +55,19 @@ class ArtifactInferenceGateway:
         self._vocab_size = vocab_size
         self._pad_id = pad_id
         self._device = device
+        self._artifact_cache: dict[str, ModelArtifact] = {}
         self._cache: dict[str, object] = {}
+
+    def _artifact(self, model_id: str) -> ModelArtifact:
+        artifact = self._artifact_cache.get(model_id)
+        if artifact is None:
+            artifact = self._store.get(model_id)
+            self._artifact_cache[model_id] = artifact
+        return artifact
 
     def _model(self, model_id: str):
         if model_id not in self._cache:
-            artifact = self._store.get(model_id)
+            artifact = self._artifact(model_id)
             self._cache[model_id] = load_artifact_model(
                 artifact,
                 vocab_size=self._vocab_size,
@@ -81,7 +89,7 @@ class ArtifactInferenceGateway:
             raise ValueError("token_ids contain values outside vocabulary")
         if isinstance(top_k, bool) or not isinstance(top_k, int) or not 1 <= top_k <= min(16, self._vocab_size):
             raise ValueError("top_k outside supported bounds")
-        artifact = self._store.get(model_id)
+        artifact = self._artifact(model_id)
         context = token_ids[-artifact.manifest.context_window :]
         torch = _torch()
         model = self._model(model_id)
