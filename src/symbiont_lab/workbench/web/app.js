@@ -1,5 +1,5 @@
 import { mount as mountHome, update as updateHome, unmount as unmountHome } from './views/home.js';
-import { mount as mountMind, unmount as unmountMind } from './views/mind.js';
+import { mount as mountMind, update as updateMind, unmount as unmountMind } from './views/mind.js';
 import { mount as mountLab, update as updateLab } from './views/lab.js';
 import { mount as mountArchive, update as updateArchive } from './views/archive.js';
 
@@ -144,7 +144,7 @@ function renderMindView() {
   if (!root) return;
   clearMountedView();
   mountedModule = 'mind';
-  mountMind(root);
+  mountMind(root, currentState);
 }
 
 function routeToView(viewId) {
@@ -175,6 +175,7 @@ async function fetchState() {
     if (mountedModule === 'home') updateHome(document.getElementById(ROOT_ID), currentState);
     if (mountedModule === 'lab') updateLab(document.getElementById(ROOT_ID), currentState);
     if (mountedModule === 'archive') updateArchive(document.getElementById(ROOT_ID), currentState);
+    if (mountedModule === 'mind') updateMind(document.getElementById(ROOT_ID), currentState);
   } catch (error) {
     setStatus('offline');
     setRunState('cannot reach server');

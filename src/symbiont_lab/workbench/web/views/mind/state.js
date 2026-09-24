@@ -12,6 +12,21 @@ export const historySnapshots = [];
 export const selfRegionHistory = new Map();
 export const selfDependencyHistory = new Map();
 
+export const streamState = {
+  status: 'disconnected',
+  source: null,
+  instanceId: null,
+  runId: null,
+  lastTelemetryAt: null,
+  lastSnapshotAt: null,
+  lastCoherentFrameAt: null,
+  telemetryTick: null,
+  snapshotTick: null,
+  stale: true,
+  coherent: false,
+  reason: null,
+};
+
 export const tel = {
   tick: null,
   alive: null,
@@ -23,6 +38,7 @@ export const tel = {
   reacclimationRemaining: null,
   reacclimating: null,
   motorOrigin: null,
+  motorOriginDetail: null,
   predictorCount: null,
   sensorimotorPatterns: null,
   motorPrimitives: null,
@@ -75,6 +91,7 @@ export const snap = {
   observerSemantics: null,
   provenance: null,
   sensorimotor: null,
+  embodiment: null,
   outcome: null,
 };
 
@@ -161,6 +178,20 @@ export const graph = {
 
 export function resetMindDataState() {
   for (const key of Object.keys(tel)) tel[key] = null;
+  Object.assign(streamState, {
+    status: 'disconnected',
+    source: null,
+    instanceId: null,
+    runId: null,
+    lastTelemetryAt: null,
+    lastSnapshotAt: null,
+    lastCoherentFrameAt: null,
+    telemetryTick: null,
+    snapshotTick: null,
+    stale: true,
+    coherent: false,
+    reason: null,
+  });
   for (const key of Object.keys(snap)) snap[key] = Array.isArray(snap[key]) ? [] : null;
   snap.senses = [];
   snap.beliefs = [];

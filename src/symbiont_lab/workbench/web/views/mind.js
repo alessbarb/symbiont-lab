@@ -36,6 +36,7 @@ import {
   graph as _graph,
   resetMindDataState,
   snap as _snap,
+  streamState as _streamState,
   tel as _tel,
 } from './mind/state.js';
 
@@ -47,6 +48,7 @@ let _root           = null;
 let _streams        = null;
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
 let _activeTab      = 'overview';
+let _appState        = null;
 
 // Lifecycle / UI state merged from the instance-oriented refactor.
 let _uid                    = 'default';
@@ -253,8 +255,65 @@ function refreshSnapshotViews() {
  * Connect to /api/organism for lightweight cognition + vitals telemetry.
  * This stream runs at all times while the view is mounted.
  */
-function ingestTelemetryEvent(data) {
-  if (applyTelemetryEvent(data)) updateTelemetryStrip();
+function resetCurrentObservation() {
+  for (const key of Object.keys(_tel)) _tel[key] = null;
+  for (const key of Object.keys(_snap)) {
+    _snap[key] = Array.isArray(_snap[key]) ? [] : null;
+  }
+  _snap.senses = [];
+  _snap.beliefs = [];
+  _snap.sensoryDevelopment = [];
+  _snap.sensoryRelations = [];
+}
+
+function updateCoherence() {
+  _streamState.coherent =
+    _streamState.telemetryTick != null &&
+    _streamState.snapshotTick != null &&
+    _streamState.telemetryTick === _streamState.snapshotTick;
+  if (_streamState.status === 'live' && _streamState.coherent) {
+    _streamState.lastCoherentFrameAt = Date.now();
+    _streamState.stale = false;
+  }
+}
+
+function ingestTelemetryEvent(data, meta = {}) {
+  if (!applyTelemetryEvent(data)) return;
+  _streamState.lastTelemetryAt = Date.now();
+  _streamState.telemetryTick = meta.frameTick ?? data.tick ?? _streamState.telemetryTick;
+  updateCoherence();
+  updateTelemetryStrip();
+}
+
+function updateMindSourceState(next) {
+  if (next.identityChanged) resetCurrentObservation();
+  Object.assign(_streamState, {
+    status: next.status,
+    source: next.source ?? null,
+    instanceId: next.instanceId ?? null,
+    runId: next.runId ?? null,
+    stale: next.status !== 'live',
+    reason: next.reason ?? null,
+  });
+  updateCoherence();
+  updateTelemetryStrip(true);
+  if (_activeTab === 'motor') renderMotorLearning();
+}
+
+function physicsRunning(appState) {
+  return ['starting', 'running', 'stopping'].includes(appState?.sources?.physics3d?.state);
+}
+
+export function update(root, appState) {
+  if (!_root || root !== _root) return;
+  _appState = appState ?? null;
+  if (_streamState.source === 'physics3d' && !physicsRunning(_appState) && _streamState.status === 'live') {
+    _streamState.status = 'stale';
+    _streamState.stale = true;
+    _streamState.reason = 'physics3d-run-ended';
+    updateTelemetryStrip(true);
+    if (_activeTab === 'motor') renderMotorLearning();
+  }
 }
 
 
@@ -267,7 +326,7 @@ function ingestTelemetryEvent(data) {
  *
  * @param {HTMLElement} root
  */
-export function mount(root) {
+export function mount(root, appState = null) {
   if (!(root instanceof HTMLElement)) {
     throw new TypeError('Mind view requires a valid HTMLElement root');
   }
@@ -276,6 +335,7 @@ export function mount(root) {
   if (_root) unmount();
 
   _root = root;
+  _appState = appState ?? null;
   _rootStyleBeforeMount = root.style.cssText;
   _uid = Math.random().toString(36).slice(2, 9);
   _lastUITime = 0;
@@ -308,8 +368,13 @@ export function mount(root) {
   // SSE transport is isolated from rendering/state interpretation.
   _streams = new MindStreams({
     onTelemetry: ingestTelemetryEvent,
-    onSnapshot: (snapshot) => {
-      if (applyMindSnapshot(snapshot)) refreshSnapshotViews();
+    onSnapshot: (snapshot, meta = {}) => {
+      if (applyMindSnapshot(snapshot)) {
+        _streamState.lastSnapshotAt = Date.now();
+        _streamState.snapshotTick = meta.tick ?? snapshot?.tick ?? snapshot?.snapshot?.tick ?? null;
+        updateCoherence();
+        refreshSnapshotViews();
+      }
     },
     onTopology: (topology) => {
       _snap.topology = topology;
@@ -321,6 +386,7 @@ export function mount(root) {
       }
     },
     onWaiting: setWaiting,
+    onSourceState: updateMindSourceState,
   });
   _streams.connect();
 
@@ -370,4 +436,5 @@ export function unmount() {
   }
 
   _rootStyleBeforeMount = '';
+  _appState = null;
 }

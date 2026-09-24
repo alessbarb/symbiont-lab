@@ -10,11 +10,13 @@ export class MindStreams {
     onSnapshot,
     onTopology,
     onWaiting,
+    onSourceState,
   } = {}) {
     this.onTelemetry = onTelemetry ?? (() => {});
     this.onSnapshot = onSnapshot ?? (() => {});
     this.onTopology = onTopology ?? (() => {});
     this.onWaiting = onWaiting ?? (() => {});
+    this.onSourceState = onSourceState ?? (() => {});
 
     this.organism = null;
     this.fleet = null;
@@ -23,10 +25,31 @@ export class MindStreams {
     this.activeRunId = null;
     this.localMindActive = false;
     this.closed = true;
+    this.sourceIdentity = { source: null, instanceId: null, runId: null };
+  }
+
+  emitSourceState(status, next = {}) {
+    const source = next.source ?? this.sourceIdentity.source ?? null;
+    const instanceId = next.instanceId ?? this.sourceIdentity.instanceId ?? null;
+    const runId = next.runId ?? this.sourceIdentity.runId ?? null;
+    const identityChanged =
+      source !== this.sourceIdentity.source ||
+      instanceId !== this.sourceIdentity.instanceId ||
+      runId !== this.sourceIdentity.runId;
+    this.sourceIdentity = { source, instanceId, runId };
+    this.onSourceState({
+      status,
+      source,
+      instanceId,
+      runId,
+      reason: next.reason ?? null,
+      identityChanged,
+    });
   }
 
   connect() {
     this.closed = false;
+    this.emitSourceState('waiting', { reason: 'connecting' });
     this.connectOrganism();
     this.connectFleet();
   }
@@ -43,6 +66,7 @@ export class MindStreams {
     this.activeInstance = null;
     this.activeRunId = null;
     this.localMindActive = false;
+    this.emitSourceState('disconnected', { source: null, instanceId: null, runId: null, reason: 'closed' });
   }
 
   connectOrganism() {
@@ -56,6 +80,13 @@ export class MindStreams {
 
       if (data.type === 'observed_frame' && data.source === 'physics3d') {
         this.localMindActive = true;
+        const frameRunId = data.run_id ?? data.runId ?? data.cognition?.run_id ?? null;
+        const frameInstanceId = data.instance_id ?? data.instanceId ?? data.cognition?.instance_id ?? null;
+        this.emitSourceState('live', {
+          source: 'physics3d',
+          instanceId: frameInstanceId,
+          runId: frameRunId,
+        });
         if (this.instance) {
           this.instance.close();
           this.instance = null;
@@ -70,6 +101,8 @@ export class MindStreams {
             source: 'physics3d',
             tick: data.tick ?? null,
             coherentFrame: true,
+            instanceId: frameInstanceId,
+            runId: frameRunId,
           });
         }
         return;
@@ -93,6 +126,11 @@ export class MindStreams {
 
       if (data.type === 'mind_snapshot' && data.source === 'physics3d' && data.snapshot) {
         this.localMindActive = true;
+        this.emitSourceState('live', {
+          source: 'physics3d',
+          instanceId: data.instance_id ?? null,
+          runId: data.run_id ?? null,
+        });
         if (this.instance) {
           this.instance.close();
           this.instance = null;
@@ -117,6 +155,7 @@ export class MindStreams {
     });
 
     this.organism.onerror = () => {
+      this.emitSourceState('stale', { reason: 'organism-stream-disconnected' });
       this.onWaiting(true, 'SSE /api/organism disconnected — retrying…');
     };
   }
@@ -169,6 +208,7 @@ export class MindStreams {
 
       if (current) {
         const nextRunId = current.run_id ?? null;
+        this.emitSourceState('live', { source: 'observatory', instanceId: current.instance_id, runId: nextRunId });
         if (nextRunId !== this.activeRunId) {
           this.connectInstance(current.instance_id, nextRunId);
         }
@@ -185,6 +225,7 @@ export class MindStreams {
       if (alive.length > 0) {
         this.connectInstance(alive[0].instance_id, alive[0].run_id ?? null);
       } else {
+        this.emitSourceState('waiting', { source: null, instanceId: null, runId: null, reason: 'no-live-instance' });
         this.onWaiting(true, 'Waiting for a live Observatory instance…');
       }
     };
@@ -213,6 +254,7 @@ export class MindStreams {
     if (this.instance) this.instance.close();
     this.activeInstance = instanceId;
     this.activeRunId = runId;
+    this.emitSourceState('live', { source: 'observatory', instanceId, runId });
     this.instance = new EventSource(`/instances/${instanceId}`);
 
     this.instance.onmessage = (event) => {
@@ -240,6 +282,7 @@ export class MindStreams {
     };
 
     this.instance.onerror = () => {
+      this.emitSourceState('stale', { source: 'observatory', instanceId, runId: this.activeRunId, reason: 'instance-stream-disconnected' });
       this.onWaiting(true, `Connection to instance ${instanceId} lost — retrying…`);
     };
   }
