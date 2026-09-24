@@ -158,7 +158,10 @@ def inject_memory_candidates(
     sensorimotor = fresh_actuation.get("sensorimotor")
     if not isinstance(sensorimotor, dict):
         return fresh_actuation
-    sensorimotor["schema_version"] = max(8, int(sensorimotor.get("schema_version") or 8))
+    if int(sensorimotor.get("schema_version") or -1) != 9:
+        raise ValueError(
+            "fresh embodiment must provide canonical sensorimotor schema v9"
+        )
     sensorimotor["historical_candidates"] = [
         deepcopy(item)
         for item in raw[:_MAX_HISTORICAL_PRIMITIVES]
