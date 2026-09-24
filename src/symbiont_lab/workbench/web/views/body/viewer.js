@@ -92,10 +92,10 @@ function el(tag, cls, styles = {}) {
   return node;
 }
 
-export class HumanoidViewer {
+export class BodyViewer {
   constructor(rootElement, sseUrl = '/api/organism') {
     if (!(rootElement instanceof HTMLElement)) {
-      throw new TypeError('HumanoidViewer requires a valid HTMLElement root');
+      throw new TypeError('BodyViewer requires a valid HTMLElement root');
     }
 
     this.root = rootElement;
@@ -1542,3 +1542,6 @@ export class HumanoidViewer {
     }
   }
 }
+
+// Compatibility alias for older imports; rendering is morphology-neutral.
+export const HumanoidViewer = BodyViewer;
