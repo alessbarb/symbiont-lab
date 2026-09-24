@@ -45,6 +45,11 @@ from ...cognition.genome import Genome, DevelopmentGenes, PlasticityGenes, Range
 from ...cognition.graph import CognitiveGraph
 from ...cognition.learning import ShadowPrediction
 from ...cognition.limits import KernelLimits
+from ...genetics.expression import (
+    ExpressionRegulator,
+    GeneExpressionState,
+    RegulatorySignals,
+)
 from ..cognition.attention import AttentionAllocation, AttentionBudget, AttentionCandidate, attend_to_host
 from ..embodiment.body_schema import BodySchemaEngine
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
@@ -184,6 +189,7 @@ class RuntimeTickResult:
     actuation: Actuation | None = None
     motor_intents: tuple[MotorIntent, ...] = ()
     actuations: tuple[Actuation, ...] = ()
+    gene_expression: dict[str, object] | None = None
 
 
 class OrganismDeadError(RuntimeError):
@@ -264,6 +270,8 @@ class OrganismRuntime:
         kernel_limits: KernelLimits | None = None,
         cognitive_graph: CognitiveGraph | None = None,
         cognitive_bridge: CognitiveBridge | None = None,
+        gene_expression_state: GeneExpressionState | None = None,
+        expression_regulator: ExpressionRegulator | None = None,
         memory_consolidator: MemoryConsolidator | None = None,
         organism_id: str | None = None,
         signal_identity: SignalIdentity | None = None,
@@ -631,6 +639,12 @@ class OrganismRuntime:
             private_body_schema["id_salt"]
         )
         self._genome = genome
+        self._gene_expression_state = (
+            gene_expression_state
+            if gene_expression_state is not None
+            else (GeneExpressionState.from_genome(genome) if genome is not None else None)
+        )
+        self._expression_regulator = expression_regulator or ExpressionRegulator()
         if isinstance(mutation_seed, bool) or not isinstance(mutation_seed, int):
             raise ValueError("mutation_seed must be an integer")
         if (not isinstance(epigenetic_decay, (int, float)) or isinstance(epigenetic_decay, bool)
@@ -662,9 +676,14 @@ class OrganismRuntime:
         self._cognitive_bridge: CognitiveBridge | None = cognitive_bridge
         if self._cognitive_bridge is None and genome is not None and cognitive_graph is not None:
             self._cognitive_bridge = CognitiveBridge(
-                graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
+                graph=cognitive_graph,
+                genome=genome,
+                kernel_limits=self._kernel_limits,
+                expression_state=self._gene_expression_state,
             )
         if self._cognitive_bridge is not None:
+            if self._gene_expression_state is not None:
+                self._cognitive_bridge.set_expression_state(self._gene_expression_state)
             self._cognitive_bridge.bind_contention_identity(self._organism_id)
         self._actuation_enabled = bool(actuation_enabled)
         self._motor_exploration_mode = motor_exploration_mode
@@ -737,6 +756,82 @@ class OrganismRuntime:
                 )
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
+
+    @property
+    def gene_expression_state(self) -> GeneExpressionState | None:
+        return self._gene_expression_state
+
+    def _update_gene_expression(
+        self,
+        *,
+        cognition: CognitiveBridgeResult | None,
+        drift_observations: dict[str, DriftObservation],
+        metabolic_pressure: str,
+    ) -> None:
+        """Regulate the next tick from organism-owned evidence only."""
+        if self._genome is None or self._gene_expression_state is None:
+            return
+
+        losses = (
+            [float(error.loss) for error in cognition.prediction_errors]
+            if cognition is not None
+            else []
+        )
+        prediction_error = max(0.0, min(1.0, sum(losses) / len(losses))) if losses else 0.0
+        novelty_values = [
+            novelty_from_drift_kind(observation.kind)
+            for observation in drift_observations.values()
+        ]
+        novelty = max(novelty_values, default=0.0)
+
+        actuator_count = (
+            len(self._actuator_constitution.actuator_ids)
+            if self._actuator_constitution is not None
+            else 0
+        )
+        active_count = (
+            len(self._actuator_proposer.active_repertoire)
+            if self._actuator_proposer is not None
+            else 0
+        )
+        controllability_loss = (
+            max(0.0, min(1.0, 1.0 - active_count / actuator_count))
+            if actuator_count
+            else 0.0
+        )
+
+        # No explicit "new body" flag enters regulation. Mismatch is inferred
+        # from failed predictions and loss of controllability.
+        embodiment_mismatch = max(prediction_error, controllability_loss)
+        uncertainty = max(prediction_error, 0.5 * controllability_loss)
+        pressure_ratio = {
+            "normal": 0.0,
+            "elevated": 0.33,
+            "severe": 0.66,
+            "unrecoverable": 1.0,
+        }.get(str(metabolic_pressure), 0.0)
+
+        signals = RegulatorySignals(
+            uncertainty=uncertainty,
+            novelty=max(0.0, min(1.0, novelty)),
+            prediction_error=prediction_error,
+            controllability_loss=controllability_loss,
+            embodiment_mismatch=embodiment_mismatch,
+            resource_pressure=pressure_ratio,
+        )
+        frozen = bool(
+            self._cognitive_bridge is not None
+            and getattr(self._cognitive_bridge, "_safety_state", None) is not None
+            and self._cognitive_bridge._safety_state.frozen  # noqa: SLF001
+        )
+        self._gene_expression_state = self._expression_regulator.update(
+            self._genome,
+            self._gene_expression_state,
+            signals,
+            frozen=frozen,
+        )
+        if self._cognitive_bridge is not None:
+            self._cognitive_bridge.set_expression_state(self._gene_expression_state)
 
     @property
     def reacclimation_remaining(self) -> int:
