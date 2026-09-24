@@ -424,8 +424,8 @@ parent energy before
 The child starts physically immature and cognitively germinal. Acquired
 cognitive state is not copied. A denied birth consumes no parental energy.
 
-Physics3D is constitution `genome_symbiont_physics3d_v9` with the
-31-DoF `anthropomorphic-v5` body. Earlier Physics3D subjects must start fresh:
+Physics3D uses the canonical `genome_symbiont_base_v2` together with the
+31-DoF `anthropomorphic-v5` body. The body constitution is independent of the genome. Earlier Physics3D subjects must start fresh:
 body-state schema v5 deliberately fails closed rather than adapting v4
 14-DoF constitution.
 
