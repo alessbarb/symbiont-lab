@@ -944,6 +944,8 @@ class OrganismRuntime:
             controllability_estimate_count=len(
                 self._controllability_model.estimates
             ),
+            predictive_context_count=self._sensorimotor_model.context_count,
+            agency_estimate_count=len(self._agency_model.estimates),
             composition_evidence_count=len(self._composition_engine.evidence),
             established_composition_count=len(self._composition_engine.established),
             body_schema_sensorimotor_relations=(
