@@ -642,6 +642,7 @@ def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
         )
         primitive = MotorPrimitive(
             primitive_id=f"primitive.test.{index}",
+            embodiment_fingerprint=learner.embodiment_fingerprint,
             sequence=sequence,
             samples=3,
             effect_mean=0.1,
@@ -692,6 +693,7 @@ def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
     )
     first = MotorPrimitive(
         primitive_id="primitive.b",
+        embodiment_fingerprint=learner.embodiment_fingerprint,
         sequence=((("a", 1),),) * 4,
         samples=2,
         effect_mean=0.1,
@@ -701,6 +703,7 @@ def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
     )
     second = MotorPrimitive(
         primitive_id="primitive.a",
+        embodiment_fingerprint=learner.embodiment_fingerprint,
         sequence=((("b", 1),),) * 4,
         samples=2,
         effect_mean=0.1,
@@ -723,6 +726,7 @@ def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
 
     replacement = MotorPrimitive(
         primitive_id="primitive.a",
+        embodiment_fingerprint=learner.embodiment_fingerprint,
         sequence=second.sequence,
         samples=3,
         effect_mean=0.2,
@@ -845,6 +849,7 @@ def test_bounded_primitive_pool_preserves_proven_competence():
 
     competence = MotorPrimitive(
         primitive_id="primitive.competence",
+        embodiment_fingerprint=learner.embodiment_fingerprint,
         sequence=sequence,
         samples=2,
         effect_mean=0.01,
@@ -857,6 +862,7 @@ def test_bounded_primitive_pool_preserves_proven_competence():
     learner._primitives = {
         f"primitive.unverified.{index:02d}": MotorPrimitive(
             primitive_id=f"primitive.unverified.{index:02d}",
+            embodiment_fingerprint=learner.embodiment_fingerprint,
             sequence=sequence,
             samples=1,
             effect_mean=1.0,
@@ -924,6 +930,7 @@ def test_historical_primitive_requires_fresh_evidence_before_cognitive_reuse():
     added = learner.register_historical_primitive_candidates([
         {
             "primitive_id": historical_id,
+            "embodiment_fingerprint": learner.embodiment_fingerprint,
             "sequence": [
                 [["actuator.0", 5]],
                 [["actuator.1", 5]],
