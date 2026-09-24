@@ -141,6 +141,41 @@ def _save_checkpoint(
 
 
 
+def _sensorimotor_checkpoint_schema(payload: dict | None) -> int | None:
+    if not isinstance(payload, dict):
+        return None
+    actuation = payload.get("actuation")
+    if not isinstance(actuation, dict):
+        return None
+    sensorimotor = actuation.get("sensorimotor")
+    if not isinstance(sensorimotor, dict):
+        return None
+    value = sensorimotor.get("schema_version")
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return int(value)
+
+
+def _require_current_motor_evidence(
+    payload: dict | None,
+    *,
+    fresh_body: bool,
+    new_symbiont: bool,
+) -> None:
+    if payload is None or fresh_body or new_symbiont:
+        return
+    schema = _sensorimotor_checkpoint_schema(payload)
+    if schema == 9:
+        return
+    raise RuntimeError(
+        "Physics3D checkpoint carries sensorimotor evidence from an incompatible "
+        f"schema ({schema!r}); canonical motor learning now requires v9. "
+        "Use --fresh-body to re-embody the same Symbiont and revalidate "
+        "body-specific knowledge, or --new-symbiont for a clean individual. "
+        "The old motor evidence will not be silently reinterpreted."
+    )
+
+
 _HEADLESS_PROGRESS_TTY = sys.stdout.isatty()
 
 
@@ -225,6 +260,11 @@ def run(
             f"Loaded canonical Symbiont {runtime_checkpoint.get('organism_id', 'unknown')} "
             f"at tick {int(runtime_checkpoint.get('saved_at_tick') or 0):,} "
             f"from {symbiont_file}"
+        )
+        _require_current_motor_evidence(
+            runtime_checkpoint,
+            fresh_body=fresh_body,
+            new_symbiont=new_symbiont,
         )
     elif symbiont_file == DEFAULT_SYMBIONT_FILE and not new_symbiont:
         legacy = next(
