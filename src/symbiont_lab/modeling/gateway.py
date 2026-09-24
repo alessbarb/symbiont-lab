@@ -76,6 +76,10 @@ class ArtifactInferenceGateway:
             )
         return self._cache[model_id]
 
+    def warm(self, model_id: str) -> None:
+        """Load and verify one model once before latency-sensitive inference."""
+        self._model(model_id)
+
     def infer(
         self,
         *,
