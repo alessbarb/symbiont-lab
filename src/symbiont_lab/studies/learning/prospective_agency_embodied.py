@@ -27,7 +27,7 @@ _CONDITIONS = (
     "no_counterfactual",
     "shuffled_model",
     "shuffled_value",
-    "babbling_only",
+    "exploration_only",
 )
 
 
@@ -218,11 +218,11 @@ def _apply_condition(
         applicable = _shuffle_outcome_value_identity(runtime)
         _freeze_outcome_value_learning(runtime)
         return applicable
-    if condition == "babbling_only":
+    if condition == "exploration_only":
         _disable_counterfactual(runtime)
         # This is an intentionally strong baseline. Removing the graph from the
         # matched experimental twin prevents direct cognitive/readout motor use
-        # while leaving sensorimotor babbling and body mechanics intact.
+        # while leaving sensorimotor exploration and body mechanics intact.
         runtime.organism._cognitive_bridge = None
         return True
     raise ValueError(f"unsupported prospective condition: {condition}")
