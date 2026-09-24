@@ -11,9 +11,8 @@ import time
 from typing import Any
 
 from symbiont import __version__ as symbiont_version
-from symbiont.actuation.constitution import ActuatorConstitution
-from symbiont.cognition.birth import load_actuator_constitution, load_base_cognition
-from symbiont.cognition.genome import MotorGenes
+from symbiont.actuation.surface import ActuatorConstitution, derive_actuator_constitution
+from symbiont.cognition.birth import load_base_cognition
 from symbiont.core.physiology import LivingBodyState
 from symbiont.cognition.limits import KernelLimits
 from symbiont.host.contracts import (
@@ -61,37 +60,29 @@ def physics3d_sensory_system() -> SensorySystem:
     )
 
 
-def physics3d_cognition(
-    *, motor_slots: int | None = None, kernel_limits: KernelLimits | None = None
-):
-    """Canonical germinal cognition with a body-compatible opaque motor surface."""
-    if motor_slots is None:
-        motor_slots = len(effector_contract_ids())
-    if motor_slots < 1 or motor_slots > 256:
-        raise ValueError("motor_slots must be within [1, 256]")
+def physics3d_cognition(*, kernel_limits: KernelLimits | None = None):
+    """Canonical germinal cognition, independent of body morphology."""
     limits = KernelLimits() if kernel_limits is None else kernel_limits
     genome, graph = load_base_cognition(
         kernel_limits=limits,
         running_version=_running_version(),
     )
-    genome = replace(
-        genome,
-        genome_id="genome_symbiont_physics3d_v9",
-        parent_ids=(genome.genome_id,),
-        development=replace(
-            genome.development,
-            soft_node_budget=192,
-            soft_edge_budget=1536,
-            sense_node_budget=128,
-        ),
-        motor=MotorGenes(
-            slot_count=motor_slots,
-            basal_cost=0.002,
-            initial_health=1.0,
-            execution_threshold=0.05,
-        ),
-    )
     return genome, graph, limits
+
+
+def physics3d_actuator_surface(
+    effector_ids: Sequence[str],
+    *,
+    physical_contract: str | None = None,
+) -> ActuatorConstitution:
+    """Build the current body's opaque actuator surface outside the genome."""
+    return derive_actuator_constitution(
+        tuple(str(value) for value in effector_ids),
+        basal_cost=0.002,
+        initial_health=1.0,
+        execution_threshold=0.05,
+        physical_contract=physical_contract,
+    )
 
 
 class OpaqueBodyInteroception:
@@ -351,6 +342,7 @@ __all__ = [
     "actuator_to_effector_map",
     "actuator_exclusion_groups",
     "body_schema_summary",
+    "physics3d_actuator_surface",
     "physics3d_cognition",
     "physics3d_sensory_system",
 ]
