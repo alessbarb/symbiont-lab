@@ -136,3 +136,77 @@ export const SEGMENT_ACTIVITY_JOINTS = {
   right_shin: ['right_knee_pitch'],
   right_foot: ['right_ankle_pitch', 'right_ankle_roll'],
 };
+
+
+export function fallbackBodyModel() {
+  return {
+    bodyKind: 'anthropomorphic-v4',
+    baseLink: 'pelvis',
+    joints: JOINT_TOPOLOGY,
+    segments: SEGMENTS,
+    segmentActivityJoints: SEGMENT_ACTIVITY_JOINTS,
+  };
+}
+
+export function bodyModelFromCatalog(item) {
+  const raw = item?.observer_model;
+  if (!raw || typeof raw !== 'object') return null;
+  if (!raw.base_link || !Array.isArray(raw.joints) || !raw.segments) return null;
+
+  const segments = {};
+  for (const [name, segment] of Object.entries(raw.segments)) {
+    if (
+      !segment ||
+      !Array.isArray(segment.size) ||
+      segment.size.length !== 3 ||
+      !Array.isArray(segment.origin) ||
+      segment.origin.length !== 3
+    ) continue;
+    segments[name] = {
+      wdh: segment.size.map(Number),
+      offset: segment.origin.map(Number),
+    };
+  }
+
+  const joints = raw.joints
+    .filter((joint) => (
+      joint &&
+      typeof joint.name === 'string' &&
+      typeof joint.parent === 'string' &&
+      typeof joint.child === 'string' &&
+      Array.isArray(joint.origin) &&
+      joint.origin.length === 3
+    ))
+    .map((joint) => ({
+      name: joint.name,
+      parent: joint.parent,
+      child: joint.child,
+      offset: joint.origin.map(Number),
+      axisVector: Array.isArray(joint.axis) ? joint.axis.map(Number) : [1, 0, 0],
+    }));
+
+  const segmentActivityJoints = {};
+  for (const joint of joints) {
+    if (segments[joint.child]) {
+      (segmentActivityJoints[joint.child] ??= []).push(joint.name);
+    }
+  }
+
+  return {
+    bodyKind: String(item.body_kind || item.id || ''),
+    baseLink: String(raw.base_link),
+    joints,
+    segments,
+    segmentActivityJoints,
+  };
+}
+
+export function dominantAxis(axisVector) {
+  if (typeof axisVector === 'string' && ['X', 'Y', 'Z'].includes(axisVector)) {
+    return axisVector;
+  }
+  const [x = 0, y = 0, z = 0] = axisVector ?? [];
+  const abs = [Math.abs(x), Math.abs(y), Math.abs(z)];
+  const index = abs.indexOf(Math.max(...abs));
+  return index === 0 ? 'X' : index === 1 ? 'Y' : 'Z';
+}
