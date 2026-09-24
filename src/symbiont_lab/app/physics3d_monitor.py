@@ -194,6 +194,13 @@ class MonitorSnapshot:
     cognitive_motor_output_edges: int = 0
     cognitive_concepts: int = 0
     cognitive_readouts: int = 0
+    ground_contact_count: int = 0
+    self_contact_count: int = 0
+    resource_contact_count: int = 0
+    positive_actuator_work_joules: float = 0.0
+    negative_actuator_work_joules: float = 0.0
+    absolute_actuator_work_joules: float = 0.0
+    net_actuator_work_joules: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
