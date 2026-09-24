@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 
+from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.physiology import LivingBodyState
@@ -45,6 +46,10 @@ def main() -> None:
         cognitive_graph=graph,
         kernel_limits=limits,
         actuation_enabled=True,
+        actuator_constitution=derive_actuator_constitution(
+            8,
+            physical_contract="state-hash-probe-v2",
+        ),
         motor_exploration_mode="babbling",
         bootstrap_semantic_senses=False,
         discover_senses=False,
