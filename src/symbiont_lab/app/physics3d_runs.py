@@ -15,7 +15,7 @@ from symbiont_lab.physics3d.engine import (
     DEFAULT_STATE_DIR,
     DEFAULT_SYMBIONT_FILE,
 )
-from symbiont_lab.physics3d.persistence import load_symbiont_bundle
+from symbiont_lab.physics3d.persistence import read_symbiont_bundle_runtime
 
 
 DEFAULT_LAB_STATE_ROOT = DEFAULT_STATE_DIR.parent
@@ -121,13 +121,10 @@ class Physics3DRunStore:
     def _bundle_summary(self, bundle: Path) -> dict[str, Any]:
         if not bundle.is_file():
             return {}
-        scratch = bundle.parent / ".catalog-models"
         try:
-            payload = load_symbiont_bundle(bundle, scratch)
+            payload = read_symbiont_bundle_runtime(bundle)
         except Exception:
             return {}
-        finally:
-            shutil.rmtree(scratch, ignore_errors=True)
         ledger = payload.get("experience_ledger", {})
         registry = payload.get("private_model_registry", {})
         genome = payload.get("genome", {})
