@@ -1481,3 +1481,156 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   border-radius: 10px;
   background: rgba(4, 14, 24, 0.55);
 }
+
+
+/* ── Cognition inspector extracted presentation ─────────────────── */
+.mind-inspector-group {
+  margin: 9px 0;
+  border-top: 1px solid rgba(98, 120, 136, 0.14);
+  padding-top: 4px;
+}
+.mind-inspector-group-summary {
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 650;
+  color: var(--text);
+  padding: 4px 0;
+}
+.mind-inspector-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  margin-bottom: 3px;
+}
+.mind-inspector-subtitle {
+  font-size: 9px;
+  line-height: 1.45;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.mind-inspector-section-title {
+  margin: 13px 0 6px;
+  font-size: 9px;
+  font-weight: 650;
+  color: var(--text);
+}
+.mind-inspector-section-title-spaced { margin-top: 14px; }
+.mind-inspector-situation-title { margin-top: 4px; }
+.mind-inspector-empty {
+  font-size: 9px;
+  color: var(--muted);
+}
+.mind-inspector-relation-button,
+.mind-inspector-path-button {
+  width: 100%;
+  display: block;
+  text-align: left;
+  padding: 5px 6px;
+  margin: 3px 0;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 8px;
+  cursor: pointer;
+}
+.mind-inspector-relation-button {
+  border: 1px solid rgba(98, 120, 136, 0.16);
+  background: rgba(255, 255, 255, 0.015);
+}
+.mind-inspector-path-button {
+  border: 1px solid rgba(80, 217, 255, 0.16);
+  background: rgba(80, 217, 255, 0.025);
+}
+.mind-inspector-path-copy {
+  font-size: 8px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.mind-inspector-wide-button {
+  margin-top: 12px;
+  width: 100%;
+}
+.mind-inspector-stage-list {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.mind-inspector-evidence-note {
+  margin: 8px 0 10px;
+  padding: 7px;
+  border: 1px solid rgba(98, 120, 136, 0.14);
+  border-radius: 6px;
+  font-size: 8px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.mind-inspector-sector-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid rgba(98, 120, 136, 0.16);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.mind-inspector-sector-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+}
+.mind-inspector-sector-composition {
+  font-size: 8px;
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: 1.35;
+}
+.mind-inspector-sector-activity {
+  font-size: 8px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.mind-inspector-flow-summary {
+  font-size: 8px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.mind-inspector-history-row {
+  padding: 4px 0;
+  border-top: 1px solid rgba(98, 120, 136, 0.10);
+  font-size: 8px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.mind-inspector-frontier-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 3px 5px;
+  margin-top: 2px;
+  border: 0;
+  background: rgba(255, 189, 84, 0.025);
+  color: var(--muted);
+  font-size: 8px;
+  cursor: pointer;
+}
+.mind-inspector-usage {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(98, 120, 136, 0.12);
+  font-size: 8px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.mind-inspector-hint {
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid rgba(80, 217, 255, 0.14);
+  border-radius: 6px;
+  font-size: 8px;
+  line-height: 1.45;
+  color: var(--muted);
+}
