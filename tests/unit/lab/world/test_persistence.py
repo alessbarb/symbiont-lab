@@ -26,7 +26,7 @@ from symbiont_lab.world.persistence import (
     capture_checkpoint,
     restore_population_from_checkpoint,
 )
-from symbiont.cognition.birth import load_actuator_constitution
+from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont_lab.world.adapter import (
     ActuationBinding,
     ActuationBindingConstitution,
@@ -515,8 +515,8 @@ def test_actuation_world_replay_equivalence_with_movement_enabled(tmp_path: Path
 def test_actuation_binding_and_pending_emissions_survive_world_checkpoint(tmp_path: Path):
     smoke = build_genesis_smoke_v1()
     storage = WorldStorage(tmp_path / "actuation_emission")
-    genome, _ = _load_base_genome()
-    constitution = load_actuator_constitution(genome)
+    _load_base_genome()  # assert canonical Genome v2 remains loadable
+    constitution = derive_actuator_constitution(8, physical_contract="genesis-world-body-v2")
     binding = ActuationBindingConstitution(tuple(
         ActuationBinding(actuator_id, "emit", "23")
         for actuator_id in constitution.actuator_ids
