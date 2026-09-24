@@ -18,12 +18,33 @@ class GenomeError(ValueError):
     pass
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class AdaptiveGeneRange:
     baseline: float
     minimum: float
     maximum: float
     adaptation_rate: float
+
+    def __init__(
+        self,
+        baseline: float | None = None,
+        minimum: float = 0.0,
+        maximum: float = 1.0,
+        adaptation_rate: float = 0.0,
+        *,
+        initial: float | None = None,
+    ) -> None:
+        if baseline is None:
+            if initial is None:
+                raise GenomeError("AdaptiveGeneRange requires baseline or initial")
+            baseline = initial
+        elif initial is not None and float(initial) != float(baseline):
+            raise GenomeError("baseline and initial disagree")
+        object.__setattr__(self, "baseline", float(baseline))
+        object.__setattr__(self, "minimum", float(minimum))
+        object.__setattr__(self, "maximum", float(maximum))
+        object.__setattr__(self, "adaptation_rate", float(adaptation_rate))
+        self.__post_init__()
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -153,6 +174,16 @@ class Genome:
     sensorimotor: SensorimotorGenes
     structure: StructuralGenes
     evolvability: EvolvabilityGenes
+
+    @property
+    def genome_instance_id(self) -> str:
+        """Lineage/materialization identity, distinct from genotype_hash."""
+        return self.genome_id
+
+    @property
+    def identity(self) -> str:
+        """Compatibility alias for the genome instance identity."""
+        return self.genome_id
 
     @property
     def mutation_policy(self) -> MutationPolicyGenes:
