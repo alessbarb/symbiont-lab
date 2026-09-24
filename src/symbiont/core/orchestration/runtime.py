@@ -681,9 +681,6 @@ class OrganismRuntime:
         self._last_motor_origin = "none"
         self._last_motor_origin_detail = "none"
         self._last_executed_primitive_id: str | None = None
-        self._pending_primitive_choice_context: tuple[
-            str, tuple[str, ...], int, int
-        ] | None = None
         self._pending_motor_observation: tuple[
             tuple[str, float, dict[str, float] | None, bool], ...
         ] = ()
@@ -1139,135 +1136,73 @@ class OrganismRuntime:
                     self._last_executed_primitive_id,
                     homeostatic_baseline,
                 )
-            # Preserve prospective/reactive provenance if already set;
-            # otherwise derive from the sensorimotor source tag as before.
+            # Preserve prospective/reactive provenance if already set.
+            # Every other current primitive execution was selected through a
+            # cognitive primitive path; scheduled verification no longer exists.
             if self._last_motor_origin_detail not in {
                 "primitive_prospective",
                 "primitive_reactive",
             }:
-                primitive_source = (
-                    self._sensorimotor_learner.last_output_source
-                    if self._sensorimotor_learner is not None
-                    else "primitive"
-                )
-                self._last_motor_origin_detail = (
-                    "primitive_cognition"
-                    if primitive_source == "primitive"
-                    else "primitive_verification"
-                )
+                self._last_motor_origin_detail = "primitive_cognition"
 
         elif self._motor_exploration_mode == "babbling":
             if self._sensorimotor_learner is None:
                 raise RuntimeError("babbling mode requires sensorimotor learner")
 
-            had_active_primitive = (
-                self._sensorimotor_learner.active_primitive_id is not None
-            )
             # Sensorimotor learning is independent from cognitive admission.
-            # A full CognitiveGraph or delayed state->action association must
-            # never freeze causal investigation of the body.
+            # Current-state learner output here must be ordinary babbling;
+            # primitives are handled atomically above and no passive/verification
+            # scheduler exists.
             developmental_intents = self._sensorimotor_learner.motor_intents(tick)
             output_source = self._sensorimotor_learner.last_output_source
-
-            if output_source == "passive":
-                # Null-action probes estimate passive body dynamics. They must
-                # remain isolated from cognitive motor commands or the baseline
-                # would no longer represent f(state, action=0).
-                intents = ()
-                self._last_motor_origin = "none"
-                self._last_motor_origin_detail = "none"
-
-            elif output_source in {"primitive", "verification"}:
-                self._last_executed_primitive_id = (
-                    self._sensorimotor_learner.last_output_primitive_id
+            if output_source != "babbling":
+                raise RuntimeError(
+                    "unexpected sensorimotor output source during babbling development: "
+                    f"{output_source}"
                 )
-                if output_source == "verification" and not had_active_primitive:
-                    if (
-                        cognition is not None
-                        and self._last_executed_primitive_id is not None
-                    ):
-                        primitive = next(
-                            (
-                                item
-                                for item in self._sensorimotor_learner.primitives
-                                if item.primitive_id
-                                == self._last_executed_primitive_id
-                            ),
-                            None,
-                        )
-                        if primitive is not None:
-                            new_context = (
-                                primitive.primitive_id,
-                                tuple(sorted(cognition.active_concept_ids)),
-                                # Four action frames t..t+3 are only
-                                # causally closed by the pre-action body state
-                                # observed at t+4.
-                                tick + primitive.duration_ticks,
-                                primitive.samples,
-                            )
-                            current_context = self._pending_primitive_choice_context
-                            # Pending association credit is opportunistic, not a
-                            # global lock. Preserve a useful existing context;
-                            # replace an empty-context wait if a later probe has
-                            # actual active concepts.
-                            if (
-                                current_context is None
-                                or (
-                                    not current_context[1]
-                                    and bool(new_context[1])
-                                )
-                            ):
-                                self._pending_primitive_choice_context = new_context
-                # Primitive verification/execution is isolated or its measured
-                # consequence would be confounded by unrelated cognitive output.
-                intents = developmental_intents
-                self._last_motor_origin = "primitive" if intents else "none"
-                self._last_motor_origin_detail = (
-                    "primitive_verification" if intents else "none"
-                )
-            else:
-                # A one-channel babbling episode is a clean natural causal
-                # probe for the direct actuator proposer. Multi-channel
-                # synergies stay exclusively in the sensorimotor learner
-                # because their effects cannot be attributed to one actuator.
-                if len(developmental_intents) == 1:
-                    isolated = developmental_intents[0]
-                    pending.append(
-                        (
-                            isolated.actuator_id,
-                            float(isolated.activation),
-                            baseline,
-                        )
+
+            # A one-channel babbling episode is a clean natural causal
+            # probe for the direct actuator proposer. Multi-channel
+            # synergies stay exclusively in the sensorimotor learner
+            # because their effects cannot be attributed to one actuator.
+            if len(developmental_intents) == 1:
+                isolated = developmental_intents[0]
+                pending.append(
+                    (
+                        isolated.actuator_id,
+                        float(isolated.activation),
+                        baseline,
                     )
+                )
 
-                merged: list[MotorIntent] = []
-                seen: set[str] = set()
+            merged: list[MotorIntent] = []
+            seen: set[str] = set()
 
-                # During sensorimotor development, cognition receives one slot
-                # while the remaining capacity stays available for body-wide
-                # exploration. This prevents an early repetitive readout from
-                # monopolizing the body before its dynamics are learned.
-                if cognitive_intents:
-                    intent = cognitive_intents[0]
-                    merged.append(intent)
-                    seen.add(intent.actuator_id)
+            # During sensorimotor development, cognition receives one slot
+            # while the remaining capacity stays available for body-wide
+            # exploration. This prevents an early repetitive readout from
+            # monopolizing the body before its dynamics are learned.
+            if cognitive_intents:
+                intent = cognitive_intents[0]
+                merged.append(intent)
+                seen.add(intent.actuator_id)
 
-                for intent in developmental_intents:
-                    if intent.actuator_id in seen:
-                        continue
-                    merged.append(intent)
-                    seen.add(intent.actuator_id)
+            for intent in developmental_intents:
+                if intent.actuator_id in seen:
+                    continue
+                merged.append(intent)
+                seen.add(intent.actuator_id)
 
-                intents = tuple(merged)
-                if cognitive_intents and developmental_intents:
-                    self._last_motor_origin = "mixed"
-                    self._last_motor_origin_detail = "mixed"
-                elif cognitive_intents:
-                    self._last_motor_origin = "cognition"
-                    self._last_motor_origin_detail = "cognition"
-                elif developmental_intents:
-                    self._last_motor_origin = "babbling"
-                    self._last_motor_origin_detail = "babbling"
+            intents = tuple(merged)
+            if cognitive_intents and developmental_intents:
+                self._last_motor_origin = "mixed"
+                self._last_motor_origin_detail = "mixed"
+            elif cognitive_intents:
+                self._last_motor_origin = "cognition"
+                self._last_motor_origin_detail = "cognition"
+            elif developmental_intents:
+                self._last_motor_origin = "babbling"
+                self._last_motor_origin_detail = "babbling"
 
         elif cognitive_intents:
             intents = cognitive_intents
@@ -1461,44 +1396,6 @@ class OrganismRuntime:
                         tick=tick,
                     )
 
-            pending_context = self._pending_primitive_choice_context
-            if (
-                pending_context is not None
-                and tick >= pending_context[2]
-                and self._sensorimotor_learner.active_primitive_id is None
-            ):
-                (
-                    primitive_id,
-                    concept_ids,
-                    _complete_tick,
-                    samples_before,
-                ) = pending_context
-                verified = next(
-                    (
-                        primitive
-                        for primitive in self._sensorimotor_learner.cognitive_primitives
-                        if (
-                            primitive.primitive_id == primitive_id
-                            and primitive.samples > samples_before
-                        )
-                    ),
-                    None,
-                )
-                if self._cognitive_bridge is None or verified is None:
-                    self._pending_primitive_choice_context = None
-                elif self._cognitive_bridge.observe_primitive_execution(
-                    primitive_id,
-                    concept_ids=concept_ids,
-                    tick=tick,
-                ):
-                    # The normal cognition tick has admitted the readout and
-                    # the association evidence is now recorded exactly once.
-                    self._pending_primitive_choice_context = None
-                # Otherwise keep the context until a later cognition tick
-                # admits the readout within the normal mutation budget.
-                # This pending association never gates further sensorimotor
-                # investigation; the competence exists independently of its
-                # cognitive consolidation state.
 
     @property
     def last_motor_origin(self) -> str:
@@ -3180,16 +3077,6 @@ class OrganismRuntime:
                     else None
                 ),
                 "last_executed_primitive_id": self._last_executed_primitive_id,
-                "pending_primitive_choice_context": (
-                    {
-                        "primitive_id": self._pending_primitive_choice_context[0],
-                        "concept_ids": list(self._pending_primitive_choice_context[1]),
-                        "complete_tick": self._pending_primitive_choice_context[2],
-                        "samples_before": self._pending_primitive_choice_context[3],
-                    }
-                    if self._pending_primitive_choice_context is not None
-                    else None
-                ),
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -3710,40 +3597,9 @@ class OrganismRuntime:
             else None
         )
         if raw_pending_primitive_context is not None:
-            if not isinstance(raw_pending_primitive_context, dict):
-                raise CheckpointError("invalid pending primitive choice context")
-            primitive_id = raw_pending_primitive_context.get("primitive_id")
-            concept_ids = raw_pending_primitive_context.get("concept_ids")
-            complete_tick = raw_pending_primitive_context.get("complete_tick")
-            samples_before = raw_pending_primitive_context.get("samples_before", 0)
-            if not isinstance(primitive_id, str) or not primitive_id:
-                raise CheckpointError("invalid pending primitive id")
-            if (
-                not isinstance(concept_ids, list)
-                or len(concept_ids) > 256
-                or any(
-                    not isinstance(value, str) or not value or len(value) > 256
-                    for value in concept_ids
-                )
-            ):
-                raise CheckpointError("invalid pending primitive concept ids")
-            if (
-                isinstance(complete_tick, bool)
-                or not isinstance(complete_tick, int)
-                or complete_tick < 0
-            ):
-                raise CheckpointError("invalid pending primitive completion tick")
-            if (
-                isinstance(samples_before, bool)
-                or not isinstance(samples_before, int)
-                or samples_before < 0
-            ):
-                raise CheckpointError("invalid pending primitive sample count")
-            runtime._pending_primitive_choice_context = (
-                primitive_id,
-                tuple(sorted(set(concept_ids))),
-                complete_tick,
-                samples_before,
+            raise CheckpointError(
+                "checkpoint carries removed primitive verification state; "
+                "start from a current checkpoint or fresh embodiment"
             )
         raw_embodied_work = normalized.get("pending_embodied_work", 0.0)
         if (
