@@ -16,20 +16,8 @@
       "max": 0.08,
       "adaptation_rate": 0.002
     },
-    "forgetting_rate": {
-      "baseline": 0.0005,
-      "min": 0,
-      "max": 0.005,
-      "adaptation_rate": 0.0001
-    },
     "eligibility_decay": 0.92,
     "structural_plasticity": {
-      "baseline": 0.5,
-      "min": 0.05,
-      "max": 1,
-      "adaptation_rate": 0.01
-    },
-    "consolidation_sensitivity": {
       "baseline": 0.5,
       "min": 0.05,
       "max": 1,
@@ -50,10 +38,6 @@
     "uncertainty_exploration_gain": 0.5,
     "prediction_error_exploration_gain": 0.5,
     "exploration_habituation": 0.01,
-    "contingency_sensitivity": 0.5,
-    "contingency_window_ticks": 8,
-    "controllability_sensitivity": 0.5,
-    "body_schema_adaptation_rate": 0.1,
     "reacclimation_sensitivity": 0.7
   },
   "structure": {
@@ -70,13 +54,7 @@
       "adaptation_rate": 0.005
     },
     "minimum_support": 16,
-    "tentative_lifetime_ticks": 128,
-    "complexity_pressure": {
-      "baseline": 0.5,
-      "min": 0,
-      "max": 1,
-      "adaptation_rate": 0.01
-    }
+    "tentative_lifetime_ticks": 128
   },
   "evolvability": {
     "development_mutation_scale": 0.05,
