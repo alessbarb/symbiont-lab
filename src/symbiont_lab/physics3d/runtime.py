@@ -6,6 +6,7 @@ experience and SLM state remain inside the canonical organism runtime.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import asdict, dataclass, is_dataclass
 from enum import Enum
 import math
@@ -377,6 +378,7 @@ class PyBulletEmbodimentRuntime:
                 organism_id = f"symbiont:3d:{secrets.token_hex(8)}"
             self.organism = _fresh_organism(organism_id)
             self._embodiment_contract = contract
+            self._embodiment_lifecycle: dict[str, Any] | None = None
             self._reembodied = False
         else:
             effective = runtime_checkpoint.get("effective_config", {})
@@ -417,6 +419,12 @@ class PyBulletEmbodimentRuntime:
                     contract=contract,
                 )
 
+            raw_lifecycle = restored_payload.get("embodiment_lifecycle")
+            self._embodiment_lifecycle = (
+                deepcopy(raw_lifecycle)
+                if isinstance(raw_lifecycle, dict)
+                else None
+            )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
                 restored_payload,
                 host_lifecycle=host_lifecycle,
@@ -559,11 +567,15 @@ class PyBulletEmbodimentRuntime:
     def checkpoint(self, *, lifecycle_state: str = "active") -> dict[str, Any]:
         """Portable Symbiont state plus body-independent embodiment history."""
         payload = self.organism.checkpoint()
-        return update_lifecycle_for_checkpoint(
+        if self._embodiment_lifecycle is not None:
+            payload["embodiment_lifecycle"] = deepcopy(self._embodiment_lifecycle)
+        payload = update_lifecycle_for_checkpoint(
             payload,
             contract=self._embodiment_contract,
             state=lifecycle_state,
         )
+        self._embodiment_lifecycle = deepcopy(payload["embodiment_lifecycle"])
+        return payload
 
     def passive_physical_state(self) -> dict[str, object]:
         """Return the last completed pose without querying/rendering PyBullet."""
