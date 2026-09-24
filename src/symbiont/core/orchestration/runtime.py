@@ -112,8 +112,6 @@ from ...actuation.model import ControllabilityModel
 from ...actuation.exploration import ExplorationPolicy
 from ...actuation.composition import CompositionEngine
 from ...actuation.sensorimotor import (
-    MotorPrimitive,
-    PrimitiveEpisode,
     SensorimotorLearner,
     SensorimotorSnapshot,
 )
@@ -861,18 +859,60 @@ class OrganismRuntime:
         return self._sensorimotor_learner.exclusive_actuator_groups
 
     @property
-    def sensorimotor_primitives(self) -> tuple[MotorPrimitive, ...]:
-        """Evaluator-only read view of organism-discovered motor primitives."""
+    def sensorimotor_competence_candidates(self) -> tuple[dict[str, object], ...]:
+        """Passive candidate view; legacy sequence objects never cross this boundary."""
         if self._sensorimotor_learner is None:
             return ()
-        return self._sensorimotor_learner.primitives
+        return tuple(
+            {
+                "candidate_id": item.primitive_id,
+                "embodiment_fingerprint": item.embodiment_fingerprint,
+                "sequence": [
+                    [[actuator_id, level] for actuator_id, level in pattern]
+                    for pattern in item.sequence
+                ],
+                "samples": item.samples,
+                "effect_mean": item.effect_mean,
+                "effect_variance": item.effect_variance,
+                "controllability": item.controllability,
+                "directional_consistency": item.directional_consistency,
+                "maturity": item.maturity.value,
+                "established": item.established,
+            }
+            for item in self._sensorimotor_learner.primitives
+        )
 
     @property
-    def sensorimotor_episodes(self) -> tuple[PrimitiveEpisode, ...]:
-        """Evaluator-only ephemeral provenance for the latest motor episodes."""
+    def sensorimotor_competence_episodes(self) -> tuple[dict[str, object], ...]:
+        """Latest evidence episodes projected into v2 competence terminology."""
         if self._sensorimotor_learner is None:
             return ()
-        return self._sensorimotor_learner.last_primitive_episodes
+        return tuple(
+            {
+                "candidate_id": episode.primitive_id,
+                "start_tick": episode.start_tick,
+                "end_tick": episode.end_tick,
+                "source": episode.source,
+                "evidence_blocks": episode.evidence_blocks,
+                "sample_index": episode.sample_index,
+                "materialized": episode.materialized,
+                "established": episode.competence,
+            }
+            for episode in self._sensorimotor_learner.last_primitive_episodes
+        )
+
+    @property
+    def motor_competences(self) -> tuple[MotorCompetence, ...]:
+        """Canonical learned competence view used outside the legacy learner."""
+        return self._competence_library.items
+
+    @property
+    def effect_representations(self):
+        return self._effect_space.effects
+
+    @property
+    def causal_evidence(self):
+        return self._causal_evidence.evidence
 
     @property
     def actuator_causal_states(self) -> tuple[ActuatorCandidateState, ...]:
