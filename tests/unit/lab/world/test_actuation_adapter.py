@@ -4,7 +4,6 @@ import pytest
 
 from symbiont.actuation.constitution import derive_actuator_constitution
 from symbiont.actuation.types import Actuation
-from symbiont.cognition.genome import MotorGenes
 from symbiont_lab.world.adapter import (
     ActuationAdapter,
     ActuationBinding,
@@ -14,7 +13,7 @@ from symbiont_lab.world.adapter import (
 
 
 def _constitution():
-    return derive_actuator_constitution(MotorGenes(slot_count=3, execution_threshold=0.5))
+    return derive_actuator_constitution(3)
 
 
 def _actuation(actuator_id: str, delivered: float) -> Actuation:
@@ -22,8 +21,6 @@ def _actuation(actuator_id: str, delivered: float) -> Actuation:
         actuator_id=actuator_id,
         requested=1.0,
         delivered=delivered,
-        cost=0.05,
-        health_at_execution=1.0,
     )
 
 
@@ -45,12 +42,12 @@ def test_binding_fingerprint_is_deterministic_and_mapping_sensitive():
     assert first.fingerprint != permuted.fingerprint
 
 
-def test_adapter_applies_body_execution_threshold_without_world_queries():
+def test_adapter_applies_apparatus_execution_threshold_without_organism_knowledge():
     constitution = _constitution()
     aid = constitution.actuator_ids[0]
     adapter = ActuationAdapter(
         constitution,
-        ActuationBindingConstitution((ActuationBinding(aid, "move", "3"),)),
+        ActuationBindingConstitution((ActuationBinding(aid, "move", "3", minimum_activation=0.5),)),
     )
     assert adapter.translate(_actuation(aid, 0.49)) is None
     translated = adapter.translate(_actuation(aid, 0.5))
