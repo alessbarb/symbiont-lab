@@ -7,6 +7,23 @@ locomotor machinery before physical closure. It also supersedes the old
 canonical interpretation of reproduction as a consequence of cognitive
 saturation or blocked structural growth.
 
+## Re-embodiment temporal correction (2026-09-24)
+
+Living Body remains the single owner of **physical physiological state**, but
+its age, senescence and death are local to the current Body. They are not the
+age, senescence or death of the persistent Symbiont identity.
+
+Canonical split:
+
+```text
+Symbiont -> historical time, memory, cognition, models
+Embodiment -> epoch and sensorimotor relation
+Body -> local age, growth, senescence, vital state, death
+```
+
+See [Separación temporal Symbiont / Body](symbiont-body-temporal-separation-v1.md)
+and [Longitudinal Re-embodiment](longitudinal-reembodiment-v1.md).
+
 ## Three invariants
 
 > **The genome defines capacities and physiological dynamics. It never defines

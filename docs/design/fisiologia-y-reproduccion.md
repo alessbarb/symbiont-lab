@@ -1,9 +1,10 @@
 # Fisiología, ontogenia y reproducción canónica
 
-> **Estado canónico (2026-09-21):** este documento describe el modelo vigente
-> de Living Body L1-L5. Sustituye el antiguo diseño basado en saturación
-> cognitiva, `ReproductivePressure`, reserva reproductiva separada y asignación
-> material dentro de `HabitatBirthAuthority`.
+> **Estado canónico (actualizado 2026-09-24):** este documento describe la
+> fisiología del **Body**. Tras la introducción de re-embodiment, edad,
+> crecimiento, senescencia y muerte pertenecen exclusivamente al Body y no a la
+> identidad persistente del Symbiont. La separación temporal normativa está en
+> [Separación temporal Symbiont / Body](symbiont-body-temporal-separation-v1.md).
 
 ## Principio
 
@@ -23,9 +24,9 @@ LIVING BODY
   -> temperatura
   -> fatiga
   -> crecimiento
-  -> edad
-  -> senescencia
-  -> estado vital
+  -> edad corporal local
+  -> senescencia corporal
+  -> estado vital del body
 
 COGNITION
   <- señales opacas del cuerpo
@@ -41,8 +42,8 @@ COGNITION
 - `fatigue`;
 - `growth_progress`;
 - `senescence`;
-- `age_ticks`;
-- `vital_state` y muerte irreversible;
+- `age_ticks` (**edad local del body**, no edad del Symbiont);
+- `vital_state` y muerte irreversible **de ese body**;
 - contabilidad metabólica funcional.
 
 `MetabolicLedger`, `HomeostaticController`, `PhysiologyController` y
@@ -95,8 +96,9 @@ No existe una condición cognitiva equivalente a “ser suficientemente listo”
 
 ### Senescencia
 
-Tras `senescence_start_ticks`, un cuerpo ya maduro acumula senescencia y
-desgaste estructural constitutivo. La senescencia no es una puntuación de
+Tras `senescence_start_ticks` de **edad local corporal**, un cuerpo ya
+maduro acumula senescencia y desgaste estructural constitutivo. El contador
+histórico del Symbiont no participa. La senescencia no es una puntuación de
 rendimiento ni un juicio del laboratorio.
 
 ## 3. Readiness reproductiva
