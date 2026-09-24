@@ -386,7 +386,7 @@ export function orbitCamera(camera, deltaX, deltaY) {
 
 export function zoomCamera(camera, delta, {
   sceneRadius = 220,
-  sensitivity = 0.00135,
+  sensitivity = 0.00075,
 } = {}) {
   const radius = Math.max(60, finite(sceneRadius, 220));
   const minDistance = Math.max(150, radius * 0.82 + 70);
