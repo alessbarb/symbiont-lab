@@ -143,9 +143,8 @@ class LivingBodyState:
                 isinstance(self.death_tick, bool)
                 or not isinstance(self.death_tick, int)
                 or self.death_tick < 0
-                or self.death_tick > self.age_ticks
             ):
-                raise ValueError("death_tick must be a Body-local age tick")
+                raise ValueError("death_tick must be a non-negative Body-local age tick")
         for field_name in (
             "metabolic_capacity",
             "metabolic_replenishment",
@@ -199,6 +198,8 @@ class LivingBodyState:
 
     def transition(self, state: VitalState, *, tick: int) -> None:
         """Transition physical viability using a Body-local age tick."""
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+            raise ValueError("physiology transition tick must be Body-local")
         state = VitalState(state)
         if self.vital_state is VitalState.DEAD:
             return
