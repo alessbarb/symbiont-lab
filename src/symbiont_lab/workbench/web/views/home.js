@@ -170,7 +170,7 @@ function render() {
           <div><h3>Mind</h3><p>Create a blank Symbiont or re-embody a dormant persistent identity.</p></div>
           <div class="home-radio-row">
             <label><input type="radio" name="organism-mode" value="new" ${organismMode === 'new' ? 'checked' : ''}> New Symbiont</label>
-            <label><input type="radio" name="organism-mode" value="existing" ${organismMode === 'existing' ? 'checked' : ''} ${catalog.organisms.length ? '' : 'disabled'}> Existing Symbiont</label>
+            <label><input type="radio" name="organism-mode" value="existing" ${organismMode === 'existing' ? 'checked' : ''} ${catalog.organisms.length ? '' : 'disabled'}> Dormant / existing Symbiont</label>
           </div>
           <select id="home-organism" ${organismMode === 'existing' ? '' : 'disabled'}>${organismOptions()}</select>
         </section>
