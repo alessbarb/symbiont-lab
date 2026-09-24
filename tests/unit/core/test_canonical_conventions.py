@@ -73,7 +73,7 @@ def test_organism_limits_invariants() -> None:
     assert limits.max_exchange_bytes == 4096
     assert limits.max_sensory_parts == 512
     assert limits.max_cognitive_regions == 128
-    assert limits.max_body_parts == 288
+    assert limits.max_body_parts == 640
     assert limits.max_body_dependencies == 1024
     assert limits.max_degradation_items == 256
     assert limits.max_dissent == 256
