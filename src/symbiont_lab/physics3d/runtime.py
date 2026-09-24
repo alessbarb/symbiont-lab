@@ -582,9 +582,9 @@ class PyBulletEmbodimentRuntime:
             raise RuntimeError(
                 "Physics3D body failed passive settling: "
                 f"steps={result.steps}, "
-                f"linear={result.max_linear_speed_m_s:.6f}m/s, "
-                f"angular={result.max_angular_speed_rad_s:.6f}rad/s, "
-                f"joint={result.max_joint_speed_rad_s:.6f}rad/s"
+                f"linear={result.residual_linear_speed_m_s:.6f}m/s, "
+                f"angular={result.residual_angular_speed_rad_s:.6f}rad/s, "
+                f"joint={result.residual_joint_speed_rad_s:.6f}rad/s"
             )
         return result.steps
 
