@@ -766,3 +766,275 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   font-size: 8px;
   line-height: 1.45;
 }
+
+
+/* ── Mind shell extracted from layout.js ─────────────────────────── */
+.mind-view-root {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  background: var(--bg-deep);
+  font-family: var(--sans);
+}
+.mind-tab-bar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.mind-tab {
+  padding: 7px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px 6px 0 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.mind-tab[aria-pressed="true"] {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+}
+.mind-tab:hover { color: var(--text); }
+
+.mind-senses-panel,
+.mind-cognition-inspector {
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  overflow-y: auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.mind-side-heading {
+  padding: 10px 12px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.mind-side-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.mind-cognition-inspector-body {
+  padding: 10px 11px 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.mind-telemetry-strip {
+  display: flex;
+  gap: 0;
+  padding: 0 14px;
+  height: 32px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+@keyframes mind-spin { to { transform: rotate(360deg); } }
+
+.mind-sense-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--text);
+  transition: background 0.1s;
+}
+.mind-sense-row:hover { background: rgba(80, 217, 255, 0.06); }
+.mind-sense-row.active { background: rgba(80, 217, 255, 0.10); }
+.mind-sense-icon { font-size: 15px; flex-shrink: 0; }
+.mind-sense-copy { flex: 1; overflow: hidden; }
+.mind-sense-copy strong {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mind-sense-copy small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 1px;
+}
+.mind-sense-bar {
+  height: 3px;
+  margin-top: 4px;
+  border-radius: 2px;
+  background: rgba(80, 217, 255, 0.18);
+}
+.mind-sense-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.hidden { display: none !important; }
+
+.mind-ctrl-btn {
+  border: 1px solid var(--line);
+  background: rgba(8, 26, 42, 0.85);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mind-ctrl-btn:hover { background: rgba(80, 217, 255, 0.12); }
+.mind-ctrl-btn.active {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.mind-telem-item {
+  padding: 0 12px;
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+}
+.mind-telem-item:last-child { border-right: none; }
+.mind-telem-item b { color: var(--text); }
+
+.mind-self-heading {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+.mind-self-body {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+.mind-self-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  max-width: 900px;
+}
+.mind-self-card {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px;
+  background: rgba(8, 26, 42, 0.72);
+}
+.mind-self-card h4 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 2px;
+  color: var(--text);
+}
+.mind-self-card code {
+  font-size: 9px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.mind-metric-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 36px;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  margin-top: 8px;
+}
+.mind-metric-row span { color: var(--muted); }
+.mind-metric-row progress { width: 100%; accent-color: var(--cyan); }
+.mind-metric-row strong { text-align: right; color: var(--text); }
+
+.mind-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 24px 0 10px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 4px;
+}
+
+.mind-dep-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(8, 26, 42, 0.54);
+  font-size: 11px;
+}
+.mind-dep-row strong {
+  color: var(--text);
+  display: block;
+  margin-bottom: 3px;
+}
+.mind-dep-row small { color: var(--muted); }
+
+.mind-compass-hud {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(8, 26, 42, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  width: 230px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.mind-compass-hud h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 2px;
+  color: var(--text);
+}
+.mind-compass-hud p { margin: 0 0 10px; font-size: 10px; }
+.mind-compass-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+.mind-compass-badge.familiar { background: rgba(113, 233, 186, 0.18); color: var(--mint); }
+.mind-compass-badge.moderate { background: rgba(255, 189, 84, 0.18); color: var(--amber); }
+.mind-compass-badge.alert { background: rgba(255, 127, 131, 0.18); color: var(--coral); }
+.mind-compass-metric { margin-top: 6px; }
+.mind-compass-metric-head { display: flex; justify-content: space-between; }
+.mind-compass-meter {
+  height: 3px;
+  background: var(--line);
+  border-radius: 2px;
+  margin-top: 4px;
+}
+.mind-compass-meter-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s, background 0.4s;
+}
+.mind-compass-exp {
+  font-size: 10px;
+  margin-top: 10px;
+  line-height: 1.4;
+}
