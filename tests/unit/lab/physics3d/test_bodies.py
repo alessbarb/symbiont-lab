@@ -56,3 +56,14 @@ def test_alternative_body_contracts_remain_opaque_ordinals() -> None:
             f"eff.{i}" for i in range(descriptor.effector_count)
         )
         assert len(descriptor.interoceptive_receptor_ids) == 4
+
+
+
+def test_body_catalog_exposes_observer_only_presentation_models() -> None:
+    for descriptor in DEFAULT_BODY_REGISTRY.list():
+        payload = descriptor.as_dict()
+        model = payload["observer_model"]
+        assert model["base_link"]
+        assert len(model["joints"]) == descriptor.motor_dof
+        assert model["segments"]
+        assert all(len(item["axis"]) == 3 for item in model["joints"])
