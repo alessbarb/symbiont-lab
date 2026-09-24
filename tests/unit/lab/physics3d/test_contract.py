@@ -106,7 +106,7 @@ def test_physics3d_cognition_accepts_experiment_local_limits():
 
     assert returned is experimental
     assert returned.max_nodes == 256
-    assert KernelLimits().max_nodes == 192
+    assert KernelLimits().max_nodes == 768
 
 
 def test_anatomical_labels_do_not_live_in_core_symbiont_surface():
@@ -126,8 +126,8 @@ def test_physics3d_uses_canonical_runtime_motor_constitution():
     assert genome.development.soft_node_budget == 192
     assert genome.development.soft_edge_budget == 1536
     assert genome.development.sense_node_budget == 128
-    assert limits.max_nodes == 192
-    assert limits.max_edges == 1536
+    assert limits.max_nodes == 768
+    assert limits.max_edges == 6144
     assert limits.max_nodes >= genome.development.soft_node_budget
     assert limits.max_edges >= genome.development.soft_edge_budget
 
@@ -146,7 +146,7 @@ def test_physics3d_grants_body_sized_bounded_sensory_checkpoint_budget():
     sensory = physics3d_sensory_system()
 
     assert sensory.plasticity_enabled is True
-    assert sensory.limits.max_active_sensors == 128
+    assert sensory.limits.max_active_sensors == 256
     assert sensory.limits.max_sensor_checkpoint_bytes == 1024 * 1024
 
 
