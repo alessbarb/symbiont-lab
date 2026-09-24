@@ -4,6 +4,7 @@ import hashlib
 
 import pytest
 
+import symbiont.actuation.sensorimotor as sensorimotor_module
 from symbiont.actuation.sensorimotor import MotorPrimitive, SensorimotorLearner
 
 
@@ -870,13 +871,13 @@ def test_bounded_primitive_pool_preserves_proven_competence():
             controllability=1.0 - index * 0.001,
             directional_consistency=1.0,
         )
-        for index in range(32)
+        for index in range(sensorimotor_module._MAX_PRIMITIVES)
     }
     learner._primitives[competence.primitive_id] = competence
 
     learner._enforce_primitive_bound()
 
-    assert len(learner.primitives) == 32
+    assert len(learner.primitives) == sensorimotor_module._MAX_PRIMITIVES
     assert competence.primitive_id in {
         primitive.primitive_id for primitive in learner.primitives
     }
