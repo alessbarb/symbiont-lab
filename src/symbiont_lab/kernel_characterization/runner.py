@@ -670,9 +670,9 @@ def write_run(
         "phase_ticks": phase_ticks,
         "kernel_baseline": complete_kernel(BASELINE_KERNEL),
         "genome": {
-            "kind": "synthetic_capacity_probe" if arm != "k1-b" else "genome_symbiont_physics3d_v9",
-            "genome_id": None if arm != "k1-b" else "genome_symbiont_physics3d_v9",
-            "note": "K1-A and K2 are synthetic probes; K1-B uses the canonical Physics3D genome.",
+            "kind": "synthetic_capacity_probe" if arm != "k1-b" else "genome_symbiont_base_v2",
+            "genome_id": None if arm != "k1-b" else "genome_symbiont_base_v2",
+            "note": "K1-A and K2 are synthetic probes; K1-B uses the canonical Genome v2 through the Physics3D embodiment.",
             "sense_count": 4 if arm == "k1-a" else 107,
             "concept_limit": BASELINE_KERNEL.max_concepts,
         },
