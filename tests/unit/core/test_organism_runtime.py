@@ -74,7 +74,7 @@ def test_embodied_work_is_checkpointed_and_charged_on_next_canonical_tick():
     assert restored.checkpoint()["pending_embodied_work"] == 0.0
 
 
-def test_embodied_work_rejects_invalid_or_unbounded_input():
+def test_embodied_work_rejects_invalid_input_without_clipping_finite_cost():
     runtime = OrganismRuntime()
     for value in (-0.1, float("inf"), float("nan"), True):
         with pytest.raises(ValueError):
@@ -82,7 +82,16 @@ def test_embodied_work_rejects_invalid_or_unbounded_input():
 
     runtime.register_embodied_work(0.2)
     runtime.register_embodied_work(0.2)
-    assert runtime.checkpoint()["pending_embodied_work"] == pytest.approx(0.25)
+    assert runtime.checkpoint()["pending_embodied_work"] == pytest.approx(0.4)
+
+
+def test_embodied_work_accumulation_rejects_numeric_overflow():
+    import sys
+
+    runtime = OrganismRuntime()
+    runtime.register_embodied_work(sys.float_info.max)
+    with pytest.raises(ValueError, match="overflowed"):
+        runtime.register_embodied_work(sys.float_info.max)
 
 def test_predictor_promotion_is_explicitly_opt_in_and_checkpointed() -> None:
     runtime = OrganismRuntime(auto_promote_predictors=True)
