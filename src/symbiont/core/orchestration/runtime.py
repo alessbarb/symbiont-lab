@@ -755,6 +755,7 @@ class OrganismRuntime:
                         actuator_constitution.actuator_ids,
                         organism_id=self._organism_id,
                         max_concurrent=None,
+                        embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                     )
                 )
         self._pending_embodied_work = 0.0
@@ -3138,6 +3139,7 @@ class OrganismRuntime:
             if self._actuator_constitution is None or self._actuator_proposer is None:
                 raise CheckpointError("actuation enabled without motor constitution/proposer")
             constitution_payload = {
+                "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
                 "slots": [
                     {
                         "slot_id": slot.slot_id,
@@ -3440,17 +3442,25 @@ class OrganismRuntime:
                     )
                 except (KeyError, TypeError, ValueError) as exc:
                     raise CheckpointError(f"invalid body-owned actuator constitution: {exc}") from exc
-                fingerprint_material = json.dumps(
-                    raw_constitution,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    allow_nan=False,
-                )
+                stored_fingerprint = raw_constitution.get("contract_fingerprint")
+                if stored_fingerprint is None:
+                    legacy_material = {
+                        "slots": raw_slots,
+                    }
+                    fingerprint_material = json.dumps(
+                        legacy_material,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        allow_nan=False,
+                    )
+                    stored_fingerprint = hashlib.sha256(
+                        fingerprint_material.encode("utf-8")
+                    ).hexdigest()
+                if not isinstance(stored_fingerprint, str) or not stored_fingerprint:
+                    raise CheckpointError("invalid actuator contract fingerprint")
                 actuator_constitution = ActuatorSurface(
                     channels=channels,
-                    contract_fingerprint=hashlib.sha256(
-                        fingerprint_material.encode("utf-8")
-                    ).hexdigest(),
+                    contract_fingerprint=stored_fingerprint,
                 )
                 try:
                     actuator_proposer = restore_actuation_state(
@@ -3490,6 +3500,7 @@ class OrganismRuntime:
                             raw_sensorimotor,
                             actuator_ids=actuator_constitution.actuator_ids,
                             organism_id=str(normalized.get("organism_id") or ""),
+                            embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                         )
                     except (TypeError, ValueError, KeyError) as exc:
                         raise CheckpointError(
