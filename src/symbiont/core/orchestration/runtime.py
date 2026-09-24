@@ -111,6 +111,7 @@ from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from ...actuation.model import ControllabilityModel
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.composition import CompositionEngine
+from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import (
     SensorimotorLearner,
     SensorimotorSnapshot,
@@ -205,6 +206,7 @@ class RuntimeTickResult:
     action_commitment: ActionCommitment | None = None
     motor_command: MotorCommand | None = None
     sensorimotor_transition: SensorimotorTransition | None = None
+    sensorimotor_v2: SensorimotorV2Snapshot | None = None
     gene_expression: dict[str, object] | None = None
 
 
@@ -908,6 +910,61 @@ class OrganismRuntime:
             for episode in self._sensorimotor_learner.last_primitive_episodes
         )
 
+    def _sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
+        if not self._actuation_enabled:
+            return None
+        legacy_snapshot = (
+            self._sensorimotor_learner.snapshot()
+            if self._sensorimotor_learner is not None
+            else None
+        )
+        progress_values = [
+            max(0.0, float(item.learning_progress))
+            for item in self._last_exploration_signals.values()
+        ]
+        active = self._active_action_commitment
+        return SensorimotorV2Snapshot(
+            effect_count=len(self._effect_space.effects),
+            causal_evidence_count=len(self._causal_evidence.evidence),
+            competence_count=len(self._competence_library.items),
+            established_competence_count=sum(
+                1 for item in self._competence_library.items if item.executable
+            ),
+            competence_candidate_count=(
+                legacy_snapshot.competence_candidates
+                if legacy_snapshot is not None
+                else 0
+            ),
+            controllability_estimate_count=len(
+                self._controllability_model.estimates
+            ),
+            composition_evidence_count=len(self._composition_engine.evidence),
+            established_composition_count=len(self._composition_engine.established),
+            body_schema_sensorimotor_relations=(
+                self._body_schema.sensorimotor_dependency_evidence_count
+            ),
+            active_commitment_id=(
+                active.commitment_id
+                if active is not None and active.active
+                else None
+            ),
+            active_competence_id=(
+                active.competence_id
+                if active is not None and active.active
+                else None
+            ),
+            action_source=self._last_action_source,
+            exploration_preference=self._active_exploration_preference,
+            mean_learning_progress=(
+                sum(progress_values) / len(progress_values)
+                if progress_values
+                else 0.0
+            ),
+        )
+
+    @property
+    def sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
+        return self._sensorimotor_v2_snapshot()
     @property
     def motor_competences(self) -> tuple[MotorCompetence, ...]:
         """Canonical learned competence view used outside the legacy learner."""
@@ -3431,6 +3488,7 @@ class OrganismRuntime:
             action_commitment=self._active_action_commitment,
             motor_command=self._last_motor_command,
             sensorimotor_transition=self._last_sensorimotor_transition,
+            sensorimotor_v2=self._sensorimotor_v2_snapshot(),
             gene_expression=(
                 self._gene_expression_state.as_dict()
                 if self._gene_expression_state is not None
