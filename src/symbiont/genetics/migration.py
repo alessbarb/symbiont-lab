@@ -50,20 +50,8 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
                 "max": float(lr["max"]),
                 "adaptation_rate": 0.002,
             },
-            "forgetting_rate": {
-                "baseline": float(fr["initial"]),
-                "min": float(fr["min"]),
-                "max": float(fr["max"]),
-                "adaptation_rate": 0.0001,
-            },
             "eligibility_decay": float(plasticity["eligibility_decay"]),
             "structural_plasticity": {
-                "baseline": 0.5,
-                "min": 0.05,
-                "max": 1.0,
-                "adaptation_rate": 0.01,
-            },
-            "consolidation_sensitivity": {
                 "baseline": 0.5,
                 "min": 0.05,
                 "max": 1.0,
@@ -84,10 +72,6 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
             "uncertainty_exploration_gain": 0.5,
             "prediction_error_exploration_gain": 0.5,
             "exploration_habituation": 0.01,
-            "contingency_sensitivity": 0.5,
-            "contingency_window_ticks": 8,
-            "controllability_sensitivity": 0.5,
-            "body_schema_adaptation_rate": 0.1,
             "reacclimation_sensitivity": 0.7,
         },
         "structure": {
@@ -105,12 +89,6 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
             },
             "minimum_support": int(structure["minimum_support"]),
             "tentative_lifetime_ticks": int(structure["tentative_lifetime_ticks"]),
-            "complexity_pressure": {
-                "baseline": 0.5,
-                "min": 0.0,
-                "max": 1.0,
-                "adaptation_rate": 0.01,
-            },
         },
         "evolvability": {
             "development_mutation_scale": sigma,
