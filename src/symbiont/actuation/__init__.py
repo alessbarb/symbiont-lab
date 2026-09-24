@@ -36,6 +36,7 @@ from .surface import (
     ActuatorSurface,
     derive_actuator_constitution,
 )
+from .state import SensorimotorV2Snapshot
 from .system import ActuatorSystem
 from .types import Actuation, MotorIntent
 
@@ -72,6 +73,7 @@ __all__ = [
     "MotorIntent",
     "PredictionError",
     "SensorimotorTransition",
+    "SensorimotorV2Snapshot",
     "SequentialCompositionEvidence",
     "derive_actuator_constitution",
 ]
