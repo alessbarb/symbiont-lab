@@ -546,13 +546,14 @@ def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mu
         )
 
 
-@pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5, 6])
-def test_restore_rejects_every_pre_v7_schema_outright(legacy_schema):
-    """Older checkpoints cannot be represented honestly by the v7/v8 learner.
+@pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5, 6, 7, 8])
+def test_restore_rejects_every_pre_v9_schema_outright(legacy_schema):
+    """Older checkpoints cannot be represented honestly by the v9 learner.
 
-    Pre-L6 state may carry removed verification apparatus; v5 contains motor
-    evidence gathered under uniform 1..N babbling, and v6 lacks provenance
-    needed to distinguish independent recurrence from temporal self-overlap.
+    They may carry removed verification apparatus, body-wide cardinality bias,
+    density-biased recurrence evidence, or no mutually-exclusive motor-unit
+    constitution.  Reinterpreting that learned history would be scientifically
+    dishonest, so restoration fails closed.
     """
     learner = SensorimotorLearner(_ids(4), organism_id="org-legacy-schema")
     payload = learner.checkpoint()
@@ -975,3 +976,74 @@ def test_sensorimotor_v7_checkpoint_remains_restore_compatible_without_memory_ca
 
     assert restored.historical_primitive_candidate_ids == ()
     assert restored.checkpoint()["schema_version"] == 8
+
+
+
+def test_exclusive_motor_groups_never_babble_antagonistic_channels_together():
+    ids = _ids(8)
+    groups = tuple((ids[index], ids[index + 1]) for index in range(0, 8, 2))
+    learner = SensorimotorLearner(
+        ids,
+        organism_id="org-exclusive-units",
+        exclusive_actuator_groups=groups,
+    )
+
+    seen = set()
+    for tick in range(1024):
+        active = {intent.actuator_id for intent in learner.motor_intents(tick)}
+        seen.update(active)
+        for left, right in groups:
+            assert not ({left, right} <= active)
+        assert len(active) <= len(groups)
+
+    assert seen == set(ids)
+    checkpoint = learner.checkpoint()
+    assert checkpoint["schema_version"] == 9
+    assert checkpoint["exclusive_actuator_groups"] == [list(group) for group in groups]
+
+    restored = SensorimotorLearner.restore(
+        checkpoint,
+        actuator_ids=ids,
+        organism_id="org-exclusive-units",
+    )
+    assert restored._exclusive_actuator_groups == groups
+
+
+def test_sequence_distance_does_not_let_dense_support_dilute_channel_changes():
+    common = tuple((f"a{i}", 5) for i in range(40))
+    added = tuple((f"x{i}", 5) for i in range(10))
+    left = (common,) * 4
+    right = ((common + added),) * 4
+
+    distance = SensorimotorLearner._sequence_distance(left, right)
+
+    assert distance >= 0.20
+    assert distance > 0.10
+
+
+def test_body_delta_does_not_reward_global_motion_over_strong_local_effect():
+    before = {f"s{i}": 0.0 for i in range(64)}
+    local = dict(before)
+    local["s0"] = 1.0
+    global_small = {key: 0.02 for key in before}
+
+    local_effect = SensorimotorLearner._body_delta(before, local)
+    global_effect = SensorimotorLearner._body_delta(before, global_small)
+
+    assert local_effect > global_effect
+
+
+def test_exclusive_group_validation_rejects_overlap_and_unknown_ids():
+    ids = _ids(4)
+    with pytest.raises(ValueError, match="must not overlap"):
+        SensorimotorLearner(
+            ids,
+            organism_id="overlap",
+            exclusive_actuator_groups=((ids[0], ids[1]), (ids[1], ids[2])),
+        )
+    with pytest.raises(ValueError, match="unknown actuator"):
+        SensorimotorLearner(
+            ids,
+            organism_id="unknown",
+            exclusive_actuator_groups=((ids[0], "missing"),),
+        )
