@@ -9,10 +9,7 @@ from symbiont.core.runtime import OrganismRuntime
 from symbiont.core.physiology import LivingBodyState
 
 
-def _runtime(
-    *,
-    motor_exploration_mode: str = "spontaneous",
-) -> OrganismRuntime:
+def _runtime() -> OrganismRuntime:
     limits = KernelLimits()
     genome, graph = load_base_cognition(
         kernel_limits=limits,
@@ -30,7 +27,6 @@ def _runtime(
         kernel_limits=limits,
         actuation_enabled=True,
         actuator_constitution=derive_actuator_constitution(8, physical_contract="unit-motor-runtime-v2"),
-        motor_exploration_mode=motor_exploration_mode,
         bootstrap_semantic_senses=False,
         discover_senses=False,
         min_samples=1,
@@ -282,7 +278,7 @@ def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
 def test_babbling_restore_rejects_missing_sensorimotor_checkpoint():
     from symbiont.host.checkpoint import CheckpointError
 
-    runtime = _runtime(motor_exploration_mode="babbling")
+    runtime = _runtime()
     payload = runtime.checkpoint()
     assert isinstance(payload["actuation"]["sensorimotor"], dict)
     del payload["actuation"]["sensorimotor"]
@@ -300,7 +296,7 @@ def test_babbling_restore_rejects_missing_sensorimotor_checkpoint():
 
 
 def test_restore_rejects_removed_pending_primitive_verification_state():
-    runtime = _runtime(motor_exploration_mode="babbling")
+    runtime = _runtime()
     payload = runtime.checkpoint()
     payload["actuation"]["pending_primitive_choice_context"] = {
         "primitive_id": "primitive.legacy",
