@@ -18,7 +18,8 @@ export function applyMindTab(tabId) {
 
   document.querySelectorAll('.mind-tab').forEach((button) => {
     const active = button.dataset.tab === activeTab;
-    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
   });
 
   for (const id of TAB_IDS) {
