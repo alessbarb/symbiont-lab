@@ -7,14 +7,14 @@ from symbiont.cognition.limits import KernelLimits
 
 def test_defaults_match_the_design_doc_table():
     limits = KernelLimits()
-    assert limits.max_nodes == 192
-    assert limits.max_concepts == 32
-    assert limits.max_edges == 1536
-    assert limits.max_tentative_edges == 128
-    assert limits.max_structural_mutations_per_consolidation == 8
+    assert limits.max_nodes == 768
+    assert limits.max_concepts == 192
+    assert limits.max_edges == 6144
+    assert limits.max_tentative_edges == 512
+    assert limits.max_structural_mutations_per_consolidation == 16
     assert limits.consolidation_interval_ticks == 32
-    assert limits.max_plastic_checkpoint_bytes == 2 * 1024 * 1024
-    assert limits.max_consolidation_candidates == 256
+    assert limits.max_plastic_checkpoint_bytes == 8 * 1024 * 1024
+    assert limits.max_consolidation_candidates == 1024
     assert limits.max_salient_event_traces == 64
     assert limits.consolidation_epoch_ticks == 8
     assert limits.slow_support_epochs == 4
