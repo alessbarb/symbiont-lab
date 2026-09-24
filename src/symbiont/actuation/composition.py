@@ -82,6 +82,12 @@ class CompositionEngine:
             self._sequential = dict(retained)
         return evidence
 
+    def observe_absence(self, first: str, second: str) -> None:
+        """Record that an observed A->B completion failed to reproduce known effects."""
+        for key, evidence in self._sequential.items():
+            if key[0] == first and key[1] == second:
+                evidence.failures += 1
+
     @property
     def evidence(self) -> tuple[SequentialCompositionEvidence, ...]:
         return tuple(
