@@ -190,6 +190,39 @@ class OrganismDeadError(RuntimeError):
     """Raised when execution is requested after irreversible death."""
 
 
+def _classify_executed_motor_origin(
+    intents: tuple[MotorIntent, ...],
+    cognitive_intents: tuple[MotorIntent, ...],
+    *,
+    prior_origin: str,
+) -> tuple[str, str]:
+    """Classify the motor command that survives physical-unit arbitration.
+
+    Only the developmental direct-motor families are reclassified here.
+    Primitive/reactive/prospective provenance is already isolated upstream.
+    """
+    if prior_origin not in {"mixed", "cognition", "babbling"}:
+        return prior_origin, prior_origin
+
+    cognitive_ids = {
+        intent.actuator_id for intent in cognitive_intents
+    }
+    surviving_cognitive = any(
+        intent.actuator_id in cognitive_ids for intent in intents
+    )
+    surviving_developmental = any(
+        intent.actuator_id not in cognitive_ids for intent in intents
+    )
+
+    if surviving_cognitive and surviving_developmental:
+        return "mixed", "mixed"
+    if surviving_cognitive:
+        return "cognition", "cognition"
+    if surviving_developmental:
+        return "babbling", "babbling"
+    return "none", "none"
+
+
 class OrganismRuntime:
     """Continuous cognitive cycle over safe local perceptions.
 
@@ -1273,25 +1306,14 @@ class OrganismRuntime:
             # Origin telemetry must describe the command that will actually be
             # executed after opaque motor-unit arbitration, not the requests
             # that existed before mutually-exclusive channels were resolved.
-            if self._last_motor_origin in {"mixed", "cognition", "babbling"}:
-                surviving_cognitive = any(
-                    intent.actuator_id in cognitive_ids for intent in intents
-                )
-                surviving_developmental = any(
-                    intent.actuator_id not in cognitive_ids for intent in intents
-                )
-                if surviving_cognitive and surviving_developmental:
-                    self._last_motor_origin = "mixed"
-                    self._last_motor_origin_detail = "mixed"
-                elif surviving_cognitive:
-                    self._last_motor_origin = "cognition"
-                    self._last_motor_origin_detail = "cognition"
-                elif surviving_developmental:
-                    self._last_motor_origin = "babbling"
-                    self._last_motor_origin_detail = "babbling"
-                else:
-                    self._last_motor_origin = "none"
-                    self._last_motor_origin_detail = "none"
+            (
+                self._last_motor_origin,
+                self._last_motor_origin_detail,
+            ) = _classify_executed_motor_origin(
+                intents,
+                cognitive_intents,
+                prior_origin=self._last_motor_origin,
+            )
 
         activity_scale = self._homeostasis.activity_scale
         if activity_scale < 1.0:
