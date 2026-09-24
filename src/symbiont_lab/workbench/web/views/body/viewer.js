@@ -183,7 +183,7 @@ export class BodyViewer {
 
     // Canvas
     this.canvas = document.createElement('canvas');
-    this.canvas.style.cssText = 'display: block; width: 100%; height: 100%;';
+    this.canvas.className = 'body-canvas';
     this.canvasWrap.appendChild(this.canvas);
 
     // Status Overlay
@@ -258,8 +258,8 @@ export class BodyViewer {
       backdropFilter: 'blur(6px)',
     });
     this.resourceIndicatorArrow = document.createElement('span');
+    this.resourceIndicatorArrow.className = 'body-resource-indicator-arrow';
     this.resourceIndicatorArrow.textContent = '➜';
-    this.resourceIndicatorArrow.style.cssText = 'display:inline-block;font-size:14px;line-height:1;transform-origin:50% 50%;';
     this.resourceIndicatorLabel = document.createElement('span');
     this.resourceIndicatorLabel.textContent = 'Resource';
     this.resourceIndicator.appendChild(this.resourceIndicatorArrow);
