@@ -349,6 +349,7 @@ class SensorimotorLearner:
         organism_id: str,
         max_concurrent: int | None = None,
         smoothing: float = 0.28,
+        exclusive_actuator_groups: Sequence[Sequence[str]] | None = None,
     ) -> None:
         ids = tuple(str(value) for value in actuator_ids)
         if not ids or len(ids) != len(set(ids)):
@@ -364,10 +365,49 @@ class SensorimotorLearner:
 
         self._ids = ids
         self._organism_id = str(organism_id)
+
+        raw_groups = exclusive_actuator_groups or ()
+        groups: list[tuple[str, ...]] = []
+        grouped_ids: set[str] = set()
+        for raw_group in raw_groups:
+            group = tuple(str(value) for value in raw_group)
+            if len(group) < 2 or len(set(group)) != len(group):
+                raise ValueError(
+                    "exclusive actuator groups require at least two unique ids"
+                )
+            if any(value not in set(ids) for value in group):
+                raise ValueError(
+                    "exclusive actuator group references unknown actuator"
+                )
+            overlap = grouped_ids.intersection(group)
+            if overlap:
+                raise ValueError(
+                    "exclusive actuator groups must not overlap"
+                )
+            grouped_ids.update(group)
+            groups.append(group)
+
+        # The learner still sees opaque actuator ids.  Groups carry only the
+        # apparatus invariant that their channels are mutually exclusive
+        # directions of one physical degree of freedom; no anatomy or task
+        # semantics cross this boundary.
+        self._exclusive_actuator_groups = tuple(groups)
+        self._exclusive_group_by_id = {
+            actuator_id: group
+            for group in self._exclusive_actuator_groups
+            for actuator_id in group
+        }
+        singleton_units = tuple(
+            (actuator_id,)
+            for actuator_id in ids
+            if actuator_id not in grouped_ids
+        )
+        self._babble_units = (*self._exclusive_actuator_groups, *singleton_units)
+        concurrency_ceiling = len(self._babble_units)
         self._max_concurrent = (
-            len(ids)
+            concurrency_ceiling
             if max_concurrent is None
-            else min(max_concurrent, len(ids))
+            else min(max_concurrent, concurrency_ceiling)
         )
         self._smoothing = float(smoothing)
 
@@ -568,7 +608,7 @@ class SensorimotorLearner:
         log-uniform scale instead: small combinations are common, larger
         combinations remain reachable, and no anatomical grouping is supplied.
         """
-        if self._max_concurrent <= 1:
+        if self._max_concurrent <= 1 or len(self._babble_units) <= 1:
             return 1
         digest = hashlib.sha256(
             f"sensorimotor-cardinality:{self._organism_id}:{epoch}".encode(
@@ -584,18 +624,38 @@ class SensorimotorLearner:
     def _babble_vector(self, tick: int) -> dict[str, float]:
         epoch = tick // _BABBLE_EPOCH_TICKS
         if epoch != self._babble_epoch or not self._babble_ids:
-            scored = [
-                (
-                    self._use_counts[actuator_id],
-                    -self._hash_unit(actuator_id, epoch),
-                    actuator_id,
+            scored_units = []
+            for unit_index, unit in enumerate(self._babble_units):
+                use_count = min(self._use_counts[actuator_id] for actuator_id in unit)
+                tie_break = min(
+                    self._hash_unit(actuator_id, epoch)
+                    for actuator_id in unit
                 )
-                for actuator_id in self._ids
-            ]
+                scored_units.append(
+                    (use_count, -tie_break, unit_index, unit)
+                )
             cardinality = self._babble_cardinality(epoch)
-            self._babble_ids = tuple(
-                item[2] for item in sorted(scored)[:cardinality]
-            )
+            chosen_units = [
+                item[3]
+                for item in sorted(scored_units)[:cardinality]
+            ]
+
+            selected: list[str] = []
+            for unit in chosen_units:
+                # For a mutually-exclusive directional group, choose exactly
+                # one opaque channel for this epoch.  Fairness is based on the
+                # organism's own use history; the apparatus never supplies
+                # "positive", "negative", joint or anatomical semantics.
+                actuator_id = min(
+                    unit,
+                    key=lambda value: (
+                        self._use_counts[value],
+                        -self._hash_unit(value, epoch),
+                        value,
+                    ),
+                )
+                selected.append(actuator_id)
+            self._babble_ids = tuple(selected)
             self._babble_epoch = epoch
 
         vector: dict[str, float] = {}
@@ -647,30 +707,48 @@ class SensorimotorLearner:
 
     @staticmethod
     def _sequence_distance(left: MotorSequence, right: MotorSequence) -> float:
-        """Scale-free distance between two opaque temporal motor chunks.
+        """Density-resistant distance between opaque temporal motor chunks.
 
-        Missing actuator channels are treated as zero activation. A distance of
-        0.10 means the average per-channel discrepancy is below one quantized
-        activation bin. This allows naturally similar recurrences to count as
-        repeated evidence without collapsing distinct body-wide synergies.
+        Recurrence requires both similar activation magnitude and similar
+        support (which channels participated).  Taking the maximum prevents a
+        large dense pattern from diluting a small set of added/removed channels
+        merely because many other channels happen to match.
         """
         if len(left) != len(right):
             return 1.0
-        total = 0.0
-        denominator = 0.0
+        step_distances: list[float] = []
         for left_pattern, right_pattern in zip(left, right):
             left_map = dict(left_pattern)
             right_map = dict(right_pattern)
-            actuator_ids = set(left_map) | set(right_map)
-            for actuator_id in actuator_ids:
-                total += abs(
-                    int(left_map.get(actuator_id, 0))
-                    - int(right_map.get(actuator_id, 0))
+            left_ids = set(left_map)
+            right_ids = set(right_map)
+            union = left_ids | right_ids
+            if not union:
+                step_distances.append(0.0)
+                continue
+
+            amplitude_distance = (
+                sum(
+                    abs(
+                        int(left_map.get(actuator_id, 0))
+                        - int(right_map.get(actuator_id, 0))
+                    )
+                    for actuator_id in union
                 )
-                denominator += 7.0
-        if denominator <= 0.0:
-            return 0.0
-        return total / denominator
+                / (7.0 * len(union))
+            )
+            support_distance = (
+                len(left_ids.symmetric_difference(right_ids))
+                / len(union)
+            )
+            step_distances.append(
+                max(amplitude_distance, support_distance)
+            )
+        return (
+            sum(step_distances) / len(step_distances)
+            if step_distances
+            else 0.0
+        )
 
     def _matched_primitive_sequence(
         self,
@@ -701,13 +779,25 @@ class SensorimotorLearner:
         before: Mapping[str, float],
         after: Mapping[str, float],
     ) -> float:
+        """Magnitude of the strongest bounded bodily consequences.
+
+        Averaging over every observed signal structurally rewards body-wide
+        motion and dilutes strong local consequences.  A fixed-size top-k
+        statistic gives local and distributed actions the same opportunity to
+        demonstrate a reproducible effect without supplying any anatomy.
+        """
         shared = set(before) & set(after)
         if not shared:
             return 0.0
-        return sum(
-            abs(float(after[key]) - float(before[key]))
-            for key in shared
-        ) / len(shared)
+        magnitudes = sorted(
+            (
+                abs(float(after[key]) - float(before[key]))
+                for key in shared
+            ),
+            reverse=True,
+        )
+        support = magnitudes[: min(8, len(magnitudes))]
+        return sum(support) / len(support) if support else 0.0
 
     @staticmethod
     def _signed_body_delta(
@@ -1156,8 +1246,11 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 8,
+            "schema_version": 9,
             "actuator_ids": list(self._ids),
+            "exclusive_actuator_groups": [
+                list(group) for group in self._exclusive_actuator_groups
+            ],
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
             "use_counts": dict(self._use_counts),
@@ -1245,13 +1338,13 @@ class SensorimotorLearner:
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=8,
+            maximum=9,
         )
-        if schema not in (7, 8):
+        if schema != 9:
             raise ValueError(
-                "unsupported sensorimotor checkpoint: schema_version must be 7 or 8 "
-                "(older schemas either may carry removed verification apparatus, "
-                "body-wide cardinality bias, or non-independent primitive evidence)"
+                "unsupported sensorimotor checkpoint: schema_version must be 9; "
+                "older schemas lack the canonical mutually-exclusive motor-unit "
+                "constitution and density-neutral primitive metrics"
             )
 
         expected = tuple(str(value) for value in actuator_ids)
@@ -1259,6 +1352,15 @@ class SensorimotorLearner:
         if stored != expected:
             raise ValueError("sensorimotor actuator constitution mismatch")
         allowed = set(expected)
+
+        raw_groups = payload.get("exclusive_actuator_groups", [])
+        if not isinstance(raw_groups, list):
+            raise ValueError("invalid exclusive actuator groups")
+        exclusive_groups: list[tuple[str, ...]] = []
+        for raw_group in raw_groups:
+            if not isinstance(raw_group, list):
+                raise ValueError("invalid exclusive actuator group")
+            exclusive_groups.append(tuple(str(value) for value in raw_group))
 
         learner = cls(
             expected,
@@ -1270,6 +1372,7 @@ class SensorimotorLearner:
                 minimum=1e-12,
                 maximum=1.0,
             ),
+            exclusive_actuator_groups=exclusive_groups,
         )
 
         raw_levels = payload.get("levels", {})
