@@ -79,6 +79,9 @@ function bodyModelFromCatalog(item) {
 }
 
 function dominantAxis(axisVector) {
+  if (typeof axisVector === 'string' && ['X', 'Y', 'Z'].includes(axisVector)) {
+    return axisVector;
+  }
   const [x = 0, y = 0, z = 0] = axisVector ?? [];
   const abs = [Math.abs(x), Math.abs(y), Math.abs(z)];
   const index = abs.indexOf(Math.max(...abs));
@@ -107,7 +110,6 @@ export class BodyViewer {
     this.bodyModel = fallbackBodyModel();
     this.activeBodyKind = this.bodyModel.bodyKind;
     this.bodyModels.set(this.activeBodyKind, this.bodyModel);
-    this.skeletonRoot = null;
 
     // Three.js instances
     this.renderer = null;
