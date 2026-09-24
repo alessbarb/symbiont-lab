@@ -310,14 +310,14 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             actuations = result.actuations or (
                 (result.actuation,) if result.actuation is not None else ()
             )
-            motor_origin = self.last_motor_origin_detail
+            action_source = self.last_action_source
             executed_pid = self._last_executed_competence_id
-            named_primitive = (
+            named_competence = (
                 executed_pid is not None
-                and motor_origin in {
-                    "primitive_cognition",
-                    "primitive_reactive",
-                    "primitive_prospective",
+                and action_source in {
+                    "competence",
+                    "protection",
+                    "prospection",
                 }
             )
             for actuation in sorted(actuations, key=lambda item: item.actuator_id):
@@ -331,12 +331,12 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                     "motor.channel",
                     actuation.actuator_id,
                 )
-                # A named learned primitive already has a stable opaque
+                # A named learned competence already has a stable opaque
                 # action token. Do not condition its causal training episode on
                 # post-execution delivered values that are unavailable during
-                # counterfactual choice. Composite babbling still needs channel
+                # counterfactual choice. Composite exploration still needs channel
                 # detail because it has no acquired action identity.
-                if not named_primitive:
+                if not named_competence:
                     context.append(
                         f"internal.{actuator_token}.requested.{requested_class}"
                     )
@@ -351,13 +351,13 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                         actuation.actuator_id,
                         delivered_class,
                     ))
-            # When the execution originated from a named primitive, use the
-            # primitive's opaque identity as the action token. This gives
+            # When the execution originated from a named competence, use the
+            # competence's opaque identity as the action token. This gives
             # counterfactual inference the same token that was produced during
             # training — one representation for learning and imagining.
-            # For babbling and non-primitive multi-channel vectors, the
+            # For exploration and unbound multi-channel vectors, the
             # composite fallback preserves the existing behaviour.
-            if named_primitive:
+            if named_competence:
                 action_token = f"action.{executed_pid}"
             else:
                 action_token = "action.motor.composite"
@@ -602,8 +602,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
     ) -> str | None:
         """Override: consult ProspectiveAgency for model-based competence selection.
 
-        Returns the chosen primitive ID, or None to fall back to the existing
-        cognitive-readout / babbling selection.
+        Returns the chosen competence ID, or None to fall back to the existing
+        cognitive-readout / exploration selection.
         """
         self._last_prospective_decision = None
         self._last_prospective_query_count = 0
@@ -618,9 +618,9 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
 
         # A sensorimotor competence becomes a prospective action only after
         # its competence readout has actually entered the cognitive graph.
-        primitive_readouts = cognition.readouts_for_family("primitive")
+        competence_readouts = cognition.readouts_for_family("primitive")
         admitted_ids = tuple(
-            pid for pid in candidate_ids if pid in primitive_readouts
+            cid for cid in candidate_ids if cid in competence_readouts
         )
         if not admitted_ids:
             return None
