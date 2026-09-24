@@ -758,6 +758,22 @@ whether a channel could be explored.
 Babbling is bounded, deterministic for one organism identity, multi-channel and
 temporally correlated. It supplies no gait, sequence, anatomy or utility.
 
+#### Mutually-exclusive opaque motor groups
+
+An embodiment may declare groups of actuator IDs that are physically
+mutually-exclusive directions of one motor unit. The declaration contains only
+opaque IDs. It carries no joint name, anatomical side, preferred direction,
+utility or task semantics.
+
+The invariant applies to **all** concurrent motor sources, not only babbling.
+If cognition and developmental exploration request multiple members of one
+group in the same tick, the strongest requested activation survives; ties are
+resolved by opaque ID. Only surviving requests are executed, charged, credited
+and admitted as sensorimotor evidence.
+
+Physics3D uses 31 two-channel groups over its 62 directional actuator slots.
+
+
 Every constitutional actuator remains available, but coordination cardinality is
 sampled with a logarithmic low-dimensional prior rather than uniformly over
 `1..N`. Small combinations are therefore common, while broad and whole-body
@@ -777,6 +793,21 @@ opaque body state(t) + delivered motor vector(t)
 for independent horizons `h ∈ {1, 4, 16, 64}`.
 
 Horizon statistics remain separate.
+
+The body-state snapshot includes the complete finite set of currently perceived,
+non-command-echo signals. It is not truncated by lexicographic opaque ID.
+
+Effect magnitude is computed from the strongest bounded non-zero consequences
+(top 8), rather than averaging over every available signal. This prevents a
+body-wide action from receiving higher controllability merely because it changes
+more channels and prevents a strong local consequence from being diluted by
+unchanged channels.
+
+Primitive recurrence is support-aware. Sequence distance combines quantized
+activation discrepancy with active-channel support discrepancy. Dense patterns
+therefore cannot make added/removed channels disappear merely by increasing the
+denominator.
+
 
 ### Motor primitives
 
@@ -817,6 +848,9 @@ Thus motor hierarchy is acquired rather than authored:
 physical actuators -> learned synergies -> cognitive primitive actions
 ```
 
-The complete sensorimotor state is part of organism persistence. Checkpoint
-restore must preserve babbling phase, sufficient statistics, learned primitives
-and verification state.
+The complete sensorimotor state is part of organism persistence. Current
+sensorimotor checkpoint schema is **v9**. It persists the opaque exclusive motor
+groups together with babbling phase, sufficient statistics and learned
+primitives. Pre-v9 learned sensorimotor state fails closed: its evidence was
+collected under different motor-concurrency and statistical rules and cannot be
+silently reinterpreted.
