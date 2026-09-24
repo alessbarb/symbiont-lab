@@ -55,6 +55,7 @@ def test_all_top_level_views_have_uniform_lifecycle_contract():
     ):
         source = _read(relative)
         assert "export function mount" in source, relative
+        assert "export function update" in source, relative
         assert "export function unmount" in source, relative
 
 
@@ -85,3 +86,13 @@ def test_server_sets_browser_security_headers():
     assert '"Content-Security-Policy"' in api
     assert '"X-Frame-Options", "DENY"' in api
     assert '"frame-ancestors \'none\'"' in api
+
+
+def test_mind_uses_real_tab_semantics():
+    layout = _read("views/mind/layout.js")
+    tabs = _read("views/mind/tab-controller.js")
+    assert "setAttribute('role', 'tablist')" in layout
+    assert "setAttribute('role', 'tab')" in layout
+    assert "setAttribute('aria-selected'" in layout
+    assert "setAttribute('role', 'tabpanel')" in layout
+    assert "aria-pressed" not in tabs
