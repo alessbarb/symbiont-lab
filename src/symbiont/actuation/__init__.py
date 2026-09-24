@@ -29,7 +29,7 @@ from .evidence import (
     SensorimotorTransition,
 )
 from .exploration import ExplorationPolicy, ExplorationSignals
-from .model import ControllabilityEstimate, ControllabilityModel
+from .model import (\n    AgencyEstimate,\n    AgencyModel,\n    ControllabilityEstimate,\n    ControllabilityModel,\n    EffectPrediction,\n    SensorimotorModel,\n)
 from .surface import (
     ActuatorChannel,
     ActuatorConstitution,
