@@ -177,7 +177,7 @@ class PyBulletEmbodimentRuntime:
         physics_substeps_per_tick: int = 10,
         mechanical_work_cost_per_joule: float = 0.001,
         capture_physics_trace: bool = False,
-        body_kind: str = "anthropomorphic-v4",
+        body_kind: str = "anthropomorphic-v5",
         runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
         organism_id: str | None = None,
