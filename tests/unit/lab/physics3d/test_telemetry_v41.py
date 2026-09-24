@@ -906,3 +906,36 @@ def test_v41_anchor_and_checkpoint_cadence_are_independent(tmp_path):
         assert writer.needs_snapshot(8) is True
     finally:
         writer.close()
+
+
+def test_v41_state_at_materializes_only_requested_tick(tmp_path, monkeypatch):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=100,
+        anchor_interval=100,
+        run_id="single-materialization",
+    )
+    _write(writer)
+
+    import symbiont_lab.physics3d.telemetry_v41 as module
+
+    original = module.reassemble_state
+    calls = 0
+
+    def counted(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(module, "reassemble_state", counted)
+    reader = TelemetryV41Reader(writer.root)
+    state = reader.state_at(7)
+
+    assert state["tick"] == 7
+    assert calls == 1

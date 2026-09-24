@@ -1215,6 +1215,7 @@ class TelemetryV41Reader:
         *,
         end_tick: int | None = None,
         verify_logical_each_tick: bool = True,
+        yield_intermediate: bool = True,
     ) -> Iterator[tuple[int, dict[str, Any], dict[str, Any], dict[str, Any]]]:
         anchor_commit = self._anchor_commit(anchor)
         dense, structural, summary_reader, events, static, fallback = (
@@ -1367,6 +1368,14 @@ class TelemetryV41Reader:
                             f"telemetry summary record commitment mismatch at tick {tick}"
                         )
                 _summary_channel, summary = summary_reader.apply(summary_records[0])
+
+                if (
+                    not yield_intermediate
+                    and end_tick is not None
+                    and tick < int(end_tick)
+                ):
+                    continue
+
                 state = reassemble_state(
                     dense=dense.values,
                     structural=structural.values,
@@ -1396,6 +1405,7 @@ class TelemetryV41Reader:
             anchor,
             end_tick=requested,
             verify_logical_each_tick=False,
+            yield_intermediate=False,
         ):
             if current_tick == requested:
                 if (
@@ -1417,6 +1427,7 @@ class TelemetryV41Reader:
             anchor,
             end_tick=requested,
             verify_logical_each_tick=False,
+            yield_intermediate=False,
         ):
             if current_tick == requested:
                 if (
