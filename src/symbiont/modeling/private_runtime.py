@@ -4,7 +4,9 @@ from dataclasses import dataclass
 import hashlib
 import math
 
+from ..cognition.types import NodeKind
 from ..core.orchestration.runtime import RuntimeTickResult
+from .episodic import EpisodicProjection
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .runtime import ModeledOrganismRuntime
 
@@ -37,6 +39,7 @@ class _PrivateFrame:
     vital: str | None
     development: str | None
     homeostatic_deviation: float
+    episodic_projection: EpisodicProjection
 
 
 class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
@@ -183,6 +186,70 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         if not context:
             context.append("internal.quiet")
         return tuple(context[:256])
+    def _episodic_projection(
+        self,
+        result: RuntimeTickResult,
+        *,
+        action_token: str | None,
+        pressure: str | None,
+        vital: str | None,
+        development: str | None,
+    ) -> EpisodicProjection:
+        """Capture the sparse cognitive state actually available at this tick."""
+        cognition = result.cognition
+        activations = (
+            cognition.activations
+            if cognition is not None and isinstance(cognition.activations, dict)
+            else {}
+        )
+        kinds = {}
+        if self._cognitive_bridge is not None:
+            kinds = {
+                node.node_id: node.kind
+                for node in self._cognitive_bridge.graph.nodes
+            }
+
+        ranked_senses = sorted(
+            (
+                (abs(float(value)), node_id)
+                for node_id, value in activations.items()
+                if (
+                    kinds.get(node_id) is NodeKind.SENSE
+                    and isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                    and math.isfinite(float(value))
+                    and abs(float(value)) > 1e-9
+                )
+            ),
+            key=lambda item: (-item[0], item[1]),
+        )
+        sense_ids = tuple(node_id for _, node_id in ranked_senses[:16])
+
+        concept_ids = ()
+        if cognition is not None:
+            concept_ids = tuple(
+                concept_id
+                for concept_id in cognition.active_concept_ids
+                if kinds.get(concept_id) is NodeKind.CONCEPT
+            )[:8]
+
+        internal_tokens = tuple(
+            token
+            for token in (
+                f"internal.pressure.{pressure}" if pressure else None,
+                f"internal.vital.{vital}" if vital else None,
+                f"internal.development.{development}" if development else None,
+            )
+            if token is not None
+        )
+
+        return EpisodicProjection(
+            sense_ids=sense_ids,
+            concept_ids=concept_ids,
+            internal_tokens=internal_tokens,
+            action_token=action_token,
+        )
+
     def _capture_private_frame(self, result: RuntimeTickResult) -> _PrivateFrame:
         context: list[str] = []
         evidence: list[str] = []
@@ -303,6 +370,13 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         if not evidence:
             evidence.append(_evidence_ref(self.organism_id, result.tick, "internal"))
 
+        episodic_projection = self._episodic_projection(
+            result,
+            action_token=action_token,
+            pressure=pressure,
+            vital=vital,
+            development=development,
+        )
         return _PrivateFrame(
             tick=result.tick,
             context_tokens=tuple(context[:256]),
@@ -314,6 +388,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             vital=vital,
             development=development,
             homeostatic_deviation=float(self._homeostasis.deviation()),
+            episodic_projection=episodic_projection,
         )
 
     @staticmethod
@@ -671,7 +746,12 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             previous = self._pending_private_frame
             if previous is not None:
                 episode = self._finalize_private_transition(previous, current)
-                self.record_experience(episode)
+                self.record_experience(
+                    episode,
+                    episodic_projection=previous.episodic_projection.with_effects(
+                        episode.outcome_tokens
+                    ),
+                )
                 self._schedule_observed_outcome_value_credit(
                     episode,
                     baseline_deviation=previous.homeostatic_deviation,
