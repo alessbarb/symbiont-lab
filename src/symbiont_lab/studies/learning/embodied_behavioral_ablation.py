@@ -18,11 +18,10 @@ class BehavioralAblationCondition:
     alive: bool
     displacement_delta: float
     resource_progress_delta: float
-    cognition_motor_ticks: int
-    mixed_motor_ticks: int
-    primitive_motor_ticks: int
-    primitive_cognition_ticks: int
-    primitive_reactive_ticks: int
+    competence_ticks: int
+    prospection_ticks: int
+    protection_ticks: int
+    exploration_ticks: int
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -202,25 +201,19 @@ def _run_clone(
     ) as runtime:
         last = None
         completed = 0
-        cognition_ticks = 0
-        mixed_ticks = 0
-        primitive_ticks = 0
-        primitive_cognition_ticks = 0
-        primitive_reactive_ticks = 0
+        competence_ticks = 0
+        prospection_ticks = 0
+        protection_ticks = 0
+        exploration_ticks = 0
 
         for _ in range(horizon_ticks):
             last = runtime.step()
             completed += 1
-            origin = last.motor_origin
-            cognition_ticks += int(origin == "cognition")
-            mixed_ticks += int(origin == "mixed")
-            primitive_ticks += int(origin == "primitive")
-            primitive_cognition_ticks += int(
-                last.motor_origin_detail == "primitive_cognition"
-            )
-            primitive_reactive_ticks += int(
-                last.motor_origin_detail == "primitive_reactive"
-            )
+            source = last.action_source
+            competence_ticks += int(source == "competence")
+            prospection_ticks += int(source == "prospection")
+            protection_ticks += int(source == "protection")
+            exploration_ticks += int(source == "exploration")
             if not last.alive:
                 break
 
@@ -232,19 +225,16 @@ def _run_clone(
             alive=last.alive,
             displacement_delta=last.displacement_from_origin - start_displacement,
             resource_progress_delta=last.resource_progress - start_progress,
-            cognition_motor_ticks=cognition_ticks,
-            mixed_motor_ticks=mixed_ticks,
-            primitive_motor_ticks=primitive_ticks,
-            primitive_cognition_ticks=primitive_cognition_ticks,
-            primitive_reactive_ticks=primitive_reactive_ticks,
+            competence_ticks=competence_ticks,
+            prospection_ticks=prospection_ticks,
+            protection_ticks=protection_ticks,
+            exploration_ticks=exploration_ticks,
         )
 
 
 def _trigger_reason(tick) -> str | None:
-    if tick.motor_origin in {"cognition", "mixed"}:
-        return f"motor_origin:{tick.motor_origin}"
-    if tick.motor_origin_detail == "primitive_cognition":
-        return "motor_origin:primitive_cognition"
+    if tick.action_source in {"competence", "prospection"}:
+        return f"action_source:{tick.action_source}"
     return None
 
 
@@ -276,8 +266,8 @@ def _trial(
                 print(
                     "[behavioral-ablation:warmup] "
                     f"seed={seed} tick={step_index + 1}/{warmup_ticks} "
-                    f"alive={tick.alive} motor_origin={tick.motor_origin} "
-                    f"cognitive_primitives={tick.cognitive_motor_primitives}",
+                    f"alive={tick.alive} action_source={tick.action_source} "
+                    f"motor_competences={tick.motor_competences}",
                     flush=True,
                 )
             trigger = _trigger_reason(tick)
