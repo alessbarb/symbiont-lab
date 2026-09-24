@@ -15,6 +15,7 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "cognitive-temporal.js",
         WEB_ROOT / "views" / "mind" / "cognitive-lod.js",
         WEB_ROOT / "views" / "mind" / "cognitive-observatory.js",
+        WEB_ROOT / "views" / "mind" / "cognitive-live.js",
         WEB_ROOT / "views" / "mind" / "cognitive-refinement.js",
         WEB_ROOT / "views" / "mind" / "cognitive-animation.js",
         WEB_ROOT / "views" / "mind" / "cognitive-regions.js",
@@ -267,7 +268,9 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
     assert snapshot["beliefs"][0]["certainty"] == 0.8
     assert snapshot["cognition"]["topologyHealth"] == "connected"
     assert snapshot["observer_analysis"]["predictionErrors"]["concept.1"] == "medium"
+    assert snapshot["observer_analysis"]["predictionErrorValues"]["concept.1"] == 0.08
     assert snapshot["observer_analysis"]["activationClasses"]["concept.1"] == 8
+    assert snapshot["observer_analysis"]["activationValues"]["concept.1"] == 0.5
     assert "observer_analysis.predictionErrors" in snapshot["provenance"]["observerDerived"]
     assert snapshot["topology"]["nodes"][0]["id"] == "concept.1"
     assert snapshot["topology"]["edges"][0]["sourceId"] == "concept.1"
@@ -1236,6 +1239,26 @@ def test_cognitive_observatory_synthesizes_current_evidence_without_intent_claim
     assert "cognitive-observatory-v1" in observatory
     assert "Current observed process" in asset
     assert "Observer evidence only · no inferred intent · no feedback to Symbiont." in asset
+
+
+def test_cognitive_live_observatory_is_temporal_and_observer_only() -> None:
+    asset = _mind_sources()
+    live = (WEB_ROOT / "views" / "mind" / "cognitive-live.js").read_text(encoding="utf-8")
+    layout = (WEB_ROOT / "views" / "mind" / "layout.js").read_text(encoding="utf-8")
+
+    assert "buildCognitiveFrame" in live
+    assert "recordCognitiveFrame" in live
+    assert "claimsIntent: false" in live
+    assert "feedsBack: false" in live
+    assert "strengthenedEdges" in live
+    assert "weakenedEdges" in live
+    assert "Current activity focus" in live
+    assert "Recent cognitive events" in live
+    assert "mind-cognition-live-focus" in layout
+    assert "mind-cognition-event-stream" in layout
+    assert "mind-cognition-live-timeline" in layout
+    assert "predictionErrorValues" in asset
+    assert "activationValues" in asset
 
 
 def test_cognitive_observatory_exposes_full_stage_counts_and_evidence() -> None:
