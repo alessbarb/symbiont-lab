@@ -179,11 +179,18 @@ def prepare_fresh_embodiment_checkpoint(
                 old_genome["motor"] = deepcopy(new_genome["motor"])
             else:
                 old_genome.pop("motor", None)
+            genome_fields = {
+                key: value
+                for key, value in old_genome.items()
+                if key != "genome_hash"
+            }
+            genome_hash = _canonical_hash(genome_fields)
+            old_genome["genome_hash"] = genome_hash
             fingerprint = result.get("constitution_fingerprint")
             if not isinstance(fingerprint, dict):
                 fingerprint = {"schema_version": 1}
                 result["constitution_fingerprint"] = fingerprint
-            fingerprint["genome_hash"] = _canonical_hash(old_genome)
+            fingerprint["genome_hash"] = genome_hash
 
     result["embodiment_lifecycle"] = {
         "schema_version": _SCHEMA_VERSION,
