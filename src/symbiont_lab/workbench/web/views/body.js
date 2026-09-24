@@ -15,6 +15,8 @@ export function mount(root) {
   return globalInstance;
 }
 
+export function update() {}
+
 export function unmount() {
   if (globalInstance) {
     globalInstance.unmount();
