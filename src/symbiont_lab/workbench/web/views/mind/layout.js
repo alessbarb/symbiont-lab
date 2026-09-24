@@ -27,12 +27,12 @@ export function buildMindLayout(root, {
   tabBar.setAttribute('aria-label', 'Mind view tabs');
 
   const TABS = [
-    { id: 'overview',   label: 'Overview' },
-    { id: 'phenotype',  label: 'Identity' },
-    { id: 'sensory',    label: 'Sensory' },
-    { id: 'cognition',  label: 'Cognition' },
-    { id: 'motor',      label: 'Motor Learning' },
-    { id: 'history',    label: 'History' },
+    { id: 'overview',  label: 'Overview',       panelId: 'mind-overview-wrap' },
+    { id: 'phenotype', label: 'Identity',       panelId: 'mind-identity-wrap' },
+    { id: 'sensory',   label: 'Sensory',        panelId: 'mind-sensory-wrap' },
+    { id: 'cognition', label: 'Cognition',      panelId: 'mind-cognition-wrap' },
+    { id: 'motor',     label: 'Motor Learning', panelId: 'mind-motor-wrap' },
+    { id: 'history',   label: 'History',        panelId: 'mind-history-wrap' },
   ];
 
   for (const tab of TABS) {
@@ -42,7 +42,7 @@ export function buildMindLayout(root, {
     btn.textContent = tab.label;
     btn.setAttribute('role', 'tab');
     btn.setAttribute('aria-selected', String(tab.id === activeTab));
-    btn.setAttribute('aria-controls', `mind-panel-${tab.id}`);
+    btn.setAttribute('aria-controls', tab.panelId);
     btn.tabIndex = tab.id === activeTab ? 0 : -1;
     btn.addEventListener('click', () => onTabChange(tab.id));
     tabBar.appendChild(btn);
@@ -85,7 +85,7 @@ export function buildMindLayout(root, {
   identityWrap.id = 'mind-identity-wrap';
   identityWrap.setAttribute('role', 'tabpanel');
   identityWrap.setAttribute('aria-labelledby', 'mind-tab-phenotype');
-  identityWrap.id = 'mind-panel-phenotype';
+  identityWrap.id = 'mind-identity-wrap';
   identityWrap.style.cssText = `
     position: absolute; inset: 0;
     display: grid;
@@ -171,7 +171,7 @@ export function buildMindLayout(root, {
   sensoryWrap.id = 'mind-sensory-wrap';
   sensoryWrap.setAttribute('role', 'tabpanel');
   sensoryWrap.setAttribute('aria-labelledby', 'mind-tab-sensory');
-  sensoryWrap.id = 'mind-panel-sensory';
+  sensoryWrap.id = 'mind-sensory-wrap';
   sensoryWrap.style.cssText = `
     position: absolute; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 14px;
@@ -202,7 +202,7 @@ export function buildMindLayout(root, {
   cognitionWrap.id = 'mind-cognition-wrap';
   cognitionWrap.setAttribute('role', 'tabpanel');
   cognitionWrap.setAttribute('aria-labelledby', 'mind-tab-cognition');
-  cognitionWrap.id = 'mind-panel-cognition';
+  cognitionWrap.id = 'mind-cognition-wrap';
   cognitionWrap.style.cssText = 'position: absolute; inset: 0; overflow: hidden;';
   const cognitionCanvas = document.createElement('canvas');
   cognitionCanvas.id = 'mind-cognition-canvas';
@@ -325,21 +325,21 @@ export function buildMindLayout(root, {
   overviewWrap.id = 'mind-overview-wrap';
   overviewWrap.setAttribute('role', 'tabpanel');
   overviewWrap.setAttribute('aria-labelledby', 'mind-tab-overview');
-  overviewWrap.id = 'mind-panel-overview';
+  overviewWrap.id = 'mind-overview-wrap';
   overviewWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
 
   const motorWrap = el('div', 'mind-motor-wrap hidden');
   motorWrap.id = 'mind-motor-wrap';
   motorWrap.setAttribute('role', 'tabpanel');
   motorWrap.setAttribute('aria-labelledby', 'mind-tab-motor');
-  motorWrap.id = 'mind-panel-motor';
+  motorWrap.id = 'mind-motor-wrap';
   motorWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
 
   const historyWrap = el('div', 'mind-history-wrap hidden');
   historyWrap.id = 'mind-history-wrap';
   historyWrap.setAttribute('role', 'tabpanel');
   historyWrap.setAttribute('aria-labelledby', 'mind-tab-history');
-  historyWrap.id = 'mind-panel-history';
+  historyWrap.id = 'mind-history-wrap';
   historyWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
 
   // Waiting overlay (when no organism is active yet)
