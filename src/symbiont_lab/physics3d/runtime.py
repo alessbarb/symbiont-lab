@@ -562,6 +562,18 @@ class PyBulletEmbodimentRuntime:
                 pass
         return 1
 
+    @property
+    def historical_private_model_candidates(self) -> tuple[str, ...]:
+        lifecycle = self._embodiment_lifecycle
+        current = lifecycle.get("current") if isinstance(lifecycle, Mapping) else None
+        raw = current.get("candidate_private_model_ids") if isinstance(current, Mapping) else None
+        if not isinstance(raw, list):
+            return ()
+        return tuple(
+            str(value)
+            for value in raw
+            if isinstance(value, str) and value
+        )
     def physics_connected(self) -> bool:
         if self.client_id < 0:
             return False
