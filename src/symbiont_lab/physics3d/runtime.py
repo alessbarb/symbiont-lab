@@ -1609,13 +1609,13 @@ class PyBulletEmbodimentRuntime:
             },
             "sensorimotor": {
                 **sensorimotor_payload,
-                "primitive_candidates": int(
+                "competence_candidates": int(
                     sensorimotor.primitive_candidates if sensorimotor is not None else 0
                 ),
-                "recurrent_primitive_candidates": int(
+                "recurrent_competence_candidates": int(
                     sensorimotor.recurrent_primitive_candidates if sensorimotor is not None else 0
                 ),
-                "max_primitive_samples": int(
+                "max_competence_samples": int(
                     sensorimotor.max_primitive_samples if sensorimotor is not None else 0
                 ),
                 "sample_gate_candidates": int(
