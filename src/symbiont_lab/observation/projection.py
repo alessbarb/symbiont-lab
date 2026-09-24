@@ -127,6 +127,7 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
 
     cognition: dict[str, Any] = {**identity, "type": "cognition"}
     _copy_number(cognition, tick, "tick", cast=int)
+    _copy_number(cognition, tick, "symbiont_tick", cast=int)
     _copy_number(cognition, tick, "schema_confidence")
     _copy_number(cognition, tick, "schema_parts", cast=int)
     _copy_number(cognition, tick, "schema_sensory_parts", cast=int)
@@ -164,6 +165,7 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
 
     vitals: dict[str, Any] = {**identity, "type": "vitals"}
     _copy_number(vitals, tick, "tick", cast=int)
+    _copy_number(vitals, tick, "symbiont_tick", cast=int)
     _copy_number(vitals, tick, "body_age_ticks", cast=int)
     _copy_number(vitals, tick, "body_senescence")
     _copy_bool(vitals, tick, "alive")
