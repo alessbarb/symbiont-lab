@@ -164,6 +164,15 @@ export function resetMindDataState() {
   historySnapshots.length = 0;
   selfRegionHistory.clear();
   selfDependencyHistory.clear();
+  observerUsage.startedAt = Date.now();
+  observerUsage.modeChanges = {};
+  observerUsage.dimensionChanges = {};
+  observerUsage.selections = 0;
+  observerUsage.regionFocuses = 0;
+  observerUsage.timelineScrubs = 0;
+  observerUsage.diffUses = 0;
+  observerUsage.flowTraces = 0;
+  observerUsage.lastMode = null;
 
   graph.cachedPositions.clear();
   graph.alpha = 1;
