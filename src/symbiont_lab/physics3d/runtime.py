@@ -74,7 +74,14 @@ class Tick3D:
     active_effectors: int
     joint_motion: float
     contact_count: int
+    ground_contact_count: int
+    self_contact_count: int
+    resource_contact_count: int
     mechanical_work_joules: float
+    positive_actuator_work_joules: float
+    negative_actuator_work_joules: float
+    absolute_actuator_work_joules: float
+    net_actuator_work_joules: float
     metabolic_work_cost: float
     slm_records: int
     slm_transition_records: int
@@ -612,6 +619,11 @@ class PyBulletEmbodimentRuntime:
             else physical_state
         )
         state["locomotion_resource"] = self.resource.checkpoint()
+        contact_counts = self._contact_counts()
+        state["contact_count"] = int(contact_counts["body"])
+        state["ground_contact_count"] = int(contact_counts["ground"])
+        state["self_contact_count"] = int(contact_counts["self"])
+        state["resource_contact_count"] = int(contact_counts["resource"])
         state["body_interoception"] = self._body_interoception.checkpoint()
         state["origin_xy"] = [float(self._origin_xy[0]), float(self._origin_xy[1])]
         state["locomotion_evaluator"] = {
@@ -872,6 +884,33 @@ class PyBulletEmbodimentRuntime:
             "actuations": actuations,
         }
 
+    def _contact_counts(self) -> dict[str, int]:
+        contacts = self.p.getContactPoints(
+            bodyA=self.apparatus.body_id,
+            physicsClientId=self.client_id,
+        )
+        ground = 0
+        self_contacts = 0
+        resource = 0
+        resource_id = getattr(getattr(self, "resource", None), "body_id", None)
+        for item in contacts:
+            body_a = int(item[1])
+            body_b = int(item[2])
+            if body_a == self.apparatus.body_id and body_b == self.apparatus.body_id:
+                self_contacts += 1
+            if body_a == self.plane_id or body_b == self.plane_id:
+                ground += 1
+            if resource_id is not None and (
+                body_a == int(resource_id) or body_b == int(resource_id)
+            ):
+                resource += 1
+        return {
+            "body": len(contacts),
+            "ground": ground,
+            "self": self_contacts,
+            "resource": resource,
+        }
+
     def _contact_payload(self) -> list[dict[str, object]]:
         contacts = self.p.getContactPoints(
             bodyA=self.apparatus.body_id,
@@ -916,6 +955,7 @@ class PyBulletEmbodimentRuntime:
                 self.p.getJointState(self.apparatus.body_id, j, physicsClientId=self.client_id)
                 for j in self.apparatus.motor_joint_indices
             ]
+        joints: list[dict[str, object]] = []
         for joint_index, state in zip(self.apparatus.motor_joint_indices, raw_joint_states):
             joints.append(
                 {
@@ -1051,6 +1091,9 @@ class PyBulletEmbodimentRuntime:
         # its higher-frequency integration rate. Cognition does not need to run
         # at the physics solver frequency.
         mechanical_work_joules = 0.0
+        positive_actuator_work_joules = 0.0
+        negative_actuator_work_joules = 0.0
+        net_actuator_work_joules = 0.0
         resource_contacted = False
         physics_trace: list[dict[str, object]] = []
         base_path_length = 0.0
@@ -1061,7 +1104,21 @@ class PyBulletEmbodimentRuntime:
             for substep in range(self.physics_substeps_per_tick):
                 self.apparatus.prepare_physics_substep()
                 self.p.stepSimulation(physicsClientId=self.client_id)
-                mechanical_work_joules += self.apparatus.mechanical_work_step(self.time_step)
+                if hasattr(self.apparatus, "actuator_work_step"):
+                    work = self.apparatus.actuator_work_step(self.time_step)
+                    positive_actuator_work_joules += float(work.positive_j)
+                    negative_actuator_work_joules += float(work.negative_j)
+                    net_actuator_work_joules += float(work.net_j)
+                    mechanical_work_joules += float(work.absolute_j)
+                else:
+                    # Alternative apparatuses without decomposed work expose
+                    # the established absolute-effort scalar only.
+                    fallback_work = float(
+                        self.apparatus.mechanical_work_step(self.time_step)
+                    )
+                    positive_actuator_work_joules += fallback_work
+                    net_actuator_work_joules += fallback_work
+                    mechanical_work_joules += fallback_work
 
                 self._presentation_substep += 1
                 if self._presentation_substep % 4 == 0:
@@ -1149,12 +1206,15 @@ class PyBulletEmbodimentRuntime:
             for j in raw_physical_state.get("joints", ())
             if isinstance(j, dict)
         )
-        contact_count = int(
-            raw_physical_state.get(
-                "contact_count",
-                len(raw_physical_state.get("contact_links", ())),
-            )
-        )
+        contact_counts = self._contact_counts()
+        contact_count = int(contact_counts["body"])
+        ground_contact_count = int(contact_counts["ground"])
+        self_contact_count = int(contact_counts["self"])
+        resource_contact_count = int(contact_counts["resource"])
+        raw_physical_state["contact_count"] = contact_count
+        raw_physical_state["ground_contact_count"] = ground_contact_count
+        raw_physical_state["self_contact_count"] = self_contact_count
+        raw_physical_state["resource_contact_count"] = resource_contact_count
         schema = body_schema_summary(self.organism)
         registry = self.organism.model_registry
         predictor_count = self._predictor_count()
@@ -1461,8 +1521,15 @@ class PyBulletEmbodimentRuntime:
             "physics": {
                 "substeps": int(self.physics_substeps_per_tick),
                 "mechanical_work_joules": float(mechanical_work_joules),
+                "positive_actuator_work_joules": float(positive_actuator_work_joules),
+                "negative_actuator_work_joules": float(negative_actuator_work_joules),
+                "absolute_actuator_work_joules": float(mechanical_work_joules),
+                "net_actuator_work_joules": float(net_actuator_work_joules),
                 "resource_contacted": bool(resource_contacted),
                 "contact_count": int(contact_count),
+                "ground_contact_count": int(ground_contact_count),
+                "self_contact_count": int(self_contact_count),
+                "resource_contact_count": int(resource_contact_count),
                 "base_path_length": float(base_path_length),
                 "max_contact_normal_force": float(max_contact_force),
                 "contact_normal_impulse": float(contact_normal_impulse),
@@ -1573,7 +1640,14 @@ class PyBulletEmbodimentRuntime:
             active_effectors=active_effectors,
             joint_motion=float(joint_motion),
             contact_count=contact_count,
+            ground_contact_count=ground_contact_count,
+            self_contact_count=self_contact_count,
+            resource_contact_count=resource_contact_count,
             mechanical_work_joules=float(mechanical_work_joules),
+            positive_actuator_work_joules=float(positive_actuator_work_joules),
+            negative_actuator_work_joules=float(negative_actuator_work_joules),
+            absolute_actuator_work_joules=float(mechanical_work_joules),
+            net_actuator_work_joules=float(net_actuator_work_joules),
             metabolic_work_cost=float(metabolic_work_cost),
             slm_records=len(ledger_records),
             slm_transition_records=transition_records,
