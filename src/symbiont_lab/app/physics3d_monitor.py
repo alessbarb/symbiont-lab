@@ -2874,12 +2874,11 @@ def _viewer_main(
     }
 
     action_source_colors = {
-        "cognition": "#1d4ed8",
-        "babbling": "#0891b2",
-        "primitive": "#059669",
-        "mixed": "#7c3aed",
-        "spontaneous": "#d97706",
-        "probe": "#0f766e",
+        "exploration": "#0891b2",
+        "competence": "#1d4ed8",
+        "protection": "#dc2626",
+        "prospection": "#7c3aed",
+        "regulation": "#d97706",
         "none": "#374151",
     }
 
