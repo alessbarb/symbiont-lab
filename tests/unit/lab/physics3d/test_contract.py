@@ -904,7 +904,7 @@ def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
             },
         },
     }
-    with pytest.raises(RuntimeError, match="requires v9"):
+    with pytest.raises(RuntimeError, match="requires migratable v9"):
         _require_current_motor_evidence(
             legacy,
             fresh_body=False,
@@ -919,18 +919,19 @@ def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
         new_symbiont=False,
     )
 
-    current = {
-        "actuation": {
-            "sensorimotor": {
-                "schema_version": 9,
+    for schema in (9, 10):
+        current = {
+            "actuation": {
+                "sensorimotor": {
+                    "schema_version": schema,
+                },
             },
-        },
-    }
-    _require_current_motor_evidence(
-        current,
-        fresh_body=False,
-        new_symbiont=False,
-    )
+        }
+        _require_current_motor_evidence(
+            current,
+            fresh_body=False,
+            new_symbiont=False,
+        )
 
 
 def test_motor_step_applies_exclusion_before_execution_and_credit():
