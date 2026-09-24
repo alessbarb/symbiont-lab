@@ -18,10 +18,11 @@ import gc
 import json
 import resource
 import time
-from dataclasses import replace
-from importlib import resources
 
-from symbiont.cognition.genome import GenomeCodec
+from symbiont import __version__ as symbiont_version
+from symbiont.actuation.surface import derive_actuator_constitution
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.physiology import LivingBodyState
 from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
 
@@ -29,12 +30,14 @@ _SEED = 7
 
 
 def _base_genome():
-    payload = json.loads(
-        resources.files("symbiont.cognition")
-        .joinpath("defaults/base-genome.json")
-        .read_text()
+    version = tuple(
+        int(part)
+        for part in (symbiont_version.split(".") + ["0", "0"])[:3]
     )
-    return replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+    return load_base_genome(
+        kernel_limits=KernelLimits(),
+        running_version=version,
+    )
 
 
 def make_organism(organism_id: str, genome) -> OrganismRuntime:
@@ -45,6 +48,10 @@ def make_organism(organism_id: str, genome) -> OrganismRuntime:
         organism_id=organism_id,
         genome=genome,
         actuation_enabled=True,
+        actuator_constitution=derive_actuator_constitution(
+            8,
+            physical_contract="benchmark-body-v2",
+        ),
         motor_exploration_mode="babbling",
         bootstrap_semantic_senses=True,
         discover_senses=False,
