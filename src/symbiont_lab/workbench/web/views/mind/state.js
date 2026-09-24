@@ -148,6 +148,7 @@ export const graph = {
   dimension: '2d',
   threeDMode: 'relational',
   camera3d: { yaw: -0.55, pitch: 0.34, distance: 900 },
+  sceneRadius3d: 220,
   world3d: new Map(),
   velocity3d: new Map(),
   projected3d: new Map(),
@@ -219,6 +220,7 @@ export function resetMindDataState() {
   graph.flowTraceEnabled = false;
   graph.autoFramePending = true;
   graph.manualViewOverride = false;
+  graph.sceneRadius3d = 220;
   graph.atlasRegionGeometry2d.clear();
   graph.atlasRegionGeometry3d.clear();
   graph.regionShapeHistory2d.clear();
