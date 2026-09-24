@@ -13,6 +13,7 @@ import {
   SEGMENT_ACTIVITY_JOINTS,
   SEGMENT_COLORS,
 } from './model.js';
+import { BodyWorkspace } from './workspace.js';
 
 
 function fallbackBodyModel() {
@@ -200,6 +201,7 @@ export class BodyViewer {
     this.uiStateQueue = {};
     this.lastUIDrawTime = 0;
     this.UI_UPDATE_INTERVAL_MS = 66; // ~15 FPS max for UI updates
+    this.workspace = new BodyWorkspace(this);
 
     // Event & Render handles
     this.rafId = null;
@@ -245,7 +247,8 @@ export class BodyViewer {
     this.root.style.cssText = `
       height: 100%;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 304px;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      grid-template-rows: 40px minmax(0, 1fr);
       overflow: hidden;
       background: var(--bg-deep, #0d0d12);
     `;
@@ -255,6 +258,8 @@ export class BodyViewer {
       position: 'relative',
       overflow: 'hidden',
       background: 'var(--bg-deep, #0d0d12)',
+      gridColumn: '1',
+      gridRow: '2',
     });
     this.root.appendChild(this.canvasWrap);
 
@@ -382,9 +387,10 @@ export class BodyViewer {
     cameraBar.appendChild(resetButton);
     this.canvasWrap.appendChild(cameraBar);
 
-    // Side Panel
+    // Side Panel + Mind-style body workspace navigation.
     const panel = el('div', 'body-side-panel');
     this.root.appendChild(panel);
+    this.workspace.mount(this.root, this.canvasWrap, panel);
     this.buildPanel(panel);
 
     // Resize Observer
@@ -393,65 +399,10 @@ export class BodyViewer {
   }
 
   buildPanel(container) {
-    container.style.cssText = `
-      background: linear-gradient(180deg, rgba(14, 25, 37, 0.96), rgba(10, 19, 28, 0.98));
-      border-left: 1px solid var(--line);
-      padding: 16px 15px 22px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-      font-family: var(--mono, monospace);
-      font-size: 13px;
-      color: var(--text, #e0e0e0);
-      min-width: 0;
-      box-shadow: inset 1px 0 rgba(255,255,255,0.02);
-    `;
-
-    for (const f of PANEL_FIELDS) {
-      if (f.section !== undefined) {
-        const heading = document.createElement('div');
-        heading.textContent = f.section;
-        heading.style.cssText = `
-          color: var(--muted, #888);
-          font-size: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          margin-top: 14px;
-          margin-bottom: 2px;
-          border-bottom: 1px solid var(--line, #333);
-          padding-bottom: 3px;
-        `;
-        container.appendChild(heading);
-        continue;
-      }
-
-      const row = document.createElement('div');
-      row.style.cssText = 'display: flex; justify-content: space-between; align-items: baseline; gap: 8px;';
-
-      const labelEl = document.createElement('span');
-      labelEl.textContent = f.label;
-      labelEl.style.cssText = 'color: var(--muted, #888); font-size: 11px; white-space: nowrap;';
-
-      const valueEl = document.createElement('span');
-      valueEl.textContent = '—';
-      valueEl.style.cssText = 'font-family: var(--mono, monospace); font-size: 13px; color: var(--text, #e0e0e0); text-align: right;';
-
-      row.appendChild(labelEl);
-      row.appendChild(valueEl);
-      container.appendChild(row);
-
-      this.panelEls[f.id] = valueEl;
-
-      if (f.id === 'metabolic_reserve') {
-        const track = document.createElement('div');
-        track.style.cssText = 'height:5px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin:1px 0 4px;';
-        this.reserveBarFill = document.createElement('div');
-        this.reserveBarFill.style.cssText = 'height:100%;width:0%;border-radius:inherit;background:var(--mint,#50fa7b);transition:width 180ms linear,background 180ms linear;';
-        track.appendChild(this.reserveBarFill);
-        container.appendChild(track);
-      }
-    }
+    // BodyWorkspace owns the inspector. Keep this method as the compatibility
+    // boundary for the renderer lifecycle.
+    this.panelEls = {};
+    this.workspace.render();
   }
 
   queueUIUpdate(id, text, color = null) {
@@ -468,6 +419,7 @@ export class BodyViewer {
         if (el.textContent !== data.text) el.textContent = data.text;
         if (el.style.color !== data.color) el.style.color = data.color;
       }
+      this.workspace?.updateMetric(id, data.text, data.color);
     }
     this.uiStateQueue = {};
     this.lastUIDrawTime = now;
@@ -1474,6 +1426,8 @@ export class BodyViewer {
       this.resizeObs.disconnect();
       this.resizeObs = null;
     }
+
+    this.workspace?.dispose();
 
     // OrbitControls installs DOM listeners, so dispose it explicitly.
     if (this.controls) {
