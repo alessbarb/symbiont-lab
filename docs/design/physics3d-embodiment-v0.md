@@ -761,7 +761,7 @@ velocity and joint velocity. Reaching the bounded maximum number of physical
 solver steps without convergence is an apparatus initialization failure and
 fails closed; it is never treated as successful settling.
 
-The humanoid also owns bounded passive elastic/damped neutral-rest tone and
+The humanoid also owns bounded passive elastic neutral-rest tone plus explicit URDF joint damping and
 end-range resistance. These are mechanical body properties analogous to tissue
 elasticity. They contain no balance policy, gait, action target or semantic
 posture label.
