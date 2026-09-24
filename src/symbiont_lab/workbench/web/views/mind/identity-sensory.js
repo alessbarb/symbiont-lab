@@ -60,8 +60,7 @@ export function createIdentitySensoryRenderer({
   
     const sensors = sensoryFacts();
     if (!sensors.length) {
-      const empty = el('p', '');
-      empty.style.cssText = 'padding:12px;font-size:10px;color:var(--muted);';
+      const empty = el('p', 'mind-senses-empty');
       empty.textContent = 'No sensory phenotype yet.';
       list.appendChild(empty);
       return;
@@ -95,11 +94,9 @@ export function createIdentitySensoryRenderer({
         String(a.cognitiveId).localeCompare(String(b.cognitiveId))
       )
       .forEach(sensor => {
-        const row=el('button','');
+        const row=el('button','mind-sense-table-row');
         row.type='button';
-        row.style.cssText='width:100%;display:grid;grid-template-columns:minmax(0,1fr) 28px 34px 34px;gap:4px;align-items:center;padding:6px 8px;border:0;border-bottom:1px solid rgba(98,120,136,.11);background:none;color:var(--text);font-size:8px;text-align:left;cursor:pointer;';
-        const name=el('span','');
-        name.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        const name=el('span','mind-sense-table-name');
         name.textContent=shortId(sensor.cognitiveId,9,5);
         name.title=`${sensor.cognitiveId}\nmaturity ${sensor.maturity} · health ${pct(sensor.health)} · confidence ${pct(sensor.confidence)}`;
         const sampledCell=el('span','');
@@ -608,36 +605,27 @@ export function createIdentitySensoryRenderer({
     recordIdentityHistory(metrics);
     const baseline = identityHistory[0] ?? metrics;
   
-    const title = el('h3', '');
-    title.style.cssText = 'font-size:12px;margin:0 0 3px;color:var(--text);';
+    const title = el('h3', 'mind-identity-gap-title');
     title.textContent = 'Difference';
-    const subtitle = el('p', '');
-    subtitle.style.cssText = 'font-size:9px;line-height:1.35;color:var(--muted);margin:0 0 12px;';
+    const subtitle = el('p', 'mind-identity-gap-subtitle');
     subtitle.textContent = 'What can be compared without breaking the organism’s opaque self-identities.';
     panel.append(title, subtitle);
   
     const metric = (label, left, right, note = '') => {
-      const card = el('div', '');
-      card.style.cssText = 'padding:8px 0;border-top:1px solid rgba(98,120,136,.18);';
-      const head = el('div', '');
-      head.style.cssText = 'font-size:9px;color:var(--muted);margin-bottom:5px;';
+      const card = el('div', 'mind-identity-metric-card');
+      const head = el('div', 'mind-identity-metric-head');
       head.textContent = label;
-      const values = el('div', '');
-      values.style.cssText = 'display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:5px;';
-      const l = el('strong', '');
-      l.style.cssText = 'font-size:13px;text-align:right;color:var(--cyan);';
+      const values = el('div', 'mind-identity-metric-values');
+      const l = el('strong', 'mind-identity-metric-left');
       l.textContent = String(left);
-      const arrow = el('span', '');
-      arrow.style.cssText = 'font-size:10px;color:var(--muted);';
+      const arrow = el('span', 'mind-identity-metric-arrow');
       arrow.textContent = '⇄';
-      const r = el('strong', '');
-      r.style.cssText = 'font-size:13px;color:var(--mint);';
+      const r = el('strong', 'mind-identity-metric-right');
       r.textContent = String(right);
       values.append(l, arrow, r);
       card.append(head, values);
       if (note) {
-        const small = el('div', '');
-        small.style.cssText = 'font-size:8px;line-height:1.3;color:var(--muted);margin-top:4px;';
+        const small = el('div', 'mind-identity-metric-note');
         small.textContent = note;
         card.appendChild(small);
       }
@@ -658,10 +646,8 @@ export function createIdentitySensoryRenderer({
       'These are different representational spaces; counts are shown side by side, not treated as one-to-one matches.',
     );
   
-    const certainty = el('div', '');
-    certainty.style.cssText = 'padding:9px 0;border-top:1px solid rgba(98,120,136,.18);';
-    const certaintyTitle = el('div', '');
-    certaintyTitle.style.cssText = 'font-size:9px;color:var(--muted);margin-bottom:6px;';
+    const certainty = el('div', 'mind-self-certainty');
+    const certaintyTitle = el('div', 'mind-self-certainty-title');
     certaintyTitle.textContent = 'How certain is the self-model?';
     certainty.appendChild(certaintyTitle);
     for (const [label, value] of [
@@ -670,13 +656,12 @@ export function createIdentitySensoryRenderer({
       ['maturity', metrics.maturity],
       ['health', metrics.health],
     ]) {
-      const row = el('div', '');
-      row.style.cssText = 'display:grid;grid-template-columns:62px 1fr 30px;gap:5px;align-items:center;margin:4px 0;font-size:8px;';
-      const name = el('span', ''); name.style.color = 'var(--muted)'; name.textContent = label;
-      const bar = el('div', ''); bar.style.cssText='height:3px;background:rgba(98,120,136,.25);border-radius:2px;overflow:hidden;';
-      const fill = el('div',''); fill.style.cssText=`height:100%;width:${pct(value)};background:var(--mint);`;
+      const row = el('div', 'mind-self-certainty-row');
+      const name = el('span', 'mind-self-certainty-name'); name.textContent = label;
+      const bar = el('div', 'mind-self-certainty-bar');
+      const fill = el('div','mind-self-certainty-fill'); fill.style.width = pct(value);
       bar.appendChild(fill);
-      const val = el('strong',''); val.style.cssText='font-size:8px;text-align:right;'; val.textContent=pct(value);
+      const val = el('strong','mind-self-certainty-value'); val.textContent=pct(value);
       row.append(name,bar,val); certainty.appendChild(row);
     }
     panel.appendChild(certainty);
@@ -693,8 +678,7 @@ export function createIdentitySensoryRenderer({
     change.append(changeTitle, changeDetail);
     panel.appendChild(change);
   
-    const opaque = el('div', '');
-    opaque.style.cssText = 'margin-top:7px;padding:8px;border:1px solid rgba(255,189,84,.2);border-radius:7px;background:rgba(255,189,84,.035);font-size:8px;line-height:1.4;color:var(--muted);';
+    const opaque = el('div', 'mind-self-opaque-note');
     opaque.textContent =
       'Per-sensor identity correspondence is intentionally unknown here: BodySchema exposes opaque part IDs, so the observer cannot claim which external sensor equals which self-part.';
     panel.appendChild(opaque);
@@ -725,26 +709,20 @@ export function createIdentitySensoryRenderer({
   
     const h = el('h2', 'mind-self-heading');
     h.textContent = 'How it represents itself';
-    h.style.cssText = 'font-size:14px;margin:0 0 5px;';
     const body = el('p', 'mind-self-body');
-    body.style.cssText = 'font-size:10px;line-height:1.45;margin:0 0 8px;color:var(--muted);';
     body.textContent =
       'Organism-owned BodySchema only: sensory parts, cognitive regions and functional dependencies treated as self.';
     panel.append(h, body);
   
-    const perceptual = el('section', '');
-    perceptual.style.cssText = 'margin:8px 0 12px;padding:9px 10px;border:1px solid rgba(80,217,255,.15);border-radius:8px;background:rgba(80,217,255,.025);';
-    const ptitle = el('strong','');
-    ptitle.style.cssText='display:block;font-size:10px;color:var(--cyan);margin-bottom:3px;';
+    const perceptual = el('section', 'mind-perceptual-self');
+    const ptitle = el('strong','mind-perceptual-self-title');
     ptitle.textContent='Perceptual self-model';
-    const pcopy = el('div','');
-    pcopy.style.cssText='font-size:8px;line-height:1.4;color:var(--muted);';
+    const pcopy = el('div','mind-perceptual-self-copy');
     pcopy.textContent=`${selfEntries.length} established self-modeled receptors · organism-owned cost/health/confidence/maturity/recency classes`;
     perceptual.append(ptitle,pcopy);
   
     if (selfEntries.length) {
-      const dots=el('div','');
-      dots.style.cssText='display:flex;flex-wrap:wrap;gap:3px;margin-top:7px;';
+      const dots=el('div','mind-perceptual-self-dots');
       selfEntries.slice(0,64).forEach(([id,entry])=>{
         const dot=el('span','');
         const confidence=classRatio(entry?.confidence_class,15);
@@ -758,13 +736,11 @@ export function createIdentitySensoryRenderer({
     }
     panel.appendChild(perceptual);
   
-    const schemaLabel=el('strong','');
-    schemaLabel.style.cssText='display:block;font-size:10px;color:var(--mint);margin:3px 0 5px;';
+    const schemaLabel=el('strong','mind-self-schema-label');
     schemaLabel.textContent='Functional BodySchema';
     panel.appendChild(schemaLabel);
   
-    const summary = el('div', '');
-    summary.style.cssText = 'display:flex;gap:16px;flex-wrap:wrap;margin:0 0 14px;font-size:11px;color:var(--muted);';
+    const summary = el('div', 'mind-self-summary');
     summary.textContent =
       `${sensoryParts.length} sensory parts · ${cognitiveRegions.length} cognitive regions · ${dependencies.length} learned dependencies · state ${schema.state ?? 'unknown'}`;
     panel.appendChild(summary);
@@ -773,8 +749,8 @@ export function createIdentitySensoryRenderer({
       viewBox: '0 0 1000 650',
       role: 'img',
       'aria-label': 'Symbiont organism-owned self-model',
+      class: 'mind-self-portrait',
     });
-    portrait.style.cssText = 'width:100%;height:auto;aspect-ratio:1000/650;max-height:calc(100% - 62px);display:block;border:1px solid var(--line);border-radius:10px;background:rgba(4,14,24,.55);';
     panel.appendChild(portrait);
   
     const cx = 500, cy = 325;
