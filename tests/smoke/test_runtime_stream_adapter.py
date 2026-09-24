@@ -19,6 +19,8 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "cognitive-regions.js",
         WEB_ROOT / "views" / "mind" / "overview.js",
         WEB_ROOT / "views" / "mind" / "motor-learning.js",
+        WEB_ROOT / "views" / "mind" / "motor-learning-model.js",
+        WEB_ROOT / "views" / "mind" / "motor-learning-history.js",
         WEB_ROOT / "views" / "mind" / "history.js",
     ]
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
@@ -1436,3 +1438,35 @@ def test_mind_ingests_embodiment_reacclimation_state() -> None:
     assert "data.embodiment_epoch ?? tel.embodimentEpoch" in telemetry
     assert "data.reacclimation_remaining ?? tel.reacclimationRemaining" in telemetry
     assert "reacclimating" in telemetry
+
+
+def test_motor_learning_observer_model_is_epistemically_conservative() -> None:
+    model = (WEB_ROOT / "views" / "mind" / "motor-learning-model.js").read_text(encoding="utf-8")
+    history = (WEB_ROOT / "views" / "mind" / "motor-learning-history.js").read_text(encoding="utf-8")
+
+    assert "deriveMotorStage" in model
+    assert "deriveAgencyStatus" in model
+    assert "deriveMotorBottleneck" in model
+    assert "deriveEmbodimentTransfer" in model
+    assert "skill" not in model.lower()
+    assert "No biological threshold is inferred" in model
+    assert "consistent-with-transfer" in model
+    assert "MOTOR_HISTORY_MAX_SAMPLES = 512" in history
+    assert "type: 'reembodiment'" in history
+    assert "streamState.status !== 'live' || !streamState.coherent" in history
+
+
+def test_mind_snapshot_preserves_embodiment_context() -> None:
+    snapshot = mind_snapshot_from_rich_state({
+        "tick": 81,
+        "embodiment_epoch": 3,
+        "reacclimating": True,
+        "reacclimation_remaining": 12,
+    })
+
+    assert snapshot["embodiment"] == {
+        "epoch": 3,
+        "reacclimating": True,
+        "reacclimationRemaining": 12,
+    }
+    assert "embodiment" in snapshot["provenance"]["organismFacts"]
