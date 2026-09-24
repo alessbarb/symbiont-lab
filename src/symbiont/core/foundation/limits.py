@@ -18,7 +18,7 @@ class OrganismLimits:
 
     # Storage and checkpoint byte caps
     max_host_checkpoint_bytes: int = 32 * 1024 * 1024
-    max_knowledge_checkpoint_bytes: int = 1024 * 1024
+    max_knowledge_checkpoint_bytes: int = 4 * 1024 * 1024
     max_exchange_bytes: int = 4096
 
     # Body schema & somatic topology limits
