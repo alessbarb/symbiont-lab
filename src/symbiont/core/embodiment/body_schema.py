@@ -202,9 +202,9 @@ class BodySchemaEngine:
         """Evidence state, never a claim of anatomical completeness."""
         if self.part_count == 0:
             return "undeveloped"
-        if self._full_structural_review_required or self._pending_structural_channels:
-            return "revising" if self._regions else "developing"
-
+        # Restore-maintenance flags are intentionally excluded: public state
+        # must be derived from persisted evidence, not from ephemeral work that
+        # happens to be pending after process restart.
         mature_sensory = sum(
             1
             for part in self._parts.values()
@@ -1245,8 +1245,15 @@ class BodySchemaEngine:
             raise ValueError("body_schema checkpoint is missing a valid private id_salt")
         model = cls(id_salt=id_salt)
         state = payload.get("state")
-        if state not in ("undeveloped", "partial"):
-            raise ValueError("body_schema state must be 'undeveloped' or 'partial'")
+        allowed_states = {
+            "undeveloped",
+            "partial",  # legacy observer/checkpoint state
+            "developing",
+            "established",
+            "revising",
+        }
+        if state not in allowed_states:
+            raise ValueError("invalid body_schema evidence state")
         raw_parts = payload.get("parts")
         if not isinstance(raw_parts, list):
             raise ValueError("body_schema parts must be an array")
@@ -1292,8 +1299,8 @@ class BodySchemaEngine:
 
         if state == "undeveloped" and model.part_count:
             raise ValueError("undeveloped body_schema cannot contain parts")
-        if state == "partial" and not model.part_count:
-            raise ValueError("partial body_schema must contain at least one part")
+        if state != "undeveloped" and not model.part_count:
+            raise ValueError("developed body_schema state requires at least one part")
         return model
 
 
