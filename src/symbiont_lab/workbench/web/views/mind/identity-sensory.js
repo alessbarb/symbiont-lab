@@ -27,6 +27,15 @@ export function createIdentitySensoryRenderer({
   getUid = () => 'default',
   onSelectCognitiveNode = () => {},
 } = {}) {
+  const sensoryView = {
+    lens: 'topology',
+    filter: 'all',
+    query: '',
+    selectedNodeId: null,
+    history: [],
+    controlsBound: false,
+  };
+
   function sensoryFacts() {
     const phenotype = snap.sensoryPhenotype ?? {};
     const sensors = Array.isArray(phenotype.sensors) ? phenotype.sensors : [];
@@ -57,7 +66,7 @@ export function createIdentitySensoryRenderer({
     const list = document.getElementById('mind-senses-list');
     if (!list) return;
     list.replaceChildren();
-  
+
     const sensors = sensoryFacts();
     if (!sensors.length) {
       const empty = el('p', 'mind-senses-empty');
@@ -65,19 +74,55 @@ export function createIdentitySensoryRenderer({
       list.appendChild(empty);
       return;
     }
-  
-    const summary = el('div', 'mind-senses-summary');
+
     const sampled = sensors.filter(sensor => sensor.sampled).length;
     const useful = sensors.filter(sensor => sensor.utility > 0).length;
     const integrated = sensors.filter(sensor => sensor.integrated).length;
+    const novel = sensors.filter(sensor =>
+      !sensor.integrated && (sensor.confidence < 0.45 || sensor.maturity === 'candidate' || sensor.maturity === 'immature')
+    ).length;
+
+    const summary = el('div', 'mind-senses-summary mind-senses-summary-rich');
     const summaryTitle = el('strong', '');
     summaryTitle.textContent = `${sensors.length} receptors`;
     const summaryDetail = el('span', '');
-    summaryDetail.textContent =
-      `${sampled} sampled now · ${useful} utility > 0 · ${integrated} cognition-integrated`;
+    summaryDetail.textContent = `${sampled} sampled · ${useful} useful · ${integrated} integrated · ${novel} frontier`;
     summary.append(summaryTitle, summaryDetail);
     list.appendChild(summary);
-  
+
+    const search = document.createElement('input');
+    search.className = 'mind-sensory-search';
+    search.type = 'search';
+    search.placeholder = 'Filter receptors…';
+    search.value = sensoryView.query;
+    search.setAttribute('aria-label', 'Filter sensory receptors');
+    search.addEventListener('input', () => {
+      sensoryView.query = search.value.trim().toLowerCase();
+      renderSensesPanel();
+    });
+    list.appendChild(search);
+
+    const filters = el('div', 'mind-sensory-filter-row');
+    for (const [id, label, count] of [
+      ['all', 'All', sensors.length],
+      ['sampled', 'Active', sampled],
+      ['useful', 'Useful', useful],
+      ['integrated', 'Integrated', integrated],
+      ['frontier', 'Frontier', novel],
+    ]) {
+      const button = el('button', `mind-sensory-filter${sensoryView.filter === id ? ' active' : ''}`);
+      button.type = 'button';
+      button.dataset.filter = id;
+      button.textContent = `${label} ${count}`;
+      button.addEventListener('click', () => {
+        sensoryView.filter = id;
+        renderSensesPanel();
+        renderSensoryMap();
+      });
+      filters.appendChild(button);
+    }
+    list.appendChild(filters);
+
     const header = el('div', 'mind-senses-header');
     for (const label of ['receptor', 'now', 'util', 'deg']) {
       const cell = el('span', '');
@@ -85,19 +130,32 @@ export function createIdentitySensoryRenderer({
       header.appendChild(cell);
     }
     list.appendChild(header);
-  
-    [...sensors]
+
+    const visible = sensors.filter(sensor => {
+      if (sensoryView.query && !String(sensor.cognitiveId).toLowerCase().includes(sensoryView.query)) return false;
+      if (sensoryView.filter === 'sampled') return sensor.sampled;
+      if (sensoryView.filter === 'useful') return sensor.utility > 0;
+      if (sensoryView.filter === 'integrated') return sensor.integrated;
+      if (sensoryView.filter === 'frontier') {
+        return !sensor.integrated && (sensor.confidence < 0.45 || sensor.maturity === 'candidate' || sensor.maturity === 'immature');
+      }
+      return true;
+    });
+
+    [...visible]
       .sort((a,b) =>
+        Number(b.sampled)-Number(a.sampled) ||
         Number(b.integrated)-Number(a.integrated) ||
         b.utility-a.utility ||
         b.degree-a.degree ||
         String(a.cognitiveId).localeCompare(String(b.cognitiveId))
       )
+      .slice(0, 160)
       .forEach(sensor => {
-        const row=el('button','mind-sense-table-row');
+        const row=el('button',`mind-sense-table-row${sensoryView.selectedNodeId === sensor.cognitiveId ? ' selected' : ''}`);
         row.type='button';
         const name=el('span','mind-sense-table-name');
-        name.textContent=shortId(sensor.cognitiveId,9,5);
+        name.textContent=shortId(sensor.cognitiveId,11,5);
         name.title=`${sensor.cognitiveId}\nmaturity ${sensor.maturity} · health ${pct(sensor.health)} · confidence ${pct(sensor.confidence)}`;
         const sampledCell=el('span','');
         sampledCell.textContent=sensor.sampled?'●':'○';
@@ -109,9 +167,19 @@ export function createIdentitySensoryRenderer({
         degree.textContent=String(sensor.degree);
         degree.style.color=sensor.integrated?PAL.violet:PAL.muted;
         row.append(name,sampledCell,utility,degree);
-        row.addEventListener('click',()=>onSelectCognitiveNode(sensor.cognitiveId));
+        row.addEventListener('click',()=>{
+          sensoryView.selectedNodeId=sensor.cognitiveId;
+          renderSensesPanel();
+          renderSensoryMap();
+        });
         list.appendChild(row);
       });
+
+    if (visible.length > 160) {
+      const more = el('div', 'mind-senses-empty');
+      more.textContent = `${visible.length - 160} additional receptors hidden — refine the filter.`;
+      list.appendChild(more);
+    }
   }
   
   // ─────────────────────────────────────────────────────────────────────────────
@@ -362,102 +430,184 @@ export function createIdentitySensoryRenderer({
   function renderSensoryMap() {
     const mapSvg = document.getElementById('mind-sensory-map-svg');
     const detail = document.getElementById('mind-sensory-detail');
+    const metrics = document.getElementById('mind-sensory-metrics');
+    const inspector = document.getElementById('mind-sensory-inspector');
+    const timeline = document.getElementById('mind-sensory-timeline');
     if (!mapSvg) return;
     mapSvg.replaceChildren();
-  
+
     const senses = snap.senses ?? [];
     const topology = snap.topology ?? { nodes: [], edges: [] };
     const topoNodes = Array.isArray(topology.nodes) ? topology.nodes : [];
     const topoEdges = Array.isArray(topology.edges) ? topology.edges : [];
-  
+
+    bindSensoryControls();
+
     if (!senses.length && !topoNodes.length) {
-      const msg = svgEl('text', { x: '450', y: '300', 'text-anchor': 'middle', fill: PAL.muted, 'font-size': '14' });
+      const msg = svgEl('text', { x: '550', y: '320', 'text-anchor': 'middle', fill: PAL.muted, 'font-size': '14' });
       msg.textContent = 'No sensory topology yet — awaiting snapshot…';
       mapSvg.appendChild(msg);
-      if (detail) detail.textContent = 'This view shows the real cognitive paths learned from body-derived sensory channels.';
+      if (detail) detail.textContent = 'Sensory funnel: awaiting live body-derived sensory channels.';
+      if (inspector) renderSensoryInspector(inspector, null, topology, []);
       return;
     }
-  
-    const W = 900, H = 600;
+
+    const W = 1100, H = 650;
     const sensorNodes = topoNodes.filter(n => n.kind === 'sense');
     const internalNodes = topoNodes.filter(n => n.kind !== 'sense');
-    const nodeById = new Map(topoNodes.map(n => [n.id, n]));
-  
-    const outgoing = new Map();
-    for (const edge of topoEdges) {
-      if (!outgoing.has(edge.sourceId)) outgoing.set(edge.sourceId, []);
-      outgoing.get(edge.sourceId).push(edge);
-    }
-  
-    const connectedSensors = sensorNodes.filter(n => (outgoing.get(n.id) ?? []).length > 0);
     const sensory = sensoryFacts();
     const sampledSensors = sensory.filter(sensor => sensor.sampled);
     const usefulSensors = sensory.filter(sensor => sensor.utility > 0);
     const concepts = internalNodes.filter(n => n.kind === 'concept');
     const predictors = internalNodes.filter(n => n.kind === 'predictor');
     const readouts = internalNodes.filter(n => n.kind === 'readout');
-  
-    const title = svgEl('text', { x: 28, y: 28, fill: PAL.text, 'font-size': '13', 'font-weight': '600' });
-    title.textContent = 'Body-derived sensory topology';
+    const activationClasses = snap.observerAnalysis?.activationClasses ?? snap.cognition?.activationClasses ?? {};
+    const predictionErrors = snap.observerAnalysis?.predictionErrors ?? snap.cognition?.predictionErrors ?? {};
+
+    const outgoing = new Map();
+    const incoming = new Map();
+    for (const edge of topoEdges) {
+      if (!outgoing.has(edge.sourceId)) outgoing.set(edge.sourceId, []);
+      if (!incoming.has(edge.targetId)) incoming.set(edge.targetId, []);
+      outgoing.get(edge.sourceId).push(edge);
+      incoming.get(edge.targetId).push(edge);
+    }
+    const connectedSensors = sensorNodes.filter(n => (outgoing.get(n.id) ?? []).length > 0);
+    const sampledIds = new Set(sampledSensors.map(sensor => sensor.cognitiveId));
+    const usefulIds = new Set(usefulSensors.map(sensor => sensor.cognitiveId));
+
+    recordSensoryHistory({
+      tick: finiteNumber(tel.tick, 0),
+      sampled: sampledSensors.length,
+      useful: usefulSensors.length,
+      integrated: connectedSensors.length,
+      concepts: concepts.length,
+      predictors: predictors.length,
+      error: Object.values(predictionErrors).filter(value => ['medium','high','extreme'].includes(String(value))).length,
+    });
+
+    if (metrics) {
+      metrics.replaceChildren();
+      const metricData = [
+        ['Perception', `${sampledSensors.length}/${sensory.length || sensorNodes.length}`],
+        ['Useful', String(usefulSensors.length)],
+        ['Integrated', String(connectedSensors.length)],
+        ['Concepts', String(concepts.length)],
+        ['Predictors', String(predictors.length)],
+      ];
+      for (const [label, value] of metricData) {
+        const cell = el('span', 'mind-sensory-metric');
+        const key = el('small', '');
+        key.textContent = label;
+        const val = el('b', '');
+        val.textContent = value;
+        cell.append(key, val);
+        metrics.appendChild(cell);
+      }
+    }
+
+    const title = svgEl('text', { x: 30, y: 30, fill: PAL.text, 'font-size': '14', 'font-weight': '650' });
+    title.textContent = {
+      topology: 'Learned sensory topology',
+      activity: 'Live perceptual activity',
+      prediction: 'Predictive sensory pathways',
+      novelty: 'Sensory discovery frontier',
+      sensorimotor: 'Sensorimotor consequence map',
+    }[sensoryView.lens] ?? 'Body-derived sensory topology';
     mapSvg.appendChild(title);
-    const summary = svgEl('text', { x: 28, y: 47, fill: PAL.muted, 'font-size': '10' });
-    summary.textContent = `${sensory.length || sensorNodes.length} available · ${sampledSensors.length} sampled now · ${usefulSensors.length} utility > 0 · ${connectedSensors.length} cognition-integrated · ${concepts.length} concepts`;
+    const summary = svgEl('text', { x: 30, y: 49, fill: PAL.muted, 'font-size': '9' });
+    summary.textContent = `${sensory.length || sensorNodes.length} available · ${sampledSensors.length} sampled · ${usefulSensors.length} useful · ${connectedSensors.length} cognition-integrated · ${concepts.length} concepts`;
     mapSvg.appendChild(summary);
-  
-    const sensorArea = { x: 45, y: 80, w: 300, h: 470 };
-    const internalArea = { x: 500, y: 80, w: 340, h: 470 };
-  
-    const sensorCols = 16;
+
+    const funnelY = 72;
+    const funnelStages = [
+      ['AVAILABLE', sensory.length || sensorNodes.length, PAL.muted],
+      ['SAMPLED', sampledSensors.length, PAL.cyan],
+      ['USEFUL', usefulSensors.length, PAL.mint],
+      ['INTEGRATED', connectedSensors.length, PAL.violet],
+      ['PREDICTORS', predictors.length, PAL.amber],
+      ['READOUTS', readouts.length, PAL.mint],
+    ];
+    const stageW = 128;
+    funnelStages.forEach(([label,count,color], index) => {
+      const x = 30 + index * 148;
+      mapSvg.appendChild(svgEl('line', {
+        x1: x + stageW, y1: funnelY + 10, x2: x + 142, y2: funnelY + 10,
+        stroke: PAL.muted, 'stroke-width': '0.7', opacity: index === funnelStages.length - 1 ? '0' : '0.3',
+      }));
+      const box = svgEl('g');
+      box.appendChild(svgEl('rect', {
+        x, y: funnelY - 3, width: stageW, height: 27, rx: '5',
+        fill: 'rgba(255,255,255,.018)', stroke: color, 'stroke-opacity': '0.22',
+      }));
+      const labelNode = svgEl('text', { x: x + 9, y: funnelY + 8, fill: PAL.muted, 'font-size': '7' });
+      labelNode.textContent = label;
+      const countNode = svgEl('text', { x: x + stageW - 9, y: funnelY + 14, fill: color, 'font-size': '11', 'text-anchor': 'end', 'font-weight': '650' });
+      countNode.textContent = String(count);
+      box.append(labelNode, countNode);
+      mapSvg.appendChild(box);
+    });
+
+    const sensorArea = { x: 40, y: 135, w: 330, h: 435 };
+    const conceptArea = { x: 490, y: 135, w: 330, h: 435 };
+    const outputArea = { x: 915, y: 135, w: 140, h: 435 };
+    const sensorPos = new Map();
+    const internalPos = new Map();
+
+    const sensorCols = 18;
     const sensorRows = Math.max(1, Math.ceil(Math.max(1, sensorNodes.length) / sensorCols));
     const sx = sensorArea.w / Math.max(1, sensorCols - 1);
-    const sy = Math.min(34, sensorArea.h / Math.max(1, sensorRows - 1));
-    const sensorPos = new Map();
-  
+    const sy = Math.min(27, sensorArea.h / Math.max(1, sensorRows - 1));
     sensorNodes.forEach((node, index) => {
-      const col = index % sensorCols;
-      const row = Math.floor(index / sensorCols);
       sensorPos.set(node.id, {
-        x: sensorArea.x + col * sx,
-        y: sensorArea.y + row * sy,
+        x: sensorArea.x + (index % sensorCols) * sx,
+        y: sensorArea.y + Math.floor(index / sensorCols) * sy,
       });
     });
-  
-    const kinds = ['concept', 'predictor', 'state', 'gate', 'readout'];
-    const internalPos = new Map();
-    let cursorY = internalArea.y;
-    for (const kind of kinds) {
-      const group = internalNodes.filter(n => n.kind === kind);
-      if (!group.length) continue;
-      const heading = svgEl('text', {
-        x: internalArea.x,
-        y: cursorY,
-        fill: PAL.muted,
-        'font-size': '9',
-        'font-weight': '600',
+
+    const conceptLike = internalNodes.filter(n => !['predictor','readout'].includes(n.kind));
+    const conceptCols = Math.min(9, Math.max(1, Math.ceil(Math.sqrt(conceptLike.length * 1.4))));
+    const conceptRows = Math.max(1, Math.ceil(conceptLike.length / conceptCols));
+    conceptLike.forEach((node, index) => {
+      const seed = hashStr(node.id);
+      const jitterX = ((seed % 11) - 5) * 1.7;
+      const jitterY = (((seed >> 4) % 11) - 5) * 1.4;
+      internalPos.set(node.id, {
+        x: conceptArea.x + (index % conceptCols) * (conceptArea.w / Math.max(1, conceptCols - 1)) + jitterX,
+        y: conceptArea.y + Math.floor(index / conceptCols) * (conceptArea.h / Math.max(1, conceptRows - 1)) + jitterY,
       });
-      heading.textContent = `${kind.toUpperCase()} · ${group.length}`;
-      mapSvg.appendChild(heading);
-      cursorY += 16;
-      const cols = Math.min(8, Math.max(1, group.length));
-      const rows = Math.ceil(group.length / cols);
-      const gx = internalArea.w / Math.max(1, cols - 1);
-      const gy = Math.min(30, Math.max(18, 88 / Math.max(1, rows)));
-      group.forEach((node, index) => {
-        internalPos.set(node.id, {
-          x: internalArea.x + (index % cols) * gx,
-          y: cursorY + Math.floor(index / cols) * gy,
-        });
+    });
+
+    const outputNodes = [...predictors, ...readouts];
+    outputNodes.forEach((node, index) => {
+      internalPos.set(node.id, {
+        x: outputArea.x + (node.kind === 'readout' ? 92 : 22),
+        y: outputArea.y + 22 + index * Math.min(46, outputArea.h / Math.max(1, outputNodes.length)),
       });
-      cursorY += rows * gy + 28;
-    }
-  
+    });
+
     const allPos = new Map([...sensorPos, ...internalPos]);
-  
-    // Real learned topology edges first, behind nodes.
+
+    const lensKeepsNode = (node) => {
+      const active = finiteNumber(activationClasses[node.id], 0) > 0;
+      if (sensoryView.lens === 'activity') return node.kind === 'sense' ? sampledIds.has(node.id) : active;
+      if (sensoryView.lens === 'prediction') return node.kind === 'predictor' || (outgoing.get(node.id) ?? []).some(e => e.kind === 'predictive') || (incoming.get(node.id) ?? []).some(e => e.kind === 'predictive');
+      if (sensoryView.lens === 'sensorimotor') return node.kind === 'readout' || node.kind === 'sense' || (outgoing.get(node.id) ?? []).some(e => readouts.some(r => r.id === e.targetId));
+      if (sensoryView.lens === 'novelty' && node.kind === 'sense') {
+        const fact = sensory.find(item => item.cognitiveId === node.id);
+        return !fact?.integrated || (fact?.confidence ?? 0) < 0.5;
+      }
+      return true;
+    };
+
     for (const edge of topoEdges) {
       const source = allPos.get(edge.sourceId);
       const target = allPos.get(edge.targetId);
       if (!source || !target) continue;
+      const sourceNode = topoNodes.find(n => n.id === edge.sourceId);
+      const targetNode = topoNodes.find(n => n.id === edge.targetId);
+      const highlighted = (sourceNode && lensKeepsNode(sourceNode)) || (targetNode && lensKeepsNode(targetNode));
+      const selected = sensoryView.selectedNodeId && (edge.sourceId === sensoryView.selectedNodeId || edge.targetId === sensoryView.selectedNodeId);
       const color =
         edge.kind === 'inhibitory' ? PAL.coral :
         edge.kind === 'predictive' ? PAL.amber :
@@ -465,11 +615,11 @@ export function createIdentitySensoryRenderer({
       mapSvg.appendChild(svgEl('line', {
         x1: source.x, y1: source.y, x2: target.x, y2: target.y,
         stroke: color,
-        'stroke-width': edge.sourceId.startsWith('sensor.') ? '0.8' : '1.1',
-        opacity: edge.sourceId.startsWith('sensor.') ? '0.22' : '0.38',
+        'stroke-width': selected ? '2.2' : edge.sourceId.startsWith('sensor.') ? '0.75' : '1.05',
+        opacity: selected ? '0.9' : highlighted ? '0.32' : '0.055',
       }));
     }
-  
+
     const kindColor = {
       sense: PAL.cyan,
       concept: PAL.violet,
@@ -478,44 +628,71 @@ export function createIdentitySensoryRenderer({
       state: '#4ecdc4',
       gate: '#e09f3e',
     };
-  
+
     for (const node of topoNodes) {
       const pos = allPos.get(node.id);
       if (!pos) continue;
-      const isSense = node.kind === 'sense';
-      const degree = topoEdges.reduce((count, e) => count + (e.sourceId === node.id || e.targetId === node.id ? 1 : 0), 0);
+      const degree = (outgoing.get(node.id) ?? []).length + (incoming.get(node.id) ?? []).length;
+      const actLevel = clamp01(finiteNumber(activationClasses[node.id], 0) / 15);
+      const fact = node.kind === 'sense' ? sensory.find(item => item.cognitiveId === node.id) : null;
+      const isSampled = fact?.sampled ?? sampledIds.has(node.id);
+      const isUseful = fact?.utility > 0 || usefulIds.has(node.id);
+      const focus = lensKeepsNode(node);
+      const selected = sensoryView.selectedNodeId === node.id;
+      const uncertainty = fact ? 1 - clamp01(fact.confidence) : 0;
+      let radius = node.kind === 'sense' ? 3.0 : node.kind === 'readout' ? 8 : 5.5;
+      radius += Math.min(4, degree * 0.18) + actLevel * 2.5;
+      if (selected) radius += 2;
+
+      if ((sensoryView.lens === 'novelty' && uncertainty > 0.5) || predictionErrors[node.id]) {
+        mapSvg.appendChild(svgEl('circle', {
+          cx: pos.x, cy: pos.y, r: radius + 4.5,
+          fill: 'none',
+          stroke: predictionErrors[node.id] ? PAL.coral : PAL.amber,
+          'stroke-width': '0.8',
+          'stroke-dasharray': '2.5 2',
+          opacity: String(0.24 + uncertainty * 0.55),
+        }));
+      }
+
       const circle = svgEl('circle', {
         cx: pos.x, cy: pos.y,
-        r: isSense ? (degree ? 4.5 : 3.2) : Math.min(9, 5 + degree * 0.35),
+        r: radius.toFixed(1),
         fill: kindColor[node.kind] ?? PAL.violet,
-        opacity: isSense && !degree ? '0.32' : '0.9',
-        stroke: degree ? 'rgba(255,255,255,.18)' : 'none',
-        'stroke-width': '0.7',
+        opacity: selected ? '1' : focus ? String(0.45 + Math.max(actLevel, isSampled ? 0.45 : 0) * 0.5) : '0.13',
+        stroke: selected ? 'rgba(255,255,255,.8)' : isUseful ? 'rgba(255,255,255,.18)' : 'none',
+        'stroke-width': selected ? '1.5' : '0.7',
       });
       const tooltip = svgEl('title');
       const semantic = sensorySemantic(snap.observerSemantics, node.id);
-      const observerContext = observerContextForNode(
-        topology,
-        snap.observerSemantics,
-        node.id,
-        2,
-      );
-      const observerText = semantic?.observerSummary
-        ? `Observer: ${semantic.observerSummary}`
-        : observerContext.summary
-          ? `Observer context: ${observerContext.summary}`
-          : 'Observer: unresolved';
-      tooltip.textContent = `${node.kind} · Self: ${node.id} · ${observerText} · degree ${degree}`;
+      const observerContext = observerContextForNode(topology, snap.observerSemantics, node.id, 2);
+      const observerText = semantic?.observerSummary ?? observerContext.summary ?? 'observer unresolved';
+      tooltip.textContent = `${node.kind} · Self: ${node.id} · ${observerText} · degree ${degree} · activation ${Math.round(actLevel * 100)}%`;
       circle.appendChild(tooltip);
       circle.style.cursor = 'pointer';
-      circle.addEventListener('click', () => onSelectCognitiveNode(node.id));
+      circle.addEventListener('click', () => {
+        sensoryView.selectedNodeId = node.id;
+        renderSensesPanel();
+        renderSensoryMap();
+      });
       mapSvg.appendChild(circle);
     }
-  
-    const sensorLabel = svgEl('text', { x: sensorArea.x, y: H - 24, fill: PAL.muted, 'font-size': '10' });
-    sensorLabel.textContent = 'Sensors: brighter = participates in learned topology';
-    mapSvg.appendChild(sensorLabel);
-  
+
+    const sensorLabel = svgEl('text', { x: sensorArea.x, y: H - 34, fill: PAL.muted, 'font-size': '9' });
+    sensorLabel.textContent = 'RECEPTOR FIELD · brightness = present relevance';
+    const conceptLabel = svgEl('text', { x: conceptArea.x, y: H - 34, fill: PAL.muted, 'font-size': '9' });
+    conceptLabel.textContent = 'LEARNED REPRESENTATION · concepts / state / gates';
+    const outputLabel = svgEl('text', { x: outputArea.x, y: H - 34, fill: PAL.muted, 'font-size': '9' });
+    outputLabel.textContent = 'EXPECTATION / OUTPUT';
+    mapSvg.append(sensorLabel, conceptLabel, outputLabel);
+
+    const selectedNode = topoNodes.find(node => node.id === sensoryView.selectedNodeId) ??
+      topoNodes.find(node => finiteNumber(activationClasses[node.id], 0) > 0) ??
+      null;
+    if (inspector) renderSensoryInspector(inspector, selectedNode, topology, sensory);
+
+    if (timeline) renderSensoryTimeline(timeline);
+
     if (detail) {
       const discovery = snap.details?.sensoryDiscoveryCounts ?? {};
       const discoveryText = Object.entries(discovery)
@@ -525,8 +702,140 @@ export function createIdentitySensoryRenderer({
       detail.textContent =
         `Sensory funnel: available ${sensory.length || sensorNodes.length} → sampled ${sampledSensors.length} → useful-now ${usefulSensors.length} → cognition-integrated ${connectedSensors.length}. ` +
         (discoveryText ? `Discovery hypotheses: ${discoveryText}. ` : '') +
-        'These sets overlap; the arrows are a reading aid, not a claim that every stage is a strict subset.';
+        'Lens changes presentation only — organism state and learning remain untouched.';
     }
+  }
+
+  function bindSensoryControls() {
+    if (sensoryView.controlsBound) return;
+    const controls = document.querySelectorAll('[data-sensory-lens]');
+    if (!controls.length) return;
+    controls.forEach(button => {
+      button.addEventListener('click', () => {
+        sensoryView.lens = button.dataset.sensoryLens ?? 'topology';
+        controls.forEach(item => item.classList.toggle('active', item === button));
+        renderSensoryMap();
+      });
+    });
+    sensoryView.controlsBound = true;
+  }
+
+  function recordSensoryHistory(point) {
+    const last = sensoryView.history[sensoryView.history.length - 1];
+    if (last?.tick === point.tick) return;
+    sensoryView.history.push(point);
+    while (sensoryView.history.length > 72) sensoryView.history.shift();
+  }
+
+  function renderSensoryTimeline(container) {
+    container.replaceChildren();
+    const label = el('span', 'mind-sensory-timeline-label');
+    label.textContent = 'RECENT PERCEPTION';
+    const bars = el('div', 'mind-sensory-timeline-bars');
+    const max = Math.max(1, ...sensoryView.history.map(point => point.sampled + point.error * 2));
+    for (const point of sensoryView.history) {
+      const bar = el('i', `mind-sensory-timeline-bar${point.error ? ' error' : point.predictors ? ' learning' : ''}`);
+      bar.style.height = `${Math.max(8, Math.round(((point.sampled + point.error * 2) / max) * 100))}%`;
+      bar.title = `tick ${point.tick} · sampled ${point.sampled} · useful ${point.useful} · integrated ${point.integrated} · concepts ${point.concepts} · predictors ${point.predictors}`;
+      bars.appendChild(bar);
+    }
+    const now = el('span', 'mind-sensory-timeline-now');
+    now.textContent = sensoryView.history.length ? `t${sensoryView.history[sensoryView.history.length - 1].tick}` : '—';
+    container.append(label, bars, now);
+  }
+
+  function renderSensoryInspector(container, node, topology, sensory) {
+    container.replaceChildren();
+    const heading = el('div', 'mind-sensory-inspector-heading');
+    heading.textContent = 'INSPECTOR';
+    container.appendChild(heading);
+
+    if (!node) {
+      const empty = el('div', 'mind-sensory-inspector-empty');
+      empty.textContent = 'Select a receptor, concept, predictor or readout to inspect its evidence and role.';
+      container.appendChild(empty);
+      return;
+    }
+
+    const topoEdges = Array.isArray(topology.edges) ? topology.edges : [];
+    const incoming = topoEdges.filter(edge => edge.targetId === node.id);
+    const outgoing = topoEdges.filter(edge => edge.sourceId === node.id);
+    const activation = clamp01(finiteNumber((snap.observerAnalysis?.activationClasses ?? snap.cognition?.activationClasses ?? {})[node.id], 0) / 15);
+    const fact = node.kind === 'sense' ? sensory.find(item => item.cognitiveId === node.id) : null;
+    const semantic = sensorySemantic(snap.observerSemantics, node.id);
+    const observerContext = observerContextForNode(topology, snap.observerSemantics, node.id, 2);
+
+    const title = el('strong', 'mind-sensory-inspector-title');
+    title.textContent = shortId(node.id, 20, 10);
+    const kind = el('span', 'mind-sensory-inspector-kind');
+    kind.textContent = String(node.kind ?? 'concept').toUpperCase();
+    container.append(title, kind);
+
+    const observer = el('p', 'mind-sensory-inspector-copy');
+    observer.textContent = semantic?.observerSummary ?? observerContext.summary ?? 'Observer semantics unresolved.';
+    container.appendChild(observer);
+
+    const rows = [
+      ['Activation', pct(activation)],
+      ['Incoming', String(incoming.length)],
+      ['Outgoing', String(outgoing.length)],
+    ];
+    if (fact) {
+      rows.push(
+        ['Sampled now', fact.sampled ? 'yes' : 'no'],
+        ['Utility', fact.utility.toFixed(3)],
+        ['Confidence', pct(fact.confidence)],
+        ['Health', pct(fact.health)],
+        ['Maturity', fact.maturity],
+      );
+    }
+    for (const [key,value] of rows) {
+      const row = el('div', 'mind-sensory-inspector-row');
+      const k = el('span', '');
+      k.textContent = key;
+      const v = el('b', '');
+      v.textContent = value;
+      row.append(k,v);
+      container.appendChild(row);
+    }
+
+    const relTitle = el('div', 'mind-sensory-inspector-section');
+    relTitle.textContent = 'PATHWAYS';
+    container.appendChild(relTitle);
+    const relations = [...incoming.slice(0,4).map(edge => ['←', edge.sourceId, edge.kind]), ...outgoing.slice(0,5).map(edge => ['→', edge.targetId, edge.kind])];
+    if (!relations.length) {
+      const none = el('div', 'mind-sensory-inspector-empty');
+      none.textContent = 'No learned cognitive path yet.';
+      container.appendChild(none);
+    } else {
+      for (const [arrow,id,edgeKind] of relations) {
+        const rel = el('button', 'mind-sensory-path');
+        rel.type = 'button';
+        rel.textContent = `${arrow} ${shortId(id,14,7)} · ${edgeKind}`;
+        rel.addEventListener('click', () => {
+          sensoryView.selectedNodeId = id;
+          renderSensoryMap();
+          renderSensesPanel();
+        });
+        container.appendChild(rel);
+      }
+    }
+
+    const why = el('div', 'mind-sensory-why');
+    const whyTitle = el('strong', '');
+    whyTitle.textContent = node.kind === 'sense' ? 'Why this receptor matters' : 'Why this node is here';
+    const whyCopy = el('span', '');
+    if (fact) {
+      whyCopy.textContent = fact.integrated
+        ? `It participates in ${fact.degree} learned relation${fact.degree === 1 ? '' : 's'} with utility ${fact.utility.toFixed(2)}.`
+        : fact.sampled
+          ? 'It is currently sampled but has not yet acquired a learned cognitive path.'
+          : 'It is available to the organism but is neither active nor integrated in the current snapshot.';
+    } else {
+      whyCopy.textContent = `${incoming.length} incoming and ${outgoing.length} outgoing learned relations are currently observable.`;
+    }
+    why.append(whyTitle, whyCopy);
+    container.appendChild(why);
   }
   
   // ─────────────────────────────────────────────────────────────────────────────
