@@ -58,6 +58,9 @@ class Tick3D:
     schema_cognitive_regions: int
     schema_dependency_evidence: int
     schema_dependencies: int
+    embodiment_epoch: int
+    reacclimation_remaining: int
+    reacclimating: bool
     predictor_count: int
     shadow_prediction_count: int
     promotable_shadow_count: int
@@ -525,6 +528,16 @@ class PyBulletEmbodimentRuntime:
     @property
     def organism_id(self) -> str:
         return self.organism.organism_id
+
+    @property
+    def embodiment_epoch(self) -> int:
+        lifecycle = self._embodiment_lifecycle
+        if isinstance(lifecycle, Mapping):
+            try:
+                return max(1, int(lifecycle.get("epoch") or 1))
+            except (TypeError, ValueError):
+                pass
+        return 1
 
     def physics_connected(self) -> bool:
         if self.client_id < 0:
@@ -1428,6 +1441,9 @@ class PyBulletEmbodimentRuntime:
             schema_cognitive_regions=int(schema["cognitive_regions"]),
             schema_dependency_evidence=int(schema["dependency_evidence"]),
             schema_dependencies=int(schema["dependencies"]),
+            embodiment_epoch=self.embodiment_epoch,
+            reacclimation_remaining=int(self.organism.reacclimation_remaining),
+            reacclimating=bool(self.organism.reacclimation_remaining > 0),
             predictor_count=predictor_count,
             shadow_prediction_count=shadow_prediction_count,
             promotable_shadow_count=promotable_shadow_count,
