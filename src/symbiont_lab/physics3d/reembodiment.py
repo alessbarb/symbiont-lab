@@ -8,6 +8,7 @@ import json
 from typing import Any, Mapping
 
 from .longitudinal import (
+    CONTRACT_FINGERPRINT_SCHEMA_VERSION,
     append_epoch_summary,
     archive_contract_memory,
     build_epoch_summary,
@@ -412,14 +413,21 @@ def prepare_fresh_embodiment_checkpoint(
     same_descriptor = _same_contract(current, contract)
     saved_tick = int(previous.get("saved_at_tick") or 0)
     started_tick = int(current.get("started_tick") or 0)
-    previous_fingerprint = str(
-        current.get("contract_fingerprint")
-        or contract_fingerprint(
+    current_fingerprint_version = int(
+        current.get("contract_fingerprint_schema_version") or 0
+    )
+    if (
+        current_fingerprint_version == CONTRACT_FINGERPRINT_SCHEMA_VERSION
+        and isinstance(current.get("contract_fingerprint"), str)
+        and current.get("contract_fingerprint")
+    ):
+        previous_fingerprint = str(current["contract_fingerprint"])
+    else:
+        previous_fingerprint = contract_fingerprint(
             previous,
             receptor_count=previous_contract.receptor_count,
             effector_count=previous_contract.effector_count,
         )
-    )
     new_fingerprint = contract_fingerprint(
         fresh,
         receptor_count=contract.receptor_count,
@@ -528,6 +536,9 @@ def prepare_fresh_embodiment_checkpoint(
         "current": {
             **contract.as_dict(),
             "contract_fingerprint": new_fingerprint,
+            "contract_fingerprint_schema_version": (
+                CONTRACT_FINGERPRINT_SCHEMA_VERSION
+            ),
             "started_tick": saved_tick,
             "body_vital_state": "active",
             "contract_relation": relation,
@@ -575,13 +586,19 @@ def update_lifecycle_for_checkpoint(
     current.update(contract.as_dict())
     current["body_vital_state"] = _body_vital_state(payload)
     current.setdefault("started_tick", 0)
-    current.setdefault(
-        "contract_fingerprint",
-        contract_fingerprint(
+    if (
+        int(current.get("contract_fingerprint_schema_version") or 0)
+        != CONTRACT_FINGERPRINT_SCHEMA_VERSION
+        or not isinstance(current.get("contract_fingerprint"), str)
+        or not current.get("contract_fingerprint")
+    ):
+        current["contract_fingerprint"] = contract_fingerprint(
             payload,
             receptor_count=contract.receptor_count,
             effector_count=contract.effector_count,
-        ),
+        )
+    current["contract_fingerprint_schema_version"] = (
+        CONTRACT_FINGERPRINT_SCHEMA_VERSION
     )
     if metrics is not None:
         current["metrics"] = deepcopy(dict(metrics))
