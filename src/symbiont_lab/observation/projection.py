@@ -131,6 +131,9 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
     _copy_number(cognition, tick, "schema_parts", cast=int)
     _copy_number(cognition, tick, "schema_sensory_parts", cast=int)
     _copy_number(cognition, tick, "schema_cognitive_regions", cast=int)
+    _copy_number(cognition, tick, "embodiment_epoch", cast=int)
+    _copy_number(cognition, tick, "reacclimation_remaining", cast=int)
+    _copy_bool(cognition, tick, "reacclimating")
     if tick.get("motor_origin") is not None:
         cognition["motor_origin"] = str(tick["motor_origin"])
     if tick.get("motor_origin_detail") is not None:

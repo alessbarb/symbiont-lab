@@ -1351,6 +1351,8 @@ export class BodyViewer {
     if (data.motor_origin !== undefined) this.queueUIUpdate('motor_origin', data.motor_origin);
 
     const details = [];
+    if (data.embodiment_epoch !== undefined) details.push(`epoch ${data.embodiment_epoch}`);
+    if (data.reacclimating) details.push(`reacclimating ${data.reacclimation_remaining ?? '?'}t`);
     if (data.schema_confidence !== undefined) details.push(`schema ${data.schema_confidence.toFixed(2)}`);
     if (data.prediction_error !== undefined) details.push(`err ${data.prediction_error.toFixed(3)}`);
     if (data.slm_active !== undefined) details.push(data.slm_active ? 'model active' : 'model inactive');

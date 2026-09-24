@@ -927,6 +927,32 @@ def test_p8_low_reliability_sense_cannot_create_a_one_shot_trace():
     assert runtime.memory_consolidator.salient_events == ()
 
 
+def test_reacclimation_counter_is_observable_and_monotonic_after_restore():
+    from symbiont.cognition.limits import KernelLimits
+
+    limits = KernelLimits(reacclimation_ticks=4)
+    runtime = OrganismRuntime(
+        discover_senses=False,
+        bootstrap_semantic_senses=True,
+        min_samples=1,
+        investigate_ticks=0,
+        kernel_limits=limits,
+    )
+    restored = OrganismRuntime.from_checkpoint(
+        runtime.checkpoint(),
+        min_samples=1,
+        investigate_ticks=0,
+        kernel_limits=limits,
+    )
+
+    assert restored.reacclimation_remaining == 4
+    restored.tick()
+    assert restored.reacclimation_remaining == 3
+    for _ in range(3):
+        restored.tick()
+    assert restored.reacclimation_remaining == 0
+
+
 def test_reacclimation_gate_blocks_salient_fast_path_after_restore():
     """§16a extended: the exact scenario A signal, replayed immediately
     after a restore, must NOT commit while reacclimation is active, and

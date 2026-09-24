@@ -19,6 +19,9 @@ export function applyTelemetryEvent(data) {
     tel.schemaParts = data.schema_parts ?? tel.schemaParts;
     tel.schemaSensory = data.schema_sensory_parts ?? tel.schemaSensory;
     tel.schemaCognitive = data.schema_cognitive_regions ?? tel.schemaCognitive;
+    tel.embodimentEpoch = data.embodiment_epoch ?? tel.embodimentEpoch;
+    tel.reacclimationRemaining = data.reacclimation_remaining ?? tel.reacclimationRemaining;
+    tel.reacclimating = data.reacclimating ?? tel.reacclimating;
     tel.motorOrigin = data.motor_origin ?? tel.motorOrigin;
     tel.predictorCount = data.predictor_count ?? tel.predictorCount;
     tel.sensorimotorPatterns = data.sensorimotor_patterns ?? tel.sensorimotorPatterns;
