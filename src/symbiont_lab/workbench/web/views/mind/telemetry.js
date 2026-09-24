@@ -56,6 +56,10 @@ export function applyTelemetryEvent(data) {
     tel.absorbedEnergy = data.absorbed_energy ?? tel.absorbedEnergy;
     tel.displacement = data.displacement_from_origin ?? tel.displacement;
     tel.mechanicalWork = data.mechanical_work_joules ?? tel.mechanicalWork;
+    tel.positiveActuatorWork = data.positive_actuator_work_joules ?? tel.positiveActuatorWork;
+    tel.negativeActuatorWork = data.negative_actuator_work_joules ?? tel.negativeActuatorWork;
+    tel.absoluteActuatorWork = data.absolute_actuator_work_joules ?? tel.absoluteActuatorWork;
+    tel.netActuatorWork = data.net_actuator_work_joules ?? tel.netActuatorWork;
     tel.metabolicCost = data.metabolic_work_cost ?? tel.metabolicCost;
     return true;
   }
