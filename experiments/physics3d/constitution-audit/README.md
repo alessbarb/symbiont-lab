@@ -111,7 +111,7 @@ counted as commanded actuator work.
 
 ## Sensorimotor interpretation
 
-Physics3D motor development uses sensorimotor schema v9.
+Physics3D motor development uses sensorimotor schema v10. v9 checkpoints are accepted only for one-time migration onto a validated current body.
 
 Its important invariants are:
 
@@ -124,8 +124,9 @@ Its important invariants are:
   motion is not automatically rewarded merely for changing more signals;
 - primitive recurrence includes both activation magnitude and active-channel
   support, preventing dense patterns from diluting support differences;
-- older learned sensorimotor schemas fail closed because their evidence was
-  collected under different causal/statistical rules.
+- every learned primitive carries the opaque actuator-surface fingerprint of the body on which it was learned;
+- a primitive cannot execute on another actuator-surface contract;
+- pre-v9 learned sensorimotor schemas fail closed because their evidence was collected under different causal/statistical rules.
 
 ## Viewer boundary
 
