@@ -865,7 +865,7 @@ def test_v41_random_access_uses_nearest_anchor_index_and_survives_corruption(tmp
     )
 
 
-def test_v41_default_anchor_interval_is_256(tmp_path):
+def test_v41_default_anchor_interval_is_256_and_checkpoint_interval_is_1024(tmp_path):
     writer = TelemetryV41Writer(
         tmp_path,
         organism_id="symbiont:test",
@@ -878,5 +878,31 @@ def test_v41_default_anchor_interval_is_256(tmp_path):
     )
     try:
         assert writer.manifest["anchor_interval"] == 256
+        assert writer.manifest["checkpoint_interval"] == 1024
+        assert writer.needs_anchor(256) is True
+        assert writer.needs_snapshot(256) is False
+        assert writer.needs_snapshot(1024) is True
+    finally:
+        writer.close()
+
+
+def test_v41_anchor_and_checkpoint_cadence_are_independent(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=8,
+        anchor_interval=2,
+        run_id="independent-cadence",
+    )
+    try:
+        assert writer.needs_anchor(2) is True
+        assert writer.needs_snapshot(2) is False
+        assert writer.needs_anchor(8) is True
+        assert writer.needs_snapshot(8) is True
     finally:
         writer.close()

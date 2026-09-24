@@ -235,6 +235,10 @@ Anchors contain only reconstruction state:
 - tick-stream offset;
 - committed tick hash.
 
+Telemetry anchors and large checkpoints have independent cadences. Revision 4
+defaults to lightweight anchors every 256 ticks and large checkpoints every
+1,024 ticks.
+
 Large organism and physical snapshots live independently under
 `checkpoints/organism/` and `checkpoints/physical/`. Additional apparatus
 snapshot material, if any, is isolated under `checkpoints/extra/`. Tick commits
@@ -438,8 +442,9 @@ run:
 - target 50–150 MB;
 - fallback < 5% of evidence bytes;
 - state_at p95 < 100 ms;
-- revision 4 uses a default 256-tick anchor interval to bound random-access
-  replay while remaining inside the storage target;
+- revision 4 uses a default 256-tick telemetry anchor interval to bound
+  random-access replay while keeping large organism/physical checkpoints on
+  their independent 1,024-tick cadence;
 - no lost ticks;
 - bounded async writer queue;
 - v3/v4.0/v4.1 compatibility;

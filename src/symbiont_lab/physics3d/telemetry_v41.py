@@ -239,12 +239,15 @@ class TelemetryV41Writer:
         embodiment_mode: str,
         effective_configuration: Mapping[str, Any] | None = None,
         software_identity: Mapping[str, Any] | None = None,
-        snapshot_interval: int = 256,
+        snapshot_interval: int = 1024,
+        anchor_interval: int = 256,
         flush_every: int = 64,
         run_id: str | None = None,
     ) -> None:
         if snapshot_interval < 1:
             raise ValueError("snapshot_interval must be >= 1")
+        if anchor_interval < 1:
+            raise ValueError("anchor_interval must be >= 1")
         if flush_every < 1:
             raise ValueError("flush_every must be >= 1")
         generated = (
@@ -355,6 +358,7 @@ class TelemetryV41Writer:
             self._strings,
         )
         self._snapshot_interval = int(snapshot_interval)
+        self._anchor_interval = int(anchor_interval)
         self._flush_every = int(flush_every)
         self._pending = 0
         self._sequence = 0
@@ -389,7 +393,8 @@ class TelemetryV41Writer:
             "cognition_hz": int(cognition_hz),
             "physics_substeps_per_tick": int(physics_hz // cognition_hz),
             "embodiment_mode": str(embodiment_mode),
-            "anchor_interval": self._snapshot_interval,
+            "anchor_interval": self._anchor_interval,
+            "checkpoint_interval": self._snapshot_interval,
             "effective_configuration": config,
             "effective_configuration_sha256": payload_sha256(config),
             "software_identity": software,
@@ -405,7 +410,12 @@ class TelemetryV41Writer:
         _write_json(self.root / "manifest.json", self.manifest)
 
     def needs_snapshot(self, tick: int) -> bool:
+        """Whether the engine should capture a large organism/physical checkpoint."""
         return self._sequence == 0 or int(tick) % self._snapshot_interval == 0
+
+    def needs_anchor(self, tick: int) -> bool:
+        """Whether telemetry should persist a lightweight random-access anchor."""
+        return self._sequence == 0 or int(tick) % self._anchor_interval == 0
 
     def _write_checkpoint_component(
         self,
@@ -647,7 +657,7 @@ class TelemetryV41Writer:
 
         offsets = _stream_offsets(self._handles)
         tick_offset = int(self._handles["ticks"].tell())
-        should_anchor = self.needs_snapshot(tick)
+        should_anchor = self.needs_anchor(tick)
 
         commit_without_hash = {
             "schema_version": SCHEMA_VERSION,

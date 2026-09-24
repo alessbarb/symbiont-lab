@@ -58,16 +58,17 @@ def convert_run(
             ),
             "telemetry_conversion_source": version,
         },
-        snapshot_interval=min(
-            256,
-            int(
+        snapshot_interval=int(
+            manifest.get(
+                "checkpoint_interval",
                 manifest.get(
-                    "anchor_interval",
-                    manifest.get("snapshot_interval", 256),
-                )
-                or 256
-            ),
+                    "snapshot_interval",
+                    manifest.get("anchor_interval", 1024),
+                ),
+            )
+            or 1024
         ),
+        anchor_interval=256,
         run_id=target_run_id,
     )
     ticks = 0
