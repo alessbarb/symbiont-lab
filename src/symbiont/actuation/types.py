@@ -58,19 +58,17 @@ class MotorIntent:
 
 @dataclass(frozen=True, slots=True)
 class Actuation:
-    """What the body actually delivered. No World consequence lives here."""
+    """Command accepted by the body boundary.
+
+    Physical cost, health, latency and downstream effect are body truth and are
+    intentionally absent.  The organism can infer them only from subsequent
+    sensory/interoceptive consequences.
+    """
 
     actuator_id: ActuatorId
     requested: float
     delivered: float
-    cost: float
-    health_at_execution: float
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "requested", _require_unit_range(self.requested, "requested"))
         object.__setattr__(self, "delivered", _require_unit_range(self.delivered, "delivered"))
-        object.__setattr__(self, "health_at_execution", _require_unit_range(self.health_at_execution, "health_at_execution"))
-        cost = _require_finite(self.cost, "cost")
-        if cost < 0.0:
-            raise ValueError("cost must be non-negative")
-        object.__setattr__(self, "cost", cost)
