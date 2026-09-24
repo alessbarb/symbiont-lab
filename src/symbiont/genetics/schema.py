@@ -237,8 +237,6 @@ DEFAULT_GENOME_SCHEMA = GenomeSchema(
         "evolvability.sensorimotor_mutation_scale": _float("evolvability.sensorimotor_mutation_scale", 0.0, 2.0, scale=0.05),
         "evolvability.structure_mutation_scale": _float("evolvability.structure_mutation_scale", 0.0, 2.0, scale=0.05),
         "evolvability.recombination_linkage": _float("evolvability.recombination_linkage", 0.0, 1.0, scale=0.03),
-        "inheritance.epigenetic_decay": _float("inheritance.epigenetic_decay", 0.0, 1.0, scale=0.03),
-        "inheritance.max_epigenetic_marks": _int("inheritance.max_epigenetic_marks", 1, 128, step=1),
     }
 )
 
