@@ -5,8 +5,10 @@ from hashlib import sha256
 import math
 from typing import Any
 
+from ..foundation.limits import OrganismLimits
+
 COGNITIVE_SELF_OBSERVATION_VERSION = 1
-MAX_COGNITIVE_CHANNELS_PER_TICK = 32
+MAX_COGNITIVE_CHANNELS_PER_TICK = OrganismLimits().max_cognitive_channels_per_tick
 _ACTIVITY_THRESHOLD = 0.1
 _ACTIVITY_CLASSES = 16
 _NAMESPACE_KEY_HEX_LENGTH = 64
