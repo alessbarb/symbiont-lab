@@ -1,4 +1,7 @@
-"""Lifetime expression of Genome v2 predispositions."""
+"""Lifetime expression of Genome v2 predispositions.
+
+Evidence observed through tick t may update this state only for tick t+1.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -33,14 +36,10 @@ class RegulatorySignals:
 @dataclass(slots=True)
 class GeneExpressionState:
     effective_learning_rate: float
-    effective_forgetting_rate: float
     effective_structural_plasticity: float
     effective_growth_threshold: float
     effective_pruning_threshold: float
-    effective_consolidation_sensitivity: float
     exploration_drive: float
-    contingency_sensitivity: float
-    body_schema_adaptation: float
     regulatory_activation: dict[str, float] = field(default_factory=dict)
     update_count: int = 0
 
@@ -48,14 +47,10 @@ class GeneExpressionState:
     def from_genome(cls, genome: Genome) -> "GeneExpressionState":
         return cls(
             effective_learning_rate=genome.plasticity.learning_rate.baseline,
-            effective_forgetting_rate=genome.plasticity.forgetting_rate.baseline,
             effective_structural_plasticity=genome.plasticity.structural_plasticity.baseline,
             effective_growth_threshold=genome.structure.growth_threshold.baseline,
             effective_pruning_threshold=genome.structure.pruning_threshold.baseline,
-            effective_consolidation_sensitivity=genome.plasticity.consolidation_sensitivity.baseline,
             exploration_drive=genome.sensorimotor.spontaneous_activity_baseline,
-            contingency_sensitivity=genome.sensorimotor.contingency_sensitivity,
-            body_schema_adaptation=genome.sensorimotor.body_schema_adaptation_rate,
             regulatory_activation={},
             update_count=0,
         )
@@ -63,26 +58,22 @@ class GeneExpressionState:
     def as_dict(self) -> dict[str, object]:
         return {
             "effective_learning_rate": self.effective_learning_rate,
-            "effective_forgetting_rate": self.effective_forgetting_rate,
             "effective_structural_plasticity": self.effective_structural_plasticity,
             "effective_growth_threshold": self.effective_growth_threshold,
             "effective_pruning_threshold": self.effective_pruning_threshold,
-            "effective_consolidation_sensitivity": self.effective_consolidation_sensitivity,
             "exploration_drive": self.exploration_drive,
-            "contingency_sensitivity": self.contingency_sensitivity,
-            "body_schema_adaptation": self.body_schema_adaptation,
             "regulatory_activation": dict(self.regulatory_activation),
             "update_count": self.update_count,
         }
 
 
 class ExpressionRegulator:
-    """Deterministic bounded genotype to lifetime phenotype regulator."""
+    """Single bounded metaplastic regulator for the canonical runtime."""
 
     @staticmethod
     def _move(current: float, target: float, spec: AdaptiveGeneRange, pressure: float) -> float:
         target = max(spec.minimum, min(spec.maximum, target))
-        max_step = max(0.0, spec.adaptation_rate) * max(0.0, min(1.0, pressure))
+        max_step = max(0.0, spec.adaptation_rate) * _unit(pressure)
         delta = max(-max_step, min(max_step, target - current))
         return max(spec.minimum, min(spec.maximum, current + delta))
 
@@ -97,14 +88,10 @@ class ExpressionRegulator:
         if frozen:
             return GeneExpressionState(
                 effective_learning_rate=state.effective_learning_rate,
-                effective_forgetting_rate=state.effective_forgetting_rate,
                 effective_structural_plasticity=state.effective_structural_plasticity,
                 effective_growth_threshold=state.effective_growth_threshold,
                 effective_pruning_threshold=state.effective_pruning_threshold,
-                effective_consolidation_sensitivity=state.effective_consolidation_sensitivity,
                 exploration_drive=state.exploration_drive,
-                contingency_sensitivity=state.contingency_sensitivity,
-                body_schema_adaptation=state.body_schema_adaptation,
                 regulatory_activation=dict(state.regulatory_activation),
                 update_count=state.update_count,
             )
@@ -118,36 +105,49 @@ class ExpressionRegulator:
             + r.embodiment_mismatch_gain * signals.embodiment_mismatch
         )
         resource_pressure = _unit(signals.resource_pressure)
-        adaptive_pressure = _unit(max(mismatch_pressure, resource_pressure))
+        adaptive_pressure = max(mismatch_pressure, resource_pressure)
 
         learning = genome.plasticity.learning_rate
-        learning_target = learning.baseline + (learning.maximum - learning.baseline) * mismatch_pressure
-        learning_value = self._move(state.effective_learning_rate, learning_target, learning, adaptive_pressure)
-
-        forgetting = genome.plasticity.forgetting_rate
-        forgetting_target = forgetting.baseline - (forgetting.baseline - forgetting.minimum) * mismatch_pressure
-        forgetting_value = self._move(state.effective_forgetting_rate, forgetting_target, forgetting, adaptive_pressure)
+        learning_target = learning.baseline + (
+            learning.maximum - learning.baseline
+        ) * mismatch_pressure
+        learning_value = self._move(
+            state.effective_learning_rate,
+            learning_target,
+            learning,
+            adaptive_pressure,
+        )
 
         structural = genome.plasticity.structural_plasticity
-        structural_target = structural.baseline + (structural.maximum - structural.baseline) * mismatch_pressure
-        structural_value = self._move(state.effective_structural_plasticity, structural_target, structural, adaptive_pressure)
+        structural_target = structural.baseline + (
+            structural.maximum - structural.baseline
+        ) * mismatch_pressure
+        structural_value = self._move(
+            state.effective_structural_plasticity,
+            structural_target,
+            structural,
+            adaptive_pressure,
+        )
 
         growth = genome.structure.growth_threshold
-        growth_target = growth.baseline - (growth.baseline - growth.minimum) * mismatch_pressure
-        growth_value = self._move(state.effective_growth_threshold, growth_target, growth, adaptive_pressure)
+        growth_target = growth.baseline - (
+            growth.baseline - growth.minimum
+        ) * mismatch_pressure
+        growth_value = self._move(
+            state.effective_growth_threshold,
+            growth_target,
+            growth,
+            adaptive_pressure,
+        )
 
         pruning = genome.structure.pruning_threshold
-        pruning_target = pruning.baseline - (pruning.baseline - pruning.minimum) * mismatch_pressure
-        pruning_value = self._move(state.effective_pruning_threshold, pruning_target, pruning, adaptive_pressure)
-
-        consolidation = genome.plasticity.consolidation_sensitivity
-        consolidation_target = consolidation.baseline - (
-            consolidation.baseline - consolidation.minimum
+        pruning_target = pruning.baseline - (
+            pruning.baseline - pruning.minimum
         ) * mismatch_pressure
-        consolidation_value = self._move(
-            state.effective_consolidation_sensitivity,
-            consolidation_target,
-            consolidation,
+        pruning_value = self._move(
+            state.effective_pruning_threshold,
+            pruning_target,
+            pruning,
             adaptive_pressure,
         )
 
@@ -159,7 +159,12 @@ class ExpressionRegulator:
             + sm.reacclimation_sensitivity * signals.embodiment_mismatch
         )
         habituation = sm.exploration_habituation * (
-            1.0 - max(signals.uncertainty, signals.prediction_error, signals.embodiment_mismatch)
+            1.0
+            - max(
+                signals.uncertainty,
+                signals.prediction_error,
+                signals.embodiment_mismatch,
+            )
         )
         exploration_target = _unit(exploration_target - habituation)
 
@@ -168,35 +173,19 @@ class ExpressionRegulator:
         exploration_value = _unit(
             state.exploration_drive
             + alpha * (exploration_target - state.exploration_drive)
-            + decay * (sm.spontaneous_activity_baseline - state.exploration_drive)
-        )
-        contingency_value = _unit(
-            state.contingency_sensitivity
-            + alpha
+            + decay
             * (
-                sm.contingency_sensitivity * (0.5 + 0.5 * mismatch_pressure)
-                - state.contingency_sensitivity
-            )
-        )
-        body_adaptation_value = _unit(
-            state.body_schema_adaptation
-            + alpha
-            * (
-                sm.body_schema_adaptation_rate * (1.0 + signals.embodiment_mismatch)
-                - state.body_schema_adaptation
+                sm.spontaneous_activity_baseline
+                - state.exploration_drive
             )
         )
 
         return GeneExpressionState(
             effective_learning_rate=learning_value,
-            effective_forgetting_rate=forgetting_value,
             effective_structural_plasticity=structural_value,
             effective_growth_threshold=growth_value,
             effective_pruning_threshold=pruning_value,
-            effective_consolidation_sensitivity=consolidation_value,
             exploration_drive=exploration_value,
-            contingency_sensitivity=contingency_value,
-            body_schema_adaptation=body_adaptation_value,
             regulatory_activation={
                 "mismatch_pressure": mismatch_pressure,
                 "resource_pressure": resource_pressure,
@@ -205,17 +194,16 @@ class ExpressionRegulator:
         )
 
 
-def restore_expression_state(payload: Mapping[str, object], genome: Genome) -> GeneExpressionState:
+def restore_expression_state(
+    payload: Mapping[str, object],
+    genome: Genome,
+) -> GeneExpressionState:
     required = {
         "effective_learning_rate",
-        "effective_forgetting_rate",
         "effective_structural_plasticity",
         "effective_growth_threshold",
         "effective_pruning_threshold",
-        "effective_consolidation_sensitivity",
         "exploration_drive",
-        "contingency_sensitivity",
-        "body_schema_adaptation",
         "regulatory_activation",
         "update_count",
     }
@@ -224,7 +212,11 @@ def restore_expression_state(payload: Mapping[str, object], genome: Genome) -> G
 
     def finite(name: str) -> float:
         value = payload[name]
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+        ):
             raise ValueError(f"{name} must be finite numeric")
         return float(value)
 
@@ -243,24 +235,34 @@ def restore_expression_state(payload: Mapping[str, object], genome: Genome) -> G
 
     state = GeneExpressionState(
         effective_learning_rate=finite("effective_learning_rate"),
-        effective_forgetting_rate=finite("effective_forgetting_rate"),
         effective_structural_plasticity=finite("effective_structural_plasticity"),
         effective_growth_threshold=finite("effective_growth_threshold"),
         effective_pruning_threshold=finite("effective_pruning_threshold"),
-        effective_consolidation_sensitivity=finite("effective_consolidation_sensitivity"),
         exploration_drive=_unit(finite("exploration_drive")),
-        contingency_sensitivity=_unit(finite("contingency_sensitivity")),
-        body_schema_adaptation=_unit(finite("body_schema_adaptation")),
         regulatory_activation=activation,
         update_count=count,
     )
     checks = (
-        (state.effective_learning_rate, genome.plasticity.learning_rate, "effective_learning_rate"),
-        (state.effective_forgetting_rate, genome.plasticity.forgetting_rate, "effective_forgetting_rate"),
-        (state.effective_structural_plasticity, genome.plasticity.structural_plasticity, "effective_structural_plasticity"),
-        (state.effective_growth_threshold, genome.structure.growth_threshold, "effective_growth_threshold"),
-        (state.effective_pruning_threshold, genome.structure.pruning_threshold, "effective_pruning_threshold"),
-        (state.effective_consolidation_sensitivity, genome.plasticity.consolidation_sensitivity, "effective_consolidation_sensitivity"),
+        (
+            state.effective_learning_rate,
+            genome.plasticity.learning_rate,
+            "effective_learning_rate",
+        ),
+        (
+            state.effective_structural_plasticity,
+            genome.plasticity.structural_plasticity,
+            "effective_structural_plasticity",
+        ),
+        (
+            state.effective_growth_threshold,
+            genome.structure.growth_threshold,
+            "effective_growth_threshold",
+        ),
+        (
+            state.effective_pruning_threshold,
+            genome.structure.pruning_threshold,
+            "effective_pruning_threshold",
+        ),
     )
     for value, spec, name in checks:
         if not spec.minimum <= value <= spec.maximum:
