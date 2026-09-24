@@ -37,12 +37,13 @@ def contract_fingerprint(
         if isinstance(actuation, Mapping)
         else None
     )
-    sensory = payload.get("sensory_system")
     material = {
         "receptor_count": int(receptor_count),
         "effector_count": int(effector_count),
+        # Constitution is deterministic from MotorGenes. Learned proposer,
+        # actuator health and sensory phenotype state are intentionally absent:
+        # a contract fingerprint must survive learning inside the same Body type.
         "actuation_constitution": constitution,
-        "sensory_constitution": sensory,
     }
     return _canonical_hash(material)
 
