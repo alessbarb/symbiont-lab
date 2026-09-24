@@ -33,7 +33,6 @@ export function createIdentitySensoryRenderer({
     query: '',
     selectedNodeId: null,
     history: [],
-    controlsBound: false,
   };
 
   function sensoryFacts() {
@@ -707,17 +706,17 @@ export function createIdentitySensoryRenderer({
   }
 
   function bindSensoryControls() {
-    if (sensoryView.controlsBound) return;
     const controls = document.querySelectorAll('[data-sensory-lens]');
-    if (!controls.length) return;
     controls.forEach(button => {
+      button.classList.toggle('active', button.dataset.sensoryLens === sensoryView.lens);
+      if (button.dataset.sensoryBound === 'true') return;
+      button.dataset.sensoryBound = 'true';
       button.addEventListener('click', () => {
         sensoryView.lens = button.dataset.sensoryLens ?? 'topology';
         controls.forEach(item => item.classList.toggle('active', item === button));
         renderSensoryMap();
       });
     });
-    sensoryView.controlsBound = true;
   }
 
   function recordSensoryHistory(point) {
