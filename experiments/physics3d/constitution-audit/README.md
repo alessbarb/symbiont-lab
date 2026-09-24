@@ -8,7 +8,7 @@ The canonical body now owns passive mechanical properties in the same sense as
 mass, inertia and friction:
 
 - gravity and collision geometry remain PyBullet truth;
-- joints have bounded passive elastic/damped neutral-rest tone;
+- joints have bounded passive elastic neutral-rest tone plus explicit URDF joint damping;
 - directional effector channels that drive opposite directions of one physical
   DoF are declared as opaque mutually-exclusive groups;
 - the organism still sees only opaque actuator IDs.
@@ -73,7 +73,9 @@ amplitude constant. Total available torque is therefore allowed to grow.
 
 `fixed_total_torque` runs the same cardinalities with one constant nominal
 torque budget. This is the control required to distinguish "more active DoF"
-from merely "more total available torque".
+from merely "more total available torque". The common budget is derived from
+the lowest per-DoF torque capacity, so every selected joint can realize it
+without hidden activation saturation.
 
 `single_joint_characterization` evaluates every DoF independently and reports:
 
