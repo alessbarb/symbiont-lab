@@ -190,6 +190,7 @@ def run(
     enable_slm: bool = True,
     slm_train_interval: int = 1,
     slm_device: str = "cpu",
+    ready_callback=None,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -391,6 +392,9 @@ def run(
         effective_configuration=telemetry_configuration,
         software_identity=software_identity,
     )
+
+    if ready_callback is not None:
+        ready_callback()
 
     is_paused = False
     step_once = False
