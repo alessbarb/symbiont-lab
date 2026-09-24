@@ -17,8 +17,8 @@ class OrganismLimits:
     """Hard resource and security ceilings for somatic and host runtime state."""
 
     # Storage and checkpoint byte caps
-    max_host_checkpoint_bytes: int = 2 * 1024 * 1024
-    max_knowledge_checkpoint_bytes: int = 256 * 1024
+    max_host_checkpoint_bytes: int = 32 * 1024 * 1024
+    max_knowledge_checkpoint_bytes: int = 1024 * 1024
     max_exchange_bytes: int = 4096
 
     # Body schema & somatic topology limits
