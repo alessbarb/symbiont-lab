@@ -849,8 +849,11 @@ physical actuators -> learned synergies -> cognitive primitive actions
 ```
 
 The complete sensorimotor state is part of organism persistence. Current
-sensorimotor checkpoint schema is **v9**. It persists the opaque exclusive motor
-groups together with babbling phase, sufficient statistics and learned
-primitives. Pre-v9 learned sensorimotor state fails closed: its evidence was
+sensorimotor checkpoint schema is **v10**. It persists the opaque exclusive motor
+groups, the body-owned actuator `contract_fingerprint`, babbling phase, sufficient
+statistics and learned primitives. Each primitive is scoped to that opaque
+embodiment fingerprint and cannot execute on a different surface. v9 checkpoints
+are admitted only as a one-time migration onto an already validated current body;
+pre-v9 learned sensorimotor state fails closed: its evidence was
 collected under different motor-concurrency and statistical rules and cannot be
 silently reinterpreted.
