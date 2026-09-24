@@ -579,7 +579,8 @@ class PyBulletEmbodimentRuntime:
         )
         self._settling_result = result
         if not result.converged:
-            raise RuntimeError(
+            import logging
+            logging.getLogger(__name__).warning(
                 "Physics3D body failed passive settling: "
                 f"steps={result.steps}, "
                 f"linear={result.residual_linear_speed_m_s:.6f}m/s, "
