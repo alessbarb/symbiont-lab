@@ -19,16 +19,37 @@ export function atlasDetailLevel({
   scale = 1,
   cameraDistance = 900,
   focusedRegion = false,
+  previousLevel = 'meso',
 } = {}) {
   if (focusedRegion) return 'nodes';
+
   if (dimension === '3d') {
-    if (cameraDistance > 1250) return 'regions';
-    if (cameraDistance > 650) return 'meso';
+    if (previousLevel === 'regions') {
+      if (cameraDistance > 1120) return 'regions';
+    } else if (cameraDistance > 1320) {
+      return 'regions';
+    }
+
+    if (previousLevel === 'nodes') {
+      if (cameraDistance < 760) return 'nodes';
+    } else if (cameraDistance < 590) {
+      return 'nodes';
+    }
+    return 'meso';
+  }
+
+  if (previousLevel === 'regions') {
+    if (scale < 0.82) return 'regions';
+  } else if (scale < 0.64) {
+    return 'regions';
+  }
+
+  if (previousLevel === 'nodes') {
+    if (scale > 1.38) return 'nodes';
+  } else if (scale > 1.72) {
     return 'nodes';
   }
-  if (scale < 0.72) return 'regions';
-  if (scale < 1.55) return 'meso';
-  return 'nodes';
+  return 'meso';
 }
 
 function regionMembers(nodes) {
@@ -177,4 +198,38 @@ export function learningFrontierClusters(
     b.nodeIds.length - a.nodeIds.length ||
     a.id.localeCompare(b.id)
   );
+}
+
+export function reconcileFrontierEvolution(currentClusters, previousClusters = []) {
+  const previous = previousClusters ?? [];
+  return (currentClusters ?? []).map(cluster => {
+    let best = null;
+    let bestScore = 0;
+    const current = new Set(cluster.nodeIds ?? []);
+    for (const prior of previous) {
+      const old = new Set(prior.nodeIds ?? []);
+      if (!current.size || !old.size) continue;
+      let shared = 0;
+      for (const id of current) if (old.has(id)) shared += 1;
+      const union = current.size + old.size - shared;
+      const score = union ? shared / union : 0;
+      if (score > bestScore) {
+        best = prior;
+        bestScore = score;
+      }
+    }
+    const priorIds = new Set(best?.nodeIds ?? []);
+    const enteredIds = [...current].filter(id => !priorIds.has(id)).sort();
+    const exitedIds = [...priorIds].filter(id => !current.has(id)).sort();
+    return {
+      ...cluster,
+      lineageId: bestScore >= 0.28
+        ? (best?.lineageId ?? best?.id ?? cluster.id)
+        : cluster.id,
+      observations: bestScore >= 0.28 ? (best?.observations ?? 0) + 1 : 1,
+      enteredIds,
+      exitedIds,
+      previousOverlap: bestScore,
+    };
+  });
 }
