@@ -370,8 +370,6 @@ def test_motor_actuation_commits_substrate_impulse_event_without_new_world_actio
         actuator_id=actuator_id,
         requested=1.0,
         delivered=1.0,
-        cost=0.05,
-        health_at_execution=1.0,
     )
 
     tx = IntegratedWorldTickTransaction(
