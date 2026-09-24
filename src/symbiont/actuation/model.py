@@ -143,6 +143,32 @@ class ControllabilityModel:
         self._estimates[(effect_id, competence_id, context_id)] = estimate
         return estimate
 
+    def rebuild(self, ledger: CausalEvidenceLedger) -> None:
+        self._estimates = {}
+        keys = {
+            (item.effect_id, item.competence_id, item.context_ref)
+            for item in ledger.evidence
+            if item.effect_id is not None and item.competence_id is not None
+        }
+        for effect_id, competence_id, context_id in sorted(
+            keys,
+            key=lambda item: (item[0], item[1], item[2] or ""),
+        ):
+            relevant_ticks = [
+                item.observation_tick
+                for item in ledger.evidence
+                if item.effect_id == effect_id
+                and item.competence_id == competence_id
+                and item.context_ref == context_id
+            ]
+            self.update_from_ledger(
+                ledger,
+                effect_id=effect_id,
+                competence_id=competence_id,
+                context_id=context_id,
+                tick=max(relevant_ticks, default=0),
+            )
+
     def estimate(
         self,
         effect_id: str,
@@ -228,6 +254,33 @@ class AgencyModel:
         )
         self._estimates[(effect_id, competence_id, context_id)] = estimate
         return estimate
+
+    def rebuild(self, ledger: CausalEvidenceLedger) -> None:
+        self._estimates = {}
+        keys = {
+            (item.effect_id, item.competence_id, item.context_ref)
+            for item in ledger.evidence
+            if item.effect_id is not None and item.competence_id is not None
+        }
+        for effect_id, competence_id, context_id in sorted(
+            keys,
+            key=lambda item: (item[0], item[1], item[2] or ""),
+        ):
+            relevant_ticks = [
+                item.observation_tick
+                for item in ledger.evidence
+                if item.effect_id == effect_id
+                and item.competence_id == competence_id
+                and item.context_ref == context_id
+            ]
+            self.update_from_ledger(
+                ledger,
+                effect_id=effect_id,
+                competence_id=competence_id,
+                context_id=context_id,
+                tick=max(relevant_ticks, default=0),
+                prediction_match=None,
+            )
 
     def estimate(
         self,
