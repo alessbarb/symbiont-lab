@@ -128,6 +128,12 @@ class Physics3DRunStore:
         ledger = payload.get("experience_ledger", {})
         registry = payload.get("private_model_registry", {})
         genome = payload.get("genome", {})
+        living_body = payload.get("living_body", {})
+        vital_state = (
+            living_body.get("vital_state")
+            if isinstance(living_body, dict)
+            else None
+        )
         return {
             "organism_id": payload.get("organism_id"),
             "tick": int(payload.get("saved_at_tick") or 0),
@@ -142,6 +148,8 @@ class Physics3DRunStore:
                 else 0
             ),
             "genome_id": genome.get("genome_id") if isinstance(genome, dict) else None,
+            "vital_state": vital_state,
+            "runnable": vital_state != "dead",
         }
 
     def organisms(self) -> list[dict[str, Any]]:
@@ -256,6 +264,9 @@ class Physics3DRunStore:
             bundle = self.organisms_dir / organism_ref / "organism.symbiont"
             if not bundle.is_file():
                 raise ValueError("selected organism checkpoint is unavailable")
+            summary = self._bundle_summary(bundle)
+            if summary.get("runnable") is False:
+                raise ValueError("selected organism is dead and cannot resume execution")
             previous_kind = str(metadata.get("body_kind") or body_kind)
             previous_receptors = metadata.get("receptor_count")
             previous_effectors = metadata.get("effector_count")
