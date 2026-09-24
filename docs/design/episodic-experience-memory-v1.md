@@ -1,6 +1,6 @@
 # Episodic Experience Memory v1
 
-Status: implemented foundation and runtime integration.
+Status: superseded by `episodic-experience-memory-v2.md` after Physics3D run evidence falsified the raw episode representation. Retained as historical design rationale.
 
 ## Purpose
 
