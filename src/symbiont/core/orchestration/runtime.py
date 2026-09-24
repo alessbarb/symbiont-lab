@@ -75,7 +75,7 @@ from ..signals.knowledge_checkpoint import validate_checkpoint
 from ..embodiment.metabolism import MetabolicLedger, MetabolicSnapshot
 from ..embodiment.assimilation import InformationAssimilator, AssimilationDecision
 from ..embodiment.homeostasis import HomeostaticController, HomeostaticSnapshot
-from ..regulation import ActionArbitrator, InnateReactivity, ReactiveMemory
+from ..regulation import ActionArbitrator, InnateReactivity, ReactiveMemory, ReactiveState
 from ..social.ecology import SharedHabitat
 from ..social.trust import SourceTrustModel
 from ..social.relations import (InteractionOutcome, RelationLedger, RelationValence,
@@ -686,6 +686,10 @@ class OrganismRuntime:
         self._active_exploration_preference: tuple[str, ...] = ()
         self._last_exploration_signals: dict[str, ExplorationSignals] = {}
         self._composition_engine = CompositionEngine()
+        self._composition_predecessor_id: str | None = None
+        self._active_composition_children: tuple[str, ...] = ()
+        self._active_composition_index = 0
+        self._effect_by_commitment: dict[str, str] = {}
         self._pending_sensorimotor_transition: dict[str, Any] | None = None
         self._last_sensorimotor_transition: SensorimotorTransition | None = None
         self._pending_motor_observation: tuple[
@@ -1080,6 +1084,154 @@ class OrganismRuntime:
         """
         return None
 
+    def _flatten_competence_controller(
+        self,
+        competence_id: str,
+        *,
+        seen: frozenset[str] = frozenset(),
+    ) -> tuple[str, ...]:
+        if competence_id in seen:
+            raise RuntimeError("cyclic competence composition")
+        competence = self._competence_library.get(competence_id)
+        if competence is None or not competence.parent_competence_ids:
+            return (competence_id,)
+        next_seen = seen | {competence_id}
+        flattened: list[str] = []
+        for child_id in competence.parent_competence_ids:
+            flattened.extend(
+                self._flatten_competence_controller(
+                    child_id,
+                    seen=next_seen,
+                )
+            )
+        return tuple(flattened)
+
+    def _activate_competence_controller(self, competence_id: str) -> bool:
+        if self._sensorimotor_learner is None:
+            return False
+        leaves = self._flatten_competence_controller(competence_id)
+        if not leaves:
+            return False
+        self._active_composition_children = leaves if len(leaves) > 1 else ()
+        self._active_composition_index = 0
+        return self._sensorimotor_learner.activate_primitive(leaves[0])
+
+    def _materialize_composition(
+        self,
+        evidence,
+    ) -> MotorCompetence | None:
+        if not evidence.established or self._actuator_constitution is None:
+            return None
+        digest = hashlib.sha256(
+            (
+                f"{evidence.first_competence_id}>"
+                f"{evidence.second_competence_id}>"
+                f"{evidence.effect_id}"
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+        competence_id = f"competence.composed.{digest}"
+        existing = self._competence_library.get(competence_id)
+        evidence_ref = f"composition.{digest}"
+        derived = CompetenceEvidence(
+            controller_seed_ref=f"sequence:{evidence.first_competence_id}>{evidence.second_competence_id}",
+            effect_evidence_refs=(evidence.effect_id,),
+            controllability_evidence_refs=(evidence_ref,),
+            support=evidence.support,
+            failures=evidence.failures,
+            reproducibility=evidence.reproducibility,
+            controllability=evidence.reproducibility,
+            directional_consistency=1.0,
+        )
+        if existing is not None:
+            existing.evidence = derived
+            return existing
+        competence = MotorCompetence(
+            competence_id=competence_id,
+            controller_id=f"controller.{competence_id}",
+            effect_id=evidence.effect_id,
+            evidence=derived,
+            surface_binding=self._actuator_constitution.contract_fingerprint,
+            parent_competence_ids=(
+                evidence.first_competence_id,
+                evidence.second_competence_id,
+            ),
+            controller_strategy_ref=derived.controller_seed_ref,
+        )
+        self._competence_library.add(competence)
+        return competence
+
+    def _record_competence_completion(
+        self,
+        competence_id: str,
+        *,
+        commitment_id: str,
+    ) -> None:
+        effect_id = self._effect_by_commitment.pop(commitment_id, None)
+        predecessor = self._composition_predecessor_id
+        if predecessor is not None and predecessor != competence_id:
+            if effect_id is None:
+                self._composition_engine.observe_absence(
+                    predecessor,
+                    competence_id,
+                )
+            else:
+                evidence = self._composition_engine.observe(
+                    predecessor,
+                    competence_id,
+                    effect_id,
+                    success=True,
+                )
+                self._materialize_composition(evidence)
+        self._composition_predecessor_id = competence_id
+
+    def _advance_or_complete_competence(
+        self,
+        *,
+        tick: int,
+    ) -> None:
+        commitment = self._active_action_commitment
+        if (
+            commitment is None
+            or not commitment.active
+            or commitment.competence_id is None
+            or self._sensorimotor_learner is None
+            or self._sensorimotor_learner.active_primitive_id is not None
+        ):
+            return
+        if (
+            self._active_composition_children
+            and self._active_composition_index + 1
+            < len(self._active_composition_children)
+        ):
+            self._active_composition_index += 1
+            child_id = self._active_composition_children[
+                self._active_composition_index
+            ]
+            if self._sensorimotor_learner.activate_primitive(child_id):
+                return
+            commitment.terminate(
+                tick=tick,
+                status=CommitmentStatus.FAILED,
+                reason="composed_child_unavailable",
+            )
+            self._active_composition_children = ()
+            self._active_composition_index = 0
+            return
+
+        completed_id = commitment.competence_id
+        completed_commitment_id = commitment.commitment_id
+        commitment.terminate(
+            tick=tick,
+            status=CommitmentStatus.COMPLETED,
+            reason="competence_completed",
+        )
+        self._record_competence_completion(
+            completed_id,
+            commitment_id=completed_commitment_id,
+        )
+        self._active_composition_children = ()
+        self._active_composition_index = 0
+
     def _rank_exploration_opportunities(
         self,
         *,
@@ -1212,6 +1364,10 @@ class OrganismRuntime:
                 physiological_delta_ref=None,
             )
             causal = self._causal_evidence.observe(transition)
+            if observed_effect is not None:
+                self._effect_by_commitment[
+                    transition.commitment_id
+                ] = observed_effect.effect_id
 
             if transition.competence_id is not None and observed_effect is not None:
                 competence = self._competence_library.get(transition.competence_id)
@@ -1294,19 +1450,9 @@ class OrganismRuntime:
         if self._sensorimotor_learner is None:
             raise RuntimeError("actuation requires sensorimotor learner")
 
-        # A learned controller that naturally reached the end of its sequence
-        # completes its commitment before a new deliberative selection.
-        if (
-            self._active_action_commitment is not None
-            and self._active_action_commitment.active
-            and self._active_action_commitment.competence_id is not None
-            and self._sensorimotor_learner.active_primitive_id is None
-        ):
-            self._active_action_commitment.terminate(
-                tick=tick,
-                status=CommitmentStatus.COMPLETED,
-                reason="competence_completed",
-            )
+        # Advance an internal composed controller or close one completed
+        # competence before opening deliberation again.
+        self._advance_or_complete_competence(tick=tick)
 
         self._refresh_competence_library()
         candidate_ids = tuple(
@@ -1471,6 +1617,8 @@ class OrganismRuntime:
                     reason=decision.reason,
                 )
                 self._sensorimotor_learner.interrupt_active_competence()
+                self._active_composition_children = ()
+                self._active_composition_index = 0
 
             controller_id = (
                 f"controller.{selected.competence_id}"
@@ -1502,7 +1650,7 @@ class OrganismRuntime:
             )
 
             if selected.competence_id is not None:
-                if self._sensorimotor_learner.activate_primitive(selected.competence_id):
+                if self._activate_competence_controller(selected.competence_id):
                     primitive_selected_now = True
                     intents = self._sensorimotor_learner.motor_intents(tick)
                     self._last_executed_primitive_id = (
@@ -3391,6 +3539,9 @@ class OrganismRuntime:
                             "effect_id": item.effect_id,
                             "surface_binding": item.surface_binding,
                             "controller_strategy_ref": item.controller_strategy_ref,
+                            "parent_competence_ids": list(
+                                item.parent_competence_ids
+                            ),
                             "support": item.evidence.support,
                             "failures": item.evidence.failures,
                             "reproducibility": item.evidence.reproducibility,
@@ -3399,6 +3550,17 @@ class OrganismRuntime:
                         }
                         for item in self._competence_library.items
                     ],
+                    "composition": {
+                        "engine": self._composition_engine.checkpoint(),
+                        "predecessor_id": self._composition_predecessor_id,
+                        "active_children": list(
+                            self._active_composition_children
+                        ),
+                        "active_index": self._active_composition_index,
+                        "effect_by_commitment": dict(
+                            sorted(self._effect_by_commitment.items())
+                        ),
+                    },
                 },
             }
         else:
@@ -4005,9 +4167,47 @@ class OrganismRuntime:
                                         if item.get("controller_strategy_ref") is not None
                                         else None
                                     ),
+                                    parent_competence_ids=tuple(
+                                        str(value)
+                                        for value in item.get(
+                                            "parent_competence_ids",
+                                            [],
+                                        )
+                                    ),
                                 )
                             )
                         runtime._competence_library = restored_library
+                    raw_composition = raw_v2.get("composition")
+                    if isinstance(raw_composition, dict):
+                        raw_engine = raw_composition.get("engine")
+                        if isinstance(raw_engine, dict):
+                            runtime._composition_engine = CompositionEngine.restore(
+                                raw_engine
+                            )
+                        predecessor = raw_composition.get("predecessor_id")
+                        runtime._composition_predecessor_id = (
+                            str(predecessor)
+                            if predecessor is not None
+                            else None
+                        )
+                        children = raw_composition.get("active_children", [])
+                        if isinstance(children, list):
+                            runtime._active_composition_children = tuple(
+                                str(value) for value in children
+                            )
+                        runtime._active_composition_index = int(
+                            raw_composition.get("active_index", 0)
+                        )
+                        raw_effects = raw_composition.get(
+                            "effect_by_commitment",
+                            {},
+                        )
+                        if isinstance(raw_effects, dict):
+                            runtime._effect_by_commitment = {
+                                str(key): str(value)
+                                for key, value in raw_effects.items()
+                                if str(value).startswith("effect.")
+                            }
                 except (TypeError, ValueError, KeyError) as exc:
                     raise CheckpointError(f"invalid sensorimotor v2 checkpoint: {exc}") from exc
         raw_reactivity = normalized.get("innate_reactivity")
