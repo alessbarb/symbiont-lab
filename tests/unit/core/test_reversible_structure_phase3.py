@@ -341,3 +341,36 @@ def test_developmental_node_budget_expands_when_supported_structure_is_blocked()
     )
     assert restored is not None
     assert restored._soft_node_limit == result.node_budget
+
+
+
+def test_legacy_checkpoint_without_adaptive_budgets_restores_birth_budget() -> None:
+    limits, genome = _genome(interval=2, lifetime=8)
+    genome = replace(
+        genome,
+        development=replace(
+            genome.development,
+            soft_node_budget=48,
+            soft_edge_budget=192,
+            sense_node_budget=24,
+        ),
+    )
+    graph = CognitiveGraph(nodes=(), edges=(), kernel_limits=limits)
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=genome,
+        kernel_limits=limits,
+    )
+    payload = bridge.export_checkpoint()
+    payload.pop("adaptive_resource_budgets", None)
+
+    restored = CognitiveBridge.restore(
+        payload,
+        genome=genome,
+        kernel_limits=limits,
+    )
+
+    assert restored is not None
+    assert restored._soft_node_limit == 48
+    assert restored._soft_edge_limit == 192
+    assert restored._sense_node_limit == 24
