@@ -1477,7 +1477,7 @@ class OrganismRuntime:
         build_identity: str | None = None,
     ) -> str:
         """Derive a canonical configuration fingerprint for this organism runtime."""
-        from .fingerprint import generate_runtime_fingerprint_from_runtime
+        from symbiont.core.foundation.fingerprint import generate_runtime_fingerprint_from_runtime
         return generate_runtime_fingerprint_from_runtime(
             self,
             software_version=software_version,

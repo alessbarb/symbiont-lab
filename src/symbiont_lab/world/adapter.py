@@ -560,6 +560,8 @@ def _construct_organism(
         kind: replenishment_value
         for kind in ("observation", "cognition", "persistence", "maintenance")
     }
+    metabolism = MetabolicLedger(replenishment=replenishment)
+    physiology = PhysiologyController(body_state=metabolism.body_state)
     runtime = ModeledOrganismRuntime(
         organism_id=organism_id,
         host_lifecycle=host_lifecycle,
@@ -567,9 +569,9 @@ def _construct_organism(
         genome=genome,
         heritable_genome=heritable,
         generation=0,
-        metabolism=MetabolicLedger(replenishment=replenishment),
+        metabolism=metabolism,
         explicit_metabolism=False,
-        physiology=PhysiologyController(),
+        physiology=physiology,
         signal_identity=None,
         bootstrap_semantic_senses=True,
         discover_senses=discover_senses,

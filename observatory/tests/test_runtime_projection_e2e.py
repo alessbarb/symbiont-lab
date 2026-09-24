@@ -4,7 +4,8 @@ from pathlib import Path
 from observatory.adapter import project_tick
 from observatory.schema_validate import validate
 from symbiont.core.runtime import OrganismRuntime
-from symbiont.core.social import RelationLedger, ResourceEvidence
+from symbiont.core.social import RelationLedger
+from symbiont.core.social.relations import ResourceEvidence
 
 
 def test_real_runtime_tick_projects_to_valid_v3_snapshot():

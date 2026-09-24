@@ -56,7 +56,8 @@ def run_reproduce(manifest_path: str | Path, base_dir: Path | str | None = None)
 def main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv[1:]
-    if not argv or (argv and argv[0].startswith("--")):
+    is_help = "-h" in argv or "--help" in argv
+    if not is_help and (not argv or argv[0].startswith("--")):
         from symbiont_lab.server.server import main as unified_main
         unified_main(argv)
         return
