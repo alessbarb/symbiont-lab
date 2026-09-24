@@ -16,6 +16,7 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "cognitive-lod.js",
         WEB_ROOT / "views" / "mind" / "cognitive-observatory.js",
         WEB_ROOT / "views" / "mind" / "cognitive-refinement.js",
+        WEB_ROOT / "views" / "mind" / "cognitive-regions.js",
         WEB_ROOT / "views" / "mind" / "overview.js",
         WEB_ROOT / "views" / "mind" / "motor-learning.js",
         WEB_ROOT / "views" / "mind" / "history.js",
@@ -1270,3 +1271,92 @@ def test_cognitive_observatory_final_refinements_are_contractual() -> None:
     assert "export function recordObserverUsage(" in refinement
     assert "observer use · selections" in asset
     assert "modeChanges" in asset
+
+
+def test_cognitive_atlas_uses_organic_regions_not_perfect_circles() -> None:
+    asset = _mind_sources()
+    regions = (WEB_ROOT / "views" / "mind" / "cognitive-regions.js").read_text(encoding="utf-8")
+
+    assert "export function organicRegionShape(" in regions
+    assert "Pull empty angular sectors inward" in regions
+    assert "traceRegionPath(ctx, shape)" in asset
+    assert "polygonContains(area.polygon" in asset
+    assert "ctx.arc(s.x, s.y, radius" not in asset
+
+
+def test_organic_region_frontiers_encode_structural_tension() -> None:
+    asset = _mind_sources()
+    regions = (WEB_ROOT / "views" / "mind" / "cognitive-regions.js").read_text(encoding="utf-8")
+
+    assert "export function boundaryTension(" in regions
+    assert "High bridge tension = more permeable/discontinuous frontier" in asset
+    assert "boundary tension" in asset
+    assert "Boundary tension" in asset
+
+
+def test_region_links_are_boundary_corridors_with_directional_evidence() -> None:
+    asset = _mind_sources()
+    lod = (WEB_ROOT / "views" / "mind" / "cognitive-lod.js").read_text(encoding="utf-8")
+    regions = (WEB_ROOT / "views" / "mind" / "cognitive-regions.js").read_text(encoding="utf-8")
+
+    assert "export function boundaryPointToward(" in regions
+    assert "forward: 0" in lod
+    assert "reverse: 0" in lod
+    assert "boundaryPointToward(a, b.center" in asset
+    assert "directionBias" in asset
+    assert "Corridors to other regions" in asset
+
+
+def test_region_shape_deforms_smoothly_over_time() -> None:
+    asset = _mind_sources()
+    regions = (WEB_ROOT / "views" / "mind" / "cognitive-regions.js").read_text(encoding="utf-8")
+
+    assert "export function blendRegionShape(" in regions
+    assert "graph.regionShapeHistory2d" in asset
+    assert "graph.regionShapeHistory3d" in asset
+    assert "graph.replaySnapshot ? 1 : 0.24" in asset
+
+
+def test_region_density_and_functional_center_are_evidence_derived() -> None:
+    asset = _mind_sources()
+    regions = (WEB_ROOT / "views" / "mind" / "cognitive-regions.js").read_text(encoding="utf-8")
+
+    assert "export function densityHotspots(" in regions
+    assert "export function functionalCenter(" in regions
+    assert "drawRegionDensity(" in asset
+    assert "drawFunctionalCenter(" in asset
+    assert "Functional center" in asset
+    assert "Center displacement" in asset
+
+
+def test_anatomy_mode_exposes_proto_subregions_without_reifying_them() -> None:
+    asset = _mind_sources()
+    regions = (WEB_ROOT / "views" / "mind" / "cognitive-regions.js").read_text(encoding="utf-8")
+    atlas = (WEB_ROOT / "views" / "mind" / "cognitive-atlas.js").read_text(encoding="utf-8")
+
+    assert "export function protoSubregions(" in regions
+    assert "graph.atlasMode !== 'anatomy'" in asset
+    assert "Proto-subregions" in asset
+    assert "id: 'anatomy'" in atlas
+    assert "label: 'Anatomy'" in atlas
+
+
+def test_region_functional_centers_keep_short_observer_side_trajectories() -> None:
+    asset = _mind_sources()
+
+    assert "rememberCenterTrail(" in asset
+    assert "regionCenterTrails2d" in asset
+    assert "regionCenterTrails3d" in asset
+    assert "while (trail.length > 24)" in asset
+
+
+def test_dynamics_mode_combines_recent_activity_learning_and_prediction() -> None:
+    atlas = (WEB_ROOT / "views" / "mind" / "cognitive-atlas.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
+
+    assert "id: 'dynamics'" in atlas
+    assert "label: 'Dynamics'" in atlas
+    assert "(signal.activity ?? 0) * 0.42" in atlas
+    assert "(signal.learning ?? 0) * 0.28" in atlas
+    assert "(signal.prediction ?? 0) * 0.20" in atlas
+    assert "['learning','dynamics'].includes(graph.atlasMode)" in asset
