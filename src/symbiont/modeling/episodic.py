@@ -566,7 +566,23 @@ class EpisodicExperienceMemory:
 
     @staticmethod
     def _effect_similarity(left: EpisodicProjection, right: EpisodicProjection) -> float:
-        return _jaccard(left.effect_features, right.effect_features)
+        left_summary = tuple(
+            token for token in left.effect_features if token.startswith("effect.")
+        )
+        right_summary = tuple(
+            token for token in right.effect_features if token.startswith("effect.")
+        )
+        left_channels = tuple(
+            token for token in left.effect_features if not token.startswith("effect.")
+        )
+        right_channels = tuple(
+            token for token in right.effect_features if not token.startswith("effect.")
+        )
+        summary = _jaccard(left_summary, right_summary)
+        channels = _jaccard(left_channels, right_channels)
+        if not left_channels and not right_channels:
+            return summary
+        return 0.72 * summary + 0.28 * channels
 
     @staticmethod
     def _aggregate_projection(items: Sequence[_PendingObservation]) -> EpisodicProjection:
@@ -957,10 +973,7 @@ class EpisodicExperienceMemory:
             if len(epochs) < self._limits.episodic_min_consolidation_epochs:
                 continue
             projection = episode.projection
-            material = (
-                f"{episode.action_token}|{projection.effect_features}|"
-                f"{projection.sense_ids}|{projection.concept_ids}"
-            )
+            material = f"{episode.episode_id}|{episode.action_token}"
             contingency_id = "contingency." + hashlib.sha256(material.encode()).hexdigest()[:32]
             confidence = min(
                 1.0,
