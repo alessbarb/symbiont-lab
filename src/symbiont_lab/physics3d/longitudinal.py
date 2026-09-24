@@ -108,9 +108,17 @@ def _historical_primitives(
         primitive_id = item.get("primitive_id")
         sequence = item.get("sequence")
         if isinstance(primitive_id, str) and primitive_id and isinstance(sequence, list):
+            motor_scope = item.get("embodiment_fingerprint")
+            if not isinstance(motor_scope, str) or not motor_scope:
+                top_scope = sensorimotor.get("embodiment_fingerprint")
+                motor_scope = (
+                    str(top_scope)
+                    if isinstance(top_scope, str) and top_scope
+                    else str(contract_fingerprint_value)
+                )
             result.append({
                 "primitive_id": primitive_id,
-                "embodiment_fingerprint": str(contract_fingerprint_value),
+                "embodiment_fingerprint": motor_scope,
                 "sequence": deepcopy(sequence),
             })
     return result
@@ -210,17 +218,15 @@ def inject_memory_candidates(
             "fresh embodiment must provide canonical sensorimotor schema v10"
         )
     expected_scope = sensorimotor.get("embodiment_fingerprint")
-    if (
-        not isinstance(expected_scope, str)
-        or expected_scope != memory.get("contract_fingerprint")
-    ):
-        raise ValueError(
-            "historical motor memory does not match fresh embodiment contract"
-        )
+    if not isinstance(expected_scope, str) or not expected_scope:
+        raise ValueError("fresh sensorimotor state lacks embodiment fingerprint")
     sensorimotor["historical_candidates"] = [
         deepcopy(item)
         for item in raw[:_MAX_HISTORICAL_PRIMITIVES]
-        if isinstance(item, Mapping)
+        if (
+            isinstance(item, Mapping)
+            and item.get("embodiment_fingerprint") == expected_scope
+        )
     ]
     return fresh_actuation
 
