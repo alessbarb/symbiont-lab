@@ -84,8 +84,8 @@ from ..social.relations import (InteractionOutcome, RelationLedger, RelationVale
                      SocialHabitat, SocialPresence)
 from ..lineage.birth_authority import BirthRecord, HabitatBirthAuthority
 from ..embodiment.ontogeny import OntogenyController, OntogenySnapshot
-from ..lineage.heredity import HeritableGenome, _ALLOWED_LOCI
-from ..lineage.inheritance import EpigeneticPrior, mutate_genome
+from ..lineage.inheritance import EpigeneticPrior
+from ...genetics.mutation import mutate_genome
 from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
 from ...cognition.birth import load_base_graph
 from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
@@ -239,7 +239,7 @@ class OrganismRuntime:
     self-model can constrain plastic updates instead of merely describing them.
     """
 
-    _SUPPORTED_EPIGENETIC_KEYS = frozenset(_ALLOWED_LOCI | {"exploration_bias"})
+    _SUPPORTED_EPIGENETIC_KEYS = frozenset()
 
     def __init__(
         self,
@@ -264,7 +264,7 @@ class OrganismRuntime:
         body_schema: BodySchemaEngine | None = None,
         evidence_ledger: EvidenceRevisionLedger | None = None,
         genome: Genome | None = None,
-        heritable_genome: HeritableGenome | None = None,
+        heritable_genome: object | None = None,
         mutation_seed: int = 0,
         epigenetic_priors: tuple[EpigeneticPrior, ...] = (),
         epigenetic_decay: float = 0.05,
@@ -656,15 +656,16 @@ class OrganismRuntime:
                 or len({item.key for item in epigenetic_priors}) != len(epigenetic_priors)
                 or any(item.key not in self._SUPPORTED_EPIGENETIC_KEYS for item in epigenetic_priors)):
             raise ValueError("epigenetic_priors exceed bounded capacity")
-        self._heritable_genome = heritable_genome
+        # Historical heritable_genome input is no longer an operative genetic
+        # source. Reject non-null values rather than running two genomes.
+        if heritable_genome is not None:
+            raise ValueError("HeritableGenome is removed; pass Genome v2 via genome")
+        self._heritable_genome = None
         self._mutation_seed = mutation_seed
         self._epigenetic_priors = tuple(epigenetic_priors)
         self._epigenetic_decay = float(epigenetic_decay)
         if self._birth_authority is not None and self._organism_id not in self._birth_authority.live_ids:
-            genome_id = (
-                self._heritable_genome.identity if self._heritable_genome is not None
-                else self._genome.genome_id if self._genome is not None else "runtime"
-            )
+            genome_id = self._genome.genome_id if self._genome is not None else "runtime"
             if self._birth_authority.register_existing(organism_id=self._organism_id,
                                                        genome_id=genome_id,
                                                        generation=self._generation) is None:
@@ -1714,42 +1715,17 @@ class OrganismRuntime:
             if item.value * factor > 1e-12
         )
 
-    def _next_heritable_genome(self) -> HeritableGenome | None:
-        if self._heritable_genome is None or self._genome is None:
+    def _next_heritable_genome(self) -> Genome | None:
+        """Create the next genotype through the single typed Genome v2 path."""
+        if self._genome is None:
             return None
         return mutate_genome(
-            self._heritable_genome,
-            sigma=self._genome.mutation_policy.continuous_sigma,
-            max_fields=self._genome.mutation_policy.max_fields_per_generation,
+            self._genome,
             seed=self._mutation_seed + self._generation + 1,
         )
 
-    def _child_genome(self, inherited: HeritableGenome) -> Genome:
-        """Project bounded loci into a fresh validated operational genome."""
-        if self._genome is None:
-            raise RuntimeError("heritable projection requires an operational genome")
-        loci = dict(inherited.loci)
-        development = self._genome.development
-        node_budget = max(1, min(self._kernel_limits.max_nodes, round(loci.get("soft_node_budget", development.soft_node_budget))))
-        edge_budget = max(1, min(self._kernel_limits.max_edges, round(loci.get("soft_edge_budget", development.soft_edge_budget))))
-        initial_concepts = max(0, min(self._kernel_limits.max_concepts, round(loci.get("initial_concepts", development.initial_concepts))))
-        development = replace(
-            development,
-            initial_concepts=initial_concepts,
-            soft_node_budget=node_budget,
-            soft_edge_budget=edge_budget,
-            sense_node_budget=min(development.sense_node_budget, node_budget),
-        )
-        plasticity = self._genome.plasticity
-        learning = plasticity.learning_rate
-        forgetting = plasticity.forgetting_rate
-        if "learning_rate" in loci:
-            learning = replace(learning, initial=max(learning.minimum, min(learning.maximum, loci["learning_rate"])))
-        if "forgetting_rate" in loci:
-            forgetting = replace(forgetting, initial=max(forgetting.minimum, min(forgetting.maximum, loci["forgetting_rate"])))
-        plasticity = replace(plasticity, learning_rate=learning, forgetting_rate=forgetting)
-        return replace(self._genome, genome_id=inherited.identity, parent_ids=(self._genome.genome_id,),
-                       development=development, plasticity=plasticity)
+    def _child_genome(self, inherited: Genome) -> Genome:
+        return inherited
 
     @property
     def generation(self) -> int:
@@ -3151,12 +3127,7 @@ class OrganismRuntime:
             if self._gene_expression_state is not None
             else None
         )
-        payload["heritable_genome"] = (
-            {"genome_id": self._heritable_genome.genome_id,
-             "loci": [[key, value] for key, value in self._heritable_genome.loci],
-             "identity": self._heritable_genome.identity}
-            if self._heritable_genome is not None else None
-        )
+        payload["heritable_genome"] = None
         payload["mutation_seed"] = self._mutation_seed
         payload["epigenetic_priors"] = [
             {"key": prior.key, "value": prior.value} for prior in self._epigenetic_priors
