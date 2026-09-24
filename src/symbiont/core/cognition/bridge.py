@@ -28,6 +28,7 @@ from ...cognition.learning import (
     update_eligibility,
 )
 from ...cognition.limits import KernelLimits
+from ...genetics.expression import GeneExpressionState
 from ...cognition.metaplasticity import SafetyState
 from ...cognition.structure import (
     EdgeLifecycleState,
@@ -242,9 +243,11 @@ class CognitiveBridge:
         structural_plasticity: StructuralPlasticity | None = None,
         safety_state: SafetyState | None = None,
         develop_senses: bool | None = None,
+        expression_state: GeneExpressionState | None = None,
     ) -> None:
         self._graph = graph
         self._genome = genome
+        self._expression_state = expression_state or GeneExpressionState.from_genome(genome)
         self._kernel_limits = kernel_limits
         self._structural_plasticity = (
             structural_plasticity
@@ -321,6 +324,14 @@ class CognitiveBridge:
         self._cached_concept_signature_pairs: set[tuple[str, str]] = set()
         self._cached_topology_health_key: tuple[int, bool] | None = None
         self._cached_topology_health: TopologyHealth | None = None
+
+    def set_expression_state(self, state: GeneExpressionState) -> None:
+        """Install the expression snapshot that becomes effective this tick."""
+        self._expression_state = state
+
+    @property
+    def expression_state(self) -> GeneExpressionState:
+        return self._expression_state
 
     def _topology_cache(self) -> tuple[dict[str, NodeKind], set[tuple[str, str]]]:
         if (
@@ -1704,7 +1715,7 @@ class CognitiveBridge:
         kinds, _ = self._topology_cache()
         for node_id in self._salient_concept_ids(activations):
             self._concept_last_active_tick[node_id] = self._tick
-        threshold = max(_ACTIVITY_THRESHOLD, self._genome.structure.grow_threshold)
+        threshold = max(_ACTIVITY_THRESHOLD, self._expression_state.effective_growth_threshold)
         active_senses = sorted(
             node_id
             for node_id, value in activations.items()
@@ -2999,8 +3010,8 @@ class CognitiveBridge:
                     edge,
                     source_activation=source_value,
                     target_activation=target_current,
-                    learning_rate=self._genome.plasticity.learning_rate.initial,
-                    modulation=tick_modulation * edge.plasticity,
+                    learning_rate=self._expression_state.effective_learning_rate,
+                    modulation=(tick_modulation * edge.plasticity * self._expression_state.effective_structural_plasticity),
                     eligible=eligible,
                     frozen=frozen,
                 )
@@ -3198,7 +3209,7 @@ class CognitiveBridge:
                 if evaluate_edge_lifecycle(
                     edge,
                     current_tick=tick,
-                    prune_threshold=self._genome.structure.prune_threshold,
+                    prune_threshold=self._expression_state.effective_pruning_threshold,
                     minimum_support=self._genome.structure.minimum_support,
                     quarantine_window_ticks=self._genome.structure.tentative_lifetime_ticks,
                     tentative_lifetime_ticks=self._genome.structure.tentative_lifetime_ticks,
