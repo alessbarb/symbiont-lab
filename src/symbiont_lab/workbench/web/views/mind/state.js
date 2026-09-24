@@ -75,6 +75,18 @@ export const snap = {
   outcome: null,
 };
 
+export const observerUsage = {
+  startedAt: Date.now(),
+  modeChanges: {},
+  dimensionChanges: {},
+  selections: 0,
+  regionFocuses: 0,
+  timelineScrubs: 0,
+  diffUses: 0,
+  flowTraces: 0,
+  lastMode: null,
+};
+
 export const graph = {
   nodes: [],
   edges: [],
@@ -121,6 +133,9 @@ export const graph = {
   regionLinks: [],
   learningFrontierClusters: [],
   cognitiveSituation: null,
+  flowTraceEnabled: false,
+  autoFramePending: true,
+  manualViewOverride: false,
   atlasRegionGeometry2d: new Map(),
   atlasRegionGeometry3d: new Map(),
   hiddenMotor: { actuators: 0, motorEdges: 0 },
@@ -185,6 +200,9 @@ export function resetMindDataState() {
   graph.regionLinks = [];
   graph.learningFrontierClusters = [];
   graph.cognitiveSituation = null;
+  graph.flowTraceEnabled = false;
+  graph.autoFramePending = true;
+  graph.manualViewOverride = false;
   graph.atlasRegionGeometry2d.clear();
   graph.atlasRegionGeometry3d.clear();
 }
