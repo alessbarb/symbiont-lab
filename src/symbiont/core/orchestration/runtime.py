@@ -109,7 +109,7 @@ from ...actuation.effects import EffectSpace
 from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
 from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from ...actuation.model import ControllabilityModel
-from ...actuation.exploration import ExplorationPolicy
+from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.composition import CompositionEngine
 from ...actuation.sensorimotor import (
     SensorimotorLearner,
@@ -682,6 +682,9 @@ class OrganismRuntime:
         self._competence_library = CompetenceLibrary()
         self._controllability_model = ControllabilityModel()
         self._exploration_policy = ExplorationPolicy()
+        self._exploration_strength_memory: dict[str, float] = {}
+        self._active_exploration_preference: tuple[str, ...] = ()
+        self._last_exploration_signals: dict[str, ExplorationSignals] = {}
         self._composition_engine = CompositionEngine()
         self._pending_sensorimotor_transition: dict[str, Any] | None = None
         self._last_sensorimotor_transition: SensorimotorTransition | None = None
@@ -1077,6 +1080,49 @@ class OrganismRuntime:
         """
         return None
 
+    def _rank_exploration_opportunities(
+        self,
+        *,
+        exploration_drive: float,
+        reactive_state: ReactiveState,
+    ) -> tuple[str, ...]:
+        """Choose an opaque local opportunity from organism-owned evidence only."""
+        if self._actuator_proposer is None:
+            self._last_exploration_signals = {}
+            return ()
+        opportunities: list[tuple[str, ExplorationSignals]] = []
+        current_strengths: dict[str, float] = {}
+        physiological_cost = max(
+            0.0,
+            min(1.0, 1.0 - float(self._homeostasis.activity_scale)),
+        )
+        risk = max(0.0, min(1.0, float(reactive_state.withdrawal)))
+        for state in self._actuator_proposer.states:
+            activations = max(0, int(state.activations))
+            strength = max(0.0, min(1.0, float(state.effect_strength)))
+            previous = self._exploration_strength_memory.get(
+                state.actuator_id,
+                strength,
+            )
+            progress = max(0.0, strength - previous)
+            current_strengths[state.actuator_id] = strength
+            signals = ExplorationSignals(
+                uncertainty=max(0.0, 1.0 - min(1.0, activations / 12.0)),
+                novelty=1.0 / (1.0 + activations),
+                learning_progress=progress,
+                effect_relevance=max(0.0, min(1.0, exploration_drive)),
+                controllability_potential=(
+                    None if activations == 0 else strength
+                ),
+                physiological_cost=physiological_cost,
+                risk=risk,
+            )
+            opportunities.append((state.actuator_id, signals))
+        self._exploration_strength_memory.update(current_strengths)
+        self._last_exploration_signals = dict(opportunities)
+        chosen = self._exploration_policy.choose(tuple(opportunities))
+        return (chosen,) if chosen is not None else ()
+
     def _refresh_competence_library(self) -> None:
         """Project sequence evidence into the v2 competence repertoire.
 
@@ -1372,9 +1418,15 @@ class OrganismRuntime:
             else 0.25
         )
         exploration_drive = max(0.0, min(1.0, float(exploration_drive)))
-        if exploration_drive > 0.0:
+        ranked_exploration = self._rank_exploration_opportunities(
+            exploration_drive=exploration_drive,
+            reactive_state=reactive_state,
+        )
+        if exploration_drive > 0.0 and ranked_exploration:
+            preferred_id = ranked_exploration[0]
+            signals = self._last_exploration_signals[preferred_id]
             proposal_id = "proposal." + hashlib.sha256(
-                f"{self._organism_id}:{tick}:exploration".encode("utf-8")
+                f"{self._organism_id}:{tick}:exploration:{preferred_id}".encode("utf-8")
             ).hexdigest()[:24]
             proposals.append(
                 ActionProposal(
@@ -1384,10 +1436,22 @@ class OrganismRuntime:
                     competence_id=None,
                     justification=ActionJustification(
                         originating_need_id="internal.sensorimotor-uncertainty",
+                        evidence_refs=(f"channel.{preferred_id}",),
                     ),
                     evaluation=ActionEvaluation(
-                        epistemic_relevance=exploration_drive,
-                        uncertainty=max(0.05, exploration_drive),
+                        epistemic_relevance=max(
+                            exploration_drive,
+                            max(0.0, signals.learning_progress),
+                        ),
+                        effect_confidence=(
+                            signals.controllability_potential
+                            if signals.controllability_potential is not None
+                            else 0.0
+                        ),
+                        controllability=signals.controllability_potential,
+                        uncertainty=max(0.0, min(1.0, signals.uncertainty)),
+                        estimated_cost=signals.physiological_cost,
+                        estimated_risk=signals.risk,
                     ),
                 )
             )
@@ -1417,6 +1481,11 @@ class OrganismRuntime:
                 f"{selected.proposal_id}:{tick}".encode("utf-8")
             ).hexdigest()[:24]
             self._last_action_proposal = selected
+            self._active_exploration_preference = (
+                ranked_exploration
+                if selected.source is ActionSource.EXPLORATION
+                else ()
+            )
             self._active_action_commitment = ActionCommitment(
                 commitment_id=commitment_id,
                 proposal_id=selected.proposal_id,
@@ -1447,7 +1516,10 @@ class OrganismRuntime:
                     )
                     intents = ()
             else:
-                intents = self._sensorimotor_learner.motor_intents(tick)
+                intents = self._sensorimotor_learner.motor_intents(
+                    tick,
+                    exploration_preference=self._active_exploration_preference,
+                )
 
             self._last_action_source = selected.source.value
 
@@ -1462,7 +1534,10 @@ class OrganismRuntime:
                         self._sensorimotor_learner.last_output_primitive_id
                     )
             else:
-                intents = self._sensorimotor_learner.motor_intents(tick)
+                intents = self._sensorimotor_learner.motor_intents(
+                    tick,
+                    exploration_preference=self._active_exploration_preference,
+                )
             self._last_action_source = source_value
 
         if self._last_action_source == "exploration" and len(intents) == 1:
@@ -3301,6 +3376,14 @@ class OrganismRuntime:
                     },
                     "effect_space": self._effect_space.checkpoint(),
                     "causal_evidence": self._causal_evidence.checkpoint(),
+                    "exploration": {
+                        "strength_memory": dict(
+                            sorted(self._exploration_strength_memory.items())
+                        ),
+                        "active_preference": list(
+                            self._active_exploration_preference
+                        ),
+                    },
                     "competences": [
                         {
                             "competence_id": item.competence_id,
@@ -3852,6 +3935,34 @@ class OrganismRuntime:
                         runtime._effect_space = EffectSpace.restore(raw_effects)
                     if isinstance(raw_evidence, dict):
                         runtime._causal_evidence = CausalEvidenceLedger.restore(raw_evidence)
+                    raw_exploration = raw_v2.get("exploration")
+                    if isinstance(raw_exploration, dict):
+                        raw_strength = raw_exploration.get("strength_memory", {})
+                        if isinstance(raw_strength, dict):
+                            runtime._exploration_strength_memory = {
+                                str(key): max(0.0, min(1.0, float(value)))
+                                for key, value in raw_strength.items()
+                                if str(key) in set(
+                                    runtime._actuator_constitution.actuator_ids
+                                    if runtime._actuator_constitution is not None
+                                    else ()
+                                )
+                            }
+                        raw_preference = raw_exploration.get(
+                            "active_preference",
+                            [],
+                        )
+                        if isinstance(raw_preference, list):
+                            known = set(
+                                runtime._actuator_constitution.actuator_ids
+                                if runtime._actuator_constitution is not None
+                                else ()
+                            )
+                            runtime._active_exploration_preference = tuple(
+                                str(value)
+                                for value in raw_preference
+                                if str(value) in known
+                            )
                     raw_competences = raw_v2.get("competences", [])
                     if isinstance(raw_competences, list):
                         restored_library = CompetenceLibrary()
