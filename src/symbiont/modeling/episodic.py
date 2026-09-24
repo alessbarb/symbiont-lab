@@ -253,15 +253,27 @@ class EpisodeStep:
     @classmethod
     def restore(cls, payload: Mapping[str, object]) -> "EpisodeStep":
         try:
+            tick_offset = payload["tick_offset"]
+            record_id = payload["source_record_id"]
+            content_hash = payload["source_content_hash"]
             raw_refs = payload["evidence_refs"]
-            if not isinstance(raw_refs, list):
-                raise EpisodicMemoryError("invalid episodic step evidence")
+            raw_source_kind = payload["source_kind"]
+            if (
+                isinstance(tick_offset, bool)
+                or not isinstance(tick_offset, int)
+                or not isinstance(record_id, str)
+                or not isinstance(content_hash, str)
+                or not isinstance(raw_refs, list)
+                or any(not isinstance(item, str) for item in raw_refs)
+                or not isinstance(raw_source_kind, str)
+            ):
+                raise EpisodicMemoryError("invalid episodic step checkpoint")
             return cls(
-                tick_offset=int(payload["tick_offset"]),
-                source_record_id=str(payload["source_record_id"]),
-                source_content_hash=str(payload["source_content_hash"]),
-                evidence_refs=tuple(str(item) for item in raw_refs),
-                source_kind=SourceKind(str(payload["source_kind"])),
+                tick_offset=tick_offset,
+                source_record_id=record_id,
+                source_content_hash=content_hash,
+                evidence_refs=tuple(raw_refs),
+                source_kind=SourceKind(raw_source_kind),
             )
         except (KeyError, TypeError, ValueError) as exc:
             if isinstance(exc, EpisodicMemoryError):
@@ -412,10 +424,42 @@ class ExperienceEpisode:
             return result
 
         try:
-            recurrence = int(payload.get("recurrence", 1))
+            raw_recurrence = payload.get("recurrence", 1)
+            raw_start_tick = payload["start_tick"]
+            raw_end_tick = payload["end_tick"]
+            raw_episode_id = payload["episode_id"]
+            raw_novelty = payload["novelty"]
+            raw_surprise = payload["surprise"]
+            raw_compressed = payload.get("compressed", False)
+            if (
+                isinstance(raw_recurrence, bool)
+                or not isinstance(raw_recurrence, int)
+                or isinstance(raw_start_tick, bool)
+                or not isinstance(raw_start_tick, int)
+                or isinstance(raw_end_tick, bool)
+                or not isinstance(raw_end_tick, int)
+                or not isinstance(raw_episode_id, str)
+                or isinstance(raw_novelty, bool)
+                or not isinstance(raw_novelty, (int, float))
+                or isinstance(raw_surprise, bool)
+                or not isinstance(raw_surprise, (int, float))
+                or not isinstance(raw_compressed, bool)
+            ):
+                raise EpisodicMemoryError("invalid episodic scalar checkpoint")
+            recurrence = raw_recurrence
             raw_occurrences = payload["occurrence_ticks"]
             raw_trace = payload.get("trace", [])
-            if not isinstance(raw_occurrences, list) or not isinstance(raw_trace, list):
+            if (
+                not isinstance(raw_occurrences, list)
+                or not raw_occurrences
+                or any(
+                    isinstance(tick, bool) or not isinstance(tick, int)
+                    for tick in raw_occurrences
+                )
+                or not isinstance(raw_trace, list)
+                or len(raw_trace) > 8
+                or any(not isinstance(step, Mapping) for step in raw_trace)
+            ):
                 raise EpisodicMemoryError("invalid episode collections")
             raw_evidence = payload.get("evidence_refs", [])
             raw_sources = payload.get("source_record_ids", [])
@@ -429,12 +473,19 @@ class ExperienceEpisode:
             ):
                 raise EpisodicMemoryError("invalid episode provenance")
             return cls(
-                episode_id=str(payload["episode_id"]),
-                start_tick=int(payload["start_tick"]),
-                end_tick=int(payload["end_tick"]),
-                occurrence_ticks=tuple(int(tick) for tick in raw_occurrences),
+                episode_id=raw_episode_id,
+                start_tick=raw_start_tick,
+                end_tick=raw_end_tick,
+                occurrence_ticks=tuple(raw_occurrences),
                 trace=tuple(EpisodeStep.restore(step) for step in raw_trace if isinstance(step, Mapping)),
-                action_token=payload.get("action_token") if isinstance(payload.get("action_token"), str) else None,
+                action_token=(
+                    payload.get("action_token")
+                    if payload.get("action_token") is None
+                    or isinstance(payload.get("action_token"), str)
+                    else (_ for _ in ()).throw(
+                        EpisodicMemoryError("invalid episode action token")
+                    )
+                ),
                 sense_support=support("sense_support", 32, recurrence),
                 concept_support=support("concept_support", 16, recurrence),
                 internal_support=support("internal_support", 16, recurrence),
@@ -445,10 +496,10 @@ class ExperienceEpisode:
                 ),
                 evidence_refs=_bounded_unique((str(item) for item in raw_evidence), limit=32),
                 source_record_ids=_bounded_unique((str(item) for item in raw_sources), limit=32),
-                novelty=float(payload["novelty"]),
-                surprise=float(payload["surprise"]),
+                novelty=float(raw_novelty),
+                surprise=float(raw_surprise),
                 recurrence=recurrence,
-                compressed=bool(payload.get("compressed", False)),
+                compressed=raw_compressed,
             )
         except (KeyError, TypeError, ValueError) as exc:
             if isinstance(exc, EpisodicMemoryError):
@@ -1279,8 +1330,42 @@ class EpisodicExperienceMemory:
                 source_kind=SourceKind.ACTION_OUTCOME,
             )
             projection = EpisodicProjection.from_record(pseudo_record)
-            memory.observe(pseudo_record, projection)
-            memory.flush()
+            raw_occurrences = raw.get("occurrence_ticks", [pseudo_record.tick_class])
+            if not isinstance(raw_occurrences, list) or not raw_occurrences:
+                raw_occurrences = [pseudo_record.tick_class]
+            valid_occurrences = [
+                tick
+                for tick in raw_occurrences
+                if isinstance(tick, int)
+                and not isinstance(tick, bool)
+                and tick >= 0
+            ]
+            if not valid_occurrences:
+                valid_occurrences = [pseudo_record.tick_class]
+            for occurrence_index, occurrence_tick in enumerate(valid_occurrences[:64]):
+                migrated = ExperienceRecord(
+                    record_id=(
+                        pseudo_record.record_id
+                        if occurrence_index == 0
+                        else (
+                            "transition.migrated."
+                            + hashlib.sha256(
+                                f"{pseudo_record.record_id}:{occurrence_tick}:{occurrence_index}".encode()
+                            ).hexdigest()[:24]
+                        )
+                    ),
+                    organism_id=organism_id,
+                    tick_class=occurrence_tick,
+                    context_tokens=pseudo_record.context_tokens,
+                    action_token=pseudo_record.action_token,
+                    outcome_tokens=pseudo_record.outcome_tokens,
+                    epistemic_status=EpistemicStatus.OBSERVED,
+                    evidence_refs=pseudo_record.evidence_refs,
+                    confidence_class=pseudo_record.confidence_class,
+                    source_kind=pseudo_record.source_kind,
+                )
+                memory.observe(migrated, projection)
+                memory.flush()
         memory._interpretations = {}
         return memory
 
