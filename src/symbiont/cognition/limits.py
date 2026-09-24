@@ -10,14 +10,16 @@ class KernelLimits:
     §13 invariant 1) -- a genome's soft budgets are validated against
     these but can never exceed them."""
 
-    max_nodes: int = 192
-    max_concepts: int = 32
-    max_edges: int = 1536
-    max_tentative_edges: int = 128
-    max_structural_mutations_per_consolidation: int = 8
+    # Safety ceilings only. Developmental budgets start much lower in the
+    # genome and may expand endogenously when sustained evidence justifies it.
+    max_nodes: int = 768
+    max_concepts: int = 192
+    max_edges: int = 6144
+    max_tentative_edges: int = 512
+    max_structural_mutations_per_consolidation: int = 16
     consolidation_interval_ticks: int = 32
-    max_plastic_checkpoint_bytes: int = 2 * 1024 * 1024
-    max_consolidation_candidates: int = 256
+    max_plastic_checkpoint_bytes: int = 8 * 1024 * 1024
+    max_consolidation_candidates: int = 1024
     max_salient_event_traces: int = 64
     consolidation_epoch_ticks: int = 8
     slow_support_epochs: int = 4
