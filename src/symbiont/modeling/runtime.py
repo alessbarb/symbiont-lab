@@ -14,7 +14,7 @@ from .authority import ArchitectureId, ModelArtifactManifest, ModelObjective, Tr
 from .corpus import TrainingCorpus, build_training_corpus
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .gateway import PrivateModelBridge
-from .ledger import ExperienceLedger
+from .ledger import ExperienceLedger, HistoricalExperienceArchive
 from .episodic import (
     CognitiveReplay,
     EpisodeMatch,
@@ -99,6 +99,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         *,
         model_registry: ModelRegistry | None = None,
         experience_ledger: ExperienceLedger | None = None,
+        experience_archive: HistoricalExperienceArchive | None = None,
         episodic_memory: EpisodicExperienceMemory | None = None,
         private_model_bridge: PrivateModelBridge | None = None,
         social_evidence_ledger: SocialEvidenceLedger | None = None,
@@ -130,6 +131,15 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise ValueError("experience ledger belongs to a different organism")
         self._model_registry = model_registry or ModelRegistry(self.organism_id)
         self._experience_ledger = experience_ledger or ExperienceLedger(self.organism_id)
+        if (
+            experience_archive is not None
+            and experience_archive.organism_id != self.organism_id
+        ):
+            raise ValueError("experience archive belongs to a different organism")
+        self._experience_archive = (
+            experience_archive
+            or HistoricalExperienceArchive(self.organism_id)
+        )
         if episodic_memory is not None and episodic_memory.organism_id != self.organism_id:
             raise ValueError("episodic memory belongs to a different organism")
         self._episodic_memory = episodic_memory or EpisodicExperienceMemory(
@@ -176,6 +186,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
     @property
     def experience_ledger(self) -> ExperienceLedger:
         return self._experience_ledger
+
+    @property
+    def experience_archive(self) -> HistoricalExperienceArchive:
+        return self._experience_archive
 
     @property
     def episodic_memory(self) -> EpisodicExperienceMemory:
@@ -504,7 +518,14 @@ class ModeledOrganismRuntime(OrganismRuntime):
     ) -> None:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot record new experience")
-        self._experience_ledger.append(record)
+        evicted_record = self._experience_ledger.append(record)
+        if (
+            evicted_record is not None
+            and evicted_record.record_id.startswith("transition.")
+            and evicted_record.epistemic_status is EpistemicStatus.OBSERVED
+            and evicted_record.source_kind is not SourceKind.MODEL
+        ):
+            self._experience_archive.consider(evicted_record)
         if (
             record.record_id.startswith("transition.")
             and record.epistemic_status is EpistemicStatus.OBSERVED
@@ -679,15 +700,27 @@ class ModeledOrganismRuntime(OrganismRuntime):
         ):
             raise ValueError("max_records must be an integer within [3, 65536]")
 
-        # Private-model training remains grounded in exact causal records.
-        # Episodic memory v2 stores compact cognitive families plus provenance,
-        # not telemetry-sized raw records, so it must never fabricate training
-        # examples after the authoritative causal ledger has aged them out.
-        selected = tuple(
+        # Training remains grounded in exact causal records. Keep the live
+        # ledger recent, and fill the remaining corpus budget from a
+        # deterministic all-time archive of evicted causal transitions.
+        live = tuple(
             sorted(
                 self._experience_ledger.records,
                 key=lambda record: (record.tick_class, record.record_id),
-            )[-max_records:]
+            )
+        )
+        live_selected = live[-min(len(live), max_records):]
+        historical_slots = max(0, max_records - len(live_selected))
+        archived = self._experience_archive.sample(historical_slots)
+        combined = {
+            record.record_id: record
+            for record in (*archived, *live_selected)
+        }
+        selected = tuple(
+            sorted(
+                combined.values(),
+                key=lambda record: (record.tick_class, record.record_id),
+            )
         )
         return build_training_corpus(selected, max_records=max_records)
 
@@ -703,13 +736,22 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._private_model_bridge = bridge
 
     def _private_causal_records(self) -> tuple[ExperienceRecord, ...]:
-        """Return only independently observed temporal transitions."""
-        return tuple(
-            record
-            for record in self._experience_ledger.records
+        """Return an exact bounded cross-lifetime sample of causal transitions."""
+        combined = {
+            record.record_id: record
+            for record in (
+                *self._experience_archive.records,
+                *self._experience_ledger.records,
+            )
             if record.record_id.startswith("transition.")
             and record.epistemic_status is EpistemicStatus.OBSERVED
             and record.source_kind is not SourceKind.MODEL
+        }
+        return tuple(
+            sorted(
+                combined.values(),
+                key=lambda record: (record.tick_class, record.record_id),
+            )
         )
 
     def _private_validation_contradiction_ratio(self) -> tuple[int, float]:
@@ -1234,6 +1276,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload = super().checkpoint()
         payload["private_model_registry"] = self._model_registry.checkpoint()
         payload["experience_ledger"] = self._experience_ledger.checkpoint()
+        payload["experience_archive"] = self._experience_archive.checkpoint()
         payload["episodic_memory"] = self._episodic_memory.checkpoint()
         payload["social_evidence_ledger"] = self._social_evidence_ledger.checkpoint()
         payload["private_model_config"] = {
@@ -1278,6 +1321,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         )
         runtime._experience_ledger = ExperienceLedger.restore(
             payload.get("experience_ledger"),
+            organism_id=runtime.organism_id,
+        )
+        runtime._experience_archive = HistoricalExperienceArchive.restore(
+            payload.get("experience_archive"),
             organism_id=runtime.organism_id,
         )
         raw_episodic_memory = payload.get("episodic_memory")
