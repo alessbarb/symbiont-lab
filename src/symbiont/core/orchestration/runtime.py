@@ -90,6 +90,7 @@ from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
 from ...cognition.birth import load_base_graph
 from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
 from ...actuation.constitution import ActuatorConstitution
+from ...actuation.surface import ActuatorChannel, ActuatorSurface
 from ...actuation.health import ActuatorState
 from ...actuation.proposer import ActuatorProposer
 from ...actuation.candidate import ActuatorCandidateState
@@ -3145,6 +3146,11 @@ class OrganismRuntime:
         payload["body_schema"] = self._body_schema.export(current_tick=self._tick_count)
         payload["evidence_ledger"] = self._evidence_ledger.export_checkpoint()
         payload["genome"] = export_genome_checkpoint(self._genome)
+        payload["gene_expression"] = (
+            self._gene_expression_state.as_dict()
+            if self._gene_expression_state is not None
+            else None
+        )
         payload["heritable_genome"] = (
             {"genome_id": self._heritable_genome.genome_id,
              "loci": [[key, value] for key, value in self._heritable_genome.loci],
@@ -3361,6 +3367,19 @@ class OrganismRuntime:
             kernel_limits=kernel_limits,
             running_version=_parse_running_version(_symbiont_version),
         )
+        gene_expression_state = None
+        raw_expression = normalized.get("gene_expression")
+        if genome is not None:
+            if raw_expression is None:
+                gene_expression_state = GeneExpressionState.from_genome(genome)
+            else:
+                if not isinstance(raw_expression, dict):
+                    raise CheckpointError("invalid gene expression checkpoint")
+                try:
+                    from ...genetics.expression import restore_expression_state
+                    gene_expression_state = restore_expression_state(raw_expression, genome)
+                except ValueError as exc:
+                    raise CheckpointError(f"invalid gene expression checkpoint: {exc}") from exc
         heritable_genome = None
         raw_heritable = normalized.get("heritable_genome")
         if raw_heritable is not None:
@@ -3427,23 +3446,37 @@ class OrganismRuntime:
                 raise CheckpointError("invalid motor exploration mode")
             motor_exploration_mode = str(raw_mode)
             if enabled:
-                if genome is None:
-                    raise CheckpointError("actuation checkpoint requires genome")
-                actuator_constitution = load_actuator_constitution(genome)
-                expected_constitution = {
-                    "slots": [
-                        {
-                            "slot_id": slot.slot_id,
-                            "actuator_id": slot.actuator_id,
-                            "basal_cost": slot.basal_cost,
-                            "initial_health": slot.initial_health,
-                            "execution_threshold": slot.execution_threshold,
-                        }
-                        for slot in actuator_constitution.slots
-                    ]
-                }
-                if raw_actuation.get("constitution") != expected_constitution:
-                    raise CheckpointError("actuation constitution does not match restored genome")
+                raw_constitution = raw_actuation.get("constitution")
+                if not isinstance(raw_constitution, dict):
+                    raise CheckpointError("actuation constitution is missing")
+                raw_slots = raw_constitution.get("slots")
+                if not isinstance(raw_slots, list):
+                    raise CheckpointError("actuation constitution slots must be a list")
+                try:
+                    channels = tuple(
+                        ActuatorChannel(
+                            slot_id=str(item["slot_id"]),
+                            actuator_id=str(item["actuator_id"]),
+                            basal_cost=float(item["basal_cost"]),
+                            initial_health=float(item["initial_health"]),
+                            execution_threshold=float(item["execution_threshold"]),
+                        )
+                        for item in raw_slots
+                    )
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise CheckpointError(f"invalid body-owned actuator constitution: {exc}") from exc
+                fingerprint_material = json.dumps(
+                    raw_constitution,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                )
+                actuator_constitution = ActuatorSurface(
+                    channels=channels,
+                    contract_fingerprint=hashlib.sha256(
+                        fingerprint_material.encode("utf-8")
+                    ).hexdigest(),
+                )
                 try:
                     actuator_proposer = restore_actuation_state(
                         raw_actuation["proposer"],
@@ -3661,6 +3694,7 @@ class OrganismRuntime:
             epigenetic_priors=epigenetic_priors,
             epigenetic_decay=float(normalized.get("epigenetic_decay", 0.05)),
             cognitive_bridge=cognitive_bridge,
+            gene_expression_state=gene_expression_state,
             memory_consolidator=memory_consolidator,
             tick_count=max(int(normalized.get("saved_at_tick") or 0), int(getattr(signal_knowledge, "_last_tick", 0) or 0)),
             organism_id=normalized.get("organism_id"),
