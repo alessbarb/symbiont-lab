@@ -2462,7 +2462,7 @@ class CognitiveBridge:
         if payload is None:
             return {}
         allowed = set(allowed_predictor_ids)
-        if not isinstance(payload, list) or len(payload) > len(allowed):
+        if not isinstance(payload, list):
             raise GraphError("predictor_utility must be a bounded list")
         restored: dict[str, _PredictorUtility] = {}
         for entry in payload:
