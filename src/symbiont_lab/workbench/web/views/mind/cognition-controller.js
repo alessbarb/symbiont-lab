@@ -1076,48 +1076,46 @@ export function createCognitionController({
     graph.atlasRegionHitAreas3d = [];
     graph.atlasRegionGeometry3d.clear();
     if (sectorFocus) return;
+    const tick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+    const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
+
     for (const region of graph.atlasRegions ?? []) {
       const projected = region.nodeIds
         .map(id => scene.byId.get(id))
-        .filter(Boolean);
+        .filter(Boolean)
+        .map(item => ({
+          id: item.node.id,
+          x: item.x,
+          y: item.y,
+          radius: item.radius,
+          atlasScore: item.node.atlasScore,
+          signals: item.node.atlasSignals,
+        }));
       if (projected.length < 2) continue;
-      const x = projected.reduce((sum, item) => sum + item.x, 0) / projected.length;
-      const y = projected.reduce((sum, item) => sum + item.y, 0) / projected.length;
-      let radius = 24;
-      for (const item of projected) {
-        radius = Math.max(radius, Math.hypot(item.x - x, item.y - y) + item.radius + 10);
-      }
-      radius = Math.min(190, radius);
-      graph.atlasRegionHitAreas3d.push({ id: region.id, x, y, radius });
-      graph.atlasRegionGeometry3d.set(region.id, { x, y, radius });
-      const score = atlasRegionScore(region);
-      const active = graph.focusedSectorId === region.id;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(80,217,255,${0.025 + score * 0.075})`;
-      ctx.strokeStyle = active
-        ? 'rgba(200,216,228,.78)'
-        : `rgba(80,217,255,${0.14 + score * 0.38})`;
-      ctx.lineWidth = active ? 1.8 : 0.8 + score * 1.2;
-      ctx.setLineDash(active ? [] : [5, 7]);
-      ctx.fill();
-      ctx.stroke();
-      ctx.setLineDash([]);
 
+      const color = palette[hashStr(String(region.id)) % palette.length];
+      const shape = drawRegionMass(ctx, region, projected, '3d', tick, color);
+      if (!shape) continue;
+
+      graph.atlasRegionHitAreas3d.push({ id: region.id, polygon: shape.polygon, radius: shape.radius });
+      graph.atlasRegionGeometry3d.set(region.id, shape);
+
+      const labelX = shape.center.x - shape.radius * 0.52;
+      const labelY = shape.center.y - shape.radius - 10;
       ctx.textAlign = 'left';
       ctx.font = '600 10px -apple-system, sans-serif';
-      ctx.fillStyle = 'rgba(200,216,228,.82)';
-      ctx.fillText(`${region.label} · ${region.interpretation}`, x - radius * 0.68, y - radius - 9);
+      ctx.fillStyle = `${color}e6`;
+      ctx.fillText(`${region.label} · ${region.interpretation}`, labelX, labelY);
       ctx.font = '8px -apple-system, sans-serif';
       ctx.fillStyle = 'rgba(140,166,188,.72)';
       ctx.fillText(
-        `${region.total} nodes · ${atlasModeMeta().label.toLowerCase()} ${Math.round(score * 100)}% · ${region.bridges} bridges`,
-        x - radius * 0.68,
-        y - radius + 3,
+        `${region.total} nodes · ${atlasModeMeta().label.toLowerCase()} ${Math.round(atlasRegionScore(region) * 100)}% · boundary tension ${Math.round((shape.tension ?? 0) * 100)}%`,
+        labelX,
+        labelY + 12,
       );
     }
   }
-  
+
   function drawGraphFrame3D(canvas) {
     currentDetailLevel();
     updateCognitionSummary();
@@ -1412,51 +1410,44 @@ export function createCognitionController({
       ctx.fillText(`UNINTEGRATED · ${isolatedCount}`, 18, height / scale - 14);
     }
   
-    // Draw relationship sectors behind the graph. Sectors are computed from the
-    // current layout of topology-derived local communities; they are not organism
-    // concepts and therefore carry no semantic labels.
+    // Observer-derived organic territories behind the graph.
     graph.atlasRegionHitAreas2d = [];
     graph.atlasRegionGeometry2d.clear();
     const communityStats = new Map();
     for (const node of nodes) {
       if (!node.community || node.community === 'isolated') continue;
-      const s = communityStats.get(node.community) ?? { x: 0, y: 0, n: 0, nodes: [] };
-      s.x += node.x; s.y += node.y; s.n += 1; s.nodes.push(node);
+      const s = communityStats.get(node.community) ?? { n: 0, nodes: [] };
+      s.n += 1;
+      s.nodes.push(node);
       communityStats.set(node.community, s);
     }
+    const regionTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+    const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
+
     for (const [communityId, s] of communityStats.entries()) {
-      if (s.n < 3) continue;
+      if (s.n < 2) continue;
       if (sectorFocus && communityId !== sectorFocus.sectorId) continue;
-      s.x /= s.n; s.y /= s.n;
-      let radius = 0;
-      for (const node of s.nodes) {
-        radius = Math.max(radius, Math.hypot(node.x - s.x, node.y - s.y) + node.radius);
-      }
-      radius = Math.max(38, Math.min(180, radius + 18));
-      graph.atlasRegionHitAreas2d.push({ id: communityId, x: s.x, y: s.y, radius });
-      graph.atlasRegionGeometry2d.set(communityId, { x: s.x, y: s.y, radius });
-      const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
-      const color = palette[hashStr(String(communityId)) % palette.length];
       const atlasRegion = (graph.atlasRegions ?? []).find(region => region.id === communityId);
-      const regionScore = atlasRegionScore(atlasRegion);
-      const focusedRegion = graph.focusedSectorId === communityId;
-      const fillAlpha = Math.round((0.035 + regionScore * 0.09) * 255).toString(16).padStart(2,'0');
-      const strokeAlpha = Math.round((0.22 + regionScore * 0.48) * 255).toString(16).padStart(2,'0');
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `${color}${fillAlpha}`;
-      ctx.strokeStyle = `${color}${strokeAlpha}`;
-      ctx.lineWidth = focusedRegion ? 2 : 0.9 + regionScore * 1.4;
-      ctx.setLineDash(focusedRegion ? [] : [4, 7]);
-      ctx.fill();
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-      ctx.setLineDash([]);
-  
+      if (!atlasRegion) continue;
+      const points = s.nodes.map(node => ({
+        id: node.id,
+        x: node.x,
+        y: node.y,
+        radius: node.radius,
+        atlasScore: node.atlasScore,
+        signals: node.atlasSignals,
+      }));
+      const color = palette[hashStr(String(communityId)) % palette.length];
+      const shape = drawRegionMass(ctx, atlasRegion, points, '2d', regionTick, color);
+      if (!shape) continue;
+
+      graph.atlasRegionHitAreas2d.push({ id: communityId, polygon: shape.polygon, radius: shape.radius });
+      graph.atlasRegionGeometry2d.set(communityId, shape);
+
       const sectorLabel = graph.sectorLabels.get(communityId) ?? 'S-???';
       const sectorDescription = graph.sectorDescriptions.get(communityId);
-      const labelX = s.x - radius * 0.72;
-      const labelY = s.y - radius - 10;
+      const labelX = shape.center.x - shape.radius * 0.55;
+      const labelY = shape.center.y - shape.radius - 10;
       ctx.font = '600 10px -apple-system, sans-serif';
       ctx.fillStyle = `${color}e6`;
       ctx.textAlign = 'left';
@@ -1469,12 +1460,12 @@ export function createCognitionController({
       ctx.font = '8px -apple-system, sans-serif';
       ctx.fillStyle = 'rgba(175,199,220,.62)';
       ctx.fillText(
-        `${s.n} nodes · ${atlasModeMeta().label.toLowerCase()} ${Math.round(regionScore * 100)}% · ${atlasRegion?.bridges ?? 0} bridges`,
+        `${s.n} nodes · ${atlasModeMeta().label.toLowerCase()} ${Math.round(atlasRegionScore(atlasRegion) * 100)}% · boundary tension ${Math.round((shape.tension ?? 0) * 100)}%`,
         labelX,
         labelY + 12,
       );
     }
-  
+
     const focusId = hoveredNode?.id ?? graph.selectedNodeId;
     const activeTopology = currentRenderedTopology();
     const connectedIds = focusId ? graphSubgraphIds(activeTopology, focusId, graph.pathDepth) : null;
