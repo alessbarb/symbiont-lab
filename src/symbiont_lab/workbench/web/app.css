@@ -637,3 +637,18 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
     animation-iteration-count: 1 !important;
   }
 }
+
+
+/* ── Mind shell state ────────────────────────────────────────────── */
+.mind-workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  overflow: hidden;
+  min-height: 0;
+}
+.mind-workspace[data-active-tab="sensory"] { grid-template-columns: 220px minmax(0, 1fr); }
+.mind-workspace[data-active-tab="cognition"] { grid-template-columns: 250px minmax(0, 1fr); }
+.mind-senses-panel[hidden],
+.mind-cognition-inspector[hidden] { display: none !important; }
+.mind-senses-panel:not([hidden]),
+.mind-cognition-inspector:not([hidden]) { display: flex; }
