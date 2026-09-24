@@ -52,7 +52,7 @@ def test_v3_body_is_generated_as_hard_limited_urdf():
     root = ET.fromstring(build_anthropomorphic_urdf())
     joints = root.findall("joint")
 
-    assert root.attrib["name"] == "symbiont_anthropomorphic_v4"
+    assert root.attrib["name"] == "symbiont_anthropomorphic_v5"
     assert len(joints) == MOTOR_DOF
     assert [joint.attrib["name"] for joint in joints] == [
         spec.name for spec in JOINT_SPECS
@@ -666,7 +666,7 @@ def test_left_and_right_knees_are_mirrored_hinges_not_lateral_rotators():
     assert left.lower == pytest.approx(0.0)
 
 
-def test_v4_hard_limited_body_exposes_multiple_rotational_axes():
+def test_v5_hard_limited_body_exposes_multiple_rotational_axes():
     assert set(JOINT_AXES) == set(JOINT_LIMITS)
     axes = set(JOINT_AXES.values())
 
