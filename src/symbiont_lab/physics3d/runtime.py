@@ -126,7 +126,7 @@ class Tick3D:
     motor_origin_babbling: int
     motor_origin_primitive: int
     motor_origin_primitive_cognition: int
-    motor_origin_primitive_verification: int
+    motor_origin_primitive_reactive: int
     motor_origin_primitive_prospective: int
     prospective_reason: str | None
     prospective_candidates: int
@@ -1314,7 +1314,7 @@ class PyBulletEmbodimentRuntime:
         if not hasattr(self, "_motor_origin_detail_counts"):
             self._motor_origin_detail_counts = {
                 "primitive_cognition": 0,
-                "primitive_verification": 0,
+                "primitive_reactive": 0,
                 "primitive_prospective": 0,
             }
         if motor_origin_detail in self._motor_origin_detail_counts:
@@ -1719,8 +1719,8 @@ class PyBulletEmbodimentRuntime:
             motor_origin_primitive_cognition=int(
                 self._motor_origin_detail_counts["primitive_cognition"]
             ),
-            motor_origin_primitive_verification=int(
-                self._motor_origin_detail_counts["primitive_verification"]
+            motor_origin_primitive_reactive=int(
+                self._motor_origin_detail_counts["primitive_reactive"]
             ),
             motor_origin_primitive_prospective=int(
                 self._motor_origin_detail_counts["primitive_prospective"]
