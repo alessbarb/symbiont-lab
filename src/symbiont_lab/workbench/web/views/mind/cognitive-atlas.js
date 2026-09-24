@@ -167,6 +167,8 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
       motor: 0,
       evidence: 0,
       diff: 0,
+      anatomy: 0,
+      dynamics: 0,
       bridges: 0,
     };
     item.nodeIds.push(node.id);
@@ -175,6 +177,12 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
     for (const key of ['structure','activity','learning','prediction','motor','evidence','diff']) {
       item[key] += finite(s[key], 0);
     }
+    item.anatomy += finite(s.structure, 0);
+    item.dynamics +=
+      finite(s.activity, 0) * 0.42 +
+      finite(s.learning, 0) * 0.28 +
+      finite(s.prediction, 0) * 0.20 +
+      finite(s.recency, 0) * 0.10;
     grouped.set(node.community, item);
   }
 
@@ -188,7 +196,7 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
 
   return [...grouped.values()].map(region => {
     const n = Math.max(1, region.nodeIds.length);
-    for (const key of ['structure','activity','learning','prediction','motor','evidence','diff']) {
+    for (const key of ['structure','activity','learning','prediction','motor','evidence','diff','anatomy','dynamics']) {
       region[key] /= n;
     }
     const description = sectorDescriptions.get(region.id) ?? null;
