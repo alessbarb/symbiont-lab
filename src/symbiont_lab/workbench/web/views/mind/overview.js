@@ -30,7 +30,11 @@ export function renderOverview({ onOpenHistoryTick = () => {} } = {}) {
   copy.append(h,sub);
   const phase=el('strong',''); phase.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:.08em;'; phase.style.color =
     physiology==='dead'?PAL.coral:physiology==='dormant'?PAL.amber:physiology==='stressed'?PAL.coral:PAL.mint;
-  phase.textContent=physiology;
+  const epochLabel=tel.embodimentEpoch!=null?`E${tel.embodimentEpoch}`:'';
+  const reacclimationLabel=tel.reacclimating
+    ? `reacclimating ${tel.reacclimationRemaining ?? '?'}t`
+    : '';
+  phase.textContent=[physiology,epochLabel,reacclimationLabel].filter(Boolean).join(' · ');
   heading.append(copy,phase);
   root.appendChild(heading);
 
