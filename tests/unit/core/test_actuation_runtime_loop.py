@@ -6,7 +6,10 @@ from symbiont.core.runtime import OrganismRuntime
 from symbiont.core.physiology import LivingBodyState
 
 
-def _runtime() -> OrganismRuntime:
+def _runtime(
+    *,
+    motor_exploration_mode: str = "spontaneous",
+) -> OrganismRuntime:
     limits = KernelLimits()
     genome, graph = load_base_cognition(
         kernel_limits=limits,
@@ -23,6 +26,7 @@ def _runtime() -> OrganismRuntime:
         cognitive_graph=graph,
         kernel_limits=limits,
         actuation_enabled=True,
+        motor_exploration_mode=motor_exploration_mode,
         bootstrap_semantic_senses=False,
         discover_senses=False,
         min_samples=1,
@@ -326,7 +330,7 @@ def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
 def test_babbling_restore_rejects_missing_sensorimotor_checkpoint():
     from symbiont.host.checkpoint import CheckpointError
 
-    runtime = _runtime_with_actuation(motor_exploration_mode="babbling")
+    runtime = _runtime(motor_exploration_mode="babbling")
     payload = runtime.checkpoint()
     assert isinstance(payload["actuation"]["sensorimotor"], dict)
     del payload["actuation"]["sensorimotor"]
