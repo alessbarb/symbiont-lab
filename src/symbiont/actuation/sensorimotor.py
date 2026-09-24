@@ -12,9 +12,12 @@ from .types import MotorIntent
 _HORIZONS = (1, 4, 16, 64)
 _PRIMITIVE_TICKS = 4
 _BABBLE_EPOCH_TICKS = 8
-_MAX_PRIMITIVES = 32
-_MAX_HORIZON_STATS = 512
-_MAX_PRIMITIVE_STATS = 64
+# Safety ceilings. Similar motor chunks are already folded into recurring
+# sequence families by _matched_primitive_sequence; these bounds should not
+# become the organism's effective motor-development ceiling.
+_MAX_PRIMITIVES = 256
+_MAX_HORIZON_STATS = 2048
+_MAX_PRIMITIVE_STATS = 512
 _SEQUENCE_MATCH_THRESHOLD = 0.10
 
 MotorPattern = tuple[tuple[str, int], ...]
@@ -408,7 +411,7 @@ class SensorimotorLearner:
         self._cognitive_primitives_cache = None
 
     def _enforce_primitive_bound(self) -> None:
-        """Keep the bounded repertoire without discarding proven competence."""
+        """Enforce only the high safety ceiling after similarity compaction."""
         if len(self._primitives) <= _MAX_PRIMITIVES:
             return
         retained = sorted(
