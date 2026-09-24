@@ -67,19 +67,24 @@ export function createIdentitySensoryRenderer({
       return;
     }
   
-    const summary = el('div','');
-    summary.style.cssText='padding:8px 10px;border-bottom:1px solid var(--line);font-size:8px;line-height:1.5;color:var(--muted);';
+    const summary = el('div', 'mind-senses-summary');
     const sampled = sensors.filter(sensor => sensor.sampled).length;
     const useful = sensors.filter(sensor => sensor.utility > 0).length;
     const integrated = sensors.filter(sensor => sensor.integrated).length;
-    summary.innerHTML =
-      `<strong style="color:var(--text)">${sensors.length} receptors</strong><br>` +
-      `${sampled} sampled now · ${useful} utility &gt; 0 · ${integrated} cognition-integrated`;
+    const summaryTitle = el('strong', '');
+    summaryTitle.textContent = `${sensors.length} receptors`;
+    const summaryDetail = el('span', '');
+    summaryDetail.textContent =
+      `${sampled} sampled now · ${useful} utility > 0 · ${integrated} cognition-integrated`;
+    summary.append(summaryTitle, summaryDetail);
     list.appendChild(summary);
   
-    const header=el('div','');
-    header.style.cssText='display:grid;grid-template-columns:minmax(0,1fr) 28px 34px 34px;gap:4px;padding:6px 8px;font-size:7px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);';
-    header.innerHTML='<span>receptor</span><span>now</span><span>util</span><span>deg</span>';
+    const header = el('div', 'mind-senses-header');
+    for (const label of ['receptor', 'now', 'util', 'deg']) {
+      const cell = el('span', '');
+      cell.textContent = label;
+      header.appendChild(cell);
+    }
     list.appendChild(header);
   
     [...sensors]
@@ -698,7 +703,7 @@ export function createIdentitySensoryRenderer({
   function renderSelf() {
     const panel = document.getElementById('mind-self-panel');
     if (!panel) return;
-    panel.innerHTML = '';
+    panel.replaceChildren();
   
     const schema = snap.bodySchema;
     if (!schema || !schema.parts?.length) {
