@@ -1094,7 +1094,11 @@ export function createCognitionController({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      if (Math.abs(directionBias) >= 0.28 && (anatomy || dynamics)) {
+      if (
+        corridorAnim.progress > 0.72 &&
+        Math.abs(directionBias) >= 0.28 &&
+        (anatomy || dynamics)
+      ) {
         const forward = directionBias > 0;
         const from = forward ? start : animatedEnd;
         const to = forward ? animatedEnd : start;
@@ -3048,6 +3052,7 @@ export function createCognitionController({
   }
 
   function returnLive() {
+    presentation.reset();
     graph.replaySnapshot = null;
     graph.replayTick = null;
     graph.timelineIndex = null;
