@@ -183,12 +183,17 @@ class MotorPrimitive:
     """An organism-discovered opaque temporal motor chunk."""
 
     primitive_id: str
+    embodiment_fingerprint: str
     sequence: MotorSequence
     samples: int
     effect_mean: float
     effect_variance: float
     controllability: float
     directional_consistency: float
+
+    def __post_init__(self) -> None:
+        if not self.embodiment_fingerprint:
+            raise ValueError("motor primitive requires embodiment fingerprint")
 
     @property
     def duration_ticks(self) -> int:
@@ -224,6 +229,7 @@ class MotorPrimitive:
     def checkpoint(self) -> dict[str, object]:
         return {
             "primitive_id": self.primitive_id,
+            "embodiment_fingerprint": self.embodiment_fingerprint,
             "sequence": _sequence_payload(self.sequence),
             "samples": self.samples,
             "effect_mean": self.effect_mean,
@@ -238,7 +244,11 @@ class MotorPrimitive:
         payload: Mapping[str, object],
         *,
         allowed_ids: set[str],
+        embodiment_fingerprint: str,
     ) -> "MotorPrimitive":
+        stored_scope = payload.get("embodiment_fingerprint")
+        if stored_scope is not None and stored_scope != embodiment_fingerprint:
+            raise ValueError("motor primitive embodiment scope mismatch")
         sequence = _restore_sequence(payload.get("sequence"), allowed_ids=allowed_ids)
         if len(sequence) != _PRIMITIVE_TICKS:
             raise ValueError("motor primitive has invalid temporal duration")
@@ -247,6 +257,7 @@ class MotorPrimitive:
             raise ValueError("invalid motor primitive id")
         return cls(
             primitive_id=primitive_id,
+            embodiment_fingerprint=embodiment_fingerprint,
             sequence=sequence,
             samples=_require_int(
                 payload.get("samples", 0),
@@ -350,10 +361,17 @@ class SensorimotorLearner:
         max_concurrent: int | None = None,
         smoothing: float = 0.28,
         exclusive_actuator_groups: Sequence[Sequence[str]] | None = None,
+        embodiment_fingerprint: str | None = None,
     ) -> None:
         ids = tuple(str(value) for value in actuator_ids)
         if not ids or len(ids) != len(set(ids)):
             raise ValueError("sensorimotor learner requires unique actuator ids")
+        if embodiment_fingerprint is None:
+            embodiment_fingerprint = "legacy-surface:" + hashlib.sha256(
+                "|".join(ids).encode("utf-8")
+            ).hexdigest()
+        if not isinstance(embodiment_fingerprint, str) or not embodiment_fingerprint:
+            raise ValueError("embodiment_fingerprint must be a non-empty string")
         if max_concurrent is not None and (
             isinstance(max_concurrent, bool)
             or not isinstance(max_concurrent, int)
@@ -365,6 +383,7 @@ class SensorimotorLearner:
 
         self._ids = ids
         self._organism_id = str(organism_id)
+        self._embodiment_fingerprint = embodiment_fingerprint
 
         raw_groups = exclusive_actuator_groups or ()
         groups: list[tuple[str, ...]] = []
@@ -476,6 +495,10 @@ class SensorimotorLearner:
             primitive_id = f"primitive.{digest}"
             self._primitive_id_by_sequence[sequence] = primitive_id
         return primitive_id
+
+    @property
+    def embodiment_fingerprint(self) -> str:
+        return self._embodiment_fingerprint
 
     @property
     def exclusive_actuator_groups(self) -> tuple[tuple[str, ...], ...]:
@@ -1027,6 +1050,7 @@ class SensorimotorLearner:
 
         self._primitives[primitive_id] = MotorPrimitive(
             primitive_id=primitive_id,
+            embodiment_fingerprint=self._embodiment_fingerprint,
             sequence=sequence,
             samples=stat.count,
             effect_mean=stat.mean,
@@ -1316,8 +1340,9 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 9,
+            "schema_version": 10,
             "actuator_ids": list(self._ids),
+            "embodiment_fingerprint": self._embodiment_fingerprint,
             "exclusive_actuator_groups": [
                 list(group) for group in self._exclusive_actuator_groups
             ],
@@ -1376,6 +1401,7 @@ class SensorimotorLearner:
             "historical_candidates": [
                 {
                     "primitive_id": primitive_id,
+                    "embodiment_fingerprint": self._embodiment_fingerprint,
                     "sequence": _sequence_payload(sequence),
                 }
                 for primitive_id, sequence in sorted(
@@ -1394,6 +1420,7 @@ class SensorimotorLearner:
         *,
         actuator_ids: Sequence[str],
         organism_id: str,
+        embodiment_fingerprint: str | None = None,
     ) -> "SensorimotorLearner":
         # WARN(fail-closed): v9 changes both the physical motor-unit contract
         # and the statistics used to decide recurrence/controllability.  Older
@@ -1403,13 +1430,11 @@ class SensorimotorLearner:
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=9,
+            maximum=10,
         )
-        if schema != 9:
+        if schema not in (9, 10):
             raise ValueError(
-                "unsupported sensorimotor checkpoint: schema_version must be 9; "
-                "older schemas lack the canonical mutually-exclusive motor-unit "
-                "constitution and density-neutral primitive metrics"
+                "unsupported sensorimotor checkpoint: schema_version must be 9 or 10"
             )
 
         expected = tuple(str(value) for value in actuator_ids)
@@ -1441,8 +1466,13 @@ class SensorimotorLearner:
                 minimum=1e-12,
                 maximum=1.0,
             ),
+            embodiment_fingerprint=embodiment_fingerprint,
             exclusive_actuator_groups=exclusive_groups,
         )
+        if schema == 10:
+            stored_scope = payload.get("embodiment_fingerprint")
+            if stored_scope != learner.embodiment_fingerprint:
+                raise ValueError("sensorimotor embodiment scope mismatch")
 
         raw_levels = payload.get("levels", {})
         if isinstance(raw_levels, Mapping):
@@ -1640,6 +1670,7 @@ class SensorimotorLearner:
                 primitive = MotorPrimitive.restore(
                     item,
                     allowed_ids=allowed,
+                    embodiment_fingerprint=learner.embodiment_fingerprint,
                 )
                 if not learner._sequence_respects_exclusive_groups(
                     primitive.sequence
@@ -1729,6 +1760,8 @@ class SensorimotorLearner:
         for item in payloads:
             primitive_id = item.get("primitive_id")
             if not isinstance(primitive_id, str) or not primitive_id:
+                continue
+            if item.get("embodiment_fingerprint") != self._embodiment_fingerprint:
                 continue
             try:
                 sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
