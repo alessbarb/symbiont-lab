@@ -137,7 +137,12 @@ def _fresh(*, slots: int = 62) -> dict:
             "constitution": {"slots": [{"slot_id": f"motor_slot.{i}"} for i in range(slots)]},
             "states": {"fresh": {"health": 1.0}},
             "proposer": {"learned": "fresh"},
-            "sensorimotor": {"schema_version": 8, "primitives": [], "historical_candidates": []},
+            "sensorimotor": {
+                "schema_version": 9,
+                "exclusive_actuator_groups": [],
+                "primitives": [],
+                "historical_candidates": [],
+            },
             "pending_motor_observation": [],
             "pending_proprioception": {},
         },
@@ -174,6 +179,7 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     assert transformed["actuation"]["proposer"] == {"learned": "fresh"}
 
     sensorimotor = transformed["actuation"]["sensorimotor"]
+    assert sensorimotor["schema_version"] == 9
     assert sensorimotor["primitives"] == []
     assert sensorimotor["historical_candidates"] == [{
         "primitive_id": "primitive.old",
