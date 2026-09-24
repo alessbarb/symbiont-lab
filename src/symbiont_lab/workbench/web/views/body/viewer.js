@@ -1,6 +1,7 @@
 /**
- * Stateful Three.js humanoid renderer.
- * Public mounting belongs to ../body.js; this module owns only one viewer instance.
+ * Stateful Three.js body renderer.
+ * Body morphology is observer-only and selected from the active Physics3D
+ * descriptor. Public mounting belongs to ../body.js.
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -12,6 +13,77 @@ import {
   SEGMENT_ACTIVITY_JOINTS,
   SEGMENT_COLORS,
 } from './model.js';
+
+
+function fallbackBodyModel() {
+  return {
+    bodyKind: 'anthropomorphic-v4',
+    baseLink: 'pelvis',
+    joints: JOINT_TOPOLOGY,
+    segments: SEGMENTS,
+    segmentActivityJoints: SEGMENT_ACTIVITY_JOINTS,
+  };
+}
+
+function bodyModelFromCatalog(item) {
+  const raw = item?.observer_model;
+  if (!raw || typeof raw !== 'object') return null;
+  if (!raw.base_link || !Array.isArray(raw.joints) || !raw.segments) return null;
+
+  const segments = {};
+  for (const [name, segment] of Object.entries(raw.segments)) {
+    if (
+      !segment ||
+      !Array.isArray(segment.size) ||
+      segment.size.length !== 3 ||
+      !Array.isArray(segment.origin) ||
+      segment.origin.length !== 3
+    ) continue;
+    segments[name] = {
+      wdh: segment.size.map(Number),
+      offset: segment.origin.map(Number),
+    };
+  }
+
+  const joints = raw.joints
+    .filter((joint) => (
+      joint &&
+      typeof joint.name === 'string' &&
+      typeof joint.parent === 'string' &&
+      typeof joint.child === 'string' &&
+      Array.isArray(joint.origin) &&
+      joint.origin.length === 3
+    ))
+    .map((joint) => ({
+      name: joint.name,
+      parent: joint.parent,
+      child: joint.child,
+      offset: joint.origin.map(Number),
+      axisVector: Array.isArray(joint.axis) ? joint.axis.map(Number) : [1, 0, 0],
+    }));
+
+  const segmentActivityJoints = {};
+  for (const joint of joints) {
+    if (segments[joint.child]) {
+      (segmentActivityJoints[joint.child] ??= []).push(joint.name);
+    }
+  }
+
+  return {
+    bodyKind: String(item.body_kind || item.id || ''),
+    baseLink: String(raw.base_link),
+    joints,
+    segments,
+    segmentActivityJoints,
+  };
+}
+
+function dominantAxis(axisVector) {
+  const [x = 0, y = 0, z = 0] = axisVector ?? [];
+  const abs = [Math.abs(x), Math.abs(y), Math.abs(z)];
+  const index = abs.indexOf(Math.max(...abs));
+  return index === 0 ? 'X' : index === 1 ? 'Y' : 'Z';
+}
 
 function el(tag, cls, styles = {}) {
   const node = document.createElement(tag);
@@ -31,12 +103,19 @@ export class HumanoidViewer {
     this.sseUrl = sseUrl;
     this.unmounted = false;
 
+    this.bodyModels = new Map();
+    this.bodyModel = fallbackBodyModel();
+    this.activeBodyKind = this.bodyModel.bodyKind;
+    this.bodyModels.set(this.activeBodyKind, this.bodyModel);
+    this.skeletonRoot = null;
+
     // Three.js instances
     this.renderer = null;
     this.scene = null;
     this.camera = null;
     this.controls = null;
     this.baseNode = null;
+    this.skeletonRoot = null;
     this.dirLight = null;
     this.lightOffset = new THREE.Vector3(2, 4, 3);
     this.followBody = true;
@@ -131,8 +210,33 @@ export class HumanoidViewer {
   init() {
     this.buildDOM();
     this.buildScene();
+    this.loadBodyModels();
     this.connectSSE();
     this.animate();
+  }
+
+  async loadBodyModels() {
+    try {
+      const response = await fetch('/api/bodies', { cache: 'no-store' });
+      if (!response.ok) return;
+      const payload = await response.json();
+      for (const item of payload.items ?? []) {
+        const model = bodyModelFromCatalog(item);
+        if (model?.bodyKind) this.bodyModels.set(model.bodyKind, model);
+      }
+    } catch {
+      // Presentation catalog failure must never affect the running organism.
+    }
+  }
+
+  ensureBodyModel(bodyKind) {
+    const requested = String(bodyKind || this.activeBodyKind || 'anthropomorphic-v4');
+    if (requested === this.activeBodyKind) return;
+    const model = this.bodyModels.get(requested);
+    if (!model) return;
+    this.activeBodyKind = requested;
+    this.bodyModel = model;
+    this.rebuildSkeleton();
   }
 
   buildDOM() {
@@ -428,7 +532,7 @@ export class HumanoidViewer {
     this.controls.maxPolarAngle = Math.PI * 0.92;
 
     this.baseNode = new THREE.Object3D();
-    this.baseNode.name = 'humanoid_base';
+    this.baseNode.name = 'body_base';
     this.baseNode.position.copy(this.targetBasePos);
     this.scene.add(this.baseNode);
 
@@ -439,11 +543,47 @@ export class HumanoidViewer {
     this.handleResize();
   }
 
+  disposeSkeleton() {
+    if (!this.skeletonRoot) return;
+    this.skeletonRoot.traverse((obj) => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) obj.material.forEach((item) => item.dispose());
+        else obj.material.dispose();
+      }
+    });
+    this.baseNode.remove(this.skeletonRoot);
+    this.skeletonRoot = null;
+  }
+
+  rebuildSkeleton() {
+    this.disposeSkeleton();
+    this.linkObjs = {};
+    this.segmentMeshes = {};
+    this.jointMarkers = {};
+    this.jointObjs = {};
+    this.jointActivity.clear();
+    this.previousJointPositions.clear();
+    this.targetJointAngles.clear();
+    this.targetLinkTransforms.clear();
+    this.poseFrames.length = 0;
+    this.hasAuthoritativeLinkPoses = false;
+    this.presentationStarted = false;
+    this.presentationSourceTimeMs = null;
+    this.buildSkeleton();
+    if (this.followBody) this.resetCameraToBody();
+  }
+
   buildSkeleton() {
-    const linkNames = new Set(['pelvis']);
-    for (const j of JOINT_TOPOLOGY) {
-      linkNames.add(j.parent);
-      linkNames.add(j.child);
+    const model = this.bodyModel;
+    this.skeletonRoot = new THREE.Object3D();
+    this.skeletonRoot.name = `${model.bodyKind}_skeleton`;
+    this.baseNode.add(this.skeletonRoot);
+
+    const linkNames = new Set([model.baseLink]);
+    for (const joint of model.joints) {
+      linkNames.add(joint.parent);
+      linkNames.add(joint.child);
     }
 
     for (const name of linkNames) {
@@ -452,16 +592,15 @@ export class HumanoidViewer {
       this.linkObjs[name] = node;
     }
 
-    for (const [segName, seg] of Object.entries(SEGMENTS)) {
+    for (const [segName, seg] of Object.entries(model.segments)) {
       const linkNode = this.linkObjs[segName];
       if (!linkNode) continue;
 
       const [w, d, h] = seg.wdh;
       const [tx, ty, tz] = pbPos(...seg.offset);
-
       const geo = new THREE.BoxGeometry(w, h, d);
       const mat = new THREE.MeshStandardMaterial({
-        color: SEGMENT_COLORS[segName] ?? 0x888888,
+        color: SEGMENT_COLORS[segName] ?? 0x60758a,
         roughness: 0.62,
         metalness: 0.06,
         emissive: 0x000000,
@@ -477,20 +616,17 @@ export class HumanoidViewer {
       this.segmentMeshes[segName] = mesh;
     }
 
-    for (const jdef of JOINT_TOPOLOGY) {
+    for (const jdef of model.joints) {
       const parentNode = this.linkObjs[jdef.parent];
       const childNode = this.linkObjs[jdef.child];
-      if (!parentNode || !childNode) {
-        console.warn(`[body.js] Unknown link in topology: ${jdef.parent} → ${jdef.child}`);
-        continue;
-      }
+      if (!parentNode || !childNode) continue;
 
       const [tx, ty, tz] = pbPos(...jdef.offset);
       childNode.position.set(tx, ty, tz);
       parentNode.add(childNode);
 
       this.jointObjs[jdef.name] = childNode;
-      this.targetJointAngles.set(jdef.name, 0); // Initialize targets
+      this.targetJointAngles.set(jdef.name, 0);
       this.jointActivity.set(jdef.name, 0);
 
       const markerGeo = new THREE.SphereGeometry(0.026, 10, 8);
@@ -507,36 +643,39 @@ export class HumanoidViewer {
       this.jointMarkers[jdef.name] = marker;
     }
 
-    this.baseNode.add(this.linkObjs['pelvis']);
+    const baseLink = this.linkObjs[model.baseLink];
+    if (baseLink) this.skeletonRoot.add(baseLink);
 
-    const resourceGeo = new THREE.SphereGeometry(0.18, 20, 14);
-    const resourceMat = new THREE.MeshStandardMaterial({
-      color: 0x8bcf63,
-      emissive: 0x294f1c,
-      emissiveIntensity: 0.55,
-      roughness: 0.55,
-      metalness: 0,
-    });
-    this.resourceObject = new THREE.Mesh(resourceGeo, resourceMat);
-    this.resourceObject.name = 'observer_resource';
-    this.resourceObject.castShadow = true;
-    this.resourceObject.receiveShadow = true;
-    this.resourceObject.visible = false;
-    this.scene.add(this.resourceObject);
+    if (!this.resourceObject) {
+      const resourceGeo = new THREE.SphereGeometry(0.18, 20, 14);
+      const resourceMat = new THREE.MeshStandardMaterial({
+        color: 0x8bcf63,
+        emissive: 0x294f1c,
+        emissiveIntensity: 0.55,
+        roughness: 0.55,
+        metalness: 0,
+      });
+      this.resourceObject = new THREE.Mesh(resourceGeo, resourceMat);
+      this.resourceObject.name = 'observer_resource';
+      this.resourceObject.castShadow = true;
+      this.resourceObject.receiveShadow = true;
+      this.resourceObject.visible = false;
+      this.scene.add(this.resourceObject);
 
-    const guideGeo = new THREE.BufferGeometry();
-    this.resourceGuidePositions = new Float32Array(6);
-    guideGeo.setAttribute('position', new THREE.BufferAttribute(this.resourceGuidePositions, 3));
-    const guideMat = new THREE.LineDashedMaterial({
-      color: 0x8bcf63,
-      transparent: true,
-      opacity: 0.18,
-      dashSize: 0.10,
-      gapSize: 0.10,
-    });
-    this.resourceGuide = new THREE.Line(guideGeo, guideMat);
-    this.resourceGuide.visible = false;
-    this.scene.add(this.resourceGuide);
+      const guideGeo = new THREE.BufferGeometry();
+      this.resourceGuidePositions = new Float32Array(6);
+      guideGeo.setAttribute('position', new THREE.BufferAttribute(this.resourceGuidePositions, 3));
+      const guideMat = new THREE.LineDashedMaterial({
+        color: 0x8bcf63,
+        transparent: true,
+        opacity: 0.18,
+        dashSize: 0.10,
+        gapSize: 0.10,
+      });
+      this.resourceGuide = new THREE.Line(guideGeo, guideMat);
+      this.resourceGuide.visible = false;
+      this.scene.add(this.resourceGuide);
+    }
   }
 
   resetCameraToBody() {
@@ -662,7 +801,7 @@ export class HumanoidViewer {
   }
 
   motorActivityLabel() {
-    const ratio = this.activeJointCount / Math.max(1, JOINT_TOPOLOGY.length);
+    const ratio = this.activeJointCount / Math.max(1, this.bodyModel.joints.length);
     if (ratio >= 0.6) return 'HIGH';
     if (ratio >= 0.25) return 'MEDIUM';
     if (ratio > 0) return 'LOW';
@@ -799,7 +938,7 @@ export class HumanoidViewer {
     this.baseNode.quaternion.slerpQuaternions(from.baseQuaternion, to.baseQuaternion, alpha);
 
     if (from.authoritativeLinks && to.authoritativeLinks) {
-      for (const jdef of JOINT_TOPOLOGY) {
+      for (const jdef of this.bodyModel.joints) {
         const node = this.linkObjs[jdef.child];
         const a = from.linkTransforms.get(jdef.child);
         const b = to.linkTransforms.get(jdef.child);
@@ -818,7 +957,7 @@ export class HumanoidViewer {
 
     // Legacy/demo telemetry has joint angles instead of authoritative link
     // poses. It remains presentation-only and is interpolated deterministically.
-    for (const jdef of JOINT_TOPOLOGY) {
+    for (const jdef of this.bodyModel.joints) {
       const a = from.jointAngles.get(jdef.name);
       const b = to.jointAngles.get(jdef.name);
       const targetAngle = a === undefined ? b : b === undefined ? a : THREE.MathUtils.lerp(a, b, alpha);
@@ -826,7 +965,7 @@ export class HumanoidViewer {
 
       const node = this.jointObjs[jdef.name];
       if (!node) continue;
-      switch (jdef.axis) {
+      switch (dominantAxis(jdef.axisVector ?? jdef.axis)) {
         case 'Y': node.rotation.y = targetAngle; break;
         case 'X': node.rotation.x = targetAngle; break;
         case 'Z': node.rotation.z = -targetAngle; break;
@@ -1003,6 +1142,7 @@ export class HumanoidViewer {
   }
 
   handleBodyPoseEvent(data) {
+    this.ensureBodyModel(data.body_kind);
     const receivedAt = performance.now();
     const sourceTimeMs = Number(data.simulation_time_s) * 1000;
     const tick = Number(data.tick);
@@ -1037,7 +1177,7 @@ export class HumanoidViewer {
       }
 
       const relative = new Map();
-      for (const jdef of JOINT_TOPOLOGY) {
+      for (const jdef of this.bodyModel.joints) {
         const parent = world.get(jdef.parent);
         const child = world.get(jdef.child);
         if (!parent || !child) continue;
@@ -1067,6 +1207,7 @@ export class HumanoidViewer {
   }
 
   handleBodyEvent(data) {
+    this.ensureBodyModel(data.body_kind);
     if (this.statusEl && this.statusEl.textContent !== '● Live') {
       this.statusEl.textContent = '● Live';
       this.statusEl.style.color = 'var(--mint, #50fa7b)';
@@ -1113,7 +1254,7 @@ export class HumanoidViewer {
       }
 
       const relative = new Map();
-      for (const jdef of JOINT_TOPOLOGY) {
+      for (const jdef of this.bodyModel.joints) {
         const parent = world.get(jdef.parent);
         const child = world.get(jdef.child);
         if (!parent || !child) continue;
@@ -1157,7 +1298,7 @@ export class HumanoidViewer {
         ? 'var(--amber,#f1fa8c)'
         : motorActivity === 'MEDIUM' ? 'var(--cyan,#8be9fd)' : null;
       this.queueUIUpdate('motor_activity', motorActivity, activityColor);
-      this.queueUIUpdate('active_joints', `${active} / ${JOINT_TOPOLOGY.length}`, active > 0 ? 'var(--cyan,#8be9fd)' : null);
+      this.queueUIUpdate('active_joints', `${active} / ${this.bodyModel.joints.length}`, active > 0 ? 'var(--cyan,#8be9fd)' : null);
       this.updateBodySummary();
     }
 
@@ -1286,7 +1427,7 @@ export class HumanoidViewer {
       marker.material.opacity = Math.min(0.9, 0.12 + decayed * 0.78);
       marker.scale.setScalar(0.75 + decayed * 0.9);
     }
-    for (const [segmentName, jointNames] of Object.entries(SEGMENT_ACTIVITY_JOINTS)) {
+    for (const [segmentName, jointNames] of Object.entries(this.bodyModel.segmentActivityJoints)) {
       const mesh = this.segmentMeshes[segmentName];
       if (!mesh) continue;
       const activity = Math.max(0, ...jointNames.map((name) => this.jointActivity.get(name) ?? 0));
