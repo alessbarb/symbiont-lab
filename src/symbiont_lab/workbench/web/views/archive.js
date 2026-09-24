@@ -10,3 +10,5 @@ export function mount(root, state = null) {
 export function update(root, state) {
   renderArchive(root, state);
 }
+
+export function unmount() {}
