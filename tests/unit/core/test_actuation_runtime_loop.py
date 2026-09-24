@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
