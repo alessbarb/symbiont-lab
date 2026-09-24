@@ -863,20 +863,20 @@ def test_cognition_map_uses_emergent_functional_cartography() -> None:
     assert "edge.kind !== 'motor_component'" in cartography
     assert "edge.kind !== 'causal_effect'" in cartography
 
-def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
+def test_cognition_view_modes_own_projection_without_redundant_dimension_buttons() -> None:
     asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
-    assert "graphDimension" in asset
-    assert "graph3DMode" in asset
-    assert "buildCognition3DScene" in asset
-    assert "relaxCognition3D" in asset
-    assert "orbitCamera" in asset
-    assert "zoomCamera" in asset
-    assert "RELATIONAL 3D" in asset
+    assert "Relational observer cartography" in asset
+    assert "Physicalized 3D observer projection" in asset
+    assert "dataset.graphDimension" not in asset
+    assert "Cognition projection: 2D" not in asset
+    assert "Cognition projection: 3D" not in asset
+
+    assert "const dimension = mode === 'physicalized' ? '3d' : '2d'" in asset
+    assert "set3DMode(dimension === '3d' ? 'physicalized' : 'relational')" in asset
+    assert "RELATIONAL 3D" not in asset
     assert "PHYSICALIZED 3D" in asset
-    assert "dimension: '2d'" in asset
-    assert "threeDMode: 'relational'" in asset
 
     assert "projectPoint3D" in projection
     assert "buildCognition3DScene" in projection
@@ -950,7 +950,7 @@ def test_cognition_sector_drilldown_remains_an_observer_selection_in_3d() -> Non
 
     assert "focusedSectorId" in asset
     assert "focusedSectorContext" in asset
-    assert "Back to all sectors" in asset
+    assert "Back to all regions" in asset
     assert "sectorFocus && !sectorFocus.visible.has(node.id)" in asset
     assert "observer-selected" not in asset
 
@@ -1360,3 +1360,18 @@ def test_dynamics_mode_combines_recent_activity_learning_and_prediction() -> Non
     assert "(signal.learning ?? 0) * 0.28" in atlas
     assert "(signal.prediction ?? 0) * 0.20" in atlas
     assert "['learning','dynamics'].includes(graph.atlasMode)" in asset
+
+
+def test_physicalized_3d_zoom_is_continuous_and_scene_relative() -> None:
+    asset = _mind_sources()
+    projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
+
+    assert "sceneRadius = 220" in projection
+    assert "Math.exp(wheelDelta * sensitivity)" in projection
+    assert "radius * 0.82 + 70" in projection
+    assert "radius * 7.5 + 520" in projection
+    assert "0.9 : 1.1" not in projection
+
+    assert "sceneRadius: graph.sceneRadius3d" in asset
+    assert "graph.sceneRadius3d = scene.metrics.occupiedRadius" in asset
+    assert "zoomCamera(graph.camera3d, ev.deltaY" in asset
