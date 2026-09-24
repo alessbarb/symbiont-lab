@@ -14,6 +14,8 @@ export const ATLAS_MODES = Object.freeze([
   { id: 'motor', label: 'Motor', description: 'Cognitive routes reaching learned motor primitives' },
   { id: 'evidence', label: 'Evidence', description: 'Support, stability and learned relation strength' },
   { id: 'diff', label: 'Diff', description: 'Changes against the selected temporal baseline' },
+  { id: 'anatomy', label: 'Anatomy', description: 'Regions, boundaries, bridges, hubs and bottlenecks' },
+  { id: 'dynamics', label: 'Dynamics', description: 'Recent flow, activity, learning and prediction pressure' },
 ]);
 
 function finite(value, fallback = 0) {
@@ -114,7 +116,15 @@ export function atlasSignals(nodes, edges, tick = 0) {
 }
 
 export function atlasModeScore(node, signals, mode = 'structure') {
-  return clamp01(signals.get(node.id)?.[mode] ?? 0);
+  const signal = signals.get(node.id) ?? {};
+  if (mode === 'anatomy') return clamp01(signal.structure ?? 0);
+  if (mode === 'dynamics') return clamp01(
+    (signal.activity ?? 0) * 0.42 +
+    (signal.learning ?? 0) * 0.28 +
+    (signal.prediction ?? 0) * 0.20 +
+    (signal.recency ?? 0) * 0.10
+  );
+  return clamp01(signal[mode] ?? 0);
 }
 
 export function atlasEdgeScore(edge, mode, tick = 0) {
@@ -127,6 +137,12 @@ export function atlasEdgeScore(edge, mode, tick = 0) {
   }
   if (mode === 'prediction') return edge.kind === 'predictive' ? 1 : edge.kind === 'gating' ? 0.45 : 0.08;
   if (mode === 'motor') return edge.kind === 'invokes' ? 1 : 0.06;
+  if (mode === 'anatomy') return atlasEdgeScore(edge, 'structure', tick);
+  if (mode === 'dynamics') return clamp01(
+    atlasEdgeScore(edge, 'activity', tick) * 0.55 +
+    atlasEdgeScore(edge, 'learning', tick) * 0.25 +
+    atlasEdgeScore(edge, 'prediction', tick) * 0.20
+  );
   if (mode === 'diff') return 0;
   if (mode === 'evidence') {
     const support = Math.min(1, Math.log1p(Math.max(0, finite(edge.support, 0))) / 8);
