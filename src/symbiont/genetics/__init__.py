@@ -15,13 +15,14 @@ from .genome import (
     Genome,
     GenomeCodec,
     GenomeError,
-    InheritanceGenes,
     PlasticityGenes,
     RegulationGenes,
     SensorimotorGenes,
     StructuralGenes,
 )
-from .germline import EpigeneticMark, GermlineState, InheritancePackage, create_offspring_package
+from .germline import EpigeneticMark, EpigeneticProtocol, GermlineState, InheritancePackage, create_offspring_package
+from .lineage import GenomeLineageRecord
+from .bindings import GeneBinding, canonical_gene_bindings
 from .migration import migrate_v1_genome, migrate_v1_payload
 from .mutation import mutate_genome
 from .recombination import recombine_genomes
@@ -32,6 +33,7 @@ __all__ = [
     "DEFAULT_GENOME_SCHEMA",
     "DevelopmentGenes",
     "EpigeneticMark",
+    "EpigeneticProtocol",
     "EvolvabilityGenes",
     "ExpressionRegulator",
     "GeneExpressionState",
@@ -41,8 +43,9 @@ __all__ = [
     "GenomeCodec",
     "GenomeError",
     "GenomeSchema",
+    "GenomeLineageRecord",
+    "GeneBinding",
     "GermlineState",
-    "InheritanceGenes",
     "InheritancePackage",
     "MutationMode",
     "PlasticityGenes",
@@ -51,6 +54,7 @@ __all__ = [
     "SensorimotorGenes",
     "StructuralGenes",
     "create_offspring_package",
+    "canonical_gene_bindings",
     "export_expression",
     "export_genome",
     "export_germline",
