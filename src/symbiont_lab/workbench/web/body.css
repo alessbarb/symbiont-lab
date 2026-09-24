@@ -7,8 +7,6 @@
     radial-gradient(circle at 10% 10%, rgba(80,217,255,0.15), transparent 30%),
     radial-gradient(circle at 90% 80%, rgba(167,119,255,0.15), transparent 35%),
     linear-gradient(180deg, rgba(5, 12, 22, 0.6), rgba(7, 19, 28, 0.8));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius);
   box-shadow: inset 0 1px 1px rgba(255,255,255,0.1), 0 24px 48px rgba(0, 0, 0, 0.4);
@@ -45,8 +43,6 @@
 
 .body-side-panel {
   background: rgba(10, 19, 28, 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border-left: 1px solid rgba(255, 255, 255, 0.05);
   padding: 20px 16px;
   overflow-y: auto;
