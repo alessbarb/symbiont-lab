@@ -438,8 +438,8 @@ def test_pre_episodic_checkpoint_migrates_retained_causal_history():
 
 
 
-def test_private_corpus_replays_lived_history_after_live_ledger_eviction():
-    organism_id = "episodic-corpus-replay"
+def test_private_corpus_uses_only_authoritative_raw_ledger_after_eviction():
+    organism_id = "episodic-corpus-ledger"
     runtime = ModeledOrganismRuntime(
         organism_id=organism_id,
         experience_ledger=ExperienceLedger(organism_id, max_records=16),
@@ -454,8 +454,8 @@ def test_private_corpus_replays_lived_history_after_live_ledger_eviction():
     records = (*corpus.train, *corpus.validation, *corpus.test)
     record_ids = {record.record_id for record in records}
 
-    assert corpus.manifest.record_count == 32
-    assert "transition.test.0" in record_ids
+    assert corpus.manifest.record_count == 16
+    assert "transition.test.0" not in record_ids
     assert "transition.test.31" in record_ids
 
 

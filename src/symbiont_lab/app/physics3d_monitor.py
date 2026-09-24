@@ -161,6 +161,10 @@ class MonitorSnapshot:
     episodic_episodes: int = 0
     episodic_pending_records: int = 0
     episodic_compressed_episodes: int = 0
+    episodic_total_occurrences: int = 0
+    episodic_mean_recurrence: float = 0.0
+    episodic_exceptions: int = 0
+    episodic_checkpoint_bytes: int = 0
     episodic_interpretations: int = 0
     episodic_contingencies: int = 0
     episodic_retrievals: int = 0
@@ -612,6 +616,34 @@ def record_to_snapshot(
         record.get(
             "episodic_compressed_episodes",
             episodic.get("compressed_episode_count", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_total_occurrences",
+        record.get(
+            "episodic_total_occurrences",
+            episodic.get("total_occurrences", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_mean_recurrence",
+        record.get(
+            "episodic_mean_recurrence",
+            episodic.get("mean_recurrence", 0.0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_exceptions",
+        record.get(
+            "episodic_exceptions",
+            episodic.get("exception_count", 0),
+        ),
+    )
+    snap.setdefault(
+        "episodic_checkpoint_bytes",
+        record.get(
+            "episodic_checkpoint_bytes",
+            episodic.get("checkpoint_bytes", 0),
         ),
     )
     snap.setdefault(
@@ -1453,7 +1485,9 @@ def _viewer_main(
     memory_vars = {}
     for r_i, (k, l_txt) in enumerate((
         ("episodes", "Episodios / Pendientes"),
-        ("compression", "Comprimidos / Evictions"),
+        ("compression", "Familias recurrentes / Evictions"),
+        ("density", "Ocurrencias / Recurrencia media"),
+        ("exceptions", "Excepciones / Memoria"),
         ("interpretations", "Interpretaciones / Contingencias"),
         ("activity", "Retrievals / Replay"),
         ("age", "Edad media / Máxima"),
@@ -3180,6 +3214,10 @@ def _viewer_main(
         epi_pending = int(payload.get("episodic_pending_records", 0))
         epi_compressed = int(payload.get("episodic_compressed_episodes", 0))
         epi_evictions = int(payload.get("episodic_evictions", 0))
+        epi_occurrences = int(payload.get("episodic_total_occurrences", 0))
+        epi_mean_recurrence = float(payload.get("episodic_mean_recurrence", 0.0))
+        epi_exceptions = int(payload.get("episodic_exceptions", 0))
+        epi_bytes = int(payload.get("episodic_checkpoint_bytes", 0))
         epi_interpretations = int(payload.get("episodic_interpretations", 0))
         epi_contingencies = int(payload.get("episodic_contingencies", 0))
         epi_retrievals = int(payload.get("episodic_retrievals", 0))
@@ -3188,6 +3226,12 @@ def _viewer_main(
         epi_oldest_age = int(payload.get("episodic_oldest_age", 0))
         memory_vars["episodes"].set(f"{epi_count:,} / {epi_pending:,}")
         memory_vars["compression"].set(f"{epi_compressed:,} / {epi_evictions:,}")
+        memory_vars["density"].set(
+            f"{epi_occurrences:,} / {epi_mean_recurrence:.2f}×"
+        )
+        memory_vars["exceptions"].set(
+            f"{epi_exceptions:,} / {epi_bytes / 1024.0:.0f} KiB"
+        )
         memory_vars["interpretations"].set(
             f"{epi_interpretations:,} / {epi_contingencies:,}"
         )

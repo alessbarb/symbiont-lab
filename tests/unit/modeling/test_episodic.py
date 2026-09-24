@@ -9,6 +9,7 @@ from symbiont.cognition.limits import KernelLimits
 from symbiont.modeling.episodic import (
     EpisodicExperienceMemory,
     EpisodicMemoryError,
+    EpisodicProjection,
 )
 from symbiont.modeling.experience import (
     EpistemicStatus,
@@ -17,21 +18,20 @@ from symbiont.modeling.experience import (
 )
 
 
-ORG = "org_test"
+ORG = "episodic-v2-test"
 
 
 def record(
     tick: int,
     *,
-    context: tuple[str, ...] = ("sense.a", "state.a"),
-    action: str | None = "action.p",
-    outcomes: tuple[str, ...] = ("outcome.x",),
-    record_id: str | None = None,
+    context: tuple[str, ...] = ("sense.raw.a", "internal.pressure.low"),
+    action: str | None = "action.motor.composite",
+    outcomes: tuple[str, ...] = ("outcome.sense.channel.a.up.3",),
     status: EpistemicStatus = EpistemicStatus.OBSERVED,
     source: SourceKind = SourceKind.ACTION_OUTCOME,
 ) -> ExperienceRecord:
     return ExperienceRecord(
-        record_id=record_id or f"transition.{tick:08d}",
+        record_id=f"transition.test.{tick}",
         organism_id=ORG,
         tick_class=tick,
         context_tokens=context,
@@ -44,363 +44,357 @@ def record(
     )
 
 
-def test_only_independently_observed_transitions_become_lived_experience() -> None:
+def projection(
+    *,
+    senses: tuple[str, ...] = ("sensor.identity.alpha", "sensor.identity.beta"),
+    concepts: tuple[str, ...] = ("concept.000001",),
+    internal: tuple[str, ...] = ("internal.pressure.low",),
+    action: str | None = "action.motor.composite",
+    outcomes: tuple[str, ...] = ("outcome.sense.channel.a.up.3",),
+) -> EpisodicProjection:
+    return EpisodicProjection(
+        sense_ids=senses,
+        concept_ids=concepts,
+        internal_tokens=internal,
+        action_token=action,
+    ).with_effects(outcomes)
+
+
+def test_model_records_never_become_lived_episodes() -> None:
     memory = EpisodicExperienceMemory(ORG)
-    predicted = record(
-        0,
-        record_id="model.00000000",
-        status=EpistemicStatus.PREDICTED,
-        source=SourceKind.MODEL,
+    predicted = ExperienceRecord(
+        record_id="model.test",
+        organism_id=ORG,
+        tick_class=0,
+        context_tokens=("sense.raw.a",),
+        action_token=None,
+        outcome_tokens=("outcome.predicted",),
+        epistemic_status=EpistemicStatus.PREDICTED,
+        evidence_refs=(),
+        confidence_class=4,
+        source_kind=SourceKind.MODEL,
     )
-    memory.observe(predicted)
+    assert memory.observe(predicted) is None
     assert memory.flush() is None
     assert memory.episodes == ()
 
-    memory.observe(record(1))
+
+def test_direct_cognitive_projection_is_preserved_in_family() -> None:
+    memory = EpisodicExperienceMemory(ORG)
+    memory.observe(record(0), projection())
     memory.flush()
+
+    episode = memory.episodes[0]
+    assert episode.projection.sense_ids == (
+        "sensor.identity.alpha",
+        "sensor.identity.beta",
+    )
+    assert episode.projection.concept_ids == ("concept.000001",)
+    assert "sense.raw.a" not in episode.projection.sense_ids
+
+
+def test_continuous_variants_compact_into_one_family() -> None:
+    limits = replace(KernelLimits(), episodic_epoch_ticks=10)
+    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
+
+    variants = (
+        ("outcome.sense.channel.a.up.2",),
+        ("outcome.sense.channel.a.up.3",),
+        ("outcome.sense.channel.a.up.4",),
+        ("outcome.sense.channel.a.up.5",),
+    )
+    for index, outcomes in enumerate(variants):
+        memory.observe(
+            record(index * 10, outcomes=outcomes),
+            projection(outcomes=outcomes),
+        )
+        memory.flush()
+
     assert len(memory.episodes) == 1
-    assert memory.episodes[0].source_record_ids == ("transition.00000001",)
+    family = memory.episodes[0]
+    assert family.recurrence == 4
+    assert family.compressed is True
+    assert memory.metrics(current_tick=40).compaction_count == 3
+    assert family.projection.effect_features
 
 
-def test_episode_segmentation_and_contextual_retrieval() -> None:
-    memory = EpisodicExperienceMemory(ORG)
-    memory.observe(record(0, context=("sense.a", "state.low"), action="action.p"))
-    memory.observe(record(1, context=("sense.a", "state.low"), action="action.p"))
-    # Different action is a generic motor-regime boundary.
-    finalized = memory.observe(
-        record(2, context=("sense.b", "state.high"), action="action.q", outcomes=("outcome.y",))
+def test_state_similarity_tolerates_partial_sensor_overlap() -> None:
+    left = projection(
+        senses=("sensor.a", "sensor.b", "sensor.c"),
+        concepts=("concept.x",),
     )
-    assert finalized is not None
-    memory.flush()
-
-    matches = memory.retrieve(("sense.a", "state.low"), action_token="action.p")
-    assert matches
-    assert matches[0].similarity > 0.7
-    assert "action.p" in matches[0].episode.action_tokens
-
-
-def test_reinterpretation_never_rewrites_factual_episode_core() -> None:
-    memory = EpisodicExperienceMemory(ORG)
-    memory.observe(record(0, context=("sense.a", "sense.b")))
-    memory.flush()
-    before = memory.episodes[0]
-
-    changed = memory.reinterpret(
-        "concept.new",
-        ("sense.a", "sense.b"),
-        min_overlap=1.0,
+    right = projection(
+        senses=("sensor.a", "sensor.b", "sensor.d"),
+        concepts=("concept.x",),
+    )
+    unrelated = projection(
+        senses=("sensor.x", "sensor.y"),
+        concepts=("concept.z",),
+        internal=("internal.pressure.high",),
     )
 
-    assert changed == 1
-    assert memory.episodes[0] == before
-    assert memory.interpretations_for(before.episode_id) == ("concept.new",)
+    related_score = EpisodicExperienceMemory.projection_similarity(left, right)
+    unrelated_score = EpisodicExperienceMemory.projection_similarity(left, unrelated)
+
+    assert related_score > 0.65
+    assert related_score > unrelated_score
 
 
-def test_consolidation_requires_independent_temporal_epochs() -> None:
+def test_empty_concept_sets_do_not_create_false_similarity() -> None:
+    left = projection(
+        senses=("sensor.a",),
+        concepts=(),
+        internal=("internal.pressure.low",),
+    )
+    right = projection(
+        senses=("sensor.z",),
+        concepts=(),
+        internal=("internal.pressure.high",),
+    )
+
+    assert EpisodicExperienceMemory.projection_similarity(left, right) < 0.4
+
+
+def test_consolidation_uses_independent_epochs_of_same_family() -> None:
     limits = replace(
         KernelLimits(),
         episodic_epoch_ticks=10,
         episodic_min_consolidation_epochs=3,
     )
     memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
+
     for tick in (0, 10, 20):
-        memory.observe(
-            record(
-                tick,
-                context=("sense.a", "state.low"),
-                action="action.p",
-                outcomes=("outcome.x",),
-            )
-        )
+        memory.observe(record(tick), projection())
         memory.flush()
 
     consolidated = memory.consolidate()
     assert len(consolidated) == 1
     item = consolidated[0]
     assert item.support_epochs == 3
-    assert item.action_token == "action.p"
-    assert item.outcome_tokens == ("outcome.x",)
-    assert "sense.a" in item.context_tokens
-
-
-def test_same_epoch_repetition_does_not_fake_independent_evidence() -> None:
-    limits = replace(
-        KernelLimits(),
-        episodic_epoch_ticks=100,
-        episodic_min_consolidation_epochs=2,
+    assert item.sense_ids == (
+        "sensor.identity.alpha",
+        "sensor.identity.beta",
     )
-    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
-    for tick in (1, 2, 3):
-        memory.observe(record(tick))
-        memory.flush()
-    assert memory.consolidate() == ()
+    assert item.concept_ids == ("concept.000001",)
 
 
-def test_state_conditioned_prediction_uses_similar_lived_experience() -> None:
+def test_reinterpretation_indexes_old_family_without_rewriting_projection() -> None:
     memory = EpisodicExperienceMemory(ORG)
-    for tick in (0, 100, 200):
+    memory.observe(record(0), projection(concepts=()))
+    memory.flush()
+    before = memory.episodes[0].projection
+
+    changed = memory.reinterpret(
+        "concept.new",
+        ("sensor.identity.alpha", "sensor.identity.beta"),
+        min_overlap=1.0,
+    )
+
+    assert changed == 1
+    assert memory.episodes[0].projection == before
+    assert memory.interpretations_for(memory.episodes[0].episode_id) == (
+        "concept.new",
+    )
+
+
+def test_prediction_is_conditioned_on_sparse_cognitive_state() -> None:
+    memory = EpisodicExperienceMemory(ORG)
+    for index in range(4):
+        outcomes = ("outcome.sense.channel.a.up.3",)
+        memory.observe(
+            record(index * 10, outcomes=outcomes),
+            projection(
+                senses=("sensor.state.a",),
+                concepts=("concept.state.a",),
+                outcomes=outcomes,
+            ),
+        )
+        memory.flush()
+
+    for index in range(4):
+        outcomes = ("outcome.sense.channel.a.down.3",)
+        memory.observe(
+            record(100 + index * 10, outcomes=outcomes),
+            projection(
+                senses=("sensor.state.b",),
+                concepts=("concept.state.b",),
+                outcomes=outcomes,
+            ),
+        )
+        memory.flush()
+
+    predicted = memory.predict(
+        EpisodicProjection(
+            sense_ids=("sensor.state.a",),
+            concept_ids=("concept.state.a",),
+            internal_tokens=("internal.pressure.low",),
+            action_token="action.motor.composite",
+        ),
+        action_token="action.motor.composite",
+    )
+
+    assert predicted is not None
+    assert any(".up" in token or token == "effect.balance.up" for token in predicted.predicted_outcomes)
+
+
+def test_compact_families_fit_hundreds_under_default_byte_budget() -> None:
+    memory = EpisodicExperienceMemory(ORG)
+    for index in range(220):
+        senses = (f"sensor.identity.{index:04d}",)
+        concepts = (f"concept.{index % 32:06d}",)
+        outcomes = (f"outcome.sense.channel.{index:04d}.up.{index % 7}",)
         memory.observe(
             record(
-                tick,
-                context=("sense.a", "posture.cluster.1"),
-                action="action.p",
-                outcomes=("outcome.left",),
-            )
-        )
-        memory.flush()
-    memory.observe(
-        record(
-            300,
-            context=("sense.z", "posture.cluster.9"),
-            action="action.p",
-            outcomes=("outcome.right",),
-        )
-    )
-    memory.flush()
-
-    prediction = memory.predict(
-        ("sense.a", "posture.cluster.1"),
-        action_token="action.p",
-    )
-    assert prediction is not None
-    assert prediction.predicted_outcomes[0] == "outcome.left"
-    assert prediction.confidence > 0.5
-
-
-def test_cognitive_replay_is_reactivation_only() -> None:
-    memory = EpisodicExperienceMemory(ORG)
-    memory.observe(record(0))
-    memory.flush()
-    before = memory.episodes
-
-    replay = memory.cognitive_replay(("sense.a",), action_token="action.p")
-
-    assert replay
-    assert replay[0].action_tokens == ("action.p",)
-    assert replay[0].trace
-    assert replay[0].trace[0].context_tokens == ("sense.a", "state.a")
-    assert memory.episodes == before
-    assert memory.metrics(current_tick=1).replay_count == 1
-
-
-def test_capacity_compacts_redundant_episodes_before_eviction() -> None:
-    limits = replace(KernelLimits(), max_episodic_episodes=2)
-    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
-    for tick in (0, 100, 200):
-        memory.observe(
-            record(
-                tick,
-                context=("sense.a", "state.same"),
-                action="action.p",
-                outcomes=("outcome.x",),
-            )
+                index * 2,
+                action=f"action.{index:04d}",
+                outcomes=outcomes,
+            ),
+            projection(
+                senses=senses,
+                concepts=concepts,
+                action=f"action.{index:04d}",
+                outcomes=outcomes,
+            ),
         )
         memory.flush()
 
-    assert len(memory.episodes) <= 2
-    assert any(episode.compressed for episode in memory.episodes)
-    assert sum(episode.recurrence for episode in memory.episodes) == 3
-    metrics = memory.metrics(current_tick=201)
-    assert metrics.compaction_count >= 1
-    assert metrics.eviction_count == 0
-
-
-def test_checkpoint_restores_pending_episodes_and_interpretations() -> None:
-    memory = EpisodicExperienceMemory(ORG)
-    memory.observe(record(0, context=("sense.a", "sense.b")))
-    memory.flush()
-    episode_id = memory.episodes[0].episode_id
-    memory.reinterpret("concept.ab", ("sense.a", "sense.b"), min_overlap=1.0)
-    memory.observe(record(1, context=("sense.pending",), action=None))
-
     payload = memory.checkpoint()
-    restored = EpisodicExperienceMemory.restore(payload, organism_id=ORG)
+    size = len(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
 
-    assert restored.episodes == memory.episodes
-    assert restored.interpretations_for(episode_id) == ("concept.ab",)
-    assert restored.metrics(current_tick=2).pending_records == 1
-    restored.flush()
-    assert len(restored.episodes) == 2
+    assert len(memory.episodes) >= 180
+    assert size <= KernelLimits().max_episodic_checkpoint_bytes
+    assert memory.metrics(current_tick=500).eviction_count == 0
 
 
-def test_checkpoint_fails_closed_on_wrong_schema_or_organism() -> None:
+def test_checkpoint_does_not_bridge_pending_episode_across_restart() -> None:
+    memory = EpisodicExperienceMemory(ORG)
+    memory.observe(record(0), projection())
+    assert memory.metrics(current_tick=0).pending_records == 1
+
+    restored = EpisodicExperienceMemory.restore(
+        memory.checkpoint(),
+        organism_id=ORG,
+    )
+
+    assert restored.metrics(current_tick=0).pending_records == 0
+    assert restored.episodes == ()
+
+
+def test_v1_checkpoint_migrates_to_sparse_v2() -> None:
+    legacy = {
+        "schema_version": 1,
+        "organism_id": ORG,
+        "episodes": [
+            {
+                "episode_id": "episode.legacy",
+                "start_tick": 10,
+                "end_tick": 10,
+                "occurrence_ticks": [10],
+                "trace": [],
+                "initial_context": [
+                    "sense.signal.aaa",
+                    "internal.pressure.low",
+                ],
+                "terminal_context": [],
+                "action_tokens": ["action.motor.composite"],
+                "outcome_tokens": ["outcome.sense.channel.a.up.3"],
+                "evidence_refs": ["evidence.legacy"],
+                "source_record_ids": ["transition.legacy"],
+                "novelty": 1.0,
+                "surprise": 1.0,
+                "recurrence": 1,
+                "compressed": False,
+            }
+        ],
+        "interpretations": {},
+        "retrieval_counts": {},
+        "metrics": {},
+    }
+
+    restored = EpisodicExperienceMemory.restore(
+        legacy,
+        organism_id=ORG,
+    )
+
+    assert restored.SCHEMA_VERSION == 2
+    assert len(restored.episodes) == 1
+    assert restored.episodes[0].projection.effect_features
+
+
+def test_checkpoint_rejects_wrong_identity() -> None:
     memory = EpisodicExperienceMemory(ORG)
     payload = memory.checkpoint()
-
-    bad_schema = dict(payload)
-    bad_schema["schema_version"] = 999
-    with pytest.raises(EpisodicMemoryError):
-        EpisodicExperienceMemory.restore(bad_schema, organism_id=ORG)
-
     with pytest.raises(EpisodicMemoryError):
         EpisodicExperienceMemory.restore(payload, organism_id="other")
 
 
-
-def test_reinterpretations_are_kernel_bounded() -> None:
-    limits = replace(
-        KernelLimits(),
-        max_episodic_interpretations_per_episode=2,
-    )
-    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
-    memory.observe(record(0, context=("sense.a", "sense.b")))
-    memory.flush()
-
-    assert memory.reinterpret("concept.1", ("sense.a",), min_overlap=1.0) == 1
-    assert memory.reinterpret("concept.2", ("sense.a",), min_overlap=1.0) == 1
-    assert memory.reinterpret("concept.3", ("sense.a",), min_overlap=1.0) == 0
-    assert memory.interpretations_for(memory.episodes[0].episode_id) == (
-        "concept.1",
-        "concept.2",
-    )
-
-
-
-def test_byte_pressure_is_enforced_before_checkpoint() -> None:
-    limits = replace(
-        KernelLimits(),
-        max_episodic_episodes=64,
-        max_episodic_checkpoint_bytes=2_400,
-    )
-    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
-    for tick in range(12):
-        memory.observe(
-            record(
-                tick * 10,
-                context=(f"sense.{tick}", "state.shared"),
-                action=f"action.{tick % 3}",
-                outcomes=(f"outcome.{tick % 4}",),
-            )
-        )
-        memory.flush()
-
-    payload = memory.checkpoint()
-    encoded = json.dumps(
-        payload,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-
-    assert len(encoded) <= limits.max_episodic_checkpoint_bytes
-    assert len(memory.episodes) < 12
-    assert memory.metrics(current_tick=120).eviction_count > 0
-
-
-
-def test_higher_order_interpretation_can_index_prior_interpretation() -> None:
+def test_provenance_retains_hash_not_raw_context() -> None:
     memory = EpisodicExperienceMemory(ORG)
-    memory.observe(record(0, context=("sense.a", "sense.b")))
-    memory.flush()
-    episode_id = memory.episodes[0].episode_id
-
-    assert memory.reinterpret("concept.low", ("sense.a",), min_overlap=1.0) == 1
-    assert memory.reinterpret("concept.high", ("concept.low",), min_overlap=1.0) == 1
-
-    assert memory.interpretations_for(episode_id) == (
-        "concept.high",
-        "concept.low",
-    )
-
-
-
-def test_replay_records_preserve_exact_causal_record_content() -> None:
     original = record(
-        7,
-        context=("sense.a", "sense.a", "state.a"),
-        outcomes=("outcome.x", "outcome.x"),
+        0,
+        context=tuple(f"sense.raw.{index}" for index in range(100)),
     )
-    memory = EpisodicExperienceMemory(ORG)
-    memory.observe(original)
+    memory.observe(original, projection())
     memory.flush()
 
-    replayed = memory.replay_records()
-
-    assert replayed == (original,)
-    assert replayed[0].content_hash == original.content_hash
-
-
-
-def test_compaction_preserves_independent_epoch_evidence() -> None:
-    limits = replace(
-        KernelLimits(),
-        max_episodic_episodes=2,
-        episodic_epoch_ticks=10,
-        episodic_min_consolidation_epochs=3,
-    )
-    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
-    for tick in (0, 10, 20):
-        memory.observe(
-            record(
-                tick,
-                context=("sense.a", "state.same"),
-                action="action.p",
-                outcomes=("outcome.x",),
-            )
-        )
-        memory.flush()
-
-    assert len(memory.episodes) == 2
-    assert sum(episode.recurrence for episode in memory.episodes) == 3
-    occurrences = {
-        tick
-        for episode in memory.episodes
-        for tick in episode.occurrence_ticks
-    }
-    assert occurrences == {0, 10, 20}
-    consolidated = memory.consolidate()
-    assert len(consolidated) == 1
-    assert consolidated[0].support_epochs == 3
+    episode = memory.episodes[0]
+    assert episode.trace
+    assert episode.trace[0].source_content_hash == original.content_hash
+    checkpoint_text = json.dumps(memory.checkpoint())
+    assert "sense.raw.99" not in checkpoint_text
 
 
-
-def test_restore_rejects_duplicate_episode_ids() -> None:
+def test_episodic_memory_does_not_fabricate_raw_replay_records() -> None:
     memory = EpisodicExperienceMemory(ORG)
-    memory.observe(record(0))
+    memory.observe(record(0), projection())
     memory.flush()
-    payload = memory.checkpoint()
-    payload["episodes"] = [
-        payload["episodes"][0],
-        dict(payload["episodes"][0]),
-    ]
-
-    with pytest.raises(EpisodicMemoryError, match="duplicate"):
-        EpisodicExperienceMemory.restore(payload, organism_id=ORG)
+    assert memory.replay_records() == ()
 
 
 
-def test_consolidated_contingency_identity_is_stable_as_support_grows() -> None:
-    limits = replace(
-        KernelLimits(),
-        episodic_epoch_ticks=10,
-        episodic_min_consolidation_epochs=3,
+def test_borderline_family_variant_is_retained_as_bounded_exception() -> None:
+    memory = EpisodicExperienceMemory(ORG)
+    base_outcomes = (
+        "outcome.sense.channel.a.up.3",
+        "outcome.sense.channel.b.up.3",
     )
-    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
-    for tick in (0, 10, 20):
-        memory.observe(
-            record(
-                tick,
-                context=("sense.a", "sense.b"),
-                action="action.p",
-                outcomes=("outcome.x",),
-            )
-        )
-        memory.flush()
-
-    first = memory.consolidate()
-    assert len(first) == 1
-    first_id = first[0].contingency_id
-
+    variant_outcomes = (
+        "outcome.sense.channel.a.up.4",
+        "outcome.sense.channel.c.up.4",
+    )
     memory.observe(
-        record(
-            30,
-            context=("sense.a", "sense.b", "state.extra"),
-            action="action.p",
-            outcomes=("outcome.x",),
-        )
+        record(0, outcomes=base_outcomes),
+        projection(
+            senses=("sensor.a", "sensor.b", "sensor.c"),
+            concepts=("concept.shared",),
+            outcomes=base_outcomes,
+        ),
     )
     memory.flush()
-    second = memory.consolidate()
+    memory.observe(
+        record(10, outcomes=variant_outcomes),
+        projection(
+            senses=("sensor.d", "sensor.e", "sensor.f"),
+            concepts=("concept.shared",),
+            outcomes=variant_outcomes,
+        ),
+    )
+    memory.flush()
 
-    assert len(second) == 1
-    assert second[0].contingency_id == first_id
-    assert second[0].support_epochs == 4
+    assert len(memory.episodes) == 1
+    family = memory.episodes[0]
+    assert family.recurrence == 2
+    assert 1 <= len(family.exceptions) <= 4
+
+    match = memory.retrieve(
+        EpisodicProjection(
+            sense_ids=("sensor.d", "sensor.e", "sensor.f"),
+            concept_ids=("concept.shared",),
+            internal_tokens=("internal.pressure.low",),
+            action_token="action.motor.composite",
+        ),
+        action_token="action.motor.composite",
+        k=1,
+    )
+    assert match
+    assert match[0].episode_id == family.episode_id

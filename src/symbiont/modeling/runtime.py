@@ -20,6 +20,7 @@ from .episodic import (
     EpisodeMatch,
     EpisodicExperienceMemory,
     EpisodicPrediction,
+    EpisodicProjection,
 )
 from .culture import (
     CulturalAction,
@@ -495,7 +496,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._charge_metabolism("cognition", self._social_exchange_cost)
         return result
 
-    def record_experience(self, record: ExperienceRecord) -> None:
+    def record_experience(
+        self,
+        record: ExperienceRecord,
+        *,
+        episodic_projection: EpisodicProjection | None = None,
+    ) -> None:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot record new experience")
         self._experience_ledger.append(record)
@@ -506,7 +512,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         ):
             # Episodic memory sees only independently observed causal records.
             # Model proposals/validations never become lived experience.
-            self._episodic_memory.observe(record)
+            self._episodic_memory.observe(
+                record,
+                episodic_projection,
+            )
             self._refresh_episodic_interpretations()
             # Projection is idempotent inside CognitiveBridge. Retrying on
             # every lived transition lets old evidence become usable after a
@@ -568,12 +577,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
         return changed
 
     @staticmethod
-    def _episodic_graph_sense_ids(context_tokens: tuple[str, ...]) -> tuple[str, ...]:
-        """Map private opaque context tokens back to existing graph sense ids."""
+    def _episodic_graph_sense_ids(sense_ids: tuple[str, ...]) -> tuple[str, ...]:
+        """Return direct cognitive SENSE identities captured at experience time."""
         return tuple(sorted({
-            token.removeprefix("sense.")
-            for token in context_tokens
-            if token.startswith("sense.") and len(token) > len("sense.")
+            str(sense_id)
+            for sense_id in sense_ids
+            if isinstance(sense_id, str) and sense_id
         }))
 
     def _project_episodic_consolidation(self) -> int:
@@ -584,7 +593,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         gained = 0
         for contingency in self._episodic_memory.consolidated:
             source_ids = self._episodic_graph_sense_ids(
-                contingency.context_tokens
+                contingency.sense_ids
             )
             gained += bridge.observe_retrospective_support(
                 source_ids,
@@ -648,6 +657,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
             "episode_count": metrics.episode_count,
             "pending_records": metrics.pending_records,
             "compressed_episode_count": metrics.compressed_episode_count,
+            "total_occurrences": metrics.total_occurrences,
+            "mean_recurrence": metrics.mean_recurrence,
+            "exception_count": metrics.exception_count,
+            "checkpoint_bytes": metrics.checkpoint_bytes,
             "interpretation_count": metrics.interpretation_count,
             "consolidated_contingencies": metrics.consolidated_contingencies,
             "retrieval_count": metrics.retrieval_count,
@@ -666,26 +679,16 @@ class ModeledOrganismRuntime(OrganismRuntime):
         ):
             raise ValueError("max_records must be an integer within [3, 65536]")
 
-        # The live ledger is intentionally short and causal. Episodic memory
-        # extends the organism's usable past after older causal records age out
-        # of that ledger. Never duplicate a lived record or overwrite a
-        # conflicting record id silently.
-        combined: dict[str, ExperienceRecord] = {}
-        for record in self._episodic_memory.replay_records(max_records=max_records):
-            combined[record.record_id] = record
-        for record in self._experience_ledger.records:
-            previous = combined.get(record.record_id)
-            if previous is not None and previous.content_hash != record.content_hash:
-                raise ValueError("episodic/live experience record mismatch")
-            combined[record.record_id] = record
-
-        ordered = sorted(
-            combined.values(),
-            key=lambda record: (record.tick_class, record.record_id),
+        # Private-model training remains grounded in exact causal records.
+        # Episodic memory v2 stores compact cognitive families plus provenance,
+        # not telemetry-sized raw records, so it must never fabricate training
+        # examples after the authoritative causal ledger has aged them out.
+        selected = tuple(
+            sorted(
+                self._experience_ledger.records,
+                key=lambda record: (record.tick_class, record.record_id),
+            )[-max_records:]
         )
-        # Keep the most recent bounded causal history. Older episodes remain in
-        # episodic memory and can re-enter future corpora as capacity permits.
-        selected = tuple(ordered[-max_records:])
         return build_training_corpus(selected, max_records=max_records)
 
     def build_private_tokenizer(self, corpus: TrainingCorpus | None = None) -> NativeTokenizer:

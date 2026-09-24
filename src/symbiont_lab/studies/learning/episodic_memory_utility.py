@@ -13,7 +13,7 @@ from typing import Iterable
 import random
 
 from symbiont.cognition.limits import KernelLimits
-from symbiont.modeling.episodic import EpisodicExperienceMemory
+from symbiont.modeling.episodic import EpisodicExperienceMemory, EpisodicProjection
 from symbiont.modeling.experience import EpistemicStatus, ExperienceRecord, SourceKind
 
 
@@ -26,6 +26,26 @@ def _causal(records: Iterable[ExperienceRecord]) -> tuple[ExperienceRecord, ...]
         and record.source_kind is not SourceKind.MODEL
         and record.outcome_tokens
     )
+
+
+def _projection(record: ExperienceRecord) -> EpisodicProjection:
+    """Observer-only projection used to test the episodic algorithm itself."""
+    state_tokens = tuple(
+        token
+        for token in record.context_tokens
+        if token.startswith("state.")
+    )
+    sense_ids = tuple(
+        token.removeprefix("sense.")
+        for token in record.context_tokens
+        if token.startswith("sense.")
+    )
+    return EpisodicProjection(
+        sense_ids=sense_ids[:16],
+        concept_ids=state_tokens[:8],
+        internal_tokens=(),
+        action_token=record.action_token,
+    ).with_effects(record.outcome_tokens)
 
 
 def _top(counter: Counter[str]) -> str | None:
@@ -72,13 +92,14 @@ def evaluate_episodic_predictive_utility(
     global_counts: Counter[str] = Counter()
     vocabulary: set[str] = set()
     for record in training:
-        memory.observe(record)
-        for outcome in record.outcome_tokens:
+        projected = _projection(record)
+        memory.observe(record, projected)
+        for outcome in projected.effect_features:
             action_counts[record.action_token][outcome] += 1
             global_counts[outcome] += 1
             vocabulary.add(outcome)
     for record in testing:
-        vocabulary.update(record.outcome_tokens)
+        vocabulary.update(_projection(record).effect_features)
     memory.flush()
 
     memory_correct = 0
@@ -91,10 +112,16 @@ def evaluate_episodic_predictive_utility(
 
     global_prediction = _top(global_counts)
     for record in testing:
-        truth = record.outcome_tokens[0]
+        projected = _projection(record)
+        truth = projected.effect_features[0]
 
         prediction = memory.predict(
-            record.context_tokens,
+            EpisodicProjection(
+                sense_ids=projected.sense_ids,
+                concept_ids=projected.concept_ids,
+                internal_tokens=projected.internal_tokens,
+                action_token=projected.action_token,
+            ),
             action_token=record.action_token,
         )
         if prediction is not None and prediction.predicted_outcomes:
