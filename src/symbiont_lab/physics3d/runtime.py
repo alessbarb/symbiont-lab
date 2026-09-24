@@ -37,6 +37,7 @@ from .humanoid import apply_surface_material, configure_physics_solver
 from .resource import PhysicalResource
 from .reembodiment import (
     EmbodimentContract,
+    migrate_temporal_domains,
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
 )
@@ -384,6 +385,7 @@ class PyBulletEmbodimentRuntime:
             self._embodiment_lifecycle: dict[str, Any] | None = None
             self._reembodied = False
         else:
+            runtime_checkpoint = migrate_temporal_domains(runtime_checkpoint)
             effective = runtime_checkpoint.get("effective_config", {})
             if not isinstance(effective, Mapping) or not bool(
                 effective.get("explicit_metabolism", False)
