@@ -12,6 +12,7 @@ from symbiont.actuation.action import (
     MotorCommand,
 )
 from symbiont.actuation.arbitration import ActionArbitrator
+from symbiont.actuation.composition import CompositionEngine
 from symbiont.actuation.commitment import ActionCommitment
 from symbiont.actuation.competence import (
     CompetenceEvidence,
@@ -23,7 +24,7 @@ from symbiont.actuation.evidence import (
     CausalEvidenceLedger,
     SensorimotorTransition,
 )
-from symbiont.actuation.model import ControllabilityModel
+from symbiont.actuation.model import AgencyModel, ControllabilityModel, SensorimotorModel
 from symbiont.actuation.surface import derive_actuator_constitution
 
 
@@ -182,3 +183,91 @@ def test_runtime_has_no_motor_mode_or_posthoc_origin_classifier():
     assert '"mixed"' not in source
     assert '"primitive_reactive"' not in source
     assert '"primitive_prospective"' not in source
+
+
+def test_forward_model_predicts_from_shared_causal_evidence():
+    ledger = CausalEvidenceLedger()
+    model = SensorimotorModel()
+    for index in range(3):
+        transition = SensorimotorTransition(
+            transition_id=f"transition.forward.{index}",
+            tick_start=index,
+            tick_end=index + 1,
+            context_ref="context.forward",
+            commitment_id=f"commitment.forward.{index}",
+            controller_id="controller.competence.a",
+            competence_id="competence.a",
+            state_before_ref=f"state.before.forward.{index}",
+            motor_command_ref=f"command.forward.{index}",
+            actuation_ref=f"actuation.forward.{index}",
+            prediction_ref=None,
+            state_after_ref=f"state.after.forward.{index}",
+            observed_effect_id="effect.forward",
+        )
+        evidence = ledger.observe(transition)
+        model.observe(evidence)
+
+    prediction = model.predict(
+        competence_id="competence.a",
+        context_id="context.forward",
+    )
+    assert prediction is not None
+    assert prediction.effect_id == "effect.forward"
+    assert prediction.confidence == 1.0
+
+
+def test_agency_is_inferred_from_same_ledger_not_a_second_evidence_store():
+    ledger = CausalEvidenceLedger()
+    for index, competence in enumerate(
+        ("competence.a", "competence.a", "competence.a", "competence.b")
+    ):
+        transition = SensorimotorTransition(
+            transition_id=f"transition.agency.{index}",
+            tick_start=index,
+            tick_end=index + 1,
+            context_ref="context.agency",
+            commitment_id=f"commitment.agency.{index}",
+            controller_id=f"controller.{competence}",
+            competence_id=competence,
+            state_before_ref=f"state.before.agency.{index}",
+            motor_command_ref=f"command.agency.{index}",
+            actuation_ref=f"actuation.agency.{index}",
+            prediction_ref=None,
+            state_after_ref=f"state.after.agency.{index}",
+            observed_effect_id=(
+                "effect.agency" if competence == "competence.a" else None
+            ),
+        )
+        ledger.observe(transition)
+
+    agency = AgencyModel().update_from_ledger(
+        ledger,
+        effect_id="effect.agency",
+        competence_id="competence.a",
+        context_id=None,
+        tick=10,
+        prediction_match=1.0,
+    )
+    assert agency.temporal_contingency == 1.0
+    assert agency.causal_specificity == 1.0
+    assert agency.confidence > 0.0
+
+
+def test_sequential_composition_requires_recurrent_evidence_and_roundtrips():
+    engine = CompositionEngine()
+    for _ in range(4):
+        evidence = engine.observe(
+            "competence.a",
+            "competence.b",
+            "effect.composed",
+            success=True,
+        )
+    assert evidence.established
+    assert len(engine.established) == 1
+
+    restored = CompositionEngine.restore(engine.checkpoint())
+    assert len(restored.established) == 1
+    restored_evidence = restored.established[0]
+    assert restored_evidence.first_competence_id == "competence.a"
+    assert restored_evidence.second_competence_id == "competence.b"
+    assert restored_evidence.effect_id == "effect.composed"
