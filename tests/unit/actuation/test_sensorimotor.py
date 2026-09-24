@@ -962,20 +962,18 @@ def test_historical_primitive_requires_fresh_evidence_before_cognitive_reuse():
     assert learner.has_cognitive_primitive(historical_id)
 
 
-def test_sensorimotor_v7_checkpoint_remains_restore_compatible_without_memory_candidates():
-    learner = SensorimotorLearner(_ids(4), organism_id="org-v7-compat")
+def test_sensorimotor_pre_v9_checkpoint_is_not_reinterpreted_as_current_evidence():
+    learner = SensorimotorLearner(_ids(4), organism_id="org-pre-v9")
     payload = learner.checkpoint()
     payload["schema_version"] = 7
     payload.pop("historical_candidates")
 
-    restored = SensorimotorLearner.restore(
-        payload,
-        actuator_ids=_ids(4),
-        organism_id="org-v7-compat",
-    )
-
-    assert restored.historical_primitive_candidate_ids == ()
-    assert restored.checkpoint()["schema_version"] == 8
+    with pytest.raises(ValueError, match="schema_version must be 9"):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=_ids(4),
+            organism_id="org-pre-v9",
+        )
 
 
 
