@@ -50,6 +50,9 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
             "schema_parts": 33,
             "schema_sensory_parts": 12,
             "schema_cognitive_regions": 8,
+            "embodiment_epoch": 3,
+            "reacclimation_remaining": 12,
+            "reacclimating": True,
             "predictor_count": 17,
             "prediction_error": 0.11,
             "joint_motion": 0.18,
@@ -78,6 +81,9 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
     assert '"type":"cognition"' in joined
     assert '"type":"vitals"' in joined
     assert '"motor_origin":"cognition"' in joined
+    assert '"embodiment_epoch":3' in joined
+    assert '"reacclimation_remaining":12' in joined
+    assert '"reacclimating":true' in joined
     assert '"active_effectors":6' in joined
     assert '"resource_distance":2.4' in joined
     assert '"resource_remaining":0.55' in joined
@@ -1416,3 +1422,17 @@ def test_body_viewer_selects_observer_model_by_body_kind() -> None:
     assert "ensureBodyModel(data.body_kind)" in body
     assert "this.bodyModel.joints" in body
     assert "rebuildSkeleton" in body
+
+
+
+def test_mind_ingests_embodiment_reacclimation_state() -> None:
+    asset = _mind_sources()
+    telemetry = (
+        WEB_ROOT / "views" / "mind" / "telemetry.js"
+    ).read_text(encoding="utf-8")
+
+    assert "embodimentEpoch" in asset
+    assert "reacclimationRemaining" in asset
+    assert "data.embodiment_epoch ?? tel.embodimentEpoch" in telemetry
+    assert "data.reacclimation_remaining ?? tel.reacclimationRemaining" in telemetry
+    assert "reacclimating" in telemetry
