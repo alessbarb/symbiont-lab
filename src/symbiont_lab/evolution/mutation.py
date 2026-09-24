@@ -61,4 +61,4 @@ def mutate_soft_budget(genome: Genome, *, field: Literal["soft_node_budget", "so
 
 
 def derive_child_genome(parent: Genome, *, new_genome_id: str, mutated: Genome) -> Genome:
-    return replace(mutated, genome_id=new_genome_id, parent_ids=(parent.genome_id,))
+    return replace(mutated, genome_id=new_genome_id)
