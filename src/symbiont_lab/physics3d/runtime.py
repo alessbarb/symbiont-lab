@@ -17,7 +17,6 @@ from typing import Mapping, Any
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import LivingBodyState, VitalState
 from symbiont.cognition.limits import KernelLimits
-from symbiont.cognition.birth import load_actuator_constitution
 from symbiont.actuation.sensorimotor import SensorimotorLearner
 from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
@@ -31,6 +30,7 @@ from .apparatus import (
     actuator_to_effector_map,
     actuator_exclusion_groups,
     body_schema_summary,
+    physics3d_actuator_surface,
     physics3d_cognition,
     physics3d_sensory_system,
 )
@@ -375,7 +375,6 @@ class PyBulletEmbodimentRuntime:
 
         def _fresh_organism(subject_id: str) -> PrivateModelOrganismRuntime:
             genome, graph, resolved_limits = physics3d_cognition(
-                motor_slots=len(self.apparatus.effector_ids),
                 kernel_limits=kernel_limits,
             )
             metabolic_capacity = {
@@ -387,7 +386,12 @@ class PyBulletEmbodimentRuntime:
                 energy_reserve=physical_energy_capacity,
                 max_energy=physical_energy_capacity,
             )
-            actuator_constitution = load_actuator_constitution(genome)
+            actuator_constitution = physics3d_actuator_surface(
+                self.apparatus.effector_ids,
+                physical_contract=(
+                    f"{contract.body_kind}:{contract.receptor_count}:{contract.effector_count}"
+                ),
+            )
             actuator_ids = actuator_constitution.actuator_ids
             if len(actuator_ids) != len(self.apparatus.effector_ids):
                 raise RuntimeError(
@@ -427,6 +431,7 @@ class PyBulletEmbodimentRuntime:
                     organism_id=subject_id,
                     max_concurrent=None,
                     exclusive_actuator_groups=exclusive_groups,
+                    embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                 ),
             )
 
@@ -458,12 +463,15 @@ class PyBulletEmbodimentRuntime:
             raw_genome = runtime_checkpoint.get("genome")
             if (
                 not isinstance(raw_genome, Mapping)
-                or raw_genome.get("genome_id")
-                != "genome_symbiont_physics3d_v9"
+                or not isinstance(raw_genome.get("genome_id"), str)
+                or not raw_genome.get("genome_id")
             ):
                 raise RuntimeError(
-                    "checkpoint is not from the canonical Physics3D Symbiont lineage"
+                    "Physics3D checkpoint is missing canonical genome identity"
                 )
+            # Genome identity is organism state, not a Physics3D body type.
+            # The strict Genome codec below validates/migrates its schema and
+            # hashes; Physics3D must not require a body-specific genome id.
 
             restored_payload = dict(runtime_checkpoint)
             self._reembodied = physical_state is None

@@ -28,6 +28,7 @@ from ...cognition.learning import (
     update_eligibility,
 )
 from ...cognition.limits import KernelLimits
+from ...genetics.expression import GeneExpressionState
 from ...cognition.metaplasticity import SafetyState
 from ...cognition.structure import (
     EdgeLifecycleState,
@@ -242,9 +243,11 @@ class CognitiveBridge:
         structural_plasticity: StructuralPlasticity | None = None,
         safety_state: SafetyState | None = None,
         develop_senses: bool | None = None,
+        expression_state: GeneExpressionState | None = None,
     ) -> None:
         self._graph = graph
         self._genome = genome
+        self._expression_state = expression_state or GeneExpressionState.from_genome(genome)
         self._kernel_limits = kernel_limits
         self._structural_plasticity = (
             structural_plasticity
@@ -290,18 +293,37 @@ class CognitiveBridge:
         self._last_consolidated_producer_id: str | None = None
         self._next_concept_index: int = 1
         self._topology_revision = 0
-        self._adaptive_node_budget = min(
+        node_ceiling = min(
             self._kernel_limits.max_nodes,
-            max(len(graph.nodes), self._genome.development.soft_node_budget),
+            self._genome.development.soft_node_budget,
         )
-        self._adaptive_edge_budget = min(
+        edge_ceiling = min(
             self._kernel_limits.max_edges,
-            max(len(graph.edges), self._genome.development.soft_edge_budget),
+            self._genome.development.soft_edge_budget,
+        )
+        sense_ceiling = min(
+            node_ceiling,
+            self._genome.development.sense_node_budget,
+        )
+        # Genetic capacity is a developmental ceiling, not capacity granted at
+        # birth. Germinal cognition starts with a bounded fraction and earns
+        # further capacity only under structural demand.
+        self._adaptive_node_budget = max(
+            len(graph.nodes),
+            min(node_ceiling, max(4, math.ceil(node_ceiling * 0.25))),
+        )
+        self._adaptive_edge_budget = max(
+            len(graph.edges),
+            min(edge_ceiling, max(8, math.ceil(edge_ceiling * 0.25))),
         )
         sense_count = sum(1 for node in graph.nodes if node.kind is NodeKind.SENSE)
-        self._adaptive_sense_budget = min(
-            self._adaptive_node_budget,
-            max(sense_count, self._genome.development.sense_node_budget),
+        self._adaptive_sense_budget = max(
+            sense_count,
+            min(
+                self._adaptive_node_budget,
+                sense_ceiling,
+                max(2, math.ceil(sense_ceiling * 0.25)),
+            ),
         )
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._recovery_pending = False
@@ -321,6 +343,14 @@ class CognitiveBridge:
         self._cached_concept_signature_pairs: set[tuple[str, str]] = set()
         self._cached_topology_health_key: tuple[int, bool] | None = None
         self._cached_topology_health: TopologyHealth | None = None
+
+    def set_expression_state(self, state: GeneExpressionState) -> None:
+        """Install the expression snapshot that becomes effective this tick."""
+        self._expression_state = state
+
+    @property
+    def expression_state(self) -> GeneExpressionState:
+        return self._expression_state
 
     def _topology_cache(self) -> tuple[dict[str, NodeKind], set[tuple[str, str]]]:
         if (
@@ -1296,36 +1326,48 @@ class CognitiveBridge:
         need_edges: bool = False,
         need_senses: bool = False,
     ) -> bool:
-        """Expand developmental resource budgets without changing kernel safety caps.
+        """Develop capacity toward inherited ceilings under structural demand."""
+        sensitivity = max(
+            0.0,
+            min(1.0, self._genome.development.capacity_growth_sensitivity),
+        )
+        if sensitivity <= 0.0:
+            return False
 
-        The genome defines the starting phenotype. Sustained structural demand
-        may grow that phenotype in bounded steps; growth never bypasses the
-        owner-configured kernel ceiling.
-        """
+        node_ceiling = min(
+            self._kernel_limits.max_nodes,
+            self._genome.development.soft_node_budget,
+        )
+        edge_ceiling = min(
+            self._kernel_limits.max_edges,
+            self._genome.development.soft_edge_budget,
+        )
+        sense_ceiling = min(
+            node_ceiling,
+            self._genome.development.sense_node_budget,
+        )
+
+        def grow(current: int, ceiling: int) -> int:
+            if current >= ceiling:
+                return current
+            remaining = ceiling - current
+            step = max(1, math.ceil(remaining * sensitivity * 0.25))
+            return min(ceiling, current + step)
+
         changed = False
-        if need_nodes and self._adaptive_node_budget < self._kernel_limits.max_nodes:
-            step = max(8, math.ceil(self._adaptive_node_budget * 0.125))
-            self._adaptive_node_budget = min(
-                self._kernel_limits.max_nodes,
-                self._adaptive_node_budget + step,
-            )
-            changed = True
-        if need_edges and self._adaptive_edge_budget < self._kernel_limits.max_edges:
-            step = max(64, math.ceil(self._adaptive_edge_budget * 0.125))
-            self._adaptive_edge_budget = min(
-                self._kernel_limits.max_edges,
-                self._adaptive_edge_budget + step,
-            )
-            changed = True
+        if need_nodes:
+            updated = grow(self._adaptive_node_budget, node_ceiling)
+            changed = changed or updated != self._adaptive_node_budget
+            self._adaptive_node_budget = updated
+        if need_edges:
+            updated = grow(self._adaptive_edge_budget, edge_ceiling)
+            changed = changed or updated != self._adaptive_edge_budget
+            self._adaptive_edge_budget = updated
         if need_senses:
-            ceiling = self._adaptive_node_budget
-            if self._adaptive_sense_budget < ceiling:
-                step = max(8, math.ceil(self._adaptive_sense_budget * 0.125))
-                self._adaptive_sense_budget = min(
-                    ceiling,
-                    self._adaptive_sense_budget + step,
-                )
-                changed = True
+            effective_ceiling = min(sense_ceiling, self._adaptive_node_budget)
+            updated = grow(self._adaptive_sense_budget, effective_ceiling)
+            changed = changed or updated != self._adaptive_sense_budget
+            self._adaptive_sense_budget = updated
         return changed
 
     def _seed_new_edges(self) -> None:
@@ -1704,7 +1746,7 @@ class CognitiveBridge:
         kinds, _ = self._topology_cache()
         for node_id in self._salient_concept_ids(activations):
             self._concept_last_active_tick[node_id] = self._tick
-        threshold = max(_ACTIVITY_THRESHOLD, self._genome.structure.grow_threshold)
+        threshold = max(_ACTIVITY_THRESHOLD, self._expression_state.effective_growth_threshold)
         active_senses = sorted(
             node_id
             for node_id, value in activations.items()
@@ -2999,8 +3041,8 @@ class CognitiveBridge:
                     edge,
                     source_activation=source_value,
                     target_activation=target_current,
-                    learning_rate=self._genome.plasticity.learning_rate.initial,
-                    modulation=tick_modulation * edge.plasticity,
+                    learning_rate=self._expression_state.effective_learning_rate,
+                    modulation=(tick_modulation * edge.plasticity * self._expression_state.effective_structural_plasticity),
                     eligible=eligible,
                     frozen=frozen,
                 )
@@ -3198,7 +3240,7 @@ class CognitiveBridge:
                 if evaluate_edge_lifecycle(
                     edge,
                     current_tick=tick,
-                    prune_threshold=self._genome.structure.prune_threshold,
+                    prune_threshold=self._expression_state.effective_pruning_threshold,
                     minimum_support=self._genome.structure.minimum_support,
                     quarantine_window_ticks=self._genome.structure.tentative_lifetime_ticks,
                     tentative_lifetime_ticks=self._genome.structure.tentative_lifetime_ticks,

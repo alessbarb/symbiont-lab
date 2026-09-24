@@ -6,13 +6,13 @@ from symbiont.cognition.limits import KernelLimits
 
 def test_base_genome_is_semantics_free_and_within_kernel_limits():
     limits = KernelLimits()
-    genome = load_base_genome(kernel_limits=limits, running_version=(0, 59, 4))
+    genome = load_base_genome(kernel_limits=limits, running_version=(0, 80, 0))
 
-    assert genome.genome_id == "genome_symbiont_base_v1"
-    assert genome.parent_ids == ()
+    assert genome.genome_id == "genome_symbiont_base_v2"
     assert genome.development.initial_concepts == 0
-    assert genome.development.soft_node_budget == 64
-    assert genome.development.soft_edge_budget == 384
+    assert genome.development.soft_node_budget == 192
+    assert genome.development.soft_edge_budget == 1536
+    assert genome.development.sense_node_budget == 128
     assert genome.development.consolidation_interval_ticks == 32
     assert genome.structure.minimum_support == 16
     assert genome.structure.grow_threshold == 0.18
@@ -20,6 +20,8 @@ def test_base_genome_is_semantics_free_and_within_kernel_limits():
     assert genome.structure.tentative_lifetime_ticks == 128
     assert genome.development.soft_node_budget <= limits.max_nodes
     assert genome.development.soft_edge_budget <= limits.max_edges
+    assert not hasattr(genome, "parent_ids")
+    assert not hasattr(genome, "motor")
 
 
 def test_base_graph_is_a_true_tabula_rasa():
@@ -32,9 +34,9 @@ def test_base_graph_is_a_true_tabula_rasa():
 def test_base_cognition_pairs_the_same_genome_and_germinal_graph():
     genome, graph = load_base_cognition(
         kernel_limits=KernelLimits(),
-        running_version=(0, 59, 4),
+        running_version=(0, 80, 0),
     )
 
-    assert genome.genome_id == "genome_symbiont_base_v1"
+    assert genome.genome_id == "genome_symbiont_base_v2"
     assert graph.nodes == ()
     assert graph.edges == ()

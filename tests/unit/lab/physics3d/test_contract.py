@@ -608,7 +608,8 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
-    assert '"genome_symbiont_physics3d_v9"' in source
+    assert '"genome_symbiont_physics3d_v9"' not in source
+    assert "missing canonical genome identity" in source
     assert "exclusive_actuator_groups=exclusive_groups" in source
     assert "load_actuator_constitution(genome)" in source
     assert "binding.positive_port" in source
@@ -683,9 +684,8 @@ def test_physics3d_l4_uses_one_physical_energy_pool_for_all_metabolism() -> None
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "physical_energy_capacity = sum(metabolic_capacity.values())" in source
     assert "living_body_state=living_body_state" in source
-    assert 'genome_symbiont_physics3d_v9' in inspect.getsource(
-        runtime.PyBulletEmbodimentRuntime.__init__
-    )
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
+    assert "genome_symbiont_physics3d_v9" not in source
 
 
 def _body_state_with_joint_position(joint_ordinal: int, position: float) -> dict:
@@ -904,7 +904,7 @@ def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
             },
         },
     }
-    with pytest.raises(RuntimeError, match="requires v9"):
+    with pytest.raises(RuntimeError, match="requires migratable v9"):
         _require_current_motor_evidence(
             legacy,
             fresh_body=False,
@@ -919,18 +919,19 @@ def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
         new_symbiont=False,
     )
 
-    current = {
-        "actuation": {
-            "sensorimotor": {
-                "schema_version": 9,
+    for schema in (9, 10):
+        current = {
+            "actuation": {
+                "sensorimotor": {
+                    "schema_version": schema,
+                },
             },
-        },
-    }
-    _require_current_motor_evidence(
-        current,
-        fresh_body=False,
-        new_symbiont=False,
-    )
+        }
+        _require_current_motor_evidence(
+            current,
+            fresh_body=False,
+            new_symbiont=False,
+        )
 
 
 def test_motor_step_applies_exclusion_before_execution_and_credit():

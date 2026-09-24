@@ -1,11 +1,11 @@
 """Evaluator-only multi-generation social lifecycle study."""
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass, replace
-from importlib import resources
+from dataclasses import asdict, dataclass
 
-from symbiont.cognition.genome import GenomeCodec
+from symbiont import __version__ as symbiont_version
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.metabolism import MetabolicLedger
@@ -32,8 +32,8 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
     """Exercise bounded social continuity across several births and deaths."""
     if generations < 1:
         raise ValueError("generations must be positive")
-    payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
-    genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+    version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="social-generations", capacity=2)
     social = SocialHabitat(EcologicalResourcePool({"food": 8.0}), max_members=3)
     social.admit("peer")

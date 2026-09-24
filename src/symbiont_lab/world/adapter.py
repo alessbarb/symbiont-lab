@@ -17,11 +17,12 @@ from typing import Any
 import random
 
 from symbiont.cognition.genome import Genome, GenomeCodec
-from symbiont.cognition.birth import load_actuator_constitution
+from symbiont.cognition.birth import load_base_genome
 from symbiont.actuation.constitution import ActuatorConstitution
+from symbiont.actuation.surface import derive_actuator_constitution
+from symbiont.cognition.limits import KernelLimits
 from symbiont.actuation.types import Actuation
 from symbiont.core.ecology import SharedHabitat
-from symbiont.core.heredity import HeritableGenome
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import PhysiologyController, VitalState
 from symbiont.core.signal_identity import SignalIdentity
@@ -304,13 +305,15 @@ def clean_world_observation(
     )
 
 
-def _load_base_genome() -> tuple[Genome, HeritableGenome]:
-    payload = json.loads(
-        resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
+def _load_base_genome() -> Genome:
+    from symbiont import __version__ as symbiont_version
+
+    parts = (symbiont_version.split(".") + ["0", "0"])[:3]
+    running_version = tuple(int(part) for part in parts)
+    return load_base_genome(
+        kernel_limits=KernelLimits(),
+        running_version=running_version,
     )
-    genome = GenomeCodec().load(payload)
-    heritable = HeritableGenome(genome_id=genome.genome_id, loci=())
-    return genome, heritable
 
 
 @dataclass(frozen=True, slots=True)
@@ -503,17 +506,17 @@ def _construct_organism(
     )
 
     if experimental_clean:
-        from symbiont.core.germline import create_germline_state, create_standard_genome
         from symbiont.core.symbiont import Symbiont
         from symbiont.core.body import create_standard_body
         from symbiont.core.embodiment import implant_body
         from symbiont.core.individual import Individual
+        from symbiont.genetics.germline import GermlineState
 
         num_rec = len(receptor_ids) if receptor_ids else 8
         num_eff = 8
         body = create_standard_body(f"body:{organism_id}", num_receptors=num_rec, num_effectors=num_eff)
-        sym_genome = create_standard_genome(organism_id)
-        germline = create_germline_state(sym_genome)
+        sym_genome = _load_base_genome()
+        germline = GermlineState.from_genome(sym_genome)
         sym_seed = derive_world_seed(world_seed, f"symbiont.cognitive:{organism_id}")
         sym = Symbiont(organism_id, seed=sym_seed, genome=sym_genome, germline=germline)
         session = implant_body(organism_id, body, started_at=0)
@@ -551,8 +554,14 @@ def _construct_organism(
         for resource_id, law in ground_truth.resources.items()
     }
 
-    genome, heritable = _load_base_genome()
-    actuator_constitution = load_actuator_constitution(genome)
+    genome = _load_base_genome()
+    actuator_constitution = derive_actuator_constitution(
+        8,
+        basal_cost=0.05,
+        initial_health=1.0,
+        execution_threshold=0.5,
+        physical_contract="genesis-world-body-v2",
+    )
     actuation_binding = actuation_binding or default_world_actuation_binding(actuator_constitution)
     actuation_adapter = ActuationAdapter(actuator_constitution, actuation_binding)
     replenishment_value = 0.25
@@ -567,7 +576,6 @@ def _construct_organism(
         host_lifecycle=host_lifecycle,
         resource_habitats=resource_habitats,
         genome=genome,
-        heritable_genome=heritable,
         generation=0,
         metabolism=metabolism,
         explicit_metabolism=False,

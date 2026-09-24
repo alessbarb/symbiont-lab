@@ -1,10 +1,9 @@
 """Evaluator-only parent/child population lifecycle study for Milestone I."""
 from __future__ import annotations
 from dataclasses import asdict, dataclass
-import json
-from dataclasses import replace
-from importlib import resources
-from symbiont.cognition.genome import GenomeCodec
+from symbiont import __version__ as symbiont_version
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.runtime import OrganismRuntime
 from symbiont.core.metabolism import MetabolicLedger
@@ -23,8 +22,8 @@ class RuntimePopulationStudy:
         return asdict(self)
 
 def run_runtime_population_study() -> RuntimePopulationStudy:
-    payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
-    genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+    version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="population-study", capacity=2)
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     parent = OrganismRuntime(organism_id="parent", genome=genome, birth_authority=authority,

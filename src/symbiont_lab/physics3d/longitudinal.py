@@ -87,7 +87,11 @@ def contract_fingerprint(
     return _canonical_hash(material)
 
 
-def _historical_primitives(payload: Mapping[str, Any]) -> list[dict[str, object]]:
+def _historical_primitives(
+    payload: Mapping[str, Any],
+    *,
+    contract_fingerprint_value: str,
+) -> list[dict[str, object]]:
     actuation = payload.get("actuation")
     if not isinstance(actuation, Mapping):
         return []
@@ -104,8 +108,17 @@ def _historical_primitives(payload: Mapping[str, Any]) -> list[dict[str, object]
         primitive_id = item.get("primitive_id")
         sequence = item.get("sequence")
         if isinstance(primitive_id, str) and primitive_id and isinstance(sequence, list):
+            motor_scope = item.get("embodiment_fingerprint")
+            if not isinstance(motor_scope, str) or not motor_scope:
+                top_scope = sensorimotor.get("embodiment_fingerprint")
+                motor_scope = (
+                    str(top_scope)
+                    if isinstance(top_scope, str) and top_scope
+                    else str(contract_fingerprint_value)
+                )
             result.append({
                 "primitive_id": primitive_id,
+                "embodiment_fingerprint": motor_scope,
                 "sequence": deepcopy(sequence),
             })
     return result
@@ -135,7 +148,10 @@ def archive_contract_memory(
         "contract_fingerprint": str(contract_fingerprint_value),
         "last_seen_epoch": int(epoch),
         "body_schema": deepcopy(checkpoint.get("body_schema")),
-        "historical_primitives": _historical_primitives(checkpoint),
+        "historical_primitives": _historical_primitives(
+            checkpoint,
+            contract_fingerprint_value=contract_fingerprint_value,
+        ),
         "motor_cognitive_surface": deepcopy(motor_cognitive_surface),
         "private_model_ids": (
             [active_private_model_id]
@@ -197,14 +213,20 @@ def inject_memory_candidates(
     sensorimotor = fresh_actuation.get("sensorimotor")
     if not isinstance(sensorimotor, dict):
         return fresh_actuation
-    if int(sensorimotor.get("schema_version") or -1) != 9:
+    if int(sensorimotor.get("schema_version") or -1) != 10:
         raise ValueError(
-            "fresh embodiment must provide canonical sensorimotor schema v9"
+            "fresh embodiment must provide canonical sensorimotor schema v10"
         )
+    expected_scope = sensorimotor.get("embodiment_fingerprint")
+    if not isinstance(expected_scope, str) or not expected_scope:
+        raise ValueError("fresh sensorimotor state lacks embodiment fingerprint")
     sensorimotor["historical_candidates"] = [
         deepcopy(item)
         for item in raw[:_MAX_HISTORICAL_PRIMITIVES]
-        if isinstance(item, Mapping)
+        if (
+            isinstance(item, Mapping)
+            and item.get("embodiment_fingerprint") == expected_scope
+        )
     ]
     return fresh_actuation
 

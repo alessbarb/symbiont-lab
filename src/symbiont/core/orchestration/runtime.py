@@ -45,6 +45,11 @@ from ...cognition.genome import Genome, DevelopmentGenes, PlasticityGenes, Range
 from ...cognition.graph import CognitiveGraph
 from ...cognition.learning import ShadowPrediction
 from ...cognition.limits import KernelLimits
+from ...genetics.expression import (
+    ExpressionRegulator,
+    GeneExpressionState,
+    RegulatorySignals,
+)
 from ..cognition.attention import AttentionAllocation, AttentionBudget, AttentionCandidate, attend_to_host
 from ..embodiment.body_schema import BodySchemaEngine
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
@@ -79,12 +84,14 @@ from ..social.relations import (InteractionOutcome, RelationLedger, RelationVale
                      SocialHabitat, SocialPresence)
 from ..lineage.birth_authority import BirthRecord, HabitatBirthAuthority
 from ..embodiment.ontogeny import OntogenyController, OntogenySnapshot
-from ..lineage.heredity import HeritableGenome, _ALLOWED_LOCI
-from ..lineage.inheritance import EpigeneticPrior, mutate_genome
+from ..lineage.inheritance import EpigeneticPrior
+from ...genetics.migration import apply_legacy_heritable_payload
+from ...genetics.mutation import mutate_genome
 from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
-from ...cognition.birth import load_base_graph, load_actuator_constitution
+from ...cognition.birth import load_base_graph
 from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
 from ...actuation.constitution import ActuatorConstitution
+from ...actuation.surface import ActuatorChannel, ActuatorSurface
 from ...actuation.health import ActuatorState
 from ...actuation.proposer import ActuatorProposer
 from ...actuation.candidate import ActuatorCandidateState
@@ -184,6 +191,7 @@ class RuntimeTickResult:
     actuation: Actuation | None = None
     motor_intents: tuple[MotorIntent, ...] = ()
     actuations: tuple[Actuation, ...] = ()
+    gene_expression: dict[str, object] | None = None
 
 
 class OrganismDeadError(RuntimeError):
@@ -232,7 +240,7 @@ class OrganismRuntime:
     self-model can constrain plastic updates instead of merely describing them.
     """
 
-    _SUPPORTED_EPIGENETIC_KEYS = frozenset(_ALLOWED_LOCI | {"exploration_bias"})
+    _SUPPORTED_EPIGENETIC_KEYS = frozenset()
 
     def __init__(
         self,
@@ -257,13 +265,15 @@ class OrganismRuntime:
         body_schema: BodySchemaEngine | None = None,
         evidence_ledger: EvidenceRevisionLedger | None = None,
         genome: Genome | None = None,
-        heritable_genome: HeritableGenome | None = None,
+        heritable_genome: object | None = None,
         mutation_seed: int = 0,
         epigenetic_priors: tuple[EpigeneticPrior, ...] = (),
         epigenetic_decay: float = 0.05,
         kernel_limits: KernelLimits | None = None,
         cognitive_graph: CognitiveGraph | None = None,
         cognitive_bridge: CognitiveBridge | None = None,
+        gene_expression_state: GeneExpressionState | None = None,
+        expression_regulator: ExpressionRegulator | None = None,
         memory_consolidator: MemoryConsolidator | None = None,
         organism_id: str | None = None,
         signal_identity: SignalIdentity | None = None,
@@ -631,6 +641,12 @@ class OrganismRuntime:
             private_body_schema["id_salt"]
         )
         self._genome = genome
+        self._gene_expression_state = (
+            gene_expression_state
+            if gene_expression_state is not None
+            else (GeneExpressionState.from_genome(genome) if genome is not None else None)
+        )
+        self._expression_regulator = expression_regulator or ExpressionRegulator()
         if isinstance(mutation_seed, bool) or not isinstance(mutation_seed, int):
             raise ValueError("mutation_seed must be an integer")
         if (not isinstance(epigenetic_decay, (int, float)) or isinstance(epigenetic_decay, bool)
@@ -641,15 +657,16 @@ class OrganismRuntime:
                 or len({item.key for item in epigenetic_priors}) != len(epigenetic_priors)
                 or any(item.key not in self._SUPPORTED_EPIGENETIC_KEYS for item in epigenetic_priors)):
             raise ValueError("epigenetic_priors exceed bounded capacity")
-        self._heritable_genome = heritable_genome
+        # Historical heritable_genome input is no longer an operative genetic
+        # source. Reject non-null values rather than running two genomes.
+        if heritable_genome is not None:
+            raise ValueError("HeritableGenome is removed; pass Genome v2 via genome")
+        self._heritable_genome = None
         self._mutation_seed = mutation_seed
         self._epigenetic_priors = tuple(epigenetic_priors)
         self._epigenetic_decay = float(epigenetic_decay)
         if self._birth_authority is not None and self._organism_id not in self._birth_authority.live_ids:
-            genome_id = (
-                self._heritable_genome.identity if self._heritable_genome is not None
-                else self._genome.genome_id if self._genome is not None else "runtime"
-            )
+            genome_id = self._genome.genome_id if self._genome is not None else "runtime"
             if self._birth_authority.register_existing(organism_id=self._organism_id,
                                                        genome_id=genome_id,
                                                        generation=self._generation) is None:
@@ -662,9 +679,14 @@ class OrganismRuntime:
         self._cognitive_bridge: CognitiveBridge | None = cognitive_bridge
         if self._cognitive_bridge is None and genome is not None and cognitive_graph is not None:
             self._cognitive_bridge = CognitiveBridge(
-                graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
+                graph=cognitive_graph,
+                genome=genome,
+                kernel_limits=self._kernel_limits,
+                expression_state=self._gene_expression_state,
             )
         if self._cognitive_bridge is not None:
+            if self._gene_expression_state is not None:
+                self._cognitive_bridge.set_expression_state(self._gene_expression_state)
             self._cognitive_bridge.bind_contention_identity(self._organism_id)
         self._actuation_enabled = bool(actuation_enabled)
         self._motor_exploration_mode = motor_exploration_mode
@@ -693,9 +715,9 @@ class OrganismRuntime:
         ] = []
         if self._actuation_enabled:
             if actuator_constitution is None:
-                if genome is None:
-                    raise ValueError("actuation_enabled requires genome or actuator_constitution")
-                actuator_constitution = load_actuator_constitution(genome)
+                raise ValueError(
+                    "actuation_enabled requires an explicit body-owned actuator_constitution"
+                )
             self._actuator_constitution = actuator_constitution
             if not self._living_body_state.structure_states:
                 # A body with actuation but no per-structure tracking yet —
@@ -733,10 +755,87 @@ class OrganismRuntime:
                         actuator_constitution.actuator_ids,
                         organism_id=self._organism_id,
                         max_concurrent=None,
+                        embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                     )
                 )
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
+
+    @property
+    def gene_expression_state(self) -> GeneExpressionState | None:
+        return self._gene_expression_state
+
+    def _update_gene_expression(
+        self,
+        *,
+        cognition: CognitiveBridgeResult | None,
+        drift_observations: dict[str, DriftObservation],
+        metabolic_pressure: str,
+    ) -> None:
+        """Regulate the next tick from organism-owned evidence only."""
+        if self._genome is None or self._gene_expression_state is None:
+            return
+
+        losses = (
+            [float(error.loss) for error in cognition.prediction_errors]
+            if cognition is not None
+            else []
+        )
+        prediction_error = max(0.0, min(1.0, sum(losses) / len(losses))) if losses else 0.0
+        novelty_values = [
+            novelty_from_drift_kind(observation.kind)
+            for observation in drift_observations.values()
+        ]
+        novelty = max(novelty_values, default=0.0)
+
+        actuator_count = (
+            len(self._actuator_constitution.actuator_ids)
+            if self._actuator_constitution is not None
+            else 0
+        )
+        active_count = (
+            len(self._actuator_proposer.active_repertoire)
+            if self._actuator_proposer is not None
+            else 0
+        )
+        controllability_loss = (
+            max(0.0, min(1.0, 1.0 - active_count / actuator_count))
+            if actuator_count
+            else 0.0
+        )
+
+        # No explicit "new body" flag enters regulation. Mismatch is inferred
+        # from failed predictions and loss of controllability.
+        embodiment_mismatch = max(prediction_error, controllability_loss)
+        uncertainty = max(prediction_error, 0.5 * controllability_loss)
+        pressure_ratio = {
+            "normal": 0.0,
+            "elevated": 0.33,
+            "severe": 0.66,
+            "unrecoverable": 1.0,
+        }.get(str(metabolic_pressure), 0.0)
+
+        signals = RegulatorySignals(
+            uncertainty=uncertainty,
+            novelty=max(0.0, min(1.0, novelty)),
+            prediction_error=prediction_error,
+            controllability_loss=controllability_loss,
+            embodiment_mismatch=embodiment_mismatch,
+            resource_pressure=pressure_ratio,
+        )
+        frozen = bool(
+            self._cognitive_bridge is not None
+            and getattr(self._cognitive_bridge, "_safety_state", None) is not None
+            and self._cognitive_bridge._safety_state.frozen  # noqa: SLF001
+        )
+        self._gene_expression_state = self._expression_regulator.update(
+            self._genome,
+            self._gene_expression_state,
+            signals,
+            frozen=frozen,
+        )
+        if self._cognitive_bridge is not None:
+            self._cognitive_bridge.set_expression_state(self._gene_expression_state)
 
     @property
     def reacclimation_remaining(self) -> int:
@@ -1213,13 +1312,34 @@ class OrganismRuntime:
             digest = hashlib.sha256(
                 f"basal-motor-noise:{self._organism_id}:{tick}".encode("utf-8")
             ).digest()
-            if digest[0] < 64 and self._actuator_constitution is not None:
+            exploration_drive = (
+                self._gene_expression_state.exploration_drive
+                if self._gene_expression_state is not None
+                else 0.25
+            )
+            threshold = max(0, min(255, round(255.0 * exploration_drive)))
+            if (
+                digest[0] < threshold
+                and self._actuator_constitution is not None
+                and self._actuator_constitution.actuator_ids
+            ):
                 ids = self._actuator_constitution.actuator_ids
                 pending_id = ids[int.from_bytes(digest[1:5], "big") % len(ids)]
-                pending_activation = 0.25 + (
+                random_fraction = (
                     int.from_bytes(digest[5:9], "big")
                     / float((1 << 32) - 1)
-                ) * 0.75
+                )
+                # Expression regulates exploratory amplitude without encoding a
+                # body-specific movement or externally valued direction.
+                pending_activation = max(
+                    0.0,
+                    min(
+                        1.0,
+                        0.05
+                        + exploration_drive
+                        * (0.25 + 0.75 * random_fraction),
+                    ),
+                )
                 intents = (
                     MotorIntent(
                         actuator_id=pending_id,
@@ -1498,11 +1618,6 @@ class OrganismRuntime:
                         "min": self._genome.plasticity.learning_rate.minimum,
                         "max": self._genome.plasticity.learning_rate.maximum,
                     },
-                    "forgetting_rate": {
-                        "initial": self._genome.plasticity.forgetting_rate.initial,
-                        "min": self._genome.plasticity.forgetting_rate.minimum,
-                        "max": self._genome.plasticity.forgetting_rate.maximum,
-                    },
                     "eligibility_decay": self._genome.plasticity.eligibility_decay,
                 },
             }
@@ -1578,9 +1693,9 @@ class OrganismRuntime:
         return self._genome
 
     @property
-    def heritable_genome(self) -> HeritableGenome | None:
-        """Genetic state, kept separate from acquired phenotype and memory."""
-        return self._heritable_genome
+    def heritable_genome(self) -> None:
+        """Legacy surface: Genome v2 is the only operative genetic state."""
+        return None
 
     @property
     def epigenetic_priors(self) -> tuple[EpigeneticPrior, ...]:
@@ -1597,42 +1712,17 @@ class OrganismRuntime:
             if item.value * factor > 1e-12
         )
 
-    def _next_heritable_genome(self) -> HeritableGenome | None:
-        if self._heritable_genome is None or self._genome is None:
+    def _next_heritable_genome(self) -> Genome | None:
+        """Create the next genotype through the single typed Genome v2 path."""
+        if self._genome is None:
             return None
         return mutate_genome(
-            self._heritable_genome,
-            sigma=self._genome.mutation_policy.continuous_sigma,
-            max_fields=self._genome.mutation_policy.max_fields_per_generation,
+            self._genome,
             seed=self._mutation_seed + self._generation + 1,
         )
 
-    def _child_genome(self, inherited: HeritableGenome) -> Genome:
-        """Project bounded loci into a fresh validated operational genome."""
-        if self._genome is None:
-            raise RuntimeError("heritable projection requires an operational genome")
-        loci = dict(inherited.loci)
-        development = self._genome.development
-        node_budget = max(1, min(self._kernel_limits.max_nodes, round(loci.get("soft_node_budget", development.soft_node_budget))))
-        edge_budget = max(1, min(self._kernel_limits.max_edges, round(loci.get("soft_edge_budget", development.soft_edge_budget))))
-        initial_concepts = max(0, min(self._kernel_limits.max_concepts, round(loci.get("initial_concepts", development.initial_concepts))))
-        development = replace(
-            development,
-            initial_concepts=initial_concepts,
-            soft_node_budget=node_budget,
-            soft_edge_budget=edge_budget,
-            sense_node_budget=min(development.sense_node_budget, node_budget),
-        )
-        plasticity = self._genome.plasticity
-        learning = plasticity.learning_rate
-        forgetting = plasticity.forgetting_rate
-        if "learning_rate" in loci:
-            learning = replace(learning, initial=max(learning.minimum, min(learning.maximum, loci["learning_rate"])))
-        if "forgetting_rate" in loci:
-            forgetting = replace(forgetting, initial=max(forgetting.minimum, min(forgetting.maximum, loci["forgetting_rate"])))
-        plasticity = replace(plasticity, learning_rate=learning, forgetting_rate=forgetting)
-        return replace(self._genome, genome_id=inherited.identity, parent_ids=(self._genome.genome_id,),
-                       development=development, plasticity=plasticity)
+    def _child_genome(self, inherited: Genome) -> Genome:
+        return inherited
 
     @property
     def generation(self) -> int:
@@ -1886,7 +1976,7 @@ class OrganismRuntime:
 
         inherited = self._next_heritable_genome()
         child_genome_id = (
-            inherited.identity if inherited is not None else self._genome.genome_id
+            inherited.genome_id if inherited is not None else self._genome.genome_id
         )
         record = self._birth_authority.birth(
             genome_id=child_genome_id,
@@ -2944,6 +3034,14 @@ class OrganismRuntime:
             runtime_events.extend(("death", "resource_release"))
         self._last_runtime_vital_state = current_state
         self._last_runtime_development_phase = current_phase
+
+        # Evidence from tick t regulates the operating phenotype for t+1.
+        self._update_gene_expression(
+            cognition=cognition_result,
+            drift_observations=drift_observations,
+            metabolic_pressure=metabolism_snapshot.pressure.value,
+        )
+
         self._tick_count += 1
         self._living_body_state.advance_age()
         journal_entry = {
@@ -2994,6 +3092,11 @@ class OrganismRuntime:
             actuation=self._last_actuation,
             motor_intents=self._last_motor_intents,
             actuations=self._last_actuations,
+            gene_expression=(
+                self._gene_expression_state.as_dict()
+                if self._gene_expression_state is not None
+                else None
+            ),
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -3016,12 +3119,12 @@ class OrganismRuntime:
         payload["body_schema"] = self._body_schema.export(current_tick=self._tick_count)
         payload["evidence_ledger"] = self._evidence_ledger.export_checkpoint()
         payload["genome"] = export_genome_checkpoint(self._genome)
-        payload["heritable_genome"] = (
-            {"genome_id": self._heritable_genome.genome_id,
-             "loci": [[key, value] for key, value in self._heritable_genome.loci],
-             "identity": self._heritable_genome.identity}
-            if self._heritable_genome is not None else None
+        payload["gene_expression"] = (
+            self._gene_expression_state.as_dict()
+            if self._gene_expression_state is not None
+            else None
         )
+        payload["heritable_genome"] = None
         payload["mutation_seed"] = self._mutation_seed
         payload["epigenetic_priors"] = [
             {"key": prior.key, "value": prior.value} for prior in self._epigenetic_priors
@@ -3036,6 +3139,7 @@ class OrganismRuntime:
             if self._actuator_constitution is None or self._actuator_proposer is None:
                 raise CheckpointError("actuation enabled without motor constitution/proposer")
             constitution_payload = {
+                "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
                 "slots": [
                     {
                         "slot_id": slot.slot_id,
@@ -3232,20 +3336,41 @@ class OrganismRuntime:
             kernel_limits=kernel_limits,
             running_version=_parse_running_version(_symbiont_version),
         )
-        heritable_genome = None
+
         raw_heritable = normalized.get("heritable_genome")
-        if raw_heritable is not None:
-            if not isinstance(raw_heritable, dict) or not isinstance(raw_heritable.get("genome_id"), str):
-                raise CheckpointError("invalid heritable genome checkpoint")
+        if genome is not None and raw_heritable not in (None, {}):
+            if not isinstance(raw_heritable, dict):
+                raise CheckpointError("invalid legacy HeritableGenome checkpoint")
             try:
-                heritable_genome = HeritableGenome(
-                    raw_heritable["genome_id"],
-                    tuple((str(item[0]), float(item[1])) for item in raw_heritable.get("loci", ())),
+                genome = apply_legacy_heritable_payload(
+                    genome,
+                    raw_heritable,
+                    kernel_limits=kernel_limits,
                 )
-            except (KeyError, TypeError, ValueError, IndexError) as exc:
-                raise CheckpointError("invalid heritable genome checkpoint") from exc
-            if raw_heritable.get("identity") not in (None, heritable_genome.identity):
-                raise CheckpointError("heritable genome identity mismatch")
+            except ValueError as exc:
+                raise CheckpointError(
+                    f"invalid legacy HeritableGenome checkpoint: {exc}"
+                ) from exc
+        heritable_genome = None
+
+        gene_expression_state = None
+        raw_expression = normalized.get("gene_expression")
+        if genome is not None:
+            if raw_expression is None:
+                gene_expression_state = GeneExpressionState.from_genome(genome)
+            else:
+                if not isinstance(raw_expression, dict):
+                    raise CheckpointError("invalid gene expression checkpoint")
+                try:
+                    from ...genetics.expression import restore_expression_state
+                    gene_expression_state = restore_expression_state(
+                        raw_expression,
+                        genome,
+                    )
+                except ValueError as exc:
+                    raise CheckpointError(
+                        f"invalid gene expression checkpoint: {exc}"
+                    ) from exc
         raw_priors = normalized.get("epigenetic_priors")
         if raw_priors is None:
             raw_priors = []
@@ -3298,23 +3423,45 @@ class OrganismRuntime:
                 raise CheckpointError("invalid motor exploration mode")
             motor_exploration_mode = str(raw_mode)
             if enabled:
-                if genome is None:
-                    raise CheckpointError("actuation checkpoint requires genome")
-                actuator_constitution = load_actuator_constitution(genome)
-                expected_constitution = {
-                    "slots": [
-                        {
-                            "slot_id": slot.slot_id,
-                            "actuator_id": slot.actuator_id,
-                            "basal_cost": slot.basal_cost,
-                            "initial_health": slot.initial_health,
-                            "execution_threshold": slot.execution_threshold,
-                        }
-                        for slot in actuator_constitution.slots
-                    ]
-                }
-                if raw_actuation.get("constitution") != expected_constitution:
-                    raise CheckpointError("actuation constitution does not match restored genome")
+                raw_constitution = raw_actuation.get("constitution")
+                if not isinstance(raw_constitution, dict):
+                    raise CheckpointError("actuation constitution is missing")
+                raw_slots = raw_constitution.get("slots")
+                if not isinstance(raw_slots, list):
+                    raise CheckpointError("actuation constitution slots must be a list")
+                try:
+                    channels = tuple(
+                        ActuatorChannel(
+                            slot_id=str(item["slot_id"]),
+                            actuator_id=str(item["actuator_id"]),
+                            basal_cost=float(item["basal_cost"]),
+                            initial_health=float(item["initial_health"]),
+                            execution_threshold=float(item["execution_threshold"]),
+                        )
+                        for item in raw_slots
+                    )
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise CheckpointError(f"invalid body-owned actuator constitution: {exc}") from exc
+                stored_fingerprint = raw_constitution.get("contract_fingerprint")
+                if stored_fingerprint is None:
+                    legacy_material = {
+                        "slots": raw_slots,
+                    }
+                    fingerprint_material = json.dumps(
+                        legacy_material,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        allow_nan=False,
+                    )
+                    stored_fingerprint = hashlib.sha256(
+                        fingerprint_material.encode("utf-8")
+                    ).hexdigest()
+                if not isinstance(stored_fingerprint, str) or not stored_fingerprint:
+                    raise CheckpointError("invalid actuator contract fingerprint")
+                actuator_constitution = ActuatorSurface(
+                    channels=channels,
+                    contract_fingerprint=stored_fingerprint,
+                )
                 try:
                     actuator_proposer = restore_actuation_state(
                         raw_actuation["proposer"],
@@ -3353,6 +3500,7 @@ class OrganismRuntime:
                             raw_sensorimotor,
                             actuator_ids=actuator_constitution.actuator_ids,
                             organism_id=str(normalized.get("organism_id") or ""),
+                            embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                         )
                     except (TypeError, ValueError, KeyError) as exc:
                         raise CheckpointError(
@@ -3532,6 +3680,7 @@ class OrganismRuntime:
             epigenetic_priors=epigenetic_priors,
             epigenetic_decay=float(normalized.get("epigenetic_decay", 0.05)),
             cognitive_bridge=cognitive_bridge,
+            gene_expression_state=gene_expression_state,
             memory_consolidator=memory_consolidator,
             tick_count=max(int(normalized.get("saved_at_tick") or 0), int(getattr(signal_knowledge, "_last_tick", 0) or 0)),
             organism_id=normalized.get("organism_id"),

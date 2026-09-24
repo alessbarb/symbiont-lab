@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.runtime import OrganismRuntime
@@ -26,6 +27,7 @@ def _runtime(
         cognitive_graph=graph,
         kernel_limits=limits,
         actuation_enabled=True,
+        actuator_constitution=derive_actuator_constitution(8, physical_contract="unit-motor-runtime-v2"),
         motor_exploration_mode=motor_exploration_mode,
         bootstrap_semantic_senses=False,
         discover_senses=False,
@@ -144,6 +146,7 @@ def test_babbling_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
         cognitive_graph=graph,
         kernel_limits=limits,
         actuation_enabled=True,
+        actuator_constitution=derive_actuator_constitution(8, physical_contract="unit-babbling-runtime-v2"),
         motor_exploration_mode="babbling",
         bootstrap_semantic_senses=False,
         discover_senses=False,

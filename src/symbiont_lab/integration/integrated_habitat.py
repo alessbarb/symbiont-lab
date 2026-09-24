@@ -13,9 +13,10 @@ from dataclasses import asdict, dataclass
 from importlib import resources
 from typing import Any
 
-from symbiont.cognition.genome import GenomeCodec
+from symbiont import __version__ as symbiont_version
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.birth_authority import HabitatBirthAuthority
-from symbiont.core.heredity import HeritableGenome
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -125,13 +126,15 @@ class IntegratedHabitatRuntime:
             self._authorize_current_pairs()
 
     @staticmethod
-    def _genome() -> tuple[Any, HeritableGenome]:
-        payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
-        genome = GenomeCodec().load(payload)
-        heritable = HeritableGenome(genome_id=genome.genome_id, loci=())
-        return genome, heritable
+    def _genome():
+        parts = (symbiont_version.split(".") + ["0", "0"])[:3]
+        running_version = tuple(int(part) for part in parts)
+        return load_base_genome(
+            kernel_limits=KernelLimits(),
+            running_version=running_version,
+        )
 
-    def _new_runtime(self, organism_id: str, generation: int, *, genome: Any, heritable: HeritableGenome) -> ModeledOrganismRuntime:
+    def _new_runtime(self, organism_id: str, generation: int, *, genome: Any) -> ModeledOrganismRuntime:
         # This is an explicit habitat resource envelope, not a behavioural
         # change: it keeps the bounded smoke path viable long enough to cover
         # communication and a lifecycle transition.
@@ -147,7 +150,6 @@ class IntegratedHabitatRuntime:
                 discovery=HostDiscovery(providers=()), reading_providers=()
             ),
             genome=genome,
-            heritable_genome=heritable,
             birth_authority=self.authority,
             generation=generation,
             social_habitat=self.social_habitat,
@@ -170,12 +172,12 @@ class IntegratedHabitatRuntime:
 
     def _add_founder(self, index: int) -> None:
         organism_id = f"integrated-{index:03d}"
-        genome, heritable = self._genome()
+        genome = self._genome()
         if self.authority.register_existing(
             organism_id=organism_id, genome_id=genome.genome_id, generation=0
         ) is None:
             raise RuntimeError("founder could not be registered")
-        runtime = self._new_runtime(organism_id, 0, genome=genome, heritable=heritable)
+        runtime = self._new_runtime(organism_id, 0, genome=genome)
         self.population[organism_id] = runtime
 
     def _authorize_current_pairs(self) -> None:

@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import random
 
-from .heredity import HeritableGenome, _ALLOWED_LOCI
+from ...genetics.genome import Genome
+from ...genetics.mutation import mutate_genome as _mutate_genome_v2
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,17 +27,25 @@ class CulturalArtifact:
             raise ValueError("invalid cultural artifact")
 
 
-def mutate_genome(genome: HeritableGenome, *, sigma: float = 0.05, max_fields: int = 1,
-                  seed: int = 0) -> HeritableGenome:
-    """Apply bounded numeric mutation to declared loci only."""
+def mutate_genome(
+    genome: Genome,
+    *,
+    sigma: float = 0.05,
+    max_fields: int = 1,
+    seed: int = 0,
+) -> Genome:
+    """Compatibility entrypoint to the single typed Genome v2 mutator.
+
+    sigma/max_fields are accepted for source compatibility only. The effective
+    per-locus mutation equation is owned by GenomeSchema and EvolvabilityGenes.
+    """
+    if not isinstance(genome, Genome):
+        raise TypeError("mutate_genome requires canonical Genome v2")
     if not 0.0 <= sigma <= 1.0 or max_fields < 0:
         raise ValueError("invalid mutation bounds")
-    rng = random.Random(seed)
-    loci = list(genome.loci)
-    for index in rng.sample(range(len(loci)), min(max_fields, len(loci))):
-        key, value = loci[index]
-        loci[index] = (key, max(0.0, min(1.0, value + rng.gauss(0.0, sigma))))
-    return HeritableGenome(genome_id=f"{genome.genome_id}:mutant", loci=tuple(sorted(loci)))
+    if sigma == 0.0 or max_fields == 0:
+        return genome
+    return _mutate_genome_v2(genome, seed=seed)
 
 
 from ..foundation.limits import OrganismLimits

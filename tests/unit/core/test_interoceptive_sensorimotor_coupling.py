@@ -10,21 +10,17 @@ feeding primitive formation and actuator causal-evidence tracking.
 """
 from __future__ import annotations
 
-from dataclasses import replace
-from importlib import resources
-import json
-
-from symbiont.cognition.genome import GenomeCodec
+from symbiont.actuation.surface import derive_actuator_constitution
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
 
 
 def _reproduction_genome():
-    payload = json.loads(
-        resources.files("symbiont.cognition")
-        .joinpath("defaults/base-genome.json")
-        .read_text()
+    return load_base_genome(
+        kernel_limits=KernelLimits(),
+        running_version=(0, 80, 0),
     )
-    return replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
 
 
 def _runtime(interoception_mode: str) -> OrganismRuntime:
@@ -32,6 +28,7 @@ def _runtime(interoception_mode: str) -> OrganismRuntime:
         organism_id="interoception-coupling-probe",
         genome=_reproduction_genome(),
         actuation_enabled=True,
+        actuator_constitution=derive_actuator_constitution(8, physical_contract="interoception-probe-v2"),
         motor_exploration_mode="babbling",
         bootstrap_semantic_senses=True,
         discover_senses=True,

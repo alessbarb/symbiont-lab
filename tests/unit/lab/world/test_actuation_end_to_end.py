@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont.cognition.birth import load_actuator_constitution
+from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont_lab.world.adapter import (
     ActuationBinding,
     ActuationBindingConstitution,
@@ -12,8 +12,8 @@ from symbiont_world.topology import HexCoord, HexTopology
 
 
 def _binding(effect: str, argument: str) -> ActuationBindingConstitution:
-    genome, _ = _load_base_genome()
-    constitution = load_actuator_constitution(genome)
+    _load_base_genome()  # assert canonical Genome v2 remains loadable
+    constitution = derive_actuator_constitution(8, physical_contract="genesis-world-body-v2")
     return ActuationBindingConstitution(tuple(
         ActuationBinding(actuator_id, effect, argument)
         for actuator_id in constitution.actuator_ids

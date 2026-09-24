@@ -22,6 +22,7 @@ import cProfile
 import io
 import pstats
 
+from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.physiology import LivingBodyState
@@ -44,6 +45,10 @@ def make_organism(*, synthetic: bool) -> OrganismRuntime:
         cognitive_graph=graph,
         kernel_limits=limits,
         actuation_enabled=True,
+        actuator_constitution=derive_actuator_constitution(
+            8,
+            physical_contract="cognitive-profile-v2",
+        ),
         motor_exploration_mode="babbling",
         bootstrap_semantic_senses=not synthetic,
         discover_senses=False,

@@ -1,9 +1,9 @@
 """Evaluator-only runtime reproduction replay study for Milestone I."""
 from __future__ import annotations
-import json
-from dataclasses import asdict, dataclass, replace
-from importlib import resources
-from symbiont.cognition.genome import GenomeCodec
+from dataclasses import asdict, dataclass
+from symbiont import __version__ as symbiont_version
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.runtime import OrganismRuntime
 
@@ -21,8 +21,8 @@ class RuntimeReproductionStudy:
 def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStudy:
     if ticks < 1:
         raise ValueError("ticks must be positive")
-    payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
-    genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+    version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="runtime-study", capacity=2)
     parent = OrganismRuntime(
         organism_id="study-parent", genome=genome, birth_authority=authority,
