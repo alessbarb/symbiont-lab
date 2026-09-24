@@ -178,6 +178,7 @@ export class BodyWorkspace {
     const dataView = tab === 'physiology' || tab === 'history';
     this.overlay?.classList.toggle('visible', dataView);
     if (tab !== 'anatomy') this.clearSegmentHighlight();
+    this.viewer.setObserverMode?.(tab);
     this.render();
   }
 
