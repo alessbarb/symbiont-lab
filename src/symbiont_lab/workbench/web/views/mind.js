@@ -423,7 +423,8 @@ export function unmount() {
 
   // Clear DOM and restore styles owned by the host before mounting.
   if (_root) {
-    while (_root.firstChild) _root.removeChild(_root.firstChild);
+    _root.replaceChildren();
+    _root.classList.remove('mind-view-root');
     _root.style.cssText = _rootStyleBeforeMount;
     _root = null;
   }
