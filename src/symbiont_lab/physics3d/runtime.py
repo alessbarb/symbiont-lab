@@ -370,9 +370,16 @@ class PyBulletEmbodimentRuntime:
                 raise RuntimeError(
                     "Physics3D motor constitution does not match physical effector surface"
                 )
+            effector_index = {
+                effector_id: index
+                for index, effector_id in enumerate(self.apparatus.effector_ids)
+            }
             exclusive_groups = tuple(
-                (actuator_ids[index], actuator_ids[index + 1])
-                for index in range(0, len(actuator_ids), 2)
+                (
+                    actuator_ids[effector_index[binding.positive_port]],
+                    actuator_ids[effector_index[binding.negative_port]],
+                )
+                for binding in self.apparatus.motor_bindings
             )
 
             return PrivateModelOrganismRuntime(
