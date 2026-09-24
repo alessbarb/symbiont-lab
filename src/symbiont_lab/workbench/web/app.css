@@ -126,8 +126,13 @@ body {
   text-shadow: 0 0 8px rgba(80, 217, 164, 0.4);
 }
 .rail-icon {
-  font-size: 20px;
-  line-height: 1;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .rail-label {
   font-size: 9px;
