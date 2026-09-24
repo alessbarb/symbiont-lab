@@ -118,11 +118,11 @@ def test_anatomical_labels_do_not_live_in_core_symbiont_surface():
 
 
 
-def test_physics3d_uses_canonical_runtime_motor_constitution():
+def test_physics3d_uses_canonical_body_independent_genome():
     genome, _graph, limits = physics3d_cognition()
 
-    assert genome.motor.slot_count == 62
-    assert genome.genome_id == "genome_symbiont_physics3d_v9"
+    assert genome.genome_id == "genome_symbiont_base_v2"
+    assert not hasattr(genome, "motor")
     assert genome.development.soft_node_budget == 192
     assert genome.development.soft_edge_budget == 1536
     assert genome.development.sense_node_budget == 128
@@ -611,7 +611,7 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     assert '"genome_symbiont_physics3d_v9"' not in source
     assert "missing canonical genome identity" in source
     assert "exclusive_actuator_groups=exclusive_groups" in source
-    assert "load_actuator_constitution(genome)" in source
+    assert "physics3d_actuator_surface(" in source
     assert "binding.positive_port" in source
     assert "binding.negative_port" in source
 
