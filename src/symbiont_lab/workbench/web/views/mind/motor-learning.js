@@ -9,11 +9,6 @@ function metricValue(value, digits = 3) {
   return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : '—';
 }
 
-function toneFor(value, positive = true) {
-  if (!Number.isFinite(Number(value))) return PAL.muted;
-  return positive ? PAL.mint : PAL.muted;
-}
-
 function makeStageRail(activeIndex) {
   const stages = ['BABBLING', 'DISCOVERY', 'CONSOLIDATION', 'CONTROL', 'SKILL'];
   const rail = el('div', '');
@@ -289,7 +284,7 @@ export function renderMotorLearning() {
   inspectorMetric(embodiment,'Embodiment epoch',tel.embodimentEpoch ?? '—');
   inspectorMetric(embodiment,'Reacclimating',tel.reacclimating==null?'—':(tel.reacclimating?'yes':'no'),tel.reacclimating?PAL.mint:null);
   inspectorMetric(embodiment,'Reacclimation remaining',tel.reacclimationRemaining ?? '—');
-  inspectorMetric(embodiment,'Motor activity/origin',origin,toneFor(stageIndex>=3));
+  inspectorMetric(embodiment,'Motor activity/origin',origin,stageIndex>=3?PAL.mint:null);
   inspectorMetric(embodiment,'Primitive replay',sm.replay_active?'active':'inactive');
 
   bottom.append(diag,embodiment);
