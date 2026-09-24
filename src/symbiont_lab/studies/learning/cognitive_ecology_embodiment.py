@@ -18,7 +18,7 @@ class CognitiveEcologyEmbodimentTrial:
     final_concepts: int
     final_readouts: int
     final_motor_readout_nodes: int
-    final_primitive_readout_nodes: int
+    final_competence_readout_nodes: int
     peak_structural_candidates: int
     peak_structural_producers: int
     maximum_structural_wait_ticks: int
@@ -29,12 +29,12 @@ class CognitiveEcologyEmbodimentTrial:
     final_maturity_stable: int
     final_maturity_weakening: int
     final_maturity_retiring: int
-    motor_origin_cognition: int
-    motor_origin_primitive: int
-    motor_origin_primitive_cognition: int
-    motor_origin_primitive_reactive: int
-    motor_origin_babbling: int
-    cognitive_motor_primitives: int
+    action_source_competence: int
+    action_source_regulation: int
+    action_source_prospection: int
+    action_source_protection: int
+    action_source_exploration: int
+    motor_competences: int
     cognitive_motor_output_edges: int
     resource_progress: float
     predictor_monopoly: bool
@@ -146,7 +146,7 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         final_concepts=last.cognitive_concepts,
         final_readouts=last.cognitive_readouts,
         final_motor_readout_nodes=last.motor_readout_nodes,
-        final_primitive_readout_nodes=last.primitive_readout_nodes,
+        final_competence_readout_nodes=last.competence_readout_nodes,
         peak_structural_candidates=peak_candidates,
         peak_structural_producers=peak_producers,
         maximum_structural_wait_ticks=maximum_wait,
@@ -160,19 +160,18 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         final_maturity_stable=last.maturity_stable,
         final_maturity_weakening=last.maturity_weakening,
         final_maturity_retiring=last.maturity_retiring,
-        motor_origin_cognition=last.motor_origin_cognition,
-        motor_origin_primitive=last.motor_origin_primitive,
-        motor_origin_primitive_cognition=last.motor_origin_primitive_cognition,
-        motor_origin_primitive_reactive=last.motor_origin_primitive_reactive,
-        motor_origin_babbling=last.motor_origin_babbling,
-        cognitive_motor_primitives=last.cognitive_motor_primitives,
+        action_source_competence=last.action_source_competence,
+        action_source_regulation=last.action_source_regulation,
+        action_source_prospection=last.action_source_prospection,
+        action_source_protection=last.action_source_protection,
+        action_source_exploration=last.action_source_exploration,
+        motor_competences=last.motor_competences,
         cognitive_motor_output_edges=last.cognitive_motor_output_edges,
         resource_progress=last.resource_progress,
         predictor_monopoly=predictor_monopoly,
         cognition_reached_motor_output=(
-            last.motor_origin_cognition > 0
-            or last.motor_origin_mixed > 0
-            or last.motor_origin_primitive_cognition > 0
+            last.action_source_competence > 0
+            or last.action_source_prospection > 0
         ),
     )
 
