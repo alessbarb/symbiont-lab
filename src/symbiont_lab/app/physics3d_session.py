@@ -31,6 +31,7 @@ class Physics3DSessionSnapshot:
     run_id: str | None = None
     organism_ref: str | None = None
     body_kind: str | None = None
+    startup_phase: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -42,6 +43,7 @@ class Physics3DSessionSnapshot:
             "run_id": self.run_id,
             "organism_ref": self.organism_ref,
             "body_kind": self.body_kind,
+            "startup_phase": self.startup_phase,
         }
 
 
@@ -71,6 +73,7 @@ class Physics3DSession:
         self._error: str | None = None
         self._traceback: str | None = None
         self._launch: Physics3DLaunchSpec | None = None
+        self._startup_phase: str | None = None
 
     def start(self, launch: Physics3DLaunchSpec | None = None) -> bool:
         with self._lock:
@@ -82,6 +85,7 @@ class Physics3DSession:
             self._error = None
             self._traceback = None
             self._launch = launch
+            self._startup_phase = "launching"
             thread = threading.Thread(
                 target=self._run,
                 args=(launch,),
@@ -110,9 +114,6 @@ class Physics3DSession:
             if runner is None:
                 from symbiont_lab.physics3d.engine import run as runner
 
-            with self._lock:
-                if self._state != Physics3DSessionState.STOPPING:
-                    self._state = Physics3DSessionState.RUNNING
             runner_kwargs: dict[str, object] = {
                 "show_monitor": True,
                 "headless": False,
@@ -120,6 +121,25 @@ class Physics3DSession:
             }
             if launch is not None:
                 runner_kwargs.update(launch.runner_kwargs())
+
+            if self._runner is None:
+                def _startup(stage: str) -> None:
+                    with self._lock:
+                        self._startup_phase = stage
+
+                def _ready() -> None:
+                    with self._lock:
+                        if self._state != Physics3DSessionState.STOPPING:
+                            self._state = Physics3DSessionState.RUNNING
+                runner_kwargs["ready_callback"] = _ready
+                runner_kwargs["startup_callback"] = _startup
+            else:
+                # Test/custom runners do not need to know the engine callback
+                # contract; reaching the runner is sufficient readiness.
+                with self._lock:
+                    if self._state != Physics3DSessionState.STOPPING:
+                        self._state = Physics3DSessionState.RUNNING
+
             code = runner(**runner_kwargs)
             with self._lock:
                 self._exit_code = int(code)
@@ -183,6 +203,7 @@ class Physics3DSession:
                 run_id=launch.run_id if launch is not None else None,
                 organism_ref=launch.organism_ref if launch is not None else None,
                 body_kind=launch.body_kind if launch is not None else None,
+                startup_phase=self._startup_phase,
             )
 
 

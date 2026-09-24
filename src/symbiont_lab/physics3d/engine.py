@@ -190,6 +190,8 @@ def run(
     enable_slm: bool = True,
     slm_train_interval: int = 1,
     slm_device: str = "cpu",
+    ready_callback=None,
+    startup_callback=None,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -209,8 +211,13 @@ def run(
         if archived is not None:
             print(f"Archived previous Physics3D subject at {archived}")
 
+    def _startup(stage: str) -> None:
+        if startup_callback is not None:
+            startup_callback(stage)
+
     models_dir = symbiont_file.parent / "models"
     runtime_checkpoint = None
+    _startup("loading_checkpoint")
     if symbiont_file.exists() and not new_symbiont:
         runtime_checkpoint = load_symbiont_bundle(symbiont_file, models_dir)
         print(
@@ -268,6 +275,7 @@ def run(
     # Normal interactive mode renders PyBullet in DIRECT and embeds the camera
     # image into the unified evaluator window. The native PyBullet GUI remains
     # available only when the evaluator is explicitly disabled.
+    _startup("restoring_runtime")
     runtime = PyBulletEmbodimentRuntime(
         gui=(not headless and not show_monitor),
         seed=seed,
@@ -363,6 +371,7 @@ def run(
 
     slm = None
     if enable_slm:
+        _startup("attaching_model")
         slm = Physics3DSlmManager(
             models_dir=models_dir,
             train_interval=slm_train_interval,
@@ -391,6 +400,10 @@ def run(
         effective_configuration=telemetry_configuration,
         software_identity=software_identity,
     )
+
+    _startup("ready")
+    if ready_callback is not None:
+        ready_callback()
 
     is_paused = False
     step_once = False
