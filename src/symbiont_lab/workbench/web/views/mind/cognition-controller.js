@@ -3090,6 +3090,7 @@ export function createCognitionController({
     init: initGraphPhysics,
     renderInspector: renderCognitionInspector,
     resize,
+    resetPresentation: () => presentation.reset(),
     returnLive,
     selectNode: selectCognitiveNode,
     setDimension,
