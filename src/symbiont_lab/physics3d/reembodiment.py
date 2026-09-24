@@ -382,7 +382,7 @@ def prepare_fresh_embodiment_checkpoint(
         receptor_count=int(current.get("receptor_count") or 0),
         effector_count=int(current.get("effector_count") or 0),
     )
-    same_contract = _same_contract(current, contract)
+    same_descriptor = _same_contract(current, contract)
     saved_tick = int(previous.get("saved_at_tick") or 0)
     started_tick = int(current.get("started_tick") or 0)
     previous_fingerprint = str(
@@ -397,6 +397,10 @@ def prepare_fresh_embodiment_checkpoint(
         fresh,
         receptor_count=contract.receptor_count,
         effector_count=contract.effector_count,
+    )
+    same_contract = (
+        same_descriptor
+        and previous_fingerprint == new_fingerprint
     )
 
     historical_bridge, historical_motor_surface = _detach_body_specific_cognition(previous)
