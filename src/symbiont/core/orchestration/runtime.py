@@ -1696,9 +1696,9 @@ class OrganismRuntime:
         return self._genome
 
     @property
-    def heritable_genome(self) -> HeritableGenome | None:
-        """Genetic state, kept separate from acquired phenotype and memory."""
-        return self._heritable_genome
+    def heritable_genome(self) -> None:
+        """Legacy surface: Genome v2 is the only operative genetic state."""
+        return None
 
     @property
     def epigenetic_priors(self) -> tuple[EpigeneticPrior, ...]:
@@ -1979,7 +1979,7 @@ class OrganismRuntime:
 
         inherited = self._next_heritable_genome()
         child_genome_id = (
-            inherited.identity if inherited is not None else self._genome.genome_id
+            inherited.genome_id if inherited is not None else self._genome.genome_id
         )
         record = self._birth_authority.birth(
             genome_id=child_genome_id,
@@ -3351,20 +3351,12 @@ class OrganismRuntime:
                     gene_expression_state = restore_expression_state(raw_expression, genome)
                 except ValueError as exc:
                     raise CheckpointError(f"invalid gene expression checkpoint: {exc}") from exc
-        heritable_genome = None
         raw_heritable = normalized.get("heritable_genome")
-        if raw_heritable is not None:
-            if not isinstance(raw_heritable, dict) or not isinstance(raw_heritable.get("genome_id"), str):
-                raise CheckpointError("invalid heritable genome checkpoint")
-            try:
-                heritable_genome = HeritableGenome(
-                    raw_heritable["genome_id"],
-                    tuple((str(item[0]), float(item[1])) for item in raw_heritable.get("loci", ())),
-                )
-            except (KeyError, TypeError, ValueError, IndexError) as exc:
-                raise CheckpointError("invalid heritable genome checkpoint") from exc
-            if raw_heritable.get("identity") not in (None, heritable_genome.identity):
-                raise CheckpointError("heritable genome identity mismatch")
+        if raw_heritable not in (None, {}):
+            raise CheckpointError(
+                "legacy HeritableGenome checkpoints require explicit offline migration to Genome v2"
+            )
+        heritable_genome = None
         raw_priors = normalized.get("epigenetic_priors")
         if raw_priors is None:
             raw_priors = []
