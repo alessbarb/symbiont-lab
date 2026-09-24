@@ -37,6 +37,38 @@ def contract_fingerprint(
         if isinstance(actuation, Mapping)
         else None
     )
+    sensorimotor = (
+        actuation.get("sensorimotor")
+        if isinstance(actuation, Mapping)
+        else None
+    )
+    raw_groups = (
+        sensorimotor.get("exclusive_actuator_groups")
+        if isinstance(sensorimotor, Mapping)
+        else None
+    )
+    motor_unit_groups: list[list[str]] | None = None
+    if raw_groups is not None:
+        if not isinstance(raw_groups, list):
+            raise ValueError(
+                "exclusive actuator groups must be a list in embodiment contract"
+            )
+        normalized: list[tuple[str, ...]] = []
+        for raw_group in raw_groups:
+            if not isinstance(raw_group, (list, tuple)):
+                raise ValueError(
+                    "exclusive actuator group must be a sequence in embodiment contract"
+                )
+            group = tuple(sorted(str(value) for value in raw_group))
+            if len(group) < 2 or len(set(group)) != len(group):
+                raise ValueError(
+                    "exclusive actuator group is invalid in embodiment contract"
+                )
+            normalized.append(group)
+        motor_unit_groups = [
+            list(group) for group in sorted(normalized)
+        ]
+
     material = {
         "receptor_count": int(receptor_count),
         "effector_count": int(effector_count),
@@ -44,6 +76,11 @@ def contract_fingerprint(
         # actuator health and sensory phenotype state are intentionally absent:
         # a contract fingerprint must survive learning inside the same Body type.
         "actuation_constitution": constitution,
+        # Physical grouping is part of embodiment truth even though the
+        # organism sees only opaque actuator ids. Two bodies with the same
+        # channel count but different antagonistic groupings are not the same
+        # motor contract.
+        "exclusive_actuator_groups": motor_unit_groups,
     }
     return _canonical_hash(material)
 
