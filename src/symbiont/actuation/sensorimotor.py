@@ -728,9 +728,27 @@ class SensorimotorLearner:
         )
         return max(1, min(self._max_concurrent, cardinality))
 
-    def _exploration_vector(self, tick: int) -> dict[str, float]:
+    def _exploration_vector(
+        self,
+        tick: int,
+        *,
+        preferred_actuator_ids: tuple[str, ...] = (),
+    ) -> dict[str, float]:
         epoch = tick // _EXPLORATION_EPOCH_TICKS
-        if epoch != self._exploration_epoch or not self._exploration_ids:
+        valid_preference = tuple(
+            actuator_id
+            for actuator_id in preferred_actuator_ids
+            if actuator_id in self._use_counts
+        )
+        preference_changed = bool(
+            valid_preference
+            and not set(valid_preference).intersection(self._exploration_ids)
+        )
+        if (
+            epoch != self._exploration_epoch
+            or not self._exploration_ids
+            or preference_changed
+        ):
             scored_units = []
             for unit_index, unit in enumerate(self._exploration_units):
                 use_count = min(self._use_counts[actuator_id] for actuator_id in unit)
@@ -738,12 +756,15 @@ class SensorimotorLearner:
                     self._hash_unit(actuator_id, epoch)
                     for actuator_id in unit
                 )
+                preferred = int(
+                    not any(actuator_id in valid_preference for actuator_id in unit)
+                )
                 scored_units.append(
-                    (use_count, -tie_break, unit_index, unit)
+                    (preferred, use_count, -tie_break, unit_index, unit)
                 )
             cardinality = self._exploration_cardinality(epoch)
             chosen_units = [
-                item[3]
+                item[4]
                 for item in sorted(scored_units)[:cardinality]
             ]
 
@@ -753,8 +774,11 @@ class SensorimotorLearner:
                 # one opaque channel for this epoch.  Fairness is based on the
                 # organism's own use history; the apparatus never supplies
                 # "positive", "negative", joint or anatomical semantics.
+                preferred_in_unit = [
+                    value for value in unit if value in valid_preference
+                ]
                 actuator_id = min(
-                    unit,
+                    preferred_in_unit or list(unit),
                     key=lambda value: (
                         self._use_counts[value],
                         -self._hash_unit(value, epoch),
@@ -783,7 +807,12 @@ class SensorimotorLearner:
                 self._use_counts[actuator_id] += 1
         return vector
 
-    def motor_intents(self, tick: int) -> tuple[MotorIntent, ...]:
+    def motor_intents(
+        self,
+        tick: int,
+        *,
+        exploration_preference: tuple[str, ...] = (),
+    ) -> tuple[MotorIntent, ...]:
         self._last_output_primitive_id = None
         self._last_output_source = "exploration"
 
@@ -806,7 +835,10 @@ class SensorimotorLearner:
             self._replay_step = 0
             self._replay_source = None
 
-        vector = self._exploration_vector(tick)
+        vector = self._exploration_vector(
+            tick,
+            preferred_actuator_ids=exploration_preference,
+        )
         return tuple(
             MotorIntent(actuator_id=actuator_id, activation=value)
             for actuator_id, value in sorted(vector.items())
