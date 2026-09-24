@@ -185,7 +185,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
 
         if not context:
             context.append("internal.quiet")
-        return tuple(context[:256])
+        return tuple(context[:512])
     def _episodic_projection(
         self,
         result: RuntimeTickResult,
@@ -379,7 +379,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         )
         return _PrivateFrame(
             tick=result.tick,
-            context_tokens=tuple(context[:256]),
+            context_tokens=tuple(context[:512]),
             action_token=action_token,
             evidence_refs=tuple(evidence[:16]),
             source_kind=source,
