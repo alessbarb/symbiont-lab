@@ -42,8 +42,10 @@ def _checkpoint(*, vital_state: str = "dead") -> dict:
         "sensory_development": {"old": True},
         "sensory_system": {"old": True},
         "genome": {
-            "genome_id": "genome_symbiont_physics3d_v9",
-            "motor": {"slot_count": 62},
+            "schema_version": 2,
+            "genome_id": "genome_symbiont_base_v2",
+            "genotype_hash": "stable-genotype",
+            "genome_hash": "stable-instance",
         },
         "constitution_fingerprint": {"schema_version": 1, "genome_hash": "old"},
         "embodiment_lifecycle": {
@@ -61,14 +63,19 @@ def _checkpoint(*, vital_state: str = "dead") -> dict:
         },
         "actuation": {
             "enabled": True,
-            "constitution": {"slots": [{"slot_id": f"motor_slot.{i}"} for i in range(62)]},
+            "constitution": {
+                "contract_fingerprint": "motor-surface-62",
+                "slots": [{"slot_id": f"motor_slot.{i}"} for i in range(62)],
+            },
             "states": {"old": {"health": 0.0}},
             "proposer": {"learned": "old"},
             "sensorimotor": {
-                "schema_version": 9,
+                "schema_version": 10,
+                "embodiment_fingerprint": "motor-surface-62",
                 "exclusive_actuator_groups": [],
                 "primitives": [{
                     "primitive_id": "primitive.old",
+                    "embodiment_fingerprint": "motor-surface-62",
                     "sequence": [
                         [["actuator.0", 5]],
                         [["actuator.1", 5]],
@@ -144,16 +151,22 @@ def _fresh(*, slots: int = 62) -> dict:
         "sensory_development": {},
         "sensory_system": {"fresh": True},
         "genome": {
-            "genome_id": "genome_symbiont_physics3d_v9",
-            "motor": {"slot_count": slots},
+            "schema_version": 2,
+            "genome_id": "genome_symbiont_base_v2",
+            "genotype_hash": "stable-genotype",
+            "genome_hash": "stable-instance",
         },
         "actuation": {
             "enabled": True,
-            "constitution": {"slots": [{"slot_id": f"motor_slot.{i}"} for i in range(slots)]},
+            "constitution": {
+                "contract_fingerprint": f"motor-surface-{slots}",
+                "slots": [{"slot_id": f"motor_slot.{i}"} for i in range(slots)],
+            },
             "states": {"fresh": {"health": 1.0}},
             "proposer": {"learned": "fresh"},
             "sensorimotor": {
-                "schema_version": 9,
+                "schema_version": 10,
+                "embodiment_fingerprint": f"motor-surface-{slots}",
                 "exclusive_actuator_groups": [],
                 "primitives": [],
                 "historical_candidates": [],
@@ -194,10 +207,11 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     assert transformed["actuation"]["proposer"] == {"learned": "fresh"}
 
     sensorimotor = transformed["actuation"]["sensorimotor"]
-    assert sensorimotor["schema_version"] == 9
+    assert sensorimotor["schema_version"] == 10
     assert sensorimotor["primitives"] == []
     assert sensorimotor["historical_candidates"] == [{
         "primitive_id": "primitive.old",
+        "embodiment_fingerprint": "motor-surface-62",
         "sequence": [
             [["actuator.0", 5]],
             [["actuator.1", 5]],
@@ -250,8 +264,8 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
     assert transformed["actuation"]["sensorimotor"]["primitives"] == []
     assert transformed["actuation"]["sensorimotor"]["historical_candidates"] == []
     assert transformed["actuation"]["proposer"] == {"learned": "fresh"}
-    assert transformed["genome"]["motor"]["slot_count"] == 40
-    assert transformed["constitution_fingerprint"]["genome_hash"] != "old"
+    assert transformed["genome"] == previous["genome"]
+    assert transformed["constitution_fingerprint"]["genome_hash"] == "old"
 
     history = transformed["embodiment_lifecycle"]["history"]
     assert history[-1]["body_schema"] == previous["body_schema"]
