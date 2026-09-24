@@ -361,8 +361,10 @@ export function mount(root, appState = null) {
   _lastUITime = 0;
   _activeTab = 'overview';
 
-  // Reset passive view state without changing organism state.
+  // Reset passive view state and observer-only presentation memory without
+  // changing organism state.
   resetMindDataState();
+  cognition.resetPresentation();
 
   // Build DOM. Layout owns structure only; all stateful actions are delegated.
   buildMindLayout(root, {
@@ -426,8 +428,9 @@ export function mount(root, appState = null) {
  * Unmount the Mind view: stop animations, close SSE streams, clear DOM.
  */
 export function unmount() {
-  // Stop animations
+  // Stop animations and discard observer-only presentation ghosts.
   cognition.stop();
+  cognition.resetPresentation();
 
   // Close transport coordinator.
   if (_streams) {
