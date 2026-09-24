@@ -80,8 +80,6 @@ def mutate_genome(
             _set_path(payload, locus, value)
             changed = True
 
-    parent_id = genome.genome_id
-    payload["parent_ids"] = [parent_id]
     payload["genome_id"] = new_genome_id or (
         f"genome_{genome.genotype_hash[:12]}_m{seed & 0xffff:x}"
         if changed
