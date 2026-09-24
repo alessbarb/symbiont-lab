@@ -156,6 +156,9 @@ export const graph = {
   learningFrontierClusters: [],
   previousFrontierClusters: [],
   cognitiveSituation: null,
+  liveFrame: null,
+  liveFrameHistory: [],
+  cognitiveEvents: [],
   flowTraceEnabled: false,
   autoFramePending: true,
   manualViewOverride: false,
@@ -259,6 +262,9 @@ export function resetMindDataState() {
   graph.learningFrontierClusters = [];
   graph.previousFrontierClusters = [];
   graph.cognitiveSituation = null;
+  graph.liveFrame = null;
+  graph.liveFrameHistory.length = 0;
+  graph.cognitiveEvents.length = 0;
   graph.flowTraceEnabled = false;
   graph.autoFramePending = true;
   graph.manualViewOverride = false;
