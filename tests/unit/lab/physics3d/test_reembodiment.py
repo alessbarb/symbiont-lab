@@ -446,3 +446,54 @@ def test_contract_fingerprint_ignores_group_order_but_not_membership() -> None:
     ) == contract_fingerprint(
         right, receptor_count=107, effector_count=62
     )
+
+
+
+def test_lifecycle_recomputes_pre_v2_contract_fingerprint() -> None:
+    payload = _fresh()
+    payload["saved_at_tick"] = 9
+    payload["living_body"]["max_energy"] = 1600.0
+    payload["living_body"].update({
+        "schema_version": 3,
+        "structural_integrity": 1.0,
+        "temperature": 0.5,
+        "fatigue": 0.0,
+        "growth_progress": 1.0,
+        "senescence": 0.0,
+        "age_ticks": 9,
+        "transitions": 0,
+        "death_tick": None,
+        "metabolic_capacity": {},
+        "metabolic_replenishment": {},
+        "metabolic_reserve": {},
+        "structure_states": {},
+    })
+    payload["embodiment_lifecycle"] = {
+        "schema_version": 1,
+        "state": "active",
+        "epoch": 1,
+        "current": {
+            "body_kind": "anthropomorphic-v5",
+            "receptor_count": 107,
+            "effector_count": 62,
+            "started_tick": 0,
+            "body_vital_state": "active",
+            "contract_fingerprint": "obsolete-formula",
+        },
+        "history": [],
+    }
+
+    updated = update_lifecycle_for_checkpoint(
+        payload,
+        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
+        state="active",
+    )
+    current = updated["embodiment_lifecycle"]["current"]
+
+    assert current["contract_fingerprint"] != "obsolete-formula"
+    assert current["contract_fingerprint_schema_version"] == 2
+    assert current["contract_fingerprint"] == contract_fingerprint(
+        updated,
+        receptor_count=107,
+        effector_count=62,
+    )
