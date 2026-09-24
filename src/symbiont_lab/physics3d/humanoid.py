@@ -564,12 +564,15 @@ class HumanoidPhysics:
         if len(self._contact_links) != SOMATIC_REGION_COUNT:
             raise RuntimeError("anthropomorphic-v5 somatic surface is incomplete")
 
-        self._direct_pairs = {
-            tuple(sorted((parent_by_index[index], index)))
+        self._direct_pairs: set[tuple[int, int]] = {
+            (min(parent_by_index[index], index), max(parent_by_index[index], index))
             for index in range(joint_count)
         }
-        self._structural_collision_exclusions = {
-            tuple(sorted((index_by_link_name[left], index_by_link_name[right])))
+        self._structural_collision_exclusions: set[tuple[int, int]] = {
+            (
+                min(index_by_link_name[left], index_by_link_name[right]),
+                max(index_by_link_name[left], index_by_link_name[right]),
+            )
             for left, right in STRUCTURAL_NEIGHBOUR_NAMES
         }
         self._verify_loaded_joint_contract()
@@ -768,7 +771,7 @@ class HumanoidPhysics:
             )
         else:
             raw_joint_states = cast(
-                Sequence[Sequence[object]],
+                Sequence[tuple[float, float, object, object]],
                 [
                     p.getJointState(self.body_id, i, physicsClientId=self.client_id)
                     for i in self.motor_joint_indices
