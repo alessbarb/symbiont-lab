@@ -175,11 +175,12 @@ def _require_current_motor_evidence(
     if payload is None or fresh_body or new_symbiont:
         return
     schema = _sensorimotor_checkpoint_schema(payload)
-    if schema == 9:
+    if schema in (9, 10):
         return
     raise RuntimeError(
         "Physics3D checkpoint carries sensorimotor evidence from an incompatible "
-        f"schema ({schema!r}); canonical motor learning now requires v9. "
+        f"schema ({schema!r}); canonical motor learning requires migratable v9 "
+        "or body-scoped v10 evidence. "
         "Use --fresh-body to re-embody the same Symbiont and revalidate "
         "body-specific knowledge, or --new-symbiont for a clean individual. "
         "The old motor evidence will not be silently reinterpreted."
