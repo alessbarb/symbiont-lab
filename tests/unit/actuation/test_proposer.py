@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from symbiont.cognition.genome import MotorGenes
 from symbiont.actuation.constitution import derive_actuator_constitution
 from symbiont.actuation.proposer import ActuatorProposer
 
