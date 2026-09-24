@@ -24,6 +24,7 @@ import {
   zoomCamera,
 } from './cognition-3d.js';
 import { inspectorMetric } from './components.js';
+import { appendInspectorLine, appendInspectorStage, replaceInspectorSummary } from './inspector-view.js';
 import { GRAPH_PHYSICS, PAL } from './config.js';
 import { topologyComponentStats } from './derived.js';
 import {
@@ -2565,10 +2566,10 @@ export function createCognitionController({
         panel.appendChild(empty);
       } else {
         for (const [target, item] of [...bridgeGroups.entries()].sort((a,b) => b[1].count - a[1].count)) {
-          const row = el('div', '');
-          row.style.cssText = 'padding:5px 0;border-top:1px solid rgba(98,120,136,.12);font-size:8px;color:var(--muted);';
-          row.innerHTML = `<strong style="color:var(--text)">${target}</strong> · ${item.count} relations · ${item.nodes.size} endpoints`;
-          panel.appendChild(row);
+          appendInspectorLine(panel, [
+            { text: target, strong: true },
+            ` · ${item.count} relations · ${item.nodes.size} endpoints`,
+          ], 'mind-inspector-line mind-inspector-divider');
         }
       }
   
@@ -2605,14 +2606,7 @@ export function createCognitionController({
       const stageWrap = el('div', '');
       stageWrap.style.cssText = 'display:grid;gap:4px;margin-bottom:8px;';
       for (const stage of situation.stages ?? []) {
-        const ratio = stage.total ? Math.min(1, stage.active / stage.total) : 0;
-        const row = el('div', '');
-        row.style.cssText = 'display:grid;grid-template-columns:78px 1fr 42px;gap:6px;align-items:center;font-size:8px;color:var(--muted);';
-        row.innerHTML =
-          `<span>${stage.label}</span>` +
-          `<span style="height:3px;background:rgba(98,120,136,.18);border-radius:2px;overflow:hidden"><i style="display:block;height:100%;width:${Math.round(ratio*100)}%;background:var(--cyan)"></i></span>` +
-          `<span style="text-align:right">${stage.active}/${stage.total}</span>`;
-        stageWrap.appendChild(row);
+        appendInspectorStage(stageWrap, stage);
       }
       panel.appendChild(stageWrap);
 
@@ -2632,12 +2626,13 @@ export function createCognitionController({
   
     const componentSizes = (graph.components ?? []).map(component => component.length);
     if (componentSizes.length) {
-      const objective = el('div','');
-      objective.style.cssText='padding:8px 0 10px;border-top:1px solid rgba(98,120,136,.16);font-size:8px;line-height:1.45;color:var(--muted);';
       const isolates = componentSizes.filter(size => size === 1).length;
-      objective.innerHTML =
-        `<strong style="color:var(--text)">Connected components</strong><br>` +
-        `${componentSizes.length} total · main ${componentSizes[0] ?? 0} nodes · ${isolates} isolates`;
+      const objective = el('div', 'mind-inspector-objective');
+      appendInspectorLine(objective, [{ text: 'Connected components', strong: true }]);
+      appendInspectorLine(
+        objective,
+        [`${componentSizes.length} total · main ${componentSizes[0] ?? 0} nodes · ${isolates} isolates`],
+      );
       panel.appendChild(objective);
     }
   
@@ -2706,19 +2701,23 @@ export function createCognitionController({
     structuresTitle.textContent = 'Higher-order structures';
     panel.appendChild(structuresTitle);
 
-    const structureSummary = el('div', '');
-    structureSummary.style.cssText = 'font-size:8px;line-height:1.5;color:var(--muted);';
-    structureSummary.innerHTML =
-      `<strong style="color:var(--text)">${structures.hubs.length}</strong> hubs · ` +
-      `<strong style="color:var(--text)">${structures.bottlenecks.length}</strong> bottlenecks · ` +
-      `<strong style="color:var(--text)">${structures.loops.length}</strong> recurrent loops`;
-    panel.appendChild(structureSummary);
+    appendInspectorLine(panel, [
+      { text: structures.hubs.length, strong: true }, ' hubs · ',
+      { text: structures.bottlenecks.length, strong: true }, ' bottlenecks · ',
+      { text: structures.loops.length, strong: true }, ' recurrent loops',
+    ], 'mind-inspector-line');
 
     for (const item of structures.hubs.slice(0, 3)) {
-      const row = el('button', '');
+      const row = el('button', 'mind-inspector-structure-button');
       row.type = 'button';
-      row.style.cssText = 'display:flex;width:100%;justify-content:space-between;padding:4px 0;border:0;background:transparent;color:var(--muted);font-size:8px;cursor:pointer;text-align:left;';
-      row.innerHTML = `<span>hub · <strong style="color:var(--text)">${shortId(item.id, 10, 5)}</strong></span><span>degree ${item.degree}</span>`;
+      const label = el('span', '');
+      label.append(document.createTextNode('hub · '));
+      const id = el('strong', '');
+      id.textContent = shortId(item.id, 10, 5);
+      label.appendChild(id);
+      const degree = el('span', '');
+      degree.textContent = `degree ${item.degree}`;
+      row.append(label, degree);
       row.addEventListener('click', () => selectCognitiveNode(item.id));
       panel.appendChild(row);
     }
@@ -2965,16 +2964,20 @@ export function createCognitionController({
     const sectorFocusLabel = graph.focusedSectorId
       ? ` · focus ${graph.sectorLabels.get(graph.focusedSectorId) ?? 'sector'}`
       : '';
-    panel.innerHTML =
-      `<strong style="color:var(--text)">Cognitive Observatory · Atlas${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
-      `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable)<br>` +
-      `<span style="color:var(--muted)">${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
-      `<span style="color:var(--muted)">mode ${atlasModeMeta().label} · detail ${graph.detailLevel} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden</span><br>` +
-      `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
-      `<span style="color:var(--muted)">higher-order ${graph.cognitiveStructures?.hubs?.length ?? 0} hubs · ${graph.cognitiveStructures?.bottlenecks?.length ?? 0} bottlenecks · ${graph.cognitiveStructures?.loops?.length ?? 0} loops · flow ${graph.observedFlow?.recentEdgeCount ?? 0} recent relations</span><br>` +
-      `<span style="color:var(--muted)">temporal ${graph.cognitiveEpisodes?.length ?? 0} episodes · ${graph.regionEventHistory?.length ?? 0} region events${graph.diffBaselineTick != null ? ` · diff baseline t${graph.diffBaselineTick}` : ''}</span><br>` +
-      `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontierClusters ?? []).length} zones / ${(graph.learningFrontier ?? []).length} nodes</span><br>` +
-      `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
+    replaceInspectorSummary(panel, [
+      [{ text: `Cognitive Observatory · Atlas${replayLabel}${projectionLabel}${sectorFocusLabel}`, strong: true }],
+      [`${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable)`],
+      [`${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links`],
+      [`mode ${atlasModeMeta().label} · detail ${graph.detailLevel} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden`],
+      [`components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}`],
+      [`higher-order ${graph.cognitiveStructures?.hubs?.length ?? 0} hubs · ${graph.cognitiveStructures?.bottlenecks?.length ?? 0} bottlenecks · ${graph.cognitiveStructures?.loops?.length ?? 0} loops · flow ${graph.observedFlow?.recentEdgeCount ?? 0} recent relations`],
+      [`temporal ${graph.cognitiveEpisodes?.length ?? 0} episodes · ${graph.regionEventHistory?.length ?? 0} region events${graph.diffBaselineTick != null ? ` · diff baseline t${graph.diffBaselineTick}` : ''}`],
+      [`Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontierClusters ?? []).length} zones / ${(graph.learningFrontier ?? []).length} nodes`],
+      [{
+        text: `${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}`,
+        tone: current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)',
+      }],
+    ]);
   }
 
   function invalidateProjectedRegionHistory3D() {
