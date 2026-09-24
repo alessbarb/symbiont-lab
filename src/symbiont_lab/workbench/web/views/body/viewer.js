@@ -165,7 +165,7 @@ export class BodyViewer {
   }
 
   ensureBodyModel(bodyKind) {
-    const requested = String(bodyKind || this.activeBodyKind || 'anthropomorphic-v4');
+    const requested = String(bodyKind || this.activeBodyKind || 'anthropomorphic-v5');
     if (requested === this.activeBodyKind) return;
     const model = this.bodyModels.get(requested);
     if (!model) return;
