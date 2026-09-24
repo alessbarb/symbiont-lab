@@ -813,7 +813,10 @@ class OrganismRuntime:
                 and math.isfinite(float(percept.value))
             )
         }
-        return dict(sorted(values.items())[:64])
+        # Preserve the complete currently perceived bodily state.  A
+        # lexicographic slice over opaque sensor ids silently changes which
+        # physical consequences are learnable and biases motor discovery.
+        return dict(sorted(values.items()))
 
     def _complete_pending_motor_observation(
         self, percepts: tuple[Percept, ...], *, tick: int
