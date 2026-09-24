@@ -56,7 +56,7 @@ export function createIdentitySensoryRenderer({
   function renderSensesPanel() {
     const list = document.getElementById('mind-senses-list');
     if (!list) return;
-    list.innerHTML = '';
+    list.replaceChildren();
   
     const sensors = sensoryFacts();
     if (!sensors.length) {
@@ -119,7 +119,7 @@ export function createIdentitySensoryRenderer({
   function renderPhenotype() {
     const canvas = document.getElementById('mind-phenotype-svg');
     if (!canvas) return;
-    canvas.innerHTML = '';
+    canvas.replaceChildren();
   
     const senses   = snap.senses ?? [];
     const beliefs  = snap.beliefs ?? [];
@@ -361,7 +361,7 @@ export function createIdentitySensoryRenderer({
     const mapSvg = document.getElementById('mind-sensory-map-svg');
     const detail = document.getElementById('mind-sensory-detail');
     if (!mapSvg) return;
-    mapSvg.innerHTML = '';
+    mapSvg.replaceChildren();
   
     const senses = snap.senses ?? [];
     const topology = snap.topology ?? { nodes: [], edges: [] };
@@ -597,7 +597,7 @@ export function createIdentitySensoryRenderer({
   function renderIdentityGap() {
     const panel = document.getElementById('mind-identity-gap');
     if (!panel) return;
-    panel.innerHTML = '';
+    panel.replaceChildren();
   
     const metrics = identityMetrics();
     recordIdentityHistory(metrics);
@@ -676,14 +676,16 @@ export function createIdentitySensoryRenderer({
     }
     panel.appendChild(certainty);
   
-    const change = el('div', '');
-    change.style.cssText = 'padding:9px 0;border-top:1px solid rgba(98,120,136,.18);font-size:8px;line-height:1.55;color:var(--muted);';
+    const change = el('div', 'mind-identity-change');
     const spanTicks = Math.max(0, metrics.tick - baseline.tick);
-    change.innerHTML =
-      `<strong style="color:var(--text)">Recent self-model change</strong><br>` +
+    const changeTitle = el('strong', '');
+    changeTitle.textContent = 'Recent self-model change';
+    const changeDetail = el('span', '');
+    changeDetail.textContent =
       `over ${spanTicks} ticks · sensory parts ${deltaText(metrics.sensoryPartCount, baseline.sensoryPartCount)} · ` +
       `regions ${deltaText(metrics.cognitiveRegions, baseline.cognitiveRegions)} · dependencies ${deltaText(metrics.dependencies, baseline.dependencies)} · ` +
       `existence ${deltaText(Math.round(metrics.existence*100), Math.round(baseline.existence*100), '%')}`;
+    change.append(changeTitle, changeDetail);
     panel.appendChild(change);
   
     const opaque = el('div', '');
