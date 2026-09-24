@@ -388,7 +388,9 @@ class PyBulletEmbodimentRuntime:
             )
             actuator_constitution = physics3d_actuator_surface(
                 self.apparatus.effector_ids,
-                physical_contract=contract.fingerprint,
+                physical_contract=(
+                    f"{contract.body_kind}:{contract.receptor_count}:{contract.effector_count}"
+                ),
             )
             actuator_ids = actuator_constitution.actuator_ids
             if len(actuator_ids) != len(self.apparatus.effector_ids):
