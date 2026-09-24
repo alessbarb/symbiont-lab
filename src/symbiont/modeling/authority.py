@@ -20,21 +20,21 @@ class ModelObjective(str, Enum):
 class TrainingBudget:
     """Externally governed ceiling for one private-model training request."""
 
-    max_parameters: int = 5_000_000
-    max_context: int = 256
-    max_examples: int = 8192
-    max_epochs: int = 32
-    max_steps: int = 20_000
-    max_artifact_bytes: int = 64 * 1024 * 1024
+    max_parameters: int = 20_000_000
+    max_context: int = 1024
+    max_examples: int = 32_768
+    max_epochs: int = 128
+    max_steps: int = 200_000
+    max_artifact_bytes: int = 512 * 1024 * 1024
 
     def __post_init__(self) -> None:
         bounds = (
-            (self.max_parameters, 1_000, 20_000_000, "max_parameters"),
-            (self.max_context, 8, 512, "max_context"),
-            (self.max_examples, 3, 65_536, "max_examples"),
-            (self.max_epochs, 1, 256, "max_epochs"),
-            (self.max_steps, 1, 1_000_000, "max_steps"),
-            (self.max_artifact_bytes, 1024, 512 * 1024 * 1024, "max_artifact_bytes"),
+            (self.max_parameters, 1_000, 128_000_000, "max_parameters"),
+            (self.max_context, 8, 2048, "max_context"),
+            (self.max_examples, 3, 262_144, "max_examples"),
+            (self.max_epochs, 1, 4096, "max_epochs"),
+            (self.max_steps, 1, 10_000_000, "max_steps"),
+            (self.max_artifact_bytes, 1024, 4 * 1024 * 1024 * 1024, "max_artifact_bytes"),
         )
         for value, low, high, name in bounds:
             if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
@@ -86,8 +86,8 @@ class TrainingRequest:
         ):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"{name} must be a non-negative integer")
-        if not 8 <= self.context_window <= 512:
-            raise ValueError("context_window must be within [8, 512]")
+        if not 8 <= self.context_window <= 2048:
+            raise ValueError("context_window must be within [8, 2048]")
         if self.requested_parameters < 1_000:
             raise ValueError("requested_parameters must be at least 1000")
         if self.requested_epochs < 1 or self.requested_steps < 1:
@@ -216,13 +216,13 @@ class ModelArtifactManifest:
                 raise ValueError(f"{name} must be a lowercase sha256 digest")
         if not isinstance(self.architecture_id, ArchitectureId) or not isinstance(self.objective, ModelObjective):
             raise ValueError("invalid artifact architecture or objective")
-        if isinstance(self.parameter_count, bool) or not isinstance(self.parameter_count, int) or not 1 <= self.parameter_count <= 20_000_000:
+        if isinstance(self.parameter_count, bool) or not isinstance(self.parameter_count, int) or not 1 <= self.parameter_count <= 128_000_000:
             raise ValueError("parameter_count outside supported bounds")
-        if isinstance(self.context_window, bool) or not isinstance(self.context_window, int) or not 8 <= self.context_window <= 512:
+        if isinstance(self.context_window, bool) or not isinstance(self.context_window, int) or not 8 <= self.context_window <= 2048:
             raise ValueError("context_window outside supported bounds")
         if isinstance(self.seed, bool) or not isinstance(self.seed, int) or not 0 <= self.seed <= 2**63 - 1:
             raise ValueError("seed must be a non-negative 63-bit integer")
-        if isinstance(self.artifact_bytes, bool) or not isinstance(self.artifact_bytes, int) or not 1 <= self.artifact_bytes <= 512 * 1024 * 1024:
+        if isinstance(self.artifact_bytes, bool) or not isinstance(self.artifact_bytes, int) or not 1 <= self.artifact_bytes <= 4 * 1024 * 1024 * 1024:
             raise ValueError("artifact_bytes outside supported bounds")
         if isinstance(self.created_tick_class, bool) or not isinstance(self.created_tick_class, int) or self.created_tick_class < 0:
             raise ValueError("created_tick_class must be non-negative")
@@ -242,10 +242,10 @@ class ModelArtifactManifest:
         ):
             raise ValueError("adaptation_reason must be bounded when present")
         ceilings = (
-            (self.authorized_parameter_ceiling, 1_000, 20_000_000, "authorized_parameter_ceiling"),
-            (self.authorized_epoch_ceiling, 1, 256, "authorized_epoch_ceiling"),
-            (self.authorized_step_ceiling, 1, 1_000_000, "authorized_step_ceiling"),
-            (self.authorized_artifact_byte_ceiling, 1_024, 512 * 1024 * 1024, "authorized_artifact_byte_ceiling"),
+            (self.authorized_parameter_ceiling, 1_000, 128_000_000, "authorized_parameter_ceiling"),
+            (self.authorized_epoch_ceiling, 1, 4096, "authorized_epoch_ceiling"),
+            (self.authorized_step_ceiling, 1, 10_000_000, "authorized_step_ceiling"),
+            (self.authorized_artifact_byte_ceiling, 1_024, 4 * 1024 * 1024 * 1024, "authorized_artifact_byte_ceiling"),
         )
         for value, low, high, name in ceilings:
             if value is not None and (isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high):
