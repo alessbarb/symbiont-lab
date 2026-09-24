@@ -62,7 +62,7 @@ def test_established_self_model_evidence_creates_one_opaque_sensory_part():
 
     payload = schema.export_representation(current_tick=12)
 
-    assert payload["state"] == "partial"
+    assert payload["state"] == "developing"
     assert len(payload["parts"]) == 1
     part = payload["parts"][0]
     assert part["kind"] == "sense"
