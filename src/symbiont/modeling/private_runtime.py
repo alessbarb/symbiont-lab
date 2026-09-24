@@ -11,8 +11,8 @@ from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .runtime import ModeledOrganismRuntime
 
 
-_MAX_CAPTURED_SENSES = 48
-_MAX_TEMPORAL_OUTCOMES = 16
+_MAX_CAPTURED_SENSES = 128
+_MAX_TEMPORAL_OUTCOMES = 64
 
 
 def _evidence_ref(*parts: object) -> str:
