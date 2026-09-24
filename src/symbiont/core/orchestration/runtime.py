@@ -108,6 +108,9 @@ from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.effects import EffectSpace
 from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
 from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
+from ...actuation.model import ControllabilityModel
+from ...actuation.exploration import ExplorationPolicy
+from ...actuation.composition import CompositionEngine
 from ...actuation.sensorimotor import (
     MotorPrimitive,
     PrimitiveEpisode,
@@ -680,6 +683,9 @@ class OrganismRuntime:
         self._effect_space = EffectSpace()
         self._causal_evidence = CausalEvidenceLedger()
         self._competence_library = CompetenceLibrary()
+        self._controllability_model = ControllabilityModel()
+        self._exploration_policy = ExplorationPolicy()
+        self._composition_engine = CompositionEngine()
         self._pending_sensorimotor_transition: dict[str, Any] | None = None
         self._last_sensorimotor_transition: SensorimotorTransition | None = None
         self._pending_motor_observation: tuple[
@@ -1098,7 +1104,7 @@ class OrganismRuntime:
                     opaque = name
                 if opaque is not None:
                     opaque_changes[str(opaque)] = delta
-            self._effect_space.observe(opaque_changes)
+            observed_effect = self._effect_space.observe(opaque_changes)
 
             transition = SensorimotorTransition(
                 transition_id="transition." + hashlib.sha256(
@@ -1109,6 +1115,11 @@ class OrganismRuntime:
                 context_ref=str(previous["context_ref"]),
                 commitment_id=str(previous["commitment_id"]),
                 controller_id=str(previous["controller_id"]),
+                competence_id=(
+                    str(previous["competence_id"])
+                    if previous.get("competence_id") is not None
+                    else None
+                ),
                 state_before_ref=str(previous["state_before_ref"]),
                 motor_command_ref=str(previous["motor_command_ref"]),
                 actuation_ref=str(previous["actuation_ref"]),
@@ -1116,9 +1127,36 @@ class OrganismRuntime:
                 state_after_ref="state." + _canonical_hash(
                     {"values": dict(sorted(sensorimotor_body_state.items()))}
                 )[:24],
+                observed_effect_id=(
+                    observed_effect.effect_id
+                    if observed_effect is not None
+                    else None
+                ),
                 physiological_delta_ref=None,
             )
-            self._causal_evidence.observe(transition)
+            causal = self._causal_evidence.observe(transition)
+
+            if transition.competence_id is not None and observed_effect is not None:
+                competence = self._competence_library.get(transition.competence_id)
+                if competence is not None:
+                    current_surface = (
+                        self._actuator_constitution.contract_fingerprint
+                        if self._actuator_constitution is not None
+                        else None
+                    )
+                    if current_surface is not None:
+                        competence.bind_from_evidence(
+                            surface_fingerprint=current_surface,
+                            effect_id=observed_effect.effect_id,
+                            evidence_refs=(causal.evidence_id,),
+                        )
+                    self._controllability_model.update_from_ledger(
+                        self._causal_evidence,
+                        effect_id=observed_effect.effect_id,
+                        competence_id=transition.competence_id,
+                        context_id=None,
+                        tick=tick,
+                    )
             self._last_sensorimotor_transition = transition
             self._pending_sensorimotor_transition = None
 
@@ -1498,6 +1536,7 @@ class OrganismRuntime:
                 "tick": tick,
                 "commitment_id": self._active_action_commitment.commitment_id,
                 "controller_id": self._active_action_commitment.controller_id,
+                "competence_id": self._active_action_commitment.competence_id,
                 "context_ref": "context." + hashlib.sha256(
                     ("|".join(active_concepts) or "opaque").encode("utf-8")
                 ).hexdigest()[:24],
