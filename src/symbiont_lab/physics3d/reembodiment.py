@@ -90,6 +90,127 @@ def _same_contract(current: Mapping[str, Any], contract: EmbodimentContract) -> 
     )
 
 
+def _detach_body_specific_cognition(
+    checkpoint: Mapping[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Archive and remove embodiment-specific motor output structure.
+
+    Concepts, predictors and general learned topology remain active. Motor and
+    primitive readouts belong to an embodiment contract: carrying them into a
+    different contract would create an implicit old->new actuator mapping when
+    slot identifiers happen to overlap.
+    """
+    raw_bridge = checkpoint.get("cognitive_bridge")
+    if not isinstance(raw_bridge, Mapping):
+        return (
+            deepcopy(raw_bridge) if isinstance(raw_bridge, dict) else None,
+            None,
+        )
+
+    bridge = deepcopy(dict(raw_bridge))
+    graph = bridge.get("graph")
+    if not isinstance(graph, dict):
+        return bridge, None
+
+    nodes = graph.get("nodes")
+    edges = graph.get("edges")
+    if not isinstance(nodes, list) or not isinstance(edges, list):
+        return bridge, None
+
+    def body_output_node(node_id: object) -> bool:
+        value = str(node_id or "")
+        return (
+            value.startswith("readout_motor:")
+            or value.startswith("readout_primitive:")
+        )
+
+    removed_ids = {
+        str(node.get("node_id"))
+        for node in nodes
+        if isinstance(node, Mapping) and body_output_node(node.get("node_id"))
+    }
+    if not removed_ids:
+        return bridge, {"nodes": [], "edges": []}
+
+    archived_nodes = [
+        deepcopy(node)
+        for node in nodes
+        if isinstance(node, Mapping) and str(node.get("node_id")) in removed_ids
+    ]
+    archived_edges = [
+        deepcopy(edge)
+        for edge in edges
+        if isinstance(edge, Mapping)
+        and (
+            str(edge.get("source_id")) in removed_ids
+            or str(edge.get("target_id")) in removed_ids
+        )
+    ]
+
+    graph["nodes"] = [
+        node
+        for node in nodes
+        if not (
+            isinstance(node, Mapping)
+            and str(node.get("node_id")) in removed_ids
+        )
+    ]
+    graph["edges"] = [
+        edge
+        for edge in edges
+        if not (
+            isinstance(edge, Mapping)
+            and (
+                str(edge.get("source_id")) in removed_ids
+                or str(edge.get("target_id")) in removed_ids
+            )
+        )
+    ]
+
+    # Restore already filters per-node metadata against the graph. These
+    # surfaces are pruned here as well so the serialized checkpoint is
+    # internally self-consistent before restore.
+    for key in ("node_born_tick", "node_observation_count", "node_active_count"):
+        raw = bridge.get(key)
+        if isinstance(raw, dict):
+            bridge[key] = {
+                node_id: value
+                for node_id, value in raw.items()
+                if str(node_id) not in removed_ids
+            }
+
+    raw_shadow = bridge.get("shadow_predictions")
+    if isinstance(raw_shadow, list):
+        bridge["shadow_predictions"] = [
+            item
+            for item in raw_shadow
+            if not (
+                isinstance(item, Mapping)
+                and (
+                    str(item.get("source_id")) in removed_ids
+                    or str(item.get("target_id")) in removed_ids
+                )
+            )
+        ]
+
+    raw_candidates = bridge.get("structural_candidates")
+    if isinstance(raw_candidates, list):
+        bridge["structural_candidates"] = [
+            item
+            for item in raw_candidates
+            if not (
+                isinstance(item, Mapping)
+                and str(item.get("family"))
+                in {"motor_readout", "primitive_readout"}
+            )
+        ]
+
+    return bridge, {
+        "nodes": archived_nodes,
+        "edges": archived_edges,
+    }
+
+
 def _fresh_actuation_with_transfer(
     previous: Mapping[str, Any],
     fresh: Mapping[str, Any],
@@ -147,6 +268,9 @@ def prepare_fresh_embodiment_checkpoint(
 
     same_contract = _same_contract(current, contract)
     saved_tick = int(previous.get("saved_at_tick") or 0)
+    historical_bridge, historical_motor_surface = _detach_body_specific_cognition(
+        previous
+    )
     history.append({
         "epoch": epoch,
         "body_kind": str(current.get("body_kind") or "unknown"),
@@ -156,6 +280,11 @@ def prepare_fresh_embodiment_checkpoint(
         "ended_tick": saved_tick,
         "end_body_vital_state": _body_vital_state(previous),
         "body_schema": deepcopy(previous.get("body_schema")),
+        "motor_cognitive_surface": (
+            historical_motor_surface
+            if not same_contract
+            else None
+        ),
     })
     history = history[-_MAX_EMBODIMENT_HISTORY:]
 
@@ -172,6 +301,12 @@ def prepare_fresh_embodiment_checkpoint(
     )
 
     if not same_contract:
+        # General cognition persists, but embodiment-specific motor/primitive
+        # output readouts are detached from the active graph. They are archived
+        # in the previous epoch above and must be reacquired from new evidence.
+        if historical_bridge is not None:
+            result["cognitive_bridge"] = historical_bridge
+
         # Start a new active schema.  The previous schema is retained above as
         # historical evidence; there is deliberately no old->new channel map.
         for key in ("body_schema", "self_model", "sensory_development", "sensory_system"):
