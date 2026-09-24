@@ -85,6 +85,7 @@ from ..social.relations import (InteractionOutcome, RelationLedger, RelationVale
 from ..lineage.birth_authority import BirthRecord, HabitatBirthAuthority
 from ..embodiment.ontogeny import OntogenyController, OntogenySnapshot
 from ..lineage.inheritance import EpigeneticPrior
+from ...genetics.migration import apply_legacy_heritable_payload
 from ...genetics.mutation import mutate_genome
 from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
 from ...cognition.birth import load_base_graph
@@ -1615,11 +1616,6 @@ class OrganismRuntime:
                         "initial": self._genome.plasticity.learning_rate.initial,
                         "min": self._genome.plasticity.learning_rate.minimum,
                         "max": self._genome.plasticity.learning_rate.maximum,
-                    },
-                    "forgetting_rate": {
-                        "initial": self._genome.plasticity.forgetting_rate.initial,
-                        "min": self._genome.plasticity.forgetting_rate.minimum,
-                        "max": self._genome.plasticity.forgetting_rate.maximum,
                     },
                     "eligibility_decay": self._genome.plasticity.eligibility_decay,
                 },
@@ -3338,6 +3334,23 @@ class OrganismRuntime:
             kernel_limits=kernel_limits,
             running_version=_parse_running_version(_symbiont_version),
         )
+
+        raw_heritable = normalized.get("heritable_genome")
+        if genome is not None and raw_heritable not in (None, {}):
+            if not isinstance(raw_heritable, dict):
+                raise CheckpointError("invalid legacy HeritableGenome checkpoint")
+            try:
+                genome = apply_legacy_heritable_payload(
+                    genome,
+                    raw_heritable,
+                    kernel_limits=kernel_limits,
+                )
+            except ValueError as exc:
+                raise CheckpointError(
+                    f"invalid legacy HeritableGenome checkpoint: {exc}"
+                ) from exc
+        heritable_genome = None
+
         gene_expression_state = None
         raw_expression = normalized.get("gene_expression")
         if genome is not None:
@@ -3348,15 +3361,14 @@ class OrganismRuntime:
                     raise CheckpointError("invalid gene expression checkpoint")
                 try:
                     from ...genetics.expression import restore_expression_state
-                    gene_expression_state = restore_expression_state(raw_expression, genome)
+                    gene_expression_state = restore_expression_state(
+                        raw_expression,
+                        genome,
+                    )
                 except ValueError as exc:
-                    raise CheckpointError(f"invalid gene expression checkpoint: {exc}") from exc
-        raw_heritable = normalized.get("heritable_genome")
-        if raw_heritable not in (None, {}):
-            raise CheckpointError(
-                "legacy HeritableGenome checkpoints require explicit offline migration to Genome v2"
-            )
-        heritable_genome = None
+                    raise CheckpointError(
+                        f"invalid gene expression checkpoint: {exc}"
+                    ) from exc
         raw_priors = normalized.get("epigenetic_priors")
         if raw_priors is None:
             raw_priors = []
