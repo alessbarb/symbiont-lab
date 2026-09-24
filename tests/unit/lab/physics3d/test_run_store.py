@@ -72,7 +72,7 @@ def test_catalog_summary_does_not_materialize_private_models(tmp_path, monkeypat
     assert not (organism_dir / ".catalog-models").exists()
 
 
-def test_dead_existing_organism_is_not_runnable(tmp_path) -> None:
+def test_dead_body_leaves_symbiont_runnable_for_fresh_reembodiment(tmp_path) -> None:
     from symbiont_lab.physics3d import persistence
 
     organism_dir = tmp_path / "organisms" / "org-dead"
@@ -81,20 +81,30 @@ def test_dead_existing_organism_is_not_runnable(tmp_path) -> None:
     with persistence.zipfile.ZipFile(bundle, "w") as archive:
         archive.writestr(
             "runtime.json",
-            '{"organism_id":"symbiont:dead","saved_at_tick":9,'
+            '{"organism_id":"symbiont:persistent","saved_at_tick":9,'
             '"living_body":{"vital_state":"dead"}}',
         )
     (organism_dir / "metadata.json").write_text(
-        '{"ref":"org-dead","body_kind":"anthropomorphic-v4"}',
+        '{"ref":"org-dead","body_kind":"anthropomorphic-v4","last_body_ref":"body-old"}',
         encoding="utf-8",
     )
 
     store = Physics3DRunStore(tmp_path)
-    assert store.organisms()[0]["runnable"] is False
+    item = store.organisms()[0]
+    assert item["runnable"] is True
+    assert item["symbiont_state"] == "dormant"
+    assert item["vital_state"] == "dead"
 
-    with pytest.raises(ValueError, match="dead"):
+    launch = store.prepare({
+        "body_kind": "anthropomorphic-v4",
+        "organism": {"mode": "existing", "ref": "org-dead"},
+        "body": {"mode": "fresh"},
+    })
+    assert launch.embodiment_mode == "transplant"
+
+    with pytest.raises(ValueError, match="previous body is dead"):
         store.prepare({
             "body_kind": "anthropomorphic-v4",
             "organism": {"mode": "existing", "ref": "org-dead"},
-            "body": {"mode": "fresh"},
+            "body": {"mode": "resume"},
         })
