@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Symbiont Lab — local workbench for embodied Symbiont organisms and controlled studies.">
   <title>Symbiont Lab</title>
   <link rel="stylesheet" href="/assets/app.css">
   <link rel="stylesheet" href="/assets/home.css">
@@ -16,45 +17,52 @@
   </script>
 </head>
 <body>
-  <!-- Navigation rail (always visible) -->
-  <nav class="rail" role="navigation" aria-label="Main navigation">
-    <div class="rail-brand" aria-hidden="true">
-      <span class="brand-s">S</span><span class="brand-l">L</span>
-    </div>
-    <a class="rail-item" href="#home" data-view="home" title="Home — start or continue an embodied run">
+  <a class="skip-link" href="#view-root">Skip to content</a>
+
+  <nav class="rail" aria-label="Main navigation">
+    <a class="rail-brand" href="#home" aria-label="Symbiont Lab home">
+      <span aria-hidden="true"><span class="brand-s">S</span><span class="brand-l">L</span></span>
+    </a>
+
+    <a class="rail-item" href="#home" title="Home — start or continue an embodied run">
       <span class="rail-icon" aria-hidden="true">⌂</span>
       <span class="rail-label">Home</span>
     </a>
-    <a class="rail-item" href="#experiments" data-view="experiments" title="Experiments — controlled studies">
+    <a class="rail-item" href="#experiments" title="Experiments — controlled studies">
       <span class="rail-icon" aria-hidden="true">⚗</span>
       <span class="rail-label">Experiments</span>
     </a>
-    <a class="rail-item" href="#body"    data-view="body"    title="Body — 3D organism viewer">
+    <a class="rail-item" href="#body" title="Body — 3D organism viewer">
       <span class="rail-icon" aria-hidden="true">⬡</span>
       <span class="rail-label">Body</span>
     </a>
-    <a class="rail-item" href="#mind"    data-view="mind"    title="Mind — cognition &amp; senses">
+    <a class="rail-item" href="#mind" title="Mind — cognition and senses">
       <span class="rail-icon" aria-hidden="true">◎</span>
       <span class="rail-label">Mind</span>
     </a>
-    <a class="rail-item" href="#archive" data-view="archive" title="Archive — run history">
+    <a class="rail-item" href="#archive" title="Archive — run history">
       <span class="rail-icon" aria-hidden="true">▤</span>
       <span class="rail-label">Archive</span>
     </a>
   </nav>
 
-  <!-- Main content area — router mounts views here -->
-  <main id="view-root" role="main"></main>
+  <main id="view-root" tabindex="-1"></main>
 
-  <!-- Status bar -->
-  <footer class="statusbar" role="status" aria-live="polite">
-    <span id="sb-status" class="sb-item">ready</span>
-    <span class="sb-sep">·</span>
-    <span id="sb-run"    class="sb-item muted">no active run</span>
-    <span class="sb-sep" id="sb-sep2" hidden>·</span>
-    <span id="sb-detail" class="sb-item muted" hidden></span>
+  <footer class="statusbar">
+    <div class="statusbar-state" role="status" aria-live="polite" aria-atomic="true">
+      <span id="sb-status" class="sb-item">ready</span>
+      <span class="sb-sep" aria-hidden="true">·</span>
+      <span id="sb-run" class="sb-item muted">no active run</span>
+      <span class="sb-sep" id="sb-sep2" aria-hidden="true" hidden>·</span>
+      <span id="sb-detail" class="sb-item muted" hidden></span>
+    </div>
     <span class="sb-right">
-      <a href="https://github.com" class="muted" style="text-decoration:none">Symbiont Lab</a>
+      <a
+        href="https://github.com/alessbarb/symbiont-lab"
+        class="statusbar-project muted"
+        target="_blank"
+        rel="noopener noreferrer"
+      >Symbiont Lab</a>
     </span>
   </footer>
 
