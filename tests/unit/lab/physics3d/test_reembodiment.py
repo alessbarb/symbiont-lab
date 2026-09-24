@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from symbiont_lab.physics3d.longitudinal import contract_fingerprint
 from symbiont_lab.physics3d.reembodiment import (
     EmbodimentContract,
     lifecycle_summary,
@@ -45,13 +46,27 @@ def _checkpoint(*, vital_state: str = "dead") -> dict:
             "motor": {"slot_count": 62},
         },
         "constitution_fingerprint": {"schema_version": 1, "genome_hash": "old"},
+        "embodiment_lifecycle": {
+            "schema_version": 1,
+            "state": "dormant",
+            "epoch": 1,
+            "current": {
+                "body_kind": "anthropomorphic-v5",
+                "receptor_count": 107,
+                "effector_count": 62,
+                "started_tick": 0,
+                "body_vital_state": vital_state,
+            },
+            "history": [],
+        },
         "actuation": {
             "enabled": True,
             "constitution": {"slots": [{"slot_id": f"motor_slot.{i}"} for i in range(62)]},
             "states": {"old": {"health": 0.0}},
             "proposer": {"learned": "old"},
             "sensorimotor": {
-                "schema_version": 8,
+                "schema_version": 9,
+                "exclusive_actuator_groups": [],
                 "primitives": [{
                     "primitive_id": "primitive.old",
                     "sequence": [
@@ -390,3 +405,44 @@ def test_dead_checkpoint_closes_epoch_summary_and_archives_memory() -> None:
     assert summary["reacclimation_completed"] is True
     assert updated["embodiment_lifecycle"]["current"]["closed"] is True
     assert updated["embodiment_memory"]["contracts"]
+
+
+
+def test_contract_fingerprint_changes_when_opaque_motor_unit_grouping_changes() -> None:
+    base = _fresh()
+    grouped = deepcopy(base)
+    grouped["actuation"]["sensorimotor"]["exclusive_actuator_groups"] = [
+        ["actuator.a", "actuator.b"],
+        ["actuator.c", "actuator.d"],
+    ]
+    regrouped = deepcopy(base)
+    regrouped["actuation"]["sensorimotor"]["exclusive_actuator_groups"] = [
+        ["actuator.a", "actuator.c"],
+        ["actuator.b", "actuator.d"],
+    ]
+
+    base_fp = contract_fingerprint(base, receptor_count=107, effector_count=62)
+    grouped_fp = contract_fingerprint(grouped, receptor_count=107, effector_count=62)
+    regrouped_fp = contract_fingerprint(regrouped, receptor_count=107, effector_count=62)
+
+    assert base_fp != grouped_fp
+    assert grouped_fp != regrouped_fp
+
+
+def test_contract_fingerprint_ignores_group_order_but_not_membership() -> None:
+    left = _fresh()
+    right = _fresh()
+    left["actuation"]["sensorimotor"]["exclusive_actuator_groups"] = [
+        ["b", "a"],
+        ["d", "c"],
+    ]
+    right["actuation"]["sensorimotor"]["exclusive_actuator_groups"] = [
+        ["c", "d"],
+        ["a", "b"],
+    ]
+
+    assert contract_fingerprint(
+        left, receptor_count=107, effector_count=62
+    ) == contract_fingerprint(
+        right, receptor_count=107, effector_count=62
+    )
