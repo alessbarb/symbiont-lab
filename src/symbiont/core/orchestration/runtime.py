@@ -1449,7 +1449,7 @@ class OrganismRuntime:
                         self._causal_evidence,
                         effect_id=observed_effect.effect_id,
                         competence_id=transition.competence_id,
-                        context_id=None,
+                        context_id=transition.context_ref,
                         tick=tick,
                     )
             self._last_sensorimotor_transition = transition
@@ -1851,7 +1851,15 @@ class OrganismRuntime:
                 "controller_id": self._active_action_commitment.controller_id,
                 "competence_id": self._active_action_commitment.competence_id,
                 "context_ref": "context." + hashlib.sha256(
-                    ("|".join(active_concepts) or "opaque").encode("utf-8")
+                    (
+                        (
+                            self._actuator_constitution.contract_fingerprint
+                            if self._actuator_constitution is not None
+                            else "no-surface"
+                        )
+                        + "|"
+                        + ("|".join(active_concepts) or "opaque")
+                    ).encode("utf-8")
                 ).hexdigest()[:24],
                 "state_before": dict(sensorimotor_body_state),
                 "state_before_ref": "state." + _canonical_hash(
