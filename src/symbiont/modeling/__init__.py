@@ -27,6 +27,7 @@ from .episodic import (
     EpisodicMemoryError,
     EpisodicMemoryMetrics,
     EpisodicPrediction,
+    EpisodicProjection,
     ExperienceEpisode,
 )
 from .culture import (
@@ -88,6 +89,7 @@ __all__ = [
     "EpisodicMemoryError",
     "EpisodicMemoryMetrics",
     "EpisodicPrediction",
+    "EpisodicProjection",
     "CognitiveReplay",
     "ConsolidatedContingency",
     "ClaimGraph",
