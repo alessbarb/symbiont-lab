@@ -166,7 +166,7 @@ STANDARD_COGNITIVE_LOCI: dict[str, LocusSpec] = {
         name="max_epigenetic_marks",
         locus_type=LocusType.INT,
         minimum=1,
-        maximum=32,
+        maximum=128,
         default_value=8,
         mutation_rate=0.05,
     ),
