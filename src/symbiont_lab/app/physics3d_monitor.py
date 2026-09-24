@@ -157,6 +157,12 @@ class MonitorSnapshot:
     sensorimotor_h16_samples: int
     sensorimotor_h64_samples: int
     passive_baseline_samples: int
+    active_commitment_id: str | None
+    effect_count: int
+    causal_evidence_count: int
+    motor_competence_count: int
+    composition_count: int
+    unbound_competence_count: int
     episodic_episodes: int = 0
     episodic_pending_records: int = 0
     episodic_compressed_episodes: int = 0
