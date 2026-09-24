@@ -90,7 +90,7 @@ class PrivateModelBridge:
             raise ValueError("model is not eligible for this inference path")
         if record.tokenizer_hash != self._tokenizer.tokenizer_hash:
             raise ValueError("model tokenizer does not match bridge tokenizer")
-        encoded = self._tokenizer.encode_tokens(context_tokens, max_sequence=512)
+        encoded = self._tokenizer.encode_tokens(context_tokens, max_sequence=2048)
         if not encoded:
             raise ValueError("private model context must not be empty")
         result = self._gateway.infer(model_id=model_id, token_ids=encoded, top_k=4)
