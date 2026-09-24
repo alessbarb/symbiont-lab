@@ -929,6 +929,49 @@ export function createCognitionController({
     });
   }
 
+  function drawRegionMass(ctx, region, points, dimension, tick, color) {
+    if (points.length < 2) return null;
+    const shape = regionGeometry(region, points, dimension, tick);
+    const score = atlasRegionScore(region);
+    const active = graph.focusedSectorId === region.id;
+    const anatomy = graph.atlasMode === 'anatomy';
+    const dynamics = graph.atlasMode === 'dynamics';
+    const fillAlpha = anatomy
+      ? 0.018 + score * 0.030
+      : dynamics
+        ? 0.020 + score * 0.050
+        : 0.028 + score * 0.075;
+    const strokeAlpha = anatomy
+      ? 0.32 + score * 0.44
+      : 0.14 + score * 0.38;
+    const tension = shape.tension ?? 0;
+
+    ctx.save();
+    if (traceRegionPath(ctx, shape)) {
+      ctx.fillStyle = `${color}${Math.round(fillAlpha * 255).toString(16).padStart(2,'0')}`;
+      ctx.strokeStyle = active
+        ? 'rgba(220,232,240,.88)'
+        : `${color}${Math.round(strokeAlpha * 255).toString(16).padStart(2,'0')}`;
+      ctx.lineWidth = active ? 2.2 : 0.9 + score * 1.3 + (1 - tension) * 0.45;
+      // High bridge tension = more permeable/discontinuous frontier.
+      ctx.setLineDash(
+        active ? [] :
+        tension > 0.66 ? [2, 6] :
+        tension > 0.34 ? [5, 6] :
+        [9, 5]
+      );
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+
+    drawRegionDensity(ctx, shape, color);
+    drawProtoSubregions(ctx, region, points, shape, color);
+    drawFunctionalCenter(ctx, shape, color);
+    return shape;
+  }
+
   function drawAtlasRegionLinks(ctx, geometry, tick) {
     if (graph.detailLevel === 'nodes' || graph.focusedSectorId) return;
     for (const link of graph.regionLinks ?? []) {
