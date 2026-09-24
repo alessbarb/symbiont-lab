@@ -311,7 +311,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 (result.actuation,) if result.actuation is not None else ()
             )
             motor_origin = self.last_motor_origin_detail
-            executed_pid = self._last_executed_primitive_id
+            executed_pid = self._last_executed_competence_id
             named_primitive = (
                 executed_pid is not None
                 and motor_origin in {
@@ -561,19 +561,19 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             query_budget=config.prospective_max_candidates,
         )
 
-    def predict_primitive_outcome(
+    def predict_competence_outcome(
         self,
-        primitive_id: str,
+        competence_id: str,
         context_tokens: tuple[str, ...],
     ) -> "ModelPredictionProposal":
-        """Predict the outcome of a primitive action counterfactually.
+        """Predict the outcome of a competence action counterfactually.
 
         This is an imagination query — it uses the ACTIVE private SLM to
-        predict what would happen *if* the organism executed ``primitive_id``.
+        predict what would happen *if* the organism executed ``competence_id``.
         No ExperienceRecord is created.
 
         Args:
-            primitive_id: Opaque primitive identifier (e.g. ``"primitive.<hex>"``).
+            competence_id: Opaque competence identifier (e.g. ``"competence.<opaque>"``).
             context_tokens: Private cognitive context tokens.
 
         Returns:
@@ -584,14 +584,14 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             ValueError: If no ACTIVE model exists, or bridge is unavailable,
                 or the organism is dead.
         """
-        action_token = f"action.{primitive_id}"
+        action_token = f"action.{competence_id}"
         return self.active_private_counterfactual(
             context_tokens,
             action_token=action_token,
             target_token="<OUTCOME>",
         )
 
-    def _choose_acquired_primitive(
+    def _choose_acquired_competence(
         self,
         *,
         cognition: "CognitiveBridgeResult",
@@ -600,7 +600,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         signal_references: "dict[str, str]",
         tick: int,
     ) -> str | None:
-        """Override: consult ProspectiveAgency for model-based primitive selection.
+        """Override: consult ProspectiveAgency for model-based competence selection.
 
         Returns the chosen primitive ID, or None to fall back to the existing
         cognitive-readout / babbling selection.
@@ -617,7 +617,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             return None
 
         # A sensorimotor competence becomes a prospective action only after
-        # its primitive readout has actually entered the cognitive graph.
+        # its competence readout has actually entered the cognitive graph.
         primitive_readouts = cognition.readouts_for_family("primitive")
         admitted_ids = tuple(
             pid for pid in candidate_ids if pid in primitive_readouts
@@ -634,7 +634,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
 
         from ..agency import ProspectiveCandidate
         candidates = tuple(
-            ProspectiveCandidate(action_id=pid, family="primitive")
+            ProspectiveCandidate(action_id=pid, family="competence")
             for pid in admitted_ids
         )
 
@@ -648,7 +648,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             # Count an actual inference attempt, including one that fails
             # inside the model gateway: computation was still requested.
             query_count += 1
-            proposal = self.predict_primitive_outcome(action_id, ctx)
+            proposal = self.predict_competence_outcome(action_id, ctx)
             return CounterfactualPrediction(
                 action_id=action_id,
                 predicted_outcome=proposal.predicted_token,
