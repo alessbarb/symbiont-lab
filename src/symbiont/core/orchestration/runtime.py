@@ -701,6 +701,11 @@ class OrganismRuntime:
         self._narrative_journal: list[dict[str, Any]] = []
 
     @property
+    def reacclimation_remaining(self) -> int:
+        """Ticks remaining in the organism-owned post-restore reacclimation gate."""
+        return int(self._reacclimation_remaining)
+
+    @property
     def actuation_enabled(self) -> bool:
         return self._actuation_enabled
 
