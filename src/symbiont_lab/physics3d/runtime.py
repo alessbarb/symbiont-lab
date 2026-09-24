@@ -1351,11 +1351,8 @@ class PyBulletEmbodimentRuntime:
         sensorimotor_payload = {}
         if sensorimotor is not None:
             motor_competence_candidates = [
-                {
-                    **primitive.checkpoint(),
-                    "cognitive": bool(primitive.is_competence),
-                }
-                for primitive in self.organism.sensorimotor_primitives
+                dict(candidate)
+                for candidate in self.organism.sensorimotor_competence_candidates
             ]
             actuator_evidence = []
             for state in self.organism.actuator_causal_states:
@@ -1393,17 +1390,8 @@ class PyBulletEmbodimentRuntime:
                 "active_motor_repertoire": list(self.organism.active_motor_repertoire),
                 "motor_competence_candidates": motor_competence_candidates,
                 "episodes": [
-                    {
-                        "competence_candidate_id": episode.primitive_id,
-                        "start_tick": int(episode.start_tick),
-                        "end_tick": int(episode.end_tick),
-                        "source": episode.source,
-                        "evidence_blocks": list(episode.evidence_blocks),
-                        "sample_index": int(episode.sample_index),
-                        "materialized": bool(episode.materialized),
-                        "competence": bool(episode.competence),
-                    }
-                    for episode in self.organism.sensorimotor_episodes
+                    dict(episode)
+                    for episode in self.organism.sensorimotor_competence_episodes
                 ],
                 "actuator_evidence": actuator_evidence,
             }
