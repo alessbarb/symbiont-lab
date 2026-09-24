@@ -12,6 +12,8 @@ class SensorimotorV2Snapshot:
     established_competence_count: int
     competence_candidate_count: int
     controllability_estimate_count: int
+    predictive_context_count: int
+    agency_estimate_count: int
     composition_evidence_count: int
     established_composition_count: int
     body_schema_sensorimotor_relations: int
@@ -29,6 +31,8 @@ class SensorimotorV2Snapshot:
             self.established_competence_count,
             self.competence_candidate_count,
             self.controllability_estimate_count,
+            self.predictive_context_count,
+            self.agency_estimate_count,
             self.composition_evidence_count,
             self.established_composition_count,
             self.body_schema_sensorimotor_relations,
