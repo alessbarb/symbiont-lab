@@ -602,6 +602,18 @@ def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
 
 
 
+
+def test_physics3d_resume_projects_solver_penetration_but_direct_restore_stays_strict():
+    import inspect
+    import symbiont_lab.physics3d.runtime as runtime
+    from symbiont_lab.physics3d.humanoid import HumanoidPhysics
+
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
+    assert "strict_anatomical_limits=False" in source
+
+    signature = inspect.signature(HumanoidPhysics.restore_physical_state)
+    assert signature.parameters["strict_anatomical_limits"].default is True
+
 def test_physics3d_newborns_use_mode_free_sensorimotor_constitution():
     import symbiont_lab.physics3d.apparatus as apparatus
     import symbiont_lab.physics3d.runtime as runtime
