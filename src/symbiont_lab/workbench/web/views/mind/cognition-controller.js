@@ -2275,11 +2275,11 @@ export function createCognitionController({
   
   function inspectorGroup(parent, title, open = true) {
     const group = document.createElement('details');
+    group.className = 'mind-inspector-group';
     group.open = open;
-    group.style.cssText = 'margin:9px 0;border-top:1px solid rgba(98,120,136,.14);padding-top:4px;';
     const summary = document.createElement('summary');
+    summary.className = 'mind-inspector-group-summary';
     summary.textContent = title;
-    summary.style.cssText = 'cursor:pointer;font-size:9px;font-weight:650;color:var(--text);padding:4px 0;';
     group.appendChild(summary);
     parent.appendChild(group);
     return group;
@@ -2292,11 +2292,9 @@ export function createCognitionController({
   
     const selected = graph.nodes.find(node => node.id === graph.selectedNodeId) ?? null;
     if (selected) {
-      const title = el('div', '');
-      title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);overflow-wrap:anywhere;margin-bottom:3px;';
+      const title = el('div', 'mind-inspector-title');
       title.textContent = selected.label ?? selected.id;
-      const subtitle = el('div', '');
-      subtitle.style.cssText = 'font-size:9px;color:var(--muted);margin-bottom:10px;';
+      const subtitle = el('div', 'mind-inspector-subtitle');
       subtitle.textContent = `${selected.kind} · selected node`;
       panel.append(title, subtitle);
       const identityGroup = inspectorGroup(panel, 'Identity', true);
@@ -2403,8 +2401,7 @@ export function createCognitionController({
       if (selected.errorCls) inspectorMetric(dynamicsGroup, 'Prediction error', selected.errorCls, PAL.coral);
       if (selected.readoutVal != null) inspectorMetric(dynamicsGroup, 'Readout', selected.readoutVal, PAL.mint);
   
-      const relTitle = el('div', '');
-      relTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      const relTitle = el('div', 'mind-inspector-section-title');
       relTitle.textContent = 'Direct relations';
       relationsGroup.appendChild(relTitle);
   
@@ -2416,8 +2413,7 @@ export function createCognitionController({
         .slice(0, 12);
   
       if (!direct.length) {
-        const empty = el('div', '');
-        empty.style.cssText = 'font-size:9px;color:var(--muted);';
+        const empty = el('div', 'mind-inspector-empty');
         empty.textContent = 'No direct graph relations.';
         relationsGroup.appendChild(empty);
       } else {
@@ -2439,13 +2435,11 @@ export function createCognitionController({
       }
   
       if (graph.atlasPath?.nodeIds?.length > 1) {
-        const pathTitle = el('div', '');
-        pathTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+        const pathTitle = el('div', 'mind-inspector-section-title');
         pathTitle.textContent = 'Cognitive pathway';
         relationsGroup.appendChild(pathTitle);
 
-        const pathCopy = el('div', '');
-        pathCopy.style.cssText = 'font-size:8px;line-height:1.5;color:var(--muted);margin-bottom:6px;';
+        const pathCopy = el('div', 'mind-inspector-path-copy');
         pathCopy.textContent = graph.atlasPath.nodeIds
           .map(id => {
             const node = graph.nodes.find(item => item.id === id);
@@ -2457,18 +2451,16 @@ export function createCognitionController({
         for (const id of graph.atlasPath.nodeIds) {
           const node = graph.nodes.find(item => item.id === id);
           if (!node) continue;
-          const row = el('button', '');
+          const row = el('button', 'mind-inspector-path-button');
           row.type = 'button';
-          row.style.cssText = 'display:block;width:100%;text-align:left;margin:3px 0;padding:5px 6px;border:1px solid rgba(80,217,255,.16);border-radius:5px;background:rgba(80,217,255,.025);color:var(--muted);font-size:8px;cursor:pointer;';
           row.textContent = `${node.kind} · ${node.observerLabel ?? shortId(node.id, 10, 5)}`;
           row.addEventListener('click', () => selectCognitiveNode(node.id));
           relationsGroup.appendChild(row);
         }
       }
 
-      const clear = el('button', 'mind-ctrl-btn');
+      const clear = el('button', 'mind-ctrl-btn mind-inspector-wide-button');
       clear.type = 'button';
-      clear.style.cssText = 'margin-top:12px;width:100%;';
       clear.textContent = 'Clear selection';
       clear.addEventListener('click', () => {
         graph.selectedNodeId = null;
@@ -2498,11 +2490,9 @@ export function createCognitionController({
         ? members.reduce((sum, node) => sum + finiteNumber(node.activationLevel, 0), 0) / members.length
         : 0;
   
-      const title = el('div', '');
-      title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);margin-bottom:3px;';
+      const title = el('div', 'mind-inspector-title');
       title.textContent = `${label} · ${description?.interpretation ?? 'emergent sector'}`;
-      const subtitle = el('div', '');
-      subtitle.style.cssText = 'font-size:9px;line-height:1.45;color:var(--muted);margin-bottom:10px;';
+      const subtitle = el('div', 'mind-inspector-subtitle');
       subtitle.textContent = 'Observer-side region focus. Shape and membership are derived from graph relations and are not fed back to Symbiont.';
       panel.append(title, subtitle);
   
@@ -2542,8 +2532,7 @@ export function createCognitionController({
           .join(' · ') || '—',
       );
   
-      const bridgeTitle = el('div', '');
-      bridgeTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      const bridgeTitle = el('div', 'mind-inspector-section-title');
       bridgeTitle.textContent = 'Corridors to other regions';
       panel.appendChild(bridgeTitle);
   
@@ -2560,8 +2549,7 @@ export function createCognitionController({
       }
   
       if (!bridgeGroups.size) {
-        const empty = el('div', '');
-        empty.style.cssText = 'font-size:9px;color:var(--muted);';
+        const empty = el('div', 'mind-inspector-empty');
         empty.textContent = 'No external bridges in the current view.';
         panel.appendChild(empty);
       } else {
@@ -2573,9 +2561,8 @@ export function createCognitionController({
         }
       }
   
-      const back = el('button', 'mind-ctrl-btn');
+      const back = el('button', 'mind-ctrl-btn mind-inspector-wide-button');
       back.type = 'button';
-      back.style.cssText = 'margin-top:12px;width:100%;';
       back.textContent = 'Back to all regions';
       back.addEventListener('click', () => {
         graph.focusedSectorId = null;
@@ -2588,23 +2575,19 @@ export function createCognitionController({
       return;
     }
   
-    const title = el('div', '');
-    title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);margin-bottom:3px;';
+    const title = el('div', 'mind-inspector-title');
     title.textContent = 'Cognitive Atlas';
-    const subtitle = el('div', '');
-    subtitle.style.cssText = 'font-size:9px;line-height:1.45;color:var(--muted);margin-bottom:10px;';
+    const subtitle = el('div', 'mind-inspector-subtitle');
     subtitle.textContent = `${atlasModeMeta().label} · ${atlasModeMeta().description}. Regions are observer-derived from graph relations and never fed back to Symbiont.`;
     panel.append(title, subtitle);
 
     const situation = graph.cognitiveSituation;
     if (situation) {
-      const situationTitle = el('div', '');
-      situationTitle.style.cssText = 'margin:4px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      const situationTitle = el('div', 'mind-inspector-section-title mind-inspector-situation-title');
       situationTitle.textContent = 'Current observed process';
       panel.appendChild(situationTitle);
 
-      const stageWrap = el('div', '');
-      stageWrap.style.cssText = 'display:grid;gap:4px;margin-bottom:8px;';
+      const stageWrap = el('div', 'mind-inspector-stage-list');
       for (const stage of situation.stages ?? []) {
         appendInspectorStage(stageWrap, stage);
       }
@@ -2617,8 +2600,7 @@ export function createCognitionController({
       inspectorMetric(panel, 'Observed motor paths', situation.flow.motorPaths, situation.flow.motorPaths ? PAL.mint : PAL.muted);
       inspectorMetric(panel, 'Motor origin', situation.motorOrigin ?? 'none');
 
-      const evidenceNote = el('div', '');
-      evidenceNote.style.cssText = 'margin:8px 0 10px;padding:7px;border:1px solid rgba(98,120,136,.14);border-radius:6px;font-size:8px;line-height:1.4;color:var(--muted);';
+      const evidenceNote = el('div', 'mind-inspector-evidence-note');
       evidenceNote.textContent =
         'Observer evidence only · no inferred intent · no feedback to Symbiont.';
       panel.appendChild(evidenceNote);
@@ -2650,23 +2632,16 @@ export function createCognitionController({
       .sort((a, b) => b.ids.length - a.ids.length);
   
     if (!sectors.length) {
-      const empty = el('div', '');
-      empty.style.cssText = 'font-size:9px;color:var(--muted);';
+      const empty = el('div', 'mind-inspector-empty');
       empty.textContent = 'No multi-node sectors in the current view.';
       panel.appendChild(empty);
     }
   
     sectors.slice(0, 10).forEach((sector) => {
-      const card = el('button', '');
+      const card = el('button', 'mind-inspector-sector-card');
       card.type = 'button';
       card.dataset.sectorId = sector.id;
-      card.style.cssText = [
-        'display:block;width:100%;text-align:left;padding:8px 0',
-        'border:0;border-top:1px solid rgba(98,120,136,.16)',
-        'background:transparent;color:inherit;cursor:pointer',
-      ].join(';');
-      const head = el('div', '');
-      head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:9px;';
+      const head = el('div', 'mind-inspector-sector-head');
       const name = el('strong', '');
       const description = graph.sectorDescriptions.get(sector.id);
       name.textContent = `${graph.sectorLabels.get(sector.id) ?? 'S-???'} · ${description?.interpretation ?? 'emergent sector'}`;
@@ -2674,14 +2649,12 @@ export function createCognitionController({
       count.style.color = 'var(--muted)';
       count.textContent = `${sector.ids.length} nodes`;
       head.append(name, count);
-      const composition = el('div', '');
-      composition.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;line-height:1.35;';
+      const composition = el('div', 'mind-inspector-sector-composition');
       composition.textContent = Object.entries(sector.kinds)
         .sort((a,b) => b[1] - a[1])
         .map(([kind, n]) => `${n} ${kind}`)
         .join(' · ');
-      const activity = el('div', '');
-      activity.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;';
+      const activity = el('div', 'mind-inspector-sector-activity');
       const regionScore = atlasRegionScore(sector.atlasRegion);
       activity.textContent = `${atlasModeMeta().label.toLowerCase()} ${pct(regionScore)} · activity ${pct(sector.activity)} · ${sector.atlasRegion?.bridges ?? 0} bridges`;
       card.append(head, composition, activity);
@@ -2696,8 +2669,7 @@ export function createCognitionController({
     });
   
     const structures = graph.cognitiveStructures ?? { hubs: [], bottlenecks: [], loops: [] };
-    const structuresTitle = el('div', '');
-    structuresTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    const structuresTitle = el('div', 'mind-inspector-section-title mind-inspector-section-title-spaced');
     structuresTitle.textContent = 'Higher-order structures';
     panel.appendChild(structuresTitle);
 
@@ -2723,18 +2695,15 @@ export function createCognitionController({
     }
 
     const flow = graph.observedFlow ?? { paths: [], recentEdgeCount: 0, windowTicks: 48 };
-    const flowTitle = el('div', '');
-    flowTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    const flowTitle = el('div', 'mind-inspector-section-title mind-inspector-section-title-spaced');
     flowTitle.textContent = 'Observed cognitive flow';
     panel.appendChild(flowTitle);
-    const flowSummary = el('div', '');
-    flowSummary.style.cssText = 'font-size:8px;line-height:1.45;color:var(--muted);';
+    const flowSummary = el('div', 'mind-inspector-flow-summary');
     flowSummary.textContent =
       `${flow.recentEdgeCount} relations used within ${flow.windowTicks} ticks · ${flow.paths.length} observed paths`;
     panel.appendChild(flowSummary);
     for (const path of flow.paths.slice(0, 3)) {
-      const row = el('div', '');
-      row.style.cssText = 'padding:4px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);line-height:1.35;';
+      const row = el('div', 'mind-inspector-history-row');
       row.textContent = path.nodeIds
         .slice(0, 6)
         .map(id => shortId(id, 7, 4))
@@ -2743,8 +2712,7 @@ export function createCognitionController({
     }
 
     if ((graph.cognitiveEpisodes ?? []).length) {
-      const episodeTitle = el('div', '');
-      episodeTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      const episodeTitle = el('div', 'mind-inspector-section-title mind-inspector-section-title-spaced');
       episodeTitle.textContent = 'Recent Cognitive Episodes';
       panel.appendChild(episodeTitle);
       for (const episode of graph.cognitiveEpisodes.slice(-3).reverse()) {
@@ -2768,8 +2736,7 @@ export function createCognitionController({
 
     if (graph.atlasDiff) {
       const diff = graph.atlasDiff;
-      const diffTitle = el('div', '');
-      diffTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      const diffTitle = el('div', 'mind-inspector-section-title mind-inspector-section-title-spaced');
       diffTitle.textContent = `Diff from t${graph.diffBaselineTick ?? '—'}`;
       panel.appendChild(diffTitle);
       const diffSummary = el('div', 'mind-inspector-diff');
@@ -2801,13 +2768,11 @@ export function createCognitionController({
     }
 
     if ((graph.regionEventHistory ?? []).length) {
-      const regionTitle = el('div', '');
-      regionTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      const regionTitle = el('div', 'mind-inspector-section-title mind-inspector-section-title-spaced');
       regionTitle.textContent = 'Region lineage';
       panel.appendChild(regionTitle);
       for (const event of graph.regionEventHistory.slice(-5).reverse()) {
-        const row = el('div', '');
-        row.style.cssText = 'padding:4px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);';
+        const row = el('div', 'mind-inspector-history-row');
         const detail =
           event.type === 'region-split' ? ` → ${(event.into ?? []).join(', ')}` :
           event.type === 'region-merged' ? ` ← ${(event.from ?? []).join(', ')}` :
@@ -2818,8 +2783,7 @@ export function createCognitionController({
     }
 
     if ((graph.learningFrontierClusters ?? []).length) {
-      const frontierTitle = el('div', '');
-      frontierTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      const frontierTitle = el('div', 'mind-inspector-section-title mind-inspector-section-title-spaced');
       frontierTitle.textContent = 'Learning frontier zones';
       panel.appendChild(frontierTitle);
       for (const cluster of graph.learningFrontierClusters.slice(0, 5)) {
@@ -2838,9 +2802,8 @@ export function createCognitionController({
         for (const id of cluster.nodeIds.slice(0, 3)) {
           const node = graph.nodes.find(item => item.id === id);
           if (!node) continue;
-          const row = el('button', '');
+          const row = el('button', 'mind-inspector-frontier-button');
           row.type = 'button';
-          row.style.cssText = 'display:block;width:100%;text-align:left;padding:3px 5px;margin-top:2px;border:0;background:rgba(255,189,84,.025);color:var(--muted);font-size:8px;cursor:pointer;';
           row.textContent = `${node.kind} · ${node.observerLabel ?? shortId(node.id, 10, 5)}`;
           row.addEventListener('click', () => selectCognitiveNode(node.id));
           panel.appendChild(row);
@@ -2848,8 +2811,7 @@ export function createCognitionController({
       }
     }
 
-    const usage = el('div', '');
-    usage.style.cssText = 'margin-top:12px;padding-top:8px;border-top:1px solid rgba(98,120,136,.12);font-size:8px;line-height:1.45;color:var(--muted);';
+    const usage = el('div', 'mind-inspector-usage');
     const topMode = Object.entries(observerUsage.modeChanges ?? {})
       .sort((a,b) => b[1] - a[1])[0];
     usage.textContent =
@@ -2857,8 +2819,7 @@ export function createCognitionController({
       (topMode ? ` · top mode ${topMode[0]}` : '');
     panel.appendChild(usage);
 
-    const hint = el('div', '');
-    hint.style.cssText = 'margin-top:12px;padding:8px;border:1px solid rgba(80,217,255,.14);border-radius:6px;font-size:8px;line-height:1.45;color:var(--muted);';
+    const hint = el('div', 'mind-inspector-hint');
     hint.textContent = 'Region → local graph → node → exact evidence. Select a node to reveal a real cognitive pathway when one exists.';
     panel.appendChild(hint);
   }
