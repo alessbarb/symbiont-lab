@@ -1204,6 +1204,7 @@ class TelemetryV41Reader:
         anchor: Mapping[str, Any],
         *,
         end_tick: int | None = None,
+        verify_logical_each_tick: bool = True,
     ) -> Iterator[tuple[int, dict[str, Any], dict[str, Any], dict[str, Any]]]:
         anchor_commit = self._anchor_commit(anchor)
         dense, structural, summary_reader, events, static, fallback = (
@@ -1363,7 +1364,7 @@ class TelemetryV41Reader:
                     static=static.values,
                     fallback=fallback_state,
                 )
-                if self.verify:
+                if self.verify and verify_logical_each_tick:
                     if payload_sha256(state) != commit.get("state_sha256"):
                         raise ValueError(
                             f"telemetry state hash mismatch at tick {tick}"
@@ -1381,11 +1382,19 @@ class TelemetryV41Reader:
         requested = int(tick)
         path = self._nearest_anchor_path(requested)
         anchor = self._load_anchor(path)
-        for current_tick, _summary, state, _commit in self._reconstruct_from_anchor(
+        for current_tick, _summary, state, commit in self._reconstruct_from_anchor(
             anchor,
             end_tick=requested,
+            verify_logical_each_tick=False,
         ):
             if current_tick == requested:
+                if (
+                    self.verify
+                    and payload_sha256(state) != commit.get("state_sha256")
+                ):
+                    raise ValueError(
+                        f"telemetry state hash mismatch at tick {requested}"
+                    )
                 return state
         raise KeyError(f"telemetry tick not found: {requested}")
 
@@ -1394,11 +1403,19 @@ class TelemetryV41Reader:
         anchor = self._load_anchor(
             self._nearest_anchor_path(requested)
         )
-        for current_tick, summary, _state, _commit in self._reconstruct_from_anchor(
+        for current_tick, summary, _state, commit in self._reconstruct_from_anchor(
             anchor,
             end_tick=requested,
+            verify_logical_each_tick=False,
         ):
             if current_tick == requested:
+                if (
+                    self.verify
+                    and payload_sha256(summary) != commit.get("summary_sha256")
+                ):
+                    raise ValueError(
+                        f"telemetry summary hash mismatch at tick {requested}"
+                    )
                 return summary
         raise KeyError(f"telemetry tick not found: {requested}")
 
