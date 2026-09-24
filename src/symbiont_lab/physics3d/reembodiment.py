@@ -501,6 +501,11 @@ def prepare_fresh_embodiment_checkpoint(
             "body_vital_state": "active",
             "contract_relation": relation,
             "known_contract_memory": known_memory is not None,
+            "candidate_private_model_ids": (
+                list(known_memory.get("private_model_ids", ()))
+                if isinstance(known_memory, Mapping)
+                else []
+            ),
             "metrics": {
                 "absorbed_material_total": 0.0,
                 "mechanical_work_total": 0.0,
