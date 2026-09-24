@@ -1698,4 +1698,4 @@ Before moving to P1, confirm:
 - [ ] `pytest tests/unit -k genome -v` passes in full (no genome-hash regression for any existing fixture).
 - [ ] The gate test (`test_p0_gate_causal_actuator_promoted_sham_actuator_is_not`) passes deterministically across at least 3 different `seed` values (manually re-run with `seed=7`, `seed=99`, `seed=1234` substituted into the test to confirm it isn't seed-lucky before considering P0 closed).
 - [ ] No file under `src/symbiont/actuation/` imports `symbiont_world` or `symbiont_lab` (`grep -r "symbiont_world\|symbiont_lab" src/symbiont/actuation/` returns nothing).
-- [ ] Nothing in this plan touched `src/symbiont/core/cognition_bridge.py`, `src/symbiont/core/runtime.py`, or anything under `src/symbiont_lab/` — P1 starts clean.
+- [ ] Nothing in this plan touched `src/symbiont/core/cognition_bridge.py`, `src/symbiont/core/orchestration/runtime.py`, or anything under `src/symbiont_lab/` — P1 starts clean.

@@ -2,7 +2,7 @@
 
 > **Estado:** IMPLEMENTADO  
 > **Tipo:** ESTIMACIÓN ENDÓGENA Y ESPECIFICACIÓN DE PERSISTENCIA CUANTIZADA  
-> **Módulos relacionados:** [`symbiont.core.selfmodel`](../../src/symbiont/core/selfmodel.py)
+> **Módulos relacionados:** [`symbiont.core.selfmodel`](../../src/symbiont/core/cognition/self_model.py)
 
 ---
 
@@ -13,7 +13,7 @@ Un organismo adaptativo que interactúa con un anfitrión real no puede asumir q
 - Dispositivos con controladores lentos o interfaces con timeout pueden degradar el ciclo cognitivo completo.
 - Si el organismo carece de un modelo endógeno de sus propios sensores, continuará asignando atención a canales muertos o excesivamente gravosos.
 
-[`SelfModel`](../../src/symbiont/core/selfmodel.py) formaliza un **automodelo acotado y no-semántico** que evalúa continuamente:
+[`SelfModel`](../../src/symbiont/core/cognition/self_model.py) formaliza un **automodelo acotado y no-semántico** que evalúa continuamente:
 
 1. **Costo Computacional Atribuido:** Latencia de muestreo medida en segundos.
 2. **Salud y Calidad Operativa:** Éxito en la recolección de lecturas.
@@ -23,7 +23,7 @@ Un organismo adaptativo que interactúa con un anfitrión real no puede asumir q
 
 ## 2. Dinámica Temporal: EWMA y Decaimiento con Zona de Gracia
 
-Las métricas del automodelo se suavizan mediante un filtro EWMA con constante $\alpha = 0.06$ ([`SELF_MODEL_EWMA_ALPHA`](../../src/symbiont/core/selfmodel.py#L10)):
+Las métricas del automodelo se suavizan mediante un filtro EWMA con constante $\alpha = 0.06$ ([`SELF_MODEL_EWMA_ALPHA`](../../src/symbiont/core/cognition/self_model.py#L10)):
 
 $$\mu_t = \alpha \cdot x_t + (1 - \alpha) \cdot \mu_{t-1}$$
 
@@ -34,7 +34,7 @@ Cuando un sensor deja de ser muestreado durante $\Delta t = t_{\text{actual}} - 
 - En pausas breves, el estado aprendido debe persistir intacto.
 - En ausencias prolongadas, el estado debe relajarse hacia un valor neutro $x_{\text{neutral}}$ (salud hacia $0.5$, confianza hacia $0.0$).
 
-Se define una **zona de gracia** de $\tau_{\text{grace}} = 20$ ticks ([`IDLE_GRACE_TICKS`](../../src/symbiont/core/selfmodel.py#L13)):
+Se define una **zona de gracia** de $\tau_{\text{grace}} = 20$ ticks ([`IDLE_GRACE_TICKS`](../../src/symbiont/core/cognition/self_model.py#L13)):
 
 $$\text{steps} = \max\Big(0, \; \Delta t - \tau_{\text{grace}}\Big)$$
 
@@ -58,7 +58,7 @@ Valor del Estado
 
 ## 3. Función de Madurez Logarítmica Normalizada
 
-Para determinar cuándo un sensor dispone de soporte muestral suficiente ([`_maturity`](../../src/symbiont/core/selfmodel.py#L61-L65)):
+Para determinar cuándo un sensor dispone de soporte muestral suficiente ([`_maturity`](../../src/symbiont/core/cognition/self_model.py#L61-L65)):
 
 $$\operatorname{Maturity}(s) = \begin{cases}
 0.0 & \text{si } s \le 0 \\
@@ -85,7 +85,7 @@ $$\operatorname{Target}_{\text{conf}} = \operatorname{clip}\Big( 0.70 \cdot H + 
 
 ## 4. Normalización de Costo Relativo respecto a la Mediana
 
-Para que la ponderación de costos sea agnóstica a la velocidad absoluta de la máquina anfitriona ([`relative_cost`](../../src/symbiont/core/selfmodel.py#L129-L142)):
+Para que la ponderación de costos sea agnóstica a la velocidad absoluta de la máquina anfitriona ([`relative_cost`](../../src/symbiont/core/cognition/self_model.py#L129-L142)):
 
 Dado un conjunto de sensores de referencia ya consolidados $\mathcal{R}_{\text{est}}$:
 
@@ -111,7 +111,7 @@ El **valor representativo reconstruido** al restaurar es:
 $$\hat{v} = \frac{\operatorname{Quantize}(v, K)}{K - 1}$$
 
 ### 5.2 Cuantización Logarítmica de Costos
-Para el costo de ejecución en segundos con referencia $S_{\text{ref}} = 1.0 \text{ s}$ y $K_{\text{cost}} = 16$ clases ([`_quantize_cost`](../../src/symbiont/core/selfmodel.py#L221-L229)):
+Para el costo de ejecución en segundos con referencia $S_{\text{ref}} = 1.0 \text{ s}$ y $K_{\text{cost}} = 16$ clases ([`_quantize_cost`](../../src/symbiont/core/cognition/self_model.py#L221-L229)):
 
 $$\rho(c) = \min\left( 1.0, \; \frac{\ln\big(1 + \max(0, c)\big)}{\ln(2)} \right) = \min\big( 1.0, \; \log_2(1 + \max(0, c)) \big)$$
 

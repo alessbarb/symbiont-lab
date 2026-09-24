@@ -493,8 +493,8 @@ class OrganismRuntime:
                 physiology.snapshot() if physiology is not None else None
             )
             living_body_state = LivingBodyState(
-                energy_reserve=source_state.energy_reserve,
-                max_energy=source_state.max_energy,
+                energy_reserve=self._metabolism.body_state.energy_reserve,
+                max_energy=self._metabolism.body_state.max_energy,
                 structural_integrity=(
                     homeostasis.integrity
                     if homeostasis is not None

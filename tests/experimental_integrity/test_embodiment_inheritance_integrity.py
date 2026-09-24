@@ -37,9 +37,9 @@ def test_ast_body_morphology_and_names_never_enter_cognition():
     repo_root = Path(__file__).resolve().parents[2]
     cognition_dir = repo_root / "src" / "symbiont" / "cognition"
     target_files = list(cognition_dir.rglob("*.py")) + [
-        repo_root / "src" / "symbiont" / "core" / "agency.py",
-        repo_root / "src" / "symbiont" / "core" / "symbiont.py",
-        repo_root / "src" / "symbiont" / "core" / "germline.py",
+        repo_root / "src" / "symbiont" / "core" / "embodiment" / "agency.py",
+        repo_root / "src" / "symbiont" / "core" / "orchestration" / "symbiont.py",
+        repo_root / "src" / "symbiont" / "core" / "lineage" / "germline.py",
     ]
 
     forbidden_terms = {

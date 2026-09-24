@@ -2,7 +2,7 @@
 
 > **Estado:** IMPLEMENTADO  
 > **Tipo:** ESPECIFICACIÓN FORMAL DE LÍMITES E IDENTIDADES DEL CÓDIGO  
-> **Módulos relacionados:** [`symbiont.core.model`](../../src/symbiont/core/model.py), [`symbiont.environment.rng`](../../src/symbiont/environment/rng.py), [`symbiont.environment.world`](../../src/symbiont/environment/world.py)
+> **Módulos relacionados:** [`symbiont.core.model`](../../src/symbiont/core/foundation/model.py), [`symbiont.environment.rng`](../../src/symbiont/environment/rng.py), [`symbiont.environment.world`](../../src/symbiont/environment/world.py)
 
 ---
 
@@ -24,7 +24,7 @@ El propósito de este marco matemático es formalizar cómo un sistema adaptativ
 
 ### 2.1 Espacio de Señales del Entorno / Anfitrión ($\mathcal{X}$)
 
-Sea $\mathcal{X} \subseteq \mathbb{R}^D$ el espacio de señales observables del entorno o anfitrión. Para el caso sintético canónico ($D=5$), el vector de observación en el instante $t$ se define en [`Observation`](../../src/symbiont/core/model.py):
+Sea $\mathcal{X} \subseteq \mathbb{R}^D$ el espacio de señales observables del entorno o anfitrión. Para el caso sintético canónico ($D=5$), el vector de observación en el instante $t$ se define en [`Observation`](../../src/symbiont/core/foundation/model.py):
 
 $$\mathbf{x}(t) = \begin{pmatrix} x_{\text{cpu}}(t) \\ x_{\text{net}}(t) \\ x_{\text{file}}(t) \\ x_{\text{proc}}(t) \\ x_{\text{persist}}(t) \end{pmatrix} \in [0, 1]^5$$
 

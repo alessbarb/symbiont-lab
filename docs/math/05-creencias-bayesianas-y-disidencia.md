@@ -2,26 +2,26 @@
 
 > **Estado:** IMPLEMENTADO  
 > **Tipo:** FILTRO ADAPTATIVO CON MOTIVACIÓN BAYESIANA  
-> **Módulos relacionados:** [`symbiont.core.beliefs`](../../src/symbiont/core/beliefs.py), [`symbiont.core.evidence`](../../src/symbiont/core/evidence.py)
+> **Módulos relacionados:** [`symbiont.core.beliefs`](../../src/symbiont/core/cognition/beliefs.py), [`symbiont.core.evidence`](../../src/symbiont/core/cognition/evidence.py)
 
 ---
 
 ## 1. La Naturaleza de las Creencias en Symbiont
 
-En Symbiont, una creencia no es una etiqueta determinista, sino una distribución subjetiva que evoluciona ante percepciones locales ruidosas ([`symbiont.core.beliefs`](../../src/symbiont/core/beliefs.py)).
+En Symbiont, una creencia no es una etiqueta determinista, sino una distribución subjetiva que evoluciona ante percepciones locales ruidosas ([`symbiont.core.beliefs`](../../src/symbiont/core/cognition/beliefs.py)).
 
 El modelo persigue cuatro propiedades operativas:
 
 1. **Acumulación Suave:** A medida que se observan evidencias consistentes, la certeza subjetiva se incrementa.
 2. **Reversibilidad:** Si el comportamiento del anfitrión cambia, la creencia puede cruzar la frontera de decisión ($p \ge 0.5 \leftrightarrow p < 0.5$).
 3. **Sensibilidad al Conflicto:** Si observaciones sucesivas discrepan entre sí, la certeza decae.
-4. **Preservación de la Disidencia:** Si un lote de evidencia discrepa fuertemente de la línea base establecida, el desacuerdo se registra de forma inmutable como un evento histórico explícito ([`symbiont.core.evidence`](../../src/symbiont/core/evidence.py)).
+4. **Preservación de la Disidencia:** Si un lote de evidencia discrepa fuertemente de la línea base establecida, el desacuerdo se registra de forma inmutable como un evento histórico explícito ([`symbiont.core.evidence`](../../src/symbiont/core/cognition/evidence.py)).
 
 ---
 
 ## 2. El Modelo de Actualización con Pseudo-Observaciones
 
-Cada patrón o firma abstracta $\text{fp}$ mapea a un estado [`BeliefState`](../../src/symbiont/core/beliefs.py):
+Cada patrón o firma abstracta $\text{fp}$ mapea a un estado [`BeliefState`](../../src/symbiont/core/cognition/beliefs.py):
 
 $$\mathbf{b} = (p, E, C) \in [0, 1] \times [0, E_{\max}] \times [0, 1]$$
 
@@ -73,7 +73,7 @@ $$\text{Reversal}_t = \mathbb{I}\Big( (P_{\text{prior}} \ge 0.5) \neq (P_{\text{
 
 ## 4. Función de Certeza Subjetiva y Análisis de Dimensiones
 
-La certeza $\text{Certainty} \in [0, 1]$ en [`BeliefState.certainty`](../../src/symbiont/core/beliefs.py) se define como:
+La certeza $\text{Certainty} \in [0, 1]$ en [`BeliefState.certainty`](../../src/symbiont/core/cognition/beliefs.py) se define como:
 
 $$\text{Certainty}(E, C) = \operatorname{clip}\left( \Big( 1 - e^{-E / 4.0} \Big) \cdot \Big( 1 - 0.60 \cdot C \Big), \; 0.0, \; 1.0 \right)$$
 
@@ -110,7 +110,7 @@ Para evitar ambigüedades pedagógicas, el compendio formaliza tres dimensiones 
 
 Cuando el organismo ejecuta una inspección de alta resolución (*second look*), recopila un lote de lecturas discretas $\mathcal{X}_{\text{batch}} = \{x_1, \dots, x_m\}$.
 
-[`EvidenceRevisionLedger`](../../src/symbiont/core/evidence.py) evalúa si este lote choca con la línea base aclimatada $(\mu_{\text{prior}}, \sigma_{\text{prior}})$.
+[`EvidenceRevisionLedger`](../../src/symbiont/core/cognition/evidence.py) evalúa si este lote choca con la línea base aclimatada $(\mu_{\text{prior}}, \sigma_{\text{prior}})$.
 
 ### 5.1 Discrepancia Estandarizada del Desplazamiento
 
@@ -127,11 +127,11 @@ Si la línea base previa está aclimatada ($\sigma_{\text{prior}} > 0$) y la dis
 
 $$|Z_{\text{batch}}| \ge z_{\text{conflict}} \quad (\text{por defecto } z_{\text{conflict}} = 2.0)$$
 
-Se genera un registro inmutable [`DissentRecord`](../../src/symbiont/core/evidence.py):
+Se genera un registro inmutable [`DissentRecord`](../../src/symbiont/core/cognition/evidence.py):
 
 $$\text{DissentRecord} = \big( \text{capability\_id}, \; \mu_{\text{prior}}, \; \sigma_{\text{prior}}, \; \bar{x}_{\text{batch}}, \; Z_{\text{batch}} \big)$$
 
 El organismo aplica un doble movimiento deliberado:
 
 1. **Adapta la línea base:** Las lecturas se transfieren a la aclimatación (`acclimation.observe`), permitiendo que el organismo asimile la realidad observada.
-2. **Preserva la discordia:** El registro de desacuerdo se guarda en una cola circular de tamaño 256, permitiendo a la capa narrativa ([`symbiont.core.narrative`](../../src/symbiont/core/narrative.py)) reportar al operador humano que la creencia fue modificada bajo condiciones de contestación estadística.
+2. **Preserva la discordia:** El registro de desacuerdo se guarda en una cola circular de tamaño 256, permitiendo a la capa narrativa ([`symbiont.core.narrative`](../../src/symbiont/core/foundation/narrative.py)) reportar al operador humano que la creencia fue modificada bajo condiciones de contestación estadística.

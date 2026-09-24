@@ -30,17 +30,20 @@ def _make_pop(seed: int = 101, count: int = 4) -> PopulationGenesisRuntime:
 
 def _capture_world_full_state(pop: PopulationGenesisRuntime) -> dict[str, object]:
     """Capture comprehensive semantic snapshot of the entire runtime."""
+    rig_checkpoints = {}
+    rig_habitats = {}
+    for oid, rig in pop._rigs.items():
+        original_hash = rig.runtime._last_checkpoint_hash
+        rig_checkpoints[oid] = rig.runtime.checkpoint()
+        rig.runtime._last_checkpoint_hash = original_hash
+        rig_habitats[oid] = {r_id: h.checkpoint() for r_id, h in rig.resource_habitats.items()}
+
     return {
         "tick": pop.state.tick,
         "state_snapshot": pop.state.snapshot(),
         "env_snapshot": pop.environment.snapshot(),
-        "rig_checkpoints": {
-            oid: rig.runtime.checkpoint() for oid, rig in pop._rigs.items()
-        },
-        "rig_habitats": {
-            oid: {r_id: h.checkpoint() for r_id, h in rig.resource_habitats.items()}
-            for oid, rig in pop._rigs.items()
-        },
+        "rig_checkpoints": rig_checkpoints,
+        "rig_habitats": rig_habitats,
         "deferred_snapshot": pop.deferred_queue.snapshot(),
         "journal_len": len(pop.journal),
         "history_len": len(pop.history),

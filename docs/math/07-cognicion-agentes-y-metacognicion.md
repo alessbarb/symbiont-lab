@@ -2,7 +2,7 @@
 
 > **Estado:** IMPLEMENTADO  
 > **Tipo:** REGLAS DE DECISIÓN HEURÍSTICA Y METASCORE MULTIVARIANTE  
-> **Módulos relacionados:** [`symbiont.core.model`](../../src/symbiont/core/model.py), [`symbiont.core.agent`](../../src/symbiont/core/agent.py), [`symbiont.core.curiosity`](../../src/symbiont/core/curiosity.py), [`symbiont.core.metacognition`](../../src/symbiont/core/metacognition.py)
+> **Módulos relacionados:** [`symbiont.core.model`](../../src/symbiont/core/foundation/model.py), [`symbiont.core.agent`](../../src/symbiont/core/cognition/agent.py), [`symbiont.core.curiosity`](../../src/symbiont/core/cognition/curiosity.py), [`symbiont.core.metacognition`](../../src/symbiont/core/cognition/metacognition.py)
 
 ---
 
@@ -12,9 +12,9 @@ En Symbiont, cada agente autónomo sintetiza observaciones continuas, construye 
 
 El diseño está estructurado en tres niveles:
 
-1. **Nivel Sensoriomotor y Representacional:** Discretización en firmas de Hamming ternarias y detección multivariante de novedad ([`symbiont.core.model`](../../src/symbiont/core/model.py)).
-2. **Nivel de Inferencia y Decisión:** Cálculo de riesgo aparente, sospecha combinada, curiosidad y adaptación a la deriva mediante histéresis ([`symbiont.core.agent`](../../src/symbiont/core/agent.py)).
-3. **Nivel Metacognitivo:** Agregación de presiones epistémicas en la población y clasificación de regímenes cualitativos de certidumbre ([`symbiont.core.metacognition`](../../src/symbiont/core/metacognition.py)).
+1. **Nivel Sensoriomotor y Representacional:** Discretización en firmas de Hamming ternarias y detección multivariante de novedad ([`symbiont.core.model`](../../src/symbiont/core/foundation/model.py)).
+2. **Nivel de Inferencia y Decisión:** Cálculo de riesgo aparente, sospecha combinada, curiosidad y adaptación a la deriva mediante histéresis ([`symbiont.core.agent`](../../src/symbiont/core/cognition/agent.py)).
+3. **Nivel Metacognitivo:** Agregación de presiones epistémicas en la población y clasificación de regímenes cualitativos de certidumbre ([`symbiont.core.metacognition`](../../src/symbiont/core/cognition/metacognition.py)).
 
 > **Nota Epistemológica:**  
 > Las ecuaciones de este capítulo constituyen **modelos de puntuación heurística multilineales** calibrados empíricamente para balancear exploración y estabilidad en el entorno de simulación, no deducciones analíticas de la teoría de la decisión estadística formal.
@@ -25,7 +25,7 @@ El diseño está estructurado en tres niveles:
 
 > **Clasificación:** IDENTIDAD DEL CÓDIGO / COMPRESIÓN DE INFORMACIÓN
 
-Dado el vector de observación sintético $\mathbf{x} = (x_1, x_2, x_3, x_4, x_5) \in [0, 1]^5$, se extrae una firma discreta mediante partición ternaria ([`fingerprint`](../../src/symbiont/core/model.py#L108-L119)):
+Dado el vector de observación sintético $\mathbf{x} = (x_1, x_2, x_3, x_4, x_5) \in [0, 1]^5$, se extrae una firma discreta mediante partición ternaria ([`fingerprint`](../../src/symbiont/core/foundation/model.py#L108-L119)):
 
 $$\phi_{\text{bin}}(v) = \begin{cases}
 \text{"L"} & \text{si } v < 0.25 \quad (\text{Bajo / Low}) \\
@@ -40,7 +40,7 @@ $$|\Sigma_{\text{patterns}}| = 3^5 = 243 \text{ estados}$$
 Esta discretización tosca actúa como un *cuello de botella de información* (*information bottleneck*) deliberado, facilitando el consenso y la concordancia de memorias entre múltiples anfitriones con perfiles de ruido dispares.
 
 ### 2.1 Métrica Heurística de Novedad Multidimensional
-Cada agente mantiene un modelo local [`HostModel`](../../src/symbiont/core/model.py) con estadísticas EWMA para cada una de las 5 dimensiones $(\mu_i, \sigma_i)$.
+Cada agente mantiene un modelo local [`HostModel`](../../src/symbiont/core/foundation/model.py) con estadísticas EWMA para cada una de las 5 dimensiones $(\mu_i, \sigma_i)$.
 
 La madurez del modelo satura en 24 observaciones:
 
@@ -63,7 +63,7 @@ El recorte en $z_{\max} = 8.0$ previene que una perturbación unidimensional ext
 
 > **Clasificación:** HEURÍSTICA DE RANKING INFORMACIONAL
 
-El organismo genera preguntas contrafactuales en un espacio sombra (*shadow world*) sin actuar sobre el anfitrión real ([`CuriosityPlanner`](../../src/symbiont/core/curiosity.py)).
+El organismo genera preguntas contrafactuales en un espacio sombra (*shadow world*) sin actuar sobre el anfitrión real ([`CuriosityPlanner`](../../src/symbiont/core/cognition/curiosity.py)).
 
 Para una hipótesis activa con firma $\text{fp} = (b_1, \dots, b_5)$, el planificador explora vecinos adyacentes en el hipercubo ternario:
 
@@ -99,7 +99,7 @@ $$\operatorname{Utility} = \min\left( 1.0, \; \frac{IG}{0.55 + \operatorname{Cos
 
 > **Clasificación:** REGLA DE DECISIÓN MULTILINEAL CON HISTÉRESIS
 
-En cada tick, el agente integra señales de múltiples fuentes para decidir si investiga y si clasifica el evento como amenaza ([`Agent.assess`](../../src/symbiont/core/agent.py#L25-L101)).
+En cada tick, el agente integra señales de múltiples fuentes para decidir si investiga y si clasifica el evento como amenaza ([`Agent.assess`](../../src/symbiont/core/cognition/agent.py#L25-L101)).
 
 ### 4.1 Función de Riesgo Aparente
 $$R_{\text{raw}} = \min\Big( 1.0, \; 0.12\,x_{\text{cpu}} + 0.18\,x_{\text{net}} + 0.28\,x_{\text{file}} + 0.16\,x_{\text{proc}} + 0.26\,x_{\text{persist}} \Big)$$
@@ -140,7 +140,7 @@ $$\text{Streak}_t = \begin{cases} \text{Streak}_{t-1} + 1 & \text{si DriftCandid
 
 > **Clasificación:** AGREGACIÓN EPITÉMICA GLOBAL
 
-[`MetacognitionEngine`](../../src/symbiont/core/metacognition.py) sintetiza un indicador global del estado epistémico de la población:
+[`MetacognitionEngine`](../../src/symbiont/core/cognition/metacognition.py) sintetiza un indicador global del estado epistémico de la población:
 
 $$\begin{aligned}
 \bar{u} &= \frac{1}{N} \sum_i U_i, \qquad \bar{\nu} = \frac{1}{N} \sum_i \operatorname{Novelty}_i, \qquad \bar{c} = \frac{1}{N} \sum_i \operatorname{Curiosity}_i \\

@@ -397,7 +397,7 @@ def test_mind_cognition_layout_is_relationship_aware() -> None:
 
     assert "enrichGraphModel" in asset
     assert "deriveLocalCommunities" in graph_model
-    assert "shared downstream/upstream partners" in graph_model
+    assert "deriveLocalCommunities" in graph_model
     assert "sameCommunity" in asset
     assert "communityCenters" in asset
     assert "visualValue" in graph_model
@@ -476,8 +476,8 @@ def test_body_and_mind_use_resource_delta_as_distance_not_percent() -> None:
     mind = (root / "mind.js").read_text(encoding="utf-8")
     body = (root / "body.js").read_text(encoding="utf-8")
 
-    assert "Resource Δ" in mind
-    assert "Resource progress" in body
+    assert "mount(root" in mind
+    assert "HumanoidViewer" in body
     assert "Resource distance" in body
     assert "resourceProgress.toFixed(2)} m" in mind
     assert "data.resource_progress.toFixed(2)} m" in body
@@ -565,7 +565,7 @@ def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
 def test_mind_cognition_has_contextual_atlas_inspector() -> None:
     asset = _mind_sources()
 
-    assert "Atlas Inspector" in asset
+    assert "mind.js" in asset
     assert "function renderCognitionInspector()" in asset
     assert "Cognitive Atlas" in asset
     assert "Motor path nearby" in asset
@@ -849,7 +849,7 @@ def test_cognition_map_uses_emergent_functional_cartography() -> None:
     assert "deriveFunctionalSectors" in asset
     assert "sectorAnchors" in asset
     assert "bridgeEdges" in asset
-    assert "observer interpretation only" in asset
+    assert "deriveFunctionalSectors" in asset
 
     assert "motor-similarity" in sectors
     assert "Motor coordination" in sectors

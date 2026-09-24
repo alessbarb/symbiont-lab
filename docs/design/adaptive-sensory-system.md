@@ -99,7 +99,7 @@ Human-facing aliases may remain in apparatus or Observatory metadata, but they m
 
 `SensoryRelation` currently relates capabilities and therefore remains a relation between sources, not between organism-owned sensors.
 
-### `src/symbiont/core/attention.py`
+### `src/symbiont/core/cognition/attention.py`
 
 `AttentionBudget` is generic enough to reuse, but the system will distinguish:
 

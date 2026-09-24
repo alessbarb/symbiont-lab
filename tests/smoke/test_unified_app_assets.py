@@ -9,7 +9,7 @@ from symbiont_lab.workbench import WEB_ROOT
 
 
 def test_unified_server_serves_native_spa_assets() -> None:
-    server = make_server(host="127.0.0.1", port=0)
+    server = make_server(host="127.0.0.1", port=0, demo=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -40,7 +40,7 @@ def test_unified_server_serves_native_spa_assets() -> None:
 
 
 def test_unified_server_emits_live_organism_sse() -> None:
-    server = make_server(host="127.0.0.1", port=0)
+    server = make_server(host="127.0.0.1", port=0, demo=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -64,7 +64,7 @@ def test_lab_view_does_not_assign_type_to_textarea() -> None:
 
 
 def test_fleet_stream_is_available_without_observatory() -> None:
-    server = make_server(host="127.0.0.1", port=0)
+    server = make_server(host="127.0.0.1", port=0, demo=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

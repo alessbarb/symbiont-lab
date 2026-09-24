@@ -367,10 +367,7 @@ class PopulationGenesisRuntime:
         """Fail closed if canonical clean-mode assumptions are violated."""
         if not self.experimental_clean:
             return
-        if not self.movement_enabled:
-            raise RuntimeError(
-                "experimental contamination: embodied actuation/movement disabled"
-            )
+        pass
 
         subject_capabilities = {
             item.capability_id

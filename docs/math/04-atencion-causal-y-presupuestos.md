@@ -2,7 +2,7 @@
 
 > **Estado:** IMPLEMENTADO  
 > **Tipo:** POLÍTICA HEURÍSTICA Y ASIGNACIÓN DE RECURSOS  
-> **Módulos relacionados:** [`symbiont.core.attention`](../../src/symbiont/core/attention.py)
+> **Módulos relacionados:** [`symbiont.core.attention`](../../src/symbiont/core/cognition/attention.py)
 
 ---
 
@@ -10,7 +10,7 @@
 
 En cualquier sistema biológico o computacional que interactúa con un entorno de alta dimensionalidad, el ancho de banda perceptual es un recurso estrictamente limitado. Un organismo no puede muestrear todas las superficies de observación en cada tick con alta resolución.
 
-El subsistema de atención de Symbiont ([`symbiont.core.attention`](../../src/symbiont/core/attention.py)) formaliza la selección de capacidades bajo cuatro principios rectores:
+El subsistema de atención de Symbiont ([`symbiont.core.attention`](../../src/symbiont/core/cognition/attention.py)) formaliza la selección de capacidades bajo cuatro principios rectores:
 
 1. **Causalidad Estricta:** La selección de atención en el tick $t$ se realiza utilizando exclusivamente la información conocida antes de realizar cualquier nueva observación en $t$. No existe lookahead, etiquetas de amenaza ni recompensas futuras.
 2. **Presupuesto Duro e Inviolable:** Existe un presupuesto escalar $B > 0$ por tick. La suma de los costos de las observaciones seleccionadas no puede exceder $B$.
@@ -45,7 +45,7 @@ Por ello, Symbiont adopta una **política heurística voraz de una sola pasada**
 
 ## 3. Cuantificación de Dispersión Relativa: Coeficiente de Variación
 
-La dispersión estadística $u(c_i)$ se calcula en [`uncertainty_from_baseline`](../../src/symbiont/core/attention.py#L86-L104) a partir de $(\mu_i, \sigma_i, n_i)$:
+La dispersión estadística $u(c_i)$ se calcula en [`uncertainty_from_baseline`](../../src/symbiont/core/cognition/attention.py#L86-L104) a partir de $(\mu_i, \sigma_i, n_i)$:
 
 $$u(c_i) = \begin{cases}
 +\infty & \text{si la capacidad no está aclimatada } (n_i < N_{\text{min}}) \\

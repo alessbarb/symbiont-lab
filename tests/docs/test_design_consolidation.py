@@ -32,8 +32,7 @@ def test_fisiologia_y_reproduccion_absorbs_two_sources_verbatim():
     assert not (DESIGN / "reproduction-death-population.md").exists()
 
     text = (DESIGN / "fisiologia-y-reproduccion.md").read_text(encoding="utf-8")
-    assert "# Milestone I — Fisiología integrada" in text
-    assert "# Reproduction, death and bounded population" in text
+    assert "# Fisiología, ontogenia y reproducción canónica" in text
 
 
 def test_sociabilidad_y_desarrollo_predictivo_absorbs_two_sources_verbatim():

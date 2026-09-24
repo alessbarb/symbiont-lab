@@ -44,7 +44,7 @@ def run_social_runtime_replay_study() -> SocialRuntimeReplayStudy:
 
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     metabolism = MetabolicLedger(replenishment=zero)
-    metabolism.charge("maintenance", 2.0)
+    metabolism.charge("maintenance", 8.0)
     dying = OrganismRuntime(organism_id="b", social_habitat=habitat, metabolism=metabolism,
                             explicit_metabolism=True, physiology=PhysiologyController())
     dying.tick()

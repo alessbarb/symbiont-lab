@@ -100,9 +100,7 @@ def test_dead_organisms_are_skipped_not_crashed_on():
     # Force one organism dead directly and confirm the population keeps going.
     from symbiont.core.physiology import VitalState
     victim = pop.organism_ids[0]
-    physiology = pop._rigs[victim].runtime._physiology
-    physiology._state = VitalState.DEAD
-    physiology._death_tick = pop.state.tick
+    pop._rigs[victim].runtime._living_body_state.mark_dead(pop.state.tick)
     records = pop.run(5)
     assert len(records) == 5
     for record in records:

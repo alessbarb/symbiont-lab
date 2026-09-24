@@ -35,7 +35,7 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
     if child is None:
         raise RuntimeError("population study could not materialize child")
     capacity_blocked_birth = parent.materialize_clonal_bud() is None
-    child.metabolism.charge("maintenance", 2.0)
+    child.metabolism.charge("maintenance", 8.0)
     result = child.tick()
     child_died = result.physiology is not None and result.physiology.state.value == "dead"
     slot_released = child.organism_id not in authority.live_ids

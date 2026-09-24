@@ -28,11 +28,11 @@ La unidad básica es una **afirmación con predicción falsable**. Tres estados 
 
 | Ruta | Hecho verificado | Modificación propuesta |
 | --- | --- | --- |
-| `src/symbiont/core/narrative.py` | `NarrativeEntry` expresa baseline, incertidumbre, atención, evidencia y dissent; el `summary` reproduce el ID. | Añadir proyección de afirmaciones con plantillas cerradas; mantener la narrativa existente por compatibilidad. |
-| `src/symbiont/core/runtime.py` | `tick()` observa lecturas en `AdaptiveSenseModel`, sintetiza perceptos, actualiza aclimatación, drift, bridge y memoria; la narración se forma al final. | Inyectar un motor independiente después de adquirir las lecturas del tick y antes de construir el resultado; incluir su vista y eventos en `RuntimeTickResult`. |
+| `src/symbiont/core/foundation/narrative.py` | `NarrativeEntry` expresa baseline, incertidumbre, atención, evidencia y dissent; el `summary` reproduce el ID. | Añadir proyección de afirmaciones con plantillas cerradas; mantener la narrativa existente por compatibilidad. |
+| `src/symbiont/core/orchestration/runtime.py` | `tick()` observa lecturas en `AdaptiveSenseModel`, sintetiza perceptos, actualiza aclimatación, drift, bridge y memoria; la narración se forma al final. | Inyectar un motor independiente después de adquirir las lecturas del tick y antes de construir el resultado; incluir su vista y eventos en `RuntimeTickResult`. |
 | `src/symbiont/host/adaptive.py` | `PairAccumulator` calcula correlación síncrona y desfase de un tick en ambas direcciones; `SensoryRelation` no es causal. La selección usa una ventana de relaciones y muestreo selectivo. | Reutilizarlo como fuente de candidatos; no convertir correlación en conocimiento validado. Añadir acceso explícito a conteos por dirección si se usa como filtro. |
 | `src/symbiont/host/drift.py` | Clasifica observaciones en `none`, `isolated`, `gradual`, `creep`, `regime_shift`. | Usar clases como evidencia contextual, sin atribuir estabilidad retrospectiva a un baseline recién reajustado. |
-| `src/symbiont/core/consolidation.py` | Hay memoria estadística y trazas categóricas acotadas, sin telemetría cruda durable. | Integrar la madurez de afirmaciones, sin guardar secuencias de muestras en checkpoint ni confundir traza destacada con relación predictiva. |
+| `src/symbiont/core/cognition/consolidation.py` | Hay memoria estadística y trazas categóricas acotadas, sin telemetría cruda durable. | Integrar la madurez de afirmaciones, sin guardar secuencias de muestras en checkpoint ni confundir traza destacada con relación predictiva. |
 | `observatory/adapter.py` | Une resúmenes en `organism.narrative` limitado a 600 caracteres y memoria a 32 cadenas. | Publicar fichas estructuradas acotadas y eventos de revisión; las narraciones generales serán resúmenes, no el único canal. |
 | `observatory/snapshot.schema.json`, `projection/snapshot.js` | Hay v1, v2 y v3, con cognition y body schema según versión; `beliefs` solo contiene etiquetas de 120 caracteres. | Extensión aditiva validada de v3 o v4 explícita si se exige el campo. Mantener consumidores antiguos. |
 | `observatory/render/senses.js`, `render/inspector.js` | El click busca creencia con `includes` y, si falla, selecciona por índice; el inspector tiene explicación fija que presume consistencia. | Selección exacta por ID de sentido y ficha propia; renderizar hechos estructurados sin afirmaciones fijas falsas. |
@@ -43,7 +43,7 @@ La frontera usará HMAC-SHA256 con una clave aleatoria durable de 32 bytes y dom
 
 ### 2.1 Cambios incorporados al inventario tras la referencia inicial
 
-- [`cognitive_self.py`](../../src/symbiont/core/cognitive_self.py) proyecta activaciones internas en canales opacos y clases de actividad acotadas, excluyendo los IDs sensoriales conocidos antes de producir los tokens. [`body_schema.py`](../../src/symbiont/core/body_schema.py) aprende y exporta regiones cognitivas y dependencias; Self ya no debe describirse como carente de toda organización cognitiva propia. Estos canales no constituyen por sí mismos claims de predicción entre señales host, ni prueban relevancia independiente: cualquier objetivo de `self_relevance` necesita todavía la auditoría de circularidad de §5.4.
+- [`cognitive_self.py`](../../src/symbiont/core/cognition/self_model.py) proyecta activaciones internas en canales opacos y clases de actividad acotadas, excluyendo los IDs sensoriales conocidos antes de producir los tokens. [`body_schema.py`](../../src/symbiont/core/embodiment/body_schema.py) aprende y exporta regiones cognitivas y dependencias; Self ya no debe describirse como carente de toda organización cognitiva propia. Estos canales no constituyen por sí mismos claims de predicción entre señales host, ni prueban relevancia independiente: cualquier objetivo de `self_relevance` necesita todavía la auditoría de circularidad de §5.4.
 - [`predictive_utility.py`](../../src/symbiont_lab/studies/learning/predictive_utility.py) contiene un ensayo de una serie con autocorrelación negativa, horizonte de un tick, referencias cero/media histórica/persistencia y ablaciones de plasticidad y arista. Sus [pruebas](../../tests/unit/lab/test_predictive_utility.py) incluyen las semillas 101, 127 y 149. Es infraestructura y evidencia potencial para el diseño, **no** el estudio de descubrimiento exigido por §10: no implementa perfiles o revisión de claims, selección entre múltiples señales, entornos negativos diversos ni integración de `SignalKnowledgeEngine` en runtime. Tampoco se sustituye sin evaluación la media reciente propuesta por la media de toda la historia usada en ese ensayo.
 - El [contrato de restauración recurrente](percepcion-y-embodiment.md) distingue estado durable, reinicio dinámico y reconstrucción discreta de parámetros. El [estudio de continuidad](../../src/symbiont_lab/studies/continuity/recurrent_restoration.py) es un punto de integración para §7 y §11, no una prueba de continuidad de claims aún inexistentes. Conservar una afirmación madura no garantiza que el predictor reiniciado mantenga su ventaja; deberán medirse de nuevo oportunidades y validación posteriores al corte sin puntuar trials cuyo estado transitorio se perdió.
 
@@ -215,7 +215,7 @@ Estas decisiones fijan el comportamiento a implementar, no certifican su funcion
 
 ## Fuentes del repositorio
 
-[`AGENTS.md`](https://github.com/alessbarb/symbiont-lab/blob/main/AGENTS.md) · [`runtime.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/runtime.py) · [`narrative.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/narrative.py) · [`adaptive.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/host/adaptive.py) · [`drift.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/host/drift.py) · [`consolidation.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/consolidation.py) · [`adapter.py`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/adapter.py) · [`snapshot.schema.json`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/snapshot.schema.json) · [`senses.js`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/render/senses.js) · [`inspector.js`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/render/inspector.js).
+[`AGENTS.md`](https://github.com/alessbarb/symbiont-lab/blob/main/AGENTS.md) · [`runtime.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/orchestration/runtime.py) · [`narrative.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/foundation/narrative.py) · [`adaptive.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/host/adaptive.py) · [`drift.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/host/drift.py) · [`consolidation.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/cognition/consolidation.py) · [`adapter.py`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/adapter.py) · [`snapshot.schema.json`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/snapshot.schema.json) · [`senses.js`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/render/senses.js) · [`inspector.js`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/render/inspector.js).
 
 ---
 
@@ -634,7 +634,7 @@ This prevents a large, monolithic self-model.
 Introduce:
 
 ```text
-src/symbiont/core/body_schema.py
+src/symbiont/core/embodiment/body_schema.py
 ```
 
 Suggested architecture:
@@ -1410,7 +1410,7 @@ Exit condition:
 Implement in organism:
 
 ```text
-src/symbiont/core/body_schema.py
+src/symbiont/core/embodiment/body_schema.py
 ```
 
 Initial scope:

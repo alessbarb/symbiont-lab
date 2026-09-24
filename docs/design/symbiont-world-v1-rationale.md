@@ -48,18 +48,18 @@ Y `research/STATUS.md` confirma algo todavía más importante: `IntegratedHabita
 Además tenemos:
 
 ```text
-src/symbiont/core/ecology.py
+src/symbiont/core/social/ecology.py
     SharedHabitat
 
-src/symbiont/core/heredity.py
+src/symbiont/core/lineage/heredity.py
     HeritableGenome
 
-src/symbiont/core/inheritance.py
+src/symbiont/core/lineage/inheritance.py
     genética
     epigenética
     cultura
 
-src/symbiont/core/interactions.py
+src/symbiont/core/social/interactions.py
     EcologicalResourcePool
 ```
 

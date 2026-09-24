@@ -1014,7 +1014,7 @@ Persisted memory never stores the list of epochs. Only the resulting maturity cl
 
 ## 9. New runtime components
 
-Add `src/symbiont/core/consolidation.py`.
+Add `src/symbiont/core/cognition/consolidation.py`.
 
 ### 9.1 `MemoryKind`
 

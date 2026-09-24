@@ -23,6 +23,7 @@ from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import PhysiologyController
 from symbiont.core.social import SocialHabitat
 from symbiont.modeling.runtime import ModeledOrganismRuntime
+from symbiont.core.embodiment.physiology import LivingBodyState
 from symbiont.modeling.sequences import SequenceChannel
 from symbiont.modeling.telemetry import CommunicationTelemetry
 
@@ -135,6 +136,7 @@ class IntegratedHabitatRuntime:
         # change: it keeps the bounded smoke path viable long enough to cover
         # communication and a lifecycle transition.
         replenishment = {kind: 0.25 for kind in ("observation", "cognition", "persistence", "maintenance")}
+        body_state = LivingBodyState(energy_reserve=1.0, max_energy=1.0)
         runtime = ModeledOrganismRuntime(
             organism_id=organism_id,
             # The integrated habitat is a deterministic laboratory surface.
@@ -149,9 +151,10 @@ class IntegratedHabitatRuntime:
             birth_authority=self.authority,
             generation=generation,
             social_habitat=self.social_habitat,
-            metabolism=MetabolicLedger(replenishment=replenishment),
+            living_body_state=body_state,
+            metabolism=MetabolicLedger(replenishment=replenishment, capacity={k: 0.25 for k in ("observation", "cognition", "persistence", "maintenance")}, body_state=body_state),
             explicit_metabolism=True,
-            physiology=PhysiologyController(),
+            physiology=PhysiologyController(body_state=body_state),
             bootstrap_semantic_senses=True,
             discover_senses=False,
             interoception_mode="absent",

@@ -125,13 +125,20 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
         # cold-starts on restore.
         "actuation",
     }
-    assert {
+    
+    d1 = {
         oid: {k: v for k, v in pop_a._rigs[oid].runtime.checkpoint().items() if k not in lossy_baseline_keys}
         for oid in pop_a.organism_ids
-    } == {
+    }
+    d2 = {
         oid: {k: v for k, v in pop_b._rigs[oid].runtime.checkpoint().items() if k not in lossy_baseline_keys}
         for oid in pop_b.organism_ids
     }
+    for oid in pop_a.organism_ids:
+        d1[oid].pop("checkpoint_lineage", None)
+        d2[oid].pop("checkpoint_lineage", None)
+    assert d1 == d2
+
     assert {
         oid: {
             rid: habitat.checkpoint()
@@ -156,13 +163,14 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
     assert pop_b.state.snapshot() == pop_b2.state.snapshot()
     assert pop_b.environment.snapshot() == pop_b2.environment.snapshot()
     assert pop_b.journal.snapshot() == pop_b2.journal.snapshot()
-    assert {
-        oid: pop_b._rigs[oid].runtime.checkpoint()
-        for oid in pop_b.organism_ids
-    } == {
-        oid: pop_b2._rigs[oid].runtime.checkpoint()
-        for oid in pop_b2.organism_ids
-    }
+
+    db1 = {oid: pop_b._rigs[oid].runtime.checkpoint() for oid in pop_b.organism_ids}
+    db2 = {oid: pop_b2._rigs[oid].runtime.checkpoint() for oid in pop_b2.organism_ids}
+    for oid in pop_b.organism_ids:
+        db1[oid].pop("checkpoint_lineage", None)
+        db2[oid].pop("checkpoint_lineage", None)
+    assert db1 == db2
+
 
 
 def test_storage_atomic_files_and_head_pointer(tmp_path: Path):

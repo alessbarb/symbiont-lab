@@ -78,7 +78,7 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
         row for row in authority.checkpoint()["lineage"] if row["organism_id"] == child.organism_id
     )
     social.admit(child.organism_id)
-    metabolism.charge("maintenance", 2.0)
+    metabolism.charge("maintenance", 8.0)
     parent.tick()
 
     return SocialRuntimeLifecycleStudy(

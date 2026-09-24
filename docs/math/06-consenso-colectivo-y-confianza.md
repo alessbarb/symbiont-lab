@@ -2,7 +2,7 @@
 
 > **Estado:** IMPLEMENTADO  
 > **Tipo:** PROTOCOLO COOPERATIVO Y DINÁMICA DE REPUTACIÓN  
-> **Módulos relacionados:** [`symbiont.core.trust`](../../src/symbiont/core/trust.py), [`symbiont.core.collective`](../../src/symbiont/core/collective.py), [`symbiont.core.heritage`](../../src/symbiont/core/heritage.py)
+> **Módulos relacionados:** [`symbiont.core.trust`](../../src/symbiont/core/social/trust.py), [`symbiont.core.collective`](../../src/symbiont/core/social/collective.py), [`symbiont.core.heritage`](../../src/symbiont/core/lineage/heritage.py)
 
 ---
 
@@ -19,7 +19,7 @@ El sistema aborda dos problemas matemáticos simultáneos:
 1. **Agregación de Evidencias:** ¿Cómo combinar los votos discretos de múltiples fuentes para inferir una creencia colectiva coherente?
 2. **Evaluación de Confianza Endógena (*Trust Modeling*):** ¿Cómo evaluar si una fuente es fiable sin disponer de etiquetas de verdad externa para contrastar sus afirmaciones?
 
-Symbiont implementa estos mecanismos en [`SourceTrustModel`](../../src/symbiont/core/trust.py), [`CollectiveMemory`](../../src/symbiont/core/collective.py) y [`SpeciesHeritage`](../../src/symbiont/core/heritage.py).
+Symbiont implementa estos mecanismos en [`SourceTrustModel`](../../src/symbiont/core/social/trust.py), [`CollectiveMemory`](../../src/symbiont/core/social/collective.py) y [`SpeciesHeritage`](../../src/symbiont/core/lineage/heritage.py).
 
 ---
 
@@ -27,9 +27,9 @@ Symbiont implementa estos mecanismos en [`SourceTrustModel`](../../src/symbiont/
 
 > **Clasificación:** IDENTIDAD DEL CÓDIGO / MÉTRICA DE SIMILITUD DE COLA PESADA
 
-Cuando un anfitrión recibe una cápsula de conocimiento ([`KnowledgeCapsule`](../../src/symbiont/core/capsule.py)) firmada criptográficamente con Ed25519, extrae la media remota afirmada $\mu_{\text{remote}}$ para una capacidad $c_k$.
+Cuando un anfitrión recibe una cápsula de conocimiento ([`KnowledgeCapsule`](../../src/symbiont/core/social/capsule.py)) firmada criptográficamente con Ed25519, extrae la media remota afirmada $\mu_{\text{remote}}$ para una capacidad $c_k$.
 
-El organismo local compara dicha afirmación con su propia distribución aclimatada $\mathcal{N}(\mu_{\text{local}}, \sigma_{\text{local}}^2)$ mediante [`agreement_score`](../../src/symbiont/core/trust.py#L31-L45):
+El organismo local compara dicha afirmación con su propia distribución aclimatada $\mathcal{N}(\mu_{\text{local}}, \sigma_{\text{local}}^2)$ mediante [`agreement_score`](../../src/symbiont/core/social/trust.py#L31-L45):
 
 Si la capacidad no está aclimatada localmente o $\sigma_{\text{local}} = 0.0$, el sistema retorna `None` (silencio epistémico ante falta de base comparativa). En caso contrario:
 
@@ -62,7 +62,7 @@ Agreement
 
 ## 3. Fusión de Evidencias en Memoria Colectiva
 
-En el simulador poblacional ([`CollectiveMemory`](../../src/symbiont/core/collective.py)), cada agente $s$ emite para una firma $\text{fp}$ un voto que contiene su veredicto $\text{threat}_s \in \{0, 1\}$ y su confianza declarada $C_s \in [0.05, 1.0]$.
+En el simulador poblacional ([`CollectiveMemory`](../../src/symbiont/core/social/collective.py)), cada agente $s$ emite para una firma $\text{fp}$ un voto que contiene su veredicto $\text{threat}_s \in \{0, 1\}$ y su confianza declarada $C_s \in [0.05, 1.0]$.
 
 El peso informacional asignado a cada informante se modula por su reputación acumulada $T(s) \in [0.15, 0.98]$:
 
@@ -95,7 +95,7 @@ $$c_{\text{live}} = \min\Big( 1.0, \; 0.35 \cdot D + 0.25 \cdot \bar{C} + 0.25 \
 
 > **Clasificación:** HEURÍSTICA DE RECALIBRACIÓN / ANÁLISIS DE CASO LÍMITE
 
-En [`CollectiveMemory.recalibrate_sources`](../../src/symbiont/core/collective.py#L166-L218), el sistema evalúa la legitimidad de un informante $s$ comparando su voto con el consenso del resto de la población **excluyendo explícitamente a $s$**:
+En [`CollectiveMemory.recalibrate_sources`](../../src/symbiont/core/social/collective.py#L166-L218), el sistema evalúa la legitimidad de un informante $s$ comparando su voto con el consenso del resto de la población **excluyendo explícitamente a $s$**:
 
 $$W_{-s} = \sum_{p \in \text{Votes} \setminus \{s\}} T(p) \cdot C_p$$
 
@@ -138,7 +138,7 @@ Bajo el supuesto estricto de una mayoría honesta estable y descorrelacionada, l
 
 > **Clasificación:** POLÍTICA DE COMPRESIÓN Y ATENUACIÓN DE PRIORS
 
-Entre generaciones de agentes, el conocimiento acumulado se transfiere como una **destilación epigenética comprimida** ([`SpeciesHeritage`](../../src/symbiont/core/heritage.py)).
+Entre generaciones de agentes, el conocimiento acumulado se transfiere como una **destilación epigenética comprimida** ([`SpeciesHeritage`](../../src/symbiont/core/lineage/heritage.py)).
 
 ### 5.1 Criterios de Selección Cuádruple
 

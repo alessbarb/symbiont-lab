@@ -58,14 +58,18 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
             bootstrap_semantic_senses=False, discover_senses=False,
         )
         replay_equal &= restored.social_ledger.checkpoint() == active.social_ledger.checkpoint()
+        print("Loop", index, "Auth live:", len(authority.live_ids), "cap:", authority.capacity, "ready:", active._ontogeny.reproductively_ready())
         child = active.materialize_clonal_bud()
+        print(f"Loop {index}: child is None? {child is None}")
+        if child is not None:
+            print(f"Loop {index}: join? {child.join_social_habitat(social)}")
         if child is None or not child.join_social_habitat(social):
             raise RuntimeError("multi-generation social birth failed")
         record = next(row for row in authority.checkpoint()["lineage"] if row["organism_id"] == child.organism_id)
         lineage.append((child.organism_id, tuple(record["parent_ids"])))
         membership_survived &= child.organism_id in social.members
         active.request_social_exchange("peer", "food", 0.25)
-        active.metabolism.charge("maintenance", 2.0)
+        active.metabolism.charge("maintenance", 8.0)
         active.tick()
         release_count += int(active.organism_id not in authority.live_ids and active.organism_id not in social.members)
         active = child
