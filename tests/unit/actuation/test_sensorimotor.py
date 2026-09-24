@@ -154,7 +154,7 @@ def test_single_episode_remains_candidate_until_independent_recurrence():
     assert result is None
     assert learner.primitives == ()
     snapshot = learner.snapshot()
-    assert snapshot.primitive_candidates == 1
+    assert snapshot.competence_candidates == 1
     assert snapshot.recurrent_primitive_candidates == 0
     lifecycle = learner.checkpoint()["primitive_stats"][0]
     assert lifecycle["first_sample_tick"] == 4
@@ -193,7 +193,7 @@ def test_adjacent_windows_from_same_exploration_block_do_not_count_as_recurrence
         evidence_blocks=frozenset({0}),
     )
 
-    assert learner.snapshot().recurrent_primitive_candidates == 0
+    assert learner.snapshot().recurrent_competence_candidates == 0
     assert learner.primitives == ()
 
 
