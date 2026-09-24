@@ -31,11 +31,11 @@ class KernelLimits:
     # Resident episodic-experience memory. These are kernel ceilings, never
     # organism-learnable parameters. The memory stores only opaque tokens
     # already available to the organism, never lab/world ground truth.
-    max_episodic_episodes: int = 512
-    max_episodic_episode_records: int = 16
-    max_episodic_retrieval_candidates: int = 16
-    max_episodic_replay_items: int = 8
-    max_episodic_interpretations_per_episode: int = 32
+    max_episodic_episodes: int = 4096
+    max_episodic_episode_records: int = 32
+    max_episodic_retrieval_candidates: int = 64
+    max_episodic_replay_items: int = 16
+    max_episodic_interpretations_per_episode: int = 128
     max_episodic_checkpoint_bytes: int = 2 * 1024 * 1024
     episodic_epoch_ticks: int = 32
     episodic_min_consolidation_epochs: int = 3
