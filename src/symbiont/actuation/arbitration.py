@@ -56,8 +56,10 @@ class ActionArbitrator:
             if age < current.minimum_duration:
                 return ArbitrationDecision(None, True, "minimum_commitment")
             if current.maximum_duration is None or age < current.maximum_duration:
-                if not valid:
-                    return ArbitrationDecision(None, True, "continue_commitment")
+                # A selected temporally-extended action owns control until it
+                # completes/fails/expires. Ordinary new proposals do not force
+                # deliberation every physical tick.
+                return ArbitrationDecision(None, True, "continue_commitment")
 
         if not valid:
             return ArbitrationDecision(None, current is not None and current.active, "no_valid_proposal")
