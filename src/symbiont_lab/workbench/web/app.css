@@ -1642,3 +1642,16 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+
+.body-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.body-resource-indicator-arrow {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+  transform-origin: 50% 50%;
+}
