@@ -11,6 +11,7 @@ _SUMMARY_SCHEMA_VERSION = 1
 _MAX_CONTRACT_MEMORIES = 8
 _MAX_EPOCH_SUMMARIES = 16
 _MAX_HISTORICAL_PRIMITIVES = 32
+CONTRACT_FINGERPRINT_SCHEMA_VERSION = 2
 
 
 def _canonical_hash(payload: object) -> str:
@@ -70,6 +71,7 @@ def contract_fingerprint(
         ]
 
     material = {
+        "schema_version": CONTRACT_FINGERPRINT_SCHEMA_VERSION,
         "receptor_count": int(receptor_count),
         "effector_count": int(effector_count),
         # Constitution is deterministic from MotorGenes. Learned proposer,
@@ -351,6 +353,7 @@ def append_epoch_summary(
 
 
 __all__ = [
+    "CONTRACT_FINGERPRINT_SCHEMA_VERSION",
     "append_epoch_summary",
     "archive_contract_memory",
     "build_epoch_summary",
