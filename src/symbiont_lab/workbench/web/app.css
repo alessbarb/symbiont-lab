@@ -652,3 +652,57 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
 .mind-cognition-inspector[hidden] { display: none !important; }
 .mind-senses-panel:not([hidden]),
 .mind-cognition-inspector:not([hidden]) { display: flex; }
+
+
+/* ── Mind reusable components ────────────────────────────────────── */
+.mind-panel-section {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(8, 21, 34, 0.72);
+  padding: 13px 14px;
+  min-width: 0;
+}
+.mind-panel-section-title {
+  font-size: 12px;
+  margin: 0;
+  color: var(--text);
+}
+.mind-panel-section-copy {
+  margin: 3px 0 10px;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.mind-big-metric {
+  padding: 9px 10px;
+  border: 1px solid rgba(98, 120, 136, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.mind-big-metric-label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.mind-big-metric-value {
+  display: block;
+  margin-top: 3px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text);
+}
+.mind-inspector-metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(98, 120, 136, 0.12);
+  font-size: 9px;
+}
+.mind-inspector-metric-key { color: var(--muted); }
+.mind-inspector-metric-value {
+  font-size: 9px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
