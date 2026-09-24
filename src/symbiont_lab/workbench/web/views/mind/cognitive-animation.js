@@ -249,6 +249,10 @@ export function createCognitivePresentationAnimator({
     }
 
     if (replay) {
+      animations.clear();
+      ghostNodes.clear();
+      ghostEdges.clear();
+      ghostRegions.clear();
       return;
     }
 
@@ -403,7 +407,7 @@ export function createCognitivePresentationAnimator({
       return { scale: 1, opacity: 1, pulse: 0 };
     }
     const p = animationProgress(animation, timestamp);
-    const eased = easeOutBackSoft(p);
+    const eased = reducedMotion ? easeOutCubic(p) : easeOutBackSoft(p);
     const scale = lerp(0.12, 1, eased);
     const opacity = easeOutCubic(Math.min(1, p * 1.8));
     const pulseDuration = durationFor('nodePulse', reducedMotion);
