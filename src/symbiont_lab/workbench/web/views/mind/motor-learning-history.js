@@ -21,7 +21,7 @@ function currentSample() {
     instanceId: streamState.instanceId,
     tick: finite(tel.tick ?? streamState.snapshotTick),
     embodimentEpoch: finite(tel.embodimentEpoch ?? snap.embodiment?.epoch),
-    babblingCoverage: finite(sm.babbling_coverage),
+    explorationCoverage: finite(sm.exploration_coverage),
     controllability: finite(sm.best_controllability),
     directionalConsistency: finite(sm.best_directional_consistency),
     sensorimotorPatterns: finite(tel.sensorimotorPatterns ?? sm.known_patterns),
