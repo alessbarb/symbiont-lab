@@ -45,6 +45,10 @@ class SensorimotorModel:
         for evidence in ledger.evidence:
             self.observe(evidence)
 
+    @property
+    def context_count(self) -> int:
+        return len(self._counts)
+
     def predict(
         self,
         *,
