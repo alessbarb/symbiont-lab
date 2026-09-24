@@ -161,12 +161,12 @@ def _same_contract(current: Mapping[str, Any], contract: EmbodimentContract) -> 
 def _detach_body_specific_cognition(
     checkpoint: Mapping[str, Any],
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """Archive and remove embodiment-specific motor output structure.
+    """Archive and remove cognition whose authority depends on one embodiment.
 
-    Concepts, predictors and general learned topology remain active. Motor and
-    primitive readouts belong to an embodiment contract: carrying them into a
-    different contract would create an implicit old->new actuator mapping when
-    slot identifiers happen to overlap.
+    Fresh embodiment must not inherit active sensory identities, body-derived
+    predictors or motor/primitive readouts. General concepts remain as durable
+    cognition, but all incident edges to removed body-bound nodes disappear so
+    they can only become useful again through fresh evidence.
     """
     raw_bridge = checkpoint.get("cognitive_bridge")
     if not isinstance(raw_bridge, Mapping):
@@ -185,17 +185,19 @@ def _detach_body_specific_cognition(
     if not isinstance(nodes, list) or not isinstance(edges, list):
         return bridge, None
 
-    def body_output_node(node_id: object) -> bool:
-        value = str(node_id or "")
+    def body_bound_node(node: Mapping[str, Any]) -> bool:
+        node_id = str(node.get("node_id") or "")
+        kind = str(node.get("kind") or "")
         return (
-            value.startswith("readout_motor:")
-            or value.startswith("readout_primitive:")
+            kind in {"sense", "predictor"}
+            or node_id.startswith("readout_motor:")
+            or node_id.startswith("readout_primitive:")
         )
 
     removed_ids = {
         str(node.get("node_id"))
         for node in nodes
-        if isinstance(node, Mapping) and body_output_node(node.get("node_id"))
+        if isinstance(node, Mapping) and body_bound_node(node)
     }
     if not removed_ids:
         return bridge, {"nodes": [], "edges": []}
@@ -235,10 +237,17 @@ def _detach_body_specific_cognition(
         )
     ]
 
-    # Restore already filters per-node metadata against the graph. These
-    # surfaces are pruned here as well so the serialized checkpoint is
-    # internally self-consistent before restore.
-    for key in ("node_born_tick", "node_observation_count", "node_active_count"):
+    for key in (
+        "node_born_tick",
+        "node_observation_count",
+        "node_active_count",
+        "sense_last_seen_tick",
+        "concept_last_active_tick",
+        "orphan_since_tick",
+        "unrouted_since_tick",
+        "predictor_utility",
+        "predictor_retirement",
+    ):
         raw = bridge.get(key)
         if isinstance(raw, dict):
             bridge[key] = {
@@ -261,6 +270,20 @@ def _detach_body_specific_cognition(
             )
         ]
 
+    raw_preliminary = bridge.get("shadow_preliminary_support")
+    if isinstance(raw_preliminary, list):
+        bridge["shadow_preliminary_support"] = [
+            item
+            for item in raw_preliminary
+            if not (
+                isinstance(item, Mapping)
+                and (
+                    str(item.get("source_id")) in removed_ids
+                    or str(item.get("target_id")) in removed_ids
+                )
+            )
+        ]
+
     raw_candidates = bridge.get("structural_candidates")
     if isinstance(raw_candidates, list):
         bridge["structural_candidates"] = [
@@ -269,7 +292,7 @@ def _detach_body_specific_cognition(
             if not (
                 isinstance(item, Mapping)
                 and str(item.get("family"))
-                in {"motor_readout", "primitive_readout"}
+                in {"motor_readout", "primitive_readout", "predictor"}
             )
         ]
 
@@ -299,34 +322,6 @@ def _degrade_active_private_model(
             active_id = model_id
         record["state"] = "degraded"
     return active_id
-
-
-def _fresh_actuation_with_transfer(
-    previous: Mapping[str, Any],
-    fresh: Mapping[str, Any],
-    *,
-    same_contract: bool,
-) -> dict[str, Any]:
-    fresh_actuation = deepcopy(fresh.get("actuation"))
-    if not isinstance(fresh_actuation, dict):
-        return {"enabled": False}
-    if not same_contract:
-        return fresh_actuation
-
-    previous_actuation = previous.get("actuation")
-    if not isinstance(previous_actuation, Mapping):
-        return fresh_actuation
-
-    # Same opaque contract: transfer learned motor evidence, never actuator
-    # health or unfinished cross-run causal traces.
-    for key in ("proposer", "sensorimotor", "selection_threshold", "exploration_mode"):
-        if key in previous_actuation:
-            fresh_actuation[key] = deepcopy(previous_actuation[key])
-    fresh_actuation["pending_motor_observation"] = []
-    fresh_actuation["pending_proprioception"] = {}
-    fresh_actuation["last_executed_primitive_id"] = None
-    fresh_actuation["pending_primitive_choice_context"] = None
-    return fresh_actuation
 
 
 def _active_private_model_id(checkpoint: Mapping[str, Any]) -> str | None:
