@@ -22,17 +22,17 @@ class OrganismLimits:
     max_exchange_bytes: int = 4096
 
     # Body schema & somatic topology limits
-    max_sensory_parts: int = 256
-    max_cognitive_regions: int = 32
-    max_body_dependencies: int = 256
-    max_dependency_evidence: int = 1536
-    max_coactivity_candidates: int = 1024
-    max_cognitive_channels_per_tick: int = 32
+    max_sensory_parts: int = 512
+    max_cognitive_regions: int = 128
+    max_body_dependencies: int = 1024
+    max_dependency_evidence: int = 6144
+    max_coactivity_candidates: int = 4096
+    max_cognitive_channels_per_tick: int = 128
 
     # Behavior and action limits
-    max_action_kinds: int = 16
-    max_action_ids: int = 64
-    max_selection_opportunities: int = 64
+    max_action_kinds: int = 64
+    max_action_ids: int = 256
+    max_selection_opportunities: int = 256
 
     # Degradation queue capacity (physical capacity only, not timing)
     max_degradation_items: int = 256
@@ -45,11 +45,11 @@ class OrganismLimits:
     max_cultural_artifacts: int = 32
 
     # Host sensory acclimation & discovery
-    max_capabilities: int = 64
-    max_candidate_senses: int = 256
-    max_relations: int = 1024
-    max_rhythm_contexts: int = 256
-    max_trust_contexts: int = 256
+    max_capabilities: int = 512
+    max_candidate_senses: int = 1024
+    max_relations: int = 4096
+    max_rhythm_contexts: int = 1024
+    max_trust_contexts: int = 1024
 
     # Endogenous signal knowledge
     max_knowledge_profiles: int = 64
