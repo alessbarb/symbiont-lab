@@ -33,6 +33,8 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
     first_tick = int(first["saved_at_tick"])
     organism_id = str(first["organism_id"])
     assert first_tick >= 1
+    assert first["embodiment_lifecycle"]["state"] == "dormant"
+    assert first["embodiment_lifecycle"]["epoch"] == 1
 
     assert run(
         headless=True,
@@ -49,3 +51,6 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
     second = read_symbiont_bundle_runtime(symbiont_file)
     assert str(second["organism_id"]) == organism_id
     assert int(second["saved_at_tick"]) == first_tick + 1
+    assert second["embodiment_lifecycle"]["state"] == "dormant"
+    assert second["embodiment_lifecycle"]["epoch"] == 2
+    assert second["embodiment_lifecycle"]["history"][-1]["ended_tick"] == first_tick

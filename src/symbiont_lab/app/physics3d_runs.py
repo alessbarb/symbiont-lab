@@ -16,6 +16,7 @@ from symbiont_lab.physics3d.engine import (
     DEFAULT_SYMBIONT_FILE,
 )
 from symbiont_lab.physics3d.persistence import read_symbiont_bundle_runtime
+from symbiont_lab.physics3d.reembodiment import lifecycle_summary
 
 
 DEFAULT_LAB_STATE_ROOT = DEFAULT_STATE_DIR.parent
@@ -67,7 +68,7 @@ class Physics3DLaunchSpec:
     def embodiment_mode(self) -> str:
         if self.new_symbiont:
             return "new"
-        return "resume" if self.body_mode == "resume" else "transplant"
+        return "resume" if self.body_mode == "resume" else "reembodiment"
 
     def runner_kwargs(self) -> dict[str, object]:
         return {
@@ -134,6 +135,8 @@ class Physics3DRunStore:
             if isinstance(living_body, dict)
             else None
         )
+        lifecycle = lifecycle_summary(payload)
+        current = lifecycle.get("current", {})
         return {
             "organism_id": payload.get("organism_id"),
             "tick": int(payload.get("saved_at_tick") or 0),
@@ -149,7 +152,13 @@ class Physics3DRunStore:
             ),
             "genome_id": genome.get("genome_id") if isinstance(genome, dict) else None,
             "vital_state": vital_state,
-            "runnable": vital_state != "dead",
+            "symbiont_state": lifecycle.get("state", "dormant"),
+            "embodiment_epoch": lifecycle.get("epoch", 1),
+            "embodiment_history_count": lifecycle.get("history_count", 0),
+            "body_kind": current.get("body_kind") if isinstance(current, dict) else None,
+            "receptor_count": current.get("receptor_count") if isinstance(current, dict) else None,
+            "effector_count": current.get("effector_count") if isinstance(current, dict) else None,
+            "runnable": True,
         }
 
     def organisms(self) -> list[dict[str, Any]]:
@@ -265,21 +274,14 @@ class Physics3DRunStore:
             if not bundle.is_file():
                 raise ValueError("selected organism checkpoint is unavailable")
             summary = self._bundle_summary(bundle)
-            if summary.get("runnable") is False:
-                raise ValueError("selected organism is dead and cannot resume execution")
-            previous_kind = str(metadata.get("body_kind") or body_kind)
-            previous_receptors = metadata.get("receptor_count")
-            previous_effectors = metadata.get("effector_count")
-            if previous_receptors is not None and previous_effectors is not None:
-                if (
-                    int(previous_receptors) != descriptor.receptor_count
-                    or int(previous_effectors) != descriptor.effector_count
-                ):
+            previous_kind = str(summary.get("body_kind") or metadata.get("body_kind") or body_kind)
+            if body_mode == "resume":
+                if summary.get("vital_state") == "dead":
                     raise ValueError(
-                        "selected body has an incompatible opaque sensorimotor contract"
+                        "previous body is dead; select a fresh body for re-embodiment"
                     )
-            if body_mode == "resume" and previous_kind != body_kind:
-                raise ValueError("resume requires the same body kind")
+                if previous_kind != body_kind:
+                    raise ValueError("resume requires the same body kind")
 
         organism_dir = self.organisms_dir / organism_ref
         organism_dir.mkdir(parents=True, exist_ok=True)
@@ -313,7 +315,7 @@ class Physics3DRunStore:
                 meta.get("receptor_count") in (None, descriptor.receptor_count)
                 and meta.get("effector_count") in (None, descriptor.effector_count)
             )
-            compatibility = "same-contract" if same_contract else "incompatible"
+            compatibility = "same-contract" if same_contract else "reembodiment"
 
         launch = Physics3DLaunchSpec(
             run_id=run_id,
@@ -364,17 +366,37 @@ class Physics3DRunStore:
 
         organism_meta_path = self.organisms_dir / launch.organism_ref / "metadata.json"
         existing = _read_json(organism_meta_path)
+        body_checkpoint_available = launch.body_file.is_file()
+        persisted_body_kind = (
+            summary.get("body_kind")
+            or existing.get("body_kind")
+            or launch.body_kind
+        )
+        persisted_receptors = (
+            summary.get("receptor_count")
+            if summary.get("receptor_count") is not None
+            else existing.get("receptor_count", descriptor.receptor_count)
+        )
+        persisted_effectors = (
+            summary.get("effector_count")
+            if summary.get("effector_count") is not None
+            else existing.get("effector_count", descriptor.effector_count)
+        )
         organism_meta = {
             **existing,
             **summary,
             "ref": launch.organism_ref,
             "created_at": existing.get("created_at") or manifest.get("started_at") or _now(),
             "updated_at": _now(),
-            "body_kind": launch.body_kind,
-            "last_body_ref": launch.body_ref,
+            "body_kind": persisted_body_kind,
+            "last_body_ref": (
+                launch.body_ref
+                if body_checkpoint_available
+                else existing.get("last_body_ref")
+            ),
             "last_run_id": launch.run_id,
-            "receptor_count": descriptor.receptor_count,
-            "effector_count": descriptor.effector_count,
+            "receptor_count": persisted_receptors,
+            "effector_count": persisted_effectors,
         }
         _write_json(organism_meta_path, organism_meta)
 
@@ -386,7 +408,11 @@ class Physics3DRunStore:
             "updated_at": _now(),
             "last_run_id": launch.run_id,
             "organism_ref": launch.organism_ref,
-            "checkpoint_available": launch.body_file.is_file(),
+            "checkpoint_available": body_checkpoint_available,
+            "vital_state": summary.get("vital_state"),
+            "resumable": bool(
+                body_checkpoint_available and summary.get("vital_state") != "dead"
+            ),
         }
         body_meta.setdefault("created_at", manifest.get("started_at") or _now())
         _write_json(body_meta_path, body_meta)

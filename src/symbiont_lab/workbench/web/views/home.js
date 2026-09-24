@@ -48,8 +48,10 @@ function organismOptions() {
   return catalog.organisms.map(item => {
     const label = item.organism_id || item.ref;
     const tick = Number(item.tick || 0).toLocaleString();
-    const terminal = item.runnable === false ? ' · dead' : '';
-    return `<option value="${esc(item.ref)}" ${item.ref === organismRef ? 'selected' : ''}>${esc(label)} · t${tick}${terminal}</option>`;
+    const lifecycle = item.symbiont_state ? ` · ${item.symbiont_state}` : '';
+    const bodyState = item.vital_state === 'dead' ? ' · previous body dead' : '';
+    const epoch = item.embodiment_epoch ? ` · e${item.embodiment_epoch}` : '';
+    return `<option value="${esc(item.ref)}" ${item.ref === organismRef ? 'selected' : ''}>${esc(label)} · t${tick}${epoch}${lifecycle}${bodyState}</option>`;
   }).join('');
 }
 
@@ -71,11 +73,15 @@ function isCompatible() {
   if (organismMode === 'new') return bodyMode === 'fresh';
   const organism = selectedOrganism();
   const body = catalog.bodies.find(item => item.body_kind === selectedBody);
-  if (!organism || !body || organism.runnable === false) return false;
-  if (bodyMode === 'resume' && (!organism.last_body_ref || organism.body_kind !== selectedBody)) return false;
-  if (organism.receptor_count == null || organism.effector_count == null) return true;
-  return Number(organism.receptor_count) === Number(body.receptor_count) &&
-    Number(organism.effector_count) === Number(body.effector_count);
+  if (!organism || !body) return false;
+  if (bodyMode === 'resume') {
+    return Boolean(
+      organism.last_body_ref &&
+      organism.body_kind === selectedBody &&
+      organism.vital_state !== 'dead'
+    );
+  }
+  return true;
 }
 
 function compatibilityText() {
@@ -83,16 +89,18 @@ function compatibilityText() {
   const organism = selectedOrganism();
   const body = catalog.bodies.find(item => item.body_kind === selectedBody);
   if (!organism || !body) return 'Select an existing organism and body.';
-  if (organism.runnable === false) return 'This Symbiont is physiologically dead and cannot resume execution.';
-  const same = (
-    organism.receptor_count == null ||
-    (Number(organism.receptor_count) === Number(body.receptor_count) &&
-     Number(organism.effector_count) === Number(body.effector_count))
-  );
-  if (!same) return 'Incompatible opaque sensorimotor contract. This transplant is blocked rather than inventing a mapping.';
-  if (bodyMode === 'resume' && (!organism.last_body_ref || organism.body_kind !== selectedBody)) return 'No resumable checkpoint exists for this body type.';
-  if (bodyMode === 'resume') return 'The exact previous physical body checkpoint will be resumed.';
-  return 'Same opaque sensorimotor contract; physical state will start fresh.';
+  if (bodyMode === 'resume') {
+    if (organism.vital_state === 'dead') return 'Previous body is dead. Re-embody this Symbiont in a fresh body instead.';
+    if (!organism.last_body_ref || organism.body_kind !== selectedBody) return 'No resumable checkpoint exists for this body type.';
+    return 'The exact previous physical body checkpoint will be resumed.';
+  }
+  const knownContract = organism.receptor_count != null && organism.effector_count != null;
+  const same = knownContract &&
+    Number(organism.receptor_count) === Number(body.receptor_count) &&
+    Number(organism.effector_count) === Number(body.effector_count) &&
+    organism.body_kind === selectedBody;
+  if (same) return 'Fresh body, same opaque contract: acquired sensorimotor knowledge may transfer.';
+  return 'Fresh embodiment epoch: identity, memory and cognition persist; body-specific schema is reacquired without channel mapping.';
 }
 
 function recentRuns() {
@@ -159,10 +167,10 @@ function render() {
         </section>
         <section class="card home-section">
           <div class="home-step">2</div>
-          <div><h3>Mind</h3><p>Create a blank Symbiont or continue an existing organism identity.</p></div>
+          <div><h3>Mind</h3><p>Create a blank Symbiont or re-embody a dormant persistent identity.</p></div>
           <div class="home-radio-row">
             <label><input type="radio" name="organism-mode" value="new" ${organismMode === 'new' ? 'checked' : ''}> New Symbiont</label>
-            <label><input type="radio" name="organism-mode" value="existing" ${organismMode === 'existing' ? 'checked' : ''} ${catalog.organisms.length ? '' : 'disabled'}> Existing Symbiont</label>
+            <label><input type="radio" name="organism-mode" value="existing" ${organismMode === 'existing' ? 'checked' : ''} ${catalog.organisms.length ? '' : 'disabled'}> Dormant / existing Symbiont</label>
           </div>
           <select id="home-organism" ${organismMode === 'existing' ? '' : 'disabled'}>${organismOptions()}</select>
         </section>
