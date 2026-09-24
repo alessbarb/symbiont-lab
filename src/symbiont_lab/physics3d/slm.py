@@ -289,6 +289,10 @@ class Physics3DSlmManager:
             pad_id=0,
             device=self.device,
         )
+        # Restored organisms often begin with prospective agency immediately.
+        # Load the ACTIVE model once during restore so the first organism tick
+        # never performs artifact I/O + PyTorch materialization inside action choice.
+        gateway.warm(model_id)
         runtime.attach_private_model_bridge(
             PrivateModelBridge(
                 registry=runtime.model_registry,

@@ -98,6 +98,24 @@ def save_symbiont_bundle(
     return target
 
 
+
+def read_symbiont_bundle_runtime(path: str | Path) -> dict:
+    """Read only runtime.json from a portable organism bundle.
+
+    Catalogs and preflight checks must not materialize private model artifacts.
+    Full artifact extraction belongs exclusively to an actual runtime restore.
+    """
+    source = Path(path).expanduser()
+    with zipfile.ZipFile(source, "r") as archive:
+        try:
+            raw = json.loads(archive.read("runtime.json").decode("utf-8"))
+        except KeyError as exc:
+            raise ValueError("portable Symbiont bundle has no runtime.json") from exc
+        if not isinstance(raw, dict):
+            raise ValueError("portable Symbiont runtime root must be an object")
+        return raw
+
+
 def load_symbiont_bundle(
     path: str | Path,
     models_dir: str | Path,
@@ -238,6 +256,7 @@ __all__ = [
     "TelemetryWriter",
     "load_body_state_file",
     "load_runtime_state_file",
+    "read_symbiont_bundle_runtime",
     "load_symbiont_bundle",
     "load_telemetry_records",
     "load_telemetry_transitions",
