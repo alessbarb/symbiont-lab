@@ -783,6 +783,14 @@ class OrganismRuntime:
         return self._sensorimotor_learner.snapshot()
 
     @property
+    def sensorimotor_exclusive_actuator_groups(
+        self,
+    ) -> tuple[tuple[str, ...], ...]:
+        if self._sensorimotor_learner is None:
+            return ()
+        return self._sensorimotor_learner.exclusive_actuator_groups
+
+    @property
     def sensorimotor_primitives(self) -> tuple[MotorPrimitive, ...]:
         """Evaluator-only read view of organism-discovered motor primitives."""
         if self._sensorimotor_learner is None:
