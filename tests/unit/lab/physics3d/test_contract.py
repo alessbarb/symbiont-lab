@@ -944,3 +944,52 @@ def test_motor_step_applies_exclusion_before_execution_and_credit():
     assert constrain_at < execute_at
     assert execute_at < credit_at
     assert "if intent.actuator_id not in executed_ids" in source
+
+
+
+def test_apparatus_projects_directional_pairs_to_opaque_actuator_groups():
+    from types import SimpleNamespace
+    from symbiont_lab.physics3d.apparatus import actuator_exclusion_groups
+
+    constitution = SimpleNamespace(
+        actuator_ids=("a0", "a1", "a2", "a3"),
+    )
+    apparatus = SimpleNamespace(
+        effector_ids=("e0", "e1", "e2", "e3"),
+        motor_bindings=(
+            SimpleNamespace(positive_port="e2", negative_port="e0"),
+            SimpleNamespace(positive_port="e3", negative_port="e1"),
+        ),
+    )
+
+    assert actuator_exclusion_groups(constitution, apparatus) == (
+        ("a2", "a0"),
+        ("a3", "a1"),
+    )
+
+
+def test_apparatus_motor_unit_contract_requires_complete_disjoint_coverage():
+    from types import SimpleNamespace
+    from symbiont_lab.physics3d.apparatus import actuator_exclusion_groups
+
+    constitution = SimpleNamespace(
+        actuator_ids=("a0", "a1", "a2", "a3"),
+    )
+    incomplete = SimpleNamespace(
+        effector_ids=("e0", "e1", "e2", "e3"),
+        motor_bindings=(
+            SimpleNamespace(positive_port="e0", negative_port="e1"),
+        ),
+    )
+    with pytest.raises(ValueError, match="complete actuator constitution"):
+        actuator_exclusion_groups(constitution, incomplete)
+
+    overlapping = SimpleNamespace(
+        effector_ids=("e0", "e1", "e2", "e3"),
+        motor_bindings=(
+            SimpleNamespace(positive_port="e0", negative_port="e1"),
+            SimpleNamespace(positive_port="e1", negative_port="e2"),
+        ),
+    )
+    with pytest.raises(ValueError, match="disjoint directional pairs"):
+        actuator_exclusion_groups(constitution, overlapping)
