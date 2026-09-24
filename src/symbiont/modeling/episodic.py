@@ -306,11 +306,34 @@ class ExperienceEpisode:
     def __post_init__(self) -> None:
         if not _valid_token(self.episode_id):
             raise EpisodicMemoryError("invalid episode id")
-        if self.start_tick < 0 or self.end_tick < self.start_tick:
+        if (
+            isinstance(self.start_tick, bool)
+            or not isinstance(self.start_tick, int)
+            or isinstance(self.end_tick, bool)
+            or not isinstance(self.end_tick, int)
+            or self.start_tick < 0
+            or self.end_tick < self.start_tick
+        ):
             raise EpisodicMemoryError("invalid episode tick range")
-        if not self.occurrence_ticks or tuple(sorted(set(self.occurrence_ticks))) != self.occurrence_ticks:
+        if (
+            not isinstance(self.occurrence_ticks, tuple)
+            or not self.occurrence_ticks
+            or any(
+                isinstance(tick, bool)
+                or not isinstance(tick, int)
+                or tick < self.start_tick
+                or tick > self.end_tick
+                for tick in self.occurrence_ticks
+            )
+            or tuple(sorted(set(self.occurrence_ticks))) != self.occurrence_ticks
+        ):
             raise EpisodicMemoryError("invalid episode occurrence ticks")
-        if self.recurrence < len(self.occurrence_ticks) or self.recurrence < 1:
+        if (
+            isinstance(self.recurrence, bool)
+            or not isinstance(self.recurrence, int)
+            or self.recurrence < len(self.occurrence_ticks)
+            or self.recurrence < 1
+        ):
             raise EpisodicMemoryError("invalid episode recurrence")
         if len(self.trace) > 8 or any(not isinstance(step, EpisodeStep) for step in self.trace):
             raise EpisodicMemoryError("invalid episodic provenance trace")
@@ -461,6 +484,9 @@ class ExperienceEpisode:
                 or any(not isinstance(step, Mapping) for step in raw_trace)
             ):
                 raise EpisodicMemoryError("invalid episode collections")
+            raw_action = payload.get("action_token")
+            if raw_action is not None and not isinstance(raw_action, str):
+                raise EpisodicMemoryError("invalid episode action token")
             raw_evidence = payload.get("evidence_refs", [])
             raw_sources = payload.get("source_record_ids", [])
             raw_exceptions = payload.get("exceptions", [])
@@ -478,14 +504,7 @@ class ExperienceEpisode:
                 end_tick=raw_end_tick,
                 occurrence_ticks=tuple(raw_occurrences),
                 trace=tuple(EpisodeStep.restore(step) for step in raw_trace if isinstance(step, Mapping)),
-                action_token=(
-                    payload.get("action_token")
-                    if payload.get("action_token") is None
-                    or isinstance(payload.get("action_token"), str)
-                    else (_ for _ in ()).throw(
-                        EpisodicMemoryError("invalid episode action token")
-                    )
-                ),
+                action_token=raw_action,
                 sense_support=support("sense_support", 32, recurrence),
                 concept_support=support("concept_support", 16, recurrence),
                 internal_support=support("internal_support", 16, recurrence),
