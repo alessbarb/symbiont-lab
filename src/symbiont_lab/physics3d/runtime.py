@@ -142,7 +142,7 @@ class Tick3D:
     sensorimotor_coverage: float
     sensorimotor_patterns: int
     motor_competence_candidates: int
-    cognitive_motor_competence_candidates: int
+    motor_competences: int
     competence_candidates: int
     recurrent_competence_candidates: int
     max_competence_samples: int
@@ -1771,7 +1771,7 @@ class PyBulletEmbodimentRuntime:
             motor_competence_candidates=int(
                 sensorimotor.primitives if sensorimotor is not None else 0
             ),
-            cognitive_motor_competence_candidates=int(
+            motor_competences=int(
                 sensorimotor.cognitive_primitives
                 if sensorimotor is not None
                 else 0
