@@ -48,7 +48,8 @@ function organismOptions() {
   return catalog.organisms.map(item => {
     const label = item.organism_id || item.ref;
     const tick = Number(item.tick || 0).toLocaleString();
-    return `<option value="${esc(item.ref)}" ${item.ref === organismRef ? 'selected' : ''}>${esc(label)} · t${tick}</option>`;
+    const terminal = item.runnable === false ? ' · dead' : '';
+    return `<option value="${esc(item.ref)}" ${item.ref === organismRef ? 'selected' : ''}>${esc(label)} · t${tick}${terminal}</option>`;
   }).join('');
 }
 
@@ -70,7 +71,7 @@ function isCompatible() {
   if (organismMode === 'new') return bodyMode === 'fresh';
   const organism = selectedOrganism();
   const body = catalog.bodies.find(item => item.body_kind === selectedBody);
-  if (!organism || !body) return false;
+  if (!organism || !body || organism.runnable === false) return false;
   if (bodyMode === 'resume' && (!organism.last_body_ref || organism.body_kind !== selectedBody)) return false;
   if (organism.receptor_count == null || organism.effector_count == null) return true;
   return Number(organism.receptor_count) === Number(body.receptor_count) &&
@@ -82,6 +83,7 @@ function compatibilityText() {
   const organism = selectedOrganism();
   const body = catalog.bodies.find(item => item.body_kind === selectedBody);
   if (!organism || !body) return 'Select an existing organism and body.';
+  if (organism.runnable === false) return 'This Symbiont is physiologically dead and cannot resume execution.';
   const same = (
     organism.receptor_count == null ||
     (Number(organism.receptor_count) === Number(body.receptor_count) &&
