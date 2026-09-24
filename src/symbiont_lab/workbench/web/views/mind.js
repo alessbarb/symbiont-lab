@@ -56,6 +56,7 @@ let _uid                    = 'default';
 let _rootStyleBeforeMount   = '';
 let _lastUITime             = 0;
 const UI_THROTTLE_MS        = 66; // ~15 FPS for text-only telemetry updates
+const STALE_AFTER_MS         = 5000;
 
 const cognition = createCognitionController({
   getActiveTab: () => _activeTab,
@@ -309,10 +310,22 @@ function physicsRunning(appState) {
 export function update(root, appState) {
   if (!_root || root !== _root) return;
   _appState = appState ?? null;
+  const timedOut =
+    _streamState.status === 'live' &&
+    _streamState.lastCoherentFrameAt != null &&
+    Date.now() - _streamState.lastCoherentFrameAt > STALE_AFTER_MS;
+  if (timedOut) {
+    _streamState.status = 'stale';
+    _streamState.stale = true;
+    _streamState.reason = 'coherent-frame-timeout';
+  }
   if (_streamState.source === 'physics3d' && !physicsRunning(_appState) && _streamState.status === 'live') {
     _streamState.status = 'stale';
     _streamState.stale = true;
     _streamState.reason = 'physics3d-run-ended';
+    updateTelemetryStrip(true);
+    if (_activeTab === 'motor') renderMotorLearning();
+  } else if (timedOut) {
     updateTelemetryStrip(true);
     if (_activeTab === 'motor') renderMotorLearning();
   }

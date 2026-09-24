@@ -21,6 +21,7 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "motor-learning.js",
         WEB_ROOT / "views" / "mind" / "motor-learning-model.js",
         WEB_ROOT / "views" / "mind" / "motor-learning-history.js",
+        WEB_ROOT / "views" / "mind" / "motor-learning-chart.js",
         WEB_ROOT / "views" / "mind" / "history.js",
     ]
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
@@ -1470,3 +1471,30 @@ def test_mind_snapshot_preserves_embodiment_context() -> None:
         "reacclimationRemaining": 12,
     }
     assert "embodiment" in snapshot["provenance"]["organismFacts"]
+
+
+def test_motor_learning_temporal_ui_distinguishes_live_stale_and_partial_observation() -> None:
+    asset = _mind_sources()
+    chart = (WEB_ROOT / "views" / "mind" / "motor-learning-chart.js").read_text(encoding="utf-8")
+
+    assert "LAST OBSERVED STATE" in asset
+    assert "PARTIAL OBSERVATION" in asset
+    assert "SKILL · UNDEFINED" in asset
+    assert "LEARNED AGENCY" in asset
+    assert "Structural motor associations" in asset
+    assert "Motor learning trajectories" in asset
+    assert "Embodiment history" in asset
+    assert "Transfer evidence" in asset
+    assert "epochEvents" in chart
+    assert "organism ticks" in chart
+
+
+def test_mind_has_observer_side_freshness_timeout_and_app_lifecycle_update() -> None:
+    mind = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    app = (WEB_ROOT.parent / "app.js").read_text(encoding="utf-8") if False else (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert "STALE_AFTER_MS         = 5000" in mind
+    assert "coherent-frame-timeout" in mind
+    assert "export function update(root, appState)" in mind
+    assert "update as updateMind" in app
+    assert "updateMind(document.getElementById(ROOT_ID), currentState)" in app
