@@ -101,7 +101,7 @@ def test_dead_body_leaves_symbiont_runnable_for_fresh_reembodiment(tmp_path) -> 
         "organism": {"mode": "existing", "ref": "org-dead"},
         "body": {"mode": "fresh"},
     })
-    assert launch.embodiment_mode == "transplant"
+    assert launch.embodiment_mode == "reembodiment"
 
     with pytest.raises(ValueError, match="previous body is dead"):
         store.prepare({
