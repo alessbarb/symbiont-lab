@@ -3628,9 +3628,6 @@ class OrganismRuntime:
                             self._active_composition_children
                         ),
                         "active_index": self._active_composition_index,
-                        "effect_by_commitment": dict(
-                            sorted(self._effect_by_commitment.items())
-                        ),
                     },
                 },
             }
@@ -4272,16 +4269,30 @@ class OrganismRuntime:
                         runtime._active_composition_index = int(
                             raw_composition.get("active_index", 0)
                         )
-                        raw_effects = raw_composition.get(
-                            "effect_by_commitment",
-                            {},
-                        )
-                        if isinstance(raw_effects, dict):
-                            runtime._effect_by_commitment = {
-                                str(key): str(value)
-                                for key, value in raw_effects.items()
-                                if str(value).startswith("effect.")
-                            }
+                        known_competences = {
+                            item.competence_id
+                            for item in runtime._competence_library.items
+                        }
+                        if (
+                            runtime._active_action_commitment is None
+                            or not runtime._active_action_commitment.active
+                            or not runtime._active_composition_children
+                            or any(
+                                child not in known_competences
+                                for child in runtime._active_composition_children
+                            )
+                            or runtime._active_composition_index < 0
+                            or runtime._active_composition_index
+                            >= len(runtime._active_composition_children)
+                        ):
+                            runtime._active_composition_children = ()
+                            runtime._active_composition_index = 0
+                        if (
+                            runtime._composition_predecessor_id is not None
+                            and runtime._composition_predecessor_id
+                            not in known_competences
+                        ):
+                            runtime._composition_predecessor_id = None
                 except (TypeError, ValueError, KeyError) as exc:
                     raise CheckpointError(f"invalid sensorimotor v2 checkpoint: {exc}") from exc
         raw_reactivity = normalized.get("innate_reactivity")
