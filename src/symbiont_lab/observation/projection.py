@@ -132,6 +132,8 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
     _copy_number(cognition, tick, "schema_sensory_parts", cast=int)
     _copy_number(cognition, tick, "schema_cognitive_regions", cast=int)
     _copy_number(cognition, tick, "embodiment_epoch", cast=int)
+    _copy_number(cognition, tick, "body_age_ticks", cast=int)
+    _copy_number(cognition, tick, "body_senescence")
     _copy_number(cognition, tick, "reacclimation_remaining", cast=int)
     _copy_bool(cognition, tick, "reacclimating")
     if tick.get("motor_origin") is not None:
@@ -162,6 +164,8 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
 
     vitals: dict[str, Any] = {**identity, "type": "vitals"}
     _copy_number(vitals, tick, "tick", cast=int)
+    _copy_number(vitals, tick, "body_age_ticks", cast=int)
+    _copy_number(vitals, tick, "body_senescence")
     _copy_bool(vitals, tick, "alive")
     _copy_number(vitals, tick, "joint_motion")
     _copy_number(vitals, tick, "active_effectors", cast=int)
