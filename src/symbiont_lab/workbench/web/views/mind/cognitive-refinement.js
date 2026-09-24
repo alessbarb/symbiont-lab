@@ -105,6 +105,16 @@ export function summarizeDiff(diff, nodes = [], regions = []) {
     ? regions.find(region => region.id === topRegionEntry[0]) ?? { id: topRegionEntry[0] }
     : null;
 
+  const motorEdgeChanged = [
+    ...(diff.addedEdges ?? []),
+    ...(diff.removedEdges ?? []),
+    ...(diff.changedEdges ?? []).map(item => item.key),
+  ].some(key =>
+    String(key).includes('readout_motor:') ||
+    String(key).includes('readout_primitive:') ||
+    String(key).includes('motor_primitive:')
+  );
+
   const categories = [
     ['nodes', (diff.addedNodes?.length ?? 0) + (diff.removedNodes?.length ?? 0)],
     ['relations', (diff.addedEdges?.length ?? 0) + (diff.removedEdges?.length ?? 0) + (diff.changedEdges?.length ?? 0)],
@@ -115,6 +125,7 @@ export function summarizeDiff(diff, nodes = [], regions = []) {
     topNode,
     topRegion,
     largestDeltaType: categories[0]?.[1] ? categories[0][0] : 'none',
+    motorLinkageChanged: motorEdgeChanged,
     nodeImpact,
   };
 }
