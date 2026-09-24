@@ -758,7 +758,7 @@ export function createCognitionController({
   }
 
   function drawStructureRoleMarker(ctx, x, y, radius, nodeId, alpha = 1) {
-    if (graph.atlasMode !== 'structure') return;
+    if (!['structure','anatomy'].includes(graph.atlasMode)) return;
     const role = structureRole(nodeId);
     if (!role.hub && !role.bottleneck && !role.loopCount) return;
     ctx.save();
@@ -1034,7 +1034,7 @@ export function createCognitionController({
   }
 
   function drawLearningFrontierZones(ctx, pointsById) {
-    if (graph.atlasMode !== 'learning') return;
+    if (!['learning','dynamics'].includes(graph.atlasMode)) return;
     for (const [clusterIndex, cluster] of (graph.learningFrontierClusters ?? []).entries()) {
       const points = cluster.nodeIds.map(id => pointsById.get(id)).filter(Boolean);
       if (!points.length) continue;
@@ -1075,11 +1075,11 @@ export function createCognitionController({
   function drawAtlasRegions3D(ctx, scene, sectorFocus) {
     graph.atlasRegionHitAreas3d = [];
     graph.atlasRegionGeometry3d.clear();
-    if (sectorFocus) return;
     const tick = finiteNumber(graph.replayTick ?? tel.tick, 0);
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
 
     for (const region of graph.atlasRegions ?? []) {
+      if (sectorFocus && region.id !== sectorFocus.sectorId) continue;
       const projected = region.nodeIds
         .map(id => scene.byId.get(id))
         .filter(Boolean)
@@ -2293,7 +2293,7 @@ export function createCognitionController({
       title.textContent = `${label} · ${description?.interpretation ?? 'emergent sector'}`;
       const subtitle = el('div', '');
       subtitle.style.cssText = 'font-size:9px;line-height:1.45;color:var(--muted);margin-bottom:10px;';
-      subtitle.textContent = 'Observer-side sector focus. Membership is derived from graph relations and is not fed back to Symbiont.';
+      subtitle.textContent = 'Observer-side region focus. Shape and membership are derived from graph relations and are not fed back to Symbiont.';
       panel.append(title, subtitle);
   
       inspectorMetric(panel, 'Nodes', members.length);
@@ -2304,8 +2304,25 @@ export function createCognitionController({
         inspectorMetric(panel, 'Region since', `t${lineage.firstTick}`);
         inspectorMetric(panel, 'Lineage observations', lineage.observations);
       }
+      const regionShape = graph.dimension === '3d'
+        ? graph.atlasRegionGeometry3d.get(sectorFocus.sectorId)
+        : graph.atlasRegionGeometry2d.get(sectorFocus.sectorId);
+      const proto = graph.protoSubregions.get(sectorFocus.sectorId) ?? [];
+      if (regionShape) {
+        inspectorMetric(panel, 'Boundary tension', pct(regionShape.tension ?? 0), (regionShape.tension ?? 0) > 0.6 ? PAL.amber : PAL.muted);
+        inspectorMetric(panel, 'Proto-subregions', proto.length, proto.length ? PAL.violet : PAL.muted);
+        inspectorMetric(panel, 'Functional center', `${regionShape.functionalCenter?.x?.toFixed?.(0) ?? '—'}, ${regionShape.functionalCenter?.y?.toFixed?.(0) ?? '—'}`);
+        const trail = regionShape.trail ?? [];
+        const displacement = trail.length > 1
+          ? Math.hypot(
+              trail[trail.length - 1].x - trail[0].x,
+              trail[trail.length - 1].y - trail[0].y,
+            )
+          : 0;
+        inspectorMetric(panel, 'Center displacement', displacement.toFixed(1));
+      }
       inspectorMetric(panel, 'External bridge endpoints', sectorFocus.bridges.size);
-      inspectorMetric(panel, 'Cross-sector relations', bridgeEdges.length);
+      inspectorMetric(panel, 'Cross-region relations', bridgeEdges.length);
       inspectorMetric(
         panel,
         'Composition',
@@ -2317,7 +2334,7 @@ export function createCognitionController({
   
       const bridgeTitle = el('div', '');
       bridgeTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
-      bridgeTitle.textContent = 'Bridges to other sectors';
+      bridgeTitle.textContent = 'Corridors to other regions';
       panel.appendChild(bridgeTitle);
   
       const bridgeGroups = new Map();
@@ -2349,7 +2366,7 @@ export function createCognitionController({
       const back = el('button', 'mind-ctrl-btn');
       back.type = 'button';
       back.style.cssText = 'margin-top:12px;width:100%;';
-      back.textContent = 'Back to all sectors';
+      back.textContent = 'Back to all regions';
       back.addEventListener('click', () => {
         graph.focusedSectorId = null;
         graph.selectedNodeId = null;
