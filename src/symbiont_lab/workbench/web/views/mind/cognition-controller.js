@@ -1868,8 +1868,7 @@ export function createCognitionController({
           };
       let best = null;
       for (const area of areas) {
-        const distance = Math.hypot(point.x - area.x, point.y - area.y);
-        if (distance > area.radius) continue;
+        if (!polygonContains(area.polygon ?? [], point.x, point.y)) continue;
         if (!best || area.radius < best.radius) best = area;
       }
       return best;
