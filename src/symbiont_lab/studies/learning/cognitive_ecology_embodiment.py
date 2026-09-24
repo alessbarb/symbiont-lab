@@ -32,7 +32,7 @@ class CognitiveEcologyEmbodimentTrial:
     motor_origin_cognition: int
     motor_origin_primitive: int
     motor_origin_primitive_cognition: int
-    motor_origin_primitive_verification: int
+    motor_origin_primitive_reactive: int
     motor_origin_babbling: int
     cognitive_motor_primitives: int
     cognitive_motor_output_edges: int
@@ -163,7 +163,7 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         motor_origin_cognition=last.motor_origin_cognition,
         motor_origin_primitive=last.motor_origin_primitive,
         motor_origin_primitive_cognition=last.motor_origin_primitive_cognition,
-        motor_origin_primitive_verification=last.motor_origin_primitive_verification,
+        motor_origin_primitive_reactive=last.motor_origin_primitive_reactive,
         motor_origin_babbling=last.motor_origin_babbling,
         cognitive_motor_primitives=last.cognitive_motor_primitives,
         cognitive_motor_output_edges=last.cognitive_motor_output_edges,
