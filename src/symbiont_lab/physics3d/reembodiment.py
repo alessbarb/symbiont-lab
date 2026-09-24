@@ -237,6 +237,26 @@ def _detach_body_specific_cognition(
         )
     ]
 
+    raw_normalizers = bridge.get("sensory_normalizers")
+    if isinstance(raw_normalizers, dict):
+        bridge["sensory_normalizers"] = {
+            sensor_id: value
+            for sensor_id, value in raw_normalizers.items()
+            if str(sensor_id) not in removed_ids
+        }
+
+    raw_lineage = bridge.get("concept_lineage")
+    if isinstance(raw_lineage, list):
+        bridge["concept_lineage"] = [
+            entry
+            for entry in raw_lineage
+            if not (
+                isinstance(entry, Mapping)
+                and isinstance(entry.get("parent_ids"), list)
+                and any(str(parent_id) in removed_ids for parent_id in entry["parent_ids"])
+            )
+        ]
+
     for key in (
         "node_born_tick",
         "node_observation_count",
@@ -284,6 +304,15 @@ def _detach_body_specific_cognition(
             )
         ]
 
+    def _references_removed(value: object) -> bool:
+        if isinstance(value, str):
+            return value in removed_ids
+        if isinstance(value, Mapping):
+            return any(_references_removed(item) for item in value.values())
+        if isinstance(value, (list, tuple)):
+            return any(_references_removed(item) for item in value)
+        return False
+
     raw_candidates = bridge.get("structural_candidates")
     if isinstance(raw_candidates, list):
         bridge["structural_candidates"] = [
@@ -291,8 +320,11 @@ def _detach_body_specific_cognition(
             for item in raw_candidates
             if not (
                 isinstance(item, Mapping)
-                and str(item.get("family"))
-                in {"motor_readout", "primitive_readout", "predictor"}
+                and (
+                    str(item.get("family"))
+                    in {"motor_readout", "primitive_readout", "predictor"}
+                    or _references_removed(item)
+                )
             )
         ]
 
