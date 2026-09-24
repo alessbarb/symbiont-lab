@@ -1047,3 +1047,63 @@ def test_exclusive_group_validation_rejects_overlap_and_unknown_ids():
             organism_id="unknown",
             exclusive_actuator_groups=((ids[0], "missing"),),
         )
+
+
+
+def test_exclusive_motor_groups_arbitrate_mixed_requests_before_evidence():
+    from symbiont.actuation.types import MotorIntent
+
+    ids = _ids(4)
+    learner = SensorimotorLearner(
+        ids,
+        organism_id="org-mixed-exclusion",
+        exclusive_actuator_groups=((ids[0], ids[1]), (ids[2], ids[3])),
+    )
+
+    constrained = learner.constrain_intents(
+        (
+            MotorIntent(ids[0], 0.4),
+            MotorIntent(ids[1], 0.8),
+            MotorIntent(ids[2], 0.5),
+        )
+    )
+
+    assert [(item.actuator_id, item.activation) for item in constrained] == [
+        (ids[1], 0.8),
+        (ids[2], 0.5),
+    ]
+
+
+def test_restore_rejects_v9_primitive_that_violates_exclusive_motor_unit():
+    ids = _ids(4)
+    learner = SensorimotorLearner(
+        ids,
+        organism_id="org-invalid-exclusive-restore",
+        exclusive_actuator_groups=((ids[0], ids[1]),),
+    )
+    payload = learner.checkpoint()
+    # A v9 checkpoint claiming a simultaneous antagonistic pattern is not a
+    # valid state even when the IDs themselves are known.
+    sequence = [
+        [[ids[0], 5], [ids[1], 4]],
+        [[ids[0], 5]],
+        [[ids[0], 5]],
+        [[ids[0], 5]],
+    ]
+    payload["primitive_stats"] = [{
+        "sequence": sequence,
+        "stat": {"count": 2, "mean": 0.1, "m2": 0.0},
+        "first_sample_tick": 4,
+        "last_sample_tick": 16,
+        "materialized_tick": 16,
+        "competence_tick": 16,
+        "last_evidence_blocks": [0, 2],
+        "signals": {},
+    }]
+
+    with pytest.raises(ValueError, match="exclusive actuator groups"):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=ids,
+            organism_id="org-invalid-exclusive-restore",
+        )
