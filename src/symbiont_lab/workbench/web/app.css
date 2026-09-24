@@ -549,3 +549,91 @@ tr:hover td { background: rgba(255, 255, 255, 0.03); }
   .mind-senses-panel { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.05); max-height: 240px; }
   .two-column, .archive-grid, .lab-hero { grid-template-columns: 1fr; }
 }
+
+
+/* ── Shell accessibility & lifecycle polish ─────────────────────── */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  transform: translateY(-160%);
+  transition: transform 0.15s ease;
+}
+.skip-link:focus { transform: translateY(0); }
+
+#view-root:focus { outline: none; }
+
+.statusbar-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.statusbar-project {
+  text-decoration: none;
+}
+
+/* ── Body view shell ─────────────────────────────────────────────── */
+.body-view-root {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-rows: 40px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+
+.body-view-root .body-canvas-wrap {
+  grid-column: 1;
+  grid-row: 2;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+
+.body-camera-bar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(8, 17, 25, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font: 11px var(--mono);
+}
+
+.body-camera-button {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.body-camera-button:hover { background: rgba(255, 255, 255, 0.08); }
+.body-camera-follow.active {
+  background: rgba(80, 217, 164, 0.12);
+  color: var(--mint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
