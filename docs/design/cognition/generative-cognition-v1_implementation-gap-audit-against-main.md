@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `93ecc582`
+**Audited commit:** `6aa679c0`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -101,7 +101,7 @@ built by composing several mature existing components.
 | GC-7 | Recombination | **PARTIAL — compatibility-gated fragment composition; novelty/equivalence evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **PARTIAL — lifecycle/reconciliation/calibration substrate; runtime evidence pending** |
 | GC-9 | Epistemic agency | **PARTIAL — comparison signal substrate; agency integration pending** |
-| GC-10 | Generative consolidation | **PARTIAL — structural substrate exists** |
+| GC-10 | Generative consolidation | **PARTIAL — separate generative-use signals; structural candidate projection pending** |
 | GC-11 | Offline cognition | **MISSING** |
 | GC-12 | Observatory / Atlas | **PARTIAL — observer substrate excellent** |
 
@@ -1850,20 +1850,15 @@ and should remain final planner.
 
 ---
 
-## Missing
+## Implemented substrate
 
-Implement:
+`GenerativeUseTracker`, `GenerativeConsolidationSignal` and
+`GenerativeConsolidator` now track generated reuse separately from factual
+observation counts. They expose cross-episode reuse, hypothesis persistence,
+model disagreement, demand and source diversity without mutating the graph.
 
-```text
-consolidation.py
-```
-
-with:
-
-```text
-GenerativeConsolidationSignal
-GenerativeConsolidator
-```
+The remaining implementation is the projection into a normal
+`StructuralCandidate` through contention and the existing planner.
 
 Fields:
 
@@ -1986,12 +1981,12 @@ GC-E13 is release-blocking.
 ## Status
 
 ```text
-PARTIAL
+PARTIAL — generative-use signal substrate only
 ```
 
-The structural admission architecture is ready.
-
-The generative producer is missing.
+The structural admission architecture is ready and the separate generative
+producer signal now exists. Structural-candidate projection, contention
+integration and GC-E11/GC-E12/GC-E13 evidence remain open.
 
 ---
 
