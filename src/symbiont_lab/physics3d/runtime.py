@@ -906,7 +906,11 @@ class PyBulletEmbodimentRuntime:
                 f"angular={result.residual_angular_speed_rad_s:.6f}rad/s, "
                 f"joint_effective={result.residual_joint_speed_rad_s:.6f}rad/s, "
                 f"joint_reported={result.residual_joint_reported_speed_rad_s:.6f}rad/s, "
-                f"peak_joint={result.peak_joint_name or result.peak_joint_index}"
+                f"peak_joint={result.peak_joint_name or result.peak_joint_index}, "
+                f"peak_position={result.peak_joint_position_rad}, "
+                f"peak_velocity={result.peak_joint_reported_velocity_rad_s}, "
+                f"peak_applied_torque={result.peak_joint_applied_torque_nm}, "
+                f"peak_contacts={result.peak_joint_contact_count}"
             )
         return result.steps
 
