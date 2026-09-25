@@ -45,6 +45,58 @@ def test_exploration_holds_channel_set_within_short_epoch():
     assert all(current == sets[0] for current in sets[1:])
 
 
+def test_spontaneous_motor_bout_spans_multiple_independent_evidence_blocks():
+    learner = CompetenceDevelopmentEngine(
+        _ids(),
+        organism_id="org-bout-persistence",
+        max_concurrent=4,
+    )
+
+    samples = {}
+    for tick in range(24):
+        intents = learner.motor_intents(tick)
+        if tick in {7, 15, 23}:
+            samples[tick] = {
+                intent.actuator_id
+                for intent in intents
+            }
+
+    assert samples[7]
+    assert samples[7] == samples[15] == samples[23]
+
+
+def test_autonomous_babbling_can_recur_across_independent_evidence_blocks():
+    learner = CompetenceDevelopmentEngine(
+        _ids(4),
+        organism_id="org-natural-recurrence",
+        max_concurrent=2,
+    )
+
+    state = {"sense.a": 0.0, "sense.b": 0.0}
+    previous_vector = {}
+    for tick in range(96):
+        learner.observe(
+            tick=tick,
+            body_state=state,
+            motor_vector=previous_vector,
+            discovery_eligible=True,
+        )
+        intents = learner.motor_intents(tick)
+        previous_vector = {
+            intent.actuator_id: intent.activation
+            for intent in intents
+        }
+        drive = sum(previous_vector.values())
+        state = {
+            "sense.a": state["sense.a"] + drive * 0.01,
+            "sense.b": state["sense.b"] - drive * 0.004,
+        }
+
+    snapshot = learner.snapshot()
+    assert snapshot.recurrent_competence_candidates > 0
+    assert snapshot.max_competence_samples >= 2
+
+
 def test_multi_horizon_statistics_are_recorded_independently():
     learner = CompetenceDevelopmentEngine(
         _ids(4),
