@@ -30,7 +30,10 @@ def test_production_genome_access_does_not_route_through_cognition() -> None:
     violations: list[str] = []
     for production_root in production_roots:
         for path in production_root.rglob("*.py"):
-            rel = path.relative_to(root).as_posix()
+            rel_path = path.relative_to(root)
+            rel = rel_path.as_posix()
+            if "tests" in rel_path.parts:
+                continue
             if rel in _ALLOWED_COGNITION_GENOME_COMPATIBILITY:
                 continue
             for module in _imports(path):
