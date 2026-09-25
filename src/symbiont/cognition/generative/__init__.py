@@ -1,5 +1,11 @@
 """Generative Cognition v1: bounded, non-factual internal cognition."""
 
+from .adapters import (
+    CompetenceEffectGenerativeAdapter,
+    EpisodicReplayAdapter,
+    PrivateSLMGenerativeAdapter,
+    SensorimotorDynamicsGenerativeAdapter,
+)
 from .agenda import (
     AgendaCandidate,
     AgendaContaminationError,
@@ -34,9 +40,11 @@ __all__ = [
     "AgendaContaminationError",
     "AgendaProgress",
     "AgendaSource",
+    "CompetenceEffectGenerativeAdapter",
     "EpistemicBoundaryError",
     "EpistemicFirewall",
     "EpistemicOrigin",
+    "EpisodicReplayAdapter",
     "GENERATIVE_COGNITION_SCHEMA_VERSION",
     "GeneratedFeature",
     "GeneratedProposal",
@@ -54,7 +62,9 @@ __all__ = [
     "GenerativeTermination",
     "GenerativeTransition",
     "GenerativeWorkspace",
+    "PrivateSLMGenerativeAdapter",
     "ScheduleDecision",
+    "SensorimotorDynamicsGenerativeAdapter",
     "TargetStatus",
     "dumps",
     "loads",
