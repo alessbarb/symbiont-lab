@@ -90,6 +90,7 @@ from ...genetics.mutation import mutate_genome
 from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
 from ...cognition.birth import load_base_graph
 from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
+from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
 from ...actuation.proposer import ActuatorProposer
@@ -686,6 +687,7 @@ class OrganismRuntime:
         self._effect_space = EffectSpace()
         self._causal_evidence = CausalEvidenceLedger()
         self._competence_library = CompetenceLibrary()
+        self._competence_execution_bindings = CompetenceExecutionBindingRegistry()
         self._sensorimotor_model = CompetenceEffectModel()
         self._controllability_model = ControllabilityModel()
         self._agency_model = AgencyModel()
@@ -934,7 +936,7 @@ class OrganismRuntime:
             causal_evidence_count=len(self._causal_evidence.evidence),
             competence_count=len(self._competence_library.items),
             established_competence_count=sum(
-                1 for item in self._competence_library.items if item.executable
+                1 for item in self._competence_library.items if self._competence_is_executable(item)
             ),
             competence_candidate_count=(
                 legacy_snapshot.competence_candidates
@@ -1215,7 +1217,6 @@ class OrganismRuntime:
             controller_id=f"controller.{competence_id}",
             effect_id=evidence.effect_id,
             evidence=derived,
-            surface_binding=self._actuator_constitution.contract_fingerprint,
             parent_competence_ids=(
                 evidence.first_competence_id,
                 evidence.second_competence_id,
@@ -1360,7 +1361,6 @@ class OrganismRuntime:
                         controller_id=f"controller.{primitive.primitive_id}",
                         effect_id=None,
                         evidence=primitive.competence_evidence,
-                        surface_binding=self._actuator_constitution.contract_fingerprint,
                         controller_strategy_ref=primitive.primitive_id,
                     )
                 )
@@ -1563,7 +1563,7 @@ class OrganismRuntime:
         candidate_ids = tuple(
             competence.competence_id
             for competence in self._competence_library.items
-            if competence.executable
+            if self._competence_is_executable(competence)
         )
         proposals: list[ActionProposal] = []
 
@@ -2167,7 +2167,7 @@ class OrganismRuntime:
     @property
     def competence_library(self) -> CompetenceLibrary:
         return self._competence_library
-
+\n    @property\n    def competence_execution_bindings(self) -> CompetenceExecutionBindingRegistry:\n        return self._competence_execution_bindings\n\n    def _current_surface_fingerprint(self) -> str | None:\n        return (\n            self._actuator_constitution.contract_fingerprint\n            if self._actuator_constitution is not None\n            else None\n        )\n\n    def _competence_is_executable(self, competence: MotorCompetence) -> bool:\n        return self._competence_execution_bindings.is_executable(\n            competence,\n            surface_fingerprint=self._current_surface_fingerprint(),\n        )\n
     @property
     def evidence_ledger(self) -> EvidenceRevisionLedger:
         return self._evidence_ledger
