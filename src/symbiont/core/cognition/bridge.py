@@ -1164,7 +1164,7 @@ class CognitiveBridge:
             if candidate_graph is not self._graph:
                 self._graph = candidate_graph
                 self._record_applied_metadata(mutation_tuple, tick=self._tick)
-                self._seed_new_edges()
+                self._plasticity.seed_new_edges(self._graph)
                 self._reconcile_node_metadata()
                 self._topology_revision += 1
 
