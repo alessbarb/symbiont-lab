@@ -102,6 +102,10 @@ class Individual:
         self.symbiont.attach_execution_surface(
             contract.actuator_surface.contract_fingerprint
         )
+        prior = self.embodiment_archive.prior_for(
+            body_id=body.body_id,
+            contract_fingerprint=contract.contract_fingerprint,
+        )
         episode = EmbodimentEpisode.begin(
             symbiont_id=self.symbiont.symbiont_id,
             body_id=body.body_id,
@@ -109,6 +113,7 @@ class Individual:
             start_symbiont_tick=self._current_tick,
             contract=contract,
             embodiment_id=session.embodiment_id,
+            prior=prior,
         )
         # One source of truth: Episode references the exact inference services
         # already used by the Symbiont, never copies them.
