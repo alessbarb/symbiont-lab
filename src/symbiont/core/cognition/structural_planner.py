@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Collection
 
-from ...cognition.graph import CognitiveGraph
+from ...cognition.graph import CognitiveGraph, GraphError, PlasticNode
 from ...cognition.limits import KernelLimits
 from ...cognition.structure import (
     EdgeLifecycleState,
@@ -226,6 +226,227 @@ class StructuralPlanner:
         self._kernel_limits = kernel_limits
         self._structural_plasticity = structural_plasticity
         self.budgets = budgets
+
+    @staticmethod
+    def motor_readout_id(actuator_id: str) -> str:
+        return f"{_MOTOR_READOUT_PREFIX}{actuator_id}"
+
+    @staticmethod
+    def primitive_readout_id(primitive_id: str) -> str:
+        return f"{_PRIMITIVE_READOUT_PREFIX}{primitive_id}"
+
+    def sync_motor_readouts(
+        self,
+        *,
+        graph: CognitiveGraph,
+        contention: StructuralContention,
+        actuator_ids: Collection[str],
+        tick: int,
+    ) -> None:
+        requested = sorted({
+            str(value) for value in actuator_ids if str(value)
+        })
+        existing = {node.node_id for node in graph.nodes}
+        requested_set = set(requested)
+        for candidate_id, candidate in list(contention.candidates.items()):
+            if (
+                candidate.family == "motor_readout"
+                and candidate_id.removeprefix("motor:") not in requested_set
+            ):
+                contention.drop(candidate_id)
+
+        for actuator_id in requested:
+            node_id = self.motor_readout_id(actuator_id)
+            if node_id in existing:
+                contention.drop(f"motor:{actuator_id}")
+                continue
+            contention.register(
+                candidate_id=f"motor:{actuator_id}",
+                family="motor_readout",
+                mutations=(
+                    Mutation(
+                        kind="add_node",
+                        payload={
+                            "node_id": node_id,
+                            "kind": NodeKind.READOUT,
+                        },
+                    ),
+                ),
+                eligible_tick=tick,
+            )
+
+    def sync_primitive_readouts(
+        self,
+        *,
+        graph: CognitiveGraph,
+        contention: StructuralContention,
+        primitive_ids: Collection[str],
+        tick: int,
+        frozen: bool,
+    ) -> tuple[CognitiveGraph, tuple[Mutation, ...]]:
+        requested = sorted({
+            str(value) for value in primitive_ids if str(value)
+        })
+        requested_set = set(requested)
+        requested_nodes = {
+            self.primitive_readout_id(primitive_id)
+            for primitive_id in requested
+        }
+        existing_nodes = {node.node_id for node in graph.nodes}
+        existing_primitive_nodes = {
+            node_id
+            for node_id in existing_nodes
+            if node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
+        }
+
+        for candidate_id, candidate in list(contention.candidates.items()):
+            if (
+                candidate.family == "primitive_readout"
+                and candidate_id.removeprefix("primitive:")
+                not in requested_set
+            ):
+                contention.drop(candidate_id)
+
+        mutation_cap = (
+            self._kernel_limits.max_structural_mutations_per_consolidation
+        )
+        mutations: list[Mutation] = []
+        planning_graph = graph
+        for node_id in sorted(existing_primitive_nodes - requested_nodes):
+            incident = [
+                edge
+                for edge in planning_graph.edges
+                if edge.source_id == node_id or edge.target_id == node_id
+            ]
+            stale_mutations = tuple(
+                Mutation(
+                    kind="remove_edge",
+                    payload={
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "kind": edge.kind.value,
+                    },
+                )
+                for edge in incident
+            ) + (
+                Mutation(
+                    kind="remove_node",
+                    payload={"node_id": node_id},
+                ),
+            )
+            if len(mutations) + len(stale_mutations) > mutation_cap:
+                break
+            candidate_graph = apply_mutations(
+                planning_graph,
+                stale_mutations,
+                self._kernel_limits,
+                frozen=frozen,
+            )
+            if candidate_graph is planning_graph:
+                continue
+            mutations.extend(stale_mutations)
+            planning_graph = candidate_graph
+
+        live_graph = graph
+        mutation_tuple = tuple(mutations)
+        if mutation_tuple:
+            candidate_graph = apply_mutations(
+                graph,
+                mutation_tuple,
+                self._kernel_limits,
+                frozen=frozen,
+            )
+            if candidate_graph is not graph:
+                live_graph = candidate_graph
+            else:
+                mutation_tuple = ()
+
+        existing_nodes = {node.node_id for node in live_graph.nodes}
+        for primitive_id in requested:
+            node_id = self.primitive_readout_id(primitive_id)
+            candidate_id = f"primitive:{primitive_id}"
+            if node_id in existing_nodes:
+                contention.drop(candidate_id)
+                continue
+            contention.register(
+                candidate_id=candidate_id,
+                family="primitive_readout",
+                mutations=(
+                    Mutation(
+                        kind="add_node",
+                        payload={
+                            "node_id": node_id,
+                            "kind": NodeKind.READOUT,
+                        },
+                    ),
+                ),
+                eligible_tick=tick,
+            )
+        return live_graph, mutation_tuple
+
+    def admit_senses(
+        self,
+        *,
+        graph: CognitiveGraph,
+        sense_values: Collection[str],
+        lifecycle: SenseConceptLifecycle,
+        tick: int,
+        develop_senses: bool,
+    ) -> tuple[CognitiveGraph, int]:
+        if not develop_senses:
+            return graph, 0
+
+        existing_ids = {node.node_id for node in graph.nodes}
+        existing_senses = {
+            node.node_id
+            for node in graph.nodes
+            if node.kind is NodeKind.SENSE
+        }
+        observed_ids = set(sense_values)
+        for sense_id in observed_ids & existing_senses:
+            lifecycle.sense_last_seen_tick[sense_id] = tick
+
+        candidates = sorted(observed_ids - existing_ids)
+        if not candidates:
+            return graph, 0
+
+        admitted = 0
+        sense_count = len(existing_senses)
+        if (
+            len(graph.nodes) >= self.budgets.node_budget
+            or sense_count >= self.budgets.sense_limit
+        ):
+            self.budgets.expand(
+                need_nodes=len(graph.nodes) >= self.budgets.node_budget,
+                need_senses=sense_count >= self.budgets.sense_limit,
+            )
+
+        candidate_graph = graph
+        for sense_id in candidates:
+            if (
+                len(candidate_graph.nodes) >= self.budgets.node_budget
+                or sense_count >= self.budgets.sense_limit
+            ):
+                break
+            try:
+                candidate_graph = CognitiveGraph(
+                    nodes=(
+                        *candidate_graph.nodes,
+                        PlasticNode(
+                            node_id=sense_id,
+                            kind=NodeKind.SENSE,
+                        ),
+                    ),
+                    edges=candidate_graph.edges,
+                    kernel_limits=self._kernel_limits,
+                )
+            except GraphError:
+                continue
+            admitted += 1
+            sense_count += 1
+            lifecycle.sense_last_seen_tick[sense_id] = tick
+
+        return candidate_graph, admitted
 
     def oldest_blocked_wait(
         self,
