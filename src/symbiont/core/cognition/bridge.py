@@ -17,7 +17,7 @@ from ...cognition.checkpoint import (
     restore_safety_state,
     restore_sensory_normalizers,
 )
-from ...cognition.genome import Genome
+from ...genetics.genome import Genome
 from ...cognition.graph import CognitiveGraph, GraphError, PlasticNode, TickContext
 from ...cognition.learning import (
     PredictionError,

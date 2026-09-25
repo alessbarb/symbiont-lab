@@ -42,7 +42,7 @@ from ...host.rhythms import RhythmModel
 from ...host.second_look import SecondLookSession
 from ...sensory import SensorySystem
 from ...cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
-from ...cognition.genome import Genome, DevelopmentGenes, PlasticityGenes, RangeSpec
+from ...genetics.genome import Genome, DevelopmentGenes, PlasticityGenes, RangeSpec
 from ...cognition.graph import CognitiveGraph
 from ...cognition.learning import ShadowPrediction
 from ...cognition.limits import KernelLimits
@@ -739,6 +739,22 @@ class OrganismRuntime:
     @_last_motor_command.setter
     def _last_motor_command(self, value):
         self._action_domain.last_motor_command = value
+
+    @property
+    def _last_motor_intent(self):
+        return self._action_domain.last_motor_intent
+
+    @_last_motor_intent.setter
+    def _last_motor_intent(self, value):
+        self._action_domain.last_motor_intent = value
+
+    @property
+    def _last_actuation(self):
+        return self._action_domain.last_actuation
+
+    @_last_actuation.setter
+    def _last_actuation(self, value):
+        self._action_domain.last_actuation = value
 
     @property
     def _last_motor_intents(self):
@@ -3522,11 +3538,14 @@ class OrganismRuntime:
         if isinstance(raw_actuation, dict):
             raw_commitment = raw_actuation.get("action_commitment")
             if isinstance(raw_commitment, dict):
-                restored_commitment = ActionCommitment.restore(raw_commitment)
                 current_surface = (
                     runtime._actuator_constitution.contract_fingerprint
                     if runtime._actuator_constitution is not None
                     else None
+                )
+                restored_commitment = ActionCommitment.restore(
+                    raw_commitment,
+                    fallback_surface_fingerprint=current_surface,
                 )
                 if restored_commitment.compatible_with(current_surface):
                     runtime._active_action_commitment = restored_commitment
@@ -3545,6 +3564,23 @@ class OrganismRuntime:
                         raise ValueError(
                             "unsupported sensorimotor v2 checkpoint schema"
                         )
+                    if v2_schema == 3:
+                        raw_surface_binding = raw_v2.get("surface_binding")
+                        if isinstance(raw_surface_binding, dict):
+                            raw_embodiment_id = raw_surface_binding.get(
+                                "embodiment_id"
+                            )
+                            if raw_embodiment_id is not None:
+                                if (
+                                    not isinstance(raw_embodiment_id, str)
+                                    or not raw_embodiment_id
+                                ):
+                                    raise ValueError(
+                                        "invalid action-domain embodiment id"
+                                    )
+                                runtime._action_domain.embodiment_id = (
+                                    raw_embodiment_id
+                                )
                     raw_effects = raw_v2.get("effect_space")
                     raw_evidence = raw_v2.get("causal_evidence")
                     if isinstance(raw_effects, dict):

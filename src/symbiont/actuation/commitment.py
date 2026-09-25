@@ -93,10 +93,20 @@ class ActionCommitment:
         }
 
     @classmethod
-    def restore(cls, payload: dict[str, object]) -> "ActionCommitment":
+    def restore(
+        cls,
+        payload: dict[str, object],
+        *,
+        fallback_surface_fingerprint: str | None = None,
+        fallback_embodiment_id: str | None = None,
+    ) -> "ActionCommitment":
         fingerprint = payload.get("surface_fingerprint")
         if not isinstance(fingerprint, str) or not fingerprint:
-            raise ValueError("legacy commitment without surface fingerprint is not executable")
+            fingerprint = fallback_surface_fingerprint
+        if not isinstance(fingerprint, str) or not fingerprint:
+            raise ValueError(
+                "legacy commitment requires an explicit current-surface migration"
+            )
         obj = cls(
             commitment_id=str(payload["commitment_id"]),
             proposal_id=str(payload["proposal_id"]),
@@ -105,7 +115,11 @@ class ActionCommitment:
             started_tick=int(payload["started_tick"]),
             controller_id=str(payload["controller_id"]),
             surface_fingerprint=fingerprint,
-            embodiment_id=payload.get("embodiment_id") if isinstance(payload.get("embodiment_id"), str) else None,
+            embodiment_id=(
+                payload.get("embodiment_id")
+                if isinstance(payload.get("embodiment_id"), str)
+                else fallback_embodiment_id
+            ),
             interruptibility=float(payload.get("interruptibility", 1.0)),
             minimum_duration=int(payload.get("minimum_duration", 0)),
             maximum_duration=int(payload["maximum_duration"]) if payload.get("maximum_duration") is not None else None,

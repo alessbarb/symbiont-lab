@@ -21,7 +21,8 @@ from ..embodiment.episode import (
 )
 from ..embodiment.memory import EmbodimentArchive, archive_episode_checkpoint
 from ..embodiment.session import EmbodimentSession, implant
-from ..lineage.germline import GermlineState, SymbiontGenome
+from ...genetics.genome import Genome
+from ...genetics.germline import GermlineState
 from .symbiont import Symbiont
 
 
@@ -50,7 +51,7 @@ class Individual:
         body: Body,
         session: EmbodimentSession,
         *,
-        genome: SymbiontGenome | None = None,
+        genome: Genome | None = None,
         germline: GermlineState | None = None,
         embodiment_archive: EmbodimentArchive | None = None,
         embodiment_epoch: int = 1,
