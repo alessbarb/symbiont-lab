@@ -119,6 +119,7 @@ from ..domains.action import ActionDomain, ActionServices
 from ..domains.physiology import PhysiologyDomain, PhysiologyServices
 from ..domains.perception import PerceptionDomain, PerceptionServices
 from ..domains.cognition import CognitionDomain, CognitionServices
+from ..domains.epistemic import EpistemicDomain, EpistemicServices
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -722,6 +723,7 @@ class OrganismRuntime:
         self._physiology_domain = PhysiologyDomain()
         self._perception_domain = PerceptionDomain()
         self._cognition_domain = CognitionDomain()
+        self._epistemic_domain = EpistemicDomain()
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
@@ -2295,53 +2297,25 @@ class OrganismRuntime:
             signal_references=current_signal_references,
         )
 
-        investigated_capability: str | None = None
-        evidence_gathered = 0
-        dissent: DissentRecord | None = None
-        evidence_counts: dict[str, int] = {}
-        dissent_by_capability: dict[str, DissentRecord] = {}
-
-        if self._investigate_ticks > 0:
-            investigation_candidates: list[str] = []
-            for percept_name, obs in drift_observations.items():
-                if obs.kind.value == "regime_shift":
-                    cap_id = capability_by_percept_name.get(percept_name)
-                    if cap_id and cap_id in selected_ids and snapshot.manifest.supports(cap_id):
-                        investigation_candidates.append(cap_id)
-            for allocation in allocations:
-                if allocation.name not in investigation_candidates:
-                    investigation_candidates.append(allocation.name)
-
-            for candidate in investigation_candidates:
-                if candidate not in selected_ids or not snapshot.manifest.supports(candidate):
-                    continue
-                if (
-                    self._self_model.is_established(candidate)
-                    and self._self_model.health(candidate, current_tick=self._tick_count)
-                    < LOW_HEALTH_INVESTIGATION_THRESHOLD
-                ):
-                    continue
-                session = SecondLookSession(
-                    manifest=snapshot.manifest,
-                    capability_id=candidate,
-                    max_ticks=self._investigate_ticks,
-                    sampler=HostSampler(self._reading_providers),
-                )
-                result = session.run_to_completion()
-                investigated_capability = candidate
-                evidence_gathered = len(result.readings)
-                evidence_counts[candidate] = evidence_gathered
-                for outcome in result.outcomes:
-                    self._self_model.observe(outcome=outcome, tick=self._tick_count)
-                revision = self._evidence_ledger.revise(
-                    acclimation=self._acclimation,
-                    capability_id=candidate,
-                    evidence=result.readings,
-                )
-                dissent = revision.dissent
-                if dissent is not None:
-                    dissent_by_capability[candidate] = dissent
-                break
+        epistemic = self._epistemic_domain.investigate(
+            services=EpistemicServices(
+                self_model=self._self_model,
+                evidence_ledger=self._evidence_ledger,
+                acclimation=self._acclimation,
+                reading_providers=self._reading_providers,
+            ),
+            snapshot=snapshot,
+            drift_observations=drift_observations,
+            capability_by_percept_name=capability_by_percept_name,
+            selected_ids=selected_ids,
+            allocations=allocations,
+            investigate_ticks=self._investigate_ticks,
+            current_tick=self._tick_count,
+        )
+        investigated_capability = epistemic.investigated_capability
+        evidence_gathered = epistemic.evidence_gathered
+        dissent = epistemic.dissent
+        narrative = epistemic.narrative
 
         # The action decision consumes the current tick's bounded perception
         # and cognition.  ``action_result`` remains ``None`` here: canonical
@@ -2431,12 +2405,6 @@ class OrganismRuntime:
                 tick=self._tick_count,
             )
 
-        narrative = narrate_host(
-            self._acclimation,
-            allocations=allocations,
-            evidence_counts=evidence_counts,
-            dissent_by_capability=dissent_by_capability,
-        )
         if self._interoception_provider is not None:
             tick_latency = time.monotonic() - tick_start
             surprise = 0.0

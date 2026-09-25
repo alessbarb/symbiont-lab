@@ -5,5 +5,6 @@ from .context import TickContext
 from .physiology import PhysiologyDomain, PhysiologyServices, PhysiologyStepResult
 from .perception import PerceptionDomain, PerceptionServices, PerceptionStepResult
 from .cognition import CognitionDomain, CognitionServices, CognitionStepResult
+from .epistemic import EpistemicDomain, EpistemicServices, EpistemicStepResult
 
-__all__ = ["ActionDomain", "ActionTrace", "TickContext", "PhysiologyDomain", "PhysiologyServices", "PhysiologyStepResult", "PerceptionDomain", "PerceptionServices", "PerceptionStepResult", "CognitionDomain", "CognitionServices", "CognitionStepResult"]
+__all__ = ["ActionDomain", "ActionTrace", "TickContext", "PhysiologyDomain", "PhysiologyServices", "PhysiologyStepResult", "PerceptionDomain", "PerceptionServices", "PerceptionStepResult", "CognitionDomain", "CognitionServices", "CognitionStepResult", "EpistemicDomain", "EpistemicServices", "EpistemicStepResult"]
