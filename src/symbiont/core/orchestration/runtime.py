@@ -986,37 +986,6 @@ class OrganismRuntime:
     def gene_expression_state(self) -> GeneExpressionState | None:
         return self._gene_expression_state
 
-    def _update_gene_expression(
-        self,
-        *,
-        cognition: CognitiveBridgeResult | None,
-        drift_observations: dict[str, DriftObservation],
-        metabolic_pressure: str,
-    ) -> None:
-        actuator_count = (
-            len(self._actuator_constitution.actuator_ids)
-            if self._actuator_constitution is not None
-            else 0
-        )
-        active_count = (
-            len(self._action_domain.actuator_evidence.active_repertoire)
-            if self._action_domain.actuator_evidence is not None
-            else 0
-        )
-        self._gene_expression_state = (
-            self._development_domain.update_gene_expression(
-                genome=self._genome,
-                expression_state=self._gene_expression_state,
-                expression_regulator=self._expression_regulator,
-                cognitive_bridge=self._cognitive_bridge,
-                cognition=cognition,
-                drift_observations=drift_observations,
-                metabolic_pressure=metabolic_pressure,
-                actuator_count=actuator_count,
-                active_actuator_count=active_count,
-            )
-        )
-
 
     @property
     def reacclimation_remaining(self) -> int:
@@ -1227,34 +1196,6 @@ class OrganismRuntime:
         )
 
 
-    def _schedule_homeostatic_action_credit(
-        self,
-        *,
-        family: str,
-        action_id: str,
-        concept_ids: tuple[str, ...],
-        baseline_error: float,
-        tick: int,
-    ) -> None:
-        self._regulation_domain.schedule_homeostatic_action_credit(
-            cognitive_bridge=self._cognitive_bridge,
-            family=family,
-            action_id=action_id,
-            concept_ids=concept_ids,
-            baseline_error=baseline_error,
-            tick=tick,
-        )
-
-
-    def _resolve_homeostatic_action_credit(self, *, tick: int) -> None:
-        self._regulation_domain.resolve_homeostatic_action_credit(
-            services=RegulationServices(
-                cognitive_bridge=self._cognitive_bridge,
-                homeostasis=self._homeostasis,
-                living_body_state=self._living_body_state,
-            ),
-            tick=tick,
-        )
 
 
     def _choose_acquired_competence(
@@ -1308,7 +1249,12 @@ class OrganismRuntime:
                 cognitive_bridge=self._cognitive_bridge,
                 gene_expression_state=self._gene_expression_state,
                 choose_acquired_competence=self._choose_acquired_competence,
-                schedule_homeostatic_action_credit=self._schedule_homeostatic_action_credit,
+                schedule_homeostatic_action_credit=(
+                    lambda **kwargs: self._regulation_domain.schedule_homeostatic_action_credit(
+                        cognitive_bridge=self._cognitive_bridge,
+                        **kwargs,
+                    )
+                ),
             ),
         )
 
@@ -1512,14 +1458,6 @@ class OrganismRuntime:
     def epigenetic_priors(self) -> tuple[EpigeneticPrior, ...]:
         """Coarse, non-semantic developmental biases; never lifetime knowledge."""
         return self._epigenetic_priors
-
-    def _decay_epigenetic_priors(self) -> None:
-        self._epigenetic_priors = (
-            self._development_domain.decay_epigenetic_priors(
-                self._epigenetic_priors,
-                decay=self._epigenetic_decay,
-            )
-        )
 
 
     def _next_heritable_genome(self) -> Genome | None:
@@ -2184,7 +2122,12 @@ class OrganismRuntime:
                 gene_expression_state=self._gene_expression_state,
                 choose_acquired_competence=self._choose_acquired_competence,
                 schedule_homeostatic_action_credit=(
-                    self._schedule_homeostatic_action_credit
+                    (
+                    lambda **kwargs: self._regulation_domain.schedule_homeostatic_action_credit(
+                        cognitive_bridge=self._cognitive_bridge,
+                        **kwargs,
+                    )
+                )
                 ),
             ),
         )
@@ -2266,7 +2209,14 @@ class OrganismRuntime:
         repaired_amount = physiology_step.repaired_amount
         self._resting_requested = physiology_step.resting_requested
         resting_for_tick = physiology_step.resting_for_tick
-        self._resolve_homeostatic_action_credit(tick=context.symbiont_tick)
+        self._regulation_domain.resolve_homeostatic_action_credit(
+            services=RegulationServices(
+                cognitive_bridge=self._cognitive_bridge,
+                homeostasis=self._homeostasis,
+                living_body_state=self._living_body_state,
+            ),
+            tick=context.symbiont_tick,
+        )
         release = self._lifecycle_domain.release_on_death(
             organism_id=self._organism_id,
             physiology_snapshot=physiology_snapshot,
@@ -2304,10 +2254,28 @@ class OrganismRuntime:
         )
 
         # Evidence from tick t regulates the operating phenotype for t+1.
-        self._update_gene_expression(
-            cognition=cognition_result,
-            drift_observations=drift_observations,
-            metabolic_pressure=metabolism_snapshot.pressure.value,
+        actuator_count = (
+            len(self._actuator_constitution.actuator_ids)
+            if self._actuator_constitution is not None
+            else 0
+        )
+        active_actuator_count = (
+            len(self._action_domain.actuator_evidence.active_repertoire)
+            if self._action_domain.actuator_evidence is not None
+            else 0
+        )
+        self._gene_expression_state = (
+            self._development_domain.update_gene_expression(
+                genome=self._genome,
+                expression_state=self._gene_expression_state,
+                expression_regulator=self._expression_regulator,
+                cognitive_bridge=self._cognitive_bridge,
+                cognition=cognition_result,
+                drift_observations=drift_observations,
+                metabolic_pressure=metabolism_snapshot.pressure.value,
+                actuator_count=actuator_count,
+                active_actuator_count=active_actuator_count,
+            )
         )
 
         self._tick_count = context.symbiont_tick
@@ -2326,7 +2294,12 @@ class OrganismRuntime:
             assimilation_count=len(perception.assimilation),
             narrative=epistemic.narrative,
         )
-        self._decay_epigenetic_priors()
+        self._epigenetic_priors = (
+            self._development_domain.decay_epigenetic_priors(
+                self._epigenetic_priors,
+                decay=self._epigenetic_decay,
+            )
+        )
         return RuntimeTickResult(
             tick=self._tick_count,
             snapshot=perception.snapshot,
