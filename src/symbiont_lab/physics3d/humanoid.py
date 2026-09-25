@@ -435,37 +435,34 @@ def _passive_postural_tone(
     position: float,
     velocity: float,
 ) -> float:
-    """Elastic body property, not a controller or learned target.
+    """Elastic neutral-rest tissue torque.
 
-    Every joint has a neutral mechanical rest configuration.  URDF joint
-    damping supplies passive dissipation; this term supplies only elastic
-    neutral-rest tone.  This is the digital analogue of passive tissue
-    elasticity and resting muscle tone:
-    it contains no task, gait, balance strategy or anatomy visible to the
-    organism.  The apparatus owns it exactly like mass, inertia and friction.
+    Dissipation is intentionally not returned here.  Bullet represents the
+    passive viscous/frictional part as a zero-velocity motor with bounded
+    force, while this function owns only the elastic body torque.
     """
+    del velocity
     rest = _neutral_rest_position(spec)
     stiffness = spec.max_motor_torque * PASSIVE_TONE_STIFFNESS_FRACTION
-    # Under TORQUE_CONTROL Bullet does not provide a sufficiently reliable
-    # passive joint-damping contribution for the humanoid's low-inertia axial
-    # joints. Own the complete viscoelastic tissue model here instead:
-    # elastic neutral-rest torque plus velocity-opposing damping. The URDF
-    # damping term is therefore zeroed below to avoid double counting.
     elastic_cap = (
         spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION
     )
-    damping_cap = (
-        spec.max_motor_torque * PASSIVE_DAMPING_TORQUE_CAP_FRACTION
-    )
-    elastic = max(
+    return max(
         -elastic_cap,
         min(elastic_cap, stiffness * (rest - position)),
     )
-    damping = max(
-        -damping_cap,
-        min(damping_cap, -spec.passive_damping * velocity),
+
+
+def _passive_damping_force(
+    spec: JointSpec,
+    *,
+    velocity: float,
+) -> float:
+    """Bounded passive damping force for Bullet's zero-velocity joint motor."""
+    return min(
+        spec.max_motor_torque * PASSIVE_DAMPING_TORQUE_CAP_FRACTION,
+        abs(spec.passive_damping * float(velocity)),
     )
-    return elastic + damping
 
 
 def _restore_vector(
@@ -1064,7 +1061,7 @@ class HumanoidPhysics:
             spec = JOINT_SPECS[ordinal]
             position = float(state[0])
             velocity = float(state[1])
-            passive = (
+            elastic_and_limits = (
                 _passive_postural_tone(
                     spec,
                     position=position,
@@ -1076,12 +1073,27 @@ class HumanoidPhysics:
                     velocity=velocity,
                 )
             )
+            damping_force = _passive_damping_force(
+                spec,
+                velocity=velocity,
+            )
+            # Bullet's own reference implementation models joint friction with
+            # a zero-velocity motor and bounded force. Keep that dissipative
+            # constraint separate from organism-owned torque.
+            self.p.setJointMotorControl2(
+                self.body_id,
+                joint_index,
+                self.p.VELOCITY_CONTROL,
+                targetVelocity=0.0,
+                force=float(damping_force),
+                physicsClientId=self.client_id,
+            )
             commanded = float(self._applied_torque_by_joint.get(joint_index, 0.0))
             self.p.setJointMotorControl2(
                 self.body_id,
                 joint_index,
                 self.p.TORQUE_CONTROL,
-                force=float(commanded + passive),
+                force=float(commanded + elastic_and_limits),
                 physicsClientId=self.client_id,
             )
 
