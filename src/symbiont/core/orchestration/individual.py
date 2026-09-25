@@ -169,8 +169,8 @@ class Individual:
         self, external_stimuli: Mapping[str, float] | None = None
     ) -> IndividualTickRecord:
         """Advance one physical/cognitive Embodiment step."""
-        if self.embodiment.state is EmbodimentState.CLOSED:
-            raise RuntimeError("closed embodiment cannot advance")
+        if self.embodiment.state is not EmbodimentState.ACTIVE:
+            raise RuntimeError("only an active embodiment can advance")
         self._current_tick += 1
 
         physical_readings = self.body.transduce_signals(external_stimuli)
