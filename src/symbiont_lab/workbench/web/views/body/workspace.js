@@ -222,10 +222,33 @@ export class BodyWorkspace {
     const selected = this.selectedSegment;
     const joints = selected ? (this.viewer.bodyModel?.segmentActivityJoints?.[selected] ?? []) : [];
     const active = joints.filter(j => (this.viewer.jointActivity.get(j) ?? 0) > .13).length;
-    this.panel.innerHTML = this.head('Body · Anatomy', 'Inspectable morphology', 'Select a body region to inspect its current physical expression.') +
+    const flexion = this.viewer.jointFlexionSummary?.(10) ?? { flexed: 0, max: null, joints: [] };
+    const selectedJointRows = joints.map((name) => {
+      const degrees = this.viewer.jointAngleDegrees?.(name);
+      const value = Number.isFinite(degrees) ? `${degrees >= 0 ? '+' : ''}${degrees.toFixed(1)}°` : '—';
+      return `<div class="body-row"><span>${escapeHtml(name.replaceAll('_',' '))}</span><strong>${value}</strong></div>`;
+    }).join('');
+    const leading = flexion.joints.slice(0, 8).map((joint) => {
+      const value = `${joint.degrees >= 0 ? '+' : ''}${joint.degrees.toFixed(1)}°`;
+      return `<div class="body-row"><span>${escapeHtml(joint.name.replaceAll('_',' '))}</span><strong>${value}</strong></div>`;
+    }).join('');
+    const diagnosticLabel = this.viewer.articulationDiagnostic ? 'Return to live pose' : 'Visual articulation check';
+
+    this.panel.innerHTML = this.head('Body · Anatomy', 'Inspectable morphology', 'Real joint angles from Physics3D. Activity and flexion are shown separately.') +
+      `<div class="body-section"><div class="body-section-title">Articulation</div>
+        <div class="body-row"><span>Flexed joints ≥10°</span><strong>${flexion.flexed} / ${flexion.joints.length}</strong></div>
+        <div class="body-row"><span>Largest absolute angle</span><strong>${flexion.max ? `${escapeHtml(flexion.max.name.replaceAll('_',' '))} · ${flexion.max.degrees.toFixed(1)}°` : '—'}</strong></div>
+        <button type="button" class="body-segment ${this.viewer.articulationDiagnostic ? 'active' : ''}" data-articulation-diagnostic>${diagnosticLabel}</button>
+        <div class="body-inspector-sub">The articulation check changes only the observer pose. Physics and Symbiont continue untouched.</div>
+      </div>` +
+      `<div class="body-section"><div class="body-section-title">Largest current angles</div>${leading || '<div class="body-inspector-sub">No joint-angle telemetry yet.</div>'}</div>` +
       `<div class="body-section"><div class="body-section-title">Body regions</div><div class="body-segment-grid">${names.map(name => `<button class="body-segment ${selected===name?'active':''}" data-segment="${escapeHtml(name)}">${escapeHtml(name.replaceAll('_',' '))}</button>`).join('')}</div></div>` +
-      `<div class="body-section"><div class="body-section-title">Selection</div><div class="body-row"><span>Region</span><strong>${escapeHtml(selected ?? 'none')}</strong></div><div class="body-row"><span>Associated joints</span><strong>${joints.length}</strong></div><div class="body-row"><span>Currently active</span><strong>${active}</strong></div></div>`;
+      `<div class="body-section"><div class="body-section-title">Selection</div><div class="body-row"><span>Region</span><strong>${escapeHtml(selected ?? 'none')}</strong></div><div class="body-row"><span>Associated joints</span><strong>${joints.length}</strong></div><div class="body-row"><span>Currently active</span><strong>${active}</strong></div>${selectedJointRows}</div>`;
+
     this.panel.querySelectorAll('[data-segment]').forEach(b => b.addEventListener('click', () => this.selectSegment(b.dataset.segment)));
+    this.panel.querySelector('[data-articulation-diagnostic]')?.addEventListener('click', () => {
+      this.viewer.setArticulationDiagnostic?.(!this.viewer.articulationDiagnostic);
+    });
   }
 
   selectSegment(name) {
@@ -253,9 +276,14 @@ export class BodyWorkspace {
   renderMotion() {
     const disp = this.history.map(x => x.displacement).filter(Number.isFinite);
     const path = this.history.map(x => x.path).filter(Number.isFinite);
-    this.panel.innerHTML = this.head('Body · Motion', 'Movement evidence', 'Distinguish motion, displacement and emerging coordination.') +
+    const flexion = this.viewer.jointFlexionSummary?.(10) ?? { flexed: 0, max: null, joints: [] };
+    const flexionRows =
+      `<div class="body-row"><span>Flexed joints ≥10°</span><strong>${flexion.flexed} / ${flexion.joints.length}</strong></div>` +
+      `<div class="body-row"><span>Largest joint angle</span><strong>${flexion.max ? `${escapeHtml(flexion.max.name.replaceAll('_',' '))} · ${flexion.max.degrees.toFixed(1)}°` : '—'}</strong></div>`;
+    this.panel.innerHTML = this.head('Body · Motion', 'Movement evidence', 'Activity means motion; flexion shows how bent the body actually is.') +
       '<div class="body-section"><div class="body-section-title">Current motion</div>' +
       this.rows(['motor_activity','active_joints','contact_count','ground_contact_count','self_contact_count','distance_travelled','displacement','locomotion_efficiency']) +
+      flexionRows +
       `<div class="body-mini-chart">${sparkline(disp.length ? disp : path)}</div></div>` +
       '<div class="body-section"><div class="body-section-title">Control transition</div>' +
       this.rows(['motor_origin','cognitive_context']) + '</div>';
