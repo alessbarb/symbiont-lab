@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.cognition.genome import GenomeCodec
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
