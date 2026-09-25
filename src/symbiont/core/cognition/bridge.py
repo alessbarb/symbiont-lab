@@ -13,11 +13,9 @@ from ...cognition.limits import KernelLimits
 from ...genetics.expression import GeneExpressionState
 from ...cognition.metaplasticity import SafetyState
 from ...cognition.structure import (
-    EdgeLifecycleState,
     Mutation,
     StructuralPlasticity,
     apply_mutations,
-    evaluate_edge_lifecycle,
 )
 from ...cognition.types import WEIGHT_RANGE, EdgeKind, NodeKind
 from .plasticity_state import PlasticityEngine
@@ -37,8 +35,6 @@ from .bridge_checkpoint import (
 )
 
 _ACTIVITY_THRESHOLD = 0.1
-_TENTATIVE_WEIGHT = 0.05
-_CORE_READOUT_ID = "readout_core"
 _MOTOR_READOUT_PREFIX = "readout_motor:"
 _PRIMITIVE_READOUT_PREFIX = "readout_primitive:"
 _MAX_SHADOW_PREDICTIONS = 16384
@@ -574,6 +570,7 @@ class CognitiveBridge:
     ) -> tuple[Mutation, ...]:
         return self._planner.retirement_edge_gc(
             graph=self._graph if graph is None else graph,
+            pressure_graph=self._graph,
             predictors=self._predictors,
             contention=self._contention,
             tick=tick,
