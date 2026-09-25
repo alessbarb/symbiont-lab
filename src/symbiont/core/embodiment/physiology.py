@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Mapping
 
 from .metabolism import MetabolicSnapshot, ResourcePressure
 from .physiology_config import DEFAULT_PHYSIOLOGY_CONFIG, PhysiologyConfig
@@ -16,6 +17,39 @@ class VitalState(StrEnum):
     DORMANT = "dormant"
     AGONIZING = "agonizing"
     DEAD = "dead"
+
+
+def _checkpoint_float(payload: Mapping[str, object], field_name: str) -> float:
+    value = payload.get(field_name)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"invalid checkpoint field: {field_name}")
+    return float(value)
+
+
+def _checkpoint_int(payload: Mapping[str, object], field_name: str) -> int:
+    value = payload.get(field_name)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"invalid checkpoint field: {field_name}")
+    return value
+
+
+def _checkpoint_optional_int(payload: Mapping[str, object], field_name: str) -> int | None:
+    value = payload.get(field_name)
+    if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+        raise ValueError(f"invalid checkpoint field: {field_name}")
+    return value
+
+
+def _checkpoint_float_map(payload: Mapping[str, object], field_name: str) -> dict[str, float]:
+    value = payload.get(field_name, {})
+    if not isinstance(value, dict):
+        raise ValueError(f"invalid checkpoint field: {field_name}")
+    result: dict[str, float] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or isinstance(item, bool) or not isinstance(item, (int, float)):
+            raise ValueError(f"invalid checkpoint field: {field_name}")
+        result[key] = float(item)
+    return result
 
 
 @dataclass(slots=True)
@@ -68,11 +102,11 @@ class BodyStructureState:
     def from_checkpoint(cls, payload: dict[str, object]) -> "BodyStructureState":
         return cls(
             structure_id=str(payload["structure_id"]),
-            integrity=float(payload["integrity"]),
-            wear=float(payload["wear"]),
-            damage=float(payload["damage"]),
-            repair_progress=float(payload["repair_progress"]),
-            functional_capacity=float(payload["functional_capacity"]),
+            integrity=_checkpoint_float(payload, "integrity"),
+            wear=_checkpoint_float(payload, "wear"),
+            damage=_checkpoint_float(payload, "damage"),
+            repair_progress=_checkpoint_float(payload, "repair_progress"),
+            functional_capacity=_checkpoint_float(payload, "functional_capacity"),
         )
 
 
@@ -312,29 +346,30 @@ class LivingBodyState:
         raw_structures = payload.get("structure_states", {})
         if not isinstance(raw_structures, dict):
             raise ValueError("invalid living body checkpoint: structure_states")
-        structure_states = {
-            structure_id: BodyStructureState.from_checkpoint(raw_state)
-            for structure_id, raw_state in raw_structures.items()
-        }
+        structure_states: dict[str, BodyStructureState] = {}
+        for structure_id, raw_state in raw_structures.items():
+            if not isinstance(structure_id, str) or not isinstance(raw_state, dict):
+                raise ValueError("invalid living body checkpoint: structure_states")
+            structure_states[structure_id] = BodyStructureState.from_checkpoint(raw_state)
         if any(
             structure_id != state.structure_id for structure_id, state in structure_states.items()
         ):
             raise ValueError("invalid living body checkpoint: structure_states key/id mismatch")
         return cls(
-            energy_reserve=float(payload["energy_reserve"]),
-            max_energy=float(payload["max_energy"]),
-            structural_integrity=float(payload["structural_integrity"]),
-            temperature=float(payload["temperature"]),
-            fatigue=float(payload["fatigue"]),
-            growth_progress=float(payload["growth_progress"]),
-            senescence=float(payload["senescence"]),
-            age_ticks=int(payload["age_ticks"]),
+            energy_reserve=_checkpoint_float(payload, "energy_reserve"),
+            max_energy=_checkpoint_float(payload, "max_energy"),
+            structural_integrity=_checkpoint_float(payload, "structural_integrity"),
+            temperature=_checkpoint_float(payload, "temperature"),
+            fatigue=_checkpoint_float(payload, "fatigue"),
+            growth_progress=_checkpoint_float(payload, "growth_progress"),
+            senescence=_checkpoint_float(payload, "senescence"),
+            age_ticks=_checkpoint_int(payload, "age_ticks"),
             vital_state=VitalState(str(payload["vital_state"])),
-            transitions=int(payload["transitions"]),
-            death_tick=payload.get("death_tick"),
-            metabolic_capacity=dict(payload.get("metabolic_capacity", {})),
-            metabolic_replenishment=dict(payload.get("metabolic_replenishment", {})),
-            metabolic_reserve=dict(payload.get("metabolic_reserve", {})),
+            transitions=_checkpoint_int(payload, "transitions"),
+            death_tick=_checkpoint_optional_int(payload, "death_tick"),
+            metabolic_capacity=_checkpoint_float_map(payload, "metabolic_capacity"),
+            metabolic_replenishment=_checkpoint_float_map(payload, "metabolic_replenishment"),
+            metabolic_reserve=_checkpoint_float_map(payload, "metabolic_reserve"),
             structure_states=structure_states,
         )
 
@@ -425,8 +460,8 @@ class PhysiologyController:
         body_state: LivingBodyState | None = None,
     ) -> "PhysiologyController":
         state = VitalState(str(payload["state"]))
-        transitions = int(payload["transitions"])
-        death_tick = payload.get("death_tick")
+        transitions = _checkpoint_int(payload, "transitions")
+        death_tick = _checkpoint_optional_int(payload, "death_tick")
         if body_state is None:
             return cls(
                 state=state,
