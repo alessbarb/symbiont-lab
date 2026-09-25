@@ -345,6 +345,80 @@ class CognitiveBridge:
     def bind_contention_identity(self, identity: str) -> None:
         self._contention.bind_identity(identity)
 
+    @property
+    def _structural_candidates(self) -> dict[str, StructuralCandidate]:
+        """Compatibility view for repository tests/studies during decomposition."""
+        return self._contention.candidates
+
+    @_structural_candidates.setter
+    def _structural_candidates(self, value: dict[str, StructuralCandidate]) -> None:
+        self._contention.candidates = value
+
+    @property
+    def _predictor_utility(self) -> dict[str, PredictorUtility]:
+        """Compatibility view for characterization tests."""
+        return self._predictors.utility
+
+    @_predictor_utility.setter
+    def _predictor_utility(self, value: dict[str, PredictorUtility]) -> None:
+        self._predictors.utility = value
+
+    @property
+    def _predictor_retirement(self) -> dict[str, PredictorRetirement]:
+        """Compatibility view for characterization tests."""
+        return self._predictors.retirement
+
+    @_predictor_retirement.setter
+    def _predictor_retirement(self, value: dict[str, PredictorRetirement]) -> None:
+        self._predictors.retirement = value
+
+    def _register_structural_candidate(
+        self,
+        *,
+        candidate_id: str,
+        family: str,
+        mutations: tuple[Mutation, ...],
+        eligible_tick: int,
+        producer_id: str | None = None,
+    ) -> bool:
+        return self._contention.register(
+            candidate_id=candidate_id,
+            family=family,
+            mutations=mutations,
+            eligible_tick=eligible_tick,
+            producer_id=producer_id,
+        )
+
+    def _drop_structural_candidate(self, candidate_id: str) -> None:
+        self._contention.drop(candidate_id)
+
+    def _select_structural_candidate(
+        self,
+        *,
+        graph: CognitiveGraph,
+        mutation_slots: int,
+        node_slots: int,
+        edge_slots: int,
+    ) -> tuple[str | None, tuple[Mutation, ...], tuple[str, ...]]:
+        return self._contention.select(
+            graph=graph,
+            mutation_slots=mutation_slots,
+            node_slots=node_slots,
+            edge_slots=edge_slots,
+            frozen=self._safety_state.frozen,
+        )
+
+    def _commit_contention_result(
+        self,
+        *,
+        winner_id: str | None,
+        loser_ids: Collection[str],
+    ) -> None:
+        self._contention.commit(
+            winner_id=winner_id,
+            loser_ids=loser_ids,
+        )
+
     def _representation_maturity(
         self,
         node_id: str,
