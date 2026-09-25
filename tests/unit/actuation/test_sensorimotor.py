@@ -216,6 +216,40 @@ def test_single_episode_remains_candidate_until_independent_recurrence():
     assert lifecycle["competence_tick"] is None
 
 
+def test_checkpoint_controller_presence_does_not_create_established_competence():
+    learner = CompetenceDevelopmentEngine(
+        _ids(4),
+        organism_id="org-controller-only-checkpoint",
+        max_concurrent=4,
+    )
+    sequence = (
+        (("actuator.0", 5),),
+        (("actuator.1", 5),),
+        (("actuator.2", 5),),
+        (("actuator.3", 5),),
+    )
+    learner._record_primitive_episode(
+        sequence=sequence,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.1},
+        end_tick=4,
+        may_create=True,
+        evidence_blocks=frozenset({0}),
+    )
+
+    payload = learner.checkpoint()
+    assert payload["schema_version"] == 11
+    assert payload["primitives"] == []
+
+    restored = CompetenceDevelopmentEngine.restore(
+        payload,
+        actuator_ids=_ids(4),
+        organism_id="org-controller-only-checkpoint",
+    )
+    assert restored.snapshot().competence_chunks == 0
+    assert restored.snapshot().established_competences == 0
+
+
 def test_adjacent_windows_from_same_exploration_block_do_not_count_as_recurrence():
     learner = CompetenceDevelopmentEngine(
         _ids(4),

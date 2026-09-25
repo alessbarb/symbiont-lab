@@ -39,14 +39,19 @@ def _runtime(interoception_mode: str) -> OrganismRuntime:
 
 def _capture_snapshot_sizes(runtime: OrganismRuntime, method_name: str, ticks: int) -> list[int]:
     captured: list[int] = []
-    original = getattr(runtime, method_name)
+    # The runtime delegates these projections to ActionDomain. Patch the
+    # owner of the contract rather than the forwarding helpers on Runtime;
+    # the latter are not on the tick hot path.
+    action_domain = runtime._action_domain
+    action_method_name = method_name.removeprefix("_")
+    original = getattr(action_domain, action_method_name)
 
     def wrapper(*args, **kwargs):
         result = original(*args, **kwargs)
         captured.append(len(result))
         return result
 
-    setattr(runtime, method_name, wrapper)
+    setattr(action_domain, action_method_name, wrapper)
     for _ in range(ticks):
         try:
             runtime.tick()
