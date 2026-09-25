@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from symbiont.actuation.surface import ActuatorSurface
 from symbiont_lab.physics3d.longitudinal import contract_fingerprint
 from symbiont_lab.physics3d.reembodiment import (
     PhysicsEmbodimentDescriptor,
@@ -653,4 +654,73 @@ def test_lifecycle_recomputes_pre_v2_contract_fingerprint() -> None:
         updated,
         receptor_count=107,
         effector_count=62,
+    )
+
+
+
+def test_legacy_known_contract_memory_maps_to_canonical_v3_identity() -> None:
+    previous = _checkpoint(vital_state="active")
+    fresh = _fresh()
+    descriptor = PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62)
+
+    legacy_surface = ActuatorSurface.from_count(
+        descriptor.effector_count,
+        fingerprint_material=(
+            f"{descriptor.body_kind}:"
+            f"{descriptor.receptor_count}:"
+            f"{descriptor.effector_count}"
+        ),
+    )
+    legacy_equivalent = deepcopy(fresh)
+    legacy_equivalent["actuation"]["constitution"]["contract_fingerprint"] = (
+        legacy_surface.contract_fingerprint
+    )
+    legacy_fp = contract_fingerprint(
+        legacy_equivalent,
+        receptor_count=descriptor.receptor_count,
+        effector_count=descriptor.effector_count,
+    )
+    previous["embodiment_memory"] = {
+        "schema_version": 1,
+        "contracts": [
+            {
+                "contract_fingerprint": legacy_fp,
+                "first_seen_epoch": 1,
+                "last_seen_epoch": 1,
+                "body_schema": {"state": "established"},
+                "historical_primitives": [
+                    {
+                        "primitive_id": "primitive.return",
+                        "embodiment_fingerprint": "legacy-surface",
+                        "sequence": [],
+                    }
+                ],
+                "motor_cognitive_surface": {"nodes": [], "edges": []},
+                "private_model_ids": ["model.return"],
+                "state": "historical",
+            }
+        ],
+    }
+
+    canonical = "canonical.contract.v3"
+    transformed = prepare_fresh_embodiment_checkpoint(
+        previous,
+        fresh,
+        contract=descriptor,
+        canonical_contract_fingerprint=canonical,
+    )
+
+    current = transformed["embodiment_lifecycle"]["current"]
+    assert current["contract_relation"] == "known-contract"
+    assert current["known_contract_memory"] is True
+    assert current["candidate_private_model_ids"] == ["model.return"]
+    canonical_memories = [
+        item
+        for item in transformed["embodiment_archive"]["body_memories"]
+        if item["contract_fingerprint"] == canonical
+    ]
+    assert canonical_memories
+    assert any(
+        item["private_model_ids"] == ["model.return"]
+        for item in canonical_memories
     )
