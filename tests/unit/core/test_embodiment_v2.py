@@ -371,3 +371,44 @@ def test_contract_identity_changes_when_legal_motor_constraints_change() -> None
     )
 
     assert first.contract_fingerprint != second.contract_fingerprint
+
+
+
+def test_embodiment_archive_v2_migrates_execution_binding_prior_name() -> None:
+    legacy = {
+        "schema_version": 2,
+        "max_body_memories": 16,
+        "max_summaries": 32,
+        "body_memories": [
+            {
+                "body_id": "body.legacy",
+                "contract_fingerprint": "contract.legacy",
+                "last_embodiment_id": "embodiment.legacy",
+                "body_schema_prior": None,
+                "dynamics_prior": None,
+                "embodied_competence_priors": {
+                    "schema_version": 1,
+                    "capacity": 512,
+                    "items": [],
+                },
+                "historical_causal_state": None,
+            }
+        ],
+        "summaries": [],
+    }
+
+    archive = EmbodimentArchive.restore(legacy)
+    memory = archive.for_body("body.legacy")
+    assert memory is not None
+    assert memory.execution_binding_priors == {
+        "schema_version": 1,
+        "capacity": 512,
+        "items": [],
+    }
+    checkpoint = archive.checkpoint()
+    assert checkpoint["schema_version"] == 3
+    assert (
+        checkpoint["body_memories"][0]["execution_binding_priors"]
+        == memory.execution_binding_priors
+    )
+    assert "embodied_competence_priors" not in checkpoint["body_memories"][0]
