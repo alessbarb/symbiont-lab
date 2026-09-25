@@ -194,6 +194,56 @@ def test_instant_a2_binding_is_contaminated_restore() -> None:
     assert not result.passed
 
 
+def test_same_contract_without_source_hypotheses_is_not_transfer_failure() -> None:
+    contract_a = "a" * 64
+    contract_b = "b" * 64
+    a1 = [
+        _checkpoint(
+            embodiment_id="embodiment.a1",
+            body_id="body.a1",
+            tick=0,
+            contract=contract_a,
+            relation="novel",
+        ),
+        _checkpoint(
+            embodiment_id="embodiment.a1",
+            body_id="body.a1",
+            tick=32,
+            contract=contract_a,
+            relation="novel",
+            causal=0.7,
+            controllability=0.6,
+        ),
+    ]
+    b = [
+        _checkpoint(
+            embodiment_id="embodiment.b",
+            body_id="body.b",
+            tick=0,
+            contract=contract_b,
+            relation="novel",
+        )
+    ]
+    a2 = [
+        _checkpoint(
+            embodiment_id="embodiment.a2",
+            body_id="body.a2",
+            tick=0,
+            contract=contract_a,
+            relation="same-contract",
+        )
+    ]
+
+    result = analyze_reembodiment_reacclimation(
+        a1_trace=a1,
+        b_trace=b,
+        a2_trace=a2,
+    )
+
+    assert result.verdict is ReacclimationVerdict.SOURCE_KNOWLEDGE_ABSENT
+    assert result.passed is False
+
+
 def test_same_contract_without_measurable_gain_is_no_transfer() -> None:
     a1 = [
         _checkpoint(
