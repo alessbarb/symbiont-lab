@@ -15,6 +15,21 @@ from ...host.adaptive import AdaptiveSenseModel
 
 
 @dataclass(frozen=True, slots=True)
+class PhysiologyPreflightServices:
+    metabolism: MetabolicLedger
+    homeostasis: HomeostaticController
+    living_body_state: LivingBodyState
+    degradation: DegradationQueue
+    interoception_provider: object | None
+
+
+@dataclass(frozen=True, slots=True)
+class PhysiologyPreflightResult:
+    degradation_excreted: int
+    plasticity_enabled: bool
+
+
+@dataclass(frozen=True, slots=True)
 class PhysiologyServices:
     metabolism: MetabolicLedger
     homeostasis: HomeostaticController
@@ -42,6 +57,48 @@ class PhysiologyStepResult:
 
 class PhysiologyDomain:
     """Advance constitutive organism physiology without action semantics."""
+
+    def preflight(
+        self,
+        *,
+        services: PhysiologyPreflightServices,
+    ) -> PhysiologyPreflightResult:
+        provider = services.interoception_provider
+        if provider is not None:
+            current_metabolism = services.metabolism.snapshot()
+            pressure_ratio = {
+                "normal": 0.0,
+                "elevated": 0.33,
+                "severe": 0.66,
+                "unrecoverable": 1.0,
+            }.get(current_metabolism.pressure.value, 1.0)
+            body = services.living_body_state
+            reserve_ratio = body.energy_reserve / max(
+                body.max_energy,
+                1e-12,
+            )
+            provider.update_physiological_state(
+                metabolic_reserve=max(
+                    0.0,
+                    min(1.0, reserve_ratio),
+                ),
+                integrity=services.homeostasis.integrity,
+                metabolic_pressure=pressure_ratio,
+                repair_pressure=1.0 - services.homeostasis.integrity,
+                waste_pressure=min(
+                    1.0,
+                    len(services.degradation.items) / 64.0,
+                ),
+            )
+
+        degradation_excreted = services.degradation.age_tick()
+        plasticity_enabled = services.homeostasis.regulate(
+            services.metabolism.pressure()
+        ).plasticity_enabled
+        return PhysiologyPreflightResult(
+            degradation_excreted=degradation_excreted,
+            plasticity_enabled=plasticity_enabled,
+        )
 
     @staticmethod
     def advance_body_age(living_body_state: LivingBodyState) -> None:
