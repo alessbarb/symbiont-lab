@@ -699,14 +699,8 @@ class OrganismRuntime:
         return self._action_domain.surface
 
     @property
-    def _actuator_proposer(self):
-        """Legacy private alias for the canonical actuator evidence model."""
-        return self._action_domain.actuator_evidence
 
     @property
-    def _sensorimotor_learner(self):
-        """Legacy private alias for the canonical competence engine."""
-        return self._action_domain.competence_development
 
     @property
     def _active_action_commitment(self):
@@ -1013,8 +1007,8 @@ class OrganismRuntime:
             else 0
         )
         active_count = (
-            len(self._actuator_proposer.active_repertoire)
-            if self._actuator_proposer is not None
+            len(self._action_domain.actuator_evidence.active_repertoire)
+            if self._action_domain.actuator_evidence is not None
             else 0
         )
         self._gene_expression_state = (
@@ -1112,9 +1106,9 @@ class OrganismRuntime:
 
     @property
     def active_motor_repertoire(self) -> tuple[str, ...]:
-        if self._actuator_proposer is None:
+        if self._action_domain.actuator_evidence is None:
             return ()
-        return self._actuator_proposer.active_repertoire
+        return self._action_domain.actuator_evidence.active_repertoire
 
     @property
     def competence_development(self) -> CompetenceDevelopmentEngine | None:
@@ -1122,17 +1116,17 @@ class OrganismRuntime:
 
     @property
     def sensorimotor_snapshot(self) -> SensorimotorSnapshot | None:
-        if self._sensorimotor_learner is None:
+        if self._action_domain.competence_development is None:
             return None
-        return self._sensorimotor_learner.snapshot()
+        return self._action_domain.competence_development.snapshot()
 
     @property
     def sensorimotor_exclusive_actuator_groups(
         self,
     ) -> tuple[tuple[str, ...], ...]:
-        if self._sensorimotor_learner is None:
+        if self._action_domain.competence_development is None:
             return ()
-        return self._sensorimotor_learner.exclusive_actuator_groups
+        return self._action_domain.competence_development.exclusive_actuator_groups
 
     @property
     def available_motor_competence_ids(self) -> tuple[str, ...]:
@@ -1145,7 +1139,7 @@ class OrganismRuntime:
     @property
     def sensorimotor_competence_candidates(self) -> tuple[dict[str, object], ...]:
         """Passive candidate view; legacy sequence objects never cross this boundary."""
-        if self._sensorimotor_learner is None:
+        if self._action_domain.competence_development is None:
             return ()
         return tuple(
             {
@@ -1163,13 +1157,13 @@ class OrganismRuntime:
                 "maturity": item.maturity.value,
                 "established": item.established,
             }
-            for item in self._sensorimotor_learner.primitives
+            for item in self._action_domain.competence_development.primitives
         )
 
     @property
     def sensorimotor_competence_episodes(self) -> tuple[dict[str, object], ...]:
         """Latest evidence episodes projected into v2 competence terminology."""
-        if self._sensorimotor_learner is None:
+        if self._action_domain.competence_development is None:
             return ()
         return tuple(
             {
@@ -1182,7 +1176,7 @@ class OrganismRuntime:
                 "materialized": episode.materialized,
                 "established": episode.competence,
             }
-            for episode in self._sensorimotor_learner.last_primitive_episodes
+            for episode in self._action_domain.competence_development.last_primitive_episodes
         )
 
     def _sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
@@ -1211,9 +1205,9 @@ class OrganismRuntime:
     @property
     def actuator_causal_states(self) -> tuple[ActuatorCandidateState, ...]:
         """Evaluator-only read view of learned actuator/effect evidence."""
-        if self._actuator_proposer is None:
+        if self._action_domain.actuator_evidence is None:
             return ()
-        return self._actuator_proposer.states
+        return self._action_domain.actuator_evidence.states
 
 
     def _motor_percept_snapshot(
@@ -2203,8 +2197,8 @@ class OrganismRuntime:
             )
         )
         established_motor_effect_ids = (
-            self._actuator_proposer.active_repertoire
-            if self._actuator_proposer is not None
+            self._action_domain.actuator_evidence.active_repertoire
+            if self._action_domain.actuator_evidence is not None
             else ()
         )
         motor_effect_actuator_ids = tuple(
@@ -2218,14 +2212,14 @@ class OrganismRuntime:
             )
         )
         cognitive_primitives = (
-            self._sensorimotor_learner.cognitive_primitives
-            if self._sensorimotor_learner is not None
+            self._action_domain.competence_development.cognitive_primitives
+            if self._action_domain.competence_development is not None
             else ()
         )
 
         active_motor_actuator_ids = (
-            self._actuator_proposer.active_repertoire
-            if self._actuator_proposer is not None
+            self._action_domain.actuator_evidence.active_repertoire
+            if self._action_domain.actuator_evidence is not None
             else ()
         )
         cognition_step = self._cognition_domain.step(
@@ -2768,9 +2762,9 @@ class OrganismRuntime:
         )
         actuation_enabled = False
         actuator_constitution = None
-        actuator_proposer = None
+        actuator_evidence = None
         motor_selection_threshold = 0.1
-        sensorimotor_learner = None
+        competence_development = None
         pending_motor_observation = ()
         pending_proprioception: dict[str, float] = {}
         raw_actuation = normalized.get("actuation")
@@ -2892,13 +2886,13 @@ class OrganismRuntime:
                         "action domain actuator evidence is missing"
                     )
                 try:
-                    actuator_proposer = restore_actuation_state(
+                    actuator_evidence = restore_actuation_state(
                         raw_evidence_state,
                         actuator_constitution,
                         organism_id=str(normalized.get("organism_id") or ""),
                     )
                 except (KeyError, TypeError, ValueError) as exc:
-                    raise CheckpointError(f"invalid actuator proposer checkpoint: {exc}") from exc
+                    raise CheckpointError(f"invalid actuator evidence checkpoint: {exc}") from exc
                 if (
                     isinstance(raw_selection_threshold, bool)
                     or not isinstance(raw_selection_threshold, (int, float))
@@ -2928,7 +2922,7 @@ class OrganismRuntime:
                                     ):
                                         item["embodiment_fingerprint"] = new_fp
                     try:
-                        sensorimotor_learner = CompetenceDevelopmentEngine.restore(
+                        competence_development = CompetenceDevelopmentEngine.restore(
                             raw_sensorimotor_restore,
                             actuator_ids=actuator_constitution.actuator_ids,
                             organism_id=str(normalized.get("organism_id") or ""),
@@ -3135,9 +3129,9 @@ class OrganismRuntime:
             developmental_tracker=developmental_tracker,
             actuation_enabled=actuation_enabled,
             actuator_constitution=actuator_constitution,
-            actuator_evidence=actuator_proposer,
+            actuator_evidence=actuator_evidence,
             motor_selection_threshold=motor_selection_threshold,
-            competence_development=sensorimotor_learner,
+            competence_development=competence_development,
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception

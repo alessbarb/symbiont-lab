@@ -63,7 +63,7 @@ def test_proprioceptive_echo_alone_cannot_promote_an_actuator_as_world_causal():
     # produced after ON probes, but controllability explicitly excludes those
     # echo channels. Therefore no external effect relation can be learned.
     runtime.run(160)
-    proposer = runtime._actuator_proposer
+    proposer = runtime.actuator_evidence_model
     assert proposer is not None
     assert proposer.active_repertoire == ()
     assert all(not state.effect_relations for state in proposer.states)
