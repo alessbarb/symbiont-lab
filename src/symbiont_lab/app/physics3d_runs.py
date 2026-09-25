@@ -143,6 +143,13 @@ class Physics3DRunStore:
         memory = payload.get("embodiment_memory")
         memories = memory.get("contracts") if isinstance(memory, dict) else []
         memories = memories if isinstance(memories, list) else []
+        known_contracts = {
+            str(item.get("contract_fingerprint"))
+            for item in memories
+            if isinstance(item, dict)
+            and isinstance(item.get("contract_fingerprint"), str)
+            and item.get("contract_fingerprint")
+        }
         last_summary = summaries[-1] if summaries and isinstance(summaries[-1], dict) else None
         return {
             "organism_id": payload.get("organism_id"),
@@ -170,7 +177,7 @@ class Physics3DRunStore:
                 else 0.0
             ),
             "embodiment_summary_count": len(summaries),
-            "known_contract_count": len(memories),
+            "known_contract_count": len(known_contracts),
             "last_epoch_summary": last_summary,
             "symbiont_state": lifecycle.get("state", "dormant"),
             "embodiment_epoch": lifecycle.get("epoch", 1),
