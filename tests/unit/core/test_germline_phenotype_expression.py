@@ -110,11 +110,6 @@ def test_exploration_locus_changes_operational_trajectory_under_same_seed():
 
     for sym in (low, high):
         sym.register_output_channels(("out.0",))
-        # Put the assay in the exploitation/perturbation branch where
-        # exploration_rate is the operative sigma, without supplying any
-        # semantic world information.
-        sym.agency_model.agency_confidence["out.0"] = 0.9
-        sym.last_activations = {"out.0": 0.5}
 
     low_trace = [low.step({})["out.0"] for _ in range(20)]
     high_trace = [high.step({})["out.0"] for _ in range(20)]
@@ -166,9 +161,9 @@ def test_inherited_epigenetic_predisposition_changes_phenotype_without_learned_s
     assert child.learning_rate == pytest.approx(expected)
 
     # Predisposition crosses; concrete lifetime solution state does not.
-    assert child.sensorimotor_model.weights == {}
-    assert child.sensorimotor_model.prediction_errors == {}
-    assert child.agency_model.contingency == {}
-    assert child.agency_model.agency_confidence == {}
-    assert child.body_schema.internal_channels == set()
-    assert child.body_schema.regions == []
+    assert child.sensorimotor_model.relation_count == 0
+    assert child.causal_evidence.evidence == ()
+    assert child.agency_model.estimates == ()
+    assert child.controllability_model.estimates == ()
+    assert child.body_schema.boundary_confidence == 0.0
+    assert child.body_schema.self_caused_channels == ()
