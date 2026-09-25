@@ -1,18 +1,18 @@
-"""Perceptual structure, sensorimotor modeling, agency inference, and inferred body schema.
+"""Retired component-level embodiment inference specimens.
 
-Implements the epistemological hierarchy defined in the design document:
-    PerceptualStructure (P4)
-            ↓
-    SensorimotorModel (P5)
-            ↓
-    AgencyModel (P6)
-            ↓
-    InferredBodySchema (P7)
-            ↓
-    InferredSelfModel (P8)
+These classes preserve the original P4-P8 model solely for explicit adversarial
+and falsification studies. Production Symbiont and OrganismRuntime MUST use the
+canonical Embodiment v2 stack:
 
-All processing operates exclusively on opaque channel tokens (e.g. 'in.0', 'out.1').
-No physical names, morphology or world semantics enter this layer (Invariant A).
+- BodySchemaEngine
+- SensorimotorDynamicsModel
+- CausalEvidenceLedger
+- CompetenceEffectModel
+- ControllabilityModel
+- actuation.model.AgencyModel
+
+Do not import this module from runtime/production code. It intentionally remains
+available to studies that compare or falsify the historical formulation.
 """
 from __future__ import annotations
 
