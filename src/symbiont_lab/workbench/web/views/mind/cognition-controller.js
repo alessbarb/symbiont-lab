@@ -15,6 +15,7 @@ import {
   atlasSignals,
   cognitivePath,
   learningFrontier,
+  searchAtlasNodes,
 } from './cognitive-atlas.js';
 import {
   buildCognition3DScene,
@@ -116,6 +117,16 @@ export function createCognitionController({
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
   }
+
+  function searchAtlas(query) {
+    const matches = searchAtlasNodes(graph.nodes, query);
+    graph.searchQuery = query;
+    graph.searchResults = matches.map(node => node.id);
+    if (matches.length) {
+      selectCognitiveNode(matches[0].id);
+    }
+    return graph.searchResults;
+  }
   
   function focusedSectorContext() {
     const sectorId = graph.focusedSectorId;
@@ -216,6 +227,7 @@ export function createCognitionController({
         effects: source.effects ?? snap.effects ?? [],
         bindings: (source.embodiment ?? snap.embodiment)?.bindings ?? [],
         bodySchema: source.body_schema ?? snap.body_schema ?? null,
+        actionDimensions: source.action_dimensions ?? snap.action_dimensions ?? [],
         showEmbodiment: graph.showEmbodiment,
       },
     );
@@ -241,6 +253,7 @@ export function createCognitionController({
       embodiment_binding: '#8f9bb3',
       controller: '#c9a0ff',
       body_schema: '#6fd6c4',
+      action_dimension: '#ffd166',
     };
     const baseRadiusMap = {
       sense: 5.2,
@@ -255,6 +268,7 @@ export function createCognitionController({
       embodiment_binding: 5.5,
       controller: 7.0,
       body_schema: 5.8,
+      action_dimension: 5.0,
     };
   
     const rawNodes = completeTopology.nodes.map(n => {
@@ -2263,6 +2277,7 @@ export function createCognitionController({
         effects: source.effects ?? snap.effects ?? [],
         bindings: (source.embodiment ?? snap.embodiment)?.bindings ?? [],
         bodySchema: source.body_schema ?? snap.body_schema ?? null,
+        actionDimensions: source.action_dimensions ?? snap.action_dimensions ?? [],
         showEmbodiment: graph.showEmbodiment,
       },
     );
@@ -2430,6 +2445,7 @@ export function createCognitionController({
     resetPresentation: () => presentation.reset(),
     returnLive,
     selectNode: selectCognitiveNode,
+    searchAtlas,
     setDimension,
     set3DMode,
     setViewMode,

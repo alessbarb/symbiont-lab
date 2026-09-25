@@ -11,6 +11,17 @@ function finite(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+const MATURE_MATURITY = new Set(['established', 'robust']);
+
+/** Mirrors symbiont_lab.observation.atlas._competence_state (spec Sec 35):
+ * derived only from real fields, no fabricated 'available'/'inactive'. */
+function competenceState(competence, binding) {
+  if (!binding) return 'unbound';
+  if (!MATURE_MATURITY.has(competence?.maturity)) return 'calibrating';
+  const reliability = finite(binding.reliability, -1);
+  return reliability >= 0.5 ? 'usable' : 'degraded';
+}
+
 function primitiveActuators(primitive) {
   const ids = new Set();
   for (const step of primitive?.sequence ?? []) {
@@ -168,6 +179,12 @@ export function augmentLearnedGraph(
     knownEffectIds.add(effectId);
   }
 
+  const bindingsByCompetenceId = new Map(
+    bindings
+      .filter(binding => binding?.competence_id != null)
+      .map(binding => [String(binding.competence_id), binding])
+  );
+
   const knownCompetenceIds = new Set();
   const knownControllerIds = new Set();
   for (const competence of competences) {
@@ -180,6 +197,7 @@ export function augmentLearnedGraph(
       maturity: competence.maturity ?? null,
       support: finite(competence.support, 0),
       controllability: finite(competence.controllability, 0),
+      state: competenceState(competence, bindingsByCompetenceId.get(competenceId)),
     });
     ids.add(competenceId);
     knownCompetenceIds.add(competenceId);
@@ -260,6 +278,27 @@ export function augmentLearnedGraph(
     });
   }
 
+  // Action dimension (spec Sec 9): "something I can act along", not a motor
+  // name. No edge is drawn to a competence/effect -- source carries no
+  // evidenced link between a dimension and a specific competence yet.
+  const actionDimensions = Array.isArray(motorKnowledge?.actionDimensions) ? motorKnowledge.actionDimensions : [];
+  const knownActionDimensionIds = new Set();
+  for (const dimension of actionDimensions) {
+    const dimensionId = String(dimension?.dimension_id ?? '');
+    if (!dimensionId || ids.has(dimensionId)) continue;
+    nodes.push({
+      id: dimensionId,
+      kind: 'action_dimension',
+      learnedLayer: 'motor',
+      availability: dimension.availability ?? null,
+      controllability: finite(dimension.controllability, 0),
+      confidence: finite(dimension.confidence, 0),
+      embodimentBound: Boolean(dimension.embodiment_bound),
+    });
+    ids.add(dimensionId);
+    knownActionDimensionIds.add(dimensionId);
+  }
+
   return {
     nodes,
     edges,
@@ -274,6 +313,7 @@ export function augmentLearnedGraph(
       embodimentBindings: nodes.filter(node => node.kind === 'embodiment_binding').length,
       controllers: knownControllerIds.size,
       bodySchemaParts: knownBodySchemaIds.size,
+      actionDimensions: knownActionDimensionIds.size,
     },
   };
 }

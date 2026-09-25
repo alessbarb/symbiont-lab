@@ -332,6 +332,28 @@ def test_physics3d_rich_state_omits_motor_knowledge_when_absent() -> None:
     assert "motor_competences" not in snapshot
     assert "effects" not in snapshot
     assert "embodiment" not in snapshot
+    assert "action_dimensions" not in snapshot
+
+
+def test_physics3d_rich_state_projects_action_dimensions() -> None:
+    snapshot = mind_snapshot_from_rich_state({
+        "tick": 42,
+        "action_dimensions": [
+            {
+                "dimension_id": "action.dimension.aaaa",
+                "actuator_slot_id": "slot.0",
+                "availability": True,
+                "controllability": 0.4,
+                "confidence": 0.3,
+                "usage_count": 5,
+                "embodiment_bound": False,
+            },
+        ],
+    })
+
+    assert snapshot["action_dimensions"][0]["dimension_id"] == "action.dimension.aaaa"
+    assert snapshot["action_dimensions"][0]["usage_count"] == 5
+    assert "action_dimensions" in snapshot["provenance"]["organismFacts"]
 
 
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
@@ -1296,6 +1318,20 @@ def test_mind_atlas_has_independent_show_embodiment_toggle() -> None:
     assert "embodiment_binding" in asset
     # motor_competence must reach the Atlas graph, not only the metric panel.
     assert "motor_competence" in asset
+
+
+def test_mind_body_coupling_panel_reports_real_embodiment_counts() -> None:
+    live = (WEB_ROOT / "views" / "mind" / "cognitive-live.js").read_text(encoding="utf-8")
+
+    assert "'Embodiment'" in live
+    assert "knownActionDimensions" in live
+    assert "boundActionDimensions" in live
+    assert "usableCompetences" in live
+    assert "observedActionEffectRelations" in live
+    assert "bodySchemaParts" in live
+    # each is its own real count (spec Sec 62), never fabricated into one
+    # "knowledge %" figure.
+    assert "knowledge %" not in live.lower()
 
 
 def test_mind_atlas_has_search_by_id_kind_or_physical_binding() -> None:

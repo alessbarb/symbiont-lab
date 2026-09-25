@@ -347,6 +347,7 @@ export function mount(root, appState = null) {
     on3DModeChange: (mode) => cognition.set3DMode(mode),
     onAtlasModeChange: (mode) => cognition.setAtlasMode(mode),
     onShowEmbodimentChange: (show) => cognition.setShowEmbodiment(show),
+    onSearch: (query) => cognition.searchAtlas(query),
     onReturnLive: () => cognition.returnLive(),
   });
 

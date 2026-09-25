@@ -477,6 +477,9 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     effects = rich_state.get("effects")
     if not isinstance(effects, (list, tuple)):
         effects = None
+    action_dimensions = rich_state.get("action_dimensions")
+    if not isinstance(action_dimensions, (list, tuple)):
+        action_dimensions = None
     outcome = rich_state.get("outcome")
     if not isinstance(outcome, Mapping):
         outcome = None
@@ -566,6 +569,11 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             dict(item) for item in effects if isinstance(item, Mapping)
         ]
         organism_facts.append("effects")
+    if action_dimensions is not None:
+        snapshot["action_dimensions"] = [
+            dict(item) for item in action_dimensions if isinstance(item, Mapping)
+        ]
+        organism_facts.append("action_dimensions")
     if "embodiment" in snapshot and "bindings" in snapshot["embodiment"]:
         organism_facts.append("embodiment.bindings")
     if outcome is not None:

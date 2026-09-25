@@ -346,3 +346,51 @@ def test_diff_cognitive_atlas_no_strength_change_when_not_comparable():
 
     assert diff.edges_strengthened == ()
     assert diff.edges_weakened == ()
+
+
+def test_build_cognitive_atlas_materializes_action_dimensions():
+    snapshot = _snapshot()
+    snapshot["action_dimensions"] = [
+        {
+            "dimension_id": "action.dimension.aaaa",
+            "actuator_slot_id": "slot.0",
+            "availability": True,
+            "controllability": 0.4,
+            "confidence": 0.3,
+            "usage_count": 5,
+            "embodiment_bound": True,
+        },
+    ]
+
+    atlas = build_cognitive_atlas(snapshot)
+
+    kinds = {node.id: node.kind for node in atlas.nodes}
+    assert kinds["action.dimension.aaaa"] == "action_dimension"
+    node = next(n for n in atlas.nodes if n.id == "action.dimension.aaaa")
+    assert node.metadata["usage_count"] == 5
+    assert node.metadata["embodiment_bound"] is True
+
+
+def test_build_cognitive_atlas_action_dimensions_absent_when_no_data():
+    atlas = build_cognitive_atlas({"tick": 1})
+
+    assert not any(node.kind == "action_dimension" for node in atlas.nodes)
+
+
+def test_build_cognitive_atlas_knowledge_coverage_reports_separate_domain_counts():
+    snapshot = _snapshot()
+    snapshot["action_dimensions"] = [
+        {"dimension_id": "action.dimension.aaaa", "actuator_slot_id": "slot.0"},
+        {"dimension_id": "action.dimension.bbbb", "actuator_slot_id": "slot.1"},
+    ]
+
+    atlas = build_cognitive_atlas(snapshot)
+
+    coverage = atlas.metrics["knowledge_coverage"]
+    assert coverage["action_dimensions"] == 2
+    assert coverage["motor_competences"] == 2
+    assert coverage["controllers"] == 2
+    assert coverage["embodiment_bindings"] == 1
+    assert coverage["predictors"] == 1
+    # never a single fabricated "knowledge %" -- always per-domain counts
+    assert "knowledge_percent" not in coverage

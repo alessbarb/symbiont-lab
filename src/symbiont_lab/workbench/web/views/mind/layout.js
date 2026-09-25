@@ -17,6 +17,7 @@ export function buildMindLayout(root, {
   on3DModeChange = () => {},
   onAtlasModeChange = () => {},
   onShowEmbodimentChange = () => {},
+  onSearch = () => {},
   onReturnLive = () => {},
 } = {}) {
   root.replaceChildren();
@@ -237,6 +238,22 @@ export function buildMindLayout(root, {
   });
   embodimentGroup.appendChild(embodimentBtn);
   cognitionModeControls.appendChild(embodimentGroup);
+
+  // Spec Sec 58: search by id, kind, semantic label or physical binding.
+  // A physical-name hit locates the bound cognitive node; it never renames
+  // the underlying knowledge.
+  const searchGroup = el('div', 'mind-cognition-search-group');
+  const searchInput = document.createElement('input');
+  searchInput.type = 'search';
+  searchInput.id = 'mind-cognition-search';
+  searchInput.className = 'mind-cognition-search-input';
+  searchInput.placeholder = 'Search id, kind, physical binding…';
+  searchInput.setAttribute('aria-label', 'Search Cognitive Atlas nodes');
+  searchInput.addEventListener('input', () => {
+    onSearch(searchInput.value);
+  });
+  searchGroup.appendChild(searchInput);
+  cognitionModeControls.appendChild(searchGroup);
 
   const atlasModeGroup = el('div', 'mind-atlas-mode-group');
   for (const mode of ATLAS_MODES) {

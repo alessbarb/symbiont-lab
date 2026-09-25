@@ -2183,6 +2183,18 @@ class PyBulletEmbodimentRuntime:
                 }
                 for item in self.organism.effect_representations
             ],
+            "action_dimensions": [
+                {
+                    "dimension_id": item.dimension_id,
+                    "actuator_slot_id": item.actuator_slot_id,
+                    "availability": item.availability,
+                    "controllability": item.controllability,
+                    "confidence": item.confidence,
+                    "usage_count": item.usage_count,
+                    "embodiment_bound": item.embodiment_bound,
+                }
+                for item in self.organism.action_dimensions
+            ],
             "outcome": {
                 "initial_resource_distance": float(self._initial_resource_distance),
                 "minimum_resource_distance": float(self._minimum_resource_distance),

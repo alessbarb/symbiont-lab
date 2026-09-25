@@ -179,6 +179,23 @@ def _effect_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
     return nodes
 
 
+def _action_dimension_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
+    items = snapshot.get("action_dimensions")
+    if not isinstance(items, (list, tuple)):
+        return []
+    nodes: list[AtlasNode] = []
+    for item in items:
+        if not isinstance(item, Mapping) or item.get("dimension_id") is None:
+            continue
+        metadata = {
+            key: item[key]
+            for key in ("availability", "controllability", "confidence", "usage_count", "embodiment_bound")
+            if item.get(key) is not None
+        }
+        nodes.append(AtlasNode(id=str(item["dimension_id"]), kind="action_dimension", metadata=metadata))
+    return nodes
+
+
 def _embodiment_binding_nodes_and_edges(
     snapshot: Mapping[str, Any],
     known_competence_ids: set[str],
@@ -379,6 +396,23 @@ def _prediction_metrics(nodes: list[AtlasNode]) -> Mapping[str, Any]:
     }
 
 
+def _knowledge_coverage_metrics(nodes: list[AtlasNode]) -> Mapping[str, Any]:
+    """Spec Sec 60/62: separate per-domain counts, never a single fake
+    'knowledge %'. Only the Symbiont-owned side (this snapshot's domain) --
+    Body/Embodiment effector counts belong to a different owner's data."""
+    def count(kind: str) -> int:
+        return sum(1 for node in nodes if node.kind == kind)
+
+    return {
+        "action_dimensions": count("action_dimension"),
+        "motor_competences": count("motor_competence"),
+        "controllers": count("controller"),
+        "embodiment_bindings": count("embodiment_binding"),
+        "body_schema_parts": count("body_schema"),
+        "predictors": count("predictor"),
+    }
+
+
 def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot:
     """Classify one mind snapshot into an Atlas model. Pure function, no side effects."""
     if not isinstance(snapshot, Mapping):
@@ -411,6 +445,8 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
     nodes.extend(body_schema_nodes)
     edges.extend(body_schema_edges)
 
+    nodes.extend(_action_dimension_nodes(snapshot))
+
     tick = snapshot.get("tick")
     try:
         tick = int(tick) if tick is not None else None
@@ -425,6 +461,7 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
         metrics={
             "motor_capability": _motor_capability_metrics(snapshot),
             "prediction": _prediction_metrics(nodes),
+            "knowledge_coverage": _knowledge_coverage_metrics(nodes),
         },
     )
 

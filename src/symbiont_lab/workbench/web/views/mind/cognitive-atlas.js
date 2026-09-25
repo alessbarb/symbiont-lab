@@ -94,7 +94,7 @@ export function atlasSignals(nodes, edges, tick = 0) {
     );
     const motor = clamp01(
       (node.kind === 'motor_primitive' ? 0.82 : 0) +
-      (['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema'].includes(node.kind) ? 0.82 : 0) +
+      (['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension'].includes(node.kind) ? 0.82 : 0) +
       (node.kind === 'readout' && (
         String(node.id).startsWith('readout_motor:') ||
         String(node.id).startsWith('readout_primitive:')
@@ -256,7 +256,7 @@ export function cognitivePath(startId, nodes, edges, maxDepth = 10) {
   if (!start) return null;
 
   const motorTarget = node => node?.kind === 'motor_primitive' ||
-    ['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema'].includes(node?.kind) || (
+    ['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension'].includes(node?.kind) || (
       node?.kind === 'readout' && (
         String(node.id).startsWith('readout_motor:') ||
         String(node.id).startsWith('readout_primitive:')
@@ -273,6 +273,30 @@ export function cognitivePath(startId, nodes, edges, maxDepth = 10) {
 
   const upstream = bfsPath(startId, sensoryTarget, nodesById, edges, true, maxDepth);
   return upstream;
+}
+
+/**
+ * Spec Sec 58: search by id, kind, semantic name or physical binding.
+ * A physical-binding hit (e.g. "right_knee") locates the bound cognitive
+ * node -- it never renames the underlying knowledge.
+ */
+export function searchAtlasNodes(nodes, query, limit = 20) {
+  const needle = String(query ?? '').trim().toLowerCase();
+  if (!needle) return [];
+  const haystack = node => [
+    node.id,
+    node.kind,
+    node.observerLabel,
+    node.selfLabel,
+    node.surfaceFingerprint,
+    node.effectorId,
+    node.joint,
+  ].filter(Boolean).map(value => String(value).toLowerCase());
+
+  return nodes
+    .filter(node => haystack(node).some(field => field.includes(needle)))
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+    .slice(0, limit);
 }
 
 export function learningFrontier(nodes, signals, limit = 8) {

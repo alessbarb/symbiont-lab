@@ -207,12 +207,20 @@ export function buildCognitiveFrame({
       region: nodes.find(node => node.id === focus.id)?.sectorLabel ?? null,
       related,
     } : null,
+    // Spec Sec 46: embodiment, not a raw motor readout. Every count here is
+    // a distinct real number (Sec 62) -- never mixed or inflated.
     bodyCoupling: {
       motorOrigin: motorOrigin ?? 'none',
       activeEffectors: finite(activeEffectors),
       jointMotion: finite(jointMotion),
       motorPaths: finite(situation?.flow?.motorPaths),
       sensoryStarts: finite(situation?.flow?.sensoryStarts),
+      knownActionDimensions: nodes.filter(node => node.kind === 'action_dimension').length,
+      boundActionDimensions: nodes.filter(node => node.kind === 'action_dimension' && node.embodimentBound).length,
+      knownCompetences: nodes.filter(node => node.kind === 'motor_competence').length,
+      usableCompetences: nodes.filter(node => node.kind === 'motor_competence' && node.state === 'usable').length,
+      observedActionEffectRelations: edges.filter(edge => edge.kind === 'produces').length,
+      bodySchemaParts: nodes.filter(node => node.kind === 'body_schema').length,
     },
     regionEvents: (regionEvents ?? []).slice(-8),
     provenance: {
@@ -362,12 +370,25 @@ function renderFocus(frame) {
   root.appendChild(processing);
 
   const couplingTitle = el('div', 'mind-live-section-title');
-  couplingTitle.textContent = 'Body coupling';
+  couplingTitle.textContent = 'Embodiment';
   root.appendChild(couplingTitle);
+  const coupling = frame.bodyCoupling;
   root.append(
-    metricRow('Motor origin', String(frame.bodyCoupling.motorOrigin)),
-    metricRow('Observed motor paths', String(frame.bodyCoupling.motorPaths)),
-    metricRow('Active effectors', String(frame.bodyCoupling.activeEffectors)),
+    metricRow('Motor origin', String(coupling.motorOrigin)),
+    metricRow('Active effectors', String(coupling.activeEffectors)),
+    metricRow(
+      'Known action dimensions',
+      `${coupling.boundActionDimensions}/${coupling.knownActionDimensions}`,
+      coupling.knownActionDimensions ? coupling.boundActionDimensions / coupling.knownActionDimensions : 0,
+    ),
+    metricRow(
+      'Motor competences',
+      `${coupling.usableCompetences}/${coupling.knownCompetences}`,
+      coupling.knownCompetences ? coupling.usableCompetences / coupling.knownCompetences : 0,
+    ),
+    metricRow('Observed action/effect relations', String(coupling.observedActionEffectRelations)),
+    metricRow('Body-schema parts', String(coupling.bodySchemaParts)),
+    metricRow('Observed motor paths', String(coupling.motorPaths)),
   );
 
   if (focus.related.length) {
