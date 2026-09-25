@@ -45,16 +45,37 @@ def _topology_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
     topology = snapshot.get("topology")
     if not isinstance(topology, Mapping):
         return []
+    observer_analysis = snapshot.get("observer_analysis")
+    activation_values = (
+        observer_analysis.get("activationValues")
+        if isinstance(observer_analysis, Mapping)
+        else None
+    )
+    prediction_error_values = (
+        observer_analysis.get("predictionErrorValues")
+        if isinstance(observer_analysis, Mapping)
+        else None
+    )
     nodes: list[AtlasNode] = []
     for item in topology.get("nodes", ()) or ():
         if not isinstance(item, Mapping) or item.get("id") is None:
             continue
+        node_id = str(item["id"])
         metadata = {
             key: item[key]
             for key in ("predictsNodeId", "bias", "tau")
             if item.get(key) is not None
         }
-        nodes.append(AtlasNode(id=str(item["id"]), kind=str(item.get("kind", "concept")), metadata=metadata))
+        if isinstance(activation_values, Mapping) and node_id in activation_values:
+            metadata["activation"] = activation_values[node_id]
+        kind = str(item.get("kind", "concept"))
+        if (
+            kind == "predictor"
+            and isinstance(prediction_error_values, Mapping)
+            and node_id in prediction_error_values
+        ):
+            metadata["predictionError"] = prediction_error_values[node_id]
+        nodes.append(AtlasNode(id=node_id, kind=kind, metadata=metadata))
     return nodes
 
 
@@ -212,6 +233,19 @@ def _motor_capability_metrics(snapshot: Mapping[str, Any]) -> Mapping[str, Any]:
     }
 
 
+def _prediction_metrics(nodes: list[AtlasNode]) -> Mapping[str, Any]:
+    predictor_errors = [
+        node.metadata["predictionError"]
+        for node in nodes
+        if node.kind == "predictor" and "predictionError" in node.metadata
+    ]
+    predictor_count = sum(1 for node in nodes if node.kind == "predictor")
+    return {
+        "predictors": predictor_count,
+        "pressure": (sum(predictor_errors) / len(predictor_errors)) if predictor_errors else 0.0,
+    }
+
+
 def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot:
     """Classify one mind snapshot into an Atlas model. Pure function, no side effects."""
     if not isinstance(snapshot, Mapping):
@@ -247,7 +281,10 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
         tick=tick,
         nodes=tuple(nodes),
         edges=tuple(edges),
-        metrics={"motor_capability": _motor_capability_metrics(snapshot)},
+        metrics={
+            "motor_capability": _motor_capability_metrics(snapshot),
+            "prediction": _prediction_metrics(nodes),
+        },
     )
 
 

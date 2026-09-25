@@ -78,6 +78,31 @@ def test_build_cognitive_atlas_classifies_every_domain():
     assert bound_evidence["last_tick"] == 76
 
 
+def test_build_cognitive_atlas_attaches_prediction_error_to_predictor_nodes():
+    snapshot = _snapshot()
+    snapshot["observer_analysis"] = {
+        "activationValues": {"concept.1": 0.6, "predictor.1": 0.2},
+        "predictionErrorValues": {"predictor.1": 0.08},
+    }
+
+    atlas = build_cognitive_atlas(snapshot)
+
+    nodes_by_id = {node.id: node for node in atlas.nodes}
+    assert nodes_by_id["predictor.1"].metadata["predictionError"] == 0.08
+    assert nodes_by_id["predictor.1"].metadata["activation"] == 0.2
+    assert nodes_by_id["concept.1"].metadata["activation"] == 0.6
+    # concept nodes never carry a prediction error, only predictors do
+    assert "predictionError" not in nodes_by_id["concept.1"].metadata
+
+    assert atlas.metrics["prediction"] == {"predictors": 1, "pressure": 0.08}
+
+
+def test_build_cognitive_atlas_prediction_metrics_default_when_no_errors_observed():
+    atlas = build_cognitive_atlas(_snapshot())
+
+    assert atlas.metrics["prediction"] == {"predictors": 1, "pressure": 0.0}
+
+
 def test_build_cognitive_atlas_motor_capability_metric_is_known_vs_bound():
     atlas = build_cognitive_atlas(_snapshot())
 
