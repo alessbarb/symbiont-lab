@@ -1509,6 +1509,39 @@ class OrganismRuntime:
                             else 1.0 - prediction_error.magnitude
                         ),
                     )
+
+                    # Embodiment v2 body-boundary inference is reconstructed
+                    # from organism-owned causal effects and agency only.
+                    # Controllability alone never makes a channel part of Body.
+                    observed_features = {
+                        feature
+                        for effect in self._effect_space.effects
+                        for feature in effect.feature_refs
+                    }
+                    self_caused_features: set[str] = set()
+                    for estimate in self._agency_model.estimates:
+                        if estimate.confidence < 0.35:
+                            continue
+                        agentic_effect = self._effect_space.get(
+                            estimate.effect_id
+                        )
+                        if agentic_effect is not None:
+                            self_caused_features.update(
+                                agentic_effect.feature_refs
+                            )
+                    if observed_features:
+                        self._body_schema.observe_agency_boundary(
+                            observed_channels=observed_features,
+                            self_caused_channels=self_caused_features,
+                            # Somatic membership requires independent evidence;
+                            # correlation/controllability is not sufficient.
+                            somatic_correlated_channels=(),
+                            prediction_error=(
+                                prediction_error.magnitude
+                                if prediction_error is not None
+                                else 0.0
+                            ),
+                        )
             self._last_sensorimotor_transition = transition
             self._pending_sensorimotor_transition = None
 
