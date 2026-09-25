@@ -41,6 +41,7 @@ from .plasticity_state import PlasticityEngine
 from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
 from .sense_concept_lifecycle import ConceptLineage, SenseConceptLifecycle
 from .structural_candidates import StructuralCandidate, StructuralContention
+from .structural_planner import StructuralPlan
 
 _ACTIVITY_THRESHOLD = 0.1
 _EDGE_USAGE_THRESHOLD = 1e-3
@@ -2863,78 +2864,55 @@ class CognitiveBridge:
         interval = max(1, self._genome.development.consolidation_interval_ticks)
         if not frozen and self._reacclimation_remaining <= 0 and tick % interval == 0:
             mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-
-            # Maintenance is planned sequentially but committed only once.
-            # Fully detached quarantined predictors are reclaimed first using
-            # one bounded mutation. Under sustained generic structural
-            # starvation, one already-quarantined incident edge may then retire
-            # within the same bounded maintenance budget.
-            retirement_gc = self._retirement_node_gc_mutations(
-                max_mutations=min(1, mutation_cap),
-                graph=self._graph,
-            )
-            after_retirement_gc = apply_mutations(
+            plan = StructuralPlan.begin(
                 self._graph,
-                retirement_gc,
-                self._kernel_limits,
+                kernel_limits=self._kernel_limits,
                 frozen=frozen,
+                mutation_cap=mutation_cap,
             )
-            if retirement_gc and after_retirement_gc is self._graph:
-                retirement_gc = ()
-                after_retirement_gc = self._graph
 
-            remaining_after_node_gc = mutation_cap - len(retirement_gc)
+            retirement_gc = self._retirement_node_gc_mutations(
+                max_mutations=min(1, plan.remaining),
+                graph=plan.graph,
+            )
+            if retirement_gc and not plan.stage(retirement_gc):
+                retirement_gc = ()
+
             retirement_edge_gc = self._retirement_edge_gc_mutations(
                 tick=tick,
-                max_mutations=min(1, remaining_after_node_gc),
-                graph=after_retirement_gc,
+                max_mutations=min(1, plan.remaining),
+                graph=plan.graph,
             )
-            after_retirement_edge_gc = apply_mutations(
-                after_retirement_gc,
-                retirement_edge_gc,
-                self._kernel_limits,
-                frozen=frozen,
-            )
-            if retirement_edge_gc and after_retirement_edge_gc is after_retirement_gc:
+            if retirement_edge_gc and not plan.stage(retirement_edge_gc):
                 retirement_edge_gc = ()
-                after_retirement_edge_gc = after_retirement_gc
 
-            remaining_after_gc = (
-                mutation_cap - len(retirement_gc) - len(retirement_edge_gc)
-            )
-
-            # prune edges -> GC newly/previously orphaned latent nodes -> evict
-            # disconnected senses. Each stage sees the topology produced by
-            # the previous stage, so pruning can begin an orphan grace period
-            # immediately without exposing a partial graph.
             prune_candidates = tuple(
                 Mutation(
                     kind="remove_edge",
-                    payload={"source_id": edge.source_id, "target_id": edge.target_id, "kind": edge.kind},
+                    payload={
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "kind": edge.kind,
+                    },
                 )
-                for edge in after_retirement_edge_gc.edges
+                for edge in plan.graph.edges
                 if evaluate_edge_lifecycle(
                     edge,
                     current_tick=tick,
                     prune_threshold=self._expression_state.effective_pruning_threshold,
                     minimum_support=self._genome.structure.minimum_support,
-                    quarantine_window_ticks=self._genome.structure.tentative_lifetime_ticks,
-                    tentative_lifetime_ticks=self._genome.structure.tentative_lifetime_ticks,
+                    quarantine_window_ticks=(
+                        self._genome.structure.tentative_lifetime_ticks
+                    ),
+                    tentative_lifetime_ticks=(
+                        self._genome.structure.tentative_lifetime_ticks
+                    ),
                 )
                 is EdgeLifecycleState.REMOVED
             )
-            prune_mutations = prune_candidates[:remaining_after_gc]
-            remaining = remaining_after_gc - len(prune_mutations)
-            after_prune = apply_mutations(
-                after_retirement_edge_gc,
-                prune_mutations,
-                self._kernel_limits,
-                frozen=frozen,
-            )
-            if prune_mutations and after_prune is after_retirement_edge_gc:
+            prune_mutations = prune_candidates[: plan.remaining]
+            if prune_mutations and not plan.stage(prune_mutations):
                 prune_mutations = ()
-                remaining = remaining_after_gc
-                after_prune = after_retirement_edge_gc
 
             protected_action_readouts = {
                 *(
@@ -2950,54 +2928,27 @@ class CognitiveBridge:
             }
             orphan_mutations = self._orphan_node_mutations(
                 tick=tick,
-                max_mutations=remaining,
-                graph=after_prune,
+                max_mutations=plan.remaining,
+                graph=plan.graph,
                 protected_node_ids=protected_action_readouts,
             )
-            remaining -= len(orphan_mutations)
-            after_orphans = apply_mutations(after_prune, orphan_mutations, self._kernel_limits, frozen=frozen)
-            if orphan_mutations and after_orphans is after_prune:
+            if orphan_mutations and not plan.stage(orphan_mutations):
                 orphan_mutations = ()
-                remaining = (
-                    mutation_cap
-                    - len(retirement_gc)
-                    - len(retirement_edge_gc)
-                    - len(prune_mutations)
-                )
-                after_orphans = after_prune
 
             sense_evictions = self._sense_eviction_mutations(
                 tick=tick,
-                max_mutations=remaining,
-                graph=after_orphans,
+                max_mutations=plan.remaining,
+                graph=plan.graph,
             )
-            remaining -= len(sense_evictions)
-            planning_graph = apply_mutations(after_orphans, sense_evictions, self._kernel_limits, frozen=frozen)
-            if sense_evictions and planning_graph is after_orphans:
+            if sense_evictions and not plan.stage(sense_evictions):
                 sense_evictions = ()
-                remaining = (
-                    mutation_cap
-                    - len(retirement_gc)
-                    - len(retirement_edge_gc)
-                    - len(prune_mutations)
-                    - len(orphan_mutations)
-                )
-                planning_graph = after_orphans
 
-            maintenance_mutations = (
-                retirement_gc
-                + retirement_edge_gc
-                + prune_mutations
-                + orphan_mutations
-                + sense_evictions
-            )
-
-            # Register and locally validate producer proposals before freezing
-            # the global scheduling round. The scheduler itself remains opaque
-            # to producer semantics.
+            # Producer proposals are registered from the live graph, while
+            # validity and capacity are evaluated against the sequential
+            # planning graph after maintenance.
             self._register_germinal_concept_candidate(tick=tick, graph=self._graph)
             self._prune_invalid_structural_proposals(
-                graph=planning_graph,
+                graph=plan.graph,
                 active_motor_ids=active_motor_actuator_ids,
                 active_primitive_ids=active_primitive_ids,
             )
@@ -3005,25 +2956,17 @@ class CognitiveBridge:
             frozen_candidate_ids = tuple(sorted(self._contention.candidates))
             self._contention.consolidation_generation += 1
 
-            self._update_unrouted_tracking(tick, graph=planning_graph)
+            self._update_unrouted_tracking(tick, graph=plan.graph)
             repair_mutations, event = self._propose_concept_recycling_mutations(
                 tick=tick,
-                mutation_slots=remaining,
-                graph=planning_graph,
+                mutation_slots=plan.remaining,
+                graph=plan.graph,
             )
             if repair_mutations:
-                repaired_graph = apply_mutations(
-                    planning_graph,
-                    repair_mutations,
-                    self._kernel_limits,
-                    frozen=frozen,
-                )
-                if repaired_graph is planning_graph:
-                    repair_mutations = ()
-                else:
+                if plan.stage(repair_mutations):
                     recycling_events = (event,) if event is not None else ()
-                    remaining -= len(repair_mutations)
-                    planning_graph = repaired_graph
+                else:
+                    repair_mutations = ()
 
             pending_node_demand = any(
                 candidate.required_nodes > 0
@@ -3036,18 +2979,18 @@ class CognitiveBridge:
             self._expand_resource_budgets(
                 need_nodes=(
                     pending_node_demand
-                    and len(planning_graph.nodes) >= self._soft_node_limit
+                    and len(plan.graph.nodes) >= self._soft_node_limit
                 ),
                 need_edges=(
                     pending_edge_demand
-                    and len(planning_graph.edges) >= self._soft_edge_limit
+                    and len(plan.graph.edges) >= self._soft_edge_limit
                 ),
             )
-            edge_slots = max(0, self._soft_edge_limit - len(planning_graph.edges))
-            node_slots = max(0, self._soft_node_limit - len(planning_graph.nodes))
+            edge_slots = max(0, self._soft_edge_limit - len(plan.graph.edges))
+            node_slots = max(0, self._soft_node_limit - len(plan.graph.nodes))
 
-            # Contention sees exactly the candidates frozen at round start.
-            # Candidates registered later wait for the next consolidation.
+            # Freeze the round exactly as before: candidates registered after
+            # this point wait until the next consolidation.
             original_registry = self._contention.candidates
             self._contention.candidates = {
                 candidate_id: original_registry[candidate_id]
@@ -3059,8 +3002,8 @@ class CognitiveBridge:
                 admission_mutations,
                 contention_loser_ids,
             ) = self._contention.select(
-                graph=planning_graph,
-                mutation_slots=remaining,
+                graph=plan.graph,
+                mutation_slots=plan.remaining,
                 node_slots=node_slots,
                 edge_slots=edge_slots,
                 frozen=frozen,
@@ -3075,22 +3018,23 @@ class CognitiveBridge:
                 **frozen_registry_after,
             }
 
-            remaining -= len(admission_mutations)
-            planning_after_admission = apply_mutations(
-                planning_graph,
-                admission_mutations,
-                self._kernel_limits,
-                frozen=frozen,
-            )
+            if admission_mutations:
+                # select() already validates this batch. Preserve the old
+                # fallback semantics if an unexpected second validation fails:
+                # consume the slots and let the final atomic commit reject the
+                # complete transaction.
+                if not plan.stage(admission_mutations):
+                    plan.append_unvalidated(admission_mutations)
+
             edge_slots = max(
                 0,
-                self._soft_edge_limit - len(planning_after_admission.edges),
+                self._soft_edge_limit - len(plan.graph.edges),
             )
             proposed = self._structural_plasticity.propose(
-                planning_after_admission,
+                plan.graph,
                 kernel_limits=self._kernel_limits,
                 tick=tick,
-                max_mutations=min(remaining, edge_slots),
+                max_mutations=min(plan.remaining, edge_slots),
             )
             proposed = tuple(
                 mutation
@@ -3105,17 +3049,11 @@ class CognitiveBridge:
                     )
                 )
             )
+            plan.append_unvalidated(proposed)
 
-            # The complete maintenance+growth transaction is committed against
-            # the original graph. Any invalid step rolls the whole batch back.
-            all_mutations = (
-                maintenance_mutations
-                + repair_mutations
-                + admission_mutations
-                + proposed
-            )
+            all_mutations = plan.ordered_mutations()
             if all_mutations:
-                candidate = apply_mutations(self._graph, all_mutations, self._kernel_limits, frozen=frozen)
+                candidate = plan.commit_candidate()
                 if candidate is not self._graph:
                     self._graph = candidate
                     self._record_applied_metadata(all_mutations, tick=tick)
