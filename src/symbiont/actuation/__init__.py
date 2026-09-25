@@ -31,7 +31,7 @@ from .evidence import (
     SensorimotorTransition,
 )
 from .exploration import ExplorationPolicy, ExplorationSignals
-from .proposer import ActuatorEvidenceModel, ActuatorProposer
+from .proposer import ActuatorEvidenceModel
 from .model import (
     AgencyEstimate,
     AgencyModel,
@@ -47,7 +47,7 @@ from .surface import (
     derive_actuator_constitution,
 )
 from .state import SensorimotorV2Snapshot
-from .sensorimotor import CompetenceDevelopmentEngine, SensorimotorLearner, SensorimotorSnapshot
+from .sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from .system import ActuatorSystem
 from .types import Actuation, MotorIntent
 
@@ -66,7 +66,6 @@ __all__ = [
     "ActuatorChannel",
     "ActuatorConstitution",
     "ActuatorEvidenceModel",
-    "ActuatorProposer",
     "ActuatorSurface",
     "ActuatorSystem",
     "ArbitrationDecision",
@@ -92,7 +91,6 @@ __all__ = [
     "MotorCompetence",
     "MotorIntent",
     "PredictionError",
-    "SensorimotorLearner",
     "SensorimotorSnapshot",
     "SensorimotorTransition",
     "SensorimotorV2Snapshot",

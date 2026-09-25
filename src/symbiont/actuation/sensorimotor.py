@@ -1867,21 +1867,10 @@ class CompetenceDevelopmentEngine:
         )
 
 
-class SensorimotorLearner(CompetenceDevelopmentEngine):
-    """Legacy import/checkpoint migration surface.
-
-    Production runtime code must instantiate CompetenceDevelopmentEngine.
-    This subclass intentionally adds no authority or behavior; inherited
-    restore() materializes the historical schema for callers that have not yet
-    migrated their import.
-    """
-
-
 __all__ = [
     "CompetenceDevelopmentEngine",
     "MotorPattern",
     "MotorPrimitive",
     "MotorSequence",
-    "SensorimotorLearner",
     "SensorimotorSnapshot",
 ]

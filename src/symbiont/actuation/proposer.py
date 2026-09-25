@@ -77,8 +77,4 @@ class ActuatorEvidenceModel:
         return True
 
 
-class ActuatorProposer(ActuatorEvidenceModel):
-    """Legacy import name for checkpoint/test compatibility only."""
-
-
-__all__ = ["ActuatorEvidenceModel", "ActuatorProposer"]
+__all__ = ["ActuatorEvidenceModel"]
