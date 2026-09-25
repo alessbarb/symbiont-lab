@@ -1,0 +1,50 @@
+schema_version = 1
+
+[experiment]
+id = "embodiment.reembodiment-reacclimation-v1"
+title = "A-B-A Re-embodiment Reacclimation"
+protocol = "embodiment.reembodiment-reacclimation"
+protocol_version = 1
+hypothesis = """
+After learning contract A, traversing a different contract B and returning to a
+new Body with contract A, historical A knowledge may accelerate reacclimation
+only if it is revalidated through new evidence. No current execution binding
+may be restored at A2 tick zero.
+"""
+success_criteria = """
+A1 and A2 must have identical canonical contract fingerprints and B must differ.
+A2 must begin with prior relation same-contract, historical hypotheses present,
+zero executable bindings and no instant competence authority. A historical
+candidate must become executable only after positive embodiment ticks, and A2
+must reach at least one preregistered adaptation milestone earlier than A1.
+If A2 begins with executable authority the run is contaminated. If no milestone
+improves the result is no-transfer, not a success.
+"""
+notes = """
+Thresholds are not experiment-specific: causal confidence 0.45,
+controllability 0.35, schema uncertainty 0.35 and prediction shock 0.20 are
+the existing EmbodimentAdaptation convergence criteria.
+"""
+
+[design]
+sequence = ["A1", "B", "A2"]
+a1_body_identity = "fresh"
+b_body_identity = "fresh"
+a2_body_identity = "fresh"
+require_a1_a2_same_contract = true
+require_b_different_contract = true
+require_a2_same_body = false
+capture_checkpoint_each_tick = true
+
+[metrics]
+causal_confidence_threshold = 0.45
+controllability_threshold = 0.35
+schema_uncertainty_threshold = 0.35
+prediction_shock_threshold = 0.20
+track_first_execution_binding = true
+track_first_prior_revalidation = true
+track_recovery_tick = true
+
+[output]
+save_trace = true
+save_summary = true
