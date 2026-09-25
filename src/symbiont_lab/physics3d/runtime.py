@@ -24,6 +24,7 @@ from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
+from symbiont.core.domains.context import TickContext
 from symbiont.core.embodiment import (
     EmbodimentContract,
     EmbodimentEndReason,
@@ -1562,7 +1563,15 @@ class PyBulletEmbodimentRuntime:
         )
 
         phase_started = time.perf_counter()
-        result = self.organism.tick()
+        result = self.organism.tick(
+            context=TickContext(
+                symbiont_id=self.organism_id,
+                symbiont_tick=self.tick_count + 1,
+                embodiment_id=self.embodiment_id,
+                embodiment_tick=self.embodiment_tick,
+                body_id=self.body_identity,
+            )
+        )
         self._update_embodiment_evidence(result)
         organism_ms = (time.perf_counter() - phase_started) * 1000.0
 

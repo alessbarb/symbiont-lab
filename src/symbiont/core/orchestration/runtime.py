@@ -116,6 +116,7 @@ from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from ..domains.action import ActionDomain, ActionServices
+from ..domains.context import TickContext
 from ..domains.physiology import PhysiologyDomain, PhysiologyServices
 from ..domains.perception import PerceptionDomain, PerceptionServices
 from ..domains.cognition import CognitionDomain, CognitionServices
@@ -2106,9 +2107,35 @@ class OrganismRuntime:
             )
         return tuple(sorted(requested))
 
-    def tick(self) -> RuntimeTickResult:
+    def tick(
+        self,
+        *,
+        context: TickContext | None = None,
+    ) -> RuntimeTickResult:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("organism is irreversibly dead")
+        expected_tick = context.symbiont_tick
+        if context is None:
+            context = TickContext(
+                symbiont_id=self._organism_id,
+                symbiont_tick=expected_tick,
+                embodiment_id=self._action_domain.embodiment_id,
+            )
+        else:
+            if context.symbiont_id != self._organism_id:
+                raise ValueError("tick context belongs to another Symbiont")
+            if context.symbiont_tick != expected_tick:
+                raise ValueError(
+                    "tick context symbiont time is not the next organism tick"
+                )
+            if (
+                self._action_domain.embodiment_id is not None
+                and context.embodiment_id
+                != self._action_domain.embodiment_id
+            ):
+                raise ValueError(
+                    "tick context belongs to another EmbodimentEpisode"
+                )
         tick_start = time.monotonic()
         action_result: ActionExecutionResult | None = None
         if self._interoception_provider is not None:
@@ -2157,7 +2184,7 @@ class OrganismRuntime:
                 reading_providers=self._reading_providers,
                 charge_metabolism=self._charge_metabolism,
             ),
-            tick=self._tick_count + 1,
+            tick=context.symbiont_tick,
             discover_senses=self._discover_senses,
             bootstrap_semantic_senses=self._bootstrap_semantic_senses,
             attention_budget=self._attention_budget,
@@ -2192,7 +2219,7 @@ class OrganismRuntime:
         newly_confirmed_motor_effect_ids = (
             self._complete_pending_motor_observation(
                 percepts,
-                tick=self._tick_count + 1,
+                tick=context.symbiont_tick,
             )
         )
         established_motor_effect_ids = (
@@ -2229,7 +2256,7 @@ class OrganismRuntime:
                 memory_consolidator=self._memory_consolidator,
                 charge_metabolism=self._charge_metabolism,
             ),
-            tick=self._tick_count + 1,
+            tick=context.symbiont_tick,
             percepts=percepts,
             cognitive_readings=cognitive_readings,
             percept_names=percept_names,
@@ -2272,7 +2299,7 @@ class OrganismRuntime:
         self._motor_step(
             cognition_result,
             percepts,
-            tick=self._tick_count + 1,
+            tick=context.symbiont_tick,
             signal_references=current_signal_references,
         )
 
@@ -2365,7 +2392,7 @@ class OrganismRuntime:
         repaired_amount = physiology_step.repaired_amount
         self._resting_requested = physiology_step.resting_requested
         resting_for_tick = physiology_step.resting_for_tick
-        self._resolve_homeostatic_action_credit(tick=self._tick_count + 1)
+        self._resolve_homeostatic_action_credit(tick=context.symbiont_tick)
         if physiology_snapshot.state.value == "dead":
             if self._habitat is not None and not self._habitat_released:
                 self._habitat.release(self._organism_id)
