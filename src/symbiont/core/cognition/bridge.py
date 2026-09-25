@@ -308,126 +308,37 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             ),
         )
 
-    def _sync_motor_readouts(self, actuator_ids: Collection[str]) -> None:
-        requested = sorted({str(value) for value in actuator_ids if str(value)})
-        existing = {node.node_id for node in self._graph.nodes}
-        requested_set = set(requested)
+    def _sync_motor_readouts(
+        self,
+        actuator_ids: Collection[str],
+    ) -> None:
+        self._planner.sync_motor_readouts(
+            graph=self._graph,
+            contention=self._contention,
+            actuator_ids=actuator_ids,
+            tick=self._tick,
+        )
 
-        # Remove stale requests from the registry; materialized readouts remain
-        # governed by ordinary orphan/maintenance rules.
-        for candidate_id, candidate in list(self._contention.candidates.items()):
-            if (
-                candidate.family == "motor_readout"
-                and candidate_id.removeprefix("motor:") not in requested_set
-            ):
-                self._contention.drop(candidate_id)
-
-        for actuator_id in requested:
-            node_id = self._motor_readout_id(actuator_id)
-            if node_id in existing:
-                self._contention.drop(f"motor:{actuator_id}")
-                continue
-            self._contention.register(
-                candidate_id=f"motor:{actuator_id}",
-                family="motor_readout",
-                mutations=(
-                    Mutation(
-                        kind="add_node",
-                        payload={"node_id": node_id, "kind": NodeKind.READOUT},
-                    ),
-                ),
-                eligible_tick=self._tick,
+    def _sync_primitive_readouts(
+        self,
+        primitive_ids: Collection[str],
+    ) -> None:
+        graph, mutations = self._planner.sync_primitive_readouts(
+            graph=self._graph,
+            contention=self._contention,
+            primitive_ids=primitive_ids,
+            tick=self._tick,
+            frozen=self._safety_state.frozen,
+        )
+        if mutations and graph is not self._graph:
+            self._graph = graph
+            self._record_applied_metadata(
+                mutations,
+                tick=self._tick,
             )
-
-    def _sync_primitive_readouts(self, primitive_ids: Collection[str]) -> None:
-        requested = sorted({str(value) for value in primitive_ids if str(value)})
-        requested_set = set(requested)
-        requested_nodes = {
-            self._primitive_readout_id(primitive_id)
-            for primitive_id in requested
-        }
-        existing_nodes = {node.node_id for node in self._graph.nodes}
-        existing_primitive_nodes = {
-            node_id
-            for node_id in existing_nodes
-            if node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
-        }
-
-        for candidate_id, candidate in list(self._contention.candidates.items()):
-            if (
-                candidate.family == "primitive_readout"
-                and candidate_id.removeprefix("primitive:") not in requested_set
-            ):
-                self._contention.drop(candidate_id)
-
-        # Retraction remains maintenance, not admission: learned actions that
-        # cease to exist release their readouts but never create replacement
-        # structure directly.
-        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-        mutations: list[Mutation] = []
-        planning_graph = self._graph
-        for node_id in sorted(existing_primitive_nodes - requested_nodes):
-            incident = [
-                edge for edge in planning_graph.edges
-                if edge.source_id == node_id or edge.target_id == node_id
-            ]
-            stale_mutations = tuple(
-                Mutation(
-                    kind="remove_edge",
-                    payload={
-                        "source_id": edge.source_id,
-                        "target_id": edge.target_id,
-                        "kind": edge.kind.value,
-                    },
-                )
-                for edge in incident
-            ) + (Mutation(kind="remove_node", payload={"node_id": node_id}),)
-            if len(mutations) + len(stale_mutations) > mutation_cap:
-                break
-            candidate_graph = apply_mutations(
-                planning_graph,
-                stale_mutations,
-                self._kernel_limits,
-                frozen=self._safety_state.frozen,
-            )
-            if candidate_graph is planning_graph:
-                continue
-            mutations.extend(stale_mutations)
-            planning_graph = candidate_graph
-
-        if mutations:
-            mutation_tuple = tuple(mutations)
-            candidate_graph = apply_mutations(
-                self._graph,
-                mutation_tuple,
-                self._kernel_limits,
-                frozen=self._safety_state.frozen,
-            )
-            if candidate_graph is not self._graph:
-                self._graph = candidate_graph
-                self._record_applied_metadata(mutation_tuple, tick=self._tick)
-                self._plasticity.seed_new_edges(self._graph)
-                self._reconcile_node_metadata()
-                self._topology_revision += 1
-
-        existing_nodes = {node.node_id for node in self._graph.nodes}
-        for primitive_id in requested:
-            node_id = self._primitive_readout_id(primitive_id)
-            candidate_id = f"primitive:{primitive_id}"
-            if node_id in existing_nodes:
-                self._contention.drop(candidate_id)
-                continue
-            self._contention.register(
-                candidate_id=candidate_id,
-                family="primitive_readout",
-                mutations=(
-                    Mutation(
-                        kind="add_node",
-                        payload={"node_id": node_id, "kind": NodeKind.READOUT},
-                    ),
-                ),
-                eligible_tick=self._tick,
-            )
+            self._plasticity.seed_new_edges(self._graph)
+            self._reconcile_node_metadata()
+            self._topology_revision += 1
 
     def observe_primitive_execution(
         self,
@@ -557,44 +468,21 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             need_senses=need_senses,
         )
 
-    def _admit_senses(self, sense_values: Mapping[str, float], *, tick: int) -> None:
-        if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
+    def _admit_senses(
+        self,
+        sense_values: Mapping[str, float],
+        *,
+        tick: int,
+    ) -> None:
+        if not isinstance(self._graph, CognitiveGraph):
             return
-        existing_ids = {node.node_id for node in self._graph.nodes}
-        existing_senses = {node.node_id for node in self._graph.nodes if node.kind is NodeKind.SENSE}
-        for sense_id in set(sense_values) & existing_senses:
-            self._lifecycle.sense_last_seen_tick[sense_id] = tick
-
-        candidates = sorted(set(sense_values) - existing_ids)
-        if not candidates:
-            return
-
-        graph = self._graph
-        admitted = 0
-        sense_count = len(existing_senses)
-        if (
-            len(graph.nodes) >= self._soft_node_limit
-            or sense_count >= self._sense_node_limit
-        ):
-            self._expand_resource_budgets(
-                need_nodes=len(graph.nodes) >= self._soft_node_limit,
-                need_senses=sense_count >= self._sense_node_limit,
-            )
-        for sense_id in candidates:
-            if len(graph.nodes) >= self._soft_node_limit or sense_count >= self._sense_node_limit:
-                break
-            try:
-                graph = CognitiveGraph(
-                    nodes=(*graph.nodes, PlasticNode(node_id=sense_id, kind=NodeKind.SENSE)),
-                    edges=graph.edges,
-                    kernel_limits=self._kernel_limits,
-                )
-            except GraphError:
-                continue
-            admitted += 1
-            sense_count += 1
-            self._lifecycle.sense_last_seen_tick[sense_id] = tick
-
+        graph, admitted = self._planner.admit_senses(
+            graph=self._graph,
+            sense_values=sense_values,
+            lifecycle=self._lifecycle,
+            tick=tick,
+            develop_senses=self._develop_senses,
+        )
         if admitted:
             self._graph = graph
             self._topology_revision += 1
