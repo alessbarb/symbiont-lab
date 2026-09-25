@@ -35,6 +35,54 @@ class GenerativeScheduler:
         }
         self._used: dict[tuple[int, GenerativeMode], int] = {}
 
+    def checkpoint(self) -> dict[str, object]:
+        """Return deterministic mode quotas and usage for persistence."""
+        return {
+            "quotas": {mode.value: self._quotas[mode] for mode in GenerativeMode},
+            "used": [
+                {"tick": tick, "mode": mode.value, "count": count}
+                for (tick, mode), count in sorted(
+                    self._used.items(), key=lambda item: (item[0][0], item[0][1].value)
+                )
+            ],
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: object) -> GenerativeScheduler:
+        if not isinstance(payload, dict):
+            raise ValueError("scheduler checkpoint must be an object")
+        try:
+            raw_quotas = payload["quotas"]
+            if not isinstance(raw_quotas, dict):
+                raise ValueError("scheduler quotas must be an object")
+            scheduler = cls(
+                online_quota=raw_quotas[GenerativeMode.ONLINE.value],
+                idle_quota=raw_quotas[GenerativeMode.IDLE.value],
+                offline_quota=raw_quotas[GenerativeMode.OFFLINE.value],
+            )
+            raw_used = payload["used"]
+            if not isinstance(raw_used, list):
+                raise ValueError("scheduler usage must be a list")
+            for item in raw_used:
+                if not isinstance(item, dict):
+                    raise ValueError("scheduler usage entry must be an object")
+                tick = item["tick"]
+                count = item["count"]
+                if (
+                    isinstance(tick, bool)
+                    or not isinstance(tick, int)
+                    or tick < 0
+                    or isinstance(count, bool)
+                    or not isinstance(count, int)
+                    or count < 0
+                ):
+                    raise ValueError("invalid scheduler usage entry")
+                mode = GenerativeMode(item["mode"])
+                scheduler._used[(tick, mode)] = count
+            return scheduler
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid scheduler checkpoint") from exc
+
     def schedule(
         self,
         *,
