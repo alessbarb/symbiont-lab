@@ -162,6 +162,9 @@ def archive_episode_checkpoint(
     living_body: Mapping[str, object] | None,
     symbiont_tick: int,
     end_reason: str,
+    historical_motor_candidates: tuple[Mapping[str, object], ...] = (),
+    motor_cognitive_surface: Mapping[str, object] | None = None,
+    private_model_ids: tuple[str, ...] = (),
 ) -> EmbodimentEpisodeSummary:
     """Close one persisted episode into bounded longitudinal memory.
 
@@ -210,6 +213,15 @@ def archive_episode_checkpoint(
             )
             if isinstance(episode_payload.get("causal_evidence"), Mapping)
             else None,
+            historical_motor_candidates=tuple(
+                deepcopy(dict(item)) for item in historical_motor_candidates
+            ),
+            motor_cognitive_surface=(
+                deepcopy(dict(motor_cognitive_surface))
+                if isinstance(motor_cognitive_surface, Mapping)
+                else None
+            ),
+            private_model_ids=tuple(str(value) for value in private_model_ids),
         )
     )
 
