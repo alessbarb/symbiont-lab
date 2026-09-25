@@ -95,8 +95,18 @@ export function atlasVisibleNodeIds(
     for (const node of ranked.slice(0, keep)) visible.add(node.id);
   }
 
+  const firstClassKinds = new Set([
+    'readout',
+    'motor_primitive',
+    'motor_competence',
+    'effect',
+    'controller',
+    'body_schema',
+    'action_dimension',
+    'embodiment_binding',
+  ]);
   for (const node of nodes) {
-    if (node.kind === 'readout' || node.kind === 'motor_primitive') visible.add(node.id);
+    if (firstClassKinds.has(node.kind)) visible.add(node.id);
   }
   return visible;
 }
