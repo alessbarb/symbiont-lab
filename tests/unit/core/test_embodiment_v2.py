@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.evidence import CausalEvidenceLedger
 from symbiont.actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from symbiont.actuation.surface import ActuatorSurface
@@ -96,6 +97,7 @@ def test_restore_reattaches_canonical_inference_instances() -> None:
     effects = CompetenceEffectModel()
     control = ControllabilityModel()
     agency = AgencyModel()
+    bindings = CompetenceExecutionBindingRegistry()
     restored = EmbodimentEpisode.restore(
         payload,
         contract=contract,
@@ -104,6 +106,7 @@ def test_restore_reattaches_canonical_inference_instances() -> None:
         effect_model=effects,
         controllability_model=control,
         agency_model=agency,
+        execution_bindings=bindings,
         current_tick=21,
     )
     assert restored.body_schema is schema
@@ -111,6 +114,7 @@ def test_restore_reattaches_canonical_inference_instances() -> None:
     assert restored.effect_model is effects
     assert restored.controllability_model is control
     assert restored.agency_model is agency
+    assert restored.execution_bindings is bindings
     assert restored.embodiment_id == original.embodiment_id
     assert restored.body_id == original.body_id
     assert restored.embodiment_tick == 1
