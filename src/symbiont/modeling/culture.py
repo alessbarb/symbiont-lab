@@ -107,6 +107,8 @@ class CulturalDecisionRecord:
 
     @classmethod
     def restore(cls, payload: Mapping[str, object]) -> "CulturalDecisionRecord":
+        # TODO(pyright): replace dynamic payload access with a validated
+        # checkpoint model shared by the culture persistence boundaries.
         if not isinstance(payload, Mapping):
             raise ValueError("invalid cultural decision")
         try:

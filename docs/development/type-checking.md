@@ -33,3 +33,22 @@ Los errores restantes deben resolverse por causa raíz y agruparse por contrato:
 
 El número total de diagnósticos no se considera una métrica suficiente: cada
 grupo debe validarse con pruebas enfocadas y sin relajar globalmente Pyright.
+
+## Deuda abierta registrada
+
+Estado de la iteración del 2026-09-25:
+
+- Pyright global: **813 errores y 133 warnings**.
+- Las advertencias de imports de `symbiont` desde `symbiont_lab` requieren
+  revisar primero el límite entre paquetes; no se silencian globalmente.
+- Los bloques pendientes más grandes están en fronteras que reciben
+  `dict[str, object]` o APIs opcionales: monitor de Physics3D, telemetría,
+  fisiología, cultura y runtime del mundo.
+- Los tests históricos de apagado de Physics3D todavía referencian
+  `_save_checkpoint` y `_archive_existing_subject`, APIs que no existen en el
+  CLI actual. Se mantienen como deuda de migración hasta decidir si se restaura
+  la API o se actualiza el contrato histórico.
+
+Cada bloque pendiente debe resolverse con un modelo de entrada o una
+comprobación de estado local. No se permite convertir esta deuda en una
+exclusión de Pyright, un `# pyright: ignore` amplio o un `cast` sin contrato.

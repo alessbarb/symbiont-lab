@@ -236,6 +236,8 @@ def _event_transition(
     current: Mapping[str, object],
 ) -> tuple[dict[str, object], ...]:
     """Return passive, evidence-backed events between two evaluator snapshots."""
+    # TODO(pyright): replace the object-valued snapshot boundary with a
+    # validated TypedDict once the v3/v4 telemetry payload contracts converge.
     if previous is None:
         return ()
     tick = int(current.get("tick", 0))
