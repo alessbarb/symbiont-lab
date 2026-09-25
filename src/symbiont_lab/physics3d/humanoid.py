@@ -27,6 +27,7 @@ END_RANGE_STIFFNESS = 18.0
 END_RANGE_DAMPING = 1.5
 PASSIVE_TONE_STIFFNESS_FRACTION = 0.55
 PASSIVE_TONE_TORQUE_CAP_FRACTION = 0.45
+PASSIVE_DAMPING_TORQUE_CAP_FRACTION = 1.0
 MOTOR_DOF = 31
 SOMATIC_REGION_COUNT = 15
 GLOBAL_KINEMATIC_RECEPTORS = 10
@@ -412,11 +413,21 @@ def _passive_postural_tone(
     # joints. Own the complete viscoelastic tissue model here instead:
     # elastic neutral-rest torque plus velocity-opposing damping. The URDF
     # damping term is therefore zeroed below to avoid double counting.
-    elastic = stiffness * (rest - position)
-    damping = -spec.passive_damping * velocity
-    torque = elastic + damping
-    cap = spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION
-    return max(-cap, min(cap, torque))
+    elastic_cap = (
+        spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION
+    )
+    damping_cap = (
+        spec.max_motor_torque * PASSIVE_DAMPING_TORQUE_CAP_FRACTION
+    )
+    elastic = max(
+        -elastic_cap,
+        min(elastic_cap, stiffness * (rest - position)),
+    )
+    damping = max(
+        -damping_cap,
+        min(damping_cap, -spec.passive_damping * velocity),
+    )
+    return elastic + damping
 
 
 def _restore_vector(
