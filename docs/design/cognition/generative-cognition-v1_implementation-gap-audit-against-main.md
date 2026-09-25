@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `18d9537f`
+**Audited commit:** `f0484739`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -95,7 +95,7 @@ built by composing several mature existing components.
 | GC-1 | Endogenous agenda | **IMPLEMENTED — bounded agenda and scheduler substrate** |
 | GC-2 | Generative model adapters | **IMPLEMENTED — thin adapters; runtime integration pending** |
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded rollout substrate; integration and scientific utility pending** |
-| GC-4 | Branching | **MISSING** |
+| GC-4 | Branching | **PARTIAL — bounded sibling branch substrate; pruning/equivalence/merge pending** |
 | GC-5 | Counterfactual cognition | **PARTIAL — one-step only** |
 | GC-6 | Replay | **PARTIAL — memory substrate exists** |
 | GC-7 | Recombination | **MISSING** |
@@ -986,9 +986,7 @@ Relevant:
 
 ## Current code
 
-No general generative branch tree exists.
-
-Prospective Agency evaluates multiple candidate actions independently, but that is:
+A bounded `BranchEngine` now creates sibling generated states from one parent using deterministic model ordering and the workspace branch budget. Prospective Agency still evaluates multiple candidate actions independently, but that remains:
 
 ```text
 parallel one-step candidate evaluation
@@ -1002,25 +1000,25 @@ branching generative trajectories
 
 ---
 
-## Missing
+## Remaining implementation
 
-Implement:
+Implemented in:
 
 ```text
-branching.py
+branch.py
 ```
 
 with:
 
 ```text
-EpisodeBranch
+BranchEngine
+```
 
-branch creation
+Still required:
 
+```text
 branch pruning
-
 state equivalence
-
 branch merge
 ```
 
@@ -1081,7 +1079,7 @@ GC-E2 ultimately measures whether branching adds planning utility.
 ## Status
 
 ```text
-MISSING
+PARTIAL — bounded sibling branch substrate only
 ```
 
 ---
