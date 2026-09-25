@@ -1408,7 +1408,7 @@ class CognitiveBridge:
         only evidence produced by this predictive mechanism and therefore does
         not compare semantic value across cognitive producers.
         """
-        producer_id = self._producer_id_for_family("predictor")
+        producer_id = StructuralContention.producer_id_for_family("predictor")
         if any(
             candidate.producer_id == producer_id
             for candidate in self._contention.candidates.values()
@@ -1424,7 +1424,7 @@ class CognitiveBridge:
             key=lambda candidate: (
                 -candidate.predictive_gain,
                 -candidate.samples,
-                self._candidate_tiebreak(
+                self._contention.candidate_tiebreak(
                     f"{candidate.source_id}:{candidate.target_id}"
                 ),
                 candidate.source_id,
