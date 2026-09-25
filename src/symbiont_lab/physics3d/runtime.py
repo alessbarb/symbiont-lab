@@ -10,6 +10,7 @@ from copy import deepcopy
 from dataclasses import asdict, dataclass, is_dataclass
 from enum import Enum
 import hashlib
+import json
 import math
 import secrets
 import time
@@ -283,6 +284,61 @@ class PyBulletEmbodimentRuntime:
             )
         else:
             self._settle_new_body()
+
+        # Physical Body identity belongs to the Body checkpoint, not to the
+        # Symbiont. Legacy body files may borrow the associated Episode id once
+        # during migration; the next physical save persists it here.
+        raw_physical_body_id = (
+            physical_state.get("body_id")
+            if isinstance(physical_state, Mapping)
+            else None
+        )
+        if isinstance(raw_physical_body_id, str) and raw_physical_body_id:
+            self._physical_body_id = raw_physical_body_id
+        else:
+            raw_episode = (
+                runtime_checkpoint.get("embodiment_episode")
+                if isinstance(runtime_checkpoint, Mapping)
+                else None
+            )
+            episode_body_id = (
+                raw_episode.get("body_id")
+                if isinstance(raw_episode, Mapping)
+                else None
+            )
+            if (
+                physical_state is not None
+                and isinstance(episode_body_id, str)
+                and episode_body_id
+            ):
+                self._physical_body_id = episode_body_id
+            elif physical_state is not None:
+                migration_material = {
+                    key: value
+                    for key, value in physical_state.items()
+                    if key
+                    not in {
+                        "symbiont_ticks",
+                        "locomotion_resource",
+                        "locomotion_evaluator",
+                        "contact_count",
+                        "ground_contact_count",
+                        "self_contact_count",
+                        "resource_contact_count",
+                    }
+                }
+                encoded = json.dumps(
+                    migration_material,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                ).encode("utf-8")
+                self._physical_body_id = (
+                    "body.legacy."
+                    + hashlib.sha256(encoded).hexdigest()[:24]
+                )
+            else:
+                self._physical_body_id = f"body.{secrets.token_hex(12)}"
 
         resource_state = None
         if isinstance(physical_state, Mapping):
@@ -672,6 +728,10 @@ class PyBulletEmbodimentRuntime:
             and not self._reembodied
             and physical_state is not None
         ):
+            if str(raw_episode.get("body_id") or "") != self._physical_body_id:
+                raise RuntimeError(
+                    "persisted Embodiment body identity contradicts physical Body checkpoint"
+                )
             raw_episode_contract = raw_episode.get("contract")
             if not isinstance(raw_episode_contract, Mapping):
                 raise RuntimeError(
@@ -732,18 +792,24 @@ class PyBulletEmbodimentRuntime:
             if self._embodiment_episode.state is EmbodimentState.SUSPENDED:
                 self._embodiment_episode.resume()
         else:
-            if runtime_checkpoint is not None and not self._reembodied and physical_state is not None:
+            logical_body_id = self._physical_body_id
+            if (
+                runtime_checkpoint is not None
+                and not self._reembodied
+                and physical_state is not None
+            ):
                 migration_material = (
-                    f"{self.organism_id}|{episode_epoch}|{episode_started_tick}|"
+                    f"{self.organism_id}|{logical_body_id}|{episode_epoch}|"
+                    f"{episode_started_tick}|"
                     f"{self._core_embodiment_contract.contract_fingerprint}"
                 )
-                migration_digest = hashlib.sha256(
-                    migration_material.encode("utf-8")
-                ).hexdigest()
-                logical_body_id = f"body.{migration_digest[:24]}"
-                migration_embodiment_id = f"embodiment.{migration_digest[24:48]}"
+                migration_embodiment_id = (
+                    "embodiment."
+                    + hashlib.sha256(
+                        migration_material.encode("utf-8")
+                    ).hexdigest()[:24]
+                )
             else:
-                logical_body_id = f"body.{secrets.token_hex(12)}"
                 migration_embodiment_id = None
             prior = self._embodiment_archive.prior_for(
                 body_id=logical_body_id,
@@ -1000,6 +1066,7 @@ class PyBulletEmbodimentRuntime:
             if physical_state is None
             else physical_state
         )
+        state["body_id"] = self._physical_body_id
         state["locomotion_resource"] = self.resource.checkpoint()
         contact_counts = self._contact_counts()
         state["contact_count"] = int(contact_counts["body"])
