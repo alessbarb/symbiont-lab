@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass
 import random
 from typing import Sequence
 
-from symbiont.core.agency import AgencyModel, InferredBodySchema, PerceptualStructure
+from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema, PerceptualStructure
 from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
 from symbiont.core.embodiment import implant_body
 
