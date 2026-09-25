@@ -823,6 +823,98 @@ def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any
         summary[key] = max(0, min(64, value)) if isinstance(value, int) and not isinstance(value, bool) else 0
     return {"schema_version": 1, "modalities": modalities, "sensors": sensors, "summary": summary}
 
+def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """Closed passive projection of a canonical EmbodimentEpisode/telemetry view."""
+    if not isinstance(payload, Mapping):
+        return None
+
+    def bounded_ratio(value: Any) -> float:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+        if not math.isfinite(number):
+            return 0.0
+        return round(max(0.0, min(1.0, number)), 6)
+
+    def bounded_count(value: Any, maximum: int = 1_000_000_000) -> int:
+        if isinstance(value, bool):
+            return 0
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            return 0
+        return max(0, min(maximum, number))
+
+    embodiment_id = _text(payload.get("embodiment_id", ""), 128)
+    body_id = _text(payload.get("body_id", ""), 128)
+    contract_fingerprint = _text(payload.get("contract_fingerprint", ""), 128)
+    state = _text(payload.get("state", "active"), 16).lower()
+    if not embodiment_id or not body_id or not contract_fingerprint:
+        return None
+    if state not in {"active", "suspended", "closed"}:
+        state = "active"
+
+    adaptation_raw = payload.get("adaptation")
+    adaptation_raw = adaptation_raw if isinstance(adaptation_raw, Mapping) else {}
+    dynamics_raw = payload.get("dynamics")
+    dynamics_raw = dynamics_raw if isinstance(dynamics_raw, Mapping) else {}
+    bindings_raw = payload.get("embodied_competences")
+    if not isinstance(bindings_raw, Mapping):
+        bindings_raw = payload.get("execution_bindings")
+    bindings_raw = bindings_raw if isinstance(bindings_raw, Mapping) else {}
+
+    adaptation = {
+        "prediction_error_recent": max(
+            0.0, float(adaptation_raw.get("prediction_error_recent", 0.0) or 0.0)
+        ),
+        "prediction_shock": bounded_ratio(adaptation_raw.get("prediction_shock", 0.0)),
+        "schema_uncertainty": bounded_ratio(adaptation_raw.get("schema_uncertainty", 1.0)),
+        "causal_confidence": bounded_ratio(adaptation_raw.get("causal_confidence", 0.0)),
+        "controllability_confidence": bounded_ratio(
+            adaptation_raw.get("controllability_confidence", 0.0)
+        ),
+        "competence_revalidation_ratio": bounded_ratio(
+            adaptation_raw.get("competence_revalidation_ratio", 0.0)
+        ),
+        "disruption_score": bounded_ratio(adaptation_raw.get("disruption_score", 0.0)),
+        "adaptation_ticks": bounded_count(adaptation_raw.get("adaptation_ticks", 0)),
+        "recovery_tick": (
+            bounded_count(adaptation_raw.get("recovery_tick"))
+            if adaptation_raw.get("recovery_tick") is not None
+            else None
+        ),
+    }
+    if not math.isfinite(adaptation["prediction_error_recent"]):
+        adaptation["prediction_error_recent"] = 0.0
+
+    return {
+        "embodiment_id": embodiment_id,
+        "body_id": body_id,
+        "epoch": max(1, bounded_count(payload.get("epoch", 1))),
+        "embodiment_tick": bounded_count(payload.get("embodiment_tick", 0)),
+        "contract_fingerprint": contract_fingerprint,
+        "state": state,
+        "adaptation": adaptation,
+        "dynamics": {
+            "relation_count": bounded_count(dynamics_raw.get("relation_count", 0)),
+            "mean_prediction_error": max(
+                0.0,
+                float(dynamics_raw.get("mean_prediction_error", 0.0) or 0.0),
+            ),
+        },
+        "execution": {
+            "binding_count": bounded_count(
+                bindings_raw.get("count", len(bindings_raw.get("items", ()))
+                if isinstance(bindings_raw.get("items"), list) else 0)
+            ),
+            "executable_count": bounded_count(
+                bindings_raw.get("executable", 0)
+            ),
+        },
+    }
+
+
 def project_tick(
     result: Any,
     *,
@@ -846,6 +938,7 @@ def project_tick(
     resting_requested: bool | None = None,
     relation_churn: float | None = None,
     developmental_baseline: CognitiveGraph | None = None,
+    embodiment_state: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -1010,16 +1103,30 @@ def project_tick(
             organism["cognition"]["developmental_divergence"] = round(
                 _developmental_divergence(graph, developmental_baseline), 6
             )
-    # Signal knowledge is a v3 projection. v3 requires an explicit BodySchema,
+    embodiment_projection = _embodiment_state(embodiment_state)
+    if embodiment_projection is not None:
+        organism["embodiment"] = embodiment_projection
+
+    # Signal knowledge / Embodiment are v3 projections. v3 requires an
+    # explicit observer-safe BodySchema, so callers without one publish the
+    # honest undeveloped representation rather than leaking physical truth.
     # so a caller that only has knowledge still publishes the honest
     # ``not_yet_developed`` representation rather than emitting an invalid
     # snapshot that the browser must reject.
-    if (signal_knowledge is not None or sensory_phenotype is not None) and body_schema is None:
+    if (
+        signal_knowledge is not None
+        or sensory_phenotype is not None
+        or embodiment_projection is not None
+    ) and body_schema is None:
         body_schema = _undeveloped_body_schema()
     if body_schema is not None:
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
         organism["body_schema"] = _body_schema_state(body_schema)
-    if signal_knowledge is not None or sensory_phenotype is not None:
+    if (
+        signal_knowledge is not None
+        or sensory_phenotype is not None
+        or embodiment_projection is not None
+    ):
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
     snapshot = {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
     if observer_provenance is not None:
