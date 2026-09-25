@@ -448,6 +448,55 @@ class StructuralPlanner:
 
         return candidate_graph, admitted
 
+    def record_action_association(
+        self,
+        *,
+        graph: CognitiveGraph,
+        concept_ids: Collection[str],
+        readout_id: str,
+        tick: int,
+    ) -> bool:
+        readout = graph.node_by_id(readout_id)
+        if readout is None or readout.kind is not NodeKind.READOUT:
+            return False
+        node_kinds = {
+            node.node_id: node.kind
+            for node in graph.nodes
+        }
+        recorded = False
+        for concept_id in sorted({
+            str(value) for value in concept_ids if str(value)
+        }):
+            if node_kinds.get(concept_id) is not NodeKind.CONCEPT:
+                continue
+            self._structural_plasticity.observe_motor_association_evidence(
+                source_id=concept_id,
+                motor_readout_id=readout_id,
+                source_active=True,
+                actuator_has_effect_evidence=True,
+                tick=tick,
+            )
+            recorded = True
+        return recorded
+
+    def record_motor_effects(
+        self,
+        *,
+        graph: CognitiveGraph,
+        concept_ids: Collection[str],
+        actuator_ids: Collection[str],
+        tick: int,
+    ) -> None:
+        for actuator_id in sorted({
+            str(value) for value in actuator_ids if str(value)
+        }):
+            self.record_action_association(
+                graph=graph,
+                concept_ids=concept_ids,
+                readout_id=self.motor_readout_id(actuator_id),
+                tick=tick,
+            )
+
     def oldest_blocked_wait(
         self,
         *,
