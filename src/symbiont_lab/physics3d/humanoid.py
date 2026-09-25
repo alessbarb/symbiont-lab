@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import cast
 
 
-BODY_KIND = "anthropomorphic-v5"
-BODY_STATE_SCHEMA_VERSION = 5
+BODY_KIND = "anthropomorphic-v6"
+BODY_STATE_SCHEMA_VERSION = 6
 JOINT_LIMIT_SOLVER_TOLERANCE = math.radians(0.5)
 MECHANICAL_LIMIT_GUARD = math.radians(2.0)
 PHYSICS_SOLVER_ITERATIONS = 120
@@ -162,7 +162,7 @@ JOINT_SPECS: tuple[JointSpec, ...] = (
     JointSpec("right_ankle_roll", (0.0, 1.0, 0.0), _deg(-15), _deg(15), 10.0, 1.6, 5.0),
 )
 if len(JOINT_SPECS) != MOTOR_DOF:
-    raise RuntimeError("anthropomorphic-v5 must expose exactly 31 motor DoF")
+    raise RuntimeError("anthropomorphic-v6 must expose exactly 31 motor DoF")
 
 JOINT_LIMITS: dict[int, JointLimit] = {
     ordinal: JointLimit(spec.lower, spec.upper)
@@ -273,11 +273,49 @@ def _box_inertia(mass: float, size: tuple[float, float, float]) -> tuple[float, 
     )
 
 
+CYLINDRICAL_COLLISION_LINKS = frozenset({
+    "left_upper_arm",
+    "left_forearm",
+    "right_upper_arm",
+    "right_forearm",
+    "left_thigh",
+    "left_shin",
+    "right_thigh",
+    "right_shin",
+})
+
+
+def _cylinder_inertia(
+    mass: float,
+    *,
+    radius: float,
+    length: float,
+) -> tuple[float, float, float]:
+    transverse = mass * (3.0 * radius * radius + length * length) / 12.0
+    axial = 0.5 * mass * radius * radius
+    return transverse, transverse, axial
+
+
 def _segment_link_xml(name: str, segment: SegmentSpec) -> str:
-    ixx, iyy, izz = _box_inertia(segment.mass, segment.size)
     xyz = _fmt(segment.origin)
     size = _fmt(segment.size)
     color = _fmt(segment.color)
+
+    if name in CYLINDRICAL_COLLISION_LINKS:
+        radius = min(segment.size[0], segment.size[1]) / 2.0
+        length = segment.size[2]
+        ixx, iyy, izz = _cylinder_inertia(
+            segment.mass,
+            radius=radius,
+            length=length,
+        )
+        collision_geometry = (
+            f'<cylinder radius="{radius:.10g}" length="{length:.10g}"/>'
+        )
+    else:
+        ixx, iyy, izz = _box_inertia(segment.mass, segment.size)
+        collision_geometry = f'<box size="{size}"/>'
+
     return f"""
   <link name="{name}">
     <inertial>
@@ -292,7 +330,7 @@ def _segment_link_xml(name: str, segment: SegmentSpec) -> str:
     </visual>
     <collision>
       <origin xyz="{xyz}" rpy="0 0 0"/>
-      <geometry><box size="{size}"/></geometry>
+      <geometry>{collision_geometry}</geometry>
     </collision>
   </link>"""
 
@@ -349,7 +387,7 @@ def build_anthropomorphic_urdf() -> str:
         )
     return (
         "<?xml version=\"1.0\"?>\n"
-        "<robot name=\"symbiont_anthropomorphic_v5\">"
+        "<robot name=\"symbiont_anthropomorphic_v6\">"
         + "".join(link_xml)
         + "".join(joint_xml)
         + "\n</robot>\n"
@@ -500,7 +538,7 @@ class HumanoidPhysics:
         with tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".urdf",
-            prefix="symbiont-anthropomorphic-v5-",
+            prefix="symbiont-anthropomorphic-v6-",
             encoding="utf-8",
             delete=False,
         ) as handle:
@@ -522,7 +560,7 @@ class HumanoidPhysics:
         finally:
             Path(urdf_path).unlink(missing_ok=True)
         if int(body_id) < 0:
-            raise RuntimeError("failed to load anthropomorphic-v5 URDF")
+            raise RuntimeError("failed to load anthropomorphic-v6 URDF")
         return int(body_id)
 
     @staticmethod
@@ -536,7 +574,7 @@ class HumanoidPhysics:
         joint_count = int(p.getNumJoints(self.body_id, physicsClientId=self.client_id))
         if joint_count != MOTOR_DOF:
             raise RuntimeError(
-                f"anthropomorphic-v5 loaded {joint_count} joints, expected {MOTOR_DOF}"
+                f"anthropomorphic-v6 loaded {joint_count} joints, expected {MOTOR_DOF}"
             )
 
         index_by_joint_name: dict[str, int] = {}
@@ -563,7 +601,7 @@ class HumanoidPhysics:
         # WARN(fail-closed): contract. Fail closed if Bullet ever reorders our generated tree.
         if self.motor_joint_indices != tuple(range(MOTOR_DOF)):
             raise RuntimeError(
-                "Bullet reordered anthropomorphic-v5 joints; opaque ordinal contract unsafe"
+                "Bullet reordered anthropomorphic-v6 joints; opaque ordinal contract unsafe"
             )
 
         self._joint_ordinal_by_index = {
