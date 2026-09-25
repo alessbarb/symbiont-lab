@@ -10,7 +10,17 @@ requires-python = ">=3.11"
 dependencies = ["cryptography>=42", "rich>=13"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = [
+  "pytest>=8",
+  "ruff>=0.13",
+  "pyright>=1.1.414",
+  "coverage>=7.10",
+  "bandit[toml]>=1.8",
+  "pip-audit>=2.9",
+  "hypothesis>=6.0",
+  "mutmut>=3.3",
+  "pre-commit>=4.0",
+]
 modeling = ["torch>=2.4,<3"]
 physics3d = ["pybullet>=3.2.7,<4", "torch>=2.4,<3", "numpy>=1.26,<3", "pillow>=10,<13"]
 
@@ -32,6 +42,39 @@ markers = [
   "experiment_contract: mechanical contract for an experiment protocol or runner",
   "slow: test intentionally exercises a longer or more expensive path",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [".claude", "backups", "experiments", "graphify-out", "research"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.coverage.run]
+branch = true
+parallel = true
+source = ["src", "observatory"]
+omit = [
+  "*/__pycache__/*",
+  "*/tests/*",
+  "*/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
+skip_covered = true
+show_missing = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "experiments", "research", ".claude", "backups"]
 
 [tool.setuptools.packages.find]
 where = ["src", "."]

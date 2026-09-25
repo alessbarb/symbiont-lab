@@ -1,0 +1,25 @@
+{
+  "include": ["src", "observatory"],
+  "exclude": [
+    "**/__pycache__",
+    ".claude",
+    ".venv",
+    "backups",
+    "experiments",
+    "graphify-out",
+    "research",
+    "tests"
+  ],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+  "executionEnvironments": [
+    {
+      "root": "src"
+    },
+    {
+      "root": "observatory"
+    }
+  ]
+}
