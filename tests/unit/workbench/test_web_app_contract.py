@@ -34,7 +34,8 @@ def test_router_is_declarative_and_polling_is_not_interval_based():
     assert "RuntimeStatePoller" in app
     assert "setInterval(" not in app
     assert "removeAttribute('aria-current')" in app
-    assert "history.pushState" in app\n    assert "popstate" in app
+    assert "history.pushState" in app
+    assert "popstate" in app
 
 
 def test_runtime_poller_prevents_overlap_and_handles_visibility():

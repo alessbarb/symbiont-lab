@@ -70,6 +70,22 @@ Experimental claims are deliberately narrower than implementation claims.
 For the exact evidence status, including negative and partial results, see
 [`research/STATUS.md`](research/STATUS.md).
 
+## Where tests and experiments belong
+
+The separation between verifiable software and scientific evidence is normative.
+Read the [`tests/` README](tests/README.md) before adding a test:
+
+1. if it verifies software, put it in `tests/`;
+2. if it verifies a runner or protocol, put it in `tests/experiments/` and use
+   the `experiment_contract` marker;
+3. if it runs a campaign and produces results, put it in `experiments/` behind
+   an explicit command, never as `test_*.py`;
+4. if it interprets results, put it in `research/`.
+
+Every relevant folder has a local README describing its responsibility, limits,
+execution, and file-creation criteria. `pytest` discovers only `tests/`, so a
+campaign cannot accidentally enter the automatic suite.
+
 ---
 
 ## The idea

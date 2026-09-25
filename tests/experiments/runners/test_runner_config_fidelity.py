@@ -35,3 +35,6 @@ def test_protocol_with_unsuppliable_required_params_fails_loudly(tmp_path: Path)
 
     with pytest.raises(ValueError, match="campaign.comparative"):
         runner.run(spec)
+
+
+pytestmark = pytest.mark.experiment_contract

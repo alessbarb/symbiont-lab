@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 import json
 from pathlib import Path
 
@@ -109,3 +111,6 @@ save_summary = true
     exit_code = run_reproduce(manifest_file, base_dir=base_dir)
 
     assert exit_code == 2
+
+
+pytestmark = pytest.mark.experiment_contract

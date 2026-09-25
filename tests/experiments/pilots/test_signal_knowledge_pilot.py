@@ -1,5 +1,18 @@
 """Integrity checks for the design pilot, not acceptance of a runtime engine."""
-from pilot import evaluate, fit, series
+
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.experiment_contract
+
+_PILOT = Path(__file__).parents[3] / "experiments" / "learning" / "signal-knowledge-pilot" / "pilot.py"
+_SPEC = spec_from_file_location("signal_knowledge_pilot", _PILOT)
+assert _SPEC and _SPEC.loader
+_MODULE = module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_MODULE)
+evaluate, fit, series = _MODULE.evaluate, _MODULE.fit, _MODULE.series
 
 
 def test_fit_known_linear_function():

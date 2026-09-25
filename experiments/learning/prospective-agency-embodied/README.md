@@ -52,3 +52,28 @@ print(result.as_dict())
 ```
 
 The canonical protocol uses 10 physics substeps per cognitive tick, matching\nPhysics3D's normal 240 Hz physics / 24 Hz cognition cadence. Reducing this ratio\nchanges the motor-to-body causal dynamics and is not a valid L8 comparison.\n\nThis study is intentionally not part of the fast default test suite because it\nuses PyBullet and real Private SLM training.
+
+
+## Purpose
+
+This README defines this location's scope within the experiment hierarchy.
+
+## Belongs here
+
+Protocols, configuration, documentation, and identifiable results from reproducible runs.
+
+## Does not belong here
+
+No pytest-collectable tests, production code, or final scientific interpretation.
+
+## Criterion for creating a file
+
+Add only a file that records a reproducible protocol element, an execution, or a result; mechanical contracts belong in `tests/experiments/`.
+
+## Execution
+
+Use the explicit command documented by the protocol or CLI; do not execute this folder through pytest.
+
+## Limits
+
+The contents are evidence bounded by the protocol and do not demonstrate generalization by themselves.

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from pathlib import Path
 
 from symbiont_lab.cli.main import run_reproduce
@@ -50,3 +52,6 @@ sensor_noise = 0.18
     manifest_file = run_dir / "manifest.json"
     assert RunManifest.load(manifest_file).world_digest == result.world_digest
     assert run_reproduce(manifest_file, base_dir=base_dir) == 0
+
+
+pytestmark = pytest.mark.experiment_contract

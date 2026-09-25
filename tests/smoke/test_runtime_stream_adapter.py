@@ -1298,6 +1298,19 @@ def test_mind_atlas_has_independent_show_embodiment_toggle() -> None:
     assert "motor_competence" in asset
 
 
+def test_mind_atlas_has_search_by_id_kind_or_physical_binding() -> None:
+    atlas = (WEB_ROOT / "views" / "mind" / "cognitive-atlas.js").read_text(encoding="utf-8")
+    layout = (WEB_ROOT / "views" / "mind" / "layout.js").read_text(encoding="utf-8")
+    controller = (WEB_ROOT / "views" / "mind" / "cognition-controller.js").read_text(encoding="utf-8")
+    mind = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "export function searchAtlasNodes(" in atlas
+    assert "mind-cognition-search" in layout
+    assert "onSearch" in layout
+    assert "function searchAtlas(" in controller
+    assert "cognition.searchAtlas(query)" in mind
+
+
 def test_mind_atlas_graphs_controller_and_body_schema_as_distinct_kinds() -> None:
     learning = (WEB_ROOT / "views" / "mind" / "learning-graph.js").read_text(encoding="utf-8")
 
