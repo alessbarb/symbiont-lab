@@ -238,11 +238,6 @@ class CognitiveBridge:
         self._cached_node_kinds: dict[str, NodeKind] = {}
         self._cached_relation_pairs: set[tuple[str, str]] = set()
         self._cached_node_ids_by_kind: dict[NodeKind, tuple[str, ...]] = {}
-        self._cached_concept_sig_rev = -1
-        self._cached_concept_sig_lineage_len = -1
-        self._cached_concept_sig_graph: CognitiveGraph | None = None
-        self._cached_concept_signatures: list[set[str]] = []
-        self._cached_concept_signature_pairs: set[tuple[str, str]] = set()
         self._cached_topology_health_key: tuple[int, bool] | None = None
         self._cached_topology_health: TopologyHealth | None = None
 
@@ -1330,66 +1325,14 @@ class CognitiveBridge:
         self,
         activations: Mapping[str, float],
         *,
-        limit: int = 8,
+        limit: int = 4,
     ) -> tuple[str, ...]:
-        """Scale-adaptive concept context for action learning.
-
-        Absolute 0.1 activity remains the normal criterion. If no concept
-        reaches it, retain only the strongest relative outliers so a globally
-        low-amplitude but structured graph does not become behaviorally mute.
-        This fallback depends only on the organism's own concurrent concept
-        activations and carries no environmental semantics.
-        """
-        kinds, _ = self._topology_cache()
-        values = [
-            (str(node_id), abs(float(value)))
-            for node_id, value in activations.items()
-            if (
-                kinds.get(node_id) is NodeKind.CONCEPT
-                and isinstance(value, (int, float))
-                and not isinstance(value, bool)
-                and math.isfinite(float(value))
-                and abs(float(value)) > 1e-9
-            )
-        ]
-        if not values:
-            return ()
-
-        absolute = sorted(
-            node_id for node_id, magnitude in values
-            if magnitude >= _ACTIVITY_THRESHOLD
+        node_kinds, _ = self._topology_cache()
+        return self._lifecycle.salient_concept_ids(
+            activations,
+            node_kinds=node_kinds,
+            limit=limit,
         )
-        if absolute:
-            return tuple(absolute)
-
-        magnitudes = sorted(magnitude for _node_id, magnitude in values)
-        midpoint = len(magnitudes) // 2
-        if len(magnitudes) % 2:
-            median = magnitudes[midpoint]
-        else:
-            median = 0.5 * (magnitudes[midpoint - 1] + magnitudes[midpoint])
-        deviations = sorted(abs(value - median) for value in magnitudes)
-        midpoint = len(deviations) // 2
-        if len(deviations) % 2:
-            mad = deviations[midpoint]
-        else:
-            mad = 0.5 * (deviations[midpoint - 1] + deviations[midpoint])
-
-        peak = magnitudes[-1]
-        relative_threshold = max(
-            1e-4,
-            median + 1.5 * mad,
-            peak * 0.35,
-        )
-        ranked = sorted(
-            (
-                (magnitude, node_id)
-                for node_id, magnitude in values
-                if magnitude >= relative_threshold
-            ),
-            key=lambda item: (-item[0], item[1]),
-        )
-        return tuple(sorted(node_id for _magnitude, node_id in ranked[:max(1, int(limit))]))
 
     def observe_retrospective_support(
         self,
@@ -1397,110 +1340,50 @@ class CognitiveBridge:
         *,
         support_epochs: int,
     ) -> int:
-        """Retain independent episodic co-occurrence without double counting live support.
-
-        Retrospective evidence is kept separate from per-tick live coactivation.
-        Concept birth uses the stronger of the two evidence channels, never
-        their sum, so replay cannot manufacture support from the same event.
-        """
-        if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
+        if not isinstance(self._graph, CognitiveGraph):
             return 0
-        if (
-            isinstance(support_epochs, bool)
-            or not isinstance(support_epochs, int)
-            or support_epochs <= 0
-        ):
-            return 0
-        kinds, _ = self._topology_cache()
-        eligible = tuple(sorted({
-            str(source_id)
-            for source_id in source_ids
-            if kinds.get(str(source_id)) is NodeKind.SENSE
-        }))
-        if len(eligible) < 2:
-            return 0
-
-        gained = 0
-        for index, source_id in enumerate(eligible):
-            for target_id in eligible[index + 1 :]:
-                key = (source_id, target_id)
-                if self._concept_signature_exists(key):
-                    self._lifecycle.concept_support.pop(key, None)
-                    self._lifecycle.retrospective_support.pop(key, None)
-                    continue
-                previous = self._lifecycle.retrospective_support.get(key, 0)
-                updated = max(previous, support_epochs)
-                self._lifecycle.retrospective_support[key] = updated
-                gained += max(0, updated - previous)
-        return gained
-
-    def _record_concept_support(self, activations: Mapping[str, float]) -> None:
-        if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
-            return
-        kinds, _ = self._topology_cache()
-        for node_id in self._salient_concept_ids(activations):
-            self._lifecycle.concept_last_active_tick[node_id] = self._tick
-        threshold = max(_ACTIVITY_THRESHOLD, self._expression_state.effective_growth_threshold)
-        active_senses = sorted(
-            node_id
-            for node_id, value in activations.items()
-            if kinds.get(node_id) is NodeKind.SENSE and abs(value) >= threshold
+        node_kinds, _ = self._topology_cache()
+        return self._lifecycle.observe_retrospective_support(
+            source_ids,
+            support_epochs=support_epochs,
+            node_kinds=node_kinds,
+            graph=self._graph,
+            topology_revision=self._topology_revision,
+            develop_senses=self._develop_senses,
         )
-        for index, source_id in enumerate(active_senses):
-            for target_id in active_senses[index + 1 :]:
-                key = (source_id, target_id)
-                if self._concept_signature_exists(key):
-                    self._lifecycle.concept_support.pop(key, None)
-                    self._lifecycle.retrospective_support.pop(key, None)
-                    continue
-                self._lifecycle.concept_support[key] = self._lifecycle.concept_support.get(key, 0) + 1
+
+    def _record_concept_support(
+        self,
+        activations: Mapping[str, float],
+    ) -> None:
+        if not isinstance(self._graph, CognitiveGraph):
+            return
+        node_kinds, _ = self._topology_cache()
+        self._lifecycle.record_concept_support(
+            activations,
+            node_kinds=node_kinds,
+            graph=self._graph,
+            topology_revision=self._topology_revision,
+            tick=self._tick,
+            growth_threshold=(
+                self._expression_state.effective_growth_threshold
+            ),
+            develop_senses=self._develop_senses,
+        )
 
     def _concept_signature_exists(
-        self, source_ids: tuple[str, str], *, graph: CognitiveGraph | None = None
+        self,
+        source_ids: tuple[str, str],
+        *,
+        graph: CognitiveGraph | None = None,
     ) -> bool:
         active_graph = self._graph if graph is None else graph
-        if active_graph is self._graph:
-            if (
-                self._cached_concept_sig_rev != self._topology_revision
-                or self._cached_concept_sig_graph is not self._graph
-                or self._cached_concept_sig_lineage_len != len(self._lifecycle.lineage)
-            ):
-                sigs = [set(lineage.parent_ids) for lineage in self._lifecycle.lineage.values()]
-                concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
-                incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
-                for edge in active_graph.edges:
-                    if edge.target_id in incoming:
-                        incoming[edge.target_id].add(edge.source_id)
-                sigs.extend(incoming.values())
-                signature_pairs: set[tuple[str, str]] = set()
-                for sources in sigs:
-                    ordered = sorted(sources)
-                    for index, source_id in enumerate(ordered):
-                        for target_id in ordered[index + 1 :]:
-                            signature_pairs.add((source_id, target_id))
-                self._cached_concept_signatures = sigs
-                self._cached_concept_signature_pairs = signature_pairs
-                self._cached_concept_sig_graph = self._graph
-                self._cached_concept_sig_rev = self._topology_revision
-                self._cached_concept_sig_lineage_len = len(self._lifecycle.lineage)
-            signatures = self._cached_concept_signatures
-        else:
-            signatures = [set(lineage.parent_ids) for lineage in self._lifecycle.lineage.values()]
-            concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
-            incoming = {concept_id: set() for concept_id in concept_ids}
-            for edge in active_graph.edges:
-                if edge.target_id in incoming:
-                    incoming[edge.target_id].add(edge.source_id)
-            signatures.extend(incoming.values())
-
-        if len(source_ids) == 2:
-            s1, s2 = source_ids[0], source_ids[1]
-            if active_graph is self._graph:
-                key = (s1, s2) if s1 <= s2 else (s2, s1)
-                return key in self._cached_concept_signature_pairs
-            return any(s1 in sources and s2 in sources for sources in signatures)
-        pair = set(source_ids)
-        return any(pair.issubset(sources) for sources in signatures)
+        return self._lifecycle.concept_signature_exists(
+            source_ids,
+            graph=active_graph,
+            live_graph=self._graph,
+            topology_revision=self._topology_revision,
+        )
 
     def _extract_max_concept_index(
         self,
