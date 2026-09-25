@@ -111,7 +111,7 @@ class StructuralContention:
         material = f"{self._identity}|producer-order|{producer_id}".encode("utf-8")
         return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
 
-    def _candidate_tiebreak(self, candidate_id: str) -> int:
+    def candidate_tiebreak(self, candidate_id: str) -> int:
         material = (
             f"{self._identity}|{self.consolidation_generation}|{candidate_id}"
         ).encode("utf-8")
@@ -146,11 +146,11 @@ class StructuralContention:
             current = nominees.get(candidate.producer_id)
             if current is None or (
                 candidate.eligible_tick,
-                self._candidate_tiebreak(candidate.candidate_id),
+                self.candidate_tiebreak(candidate.candidate_id),
                 candidate.candidate_id,
             ) < (
                 current.eligible_tick,
-                self._candidate_tiebreak(current.candidate_id),
+                self.candidate_tiebreak(current.candidate_id),
                 current.candidate_id,
             ):
                 nominees[candidate.producer_id] = candidate
