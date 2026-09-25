@@ -107,6 +107,21 @@ identity while its dynamics change.
 
 `body_id` identifies one physical Body.
 
+In Physics3D this identity is persisted in the physical Body checkpoint itself,
+not only in the Symbiont bundle. A same-Body restart must therefore satisfy:
+
+```text
+physical checkpoint body_id
+    ==
+EmbodimentEpisode.body_id
+```
+
+Pre-v2/v3 physical checkpoints without a Body identity are migrated once: when
+an associated Episode exists its Body identity is adopted; otherwise a
+deterministic legacy identity is derived from the physical checkpoint. The next
+physical save persists that identity and future continuity no longer depends on
+the Symbiont checkpoint.
+
 `contract_fingerprint` identifies one exposed sensorimotor interface.
 
 They are independent:
