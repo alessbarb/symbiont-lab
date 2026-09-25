@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.action import (
     ActionEvaluation,
     ActionJustification,
@@ -114,7 +115,7 @@ def test_competence_maturity_is_projection_of_evidence():
     assert evidence.maturity is CompetenceMaturity.ROBUST
 
 
-def test_surface_mismatch_does_not_mutate_competence_evidence():
+def test_execution_binding_is_separate_from_competence_evidence():
     evidence = CompetenceEvidence(
         controller_seed_ref="seed.1",
         support=8,
@@ -127,20 +128,35 @@ def test_surface_mismatch_does_not_mutate_competence_evidence():
         controller_id="controller.1",
         effect_id=None,
         evidence=evidence,
-        surface_binding="surface.A",
     )
+    bindings = CompetenceExecutionBindingRegistry()
     before = (
         competence.evidence.support,
         competence.evidence.controllability,
         competence.effect_id,
     )
-    assert competence.surface_binding != "surface.B"
-    after = (
+    bindings.bind_from_evidence(
+        competence_id=competence.competence_id,
+        surface_fingerprint="surface.A",
+        effect_id="effect.a",
+        evidence_refs=("evidence.a",),
+        reliability=0.9,
+        controllability=0.8,
+        tick=10,
+    )
+    assert bindings.is_executable(
+        competence,
+        surface_fingerprint="surface.A",
+    )
+    assert not bindings.is_executable(
+        competence,
+        surface_fingerprint="surface.B",
+    )
+    assert (
         competence.evidence.support,
         competence.evidence.controllability,
         competence.effect_id,
-    )
-    assert after == before
+    ) == before
 
 
 def test_controllability_requires_advantage_over_alternative_actions():
