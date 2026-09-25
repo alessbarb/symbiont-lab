@@ -382,23 +382,33 @@ def _carry_sensorimotor_v2_knowledge(
     previous: Mapping[str, Any],
     fresh_actuation: dict[str, Any],
 ) -> dict[str, Any]:
-    """Carry transferable competence knowledge, never old-body factual authority."""
+    """Carry general competence knowledge, never old-Body authority.
+
+    Current checkpoints store all motor state under actuation.action_domain.
+    The legacy top-level layout is read only to migrate older organisms.
+    """
     previous_actuation = previous.get("actuation")
     if not isinstance(previous_actuation, Mapping):
         return fresh_actuation
-    prior_v2 = previous_actuation.get("sensorimotor_v2")
+    prior_domain = previous_actuation.get("action_domain")
+    prior_v2 = (
+        prior_domain.get("sensorimotor_v2")
+        if isinstance(prior_domain, Mapping)
+        else previous_actuation.get("sensorimotor_v2")
+    )
     if not isinstance(prior_v2, Mapping):
         return fresh_actuation
 
     result = deepcopy(fresh_actuation)
-    fresh_v2_raw = result.get("sensorimotor_v2")
+    fresh_domain = result.get("action_domain")
+    if isinstance(fresh_domain, dict):
+        fresh_v2_raw = fresh_domain.get("sensorimotor_v2")
+    else:
+        fresh_v2_raw = result.get("sensorimotor_v2")
     if not isinstance(fresh_v2_raw, Mapping):
         return result
     fresh_v2 = deepcopy(dict(fresh_v2_raw))
 
-    # The fresh template owns the current surface, empty EffectSpace, empty
-    # causal ledger, empty execution bindings, exploration state and
-    # composition evidence. None of those can cross a Body boundary.
     prior_competences = prior_v2.get("competences", [])
     transferable: list[dict[str, Any]] = []
     if isinstance(prior_competences, list):
@@ -407,26 +417,35 @@ def _carry_sensorimotor_v2_knowledge(
                 continue
             candidate = deepcopy(dict(item))
             candidate.pop("surface_binding", None)
-            # Effect IDs are grounded in the old body's opaque perceptual
-            # changes. Preserve strategy/evidence maturity, not old grounding.
             candidate["effect_id"] = None
             transferable.append(candidate)
 
-    fresh_v2["schema_version"] = 2
+    # The fresh template owns current surface identity, EffectSpace, causal
+    # evidence, execution bindings, exploration and composition state.
+    fresh_v2["schema_version"] = 3
     fresh_v2["competences"] = transferable
-    # Explicitly insist on fresh-body authority even if a malformed template
-    # somehow carried these fields.
     fresh_v2["execution_bindings"] = {
         "schema_version": 1,
         "capacity": 512,
         "items": [],
     }
-    result["sensorimotor_v2"] = fresh_v2
-    result["action_commitment"] = None
-    result["last_executed_primitive_id"] = None
-    result["pending_motor_observation"] = []
-    result["pending_proprioception"] = {}
+
+    if isinstance(fresh_domain, dict):
+        fresh_domain["sensorimotor_v2"] = fresh_v2
+        fresh_domain["active_commitment"] = None
+        fresh_domain["last_executed_controller_seed_id"] = None
+        fresh_domain["pending_motor_observation"] = []
+        fresh_domain["pending_proprioception"] = {}
+        result["action_domain"] = fresh_domain
+    else:
+        # One-way support for a pre-ActionDomain fresh template.
+        result["sensorimotor_v2"] = fresh_v2
+        result["action_commitment"] = None
+        result["last_executed_primitive_id"] = None
+        result["pending_motor_observation"] = []
+        result["pending_proprioception"] = {}
     return result
+
 
 def migrate_legacy_memory_store(
     archive: EmbodimentArchive,

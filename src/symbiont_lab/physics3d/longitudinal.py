@@ -14,6 +14,39 @@ _MAX_HISTORICAL_PRIMITIVES = 32
 CONTRACT_FINGERPRINT_SCHEMA_VERSION = 2
 
 
+def _action_domain_payload(
+    actuation: Mapping[str, Any] | None,
+) -> Mapping[str, Any] | None:
+    if not isinstance(actuation, Mapping):
+        return None
+    payload = actuation.get("action_domain")
+    return payload if isinstance(payload, Mapping) else None
+
+
+def _competence_development_payload(
+    actuation: Mapping[str, Any] | None,
+) -> Mapping[str, Any] | None:
+    action_domain = _action_domain_payload(actuation)
+    if action_domain is not None:
+        payload = action_domain.get("competence_development")
+        if isinstance(payload, Mapping):
+            return payload
+    legacy = actuation.get("sensorimotor") if isinstance(actuation, Mapping) else None
+    return legacy if isinstance(legacy, Mapping) else None
+
+
+def _actuator_evidence_payload(
+    actuation: Mapping[str, Any] | None,
+) -> Mapping[str, Any] | None:
+    action_domain = _action_domain_payload(actuation)
+    if action_domain is not None:
+        payload = action_domain.get("actuator_evidence")
+        if isinstance(payload, Mapping):
+            return payload
+    legacy = actuation.get("proposer") if isinstance(actuation, Mapping) else None
+    return legacy if isinstance(legacy, Mapping) else None
+
+
 def _canonical_hash(payload: object) -> str:
     raw = json.dumps(
         payload,
@@ -38,11 +71,7 @@ def contract_fingerprint(
         if isinstance(actuation, Mapping)
         else None
     )
-    sensorimotor = (
-        actuation.get("sensorimotor")
-        if isinstance(actuation, Mapping)
-        else None
-    )
+    sensorimotor = _competence_development_payload(actuation)
     raw_groups = (
         sensorimotor.get("exclusive_actuator_groups")
         if isinstance(sensorimotor, Mapping)
@@ -95,7 +124,7 @@ def historical_motor_candidates(
     actuation = payload.get("actuation")
     if not isinstance(actuation, Mapping):
         return []
-    sensorimotor = actuation.get("sensorimotor")
+    sensorimotor = _competence_development_payload(actuation)
     if not isinstance(sensorimotor, Mapping):
         return []
     raw = sensorimotor.get("primitives")
@@ -210,12 +239,16 @@ def inject_memory_candidates(
     raw = memory.get("historical_primitives")
     if not isinstance(raw, list):
         return fresh_actuation
-    sensorimotor = fresh_actuation.get("sensorimotor")
+    action_domain = fresh_actuation.get("action_domain")
+    if isinstance(action_domain, dict):
+        sensorimotor = action_domain.get("competence_development")
+    else:
+        sensorimotor = fresh_actuation.get("sensorimotor")
     if not isinstance(sensorimotor, dict):
         return fresh_actuation
-    if int(sensorimotor.get("schema_version") or -1) != 10:
+    if int(sensorimotor.get("schema_version") or -1) not in {10, 11}:
         raise ValueError(
-            "fresh embodiment must provide canonical sensorimotor schema v10"
+            "fresh embodiment must provide canonical competence-development state"
         )
     expected_scope = sensorimotor.get("embodiment_fingerprint")
     if not isinstance(expected_scope, str) or not expected_scope:
@@ -294,11 +327,15 @@ def build_epoch_summary(
     parts = body_schema.get("parts")
     actuation = payload.get("actuation")
     actuation = actuation if isinstance(actuation, Mapping) else {}
-    sensorimotor = actuation.get("sensorimotor")
+    sensorimotor = _competence_development_payload(actuation)
     sensorimotor = sensorimotor if isinstance(sensorimotor, Mapping) else {}
     primitives = sensorimotor.get("primitives")
-    proposer = actuation.get("proposer")
-    candidates = proposer.get("candidates") if isinstance(proposer, Mapping) else None
+    evidence = _actuator_evidence_payload(actuation)
+    candidates = (
+        evidence.get("candidates")
+        if isinstance(evidence, Mapping)
+        else None
+    )
     private_registry = payload.get("private_model_registry")
     private_records = (
         private_registry.get("records")
