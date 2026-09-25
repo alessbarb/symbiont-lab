@@ -343,7 +343,7 @@ def build_anthropomorphic_urdf() -> str:
     <origin xyz="{_fmt(item.origin)}" rpy="0 0 0"/>
     <axis xyz="{_fmt(spec.axis)}"/>
     <limit lower="{mechanical_lower:.12g}" upper="{mechanical_upper:.12g}" effort="{spec.max_motor_torque:.12g}" velocity="{spec.max_velocity:.12g}"/>
-    <dynamics damping="{spec.passive_damping:.12g}" friction="0"/>
+    <dynamics damping="0" friction="0"/>
   </joint>"""
         )
     return (
@@ -407,11 +407,14 @@ def _passive_postural_tone(
     """
     rest = _neutral_rest_position(spec)
     stiffness = spec.max_motor_torque * PASSIVE_TONE_STIFFNESS_FRACTION
-    # Joint damping is already an explicit URDF mechanical property.  Adding
-    # another proportional velocity term here would double-count the same
-    # passive dissipation.  Postural tone contributes only the neutral-rest
-    # elastic component; end-range tissue resistance has its own damping.
-    torque = stiffness * (rest - position)
+    # Under TORQUE_CONTROL Bullet does not provide a sufficiently reliable
+    # passive joint-damping contribution for the humanoid's low-inertia axial
+    # joints. Own the complete viscoelastic tissue model here instead:
+    # elastic neutral-rest torque plus velocity-opposing damping. The URDF
+    # damping term is therefore zeroed below to avoid double counting.
+    elastic = stiffness * (rest - position)
+    damping = -spec.passive_damping * velocity
+    torque = elastic + damping
     cap = spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION
     return max(-cap, min(cap, torque))
 
