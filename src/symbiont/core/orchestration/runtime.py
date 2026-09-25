@@ -2196,9 +2196,6 @@ class OrganismRuntime:
             cognitive_self_namespace_key=self._cognitive_self_namespace_key,
         )
         cognition_result = cognition_step.cognition
-        cognitive_self_observation = (
-            cognition_step.cognitive_self_observation
-        )
         self._memory_domain.observe(
             services=MemoryServices(
                 consolidator=self._memory_consolidator,
@@ -2251,7 +2248,7 @@ class OrganismRuntime:
                 signal_identity=self._signal_identity,
             ),
             context=context,
-            cognitive_self_observation=cognitive_self_observation,
+            cognition=cognition_step,
         )
         sensory_phenotype_view = embodiment_step.sensory_phenotype
         # Cognitive/information-assimilation "success" (incorporation utility,
