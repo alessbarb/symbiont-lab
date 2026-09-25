@@ -39,6 +39,8 @@ grupo debe validarse con pruebas enfocadas y sin relajar globalmente Pyright.
 Estado de la iteración del 2026-09-25:
 
 - Pyright global en esta iteración: **769 errores y 133 warnings**.
+- El detalle reproducible de cada diagnóstico está en
+  [`pyright-inventory-2026-09-25.md`](pyright-inventory-2026-09-25.md).
 - Las advertencias de imports de `symbiont` desde `symbiont_lab` requieren
   revisar primero el límite entre paquetes; no se silencian globalmente.
 - Los bloques pendientes más grandes están en fronteras que reciben
