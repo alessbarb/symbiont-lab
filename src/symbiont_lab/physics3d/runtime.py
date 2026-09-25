@@ -910,7 +910,8 @@ class PyBulletEmbodimentRuntime:
                 f"peak_position={result.peak_joint_position_rad}, "
                 f"peak_velocity={result.peak_joint_reported_velocity_rad_s}, "
                 f"peak_applied_torque={result.peak_joint_applied_torque_nm}, "
-                f"peak_contacts={result.peak_joint_contact_count}"
+                f"peak_contacts={result.peak_joint_contact_count}, "
+                f"contact_partners={result.peak_joint_contacts}"
             )
         return result.steps
 
