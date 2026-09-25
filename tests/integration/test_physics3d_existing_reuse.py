@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 
 import pytest
 
@@ -179,7 +180,7 @@ def test_legacy_physical_checkpoint_adopts_episode_body_identity(
     legacy_body = load_body_state_file(body_file)
     assert legacy_body.pop("body_id") == canonical_body_id
     body_file.write_text(
-        __import__("json").dumps(
+        json.dumps(
             legacy_body,
             sort_keys=True,
             indent=2,
