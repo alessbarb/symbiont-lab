@@ -12,6 +12,7 @@ export function applyMindSnapshot(raw) {
   snap.beliefs = source.beliefs ?? [];
   snap.cognition = source.cognition ?? null;
   snap.topology = source.topology ?? null;
+  snap.atlas = source.atlas ?? null;
   snap.selfModel = source.self_model ?? source.selfModel ?? null;
   snap.bodySchema = source.body_schema ?? source.bodySchema ?? null;
   snap.sensoryPhenotype = source.sensory_phenotype ?? source.sensoryPhenotype ?? null;
