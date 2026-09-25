@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `6aa679c0`
+**Audited commit:** `6431bf68`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -101,7 +101,7 @@ built by composing several mature existing components.
 | GC-7 | Recombination | **PARTIAL — compatibility-gated fragment composition; novelty/equivalence evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **PARTIAL — lifecycle/reconciliation/calibration substrate; runtime evidence pending** |
 | GC-9 | Epistemic agency | **PARTIAL — comparison signal substrate; agency integration pending** |
-| GC-10 | Generative consolidation | **PARTIAL — separate generative-use signals; structural candidate projection pending** |
+| GC-10 | Generative consolidation | **PARTIAL — contention projection boundary implemented; runtime planner integration pending** |
 | GC-11 | Offline cognition | **PARTIAL — deterministic scheduler gate; execution/runtime integration pending** |
 | GC-12 | Observatory / Atlas | **PARTIAL — observer substrate excellent** |
 
@@ -1857,8 +1857,10 @@ and should remain final planner.
 observation counts. They expose cross-episode reuse, hypothesis persistence,
 model disagreement, demand and source diversity without mutating the graph.
 
-The remaining implementation is the projection into a normal
-`StructuralCandidate` through contention and the existing planner.
+Mature signals now project to a producer-neutral contention request and can be
+submitted through an external `StructuralContention.register` callback. The
+remaining integration is wiring the real structural owner and planner without
+allowing generative cognition to mutate the graph directly.
 
 Fields:
 
@@ -1981,12 +1983,12 @@ GC-E13 is release-blocking.
 ## Status
 
 ```text
-PARTIAL — generative-use signal substrate only
+PARTIAL — contention projection boundary only
 ```
 
-The structural admission architecture is ready and the separate generative
-producer signal now exists. Structural-candidate projection, contention
-integration and GC-E11/GC-E12/GC-E13 evidence remain open.
+The separate generative producer signal and contention projection now exist.
+Runtime registration with the real structural owner, planner integration and
+GC-E11/GC-E12/GC-E13 evidence remain open.
 
 ---
 
