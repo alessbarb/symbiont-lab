@@ -8,29 +8,19 @@ from symbiont.core.cognition_bridge import CognitiveBridge
 
 
 def _genome():
-    return GenomeCodec().load(
+    # This file exercises the historical primitive bridge contract and remains
+    # pending migration to the current competence API.
+    from symbiont.genetics.migration import GenomeMigrationCodec
+
+    return GenomeMigrationCodec().load(
         {
             "schema_version": 1,
             "genome_id": "genome_motorp10000000000000000000",
             "parent_ids": [],
             "kernel_compatibility": ">=0.55,<0.60",
-            "development": {
-                "initial_concepts": 1,
-                "soft_node_budget": 32,
-                "soft_edge_budget": 64,
-                "consolidation_interval_ticks": 1,
-            },
-            "plasticity": {
-                "learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08},
-                "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
-                "eligibility_decay": 0.9,
-            },
-            "structure": {
-                "grow_threshold": 0.1,
-                "prune_threshold": 0.001,
-                "minimum_support": 2,
-                "tentative_lifetime_ticks": 64,
-            },
+            "development": {"initial_concepts": 1, "soft_node_budget": 32, "soft_edge_budget": 64, "consolidation_interval_ticks": 1},
+            "plasticity": {"learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08}, "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005}, "eligibility_decay": 0.9},
+            "structure": {"grow_threshold": 0.1, "prune_threshold": 0.001, "minimum_support": 2, "tentative_lifetime_ticks": 64},
             "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
         }
     )
@@ -603,7 +593,11 @@ def test_retirement_requires_capacity_pressure():
     from dataclasses import replace
     roomy_genome = replace(
         genome,
-        development=replace(genome.development, soft_node_budget=8),
+        # The bridge starts with a bounded fraction of the genetic ceiling.
+        # A ceiling of 8 therefore still yields an active budget of 4 and
+        # keeps this fixture under capacity pressure.  Use a ceiling large
+        # enough to exercise the no-pressure branch of the current runtime.
+        development=replace(genome.development, soft_node_budget=20),
     )
     bridge = CognitiveBridge(
         graph=_full_predictor_graph(),

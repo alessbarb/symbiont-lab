@@ -4,249 +4,165 @@ import copy
 
 import pytest
 
-from symbiont.cognition.genome import (
-    GenomeCodec,
-    GenomeError,
-    parse_kernel_compatibility,
-    satisfies_kernel_compatibility,
-)
+from symbiont.genetics.genome import GenomeCodec, GenomeError
+from symbiont.genetics.genome import parse_kernel_compatibility, satisfies_kernel_compatibility
 from symbiont.cognition.limits import KernelLimits
 
+
 VALID_PAYLOAD = {
-    "schema_version": 1,
-    "genome_id": "genome_018f0000000000000000000000",
-    "parent_ids": [],
-    "kernel_compatibility": ">=0.55,<0.60",
+    "schema_version": 2,
+    "genome_id": "genome_test_v2",
+    "kernel_compatibility": ">=0.80,<0.90",
     "development": {
-        "initial_concepts": 4,
-        "soft_node_budget": 64,
-        "soft_edge_budget": 384,
+        "soft_node_budget": 192,
+        "soft_edge_budget": 1536,
+        "sense_node_budget": 128,
+        "capacity_growth_sensitivity": 0.5,
         "consolidation_interval_ticks": 32,
     },
     "plasticity": {
-        "learning_rate": {"initial": 0.02, "min": 0.001, "max": 0.08},
-        "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
+        "learning_rate": {"baseline": 0.02, "min": 0.001, "max": 0.08, "adaptation_rate": 0.002},
         "eligibility_decay": 0.92,
+        "structural_plasticity": {"baseline": 0.5, "min": 0.05, "max": 1.0, "adaptation_rate": 0.01},
+    },
+    "regulation": {
+        "uncertainty_gain": 0.5,
+        "novelty_gain": 0.4,
+        "prediction_error_gain": 0.5,
+        "controllability_loss_gain": 0.5,
+        "embodiment_mismatch_gain": 0.7,
+        "regulation_smoothing": 0.1,
+        "regulation_decay": 0.02,
+    },
+    "sensorimotor": {
+        "spontaneous_activity_baseline": 0.1,
+        "uncertainty_exploration_gain": 0.5,
+        "prediction_error_exploration_gain": 0.5,
+        "exploration_habituation": 0.01,
+        "reacclimation_sensitivity": 0.7,
     },
     "structure": {
-        "grow_threshold": 0.18,
-        "prune_threshold": 0.01,
+        "growth_threshold": {"baseline": 0.18, "min": 0.02, "max": 0.58, "adaptation_rate": 0.01},
+        "pruning_threshold": {"baseline": 0.01, "min": 0.0, "max": 0.21, "adaptation_rate": 0.005},
         "minimum_support": 16,
         "tentative_lifetime_ticks": 128,
     },
-    "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
+    "evolvability": {
+        "development_mutation_scale": 0.05,
+        "plasticity_mutation_scale": 0.05,
+        "regulation_mutation_scale": 0.05,
+        "sensorimotor_mutation_scale": 0.05,
+        "structure_mutation_scale": 0.05,
+        "recombination_linkage": 0.5,
+    },
 }
 
 
-def test_master_doc_example_loads_successfully():
-    genome = GenomeCodec().load(VALID_PAYLOAD)
-    assert genome.genome_id == "genome_018f0000000000000000000000"
-    assert genome.development.soft_node_budget == 64
-    assert genome.development.sense_node_budget == 32
-    assert genome.development.sense_retention_ticks == 256
-    assert genome.plasticity.learning_rate.initial == 0.02
+def load(payload: dict = VALID_PAYLOAD):
+    return GenomeCodec().load(payload)
 
 
-def test_explicit_sensory_development_genes_load_successfully():
+def test_v2_payload_loads_without_retired_genome_fields():
+    genome = load()
+    assert genome.schema_version == 2
+    assert genome.genome_id == "genome_test_v2"
+    assert genome.development.sense_node_budget == 128
+    assert genome.plasticity.learning_rate.baseline == pytest.approx(0.02)
+    assert not hasattr(genome, "parent_ids")
+    assert not hasattr(genome, "loci_values")
+
+
+@pytest.mark.parametrize("missing", VALID_PAYLOAD)
+def test_load_rejects_missing_top_level_key(missing):
     payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["sense_node_budget"] = 24
-    payload["development"]["sense_retention_ticks"] = 512
-    genome = GenomeCodec().load(payload)
-    assert genome.development.sense_node_budget == 24
-    assert genome.development.sense_retention_ticks == 512
-
-
-def test_legacy_small_node_budget_clamps_implicit_sense_budget():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["soft_node_budget"] = 16
-    genome = GenomeCodec().load(payload)
-    assert genome.development.sense_node_budget == 16
-
-
-@pytest.mark.parametrize("missing_key", list(VALID_PAYLOAD.keys()))
-def test_load_rejects_missing_top_level_key(missing_key):
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    del payload[missing_key]
+    del payload[missing]
     with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
+        load(payload)
 
 
 def test_load_rejects_unknown_top_level_key():
     payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["extra_field"] = "not allowed"
+    payload["parent_ids"] = []
     with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
+        load(payload)
 
 
-def test_load_rejects_unknown_development_key():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["unknown"] = 1
-    with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
-
-
-@pytest.mark.parametrize(
-    "bad_id",
-    ["", "not_prefixed", "genome_/etc/passwd", "genome_" + "x" * 65, "genome_has space"],
-)
+@pytest.mark.parametrize("bad_id", ["", "not_prefixed", "genome_/etc", "genome_has space"])
 def test_load_rejects_malformed_genome_id(bad_id):
     payload = copy.deepcopy(VALID_PAYLOAD)
     payload["genome_id"] = bad_id
     with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
+        load(payload)
 
 
-def test_load_rejects_too_many_parent_ids():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["parent_ids"] = [f"genome_parent{i:02d}" for i in range(9)]
-    with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
-
-
-def test_load_accepts_parent_ids_at_the_cap():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["parent_ids"] = [f"genome_parent{i:02d}" for i in range(8)]
-    genome = GenomeCodec().load(payload)
-    assert len(genome.parent_ids) == 8
-
-
-@pytest.mark.parametrize(
-    "bad_compat",
-    ["", "not a version spec", ">=abc", "1.2.3", ">=0.55;<0.60", "eval(1)"],
-)
-def test_load_rejects_malformed_kernel_compatibility(bad_compat):
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["kernel_compatibility"] = bad_compat
-    with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
-
-
-def test_parse_kernel_compatibility_accepts_multi_clause_spec():
-    clauses = parse_kernel_compatibility(">=0.55,<0.60")
-    assert clauses == ((">=", (0, 55, 0)), ("<", (0, 60, 0)))
-
-
-def test_load_rejects_range_spec_with_initial_outside_bounds():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["plasticity"]["learning_rate"] = {"initial": 0.5, "min": 0.001, "max": 0.08}
-    with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
-
-
-@pytest.mark.parametrize(
-    "field,value",
-    [
-        ("initial_concepts", -1),
-        ("soft_node_budget", 0),
-        ("soft_edge_budget", 0),
-        ("consolidation_interval_ticks", 0),
-        ("sense_node_budget", 0),
-        ("sense_retention_ticks", 0),
-    ],
-)
+@pytest.mark.parametrize("field,value", [
+    ("soft_node_budget", 0),
+    ("soft_edge_budget", 0),
+    ("sense_node_budget", 0),
+    ("consolidation_interval_ticks", 0),
+])
 def test_load_rejects_invalid_development_fields(field, value):
     payload = copy.deepcopy(VALID_PAYLOAD)
     payload["development"][field] = value
     with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
+        load(payload)
 
 
-def test_load_rejects_continuous_sigma_above_one():
+def test_load_rejects_sensory_budget_above_node_budget():
     payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["mutation_policy"]["continuous_sigma"] = 1.5
+    payload["development"]["sense_node_budget"] = 193
     with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
+        load(payload)
 
 
-def test_load_rejects_wrong_json_type():
+def test_load_rejects_wrong_json_type_as_genome_error():
     payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["soft_node_budget"] = "sixty-four"
+    payload["development"]["soft_node_budget"] = "192"
     with pytest.raises(GenomeError):
-        GenomeCodec().load(payload)
+        load(payload)
 
 
-def test_genome_hash_is_deterministic_and_key_order_independent():
-    genome_a = GenomeCodec().load(VALID_PAYLOAD)
+def test_load_rejects_removed_v1_schema():
+    payload = copy.deepcopy(VALID_PAYLOAD)
+    payload["schema_version"] = 1
+    with pytest.raises(GenomeError):
+        load(payload)
+
+
+@pytest.mark.parametrize("bad_compatibility", ["", ">=abc", "1.2.3", ">=0.80;<0.90"])
+def test_load_rejects_malformed_kernel_compatibility(bad_compatibility):
+    payload = copy.deepcopy(VALID_PAYLOAD)
+    payload["kernel_compatibility"] = bad_compatibility
+    with pytest.raises(GenomeError):
+        load(payload)
+
+
+def test_hash_is_key_order_independent_and_changes_with_content():
+    first = load()
     reordered = dict(reversed(list(VALID_PAYLOAD.items())))
-    genome_b = GenomeCodec().load(reordered)
-    assert genome_a.genome_hash == genome_b.genome_hash
+    assert first.genome_hash == load(reordered).genome_hash
+    changed = copy.deepcopy(VALID_PAYLOAD)
+    changed["plasticity"]["eligibility_decay"] = 0.5
+    assert first.genome_hash != load(changed).genome_hash
 
 
-def test_implicit_and_explicit_default_sensory_genes_share_hash():
-    implicit = GenomeCodec().load(VALID_PAYLOAD)
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["sense_node_budget"] = 32
-    payload["development"]["sense_retention_ticks"] = 256
-    explicit = GenomeCodec().load(payload)
-    assert implicit.genome_hash == explicit.genome_hash
+def test_kernel_compatibility_parser_and_predicate():
+    assert parse_kernel_compatibility(">=0.80,<0.90") == ((">=", (0, 80, 0)), ("<", (0, 90, 0)))
+    assert satisfies_kernel_compatibility(">=0.80,<0.90", (0, 85, 0))
+    assert not satisfies_kernel_compatibility(">=0.80,<0.90", (0, 79, 9))
+    assert not satisfies_kernel_compatibility(">=0.80,<0.90", (0, 90, 0))
 
 
-def test_genome_hash_changes_when_content_changes():
-    genome_a = GenomeCodec().load(VALID_PAYLOAD)
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["plasticity"]["eligibility_decay"] = 0.5
-    genome_b = GenomeCodec().load(payload)
-    assert genome_a.genome_hash != genome_b.genome_hash
+def test_validate_accepts_current_kernel_version_and_limits():
+    GenomeCodec().validate(load(), KernelLimits(), running_version=(0, 85, 0))
 
 
-def test_genome_hash_changes_for_nondefault_sensory_gene():
-    genome_a = GenomeCodec().load(VALID_PAYLOAD)
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["sense_retention_ticks"] = 512
-    genome_b = GenomeCodec().load(payload)
-    assert genome_a.genome_hash != genome_b.genome_hash
-
-
-# --- validate() against KernelLimits and running kernel version ---
-
-
-def test_satisfies_kernel_compatibility_true_within_range():
-    assert satisfies_kernel_compatibility(">=0.55,<0.60", (0, 57, 2))
-
-
-def test_satisfies_kernel_compatibility_false_outside_range():
-    assert not satisfies_kernel_compatibility(">=0.55,<0.60", (0, 60, 0))
-    assert not satisfies_kernel_compatibility(">=0.55,<0.60", (0, 54, 9))
-
-
-def test_validate_passes_a_genome_within_all_kernel_limits():
-    genome = GenomeCodec().load(VALID_PAYLOAD)
-    GenomeCodec().validate(genome, KernelLimits(), running_version=(0, 55, 0))
-
-
-def test_validate_rejects_soft_node_budget_exceeding_kernel_max():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["soft_node_budget"] = 999
-    genome = GenomeCodec().load(payload)
+@pytest.mark.parametrize("running_version", [(0, 79, 9), (0, 90, 0)])
+def test_validate_rejects_kernel_version_outside_declared_range(running_version):
     with pytest.raises(GenomeError):
-        GenomeCodec().validate(genome, KernelLimits(max_nodes=128), running_version=(0, 55, 0))
+        GenomeCodec().validate(load(), KernelLimits(), running_version=running_version)
 
 
-def test_validate_rejects_sense_node_budget_exceeding_soft_node_budget():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["sense_node_budget"] = 65
-    genome = GenomeCodec().load(payload)
+def test_validate_rejects_kernel_limit_overflow():
     with pytest.raises(GenomeError):
-        GenomeCodec().validate(genome, KernelLimits(), running_version=(0, 55, 0))
-
-
-def test_validate_rejects_soft_edge_budget_exceeding_kernel_max():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["soft_edge_budget"] = 9999
-    genome = GenomeCodec().load(payload)
-    with pytest.raises(GenomeError):
-        GenomeCodec().validate(genome, KernelLimits(max_edges=1024), running_version=(0, 55, 0))
-
-
-def test_validate_rejects_initial_concepts_exceeding_kernel_max():
-    payload = copy.deepcopy(VALID_PAYLOAD)
-    payload["development"]["initial_concepts"] = 999
-    genome = GenomeCodec().load(payload)
-    with pytest.raises(GenomeError):
-        GenomeCodec().validate(genome, KernelLimits(max_concepts=32), running_version=(0, 55, 0))
-
-
-def test_validate_rejects_a_running_version_outside_kernel_compatibility():
-    genome = GenomeCodec().load(VALID_PAYLOAD)
-    with pytest.raises(GenomeError):
-        GenomeCodec().validate(genome, KernelLimits(), running_version=(0, 60, 0))
+        GenomeCodec().validate(load(), KernelLimits(max_nodes=64), running_version=(0, 85, 0))

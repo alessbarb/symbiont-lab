@@ -1,8 +1,8 @@
-"""Compatibility import surface for the canonical Genome v2.
+"""Public import surface for the canonical Genome v2 model.
 
-No genetic state or mutation logic lives in cognition anymore. Historical v1
-payloads are converted explicitly through genetics.migration before the single
-v2 codec validates them.
+Historical payloads are deliberately not accepted through this module. Callers
+that read persisted legacy artifacts must use ``symbiont.genetics.migration``
+at the explicit compatibility boundary instead.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from symbiont.genetics.genome import (
     parse_kernel_compatibility,
     satisfies_kernel_compatibility,
 )
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
+from symbiont.genetics.genome import GenomeCodec
 
 
 __all__ = [

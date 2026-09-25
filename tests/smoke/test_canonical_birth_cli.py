@@ -27,7 +27,7 @@ def test_default_organism_run_has_canonical_cognition():
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["ticks"][0]["cognition"] is not None
-    assert payload["checkpoint"]["genome"]["genome_id"] == "genome_symbiont_base_v1"
+    assert payload["checkpoint"]["genome"]["genome_id"] == "genome_symbiont_base_v2"
     assert payload["checkpoint"]["cognitive_bridge"] is not None
 
 
@@ -56,5 +56,5 @@ def test_default_organism_run_adopts_a_legacy_state_file(tmp_path):
 
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
-    assert payload["checkpoint"]["genome"]["genome_id"] == "genome_symbiont_base_v1"
+    assert payload["checkpoint"]["genome"]["genome_id"] == "genome_symbiont_base_v2"
     assert payload["checkpoint"]["cognitive_bridge"] is not None

@@ -20,8 +20,11 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
     if not all(isinstance(value, Mapping) for value in (development, plasticity, structure, mutation)):
         raise ValueError("malformed Genome v1 payload")
 
-    lr = plasticity["learning_rate"]
-    fr = plasticity["forgetting_rate"]
+    try:
+        lr = plasticity["learning_rate"]
+        fr = plasticity["forgetting_rate"]
+    except KeyError as exc:
+        raise ValueError("malformed Genome v1 plasticity ranges") from exc
     if not isinstance(lr, Mapping) or not isinstance(fr, Mapping):
         raise ValueError("malformed Genome v1 plasticity ranges")
 

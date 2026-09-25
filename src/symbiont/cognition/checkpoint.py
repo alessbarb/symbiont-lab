@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 from .activation import MIN_NORMALIZER_SAMPLES, SensoryNormalizer
 from symbiont.genetics.genome import Genome, GenomeError, _genome_to_plain_dict, legacy_validation_version
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeMigrationCodec
 from .graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
 from .limits import KernelLimits
 from .metaplasticity import SafetyState
@@ -116,7 +116,9 @@ def restore_genome_checkpoint(
         for key, value in payload.items()
         if key not in {"genome_hash", "genotype_hash"}
     }
-    codec = GenomeCodec()
+    # Checkpoint persistence is the explicit historical compatibility boundary;
+    # active cognition imports use the strict v2 codec.
+    codec = GenomeMigrationCodec()
 
     # Verify historical v1 material before migration. The old genome hash was
     # the SHA-256 of its canonical persisted genome dictionary.

@@ -21,7 +21,7 @@ def test_legacy_checkpoint_adopts_canonical_cognition_without_resetting_tick():
 
     assert restored.tick_count == 37
     assert restored.genome is not None
-    assert restored.genome.genome_id == "genome_symbiont_base_v1"
+    assert restored.genome.genome_id == "genome_symbiont_base_v2"
     assert restored.cognitive_bridge is not None
     assert restored.cognitive_bridge.graph.nodes == ()
     assert restored.cognitive_bridge.graph.edges == ()
@@ -33,7 +33,7 @@ def test_legacy_checkpoint_adopts_canonical_cognition_without_resetting_tick():
 
 def test_existing_cognitive_checkpoint_is_never_replaced_by_adoption_helper():
     limits = KernelLimits()
-    genome = load_base_genome(kernel_limits=limits, running_version=(0, 59, 4))
+    genome = load_base_genome(kernel_limits=limits, running_version=(0, 85, 0))
     graph = CognitiveGraph(
         nodes=(PlasticNode(node_id="owner_sense", kind=NodeKind.SENSE),),
         edges=(),

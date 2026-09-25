@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
@@ -9,34 +8,9 @@ from symbiont.core.runtime import OrganismRuntime
 
 def _cognitive_runtime() -> OrganismRuntime:
     limits = KernelLimits()
-    genome = GenomeCodec().load(
-        {
-            "schema_version": 1,
-            "genome_id": "genome_body_schema_runtime000001",
-            "parent_ids": [],
-            "kernel_compatibility": ">=0.55,<0.60",
-            "development": {
-                "initial_concepts": 1,
-                "soft_node_budget": 16,
-                "soft_edge_budget": 32,
-                "consolidation_interval_ticks": 32,
-                "sense_node_budget": 8,
-                "sense_retention_ticks": 256,
-            },
-            "plasticity": {
-                "learning_rate": {"initial": 0.02, "min": 0.001, "max": 0.08},
-                "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
-                "eligibility_decay": 0.9,
-            },
-            "structure": {
-                "grow_threshold": 0.18,
-                "prune_threshold": 0.05,
-                "minimum_support": 16,
-                "tentative_lifetime_ticks": 256,
-            },
-            "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
-        }
-    )
+    from tests.unit.cognition.v2_fixture import genome
+
+    genome = genome(genome_id="genome_body_schema_runtime_v2", node_budget=16, edge_budget=32)
     graph = CognitiveGraph(
         nodes=(
             PlasticNode(
