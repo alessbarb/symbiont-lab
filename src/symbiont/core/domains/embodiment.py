@@ -8,6 +8,7 @@ from ...sensory import SensorySystem
 from ..cognition.host_self_model import SelfModel
 from ..embodiment.body_schema import BodySchemaEngine
 from ..signals.identity import SignalIdentity
+from .context import TickContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,7 +31,7 @@ class EmbodimentDomain:
         self,
         *,
         services: EmbodimentServices,
-        tick: int,
+        context: TickContext,
         cognitive_self_observation: dict[str, Any] | None,
     ) -> EmbodimentStepResult:
         source_ids = {
@@ -47,17 +48,17 @@ class EmbodimentDomain:
         if services.sensory_system.plasticity_enabled:
             services.body_schema.observe_sensory_phenotype(
                 sensory_phenotype,
-                tick=tick,
+                tick=context.symbiont_tick,
             )
         else:
             services.body_schema.observe_self_model(
-                services.self_model.export(current_tick=tick),
-                tick=tick,
+                services.self_model.export(current_tick=context.symbiont_tick),
+                tick=context.symbiont_tick,
             )
         if cognitive_self_observation is not None:
             services.body_schema.observe_cognition(
                 cognitive_self_observation,
-                tick=tick,
+                tick=context.symbiont_tick,
             )
         return EmbodimentStepResult(
             sensory_phenotype=sensory_phenotype,

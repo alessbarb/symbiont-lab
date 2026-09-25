@@ -13,6 +13,7 @@ from ..cognition.attention import AttentionAllocation
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
 from ..cognition.host_self_model import SelfModel
 from ..cognition.self_model import project_cognitive_self_observation
+from .context import TickContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +37,7 @@ class CognitionDomain:
         self,
         *,
         services: CognitionServices,
-        tick: int,
+        context: TickContext,
         percepts: tuple[Percept, ...],
         cognitive_readings: tuple[SensorReading, ...],
         percept_names: Mapping[str, str],
@@ -52,7 +53,6 @@ class CognitionDomain:
         plasticity_enabled: bool,
         auto_promote_predictors: bool,
         reacclimation_remaining: int,
-        current_tick: int,
         cognitive_self_namespace_key: str,
     ) -> CognitionStepResult:
         result: CognitiveBridgeResult | None = None
@@ -107,7 +107,7 @@ class CognitionDomain:
                     )
                     health = services.self_model.health(
                         capability_id,
-                        current_tick=current_tick,
+                        current_tick=max(0, context.symbiont_tick - 1),
                     )
                     modulation = max(
                         0.0, min(1.0, availability * health)
@@ -118,7 +118,7 @@ class CognitionDomain:
 
             result = bridge.tick(
                 sense_values,
-                tick=tick,
+                tick=context.symbiont_tick,
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
                 plasticity_enabled=plasticity_enabled,
@@ -127,7 +127,7 @@ class CognitionDomain:
                 active_primitive_ids=active_competence_ids,
             )
             if auto_promote_predictors:
-                bridge.nominate_shadow_prediction(tick=tick)
+                bridge.nominate_shadow_prediction(tick=context.symbiont_tick)
 
             activations = getattr(result, "activations", None)
             if (
@@ -158,7 +158,7 @@ class CognitionDomain:
         services.sensory_system.update_downstream_utility(
             predictive_gain_by_name
         )
-        sensory_mutations = services.sensory_system.plastic_step(tick=tick)
+        sensory_mutations = services.sensory_system.plastic_step(tick=context.symbiont_tick)
         if sensory_mutations:
             services.charge_metabolism(
                 "cognition",

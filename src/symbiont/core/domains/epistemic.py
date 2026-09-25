@@ -13,6 +13,7 @@ from ..cognition.attention import AttentionAllocation
 from ..cognition.evidence import DissentRecord, EvidenceRevisionLedger
 from ..cognition.host_self_model import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
 from ..foundation.narrative import NarrativeEntry, narrate_host
+from .context import TickContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,13 +41,13 @@ class EpistemicDomain:
         self,
         *,
         services: EpistemicServices,
+        context: TickContext,
         snapshot: LifecycleSnapshot,
         drift_observations: dict[str, DriftObservation],
         capability_by_percept_name: dict[str, str],
         selected_ids: set[str],
         allocations: tuple[AttentionAllocation, ...],
         investigate_ticks: int,
-        current_tick: int,
     ) -> EpistemicStepResult:
         investigated_capability: str | None = None
         evidence_gathered = 0
@@ -81,7 +82,7 @@ class EpistemicDomain:
                     services.self_model.is_established(candidate)
                     and services.self_model.health(
                         candidate,
-                        current_tick=current_tick,
+                        current_tick=max(0, context.symbiont_tick - 1),
                     )
                     < LOW_HEALTH_INVESTIGATION_THRESHOLD
                 ):
@@ -99,7 +100,7 @@ class EpistemicDomain:
                 for outcome in result.outcomes:
                     services.self_model.observe(
                         outcome=outcome,
-                        tick=current_tick,
+                        tick=max(0, context.symbiont_tick - 1),
                     )
                 revision = services.evidence_ledger.revise(
                     acclimation=services.acclimation,

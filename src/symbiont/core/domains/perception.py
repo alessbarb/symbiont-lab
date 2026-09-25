@@ -32,6 +32,7 @@ from ..embodiment.assimilation import AssimilationDecision, InformationAssimilat
 from ..signals.identity import SignalIdentity
 from ..signals.knowledge import SignalKnowledgeEngine
 from ..signals.knowledge_types import SignalObservation, SignalObservationBatch
+from .context import TickContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,7 +83,7 @@ class PerceptionDomain:
         self,
         *,
         services: PerceptionServices,
-        tick: int,
+        context: TickContext,
         discover_senses: bool,
         bootstrap_semantic_senses: bool,
         attention_budget: float,
@@ -222,7 +223,7 @@ class PerceptionDomain:
             )
         )
         services.signal_knowledge.observe(
-            SignalObservationBatch(tick, tuple(observations)),
+            SignalObservationBatch(context.symbiont_tick, tuple(observations)),
             candidate_pairs=candidate_pairs,
             outcomes=outcomes,
         )
@@ -247,7 +248,7 @@ class PerceptionDomain:
 
         services.adaptive_senses.observe(organism_readings)
         for outcome in snapshot.sampling_outcomes:
-            services.self_model.observe(outcome=outcome, tick=tick - 1)
+            services.self_model.observe(outcome=outcome, tick=max(0, context.symbiont_tick - 1))
         for evicted_name in services.adaptive_senses.drain_evicted_percept_names():
             services.drift_baselines.pop(evicted_name, None)
 
@@ -341,7 +342,7 @@ class PerceptionDomain:
         percepts = services.sensory_system.transduce(
             cognitive_readings,
             percept_names=percept_names,
-            tick=tick,
+            tick=context.symbiont_tick,
         )
         sensor_by_cognitive_name = {
             sensor.cognitive_name: sensor

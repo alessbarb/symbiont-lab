@@ -2151,7 +2151,7 @@ class OrganismRuntime:
                 reading_providers=self._reading_providers,
                 charge_metabolism=self._charge_metabolism,
             ),
-            tick=context.symbiont_tick,
+            context=context,
             discover_senses=self._discover_senses,
             bootstrap_semantic_senses=self._bootstrap_semantic_senses,
             attention_budget=self._attention_budget,
@@ -2222,7 +2222,7 @@ class OrganismRuntime:
                 self_model=self._self_model,
                 charge_metabolism=self._charge_metabolism,
             ),
-            tick=context.symbiont_tick,
+            context=context,
             percepts=percepts,
             cognitive_readings=cognitive_readings,
             percept_names=percept_names,
@@ -2241,7 +2241,6 @@ class OrganismRuntime:
             plasticity_enabled=plasticity_gate,
             auto_promote_predictors=self._auto_promote_predictors,
             reacclimation_remaining=self._reacclimation_remaining,
-            current_tick=self._tick_count,
             cognitive_self_namespace_key=self._cognitive_self_namespace_key,
         )
         cognition_result = cognition_step.cognition
@@ -2253,14 +2252,13 @@ class OrganismRuntime:
                 consolidator=self._memory_consolidator,
                 self_model=self._self_model,
             ),
-            tick=context.symbiont_tick,
+            context=context,
             cognition=cognition_result,
             drift_observations=drift_observations,
             percept_names=percept_names,
             allocations=allocations,
             availability_by_capability=availability_by_capability,
             reacclimation_remaining=self._reacclimation_remaining,
-            current_tick=self._tick_count,
         )
 
         current_signal_references = {
@@ -2290,13 +2288,13 @@ class OrganismRuntime:
                 acclimation=self._acclimation,
                 reading_providers=self._reading_providers,
             ),
+            context=context,
             snapshot=snapshot,
             drift_observations=drift_observations,
             capability_by_percept_name=capability_by_percept_name,
             selected_ids=selected_ids,
             allocations=allocations,
             investigate_ticks=self._investigate_ticks,
-            current_tick=self._tick_count,
         )
         investigated_capability = epistemic.investigated_capability
         evidence_gathered = epistemic.evidence_gathered
@@ -2318,7 +2316,7 @@ class OrganismRuntime:
                 self_model=self._self_model,
                 signal_identity=self._signal_identity,
             ),
-            tick=context.symbiont_tick,
+            context=context,
             cognitive_self_observation=cognitive_self_observation,
         )
         sensory_phenotype_view = embodiment_step.sensory_phenotype

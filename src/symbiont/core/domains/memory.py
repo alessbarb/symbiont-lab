@@ -15,6 +15,7 @@ from ..cognition.consolidation import (
     surprise_from_loss,
 )
 from ..cognition.host_self_model import SelfModel
+from .context import TickContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,14 +31,13 @@ class MemoryDomain:
         self,
         *,
         services: MemoryServices,
-        tick: int,
+        context: TickContext,
         cognition: CognitiveBridgeResult | None,
         drift_observations: Mapping[str, DriftObservation],
         percept_names: Mapping[str, str],
         allocations: tuple[AttentionAllocation, ...],
         availability_by_capability: Mapping[str, float],
         reacclimation_remaining: int,
-        current_tick: int,
     ) -> None:
         if reacclimation_remaining > 0:
             return
@@ -71,7 +71,7 @@ class MemoryDomain:
             health = (
                 services.self_model.health(
                     capability_id,
-                    current_tick=current_tick,
+                    current_tick=max(0, context.symbiont_tick - 1),
                 )
                 if capability_id is not None
                 else 0.5
@@ -90,5 +90,5 @@ class MemoryDomain:
                     reliability=reliability,
                     coherence=0.0,
                 ),
-                tick=tick,
+                tick=context.symbiont_tick,
             )
