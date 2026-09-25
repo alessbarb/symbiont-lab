@@ -7,7 +7,7 @@ from pathlib import Path
 import signal
 
 from symbiont.cognition.birth import load_base_graph, load_base_genome
-from symbiont.genetics.genome import Genome, GenomeError
+from symbiont.genetics.genome import Genome, GenomeError, legacy_validation_version
 from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, GraphError, load_graph_definition
 from symbiont.cognition.limits import KernelLimits
@@ -135,7 +135,6 @@ def _load_genome_file(path: str, *, kernel_limits: KernelLimits) -> Genome:
     payload = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
     codec = GenomeCodec()
     genome = codec.load(payload)
-    from symbiont.cognition.genome import legacy_validation_version
     codec.validate(genome, kernel_limits, running_version=legacy_validation_version(genome.kernel_compatibility, _running_version()))
     return genome
 
