@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.evidence import CausalEvidenceLedger
 from symbiont.actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
@@ -273,6 +275,7 @@ def test_episode_contract_v2_identity_migrates_without_new_episode() -> None:
         controllability_model=control,
         agency_model=agency,
         execution_bindings=CompetenceExecutionBindingRegistry(),
+        allow_contract_schema_migration=True,
         current_tick=11,
     )
 
@@ -281,3 +284,36 @@ def test_episode_contract_v2_identity_migrates_without_new_episode() -> None:
     assert restored.contract.contract_fingerprint == new_contract.contract_fingerprint
     assert restored.contract_history[-1].reason == "contract_schema_v2_to_v3"
     assert restored.contract_history[-1].previous_fingerprint == "legacy-contract-fingerprint"
+
+
+
+def test_episode_contract_mismatch_fails_closed_without_verified_migration() -> None:
+    old_contract = _contract()
+    episode = EmbodimentEpisode.begin(
+        symbiont_id="symbiont.a",
+        body_id="body.a",
+        epoch=1,
+        start_symbiont_tick=0,
+        contract=old_contract,
+    )
+    payload = episode.checkpoint(current_tick=0)
+    payload["contract"]["schema_version"] = 2
+    payload["contract"]["contract_fingerprint"] = "legacy-contract-fingerprint"
+
+    incompatible = EmbodimentContract(
+        perceptual_surface=PerceptualSurface.from_count(9),
+        actuator_surface=ActuatorSurface.from_count(7),
+        timing=TimingContract(tick_hz=12.0),
+    )
+    with pytest.raises(ValueError, match="contract does not match"):
+        EmbodimentEpisode.restore(
+            payload,
+            contract=incompatible,
+            body_schema=BodySchemaEngine(),
+            causal_evidence=CausalEvidenceLedger(),
+            effect_model=CompetenceEffectModel(),
+            controllability_model=ControllabilityModel(),
+            agency_model=AgencyModel(),
+            execution_bindings=CompetenceExecutionBindingRegistry(),
+            current_tick=0,
+        )
