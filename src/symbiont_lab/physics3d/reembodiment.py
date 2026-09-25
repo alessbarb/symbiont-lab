@@ -25,6 +25,7 @@ from .longitudinal import (
 
 _MAX_EMBODIMENT_HISTORY = 8
 _SCHEMA_VERSION = 1
+_CANONICAL_CONTRACT_FINGERPRINT_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -478,6 +479,7 @@ def prepare_fresh_embodiment_checkpoint(
     fresh: Mapping[str, Any],
     *,
     contract: EmbodimentContract,
+    canonical_contract_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """Move one persistent Symbiont into a fresh Body.
 
@@ -550,7 +552,21 @@ def prepare_fresh_embodiment_checkpoint(
     current_fingerprint_version = int(
         current.get("contract_fingerprint_schema_version") or 0
     )
-    if (
+    episode_contract = (
+        raw_episode.get("contract")
+        if isinstance(raw_episode, Mapping)
+        else None
+    )
+    episode_fingerprint = (
+        str(episode_contract.get("contract_fingerprint"))
+        if isinstance(episode_contract, Mapping)
+        and isinstance(episode_contract.get("contract_fingerprint"), str)
+        and episode_contract.get("contract_fingerprint")
+        else None
+    )
+    if episode_fingerprint is not None:
+        previous_fingerprint = episode_fingerprint
+    elif (
         current_fingerprint_version == CONTRACT_FINGERPRINT_SCHEMA_VERSION
         and isinstance(current.get("contract_fingerprint"), str)
         and current.get("contract_fingerprint")
@@ -562,11 +578,19 @@ def prepare_fresh_embodiment_checkpoint(
             receptor_count=previous_contract.receptor_count,
             effector_count=previous_contract.effector_count,
         )
-    new_fingerprint = contract_fingerprint(
-        fresh,
-        receptor_count=contract.receptor_count,
-        effector_count=contract.effector_count,
-    )
+
+    if canonical_contract_fingerprint is not None:
+        if not canonical_contract_fingerprint:
+            raise ValueError("canonical contract fingerprint must not be empty")
+        new_fingerprint = str(canonical_contract_fingerprint)
+        new_fingerprint_schema = _CANONICAL_CONTRACT_FINGERPRINT_SCHEMA_VERSION
+    else:
+        new_fingerprint = contract_fingerprint(
+            fresh,
+            receptor_count=contract.receptor_count,
+            effector_count=contract.effector_count,
+        )
+        new_fingerprint_schema = CONTRACT_FINGERPRINT_SCHEMA_VERSION
     historical_bridge, historical_motor_surface = _detach_body_specific_cognition(previous)
     active_model_id = _active_private_model_id(previous)
     metrics = current.get("metrics") if isinstance(current.get("metrics"), Mapping) else {}
@@ -757,9 +781,7 @@ def prepare_fresh_embodiment_checkpoint(
         "current": {
             **contract.as_dict(),
             "contract_fingerprint": new_fingerprint,
-            "contract_fingerprint_schema_version": (
-                CONTRACT_FINGERPRINT_SCHEMA_VERSION
-            ),
+            "contract_fingerprint_schema_version": new_fingerprint_schema,
             "started_tick": saved_tick,
             "body_vital_state": "active",
             "contract_relation": relation,
@@ -807,20 +829,40 @@ def update_lifecycle_for_checkpoint(
     current.update(contract.as_dict())
     current["body_vital_state"] = _body_vital_state(payload)
     current.setdefault("started_tick", 0)
-    if (
-        int(current.get("contract_fingerprint_schema_version") or 0)
-        != CONTRACT_FINGERPRINT_SCHEMA_VERSION
-        or not isinstance(current.get("contract_fingerprint"), str)
-        or not current.get("contract_fingerprint")
-    ):
-        current["contract_fingerprint"] = contract_fingerprint(
-            payload,
-            receptor_count=contract.receptor_count,
-            effector_count=contract.effector_count,
-        )
-    current["contract_fingerprint_schema_version"] = (
-        CONTRACT_FINGERPRINT_SCHEMA_VERSION
+    episode = payload.get("embodiment_episode")
+    episode_contract = (
+        episode.get("contract")
+        if isinstance(episode, Mapping)
+        and int(episode.get("schema_version") or 0) in {2, 3}
+        else None
     )
+    canonical_fingerprint = (
+        str(episode_contract.get("contract_fingerprint"))
+        if isinstance(episode_contract, Mapping)
+        and isinstance(episode_contract.get("contract_fingerprint"), str)
+        and episode_contract.get("contract_fingerprint")
+        else None
+    )
+    if canonical_fingerprint is not None:
+        current["contract_fingerprint"] = canonical_fingerprint
+        current["contract_fingerprint_schema_version"] = (
+            _CANONICAL_CONTRACT_FINGERPRINT_SCHEMA_VERSION
+        )
+    else:
+        if (
+            int(current.get("contract_fingerprint_schema_version") or 0)
+            != CONTRACT_FINGERPRINT_SCHEMA_VERSION
+            or not isinstance(current.get("contract_fingerprint"), str)
+            or not current.get("contract_fingerprint")
+        ):
+            current["contract_fingerprint"] = contract_fingerprint(
+                payload,
+                receptor_count=contract.receptor_count,
+                effector_count=contract.effector_count,
+            )
+        current["contract_fingerprint_schema_version"] = (
+            CONTRACT_FINGERPRINT_SCHEMA_VERSION
+        )
     if metrics is not None:
         current["metrics"] = deepcopy(dict(metrics))
 
