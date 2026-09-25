@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Collection, Mapping
 
 from ...cognition.graph import CognitiveGraph
@@ -14,6 +15,142 @@ _TENTATIVE_WEIGHT = 0.05
 _CORE_READOUT_ID = "readout_core"
 _MOTOR_READOUT_PREFIX = "readout_motor:"
 _PRIMITIVE_READOUT_PREFIX = "readout_primitive:"
+
+
+class RepresentationMaturity(StrEnum):
+    NASCENT = "nascent"
+    PROVISIONAL = "provisional"
+    MATURE = "mature"
+    STABLE = "stable"
+    WEAKENING = "weakening"
+    RETIRING = "retiring"
+
+
+class RepresentationTracker:
+    """Own generic developmental evidence for graph representations."""
+
+    def __init__(self, graph: CognitiveGraph) -> None:
+        self.born_tick: dict[str, int] = {
+            node.node_id: 0 for node in graph.nodes
+        }
+        self.observation_count: dict[str, int] = {
+            node.node_id: 0 for node in graph.nodes
+        }
+        self.active_count: dict[str, int] = {
+            node.node_id: 0 for node in graph.nodes
+        }
+
+    def observe(
+        self,
+        activations: Mapping[str, float],
+        *,
+        threshold: float = _ACTIVITY_THRESHOLD,
+    ) -> None:
+        for node_id, value in activations.items():
+            self.observation_count[node_id] = (
+                self.observation_count.get(node_id, 0) + 1
+            )
+            if abs(value) >= threshold:
+                self.active_count[node_id] = (
+                    self.active_count.get(node_id, 0) + 1
+                )
+
+    def note_birth(self, node_id: str, *, tick: int) -> None:
+        if not node_id:
+            return
+        self.born_tick.setdefault(node_id, max(0, int(tick)))
+        self.observation_count.setdefault(node_id, 0)
+        self.active_count.setdefault(node_id, 0)
+
+    def remove(self, node_id: str) -> None:
+        self.born_tick.pop(node_id, None)
+        self.observation_count.pop(node_id, None)
+        self.active_count.pop(node_id, None)
+
+    def reconcile(self, graph: CognitiveGraph) -> None:
+        node_ids = {node.node_id for node in graph.nodes}
+        self.born_tick = {
+            key: value
+            for key, value in self.born_tick.items()
+            if key in node_ids
+        }
+        self.observation_count = {
+            key: value
+            for key, value in self.observation_count.items()
+            if key in node_ids
+        }
+        self.active_count = {
+            key: value
+            for key, value in self.active_count.items()
+            if key in node_ids
+        }
+        for node_id in node_ids:
+            self.born_tick.setdefault(node_id, 0)
+            self.observation_count.setdefault(node_id, 0)
+            self.active_count.setdefault(node_id, 0)
+
+    def maturity(
+        self,
+        node_id: str,
+        *,
+        graph: CognitiveGraph,
+        tick: int,
+        orphan_since_tick: Mapping[str, int],
+        retiring_predictor_ids: Collection[str],
+        predictor_utility: Mapping[str, object],
+        tentative_lifetime_ticks: int,
+        minimum_support: int,
+    ) -> RepresentationMaturity:
+        node = graph.node_by_id(node_id)
+        if node is None:
+            return RepresentationMaturity.NASCENT
+        if node.kind is NodeKind.SENSE:
+            return RepresentationMaturity.STABLE
+        if (
+            node.kind is NodeKind.PREDICTOR
+            and node_id in retiring_predictor_ids
+        ):
+            return RepresentationMaturity.RETIRING
+
+        orphan_since = orphan_since_tick.get(node_id)
+        if orphan_since is not None:
+            orphan_age = max(0, tick - orphan_since)
+            grace = max(1, tentative_lifetime_ticks)
+            if orphan_age >= max(1, grace // 2):
+                return RepresentationMaturity.RETIRING
+            return RepresentationMaturity.WEAKENING
+
+        born_tick = self.born_tick.get(node_id, 0)
+        age = max(0, tick - born_tick)
+        grace = max(1, tentative_lifetime_ticks)
+        observations = self.observation_count.get(node_id, 0)
+        active = self.active_count.get(node_id, 0)
+        required_support = max(2, minimum_support)
+
+        if age < grace or observations < required_support:
+            return RepresentationMaturity.NASCENT
+
+        incident = graph.incident_edges(node_id)
+        integrated = any(
+            edge.support >= required_support for edge in incident
+        )
+        if active < required_support or not integrated:
+            return RepresentationMaturity.PROVISIONAL
+
+        if node.kind is NodeKind.PREDICTOR:
+            utility = predictor_utility.get(node_id)
+            if not (
+                utility is not None
+                and getattr(utility, "samples", 0)
+                >= max(8, required_support)
+                and getattr(utility, "predictive_gain", 0.0) > 0.0
+                and getattr(utility, "recent_gain", 0.0) > 0.0
+            ):
+                return RepresentationMaturity.PROVISIONAL
+
+        if age >= 2 * grace and active >= 2 * required_support:
+            return RepresentationMaturity.STABLE
+        return RepresentationMaturity.MATURE
 
 
 @dataclass(slots=True, frozen=True)
