@@ -176,6 +176,8 @@ def _load_parent_state(
     try:
         state = torch.load(buffer, map_location="cpu", weights_only=True)
     except TypeError:  # pragma: no cover - older supported torch variants
+        # TODO(security): remove this unsafe compatibility path when the
+        # minimum supported PyTorch version guarantees weights_only support.
         buffer.seek(0)
         state = torch.load(buffer, map_location="cpu")  # nosec B614
     except Exception as exc:

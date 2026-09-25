@@ -78,7 +78,9 @@ show_missing = true
 
 [tool.bandit]
 exclude_dirs = ["tests", "experiments", "research", ".claude", "backups"]
-# These findings are intentional in this deterministic research runtime: asserts
+# TODO(security): replace these global skips with per-file or per-line evidence
+# once the affected invariants and cleanup paths have been reviewed. These
+# findings are intentional in this deterministic research runtime: asserts
 # guard internal invariants, pseudo-randomness is simulation input (not secrets),
 # string literals are protocol tokens, and best-effort cleanup is non-critical.
 skips = ["B101", "B105", "B106", "B110", "B112", "B311"]

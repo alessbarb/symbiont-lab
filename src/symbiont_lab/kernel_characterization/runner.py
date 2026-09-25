@@ -27,6 +27,8 @@ from .protocols import DEFAULT_SEEDS, phases
 
 
 def _git_sha() -> str:
+    # TODO(security): replace the subprocess probe with a dependency-free,
+    # trusted provenance source if the experiment contract permits it.
     try:
         return subprocess.check_output(  # nosec
             ["git", "rev-parse", "HEAD"], text=True

@@ -30,6 +30,8 @@ def _file_sha256(path: Path | str) -> str | None:
 
 
 def _git_commit_sha() -> str:
+    # TODO(security): replace the subprocess probe with a dependency-free,
+    # trusted provenance source if the resident deployment contract permits it.
     try:
         out = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],  # nosec

@@ -34,6 +34,8 @@ def load_artifact_model(
     try:
         state = torch.load(buffer, map_location="cpu", weights_only=True)
     except TypeError:  # pragma: no cover
+        # TODO(security): remove this unsafe compatibility path when the
+        # minimum supported PyTorch version guarantees weights_only support.
         buffer.seek(0)
         state = torch.load(buffer, map_location="cpu")  # nosec B614
     model.load_state_dict(state, strict=True)
