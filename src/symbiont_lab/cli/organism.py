@@ -7,7 +7,8 @@ from pathlib import Path
 import signal
 
 from symbiont.cognition.birth import load_base_graph, load_base_genome
-from symbiont.cognition.genome import Genome, GenomeCodec, GenomeError
+from symbiont.genetics.genome import Genome, GenomeError
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, GraphError, load_graph_definition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core import (
