@@ -102,7 +102,7 @@ built by composing several mature existing components.
 | GC-8 | Hypothesis + reconciliation | **PARTIAL — lifecycle/reconciliation/calibration substrate; runtime evidence pending** |
 | GC-9 | Epistemic agency | **PARTIAL — comparison signal substrate; agency integration pending** |
 | GC-10 | Generative consolidation | **PARTIAL — separate generative-use signals; structural candidate projection pending** |
-| GC-11 | Offline cognition | **MISSING** |
+| GC-11 | Offline cognition | **PARTIAL — deterministic scheduler gate; execution/runtime integration pending** |
 | GC-12 | Observatory / Atlas | **PARTIAL — observer substrate excellent** |
 
 The critical path is therefore approximately:
@@ -2002,9 +2002,12 @@ Relevant:
 
 ## Current code
 
-Searches for offline cognition do not reveal a generative processing mode.
+`GenerativeMode` and `GenerativeScheduler` now provide deterministic
+ONLINE/IDLE/OFFLINE timing gates with separate quotas, target/workspace checks
+and model-query budget checks. They do not execute cognition themselves.
 
-Existing uses of "offline" refer to unrelated concerns such as:
+Existing uses of "offline" outside this substrate refer to unrelated concerns
+such as:
 
 ```text
 offline exchange
@@ -2021,29 +2024,17 @@ GenerativeMode.OFFLINE
 
 ---
 
-## Missing
+## Remaining implementation
 
-Implement Scheduler modes.
-
-Likely:
+The deterministic scheduler substrate is implemented in:
 
 ```text
 scheduler.py
 ```
 
-with:
-
-```text
-GenerativeMode
-
-mode-specific budgets
-
-opportunity detection
-```
-
-The first implementation should remain deterministic and synchronous.
-
-Do not introduce threads.
+Remaining work is a synchronous execution coordinator that connects agenda
+targets, scheduler decisions and bounded workspace episodes. Do not introduce
+threads or let offline cognition mutate the world.
 
 ---
 
@@ -2105,8 +2096,11 @@ with identical factual experience.
 ## Status
 
 ```text
-MISSING
+PARTIAL — scheduler substrate only
 ```
+
+Mode-specific execution, replay/consolidation integration and the
+no-world-mutation offline regression suite remain open.
 
 ---
 
