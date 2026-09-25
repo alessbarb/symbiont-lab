@@ -1,0 +1,37 @@
+{
+  "wave": 0,
+  "documents": [
+    {
+      "id": "design.embodiment.percepcion-y-embodiment",
+      "source": "docs/design/percepcion-y-embodiment.md",
+      "target": "docs/design/embodiment/perception-and-embodiment.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass"
+    },
+    {
+      "id": "design.general.episodic-experience-memory-v1",
+      "source": "docs/design/episodic-experience-memory-v1.md",
+      "target": "docs/design/archive/episodic-experience-memory-v1.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass"
+    },
+    {
+      "id": "explanation.math.09-plasticidad-endogena-y-redes-recurrentes",
+      "source": "docs/math/09-plasticidad-endogena-y-redes-recurrentes.md",
+      "target": "docs/explanation/math/09-endogenous-plasticity-and-recurrent-networks.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass"
+    },
+    {
+      "id": "design.embodiment.embodiment-v2",
+      "source": "docs/design/embodiment-v2.md",
+      "target": "docs/design/embodiment/embodiment-v2.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass"
+    }
+  ]
+}

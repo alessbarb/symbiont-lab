@@ -26,21 +26,21 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 
 ## 3. Compendio Matemático
 
-- [`math/README.md`](math/README.md) — **Compendio Matemático Formal:** Demostraciones analíticas, estabilidad de Welford, EWMA con suelo congelado, atención causal por mochila voraz 0/1, actualización bayesiana, dinámica de Oja y selección causal con Treaps.
-  - *Itinerario A:* Teoría de la decisión y seguridad bayesiana ([Caps. 01, 04, 05, 06, 07](math/README.md#rutas-pedagógicas-recomendadas)).
-  - *Itinerario B:* Procesamiento de señales y estabilidad de Welford en el anfitrión ([Caps. 02, 03, 08](math/README.md#rutas-pedagógicas-recomendadas)).
-  - *Itinerario C:* Arquitectura neuronal plástica y calibración estadística ([Caps. 09, 10](math/README.md#rutas-pedagógicas-recomendadas)).
+- [`math/README.md`](explanation/math/README.md) — **Compendio Matemático Formal:** Demostraciones analíticas, estabilidad de Welford, EWMA con suelo congelado, atención causal por mochila voraz 0/1, actualización bayesiana, dinámica de Oja y selección causal con Treaps.
+  - *Itinerario A:* Teoría de la decisión y seguridad bayesiana ([Caps. 01, 04, 05, 06, 07](explanation/math/README.md#rutas-pedagógicas-recomendadas)).
+  - *Itinerario B:* Procesamiento de señales y estabilidad de Welford en el anfitrión ([Caps. 02, 03, 08](explanation/math/README.md#rutas-pedagógicas-recomendadas)).
+  - *Itinerario C:* Arquitectura neuronal plástica y calibración estadística ([Caps. 09, 10](explanation/math/README.md#rutas-pedagógicas-recomendadas)).
 
 ---
 
 ## 4. Diseños Técnicos por Hito (`docs/design/`)
 
-- [`design/README.md`](design/README.md) — **Índice temático de especificaciones ontogenéticas:**
-  - *Hito E (Embodiment):* [`percepcion-y-embodiment.md`](design/percepcion-y-embodiment.md).
-  - *Hito E2 (Plasticidad):* [`cognicion-y-plasticidad.md`](design/cognicion-y-plasticidad.md) y [`percepcion-y-embodiment.md`](design/percepcion-y-embodiment.md).
-  - *Hitos F e I (Fisiología):* [`fisiologia-y-reproduccion.md`](design/fisiologia-y-reproduccion.md).
-  - *Hito G (Población y Linaje):* [`fisiologia-y-reproduccion.md`](design/fisiologia-y-reproduccion.md) y [`cognicion-y-plasticidad.md`](design/cognicion-y-plasticidad.md).
-  - *Hitos J y K (Predicción y Sociedad):* [`sociabilidad-y-desarrollo-predictivo.md`](design/sociabilidad-y-desarrollo-predictivo.md).
+- [`design/README.md`](design/general/README.md) — **Índice temático de especificaciones ontogenéticas:**
+  - *Hito E (Embodiment):* [`percepcion-y-embodiment.md`](design/embodiment/perception-and-embodiment.md).
+  - *Hito E2 (Plasticidad):* [`cognicion-y-plasticidad.md`](design/general/cognition-and-plasticity.md) y [`percepcion-y-embodiment.md`](design/embodiment/perception-and-embodiment.md).
+  - *Hitos F e I (Fisiología):* [`fisiologia-y-reproduccion.md`](design/general/physiology-and-reproduction.md).
+  - *Hito G (Población y Linaje):* [`fisiologia-y-reproduccion.md`](design/general/physiology-and-reproduction.md) y [`cognicion-y-plasticidad.md`](design/general/cognition-and-plasticity.md).
+  - *Hitos J y K (Predicción y Sociedad):* [`sociabilidad-y-desarrollo-predictivo.md`](design/general/sociability-and-predictive-development.md).
 
 > [!NOTE]
 > En `1.0.0` / `experimental-organism-v1`, los Hitos I (fisiología
@@ -70,4 +70,4 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 
 ## 7. Documentación de Publicación Web
 
-- [`web/README.md`](web/README.md) — **Puerta narrativa pública sobre qué es un Symbiont y qué muestra la experimentación**, sin sustituir el portal técnico. Cada capítulo cita su fuente exacta en [`web/FUENTES.md`](web/FUENTES.md).
+- [`web/README.md`](explanation/concepts/README.md) — **Puerta narrativa pública sobre qué es un Symbiont y qué muestra la experimentación**, sin sustituir el portal técnico. Cada capítulo cita su fuente exacta en [`web/FUENTES.md`](explanation/concepts/SOURCES.md).

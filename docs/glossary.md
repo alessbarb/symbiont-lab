@@ -1,3 +1,15 @@
+---
+id: root.glossary
+title: "Glossary"
+document_type: reference
+domain: general
+status: unclassified
+canonical: false
+implementation_status: unknown
+migrated_on: 2026-09-25
+last_reviewed: null
+language: en
+---
 # Glossary of Epistemological and Experimental Terms
 
 ## Experimental Hierarchy

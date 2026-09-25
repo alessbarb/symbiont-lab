@@ -149,7 +149,7 @@ de nuevas modalidades permanecen cerradas.
 
 ### Emergent Sensory Modalities v1 — diseño propuesto, no implementado
 
-La siguiente frontera queda definida en [`../docs/design/emergent-sensory-modalities-v1.md`](../docs/design/emergent-sensory-modalities-v1.md). El diseño elimina `alpha/beta/gamma` como clases constitucionales de desarrollo: todos los receptores compartirán un kernel común de primitivas bounded y “modalidad” será una propiedad derivada evaluator-side del fenotipo receptor, nunca una respuesta suministrada al organismo.
+La siguiente frontera queda definida en [`../docs/design/emergent-sensory-modalities-v1.md`](../docs/design/general/emergent-sensory-modalities-v1.md). El diseño elimina `alpha/beta/gamma` como clases constitucionales de desarrollo: todos los receptores compartirán un kernel común de primitivas bounded y “modalidad” será una propiedad derivada evaluator-side del fenotipo receptor, nunca una respuesta suministrada al organismo.
 
 La migración se abre por etapas: compatibilidad escalar, `ReceptorProgram`, retirada de restricciones por modalidad, mutación estructural bounded y solo después geometría vectorial. Event/sequence/field, ciclos, invención de primitivas e herencia de programas adquiridos permanecen cerrados.
 
@@ -295,7 +295,7 @@ El entrypoint canónico `symbiont_lab.integration.IntegratedHabitatRuntime`
 mantiene población bounded, identidad/genealogía, lifecycle, habitat social,
 canales autorizados, ledgers privados por organismo, checkpoint de fin de tick
 y telemetría outbound-only. El orden de tick y los límites están documentados
-en [`../docs/design/integrated-habitat-runtime-v1.md`](../docs/design/integrated-habitat-runtime-v1.md).
+en [`../docs/design/integrated-habitat-runtime-v1.md`](../docs/design/runtime/integrated-habitat-runtime-v1.md).
 
 El smoke `integration.integrated-habitat-runtime` cubre seeds `101, 127, 149`:
 cada seed ejerció un nacimiento, una muerte, comunicación, grounding,
@@ -334,7 +334,7 @@ espontánea, ecología multigeneracional ni cierre del organismo.
 
 - **Private SLM v1 — cerrado científicamente en el alcance declarado**.
   Sustrato implementado según
-  [`../docs/design/futuro-cultural.md`](../docs/design/futuro-cultural.md):
+  [`../docs/design/futuro-cultural.md`](../docs/design/communication/cultural-future.md):
   - ledger privado y bounded de experiencia abstracta por organismo;
   - captura automática de vida sin raw telemetry ni `runtime_events` del evaluador;
   - estados epistemológicos y procedencia explícita;
@@ -414,7 +414,7 @@ espontánea, ecología multigeneracional ni cierre del organismo.
 ## Cultural Foundation v1 — cerrada en el alcance de transporte local autorizado
 
 La implementación nueva está descrita en
-[`../docs/design/futuro-cultural.md`](../docs/design/futuro-cultural.md).
+[`../docs/design/futuro-cultural.md`](../docs/design/communication/cultural-future.md).
 Mantiene el Private SLM privado y no transfiere pesos, adapters, corpus ni
 telemetría. El runtime conserva claims en un `SocialEvidenceLedger` separado;
 `SocialChannel` es únicamente transporte en memoria permitido por el
@@ -462,7 +462,7 @@ Debe conservar como invariantes:
 ## Cumulative Culture v1 — cerrada en el alcance preregistrado
 
 La implementación está descrita en
-[`../docs/design/futuro-cultural.md`](../docs/design/futuro-cultural.md)
+[`../docs/design/futuro-cultural.md`](../docs/design/communication/cultural-future.md)
 y añade composites culturales versionados sobre el DAG social existente. El
 composite conserva claims componentes, padres, contributors, roots, generación,
 reemplazo y retirada. No crea evidencia, no transfiere pesos/modelos/corpus y
@@ -501,7 +501,7 @@ GitHub Actions queda fuera por la incidencia de billing.
 ## Autonomous Cultural Agency v1 — cerrada en el alcance preregistrado
 
 La implementación está descrita en
-[`../docs/design/autonomous-cultural-agency-v1.md`](../docs/design/autonomous-cultural-agency-v1.md).
+[`../docs/design/autonomous-cultural-agency-v1.md`](../docs/design/communication/autonomous-cultural-agency-v1.md).
 `CulturalPolicy` vive en `symbiont.modeling`, selecciona acciones sobre estado
 local bounded y registra `CulturalDecisionRecord`; el tratamiento autónomo
 recibe únicamente vecinos/topología, ticks y presupuestos. No recibe IDs de
@@ -803,7 +803,7 @@ Tras los runs Physics3D y la auditoría de la constitución corporal, la priorid
 canónica deja de ser locomoción avanzada o nuevos mecanismos cognitivos.
 
 La siguiente frontera es
-[`docs/design/living-body-p0.md`](../docs/design/living-body-p0.md).
+[`docs/design/living-body-p0.md`](../docs/design/embodiment/living-body-p0.md).
 
 Motivación observada en código y runs:
 

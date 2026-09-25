@@ -1,0 +1,107 @@
+{
+  "canonical_terms": [
+    "Symbiont",
+    "CognitiveGraph",
+    "Embodiment",
+    "EmbodimentEpisode",
+    "IntegratedHabitatRuntime",
+    "Private SLM",
+    "Physics3D",
+    "PyBullet",
+    "SharedHabitat",
+    "contract",
+    "body contract",
+    "cross-contract",
+    "embodiment_epoch",
+    "node budget",
+    "concept budget",
+    "predictor budget",
+    "plasticity",
+    "senescence",
+    "reacclimation",
+    "ontogeny",
+    "primitive",
+    "motor readout",
+    "primitive readout",
+    "motor thresholds",
+    "actuator candidates",
+    "horizon stats",
+    "motor cognitive surface"
+  ],
+  "code_identifiers": [
+    "ExperienceLedger",
+    "MemoryConsolidator",
+    "EpisodicExperienceMemory",
+    "Tick3D",
+    "DynamicGeography",
+    "CellPhenotype"
+  ],
+  "cli_commands": [
+    "symbiont-lab simulate",
+    "symbiont-lab organism",
+    "symbiont-lab dashboard",
+    "graphify update"
+  ],
+  "configuration_keys": [
+    "seed",
+    "hosts",
+    "steps",
+    "port",
+    "interval",
+    "ticks"
+  ],
+  "schema_fields": [
+    "surface_water",
+    "detritus",
+    "ecological_pressure",
+    "moisture"
+  ],
+  "event_names": [
+    "RESOURCE_ACQUIRED",
+    "PHYSIOLOGICAL_DAMAGE",
+    "REPAIR",
+    "DEATH",
+    "MOVE"
+  ],
+  "telemetry_fields": [
+    "tick",
+    "organism_id",
+    "world_seed",
+    "cause",
+    "effect",
+    "state"
+  ],
+  "required_translations": {
+    "aparato perceptivo": "perceptual apparatus",
+    "aparato motor": "motor apparatus",
+    "plasticidad estructural": "structural plasticity",
+    "esquema corporal": "body schema",
+    "mundo canónico": "canonical world"
+  },
+  "forbidden_translations": {},
+  "contextual_terms": {
+    "mundo": {
+      "system_name": "World",
+      "generic_environment": "environment",
+      "generic_world": "world",
+      "default": "world"
+    }
+  },
+  "never_modify_patterns": [
+    "`[^`]+`",
+    "src/[^\\s)]+",
+    "tests/[^\\s)]+",
+    "research/[^\\s)]+",
+    "docs/[^\\s)]+",
+    "[A-Za-z_][A-Za-z0-9_]*\\(",
+    "SYMBIONT_[A-Z0-9_]+",
+    "--[a-z0-9-]+",
+    "(?:v[0-9]+(?:\\.[0-9]+)+|[0-9]+\\.[0-9]+\\.[0-9]+)",
+    "[0-9a-f]{7,40}",
+    "#[0-9]+",
+    "https?://[^\\s)]+",
+    "#[a-z0-9-]+",
+    "id=\"[^\"]+\"",
+    "\\b(?:ms|Hz|MiB|KB|GB)\\b|rad/s"
+  ]
+}

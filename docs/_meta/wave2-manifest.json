@@ -1,0 +1,56 @@
+{
+  "wave": 2,
+  "metrics": {
+    "ambiguous_terms_found": 0,
+    "manual_fixes_required": 0,
+    "semantic_drift_findings": 0,
+    "structural_failures": 0
+  },
+  "documents": [
+    {
+      "id": "design.telemetry.population-communication-telemetry-v1",
+      "source": "docs/design/population-communication-telemetry-v1.md",
+      "target": "docs/design/telemetry/population-communication-telemetry-v1.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.telemetry.physics3d-telemetry-v3",
+      "source": "docs/design/physics3d-telemetry-v3.md",
+      "target": "docs/design/archive/physics3d-telemetry-v3.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.runtime.integrated-habitat-runtime-v1",
+      "source": "docs/design/integrated-habitat-runtime-v1.md",
+      "target": "docs/design/runtime/integrated-habitat-runtime-v1.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.telemetry.physics3d-telemetry-v4.1",
+      "source": "docs/design/physics3d-telemetry-v4.1.md",
+      "target": "docs/design/telemetry/physics3d-telemetry-v4.1.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.telemetry.physics3d-telemetry-v4",
+      "source": "docs/design/physics3d-telemetry-v4.md",
+      "target": "docs/design/archive/physics3d-telemetry-v4.md",
+      "frontmatter": "pass",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    }
+  ]
+}

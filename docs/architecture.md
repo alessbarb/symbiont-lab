@@ -49,8 +49,8 @@ ORGANISMO (Agente / Cognición)          APARATO CIENTÍFICO (Estudios / Lab)
 | **[`architecture.md`](architecture.md)** | **Tratado Técnico Integral del Organismo** | Especificación exhaustiva de `symbiont.core`, `symbiont.cognition`, `symbiont.host`, `symbiont.environment` y `symbiont.simulation`. Análisis profundo de código, fórmulas y ciclo de vida de ticks. |
 | **[`adr/README.md`](adr/README.md)** | **Decisiones de Arquitectura (ADR)** | Catálogo de decisiones estructurales permanentes (ADR-0001 a ADR-0007). |
 | **[`safety/README.md`](safety/README.md)** | **Límites de Seguridad y Consentimiento** | Restricciones operativas sobre telemetría de solo lectura y ciclo de vida supervisado del residente. |
-| **[`design/README.md`](design/README.md)** | **Diseños de Ingeniería por Hito** | Especificaciones técnicas del desarrollo ontogenético (Hitos E al K). |
-| **[`math/README.md`](math/README.md)** | **Compendio Matemático Formal** | Demostraciones analíticas, estabilidad de Welford, EWMA, Oja y optimización de Pareto. |
+| **[`design/README.md`](design/general/README.md)** | **Diseños de Ingeniería por Hito** | Especificaciones técnicas del desarrollo ontogenético (Hitos E al K). |
+| **[`math/README.md`](explanation/math/README.md)** | **Compendio Matemático Formal** | Demostraciones analíticas, estabilidad de Welford, EWMA, Oja y optimización de Pareto. |
 
 ---
 
@@ -443,7 +443,7 @@ dormant después de la muerte de un body y continuar posteriormente en un body
 fresco. El tick histórico nunca puede escribirse como edad fisiológica.
 
 Especificación normativa:
-[Symbiont / Body temporal separation](design/symbiont-body-temporal-separation-v1.md).
+[Symbiont / Body temporal separation](design/embodiment/symbiont-body-temporal-separation-v1.md).
 
 ### 3.7 Ontogenia, Reproducción, Linaje y Población
 
@@ -732,7 +732,7 @@ Symbiont does **not** generate source code, edit its executable implementation, 
 
 Self-development happens inside a deliberately closed computational substrate.
 
-For the full technical specification of this kernel — node/edge types, hard limits, learning rules, structural plasticity and safe mode — see [`docs/design/cognicion-y-plasticidad.md`](design/cognicion-y-plasticidad.md).
+For the full technical specification of this kernel — node/edge types, hard limits, learning rules, structural plasticity and safe mode — see [`docs/design/cognicion-y-plasticidad.md`](design/general/cognition-and-plasticity.md).
 
 ---
 
@@ -802,7 +802,7 @@ Organism lineage is also separate from genome lineage. Two clonal descendants ca
 
 Reproduction is distinct from propagation. A Symbiont may express reproductive readiness, but materializing descendants remains an authorized habitat operation with explicit carrying capacity, resource allocation and transactional lineage registration. A full habitat blocks birth rather than silently killing another organism to make room.
 
-The detailed design is in [`docs/design/fisiologia-y-reproduccion.md`](design/fisiologia-y-reproduccion.md).
+The detailed design is in [`docs/design/fisiologia-y-reproduccion.md`](design/general/physiology-and-reproduction.md).
 
 ---
 

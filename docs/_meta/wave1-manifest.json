@@ -1,0 +1,137 @@
+{
+  "wave": 1,
+  "metrics": {
+    "ambiguous_terms_found": 18,
+    "manual_fixes_required": 1,
+    "semantic_drift_findings": 0,
+    "structural_failures": 0
+  },
+  "documents": [
+    {
+      "id": "design.world.world-ecology-v1",
+      "source": "docs/design/world-ecology-v1.md",
+      "target": "docs/design/world/world-ecology-v1.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.sensorimotor.sensorimotor-development-v1",
+      "source": "docs/design/sensorimotor-development-v1.md",
+      "target": "docs/design/sensorimotor/sensorimotor-development-v1.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.world.symbiont-world-v1",
+      "source": "docs/design/symbiont-world-v1.md",
+      "target": "docs/design/archive/symbiont-world-v1.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.genome.genome-v2",
+      "source": "docs/design/genome-v2.md",
+      "target": "docs/design/genome/genome-v2.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.world.world-ecology-v2",
+      "source": "docs/design/world-ecology-v2.md",
+      "target": "docs/design/world/world-ecology-v2.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.world.symbiont-world-v1-rationale",
+      "source": "docs/design/symbiont-world-v1-rationale.md",
+      "target": "docs/design/world/symbiont-world-v1-rationale.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.embodiment.physics3d-embodiment-v0",
+      "source": "docs/design/physics3d-embodiment-v0.md",
+      "target": "docs/design/embodiment/physics3d-embodiment-v0.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.embodiment.longitudinal-reembodiment-implementation-plan",
+      "source": "docs/design/longitudinal-reembodiment-implementation-plan.md",
+      "target": "docs/design/embodiment/longitudinal-reembodiment-implementation-plan.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.embodiment.embodiment-memory-v1",
+      "source": "docs/design/embodiment-memory-v1.md",
+      "target": "docs/design/embodiment/embodiment-memory-v1.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.world.symbiont-world-v4",
+      "source": "docs/design/symbiont-world-v4.md",
+      "target": "docs/design/world/symbiont-world-v4.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.embodiment.embodiment-epoch-summary-v1",
+      "source": "docs/design/embodiment-epoch-summary-v1.md",
+      "target": "docs/design/embodiment/embodiment-epoch-summary-v1.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.embodiment.longitudinal-reembodiment-v1",
+      "source": "docs/design/longitudinal-reembodiment-v1.md",
+      "target": "docs/design/embodiment/longitudinal-reembodiment-v1.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.world.symbiont-world-v2",
+      "source": "docs/design/symbiont-world-v2.md",
+      "target": "docs/design/archive/symbiont-world-v2.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    },
+    {
+      "id": "design.world.symbiont-world-v3",
+      "source": "docs/design/symbiont-world-v3.md",
+      "target": "docs/design/world/symbiont-world-v3.md",
+      "frontmatter": "fail (ID mismatch)",
+      "structure": "pass",
+      "semantic_review": "pass",
+      "protected_tokens": "pass"
+    }
+  ]
+}

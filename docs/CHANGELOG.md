@@ -1578,7 +1578,7 @@ Las relaciones deberán emerger de señales, costes, recursos, memoria y evidenc
 locales.
 
 El diseño normativo está en
-[`docs/design/sociabilidad-y-desarrollo-predictivo.md`](design/sociabilidad-y-desarrollo-predictivo.md).
+[`docs/design/sociabilidad-y-desarrollo-predictivo.md`](design/general/sociability-and-predictive-development.md).
 
 La implementación queda bloqueada hasta cerrar las deudas explícitas del
 Observatory y pasar una nueva revisión de seguridad y contratos. Esta release no

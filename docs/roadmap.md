@@ -118,7 +118,7 @@ Transparent owner-installed residence and bounded current read-only sensory deve
 Milestone I cierra el acoplamiento entre intake, metabolismo, homeostasis,
 reparación, dormancia, degradación, viabilidad, reproducción, muerte y hábitat.
 El diseño normativo está en
-[`design/fisiologia-y-reproduccion.md`](design/fisiologia-y-reproduccion.md).
+[`design/fisiologia-y-reproduccion.md`](design/general/physiology-and-reproduction.md).
 
 La implementación ya cubre estado fisiológico, intake explícito, checkpoint,
 liberación de hábitat y frontera post-muerte. Incluye un arnés determinista de
@@ -133,7 +133,7 @@ contrastables, con atención anti-captura, persistencia cuantizada con cero
 exacto, conceptos `stranded` y predicción en shadow mode antes de promover
 nodos `PREDICTOR`. Sus métricas son externas y no otorgan semántica privilegiada
 al organismo. El diseño normativo está en
-[`design/sociabilidad-y-desarrollo-predictivo.md`](design/sociabilidad-y-desarrollo-predictivo.md).
+[`design/sociabilidad-y-desarrollo-predictivo.md`](design/general/sociability-and-predictive-development.md).
 
 La implementación se divide en P0 (codec y atención), P1 (hipótesis y reparación
 de rutas) y P2 (predicción e instrumentación). Existe además un gate longitudinal de shadow-promotion con candidatos positivos
@@ -145,7 +145,7 @@ en checkpoints.
 Milestone K proporciona capacidades celulares para percibir, intercambiar,
 competir, asociarse, separarse y revisar interacciones sin imponer una sociedad
 ni objetivos sociales. El diseño normativo está en
-[`design/sociabilidad-y-desarrollo-predictivo.md`](design/sociabilidad-y-desarrollo-predictivo.md).
+[`design/sociabilidad-y-desarrollo-predictivo.md`](design/general/sociability-and-predictive-development.md).
 
 La base implementada es un ledger de relaciones agregadas, un `SocialHabitat`
 autorizado y un motor de intercambio/competencia sobre recursos finitos. Existe
@@ -169,7 +169,7 @@ social o semántica humana.
 L8 conecta por primera vez el repertorio motor adquirido, el Private SLM ACTIVE
 y el valor homeostático aprendido para permitir elección prospectiva de acciones
 sin introducir semántica del laboratorio. La especificación normativa está en
-[`design/prospective-agency-v1.md`](design/prospective-agency-v1.md).
+[`design/prospective-agency-v1.md`](design/general/prospective-agency-v1.md).
 
 El alcance v1 es deliberadamente one-step. Una acción sólo puede entrar en
 deliberación si ya es una competencia sensorimotora y su `primitive_readout`
@@ -236,7 +236,7 @@ lingüísticas: caracteriza el canal general ya cerrado mediante un sweep peque�
 de complejidad ambiental, vocabulario, longitud, memoria/coste y controles.
 Observatory expone únicamente telemetría pasiva bounded; las métricas de
 estructura son evaluator-side. Véase
-[`design/structured-communication-characterization-v1.md`](design/structured-communication-characterization-v1.md).
+[`design/structured-communication-characterization-v1.md`](design/communication/structured-communication-characterization-v1.md).
 
 ## Population Communication Telemetry v1 — cerrada
 
@@ -250,7 +250,7 @@ Línea de discovery posterior al corte congelado `v0.80.16`. Ejecutó stages
 progresivamente largos sobre el simulador existente y reporta por separado el
 sondeo multigeneracional del runtime social existente. No añade capacidades al
 organismo ni convierte patrones descubiertos en claims confirmados. Véase
-[`design/longitudinal-population-ecology-v1.md`](design/longitudinal-population-ecology-v1.md).
+[`design/longitudinal-population-ecology-v1.md`](design/ecology/longitudinal-population-ecology-v1.md).
 
 ## Integrated Habitat Runtime v1 — P0 de integración resuelto
 
@@ -296,9 +296,9 @@ Nuevo paquete `symbiont_world`, un hábitat espacial persistente y opaco para
 el organismo ya congelado en `1.0.0` — exactamente el tipo de trabajo que el
 freeze permite explícitamente ("new habitats and experiments"). Especificación
 normativa en
-[`design/symbiont-world-v1.md`](design/symbiont-world-v1.md); razonamiento y
+[`design/symbiont-world-v1.md`](design/archive/symbiont-world-v1.md); razonamiento y
 bibliografía de ALife en
-[`design/symbiont-world-v1-rationale.md`](design/symbiont-world-v1-rationale.md).
+[`design/symbiont-world-v1-rationale.md`](design/world/symbiont-world-v1-rationale.md).
 
 W0 entrega solo el fundamento estructural, sin fields, resources, hazards ni
 organismos viviendo dentro: `WorldConstitution` (fingerprint versionado),
@@ -446,7 +446,7 @@ una deuda de v1.
 
 ## Symbiont World v2 — implementado; W03 ejecutado y rechaza H0
 
-Especificación en [`design/symbiont-world-v2.md`](design/symbiont-world-v2.md).
+Especificación en [`design/symbiont-world-v2.md`](design/archive/symbiont-world-v2.md).
 Todo aditivo sobre v1: ningún test de W0–W3 dejó de pasar (gate V02-08
 verificado por la suite completa).
 

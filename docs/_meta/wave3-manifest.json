@@ -1,0 +1,10 @@
+{
+  "wave": 3,
+  "metrics": {
+    "ambiguous_terms_found": 0,
+    "manual_fixes_required": 0,
+    "semantic_drift_findings": 0,
+    "structural_failures": 0
+  },
+  "documents": []
+}
