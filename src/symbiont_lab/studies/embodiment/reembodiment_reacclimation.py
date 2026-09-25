@@ -18,6 +18,7 @@ _PREDICTION_SHOCK_THRESHOLD = 0.20
 
 class ReacclimationVerdict(StrEnum):
     CONTAMINATED_RESTORE = "contaminated_restore"
+    SOURCE_KNOWLEDGE_ABSENT = "source_knowledge_absent"
     NO_TRANSFER = "no_transfer"
     REVALIDATED_TRANSFER = "revalidated_transfer"
     INCONCLUSIVE = "inconclusive"
@@ -353,7 +354,10 @@ def analyze_reembodiment_observations(
     elif not same_contract_return:
         verdict = ReacclimationVerdict.INCONCLUSIVE
     elif not historical_hypotheses_present:
-        verdict = ReacclimationVerdict.NO_TRANSFER
+        # No A1 motor hypothesis survived into the same-contract A2 start.
+        # Transfer itself has not been tested because there is no source
+        # knowledge to transfer.
+        verdict = ReacclimationVerdict.SOURCE_KNOWLEDGE_ABSENT
     elif (
         a2.first_prior_revalidation_tick is not None
         and a2.first_prior_revalidation_tick > 0
