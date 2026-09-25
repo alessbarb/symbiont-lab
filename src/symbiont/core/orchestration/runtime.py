@@ -2088,7 +2088,7 @@ class OrganismRuntime:
     ) -> RuntimeTickResult:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("organism is irreversibly dead")
-        expected_tick = context.symbiont_tick
+        expected_tick = self._tick_count + 1
         if context is None:
             context = TickContext(
                 symbiont_id=self._organism_id,

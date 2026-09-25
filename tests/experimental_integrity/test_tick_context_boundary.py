@@ -27,3 +27,10 @@ def test_physics3d_passes_both_time_domains_explicitly() -> None:
     assert "symbiont_tick=self.tick_count + 1" in source
     assert "embodiment_tick=self.embodiment_tick" in source
     assert "body_id=self.body_identity" in source
+
+
+def test_tick_without_explicit_context_uses_next_symbiont_tick() -> None:
+    runtime = OrganismRuntime(organism_id="symbiont.context.default")
+    result = runtime.tick()
+    assert result.tick == 1
+    assert runtime.tick_count == 1
