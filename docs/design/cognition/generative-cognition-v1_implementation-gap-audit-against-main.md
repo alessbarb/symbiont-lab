@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `f0484739`
+**Audited commit:** `ac8f1ee1`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -96,7 +96,7 @@ built by composing several mature existing components.
 | GC-2 | Generative model adapters | **IMPLEMENTED — thin adapters; runtime integration pending** |
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded rollout substrate; integration and scientific utility pending** |
 | GC-4 | Branching | **PARTIAL — bounded sibling branch substrate; pruning/equivalence/merge pending** |
-| GC-5 | Counterfactual cognition | **PARTIAL — one-step only** |
+| GC-5 | Counterfactual cognition | **PARTIAL — bounded generic rollout substrate; concrete adapters and utility pending** |
 | GC-6 | Replay | **PARTIAL — memory substrate exists** |
 | GC-7 | Recombination | **MISSING** |
 | GC-8 | Hypothesis + reconciliation | **PARTIAL** |
@@ -1130,9 +1130,9 @@ This already respects the central epistemic boundary.
 
 ---
 
-## Missing
+## Remaining implementation
 
-Current implementation is narrowly:
+The new bounded `CounterfactualEngine` delegates to the rollout substrate and preserves counterfactual origin/operation provenance. Concrete model-owner adapters and equivalence coverage remain open. The existing implementation is narrowly:
 
 ```text
 action counterfactual
@@ -1156,7 +1156,7 @@ multi-step consequence
 
 within organism-owned representations.
 
-Implement:
+Implemented in:
 
 ```text
 counterfactual.py
@@ -1205,12 +1205,10 @@ GC-E3 — Counterfactual Utility
 ## Status
 
 ```text
-PARTIAL
+PARTIAL — bounded generic substrate only
 ```
 
-One-step motor counterfactual cognition is already real.
-
-Generic counterfactual cognition is not.
+One-step motor counterfactual cognition is already real, and a generic bounded counterfactual rollout path now exists. Concrete state/model/relation adapters, runtime routing, equivalence tests and GC-E3 utility evidence remain open.
 
 ---
 
