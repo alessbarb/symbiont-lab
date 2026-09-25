@@ -870,6 +870,8 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
     adaptation_raw = adaptation_raw if isinstance(adaptation_raw, Mapping) else {}
     dynamics_raw = payload.get("dynamics")
     dynamics_raw = dynamics_raw if isinstance(dynamics_raw, Mapping) else {}
+    prior_raw = payload.get("prior")
+    prior_raw = prior_raw if isinstance(prior_raw, Mapping) else {}
     bindings_raw = payload.get("embodied_competences")
     if not isinstance(bindings_raw, Mapping):
         bindings_raw = payload.get("execution_bindings")
@@ -909,6 +911,25 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
         "embodiment_tick": bounded_count(payload.get("embodiment_tick", 0)),
         "contract_fingerprint": contract_fingerprint,
         "state": state,
+        "prior": {
+            "relation": (
+                str(prior_raw.get("relation"))
+                if prior_raw.get("relation")
+                in {"novel", "same-contract", "same-body"}
+                else "novel"
+            ),
+            "authority": "hypothesis_only",
+            "source_body_id": (
+                _text(prior_raw.get("source_body_id"), 128)
+                if prior_raw.get("source_body_id") is not None
+                else None
+            ),
+            "source_embodiment_id": (
+                _text(prior_raw.get("source_embodiment_id"), 128)
+                if prior_raw.get("source_embodiment_id") is not None
+                else None
+            ),
+        },
         "adaptation": adaptation,
         "dynamics": {
             "relation_count": bounded_count(dynamics_raw.get("relation_count", 0)),
