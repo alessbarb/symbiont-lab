@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `36413cba`
+**Audited commit:** `446b29f5`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -264,8 +264,10 @@ Implemented in the first foundation increment:
 `GenerativeTermination`, `GenerativeBudget`, `GenerativeWorkspace` and
 `EpistemicFirewall` are implemented in `generative/`.
 
-The remaining GC-0 work is integration with checkpoint/runtime boundaries and
-the dedicated experimental-integrity suite.
+The package now also exposes a fail-closed checkpoint containing the bounded
+workspace, agenda and scheduler domains. Remaining GC-0 work is integration
+with the organism checkpoint/runtime boundaries and the dedicated
+experimental-integrity suite.
 ```
 
 ---
