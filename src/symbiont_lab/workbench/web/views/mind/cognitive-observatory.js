@@ -28,6 +28,7 @@ export function cognitiveSituation({
   structures = null,
   tick = 0,
   motorOrigin = 'none',
+  motorCompetences = [],
 } = {}) {
   const byKind = new Map();
   for (const node of nodes) {
@@ -130,10 +131,11 @@ export function cognitiveSituation({
       active: allActiveNodes.filter(item => item.kind === 'readout').length,
     },
     {
+      // motor_primitive never exists as a CognitiveGraph node kind by design; count real competences instead.
       id: 'motor',
       label: 'Motor capability',
-      total: (byKind.get('motor_primitive') ?? []).length,
-      active: allActiveNodes.filter(item => item.kind === 'motor_primitive').length,
+      total: motorCompetences.length,
+      active: motorCompetences.filter(item => item?.executable === true).length,
     },
   ];
 
