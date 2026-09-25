@@ -200,6 +200,14 @@ class BodySchemaEngine:
         # It is deliberately not checkpointed here: the ledger is the factual
         # source of truth and restore replays it into this derived view.
         self._sensorimotor_support: dict[tuple[str, str], tuple[int, int]] = {}
+        # Embodiment v2 body-boundary evidence. These are learned from opaque
+        # causal/temporal relations; physical anatomy never enters this layer.
+        self._self_caused_channels: set[str] = set()
+        self._somatic_correlated_channels: set[str] = set()
+        self._external_channels: set[str] = set()
+        self._boundary_confidence: float = 0.0
+        self._boundary_revision_count: int = 0
+        self._boundary_disruption_score: float = 0.0
 
     @property
     def state(self) -> str:
@@ -224,6 +232,8 @@ class BodySchemaEngine:
             if region.maturity_class >= 4 and region.confidence_class >= 3
         )
         if enough_sensory and (stable_regions > 0 or self.sensory_part_count >= 4):
+            if self._boundary_disruption_score >= 0.5:
+                return "revising"
             return "established"
         return "developing"
 
@@ -245,6 +255,78 @@ class BodySchemaEngine:
     @property
     def sensorimotor_dependency_evidence_count(self) -> int:
         return len(self._sensorimotor_support)
+
+    @property
+    def boundary_confidence(self) -> float:
+        return self._boundary_confidence
+
+    @property
+    def boundary_revision_count(self) -> int:
+        return self._boundary_revision_count
+
+    @property
+    def boundary_disruption_score(self) -> float:
+        return self._boundary_disruption_score
+
+    @property
+    def self_caused_channels(self) -> tuple[str, ...]:
+        return tuple(sorted(self._self_caused_channels))
+
+    @property
+    def somatic_correlated_channels(self) -> tuple[str, ...]:
+        return tuple(sorted(self._somatic_correlated_channels))
+
+    @property
+    def external_channels(self) -> tuple[str, ...]:
+        return tuple(sorted(self._external_channels))
+
+    def observe_agency_boundary(
+        self,
+        *,
+        observed_channels: tuple[str, ...] | list[str] | set[str],
+        self_caused_channels: tuple[str, ...] | list[str] | set[str],
+        somatic_correlated_channels: tuple[str, ...] | list[str] | set[str] = (),
+        prediction_error: float = 0.0,
+    ) -> None:
+        """Revise inferred body boundary from organism-owned opaque evidence.
+
+        Controllability alone is deliberately insufficient. A caller must supply
+        somatic-correlation evidence separately from directly self-caused
+        channels. This keeps tool/remote controllability from automatically
+        becoming body membership.
+        """
+        observed = {str(value) for value in observed_channels if str(value)}
+        self_caused = {str(value) for value in self_caused_channels if str(value)}
+        somatic = {
+            str(value) for value in somatic_correlated_channels if str(value)
+        } - self_caused
+        if not self_caused.issubset(observed) or not somatic.issubset(observed):
+            raise ValueError("body-boundary evidence must reference observed opaque channels")
+        previous_internal = self._self_caused_channels | self._somatic_correlated_channels
+        new_internal = self_caused | somatic
+        changed = bool(previous_internal) and previous_internal != new_internal
+        bounded_error = max(0.0, min(1.0, float(prediction_error)))
+        disruption = max(
+            bounded_error,
+            1.0 if changed else 0.0,
+        )
+        if changed or disruption >= 0.5:
+            self._boundary_revision_count += 1
+        self._self_caused_channels = self_caused
+        self._somatic_correlated_channels = somatic
+        self._external_channels = observed - new_internal
+        evidence_n = len(new_internal)
+        separation = (
+            evidence_n / max(1, len(observed))
+            if observed
+            else 0.0
+        )
+        # Confidence is evidence-derived and penalized by current contradiction.
+        self._boundary_confidence = max(
+            0.0,
+            min(1.0, separation * (1.0 - 0.5 * bounded_error)),
+        )
+        self._boundary_disruption_score = disruption
 
     def observe_sensorimotor_evidence(
         self,
@@ -1095,6 +1177,14 @@ class BodySchemaEngine:
             **self.export_representation(current_tick=current_tick),
             "id_salt": self._id_salt,
             "cognitive_learning": self._export_cognitive_learning(),
+            "boundary_evidence": {
+                "self_caused_channels": list(self.self_caused_channels),
+                "somatic_correlated_channels": list(self.somatic_correlated_channels),
+                "external_channels": list(self.external_channels),
+                "confidence": self._boundary_confidence,
+                "revision_count": self._boundary_revision_count,
+                "disruption_score": self._boundary_disruption_score,
+            },
         }
 
     @classmethod
@@ -1346,6 +1436,33 @@ class BodySchemaEngine:
                 public_dependencies=raw_dependencies,
                 current_tick=current_tick,
             )
+
+        boundary = payload.get("boundary_evidence")
+        if boundary is not None:
+            if not isinstance(boundary, dict):
+                raise ValueError("body_schema boundary_evidence must be an object")
+            self_caused = boundary.get("self_caused_channels", [])
+            somatic = boundary.get("somatic_correlated_channels", [])
+            external = boundary.get("external_channels", [])
+            if not all(isinstance(value, list) for value in (self_caused, somatic, external)):
+                raise ValueError("body_schema boundary channel sets must be arrays")
+            model._self_caused_channels = {str(value) for value in self_caused}
+            model._somatic_correlated_channels = {str(value) for value in somatic}
+            model._external_channels = {str(value) for value in external}
+            if model._self_caused_channels & model._somatic_correlated_channels:
+                raise ValueError("body_schema boundary channel classes overlap")
+            confidence = float(boundary.get("confidence", 0.0))
+            disruption = float(boundary.get("disruption_score", 0.0))
+            revisions = int(boundary.get("revision_count", 0))
+            if (
+                not 0.0 <= confidence <= 1.0
+                or not 0.0 <= disruption <= 1.0
+                or revisions < 0
+            ):
+                raise ValueError("invalid body_schema boundary evidence")
+            model._boundary_confidence = confidence
+            model._boundary_disruption_score = disruption
+            model._boundary_revision_count = revisions
 
         if state == "undeveloped" and model.part_count:
             raise ValueError("undeveloped body_schema cannot contain parts")
