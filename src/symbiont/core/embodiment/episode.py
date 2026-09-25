@@ -17,6 +17,9 @@ from .dynamics import SensorimotorDynamicsModel
 from .reachability import ReachabilityModel
 
 
+_MAX_CONTRACT_HISTORY = 64
+
+
 class EmbodimentState(StrEnum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
@@ -148,6 +151,7 @@ class EmbodimentEpisode:
                 reason=str(reason),
             )
         )
+        self.contract_history = self.contract_history[-_MAX_CONTRACT_HISTORY:]
         self.contract = contract
 
     def close(
@@ -292,8 +296,11 @@ class EmbodimentEpisode:
             execution_bindings=execution_bindings,
         )
         raw_history = payload.get("contract_history", [])
-        if not isinstance(raw_history, list):
-            raise ValueError("invalid embodiment contract history")
+        if (
+            not isinstance(raw_history, list)
+            or len(raw_history) > _MAX_CONTRACT_HISTORY
+        ):
+            raise ValueError("invalid or unbounded embodiment contract history")
         for item in raw_history:
             if not isinstance(item, Mapping):
                 raise ValueError("invalid embodiment contract transition")
@@ -315,6 +322,7 @@ class EmbodimentEpisode:
                     reason="contract_schema_v2_to_v3",
                 )
             )
+            obj.contract_history = obj.contract_history[-_MAX_CONTRACT_HISTORY:]
         if obj.state is EmbodimentState.CLOSED and obj.end_symbiont_tick is None:
             raise ValueError("closed embodiment is missing end tick")
         if obj.end_symbiont_tick is not None and obj.end_symbiont_tick > current_tick:
