@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from typing import Collection, Mapping
 
 from ...cognition.graph import CognitiveGraph
-from ...cognition.structure import Mutation
+from ...cognition.limits import KernelLimits
+from ...cognition.structure import Mutation, apply_mutations
 from ...cognition.types import EdgeKind, NodeKind
 
 _ACTIVITY_THRESHOLD = 0.1
@@ -445,6 +446,126 @@ class SenseConceptLifecycle:
             )
         )
         return candidate_id, tuple(mutations)
+
+    @staticmethod
+    def nodes_with_path_to_targets(
+        target_ids: Collection[str],
+        *,
+        graph: CognitiveGraph,
+    ) -> set[str]:
+        node_ids = {node.node_id for node in graph.nodes}
+        targets = set(target_ids) & node_ids
+        if not targets:
+            return set()
+        reverse_adj: dict[str, set[str]] = {}
+        for edge in graph.edges:
+            reverse_adj.setdefault(edge.target_id, set()).add(edge.source_id)
+        reachable = set(targets)
+        frontier = list(targets)
+        while frontier:
+            target = frontier.pop()
+            for source in reverse_adj.get(target, ()):
+                if source not in reachable:
+                    reachable.add(source)
+                    frontier.append(source)
+        return reachable
+
+    def nodes_with_path_to_core_readout(
+        self,
+        *,
+        graph: CognitiveGraph,
+    ) -> set[str]:
+        core_readouts = [
+            node.node_id
+            for node in graph.nodes
+            if (
+                node.kind is NodeKind.READOUT
+                and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+                and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
+            )
+        ]
+        targets = (
+            (_CORE_READOUT_ID,)
+            if _CORE_READOUT_ID in core_readouts
+            else tuple(core_readouts)
+        )
+        return self.nodes_with_path_to_targets(targets, graph=graph)
+
+    def propose_recycling(
+        self,
+        *,
+        graph: CognitiveGraph,
+        tick: int,
+        mutation_slots: int,
+        develop_senses: bool,
+        kernel_limits: KernelLimits,
+    ) -> tuple[tuple[Mutation, ...], dict[str, object] | None]:
+        if not develop_senses or mutation_slots < 1:
+            return (), None
+
+        core_readouts = sorted(
+            node.node_id
+            for node in graph.nodes
+            if (
+                node.kind is NodeKind.READOUT
+                and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+                and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
+            )
+        )
+        if _CORE_READOUT_ID in core_readouts:
+            core_readouts = [_CORE_READOUT_ID]
+        if not core_readouts:
+            return (), None
+
+        routed = self.nodes_with_path_to_core_readout(graph=graph)
+        unrouted_ids = self.update_unrouted(
+            graph=graph,
+            routed_ids=routed,
+            tick=tick,
+        )
+        stranded = [
+            node_id
+            for node_id in sorted(unrouted_ids)
+            if node_id in self.concept_last_active_tick
+        ]
+        if not stranded:
+            return (), None
+
+        concept_id = stranded[0]
+        readout_id = core_readouts[0]
+        if any(
+            edge.source_id == concept_id and edge.target_id == readout_id
+            for edge in graph.edges
+        ):
+            return (), None
+
+        mutation = Mutation(
+            kind="add_edge",
+            payload={
+                "source_id": concept_id,
+                "target_id": readout_id,
+                "kind": EdgeKind.EXCITATORY,
+                "weight": _TENTATIVE_WEIGHT,
+                "plasticity": 0.25,
+                "delay_ticks": 1,
+            },
+        )
+        candidate_graph = apply_mutations(
+            graph,
+            (mutation,),
+            kernel_limits,
+            frozen=False,
+        )
+        if candidate_graph is graph:
+            return (), None
+        return (
+            (mutation,),
+            {
+                "tick": tick,
+                "concept_id": concept_id,
+                "reason": "stranded_route_repair",
+            },
+        )
 
     def update_unrouted(
         self,
