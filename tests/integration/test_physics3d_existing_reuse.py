@@ -80,5 +80,8 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
     )
     assert second["embodiment_episode"]["embodiment_id"] != first_embodiment_id
     assert second["embodiment_episode"]["body_id"] != first_body_id
+    assert second["embodiment_episode"]["prior"]["relation"] == "same-contract"
+    assert second["embodiment_episode"]["prior"]["authority"] == "hypothesis_only"
+    assert second["embodiment_episode"]["prior"]["source_body_id"] == first_body_id
     memories = second["embodiment_archive"]["body_memories"]
     assert any(item["body_id"] == first_body_id for item in memories)
