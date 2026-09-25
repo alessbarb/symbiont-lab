@@ -108,6 +108,27 @@ def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
+    episode = payload.get("embodiment_episode")
+    if isinstance(episode, Mapping) and episode.get("schema_version") == 2:
+        contract = episode.get("contract")
+        contract = contract if isinstance(contract, Mapping) else {}
+        return {
+            "state": str(episode.get("state") or "suspended"),
+            "epoch": max(1, int(episode.get("epoch") or 1)),
+            "current": {
+                "embodiment_id": str(episode.get("embodiment_id") or ""),
+                "body_id": str(episode.get("body_id") or ""),
+                "started_tick": int(episode.get("start_symbiont_tick") or 0),
+                "embodiment_tick": int(episode.get("embodiment_tick") or 0),
+                "contract_fingerprint": str(
+                    contract.get("contract_fingerprint") or ""
+                ),
+                "body_vital_state": _body_vital_state(payload),
+            },
+            "history_count": len(payload.get("embodiment_epoch_summaries", ()))
+            if isinstance(payload.get("embodiment_epoch_summaries"), list)
+            else 0,
+        }
     raw = payload.get("embodiment_lifecycle")
     if isinstance(raw, Mapping) and raw.get("schema_version") == _SCHEMA_VERSION:
         current = raw.get("current")
@@ -413,6 +434,9 @@ def prepare_fresh_embodiment_checkpoint(
     """
     previous = migrate_temporal_domains(previous)
     result = deepcopy(dict(previous))
+    # A new physical Body always starts a new canonical episode. Never carry
+    # the previous body/episode identity through the compatibility transform.
+    result.pop("embodiment_episode", None)
     prior_lifecycle = previous.get("embodiment_lifecycle")
     if isinstance(prior_lifecycle, Mapping) and prior_lifecycle.get("schema_version") == _SCHEMA_VERSION:
         epoch = max(1, int(prior_lifecycle.get("epoch") or 1))

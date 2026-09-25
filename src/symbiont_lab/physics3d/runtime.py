@@ -9,6 +9,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import asdict, dataclass, is_dataclass
 from enum import Enum
+import hashlib
 import math
 import secrets
 import time
@@ -22,6 +23,14 @@ from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
+from symbiont.core.embodiment import (
+    EmbodimentContract as CoreEmbodimentContract,
+    EmbodimentEndReason,
+    EmbodimentEpisode,
+    EmbodimentState,
+    PerceptualSurface,
+    TimingContract,
+)
 
 from .apparatus import (
     OpaqueBodyInteroception,
@@ -40,7 +49,7 @@ from .humanoid import apply_surface_material, configure_physics_solver
 from .resource import PhysicalResource
 from .settling import settle_passive_body
 from .reembodiment import (
-    EmbodimentContract,
+    EmbodimentContract as LegacyEmbodimentContract,
     migrate_temporal_domains,
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
@@ -84,6 +93,12 @@ class Tick3D:
     schema_dependency_evidence: int
     schema_dependencies: int
     embodiment_epoch: int
+    embodiment_id: str
+    body_identity: str
+    embodiment_tick: int
+    embodiment_prediction_shock: float
+    embodiment_schema_uncertainty: float
+    embodiment_adapted: bool
     body_age_ticks: int
     body_senescence: float
     reacclimation_remaining: int
@@ -388,7 +403,7 @@ class PyBulletEmbodimentRuntime:
             reading_providers=(reading_provider,),
         )
 
-        contract = EmbodimentContract(
+        contract = LegacyEmbodimentContract(
             body_kind=self.body_descriptor.body_kind,
             receptor_count=self.body_descriptor.receptor_count,
             effector_count=self.body_descriptor.effector_count,
@@ -594,6 +609,95 @@ class PyBulletEmbodimentRuntime:
                 "the attached physical apparatus"
             )
 
+        # Embodiment v2: Physics3D supplies one opaque physical interface, but
+        # the persistent episode and its identity are core domain state.
+        perceptual_surface = PerceptualSurface.from_count(
+            len(self._reading_provider.receptor_ids),
+            fingerprint_material=f"count:{len(self._reading_provider.receptor_ids)}",
+        )
+        self._core_embodiment_contract = CoreEmbodimentContract(
+            perceptual_surface=perceptual_surface,
+            actuator_surface=constitution,
+            timing=TimingContract(
+                tick_hz=1.0 / (self.time_step * self.physics_substeps_per_tick),
+                command_hold_ticks=1,
+            ),
+        )
+        raw_episode = (
+            restored_payload.get("embodiment_episode")
+            if runtime_checkpoint is not None
+            else None
+        )
+        current_lifecycle = (
+            self._embodiment_lifecycle.get("current")
+            if isinstance(self._embodiment_lifecycle, Mapping)
+            else None
+        )
+        episode_epoch = self.embodiment_epoch
+        episode_started_tick = (
+            int(current_lifecycle.get("started_tick") or self.tick_count)
+            if isinstance(current_lifecycle, Mapping)
+            else self.tick_count
+        )
+        if (
+            isinstance(raw_episode, Mapping)
+            and not self._reembodied
+            and physical_state is not None
+        ):
+            self._embodiment_episode = EmbodimentEpisode.restore(
+                raw_episode,
+                contract=self._core_embodiment_contract,
+                body_schema=self.organism.body_schema,
+                causal_evidence=self.organism.causal_evidence_ledger,
+                effect_model=self.organism.sensorimotor_effect_model,
+                controllability_model=self.organism.controllability_model,
+                agency_model=self.organism.agency_model,
+                current_tick=self.tick_count,
+            )
+            if self._embodiment_episode.state is EmbodimentState.SUSPENDED:
+                self._embodiment_episode.resume()
+        else:
+            if runtime_checkpoint is not None and not self._reembodied and physical_state is not None:
+                migration_material = (
+                    f"{self.organism_id}|{episode_epoch}|{episode_started_tick}|"
+                    f"{self._core_embodiment_contract.contract_fingerprint}"
+                )
+                migration_digest = hashlib.sha256(
+                    migration_material.encode("utf-8")
+                ).hexdigest()
+                logical_body_id = f"body.{migration_digest[:24]}"
+                migration_embodiment_id = f"embodiment.{migration_digest[24:48]}"
+            else:
+                logical_body_id = f"body.{secrets.token_hex(12)}"
+                migration_embodiment_id = None
+            self._embodiment_episode = EmbodimentEpisode.begin(
+                symbiont_id=self.organism_id,
+                body_id=logical_body_id,
+                epoch=episode_epoch,
+                start_symbiont_tick=episode_started_tick,
+                contract=self._core_embodiment_contract,
+                embodiment_id=migration_embodiment_id,
+            )
+            # Canonical inference services are shared, never duplicated.
+            self._embodiment_episode.body_schema = self.organism.body_schema
+            self._embodiment_episode.causal_evidence = (
+                self.organism.causal_evidence_ledger
+            )
+            self._embodiment_episode.effect_model = (
+                self.organism.sensorimotor_effect_model
+            )
+            self._embodiment_episode.controllability_model = (
+                self.organism.controllability_model
+            )
+            self._embodiment_episode.agency_model = self.organism.agency_model
+
+        self._previous_embodiment_percepts: dict[str, float] = {}
+        percept_ids = self._core_embodiment_contract.perceptual_surface.percept_ids
+        self._embodiment_percept_map = {
+            receptor_id: percept_ids[index]
+            for index, receptor_id in enumerate(self._reading_provider.receptor_ids)
+        }
+
         if gui:
             p.resetDebugVisualizerCamera(
                 cameraDistance=3.1,
@@ -649,6 +753,9 @@ class PyBulletEmbodimentRuntime:
 
     @property
     def embodiment_epoch(self) -> int:
+        episode = getattr(self, "_embodiment_episode", None)
+        if episode is not None:
+            return int(episode.epoch)
         lifecycle = self._embodiment_lifecycle
         if isinstance(lifecycle, Mapping):
             try:
@@ -656,6 +763,18 @@ class PyBulletEmbodimentRuntime:
             except (TypeError, ValueError):
                 pass
         return 1
+
+    @property
+    def embodiment_id(self) -> str:
+        return self._embodiment_episode.embodiment_id
+
+    @property
+    def body_identity(self) -> str:
+        return self._embodiment_episode.body_id
+
+    @property
+    def embodiment_tick(self) -> int:
+        return int(self._embodiment_episode.embodiment_tick)
 
     @property
     def historical_private_model_candidates(self) -> tuple[str, ...]:
@@ -669,6 +788,104 @@ class PyBulletEmbodimentRuntime:
             for value in raw
             if isinstance(value, str) and value
         )
+    def _update_embodiment_evidence(self, result) -> None:
+        """Feed only opaque organism-visible consequences into Embodiment v2."""
+        self._embodiment_episode.advance()
+
+        current = {
+            self._embodiment_percept_map[receptor_id]: float(value)
+            for receptor_id, value in self._reading_provider.last_values.items()
+            if receptor_id in self._embodiment_percept_map
+        }
+        deltas = {
+            percept_id: value - self._previous_embodiment_percepts.get(
+                percept_id, value
+            )
+            for percept_id, value in current.items()
+        }
+        activations = {
+            str(item.actuator_id): float(item.delivered)
+            for item in self.organism.last_actuations
+        }
+        dynamics = self._embodiment_episode.dynamics_model
+        residuals = dynamics.observe(
+            deltas,
+            tick=self.embodiment_tick,
+            activations=activations,
+        )
+        if current:
+            dynamics.predict(
+                activations,
+                tuple(sorted(current)),
+            )
+        self._previous_embodiment_percepts = current
+
+        schema = body_schema_summary(self.organism)
+        agency_values = [
+            float(item.confidence)
+            for item in self.organism.agency_model.estimates
+        ]
+        controllability_values = [
+            float(item.confidence)
+            for item in self.organism.controllability_model.estimates
+        ]
+        current_surface = (
+            self.organism.actuator_constitution.contract_fingerprint
+            if self.organism.actuator_constitution is not None
+            else None
+        )
+        candidate_count = 0
+        revalidated_count = 0
+        for competence in self.organism.competence_library.items:
+            candidate_count += 1
+            embodied = self._embodiment_episode.embodied_competences.candidate(
+                competence.competence_id
+            )
+            if (
+                current_surface is not None
+                and competence.surface_binding == current_surface
+                and competence.evidence.controllability_evidence_refs
+            ):
+                embodied.revalidate(
+                    surface_fingerprint=current_surface,
+                    controller_realization_ref=competence.controller_id,
+                    evidence_refs=competence.evidence.controllability_evidence_refs,
+                    reliability=competence.evidence.reproducibility,
+                    controllability=competence.evidence.controllability,
+                    prediction_error=dynamics.mean_prediction_error,
+                )
+                revalidated_count += 1
+
+        transition_error = getattr(
+            getattr(result, "sensorimotor_transition", None),
+            "prediction_error",
+            None,
+        )
+        prediction_error = (
+            float(transition_error.magnitude)
+            if transition_error is not None
+            else dynamics.mean_prediction_error
+        )
+        self._embodiment_episode.adaptation.observe(
+            tick=self.embodiment_tick,
+            residuals=residuals,
+            prediction_error=prediction_error,
+            schema_confidence=float(schema["confidence"]),
+            causal_confidence=(
+                sum(agency_values) / len(agency_values)
+                if agency_values else 0.0
+            ),
+            controllability_confidence=(
+                sum(controllability_values) / len(controllability_values)
+                if controllability_values else 0.0
+            ),
+            revalidated_competences=revalidated_count,
+            candidate_competences=candidate_count,
+            schema_revised=(
+                self.organism.body_schema.boundary_disruption_score >= 0.5
+            ),
+        )
+
     def physics_connected(self) -> bool:
         if self.client_id < 0:
             return False
@@ -726,12 +943,33 @@ class PyBulletEmbodimentRuntime:
         if self._temporal_migration is not None:
             payload["temporal_migration"] = deepcopy(self._temporal_migration)
 
+        if lifecycle_state == "active":
+            if self._embodiment_episode.state is EmbodimentState.SUSPENDED:
+                self._embodiment_episode.resume()
+        else:
+            if self._embodiment_episode.state is EmbodimentState.ACTIVE:
+                self._embodiment_episode.suspend()
+        if self.organism.living_body_state.vital_state is VitalState.DEAD:
+            if self._embodiment_episode.state is not EmbodimentState.CLOSED:
+                self._embodiment_episode.close(
+                    symbiont_tick=self.tick_count,
+                    reason=EmbodimentEndReason.BODY_DEATH,
+                )
+        payload["embodiment_episode"] = self._embodiment_episode.checkpoint(
+            current_tick=self.tick_count
+        )
+
         payload = update_lifecycle_for_checkpoint(
             payload,
             contract=self._embodiment_contract,
             state=lifecycle_state,
             metrics=self._epoch_metrics,
         )
+        current_lifecycle = payload["embodiment_lifecycle"].get("current")
+        if isinstance(current_lifecycle, dict):
+            current_lifecycle["embodiment_id"] = self.embodiment_id
+            current_lifecycle["body_id"] = self.body_identity
+            current_lifecycle["embodiment_tick"] = self.embodiment_tick
         self._embodiment_lifecycle = deepcopy(payload["embodiment_lifecycle"])
         raw_memory = payload.get("embodiment_memory")
         self._embodiment_memory = (
@@ -1140,6 +1378,7 @@ class PyBulletEmbodimentRuntime:
 
         phase_started = time.perf_counter()
         result = self.organism.tick()
+        self._update_embodiment_evidence(result)
         organism_ms = (time.perf_counter() - phase_started) * 1000.0
 
         physics_started = time.perf_counter()
@@ -1541,6 +1780,33 @@ class PyBulletEmbodimentRuntime:
             "schema_version": 3,
             "tick": int(self.tick_count),
             "organism_id": str(self.organism_id),
+            "embodiment": {
+                "embodiment_id": self.embodiment_id,
+                "body_id": self.body_identity,
+                "epoch": self.embodiment_epoch,
+                "embodiment_tick": self.embodiment_tick,
+                "contract_fingerprint": (
+                    self._core_embodiment_contract.contract_fingerprint
+                ),
+                "state": self._embodiment_episode.state.value,
+                "adaptation": self._telemetry_value(
+                    self._embodiment_episode.adaptation.snapshot()
+                ),
+                "dynamics": {
+                    "relation_count": int(
+                        self._embodiment_episode.dynamics_model.relation_count
+                    ),
+                    "mean_prediction_error": float(
+                        self._embodiment_episode.dynamics_model.mean_prediction_error
+                    ),
+                },
+                "embodied_competences": {
+                    "count": len(self._embodiment_episode.embodied_competences.items),
+                    "executable": int(
+                        self._embodiment_episode.embodied_competences.executable_count
+                    ),
+                },
+            },
             "pre": {
                 "physical": pre_physical_state,
                 "resource": {
@@ -1723,6 +1989,18 @@ class PyBulletEmbodimentRuntime:
             schema_dependency_evidence=int(schema["dependency_evidence"]),
             schema_dependencies=int(schema["dependencies"]),
             embodiment_epoch=self.embodiment_epoch,
+            embodiment_id=self.embodiment_id,
+            body_identity=self.body_identity,
+            embodiment_tick=self.embodiment_tick,
+            embodiment_prediction_shock=float(
+                self._embodiment_episode.adaptation.prediction_shock
+            ),
+            embodiment_schema_uncertainty=float(
+                self._embodiment_episode.adaptation.schema_uncertainty
+            ),
+            embodiment_adapted=bool(
+                self._embodiment_episode.adaptation.snapshot().converged
+            ),
             body_age_ticks=int(self.organism.living_body_state.age_ticks),
             body_senescence=float(self.organism.living_body_state.senescence),
             reacclimation_remaining=int(self.organism.reacclimation_remaining),
