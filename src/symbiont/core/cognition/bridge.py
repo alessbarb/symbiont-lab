@@ -2587,56 +2587,13 @@ class CognitiveBridge:
                             tick=tick,
                         )
             self._record_concept_support(frame.activations)
-            if self._previous_frame is not None:
-                # Preliminary shadow hypotheses are cheap, bounded evidence
-                # records. Structural promotion still requires the separate
-                # eight-sample gain gate, so delaying admission by the genome
-                # concept-growth support threshold loses the first part of a
-                # valid time series and makes checkpoint replay path-dependent.
-                preliminary_min = 1
-                if len(self._predictors.shadows) >= self._live_shadow_limit:
-                    self._prune_shadow_predictions()
-                for source_id, source_value in self._previous_frame.items():
-                    if node_kinds.get(source_id) is not NodeKind.SENSE:
-                        continue
-                    for target_id, target_value in frame.activations.items():
-                        if source_id == target_id or target_id not in self._previous_frame:
-                            continue
-                        target_previous = self._previous_frame[target_id]
-                        key = (source_id, target_id)
-                        predictor = self._predictors.shadows.get(key)
-                        if predictor is not None:
-                            # Once admitted, evaluate the hypothesis on every
-                            # compatible tick. Preliminary selection must not
-                            # censor boring/negative evidence.
-                            previous_status = predictor.status
-                            predictor.observe(
-                                source_value,
-                                target_value,
-                                target_previous,
-                            )
-                            if (
-                                previous_status != "retired"
-                                and predictor.status == "retired"
-                            ):
-                                self._predictors.mark_shadow_dirty()
-                            continue
-
-                        if abs(source_value) < _ACTIVITY_THRESHOLD:
-                            continue
-                        support = self._predictors.preliminary_support.get(key, 0) + 1
-                        self._predictors.preliminary_support[key] = support
-                        if support < preliminary_min:
-                            continue
-                        if len(self._predictors.shadows) >= self._live_shadow_limit:
-                            continue
-                        predictor = ShadowPrediction(source_id, target_id)
-                        self._predictors.shadows[key] = predictor
-                        self._invalidate_shadow_predictions_cache()
-                        self._predictors.preliminary_support.pop(key, None)
-                        predictor.observe(source_value, target_value, target_previous)
-                self._prune_preliminary_shadow_support()
-                self._prune_shadow_predictions()
+            self._predictors.observe_shadows(
+                previous_frame=self._previous_frame,
+                activations=frame.activations,
+                node_kinds=node_kinds,
+                topology_revision=self._topology_revision,
+                max_nodes=self._kernel_limits.max_nodes,
+            )
 
         structural_mutations_applied = 0
         applied_mutations: tuple[Mutation, ...] = ()
