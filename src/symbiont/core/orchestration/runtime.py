@@ -2093,7 +2093,7 @@ class OrganismRuntime:
             reacclimation_remaining=self._reacclimation_remaining,
         )
 
-        self._action_domain.step(
+        action_result = self._action_domain.step(
             cognition_result,
             percepts,
             context=context,
