@@ -156,6 +156,44 @@ class GenerativeAgenda:
     def targets(self) -> tuple[GenerativeTarget, ...]:
         return tuple(self._targets.values())
 
+    def checkpoint(self) -> dict[str, object]:
+        """Return only bounded, organism-owned agenda state."""
+        return {
+            "max_targets": self.max_targets,
+            "max_reselection_without_progress": self.max_reselection_without_progress,
+            "suppression_duration": self.suppression_duration,
+            "agenda_contamination_count": self.agenda_contamination_count,
+            "targets": [_target_payload(target) for target in self.targets],
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: object) -> GenerativeAgenda:
+        """Restore an agenda without accepting external target metadata."""
+        if not isinstance(payload, dict):
+            raise ValueError("agenda checkpoint must be an object")
+        try:
+            agenda = cls(
+                max_targets=payload["max_targets"],
+                max_reselection_without_progress=payload["max_reselection_without_progress"],
+                suppression_duration=payload["suppression_duration"],
+            )
+            contamination_count = payload.get("agenda_contamination_count", 0)
+            if (
+                isinstance(contamination_count, bool)
+                or not isinstance(contamination_count, int)
+                or contamination_count < 0
+            ):
+                raise ValueError("agenda contamination count must be non-negative")
+            raw_targets = payload["targets"]
+            if not isinstance(raw_targets, list):
+                raise ValueError("agenda targets must be a list")
+            agenda.agenda_contamination_count = contamination_count
+            for raw_target in raw_targets:
+                agenda.add_target(_target_from_payload(raw_target))
+            return agenda
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid agenda checkpoint") from exc
+
     def add_target(self, target: GenerativeTarget) -> None:
         if not isinstance(target, GenerativeTarget):
             raise ValueError("agenda accepts only GenerativeTarget values")
@@ -259,6 +297,46 @@ class GenerativeAgenda:
             recent_attention=attention,
             progress_signal=None,
         )
+
+
+def _target_payload(target: GenerativeTarget) -> dict[str, object]:
+    return {
+        "target_id": target.target_id,
+        "source": target.source.value,
+        "source_refs": list(target.source_refs),
+        "created_tick": target.created_tick,
+        "uncertainty": target.uncertainty,
+        "persistence": target.persistence,
+        "recurrence": target.recurrence,
+        "estimated_resolvability": target.estimated_resolvability,
+        "last_selected_tick": target.last_selected_tick,
+        "selection_count": target.selection_count,
+        "last_progress_tick": target.last_progress_tick,
+        "status": target.status.value,
+        "no_progress_count": target.no_progress_count,
+        "suppressed_until": target.suppressed_until,
+    }
+
+
+def _target_from_payload(value: object) -> GenerativeTarget:
+    if not isinstance(value, dict):
+        raise ValueError("agenda target must be an object")
+    return GenerativeTarget(
+        target_id=value["target_id"],
+        source=AgendaSource(value["source"]),
+        source_refs=tuple(value["source_refs"]),
+        created_tick=value["created_tick"],
+        uncertainty=value["uncertainty"],
+        persistence=value["persistence"],
+        recurrence=value["recurrence"],
+        estimated_resolvability=value.get("estimated_resolvability"),
+        last_selected_tick=value.get("last_selected_tick"),
+        selection_count=value.get("selection_count", 0),
+        last_progress_tick=value.get("last_progress_tick"),
+        status=TargetStatus(value.get("status", TargetStatus.ELIGIBLE.value)),
+        no_progress_count=value.get("no_progress_count", 0),
+        suppressed_until=value.get("suppressed_until"),
+    )
 
 
 __all__ = [
