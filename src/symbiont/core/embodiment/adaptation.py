@@ -13,6 +13,7 @@ class AdaptationSnapshot:
     prediction_error_recent: float
     prediction_error_baseline: float
     prediction_shock: float
+    peak_prediction_shock: float
     schema_uncertainty: float
     causal_confidence: float
     controllability_confidence: float
@@ -44,6 +45,7 @@ class EmbodimentAdaptation:
         self.prediction_error_recent = 0.0
         self.prediction_error_baseline = 0.0
         self.prediction_shock = 0.0
+        self.peak_prediction_shock = 0.0
         self.schema_uncertainty = 1.0
         self.causal_confidence = 0.0
         self.controllability_confidence = 0.0
@@ -94,6 +96,10 @@ class EmbodimentAdaptation:
             0.0,
             min(1.0, (self.prediction_error_recent - self.prediction_error_baseline) / denom),
         )
+        self.peak_prediction_shock = max(
+            self.peak_prediction_shock,
+            self.prediction_shock,
+        )
         if self.prediction_shock >= 0.5 and self.first_shock_tick is None:
             self.first_shock_tick = tick
 
@@ -139,6 +145,7 @@ class EmbodimentAdaptation:
             prediction_error_recent=self.prediction_error_recent,
             prediction_error_baseline=self.prediction_error_baseline,
             prediction_shock=self.prediction_shock,
+            peak_prediction_shock=self.peak_prediction_shock,
             schema_uncertainty=self.schema_uncertainty,
             causal_confidence=self.causal_confidence,
             controllability_confidence=self.controllability_confidence,
@@ -169,6 +176,7 @@ class EmbodimentAdaptation:
             "prediction_error_recent",
             "prediction_error_baseline",
             "prediction_shock",
+            "peak_prediction_shock",
             "schema_uncertainty",
             "causal_confidence",
             "controllability_confidence",
