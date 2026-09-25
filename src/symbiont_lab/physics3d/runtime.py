@@ -28,6 +28,7 @@ from symbiont.core.embodiment import (
     EmbodimentEndReason,
     EmbodimentArchive,
     EmbodimentEpisode,
+    archive_episode_checkpoint,
     EmbodimentState,
     PerceptualSurface,
     TimingContract,
@@ -965,6 +966,21 @@ class PyBulletEmbodimentRuntime:
                     symbiont_tick=self.tick_count,
                     reason=EmbodimentEndReason.BODY_DEATH,
                 )
+            closed_payload = self._embodiment_episode.checkpoint(
+                current_tick=self.tick_count
+            )
+            archive_episode_checkpoint(
+                self._embodiment_archive,
+                closed_payload,
+                body_schema_prior=payload.get("body_schema")
+                if isinstance(payload.get("body_schema"), Mapping)
+                else None,
+                living_body=payload.get("living_body")
+                if isinstance(payload.get("living_body"), Mapping)
+                else None,
+                symbiont_tick=self.tick_count,
+                end_reason=EmbodimentEndReason.BODY_DEATH.value,
+            )
         payload["embodiment_episode"] = self._embodiment_episode.checkpoint(
             current_tick=self.tick_count
         )
