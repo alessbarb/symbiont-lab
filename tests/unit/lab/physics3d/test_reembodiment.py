@@ -225,12 +225,13 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     assert lifecycle["epoch"] == 2
     assert lifecycle["history_count"] == 1
     current = transformed["embodiment_lifecycle"]["current"]
-    assert current["contract_relation"] == "same-known"
+    assert current["contract_relation"] == "known-contract"
     assert current["known_contract_memory"] is True
     assert current["candidate_private_model_ids"] == ["model-1"]
     assert transformed["embodiment_lifecycle"]["history"][0]["end_body_vital_state"] == "dead"
     assert len(transformed["embodiment_epoch_summaries"]) == 1
-    assert len(transformed["embodiment_memory"]["contracts"]) == 1
+    assert "embodiment_memory" not in transformed
+    assert len(transformed["embodiment_archive"]["body_memories"]) == 1
 
 def test_changed_contract_archives_old_schema_and_restarts_body_specific_learning() -> None:
     previous = _checkpoint(vital_state="active")
@@ -401,7 +402,7 @@ def test_known_contract_return_recovers_hypotheses_without_restoring_authority()
 
     current = returned["embodiment_lifecycle"]["current"]
     assert current["known_contract_memory"] is True
-    assert current["contract_relation"] == "known-return"
+    assert current["contract_relation"] == "known-contract"
     assert current["candidate_private_model_ids"] == ["model-1"]
 
     sensorimotor = returned["actuation"]["sensorimotor"]
