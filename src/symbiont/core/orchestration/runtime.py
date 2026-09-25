@@ -2148,24 +2148,9 @@ class OrganismRuntime:
                 else {}
             ),
         )
-        snapshot = perception.snapshot
-        resource_readings = perception.resource_readings
-        organism_readings = perception.organism_readings
-        knowledge_view = perception.knowledge_view
-        sampling_plan = perception.sampling_plan
-        percept_names = perception.percept_names
-        developed_names = perception.developed_names
-        capability_by_percept_name = perception.capability_by_percept_name
-        cognitive_aliases = perception.cognitive_aliases
-        selected_ids = set(perception.selected_ids)
-        cognitive_readings = perception.cognitive_readings
         percepts = perception.percepts
-        sensor_by_cognitive_name = perception.sensor_by_cognitive_name
         drift_observations = perception.drift_observations
-        assimilation = list(perception.assimilation)
         allocations = perception.allocations
-        perceptual_allocations = perception.perceptual_allocations
-        availability_by_capability = perception.availability_by_capability
         if perception.pending_proprioception_consumed:
             self._pending_proprioception = {}
 
@@ -2201,13 +2186,11 @@ class OrganismRuntime:
             reacclimation_remaining=self._reacclimation_remaining,
         )
 
-        current_signal_references = perception.signal_references
-
         self._motor_step(
             cognition_result,
             percepts,
             context=context,
-            signal_references=current_signal_references,
+            signal_references=perception.signal_references,
         )
 
         epistemic = self._epistemic_domain.investigate(
@@ -2221,11 +2204,6 @@ class OrganismRuntime:
             perception=perception,
             investigate_ticks=self._investigate_ticks,
         )
-        investigated_capability = epistemic.investigated_capability
-        evidence_gathered = epistemic.evidence_gathered
-        dissent = epistemic.dissent
-        narrative = epistemic.narrative
-
         # The action decision consumes the current tick's bounded perception
         # and cognition.  ``action_result`` remains ``None`` here: canonical
         # cognition does not run a typed local action-selection step, and
@@ -2322,7 +2300,7 @@ class OrganismRuntime:
             development_snapshot=development_snapshot,
             cognition_result=cognition_result,
             percepts=percepts,
-            knowledge_view=knowledge_view,
+            knowledge_view=perception.knowledge_view,
             drift_observations=drift_observations,
             action_executed=bool(
                 action_result is not None and action_result.executed
@@ -2346,31 +2324,31 @@ class OrganismRuntime:
             metabolism_snapshot=metabolism_snapshot,
             resting_for_tick=resting_for_tick,
             allocations=allocations,
-            investigated_capability=investigated_capability,
+            investigated_capability=epistemic.investigated_capability,
             drift_observations=drift_observations,
-            dissent=dissent,
-            assimilation_count=len(assimilation),
-            narrative=narrative,
+            dissent=epistemic.dissent,
+            assimilation_count=len(perception.assimilation),
+            narrative=epistemic.narrative,
         )
         self._decay_epigenetic_priors()
         return RuntimeTickResult(
             tick=self._tick_count,
-            snapshot=snapshot,
+            snapshot=perception.snapshot,
             percepts=percepts,
             drift_observations=drift_observations,
             allocations=allocations,
-            investigated_capability=investigated_capability,
-            evidence_gathered=evidence_gathered,
-            dissent=dissent,
-            narrative=narrative,
-            sampling_plan=sampling_plan,
-            perceptual_allocations=perceptual_allocations,
+            investigated_capability=epistemic.investigated_capability,
+            evidence_gathered=epistemic.evidence_gathered,
+            dissent=epistemic.dissent,
+            narrative=epistemic.narrative,
+            sampling_plan=perception.sampling_plan,
+            perceptual_allocations=perception.perceptual_allocations,
             cognition=cognition_result,
-            signal_knowledge=knowledge_view,
+            signal_knowledge=perception.knowledge_view,
             knowledge_events=self._signal_knowledge.drain_events(),
-            signal_references=current_signal_references,
+            signal_references=perception.signal_references,
             metabolism=metabolism_snapshot,
-            assimilation=tuple(assimilation),
+            assimilation=perception.assimilation,
             homeostasis=homeostatic_snapshot,
             physiology=physiology_snapshot,
             ontogeny=ontogeny_snapshot,
