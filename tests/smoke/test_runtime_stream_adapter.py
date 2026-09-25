@@ -276,6 +276,64 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
     assert snapshot["topology"]["edges"][0]["sourceId"] == "concept.1"
 
 
+def test_physics3d_rich_state_projects_motor_knowledge_into_mind_contract() -> None:
+    snapshot = mind_snapshot_from_rich_state({
+        "tick": 40,
+        "organism_id": "symbiont:3d:test",
+        "embodiment": {
+            "embodiment_epoch": 2,
+            "bindings": [
+                {
+                    "competence_id": "competence.7",
+                    "surface_fingerprint": "humanoid:v1",
+                    "effect_id": "effect.3",
+                    "reliability": 0.6,
+                    "controllability": 0.5,
+                    "last_evidence_tick": 39,
+                },
+            ],
+        },
+        "motor_competences": [
+            {
+                "competence_id": "competence.7",
+                "controller_id": "controller.2",
+                "effect_id": "effect.3",
+                "maturity": "established",
+                "support": 12,
+                "failures": 1,
+                "reproducibility": 0.9,
+                "controllability": 0.5,
+                "directional_consistency": 0.8,
+            },
+        ],
+        "effects": [
+            {
+                "effect_id": "effect.3",
+                "feature_refs": ["signal.12", "channel.4"],
+                "support": 12,
+                "confidence": 0.7,
+            },
+        ],
+    })
+
+    assert snapshot["motor_competences"][0]["competence_id"] == "competence.7"
+    assert snapshot["motor_competences"][0]["maturity"] == "established"
+    assert snapshot["effects"][0]["effect_id"] == "effect.3"
+    assert snapshot["effects"][0]["feature_refs"] == ["signal.12", "channel.4"]
+    assert snapshot["embodiment"]["bindings"][0]["competence_id"] == "competence.7"
+    assert "motor_competences" in snapshot["provenance"]["organismFacts"]
+    assert "effects" in snapshot["provenance"]["organismFacts"]
+    assert "embodiment.bindings" in snapshot["provenance"]["organismFacts"]
+
+
+def test_physics3d_rich_state_omits_motor_knowledge_when_absent() -> None:
+    snapshot = mind_snapshot_from_rich_state({"tick": 41})
+
+    assert "motor_competences" not in snapshot
+    assert "effects" not in snapshot
+    assert "embodiment" not in snapshot
+
+
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
     stream = ObservationBus()
     bridge = Physics3DObservationBridge(stream)

@@ -471,6 +471,12 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     sensorimotor = rich_state.get("sensorimotor")
     if not isinstance(sensorimotor, Mapping):
         sensorimotor = None
+    motor_competences = rich_state.get("motor_competences")
+    if not isinstance(motor_competences, (list, tuple)):
+        motor_competences = None
+    effects = rich_state.get("effects")
+    if not isinstance(effects, (list, tuple)):
+        effects = None
     outcome = rich_state.get("outcome")
     if not isinstance(outcome, Mapping):
         outcome = None
@@ -502,6 +508,13 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             )
         except (TypeError, ValueError):
             pass
+    raw_embodiment_block = rich_state.get("embodiment")
+    if isinstance(raw_embodiment_block, Mapping):
+        raw_bindings = raw_embodiment_block.get("bindings")
+        if isinstance(raw_bindings, (list, tuple)):
+            embodiment["bindings"] = [
+                dict(item) for item in raw_bindings if isinstance(item, Mapping)
+            ]
     if embodiment:
         snapshot["embodiment"] = embodiment
 
@@ -543,6 +556,18 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     if sensorimotor is not None:
         snapshot["sensorimotor"] = dict(sensorimotor)
         organism_facts.append("sensorimotor")
+    if motor_competences is not None:
+        snapshot["motor_competences"] = [
+            dict(item) for item in motor_competences if isinstance(item, Mapping)
+        ]
+        organism_facts.append("motor_competences")
+    if effects is not None:
+        snapshot["effects"] = [
+            dict(item) for item in effects if isinstance(item, Mapping)
+        ]
+        organism_facts.append("effects")
+    if "embodiment" in snapshot and "bindings" in snapshot["embodiment"]:
+        organism_facts.append("embodiment.bindings")
     if outcome is not None:
         snapshot["outcome"] = dict(outcome)
         organism_facts.append("outcome")

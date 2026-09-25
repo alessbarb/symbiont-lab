@@ -2045,6 +2045,9 @@ class PyBulletEmbodimentRuntime:
                         )
                     ),
                 },
+                "bindings": self._embodiment_episode.execution_bindings.checkpoint()[
+                    "items"
+                ],
             },
             "pre": {
                 "physical": pre_physical_state,
@@ -2156,6 +2159,30 @@ class PyBulletEmbodimentRuntime:
                 current_tick=self.tick_count
             ),
             "body_schema": body_schema_representation,
+            "motor_competences": [
+                {
+                    "competence_id": item.competence_id,
+                    "controller_id": item.controller_id,
+                    "effect_id": item.effect_id,
+                    "maturity": item.maturity.value,
+                    "parent_competence_ids": list(item.parent_competence_ids),
+                    "support": item.evidence.support,
+                    "failures": item.evidence.failures,
+                    "reproducibility": item.evidence.reproducibility,
+                    "controllability": item.evidence.controllability,
+                    "directional_consistency": item.evidence.directional_consistency,
+                }
+                for item in self.organism.motor_competences
+            ],
+            "effects": [
+                {
+                    "effect_id": item.effect_id,
+                    "feature_refs": list(item.feature_refs),
+                    "support": item.support,
+                    "confidence": item.confidence,
+                }
+                for item in self.organism.effect_representations
+            ],
             "outcome": {
                 "initial_resource_distance": float(self._initial_resource_distance),
                 "minimum_resource_distance": float(self._minimum_resource_distance),
