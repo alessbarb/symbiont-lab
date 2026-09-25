@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass
 from enum import StrEnum
