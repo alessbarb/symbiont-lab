@@ -9,6 +9,7 @@ import math
 from typing import Mapping
 
 from .genome import AdaptiveGeneRange, Genome
+from .germline import GermlineState
 
 
 def _unit(value: float) -> float:
@@ -44,13 +45,78 @@ class GeneExpressionState:
     update_count: int = 0
 
     @classmethod
-    def from_genome(cls, genome: Genome) -> "GeneExpressionState":
+    def from_genome(
+        cls,
+        genome: Genome,
+        *,
+        germline: GermlineState | None = None,
+    ) -> "GeneExpressionState":
+        def expressed(locus: str, baseline: float) -> float:
+            if germline is None:
+                return float(baseline)
+            return float(germline.effective_value(genome, locus))
+
+        learning = genome.plasticity.learning_rate
+        structural = genome.plasticity.structural_plasticity
+        growth = genome.structure.growth_threshold
+        pruning = genome.structure.pruning_threshold
+
+        learning_value = max(
+            learning.minimum,
+            min(
+                learning.maximum,
+                expressed(
+                    "plasticity.learning_rate.baseline",
+                    learning.baseline,
+                ),
+            ),
+        )
+        structural_value = max(
+            structural.minimum,
+            min(
+                structural.maximum,
+                expressed(
+                    "plasticity.structural_plasticity.baseline",
+                    structural.baseline,
+                ),
+            ),
+        )
+        growth_value = max(
+            growth.minimum,
+            min(
+                growth.maximum,
+                expressed(
+                    "structure.growth_threshold.baseline",
+                    growth.baseline,
+                ),
+            ),
+        )
+        pruning_value = max(
+            pruning.minimum,
+            min(
+                pruning.maximum,
+                expressed(
+                    "structure.pruning_threshold.baseline",
+                    pruning.baseline,
+                ),
+            ),
+        )
+        exploration_value = max(
+            0.0,
+            min(
+                1.0,
+                expressed(
+                    "sensorimotor.spontaneous_activity_baseline",
+                    genome.sensorimotor.spontaneous_activity_baseline,
+                ),
+            ),
+        )
         return cls(
-            effective_learning_rate=genome.plasticity.learning_rate.baseline,
-            effective_structural_plasticity=genome.plasticity.structural_plasticity.baseline,
-            effective_growth_threshold=genome.structure.growth_threshold.baseline,
-            effective_pruning_threshold=genome.structure.pruning_threshold.baseline,
-            exploration_drive=genome.sensorimotor.spontaneous_activity_baseline,
+            effective_learning_rate=learning_value,
+            effective_structural_plasticity=structural_value,
+            effective_growth_threshold=growth_value,
+            effective_pruning_threshold=pruning_value,
+            exploration_drive=exploration_value,
             regulatory_activation={},
             update_count=0,
         )
