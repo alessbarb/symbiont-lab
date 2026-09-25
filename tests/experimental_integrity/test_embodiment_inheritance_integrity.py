@@ -20,7 +20,13 @@ import pytest
 
 from symbiont.core.body import Body, create_standard_body
 from symbiont.core.embodiment import implant
-from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema, InferredSelfModel
+from symbiont.actuation.model import AgencyModel as CanonicalAgencyModel
+from symbiont.core.embodiment.agency import (
+    AgencyModel as LegacyAgencyModel,
+    InferredBodySchema,
+    InferredSelfModel,
+)
+from symbiont.core.embodiment.body_schema import BodySchemaEngine
 from symbiont.core.symbiont import Symbiont
 from symbiont.core.germline import (
     EpigeneticMark,
@@ -271,7 +277,10 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
     place; this test only proves nothing organism-shaped leaks out through
     the result.)
     """
-    from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema
+    from symbiont.core.embodiment.agency import (
+        AgencyModel as LegacyAgencyModel,
+        InferredBodySchema,
+    )
     from symbiont.core.body import Body
     from symbiont.core.embodiment import EmbodimentSession
     from symbiont.core.individual import Individual
@@ -283,7 +292,7 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
         run_tool_body_distinction_study,
     )
 
-    escaped_types = (AgencyModel, InferredBodySchema, Symbiont, Individual, Body, EmbodimentSession)
+    escaped_types = (LegacyAgencyModel, InferredBodySchema, Symbiont, Individual, Body, EmbodimentSession)
 
     def _walk(obj: object, seen: set[int], path: str) -> None:
         if id(obj) in seen:
@@ -317,13 +326,13 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
     from symbiont.core.individual import create_individual
 
     real = create_individual("real_sym_test", "real_body_test", num_receptors=2, num_effectors=1)
-    assert isinstance(real.symbiont.agency_model, AgencyModel)
-    assert isinstance(real.symbiont.body_schema, InferredBodySchema)
+    assert isinstance(real.symbiont.agency_model, CanonicalAgencyModel)
+    assert isinstance(real.symbiont.body_schema, BodySchemaEngine)
     # The real Symbiont's own models are freshly constructed by its own
     # constructor (never by the studies above), and start uncalibrated --
     # confirming no specimen state crossed back into this organism.
-    assert real.symbiont.body_schema.overall_confidence == 0.0
-    assert real.symbiont.agency_model.agency_confidence == {}
+    assert real.symbiont.body_schema.boundary_confidence == 0.0
+    assert real.symbiont.agency_model.estimates == ()
 
 
 def test_learned_cognition_cannot_cross_reproduction():
@@ -354,7 +363,7 @@ def test_learned_cognition_cannot_cross_reproduction():
             epigenetic_marks=(),
             parent_ids=("p1",),
             generation=1,
-            body_schema=InferredBodySchema(),  # type: ignore[call-arg]
+            body_schema=BodySchemaEngine(),  # type: ignore[call-arg]
         )
 
 
