@@ -13,7 +13,6 @@ from typing import Any
 
 from ...host.acclimation import HostAcclimation
 from ...host.adaptive import AdaptiveSenseModel, SamplingPlan
-from ...host.bootstrap import current_time_bucket
 from ...host.checkpoint import (
     CHECKPOINT_SCHEMA_VERSION,
     CheckpointError,
@@ -30,38 +29,25 @@ from ...host.lifecycle import HostLifecycle, LifecycleSnapshot
 from ...host.percepts import DEFAULT_PERCEPT_NAMES, Percept
 from ...host.providers.stdlib import StandardLibraryProvider
 from ...host.providers.stdlib_readings import StandardLibraryReadingProvider
-from ...host.readings import (
-    HostSampler,
-    ReadingPrivacyClass,
-    ReadingProvider,
-    ReadingQuality,
-    SensorReading,
-    Unit,
-)
+from ...host.readings import ReadingProvider
 from ...host.rhythms import RhythmModel
-from ...host.second_look import SecondLookSession
 from ...sensory import SensorySystem
 from ...cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
 from ...genetics.genome import Genome, DevelopmentGenes, PlasticityGenes, RangeSpec
 from ...cognition.graph import CognitiveGraph
 from ...cognition.learning import ShadowPrediction
 from ...cognition.limits import KernelLimits
-from ...genetics.expression import (
-    ExpressionRegulator,
-    GeneExpressionState,
-    RegulatorySignals,
-)
-from ..cognition.attention import AttentionAllocation, AttentionBudget, AttentionCandidate, attend_to_host
+from ...genetics.expression import ExpressionRegulator, GeneExpressionState
+from ..cognition.attention import AttentionAllocation
 from ..embodiment.body_schema import BodySchemaEngine
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
 from ..cognition.self_model import derive_cognitive_self_namespace, project_cognitive_self_observation
-from ..cognition.consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind, novelty_from_drift_kind, surprise_from_loss
+from ..cognition.consolidation import MemoryConsolidator
 from ..cognition.evidence import DissentRecord, EvidenceRevisionLedger
-from ..foundation.narrative import NarrativeEntry, narrate_host
-from ..cognition.host_self_model import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
+from ..foundation.narrative import NarrativeEntry
+from ..cognition.host_self_model import SelfModel
 from ..signals.identity import SignalIdentity
 from ..signals.knowledge import SignalKnowledgeEngine, MAX_KNOWLEDGE_CHECKPOINT_BYTES
-from ..signals.knowledge_types import SignalObservation, SignalObservationBatch
 from ..embodiment.degradation import DegradationQueue
 from ..embodiment.physiology import (
     DEFAULT_PHYSIOLOGY_CONFIG,
