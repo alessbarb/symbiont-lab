@@ -4,6 +4,7 @@ import hashlib
 
 import pytest
 
+from symbiont.actuation.competence import CompetenceMaturity
 import symbiont.actuation.sensorimotor as sensorimotor_module
 from symbiont.actuation.sensorimotor import MotorPrimitive, CompetenceDevelopmentEngine
 
@@ -207,7 +208,7 @@ def test_single_episode_remains_candidate_until_independent_recurrence():
     assert learner.primitives == ()
     snapshot = learner.snapshot()
     assert snapshot.competence_candidates == 1
-    assert snapshot.recurrent_primitive_candidates == 0
+    assert snapshot.recurrent_competence_candidates == 0
     lifecycle = learner.checkpoint()["primitive_stats"][0]
     assert lifecycle["first_sample_tick"] == 4
     assert lifecycle["last_sample_tick"] == 4
@@ -283,7 +284,7 @@ def test_same_sequence_in_disjoint_exploration_block_counts_as_recurrence():
     assert learner.primitives[0].samples == 2
 
 
-def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
+def test_reproducible_temporal_sequence_can_mature_motor_competence():
     learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-primitive",
@@ -293,7 +294,7 @@ def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
     _teach_repeated_sequence(learner, episodes=2)
 
     snapshot = learner.snapshot()
-    assert snapshot.primitives > 0
+    assert snapshot.competence_chunks > 0
     assert snapshot.best_controllability > 0.0
     assert learner.primitives
     assert learner.cognitive_primitives
@@ -338,6 +339,13 @@ def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
 
     assert restored.snapshot() == learner.snapshot()
     assert restored.primitives == learner.primitives
+    assert tuple(item.maturity for item in restored.cognitive_primitives) == tuple(
+        item.maturity for item in learner.cognitive_primitives
+    )
+    assert all(
+        item.competence_evidence.support >= 2
+        for item in restored.cognitive_primitives
+    )
 
 
 def test_cognitive_primitive_replays_only_learned_motor_pattern():
@@ -665,7 +673,7 @@ def test_default_exploration_prefers_low_dimensional_coordination_without_forbid
     )
 
     sizes = [
-        learner._babble_cardinality(epoch)
+        len(learner.motor_intents(epoch * 8))
         for epoch in range(512)
     ]
 
@@ -883,7 +891,10 @@ def test_similar_natural_chunks_count_as_recurrence_not_new_skill():
     assert len(learner.primitives) == 1
     primitive = learner.primitives[0]
     assert primitive.samples == 2
-    assert primitive.is_competence
+    assert primitive.maturity in {
+        CompetenceMaturity.ESTABLISHED,
+        CompetenceMaturity.ROBUST,
+    }
 
 
 def test_bounded_primitive_pool_preserves_proven_competence():
@@ -910,7 +921,10 @@ def test_bounded_primitive_pool_preserves_proven_competence():
         controllability=0.01,
         directional_consistency=0.8,
     )
-    assert competence.is_competence
+    assert competence.maturity in {
+        CompetenceMaturity.ESTABLISHED,
+        CompetenceMaturity.ROBUST,
+    }
 
     learner._primitives = {
         f"primitive.unverified.{index:02d}": MotorPrimitive(
@@ -1028,7 +1042,7 @@ def test_sensorimotor_pre_v9_checkpoint_is_not_reinterpreted_as_current_evidence
     payload["schema_version"] = 7
     payload.pop("historical_candidates")
 
-    with pytest.raises(ValueError, match="schema_version must be 9 or 10"):
+    with pytest.raises(ValueError, match="schema_version must be 9, 10 or 11"):
         CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=_ids(4),
@@ -1056,7 +1070,7 @@ def test_exclusive_motor_groups_never_babble_antagonistic_channels_together():
 
     assert seen == set(ids)
     checkpoint = learner.checkpoint()
-    assert checkpoint["schema_version"] == 10
+    assert checkpoint["schema_version"] == 11
     assert checkpoint["exclusive_actuator_groups"] == [list(group) for group in groups]
 
     restored = CompetenceDevelopmentEngine.restore(

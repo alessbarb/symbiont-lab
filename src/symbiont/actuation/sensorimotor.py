@@ -228,11 +228,6 @@ class MotorPrimitive:
             CompetenceMaturity.ROBUST,
         }
 
-    @property
-    def is_competence(self) -> bool:
-        """Legacy observation alias; v2 control uses evidence-derived maturity."""
-        return self.established
-
     def intents_at(self, step: int) -> tuple[MotorIntent, ...]:
         if not 0 <= step < len(self.sequence):
             return ()

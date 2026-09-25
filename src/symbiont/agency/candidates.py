@@ -31,17 +31,18 @@ def competence_candidates(
     )
 
 
-def primitive_candidates(
+def motor_competence_candidates(
     primitives: Collection[object],
     readouts: Mapping[str, float],
     *,
     max_candidates: int = _MAX_CANDIDATES,
 ) -> tuple[ProspectiveCandidate, ...]:
-    """Return admitted learned primitives in deterministic identifier order.
+    """Return admitted learned motor competences in deterministic order.
 
-    Primitive objects deliberately use a small structural interface here.  The
-    agency layer only needs an identifier and the competence/admission flag;
-    it must not rank candidates by the readout value.
+    The learner's temporal controller representation is deliberately kept
+    behind a small structural interface here. The agency layer consumes only
+    its identifier and evidence-derived maturity; it must not rank candidates
+    by the readout value.
     """
     if isinstance(max_candidates, bool) or not isinstance(max_candidates, int):
         raise ValueError("max_candidates must be an integer")
@@ -49,12 +50,14 @@ def primitive_candidates(
     eligible = sorted(
         primitive.primitive_id
         for primitive in primitives
-        if primitive.is_competence and primitive.primitive_id in readouts
+        if primitive.maturity
+        in {CompetenceMaturity.ESTABLISHED, CompetenceMaturity.ROBUST}
+        and primitive.primitive_id in readouts
     )
     return tuple(
-        ProspectiveCandidate(action_id=primitive_id, family="primitive")
+        ProspectiveCandidate(action_id=primitive_id, family="competence")
         for primitive_id in eligible[:limit]
     )
 
 
-__all__ = ["competence_candidates", "primitive_candidates"]
+__all__ = ["competence_candidates", "motor_competence_candidates"]
