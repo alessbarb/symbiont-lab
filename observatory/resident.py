@@ -72,7 +72,8 @@ def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict)
         raise ValueError("--graph-file requires --genome-file")
 
     from symbiont.cognition.birth import load_base_graph, load_base_genome
-    from symbiont.cognition.genome import GenomeCodec, legacy_validation_version
+    from symbiont.genetics.genome import legacy_validation_version
+    from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
     from symbiont.cognition.graph import load_graph_definition
     from symbiont.cognition.limits import KernelLimits
 
