@@ -24,7 +24,7 @@ from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 from symbiont.core.embodiment import (
-    EmbodimentContract as CoreEmbodimentContract,
+    EmbodimentContract,
     EmbodimentEndReason,
     EmbodimentArchive,
     EmbodimentEpisode,
@@ -51,7 +51,7 @@ from .humanoid import apply_surface_material, configure_physics_solver
 from .resource import PhysicalResource
 from .settling import settle_passive_body
 from .reembodiment import (
-    EmbodimentContract as LegacyEmbodimentContract,
+    PhysicsEmbodimentDescriptor,
     migrate_temporal_domains,
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
@@ -405,7 +405,7 @@ class PyBulletEmbodimentRuntime:
             reading_providers=(reading_provider,),
         )
 
-        contract = LegacyEmbodimentContract(
+        contract = PhysicsEmbodimentDescriptor(
             body_kind=self.body_descriptor.body_kind,
             receptor_count=self.body_descriptor.receptor_count,
             effector_count=self.body_descriptor.effector_count,
@@ -417,7 +417,7 @@ class PyBulletEmbodimentRuntime:
                 f"{contract.body_kind}:{contract.receptor_count}:{contract.effector_count}"
             ),
         )
-        self._core_embodiment_contract = CoreEmbodimentContract(
+        self._core_embodiment_contract = EmbodimentContract(
             perceptual_surface=PerceptualSurface.from_count(
                 len(reading_provider.receptor_ids),
                 fingerprint_material=f"count:{len(reading_provider.receptor_ids)}",
