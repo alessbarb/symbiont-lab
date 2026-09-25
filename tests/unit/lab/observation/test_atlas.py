@@ -1,0 +1,98 @@
+import copy
+
+import pytest
+
+from symbiont_lab.observation.atlas import build_cognitive_atlas
+
+
+def _snapshot():
+    return {
+        "tick": 77,
+        "topology": {
+            "nodes": [
+                {"id": "concept.1", "kind": "concept"},
+                {"id": "predictor.1", "kind": "predictor", "predictsNodeId": "concept.1"},
+            ],
+            "edges": [
+                {"sourceId": "predictor.1", "targetId": "concept.1", "kind": "excitatory", "weight": 0.4},
+            ],
+        },
+        "motor_competences": [
+            {
+                "competence_id": "competence.7",
+                "controller_id": "controller.2",
+                "effect_id": "effect.3",
+                "maturity": "established",
+                "support": 12,
+            },
+            {
+                "competence_id": "competence.8",
+                "controller_id": "controller.9",
+                "effect_id": None,
+                "maturity": "candidate",
+                "support": 1,
+            },
+        ],
+        "effects": [
+            {"effect_id": "effect.3", "feature_refs": ["signal.1"], "support": 12, "confidence": 0.7},
+        ],
+        "embodiment": {
+            "bindings": [
+                {
+                    "competence_id": "competence.7",
+                    "surface_fingerprint": "humanoid:v1",
+                    "effect_id": "effect.3",
+                    "reliability": 0.6,
+                    "controllability": 0.5,
+                    "last_evidence_tick": 76,
+                },
+            ],
+        },
+    }
+
+
+def test_build_cognitive_atlas_classifies_every_domain():
+    atlas = build_cognitive_atlas(_snapshot())
+
+    kinds = {node.id: node.kind for node in atlas.nodes}
+    assert kinds["concept.1"] == "concept"
+    assert kinds["predictor.1"] == "predictor"
+    assert kinds["competence.7"] == "motor_competence"
+    assert kinds["competence.8"] == "motor_competence"
+    assert kinds["effect.3"] == "effect"
+    assert kinds["binding.competence.7"] == "embodiment_binding"
+
+    edge_kinds = {(edge.source_id, edge.target_id): edge.kind for edge in atlas.edges}
+    assert edge_kinds[("predictor.1", "concept.1")] == "excitatory"
+    assert edge_kinds[("competence.7", "effect.3")] == "produces"
+    assert edge_kinds[("binding.competence.7", "competence.7")] == "bound_to"
+    # competence.8 has no resolved effect -> no fabricated produces edge
+    assert ("competence.8", None) not in edge_kinds
+
+
+def test_build_cognitive_atlas_motor_capability_metric_is_known_vs_bound():
+    atlas = build_cognitive_atlas(_snapshot())
+
+    assert atlas.metrics["motor_capability"] == {"supported": True, "known": 2, "bound": 1}
+
+
+def test_build_cognitive_atlas_distinguishes_absent_from_empty_motor_knowledge():
+    absent = build_cognitive_atlas({"tick": 1})
+    assert absent.metrics["motor_capability"] == {"supported": False, "known": None, "bound": None}
+
+    empty = build_cognitive_atlas({"tick": 1, "motor_competences": []})
+    assert empty.metrics["motor_capability"] == {"supported": True, "known": 0, "bound": 0}
+
+
+def test_build_cognitive_atlas_never_mutates_input_snapshot():
+    snapshot = _snapshot()
+    before = copy.deepcopy(snapshot)
+
+    build_cognitive_atlas(snapshot)
+
+    assert snapshot == before
+
+
+def test_build_cognitive_atlas_rejects_non_mapping():
+    with pytest.raises(TypeError):
+        build_cognitive_atlas([])
