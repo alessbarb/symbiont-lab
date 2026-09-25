@@ -177,7 +177,13 @@ export function createCognitionController({
 
   function buildGraphModel() {
     const source = graph.replaySnapshot ?? snap;
-    const topology = source.topology;
+    const canonicalAtlas = (
+      source.atlas?.schema_version === 2 &&
+      Array.isArray(source.atlas?.nodes)
+    ) ? source.atlas : null;
+    const topology = canonicalAtlas
+      ? { nodes: canonicalAtlas.nodes, edges: canonicalAtlas.edges ?? [] }
+      : source.topology;
     const cognition = source.cognition;
   
     if (!topology?.nodes?.length) {
@@ -222,7 +228,17 @@ export function createCognitionController({
       source.sensorimotor ?? snap.sensorimotor,
       source.observerSemantics ?? snap.observerSemantics,
       source.prospectiveAgency ?? null,
-      {
+      canonicalAtlas ? {
+        // Atlas v2 already contains the canonical organism-owned motor/body
+        // knowledge. Keep only legacy sensorimotor primitives/physical
+        // evidence additive here; do not derive those domains a second time.
+        competences: [],
+        effects: [],
+        bindings: [],
+        bodySchema: null,
+        actionDimensions: [],
+        showEmbodiment: false,
+      } : {
         competences: source.motor_competences ?? snap.motor_competences ?? [],
         effects: source.effects ?? snap.effects ?? [],
         bindings: (source.embodiment ?? snap.embodiment)?.bindings ?? [],
