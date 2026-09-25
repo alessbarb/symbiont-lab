@@ -114,6 +114,7 @@ from ..domains.epistemic import EpistemicDomain, EpistemicServices
 from ..domains.lifecycle import LifecycleDomain
 from ..domains.regulation import RegulationDomain, RegulationServices
 from ..domains.embodiment import EmbodimentDomain, EmbodimentServices
+from ..domains.development import DevelopmentDomain
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -686,6 +687,7 @@ class OrganismRuntime:
             actuator_system=actuator_system,
         )
         self._regulation_domain = RegulationDomain()
+        self._development_domain = DevelopmentDomain()
         self._physiology_domain = PhysiologyDomain()
         self._perception_domain = PerceptionDomain()
         self._cognition_domain = CognitionDomain()
@@ -1014,7 +1016,7 @@ class OrganismRuntime:
             else 0
         )
         self._gene_expression_state = (
-            self._regulation_domain.update_gene_expression(
+            self._development_domain.update_gene_expression(
                 genome=self._genome,
                 expression_state=self._gene_expression_state,
                 expression_regulator=self._expression_regulator,
@@ -1529,14 +1531,13 @@ class OrganismRuntime:
         return self._epigenetic_priors
 
     def _decay_epigenetic_priors(self) -> None:
-        if not self._epigenetic_priors or self._epigenetic_decay <= 0.0:
-            return
-        factor = 1.0 - self._epigenetic_decay
-        self._epigenetic_priors = tuple(
-            EpigeneticPrior(item.key, round(item.value * factor, 12))
-            for item in self._epigenetic_priors
-            if item.value * factor > 1e-12
+        self._epigenetic_priors = (
+            self._development_domain.decay_epigenetic_priors(
+                self._epigenetic_priors,
+                decay=self._epigenetic_decay,
+            )
         )
+
 
     def _next_heritable_genome(self) -> Genome | None:
         """Create the next genotype through the single typed Genome v2 path."""
