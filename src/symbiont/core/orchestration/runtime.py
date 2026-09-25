@@ -2227,11 +2227,7 @@ class OrganismRuntime:
                 reading_providers=self._reading_providers,
             ),
             context=context,
-            snapshot=snapshot,
-            drift_observations=drift_observations,
-            capability_by_percept_name=capability_by_percept_name,
-            selected_ids=selected_ids,
-            allocations=allocations,
+            perception=perception,
             investigate_ticks=self._investigate_ticks,
         )
         investigated_capability = epistemic.investigated_capability
