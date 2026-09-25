@@ -38,7 +38,7 @@ DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont"
 LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
 LEGACY_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v4.json"
-DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v5.json"
+DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v6.json"
 DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "telemetry-v4.1"
 
 
@@ -54,8 +54,8 @@ def _archive_existing_subject(
         and body_file == DEFAULT_BODY_FILE
         and LEGACY_BODY_FILE not in candidates
     ):
-        # Preserve the final v4 pose as historical apparatus evidence when the
-        # default subject is moved to the v5 constitution.
+        # Preserve the final v5 pose as historical apparatus evidence when the
+        # default subject is moved to the v6 constitution.
         candidates.append(LEGACY_BODY_FILE)
     existing = tuple(
         path
@@ -225,7 +225,7 @@ def run(
     cognition_hz: int = 24,
     mechanical_work_cost_per_joule: float = 0.001,
     telemetry_physics_trace: bool = False,
-    body_kind: str = "anthropomorphic-v5",
+    body_kind: str = "anthropomorphic-v6",
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
