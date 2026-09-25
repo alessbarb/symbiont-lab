@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `ba5978fd`
+**Audited commit:** `d633cab3`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -54,8 +54,6 @@ What does **not** yet exist after the foundation, agenda, and registry increment
 ```text
 multi-step rollout
 
-GenerativeScheduler
-
 generic branching
 
 generic replay-as-generative-state
@@ -94,7 +92,7 @@ built by composing several mature existing components.
 | Phase | Capability | Current status |
 |---|---|---|
 | GC-0 | Epistemic foundation | **IMPLEMENTED — bounded foundation** |
-| GC-1 | Endogenous agenda | **IMPLEMENTED — bounded agenda; scheduler missing** |
+| GC-1 | Endogenous agenda | **IMPLEMENTED — bounded agenda and scheduler substrate** |
 | GC-2 | Generative model adapters | **PARTIAL — protocol/registry; adapters missing** |
 | GC-3 | Multi-step rollout | **MISSING** |
 | GC-4 | Branching | **MISSING** |
@@ -651,7 +649,7 @@ what stops being selected
 IMPLEMENTED — agenda substrate
 ```
 
-This is the first genuinely new autonomous mechanism. Scheduler integration and
+This is the first genuinely new autonomous mechanism. Runtime integration and
 the GC-E10 campaign remain open.
 
 ---
