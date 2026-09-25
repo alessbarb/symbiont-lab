@@ -135,7 +135,9 @@ export function cognitiveSituation({
       id: 'motor',
       label: 'Motor capability',
       total: motorCompetences.length,
-      active: motorCompetences.filter(item => item?.executable === true).length,
+      active: motorCompetences.filter(item =>
+        item?.executable === true || item?.state === 'usable'
+      ).length,
     },
   ];
 
