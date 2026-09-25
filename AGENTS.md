@@ -24,6 +24,104 @@ symbiont-lab dashboard --port 8765
 python observatory/resident.py --interval 15
 ```
 
+## Test organization and maintenance
+
+The test tree is an explicit contract. Read the nearest `README.md` before
+adding, moving, deleting, or weakening a test.
+
+### Test configuration
+
+Pytest is configured in `pyproject.toml` with:
+
+- `testpaths = ["tests"]`, so the root `experiments/` tree is never collected
+  as a pytest suite;
+- `addopts = "-m 'not slow'"`, so expensive tests are opt-in by default;
+- `experiment_contract` for mechanical protocol and runner contracts;
+- `slow` for tests that intentionally run campaigns, long simulations,
+  populations, full replays, 3D physics, model training, or real servers.
+
+Useful validation layers are:
+
+```bash
+pytest tests/unit tests/docs tests/smoke
+pytest tests/integration tests/experimental_integrity
+pytest tests/experiments
+pytest tests/integration/studies
+pytest --collect-only -q
+pytest --durations=50 -q
+pytest -m slow
+```
+
+The full scientific study suite is explicit and must not become the default
+developer loop. Runs that produce scientific evidence belong under
+`experiments/` and are launched through their documented CLI, not collected
+by pytest.
+
+### Where tests belong
+
+- `tests/unit/`: isolated behavior of one software unit;
+- `tests/integration/`: interaction between software modules;
+- `tests/contract/`: public and boundary contracts;
+- `tests/experimental_integrity/`: RNG, ground truth, provenance, and safety
+  boundaries;
+- `tests/regression/`: preserved failures and previously fixed behavior;
+- `tests/smoke/`: short end-to-end health checks;
+- `tests/experiments/`: mechanical contracts for protocols and runners;
+- `tests/compatibility/`: explicit historical payloads and migrations only;
+- `experiments/`: executable campaigns, configuration, manifests, and run
+  outputs; never `test_*.py` files intended for pytest;
+- `research/`: analysis, audits, interpretation, and evidence; never test
+  fixtures or executable pytest suites.
+
+### Modify, remove, or preserve a test
+
+Modify a test when the test encodes a contract deliberately removed from the
+active runtime, such as Genome v1 fields, old kernel versions, `primitive`
+aliases, or obsolete Body/Embodiment APIs. Update the fixture to the current
+contract and preserve historical coverage in `tests/compatibility/` when that
+artifact is still supported.
+
+Do not modify an assertion merely to make a failure disappear when it checks
+an active invariant: deterministic replay, persistence, isolation, identity,
+domain validation, RNG behavior, ground-truth separation, or safety limits.
+Investigate `src/` in those cases and add a focused regression test.
+
+Delete a test only when it has no distinct contract, is uncollectable dead
+code, or duplicates a stronger current test. Before deletion, check whether it
+is the only coverage for a historical migration or safety boundary; move that
+coverage rather than losing it. Never delete a historical test solely because
+the current runtime no longer supports its input.
+
+Every new test must answer one question, use the smallest deterministic
+fixture, and be placed according to the local README. Mark expensive tests
+`slow`; mark runner/protocol contracts `experiment_contract`. Do not expose
+private implementation details such as `_babble_cardinality` as a test
+contract when observable behavior is sufficient.
+
+### Compatibility and replay rules
+
+Genome v2, competence-based sensorimotor behavior, the current
+organism/Body/Embodiment boundary, and current telemetry are the active
+contracts. Historical inputs are supported only through named migrators and
+explicit compatibility suites. Checkpoint restoration must preserve enough
+causal state for deterministic continuation under the same inputs, RNG, and
+world/body conditions. Do not weaken replay assertions to accommodate lossy
+restoration without an explicit architecture decision.
+
+### Change and commit discipline
+
+Before editing, inspect `git status --short --branch` and preserve unrelated
+worktree changes. Group commits by logic, for example:
+
+1. test layout and documentation;
+2. fixture/test contract migration;
+3. source bug fixes required by active invariants;
+4. CI or performance changes.
+
+Run focused validation and `git diff --check` for each logical group. Review
+the staged diff before committing. Push only the grouped commits after
+verification; never stage unrelated user files or generated documentation.
+
 ## Experimental integrity
 
 Ground truth belongs exclusively to the simulator/evaluator. Agents and reasoning may use only observations, local memory, collective reports, coarse fingerprints and derived trust. Evaluator-only metrics must never feed back into organism decisions. `symbiont` must never import or depend upon `symbiont_lab`.
