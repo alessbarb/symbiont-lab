@@ -15,7 +15,7 @@ class BodySpecificMemory:
     last_embodiment_id: str
     body_schema_prior: dict[str, object] | None = None
     dynamics_prior: dict[str, object] | None = None
-    embodied_competence_priors: dict[str, object] | None = None
+    execution_binding_priors: dict[str, object] | None = None
     historical_causal_state: dict[str, object] | None = None
     historical_motor_candidates: tuple[dict[str, object], ...] = ()
     motor_cognitive_surface: dict[str, object] | None = None
@@ -28,7 +28,7 @@ class BodySpecificMemory:
             "last_embodiment_id": self.last_embodiment_id,
             "body_schema_prior": deepcopy(self.body_schema_prior),
             "dynamics_prior": deepcopy(self.dynamics_prior),
-            "embodied_competence_priors": deepcopy(self.embodied_competence_priors),
+            "execution_binding_priors": deepcopy(self.execution_binding_priors),
             "historical_causal_state": deepcopy(self.historical_causal_state),
             "historical_motor_candidates": [
                 deepcopy(item) for item in self.historical_motor_candidates
@@ -127,8 +127,11 @@ class EmbodimentArchive:
                     last_embodiment_id=str(entry["last_embodiment_id"]),
                     body_schema_prior=deepcopy(entry.get("body_schema_prior")),
                     dynamics_prior=deepcopy(entry.get("dynamics_prior")),
-                    embodied_competence_priors=deepcopy(
-                        entry.get("embodied_competence_priors")
+                    execution_binding_priors=deepcopy(
+                        entry.get(
+                            "execution_binding_priors",
+                            entry.get("embodied_competence_priors"),
+                        )
                     ),
                     historical_causal_state=deepcopy(
                         entry.get("historical_causal_state")
@@ -196,7 +199,7 @@ def archive_episode_checkpoint(
             dynamics_prior=deepcopy(episode_payload.get("dynamics_model"))
             if isinstance(episode_payload.get("dynamics_model"), Mapping)
             else None,
-            embodied_competence_priors=deepcopy(
+            execution_binding_priors=deepcopy(
                 episode_payload.get("execution_bindings")
                 if isinstance(episode_payload.get("execution_bindings"), Mapping)
                 else episode_payload.get("embodied_competences")
