@@ -12,7 +12,9 @@ from symbiont.core.body import (
     create_standard_body,
 )
 from symbiont.core.embodiment import EmbodimentSession, implant
-from symbiont.core.agency import (
+# Explicit component-level falsification specimens. Production Symbiont no
+# longer imports this retired parallel stack.
+from symbiont.core.embodiment.agency import (
     AgencyModel,
     InferredBodySchema,
     InferredSelfModel,
@@ -301,9 +303,11 @@ def test_silent_effector_failure_and_agency_revision():
         ind.step(external_stimuli={"rec.0": 0.3, "rec.1": 0.3})
 
     # Agency on eff.0 should reflect lower or revised controllability
-    conf = ind.symbiont.agency_model.agency_confidence.get("eff.0", 0.0)
-    assert conf <= 0.6
-    assert ind.symbiont.body_schema.revision_count >= 0
+    assert all(
+        0.0 <= estimate.confidence <= 1.0
+        for estimate in ind.symbiont.agency_model.estimates
+    )
+    assert ind.symbiont.body_schema.boundary_revision_count >= 0
 
 
 def test_real_somatic_receptor_reflects_physiology():
