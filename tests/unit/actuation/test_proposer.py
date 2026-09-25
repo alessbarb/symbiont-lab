@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from symbiont.actuation.constitution import derive_actuator_constitution
-from symbiont.actuation.proposer import ActuatorProposer
+from symbiont.actuation.proposer import ActuatorEvidenceModel
 
 
 def _constitution(slot_count: int = 2):
-    return derive_actuator_constitution(MotorGenes(slot_count=slot_count))
+    return derive_actuator_constitution(slot_count)
 
 
 def test_new_proposer_has_all_actuators_dormant():
     constitution = _constitution()
-    proposer = ActuatorProposer(constitution, organism_id="org-1")
+    proposer = ActuatorEvidenceModel(constitution, organism_id="org-1")
     assert proposer.active_repertoire == ()
     assert all(state.probing_state == "dormant" for state in proposer.states)
 
@@ -22,7 +22,7 @@ def test_natural_evidence_can_promote_actuator_from_endogenous_activity():
     endogenous reason they occurred."""
     constitution = _constitution(slot_count=1)
     (actuator_id,) = constitution.actuator_ids
-    proposer = ActuatorProposer(
+    proposer = ActuatorEvidenceModel(
         constitution,
         organism_id="org-natural",
         effect_threshold=0.6,
@@ -45,7 +45,7 @@ def test_natural_evidence_can_promote_actuator_from_endogenous_activity():
 def test_natural_evidence_does_not_promote_before_minimum_samples():
     constitution = _constitution(slot_count=1)
     (actuator_id,) = constitution.actuator_ids
-    proposer = ActuatorProposer(constitution, organism_id="org-natural")
+    proposer = ActuatorEvidenceModel(constitution, organism_id="org-natural")
 
     for tick in range(11):
         activation = 0.1 + 0.06 * tick

@@ -3,18 +3,16 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from symbiont.actuation.proposer import ActuatorEvidenceModel, ActuatorProposer
+import symbiont.actuation.proposer as proposer_module
+from symbiont.actuation.proposer import ActuatorEvidenceModel
 
 
-def test_legacy_proposer_is_only_a_compatibility_subclass() -> None:
-    assert issubclass(ActuatorProposer, ActuatorEvidenceModel)
-    assert ActuatorProposer.__dict__.keys() <= {
-        "__module__",
-        "__doc__",
-    }
+def test_legacy_actuator_proposer_symbol_is_removed() -> None:
+    assert not hasattr(proposer_module, "ActuatorProposer")
+    assert ActuatorEvidenceModel.__name__ == "ActuatorEvidenceModel"
 
 
-def test_action_domain_does_not_reference_legacy_proposer_name() -> None:
+def test_action_domain_imports_only_canonical_actuator_evidence() -> None:
     root = Path(__file__).resolve().parents[2]
     path = root / "src" / "symbiont" / "core" / "domains" / "action.py"
     source = path.read_text(encoding="utf-8")
@@ -26,5 +24,4 @@ def test_action_domain_does_not_reference_legacy_proposer_name() -> None:
         for alias in node.names
     }
     assert "ActuatorProposer" not in imported
-    assert "_legacy_proposer" not in source
     assert "ActuatorEvidenceModel" in imported

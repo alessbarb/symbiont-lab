@@ -67,7 +67,7 @@ def test_interoception_enabled_widens_sensorimotor_body_state():
 
 
 def test_interoception_enabled_widens_actuator_effect_percept_snapshot():
-    """The same generic filtering feeds ActuatorProposer.record_effect's
+    """The same generic filtering feeds ActuatorEvidenceModel.record_effect's
     percept snapshot — interoceptive channels can drive actuator causal
     promotion too, not only exteroceptive ones."""
     on_sizes = _capture_snapshot_sizes(
@@ -84,10 +84,10 @@ def test_sensorimotor_primitive_formation_is_channel_identity_agnostic():
     """Direct proof at the learner level: a reproducible motor->body-state
     regularity becomes a reusable primitive regardless of whether the
     responding channel is named like an interoceptive signal or anything
-    else — SensorimotorLearner never special-cases channel identity."""
-    from symbiont.actuation.sensorimotor import SensorimotorLearner
+    else — CompetenceDevelopmentEngine never special-cases channel identity."""
+    from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine
 
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         tuple(f"actuator.{i}" for i in range(4)),
         organism_id="org-interoceptive-primitive",
         max_concurrent=4,

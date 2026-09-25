@@ -4,7 +4,7 @@ import pytest
 
 from symbiont.actuation.checkpoint import export_actuation_state, restore_actuation_state
 from symbiont.actuation.constitution import derive_actuator_constitution
-from symbiont.actuation.proposer import ActuatorProposer
+from symbiont.actuation.proposer import ActuatorEvidenceModel
 
 
 def _dormant_candidate_payload(actuator_id: str) -> dict:
@@ -19,7 +19,7 @@ def _dormant_candidate_payload(actuator_id: str) -> dict:
 
 
 def test_restore_raises_when_candidates_key_missing_entirely():
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    constitution = derive_actuator_constitution(1)
     payload = {}  # no "candidates" key at all
     with pytest.raises(ValueError):
         restore_actuation_state(payload, constitution, organism_id="org-gate")
@@ -33,14 +33,14 @@ def test_restore_accepts_explicit_empty_state_for_a_body_with_no_actuators():
     # empty candidates dict against a NON-empty constitution is a truncated
     # checkpoint, not a valid "never explored anything" state — see
     # test_restore_raises_when_candidate_set_does_not_match_constitution.
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=0))
+    constitution = derive_actuator_constitution(0)
     payload = {"candidates": {}}
     restored = restore_actuation_state(payload, constitution, organism_id="org-gate")
     assert restored.active_repertoire == ()
 
 
 def test_restore_raises_when_candidate_set_does_not_match_constitution():
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=3))
+    constitution = derive_actuator_constitution(3)
     (actuator_id,) = constitution.actuator_ids[:1]
     # Only one of the three actuators the constitution defines is present —
     # a truncated/foreign checkpoint, even though every entry it DOES have
@@ -51,7 +51,7 @@ def test_restore_raises_when_candidate_set_does_not_match_constitution():
 
 
 def test_restore_raises_when_candidate_key_does_not_match_its_own_actuator_id_field():
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=2))
+    constitution = derive_actuator_constitution(2)
     id_a, id_b = constitution.actuator_ids
     # Candidate stored under key id_a, but its own actuator_id field says id_b
     # — both are real, known ids, so the old subset-only check would have
@@ -67,7 +67,7 @@ def test_restore_raises_when_candidate_key_does_not_match_its_own_actuator_id_fi
 
 
 def test_restore_rejects_candidate_actuator_id_not_in_constitution():
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    constitution = derive_actuator_constitution(1)
     payload = {
         "candidates": {
             "actuator.not-in-constitution": {
@@ -85,7 +85,7 @@ def test_restore_rejects_candidate_actuator_id_not_in_constitution():
 
 
 def test_restore_raises_when_active_candidate_evidence_does_not_satisfy_promotion():
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    constitution = derive_actuator_constitution(1)
     (actuator_id,) = constitution.actuator_ids
     candidate = _dormant_candidate_payload(actuator_id)
     candidate["probing_state"] = "active"  # claims active with zero recorded evidence
@@ -95,9 +95,9 @@ def test_restore_raises_when_active_candidate_evidence_does_not_satisfy_promotio
 
 
 def test_restore_accepts_legacy_naturally_promoted_active_candidate_without_windows():
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    constitution = derive_actuator_constitution(1)
     (actuator_id,) = constitution.actuator_ids
-    proposer = ActuatorProposer(
+    proposer = ActuatorEvidenceModel(
         constitution,
         organism_id="org-natural-legacy",
         effect_threshold=0.6,
@@ -131,9 +131,9 @@ def test_restore_accepts_legacy_naturally_promoted_active_candidate_without_wind
 
 
 def test_natural_promotion_threshold_round_trips_explicitly():
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    constitution = derive_actuator_constitution(1)
     (actuator_id,) = constitution.actuator_ids
-    proposer = ActuatorProposer(
+    proposer = ActuatorEvidenceModel(
         constitution,
         organism_id="org-natural-new",
         effect_threshold=0.6,
@@ -164,9 +164,9 @@ def test_natural_promotion_threshold_round_trips_explicitly():
 
 
 def test_restore_accepts_naturally_promoted_candidate_after_effect_strength_decays():
-    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    constitution = derive_actuator_constitution(1)
     (actuator_id,) = constitution.actuator_ids
-    proposer = ActuatorProposer(
+    proposer = ActuatorEvidenceModel(
         constitution,
         organism_id="org-natural-decay",
         effect_threshold=0.5,
