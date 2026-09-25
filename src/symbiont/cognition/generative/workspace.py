@@ -31,6 +31,11 @@ class GenerativeWorkspace:
     def model_queries(self) -> int:
         return self._model_queries
 
+    @property
+    def is_open(self) -> bool:
+        """Whether this temporary workspace still accepts generated data."""
+        return not self._closed
+
     def add_state(self, state: GenerativeState) -> None:
         self._ensure_open()
         if state.episode_id != self.episode.episode_id:

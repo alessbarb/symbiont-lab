@@ -29,6 +29,7 @@ from .episode import new_episode
 from .epistemic import EpistemicBoundaryError, EpistemicFirewall
 from .epistemic_value import EpistemicValue, EpistemicValueEstimator
 from .equivalence import equivalent_states, state_equivalence_key
+from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
 from .hypothesis import GenerativeHypothesis, HypothesisStatus
 from .model import GeneratedProposal, GenerativeContext, GenerativeModel
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, dumps, loads, restore
@@ -68,6 +69,8 @@ __all__ = [
     "EpistemicBoundaryError",
     "EpistemicValue",
     "EpistemicValueEstimator",
+    "GenerativeExecutionCoordinator",
+    "GenerativeExecutionResult",
     "equivalent_states",
     "state_equivalence_key",
     "EpistemicFirewall",
