@@ -82,6 +82,7 @@ export const snap = {
   sensoryRelations: [],
   cognition: null,
   topology: null,
+  atlas: null,
   selfModel: null,
   bodySchema: null,
   sensoryPhenotype: null,
