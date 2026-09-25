@@ -76,7 +76,7 @@ from ..signals.knowledge_checkpoint import validate_checkpoint
 from ..embodiment.metabolism import MetabolicLedger, MetabolicSnapshot
 from ..embodiment.assimilation import InformationAssimilator, AssimilationDecision
 from ..embodiment.homeostasis import HomeostaticController, HomeostaticSnapshot
-from ..regulation import ActionArbitrator, InnateReactivity, ReactiveMemory, ReactiveState
+from ..regulation import InnateReactivity, ReactiveMemory, ReactiveState
 from ..social.ecology import SharedHabitat
 from ..social.trust import SourceTrustModel
 from ..social.relations import (InteractionOutcome, RelationLedger, RelationValence,
@@ -1711,8 +1711,8 @@ class OrganismRuntime:
         if (
             not self._actuation_enabled
             or self._actuator_proposer is None
-            or self._motor_intent_selector is None
-            or self._actuator_system is None
+            or self._sensorimotor_learner is None
+            or self._actuator_constitution is None
         ):
             return
 
@@ -2193,7 +2193,7 @@ class OrganismRuntime:
             "actuation_enabled": self._actuation_enabled,
             "motor_selection_threshold": (
                 self._action_domain.selection_threshold
-                if self._motor_intent_selector is not None
+                if self._actuation_enabled
                 else None
             ),
             "physiology": asdict(self._physiology_config),
