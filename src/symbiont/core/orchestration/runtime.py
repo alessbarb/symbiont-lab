@@ -113,6 +113,7 @@ from ..domains.cognition import CognitionDomain, CognitionServices
 from ..domains.epistemic import EpistemicDomain, EpistemicServices
 from ..domains.lifecycle import LifecycleDomain
 from ..domains.regulation import RegulationDomain, RegulationServices
+from ..domains.embodiment import EmbodimentDomain, EmbodimentServices
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -689,6 +690,7 @@ class OrganismRuntime:
         self._perception_domain = PerceptionDomain()
         self._cognition_domain = CognitionDomain()
         self._epistemic_domain = EpistemicDomain()
+        self._embodiment_domain = EmbodimentDomain()
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
@@ -1460,18 +1462,6 @@ class OrganismRuntime:
     def sensory_system(self) -> SensorySystem:
         return self._sensory_system
 
-    def _sensory_phenotype_view(self) -> dict[str, Any]:
-        source_ids = {
-            source_id
-            for sensor in self._sensory_system.sensors
-            for source_id in sensor.source_ids
-        }
-        return self._sensory_system.phenotype_view(
-            signal_ids_by_source={
-                source_id: self._signal_identity.signal_id(source_id)
-                for source_id in sorted(source_ids)
-            }
-        )
 
     @property
     def self_model(self) -> SelfModel:
@@ -2305,23 +2295,17 @@ class OrganismRuntime:
         # surface: existing lab adapters and the Observatory read it when
         # present without requiring this runtime to ever populate it.
 
-        # BodySchema receives two bounded organism-owned evidence surfaces:
-        # sensory SelfModel classes and opaque dynamic cognitive channels. It
-        # never sees host manifest truth, CognitiveGraph nodes/edges or
-        # Observatory topology.
-        # Computed once and reused for RuntimeTickResult.sensory_phenotype
-        # below -- nothing mutates sensory_system state in between.
-        sensory_phenotype_view = self._sensory_phenotype_view()
-        if self._sensory_system.plasticity_enabled:
-            self._body_schema.observe_sensory_phenotype(
-                sensory_phenotype_view,
-                tick=self._tick_count,
-            )
-        else:
-            self._body_schema.observe_self_model(
-                self._self_model.export(current_tick=self._tick_count),
-                tick=self._tick_count,
-            )
+        embodiment_step = self._embodiment_domain.observe(
+            services=EmbodimentServices(
+                body_schema=self._body_schema,
+                sensory_system=self._sensory_system,
+                self_model=self._self_model,
+                signal_identity=self._signal_identity,
+            ),
+            tick=context.symbiont_tick,
+            cognitive_self_observation=cognitive_self_observation,
+        )
+        sensory_phenotype_view = embodiment_step.sensory_phenotype
         # Cognitive/information-assimilation "success" (incorporation utility,
         # prediction accuracy) is not a physical resource and must never
         # manufacture metabolic reserve on its own: only externally acquired
@@ -2379,12 +2363,6 @@ class OrganismRuntime:
             if self._social_habitat is not None and not self._social_habitat_released:
                 self._social_habitat.release(self._organism_id)
                 self._social_habitat_released = True
-        if cognitive_self_observation is not None:
-            self._body_schema.observe_cognition(
-                cognitive_self_observation,
-                tick=self._tick_count,
-            )
-
         self._lifecycle_domain.update_interoception_metrics(
             provider=self._interoception_provider,
             tick_start=tick_start,
