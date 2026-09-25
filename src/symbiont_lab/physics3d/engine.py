@@ -239,6 +239,7 @@ def run(
     slm_device: str = "cpu",
     ready_callback=None,
     startup_callback=None,
+    checkpoint_observer=None,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -492,6 +493,11 @@ def run(
             cycle_started = time.perf_counter()
             record = runtime.step()
             runtime_elapsed = time.perf_counter() - cycle_started
+            if checkpoint_observer is not None:
+                checkpoint_observer(
+                    record.tick,
+                    runtime.checkpoint(),
+                )
 
             # Drain presentation-only pose samples captured inside the 240 Hz
             # physics integration loop. The bridge emits them as a lightweight
