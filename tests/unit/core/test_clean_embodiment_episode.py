@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from symbiont.actuation.competence import CompetenceEvidence, MotorCompetence
 from symbiont.core.body import create_standard_body
 from symbiont.core.embodiment import EmbodimentState
 from symbiont.core.individual import create_individual
@@ -127,3 +128,61 @@ def test_suspended_clean_episode_cannot_execute_physics_or_cognition() -> None:
     assert ind.symbiont.total_ticks == sym_tick
     assert ind.body.age_ticks == body_tick
     assert ind.embodiment_tick == embodiment_tick
+
+
+
+def test_clean_transplant_keeps_general_competence_but_drops_execution_authority() -> None:
+    ind = create_individual(
+        "sym.transfer",
+        "body.transfer.a",
+        num_receptors=2,
+        num_effectors=2,
+    )
+    competence = MotorCompetence(
+        competence_id="competence.transfer",
+        controller_id="controller.transfer",
+        effect_id="effect.body.a",
+        evidence=CompetenceEvidence(
+            controller_seed_ref="controller.transfer",
+            support=8,
+            failures=0,
+            reproducibility=0.9,
+            controllability=0.8,
+            directional_consistency=0.9,
+        ),
+        controller_strategy_ref="controller.transfer",
+    )
+    ind.symbiont.competence_library.add(competence)
+    old_surface = ind.embodiment.contract.actuator_surface.contract_fingerprint
+    ind.symbiont.competence_execution_bindings.bind_from_evidence(
+        competence_id=competence.competence_id,
+        surface_fingerprint=old_surface,
+        effect_id="effect.body.a",
+        evidence_refs=("evidence.body.a",),
+        reliability=0.9,
+        controllability=0.8,
+        tick=1,
+    )
+    assert ind.symbiont.competence_execution_bindings.is_executable(
+        competence,
+        surface_fingerprint=old_surface,
+    )
+
+    ind.transplant_to(
+        create_standard_body(
+            "body.transfer.b",
+            num_receptors=3,
+            num_effectors=3,
+        )
+    )
+
+    retained = ind.symbiont.competence_library.get("competence.transfer")
+    assert retained is competence
+    assert retained.effect_id is None
+    assert ind.symbiont.competence_execution_bindings.get(
+        "competence.transfer"
+    ) is None
+    assert (
+        ind.embodiment.execution_bindings
+        is ind.symbiont.competence_execution_bindings
+    )
