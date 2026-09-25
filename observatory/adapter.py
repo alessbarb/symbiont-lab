@@ -19,7 +19,7 @@ from symbiont.cognition.checkpoint import (
     quantize_signed,
     quantize_weight,
 )
-from symbiont.cognition.genome import Genome
+from symbiont.genetics.genome import Genome
 from symbiont.cognition.graph import CognitiveGraph
 from symbiont.cognition.types import WEIGHT_RANGE
 
