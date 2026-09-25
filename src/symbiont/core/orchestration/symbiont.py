@@ -84,6 +84,7 @@ class Symbiont:
         self.last_inputs: dict[str, float] = {}
         self.last_activations: dict[str, float] = {}
         self._last_action_competence_id: str | None = None
+        self._last_prediction_error: float = 0.0
         self._competence_outputs: dict[str, tuple[str, ...]] = {}
         self._signal_to_input: dict[str, str] = {}
         self._reset_embodiment_state()
@@ -138,6 +139,63 @@ class Symbiont:
     @property
     def known_output_channels(self) -> set[str]:
         return set(self.current_output_channels)
+
+    @property
+    def last_prediction_error(self) -> float:
+        return self._last_prediction_error
+
+    @property
+    def body_schema_confidence(self) -> float:
+        return self.body_schema.boundary_confidence
+
+    @property
+    def body_schema_disrupted(self) -> bool:
+        return self.body_schema.boundary_disruption_score >= 0.5
+
+    @property
+    def body_schema_revision_count(self) -> int:
+        return self.body_schema.boundary_revision_count
+
+    def inferred_mapping_signature(self) -> tuple[tuple[str, str], ...]:
+        """Observer projection of strongest current opaque action->input mapping."""
+        by_output: dict[str, tuple[str, float]] = {}
+        for estimate in self.agency_model.estimates:
+            effect = self.effect_space.get(estimate.effect_id)
+            if effect is None:
+                continue
+            outputs = self._competence_outputs.get(estimate.competence_id, ())
+            inputs = tuple(
+                sorted(
+                    self._signal_to_input[feature]
+                    for feature in effect.feature_refs
+                    if feature in self._signal_to_input
+                )
+            )
+            if not inputs:
+                continue
+            for output in outputs:
+                candidate = (inputs[0], float(estimate.confidence))
+                current = by_output.get(output)
+                if current is None or candidate[1] > current[1]:
+                    by_output[output] = candidate
+        return tuple(
+            sorted(
+                (output, input_id)
+                for output, (input_id, _confidence) in by_output.items()
+            )
+        )
+
+    def agency_snapshot(self) -> tuple[tuple[str, str, float], ...]:
+        return tuple(
+            sorted(
+                (
+                    estimate.competence_id,
+                    estimate.effect_id,
+                    round(float(estimate.confidence), 12),
+                )
+                for estimate in self.agency_model.estimates
+            )
+        )
 
     @staticmethod
     def _signal_ref(channel: str) -> str:
@@ -292,6 +350,7 @@ class Symbiont:
             if residuals
             else 0.0
         )
+        self._last_prediction_error = prediction_error
 
         self._record_transition(
             deltas=deltas,
