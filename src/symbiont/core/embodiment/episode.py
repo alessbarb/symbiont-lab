@@ -209,6 +209,7 @@ class EmbodimentEpisode:
         controllability_model: ControllabilityModel,
         agency_model: AgencyModel,
         execution_bindings: CompetenceExecutionBindingRegistry | None = None,
+        allow_contract_schema_migration: bool = False,
         current_tick: int,
     ) -> "EmbodimentEpisode":
         """Restore one episode while reattaching canonical runtime services.
@@ -227,11 +228,10 @@ class EmbodimentEpisode:
         contract_schema = int(raw_contract.get("schema_version") or 0)
         contract_migrated = False
         if persisted_fp != contract.contract_fingerprint:
-            if contract_schema == 2:
-                # Embodiment v2 -> v3 changed only canonical interface identity
-                # representation. The adapter must separately prove exact
-                # channel equivalence before calling restore with the v3
-                # contract. Preserve episode identity and record the migration.
+            if contract_schema == 2 and allow_contract_schema_migration:
+                # Embodiment v2 -> v3 changed canonical interface identity
+                # representation. Only an adapter that has separately proven
+                # equivalent channels/constraints may enable this migration.
                 contract_migrated = True
             else:
                 raise ValueError(
