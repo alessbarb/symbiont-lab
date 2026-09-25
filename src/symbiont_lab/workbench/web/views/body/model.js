@@ -143,7 +143,7 @@ export const SEGMENT_ACTIVITY_JOINTS = {
 
 export function fallbackBodyModel() {
   return {
-    bodyKind: 'anthropomorphic-v5',
+    bodyKind: 'anthropomorphic-v6',
     baseLink: 'pelvis',
     joints: JOINT_TOPOLOGY,
     segments: SEGMENTS,
