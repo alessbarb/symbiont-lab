@@ -199,11 +199,11 @@ def _run_phase(
 
         if (
             first_revision_latency is None
-            and ind.symbiont.body_schema.revision_count > revisions_before
+            and ind.symbiont.body_schema_revision_count > revisions_before
         ):
             first_revision_latency = local_tick
 
-    revisions_after = ind.symbiont.body_schema.revision_count
+    revisions_after = ind.symbiont.body_schema_revision_count
     mapping_after = _mapping_signature(ind)
     early_n = min(5, len(errors))
     initial_error = sum(errors[:early_n])/early_n if early_n else 0.0
