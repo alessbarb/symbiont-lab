@@ -38,7 +38,8 @@ from .humanoid import (
 
 def _running_version() -> tuple[int, int, int]:
     parts = (symbiont_version.split(".") + ["0", "0"])[:3]
-    return tuple(int(part) for part in parts)
+    major, minor, patch = parts
+    return int(major), int(minor), int(patch)
 
 
 def physics3d_sensory_system() -> SensorySystem:
