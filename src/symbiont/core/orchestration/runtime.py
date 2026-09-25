@@ -41,7 +41,7 @@ from ...genetics.expression import ExpressionRegulator, GeneExpressionState
 from ..cognition.attention import AttentionAllocation
 from ..embodiment.body_schema import BodySchemaEngine
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
-from ..cognition.self_model import derive_cognitive_self_namespace, project_cognitive_self_observation
+from ..cognition.self_model import derive_cognitive_self_namespace
 from ..cognition.consolidation import MemoryConsolidator
 from ..cognition.evidence import DissentRecord, EvidenceRevisionLedger
 from ..foundation.narrative import NarrativeEntry
