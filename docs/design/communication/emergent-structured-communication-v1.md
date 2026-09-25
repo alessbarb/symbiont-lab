@@ -1,15 +1,27 @@
 ---
-id: design.general.emergent-structured-communication-v1
-title: "Emergent Structured Communication V1"
-document_type: design
-domain: communication
-status: unclassified
+canonical_id: "design.general.emergent-structured-communication-v1"
+current_path: "docs/design/emergent-structured-communication-v1.md"
+target_path: "docs/design/communication/emergent-structured-communication-v1.md"
+document_type: "design"
+diataxis_kind: null
+domain: "communication"
+source_language: "es"
+target_language: "en"
+status: "unclassified"
 canonical: false
-implementation_status: unknown
-migrated_on: 2026-09-25
+supersedes: []
+depends_on: []
+review_required: true
+evidence: []
+_extracted_title: "Emergent Structured Communication v1"
+extends: []
+implementation_status: "unknown"
+implements: []
+migrated_on: "2026-09-25"
+language: "en"
 last_reviewed: null
-language: en
 ---
+
 # Emergent Structured Communication v1
 
 > Give Symbionts capabilities and constraints, not linguistic answers.

@@ -1,15 +1,27 @@
 ---
-id: design.general.autonomous-cultural-agency-v1
-title: "Autonomous Cultural Agency V1"
-document_type: design
-domain: communication
-status: unclassified
+canonical_id: "design.general.autonomous-cultural-agency-v1"
+current_path: "docs/design/autonomous-cultural-agency-v1.md"
+target_path: "docs/design/communication/autonomous-cultural-agency-v1.md"
+document_type: "design"
+diataxis_kind: null
+domain: "communication"
+source_language: "es"
+target_language: "en"
+status: "unclassified"
 canonical: false
-implementation_status: unknown
-migrated_on: 2026-09-25
+supersedes: []
+depends_on: []
+review_required: true
+evidence: []
+_extracted_title: "Autonomous Cultural Agency v1"
+extends: []
+implementation_status: "unknown"
+implements: []
+migrated_on: "2026-09-25"
+language: "en"
 last_reviewed: null
-language: en
 ---
+
 # Autonomous Cultural Agency v1
 
 ## Scope

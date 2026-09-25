@@ -8,7 +8,7 @@ import pytest
 from .conftest import REPO_ROOT, VALID_TYPES
 
 # TODO(deferred): spec check 7 is NOT implemented (pending chapter authoring with machine-readable markup)
-# here. Per the original docs-reorg-web-publication design spec's FUENTES.md
+# here. Per the original docs-reorg-web-publication design spec's SOURCES.md
 # section, verification-test list, item 7 (see git history for that spec's
 # full text; the working-tree copy has been deleted):
 #
@@ -20,14 +20,14 @@ from .conftest import REPO_ROOT, VALID_TYPES
 # so this still cannot be implemented without a stricter markup convention
 # for maturity/epistemic tags. Do not silently drop this requirement.
 
-FUENTES_PATH = REPO_ROOT / "docs" / "web" / "FUENTES.md"
+FUENTES_PATH = REPO_ROOT / "docs" / "explanation" / "concepts" / "SOURCES.md"
 
 
 def _parse_claim_rows(text: str) -> tuple[list[dict[str, str]], list[str]]:
     """Parse every `| Claim ID | ... |` table occurrence in the file.
 
     Returns (rows, malformed_lines). Does NOT stop scanning after the first
-    non-table line following a header: a future FUENTES.md may contain more
+    non-table line following a header: a future SOURCES.md may contain more
     than one `## Claims`-style table (e.g. if chapters are authored one at a
     time and each appends its own header+rows block), so every occurrence of
     the header is found and its rows parsed. A row whose cell count is not 4
@@ -64,7 +64,7 @@ def _parse_claim_rows(text: str) -> tuple[list[dict[str, str]], list[str]]:
 
 def _chapter_path(anchor: str) -> Path:
     chapter_num = anchor.split("#", 1)[0]
-    matches = list((REPO_ROOT / "docs" / "web").glob(f"{chapter_num}-*.md"))
+    matches = list((REPO_ROOT / "docs" / "explanation" / "concepts").glob(f"{chapter_num}-*.md"))
     assert len(matches) == 1, f"expected exactly one chapter file for {chapter_num}, found {matches}"
     return matches[0]
 
@@ -94,7 +94,7 @@ def malformed_claim_rows() -> list[str]:
 
 def test_no_malformed_claim_rows(malformed_claim_rows):
     assert not malformed_claim_rows, (
-        "malformed claim row(s) in FUENTES.md (expected exactly 4 cells: "
+        "malformed claim row(s) in SOURCES.md (expected exactly 4 cells: "
         "Claim ID | Tipo | Chapter anchor | Source):\n"
         + "\n".join(malformed_claim_rows)
     )
@@ -103,7 +103,7 @@ def test_no_malformed_claim_rows(malformed_claim_rows):
 def test_no_duplicate_claim_ids(claim_rows):
     ids = [row["claim_id"] for row in claim_rows]
     duplicates = {i for i in ids if ids.count(i) > 1}
-    assert not duplicates, f"duplicate claim IDs in FUENTES.md: {duplicates}"
+    assert not duplicates, f"duplicate claim IDs in SOURCES.md: {duplicates}"
 
 
 def test_every_row_has_a_valid_type(claim_rows):
@@ -113,7 +113,7 @@ def test_every_row_has_a_valid_type(claim_rows):
 
 def test_no_source_resolves_under_internal(claim_rows):
     """Defensive check: `docs/_internal/` no longer exists in this repository
-    (deleted; see docs/web/FUENTES.md), so this cannot currently fail against
+    (deleted; see docs/explanation/concepts/SOURCES.md), so this cannot currently fail against
     a real row. It stays as a guard against that path-shape being
     reintroduced as a citable source later.
     """
@@ -154,9 +154,9 @@ def test_declared_symbol_exists_in_source(claim_rows):
 
 
 # NOTE(scope): a `#anchor` fragment in the Source column is only valid when
-# the cited source is itself another docs/web/ chapter — chapters carry
+# the cited source is itself another docs/explanation/concepts/ chapter — chapters carry
 # explicit `<a id="...">` tags by this project's own convention (see
-# FUENTES.md's "Claims" section intro). Canonical normative/design docs under
+# SOURCES.md's "Claims" section intro). Canonical normative/design docs under
 # docs/ do NOT carry explicit `<a id="...">` anchors (they rely on ordinary
 # markdown headings); citing one of those must use a whole-file path with no
 # `#anchor` fragment, naming the section in the claim text instead. No row
