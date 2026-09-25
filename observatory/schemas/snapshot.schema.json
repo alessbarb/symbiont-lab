@@ -1682,6 +1682,7 @@
             "embodiment_tick",
             "contract_fingerprint",
             "state",
+            "prior",
             "adaptation",
             "dynamics",
             "execution"
@@ -1819,6 +1820,43 @@
                 "executable_count": {
                   "type": "integer",
                   "minimum": 0
+                }
+              }
+            },
+            "prior": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "relation",
+                "authority",
+                "source_body_id",
+                "source_embodiment_id"
+              ],
+              "properties": {
+                "relation": {
+                  "type": "string",
+                  "enum": [
+                    "novel",
+                    "same-contract",
+                    "same-body"
+                  ]
+                },
+                "authority": {
+                  "const": "hypothesis_only"
+                },
+                "source_body_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 128
+                },
+                "source_embodiment_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 128
                 }
               }
             }
