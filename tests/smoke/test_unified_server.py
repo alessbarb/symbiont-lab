@@ -184,7 +184,7 @@ def test_physics3d_catalog_endpoints_are_available(tmp_path) -> None:
         status, body = request(server, "/api/bodies")
         assert status == 200
         payload = json.loads(body)
-        assert payload["items"][0]["body_kind"] == "anthropomorphic-v5"
+        assert payload["items"][0]["body_kind"] == "anthropomorphic-v6"
 
         status, body = request(server, "/api/organisms")
         assert status == 200
@@ -198,7 +198,7 @@ def test_physics3d_catalog_endpoints_are_available(tmp_path) -> None:
 def test_physics3d_start_validates_launch_before_spawning(tmp_path) -> None:
     with running_server(physics_state_root=tmp_path) as server:
         payload = json.dumps({
-            "body_kind": "anthropomorphic-v5",
+            "body_kind": "anthropomorphic-v6",
             "organism": {"mode": "new"},
             "body": {"mode": "resume"},
         }).encode()
