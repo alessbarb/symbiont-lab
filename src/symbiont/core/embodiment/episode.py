@@ -7,11 +7,11 @@ import hashlib
 import uuid
 from typing import Mapping
 
+from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.evidence import CausalEvidenceLedger
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from .adaptation import EmbodimentAdaptation
 from .body_schema import BodySchemaEngine
-from .competence import EmbodiedCompetenceLibrary
 from .contract import EmbodimentContract
 from .dynamics import SensorimotorDynamicsModel
 from .reachability import ReachabilityModel
@@ -67,7 +67,7 @@ class EmbodimentEpisode:
     agency_model: AgencyModel = field(default_factory=AgencyModel)
     adaptation: EmbodimentAdaptation = field(default_factory=EmbodimentAdaptation)
     reachability: ReachabilityModel = field(default_factory=ReachabilityModel)
-    embodied_competences: EmbodiedCompetenceLibrary | None = None
+    execution_bindings: CompetenceExecutionBindingRegistry | None = None
     contract_history: list[ContractTransition] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -75,12 +75,8 @@ class EmbodimentEpisode:
             raise ValueError("embodiment, symbiont and body ids must be non-empty")
         if self.epoch < 1 or self.start_symbiont_tick < 0 or self.embodiment_tick < 0:
             raise ValueError("invalid embodiment temporal coordinates")
-        if self.embodied_competences is None:
-            self.embodied_competences = EmbodiedCompetenceLibrary(
-                embodiment_id=self.embodiment_id
-            )
-        elif self.embodied_competences.embodiment_id != self.embodiment_id:
-            raise ValueError("embodied competence library belongs to another episode")
+        if self.execution_bindings is None:
+            self.execution_bindings = CompetenceExecutionBindingRegistry()
 
     @classmethod
     def begin(
@@ -171,9 +167,9 @@ class EmbodimentEpisode:
         self.end_reason = reason
 
     def checkpoint(self, *, current_tick: int) -> dict[str, object]:
-        assert self.embodied_competences is not None
+        assert self.execution_bindings is not None
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "embodiment_id": self.embodiment_id,
             "symbiont_id": self.symbiont_id,
             "body_id": self.body_id,
@@ -198,7 +194,7 @@ class EmbodimentEpisode:
             "causal_evidence": self.causal_evidence.checkpoint(),
             "adaptation": self.adaptation.checkpoint(),
             "reachability": self.reachability.checkpoint(),
-            "embodied_competences": self.embodied_competences.checkpoint(),
+            "execution_bindings": self.execution_bindings.checkpoint(),
         }
 
     @classmethod
@@ -212,6 +208,7 @@ class EmbodimentEpisode:
         effect_model: CompetenceEffectModel,
         controllability_model: ControllabilityModel,
         agency_model: AgencyModel,
+        execution_bindings: CompetenceExecutionBindingRegistry | None = None,
         current_tick: int,
     ) -> "EmbodimentEpisode":
         """Restore one episode while reattaching canonical runtime services.
@@ -220,7 +217,8 @@ class EmbodimentEpisode:
         organism runtime remains their factual owner and the episode references
         those exact instances.
         """
-        if payload.get("schema_version") != 2:
+        schema_version = int(payload.get("schema_version") or 0)
+        if schema_version not in {2, 3}:
             raise ValueError("unsupported embodiment episode checkpoint")
         raw_contract = payload.get("contract")
         if not isinstance(raw_contract, Mapping):
@@ -233,12 +231,16 @@ class EmbodimentEpisode:
         embodiment_id = str(payload.get("embodiment_id") or "")
         symbiont_id = str(payload.get("symbiont_id") or "")
         body_id = str(payload.get("body_id") or "")
-        embodied = EmbodiedCompetenceLibrary.restore(
-            payload.get("embodied_competences")
-            if isinstance(payload.get("embodied_competences"), Mapping)
-            else None,
-            embodiment_id=embodiment_id,
-        )
+        if execution_bindings is None:
+            if schema_version == 3:
+                raw_bindings = payload.get("execution_bindings")
+                execution_bindings = CompetenceExecutionBindingRegistry.restore(
+                    raw_bindings if isinstance(raw_bindings, Mapping) else None
+                )
+            else:
+                # v2 duplicated a telemetry-oriented embodied competence view.
+                # It lacked effect grounding, so no authority is reconstructed.
+                execution_bindings = CompetenceExecutionBindingRegistry()
         obj = cls(
             embodiment_id=embodiment_id,
             symbiont_id=symbiont_id,
@@ -278,7 +280,7 @@ class EmbodimentEpisode:
                 if isinstance(payload.get("reachability"), Mapping)
                 else None
             ),
-            embodied_competences=embodied,
+            execution_bindings=execution_bindings,
         )
         raw_history = payload.get("contract_history", [])
         if not isinstance(raw_history, list):
