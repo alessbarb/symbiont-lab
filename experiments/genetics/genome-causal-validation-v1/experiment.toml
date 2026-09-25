@@ -1,0 +1,35 @@
+schema_version = 1
+
+[experiment]
+id = "genetics.genome-causal-validation-v1"
+title = "Genome v2 Causal Phenotype Validation"
+protocol = "genetics.genome-causal-validation"
+protocol_version = 1
+hypothesis = """
+With the same RNG seed and the same deterministic opaque body law, changing
+exactly one canonical Genome locus changes its bound operating phenotype and
+produces a measurably different developmental trajectory.
+"""
+success_criteria = """
+Each paired condition must differ at exactly one preregistered locus. The
+corresponding birth phenotype must differ and at least one downstream trajectory
+measure (motor activations, prediction-error trajectory or learned relation
+weight) must diverge. Null results are valid falsification outcomes.
+"""
+notes = """
+No target action, anatomy label, evaluator reward or desired trajectory enters
+the Symbiont. Genome instance ids are excluded from genotype_hash.
+"""
+
+[design]
+seed = 991
+steps = 96
+world_law = "opaque-linear-body-v1"
+paired_loci = [
+  "sensorimotor.spontaneous_activity_baseline",
+  "plasticity.learning_rate.baseline",
+]
+
+[output]
+save_trace = true
+save_summary = true
