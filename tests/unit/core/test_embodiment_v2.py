@@ -13,6 +13,7 @@ from symbiont.core.embodiment import (
     EmbodimentContract,
     EmbodimentEndReason,
     EmbodimentEpisode,
+    EmbodimentPrior,
     EmbodimentState,
     EvidenceProvenance,
     PerceptualSurface,
@@ -412,3 +413,38 @@ def test_embodiment_archive_v2_migrates_execution_binding_prior_name() -> None:
         == memory.execution_binding_priors
     )
     assert "embodied_competence_priors" not in checkpoint["body_memories"][0]
+
+
+
+def test_embodiment_prior_rejects_any_restored_authority() -> None:
+    with pytest.raises(ValueError, match="cannot carry authority"):
+        EmbodimentPrior.restore(
+            {
+                "relation": "same-body",
+                "authority": "active",
+                "source_body_id": "body.a",
+            }
+        )
+
+
+def test_contract_transition_history_is_bounded() -> None:
+    first = _contract(percepts=3, actuators=2)
+    episode = EmbodimentEpisode.begin(
+        symbiont_id="symbiont.bound",
+        body_id="body.bound",
+        epoch=1,
+        start_symbiont_tick=0,
+        contract=first,
+    )
+
+    for index in range(80):
+        episode.advance()
+        percepts = 3 + (index % 2)
+        episode.transition_contract(
+            _contract(percepts=percepts, actuators=2),
+            reason=f"transition-{index}",
+        )
+
+    assert len(episode.contract_history) <= 64
+    payload = episode.checkpoint(current_tick=episode.embodiment_tick)
+    assert len(payload["contract_history"]) <= 64
