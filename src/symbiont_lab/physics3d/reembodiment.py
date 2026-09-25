@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from symbiont.core.embodiment import EmbodimentArchive, archive_episode_checkpoint
+from symbiont.core.embodiment import BodySpecificMemory, EmbodimentArchive, archive_episode_checkpoint
 
 from .longitudinal import (
     CONTRACT_FINGERPRINT_SCHEMA_VERSION,
@@ -13,6 +13,7 @@ from .longitudinal import (
     archive_contract_memory,
     build_epoch_summary,
     contract_fingerprint,
+    historical_motor_candidates,
     inject_memory_candidates,
     memory_for_contract,
 )
@@ -442,7 +443,10 @@ def prepare_fresh_embodiment_checkpoint(
     result = deepcopy(dict(previous))
     # Archive the canonical episode before removing its current authority.
     raw_episode = previous.get("embodiment_episode")
-    if isinstance(raw_episode, Mapping) and raw_episode.get("schema_version") == 2:
+    if (
+        isinstance(raw_episode, Mapping)
+        and int(raw_episode.get("schema_version") or 0) in {2, 3}
+    ):
         raw_archive = previous.get("embodiment_archive")
         archive = EmbodimentArchive.restore(
             raw_archive if isinstance(raw_archive, Mapping) else None
@@ -537,14 +541,123 @@ def prepare_fresh_embodiment_checkpoint(
     )
     append_epoch_summary(result, summary)
 
-    result["embodiment_memory"] = archive_contract_memory(
-        previous,
-        contract_fingerprint_value=previous_fingerprint,
-        epoch=epoch,
-        motor_cognitive_surface=historical_motor_surface,
-        active_private_model_id=active_model_id,
+    # EmbodimentArchive is the sole v2 longitudinal memory authority.
+    raw_archive = result.get("embodiment_archive")
+    archive = EmbodimentArchive.restore(
+        raw_archive if isinstance(raw_archive, Mapping) else None
     )
-    known_memory = memory_for_contract(result.get("embodiment_memory"), new_fingerprint)
+    current_candidates = tuple(
+        historical_motor_candidates(
+            previous,
+            contract_fingerprint_value=previous_fingerprint,
+        )
+    )
+    if (
+        isinstance(raw_episode, Mapping)
+        and int(raw_episode.get("schema_version") or 0) in {2, 3}
+    ):
+        body_id = str(raw_episode.get("body_id") or "")
+        existing = archive.for_body(body_id) if body_id else None
+        if existing is not None:
+            archive.remember_body(
+                BodySpecificMemory(
+                    body_id=existing.body_id,
+                    contract_fingerprint=existing.contract_fingerprint,
+                    last_embodiment_id=existing.last_embodiment_id,
+                    body_schema_prior=existing.body_schema_prior,
+                    dynamics_prior=existing.dynamics_prior,
+                    embodied_competence_priors=existing.embodied_competence_priors,
+                    historical_causal_state=existing.historical_causal_state,
+                    historical_motor_candidates=current_candidates,
+                    motor_cognitive_surface=(
+                        deepcopy(dict(historical_motor_surface))
+                        if isinstance(historical_motor_surface, Mapping)
+                        else None
+                    ),
+                    private_model_ids=(
+                        (active_model_id,)
+                        if isinstance(active_model_id, str)
+                        else ()
+                    ),
+                )
+            )
+    else:
+        # One-way migration for pre-v2 checkpoints. Their historical store had
+        # no physical Body identity, so migrated entries are contract-level
+        # priors only and can never be mistaken for same-Body memory.
+        archive.remember_body(
+            BodySpecificMemory(
+                body_id=f"legacy-body.{previous_fingerprint[:24]}",
+                contract_fingerprint=previous_fingerprint,
+                last_embodiment_id=f"legacy-embodiment.{epoch}",
+                body_schema_prior=(
+                    deepcopy(dict(previous["body_schema"]))
+                    if isinstance(previous.get("body_schema"), Mapping)
+                    else None
+                ),
+                historical_motor_candidates=current_candidates,
+                motor_cognitive_surface=(
+                    deepcopy(dict(historical_motor_surface))
+                    if isinstance(historical_motor_surface, Mapping)
+                    else None
+                ),
+                private_model_ids=(
+                    (active_model_id,)
+                    if isinstance(active_model_id, str)
+                    else ()
+                ),
+            )
+        )
+        legacy_known = memory_for_contract(
+            previous.get("embodiment_memory")
+            if isinstance(previous.get("embodiment_memory"), Mapping)
+            else None,
+            new_fingerprint,
+        )
+        if isinstance(legacy_known, Mapping):
+            archive.remember_body(
+                BodySpecificMemory(
+                    body_id=f"legacy-body.{new_fingerprint[:24]}.historical",
+                    contract_fingerprint=new_fingerprint,
+                    last_embodiment_id="legacy-embodiment.historical",
+                    body_schema_prior=(
+                        deepcopy(dict(legacy_known["body_schema"]))
+                        if isinstance(legacy_known.get("body_schema"), Mapping)
+                        else None
+                    ),
+                    historical_motor_candidates=tuple(
+                        deepcopy(dict(item))
+                        for item in legacy_known.get("historical_primitives", [])
+                        if isinstance(item, Mapping)
+                    ),
+                    motor_cognitive_surface=(
+                        deepcopy(dict(legacy_known["motor_cognitive_surface"]))
+                        if isinstance(legacy_known.get("motor_cognitive_surface"), Mapping)
+                        else None
+                    ),
+                    private_model_ids=tuple(
+                        str(value)
+                        for value in legacy_known.get("private_model_ids", [])
+                    ),
+                )
+            )
+
+    result["embodiment_archive"] = archive.checkpoint()
+    # Remove the superseded writable store after its one-way migration.
+    result.pop("embodiment_memory", None)
+    matching_memories = archive.for_contract(new_fingerprint)
+    known_prior = matching_memories[0] if matching_memories else None
+    known_memory = (
+        {
+            "historical_primitives": [
+                deepcopy(item)
+                for item in known_prior.historical_motor_candidates
+            ],
+            "private_model_ids": list(known_prior.private_model_ids),
+        }
+        if known_prior is not None
+        else None
+    )
 
     history.append({
         "epoch": epoch,
@@ -594,13 +707,9 @@ def prepare_fresh_embodiment_checkpoint(
     # sensory/actuator surfaces and acquired embodiment state only; genotype
     # and genome hashes remain byte-for-byte unchanged.
 
-    relation = (
-        "same-known"
-        if same_contract and known_memory is not None
-        else "known-return"
-        if known_memory is not None
-        else "changed"
-    )
+    # prepare_fresh_embodiment_checkpoint always creates a new physical Body.
+    # A matching interface is therefore a known-contract prior, never same-Body.
+    relation = "known-contract" if known_prior is not None else "changed"
     result["embodiment_lifecycle"] = {
         "schema_version": _SCHEMA_VERSION,
         "state": "active",
@@ -616,8 +725,8 @@ def prepare_fresh_embodiment_checkpoint(
             "contract_relation": relation,
             "known_contract_memory": known_memory is not None,
             "candidate_private_model_ids": (
-                list(known_memory.get("private_model_ids", ()))
-                if isinstance(known_memory, Mapping)
+                list(known_prior.private_model_ids)
+                if known_prior is not None
                 else []
             ),
             "metrics": {
