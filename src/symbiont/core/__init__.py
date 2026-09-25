@@ -124,14 +124,9 @@ from .embodiment.body import (
     create_standard_body,
 )
 from .embodiment.session import EmbodimentSession, PortBinding, implant
-from .embodiment.agency import (
-    AgencyModel,
-    InferredBodyRegion,
-    InferredBodySchema,
-    InferredSelfModel,
-    PerceptualStructure,
-    SensorimotorModel,
-)
+from .embodiment.body_schema import BodySchemaEngine
+from .embodiment.dynamics import SensorimotorDynamicsModel
+from ..actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from .orchestration.symbiont import Symbiont
 from .orchestration.individual import Individual, IndividualTickRecord, create_individual
 
@@ -158,11 +153,10 @@ __all__.extend([
     "PortBinding",
     "implant",
     "AgencyModel",
-    "InferredBodyRegion",
-    "InferredBodySchema",
-    "InferredSelfModel",
-    "PerceptualStructure",
-    "SensorimotorModel",
+    "BodySchemaEngine",
+    "CompetenceEffectModel",
+    "ControllabilityModel",
+    "SensorimotorDynamicsModel",
     "Symbiont",
     "Individual",
     "IndividualTickRecord",
