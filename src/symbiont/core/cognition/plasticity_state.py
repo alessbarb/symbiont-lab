@@ -39,7 +39,7 @@ class PlasticityEngine:
         self._tracked_edge_keys = current_keys
 
     @staticmethod
-    def _decay_retiring_edge(
+    def decay_retiring_edge(
         edge,
         *,
         tick: int,
@@ -159,7 +159,7 @@ class PlasticityEngine:
                 frozen=False,
             )
             if retiring_edge:
-                self._decay_retiring_edge(
+                self.decay_retiring_edge(
                     edge,
                     tick=tick,
                     retiring_predictors=retiring_predictors,
