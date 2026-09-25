@@ -10,6 +10,12 @@ import hashlib
 import random
 from typing import Mapping, Sequence
 
+from ...actuation.binding import CompetenceExecutionBindingRegistry
+from ...actuation.competence import (
+    CompetenceEvidence,
+    CompetenceLibrary,
+    MotorCompetence,
+)
 from ...actuation.effects import EffectSpace
 from ...actuation.evidence import CausalEvidenceLedger, PredictionError, SensorimotorTransition
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
@@ -87,6 +93,7 @@ class Symbiont:
         self._last_prediction_error: float = 0.0
         self._competence_outputs: dict[str, tuple[str, ...]] = {}
         self._signal_to_input: dict[str, str] = {}
+        self.competence_library = CompetenceLibrary()
         self._reset_embodiment_state()
 
         # Passive compatibility telemetry only. Genome v2 never captures
@@ -106,6 +113,12 @@ class Symbiont:
         self.controllability_model = ControllabilityModel()
         self.agency_model = AgencyModel()
         self.body_schema = BodySchemaEngine()
+        self.competence_execution_bindings = (
+            CompetenceExecutionBindingRegistry()
+        )
+        self._current_surface_fingerprint: str | None = None
+        for competence in self.competence_library.items:
+            competence.effect_id = None
         self.last_inputs = {}
         self.last_activations = {}
         self._last_action_competence_id = None
@@ -115,6 +128,12 @@ class Symbiont:
     def begin_new_embodiment(self) -> None:
         """Withdraw all old-Body authority for a genuine Body transplant."""
         self._reset_embodiment_state()
+
+    def attach_execution_surface(self, surface_fingerprint: str) -> None:
+        """Attach the opaque legal motor surface for the current embodiment."""
+        if not isinstance(surface_fingerprint, str) or not surface_fingerprint:
+            raise ValueError("surface_fingerprint must be non-empty")
+        self._current_surface_fingerprint = surface_fingerprint
 
     def refresh_phenotype_expression(self) -> dict[str, float]:
         if self.total_ticks > 0:
@@ -304,6 +323,75 @@ class Symbiont:
                 tick=self.total_ticks,
                 prediction_match=prediction_match,
             )
+
+            failures = max(
+                0,
+                int(round(control.action_support * (1.0 - control.reliability))),
+            )
+            competence = self.competence_library.get(competence_id)
+            if competence is None:
+                competence = MotorCompetence(
+                    competence_id=competence_id,
+                    controller_id=controller_id,
+                    effect_id=effect.effect_id,
+                    evidence=CompetenceEvidence(
+                        controller_seed_ref=controller_id,
+                        effect_evidence_refs=(evidence.evidence_id,),
+                        controllability_evidence_refs=(evidence.evidence_id,),
+                        support=control.action_support,
+                        failures=failures,
+                        reproducibility=control.reliability,
+                        controllability=control.confidence,
+                        directional_consistency=control.reliability,
+                    ),
+                    controller_strategy_ref=controller_id,
+                )
+                self.competence_library.add(competence)
+            else:
+                competence.effect_id = effect.effect_id
+                competence.evidence.effect_evidence_refs = tuple(
+                    dict.fromkeys(
+                        competence.evidence.effect_evidence_refs
+                        + (evidence.evidence_id,)
+                    )
+                )
+                competence.evidence.controllability_evidence_refs = tuple(
+                    dict.fromkeys(
+                        competence.evidence.controllability_evidence_refs
+                        + (evidence.evidence_id,)
+                    )
+                )
+                competence.evidence.support = max(
+                    competence.evidence.support,
+                    control.action_support,
+                )
+                competence.evidence.failures = min(
+                    competence.evidence.support,
+                    max(competence.evidence.failures, failures),
+                )
+                competence.evidence.reproducibility = max(
+                    competence.evidence.reproducibility,
+                    control.reliability,
+                )
+                competence.evidence.controllability = max(
+                    competence.evidence.controllability,
+                    control.confidence,
+                )
+                competence.evidence.directional_consistency = max(
+                    competence.evidence.directional_consistency,
+                    control.reliability,
+                )
+
+            if self._current_surface_fingerprint is not None:
+                self.competence_execution_bindings.bind_from_evidence(
+                    competence_id=competence_id,
+                    surface_fingerprint=self._current_surface_fingerprint,
+                    effect_id=effect.effect_id,
+                    evidence_refs=(evidence.evidence_id,),
+                    reliability=control.reliability,
+                    controllability=control.confidence,
+                    tick=self.total_ticks,
+                )
 
     def _update_body_boundary(
         self,
