@@ -55,6 +55,24 @@ En una pasada posterior se debe:
 5. Ejecutar Bandit junto con revisión manual de los cambios de seguridad; el
    código `0` de Bandit no sustituye esa revisión.
 
+## Criterio para futuras correcciones
+
+La prioridad será corregir la causa del hallazgo en el código. No se añadirán
+exclusiones globales, `# nosec`, cambios de configuración ni relajaciones de
+tipado solo para obtener una ejecución limpia. Solo se aceptará una excepción
+cuando:
+
+1. el hallazgo sea un falso positivo demostrado o exista una limitación
+   documentada de compatibilidad;
+2. la alternativa segura sea incompatible con el contrato activo o con la
+   reproducibilidad científica;
+3. la excepción sea lo más localizada posible; y
+4. quede registrada junto con su justificación y una deuda concreta de
+   retirada, si procede.
+
+Una herramienta sin errores no se considerará evidencia suficiente si se ha
+obtenido ocultando el problema.
+
 ## Evidencia relacionada
 
 - `pip-audit` no detectó vulnerabilidades conocidas en las dependencias
