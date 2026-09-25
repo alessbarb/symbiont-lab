@@ -478,7 +478,6 @@ class PyBulletEmbodimentRuntime:
             self.organism = _fresh_organism(organism_id)
             self._embodiment_contract = contract
             self._embodiment_lifecycle: dict[str, Any] | None = None
-            self._embodiment_memory: dict[str, Any] | None = None
             self._embodiment_epoch_summaries: list[dict[str, Any]] = []
             self._temporal_migration: dict[str, Any] | None = None
             self._reembodied = False
@@ -524,12 +523,6 @@ class PyBulletEmbodimentRuntime:
             self._embodiment_lifecycle = (
                 deepcopy(raw_lifecycle)
                 if isinstance(raw_lifecycle, dict)
-                else None
-            )
-            raw_memory = restored_payload.get("embodiment_memory")
-            self._embodiment_memory = (
-                deepcopy(raw_memory)
-                if isinstance(raw_memory, dict)
                 else None
             )
             raw_summaries = restored_payload.get("embodiment_epoch_summaries")
@@ -589,6 +582,17 @@ class PyBulletEmbodimentRuntime:
         self._embodiment_archive = EmbodimentArchive.restore(
             raw_core_archive if isinstance(raw_core_archive, Mapping) else None
         )
+        legacy_memory = (
+            restored_payload.get("embodiment_memory")
+            if runtime_checkpoint is not None
+            else None
+        )
+        self._embodiment_archive = migrate_legacy_memory_store(
+            self._embodiment_archive,
+            legacy_memory if isinstance(legacy_memory, Mapping) else None,
+        )
+        if runtime_checkpoint is not None:
+            restored_payload.pop("embodiment_memory", None)
 
         self._last_physical_tick = self.tick_count
         self._telemetry_seen_experience_ids = {
@@ -962,8 +966,6 @@ class PyBulletEmbodimentRuntime:
         payload = self.organism.checkpoint()
         if self._embodiment_lifecycle is not None:
             payload["embodiment_lifecycle"] = deepcopy(self._embodiment_lifecycle)
-        if self._embodiment_memory is not None:
-            payload["embodiment_memory"] = deepcopy(self._embodiment_memory)
         if self._embodiment_epoch_summaries:
             payload["embodiment_epoch_summaries"] = deepcopy(
                 self._embodiment_epoch_summaries
@@ -1015,10 +1017,6 @@ class PyBulletEmbodimentRuntime:
             current_lifecycle["body_id"] = self.body_identity
             current_lifecycle["embodiment_tick"] = self.embodiment_tick
         self._embodiment_lifecycle = deepcopy(payload["embodiment_lifecycle"])
-        raw_memory = payload.get("embodiment_memory")
-        self._embodiment_memory = (
-            deepcopy(raw_memory) if isinstance(raw_memory, dict) else None
-        )
         raw_summaries = payload.get("embodiment_epoch_summaries")
         self._embodiment_epoch_summaries = (
             [
