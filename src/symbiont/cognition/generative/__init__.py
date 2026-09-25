@@ -21,6 +21,7 @@ from .calibration import CalibrationBucket, PredictionCalibration
 from .counterfactual import CounterfactualEngine
 from .episode import new_episode
 from .epistemic import EpistemicBoundaryError, EpistemicFirewall
+from .epistemic_value import EpistemicValue, EpistemicValueEstimator
 from .hypothesis import GenerativeHypothesis, HypothesisStatus
 from .model import GeneratedProposal, GenerativeContext, GenerativeModel
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, dumps, loads, restore
@@ -54,6 +55,8 @@ __all__ = [
     "CalibrationBucket",
     "PredictionCalibration",
     "EpistemicBoundaryError",
+    "EpistemicValue",
+    "EpistemicValueEstimator",
     "EpistemicFirewall",
     "EpistemicOrigin",
     "EpisodicReplayAdapter",
