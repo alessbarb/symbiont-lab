@@ -174,9 +174,16 @@ def archive_episode_checkpoint(
             if isinstance(episode_payload.get("dynamics_model"), Mapping)
             else None,
             embodied_competence_priors=deepcopy(
-                episode_payload.get("embodied_competences")
+                episode_payload.get("execution_bindings")
+                if isinstance(episode_payload.get("execution_bindings"), Mapping)
+                else episode_payload.get("embodied_competences")
             )
-            if isinstance(episode_payload.get("embodied_competences"), Mapping)
+            if isinstance(
+                episode_payload.get("execution_bindings")
+                if episode_payload.get("execution_bindings") is not None
+                else episode_payload.get("embodied_competences"),
+                Mapping,
+            )
             else None,
             historical_causal_state=deepcopy(
                 episode_payload.get("causal_evidence")
@@ -203,15 +210,17 @@ def archive_episode_checkpoint(
         if confidence_classes
         else 0.0
     )
-    embodied = episode_payload.get("embodied_competences")
-    embodied = embodied if isinstance(embodied, Mapping) else {}
-    items = embodied.get("items")
+    bindings = episode_payload.get("execution_bindings")
+    if not isinstance(bindings, Mapping):
+        bindings = episode_payload.get("embodied_competences")
+    bindings = bindings if isinstance(bindings, Mapping) else {}
+    items = bindings.get("items")
     items = items if isinstance(items, list) else []
     revalidated = sum(
         1
         for item in items
         if isinstance(item, Mapping)
-        and item.get("surface_binding")
+        and item.get("surface_fingerprint", item.get("surface_binding"))
         and item.get("evidence_refs")
     )
     causal = episode_payload.get("causal_evidence")
