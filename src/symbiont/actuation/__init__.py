@@ -3,7 +3,9 @@
 Legacy sequence/chunk representations stay inside ``sensorimotor`` for
 checkpoint migration and controller seeding; new code should depend on these
 contracts.
-"""\nfrom .binding import CompetenceExecutionBinding, CompetenceExecutionBindingRegistry\n
+"""
+from .binding import CompetenceExecutionBinding, CompetenceExecutionBindingRegistry
+
 from .action import (
     ActionEvaluation,
     ActionJustification,
