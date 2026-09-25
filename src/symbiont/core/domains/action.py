@@ -42,6 +42,7 @@ from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
 from ..embodiment.body_schema import BodySchemaEngine
 from ..embodiment.homeostasis import HomeostaticController
 from ..regulation import InnateReactivity, ReactiveMemory, ReactiveState
+from .context import TickContext
 
 
 def _canonical_hash(payload: dict[str, Any]) -> str:
@@ -603,10 +604,18 @@ class ActionDomain:
         cognition: CognitiveBridgeResult | None,
         percepts: tuple[Percept, ...],
         *,
-        tick: int,
+        context: TickContext,
         signal_references: dict[str, str] | None = None,
         services: ActionServices,
     ) -> None:
+        if context.symbiont_id != self.organism_id:
+            raise ValueError("action context belongs to another Symbiont")
+        if (
+            self.embodiment_id is not None
+            and context.embodiment_id != self.embodiment_id
+        ):
+            raise ValueError("action context belongs to another EmbodimentEpisode")
+        tick = context.symbiont_tick
         baseline = self.motor_percept_snapshot(percepts, sensory_system=services.sensory_system)
         sensorimotor_body_state = self.sensorimotor_body_snapshot(percepts, sensory_system=services.sensory_system)
 

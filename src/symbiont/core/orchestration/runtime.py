@@ -1331,13 +1331,24 @@ class OrganismRuntime:
         cognition: CognitiveBridgeResult | None,
         percepts: tuple[Percept, ...],
         *,
-        tick: int,
+        tick: int | None = None,
+        context: TickContext | None = None,
         signal_references: dict[str, str] | None = None,
     ) -> None:
+        if context is None:
+            if tick is None:
+                raise ValueError("motor step requires TickContext or tick")
+            context = TickContext(
+                symbiont_id=self._organism_id,
+                symbiont_tick=int(tick),
+                embodiment_id=self._action_domain.embodiment_id,
+            )
+        elif tick is not None and int(tick) != context.symbiont_tick:
+            raise ValueError("motor step tick contradicts TickContext")
         self._action_domain.step(
             cognition,
             percepts,
-            tick=tick,
+            context=context,
             signal_references=signal_references,
             services=ActionServices(
                 sensory_system=self._sensory_system,
@@ -1351,6 +1362,7 @@ class OrganismRuntime:
                 schedule_homeostatic_action_credit=self._schedule_homeostatic_action_credit,
             ),
         )
+
 
     @property
     def last_action_source(self) -> str:
@@ -2299,7 +2311,7 @@ class OrganismRuntime:
         self._motor_step(
             cognition_result,
             percepts,
-            tick=context.symbiont_tick,
+            context=context,
             signal_references=current_signal_references,
         )
 
