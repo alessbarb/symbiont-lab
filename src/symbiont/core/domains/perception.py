@@ -73,6 +73,7 @@ class PerceptionStepResult:
     allocations: tuple[AttentionAllocation, ...]
     perceptual_allocations: tuple[AttentionAllocation, ...]
     availability_by_capability: dict[str, float]
+    signal_references: dict[str, str]
     pending_proprioception_consumed: bool
 
 
@@ -483,6 +484,23 @@ class PerceptionDomain:
             state.capability_id: state.availability
             for state in services.adaptive_senses.states
         }
+        signal_references = {
+            **{
+                name: services.signal_identity.signal_id(capability_id)
+                for capability_id, name in percept_names.items()
+            },
+            **{
+                percept.name: services.signal_identity.signal_id(
+                    sensor.source_ids[0]
+                )
+                for percept in percepts
+                if (
+                    (sensor := sensor_by_cognitive_name.get(percept.name))
+                    is not None
+                    and len(sensor.source_ids) == 1
+                )
+            },
+        }
         return PerceptionStepResult(
             snapshot=snapshot,
             resource_readings=resource_readings,
@@ -502,5 +520,6 @@ class PerceptionDomain:
             allocations=allocations,
             perceptual_allocations=perceptual_allocations,
             availability_by_capability=availability_by_capability,
+            signal_references=signal_references,
             pending_proprioception_consumed=consumed_proprioception,
         )
