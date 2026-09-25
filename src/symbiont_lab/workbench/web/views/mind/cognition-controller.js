@@ -546,7 +546,7 @@ export function createCognitionController({
       structures: graph.cognitiveStructures,
       tick: finiteNumber(graph.replayTick ?? tel.tick, 0),
       motorOrigin: tel.motorOrigin ?? 'none',
-      motorCompetences: source.sensorimotor?.v2?.competences ?? snap.sensorimotor?.v2?.competences ?? [],
+      motorCompetences: (graph.replaySnapshot ?? snap).sensorimotor?.v2?.competences ?? [],
     });
 
     const activeSectorLabels = new Set();
