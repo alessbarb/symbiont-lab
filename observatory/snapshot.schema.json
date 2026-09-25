@@ -1724,6 +1724,7 @@
               "required": [
                 "prediction_error_recent",
                 "prediction_shock",
+                "peak_prediction_shock",
                 "schema_uncertainty",
                 "causal_confidence",
                 "controllability_confidence",
@@ -1777,6 +1778,11 @@
                     "null"
                   ],
                   "minimum": 0
+                },
+                "peak_prediction_shock": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
                 }
               }
             },
