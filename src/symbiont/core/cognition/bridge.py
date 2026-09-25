@@ -7,24 +7,9 @@ from enum import StrEnum
 from typing import Collection, Mapping
 
 from ...cognition.activation import SensoryNormalizer
-from ...cognition.checkpoint import (
-    WEIGHT_CLASSES,
-    export_graph_checkpoint,
-    export_safety_state,
-    export_sensory_normalizers,
-    restore_graph_checkpoint,
-    restore_safety_state,
-    restore_sensory_normalizers,
-)
 from ...genetics.genome import Genome
 from ...cognition.graph import CognitiveGraph, GraphError, PlasticNode, TickContext
-from ...cognition.learning import (
-    PredictionError,
-    ShadowPrediction,
-    apply_oja_update,
-    compute_prediction_errors,
-    update_eligibility,
-)
+from ...cognition.learning import PredictionError, ShadowPrediction, compute_prediction_errors
 from ...cognition.limits import KernelLimits
 from ...genetics.expression import GeneExpressionState
 from ...cognition.metaplasticity import SafetyState
@@ -32,7 +17,6 @@ from ...cognition.structure import (
     EdgeLifecycleState,
     Mutation,
     StructuralPlasticity,
-    advance_edge_age,
     apply_mutations,
     evaluate_edge_lifecycle,
 )
@@ -54,15 +38,11 @@ from .bridge_checkpoint import (
 )
 
 _ACTIVITY_THRESHOLD = 0.1
-_EDGE_USAGE_THRESHOLD = 1e-3
-_ELIGIBILITY_THRESHOLD = 1e-6
 _TENTATIVE_WEIGHT = 0.05
 _CORE_READOUT_ID = "readout_core"
 _MOTOR_READOUT_PREFIX = "readout_motor:"
 _PRIMITIVE_READOUT_PREFIX = "readout_primitive:"
 _MAX_SHADOW_PREDICTIONS = 16384
-_MAX_LIVE_SHADOW_FACTOR = 8
-_MAX_PRELIMINARY_SHADOW_FACTOR = 16
 
 
 class TopologyHealth(StrEnum):
