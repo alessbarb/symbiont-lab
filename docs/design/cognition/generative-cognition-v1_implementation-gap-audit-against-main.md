@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `211a63b4`
+**Audited commit:** `f4642013`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -98,7 +98,7 @@ built by composing several mature existing components.
 | GC-4 | Branching | **PARTIAL — bounded sibling branch substrate; pruning/equivalence/merge pending** |
 | GC-5 | Counterfactual cognition | **PARTIAL — bounded generic rollout substrate; concrete adapters and utility pending** |
 | GC-6 | Replay | **IMPLEMENTED — provenance-preserving materialization; concrete memory wiring pending** |
-| GC-7 | Recombination | **MISSING** |
+| GC-7 | Recombination | **PARTIAL — compatibility-gated fragment composition; novelty/equivalence evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **PARTIAL** |
 | GC-9 | Epistemic agency | **PARTIAL — pragmatic agency exists** |
 | GC-10 | Generative consolidation | **PARTIAL — structural substrate exists** |
@@ -1366,9 +1366,10 @@ Relevant:
 
 ## Current code
 
-No generic cross-episode generative recombination mechanism found.
-
-The episodic representation is suitable because it already separates:
+`ExperienceRecombiner` now composes two bounded cross-episode fragments only
+when they share an organism-owned compatibility key. The result is an
+`IMAGINED` state retaining both source episode/state identities. The episodic
+representation remains suitable because it already separates:
 
 ```text
 sense_ids
@@ -1388,9 +1389,9 @@ This provides an excellent substrate.
 
 ---
 
-## Missing
+## Implemented substrate
 
-Implement:
+Implemented in:
 
 ```text
 recombination.py
@@ -1400,6 +1401,7 @@ with:
 
 ```text
 ExperienceRecombiner
+RecombinationFragment
 ```
 
 Compatibility must use only organism-owned structure:
