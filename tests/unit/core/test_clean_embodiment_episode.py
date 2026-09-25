@@ -186,3 +186,39 @@ def test_clean_transplant_keeps_general_competence_but_drops_execution_authority
         ind.embodiment.execution_bindings
         is ind.symbiont.competence_execution_bindings
     )
+
+
+
+def test_clean_return_to_same_body_gets_same_body_hypothesis_prior() -> None:
+    ind = create_individual(
+        "sym.return",
+        "body.return.a",
+        num_receptors=2,
+        num_effectors=2,
+    )
+    original_body = ind.body
+    original_episode_id = ind.embodiment_id
+    for _ in range(4):
+        ind.step()
+
+    ind.transplant_to(
+        create_standard_body(
+            "body.return.b",
+            num_receptors=3,
+            num_effectors=3,
+        )
+    )
+    assert ind.embodiment.prior.relation in {"novel", "same-contract"}
+
+    ind.transplant_to(original_body)
+
+    assert ind.body_id == "body.return.a"
+    assert ind.embodiment.prior.relation == "same-body"
+    assert ind.embodiment.prior.source_body_id == "body.return.a"
+    assert (
+        ind.embodiment.prior.source_embodiment_id
+        == original_episode_id
+    )
+    assert ind.embodiment.prior.checkpoint()["authority"] == "hypothesis_only"
+    assert ind.symbiont.body_schema.boundary_confidence == 0.0
+    assert ind.symbiont.competence_execution_bindings.items == ()
