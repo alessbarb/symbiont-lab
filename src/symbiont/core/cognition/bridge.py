@@ -19,14 +19,14 @@ from ...cognition.structure import (
 )
 from ...cognition.types import NodeKind
 from .plasticity_state import PlasticityEngine
-from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
+from .predictors import PredictorLifecycle
 from .sense_concept_lifecycle import (
     ConceptLineage,
     RepresentationMaturity,
     RepresentationTracker,
     SenseConceptLifecycle,
 )
-from .structural_candidates import StructuralCandidate, StructuralContention
+from .structural_candidates import StructuralContention
 from .structural_planner import AdaptiveStructuralBudgets, StructuralPlanner
 from .bridge_checkpoint import export_bridge_state, restore_bridge_state
 from .bridge_compat import CognitiveBridgeCompatibility
