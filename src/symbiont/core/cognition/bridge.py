@@ -359,6 +359,73 @@ class CognitiveBridge:
     def _predictor_retirement(self, value: dict[str, PredictorRetirement]) -> None:
         self._predictors.retirement = value
 
+    @property
+    def _concept_support(self) -> dict[tuple[str, str], int]:
+        return self._lifecycle.concept_support
+
+    @_concept_support.setter
+    def _concept_support(self, value: dict[tuple[str, str], int]) -> None:
+        self._lifecycle.concept_support = value
+
+    @property
+    def _retrospective_concept_support(self) -> dict[tuple[str, str], int]:
+        return self._lifecycle.retrospective_support
+
+    @_retrospective_concept_support.setter
+    def _retrospective_concept_support(
+        self,
+        value: dict[tuple[str, str], int],
+    ) -> None:
+        self._lifecycle.retrospective_support = value
+
+    @property
+    def _concept_lineage(self) -> dict[str, ConceptLineage]:
+        return self._lifecycle.lineage
+
+    @_concept_lineage.setter
+    def _concept_lineage(self, value: dict[str, ConceptLineage]) -> None:
+        self._lifecycle.lineage = value
+
+    @property
+    def _sense_last_seen_tick(self) -> dict[str, int]:
+        return self._lifecycle.sense_last_seen_tick
+
+    @_sense_last_seen_tick.setter
+    def _sense_last_seen_tick(self, value: dict[str, int]) -> None:
+        self._lifecycle.sense_last_seen_tick = value
+
+    @property
+    def _orphan_since_tick(self) -> dict[str, int]:
+        return self._lifecycle.orphan_since_tick
+
+    @_orphan_since_tick.setter
+    def _orphan_since_tick(self, value: dict[str, int]) -> None:
+        self._lifecycle.orphan_since_tick = value
+
+    @property
+    def _unrouted_since_tick(self) -> dict[str, int]:
+        return self._lifecycle.unrouted_since_tick
+
+    @_unrouted_since_tick.setter
+    def _unrouted_since_tick(self, value: dict[str, int]) -> None:
+        self._lifecycle.unrouted_since_tick = value
+
+    @property
+    def _concept_last_active_tick(self) -> dict[str, int]:
+        return self._lifecycle.concept_last_active_tick
+
+    @_concept_last_active_tick.setter
+    def _concept_last_active_tick(self, value: dict[str, int]) -> None:
+        self._lifecycle.concept_last_active_tick = value
+
+    @property
+    def _next_concept_index(self) -> int:
+        return self._lifecycle.next_concept_index
+
+    @_next_concept_index.setter
+    def _next_concept_index(self, value: int) -> None:
+        self._lifecycle.next_concept_index = value
+
     def _register_structural_candidate(
         self,
         *,
