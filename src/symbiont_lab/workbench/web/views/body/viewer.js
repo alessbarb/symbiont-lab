@@ -314,6 +314,39 @@ export class BodyViewer {
     this.workspace.render();
   }
 
+  forEachSegmentMaterial(segmentName, callback) {
+    const root = this.segmentMeshes?.[segmentName];
+    if (!root || typeof callback !== 'function') return;
+    root.traverse?.((object) => {
+      if (!object?.material) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) callback(material, object);
+    });
+    if (!root.traverse && root.material) {
+      const materials = Array.isArray(root.material) ? root.material : [root.material];
+      for (const material of materials) callback(material, root);
+    }
+  }
+
+  setSegmentInspectorHighlight(segmentName, enabled) {
+    this.forEachSegmentMaterial(segmentName, (material) => {
+      if (!material.emissive) return;
+      if (enabled) {
+        if (material.userData.bodyOriginalEmissive === undefined) {
+          material.userData.bodyOriginalEmissive = material.emissive.getHex();
+          material.userData.bodyOriginalEmissiveIntensity = material.emissiveIntensity ?? 0;
+        }
+        material.emissive.setHex(0x135f72);
+        material.emissiveIntensity = 0.72;
+      } else {
+        material.emissive.setHex(material.userData.bodyOriginalEmissive ?? 0x000000);
+        material.emissiveIntensity = material.userData.bodyOriginalEmissiveIntensity ?? 0;
+        delete material.userData.bodyOriginalEmissive;
+        delete material.userData.bodyOriginalEmissiveIntensity;
+      }
+    });
+  }
+
   queueUIUpdate(id, text, color = null) {
     this.uiStateQueue[id] = { text, color: color ?? 'var(--text, #e0e0e0)' };
   }
@@ -1519,8 +1552,11 @@ export class BodyViewer {
       const mesh = this.segmentMeshes[segmentName];
       if (!mesh) continue;
       const activity = Math.max(0, ...jointNames.map((name) => this.jointActivity.get(name) ?? 0));
-      mesh.material.emissive.setHex(activity > 0.06 ? 0x246b59 : 0x000000);
-      mesh.material.emissiveIntensity = Math.min(1.05, activity * 1.05);
+      this.forEachSegmentMaterial(segmentName, (material) => {
+        if (!material.emissive || material.userData.bodyOriginalEmissive !== undefined) return;
+        material.emissive.setHex(activity > 0.06 ? 0x246b59 : 0x000000);
+        material.emissiveIntensity = Math.min(1.05, activity * 1.05);
+      });
     }
 
     this.updateResourceGuide();
