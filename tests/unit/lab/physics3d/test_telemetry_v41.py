@@ -469,6 +469,7 @@ def test_v41_state_at_rejects_self_consistent_but_divergent_anchor(tmp_path):
         cognition_hz=24,
         embodiment_mode="test",
         snapshot_interval=2,
+        anchor_interval=2,
         run_id="anchor-commitment",
     )
     _write(writer)

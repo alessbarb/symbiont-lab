@@ -359,6 +359,7 @@ class TelemetryV41Writer:
         )
         self._snapshot_interval = int(snapshot_interval)
         self._anchor_interval = int(anchor_interval)
+        self._start_tick = int(start_tick)
         self._flush_every = int(flush_every)
         self._pending = 0
         self._sequence = 0
@@ -411,7 +412,9 @@ class TelemetryV41Writer:
 
     def needs_snapshot(self, tick: int) -> bool:
         """Whether the engine should capture a large organism/physical checkpoint."""
-        return self._sequence == 0 or int(tick) % self._snapshot_interval == 0
+        tick = int(tick)
+        initial_record = self._sequence == 0 and tick == self._start_tick + 1
+        return initial_record or tick % self._snapshot_interval == 0
 
     def needs_anchor(self, tick: int) -> bool:
         """Whether telemetry should persist a lightweight random-access anchor."""
@@ -846,7 +849,9 @@ class AsyncTelemetryV41Writer:
 
     def needs_snapshot(self, tick: int) -> bool:
         self._raise_worker_error()
-        return self._submitted == 0 or int(tick) % self._snapshot_interval == 0
+        tick = int(tick)
+        initial_record = self._submitted == 0 and tick == self._writer._start_tick + 1
+        return initial_record or tick % self._snapshot_interval == 0
 
     def append(
         self,

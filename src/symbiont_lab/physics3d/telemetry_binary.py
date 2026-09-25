@@ -1035,6 +1035,8 @@ class BinaryEventWriter:
             else:
                 previous = self._previous_cumulative.get(channel)
                 if previous is None:
+                    if not current:
+                        return []
                     operation = _EVENT_RESET
                     payload_value = current
                 else:
