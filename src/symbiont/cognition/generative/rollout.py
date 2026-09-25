@@ -104,6 +104,14 @@ class RolloutEngine:
                 predicted_outcomes=proposal.predicted_outcomes,
                 generative_tick=next_state.generative_tick,
             )
+            if (
+                len(self.workspace.states) >= self.workspace.budget.max_states
+                or len(self.workspace.transitions) >= self.workspace.budget.max_transitions
+                or next_state.depth > self.workspace.budget.max_depth
+            ):
+                return self._finish(
+                    generated_states, generated_transitions, GenerativeTermination.BUDGET_EXHAUSTED
+                )
             try:
                 self.workspace.add_state(next_state)
                 self.workspace.add_transition(transition)
