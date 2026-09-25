@@ -6,6 +6,7 @@ from symbiont_lab.physics3d.longitudinal import contract_fingerprint
 from symbiont_lab.physics3d.reembodiment import (
     EmbodimentContract,
     lifecycle_summary,
+    migrate_legacy_memory_store,
     migrate_temporal_domains,
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
@@ -176,6 +177,39 @@ def _fresh(*, slots: int = 62) -> dict:
         },
     }
 
+
+def test_legacy_embodiment_memory_migrates_one_way_into_core_archive() -> None:
+    legacy = {
+        "schema_version": 1,
+        "contracts": [
+            {
+                "contract_fingerprint": "contract.old",
+                "first_seen_epoch": 1,
+                "last_seen_epoch": 3,
+                "body_schema": {"state": "established"},
+                "historical_primitives": [
+                    {
+                        "primitive_id": "primitive.old",
+                        "embodiment_fingerprint": "motor.old",
+                        "sequence": [],
+                    }
+                ],
+                "motor_cognitive_surface": {"nodes": [], "edges": []},
+                "private_model_ids": ["model.old"],
+                "state": "historical",
+            }
+        ],
+    }
+
+    from symbiont.core.embodiment import EmbodimentArchive
+
+    archive = migrate_legacy_memory_store(EmbodimentArchive(), legacy)
+    matches = archive.for_contract("contract.old")
+    assert len(matches) == 1
+    memory = matches[0]
+    assert memory.body_id.startswith("legacy-body.")
+    assert memory.private_model_ids == ("model.old",)
+    assert memory.historical_motor_candidates[0]["primitive_id"] == "primitive.old"
 
 def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledge() -> None:
     previous = _checkpoint()
