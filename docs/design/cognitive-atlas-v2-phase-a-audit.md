@@ -1,0 +1,35 @@
+# Cognitive Atlas v2 — Phase A audit (SOURCE → SNAPSHOT → ATLAS)
+
+Read-only audit per Cognitive Atlas v2 spec §63, produced before any UI/code
+changes. Traces each spec domain through the real codebase: does the concept
+exist in `symbiont` (SOURCE), is it exposed via telemetry/checkpoint
+(SNAPSHOT), does the current Cognitive Atlas UI render it (ATLAS).
+
+Atlas UI lives at `src/symbiont_lab/workbench/web/views/mind/*.js` (11,151
+LOC across 36 files). Snapshot/projection lives at
+`src/symbiont_lab/observation/projection.py`.
+
+| Domain | Exists in symbiont? | In snapshot/telemetry? | In current Atlas UI? | Gap notes |
+|---|---|---|---|---|
+| sense / perception | `NodeKind.SENSE` (`src/symbiont/cognition/types.py:11`) | yes, via `CognitiveGraph` topology | yes — `cognitive-observatory.js:106` counts `byKind.get('sense')` | working as designed |
+| concept / integration | `NodeKind.CONCEPT/STATE/GATE` (`types.py:12-15`) | yes | yes — `cognitive-observatory.js:112-118` | working |
+| predictor / prediction | `NodeKind.PREDICTOR` (`types.py:14`), used `graph.py:80` | yes, `projection.py:147` copies `predictor_count` | yes — `cognitive-observatory.js:123` | working; this is why "Prediction 2/3" is non-zero in the screenshot |
+| readout | `NodeKind.READOUT` (`types.py:16`) | yes | yes — `cognitive-observatory.js:127` | working |
+| **motor competence** | `MotorCompetence` dataclass, `src/symbiont/actuation/competence.py:63` — has `controller_id`, `effect_id`, `evidence` (support/failures/reproducibility/controllability/directional_consistency), `maturity` property (candidate→emerging→established→robust) | exposed only to the *separate* Motor-learning panel via `snap.sensorimotor` (`motor-learning-model.js:23`), **not** to `CognitiveGraph`/Atlas topology | **no** — Atlas has no `motor_competence` NodeKind | competence data exists and is rich, but lives in a sibling silo (`motor-learning-*.js`), never reaches the Atlas graph |
+| **controller** | Distinct from competence: `MotorCompetence.controller_id` references it separately (`competence.py:68`); `CompetenceEvidence.controller_seed_ref` (`competence.py:17`) | not exported as its own entity | no | spec §12's competence/controller distinction matches real code, but neither the controller nor the distinction is surfaced anywhere in Lab |
+| **effect** | `EffectRepresentation` (`src/symbiont/actuation/effects.py:23`): `effect_id`, `feature_refs` (opaque, prefix-validated), `transition_signature`, `support`, `confidence` | not found in `projection.py` | no | fully organism-owned, opaque-feature effect model exists in source; zero snapshot exposure |
+| **action_dimension** | **not found as a distinct concept.** Closest is `ActuatorChannel`/`MotorSlot` (`src/symbiont/actuation/surface.py:23`) — an opaque *physical* slot, and `ActionSource` enum (`action.py:26`, exploration/competence/prospection/protection/regulation) which classifies action *origin*, not a per-dimension identity | n/a | no | genuine gap vs spec §9 — there is no organism-owned "I can act along dimension N" abstraction separate from the raw actuator surface; would need new source-side work, not just projection |
+| **embodiment_binding** | `CompetenceExecutionBinding` (`src/symbiont/actuation/binding.py:10`): `competence_id`, `surface_fingerprint`, `effect_id`, `reliability`, `controllability`, `last_evidence_tick`, managed by `CompetenceExecutionBindingRegistry` (`binding.py:34`) | not found in `projection.py` | no | this **is** spec §18's embodiment_binding, already architected to separate durable competence knowledge from current-body binding — exactly the re-embodiment split spec §34/§77 wants. Zero snapshot exposure today |
+| **body_schema** | `src/symbiont/core/embodiment/body_schema.py` (module exists) | **yes** — `projection.py:529` copies `rich_state.get("body_schema")` into snapshot | not read by Atlas UI (only by `body/model.js`, `body/workspace.js` — the separate Body tab) | only domain that's fully piped to snapshot but still not merged into Atlas |
+| **sensorimotor snapshot** | `SensorimotorLearner` / `SensorimotorSnapshot` (`src/symbiont/actuation/sensorimotor.py:311,320`) | yes — `snap.sensorimotor` block, consumed by `motor-learning-model.js:23-56` (primitives, patterns, competence gate candidates, coverage, controllability, directional_consistency) | no — separate "Motor learning" view, not Atlas | richest existing telemetry surface for motor domain; already has its own dedicated UI outside Atlas |
+| **affordance** | not found anywhere in `src/symbiont/` | n/a | n/a | absent, matches spec §16's "don't infer artificially" — nothing to wire yet |
+| **forward_model / inverse_model** | not found anywhere in `src/symbiont/` | n/a | n/a | absent — spec §15 says don't infer these artificially; correctly nothing claims to be one |
+| **motor_primitive (Atlas's own claimed kind)** | `MotorPrimitive` exists in `sensorimotor.py:183`, but `cognition/types.py` `NodeKind` enum has **only** `SENSE/CONCEPT/STATE/PREDICTOR/GATE/READOUT` — no `motor_primitive` value, by explicit design (`types.py:7-9`: *"deliberately no ACTION kind"*) | n/a for graph purposes | Atlas queries `byKind.get('motor_primitive')` (`cognitive-observatory.js:132-134`) against `CognitiveGraph` topology | **this is the literal 0/0 bug.** The Atlas asks `CognitiveGraph` for a node kind that structurally cannot exist there by design. It will always return `[]` regardless of how much real motor knowledge the organism has |
+
+## Biggest gaps (why "Motor capability 0/0")
+
+1. **Root cause of the 0/0 metric**: `cognitive-observatory.js:132-134` computes Motor capability by filtering `CognitiveGraph` nodes for `kind === 'motor_primitive'`. `NodeKind` (`cognition/types.py`) never has and structurally never will have that kind — the module docstring says so explicitly ("no ACTION kind"). The Atlas is quite literally `CognitiveGraph`-renderer, confirming spec §85's diagnosis exactly.
+2. **Real motor knowledge already exists and is already exposed to Lab** — `MotorCompetence`, `CompetenceEvidence`, `SensorimotorSnapshot` — but through a *parallel, disconnected* telemetry path (`snap.sensorimotor`) feeding a *separate* UI (`motor-learning-*.js`, `body/*.js`), never merged into the Atlas graph model.
+3. **Embodiment binding is already correctly separated at the source level** (`CompetenceExecutionBinding` vs `MotorCompetence`) — the hard architectural work spec §18/§34 asks for already exists in `symbiont`. It just isn't projected anywhere.
+4. **`action_dimension` is the one true source-side gap.** Nothing in `symbiont` currently expresses "a controllable dimension" independent of the raw actuator surface. Phase D (new types) will need source changes here, not just a Lab-side projection — everything else in this table is a projection/wiring problem, not a missing-concept problem.
+5. **`effect` and `controller` have zero snapshot exposure** despite being full dataclasses in source — cheapest next wins for Phase B (extend `projection.py`) before touching any UI.
