@@ -8,6 +8,7 @@ from ...sensory import SensorySystem
 from ..cognition.host_self_model import SelfModel
 from ..embodiment.body_schema import BodySchemaEngine
 from ..signals.identity import SignalIdentity
+from .cognition import CognitionStepResult
 from .context import TickContext
 
 
@@ -38,7 +39,7 @@ class EmbodimentDomain:
         *,
         services: EmbodimentServices,
         context: TickContext,
-        cognitive_self_observation: dict[str, Any] | None,
+        cognition: CognitionStepResult,
     ) -> EmbodimentStepResult:
         source_ids = {
             source_id
@@ -61,9 +62,9 @@ class EmbodimentDomain:
                 services.self_model.export(current_tick=context.symbiont_tick),
                 tick=context.symbiont_tick,
             )
-        if cognitive_self_observation is not None:
+        if cognition.cognitive_self_observation is not None:
             services.body_schema.observe_cognition(
-                cognitive_self_observation,
+                cognition.cognitive_self_observation,
                 tick=context.symbiont_tick,
             )
         return EmbodimentStepResult(
