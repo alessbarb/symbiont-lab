@@ -55,7 +55,7 @@ def _checkpoint(*, vital_state: str = "dead") -> dict:
             "state": "dormant",
             "epoch": 1,
             "current": {
-                "body_kind": "anthropomorphic-v5",
+                "body_kind": "anthropomorphic-v6",
                 "receptor_count": 107,
                 "effector_count": 62,
                 "started_tick": 0,
@@ -186,7 +186,7 @@ def test_canonical_contract_fingerprint_drives_archive_and_lifecycle() -> None:
     transformed = prepare_fresh_embodiment_checkpoint(
         previous,
         fresh,
-        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v6", 107, 62),
         canonical_contract_fingerprint=canonical,
     )
 
@@ -236,7 +236,7 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     transformed = prepare_fresh_embodiment_checkpoint(
         previous,
         _fresh(),
-        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v6", 107, 62),
     )
 
     assert transformed["organism_id"] == "symbiont:persistent"
@@ -429,7 +429,7 @@ def test_stopping_marks_symbiont_dormant_without_changing_body_death_state() -> 
     payload = deepcopy(_checkpoint(vital_state="active"))
     updated = update_lifecycle_for_checkpoint(
         payload,
-        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v6", 107, 62),
         state="dormant",
     )
     assert updated["living_body"]["vital_state"] == "active"
@@ -451,7 +451,7 @@ def test_known_contract_return_recovers_hypotheses_without_restoring_authority()
     returned = prepare_fresh_embodiment_checkpoint(
         crawler,
         _fresh(slots=62),
-        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v6", 107, 62),
     )
 
     current = returned["embodiment_lifecycle"]["current"]
@@ -542,7 +542,7 @@ def test_dead_checkpoint_closes_epoch_summary_and_archives_memory() -> None:
 
     updated = update_lifecycle_for_checkpoint(
         payload,
-        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v6", 107, 62),
         state="dormant",
         metrics={
             "absorbed_material_total": 12.0,
@@ -631,7 +631,7 @@ def test_lifecycle_recomputes_pre_v2_contract_fingerprint() -> None:
         "state": "active",
         "epoch": 1,
         "current": {
-            "body_kind": "anthropomorphic-v5",
+            "body_kind": "anthropomorphic-v6",
             "receptor_count": 107,
             "effector_count": 62,
             "started_tick": 0,
@@ -643,7 +643,7 @@ def test_lifecycle_recomputes_pre_v2_contract_fingerprint() -> None:
 
     updated = update_lifecycle_for_checkpoint(
         payload,
-        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v6", 107, 62),
         state="active",
     )
     current = updated["embodiment_lifecycle"]["current"]
@@ -661,7 +661,7 @@ def test_lifecycle_recomputes_pre_v2_contract_fingerprint() -> None:
 def test_legacy_known_contract_memory_maps_to_canonical_v3_identity() -> None:
     previous = _checkpoint(vital_state="active")
     fresh = _fresh()
-    descriptor = PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62)
+    descriptor = PhysicsEmbodimentDescriptor("anthropomorphic-v6", 107, 62)
 
     legacy_surface = ActuatorSurface.from_count(
         descriptor.effector_count,
