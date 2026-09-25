@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Mapping
 
 from .history import EmbodimentEpisodeSummary
@@ -172,7 +172,7 @@ def archive_episode_checkpoint(
     body before the new physical adapter exists. Historical state remains a
     prior; this function grants no current execution authority.
     """
-    if episode_payload.get("schema_version") != 2:
+    if int(episode_payload.get("schema_version") or 0) not in {2, 3}:
         raise ValueError("unsupported embodiment episode checkpoint")
     contract = episode_payload.get("contract")
     contract = contract if isinstance(contract, Mapping) else {}
