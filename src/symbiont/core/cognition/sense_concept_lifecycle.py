@@ -5,9 +5,14 @@ from dataclasses import dataclass
 from typing import Collection, Mapping
 
 from ...cognition.graph import CognitiveGraph
-from ...cognition.types import NodeKind
+from ...cognition.structure import Mutation
+from ...cognition.types import EdgeKind, NodeKind
 
 _ACTIVITY_THRESHOLD = 0.1
+_TENTATIVE_WEIGHT = 0.05
+_CORE_READOUT_ID = "readout_core"
+_MOTOR_READOUT_PREFIX = "readout_motor:"
+_PRIMITIVE_READOUT_PREFIX = "readout_primitive:"
 
 
 @dataclass(slots=True, frozen=True)
@@ -320,6 +325,123 @@ class SenseConceptLifecycle:
             if candidate not in existing:
                 return candidate
             index += 1
+
+    def propose_germinal_concept_candidate(
+        self,
+        *,
+        graph: CognitiveGraph,
+        live_graph: CognitiveGraph,
+        topology_revision: int,
+        pending_concepts: int,
+        max_concepts: int,
+        minimum_support: int,
+        develop_senses: bool,
+    ) -> tuple[str, tuple[Mutation, ...]] | None:
+        if not develop_senses:
+            return None
+        concept_count = sum(
+            1 for node in graph.nodes if node.kind is NodeKind.CONCEPT
+        )
+        if concept_count + pending_concepts >= max_concepts:
+            return None
+
+        support_pairs = set(self.concept_support) | set(
+            self.retrospective_support
+        )
+        eligible = sorted(
+            (
+                (
+                    max(
+                        self.concept_support.get(pair, 0),
+                        self.retrospective_support.get(pair, 0),
+                    ),
+                    pair,
+                )
+                for pair in support_pairs
+                if (
+                    max(
+                        self.concept_support.get(pair, 0),
+                        self.retrospective_support.get(pair, 0),
+                    )
+                    >= minimum_support
+                    and not self.concept_signature_exists(
+                        pair,
+                        graph=graph,
+                        live_graph=live_graph,
+                        topology_revision=topology_revision,
+                    )
+                )
+            ),
+            key=lambda item: (-item[0], item[1]),
+        )
+        if not eligible:
+            return None
+
+        _, source_ids = eligible[0]
+        if any(
+            (node := graph.node_by_id(source_id)) is None
+            or node.kind is not NodeKind.SENSE
+            for source_id in source_ids
+        ):
+            return None
+
+        signature = "|".join(source_ids)
+        candidate_id = f"concept:{signature}"
+        core_readouts = sorted(
+            node.node_id
+            for node in graph.nodes
+            if (
+                node.kind is NodeKind.READOUT
+                and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+                and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
+            )
+        )
+        if _CORE_READOUT_ID in core_readouts:
+            core_readouts = [_CORE_READOUT_ID]
+
+        concept_id = self.new_node_id("concept", graph=graph)
+        mutations: list[Mutation] = [
+            Mutation(
+                kind="add_node",
+                payload={
+                    "node_id": concept_id,
+                    "kind": NodeKind.CONCEPT,
+                    "source_ids": source_ids,
+                },
+            )
+        ]
+
+        if core_readouts:
+            readout_id = core_readouts[0]
+        else:
+            existing_ids = {node.node_id for node in graph.nodes}
+            if _CORE_READOUT_ID in existing_ids:
+                return None
+            readout_id = _CORE_READOUT_ID
+            mutations.append(
+                Mutation(
+                    kind="add_node",
+                    payload={
+                        "node_id": readout_id,
+                        "kind": NodeKind.READOUT,
+                    },
+                )
+            )
+
+        mutations.append(
+            Mutation(
+                kind="add_edge",
+                payload={
+                    "source_id": concept_id,
+                    "target_id": readout_id,
+                    "kind": EdgeKind.EXCITATORY,
+                    "weight": _TENTATIVE_WEIGHT,
+                    "plasticity": 0.5,
+                    "delay_ticks": 1,
+                },
+            )
+        )
+        return candidate_id, tuple(mutations)
 
     def update_unrouted(
         self,
