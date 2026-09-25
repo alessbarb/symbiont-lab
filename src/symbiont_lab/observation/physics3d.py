@@ -140,6 +140,42 @@ class Physics3DObservationBridge:
         base_orientation = physical_state.get("base_orientation")
         if isinstance(base_orientation, (list, tuple)) and len(base_orientation) == 4:
             event["base_orientation"] = [float(value) for value in base_orientation]
+
+        center_of_mass = physical_state.get("center_of_mass")
+        if isinstance(center_of_mass, (list, tuple)) and len(center_of_mass) == 3:
+            try:
+                event["center_of_mass"] = [float(value) for value in center_of_mass]
+            except (TypeError, ValueError):
+                pass
+
+        raw_contacts = physical_state.get("contacts", ())
+        contacts: list[dict[str, object]] = []
+        if isinstance(raw_contacts, (list, tuple)):
+            for item in raw_contacts:
+                if not isinstance(item, Mapping):
+                    continue
+                position = item.get("position")
+                normal = item.get("normal")
+                if (
+                    not isinstance(position, (list, tuple))
+                    or len(position) != 3
+                    or not isinstance(normal, (list, tuple))
+                    or len(normal) != 3
+                ):
+                    continue
+                try:
+                    contacts.append(
+                        {
+                            "link_name": str(item.get("link_name", "")),
+                            "position": [float(value) for value in position],
+                            "normal": [float(value) for value in normal],
+                            "normal_force": max(0.0, float(item.get("normal_force", 0.0))),
+                        }
+                    )
+                except (TypeError, ValueError):
+                    continue
+        if contacts:
+            event["contacts"] = contacts
         self._sink.push(event)
 
     def publish(self, snapshot: Any, *, physical_state: dict[str, object]) -> None:
