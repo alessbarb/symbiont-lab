@@ -25,6 +25,8 @@ const METRIC_LABELS = {
   active_joints: 'Active joints',
   active_effectors: 'Active effectors',
   contact_count: 'Body contacts',
+  peak_contact_force: 'Peak contact force',
+  com_height: 'COM height',
   ground_contact_count: 'Ground contacts',
   self_contact_count: 'Self contacts',
   resource_contact_count: 'Resource contacts',
@@ -208,7 +210,7 @@ export class BodyWorkspace {
       this.rows(['alive','metabolic_reserve','reserve_trend']) +
       `<div class="body-mini-chart">${sparkline(reserve)}</div></div>` +
       '<div class="body-section"><div class="body-section-title">Movement</div>' +
-      this.rows(['motor_activity','active_joints','active_effectors','contact_count','ground_contact_count','self_contact_count','distance_travelled','displacement']) +
+      this.rows(['motor_activity','active_joints','active_effectors','contact_count','peak_contact_force','com_height','ground_contact_count','self_contact_count','distance_travelled','displacement']) +
       '</div><div class="body-section"><div class="body-section-title">Environment</div>' +
       this.rows(['resource_distance','resource_progress','motion_effectiveness']) +
       '</div><div class="body-section"><div class="body-section-title">Control</div>' +
@@ -266,7 +268,7 @@ export class BodyWorkspace {
       this.rows(['resource_distance','resource_progress','motion_effectiveness']) +
       `<div class="body-mini-chart">${sparkline(resource)}</div></div>` +
       '<div class="body-section"><div class="body-section-title">Contact</div>' +
-      this.rows(['contact_count','ground_contact_count','self_contact_count','resource_contact_count','active_effectors','displacement']) +
+      this.rows(['contact_count','peak_contact_force','com_height','ground_contact_count','self_contact_count','resource_contact_count','active_effectors','displacement']) +
       '</div><div class="body-section"><div class="body-section-title">Interpretation boundary</div><div class="body-inspector-sub">This view reports observed relationships only. It does not infer intention or feed labels back into Symbiont.</div></div>';
   }
 
