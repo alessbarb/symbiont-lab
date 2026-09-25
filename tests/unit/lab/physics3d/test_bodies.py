@@ -6,8 +6,8 @@ from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
 
 
 def test_default_body_registry_exposes_canonical_anthropomorphic_contract() -> None:
-    descriptor = DEFAULT_BODY_REGISTRY.get("anthropomorphic-v5")
-    assert descriptor.body_kind == "anthropomorphic-v5"
+    descriptor = DEFAULT_BODY_REGISTRY.get("anthropomorphic-v6")
+    assert descriptor.body_kind == "anthropomorphic-v6"
     assert descriptor.motor_dof == 31
     assert descriptor.receptor_count > 31
     assert descriptor.effector_count == 62
@@ -23,7 +23,7 @@ def test_body_registry_rejects_unknown_body_kind() -> None:
 def test_default_registry_exposes_three_distinct_morphologies() -> None:
     bodies = {item.body_kind: item for item in DEFAULT_BODY_REGISTRY.list()}
     assert set(bodies) == {
-        "anthropomorphic-v5",
+        "anthropomorphic-v6",
         "crawler-v1",
         "asymmetric-v1",
     }
