@@ -2205,11 +2205,8 @@ class OrganismRuntime:
                 self_model=self._self_model,
             ),
             context=context,
-            cognition=cognition_result,
-            drift_observations=drift_observations,
-            percept_names=percept_names,
-            allocations=allocations,
-            availability_by_capability=availability_by_capability,
+            perception=perception,
+            cognition=cognition_step,
             reacclimation_remaining=self._reacclimation_remaining,
         )
 
@@ -2269,14 +2266,17 @@ class OrganismRuntime:
         # reserve. Assimilation cost is still charged elsewhere
         # (``_charge_metabolism`` above) regardless of ``_explicit_metabolism``.
 
-        retained_units = float(len(self._drift_baselines)) * 0.001
-        if (
-            self._cognitive_bridge is not None
-            and self._cognitive_bridge.graph is not None
-        ):
-            retained_units += (
-                float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
-            )
+        retained_units = self._memory_domain.retained_units(
+            drift_baseline_count=len(self._drift_baselines),
+            cognitive_node_count=(
+                len(self._cognitive_bridge.graph.nodes)
+                if (
+                    self._cognitive_bridge is not None
+                    and self._cognitive_bridge.graph is not None
+                )
+                else 0
+            ),
+        )
         embodied_work = self._pending_embodied_work
         self._pending_embodied_work = 0.0
         physiology_step = self._physiology_domain.advance(
