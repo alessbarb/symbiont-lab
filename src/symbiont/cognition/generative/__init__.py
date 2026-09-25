@@ -12,7 +12,9 @@ from .agenda import (
 from .budget import GenerativeBudget
 from .episode import new_episode
 from .epistemic import EpistemicBoundaryError, EpistemicFirewall
+from .model import GeneratedProposal, GenerativeContext, GenerativeModel
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, dumps, loads, restore
+from .registry import GenerativeModelRegistry
 from .types import (
     EpistemicOrigin,
     GeneratedFeature,
@@ -36,10 +38,14 @@ __all__ = [
     "EpistemicOrigin",
     "GENERATIVE_COGNITION_SCHEMA_VERSION",
     "GeneratedFeature",
+    "GeneratedProposal",
     "GenerativeBudget",
     "GenerativeAgenda",
     "GenerativeEpisode",
     "GenerativeMode",
+    "GenerativeContext",
+    "GenerativeModel",
+    "GenerativeModelRegistry",
     "GenerativeOperation",
     "GenerativeState",
     "GenerativeTarget",
