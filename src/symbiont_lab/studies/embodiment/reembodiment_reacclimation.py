@@ -197,14 +197,14 @@ def _first_tick(
     return None
 
 
-def analyze_epoch(
-    checkpoints: Sequence[Mapping[str, Any]],
+def analyze_observation_epoch(
+    observations: Sequence[ReembodimentObservation],
 ) -> EpochReacclimationMetrics:
-    if not checkpoints:
+    if not observations:
         raise ValueError("epoch trace must not be empty")
     trace = tuple(
         sorted(
-            (observation_from_checkpoint(item) for item in checkpoints),
+            observations,
             key=lambda point: point.embodiment_tick,
         )
     )
@@ -276,6 +276,14 @@ def analyze_epoch(
     )
 
 
+def analyze_epoch(
+    checkpoints: Sequence[Mapping[str, Any]],
+) -> EpochReacclimationMetrics:
+    return analyze_observation_epoch(
+        tuple(observation_from_checkpoint(item) for item in checkpoints)
+    )
+
+
 def _faster(
     first: int | None,
     second: int | None,
@@ -283,15 +291,15 @@ def _faster(
     return first is not None and second is not None and second < first
 
 
-def analyze_reembodiment_reacclimation(
+def analyze_reembodiment_observations(
     *,
-    a1_trace: Sequence[Mapping[str, Any]],
-    b_trace: Sequence[Mapping[str, Any]],
-    a2_trace: Sequence[Mapping[str, Any]],
+    a1_trace: Sequence[ReembodimentObservation],
+    b_trace: Sequence[ReembodimentObservation],
+    a2_trace: Sequence[ReembodimentObservation],
 ) -> ReembodimentReacclimationStudy:
-    a1 = analyze_epoch(a1_trace)
-    b = analyze_epoch(b_trace)
-    a2 = analyze_epoch(a2_trace)
+    a1 = analyze_observation_epoch(a1_trace)
+    b = analyze_observation_epoch(b_trace)
+    a2 = analyze_observation_epoch(a2_trace)
 
     same_contract_return = (
         a1.contract_fingerprint == a2.contract_fingerprint
@@ -374,12 +382,33 @@ def analyze_reembodiment_reacclimation(
     )
 
 
+def analyze_reembodiment_reacclimation(
+    *,
+    a1_trace: Sequence[Mapping[str, Any]],
+    b_trace: Sequence[Mapping[str, Any]],
+    a2_trace: Sequence[Mapping[str, Any]],
+) -> ReembodimentReacclimationStudy:
+    return analyze_reembodiment_observations(
+        a1_trace=tuple(
+            observation_from_checkpoint(item) for item in a1_trace
+        ),
+        b_trace=tuple(
+            observation_from_checkpoint(item) for item in b_trace
+        ),
+        a2_trace=tuple(
+            observation_from_checkpoint(item) for item in a2_trace
+        ),
+    )
+
+
 __all__ = [
     "EpochReacclimationMetrics",
     "ReacclimationVerdict",
     "ReembodimentObservation",
     "ReembodimentReacclimationStudy",
     "analyze_epoch",
+    "analyze_observation_epoch",
+    "analyze_reembodiment_observations",
     "analyze_reembodiment_reacclimation",
     "observation_from_checkpoint",
 ]
