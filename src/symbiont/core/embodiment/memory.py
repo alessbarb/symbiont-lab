@@ -134,4 +134,160 @@ class EmbodimentArchive:
         return obj
 
 
-__all__ = ["BodySpecificMemory", "EmbodimentArchive"]
+def archive_episode_checkpoint(
+    archive: EmbodimentArchive,
+    episode_payload: Mapping[str, object],
+    *,
+    body_schema_prior: Mapping[str, object] | None,
+    living_body: Mapping[str, object] | None,
+    symbiont_tick: int,
+    end_reason: str,
+) -> EmbodimentEpisodeSummary:
+    """Close one persisted episode into bounded longitudinal memory.
+
+    This helper works on checkpoint data so re-embodiment can archive the old
+    body before the new physical adapter exists. Historical state remains a
+    prior; this function grants no current execution authority.
+    """
+    if episode_payload.get("schema_version") != 2:
+        raise ValueError("unsupported embodiment episode checkpoint")
+    contract = episode_payload.get("contract")
+    contract = contract if isinstance(contract, Mapping) else {}
+    contract_fp = str(contract.get("contract_fingerprint") or "")
+    if not contract_fp:
+        raise ValueError("episode checkpoint lacks contract fingerprint")
+    body_id = str(episode_payload.get("body_id") or "")
+    embodiment_id = str(episode_payload.get("embodiment_id") or "")
+    symbiont_id = str(episode_payload.get("symbiont_id") or "")
+    if not body_id or not embodiment_id or not symbiont_id:
+        raise ValueError("episode checkpoint lacks canonical identities")
+
+    archive.remember_body(
+        BodySpecificMemory(
+            body_id=body_id,
+            contract_fingerprint=contract_fp,
+            last_embodiment_id=embodiment_id,
+            body_schema_prior=deepcopy(dict(body_schema_prior))
+            if isinstance(body_schema_prior, Mapping)
+            else None,
+            dynamics_prior=deepcopy(episode_payload.get("dynamics_model"))
+            if isinstance(episode_payload.get("dynamics_model"), Mapping)
+            else None,
+            embodied_competence_priors=deepcopy(
+                episode_payload.get("embodied_competences")
+            )
+            if isinstance(episode_payload.get("embodied_competences"), Mapping)
+            else None,
+            historical_causal_state=deepcopy(
+                episode_payload.get("causal_evidence")
+            )
+            if isinstance(episode_payload.get("causal_evidence"), Mapping)
+            else None,
+        )
+    )
+
+    adaptation = episode_payload.get("adaptation")
+    adaptation = adaptation if isinstance(adaptation, Mapping) else {}
+    schema = body_schema_prior if isinstance(body_schema_prior, Mapping) else {}
+    body = living_body if isinstance(living_body, Mapping) else {}
+    state = str(schema.get("state") or "undeveloped")
+    parts = schema.get("parts")
+    parts = parts if isinstance(parts, list) else []
+    confidence_classes = [
+        int(item.get("existence_confidence_class", 0))
+        for item in parts
+        if isinstance(item, Mapping)
+    ]
+    schema_confidence = (
+        sum(confidence_classes) / (15.0 * len(confidence_classes))
+        if confidence_classes
+        else 0.0
+    )
+    embodied = episode_payload.get("embodied_competences")
+    embodied = embodied if isinstance(embodied, Mapping) else {}
+    items = embodied.get("items")
+    items = items if isinstance(items, list) else []
+    revalidated = sum(
+        1
+        for item in items
+        if isinstance(item, Mapping)
+        and item.get("surface_binding")
+        and item.get("evidence_refs")
+    )
+    causal = episode_payload.get("causal_evidence")
+    causal = causal if isinstance(causal, Mapping) else {}
+    evidence = causal.get("evidence")
+    evidence = evidence if isinstance(evidence, list) else []
+    contract_history = episode_payload.get("contract_history")
+    contract_history = contract_history if isinstance(contract_history, list) else []
+
+    summary = EmbodimentEpisodeSummary(
+        embodiment_id=embodiment_id,
+        epoch=max(1, int(episode_payload.get("epoch") or 1)),
+        symbiont_id=symbiont_id,
+        body_id=body_id,
+        initial_contract_fingerprint=(
+            str(contract_history[0].get("previous_fingerprint"))
+            if contract_history and isinstance(contract_history[0], Mapping)
+            else contract_fp
+        ),
+        final_contract_fingerprint=contract_fp,
+        contract_transition_count=len(contract_history),
+        started_at_symbiont_tick=int(
+            episode_payload.get("start_symbiont_tick") or 0
+        ),
+        ended_at_symbiont_tick=int(symbiont_tick),
+        embodiment_ticks=int(episode_payload.get("embodiment_tick") or 0),
+        final_body_age_ticks=(
+            int(body.get("age_ticks"))
+            if body.get("age_ticks") is not None
+            else None
+        ),
+        end_reason=str(end_reason),
+        body_vital_state=str(body.get("vital_state") or "unknown"),
+        initial_body_schema_state="undeveloped",
+        final_body_schema_state=state,
+        initial_schema_confidence=0.0,
+        final_schema_confidence=float(schema_confidence),
+        schema_revision_count=int(
+            (
+                schema.get("boundary_evidence")
+                if isinstance(schema.get("boundary_evidence"), Mapping)
+                else {}
+            ).get("revision_count", 0)
+        ),
+        initial_prediction_error=0.0,
+        final_prediction_error=float(
+            adaptation.get("prediction_error_recent", 0.0)
+        ),
+        peak_prediction_shock=float(adaptation.get("prediction_shock", 0.0)),
+        initial_controllability_confidence=0.0,
+        final_controllability_confidence=float(
+            adaptation.get("controllability_confidence", 0.0)
+        ),
+        competences_present_at_start=0,
+        competences_revalidated=revalidated,
+        competences_acquired=max(0, len(items) - revalidated),
+        competences_lost=0,
+        causal_relations_acquired=len(evidence),
+        causal_relations_revalidated=0,
+        adaptation_first_revision_tick=(
+            int(adaptation["first_revision_tick"])
+            if adaptation.get("first_revision_tick") is not None
+            else None
+        ),
+        adaptation_recovery_tick=(
+            int(adaptation["recovery_tick"])
+            if adaptation.get("recovery_tick") is not None
+            else None
+        ),
+    )
+    archive.append_summary(summary)
+    return summary
+
+
+__all__ = [
+    "BodySpecificMemory",
+    "EmbodimentArchive",
+    "archive_episode_checkpoint",
+]

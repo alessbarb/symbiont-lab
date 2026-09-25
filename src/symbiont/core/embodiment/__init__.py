@@ -24,7 +24,7 @@ from .dynamics import (
     SensorimotorDynamicsModel,
 )
 from .history import EmbodimentEpisodeSummary
-from .memory import BodySpecificMemory, EmbodimentArchive
+from .memory import BodySpecificMemory, EmbodimentArchive, archive_episode_checkpoint
 from .reachability import ReachabilityModel, ReachabilityRelation
 from .reembodiment import (
     ReembodimentPrior,
@@ -57,6 +57,7 @@ __all__ = [
     "ReembodimentPrior",
     "SensorimotorDynamicsModel",
     "TimingContract",
+    "archive_episode_checkpoint",
     "begin_reembodiment",
     "implant",
     "implant_body",

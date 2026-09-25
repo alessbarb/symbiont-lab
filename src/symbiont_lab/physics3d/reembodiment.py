@@ -5,6 +5,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from symbiont.core.embodiment import EmbodimentArchive, archive_episode_checkpoint
+
 from .longitudinal import (
     CONTRACT_FINGERPRINT_SCHEMA_VERSION,
     append_epoch_summary,
@@ -434,6 +436,34 @@ def prepare_fresh_embodiment_checkpoint(
     """
     previous = migrate_temporal_domains(previous)
     result = deepcopy(dict(previous))
+    # Archive the canonical episode before removing its current authority.
+    raw_episode = previous.get("embodiment_episode")
+    if isinstance(raw_episode, Mapping) and raw_episode.get("schema_version") == 2:
+        raw_archive = previous.get("embodiment_archive")
+        archive = EmbodimentArchive.restore(
+            raw_archive if isinstance(raw_archive, Mapping) else None
+        )
+        archive_episode_checkpoint(
+            archive,
+            raw_episode,
+            body_schema_prior=(
+                previous.get("body_schema")
+                if isinstance(previous.get("body_schema"), Mapping)
+                else None
+            ),
+            living_body=(
+                previous.get("living_body")
+                if isinstance(previous.get("living_body"), Mapping)
+                else None
+            ),
+            symbiont_tick=int(previous.get("saved_at_tick") or 0),
+            end_reason=(
+                "body_death"
+                if _body_vital_state(previous) == "dead"
+                else "body_replaced"
+            ),
+        )
+        result["embodiment_archive"] = archive.checkpoint()
     # A new physical Body always starts a new canonical episode. Never carry
     # the previous body/episode identity through the compatibility transform.
     result.pop("embodiment_episode", None)

@@ -26,6 +26,7 @@ from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 from symbiont.core.embodiment import (
     EmbodimentContract as CoreEmbodimentContract,
     EmbodimentEndReason,
+    EmbodimentArchive,
     EmbodimentEpisode,
     EmbodimentState,
     PerceptualSurface,
@@ -579,6 +580,15 @@ class PyBulletEmbodimentRuntime:
             "reacclimation_completed": bool(raw_epoch_metrics.get("reacclimation_completed", False)),
             "vital_state_ticks": dict(raw_epoch_metrics.get("vital_state_ticks") or {}),
         }
+        raw_core_archive = (
+            restored_payload.get("embodiment_archive")
+            if runtime_checkpoint is not None
+            else None
+        )
+        self._embodiment_archive = EmbodimentArchive.restore(
+            raw_core_archive if isinstance(raw_core_archive, Mapping) else None
+        )
+
         self._last_physical_tick = self.tick_count
         self._telemetry_seen_experience_ids = {
             str(record.record_id)
@@ -958,6 +968,7 @@ class PyBulletEmbodimentRuntime:
         payload["embodiment_episode"] = self._embodiment_episode.checkpoint(
             current_tick=self.tick_count
         )
+        payload["embodiment_archive"] = self._embodiment_archive.checkpoint()
 
         payload = update_lifecycle_for_checkpoint(
             payload,
