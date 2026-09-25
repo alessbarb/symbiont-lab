@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `470c7707`
+**Audited commit:** `211a63b4`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -97,7 +97,7 @@ built by composing several mature existing components.
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded rollout substrate; integration and scientific utility pending** |
 | GC-4 | Branching | **PARTIAL — bounded sibling branch substrate; pruning/equivalence/merge pending** |
 | GC-5 | Counterfactual cognition | **PARTIAL — bounded generic rollout substrate; concrete adapters and utility pending** |
-| GC-6 | Replay | **PARTIAL — memory substrate exists** |
+| GC-6 | Replay | **IMPLEMENTED — provenance-preserving materialization; concrete memory wiring pending** |
 | GC-7 | Recombination | **MISSING** |
 | GC-8 | Hypothesis + reconciliation | **PARTIAL** |
 | GC-9 | Epistemic agency | **PARTIAL — pragmatic agency exists** |
@@ -1344,12 +1344,12 @@ GC-E8 — Replay Utility
 ## Status
 
 ```text
-PARTIAL
+IMPLEMENTED — bounded materialization only
 ```
 
-Memory and replay data are largely ready.
-
-Generative instantiation is missing.
+Memory and replay data are largely ready. The generative instantiation now
+exists behind an explicit projection boundary; concrete episodic-memory wiring,
+replay equivalence and GC-E8 utility evidence remain open.
 
 ---
 
