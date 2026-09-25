@@ -49,3 +49,34 @@ def test_visual_interpolation_remains_observer_only() -> None:
     assert "requestAnimationFrame" in viewer
     assert "Presentation frames are observer-only" in viewer
     assert "Physics/Symbiont remain untouched" in viewer
+
+
+def test_body_visual_v3_reports_flexion_separately_from_activity() -> None:
+    viewer = _read(VIEWER)
+    workspace = _read(WEB / "views" / "body" / "workspace.js")
+
+    assert "displayedJointAngles" in viewer
+    assert "jointFlexionSummary" in viewer
+    assert "jointAngleDegrees" in viewer
+    assert "Flexed joints ≥10°" in workspace
+    assert "Largest joint angle" in workspace
+
+
+def test_articulation_diagnostic_is_visual_only() -> None:
+    viewer = _read(VIEWER)
+    workspace = _read(WEB / "views" / "body" / "workspace.js")
+
+    assert "articulationDiagnosticPose" in viewer
+    assert "applyArticulationDiagnosticPose" in viewer
+    assert "Visual-only pose check" in viewer
+    assert "Physics and Symbiont continue untouched" in workspace
+
+
+def test_compound_anatomy_does_not_assume_one_material_per_segment() -> None:
+    viewer = _read(VIEWER)
+    anatomy = _read(ANATOMY)
+
+    assert "forEachSegmentMaterial" in viewer
+    assert "setSegmentInspectorHighlight" in viewer
+    assert "const group = new THREE.Group()" in anatomy
+    assert "mesh.material.emissive.setHex(activity" not in viewer
