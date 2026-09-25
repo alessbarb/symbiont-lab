@@ -60,6 +60,7 @@ class PerceptionStepResult:
     knowledge_view: tuple[dict[str, Any], ...]
     sampling_plan: SamplingPlan | None
     percept_names: dict[str, str]
+    developed_names: dict[str, str]
     capability_by_percept_name: dict[str, str]
     cognitive_aliases: dict[str, str]
     selected_ids: frozenset[str]
@@ -488,6 +489,7 @@ class PerceptionDomain:
             knowledge_view=knowledge_view,
             sampling_plan=sampling_plan,
             percept_names=percept_names,
+            developed_names=dict(developed_names),
             capability_by_percept_name=capability_by_percept_name,
             cognitive_aliases=cognitive_aliases,
             selected_ids=frozenset(selected_ids),

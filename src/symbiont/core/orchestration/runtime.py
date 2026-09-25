@@ -118,6 +118,7 @@ from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorS
 from ..domains.action import ActionDomain, ActionServices
 from ..domains.physiology import PhysiologyDomain, PhysiologyServices
 from ..domains.perception import PerceptionDomain, PerceptionServices
+from ..domains.cognition import CognitionDomain, CognitionServices
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -720,6 +721,7 @@ class OrganismRuntime:
         ] = []
         self._physiology_domain = PhysiologyDomain()
         self._perception_domain = PerceptionDomain()
+        self._cognition_domain = CognitionDomain()
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
@@ -2191,6 +2193,7 @@ class OrganismRuntime:
         knowledge_view = perception.knowledge_view
         sampling_plan = perception.sampling_plan
         percept_names = perception.percept_names
+        developed_names = perception.developed_names
         capability_by_percept_name = perception.capability_by_percept_name
         cognitive_aliases = perception.cognitive_aliases
         selected_ids = set(perception.selected_ids)
@@ -2232,88 +2235,45 @@ class OrganismRuntime:
             else ()
         )
 
-        cognition_result: CognitiveBridgeResult | None = None
-        cognitive_self_observation: dict[str, Any] | None = None
-        if self._cognitive_bridge is not None:
-            sense_values = {
-                percept.name: percept.value for percept in percepts if percept.value is not None
-            }
-            raw_values = {
-                reading.capability_id: float(reading.value)
-                for reading in cognitive_readings
-                if reading.value is not None
-            }
-            for capability_id, alias in cognitive_aliases.items():
-                raw_value = raw_values.get(capability_id)
-                if raw_value is not None:
-                    sense_values.setdefault(alias, raw_value)
-
-            attended_sense_ids: set[str] = set()
-            sense_modulation: dict[str, float] = {}
-            if self._sensory_system.plasticity_enabled:
-                sensor_by_name = {
-                    sensor.cognitive_name: sensor for sensor in self._sensory_system.sensors
-                }
-                for allocation in perceptual_allocations:
-                    sensor = sensor_by_name.get(allocation.name)
-                    if sensor is None:
-                        continue
-                    attended_sense_ids.add(sensor.cognitive_name)
-                    sense_modulation[sensor.cognitive_name] = max(
-                        0.0, min(1.0, sensor.health * sensor.confidence)
-                    )
-            else:
-                for allocation in allocations:
-                    capability_id = allocation.name
-                    node_names = {
-                        name
-                        for name in (percept_names.get(capability_id), cognitive_aliases.get(capability_id))
-                        if name is not None
-                    }
-                    availability = availability_by_capability.get(capability_id, 1.0)
-                    health = self._self_model.health(capability_id, current_tick=self._tick_count)
-                    modulation = max(0.0, min(1.0, availability * health))
-                    for node_name in node_names:
-                        attended_sense_ids.add(node_name)
-                        sense_modulation[node_name] = modulation
-
-            cognition_result = self._cognitive_bridge.tick(
-                sense_values,
-                tick=self._tick_count + 1,
-                attended_sense_ids=attended_sense_ids,
-                sense_modulation=sense_modulation,
-                plasticity_enabled=plasticity_gate,
-                active_motor_actuator_ids=(
-                    self._actuator_proposer.active_repertoire
-                    if self._actuator_proposer is not None
-                    else ()
-                ),
-                motor_effect_actuator_ids=motor_effect_actuator_ids,
-                active_primitive_ids=tuple(
-                    primitive.primitive_id
-                    for primitive in cognitive_primitives
-                ),
-            )
-            if self._auto_promote_predictors:
-                self._cognitive_bridge.nominate_shadow_prediction(
-                    tick=self._tick_count + 1
-                )
-            cognitive_activations = getattr(cognition_result, "activations", None)
-            if (
-                isinstance(cognitive_activations, dict)
-                and getattr(cognition_result, "consecutive_failures", 0) == 0
-                and self._reacclimation_remaining <= 0
-            ):
-                known_sensory_nodes = (
-                    set(percept_names.values())
-                    | set(developed_names.values())
-                    | set(cognitive_aliases.values())
-                )
-                cognitive_self_observation = project_cognitive_self_observation(
-                    cognitive_activations,
-                    sensory_ids=known_sensory_nodes,
-                    namespace_key=self._cognitive_self_namespace_key,
-                )
+        active_motor_actuator_ids = (
+            self._actuator_proposer.active_repertoire
+            if self._actuator_proposer is not None
+            else ()
+        )
+        cognition_step = self._cognition_domain.step(
+            services=CognitionServices(
+                cognitive_bridge=self._cognitive_bridge,
+                sensory_system=self._sensory_system,
+                self_model=self._self_model,
+                memory_consolidator=self._memory_consolidator,
+                charge_metabolism=self._charge_metabolism,
+            ),
+            tick=self._tick_count + 1,
+            percepts=percepts,
+            cognitive_readings=cognitive_readings,
+            percept_names=percept_names,
+            developed_names=developed_names,
+            cognitive_aliases=cognitive_aliases,
+            allocations=allocations,
+            perceptual_allocations=perceptual_allocations,
+            availability_by_capability=availability_by_capability,
+            drift_observations=drift_observations,
+            active_motor_actuator_ids=active_motor_actuator_ids,
+            motor_effect_actuator_ids=motor_effect_actuator_ids,
+            active_competence_ids=tuple(
+                primitive.primitive_id
+                for primitive in cognitive_primitives
+            ),
+            plasticity_enabled=plasticity_gate,
+            auto_promote_predictors=self._auto_promote_predictors,
+            reacclimation_remaining=self._reacclimation_remaining,
+            current_tick=self._tick_count,
+            cognitive_self_namespace_key=self._cognitive_self_namespace_key,
+        )
+        cognition_result = cognition_step.cognition
+        cognitive_self_observation = (
+            cognition_step.cognitive_self_observation
+        )
 
         current_signal_references = {
             **{
@@ -2334,52 +2294,6 @@ class OrganismRuntime:
             tick=self._tick_count + 1,
             signal_references=current_signal_references,
         )
-
-        predictive_gain_by_name: dict[str, float] = {}
-        if self._cognitive_bridge is not None:
-            for candidate in getattr(self._cognitive_bridge, "shadow_predictions", ()):
-                # ShadowPrediction(source, target) measures whether the prior
-                # source value predicts the target better than persistence.
-                # Credit therefore belongs to the sensory source that supplied
-                # useful predictive information, not to the predicted target.
-                predictive_gain_by_name[candidate.source_id] = max(
-                    predictive_gain_by_name.get(candidate.source_id, 0.0),
-                    max(0.0, candidate.predictive_gain),
-                )
-        self._sensory_system.update_downstream_utility(predictive_gain_by_name)
-        sensory_mutations = self._sensory_system.plastic_step(tick=self._tick_count + 1)
-        if sensory_mutations:
-            self._charge_metabolism(
-                "cognition",
-                sum(min(0.01, mutation.cost * 0.01) for mutation in sensory_mutations),
-            )
-
-        if not self._reacclimation_remaining:
-            attended_capability_ids = {allocation.name for allocation in allocations}
-            capability_by_percept_name = {name: capability_id for capability_id, name in percept_names.items()}
-            prediction_loss_by_node: dict[str, float] = {}
-            if cognition_result is not None:
-                for error in cognition_result.prediction_errors:
-                    prediction_loss_by_node[error.target_id] = error.loss
-
-            for percept_name, observation in drift_observations.items():
-                capability_id = capability_by_percept_name.get(percept_name)
-                novelty = novelty_from_drift_kind(observation.kind)
-                surprise = surprise_from_loss(prediction_loss_by_node.get(percept_name))
-                attention = 1.0 if capability_id in attended_capability_ids else 0.0
-                availability = availability_by_capability.get(capability_id, 1.0) if capability_id else 1.0
-                health = (
-                    self._self_model.health(capability_id, current_tick=self._tick_count)
-                    if capability_id is not None
-                    else 0.5
-                )
-                reliability = max(0.0, min(1.0, availability * health))
-                signal = ConsolidationSignal(
-                    novelty=novelty, surprise=surprise, attention=attention, reliability=reliability, coherence=0.0
-                )
-                self._memory_consolidator.observe(
-                    percept_name, MemoryKind.SALIENT_EVENT, signal, tick=self._tick_count + 1
-                )
 
         investigated_capability: str | None = None
         evidence_gathered = 0
