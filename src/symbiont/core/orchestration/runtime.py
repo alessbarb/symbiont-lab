@@ -2182,11 +2182,24 @@ class OrganismRuntime:
             reacclimation_remaining=self._reacclimation_remaining,
         )
 
-        self._motor_step(
+        self._action_domain.step(
             cognition_result,
             percepts,
             context=context,
             signal_references=perception.signal_references,
+            services=ActionServices(
+                sensory_system=self._sensory_system,
+                homeostasis=self._homeostasis,
+                innate_reactivity=self._innate_reactivity,
+                reactive_memory=self._reactive_memory,
+                body_schema=self._body_schema,
+                cognitive_bridge=self._cognitive_bridge,
+                gene_expression_state=self._gene_expression_state,
+                choose_acquired_competence=self._choose_acquired_competence,
+                schedule_homeostatic_action_credit=(
+                    self._schedule_homeostatic_action_credit
+                ),
+            ),
         )
 
         epistemic = self._epistemic_domain.investigate(
