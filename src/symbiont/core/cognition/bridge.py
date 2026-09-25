@@ -1215,105 +1215,51 @@ class CognitiveBridge:
             max_nodes=self._kernel_limits.max_nodes,
         )
 
-    def promote_shadow_prediction(self, source_id: str, target_id: str, *, tick: int) -> bool:
-        """Register one validated lag-1 predictor for structural contention.
-
-        Promotion no longer materializes graph structure immediately. A
-        promotable shadow hypothesis earns the right to contend for bounded
-        cognitive capacity; only the consolidation arbiter may execute its
-        add-node/add-edge transaction.
-        """
-        shadow = self._predictors.shadows.get((source_id, target_id))
-        if shadow is None or not shadow.promotable or not self._develop_senses:
-            return False
-        source_node = self._graph.node_by_id(source_id)
-        if source_node is None or source_node.kind is not NodeKind.SENSE:
-            return False
-        if self._graph.node_by_id(target_id) is None or target_id in self._predictors.retirement:
-            return False
-        if any(
-            node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id
-            for node in self._graph.nodes
-        ):
-            return False
-
+    def promote_shadow_prediction(
+        self,
+        source_id: str,
+        target_id: str,
+        *,
+        tick: int,
+    ) -> bool:
         candidate_id = f"predictor:{source_id}:{target_id}"
-        existing = self._contention.candidates.get(candidate_id)
-        if existing is not None:
+        if candidate_id in self._contention.candidates:
             return True
-
-        digest = hashlib.sha256(candidate_id.encode("utf-8")).hexdigest()[:16]
-        predictor_id = f"predictor_{digest}"
-        existing_ids = {node.node_id for node in self._graph.nodes}
-        if predictor_id in existing_ids:
+        proposal = self._predictors.propose_promotion(
+            source_id,
+            target_id,
+            graph=self._graph,
+            develop_senses=self._develop_senses,
+        )
+        if proposal is None:
             return False
-
+        candidate_id, mutations = proposal
         return self._contention.register(
             candidate_id=candidate_id,
             family="predictor",
             eligible_tick=tick,
-            mutations=(
-                Mutation(
-                    kind="add_node",
-                    payload={
-                        "node_id": predictor_id,
-                        "kind": NodeKind.PREDICTOR,
-                        "predicts_node_id": target_id,
-                    },
-                ),
-                Mutation(
-                    kind="add_edge",
-                    payload={
-                        "source_id": source_id,
-                        "target_id": predictor_id,
-                        "kind": EdgeKind.PREDICTIVE,
-                        "weight": 1.0,
-                        "plasticity": 0.25,
-                        "delay_ticks": 0,
-                    },
-                ),
-            ),
+            mutations=mutations,
         )
 
-
     def nominate_shadow_prediction(self, *, tick: int) -> bool:
-        """Let predictive learning expose exactly one locally selected nominee.
-
-        The global arbiter never sees shadow multiplicity. Local ranking uses
-        only evidence produced by this predictive mechanism and therefore does
-        not compare semantic value across cognitive producers.
-        """
-        producer_id = StructuralContention.producer_id_for_family("predictor")
+        producer_id = StructuralContention.producer_id_for_family(
+            "predictor"
+        )
         if any(
             candidate.producer_id == producer_id
             for candidate in self._contention.candidates.values()
         ):
             return False
-
-        ranked = sorted(
-            (
-                candidate
-                for candidate in self._predictors.shadows.values()
-                if candidate.promotable
-            ),
-            key=lambda candidate: (
-                -candidate.predictive_gain,
-                -candidate.samples,
-                self._contention.candidate_tiebreak(
-                    f"{candidate.source_id}:{candidate.target_id}"
-                ),
-                candidate.source_id,
-                candidate.target_id,
-            ),
+        nominee = self._predictors.nominate_shadow(
+            tiebreak=self._contention.candidate_tiebreak,
         )
-        for candidate in ranked:
-            if self.promote_shadow_prediction(
-                candidate.source_id,
-                candidate.target_id,
-                tick=tick,
-            ):
-                return True
-        return False
+        if nominee is None:
+            return False
+        return self.promote_shadow_prediction(
+            nominee[0],
+            nominee[1],
+            tick=tick,
+        )
 
     @property
     def stranded_concepts(self) -> tuple[str, ...]:
