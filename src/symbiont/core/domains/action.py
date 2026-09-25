@@ -88,6 +88,16 @@ class ActionCognitionProjection:
     active_competence_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class ActionStepResult:
+    """Passive report that a committed command crossed the body boundary."""
+
+    action_id: str
+    executed: bool
+    result: object | None = None
+    reason: str | None = None
+
+
 class ActionDomain:
     """Canonical causal owner of the Sensorimotor v2 action path."""
 
@@ -671,7 +681,7 @@ class ActionDomain:
         context: TickContext,
         signal_references: dict[str, str] | None = None,
         services: ActionServices,
-    ) -> None:
+    ) -> ActionStepResult | None:
         if context.symbiont_id != self.organism_id:
             raise ValueError("action context belongs to another Symbiont")
         if (
@@ -888,7 +898,7 @@ class ActionDomain:
             or self._competence_development is None
             or self.surface is None
         ):
-            return
+            return None
 
         self.last_action_source = "none"
         intents: tuple[MotorIntent, ...] = ()
@@ -1172,7 +1182,7 @@ class ActionDomain:
                     discovery_eligible=False,
                     execution_primitive_id=None,
                 )
-            return
+            return None
 
         # Low-level feedback/control commands inherit the selected commitment;
         # they are not new deliberative actions.
@@ -1311,6 +1321,15 @@ class ActionDomain:
                         baseline_error=homeostatic_baseline,
                         tick=tick,
                     )
+
+        if self.last_motor_command is None:
+            return None
+        return ActionStepResult(
+            action_id=self.last_motor_command.command_id,
+            executed=True,
+            result=None,
+            reason=None,
+        )
 
 
     def snapshot(
