@@ -1049,6 +1049,8 @@ class OrganismRuntime:
         self,
         embodiment_id: str,
         *,
+        body_id: str | None = None,
+        embodiment_tick: int | None = None,
         new_episode: bool,
     ) -> None:
         """Bind physical action authority to one canonical EmbodimentEpisode.
@@ -1059,6 +1061,12 @@ class OrganismRuntime:
         """
         if not isinstance(embodiment_id, str) or not embodiment_id:
             raise ValueError("embodiment_id must be non-empty")
+        self._embodiment_domain.bind(
+            embodiment_id=embodiment_id,
+            body_id=body_id,
+            embodiment_tick=embodiment_tick,
+            new_episode=new_episode,
+        )
         if not self._actuation_enabled:
             return
         surface = self._action_domain.surface
@@ -2087,10 +2095,10 @@ class OrganismRuntime:
             raise OrganismDeadError("organism is irreversibly dead")
         expected_tick = self._tick_count + 1
         if context is None:
-            context = TickContext(
+            context = self._embodiment_domain.context(
                 symbiont_id=self._organism_id,
                 symbiont_tick=expected_tick,
-                embodiment_id=self._action_domain.embodiment_id,
+                fallback_embodiment_id=self._action_domain.embodiment_id,
             )
         else:
             if context.symbiont_id != self._organism_id:
@@ -2099,14 +2107,14 @@ class OrganismRuntime:
                 raise ValueError(
                     "tick context symbiont time is not the next organism tick"
                 )
-            if (
-                self._action_domain.embodiment_id is not None
-                and context.embodiment_id
-                != self._action_domain.embodiment_id
-            ):
-                raise ValueError(
-                    "tick context belongs to another EmbodimentEpisode"
-                )
+        self._embodiment_domain.validate_context(context)
+        if (
+            self._action_domain.embodiment_id is not None
+            and context.embodiment_id != self._action_domain.embodiment_id
+        ):
+            raise ValueError(
+                "tick context belongs to another action EmbodimentEpisode"
+            )
         tick_start = time.monotonic()
         action_result: ActionExecutionResult | None = None
         self._reacclimation_remaining = (
@@ -2343,6 +2351,7 @@ class OrganismRuntime:
         )
 
         self._tick_count = context.symbiont_tick
+        self._embodiment_domain.complete_context(context)
         self._physiology_domain.advance_body_age(self._living_body_state)
         self._lifecycle_domain.record_journal(
             self._narrative_journal,
