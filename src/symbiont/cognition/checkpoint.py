@@ -6,7 +6,8 @@ import math
 from typing import Any, Mapping
 
 from .activation import MIN_NORMALIZER_SAMPLES, SensoryNormalizer
-from .genome import Genome, GenomeCodec, GenomeError, _genome_to_plain_dict, legacy_validation_version
+from symbiont.genetics.genome import Genome, GenomeError, _genome_to_plain_dict, legacy_validation_version
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 from .graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
 from .limits import KernelLimits
 from .metaplasticity import SafetyState
