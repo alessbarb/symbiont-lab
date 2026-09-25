@@ -20,6 +20,7 @@ from symbiont.cognition.generative import (
 @dataclass
 class BranchModel:
     model_id: str
+    output_token: str = "branch"
 
     def supports(self, operation, state):
         return operation is GenerativeOperation.BRANCH
@@ -27,7 +28,7 @@ class BranchModel:
     def generate(self, *, state, operation, context):
         return (
             GeneratedProposal(
-                (GeneratedFeature(self.model_id, state.depth, 0.8, self.model_id),),
+                (GeneratedFeature(self.output_token, state.depth, 0.8, self.model_id),),
                 (self.model_id,),
                 0.2,
                 0.9,
@@ -35,6 +36,33 @@ class BranchModel:
                 (state.state_id,),
             ),
         )
+
+
+def test_branch_prunes_equivalent_generated_states():
+    episode = new_episode(
+        episode_id="e1",
+        organism_id="o0",
+        root_state_id="s0",
+        mode=GenerativeMode.OFFLINE,
+        symbiont_tick=0,
+        generative_tick=0,
+    )
+    workspace = GenerativeWorkspace(episode=episode)
+    workspace.add_state(
+        GenerativeState(
+            "s0", "e1", EpistemicOrigin.INFERRED, None, 0, (), (), (), (), (), (), 0.3, 1.0, 0
+        )
+    )
+    registry = GenerativeModelRegistry()
+    registry.register(BranchModel("a-model"))
+    registry.register(BranchModel("b-model"))
+
+    result = BranchEngine(registry=registry, workspace=workspace).branch(
+        root_state_id="s0", context=GenerativeContext(), max_branches=2
+    )
+
+    assert len(result.states) == 1
+    assert len(result.transitions) == 1
 
 
 def test_branch_creates_deterministic_siblings_within_bound():

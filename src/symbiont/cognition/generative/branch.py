@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .equivalence import equivalent_states
 from .model import GenerativeContext
 from .registry import GenerativeModelRegistry
 from .rollout import RolloutResult
@@ -97,6 +98,8 @@ class BranchEngine:
                 or next_state.depth > self.workspace.budget.max_depth
             ):
                 return self._finish(states, transitions, GenerativeTermination.BUDGET_EXHAUSTED)
+            if any(equivalent_states(next_state, existing) for existing in self.workspace.states):
+                continue
             try:
                 self.workspace.add_state(next_state)
                 self.workspace.add_transition(transition)
