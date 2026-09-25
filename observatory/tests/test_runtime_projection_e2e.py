@@ -105,3 +105,78 @@ def test_observer_provenance_projects_without_entering_organism():
     validate(snapshot, json.loads(schema_path.read_text(encoding="utf-8")), schema_root=schema_path.parent)
     assert snapshot["observer"]["signal_provenance"][0]["label"] == "Temperature"
     assert "observer" not in snapshot["organism"]
+
+
+def test_embodiment_projection_is_bounded_passive_and_schema_valid():
+    runtime = OrganismRuntime()
+    result = runtime.tick()
+    embodiment = {
+        "embodiment_id": "embodiment.test",
+        "body_id": "body.test",
+        "epoch": 3,
+        "embodiment_tick": 41,
+        "contract_fingerprint": "a" * 64,
+        "state": "active",
+        "adaptation": {
+            "prediction_error_recent": 0.125,
+            "prediction_shock": 0.25,
+            "schema_uncertainty": 0.30,
+            "causal_confidence": 0.60,
+            "controllability_confidence": 0.55,
+            "competence_revalidation_ratio": 0.40,
+            "disruption_score": 0.30,
+            "adaptation_ticks": 41,
+            "recovery_tick": None,
+            "private_raw_state": {"must": "not escape"},
+        },
+        "dynamics": {
+            "relation_count": 17,
+            "mean_prediction_error": 0.125,
+            "weights": {"private": 1.0},
+        },
+        "embodied_competences": {
+            "count": 4,
+            "executable": 2,
+            "items": [{"private": True}],
+        },
+        "physical_anatomy": {"joint_names": ["forbidden"]},
+    }
+    snapshot = project_tick(result, embodiment_state=embodiment)
+    schema_path = Path(__file__).parents[1] / "schemas" / "snapshot.schema.json"
+    validate(
+        snapshot,
+        json.loads(schema_path.read_text(encoding="utf-8")),
+        schema_root=schema_path.parent,
+    )
+
+    assert snapshot["schema_version"] == 3
+    projected = snapshot["organism"]["embodiment"]
+    assert projected["embodiment_id"] == "embodiment.test"
+    assert projected["body_id"] == "body.test"
+    assert projected["epoch"] == 3
+    assert projected["embodiment_tick"] == 41
+    assert projected["execution"] == {
+        "binding_count": 4,
+        "executable_count": 2,
+    }
+    assert snapshot["organism"]["body_schema"]["state"] == "undeveloped"
+    serialized = json.dumps(projected)
+    assert "joint_names" not in serialized
+    assert "physical_anatomy" not in serialized
+    assert "weights" not in serialized
+    assert "private_raw_state" not in serialized
+
+
+def test_invalid_embodiment_projection_fails_closed_without_changing_snapshot_version():
+    runtime = OrganismRuntime()
+    result = runtime.tick()
+    snapshot = project_tick(
+        result,
+        embodiment_state={
+            "embodiment_id": "",
+            "body_id": "body.test",
+            "contract_fingerprint": "x",
+        },
+    )
+    assert snapshot["schema_version"] == 1
+    assert "embodiment" not in snapshot["organism"]
