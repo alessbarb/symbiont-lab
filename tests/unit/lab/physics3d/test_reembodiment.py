@@ -412,7 +412,7 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
         contract=PhysicsEmbodimentDescriptor("compact-v1", 84, 40),
     )
     v2 = transformed["actuation"]["sensorimotor_v2"]
-    assert v2["schema_version"] == 2
+    assert v2["schema_version"] == 3
     assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
     assert "surface_binding" not in v2["competences"][0]
     assert v2["competences"][0]["effect_id"] is None

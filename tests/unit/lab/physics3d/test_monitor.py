@@ -150,7 +150,6 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.action_source_protection == 3
     assert snapshot.action_source_prospection == 7
     assert snapshot.action_source_regulation == 34
-    assert snapshot.action_source_none == 5
     assert snapshot.action_source_none == 49
     assert snapshot.motor_repertoire_size == 6
     assert snapshot.sensorimotor_coverage == 1.0
@@ -448,4 +447,3 @@ def test_point_in_polygon_2d():
     assert _point_in_polygon_2d((0.0, 3.0), poly) is False
     assert _point_in_polygon_2d((0.0, 0.0), []) is False
     assert _point_in_polygon_2d((0.0, 0.0), [(0.0, 0.0), (1.0, 1.0)]) is False
-

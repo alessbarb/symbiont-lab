@@ -22,8 +22,12 @@ class _FakeRuntimeForSave:
         self.organism = SimpleNamespace(signal_knowledge=_FakeSignalKnowledge(tick))
         self._physical_error = physical_error
 
-    def checkpoint(self):
-        return {"saved_at_tick": self.tick_count, "organism_id": "test"}
+    def checkpoint(self, *, lifecycle_state="active"):
+        return {
+            "saved_at_tick": self.tick_count,
+            "organism_id": "test",
+            "lifecycle_state": lifecycle_state,
+        }
 
     def physical_checkpoint(self):
         if self._physical_error is not None:
