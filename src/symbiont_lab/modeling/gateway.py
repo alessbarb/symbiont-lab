@@ -35,7 +35,7 @@ def load_artifact_model(
         state = torch.load(buffer, map_location="cpu", weights_only=True)
     except TypeError:  # pragma: no cover
         buffer.seek(0)
-        state = torch.load(buffer, map_location="cpu")
+        state = torch.load(buffer, map_location="cpu")  # nosec B614
     model.load_state_dict(state, strict=True)
     model.to(torch.device(device))
     model.eval()

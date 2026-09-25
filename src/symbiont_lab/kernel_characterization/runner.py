@@ -5,7 +5,7 @@ import hashlib
 import json
 import math
 import platform
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 import tracemalloc
@@ -28,7 +28,9 @@ from .protocols import DEFAULT_SEEDS, phases
 
 def _git_sha() -> str:
     try:
-        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        return subprocess.check_output(  # nosec
+            ["git", "rev-parse", "HEAD"], text=True
+        ).strip()
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
 

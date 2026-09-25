@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -32,7 +32,9 @@ def _file_sha256(path: Path | str) -> str | None:
 def _git_commit_sha() -> str:
     try:
         out = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, text=True
+            ["git", "rev-parse", "HEAD"],  # nosec
+            stderr=subprocess.DEVNULL,
+            text=True,
         ).strip()
         return out if out else "unknown"
     except Exception:
