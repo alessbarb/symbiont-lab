@@ -1,10 +1,10 @@
 # Generative Cognition v1 — Implementation GAP Audit against `main`
 
-**Repository:** `alessbarb/symbiont-lab`  
-**Audited branch:** `main`  
-**Audited commit:** `23da2b301f07ff6ee0ada4c0c9e881c31db76ee7`  
-**Spec:** Generative Cognition v1 — frozen candidate  
-**Scope:** GC-0 → GC-12  
+**Repository:** `alessbarb/symbiont-lab`
+**Audited branch:** `main`
+**Audited commit:** `ba5978fd`
+**Spec:** Generative Cognition v1 — frozen candidate
+**Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
 
 ---
@@ -49,22 +49,12 @@ Cognitive Atlas v2
 passive observer projection
 ```
 
-What does **not** yet exist:
+What does **not** yet exist after the foundation, agenda, and registry increments:
 
 ```text
-GenerativeState
-
-GenerativeEpisode
-
-GenerativeWorkspace
-
-GenerativeAgenda
+multi-step rollout
 
 GenerativeScheduler
-
-GenerativeModel protocol/registry
-
-multi-step rollout
 
 generic branching
 
@@ -103,9 +93,9 @@ built by composing several mature existing components.
 
 | Phase | Capability | Current status |
 |---|---|---|
-| GC-0 | Epistemic foundation | **PARTIAL — strong substrate** |
-| GC-1 | Endogenous agenda | **MISSING** |
-| GC-2 | Generative model adapters | **PARTIAL** |
+| GC-0 | Epistemic foundation | **IMPLEMENTED — bounded foundation** |
+| GC-1 | Endogenous agenda | **IMPLEMENTED — bounded agenda; scheduler missing** |
+| GC-2 | Generative model adapters | **PARTIAL — protocol/registry; adapters missing** |
 | GC-3 | Multi-step rollout | **MISSING** |
 | GC-4 | Branching | **MISSING** |
 | GC-5 | Counterfactual cognition | **PARTIAL — one-step only** |
@@ -248,9 +238,9 @@ This is already extremely close to the epistemic philosophy required by Generati
 
 ---
 
-## Missing implementation
+## Remaining implementation
 
-New canonical package:
+The canonical package now exists:
 
 ```text
 src/symbiont/cognition/generative/
@@ -269,28 +259,16 @@ workspace.py
 persistence.py
 ```
 
-Implement:
+Implemented in the first foundation increment:
 
 ```text
-EpistemicOrigin
+`EpistemicOrigin`, `GenerativeState`, `GeneratedFeature`,
+`GenerativeTransition`, `GenerativeEpisode`, `GenerativeOperation`,
+`GenerativeTermination`, `GenerativeBudget`, `GenerativeWorkspace` and
+`EpistemicFirewall` are implemented in `generative/`.
 
-GenerativeState
-
-GeneratedFeature
-
-GenerativeTransition
-
-GenerativeEpisode
-
-GenerativeOperation
-
-GenerativeTermination
-
-GenerativeBudget
-
-GenerativeWorkspace
-
-EpistemicFirewall
+The remaining GC-0 work is integration with checkpoint/runtime boundaries and
+the dedicated experimental-integrity suite.
 ```
 
 ---
@@ -418,12 +396,12 @@ factual_contamination_count == 0
 ## Status
 
 ```text
-PARTIAL
+IMPLEMENTED — foundation only
 ```
 
 The most important epistemic invariant already exists.
 
-The generic generative representation does not.
+The generic bounded representation and fail-closed persistence now exist.
 
 ---
 
@@ -444,13 +422,9 @@ Relevant:
 There is no:
 
 ```text
-GenerativeAgenda
-GenerativeTarget
-AgendaCandidate
-AgendaSource
+`GenerativeAgenda`, `GenerativeTarget`, `AgendaCandidate` and `AgendaSource`
+now exist in `src/symbiont/cognition/generative/agenda.py`.
 ```
-
-Search against `main` returns no implementation.
 
 There are, however, useful patterns elsewhere.
 
@@ -489,7 +463,7 @@ GenerativeAgenda should follow the same direction.
 
 ---
 
-## Missing
+## Remaining
 
 Implement:
 
@@ -674,10 +648,11 @@ what stops being selected
 ## Status
 
 ```text
-MISSING
+IMPLEMENTED — agenda substrate
 ```
 
-This is the first genuinely new autonomous mechanism.
+This is the first genuinely new autonomous mechanism. Scheduler integration and
+the GC-E10 campaign remain open.
 
 ---
 
@@ -742,25 +717,13 @@ for lower and higher-level predictions.
 
 ---
 
-## Missing
+## Remaining
 
-There is no common protocol:
-
-```text
-GenerativeModel
-```
-
-and no:
+The common protocol and deterministic registry now exist:
 
 ```text
-GenerativeModelRegistry
-```
-
-Implement:
-
-```text
-model.py
-registry.py
+src/symbiont/cognition/generative/model.py
+src/symbiont/cognition/generative/registry.py
 ```
 
 Initial adapters:
@@ -837,12 +800,11 @@ GC-E1 begins once GC-3 exists.
 ## Status
 
 ```text
-PARTIAL
+PARTIAL — protocol and registry implemented
 ```
 
-The models exist.
-
-The common generative interface does not.
+The common protocol and deterministic registry exist. Thin adapters for the
+existing private, sensorimotor, competence-effect and episodic models do not.
 
 ---
 
