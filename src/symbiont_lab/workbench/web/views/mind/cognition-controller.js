@@ -236,6 +236,7 @@ export function createCognitionController({
       learned.edges,
       graph.selectedNodeId,
       graph.viewMode,
+      graph.showEmbodiment,
     );
     graph.hiddenMotor = cartography.hidden;
     const completeTopology = { nodes: cartography.nodes, edges: cartography.edges };
@@ -292,6 +293,7 @@ export function createCognitionController({
   
       const semantic = sensorySemantic(source.observerSemantics ?? snap.observerSemantics, n.id);
       return {
+        ...n,
         id: n.id,
         label: n.id,
         observerLabel: n.observerLabel ?? semantic?.observerSummary ?? null,
@@ -565,7 +567,7 @@ export function createCognitionController({
       structures: graph.cognitiveStructures,
       tick: finiteNumber(graph.replayTick ?? tel.tick, 0),
       motorOrigin: tel.motorOrigin ?? 'none',
-      motorCompetences: (graph.replaySnapshot ?? snap).sensorimotor?.v2?.competences ?? [],
+      motorCompetences: rawNodes.filter(node => node.kind === 'motor_competence'),
     });
 
     const activeSectorLabels = new Set();
