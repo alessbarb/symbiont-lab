@@ -250,6 +250,7 @@ class StructuralPlanner:
         self,
         *,
         graph: CognitiveGraph,
+        pressure_graph: CognitiveGraph,
         predictors: PredictorLifecycle,
         contention: StructuralContention,
         tick: int,
@@ -261,7 +262,7 @@ class StructuralPlanner:
         lifetime = max(1, int(lifetime_ticks))
         if (
             self.oldest_blocked_wait(
-                graph=graph,
+                graph=pressure_graph,
                 contention=contention,
                 tick=tick,
             )
@@ -469,6 +470,7 @@ class StructuralPlanner:
 
         retirement_edge_gc = self.retirement_edge_gc(
             graph=plan.graph,
+            pressure_graph=graph,
             predictors=predictors,
             contention=contention,
             tick=tick,
