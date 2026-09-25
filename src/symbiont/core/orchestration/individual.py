@@ -101,7 +101,8 @@ class Individual:
     ) -> EmbodimentEpisode:
         contract = self._contract_for(session)
         self.symbiont.attach_execution_surface(
-            contract.actuator_surface.contract_fingerprint
+            contract.actuator_surface.contract_fingerprint,
+            embodiment_id=session.embodiment_id,
         )
         prior = self.embodiment_archive.prior_for(
             body_id=body.body_id,

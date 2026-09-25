@@ -10,6 +10,12 @@ import hashlib
 import random
 from typing import Mapping, Sequence
 
+from ...actuation.action import (
+    ActionEvaluation,
+    ActionJustification,
+    ActionProposal,
+    ActionSource,
+)
 from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.competence import (
     CompetenceEvidence,
@@ -19,6 +25,7 @@ from ...actuation.competence import (
 from ...actuation.effects import EffectSpace
 from ...actuation.evidence import CausalEvidenceLedger, PredictionError, SensorimotorTransition
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
+from ...actuation.surface import ActuatorChannel, ActuatorSurface
 from ...genetics.expression import (
     ExpressionRegulator,
     GeneExpressionState,
@@ -28,6 +35,7 @@ from ...genetics.genome import Genome
 from ...genetics.germline import GermlineState
 from ..embodiment.body_schema import BodySchemaEngine
 from ..embodiment.dynamics import SensorimotorDynamicsModel
+from ..domains.action import ActionDomain
 from .continuity import SymbiontContinuityModel
 
 
@@ -124,16 +132,64 @@ class Symbiont:
         self._last_action_competence_id = None
         self._competence_outputs = {}
         self._signal_to_input = {}
+        self.action_domain = ActionDomain(
+            organism_id=self.symbiont_id,
+            enabled=False,
+            surface=None,
+        )
+        self._bind_action_domain_models()
+
+    def _bind_action_domain_models(self) -> None:
+        """Share canonical inference state with the single action authority."""
+        self.action_domain.effect_space = self.effect_space
+        self.action_domain.causal_evidence = self.causal_evidence
+        self.action_domain.competence_library = self.competence_library
+        self.action_domain.execution_bindings = self.competence_execution_bindings
+        self.action_domain.effect_model = self.competence_effect_model
+        self.action_domain.controllability_model = self.controllability_model
+        self.action_domain.agency_model = self.agency_model
+
+    def _configure_action_surface(self) -> None:
+        if (
+            self._current_surface_fingerprint is None
+            or not self.current_output_channels
+        ):
+            self.action_domain.enabled = False
+            self.action_domain.surface = None
+            return
+        channels = tuple(
+            ActuatorChannel(
+                slot_id=f"motor_slot.{index}",
+                actuator_id=actuator_id,
+            )
+            for index, actuator_id in enumerate(sorted(self.current_output_channels))
+        )
+        self.action_domain.surface = ActuatorSurface(
+            channels=channels,
+            contract_fingerprint=self._current_surface_fingerprint,
+        )
+        self.action_domain.enabled = True
 
     def begin_new_embodiment(self) -> None:
         """Withdraw all old-Body authority for a genuine Body transplant."""
         self._reset_embodiment_state()
 
-    def attach_execution_surface(self, surface_fingerprint: str) -> None:
+    def attach_execution_surface(
+        self,
+        surface_fingerprint: str,
+        *,
+        embodiment_id: str | None = None,
+    ) -> None:
         """Attach the opaque legal motor surface for the current embodiment."""
         if not isinstance(surface_fingerprint, str) or not surface_fingerprint:
             raise ValueError("surface_fingerprint must be non-empty")
+        if embodiment_id is not None and (
+            not isinstance(embodiment_id, str) or not embodiment_id
+        ):
+            raise ValueError("embodiment_id must be non-empty when provided")
         self._current_surface_fingerprint = surface_fingerprint
+        self.action_domain.embodiment_id = embodiment_id
+        self._configure_action_surface()
 
     def refresh_phenotype_expression(self) -> dict[str, float]:
         if self.total_ticks > 0:
@@ -154,6 +210,7 @@ class Symbiont:
     def register_output_channels(self, channels: Sequence[str]) -> None:
         self.current_output_channels = {str(value) for value in channels}
         self.historical_output_channels.update(self.current_output_channels)
+        self._configure_action_surface()
 
     @property
     def known_output_channels(self) -> set[str]:
@@ -273,23 +330,24 @@ class Symbiont:
             effect_changes[signal_ref] = float(delta)
         effect = self.effect_space.observe(effect_changes)
 
-        competence_id = self._last_action_competence_id
-        controller_id = (
-            f"controller.{competence_id.removeprefix('competence.')}"
-            if competence_id is not None
-            else "controller.passive"
-        )
+        command = self.action_domain.last_motor_command
+        if command is None:
+            # Bodily/environmental change without an organism command is not
+            # causal evidence for agency or motor competence.
+            return
+        competence_id = command.competence_id
+        controller_id = command.controller_id
         transition = SensorimotorTransition(
             transition_id=f"transition.reduced.{self.total_ticks}",
             tick_start=max(0, self.total_ticks - 1),
             tick_end=self.total_ticks,
             context_ref="context.reduced",
-            commitment_id=f"commitment.reduced.{self.total_ticks - 1}",
+            commitment_id=command.commitment_id,
             controller_id=controller_id,
             competence_id=competence_id,
             state_before_ref=self._state_ref(self.total_ticks - 1, "before"),
-            motor_command_ref=f"command.reduced.{self.total_ticks - 1}",
-            actuation_ref=f"actuation.reduced.{self.total_ticks - 1}",
+            motor_command_ref=command.command_id,
+            actuation_ref=f"actuation.{command.command_id}",
             prediction_ref=(
                 f"prediction.reduced.{self.total_ticks - 1}"
                 if self.last_inputs
@@ -518,12 +576,67 @@ class Symbiont:
                 tuple(sorted(current_inputs)),
             )
 
+        competence_id = self._action_competence_id(next_activations)
+        delivered_activations: dict[str, float] = {}
+        if next_activations:
+            if not self.action_domain.enabled or self.action_domain.surface is None:
+                raise RuntimeError(
+                    "Symbiont produced motor output without an attached ActionDomain surface"
+                )
+            proposal_id = (
+                "proposal.reduced."
+                + hashlib.sha256(
+                    f"{self.symbiont_id}:{self.total_ticks}:{sorted(next_activations.items())}".encode(
+                        "utf-8"
+                    )
+                ).hexdigest()[:24]
+            )
+            proposal = ActionProposal(
+                proposal_id=proposal_id,
+                source=ActionSource.EXPLORATION,
+                effect_target_id=None,
+                competence_id=competence_id,
+                justification=ActionJustification(
+                    originating_need_id="internal.sensorimotor-uncertainty",
+                    competence_id=competence_id,
+                ),
+                evaluation=ActionEvaluation(
+                    epistemic_relevance=max(0.0, min(1.0, self.exploration_rate)),
+                    effect_confidence=max(
+                        (
+                            self._agency_confidence_for_output(output)
+                            for output in next_activations
+                        ),
+                        default=0.0,
+                    ),
+                    uncertainty=max(0.0, min(1.0, 1.0 - mean_confidence)),
+                ),
+            )
+            controller_id = (
+                f"controller.{competence_id.removeprefix('competence.')}"
+                if competence_id is not None
+                else "controller.reduced-exploration"
+            )
+            self.action_domain.commit(
+                proposal,
+                tick=self.total_ticks,
+                controller_id=controller_id,
+                maximum_duration=1,
+            )
+            command = self.action_domain.issue_command(
+                next_activations,
+                tick=self.total_ticks,
+            )
+            actuations = self.action_domain.execute_command(command)
+            delivered_activations = {
+                actuation.actuator_id: float(actuation.delivered)
+                for actuation in actuations
+            }
+
         self.last_inputs = current_inputs
-        self.last_activations = dict(next_activations)
-        self._last_action_competence_id = self._action_competence_id(
-            next_activations
-        )
-        return next_activations
+        self.last_activations = dict(delivered_activations)
+        self._last_action_competence_id = competence_id
+        return delivered_activations
 
 
 __all__ = ["Symbiont"]
