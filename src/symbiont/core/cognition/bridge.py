@@ -761,61 +761,14 @@ class CognitiveBridge:
         graph: CognitiveGraph | None = None,
         protected_node_ids: Collection[str] = (),
     ) -> tuple[Mutation, ...]:
-        """Reclaim one already-expendable concept without inventing new value."""
-        if max_mutations <= 0 or not self._develop_senses:
-            return ()
-        active_graph = self._graph if graph is None else graph
-        protected = set(protected_node_ids)
-        unrouted = self._update_unrouted_tracking(self._tick, graph=active_graph)
-        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
-
-        candidates: list[tuple[int, int, str, tuple[Mutation, ...]]] = []
-        for node_id in sorted(unrouted):
-            if node_id in protected:
-                continue
-            lineage = self._lifecycle.lineage.get(node_id)
-            born_tick = lineage.born_tick if lineage is not None else 0
-            if self._tick - born_tick < grace:
-                continue
-            unrouted_since = self._lifecycle.unrouted_since_tick.get(node_id, self._tick)
-            if self._tick - unrouted_since < grace:
-                continue
-            last_active = self._lifecycle.concept_last_active_tick.get(node_id, born_tick)
-            if self._tick - last_active < grace:
-                continue
-
-            incident = [
-                edge for edge in active_graph.edges
-                if edge.source_id == node_id or edge.target_id == node_id
-            ]
-            mutations = tuple(
-                Mutation(
-                    kind="remove_edge",
-                    payload={
-                        "source_id": edge.source_id,
-                        "target_id": edge.target_id,
-                        "kind": edge.kind.value,
-                    },
-                )
-                for edge in incident
-            ) + (
-                Mutation(kind="remove_node", payload={"node_id": node_id}),
-            )
-            if len(mutations) > max_mutations:
-                continue
-            candidates.append(
-                (
-                    -(self._tick - unrouted_since),
-                    last_active,
-                    node_id,
-                    mutations,
-                )
-            )
-
-        if not candidates:
-            return ()
-        candidates.sort(key=lambda item: (item[0], item[1], item[2]))
-        return candidates[0][3]
+        return self._lifecycle.stale_concept_reclamation_mutations(
+            graph=self._graph if graph is None else graph,
+            tick=self._tick,
+            max_mutations=max_mutations,
+            protected_node_ids=protected_node_ids,
+            grace_ticks=self._genome.structure.tentative_lifetime_ticks,
+            develop_senses=self._develop_senses,
+        )
 
     def _capacity_reclamation_mutations(
         self,
@@ -1446,25 +1399,13 @@ class CognitiveBridge:
             kernel_limits=self._kernel_limits,
         )
 
-    def _orphan_latent_ids(self, graph: CognitiveGraph | None = None) -> set[str]:
-        active_graph = self._graph if graph is None else graph
-        incident = {node.node_id: 0 for node in active_graph.nodes}
-        for edge in active_graph.edges:
-            incident[edge.source_id] = incident.get(edge.source_id, 0) + 1
-            incident[edge.target_id] = incident.get(edge.target_id, 0) + 1
-        return {
-            node.node_id
-            for node in active_graph.nodes
-            if (
-                node.kind in (
-                    NodeKind.CONCEPT,
-                    NodeKind.STATE,
-                    NodeKind.GATE,
-                    NodeKind.READOUT,
-                )
-                and incident.get(node.node_id, 0) == 0
-            )
-        }
+    def _orphan_latent_ids(
+        self,
+        graph: CognitiveGraph | None = None,
+    ) -> set[str]:
+        return self._lifecycle.orphan_latent_ids(
+            graph=self._graph if graph is None else graph,
+        )
 
     def _orphan_node_mutations(
         self,
@@ -1474,33 +1415,14 @@ class CognitiveBridge:
         graph: CognitiveGraph | None = None,
         protected_node_ids: Collection[str] = (),
     ) -> tuple[Mutation, ...]:
-        if not self._develop_senses or max_mutations <= 0:
-            return ()
-        active_graph = self._graph if graph is None else graph
-        protected = {str(node_id) for node_id in protected_node_ids if str(node_id)}
-        orphan_ids = self._orphan_latent_ids(active_graph) - protected
-        for node in active_graph.nodes:
-            if (
-                node.kind in (
-                    NodeKind.CONCEPT,
-                    NodeKind.STATE,
-                    NodeKind.GATE,
-                    NodeKind.READOUT,
-                )
-                and node.node_id not in orphan_ids
-            ):
-                self._lifecycle.orphan_since_tick.pop(node.node_id, None)
-
-        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
-        mutations: list[Mutation] = []
-        for node_id in sorted(orphan_ids):
-            since = self._lifecycle.orphan_since_tick.setdefault(node_id, tick)
-            if tick - since < grace:
-                continue
-            mutations.append(Mutation(kind="remove_node", payload={"node_id": node_id}))
-            if len(mutations) >= max_mutations:
-                break
-        return tuple(mutations)
+        return self._lifecycle.orphan_node_mutations(
+            graph=self._graph if graph is None else graph,
+            tick=tick,
+            max_mutations=max_mutations,
+            protected_node_ids=protected_node_ids,
+            grace_ticks=self._genome.structure.tentative_lifetime_ticks,
+            develop_senses=self._develop_senses,
+        )
 
     def _sense_eviction_mutations(
         self,
@@ -1509,67 +1431,26 @@ class CognitiveBridge:
         max_mutations: int,
         graph: CognitiveGraph | None = None,
     ) -> tuple[Mutation, ...]:
-        if not self._develop_senses or max_mutations <= 0:
-            return ()
-        active_graph = self._graph if graph is None else graph
-        senses = [node for node in active_graph.nodes if node.kind is NodeKind.SENSE]
-        if not senses:
-            return ()
-        incident_ids = {node_id for edge in active_graph.edges for node_id in (edge.source_id, edge.target_id)}
-        over_budget = max(0, len(senses) - self._sense_node_limit)
-        retention = max(1, self._genome.development.sense_retention_ticks)
-        candidates: list[tuple[bool, int, str]] = []
-        for node in senses:
-            if node.node_id in incident_ids:
-                continue
-            last_seen = self._lifecycle.sense_last_seen_tick.get(node.node_id, 0)
-            stale = tick - last_seen >= retention
-            candidates.append((stale, last_seen, node.node_id))
-
-        candidates.sort(key=lambda item: (not item[0], item[1], item[2]))
-        mutations: list[Mutation] = []
-        needed_over_budget = over_budget
-        for stale, _, node_id in candidates:
-            if not stale and needed_over_budget <= 0:
-                continue
-            mutations.append(Mutation(kind="remove_node", payload={"node_id": node_id}))
-            if needed_over_budget > 0:
-                needed_over_budget -= 1
-            if len(mutations) >= max_mutations:
-                break
-        return tuple(mutations)
+        return self._lifecycle.sense_eviction_mutations(
+            graph=self._graph if graph is None else graph,
+            tick=tick,
+            max_mutations=max_mutations,
+            sense_node_limit=self._sense_node_limit,
+            retention_ticks=self._genome.development.sense_retention_ticks,
+            develop_senses=self._develop_senses,
+        )
 
     def _has_sense_to_readout_path(
-        self, graph: CognitiveGraph | None = None, *, established_only: bool = False
+        self,
+        graph: CognitiveGraph | None = None,
+        *,
+        established_only: bool = False,
     ) -> bool:
-        active_graph = self._graph if graph is None else graph
-        senses = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.SENSE}
-        readouts = {
-            node.node_id
-            for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
-            and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
-        }
-        if _CORE_READOUT_ID in readouts:
-            readouts = {_CORE_READOUT_ID}
-        if not senses or not readouts:
-            return False
-        adjacency: dict[str, set[str]] = {}
-        for edge in active_graph.edges:
-            if established_only and edge.support < self._genome.structure.minimum_support:
-                continue
-            adjacency.setdefault(edge.source_id, set()).add(edge.target_id)
-        frontier = list(senses)
-        visited = set(senses)
-        while frontier:
-            source_id = frontier.pop()
-            for target_id in adjacency.get(source_id, ()):
-                if target_id in readouts:
-                    return True
-                if target_id not in visited:
-                    visited.add(target_id)
-                    frontier.append(target_id)
-        return False
+        return self._lifecycle.has_sense_to_readout_path(
+            graph=self._graph if graph is None else graph,
+            minimum_support=self._genome.structure.minimum_support,
+            established_only=established_only,
+        )
 
     def _classify_topology_health(
         self,
