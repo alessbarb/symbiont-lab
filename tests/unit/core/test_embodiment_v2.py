@@ -234,3 +234,50 @@ def test_closed_episode_archives_body_specific_state_without_authority() -> None
     assert archive.for_body("body.a") is not None
     assert archive.for_body("body.a").last_embodiment_id == episode.embodiment_id
     assert len(archive.summaries) == 1
+
+
+
+def test_episode_contract_v2_identity_migrates_without_new_episode() -> None:
+    old_contract = _contract()
+    episode = EmbodimentEpisode.begin(
+        symbiont_id="symbiont.a",
+        body_id="body.a",
+        epoch=2,
+        start_symbiont_tick=10,
+        contract=old_contract,
+    )
+    episode.advance()
+    payload = episode.checkpoint(current_tick=11)
+    payload["contract"]["schema_version"] = 2
+    payload["contract"]["contract_fingerprint"] = "legacy-contract-fingerprint"
+
+    new_contract = EmbodimentContract(
+        perceptual_surface=old_contract.perceptual_surface,
+        actuator_surface=old_contract.actuator_surface,
+        timing=old_contract.timing,
+        exclusive_actuator_groups=(
+            tuple(old_contract.actuator_surface.actuator_ids),
+        ),
+    )
+    schema = BodySchemaEngine()
+    ledger = CausalEvidenceLedger()
+    effects = CompetenceEffectModel()
+    control = ControllabilityModel()
+    agency = AgencyModel()
+    restored = EmbodimentEpisode.restore(
+        payload,
+        contract=new_contract,
+        body_schema=schema,
+        causal_evidence=ledger,
+        effect_model=effects,
+        controllability_model=control,
+        agency_model=agency,
+        execution_bindings=CompetenceExecutionBindingRegistry(),
+        current_tick=11,
+    )
+
+    assert restored.embodiment_id == episode.embodiment_id
+    assert restored.body_id == episode.body_id
+    assert restored.contract.contract_fingerprint == new_contract.contract_fingerprint
+    assert restored.contract_history[-1].reason == "contract_schema_v2_to_v3"
+    assert restored.contract_history[-1].previous_fingerprint == "legacy-contract-fingerprint"
