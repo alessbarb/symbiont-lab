@@ -2148,14 +2148,7 @@ class OrganismRuntime:
 
         retained_units = self._memory_domain.retained_units(
             drift_baseline_count=len(self._drift_baselines),
-            cognitive_node_count=(
-                len(self._cognitive_bridge.graph.nodes)
-                if (
-                    self._cognitive_bridge is not None
-                    and self._cognitive_bridge.graph is not None
-                )
-                else 0
-            ),
+            cognitive_node_count=cognition_step.retained_node_count,
         )
         embodied_work = self._pending_embodied_work
         self._pending_embodied_work = 0.0
