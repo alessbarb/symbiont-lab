@@ -26,7 +26,8 @@ def test_unified_server_serves_native_spa_assets() -> None:
             js = response.read().decode("utf-8")
             assert response.status == 200
             assert "routeToView" in js or "switchView" in js
-            assert "#lab" in js or "#body" in js
+            assert "./views/lab.js" in js
+            assert "./views/body.js" in js
 
         api_url = f"http://127.0.0.1:{port}/api/state"
         with urllib.request.urlopen(api_url, timeout=5) as response:

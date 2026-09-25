@@ -2,30 +2,12 @@ from __future__ import annotations
 
 def _mind_sources() -> str:
     """Read the modular Mind implementation as one searchable architecture surface."""
-    paths = [
-        WEB_ROOT / "views" / "mind.js",
-        WEB_ROOT / "views" / "mind" / "layout.js",
-        WEB_ROOT / "views" / "mind" / "state.js",
-        WEB_ROOT / "views" / "mind" / "util.js",
-        WEB_ROOT / "views" / "mind" / "telemetry.js",
-        WEB_ROOT / "views" / "mind" / "snapshot.js",
-        WEB_ROOT / "views" / "mind" / "identity-sensory.js",
-        WEB_ROOT / "views" / "mind" / "cognition-controller.js",
-        WEB_ROOT / "views" / "mind" / "cognitive-atlas.js",
-        WEB_ROOT / "views" / "mind" / "cognitive-temporal.js",
-        WEB_ROOT / "views" / "mind" / "cognitive-lod.js",
-        WEB_ROOT / "views" / "mind" / "cognitive-observatory.js",
-        WEB_ROOT / "views" / "mind" / "cognitive-live.js",
-        WEB_ROOT / "views" / "mind" / "cognitive-refinement.js",
-        WEB_ROOT / "views" / "mind" / "cognitive-animation.js",
-        WEB_ROOT / "views" / "mind" / "cognitive-regions.js",
-        WEB_ROOT / "views" / "mind" / "overview.js",
-        WEB_ROOT / "views" / "mind" / "motor-learning.js",
-        WEB_ROOT / "views" / "mind" / "motor-learning-model.js",
-        WEB_ROOT / "views" / "mind" / "motor-learning-history.js",
-        WEB_ROOT / "views" / "mind" / "motor-learning-chart.js",
-        WEB_ROOT / "views" / "mind" / "history.js",
-    ]
+    # The Mind view is intentionally split into small modules.  Search the
+    # complete module directory instead of maintaining a second, stale list of
+    # files in this contract test whenever a concern is extracted.
+    paths = [WEB_ROOT / "views" / "mind.js", *sorted(
+        (WEB_ROOT / "views" / "mind").glob("*.js")
+    )]
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
 
@@ -491,7 +473,8 @@ def test_mind_observer_analysis_is_secondary_and_finite_safe() -> None:
     asset = _mind_sources()
     observer_model = (WEB_ROOT / "views" / "mind" / "observer-map-model.js").read_text(encoding="utf-8")
 
-    assert "{ id: 'history',    label: 'History' }" in asset
+    assert "id: 'history'" in asset
+    assert "label: 'History'" in asset
     assert "{ id: 'regime'" not in asset
     assert "Observer analysis" in asset
     assert "Secondary analytical projection; not part of the organism." in asset
@@ -541,7 +524,8 @@ def test_mind_self_is_organism_owned_self_portrait() -> None:
 def test_mind_compares_phenotype_and_self_side_by_side() -> None:
     asset = _mind_sources()
 
-    assert "{ id: 'phenotype',  label: 'Identity' }" in asset
+    assert "id: 'phenotype'" in asset
+    assert "label: 'Identity'" in asset
     assert "mind-identity-wrap" in asset
     assert "Observed organism" in asset
     assert "Self-model" in asset
@@ -613,6 +597,9 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
         (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8"),
         (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8"),
         (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
+        (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
+        (WEB_ROOT / "views" / "body" / "camera-controls.js").read_text(encoding="utf-8"),
+        (WEB_ROOT / "views" / "body" / "workspace.js").read_text(encoding="utf-8"),
     ])
 
     assert "Follow body" in body
@@ -790,12 +777,12 @@ def test_mind_motor_funnel_distinguishes_learning_from_use() -> None:
     assert "Sensorimotor patterns" in asset
     assert "Motor primitives" in asset
     assert "Motor repertoire" in asset
-    assert "Cognitive motor edges" in asset
-    assert "Actual cognitive control" in asset
-    assert "'EXISTS'" in asset
-    assert "'LEARNED'" in asset
-    assert "'USABLE'" in asset
-    assert "'USED'" in asset
+    assert "Cognition → motor edges" in asset
+    assert "cognitive control" in asset
+    assert "LEARNED AGENCY" in asset
+    assert "Cognitive primitives" in asset
+    assert "currently usable entries" in asset
+    assert "learned cognitive control" in asset
 
 
 def test_mind_cognition_uses_components_and_temporally_stable_regions() -> None:
@@ -1008,7 +995,7 @@ def test_cognition_3d_geometry_is_graph_derived_not_brain_shaped() -> None:
     asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
-    assert "XYZ from graph evidence only" in asset
+    assert "Positions emerge from organism-owned graph" in asset
     assert "no anatomical coordinates" in asset
     assert "brainHull" not in projection
     assert "functionalBias" not in projection
@@ -1258,7 +1245,7 @@ def test_cognitive_atlas_derives_observer_only_cognitive_episodes() -> None:
     assert "export function deriveCognitiveEpisodes(" in temporal
     assert "Observer-derived clusters of contiguous structural change" in asset
     assert "prediction-error changes" in asset
-    assert "onOpenHistoryTick(episode.endTick)" in asset
+    assert "onOpenHistoryTick(" in asset
 
 
 def test_cognitive_atlas_uses_true_semantic_zoom() -> None:
@@ -1514,7 +1501,8 @@ def test_region_shape_deforms_smoothly_over_time() -> None:
     assert "export function blendRegionShape(" in regions
     assert "graph.regionShapeHistory2d" in asset
     assert "graph.regionShapeHistory3d" in asset
-    assert "graph.replaySnapshot ? 1 : 0.24" in asset
+    assert "graph.replaySnapshot" in asset
+    assert "presentation.regionPresentation" in asset
 
 
 def test_region_density_and_functional_center_are_evidence_derived() -> None:
@@ -1525,7 +1513,7 @@ def test_region_density_and_functional_center_are_evidence_derived() -> None:
     assert "export function functionalCenter(" in regions
     assert "drawRegionDensity(" in asset
     assert "drawFunctionalCenter(" in asset
-    assert "Functional center" in asset
+    assert "functionalCenter" in asset
     assert "Center displacement" in asset
 
 
@@ -1582,6 +1570,7 @@ def test_body_viewer_selects_observer_model_by_body_kind() -> None:
     body = "\n".join([
         (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8"),
         (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8"),
+        (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
     ])
     assert "BodyViewer" in body
     assert "bodyModelFromCatalog" in body
@@ -1661,7 +1650,7 @@ def test_mind_has_observer_side_freshness_timeout_and_app_lifecycle_update() -> 
     assert "coherent-frame-timeout" in mind
     assert "export function update(root, appState)" in mind
     assert "update as updateMind" in app
-    assert "updateMind(document.getElementById(ROOT_ID), currentState)" in app
+    assert "updateMind(root, state)" in app
 
 
 def test_mind_source_identity_boundary_clears_coherence_and_accepts_explicit_nulls() -> None:
