@@ -41,7 +41,7 @@ class BodySpecificMemory:
 class EmbodimentArchive:
     """Bounded history indexed independently by embodiment, body and contract."""
 
-    SCHEMA_VERSION = 2
+    SCHEMA_VERSION = 3
 
     def __init__(
         self,
@@ -102,7 +102,8 @@ class EmbodimentArchive:
     def restore(cls, payload: Mapping[str, object] | None) -> "EmbodimentArchive":
         if payload is None:
             return cls()
-        if payload.get("schema_version") != cls.SCHEMA_VERSION:
+        archive_schema = int(payload.get("schema_version") or 0)
+        if archive_schema not in {2, cls.SCHEMA_VERSION}:
             raise ValueError("unsupported embodiment archive")
         obj = cls(
             max_body_memories=int(payload.get("max_body_memories", 16)),
