@@ -13,11 +13,11 @@ _ELIGIBILITY_THRESHOLD = 1e-6
 
 
 class PlasticityEngine:
-    """Own durable weight-stability bookkeeping for CognitiveBridge.
+    """Own edge-local learning and durable weight-stability bookkeeping.
 
-    The bridge remains responsible for tick ordering and Oja eligibility. This
-    component owns only the state that tracks which learned weights have become
-    durable enough to export through checkpoints.
+    CognitiveBridge owns tick ordering and decides which nodes participate in
+    learning. This component owns eligibility updates, Oja weight updates,
+    reversible retirement decay, edge ageing, and durable weight consolidation.
     """
 
     def __init__(self, *, kernel_limits) -> None:
