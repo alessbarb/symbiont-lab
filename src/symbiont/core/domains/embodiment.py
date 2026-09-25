@@ -27,6 +27,12 @@ class EmbodimentStepResult:
 class EmbodimentDomain:
     """Update current-body representation from organism-owned observations."""
 
+    @staticmethod
+    def advance_reacclimation(remaining: int) -> int:
+        if remaining < 0:
+            raise ValueError("reacclimation remaining must be non-negative")
+        return max(0, int(remaining) - 1)
+
     def observe(
         self,
         *,
