@@ -54,6 +54,7 @@ from .resource import PhysicalResource
 from .settling import settle_passive_body
 from .reembodiment import (
     PhysicsEmbodimentDescriptor,
+    migrate_legacy_memory_store,
     migrate_temporal_domains,
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
