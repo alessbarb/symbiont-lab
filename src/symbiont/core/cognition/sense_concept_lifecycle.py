@@ -333,6 +333,7 @@ class SenseConceptLifecycle:
         live_graph: CognitiveGraph,
         topology_revision: int,
         pending_concepts: int,
+        existing_candidate_ids: Collection[str],
         max_concepts: int,
         minimum_support: int,
         develop_senses: bool,
@@ -387,6 +388,8 @@ class SenseConceptLifecycle:
 
         signature = "|".join(source_ids)
         candidate_id = f"concept:{signature}"
+        if candidate_id in set(existing_candidate_ids):
+            return None
         core_readouts = sorted(
             node.node_id
             for node in graph.nodes
