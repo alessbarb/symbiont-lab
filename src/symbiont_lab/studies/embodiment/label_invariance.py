@@ -120,17 +120,27 @@ def _make_body(body_id: str, *, renamed: bool) -> Body:
 def _subject_snapshot(ind: Individual) -> tuple:
     sym = ind.symbiont
     return (
-        tuple(sorted(sym.agency_model.agency_confidence.items())),
-        tuple(sorted(sym.agency_model.controllability.items())),
-        tuple(sorted(sym.body_schema.self_caused_channels)),
-        tuple(sorted(sym.body_schema.somatic_correlated_channels)),
-        tuple(sorted(sym.body_schema.internal_channels)),
-        tuple(sorted(sym.body_schema.external_channels)),
-        sym.body_schema.overall_confidence,
-        sym.body_schema.revision_count,
+        sym.agency_snapshot(),
+        tuple(
+            sorted(
+                (
+                    item.effect_id,
+                    item.competence_id,
+                    round(float(item.confidence), 12),
+                    round(float(item.reliability), 12),
+                )
+                for item in sym.controllability_model.estimates
+            )
+        ),
+        sym.body_schema.self_caused_channels,
+        sym.body_schema.somatic_correlated_channels,
+        sym.body_schema.external_channels,
+        round(float(sym.body_schema_confidence), 12),
+        sym.body_schema_revision_count,
+        round(float(sym.body_schema.boundary_disruption_score), 12),
         sym.self_model.ticks_experienced,
-        sym.self_model.historical_stability,
-        sym.self_model.integrity_confidence,
+        round(float(sym.self_model.historical_stability), 12),
+        round(float(sym.self_model.integrity_confidence), 12),
     )
 
 
