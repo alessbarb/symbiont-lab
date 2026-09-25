@@ -29,7 +29,7 @@ _CANONICAL_CONTRACT_FINGERPRINT_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
-class EmbodimentContract:
+class PhysicsEmbodimentDescriptor:
     body_kind: str
     receptor_count: int
     effector_count: int
@@ -51,9 +51,9 @@ def _body_vital_state(payload: Mapping[str, Any]) -> str:
     return "unknown"
 
 
-def _legacy_contract(_payload: Mapping[str, Any]) -> EmbodimentContract:
+def _legacy_contract(_payload: Mapping[str, Any]) -> PhysicsEmbodimentDescriptor:
     # Every pre-epoch portable Physics3D checkpoint used anthropomorphic-v4.
-    return EmbodimentContract("anthropomorphic-v4", 107, 62)
+    return PhysicsEmbodimentDescriptor("anthropomorphic-v4", 107, 62)
 
 
 def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -478,7 +478,7 @@ def prepare_fresh_embodiment_checkpoint(
     previous: Mapping[str, Any],
     fresh: Mapping[str, Any],
     *,
-    contract: EmbodimentContract,
+    contract: PhysicsEmbodimentDescriptor,
     canonical_contract_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """Move one persistent Symbiont into a fresh Body.
@@ -542,7 +542,7 @@ def prepare_fresh_embodiment_checkpoint(
         current = {**_legacy_contract(previous).as_dict(), "started_tick": 0}
         history = []
 
-    previous_contract = EmbodimentContract(
+    previous_contract = PhysicsEmbodimentDescriptor(
         body_kind=str(current.get("body_kind") or "unknown"),
         receptor_count=int(current.get("receptor_count") or 0),
         effector_count=int(current.get("effector_count") or 0),
@@ -807,7 +807,7 @@ def prepare_fresh_embodiment_checkpoint(
 def update_lifecycle_for_checkpoint(
     payload: dict[str, Any],
     *,
-    contract: EmbodimentContract,
+    contract: PhysicsEmbodimentDescriptor,
     state: str,
     metrics: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -909,7 +909,7 @@ def update_lifecycle_for_checkpoint(
 
 
 __all__ = [
-    "EmbodimentContract",
+    "PhysicsEmbodimentDescriptor",
     "lifecycle_summary",
     "migrate_legacy_memory_store",
     "migrate_temporal_domains",
