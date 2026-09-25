@@ -52,8 +52,12 @@ def test_runtime_surfaces_real_action_domain_execution_result() -> None:
     source = (
         root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
     ).read_text(encoding="utf-8")
-    assert "action_result = self._action_domain.step(" in source
-    assert "action_result: ActionExecutionResult | None = None" not in source
+    tick = source[
+        source.index("    def tick("):
+        source.index("\n    def run(", source.index("    def tick("))
+    ]
+    assert "action_result = self._action_domain.step(" in tick
+    assert "action_result: ActionExecutionResult | None = None" not in tick
 
 
 def test_runtime_does_not_inspect_cognition_graph_or_action_evidence_in_tick() -> None:
