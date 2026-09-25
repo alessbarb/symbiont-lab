@@ -1153,6 +1153,10 @@ class OrganismRuntime:
         return self._effect_space.effects
 
     @property
+    def action_dimensions(self):
+        return self._action_domain.action_dimensions.items
+
+    @property
     def causal_evidence(self):
         return self._causal_evidence.evidence
 

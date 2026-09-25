@@ -23,6 +23,7 @@ from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.controller import ControllerFrame
 from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
 from ...actuation.composition import CompositionEngine
+from ...actuation.dimension import ActionDimensionRegistry
 from ...actuation.effects import EffectSpace
 from ...actuation.evidence import (
     CausalEvidenceLedger,
@@ -150,6 +151,14 @@ class ActionDomain:
         self.causal_evidence = CausalEvidenceLedger()
         self.competence_library = CompetenceLibrary()
         self.execution_bindings = CompetenceExecutionBindingRegistry()
+        # Deterministic from the actuator surface (hash of slot id) -- never
+        # checkpointed. Restore rediscovers the same opaque ids fresh, so
+        # this needs no schema version and cannot desync from a stale
+        # checkpoint.
+        self.action_dimensions = ActionDimensionRegistry()
+        if self.enabled and surface is not None:
+            for actuator_id in surface.actuator_ids:
+                self.action_dimensions.discover(actuator_id)
         self.effect_model = CompetenceEffectModel()
         self.controllability_model = ControllabilityModel()
         self.agency_model = AgencyModel()
