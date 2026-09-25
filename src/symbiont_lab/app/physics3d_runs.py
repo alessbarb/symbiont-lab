@@ -140,8 +140,12 @@ class Physics3DRunStore:
         current = lifecycle.get("current", {})
         summaries = payload.get("embodiment_epoch_summaries")
         summaries = summaries if isinstance(summaries, list) else []
-        memory = payload.get("embodiment_memory")
-        memories = memory.get("contracts") if isinstance(memory, dict) else []
+        archive = payload.get("embodiment_archive")
+        memories = (
+            archive.get("body_memories")
+            if isinstance(archive, dict)
+            else []
+        )
         memories = memories if isinstance(memories, list) else []
         known_contracts = {
             str(item.get("contract_fingerprint"))
