@@ -1,16 +1,25 @@
-"""Individual emergence from Symbiont, Body, EmbodimentSession and History.
+"""Individual emergence from Symbiont, Body, EmbodimentEpisode and apparatus session.
 
-Under the design doc:
-    Symbiont + Body + EmbodimentSession + History = Individual
+Canonical ontology:
+    Symbiont + Body + EmbodimentEpisode + History = Individual
 
-'No nace un individuo completo. Nace un germen. El individuo se forma.'
+EmbodimentSession is only the opaque transduction/routing adapter for the
+current coupling. EmbodimentEpisode is the persistent domain entity.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Mapping
 
+from ...actuation.surface import ActuatorSurface
 from ..embodiment.body import ActivationConsequence, Body
+from ..embodiment.contract import EmbodimentContract, PerceptualSurface
+from ..embodiment.episode import (
+    EmbodimentEndReason,
+    EmbodimentEpisode,
+    EmbodimentState,
+)
+from ..embodiment.memory import EmbodimentArchive, archive_episode_checkpoint
 from ..embodiment.session import EmbodimentSession, implant
 from ..lineage.germline import GermlineState, SymbiontGenome
 from .symbiont import Symbiont
@@ -33,7 +42,7 @@ class IndividualTickRecord:
 
 
 class Individual:
-    """An emergent individual: Symbiont coupled to Body in a temporal EmbodimentSession."""
+    """One Symbiont physically coupled to one Body through an Embodiment."""
 
     def __init__(
         self,
@@ -43,7 +52,13 @@ class Individual:
         *,
         genome: SymbiontGenome | None = None,
         germline: GermlineState | None = None,
+        embodiment_archive: EmbodimentArchive | None = None,
+        embodiment_epoch: int = 1,
     ) -> None:
+        if session.symbiont_id != symbiont.symbiont_id:
+            raise ValueError("embodiment session belongs to another Symbiont")
+        if session.body_id != body.body_id:
+            raise ValueError("embodiment session belongs to another Body")
         self.symbiont = symbiont
         self.body = body
         self.session = session
@@ -51,9 +66,76 @@ class Individual:
         self.germline = germline if germline is not None else getattr(symbiont, "germline", None)
         self.history: list[IndividualTickRecord] = []
         self._current_tick: int = session.started_at
+        self.embodiment_archive = (
+            embodiment_archive if embodiment_archive is not None else EmbodimentArchive()
+        )
+        self.embodiment = self._begin_episode(
+            session=session,
+            body=body,
+            epoch=embodiment_epoch,
+        )
 
-        # Register known outputs with the cognitive seed
+        # Register only opaque output channels with the cognitive seed.
         self.symbiont.register_output_channels(list(session.output_bindings.keys()))
+
+    @staticmethod
+    def _contract_for(session: EmbodimentSession) -> EmbodimentContract:
+        # Counts/opaque channel ordinals define the exposed interface. Physical
+        # port labels deliberately do not enter the contract fingerprint.
+        return EmbodimentContract(
+            perceptual_surface=PerceptualSurface.from_count(
+                len(session.input_bindings)
+            ),
+            actuator_surface=ActuatorSurface.from_count(
+                len(session.output_bindings)
+            ),
+        )
+
+    def _begin_episode(
+        self,
+        *,
+        session: EmbodimentSession,
+        body: Body,
+        epoch: int,
+    ) -> EmbodimentEpisode:
+        episode = EmbodimentEpisode.begin(
+            symbiont_id=self.symbiont.symbiont_id,
+            body_id=body.body_id,
+            epoch=epoch,
+            start_symbiont_tick=self._current_tick,
+            contract=self._contract_for(session),
+            embodiment_id=session.embodiment_id,
+        )
+        # One source of truth: Episode references the exact inference services
+        # already used by the Symbiont, never copies them.
+        episode.body_schema = self.symbiont.body_schema
+        episode.dynamics_model = self.symbiont.sensorimotor_model
+        episode.causal_evidence = self.symbiont.causal_evidence
+        episode.effect_model = self.symbiont.competence_effect_model
+        episode.controllability_model = self.symbiont.controllability_model
+        episode.agency_model = self.symbiont.agency_model
+        return episode
+
+    def _archive_current_episode(
+        self,
+        *,
+        reason: EmbodimentEndReason,
+    ) -> None:
+        if self.embodiment.state is not EmbodimentState.CLOSED:
+            self.embodiment.close(
+                symbiont_tick=self._current_tick,
+                reason=reason,
+            )
+        archive_episode_checkpoint(
+            self.embodiment_archive,
+            self.embodiment.checkpoint(current_tick=self._current_tick),
+            body_schema_prior=self.symbiont.body_schema.export(
+                current_tick=self._current_tick
+            ),
+            living_body=self.body.physiology.checkpoint(),
+            symbiont_tick=self._current_tick,
+            end_reason=reason.value,
+        )
 
     @property
     def symbiont_id(self) -> str:
@@ -65,7 +147,11 @@ class Individual:
 
     @property
     def embodiment_id(self) -> str:
-        return self.session.embodiment_id
+        return self.embodiment.embodiment_id
+
+    @property
+    def embodiment_tick(self) -> int:
+        return self.embodiment.embodiment_tick
 
     @property
     def current_tick(self) -> int:
@@ -73,33 +159,54 @@ class Individual:
 
     @property
     def is_alive(self) -> bool:
-        return self.body.is_viable and self.session.is_active
+        return (
+            self.body.is_viable
+            and self.session.is_active
+            and self.embodiment.state is not EmbodimentState.CLOSED
+        )
 
     def step(
         self, external_stimuli: Mapping[str, float] | None = None
     ) -> IndividualTickRecord:
-        """Advance one embodiment step across physical and cognitive layers."""
+        """Advance one physical/cognitive Embodiment step."""
+        if self.embodiment.state is EmbodimentState.CLOSED:
+            raise RuntimeError("closed embodiment cannot advance")
         self._current_tick += 1
 
-        # 1. Physical transduction at the Body
         physical_readings = self.body.transduce_signals(external_stimuli)
-
-        # 2. Opaque conversion at the EmbodimentSession
         opaque_inputs = self.session.transduce_to_symbiont(physical_readings)
-
-        # 3. Cognitive step in the Symbiont (no external embodiment ID leakage, AUD-013)
         opaque_activations = self.symbiont.step(opaque_inputs)
-
-        # 4. Routing to physical body commands
         physical_commands = self.session.route_to_body(opaque_activations)
-
-        # 5. Physical execution & metabolic consequence on the Body
         consequences = self.body.apply_activations(physical_commands)
-
-        # 6. Physical basal decay & wear
         self.body.tick_physics()
 
-        # 7. Record historical trajectory
+        self.embodiment.advance()
+        agency_values = tuple(
+            item.confidence for item in self.symbiont.agency_model.estimates
+        )
+        controllability_values = tuple(
+            item.confidence
+            for item in self.symbiont.controllability_model.estimates
+        )
+        self.embodiment.adaptation.observe(
+            tick=self.embodiment_tick,
+            prediction_error=self.symbiont.last_prediction_error,
+            schema_confidence=self.symbiont.body_schema_confidence,
+            causal_confidence=(
+                sum(agency_values) / len(agency_values)
+                if agency_values else 0.0
+            ),
+            controllability_confidence=(
+                sum(controllability_values) / len(controllability_values)
+                if controllability_values else 0.0
+            ),
+            schema_revised=self.symbiont.body_schema_disrupted,
+        )
+
+        if not self.body.is_viable:
+            self.session.sever(self._current_tick)
+            self._archive_current_episode(reason=EmbodimentEndReason.BODY_DEATH)
+
         record = IndividualTickRecord(
             tick=self._current_tick,
             symbiont_id=self.symbiont_id,
@@ -109,31 +216,37 @@ class Individual:
             opaque_activations=dict(opaque_activations),
             physical_consequences=consequences,
             body_viable=self.body.is_viable,
-            schema_confidence=self.symbiont.body_schema.boundary_confidence,
-            disruption_detected=(self.symbiont.body_schema.boundary_disruption_score >= 0.5),
+            schema_confidence=self.symbiont.body_schema_confidence,
+            disruption_detected=self.symbiont.body_schema_disrupted,
         )
         self.history.append(record)
         return record
 
     def transplant_to(self, new_body: Body) -> EmbodimentSession:
-        """Transplant the cognitive seed into a new physical body (Section 39).
-
-        The previous embodiment session is severed. A new session is created.
-        The Symbiont's cognitive continuity is preserved while its body schema
-        encounters the new causal reality.
-        """
+        """Close one Embodiment and begin another on a distinct Body."""
+        self._archive_current_episode(reason=EmbodimentEndReason.BODY_REPLACED)
         self.session.sever(self._current_tick)
+
         new_session = implant(
             symbiont_id=self.symbiont.symbiont_id,
             body_id=new_body.body_id,
-            receptor_ids=new_body.receptor_ids,
-            effector_ids=new_body.effector_ids,
+            receptor_ids=new_body.ordered_receptors,
+            effector_ids=new_body.ordered_effectors,
             started_at=self._current_tick,
         )
+
+        previous_epoch = self.embodiment.epoch
         self.body = new_body
         self.session = new_session
         self.symbiont.begin_new_embodiment()
-        self.symbiont.register_output_channels(list(new_session.output_bindings.keys()))
+        self.symbiont.register_output_channels(
+            list(new_session.output_bindings.keys())
+        )
+        self.embodiment = self._begin_episode(
+            session=new_session,
+            body=new_body,
+            epoch=previous_epoch + 1,
+        )
         return new_session
 
 
@@ -146,7 +259,7 @@ def create_individual(
     num_effectors: int = 2,
     started_at: int = 0,
 ) -> Individual:
-    """Helper to create a complete Individual with a standard body and cognitive seed."""
+    """Create a canonical Individual with a fresh Body and Embodiment."""
     from ..embodiment.body import create_standard_body
 
     body = create_standard_body(
@@ -159,8 +272,8 @@ def create_individual(
     session = implant(
         symbiont_id=symbiont_id,
         body_id=body_id,
-        receptor_ids=body.receptor_ids,
-        effector_ids=body.effector_ids,
+        receptor_ids=body.ordered_receptors,
+        effector_ids=body.ordered_effectors,
         started_at=started_at,
     )
     return Individual(symbiont=symbiont, body=body, session=session)
