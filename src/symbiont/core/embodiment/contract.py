@@ -113,6 +113,34 @@ class EmbodimentContract:
     perceptual_surface: PerceptualSurface
     actuator_surface: ActuatorSurface
     timing: TimingContract = TimingContract()
+    exclusive_actuator_groups: tuple[tuple[str, ...], ...] = ()
+
+    def __post_init__(self) -> None:
+        known = set(self.actuator_surface.actuator_ids)
+        seen: set[str] = set()
+        normalized: list[tuple[str, ...]] = []
+        for raw_group in self.exclusive_actuator_groups:
+            group = tuple(sorted(str(value) for value in raw_group))
+            if len(group) < 2 or len(set(group)) != len(group):
+                raise ValueError(
+                    "exclusive actuator groups must contain unique ids"
+                )
+            if not set(group).issubset(known):
+                raise ValueError(
+                    "exclusive actuator group references unknown actuator"
+                )
+            if seen.intersection(group):
+                raise ValueError(
+                    "exclusive actuator groups must be disjoint"
+                )
+            seen.update(group)
+            normalized.append(group)
+        normalized.sort()
+        object.__setattr__(
+            self,
+            "exclusive_actuator_groups",
+            tuple(normalized),
+        )
 
     @property
     def contract_fingerprint(self) -> str:
@@ -122,6 +150,9 @@ class EmbodimentContract:
             "actuator_surface": self.actuator_surface.contract_fingerprint,
             "tick_hz": self.timing.tick_hz,
             "command_hold_ticks": self.timing.command_hold_ticks,
+            "exclusive_actuator_groups": [
+                list(group) for group in self.exclusive_actuator_groups
+            ],
         }
         raw = json.dumps(
             material,
@@ -164,6 +195,9 @@ class EmbodimentContract:
                 "tick_hz": self.timing.tick_hz,
                 "command_hold_ticks": self.timing.command_hold_ticks,
             },
+            "exclusive_actuator_groups": [
+                list(group) for group in self.exclusive_actuator_groups
+            ],
         }
 
 
