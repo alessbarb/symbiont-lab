@@ -2,6 +2,7 @@
 
 from .action import (
     ActionCognitionProjection,
+    ActionDevelopmentProjection,
     ActionDomain,
     ActionServices,
     ActionStepResult,
@@ -35,6 +36,7 @@ from .regulation import RegulationDomain, RegulationServices
 
 __all__ = [
     "ActionCognitionProjection",
+    "ActionDevelopmentProjection",
     "ActionDomain",
     "ActionServices",
     "ActionStepResult",
