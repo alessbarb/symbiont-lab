@@ -156,14 +156,6 @@ def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
     }
 
 
-def _same_contract(current: Mapping[str, Any], contract: EmbodimentContract) -> bool:
-    return (
-        str(current.get("body_kind") or "") == contract.body_kind
-        and int(current.get("receptor_count") or -1) == contract.receptor_count
-        and int(current.get("effector_count") or -1) == contract.effector_count
-    )
-
-
 def _detach_body_specific_cognition(
     checkpoint: Mapping[str, Any],
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -499,7 +491,6 @@ def prepare_fresh_embodiment_checkpoint(
         receptor_count=int(current.get("receptor_count") or 0),
         effector_count=int(current.get("effector_count") or 0),
     )
-    same_descriptor = _same_contract(current, contract)
     saved_tick = int(previous.get("saved_at_tick") or 0)
     started_tick = int(current.get("started_tick") or 0)
     current_fingerprint_version = int(
@@ -522,11 +513,6 @@ def prepare_fresh_embodiment_checkpoint(
         receptor_count=contract.receptor_count,
         effector_count=contract.effector_count,
     )
-    same_contract = (
-        same_descriptor
-        and previous_fingerprint == new_fingerprint
-    )
-
     historical_bridge, historical_motor_surface = _detach_body_specific_cognition(previous)
     active_model_id = _active_private_model_id(previous)
     metrics = current.get("metrics") if isinstance(current.get("metrics"), Mapping) else {}
@@ -805,14 +791,23 @@ def update_lifecycle_for_checkpoint(
         append_epoch_summary(payload, summary)
         current["closed"] = True
         current["epoch_summary"] = deepcopy(summary)
-        _bridge, motor_surface = _detach_body_specific_cognition(payload)
-        payload["embodiment_memory"] = archive_contract_memory(
-            payload,
-            contract_fingerprint_value=str(current["contract_fingerprint"]),
-            epoch=epoch,
-            motor_cognitive_surface=motor_surface,
-            active_private_model_id=_active_private_model_id(payload),
-        )
+        if not (
+            isinstance(payload.get("embodiment_episode"), Mapping)
+            and int(payload["embodiment_episode"].get("schema_version") or 0)
+            in {2, 3}
+        ):
+            # Pre-v2 compatibility only. Canonical Physics3D checkpoints have
+            # already archived the closed episode in EmbodimentArchive.
+            _bridge, motor_surface = _detach_body_specific_cognition(payload)
+            payload["embodiment_memory"] = archive_contract_memory(
+                payload,
+                contract_fingerprint_value=str(current["contract_fingerprint"]),
+                epoch=epoch,
+                motor_cognitive_surface=motor_surface,
+                active_private_model_id=_active_private_model_id(payload),
+            )
+        else:
+            payload.pop("embodiment_memory", None)
 
     return payload
 
