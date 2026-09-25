@@ -1334,6 +1334,16 @@ def test_mind_body_coupling_panel_reports_real_embodiment_counts() -> None:
     assert "knowledge %" not in live.lower()
 
 
+def test_mind_inspector_shows_motor_and_embodiment_tabs_only_when_relevant() -> None:
+    inspector = (WEB_ROOT / "views" / "mind" / "cognition-inspector.js").read_text(encoding="utf-8")
+
+    assert "selected.kind === 'motor_competence'" in inspector
+    assert "selected.kind === 'action_dimension'" in inspector
+    assert "selected.kind === 'embodiment_binding'" in inspector
+    assert "inspectorGroup(panel, 'Motor'" in inspector
+    assert "inspectorGroup(panel, 'Embodiment'" in inspector
+
+
 def test_mind_atlas_has_search_by_id_kind_or_physical_binding() -> None:
     atlas = (WEB_ROOT / "views" / "mind" / "cognitive-atlas.js").read_text(encoding="utf-8")
     layout = (WEB_ROOT / "views" / "mind" / "layout.js").read_text(encoding="utf-8")

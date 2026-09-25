@@ -167,6 +167,44 @@ export function createCognitionInspector({
         inspectorMetric(roleGroup, 'Effect relations', selected.causalRelationCount);
         inspectorMetric(roleGroup, 'Activations observed', selected.activations);
       }
+      // Spec Sec 59: Motor/Embodiment tabs shown only when relevant to the
+      // selected node's real kind -- never fabricated for kinds that don't
+      // carry this data.
+      if (selected.kind === 'motor_competence') {
+        const motorGroup = inspectorGroup(panel, 'Motor', true);
+        inspectorMetric(motorGroup, 'State', selected.state ?? 'unknown', selected.state === 'usable' ? PAL.mint : PAL.muted);
+        inspectorMetric(motorGroup, 'Maturity', selected.maturity ?? 'unknown');
+        inspectorMetric(motorGroup, 'Support', selected.support ?? 0);
+        inspectorMetric(motorGroup, 'Controllability', finiteNumber(selected.controllability, 0).toFixed(3), PAL.mint);
+      }
+      if (selected.kind === 'effect') {
+        const motorGroup = inspectorGroup(panel, 'Motor', true);
+        inspectorMetric(motorGroup, 'Support', selected.support ?? 0);
+        inspectorMetric(motorGroup, 'Confidence', finiteNumber(selected.confidence, 0).toFixed(3), PAL.mint);
+      }
+      if (selected.kind === 'controller') {
+        const motorGroup = inspectorGroup(panel, 'Motor', true);
+        inspectorMetric(motorGroup, 'Strategy ref', selected.strategyRef ?? 'unresolved', selected.strategyRef ? PAL.cyan : PAL.muted);
+      }
+      if (selected.kind === 'action_dimension') {
+        const motorGroup = inspectorGroup(panel, 'Motor', true);
+        inspectorMetric(motorGroup, 'Availability', selected.availability ? 'available' : 'unavailable');
+        inspectorMetric(motorGroup, 'Controllability', finiteNumber(selected.controllability, 0).toFixed(3), PAL.mint);
+        inspectorMetric(motorGroup, 'Confidence', finiteNumber(selected.confidence, 0).toFixed(3));
+        inspectorMetric(motorGroup, 'Embodiment bound', selected.embodimentBound ? 'yes' : 'no', selected.embodimentBound ? PAL.mint : PAL.muted);
+      }
+      if (selected.kind === 'embodiment_binding') {
+        const embodimentGroup = inspectorGroup(panel, 'Embodiment', true);
+        inspectorMetric(embodimentGroup, 'Surface fingerprint', selected.surfaceFingerprint ?? 'unresolved', PAL.cyan);
+        inspectorMetric(embodimentGroup, 'Reliability', finiteNumber(selected.reliability, 0).toFixed(3), PAL.mint);
+        inspectorMetric(embodimentGroup, 'Controllability', finiteNumber(selected.controllability, 0).toFixed(3));
+      }
+      if (selected.kind === 'body_schema') {
+        const embodimentGroup = inspectorGroup(panel, 'Embodiment', true);
+        inspectorMetric(embodimentGroup, 'Subkind', selected.subkind ?? 'unknown');
+        inspectorMetric(embodimentGroup, 'Confidence class', selected.confidenceClass ?? 'unknown');
+        inspectorMetric(embodimentGroup, 'Maturity class', selected.maturityClass ?? 'unknown');
+      }
       inspectorMetric(topologyGroup, 'Degree', selected.neighbors?.size ?? 0);
       inspectorMetric(dynamicsGroup, 'Activity', pct(selected.activationLevel ?? 0), PAL.cyan);
       inspectorMetric(topologyGroup, 'Structural importance', pct(selected.structuralImportance ?? selected.visualValue ?? 0));
