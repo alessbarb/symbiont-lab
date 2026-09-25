@@ -3843,6 +3843,18 @@ class OrganismRuntime:
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, Any], **kwargs: Any) -> "OrganismRuntime":
+        actuator_constitution_override = kwargs.pop(
+            "actuator_constitution_override",
+            None,
+        )
+        if (
+            actuator_constitution_override is not None
+            and not isinstance(actuator_constitution_override, ActuatorSurface)
+        ):
+            raise CheckpointError(
+                "actuator_constitution_override must be an ActuatorSurface"
+            )
+        fingerprint_migration: tuple[str, str] | None = None
         normalized = normalize_checkpoint(payload)
         effective = normalized.get("effective_config", {})
         min_samples = int(kwargs.get("min_samples", effective.get("min_samples", 5)))
@@ -4030,10 +4042,29 @@ class OrganismRuntime:
                     ).hexdigest()
                 if not isinstance(stored_fingerprint, str) or not stored_fingerprint:
                     raise CheckpointError("invalid actuator contract fingerprint")
-                actuator_constitution = ActuatorSurface(
+                restored_constitution = ActuatorSurface(
                     channels=channels,
                     contract_fingerprint=stored_fingerprint,
                 )
+                if actuator_constitution_override is not None:
+                    if (
+                        restored_constitution.channels
+                        != actuator_constitution_override.channels
+                    ):
+                        raise CheckpointError(
+                            "actuator constitution override changes legal channels"
+                        )
+                    actuator_constitution = actuator_constitution_override
+                    if (
+                        restored_constitution.contract_fingerprint
+                        != actuator_constitution.contract_fingerprint
+                    ):
+                        fingerprint_migration = (
+                            restored_constitution.contract_fingerprint,
+                            actuator_constitution.contract_fingerprint,
+                        )
+                else:
+                    actuator_constitution = restored_constitution
                 try:
                     actuator_proposer = restore_actuation_state(
                         raw_actuation["proposer"],
@@ -4052,9 +4083,27 @@ class OrganismRuntime:
                 if raw_sensorimotor is not None:
                     if not isinstance(raw_sensorimotor, dict):
                         raise CheckpointError("invalid canonical sensorimotor state")
+                    raw_sensorimotor_restore = deepcopy(raw_sensorimotor)
+                    if fingerprint_migration is not None:
+                        old_fp, new_fp = fingerprint_migration
+                        if (
+                            raw_sensorimotor_restore.get("embodiment_fingerprint")
+                            == old_fp
+                        ):
+                            raw_sensorimotor_restore["embodiment_fingerprint"] = new_fp
+                        for key in ("primitives", "historical_candidates"):
+                            raw_items = raw_sensorimotor_restore.get(key)
+                            if isinstance(raw_items, list):
+                                for item in raw_items:
+                                    if (
+                                        isinstance(item, dict)
+                                        and item.get("embodiment_fingerprint")
+                                        == old_fp
+                                    ):
+                                        item["embodiment_fingerprint"] = new_fp
                     try:
                         sensorimotor_learner = SensorimotorLearner.restore(
-                            raw_sensorimotor,
+                            raw_sensorimotor_restore,
                             actuator_ids=actuator_constitution.actuator_ids,
                             organism_id=str(normalized.get("organism_id") or ""),
                             embodiment_fingerprint=actuator_constitution.contract_fingerprint,
@@ -4389,11 +4438,28 @@ class OrganismRuntime:
                         runtime._competence_library = restored_library
                         if v2_schema == 2:
                             raw_bindings = raw_v2.get("execution_bindings")
+                            binding_payload = (
+                                deepcopy(raw_bindings)
+                                if isinstance(raw_bindings, dict)
+                                else None
+                            )
+                            if (
+                                binding_payload is not None
+                                and fingerprint_migration is not None
+                            ):
+                                old_fp, new_fp = fingerprint_migration
+                                raw_items = binding_payload.get("items")
+                                if isinstance(raw_items, list):
+                                    for item in raw_items:
+                                        if (
+                                            isinstance(item, dict)
+                                            and item.get("surface_fingerprint")
+                                            == old_fp
+                                        ):
+                                            item["surface_fingerprint"] = new_fp
                             runtime._competence_execution_bindings = (
                                 CompetenceExecutionBindingRegistry.restore(
-                                    raw_bindings
-                                    if isinstance(raw_bindings, dict)
-                                    else None
+                                    binding_payload
                                 )
                             )
                         else:
@@ -4405,6 +4471,12 @@ class OrganismRuntime:
                                     legacy_item.get("competence_id") or ""
                                 )
                                 surface = legacy_item.get("surface_binding")
+                                if (
+                                    isinstance(surface, str)
+                                    and fingerprint_migration is not None
+                                    and surface == fingerprint_migration[0]
+                                ):
+                                    surface = fingerprint_migration[1]
                                 effect_id = legacy_item.get("effect_id")
                                 matching = tuple(
                                     evidence
