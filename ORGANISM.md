@@ -1,3 +1,27 @@
+---
+canonical_id: root.organism
+current_path: ORGANISM.md
+target_path: ORGANISM.md
+document_type: reference
+diataxis_kind: null
+domain: general
+source_language: en
+target_language: en
+status: unclassified
+canonical: false
+supersedes: []
+depends_on: []
+review_required: true
+evidence: []
+_extracted_title: Symbiont Experimental Organism — evolution and freeze record
+extends: []
+implementation_status: unknown
+implements: []
+migrated_on: '2026-09-25'
+language: en
+last_reviewed: null
+---
+
 # Symbiont Experimental Organism — evolution and freeze record
 
 ## Current status
