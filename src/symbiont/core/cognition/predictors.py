@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass
 from typing import Mapping
 
 from ...cognition.graph import CognitiveGraph
 from ...cognition.learning import PredictionError, ShadowPrediction, huber_loss
-from ...cognition.types import NodeKind
+from ...cognition.structure import Mutation
+from ...cognition.types import EdgeKind, NodeKind
 
 _MAX_SHADOW_PREDICTIONS = 16384
 _MAX_LIVE_SHADOW_FACTOR = 8
@@ -251,6 +253,86 @@ class PredictorLifecycle:
         edge.weight *= decay
         if abs(edge.weight) < 1e-12:
             edge.weight = 0.0
+
+    def propose_promotion(
+        self,
+        source_id: str,
+        target_id: str,
+        *,
+        graph: CognitiveGraph,
+        develop_senses: bool,
+    ) -> tuple[str, tuple[Mutation, ...]] | None:
+        shadow = self.shadows.get((source_id, target_id))
+        if shadow is None or not shadow.promotable or not develop_senses:
+            return None
+        source_node = graph.node_by_id(source_id)
+        if source_node is None or source_node.kind is not NodeKind.SENSE:
+            return None
+        if graph.node_by_id(target_id) is None or target_id in self.retirement:
+            return None
+        if any(
+            node.kind is NodeKind.PREDICTOR
+            and node.predicts_node_id == target_id
+            for node in graph.nodes
+        ):
+            return None
+
+        candidate_id = f"predictor:{source_id}:{target_id}"
+        digest = hashlib.sha256(candidate_id.encode("utf-8")).hexdigest()[:16]
+        predictor_id = f"predictor_{digest}"
+        if graph.node_by_id(predictor_id) is not None:
+            return None
+
+        return (
+            candidate_id,
+            (
+                Mutation(
+                    kind="add_node",
+                    payload={
+                        "node_id": predictor_id,
+                        "kind": NodeKind.PREDICTOR,
+                        "predicts_node_id": target_id,
+                    },
+                ),
+                Mutation(
+                    kind="add_edge",
+                    payload={
+                        "source_id": source_id,
+                        "target_id": predictor_id,
+                        "kind": EdgeKind.PREDICTIVE,
+                        "weight": 1.0,
+                        "plasticity": 0.25,
+                        "delay_ticks": 0,
+                    },
+                ),
+            ),
+        )
+
+    def nominate_shadow(
+        self,
+        *,
+        tiebreak,
+    ) -> tuple[str, str] | None:
+        ranked = sorted(
+            (
+                candidate
+                for candidate in self.shadows.values()
+                if candidate.promotable
+            ),
+            key=lambda candidate: (
+                -candidate.predictive_gain,
+                -candidate.samples,
+                tiebreak(
+                    f"{candidate.source_id}:{candidate.target_id}"
+                ),
+                candidate.source_id,
+                candidate.target_id,
+            ),
+        )
+        if not ranked:
+            return None
+        candidate = ranked[0]
+        return candidate.source_id, candidate.target_id
 
     def observe_shadows(
         self,
