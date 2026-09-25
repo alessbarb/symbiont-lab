@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from .agenda import GenerativeAgenda
 from .budget import GenerativeBudget
+from .scheduler import GenerativeScheduler
 from .types import (
     EpistemicOrigin,
     GeneratedFeature,
@@ -38,6 +40,35 @@ def loads(payload: str) -> GenerativeWorkspace:
     except (TypeError, json.JSONDecodeError) as exc:
         raise ValueError("invalid generative checkpoint JSON") from exc
     return restore(decoded)
+
+
+def dumps_cognition(
+    *,
+    workspace: GenerativeWorkspace,
+    agenda: GenerativeAgenda,
+    scheduler: GenerativeScheduler,
+) -> str:
+    """Encode workspace, agenda and scheduler as one fail-closed checkpoint."""
+    return json.dumps(
+        {
+            "schema_version": GENERATIVE_COGNITION_SCHEMA_VERSION,
+            "workspace": workspace.checkpoint(),
+            "agenda": agenda.checkpoint(),
+            "scheduler": scheduler.checkpoint(),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def loads_cognition(
+    payload: str,
+) -> tuple[GenerativeWorkspace, GenerativeAgenda, GenerativeScheduler]:
+    try:
+        decoded = json.loads(payload)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("invalid generative cognition JSON") from exc
+    return restore_cognition(decoded)
 
 
 def restore(payload: object) -> GenerativeWorkspace:
@@ -77,6 +108,25 @@ def restore(payload: object) -> GenerativeWorkspace:
             raise ValueError("closed workspace must have a termination reason")
         workspace._closed = True  # checkpoint restore, not a public mutation path
     return workspace
+
+
+def restore_cognition(
+    payload: object,
+) -> tuple[GenerativeWorkspace, GenerativeAgenda, GenerativeScheduler]:
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema_version") != GENERATIVE_COGNITION_SCHEMA_VERSION
+    ):
+        raise ValueError("unsupported or missing generative cognition schema version")
+    try:
+        workspace = restore(
+            {"schema_version": payload["schema_version"], "workspace": payload["workspace"]}
+        )
+        agenda = GenerativeAgenda.from_checkpoint(payload["agenda"])
+        scheduler = GenerativeScheduler.from_checkpoint(payload["scheduler"])
+        return workspace, agenda, scheduler
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("invalid generative cognition checkpoint") from exc
 
 
 def _object(value: Any, name: str) -> dict[str, Any]:
@@ -172,4 +222,12 @@ def _transition(value: Any) -> GenerativeTransition:
         raise ValueError("invalid generative transition") from exc
 
 
-__all__ = ["GENERATIVE_COGNITION_SCHEMA_VERSION", "dumps", "loads", "restore"]
+__all__ = [
+    "GENERATIVE_COGNITION_SCHEMA_VERSION",
+    "dumps",
+    "dumps_cognition",
+    "loads",
+    "loads_cognition",
+    "restore",
+    "restore_cognition",
+]

@@ -32,7 +32,15 @@ from .equivalence import equivalent_states, state_equivalence_key
 from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
 from .hypothesis import GenerativeHypothesis, HypothesisStatus
 from .model import GeneratedProposal, GenerativeContext, GenerativeModel
-from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, dumps, loads, restore
+from .persistence import (
+    GENERATIVE_COGNITION_SCHEMA_VERSION,
+    dumps,
+    dumps_cognition,
+    loads,
+    loads_cognition,
+    restore,
+    restore_cognition,
+)
 from .recombination import ExperienceRecombiner, RecombinationFragment
 from .reconciliation import GenerativeReconciler
 from .registry import GenerativeModelRegistry
@@ -107,7 +115,10 @@ __all__ = [
     "SensorimotorDynamicsGenerativeAdapter",
     "TargetStatus",
     "dumps",
+    "dumps_cognition",
     "loads",
+    "loads_cognition",
     "new_episode",
     "restore",
+    "restore_cognition",
 ]
