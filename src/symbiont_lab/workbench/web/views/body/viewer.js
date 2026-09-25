@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { pbPos, pbQuat } from './coordinates.js';
 import {
-  SEGMENT_COLORS,
   bodyModelFromCatalog,
   dominantAxis,
   fallbackBodyModel,
@@ -60,6 +59,11 @@ export class BodyViewer {
     this.segmentMeshes = {};
     this.jointMarkers = {};
     this.jointActivity = new Map();
+    this.comMarker = null;
+    this.comProjectionLine = null;
+    this.comProjectionPositions = null;
+    this.contactMarkerGroup = null;
+    this.contactMarkers = [];
 
     // Observer-side body history. These values never feed back into the organism.
     this.previousObservedBasePos = null;
@@ -400,6 +404,7 @@ export class BodyViewer {
     this.dirLight.target = this.baseNode;
 
     this.buildSkeleton();
+    this.buildObserverSpatialOverlays();
     this.handleResize();
   }
 
@@ -515,6 +520,115 @@ export class BodyViewer {
       this.resourceGuide.visible = false;
       this.scene.add(this.resourceGuide);
     }
+  }
+
+  buildObserverSpatialOverlays() {
+    if (!this.scene || this.comMarker || this.contactMarkerGroup) return;
+
+    const comMaterial = new THREE.MeshBasicMaterial({
+      color: 0x7ee787,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+    });
+    this.comMarker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.036, 18, 14),
+      comMaterial,
+    );
+    this.comMarker.name = 'observer_center_of_mass';
+    this.comMarker.visible = false;
+    this.scene.add(this.comMarker);
+
+    this.comProjectionPositions = new Float32Array(6);
+    const projectionGeometry = new THREE.BufferGeometry();
+    projectionGeometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(this.comProjectionPositions, 3),
+    );
+    this.comProjectionLine = new THREE.Line(
+      projectionGeometry,
+      new THREE.LineDashedMaterial({
+        color: 0x7ee787,
+        transparent: true,
+        opacity: 0.44,
+        dashSize: 0.05,
+        gapSize: 0.04,
+      }),
+    );
+    this.comProjectionLine.name = 'observer_com_projection';
+    this.comProjectionLine.visible = false;
+    this.scene.add(this.comProjectionLine);
+
+    this.contactMarkerGroup = new THREE.Group();
+    this.contactMarkerGroup.name = 'observer_contact_markers';
+    this.scene.add(this.contactMarkerGroup);
+  }
+
+  updateObserverSpatialOverlays(data) {
+    this.buildObserverSpatialOverlays();
+
+    if (
+      this.comMarker &&
+      Array.isArray(data.center_of_mass) &&
+      data.center_of_mass.length === 3
+    ) {
+      const [x, y, z] = pbPos(...data.center_of_mass);
+      this.comMarker.position.set(x, y, z);
+      this.comMarker.visible = true;
+
+      if (this.comProjectionLine && this.comProjectionPositions) {
+        this.comProjectionPositions[0] = x;
+        this.comProjectionPositions[1] = y;
+        this.comProjectionPositions[2] = z;
+        this.comProjectionPositions[3] = x;
+        this.comProjectionPositions[4] = 0.006;
+        this.comProjectionPositions[5] = z;
+        this.comProjectionLine.geometry.attributes.position.needsUpdate = true;
+        this.comProjectionLine.computeLineDistances();
+        this.comProjectionLine.visible = true;
+      }
+      this.queueUIUpdate('com_height', `${Math.max(0, y).toFixed(2)} m`);
+    }
+
+    if (!this.contactMarkerGroup) return;
+    const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+    while (this.contactMarkers.length < contacts.length) {
+      const marker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.025, 14, 10),
+        new THREE.MeshBasicMaterial({
+          color: 0x5eea84,
+          transparent: true,
+          opacity: 0.72,
+          depthWrite: false,
+        }),
+      );
+      marker.name = 'observer_contact_point';
+      this.contactMarkers.push(marker);
+      this.contactMarkerGroup.add(marker);
+    }
+
+    let peakForce = 0;
+    for (let index = 0; index < this.contactMarkers.length; index += 1) {
+      const marker = this.contactMarkers[index];
+      const contact = contacts[index];
+      if (
+        !contact ||
+        !Array.isArray(contact.position) ||
+        contact.position.length !== 3
+      ) {
+        marker.visible = false;
+        continue;
+      }
+      const force = Number(contact.normal_force);
+      peakForce = Math.max(peakForce, Number.isFinite(force) ? force : 0);
+      marker.position.set(...pbPos(...contact.position));
+      marker.scale.setScalar(
+        THREE.MathUtils.clamp(0.72 + Math.log1p(Math.max(0, force)) * 0.17, 0.72, 2.1),
+      );
+      marker.material.opacity = THREE.MathUtils.clamp(0.44 + Math.log1p(Math.max(0, force)) * 0.08, 0.44, 0.94);
+      marker.visible = true;
+    }
+    this.queueUIUpdate('peak_contact_force', contacts.length ? `${peakForce.toFixed(1)} N` : '—');
   }
 
   resetCameraToBody() {
@@ -1021,6 +1135,7 @@ export class BodyViewer {
 
     this.hasDensePoseStream = true;
     this.observeDenseProducer(tick, receivedAt, tickSpanMs);
+    this.updateObserverSpatialOverlays(data);
 
     if (Array.isArray(data.base_position) && data.base_position.length === 3) {
       this.targetBasePos.set(...pbPos(...data.base_position));
@@ -1403,6 +1518,11 @@ export class BodyViewer {
     this.resourceIndicatorLabel = null;
     this.trajectoryLine = null;
     this.trajectoryPoints.length = 0;
+    this.comMarker = null;
+    this.comProjectionLine = null;
+    this.comProjectionPositions = null;
+    this.contactMarkerGroup = null;
+    this.contactMarkers.length = 0;
 
     this.jointObjs = {};
     this.linkObjs = {};
