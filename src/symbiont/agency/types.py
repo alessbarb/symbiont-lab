@@ -4,6 +4,7 @@ All types are immutable, slots-allocated, and contain no task-specific
 semantics. The ``reason`` field of :class:`ProspectiveDecision` is closed to
 technical values only; no behavioural or environmental labels appear here.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -92,11 +93,7 @@ class OutcomeValueEstimate:
 
         if not isinstance(self.outcome_id, str) or not self.outcome_id:
             raise ValueError("outcome_id must be a non-empty string")
-        if (
-            isinstance(self.samples, bool)
-            or not isinstance(self.samples, int)
-            or self.samples < 1
-        ):
+        if isinstance(self.samples, bool) or not isinstance(self.samples, int) or self.samples < 1:
             raise ValueError("samples must be a positive integer")
         for name, val in (
             ("mean_value", self.mean_value),
@@ -136,11 +133,7 @@ class ProspectiveDecision:
     def __post_init__(self) -> None:
         import math
 
-        if (
-            isinstance(self.tick, bool)
-            or not isinstance(self.tick, int)
-            or self.tick < 0
-        ):
+        if isinstance(self.tick, bool) or not isinstance(self.tick, int) or self.tick < 0:
             raise ValueError("tick must be a non-negative integer")
         if self.reason not in _VALID_REASONS:
             raise ValueError(

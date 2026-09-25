@@ -12,7 +12,8 @@ def test_physics3d_receptor_ground_truth_is_complete_and_external() -> None:
     truth = receptor_ground_truth(
         joint_specs=ANTHROPOMORPHIC_V6.observer_joint_specs,
         contact_region_names=ANTHROPOMORPHIC_V6.observer_contact_region_names,
-        interoceptive_source_ordinals=(0, 1, 2, 3))
+        interoceptive_source_ordinals=(0, 1, 2, 3),
+    )
 
     assert len(truth) == 107
     assert truth["rec.0"]["label"] == "trunk yaw angle"
@@ -29,7 +30,8 @@ def test_interoceptive_ground_truth_follows_hidden_apparatus_permutation() -> No
     truth = receptor_ground_truth(
         joint_specs=ANTHROPOMORPHIC_V6.observer_joint_specs,
         contact_region_names=ANTHROPOMORPHIC_V6.observer_contact_region_names,
-        interoceptive_source_ordinals=(3, 1, 0, 2))
+        interoceptive_source_ordinals=(3, 1, 0, 2),
+    )
 
     assert truth["rec.103"]["label"] == "fatigue"
     assert truth["rec.104"]["label"] == "structural integrity"
@@ -69,7 +71,6 @@ def test_sensory_semantics_preserves_self_label_and_separates_observer_truth() -
     unresolved = semantics["sense_unknown"]
     assert unresolved["observer_summary"] is None
     assert unresolved["mapping"] == "unresolved"
-
 
 
 def test_motor_semantics_maps_opaque_actuators_to_observer_physics() -> None:

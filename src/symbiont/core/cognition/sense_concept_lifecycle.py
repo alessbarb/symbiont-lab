@@ -30,15 +30,9 @@ class RepresentationTracker:
     """Own generic developmental evidence for graph representations."""
 
     def __init__(self, graph: CognitiveGraph) -> None:
-        self.born_tick: dict[str, int] = {
-            node.node_id: 0 for node in graph.nodes
-        }
-        self.observation_count: dict[str, int] = {
-            node.node_id: 0 for node in graph.nodes
-        }
-        self.active_count: dict[str, int] = {
-            node.node_id: 0 for node in graph.nodes
-        }
+        self.born_tick: dict[str, int] = {node.node_id: 0 for node in graph.nodes}
+        self.observation_count: dict[str, int] = {node.node_id: 0 for node in graph.nodes}
+        self.active_count: dict[str, int] = {node.node_id: 0 for node in graph.nodes}
 
     def observe(
         self,
@@ -47,13 +41,9 @@ class RepresentationTracker:
         threshold: float = _ACTIVITY_THRESHOLD,
     ) -> None:
         for node_id, value in activations.items():
-            self.observation_count[node_id] = (
-                self.observation_count.get(node_id, 0) + 1
-            )
+            self.observation_count[node_id] = self.observation_count.get(node_id, 0) + 1
             if abs(value) >= threshold:
-                self.active_count[node_id] = (
-                    self.active_count.get(node_id, 0) + 1
-                )
+                self.active_count[node_id] = self.active_count.get(node_id, 0) + 1
 
     def note_birth(self, node_id: str, *, tick: int) -> None:
         if not node_id:
@@ -69,20 +59,12 @@ class RepresentationTracker:
 
     def reconcile(self, graph: CognitiveGraph) -> None:
         node_ids = {node.node_id for node in graph.nodes}
-        self.born_tick = {
-            key: value
-            for key, value in self.born_tick.items()
-            if key in node_ids
-        }
+        self.born_tick = {key: value for key, value in self.born_tick.items() if key in node_ids}
         self.observation_count = {
-            key: value
-            for key, value in self.observation_count.items()
-            if key in node_ids
+            key: value for key, value in self.observation_count.items() if key in node_ids
         }
         self.active_count = {
-            key: value
-            for key, value in self.active_count.items()
-            if key in node_ids
+            key: value for key, value in self.active_count.items() if key in node_ids
         }
         for node_id in node_ids:
             self.born_tick.setdefault(node_id, 0)
@@ -106,10 +88,7 @@ class RepresentationTracker:
             return RepresentationMaturity.NASCENT
         if node.kind is NodeKind.SENSE:
             return RepresentationMaturity.STABLE
-        if (
-            node.kind is NodeKind.PREDICTOR
-            and node_id in retiring_predictor_ids
-        ):
+        if node.kind is NodeKind.PREDICTOR and node_id in retiring_predictor_ids:
             return RepresentationMaturity.RETIRING
 
         orphan_since = orphan_since_tick.get(node_id)
@@ -131,9 +110,7 @@ class RepresentationTracker:
             return RepresentationMaturity.NASCENT
 
         incident = graph.incident_edges(node_id)
-        integrated = any(
-            edge.support >= required_support for edge in incident
-        )
+        integrated = any(edge.support >= required_support for edge in incident)
         if active < required_support or not integrated:
             return RepresentationMaturity.PROVISIONAL
 
@@ -141,8 +118,7 @@ class RepresentationTracker:
             utility = predictor_utility.get(node_id)
             if not (
                 utility is not None
-                and getattr(utility, "samples", 0)
-                >= max(8, required_support)
+                and getattr(utility, "samples", 0) >= max(8, required_support)
                 and getattr(utility, "predictive_gain", 0.0) > 0.0
                 and getattr(utility, "recent_gain", 0.0) > 0.0
             ):
@@ -204,9 +180,7 @@ class SenseConceptLifecycle:
             return ()
 
         absolute = sorted(
-            node_id
-            for node_id, magnitude in values
-            if magnitude >= _ACTIVITY_THRESHOLD
+            node_id for node_id, magnitude in values if magnitude >= _ACTIVITY_THRESHOLD
         )
         if absolute:
             return tuple(absolute)
@@ -216,17 +190,13 @@ class SenseConceptLifecycle:
         if len(magnitudes) % 2:
             median = magnitudes[midpoint]
         else:
-            median = 0.5 * (
-                magnitudes[midpoint - 1] + magnitudes[midpoint]
-            )
+            median = 0.5 * (magnitudes[midpoint - 1] + magnitudes[midpoint])
         deviations = sorted(abs(value - median) for value in magnitudes)
         midpoint = len(deviations) // 2
         if len(deviations) % 2:
             mad = deviations[midpoint]
         else:
-            mad = 0.5 * (
-                deviations[midpoint - 1] + deviations[midpoint]
-            )
+            mad = 0.5 * (deviations[midpoint - 1] + deviations[midpoint])
 
         peak = magnitudes[-1]
         relative_threshold = max(
@@ -242,12 +212,7 @@ class SenseConceptLifecycle:
             ),
             key=lambda item: (-item[0], item[1]),
         )
-        return tuple(
-            sorted(
-                node_id
-                for _magnitude, node_id in ranked[: max(1, int(limit))]
-            )
-        )
+        return tuple(sorted(node_id for _magnitude, node_id in ranked[: max(1, int(limit))]))
 
     def concept_signature_exists(
         self,
@@ -264,18 +229,11 @@ class SenseConceptLifecycle:
                 or self._cached_concept_sig_graph is not live_graph
                 or self._cached_concept_sig_lineage_len != len(self.lineage)
             ):
-                signatures = [
-                    set(lineage.parent_ids)
-                    for lineage in self.lineage.values()
-                ]
+                signatures = [set(lineage.parent_ids) for lineage in self.lineage.values()]
                 concept_ids = {
-                    node.node_id
-                    for node in graph.nodes
-                    if node.kind is NodeKind.CONCEPT
+                    node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT
                 }
-                incoming: dict[str, set[str]] = {
-                    concept_id: set() for concept_id in concept_ids
-                }
+                incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
                 for edge in graph.edges:
                     if edge.target_id in incoming:
                         incoming[edge.target_id].add(edge.source_id)
@@ -293,19 +251,9 @@ class SenseConceptLifecycle:
                 self._cached_concept_sig_lineage_len = len(self.lineage)
             signatures = self._cached_concept_signatures
         else:
-            signatures = [
-                set(lineage.parent_ids)
-                for lineage in self.lineage.values()
-            ]
-            concept_ids = {
-                node.node_id
-                for node in graph.nodes
-                if node.kind is NodeKind.CONCEPT
-            }
-            incoming = {
-                concept_id: set()
-                for concept_id in concept_ids
-            }
+            signatures = [set(lineage.parent_ids) for lineage in self.lineage.values()]
+            concept_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT}
+            incoming = {concept_id: set() for concept_id in concept_ids}
             for edge in graph.edges:
                 if edge.target_id in incoming:
                     incoming[edge.target_id].add(edge.source_id)
@@ -314,16 +262,9 @@ class SenseConceptLifecycle:
         if len(source_ids) == 2:
             source_id, target_id = source_ids
             if cacheable:
-                key = (
-                    (source_id, target_id)
-                    if source_id <= target_id
-                    else (target_id, source_id)
-                )
+                key = (source_id, target_id) if source_id <= target_id else (target_id, source_id)
                 return key in self._cached_concept_signature_pairs
-            return any(
-                source_id in sources and target_id in sources
-                for sources in signatures
-            )
+            return any(source_id in sources and target_id in sources for sources in signatures)
         pair = set(source_ids)
         return any(pair.issubset(sources) for sources in signatures)
 
@@ -399,10 +340,7 @@ class SenseConceptLifecycle:
         active_senses = sorted(
             node_id
             for node_id, value in activations.items()
-            if (
-                node_kinds.get(node_id) is NodeKind.SENSE
-                and abs(value) >= threshold
-            )
+            if (node_kinds.get(node_id) is NodeKind.SENSE and abs(value) >= threshold)
         )
         for index, source_id in enumerate(active_senses):
             for target_id in active_senses[index + 1 :]:
@@ -416,9 +354,7 @@ class SenseConceptLifecycle:
                     self.concept_support.pop(key, None)
                     self.retrospective_support.pop(key, None)
                     continue
-                self.concept_support[key] = (
-                    self.concept_support.get(key, 0) + 1
-                )
+                self.concept_support[key] = self.concept_support.get(key, 0) + 1
 
     def consume_concept_support(self, parent_ids: Collection[str]) -> None:
         parents = sorted(set(parent_ids))
@@ -478,15 +414,11 @@ class SenseConceptLifecycle:
     ) -> tuple[str, tuple[Mutation, ...]] | None:
         if not develop_senses:
             return None
-        concept_count = sum(
-            1 for node in graph.nodes if node.kind is NodeKind.CONCEPT
-        )
+        concept_count = sum(1 for node in graph.nodes if node.kind is NodeKind.CONCEPT)
         if concept_count + pending_concepts >= max_concepts:
             return None
 
-        support_pairs = set(self.concept_support) | set(
-            self.retrospective_support
-        )
+        support_pairs = set(self.concept_support) | set(self.retrospective_support)
         eligible = sorted(
             (
                 (
@@ -518,8 +450,7 @@ class SenseConceptLifecycle:
 
         _, source_ids = eligible[0]
         if any(
-            (node := graph.node_by_id(source_id)) is None
-            or node.kind is not NodeKind.SENSE
+            (node := graph.node_by_id(source_id)) is None or node.kind is not NodeKind.SENSE
             for source_id in source_ids
         ):
             return None
@@ -620,11 +551,7 @@ class SenseConceptLifecycle:
     ) -> tuple[Mutation, ...]:
         if not develop_senses or max_mutations <= 0:
             return ()
-        protected = {
-            str(node_id)
-            for node_id in protected_node_ids
-            if str(node_id)
-        }
+        protected = {str(node_id) for node_id in protected_node_ids if str(node_id)}
         orphan_ids = self.orphan_latent_ids(graph=graph) - protected
         for node in graph.nodes:
             if (
@@ -645,9 +572,7 @@ class SenseConceptLifecycle:
             since = self.orphan_since_tick.setdefault(node_id, tick)
             if tick - since < grace:
                 continue
-            mutations.append(
-                Mutation(kind="remove_node", payload={"node_id": node_id})
-            )
+            mutations.append(Mutation(kind="remove_node", payload={"node_id": node_id}))
             if len(mutations) >= max_mutations:
                 break
         return tuple(mutations)
@@ -664,15 +589,11 @@ class SenseConceptLifecycle:
     ) -> tuple[Mutation, ...]:
         if not develop_senses or max_mutations <= 0:
             return ()
-        senses = [
-            node for node in graph.nodes if node.kind is NodeKind.SENSE
-        ]
+        senses = [node for node in graph.nodes if node.kind is NodeKind.SENSE]
         if not senses:
             return ()
         incident_ids = {
-            node_id
-            for edge in graph.edges
-            for node_id in (edge.source_id, edge.target_id)
+            node_id for edge in graph.edges for node_id in (edge.source_id, edge.target_id)
         }
         over_budget = max(0, len(senses) - sense_node_limit)
         retention = max(1, int(retention_ticks))
@@ -690,9 +611,7 @@ class SenseConceptLifecycle:
         for stale, _, node_id in candidates:
             if not stale and needed_over_budget <= 0:
                 continue
-            mutations.append(
-                Mutation(kind="remove_node", payload={"node_id": node_id})
-            )
+            mutations.append(Mutation(kind="remove_node", payload={"node_id": node_id}))
             if needed_over_budget > 0:
                 needed_over_budget -= 1
             if len(mutations) >= max_mutations:
@@ -706,11 +625,7 @@ class SenseConceptLifecycle:
         minimum_support: int,
         established_only: bool = False,
     ) -> bool:
-        senses = {
-            node.node_id
-            for node in graph.nodes
-            if node.kind is NodeKind.SENSE
-        }
+        senses = {node.node_id for node in graph.nodes if node.kind is NodeKind.SENSE}
         readouts = {
             node.node_id
             for node in graph.nodes
@@ -855,11 +770,7 @@ class SenseConceptLifecycle:
                 and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
             )
         ]
-        targets = (
-            (_CORE_READOUT_ID,)
-            if _CORE_READOUT_ID in core_readouts
-            else tuple(core_readouts)
-        )
+        targets = (_CORE_READOUT_ID,) if _CORE_READOUT_ID in core_readouts else tuple(core_readouts)
         return self.nodes_with_path_to_targets(targets, graph=graph)
 
     def propose_recycling(
@@ -895,9 +806,7 @@ class SenseConceptLifecycle:
             tick=tick,
         )
         stranded = [
-            node_id
-            for node_id in sorted(unrouted_ids)
-            if node_id in self.concept_last_active_tick
+            node_id for node_id in sorted(unrouted_ids) if node_id in self.concept_last_active_tick
         ]
         if not stranded:
             return (), None
@@ -905,8 +814,7 @@ class SenseConceptLifecycle:
         concept_id = stranded[0]
         readout_id = core_readouts[0]
         if any(
-            edge.source_id == concept_id and edge.target_id == readout_id
-            for edge in graph.edges
+            edge.source_id == concept_id and edge.target_id == readout_id for edge in graph.edges
         ):
             return (), None
 
@@ -945,11 +853,7 @@ class SenseConceptLifecycle:
         routed_ids: Collection[str],
         tick: int,
     ) -> set[str]:
-        concept_ids = {
-            node.node_id
-            for node in graph.nodes
-            if node.kind is NodeKind.CONCEPT
-        }
+        concept_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT}
         unrouted = concept_ids - set(routed_ids)
         for node_id in concept_ids:
             if node_id in unrouted:

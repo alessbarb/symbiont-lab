@@ -1,4 +1,5 @@
 """Pure observer-side projections from runtime telemetry into view contracts."""
+
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -223,9 +224,7 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
 
     raw_observer_semantics = rich_state.get("observer_semantics")
     observer_semantics_present = isinstance(raw_observer_semantics, Mapping)
-    observer_semantics_source = (
-        raw_observer_semantics if observer_semantics_present else {}
-    )
+    observer_semantics_source = raw_observer_semantics if observer_semantics_present else {}
 
     senses: list[dict[str, Any]] = []
     raw_percepts = runtime.get("percepts", ())
@@ -233,7 +232,9 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         for index, item in enumerate(raw_percepts[:64]):
             if not isinstance(item, Mapping):
                 continue
-            sense_id = str(item.get("name") or item.get("capability_id") or item.get("id") or f"sense.{index}")
+            sense_id = str(
+                item.get("name") or item.get("capability_id") or item.get("id") or f"sense.{index}"
+            )
             sense: dict[str, Any] = {"id": sense_id, "name": sense_id}
             if item.get("quality") is not None:
                 sense["quality"] = item["quality"]
@@ -338,7 +339,9 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     derivation: dict[str, str] = {}
     if activation_values:
         observer_analysis["activationValues"] = activation_values
-        derivation["activationValues"] = "observer-preserved numeric activation from cognition telemetry"
+        derivation["activationValues"] = (
+            "observer-preserved numeric activation from cognition telemetry"
+        )
     if activation_classes:
         observer_analysis["activationClasses"] = activation_classes
         derivation["activationClasses"] = "observer quantization of absolute activation into 0..15"
@@ -375,8 +378,16 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         for item in topology.get("edges", ()) or ():
             if isinstance(item, Mapping):
                 edge: dict[str, Any] = {}
-                source = item.get("source_id") if item.get("source_id") is not None else item.get("sourceId")
-                target = item.get("target_id") if item.get("target_id") is not None else item.get("targetId")
+                source = (
+                    item.get("source_id")
+                    if item.get("source_id") is not None
+                    else item.get("sourceId")
+                )
+                target = (
+                    item.get("target_id")
+                    if item.get("target_id") is not None
+                    else item.get("targetId")
+                )
                 if source is not None:
                     edge["sourceId"] = str(source)
                 if target is not None:
@@ -414,9 +425,7 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             if isinstance(value.get("source_ids"), (list, tuple)):
                 entry["sourceIds"] = [str(item) for item in value["source_ids"][:8]]
             if isinstance(value.get("observer_labels"), (list, tuple)):
-                entry["observerLabels"] = [
-                    str(item) for item in value["observer_labels"][:8]
-                ]
+                entry["observerLabels"] = [str(item) for item in value["observer_labels"][:8]]
             if value.get("observer_summary") is not None:
                 entry["observerSummary"] = str(value["observer_summary"])
             if isinstance(value.get("observer_categories"), (list, tuple)):
@@ -487,13 +496,11 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     snapshot: dict[str, Any] = {}
     embodiment_source = rich_state
     if isinstance(runtime, Mapping) and any(
-        key in runtime
-        for key in ("embodiment_epoch", "reacclimating", "reacclimation_remaining")
+        key in runtime for key in ("embodiment_epoch", "reacclimating", "reacclimation_remaining")
     ):
         embodiment_source = runtime
     elif isinstance(cognition, Mapping) and any(
-        key in cognition
-        for key in ("embodiment_epoch", "reacclimating", "reacclimation_remaining")
+        key in cognition for key in ("embodiment_epoch", "reacclimating", "reacclimation_remaining")
     ):
         embodiment_source = cognition
     embodiment: dict[str, Any] = {}
@@ -506,9 +513,7 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         embodiment["reacclimating"] = embodiment_source["reacclimating"]
     if embodiment_source.get("reacclimation_remaining") is not None:
         try:
-            embodiment["reacclimationRemaining"] = int(
-                embodiment_source["reacclimation_remaining"]
-            )
+            embodiment["reacclimationRemaining"] = int(embodiment_source["reacclimation_remaining"])
         except (TypeError, ValueError):
             pass
     raw_embodiment_block = rich_state.get("embodiment")
@@ -565,9 +570,7 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         ]
         organism_facts.append("motor_competences")
     if effects is not None:
-        snapshot["effects"] = [
-            dict(item) for item in effects if isinstance(item, Mapping)
-        ]
+        snapshot["effects"] = [dict(item) for item in effects if isinstance(item, Mapping)]
         organism_facts.append("effects")
     if action_dimensions is not None:
         snapshot["action_dimensions"] = [

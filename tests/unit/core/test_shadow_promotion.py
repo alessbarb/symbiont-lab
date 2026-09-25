@@ -1,10 +1,11 @@
 import pytest
-
-from tests.unit.core.test_cognition_bridge import _genome, _simple_graph
-from symbiont.cognition.limits import KernelLimits
 from symbiont.core.cognition_bridge import CognitiveBridge, GraphError
+
 from symbiont.cognition.learning import ShadowPrediction
+from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
+from tests.unit.core.test_cognition_bridge import _genome, _simple_graph
+
 
 def test_shadow_promotion_requires_gain_and_materializes_learned_sense_input():
     bridge = CognitiveBridge(
@@ -55,7 +56,14 @@ def test_shadow_promotion_does_not_wire_latent_source_with_wrong_lag():
 
 def test_restore_shadow_predictions_supports_large_cohort():
     entries = [
-        {"source_id": f"s_{i}", "target_id": f"t_{i}", "samples": 5, "model_loss": 0.1, "persistence_loss": 0.2, "status": "candidate"}
+        {
+            "source_id": f"s_{i}",
+            "target_id": f"t_{i}",
+            "samples": 5,
+            "model_loss": 0.1,
+            "persistence_loss": 0.2,
+            "status": "candidate",
+        }
         for i in range(1000)
     ]
     restored = CognitiveBridge._restore_shadow_predictions(entries)
@@ -64,13 +72,18 @@ def test_restore_shadow_predictions_supports_large_cohort():
 
 def test_restore_shadow_predictions_rejects_payload_above_bound():
     entries = [
-        {"source_id": f"s_{i}", "target_id": f"t_{i}", "samples": 5,
-         "model_loss": 0.1, "persistence_loss": 0.2, "status": "candidate"}
+        {
+            "source_id": f"s_{i}",
+            "target_id": f"t_{i}",
+            "samples": 5,
+            "model_loss": 0.1,
+            "persistence_loss": 0.2,
+            "status": "candidate",
+        }
         for i in range(16_385)
     ]
     with pytest.raises(GraphError):
         CognitiveBridge._restore_shadow_predictions(entries)
-
 
 
 def test_shadow_pruning_drops_retired_and_non_sensory_sources():
@@ -95,7 +108,6 @@ def test_shadow_pruning_drops_retired_and_non_sensory_sources():
     bridge._prune_shadow_predictions()
 
     assert set(bridge._shadow_predictions) == {("s", "c")}
-
 
 
 def test_shadow_prediction_ordered_view_is_cached_and_invalidated():
@@ -125,7 +137,6 @@ def test_shadow_prediction_ordered_view_is_cached_and_invalidated():
     refreshed = bridge.shadow_predictions
     assert refreshed is not first
     assert refreshed[-1] is c
-
 
 
 def test_shadow_prune_fast_path_skips_unchanged_full_scan(monkeypatch):

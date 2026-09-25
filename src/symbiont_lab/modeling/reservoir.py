@@ -66,8 +66,7 @@ class SparseEchoStateRegressor:
 
         rng = random.Random(seed)
         self._input_weights = [
-            [rng.uniform(-1.0, 1.0) for _ in range(input_dim + 1)]
-            for _ in range(reservoir_size)
+            [rng.uniform(-1.0, 1.0) for _ in range(input_dim + 1)] for _ in range(reservoir_size)
         ]
 
         # Sparse recurrent rows: (source_index, weight). Row-normalizing by the
@@ -93,10 +92,7 @@ class SparseEchoStateRegressor:
         self._recurrent = recurrent
 
         feature_dim = 1 + input_dim + reservoir_size
-        self._readout = [
-            [0.0] * feature_dim
-            for _ in range(output_dim)
-        ]
+        self._readout = [[0.0] * feature_dim for _ in range(output_dim)]
 
     @property
     def mechanism_id(self) -> str:
@@ -125,14 +121,10 @@ class SparseEchoStateRegressor:
             for offset, value in enumerate(values, start=1):
                 drive += input_row[offset] * value
             recurrent_drive = sum(
-                weight * previous[source]
-                for source, weight in self._recurrent[index]
+                weight * previous[source] for source, weight in self._recurrent[index]
             )
             candidate = math.tanh(drive + recurrent_drive)
-            updated.append(
-                (1.0 - self._leak_rate) * previous[index]
-                + self._leak_rate * candidate
-            )
+            updated.append((1.0 - self._leak_rate) * previous[index] + self._leak_rate * candidate)
         self._state = updated
         self._last_input = values
         self._observations += 1
@@ -151,8 +143,7 @@ class SparseEchoStateRegressor:
             return None
         features = self._features()
         output = tuple(
-            sum(weight * feature for weight, feature in zip(row, features))
-            for row in self._readout
+            sum(weight * feature for weight, feature in zip(row, features)) for row in self._readout
         )
         # Continuous regression has no calibrated probability. Confidence is
         # intentionally left neutral rather than fabricating calibration.
@@ -171,8 +162,7 @@ class SparseEchoStateRegressor:
         prediction = self.predict()
         assert prediction is not None
         errors = tuple(
-            expected[index] - prediction.value[index]
-            for index in range(self._output_dim)
+            expected[index] - prediction.value[index] for index in range(self._output_dim)
         )
         features = self._features()
         denominator = 1e-9 + sum(feature * feature for feature in features)
@@ -185,11 +175,9 @@ class SparseEchoStateRegressor:
         return errors
 
     def resource_usage(self) -> TemporalResourceUsage:
-        recurrent_values = sum(len(row) for row in self._recurrent)
-        input_values = self._reservoir_size * (self._input_dim + 1)
-        readout_values = self._output_dim * (
-            1 + self._input_dim + self._reservoir_size
-        )
+        sum(len(row) for row in self._recurrent)
+        self._reservoir_size * (self._input_dim + 1)
+        readout_values = self._output_dim * (1 + self._input_dim + self._reservoir_size)
         return TemporalResourceUsage(
             state_values=self._reservoir_size + self._input_dim,
             learned_values=readout_values,
@@ -200,9 +188,8 @@ class SparseEchoStateRegressor:
     @property
     def fixed_values(self) -> int:
         """Number of immutable reservoir/input parameters for cost accounting."""
-        return (
-            sum(len(row) for row in self._recurrent)
-            + self._reservoir_size * (self._input_dim + 1)
+        return sum(len(row) for row in self._recurrent) + self._reservoir_size * (
+            self._input_dim + 1
         )
 
 

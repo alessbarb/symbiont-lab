@@ -3,10 +3,8 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from symbiont.core.consolidation import (
     ConsolidationCandidate,
-    ConsolidationOutcome,
     ConsolidationSignal,
     MemoryConsolidator,
     MemoryError,
@@ -17,15 +15,22 @@ from symbiont.core.consolidation import (
     quantize_unit,
     surprise_from_loss,
 )
+
 from symbiont.cognition.limits import KernelLimits
 
 
 def _weak_signal() -> ConsolidationSignal:
-    return ConsolidationSignal(novelty=0.1, surprise=0.1, attention=0.0, reliability=0.5, coherence=0.0)
+    return ConsolidationSignal(
+        novelty=0.1, surprise=0.1, attention=0.0, reliability=0.5, coherence=0.0
+    )
 
 
 def _strong_reliable_signal() -> ConsolidationSignal:
-    return ConsolidationSignal(novelty=0.9, surprise=0.9, attention=1.0, reliability=0.9, coherence=0.0)
+    return ConsolidationSignal(
+        novelty=0.9, surprise=0.9, attention=1.0, reliability=0.9, coherence=0.0
+    )
+
+
 from symbiont.host.drift import DriftKind
 
 
@@ -35,21 +40,33 @@ def test_memory_kind_is_closed_and_has_exactly_three_values():
 
 def test_consolidation_signal_rejects_out_of_range_fields():
     with pytest.raises(MemoryError):
-        ConsolidationSignal(novelty=1.5, surprise=0.0, attention=0.0, reliability=0.0, coherence=0.0)
+        ConsolidationSignal(
+            novelty=1.5, surprise=0.0, attention=0.0, reliability=0.0, coherence=0.0
+        )
     with pytest.raises(MemoryError):
-        ConsolidationSignal(novelty=0.0, surprise=-0.1, attention=0.0, reliability=0.0, coherence=0.0)
+        ConsolidationSignal(
+            novelty=0.0, surprise=-0.1, attention=0.0, reliability=0.0, coherence=0.0
+        )
     with pytest.raises(MemoryError):
-        ConsolidationSignal(novelty=math.nan, surprise=0.0, attention=0.0, reliability=0.0, coherence=0.0)
+        ConsolidationSignal(
+            novelty=math.nan, surprise=0.0, attention=0.0, reliability=0.0, coherence=0.0
+        )
 
 
 def test_consolidation_signal_score_matches_the_kernel_weighted_sum():
-    signal = ConsolidationSignal(novelty=1.0, surprise=1.0, attention=1.0, reliability=1.0, coherence=1.0)
+    signal = ConsolidationSignal(
+        novelty=1.0, surprise=1.0, attention=1.0, reliability=1.0, coherence=1.0
+    )
     assert signal.score() == pytest.approx(1.0)
 
-    signal = ConsolidationSignal(novelty=0.0, surprise=1.0, attention=0.0, reliability=0.0, coherence=0.0)
+    signal = ConsolidationSignal(
+        novelty=0.0, surprise=1.0, attention=0.0, reliability=0.0, coherence=0.0
+    )
     assert signal.score() == pytest.approx(0.30)
 
-    signal = ConsolidationSignal(novelty=0.0, surprise=0.0, attention=0.0, reliability=0.0, coherence=0.0)
+    signal = ConsolidationSignal(
+        novelty=0.0, surprise=0.0, attention=0.0, reliability=0.0, coherence=0.0
+    )
     assert signal.score() == pytest.approx(0.0)
 
 
@@ -103,18 +120,30 @@ def test_quantize_unit_is_bounded_and_monotone():
 
 def test_salient_event_trace_rejects_out_of_range_classes():
     SalientEventTrace(
-        pattern_id="sense_a", novelty_class=15, surprise_class=15,
-        reliability_class=15, context_class=0, recurrence_class=0,
+        pattern_id="sense_a",
+        novelty_class=15,
+        surprise_class=15,
+        reliability_class=15,
+        context_class=0,
+        recurrence_class=0,
     )
     with pytest.raises(MemoryError):
         SalientEventTrace(
-            pattern_id="sense_a", novelty_class=16, surprise_class=0,
-            reliability_class=0, context_class=0, recurrence_class=0,
+            pattern_id="sense_a",
+            novelty_class=16,
+            surprise_class=0,
+            reliability_class=0,
+            context_class=0,
+            recurrence_class=0,
         )
     with pytest.raises(MemoryError):
         SalientEventTrace(
-            pattern_id="sense_a", novelty_class=0, surprise_class=-1,
-            reliability_class=0, context_class=0, recurrence_class=0,
+            pattern_id="sense_a",
+            novelty_class=0,
+            surprise_class=-1,
+            reliability_class=0,
+            context_class=0,
+            recurrence_class=0,
         )
 
 
@@ -138,7 +167,9 @@ def test_spaced_recurrence_can_consolidate_p7():
     last_outcome = None
     for epoch in range(limits.slow_support_epochs):
         tick = epoch * limits.consolidation_epoch_ticks + 1
-        last_outcome = consolidator.observe("sense_a", MemoryKind.STATISTICAL, _weak_signal(), tick=tick)
+        last_outcome = consolidator.observe(
+            "sense_a", MemoryKind.STATISTICAL, _weak_signal(), tick=tick
+        )
     assert last_outcome.support_epochs == limits.slow_support_epochs
     assert last_outcome.committed is True
     assert last_outcome.path == "slow"
@@ -150,13 +181,17 @@ def test_structural_kind_never_takes_the_fast_path_regardless_of_epoch_count():
     outcome = None
     for epoch in range(limits.slow_support_epochs):
         tick = epoch * limits.consolidation_epoch_ticks + 1
-        outcome = consolidator.observe("edge_a->b", MemoryKind.STRUCTURAL, _weak_signal(), tick=tick)
+        outcome = consolidator.observe(
+            "edge_a->b", MemoryKind.STRUCTURAL, _weak_signal(), tick=tick
+        )
     assert outcome.path == "slow"
 
 
 def test_salient_event_one_shot_fast_path_commits_immediately():
     consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
-    outcome = consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
+    outcome = consolidator.observe(
+        "thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1
+    )
     assert outcome.path == "fast"
     assert outcome.committed is True
     assert len(consolidator.salient_events) == 1
@@ -168,8 +203,12 @@ def test_salient_event_one_shot_fast_path_commits_immediately():
 
 def test_reinforcing_the_same_pattern_updates_rather_than_duplicates():
     consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
-    consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
-    consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=2)
+    consolidator.observe(
+        "thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1
+    )
+    consolidator.observe(
+        "thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=2
+    )
     assert len(consolidator.salient_events) == 1
     assert consolidator.salient_events[0].recurrence_class == 1
 
@@ -178,7 +217,9 @@ def test_unreliable_strong_signal_does_not_reach_the_fast_path():
     """Precursor to P8 (full end-to-end version lands in PR5): a low-
     reliability signal must fail the fast-path gate even with high
     novelty/surprise."""
-    unreliable = ConsolidationSignal(novelty=0.9, surprise=0.9, attention=1.0, reliability=0.1, coherence=0.0)
+    unreliable = ConsolidationSignal(
+        novelty=0.9, surprise=0.9, attention=1.0, reliability=0.1, coherence=0.0
+    )
     consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
     outcome = consolidator.observe("noisy_sense", MemoryKind.SALIENT_EVENT, unreliable, tick=1)
     assert outcome.path == "slow"
@@ -222,8 +263,15 @@ def test_export_includes_committed_statistical_memory_and_salient_traces():
     limits = KernelLimits()
     consolidator = MemoryConsolidator(kernel_limits=limits)
     for epoch in range(limits.slow_support_epochs):
-        consolidator.observe("sense_a", MemoryKind.STATISTICAL, _weak_signal(), tick=epoch * limits.consolidation_epoch_ticks + 1)
-    consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
+        consolidator.observe(
+            "sense_a",
+            MemoryKind.STATISTICAL,
+            _weak_signal(),
+            tick=epoch * limits.consolidation_epoch_ticks + 1,
+        )
+    consolidator.observe(
+        "thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1
+    )
 
     payload = consolidator.export_checkpoint()
     assert payload["statistical"] == {"sense_a": 3}
@@ -234,7 +282,9 @@ def test_export_includes_committed_statistical_memory_and_salient_traces():
 def test_restore_checkpoint_round_trips_committed_memory():
     limits = KernelLimits()
     consolidator = MemoryConsolidator(kernel_limits=limits)
-    consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
+    consolidator.observe(
+        "thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1
+    )
     payload = consolidator.export_checkpoint()
 
     restored = MemoryConsolidator.restore_checkpoint(payload, kernel_limits=limits)

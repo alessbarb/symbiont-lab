@@ -4,14 +4,15 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
 from symbiont.modeling import (
+    ModeledOrganismRuntime,
     ModelObjective,
     ModelTrainingAuthority,
-    ModeledOrganismRuntime,
     TrainingRequest,
 )
 from symbiont_lab.modeling import TrainingConfig, encode_corpus, train_private_model
 from symbiont_lab.modeling.gateway import load_artifact_model
 from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
+
 from .adaptive_replay_matched_control import _normalize_seeds, _transition_history
 
 
@@ -163,34 +164,34 @@ def run_autonomous_replay_stopping_study(
 
         max_gain = minimum.evaluator_test_loss - maximum.evaluator_test_loss
         autonomous_gain = minimum.evaluator_test_loss - autonomous.evaluator_test_loss
-        retained = (
-            autonomous_gain / max_gain
-            if max_gain > 1e-12
-            else 1.0
-        )
+        retained = autonomous_gain / max_gain if max_gain > 1e-12 else 1.0
         saved = 1.0 - autonomous.steps_completed / max(1, maximum.steps_completed)
         passed = (
             autonomous.steps_completed < maximum.steps_completed
             and retained >= 0.90
             and autonomous.evaluator_test_loss <= minimum.evaluator_test_loss
         )
-        results.append(AutonomousStoppingSeedResult(
-            seed=seed,
-            minimum=minimum,
-            autonomous=autonomous,
-            maximum=maximum,
-            compute_saved_fraction=saved,
-            retained_gain_fraction=retained,
-            passes_efficiency_gate=passed,
-        ))
+        results.append(
+            AutonomousStoppingSeedResult(
+                seed=seed,
+                minimum=minimum,
+                autonomous=autonomous,
+                maximum=maximum,
+                compute_saved_fraction=saved,
+                retained_gain_fraction=retained,
+                passes_efficiency_gate=passed,
+            )
+        )
 
     return AutonomousStoppingStudy(
         seeds=normalized,
         ticks=ticks,
         per_seed=tuple(results),
         passing_seeds=sum(item.passes_efficiency_gate for item in results),
-        mean_compute_saved_fraction=sum(item.compute_saved_fraction for item in results) / len(results),
-        mean_retained_gain_fraction=sum(item.retained_gain_fraction for item in results) / len(results),
+        mean_compute_saved_fraction=sum(item.compute_saved_fraction for item in results)
+        / len(results),
+        mean_retained_gain_fraction=sum(item.retained_gain_fraction for item in results)
+        / len(results),
     )
 
 

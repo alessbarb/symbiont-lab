@@ -1,4 +1,5 @@
 """Canonical body-boundary execution for Sensorimotor v2."""
+
 from __future__ import annotations
 
 from .action import MotorCommand

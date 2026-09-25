@@ -1,4 +1,3 @@
-import re
 import unittest
 from pathlib import Path
 
@@ -39,12 +38,16 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn("const topology = boundedTopology(payload.topology);", instance_stream)
         self.assertIn("updateUiState({ topology });", instance_stream)
         self.assertIn("renderCognitionTopology(payload.topology)", instance_stream)
-        self.assertIn("if (currentInstanceHasSnapshot) renderIndividualPerspective();", instance_stream)
+        self.assertIn(
+            "if (currentInstanceHasSnapshot) renderIndividualPerspective();", instance_stream
+        )
 
     def test_instance_stream_gates_topology_render_on_this_instances_own_snapshot(self):
         instance_stream = read("transport", "instance-stream.js")
         declaration = instance_stream.index("let currentInstanceHasSnapshot = false;")
-        reset_in_connect = instance_stream.index("currentInstanceHasSnapshot = false;", instance_stream.index("function connectInstance"))
+        reset_in_connect = instance_stream.index(
+            "currentInstanceHasSnapshot = false;", instance_stream.index("function connectInstance")
+        )
         opens_stream = instance_stream.index("new EventSource(")
         set_true = instance_stream.index("currentInstanceHasSnapshot = true;")
         ingest_call = instance_stream.index("ingestSnapshot(payload.snapshot)")
@@ -58,7 +61,9 @@ class StateFlowTests(unittest.TestCase):
         reset_index = replay.index("resetInstanceProjection();")
         self.assertLess(reset_index, ingest_index)
 
-    def test_ingest_snapshot_assigns_cognition_and_self_before_rendering_individual_perspective(self):
+    def test_ingest_snapshot_assigns_cognition_and_self_before_rendering_individual_perspective(
+        self,
+    ):
         snapshot = read("projection", "snapshot.js")
         commit = read("state", "commit.js")
         cognition_assignment = commit.index("state.cognition = projection.cognition;")
@@ -86,13 +91,15 @@ class StateFlowTests(unittest.TestCase):
         body = snapshot[start:end]
         self.assertIn("topologyHealth", body)
         self.assertIn("recovering", body)
-        self.assertIn('cognition.topology_health', body)
-        self.assertIn('cognition.recovering', body)
+        self.assertIn("cognition.topology_health", body)
+        self.assertIn("cognition.recovering", body)
 
     def test_app_boot_uses_the_single_individual_dispatcher(self):
         app_js = read("app.js")
-        self.assertIn("import { renderIndividualPerspective } from \"./render/individual.js\";", app_js)
-        self.assertNotIn("import { renderOrganism } from \"./render/organism.js\";", app_js)
+        self.assertIn(
+            'import { renderIndividualPerspective } from "./render/individual.js";', app_js
+        )
+        self.assertNotIn('import { renderOrganism } from "./render/organism.js";', app_js)
         self.assertIn("renderIndividualPerspective();", app_js)
         self.assertNotIn("renderOrganism();", app_js)
 
@@ -102,7 +109,9 @@ class StateFlowTests(unittest.TestCase):
 
     def test_advance_uses_the_single_individual_dispatcher_unconditionally(self):
         controls_js = read("ui", "controls.js")
-        self.assertIn("renderTimeline(); renderInspector(); renderIndividualPerspective();", controls_js)
+        self.assertIn(
+            "renderTimeline(); renderInspector(); renderIndividualPerspective();", controls_js
+        )
         self.assertNotIn('if (state.view === "individual") renderOrganism();', controls_js)
 
     def test_organism_belief_click_uses_the_single_individual_dispatcher(self):
@@ -118,12 +127,19 @@ class StateFlowTests(unittest.TestCase):
 
     def test_render_organism_gates_structure_on_topology_revision_match(self):
         organism_js = read("render", "organism.js")
-        self.assertIn("state.topology.topologyRevision === state.cognition.topologyRevision", organism_js)
-        self.assertIn('topologyIsCurrent ? state.topology.nodes.filter(n => n.kind === "sense") : []', organism_js)
+        self.assertIn(
+            "state.topology.topologyRevision === state.cognition.topologyRevision", organism_js
+        )
+        self.assertIn(
+            'topologyIsCurrent ? state.topology.nodes.filter(n => n.kind === "sense") : []',
+            organism_js,
+        )
         self.assertIn("topologyIsCurrent ? state.topology.nodes : []", organism_js)
         self.assertIn("topologyIsCurrent ? state.topology.edges : []", organism_js)
 
-    def test_apply_individual_canvas_visibility_called_from_switch_view_and_switch_organism_view(self):
+    def test_apply_individual_canvas_visibility_called_from_switch_view_and_switch_organism_view(
+        self,
+    ):
         controls_js = read("ui", "controls.js")
         define_index = controls_js.index("function applyIndividualCanvasVisibility(")
         switch_organism_view_start = controls_js.index("function switchOrganismView(")
@@ -165,7 +181,9 @@ class StateFlowTests(unittest.TestCase):
         controls_js = read("ui", "controls.js")
         self.assertIn("function formatOrganismState()", controls_js)
         self.assertIn("function formatPopulationState()", controls_js)
-        self.assertIn('view === "individual" ? formatOrganismState() : formatPopulationState()', controls_js)
+        self.assertIn(
+            'view === "individual" ? formatOrganismState() : formatPopulationState()', controls_js
+        )
         self.assertNotIn('"Active · Exploring"', controls_js)
         self.assertNotIn('"18 organisms · 3 ecologies"', controls_js)
 
@@ -176,7 +194,10 @@ class StateFlowTests(unittest.TestCase):
     def test_app_restores_stored_organism_view_on_boot(self):
         app_js = read("app.js")
         self.assertIn('localStorage.getItem("symbiont-observatory-organism-view")', app_js)
-        self.assertIn('["phenotype", "sensory", "self", "cognition", "regimes"].includes(storedOrganismView)', app_js)
+        self.assertIn(
+            '["phenotype", "sensory", "self", "cognition", "regimes"].includes(storedOrganismView)',
+            app_js,
+        )
 
 
 if __name__ == "__main__":

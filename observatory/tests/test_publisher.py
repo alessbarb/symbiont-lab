@@ -30,7 +30,9 @@ class PublisherTests(unittest.TestCase):
             sink = JournalSink(root, run_id="run-1")
             sink.write({"snapshot": {"tick": 1}})
             sink.finalize()
-            summary = json.loads((root / "summaries" / "run-1.summary.json").read_text(encoding="utf-8"))
+            summary = json.loads(
+                (root / "summaries" / "run-1.summary.json").read_text(encoding="utf-8")
+            )
             self.assertEqual(summary["entries"], 1)
 
     def test_replay_recorder_flushes_all_recorded_snapshots(self):

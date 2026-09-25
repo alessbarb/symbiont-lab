@@ -5,18 +5,19 @@ runs one Tkinter window in a separate process and receives bounded evaluator
 snapshots plus RGB camera frames. It can only send camera/viewer lifecycle
 commands back to the parent; there is no control path into cognition.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import math
-from multiprocessing.context import BaseContext
-from pathlib import Path
 import os
 import queue
 import signal
 import time
-from typing import Mapping
 from collections.abc import Sequence
+from dataclasses import asdict, dataclass
+from multiprocessing.context import BaseContext
+from pathlib import Path
+from typing import Mapping
 
 from symbiont_lab.physics3d.humanoid import (
     BODY_KIND,
@@ -29,21 +30,17 @@ from symbiont_lab.physics3d.humanoid import (
 )
 
 HUMANOID_LINK_MASSES = tuple(
-    SEGMENTS[topology.child_link].mass
-    if topology.child_link in SEGMENTS
-    else CARRIER_MASS
+    SEGMENTS[topology.child_link].mass if topology.child_link in SEGMENTS else CARRIER_MASS
     for topology in JOINT_TOPOLOGY
 )
 HUMANOID_BASE_MASS = SEGMENTS["pelvis"].mass
 HUMANOID_TOTAL_MASS = HUMANOID_BASE_MASS + sum(HUMANOID_LINK_MASSES)
 
 _UNIT_CIRCLE_18 = tuple(
-    (math.cos(math.radians(deg)), math.sin(math.radians(deg)))
-    for deg in range(0, 360, 18)
+    (math.cos(math.radians(deg)), math.sin(math.radians(deg))) for deg in range(0, 360, 18)
 )
 _UNIT_CIRCLE_24 = tuple(
-    (math.cos(math.radians(deg)), math.sin(math.radians(deg)))
-    for deg in range(0, 360, 24)
+    (math.cos(math.radians(deg)), math.sin(math.radians(deg))) for deg in range(0, 360, 24)
 )
 
 
@@ -84,7 +81,6 @@ def _point_in_polygon_2d(point: tuple[float, float], poly: Sequence[tuple[float,
         if ((y1 > y) != (y2 > y)) and (x < (x2 - x1) * (y - y1) / (y2 - y1 + 1e-12) + x1):
             inside = not inside
     return inside
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,32 +244,38 @@ def _event_transition(
     prev_origin = str(previous.get("action_source", "none"))
     cur_origin = str(current.get("action_source", "none"))
     if cur_origin != prev_origin:
-        events.append({
-            "tick": tick,
-            "kind": "action_source",
-            "category": "behavior",
-            "label": f"Fuente de acción: {prev_origin} → {cur_origin}",
-        })
+        events.append(
+            {
+                "tick": tick,
+                "kind": "action_source",
+                "category": "behavior",
+                "label": f"Fuente de acción: {prev_origin} → {cur_origin}",
+            }
+        )
 
     prev_min = float(previous.get("minimum_resource_distance", float("inf")))
     cur_min = float(current.get("minimum_resource_distance", prev_min))
     if cur_min + 0.01 < prev_min:
-        events.append({
-            "tick": tick,
-            "kind": "resource_minimum",
-            "category": "environment",
-            "label": f"Nuevo mínimo al recurso: {cur_min:.3f} m",
-        })
+        events.append(
+            {
+                "tick": tick,
+                "kind": "resource_minimum",
+                "category": "environment",
+                "label": f"Nuevo mínimo al recurso: {cur_min:.3f} m",
+            }
+        )
 
     prev_abs = float(previous.get("absorbed_energy", 0.0))
     cur_abs = float(current.get("absorbed_energy", prev_abs))
     if cur_abs > prev_abs + 1e-9:
-        events.append({
-            "tick": tick,
-            "kind": "energy_absorbed",
-            "category": "survival",
-            "label": f"Energía absorbida: +{cur_abs - prev_abs:.3f}",
-        })
+        events.append(
+            {
+                "tick": tick,
+                "kind": "energy_absorbed",
+                "category": "survival",
+                "label": f"Energía absorbida: +{cur_abs - prev_abs:.3f}",
+            }
+        )
 
     for field, kind, noun in (
         ("motor_competence_candidates", "motor_competence_candidate", "Candidata motora"),
@@ -284,28 +286,37 @@ def _event_transition(
         before = int(previous.get(field, 0))
         after = int(current.get(field, before))
         if after > before:
-            category = "learning" if kind in {
-                "motor_competence_candidate",
-                "motor_competence",
-                "predictor",
-            } else "body"
-            events.append({
-                "tick": tick,
-                "kind": kind,
-                "category": category,
-                "label": f"{noun}: {before} → {after}",
-            })
+            category = (
+                "learning"
+                if kind
+                in {
+                    "motor_competence_candidate",
+                    "motor_competence",
+                    "predictor",
+                }
+                else "body"
+            )
+            events.append(
+                {
+                    "tick": tick,
+                    "kind": kind,
+                    "category": category,
+                    "label": f"{noun}: {before} → {after}",
+                }
+            )
 
     prev_disp = float(previous.get("displacement_from_origin", 0.0))
     cur_disp = float(current.get("displacement_from_origin", prev_disp))
     for threshold in (0.05, 0.25, 0.50, 1.00):
         if prev_disp < threshold <= cur_disp:
-            events.append({
-                "tick": tick,
-                "kind": "displacement_milestone",
-                "category": "body",
-                "label": f"Desplazamiento supera {threshold:.2f} m",
-            })
+            events.append(
+                {
+                    "tick": tick,
+                    "kind": "displacement_milestone",
+                    "category": "body",
+                    "label": f"Desplazamiento supera {threshold:.2f} m",
+                }
+            )
 
     return tuple(events)
 
@@ -320,8 +331,8 @@ def _event_context(
     if not records:
         return {}
     index = max(0, min(len(records) - 1, int(index)))
-    before = records[max(0, index - radius):index]
-    after = records[index + 1:min(len(records), index + radius + 1)]
+    before = records[max(0, index - radius) : index]
+    after = records[index + 1 : min(len(records), index + radius + 1)]
 
     def mean(field: str, sample: list[Mapping[str, object]]) -> float | None:
         values: list[float] = []
@@ -339,9 +350,7 @@ def _event_context(
         values: list[float] = []
         for record in sample:
             try:
-                controllability = max(
-                    0.0, float(record.get("best_motor_controllability", 0.0))
-                )
+                controllability = max(0.0, float(record.get("best_motor_controllability", 0.0)))
                 direction = max(
                     0.0,
                     float(record.get("best_motor_directional_consistency", 0.0)),
@@ -596,9 +605,7 @@ def record_to_snapshot(
     base_pos = record.get("base_position")
     snap.setdefault(
         "height",
-        base_pos[2]
-        if isinstance(base_pos, (list, tuple)) and len(base_pos) >= 3
-        else 0.9,
+        base_pos[2] if isinstance(base_pos, (list, tuple)) and len(base_pos) >= 3 else 0.9,
     )
     snap.setdefault("strongest_outputs", ())
     snap.setdefault("slm_models", record.get("slm_models", 0))
@@ -780,16 +787,15 @@ def _viewer_main(
     try:
         import tkinter as tk
         from tkinter import ttk
-        from PIL import Image, ImageDraw, ImageTk
+
         import numpy as np
         import pybullet as p
+        from PIL import Image, ImageDraw, ImageTk
+
         from symbiont_lab.physics3d.humanoid import HumanoidPhysics
         from symbiont_lab.physics3d.resource import PhysicalResource
     except ImportError as exc:
-        print(
-            "Physics3D unified viewer unavailable: "
-            f"{exc.__class__.__name__}: {exc}"
-        )
+        print(f"Physics3D unified viewer unavailable: {exc.__class__.__name__}: {exc}")
         return
 
     # Palette: Modern dark Mission Control
@@ -866,7 +872,9 @@ def _viewer_main(
     # -------------------------------------------------------------
     # 1. TOP HEADER (Row 0)
     # -------------------------------------------------------------
-    header_frame = tk.Frame(root, bg=panel, padx=14, pady=8, highlightthickness=1, highlightbackground=border)
+    header_frame = tk.Frame(
+        root, bg=panel, padx=14, pady=8, highlightthickness=1, highlightbackground=border
+    )
     header_frame.grid(row=0, column=0, sticky="ew")
     header_frame.grid_columnconfigure(1, weight=1)
 
@@ -945,7 +953,9 @@ def _viewer_main(
     # -------------------------------------------------------------
     # LEFT PANEL: ANATOMY & ACTUATION
     # -------------------------------------------------------------
-    left_panel = tk.Frame(workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
+    left_panel = tk.Frame(
+        workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border
+    )
 
     tk.Label(
         left_panel,
@@ -966,7 +976,9 @@ def _viewer_main(
         anchor="w",
     ).pack(fill="x", pady=(4, 2))
 
-    contacts_frame = tk.Frame(left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border)
+    contacts_frame = tk.Frame(
+        left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border
+    )
     contacts_frame.pack(fill="x", pady=(0, 8))
 
     contact_labels: dict[int, tk.Label] = {}
@@ -1011,12 +1023,13 @@ def _viewer_main(
         anchor="w",
     ).pack(fill="x", pady=(4, 2))
 
-    torques_frame = tk.Frame(left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border)
+    torques_frame = tk.Frame(
+        left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border
+    )
     torques_frame.pack(fill="x", pady=(0, 8))
 
     joint_names = {
-        index: spec.name.replace("_", " ").title()
-        for index, spec in enumerate(JOINT_SPECS)
+        index: spec.name.replace("_", " ").title() for index, spec in enumerate(JOINT_SPECS)
     }
     joint_canvases: dict[int, tk.Canvas] = {}
     joint_val_vars: dict[int, tk.StringVar] = {}
@@ -1033,7 +1046,14 @@ def _viewer_main(
             anchor="w",
             font=("TkDefaultFont", 8),
         ).pack(side="left")
-        cv = tk.Canvas(row_f, width=120, height=13, bg="#0d1117", highlightthickness=1, highlightbackground=border)
+        cv = tk.Canvas(
+            row_f,
+            width=120,
+            height=13,
+            bg="#0d1117",
+            highlightthickness=1,
+            highlightbackground=border,
+        )
         cv.pack(side="left", padx=4)
         cv.create_line(60, 0, 60, 13, fill="#30363d")
         bar_id = cv.create_rectangle(60, 2, 60, 11, fill=cyan, width=0)
@@ -1076,19 +1096,32 @@ def _viewer_main(
     ).pack(fill="x", pady=(0, 8))
 
     # Section: Mechanical Metrics
-    mech_frame = tk.Frame(left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border)
+    mech_frame = tk.Frame(
+        left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border
+    )
     mech_frame.pack(fill="x", pady=(0, 4))
     mech_vars = {}
-    for r_idx, (k, lbl_text) in enumerate((
-        ("height", "Altura Base"),
-        ("motion", "Movimiento Articular"),
-        ("work", "Trabajo Mecánico"),
-        ("cost", "Coste Metabólico"),
-    )):
-        tk.Label(mech_frame, text=lbl_text, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w").grid(row=r_idx, column=0, sticky="w", pady=1)
+    for r_idx, (k, lbl_text) in enumerate(
+        (
+            ("height", "Altura Base"),
+            ("motion", "Movimiento Articular"),
+            ("work", "Trabajo Mecánico"),
+            ("cost", "Coste Metabólico"),
+        )
+    ):
+        tk.Label(
+            mech_frame, text=lbl_text, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w"
+        ).grid(row=r_idx, column=0, sticky="w", pady=1)
         v = tk.StringVar(value="—")
         mech_vars[k] = v
-        tk.Label(mech_frame, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_idx, column=1, sticky="e", pady=1)
+        tk.Label(
+            mech_frame,
+            textvariable=v,
+            bg=sub_bg,
+            fg=fg,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="e",
+        ).grid(row=r_idx, column=1, sticky="e", pady=1)
     mech_frame.grid_columnconfigure(1, weight=1)
 
     # -------------------------------------------------------------
@@ -1258,6 +1291,7 @@ def _viewer_main(
             nonlocal camera
             camera = cam_target.bounded()
             rerender_latest()
+
         b = tk.Button(
             camera_btn_frame,
             text=text,
@@ -1355,7 +1389,9 @@ def _viewer_main(
     # -------------------------------------------------------------
     # RIGHT PANEL: COGNITION, ECOLOGY & PRIVATE SLM
     # -------------------------------------------------------------
-    right_panel = tk.Frame(workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
+    right_panel = tk.Frame(
+        workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border
+    )
 
     selection_card = tk.Frame(
         right_panel,
@@ -1367,9 +1403,7 @@ def _viewer_main(
     )
     selection_card.pack(fill="x", pady=(0, 8))
     selection_title_var = tk.StringVar(value="Nothing selected")
-    selection_detail_var = tk.StringVar(
-        value="Click a body part or resource in the viewport."
-    )
+    selection_detail_var = tk.StringVar(value="Click a body part or resource in the viewport.")
     selection_provenance_var = tk.StringVar(value="Viewer inspection")
     tk.Label(
         selection_card,
@@ -1399,9 +1433,18 @@ def _viewer_main(
     ).pack(fill="x")
 
     def make_card(parent, title, accent_color):
-        card = tk.Frame(parent, bg=sub_bg, padx=8, pady=6, highlightthickness=1, highlightbackground=border)
+        card = tk.Frame(
+            parent, bg=sub_bg, padx=8, pady=6, highlightthickness=1, highlightbackground=border
+        )
         card.pack(fill="x", pady=(0, 8))
-        tk.Label(card, text=title, bg=sub_bg, fg=accent_color, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 4))
+        tk.Label(
+            card,
+            text=title,
+            bg=sub_bg,
+            fg=accent_color,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="w",
+        ).pack(fill="x", pady=(0, 4))
         content = tk.Frame(card, bg=sub_bg)
         content.pack(fill="x")
         content.grid_columnconfigure(1, weight=1)
@@ -1409,12 +1452,14 @@ def _viewer_main(
 
     knowledge_content = make_card(right_panel, "What does it know?", purple)
     knowledge_vars = {}
-    for r_i, (key, label) in enumerate((
-        ("perception", "Perception"),
-        ("body", "Body"),
-        ("world", "World model"),
-        ("agency", "Agency"),
-    )):
+    for r_i, (key, label) in enumerate(
+        (
+            ("perception", "Perception"),
+            ("body", "Body"),
+            ("world", "World model"),
+            ("agency", "Agency"),
+        )
+    ):
         tk.Label(
             knowledge_content,
             text=label,
@@ -1436,72 +1481,113 @@ def _viewer_main(
 
     # Card 1: Cognition & BodySchema
     cog_content = make_card(right_panel, "Cognition & body schema", cyan)
-    schema_bar_canvas = tk.Canvas(cog_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
+    schema_bar_canvas = tk.Canvas(
+        cog_content, width=280, height=8, bg="#0d1117", highlightthickness=0
+    )
     schema_bar_canvas.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
     schema_bar_rect = schema_bar_canvas.create_rectangle(0, 0, 0, 8, fill=green, width=0)
 
     cog_vars = {}
-    for r_i, (k, l_txt) in enumerate((
-        ("schema", "Confianza BodySchema"),
-        ("parts", "Partes / Senses"),
-        ("regions", "Regiones / Evidencias"),
-        ("predictors", "Predictores Activos"),
-        ("shadows", "Sombras / Promocionables"),
-        ("error", "Error Predicción"),
-    ), start=1):
-        tk.Label(cog_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w").grid(row=r_i, column=0, sticky="w", pady=1)
+    for r_i, (k, l_txt) in enumerate(
+        (
+            ("schema", "Confianza BodySchema"),
+            ("parts", "Partes / Senses"),
+            ("regions", "Regiones / Evidencias"),
+            ("predictors", "Predictores Activos"),
+            ("shadows", "Sombras / Promocionables"),
+            ("error", "Error Predicción"),
+        ),
+        start=1,
+    ):
+        tk.Label(
+            cog_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w"
+        ).grid(row=r_i, column=0, sticky="w", pady=1)
         v = tk.StringVar(value="—")
         cog_vars[k] = v
-        tk.Label(cog_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
+        tk.Label(
+            cog_content,
+            textvariable=v,
+            bg=sub_bg,
+            fg=fg,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="e",
+        ).grid(row=r_i, column=1, sticky="e", pady=1)
 
     # Card 2: Ecology & Locomotion
     eco_content = make_card(right_panel, "Ecology & metabolism", green)
-    reserve_bar_canvas = tk.Canvas(eco_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
+    reserve_bar_canvas = tk.Canvas(
+        eco_content, width=280, height=8, bg="#0d1117", highlightthickness=0
+    )
     reserve_bar_canvas.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
     reserve_bar_rect = reserve_bar_canvas.create_rectangle(0, 0, 0, 8, fill=green, width=0)
 
     eco_vars = {}
-    for r_i, (k, l_txt) in enumerate((
-        ("reserve", "Reserva / Absorbido"),
-        ("distance", "Distancia Recurso"),
-        ("progress", "Progreso Neto"),
-        ("displacement", "Desplazamiento Origen"),
-        ("repertoire", "Repertorio / Cobertura"),
-        ("primitives", "Primitivas / Cognitivas"),
-        ("control", "Control / Dirección"),
-        ("origins", "Orígenes C/B/P/M/S"),
-    ), start=1):
-        tk.Label(eco_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w").grid(row=r_i, column=0, sticky="w", pady=1)
+    for r_i, (k, l_txt) in enumerate(
+        (
+            ("reserve", "Reserva / Absorbido"),
+            ("distance", "Distancia Recurso"),
+            ("progress", "Progreso Neto"),
+            ("displacement", "Desplazamiento Origen"),
+            ("repertoire", "Repertorio / Cobertura"),
+            ("primitives", "Primitivas / Cognitivas"),
+            ("control", "Control / Dirección"),
+            ("origins", "Orígenes C/B/P/M/S"),
+        ),
+        start=1,
+    ):
+        tk.Label(
+            eco_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w"
+        ).grid(row=r_i, column=0, sticky="w", pady=1)
         v = tk.StringVar(value="—")
         eco_vars[k] = v
-        tk.Label(eco_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
+        tk.Label(
+            eco_content,
+            textvariable=v,
+            bg=sub_bg,
+            fg=fg,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="e",
+        ).grid(row=r_i, column=1, sticky="e", pady=1)
 
     # Card 3: Private SLM
     slm_content = make_card(right_panel, "Private world model", purple)
     slm_vars = {}
-    for r_i, (k, l_txt) in enumerate((
-        ("records", "Experiencias / Transiciones"),
-        ("state", "Estado Modelo"),
-        ("gate", "Última Puerta"),
-        ("loss", "Pérdida Modelo / Baseline"),
-    )):
-        tk.Label(slm_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w").grid(row=r_i, column=0, sticky="w", pady=1)
+    for r_i, (k, l_txt) in enumerate(
+        (
+            ("records", "Experiencias / Transiciones"),
+            ("state", "Estado Modelo"),
+            ("gate", "Última Puerta"),
+            ("loss", "Pérdida Modelo / Baseline"),
+        )
+    ):
+        tk.Label(
+            slm_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w"
+        ).grid(row=r_i, column=0, sticky="w", pady=1)
         v = tk.StringVar(value="—")
         slm_vars[k] = v
-        tk.Label(slm_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
+        tk.Label(
+            slm_content,
+            textvariable=v,
+            bg=sub_bg,
+            fg=fg,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="e",
+        ).grid(row=r_i, column=1, sticky="e", pady=1)
 
     # Card 4: Episodic memory
     memory_content = make_card(right_panel, "Episodic memory", blue)
     memory_vars = {}
-    for r_i, (k, l_txt) in enumerate((
-        ("episodes", "Episodios / Pendientes"),
-        ("compression", "Familias recurrentes / Evictions"),
-        ("density", "Ocurrencias / Recurrencia media"),
-        ("exceptions", "Excepciones / Memoria"),
-        ("interpretations", "Interpretaciones / Contingencias"),
-        ("activity", "Retrievals / Replay"),
-        ("age", "Edad media / Máxima"),
-    )):
+    for r_i, (k, l_txt) in enumerate(
+        (
+            ("episodes", "Episodios / Pendientes"),
+            ("compression", "Familias recurrentes / Evictions"),
+            ("density", "Ocurrencias / Recurrencia media"),
+            ("exceptions", "Excepciones / Memoria"),
+            ("interpretations", "Interpretaciones / Contingencias"),
+            ("activity", "Retrievals / Replay"),
+            ("age", "Edad media / Máxima"),
+        )
+    ):
         tk.Label(
             memory_content,
             text=l_txt,
@@ -1609,7 +1695,9 @@ def _viewer_main(
     # -------------------------------------------------------------
     # 3. BOTTOM PANEL: TELEMETRY TIME-SERIES & CONTROLS (Row 2)
     # -------------------------------------------------------------
-    bottom_frame = tk.Frame(root, bg=panel, padx=12, pady=6, highlightthickness=1, highlightbackground=border)
+    bottom_frame = tk.Frame(
+        root, bg=panel, padx=12, pady=6, highlightthickness=1, highlightbackground=border
+    )
     bottom_frame.grid(row=2, column=0, sticky="ew")
     bottom_frame.grid_columnconfigure(0, weight=1)
     bottom_frame.grid_columnconfigure(1, minsize=320, weight=0)
@@ -1617,7 +1705,9 @@ def _viewer_main(
     chart_box = tk.Frame(bottom_frame, bg=panel)
     chart_box.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
-    chart = tk.Canvas(chart_box, height=110, bg="#090d11", highlightthickness=1, highlightbackground=border)
+    chart = tk.Canvas(
+        chart_box, height=110, bg="#090d11", highlightthickness=1, highlightbackground=border
+    )
     chart.pack(fill="both", expand=True)
 
     event_listbox = tk.Listbox(
@@ -1650,7 +1740,9 @@ def _viewer_main(
     )
     event_context_label.pack(fill="x", pady=(4, 0))
 
-    ctrl_box = tk.Frame(bottom_frame, bg=sub_bg, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
+    ctrl_box = tk.Frame(
+        bottom_frame, bg=sub_bg, padx=10, pady=8, highlightthickness=1, highlightbackground=border
+    )
     ctrl_box.grid(row=0, column=1, sticky="nsew")
     if embedded:
         ctrl_box.grid_remove()
@@ -1667,7 +1759,14 @@ def _viewer_main(
     replay_event_index: list[tuple[int, dict[str, object]]] = []
 
     if is_replay:
-        tk.Label(ctrl_box, text="CONTROL DE REPLAY", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 2))
+        tk.Label(
+            ctrl_box,
+            text="CONTROL DE REPLAY",
+            bg=sub_bg,
+            fg=cyan,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="w",
+        ).pack(fill="x", pady=(0, 2))
 
         slider_var = tk.DoubleVar(value=0)
         is_scrubbing = False
@@ -1733,12 +1832,62 @@ def _viewer_main(
                 play_btn.configure(text="▶ Reproducir", bg="#15803d")
                 sim_state_pill_var.set("PAUSADO")
 
-        tk.Button(btn_row, text="⟲", bg="#21262d", fg=fg, font=("TkDefaultFont", 7), padx=4, pady=2, relief="flat", command=goto_start).pack(side="left", padx=1)
-        tk.Button(btn_row, text="⏮ -1", bg="#21262d", fg=fg, font=("TkDefaultFont", 7), padx=5, pady=2, relief="flat", command=step_back).pack(side="left", padx=1)
-        play_btn = tk.Button(btn_row, text="▶ Reproducir", bg="#15803d", fg="#ffffff", font=("TkDefaultFont", 8, "bold"), padx=8, pady=2, relief="flat", command=toggle_play)
+        tk.Button(
+            btn_row,
+            text="⟲",
+            bg="#21262d",
+            fg=fg,
+            font=("TkDefaultFont", 7),
+            padx=4,
+            pady=2,
+            relief="flat",
+            command=goto_start,
+        ).pack(side="left", padx=1)
+        tk.Button(
+            btn_row,
+            text="⏮ -1",
+            bg="#21262d",
+            fg=fg,
+            font=("TkDefaultFont", 7),
+            padx=5,
+            pady=2,
+            relief="flat",
+            command=step_back,
+        ).pack(side="left", padx=1)
+        play_btn = tk.Button(
+            btn_row,
+            text="▶ Reproducir",
+            bg="#15803d",
+            fg="#ffffff",
+            font=("TkDefaultFont", 8, "bold"),
+            padx=8,
+            pady=2,
+            relief="flat",
+            command=toggle_play,
+        )
         play_btn.pack(side="left", padx=2)
-        tk.Button(btn_row, text="+1 ⏭", bg="#21262d", fg=fg, font=("TkDefaultFont", 7), padx=5, pady=2, relief="flat", command=step_fwd).pack(side="left", padx=1)
-        tk.Button(btn_row, text="⏭|", bg="#21262d", fg=fg, font=("TkDefaultFont", 7), padx=4, pady=2, relief="flat", command=goto_end).pack(side="left", padx=1)
+        tk.Button(
+            btn_row,
+            text="+1 ⏭",
+            bg="#21262d",
+            fg=fg,
+            font=("TkDefaultFont", 7),
+            padx=5,
+            pady=2,
+            relief="flat",
+            command=step_fwd,
+        ).pack(side="left", padx=1)
+        tk.Button(
+            btn_row,
+            text="⏭|",
+            bg="#21262d",
+            fg=fg,
+            font=("TkDefaultFont", 7),
+            padx=4,
+            pady=2,
+            relief="flat",
+            command=goto_end,
+        ).pack(side="left", padx=1)
 
         speed_row = tk.Frame(ctrl_box, bg=sub_bg)
         speed_row.pack(fill="x", pady=(0, 2))
@@ -1758,6 +1907,7 @@ def _viewer_main(
         loop_chk.pack(side="left", padx=(0, 4))
 
         speed_buttons = []
+
         def set_replay_speed(mult, active_btn):
             nonlocal replay_speed
             replay_speed = mult
@@ -1800,7 +1950,9 @@ def _viewer_main(
             is_scrubbing = False
             rec = replay_records[current_replay_idx]
             tick_no = rec.get("tick", current_replay_idx)
-            replay_info_var.set(f"Tick {tick_no:,} ({current_replay_idx + 1:,} / {len(replay_records):,})")
+            replay_info_var.set(
+                f"Tick {tick_no:,} ({current_replay_idx + 1:,} / {len(replay_records):,})"
+            )
 
             window_start = max(0, current_replay_idx - max_history + 1)
             prediction_history.clear()
@@ -1811,8 +1963,7 @@ def _viewer_main(
             tick_history.clear()
             event_log.clear()
             event_log.extend(
-                event for event_idx, event in replay_event_index
-                if event_idx <= current_replay_idx
+                event for event_idx, event in replay_event_index if event_idx <= current_replay_idx
             )
             refresh_event_list()
             # Rebuild history up to, but not including, the selected tick.
@@ -1830,12 +1981,12 @@ def _viewer_main(
 
             p_state = snapshot_to_physical_state(rec)
             trajectory_history.clear()
-            for historical in replay_records[max(0, current_replay_idx - max_trajectory + 1) : current_replay_idx + 1]:
+            for historical in replay_records[
+                max(0, current_replay_idx - max_trajectory + 1) : current_replay_idx + 1
+            ]:
                 pos = historical.get("base_position")
                 if isinstance(pos, (list, tuple)) and len(pos) >= 3:
-                    trajectory_history.append(
-                        (float(pos[0]), float(pos[1]), float(pos[2]))
-                    )
+                    trajectory_history.append((float(pos[0]), float(pos[1]), float(pos[2])))
             snap = record_to_snapshot(
                 rec,
                 fallback_id=Path(replay_file).stem if replay_file else "subject:replay",
@@ -1884,9 +2035,7 @@ def _viewer_main(
             selected_tick = int(selected["tick"])
             for replay_idx, event in replay_event_index:
                 if int(event["tick"]) == selected_tick and event["label"] == selected["label"]:
-                    show_event_context(
-                        _event_context(replay_records, replay_idx, radius=12)
-                    )
+                    show_event_context(_event_context(replay_records, replay_idx, radius=12))
                     load_replay_tick(replay_idx)
                     return
 
@@ -1899,16 +2048,21 @@ def _viewer_main(
             selected_tick = int(selected["tick"])
             for replay_idx, event in replay_event_index:
                 if int(event["tick"]) == selected_tick and event["label"] == selected["label"]:
-                    show_event_context(
-                        _event_context(replay_records, replay_idx, radius=12)
-                    )
+                    show_event_context(_event_context(replay_records, replay_idx, radius=12))
                     return
 
         event_listbox.bind("<<ListboxSelect>>", preview_selected_event)
         event_listbox.bind("<Double-Button-1>", goto_selected_event)
         event_listbox.bind("<Return>", goto_selected_event)
     else:
-        tk.Label(ctrl_box, text="CONTROL DE SIMULACIÓN", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 6))
+        tk.Label(
+            ctrl_box,
+            text="CONTROL DE SIMULACIÓN",
+            bg=sub_bg,
+            fg=cyan,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="w",
+        ).pack(fill="x", pady=(0, 6))
 
         btn_row = tk.Frame(ctrl_box, bg=sub_bg)
         btn_row.pack(fill="x", pady=(0, 6))
@@ -1959,7 +2113,9 @@ def _viewer_main(
 
         speed_row = tk.Frame(ctrl_box, bg=sub_bg)
         speed_row.pack(fill="x", pady=(0, 4))
-        tk.Label(speed_row, text="Velocidad:", bg=sub_bg, fg=muted, font=("TkDefaultFont", 7)).pack(side="left", padx=(0, 4))
+        tk.Label(speed_row, text="Velocidad:", bg=sub_bg, fg=muted, font=("TkDefaultFont", 7)).pack(
+            side="left", padx=(0, 4)
+        )
 
         speed_buttons = []
 
@@ -2012,13 +2168,9 @@ def _viewer_main(
             target_tick = int(selected["tick"])
             best_idx = min(
                 range(len(snapshot_history)),
-                key=lambda idx: abs(
-                    int(snapshot_history[idx].get("tick", idx)) - target_tick
-                ),
+                key=lambda idx: abs(int(snapshot_history[idx].get("tick", idx)) - target_tick),
             )
-            show_event_context(
-                _event_context(snapshot_history, best_idx, radius=12)
-            )
+            show_event_context(_event_context(snapshot_history, best_idx, radius=12))
 
         event_listbox.bind("<<ListboxSelect>>", preview_live_event)
 
@@ -2184,7 +2336,9 @@ def _viewer_main(
             )
 
         # High-performance C-level byte buffer unpacking
-        image = Image.frombuffer("RGBA", (width, height), bytearray(image_data[2]), "raw", "RGBA", 0, 1)
+        image = Image.frombuffer(
+            "RGBA", (width, height), bytearray(image_data[2]), "raw", "RGBA", 0, 1
+        )
         draw = ImageDraw.Draw(image, "RGBA")
 
         # ---------------------------------------------------------
@@ -2233,15 +2387,23 @@ def _viewer_main(
                         ring_pts.append(ring_pts[0])
                         draw.line(ring_pts, fill=(52, 211, 153, r_alpha), width=1)
 
-                dist_to_res = math.sqrt((float(base_position[0]) - rx_w) ** 2 + (float(base_position[1]) - ry_w) ** 2)
+                dist_to_res = math.sqrt(
+                    (float(base_position[0]) - rx_w) ** 2 + (float(base_position[1]) - ry_w) ** 2
+                )
                 rem_mat = float(resource_state.get("remaining", 0.0))
                 if dist_to_res <= 0.65 and rem_mat > 0.0:
                     p_res = _project((rx_w, ry_w, rz_w))
-                    p_base = _project((float(base_position[0]), float(base_position[1]), float(base_position[2])))
+                    p_base = _project(
+                        (float(base_position[0]), float(base_position[1]), float(base_position[2]))
+                    )
                     if p_res is not None and p_base is not None:
                         draw.line([p_res, p_base], fill=(74, 222, 128, 220), width=3)
                         rx_s, ry_s = p_res
-                        draw.ellipse((rx_s - 14, ry_s - 14, rx_s + 14, ry_s + 14), outline=(74, 222, 128, 200), width=2)
+                        draw.ellipse(
+                            (rx_s - 14, ry_s - 14, rx_s + 14, ry_s + 14),
+                            outline=(74, 222, 128, 200),
+                            width=2,
+                        )
 
         # ---------------------------------------------------------
         # 3. FAKE CONTACT SHADOW (Z=0 BLOB)
@@ -2266,9 +2428,7 @@ def _viewer_main(
         # ---------------------------------------------------------
         if overlay_visibility.get("trajectory", True):
             projected_trail = [
-                point
-                for pos in trajectory_history
-                if (point := _project(pos)) is not None
+                point for pos in trajectory_history if (point := _project(pos)) is not None
             ]
             if len(projected_trail) >= 2:
                 draw.line(projected_trail, fill=(56, 189, 248, 150), width=3)
@@ -2287,14 +2447,16 @@ def _viewer_main(
                 projected_base = _project(tuple(float(v) for v in base_position))
                 if projected_resource is not None:
                     rx, ry = projected_resource
-                    pick_targets.append({
-                        "kind": "resource",
-                        "id": "resource",
-                        "label": "Resource",
-                        "screen": (rx, ry),
-                        "distance": float(physical_state.get("resource_distance", 0.0)),
-                        "remaining": float(resource_state.get("remaining", 0.0)),
-                    })
+                    pick_targets.append(
+                        {
+                            "kind": "resource",
+                            "id": "resource",
+                            "label": "Resource",
+                            "screen": (rx, ry),
+                            "distance": float(physical_state.get("resource_distance", 0.0)),
+                            "remaining": float(resource_state.get("remaining", 0.0)),
+                        }
+                    )
                     draw.ellipse(
                         (rx - 7, ry - 7, rx + 7, ry + 7),
                         outline=(52, 211, 153, 235),
@@ -2324,31 +2486,35 @@ def _viewer_main(
             label = joint_names.get(joint_idx, f"Joint {joint_idx}")
             joint_payload = next(
                 (
-                    item for item in physical_state.get("joints", ())
-                    if isinstance(item, dict)
-                    and int(item.get("joint_index", -1)) == joint_idx
+                    item
+                    for item in physical_state.get("joints", ())
+                    if isinstance(item, dict) and int(item.get("joint_index", -1)) == joint_idx
                 ),
                 {},
             )
-            pick_targets.append({
-                "kind": "joint",
-                "id": joint_idx,
-                "label": label,
-                "screen": screen_point,
-                "position": float(joint_payload.get("position", 0.0)),
-                "velocity": float(joint_payload.get("velocity", 0.0)),
-                "torque": float(joint_payload.get("applied_torque", 0.0)),
-            })
+            pick_targets.append(
+                {
+                    "kind": "joint",
+                    "id": joint_idx,
+                    "label": label,
+                    "screen": screen_point,
+                    "position": float(joint_payload.get("position", 0.0)),
+                    "velocity": float(joint_payload.get("velocity", 0.0)),
+                    "torque": float(joint_payload.get("applied_torque", 0.0)),
+                }
+            )
 
         base_screen = _project(tuple(float(v) for v in base_position))
         if base_screen is not None:
-            pick_targets.append({
-                "kind": "body",
-                "id": "base",
-                "label": "Body",
-                "screen": base_screen,
-                "height": float(base_position[2]),
-            })
+            pick_targets.append(
+                {
+                    "kind": "body",
+                    "id": "base",
+                    "label": "Body",
+                    "screen": base_screen,
+                    "height": float(base_position[2]),
+                }
+            )
 
         contact_links = set(int(v) for v in physical_state.get("contact_links", ()))
         ground_contacts: list[tuple[float, float]] = []
@@ -2387,20 +2553,24 @@ def _viewer_main(
                 com_y += mass * float(ls[0][1])
                 com_z += mass * float(ls[0][2])
 
-        com_3d = (com_x / HUMANOID_TOTAL_MASS, com_y / HUMANOID_TOTAL_MASS, com_z / HUMANOID_TOTAL_MASS)
+        com_3d = (
+            com_x / HUMANOID_TOTAL_MASS,
+            com_y / HUMANOID_TOTAL_MASS,
+            com_z / HUMANOID_TOTAL_MASS,
+        )
         com_ground = (com_3d[0], com_3d[1], 0.0)
 
         hull = _convex_hull_2d(ground_contacts) if ground_contacts else []
-        is_stable = _point_in_polygon_2d((com_ground[0], com_ground[1]), hull) if len(hull) >= 3 else False
+        is_stable = (
+            _point_in_polygon_2d((com_ground[0], com_ground[1]), hull) if len(hull) >= 3 else False
+        )
 
         if overlay_visibility.get("support", True) and ground_contacts:
             poly_color = (52, 211, 153, 50) if is_stable else (251, 146, 60, 60)
             line_color = (52, 211, 153, 200) if is_stable else (251, 146, 60, 220)
             if len(hull) >= 3:
                 proj_poly = [
-                    pt
-                    for pt in (_project((hx, hy, 0.0)) for hx, hy in hull)
-                    if pt is not None
+                    pt for pt in (_project((hx, hy, 0.0)) for hx, hy in hull) if pt is not None
                 ]
                 if len(proj_poly) >= 3:
                     draw.polygon(proj_poly, fill=poly_color, outline=line_color)
@@ -2419,7 +2589,11 @@ def _viewer_main(
                 draw.ellipse((cx3 - 3, cy3 - 3, cx3 + 3, cy3 + 3), fill=(250, 204, 21, 230))
             if proj_com_ground is not None:
                 gx, gy = proj_com_ground
-                com_color = (52, 211, 153, 240) if (len(ground_contacts) >= 3 and is_stable) else (239, 68, 68, 240)
+                com_color = (
+                    (52, 211, 153, 240)
+                    if (len(ground_contacts) >= 3 and is_stable)
+                    else (239, 68, 68, 240)
+                )
                 draw.ellipse((gx - 6, gy - 6, gx + 6, gy + 6), outline=com_color, width=2)
                 draw.line((gx - 9, gy, gx + 9, gy), fill=com_color, width=1)
                 draw.line((gx, gy - 9, gx, gy + 9), fill=com_color, width=1)
@@ -2433,7 +2607,11 @@ def _viewer_main(
                 vx, vy, vz = float(lin_vel[0]), float(lin_vel[1]), float(lin_vel[2])
                 speed = math.sqrt(vx * vx + vy * vy + vz * vz)
                 if speed > 0.06:
-                    bx, by, bz = float(base_position[0]), float(base_position[1]), float(base_position[2])
+                    bx, by, bz = (
+                        float(base_position[0]),
+                        float(base_position[1]),
+                        float(base_position[2]),
+                    )
                     p_base = _project((bx, by, bz))
                     p_tip = _project((bx + vx * 0.45, by + vy * 0.45, bz + vz * 0.45))
                     if p_base is not None and p_tip is not None:
@@ -2491,27 +2669,37 @@ def _viewer_main(
         # ---------------------------------------------------------
         if overlay_visibility.get("compass", True):
             cx, cy = width - 42, 42
-            draw.ellipse((cx - 26, cy - 26, cx + 26, cy + 26), fill=(15, 23, 42, 160), outline=(51, 65, 85, 180))
+            draw.ellipse(
+                (cx - 26, cy - 26, cx + 26, cy + 26),
+                fill=(15, 23, 42, 160),
+                outline=(51, 65, 85, 180),
+            )
             axis_len = 20.0
-            for axis_idx, (axis_color, axis_label) in enumerate([
-                ((239, 68, 68, 240), "X"),
-                ((34, 197, 94, 240), "Y"),
-                ((59, 130, 246, 240), "Z"),
-            ]):
+            for axis_idx, (axis_color, axis_label) in enumerate(
+                [
+                    ((239, 68, 68, 240), "X"),
+                    ((34, 197, 94, 240), "Y"),
+                    ((59, 130, 246, 240), "Z"),
+                ]
+            ):
                 dx = v_m[0, axis_idx] * axis_len
                 dy = -v_m[1, axis_idx] * axis_len
                 tip_x, tip_y = int(cx + dx), int(cy + dy)
                 draw.line([(cx, cy), (tip_x, tip_y)], fill=axis_color, width=2)
-                draw.text((tip_x + (3 if dx >= 0 else -9), tip_y + (2 if dy >= 0 else -10)), axis_label, fill=axis_color)
+                draw.text(
+                    (tip_x + (3 if dx >= 0 else -9), tip_y + (2 if dy >= 0 else -10)),
+                    axis_label,
+                    fill=axis_color,
+                )
 
         if selected_target is not None:
             selected_kind = selected_target.get("kind")
             selected_id = selected_target.get("id")
             match = next(
                 (
-                    target for target in pick_targets
-                    if target.get("kind") == selected_kind
-                    and target.get("id") == selected_id
+                    target
+                    for target in pick_targets
+                    if target.get("kind") == selected_kind and target.get("id") == selected_id
                 ),
                 None,
             )
@@ -2587,9 +2775,7 @@ def _viewer_main(
             )
             selection_provenance_var.set("Observed environment · viewer only")
         else:
-            selection_detail_var.set(
-                f"Height {float(target.get('height', 0.0)):.3f} m"
-            )
+            selection_detail_var.set(f"Height {float(target.get('height', 0.0)):.3f} m")
             selection_provenance_var.set("Observed physics · viewer only")
 
         panes = {str(pane) for pane in workspace.panes()}
@@ -2615,7 +2801,7 @@ def _viewer_main(
             ),
         )
         sx, sy = nearest["screen"]
-        if ((float(sx) - event.x) ** 2 + (float(sy) - event.y) ** 2) <= 18.0 ** 2:
+        if ((float(sx) - event.x) ** 2 + (float(sy) - event.y) ** 2) <= 18.0**2:
             select_target(nearest)
 
     def on_pan_press(event) -> None:
@@ -2695,9 +2881,7 @@ def _viewer_main(
             latest_event_var.set(
                 f"{event_category_labels.get(category, 'EVENTO')} · tick {int(last['tick']):,} · {last['label']}"
             )
-            latest_event_label.configure(
-                fg=event_category_colors.get(category, muted)
-            )
+            latest_event_label.configure(fg=event_category_colors.get(category, muted))
 
     def record_events(previous: Mapping[str, object] | None, current: Mapping[str, object]) -> None:
         for event in _event_transition(previous, current):
@@ -2721,8 +2905,7 @@ def _viewer_main(
             delta = float(after) - float(before)
             sign = "+" if delta >= 0 else ""
             return (
-                f"{label:<12} {float(before):.3f} → {float(after):.3f} "
-                f"({sign}{delta:.3f}{suffix})"
+                f"{label:<12} {float(before):.3f} → {float(after):.3f} ({sign}{delta:.3f}{suffix})"
             )
 
         lines = [
@@ -2744,13 +2927,41 @@ def _viewer_main(
         graph_h = max(1, height - pad_t - pad_b)
 
         # Legend
-        chart.create_text(pad_l, 10, text="LÍNEA TEMPORAL DE APRENDIZAJE", fill=muted, anchor="w", font=("TkDefaultFont", 7, "bold"))
+        chart.create_text(
+            pad_l,
+            10,
+            text="LÍNEA TEMPORAL DE APRENDIZAJE",
+            fill=muted,
+            anchor="w",
+            font=("TkDefaultFont", 7, "bold"),
+        )
         chart.create_oval(pad_l + 210, 8, pad_l + 218, 16, fill=orange, width=0)
-        chart.create_text(pad_l + 224, 12, text="Error Predicción", fill=orange, anchor="w", font=("TkDefaultFont", 7))
+        chart.create_text(
+            pad_l + 224,
+            12,
+            text="Error Predicción",
+            fill=orange,
+            anchor="w",
+            font=("TkDefaultFont", 7),
+        )
         chart.create_oval(pad_l + 320, 8, pad_l + 328, 16, fill=green, width=0)
-        chart.create_text(pad_l + 334, 12, text="Confianza BodySchema", fill=green, anchor="w", font=("TkDefaultFont", 7))
+        chart.create_text(
+            pad_l + 334,
+            12,
+            text="Confianza BodySchema",
+            fill=green,
+            anchor="w",
+            font=("TkDefaultFont", 7),
+        )
         chart.create_oval(pad_l + 470, 8, pad_l + 478, 16, fill=cyan, width=0)
-        chart.create_text(pad_l + 484, 12, text="Distancia / Inicial", fill=cyan, anchor="w", font=("TkDefaultFont", 7))
+        chart.create_text(
+            pad_l + 484,
+            12,
+            text="Distancia / Inicial",
+            fill=cyan,
+            anchor="w",
+            font=("TkDefaultFont", 7),
+        )
 
         # Grid lines
         for step in (0.25, 0.50, 0.75, 1.00):
@@ -2799,9 +3010,7 @@ def _viewer_main(
             max_tick = int(tick_history[-1])
             if min_tick <= timeline_selection_tick <= max_tick:
                 span = max(1, max_tick - min_tick)
-                marker_x = pad_l + graph_w * (
-                    timeline_selection_tick - min_tick
-                ) / span
+                marker_x = pad_l + graph_w * (timeline_selection_tick - min_tick) / span
                 chart.create_line(
                     marker_x,
                     pad_t,
@@ -2815,7 +3024,9 @@ def _viewer_main(
         x_legend = pad_l
         for category in ("body", "learning", "survival", "environment", "behavior"):
             color = event_category_colors[category]
-            chart.create_oval(x_legend, legend_y - 3, x_legend + 6, legend_y + 3, fill=color, width=0)
+            chart.create_oval(
+                x_legend, legend_y - 3, x_legend + 6, legend_y + 3, fill=color, width=0
+            )
             x_legend += 10
             chart.create_text(
                 x_legend,
@@ -2837,9 +3048,7 @@ def _viewer_main(
         pad_l, pad_r = 30, 20
         graph_w = max(1, width - pad_l - pad_r)
         ratio = max(0.0, min(1.0, (event.x - pad_l) / graph_w))
-        target_tick = int(
-            tick_history[0] + ratio * max(1, tick_history[-1] - tick_history[0])
-        )
+        target_tick = int(tick_history[0] + ratio * max(1, tick_history[-1] - tick_history[0]))
         idx = min(
             range(len(snapshot_history)),
             key=lambda i: abs(int(snapshot_history[i].get("tick", 0)) - target_tick),
@@ -2908,9 +3117,7 @@ def _viewer_main(
                 1e-9,
                 float(payload.get("initial_resource_distance", dist or 1.0)),
             )
-            resource_dist_history.append(
-                max(0.0, min(1.0, dist / initial_dist))
-            )
+            resource_dist_history.append(max(0.0, min(1.0, dist / initial_dist)))
             resource_raw_history.append(dist)
             reserve_history.append(reserve)
             tick_history.append(int(payload["tick"]))
@@ -2977,17 +3184,17 @@ def _viewer_main(
                     if ratio > 0.02:
                         cv.create_rectangle(60, 2, 60 + int(ratio * 55), 11, fill=cyan, width=0)
                     elif ratio < -0.02:
-                        cv.create_rectangle(60 - int(abs(ratio) * 55), 2, 60, 11, fill=orange, width=0)
+                        cv.create_rectangle(
+                            60 - int(abs(ratio) * 55), 2, 60, 11, fill=orange, width=0
+                        )
                 val_str = f"{torque:+.1f}" if abs(torque) >= 0.05 else " 0.0"
                 joint_val_vars[j_id].set(val_str)
 
         # Active Effectors
         strongest = payload.get("strongest_outputs", ())
         outputs_var.set(
-            "\n".join(
-                f"{str(ch):<8} {float(v):+.3f}"
-                for ch, v in strongest
-            ) or "Sin actividad motora"
+            "\n".join(f"{str(ch):<8} {float(v):+.3f}" for ch, v in strongest)
+            or "Sin actividad motora"
         )
 
         # Mech metrics
@@ -2998,19 +3205,17 @@ def _viewer_main(
 
         # HUD Top
         origin = str(payload.get("action_source", "none"))
-        origin_detail = str(payload.get("action_source", "none"))
+        str(payload.get("action_source", "none"))
         badge_color = action_source_colors.get(origin, "#374151")
-        origin_label = (
-            "PROSPECTION"
-            if origin == "prospection"
-            else origin.upper()
-        )
+        origin_label = "PROSPECTION" if origin == "prospection" else origin.upper()
         action_source_badge.configure(text=f"ACCIÓN: {origin_label}", bg=badge_color)
 
         dist = float(payload.get("resource_distance", 0.0))
         prog = float(payload.get("resource_progress", 0.0))
         sign = "+" if prog >= 0 else ""
-        resource_hud_badge.configure(text=f"RECURSO: {dist:.2f}m · PROGRESO NETO: {sign}{prog:.2f}m")
+        resource_hud_badge.configure(
+            text=f"RECURSO: {dist:.2f}m · PROGRESO NETO: {sign}{prog:.2f}m"
+        )
 
         # Situational overview. These labels are deterministic summaries of
         # evaluator metrics; clicking them opens the underlying technical data.
@@ -3062,14 +3267,10 @@ def _viewer_main(
         if len(trajectory_history) >= 2:
             first = trajectory_history[max(0, len(trajectory_history) - 12)]
             last = trajectory_history[-1]
-            locomotion_delta = (
-                (last[0] - first[0]) ** 2 + (last[1] - first[1]) ** 2
-            ) ** 0.5
+            locomotion_delta = ((last[0] - first[0]) ** 2 + (last[1] - first[1]) ** 2) ** 0.5
         else:
             locomotion_delta = 0.0
-        behavior_detail_vars["locomotion"].set(
-            f"LOCOMOCIÓN · Δ {locomotion_delta:.3f} m"
-        )
+        behavior_detail_vars["locomotion"].set(f"LOCOMOCIÓN · Δ {locomotion_delta:.3f} m")
 
         reserve_now = float(payload["metabolic_reserve_ratio"])
         reserve_trend_source = reserve_history
@@ -3111,12 +3312,8 @@ def _viewer_main(
             f"{int(payload.get('predictor_count', 0))} predictors · "
             f"{int(payload.get('slm_models', 0))} private models"
         )
-        prospective_candidates_summary = int(
-            payload.get("prospective_candidates", 0)
-        )
-        prospective_selected_summary = bool(
-            payload.get("prospective_selected", False)
-        )
+        prospective_candidates_summary = int(payload.get("prospective_candidates", 0))
+        prospective_selected_summary = bool(payload.get("prospective_selected", False))
         agency_state = (
             "selected"
             if prospective_selected_summary
@@ -3127,8 +3324,7 @@ def _viewer_main(
             )
         )
         knowledge_vars["agency"].set(
-            f"{int(payload.get('motor_competences', 0))} motor competences · "
-            f"{agency_state}"
+            f"{int(payload.get('motor_competences', 0))} motor competences · {agency_state}"
         )
 
         # Card 1: Cognition
@@ -3168,7 +3364,9 @@ def _viewer_main(
             reserve_bar_canvas.itemconfigure(reserve_bar_rect, fill=res_color)
         except Exception:
             reserve_bar_canvas.delete("all")
-            reserve_bar_canvas.create_rectangle(0, 0, int(reserve * 280), 8, fill=res_color, width=0)
+            reserve_bar_canvas.create_rectangle(
+                0, 0, int(reserve * 280), 8, fill=res_color, width=0
+            )
 
         d_min = float(payload["minimum_resource_distance"])
         eco_vars["distance"].set(f"{dist:.3f} m (mín: {d_min:.3f}m)")
@@ -3234,15 +3432,9 @@ def _viewer_main(
         epi_oldest_age = int(payload.get("episodic_oldest_age", 0))
         memory_vars["episodes"].set(f"{epi_count:,} / {epi_pending:,}")
         memory_vars["compression"].set(f"{epi_compressed:,} / {epi_evictions:,}")
-        memory_vars["density"].set(
-            f"{epi_occurrences:,} / {epi_mean_recurrence:.2f}×"
-        )
-        memory_vars["exceptions"].set(
-            f"{epi_exceptions:,} / {epi_bytes / 1024.0:.0f} KiB"
-        )
-        memory_vars["interpretations"].set(
-            f"{epi_interpretations:,} / {epi_contingencies:,}"
-        )
+        memory_vars["density"].set(f"{epi_occurrences:,} / {epi_mean_recurrence:.2f}×")
+        memory_vars["exceptions"].set(f"{epi_exceptions:,} / {epi_bytes / 1024.0:.0f} KiB")
+        memory_vars["interpretations"].set(f"{epi_interpretations:,} / {epi_contingencies:,}")
         memory_vars["activity"].set(f"{epi_retrievals:,} / {epi_replays:,}")
         memory_vars["age"].set(f"{epi_mean_age:.0f} / {epi_oldest_age:,} ticks")
 
@@ -3251,7 +3443,9 @@ def _viewer_main(
         org_t = float(payload["organism_ms"])
         phy_t = float(payload["physics_ms"])
         chk_age = int(payload["checkpoint_age"])
-        timing_var.set(f"Ciclo: {cycle_t:.1f}ms (Org {org_t:.1f}ms · Fis {phy_t:.1f}ms) · Checkpoint hace {chk_age:,} ticks")
+        timing_var.set(
+            f"Ciclo: {cycle_t:.1f}ms (Org {org_t:.1f}ms · Fis {phy_t:.1f}ms) · Checkpoint hace {chk_age:,} ticks"
+        )
 
         if panel_visibility["timeline"]:
             draw_chart()

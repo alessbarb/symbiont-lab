@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
+
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
 
 
 def _base(*, reacclimation_ticks: int = 32):
@@ -49,7 +50,10 @@ def _path_graph(*, support: int, limits: KernelLimits) -> CognitiveGraph:
 def test_topology_health_distinguishes_germinal_connected_and_adaptive() -> None:
     limits, genome = _base()
     empty = CognitiveGraph(nodes=(), edges=(), kernel_limits=limits)
-    assert CognitiveBridge(graph=empty, genome=genome, kernel_limits=limits).topology_health is TopologyHealth.GERMINAL
+    assert (
+        CognitiveBridge(graph=empty, genome=genome, kernel_limits=limits).topology_health
+        is TopologyHealth.GERMINAL
+    )
 
     connected = CognitiveBridge(
         graph=_path_graph(support=0, limits=limits),
@@ -120,7 +124,12 @@ def _legacy_worker3_payload(*, limits: KernelLimits, genome) -> dict[str, object
     )
     payload = source.export_checkpoint()
     payload["topology_revision"] = 29
-    for field in ("concept_lineage", "sense_last_seen_tick", "orphan_since_tick", "recovery_pending"):
+    for field in (
+        "concept_lineage",
+        "sense_last_seen_tick",
+        "orphan_since_tick",
+        "recovery_pending",
+    ):
         payload.pop(field, None)
     return payload
 

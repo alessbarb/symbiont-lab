@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
-from ..social.collective import CollectiveMemory
 from ..foundation.model import Assessment
+from ..social.collective import CollectiveMemory
 
 
 @dataclass(slots=True, frozen=True)

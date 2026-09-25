@@ -9,6 +9,7 @@ Guarantees full commit-or-rollback across:
 
 Property guaranteed: failed_tick(state_n) == state_n.
 """
+
 from __future__ import annotations
 
 import copy

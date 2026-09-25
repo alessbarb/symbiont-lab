@@ -228,8 +228,10 @@ class DriftAwareBaseline:
             raise ValueError("drift replay count must be a non-negative int")
         values = ("mean", "variance", "fast_mean", "creep_stdev")
         numbers = {key: float(payload.get(key, 0.0)) for key in values}
-        if any(not isfinite(value) or (key in ("variance", "creep_stdev") and value < 0.0)
-               for key, value in numbers.items()):
+        if any(
+            not isfinite(value) or (key in ("variance", "creep_stdev") and value < 0.0)
+            for key, value in numbers.items()
+        ):
             raise ValueError("drift replay numeric state is invalid")
         buffer = payload.get("buffer", [])
         if not isinstance(buffer, list) or len(buffer) > self._regime_run:

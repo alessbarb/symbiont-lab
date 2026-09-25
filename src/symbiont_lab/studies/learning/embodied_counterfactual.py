@@ -5,10 +5,11 @@ provide a pre-defined candidate set and a training boundary.  Predictors are
 fit on the baseline prefix, frozen, and then evaluated against a paired replay
 and an intervention trajectory.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import random
+from dataclasses import dataclass
 from typing import Iterable, Sequence
 
 from symbiont_lab.physics3d.humanoid import (
@@ -72,7 +73,8 @@ class EmbodiedCounterfactualStudy:
 
 
 def _validate_trace_lengths(
-    actions: Sequence[Sequence[float]], observations: Sequence[Sequence[float]],
+    actions: Sequence[Sequence[float]],
+    observations: Sequence[Sequence[float]],
 ) -> None:
     if len(actions) != len(observations):
         raise ValueError("actions and observations must have equal length")
@@ -99,14 +101,17 @@ def fit_frozen_lag_predictors(
         if candidate.lag >= train_end:
             raise ValueError("candidate lag must fit within the training prefix")
         pairs = [
-            (float(actions[t - candidate.lag][candidate.source_effector]),
-             float(observations[t][candidate.target_receptor]))
+            (
+                float(actions[t - candidate.lag][candidate.source_effector]),
+                float(observations[t][candidate.target_receptor]),
+            )
             for t in range(candidate.lag, train_end)
         ]
         denominator = sum(source * source for source, _ in pairs)
         slope = (
             sum(source * target for source, target in pairs) / denominator
-            if denominator > 1e-12 else 0.0
+            if denominator > 1e-12
+            else 0.0
         )
         predictors.append(FrozenOpaqueLagPredictor(candidate, slope))
     return tuple(predictors)
@@ -139,12 +144,12 @@ def evaluate_frozen_counterfactual(
         normal_losses.append((float(target) - predictor.slope * float(source)) ** 2)
         if tick < intervention_tick:
             continue
-        observed_delta = (
-            float(intervention_observations[tick][candidate.target_receptor]) - float(target)
+        observed_delta = float(intervention_observations[tick][candidate.target_receptor]) - float(
+            target
         )
-        action_delta = (
-            float(intervention_actions[tick - candidate.lag][candidate.source_effector]) - float(source)
-        )
+        action_delta = float(
+            intervention_actions[tick - candidate.lag][candidate.source_effector]
+        ) - float(source)
         observed_deltas.append(observed_delta)
         predicted_deltas.append(predictor.slope * action_delta)
     if not observed_deltas:
@@ -195,26 +200,36 @@ def run_embodied_counterfactual(
 
     candidates = tuple(
         OpaqueLagCandidate(source_effector=effector, target_receptor=receptor)
-        for effector in effectors for receptor in receptors
+        for effector in effectors
+        for receptor in receptors
     )
     results: list[CounterfactualSeedResult] = []
     for seed in seed_list:
         rng = random.Random(seed)
         action_rows = [_action(rng, effector_ids) for _ in range(ticks)]
         baseline = _rollout(
-            seed=seed, actions=action_rows, substeps=physics_substeps_per_tick,
-            intervention_tick=None, target_effector=None,
+            seed=seed,
+            actions=action_rows,
+            substeps=physics_substeps_per_tick,
+            intervention_tick=None,
+            target_effector=None,
         )
         predictors = fit_frozen_lag_predictors(
-            action_rows, baseline, candidates, train_end=intervention_tick,
+            action_rows,
+            baseline,
+            candidates,
+            train_end=intervention_tick,
         )
         for target in effectors:
             intervention_actions = [list(row) for row in action_rows]
             for row in intervention_actions[intervention_tick:]:
                 row[target] = 0.0
             intervention = _rollout(
-                seed=seed, actions=intervention_actions, substeps=physics_substeps_per_tick,
-                intervention_tick=None, target_effector=None,
+                seed=seed,
+                actions=intervention_actions,
+                substeps=physics_substeps_per_tick,
+                intervention_tick=None,
+                target_effector=None,
             )
             evaluations = tuple(
                 evaluate_frozen_counterfactual(
@@ -227,16 +242,35 @@ def run_embodied_counterfactual(
                 )
                 for predictor in predictors
             )
-            results.append(CounterfactualSeedResult(
-                seed=seed, target_effector=target, candidate_count=len(evaluations),
-                mean_normal_prediction_loss=sum(item.normal_prediction_loss for item in evaluations) / len(evaluations),
-                mean_observed_intervention_delta=sum(item.observed_intervention_delta for item in evaluations) / len(evaluations),
-                mean_predicted_intervention_delta=sum(item.predicted_intervention_delta for item in evaluations) / len(evaluations),
-                mean_intervention_prediction_error=sum(item.intervention_prediction_error for item in evaluations) / len(evaluations),
-            ))
+            results.append(
+                CounterfactualSeedResult(
+                    seed=seed,
+                    target_effector=target,
+                    candidate_count=len(evaluations),
+                    mean_normal_prediction_loss=sum(
+                        item.normal_prediction_loss for item in evaluations
+                    )
+                    / len(evaluations),
+                    mean_observed_intervention_delta=sum(
+                        item.observed_intervention_delta for item in evaluations
+                    )
+                    / len(evaluations),
+                    mean_predicted_intervention_delta=sum(
+                        item.predicted_intervention_delta for item in evaluations
+                    )
+                    / len(evaluations),
+                    mean_intervention_prediction_error=sum(
+                        item.intervention_prediction_error for item in evaluations
+                    )
+                    / len(evaluations),
+                )
+            )
     return EmbodiedCounterfactualStudy(
-        seeds=seed_list, ticks=ticks, intervention_tick=intervention_tick,
-        target_effectors=effectors, target_receptors=receptors,
+        seeds=seed_list,
+        ticks=ticks,
+        intervention_tick=intervention_tick,
+        target_effectors=effectors,
+        target_receptors=receptors,
         per_seed=tuple(results),
     )
 

@@ -4,13 +4,14 @@ The apparatus is observer-only. It builds a memory from a training prefix and
 scores held-out observed transitions. No score, label or selected winner is
 fed back into the organism.
 """
+
 from __future__ import annotations
 
+import math
+import random
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
-import math
 from typing import Iterable
-import random
 
 from symbiont.cognition.limits import KernelLimits
 from symbiont.modeling.episodic import EpisodicExperienceMemory, EpisodicProjection
@@ -30,11 +31,7 @@ def _causal(records: Iterable[ExperienceRecord]) -> tuple[ExperienceRecord, ...]
 
 def _projection(record: ExperienceRecord) -> EpisodicProjection:
     """Observer-only projection used to test the episodic algorithm itself."""
-    state_tokens = tuple(
-        token
-        for token in record.context_tokens
-        if token.startswith("state.")
-    )
+    state_tokens = tuple(token for token in record.context_tokens if token.startswith("state."))
     sense_ids = tuple(
         token.removeprefix("sense.")
         for token in record.context_tokens
@@ -129,8 +126,10 @@ def evaluate_episodic_predictive_utility(
             predicted = prediction.predicted_outcomes[0]
             memory_correct += int(predicted == truth)
             # Convert confidence into a conservative categorical probability.
-            p = prediction.confidence if predicted == truth else (
-                (1.0 - prediction.confidence) / max(1, len(vocabulary) - 1)
+            p = (
+                prediction.confidence
+                if predicted == truth
+                else ((1.0 - prediction.confidence) / max(1, len(vocabulary) - 1))
             )
             memory_loss += -math.log(max(1e-12, min(1.0, p)))
         else:
@@ -183,8 +182,6 @@ def evaluate_episodic_predictive_utility(
     )
 
 
-
-
 @dataclass(frozen=True, slots=True)
 class EpisodicUtilitySeedResult:
     seed: int
@@ -210,9 +207,7 @@ class EpisodicUtilityStudy:
             "mean_state_conditioned_gain_vs_action_only": (
                 self.mean_state_conditioned_gain_vs_action_only
             ),
-            "mean_state_conditioned_gain_vs_global": (
-                self.mean_state_conditioned_gain_vs_global
-            ),
+            "mean_state_conditioned_gain_vs_global": (self.mean_state_conditioned_gain_vs_global),
             "mean_memory_coverage": self.mean_memory_coverage,
             "results": [result.as_dict() for result in self.results],
         }
@@ -293,17 +288,16 @@ def run_episodic_memory_utility_study(
         ticks=ticks,
         results=tuple(results),
         mean_state_conditioned_gain_vs_action_only=sum(
-            result.report.state_conditioned_gain_vs_action_only
-            for result in results
-        ) / count,
+            result.report.state_conditioned_gain_vs_action_only for result in results
+        )
+        / count,
         mean_state_conditioned_gain_vs_global=sum(
-            result.report.state_conditioned_gain_vs_global
-            for result in results
-        ) / count,
-        mean_memory_coverage=sum(
-            result.report.memory_coverage for result in results
-        ) / count,
+            result.report.state_conditioned_gain_vs_global for result in results
+        )
+        / count,
+        mean_memory_coverage=sum(result.report.memory_coverage for result in results) / count,
     )
+
 
 __all__ = [
     "EpisodicUtilityReport",

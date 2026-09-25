@@ -1,28 +1,26 @@
 """Tests for embodiment, agency modeling, inferred body schema, and transplant (P0-P13)."""
+
 from __future__ import annotations
 
 import pytest
-
 from symbiont.core.body import (
-    ActivationConsequence,
     Body,
-    BodyPhysiology,
     EffectorPort,
     ReceptorPort,
     create_standard_body,
 )
-from symbiont.core.embodiment import EmbodimentSession, implant
+from symbiont.core.individual import Individual, create_individual
+from symbiont.core.symbiont import Symbiont
+
+from symbiont.core.embodiment import implant
+
 # Explicit component-level falsification specimens. Production Symbiont no
 # longer imports this retired parallel stack.
 from symbiont.core.embodiment.agency import (
     AgencyModel,
     InferredBodySchema,
-    InferredSelfModel,
     PerceptualStructure,
-    SensorimotorModel,
 )
-from symbiont.core.symbiont import Symbiont
-from symbiont.core.individual import Individual, create_individual
 
 
 def test_body_physical_substrate_and_causal_metabolism():
@@ -145,7 +143,7 @@ def test_port_permutation_experiment():
     ind.session.permute_outputs(swapped)
 
     # Next step after permutation should detect disruption or force exploration
-    rec = ind.step({"rec.0": 0.1, "rec.1": 0.9})
+    ind.step({"rec.0": 0.1, "rec.1": 0.9})
     assert ind.session.output_bindings == swapped
 
 
@@ -214,9 +212,13 @@ def test_body_transplant():
 def test_multiple_morphologies():
     """P13: Same Symbiont cognitive architecture adapts to distinct morphologies."""
     # Wheeled-like morphology (2 exteroceptors, 2 effectors)
-    ind_wheeled = create_individual("sym_wheel", "body_wheel", morphology="wheeled", num_receptors=2, num_effectors=2)
+    ind_wheeled = create_individual(
+        "sym_wheel", "body_wheel", morphology="wheeled", num_receptors=2, num_effectors=2
+    )
     # Quadruped-like morphology (6 exteroceptors, 4 effectors)
-    ind_quad = create_individual("sym_quad", "body_quad", morphology="quadruped", num_receptors=6, num_effectors=4)
+    ind_quad = create_individual(
+        "sym_quad", "body_quad", morphology="quadruped", num_receptors=6, num_effectors=4
+    )
 
     for _ in range(5):
         rec_w = ind_wheeled.step()
@@ -267,11 +269,15 @@ def test_label_renaming_invariance():
     body_b = Body("body_b", receptors=[r0, r1, r_soma], effectors=[e0, e1])
 
     sym_a = Symbiont("sym_a")
-    session_a = implant(sym_a.symbiont_id, body_a.body_id, body_a.receptor_ids, body_a.effector_ids, started_at=0)
+    session_a = implant(
+        sym_a.symbiont_id, body_a.body_id, body_a.receptor_ids, body_a.effector_ids, started_at=0
+    )
     ind_a = Individual(sym_a, body_a, session_a)
 
     sym_b = Symbiont("sym_b")
-    session_b = implant(sym_b.symbiont_id, body_b.body_id, body_b.receptor_ids, body_b.effector_ids, started_at=0)
+    session_b = implant(
+        sym_b.symbiont_id, body_b.body_id, body_b.receptor_ids, body_b.effector_ids, started_at=0
+    )
     ind_b = Individual(sym_b, body_b, session_b)
 
     # Both run identical steps with identical numerical stimuli
@@ -280,7 +286,9 @@ def test_label_renaming_invariance():
         ind_b.step(external_stimuli={"alpha_xyz": 0.5, "beta_uvw": 0.2})
 
     # Energy consumption and cognitive state must match because ordinals and physics match
-    assert ind_a.body.physiology.energy_reserve == pytest.approx(ind_b.body.physiology.energy_reserve)
+    assert ind_a.body.physiology.energy_reserve == pytest.approx(
+        ind_b.body.physiology.energy_reserve
+    )
     assert ind_a.symbiont.total_ticks == ind_b.symbiont.total_ticks
 
 
@@ -288,7 +296,9 @@ def test_silent_effector_failure_and_agency_revision():
     """AUD-038: Silent effector failure causes agency drop and body schema revision."""
     body = create_standard_body("body_fail", num_receptors=2, num_effectors=2)
     sym = Symbiont("sym_fail")
-    session = implant(sym.symbiont_id, body.body_id, body.receptor_ids, body.effector_ids, started_at=0)
+    session = implant(
+        sym.symbiont_id, body.body_id, body.receptor_ids, body.effector_ids, started_at=0
+    )
     ind = Individual(sym, body, session)
 
     # Run for 20 ticks to allow agency baseline
@@ -304,8 +314,7 @@ def test_silent_effector_failure_and_agency_revision():
 
     # Agency on eff.0 should reflect lower or revised controllability
     assert all(
-        0.0 <= estimate.confidence <= 1.0
-        for estimate in ind.symbiont.agency_model.estimates
+        0.0 <= estimate.confidence <= 1.0 for estimate in ind.symbiont.agency_model.estimates
     )
     assert ind.symbiont.body_schema.boundary_revision_count >= 0
 
@@ -330,5 +339,3 @@ def test_real_somatic_receptor_reflects_physiology():
     reading_depleted = soma_port.sample()
     assert reading_depleted < reading_full
     assert reading_depleted == pytest.approx(0.75)
-
-

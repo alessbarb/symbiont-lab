@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
-from symbiont.core.runtime import OrganismRuntime
 
 
 def _cognitive_runtime() -> OrganismRuntime:
@@ -101,7 +102,9 @@ def test_cognitive_body_schema_checkpoint_round_trip_preserves_region_and_namesp
         investigate_ticks=0,
     )
 
-    assert restored.body_schema.export(current_tick=restored.tick_count) == checkpoint["body_schema"]
+    assert (
+        restored.body_schema.export(current_tick=restored.tick_count) == checkpoint["body_schema"]
+    )
     assert restored.body_schema.export_representation(current_tick=restored.tick_count) == before
 
 
@@ -109,12 +112,19 @@ def test_runtime_checkpoint_round_trip_preserves_body_schema_and_private_identit
     runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
     runtime.run(10)
     checkpoint = runtime.checkpoint()
-    before_representation = runtime.body_schema.export_representation(current_tick=runtime.tick_count)
+    before_representation = runtime.body_schema.export_representation(
+        current_tick=runtime.tick_count
+    )
 
     restored = OrganismRuntime.from_checkpoint(checkpoint, min_samples=1, investigate_ticks=0)
 
-    assert restored.body_schema.export(current_tick=restored.tick_count) == checkpoint["body_schema"]
-    assert restored.body_schema.export_representation(current_tick=restored.tick_count) == before_representation
+    assert (
+        restored.body_schema.export(current_tick=restored.tick_count) == checkpoint["body_schema"]
+    )
+    assert (
+        restored.body_schema.export_representation(current_tick=restored.tick_count)
+        == before_representation
+    )
     assert "id_salt" in checkpoint["body_schema"]
     assert "id_salt" not in before_representation
 

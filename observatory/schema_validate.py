@@ -43,7 +43,9 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
             return
 
     if "const" in schema:
-        _require(value == schema["const"], f"{path}: expected const {schema['const']!r}, got {value!r}")
+        _require(
+            value == schema["const"], f"{path}: expected const {schema['const']!r}, got {value!r}"
+        )
 
     if "allOf" in schema:
         _require(isinstance(schema["allOf"], list), f"{path}: allOf must be an array")
@@ -51,7 +53,10 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
             validate(value, subschema, path, schema_root=schema_root, _ref_stack=_ref_stack)
 
     if "anyOf" in schema:
-        _require(isinstance(schema["anyOf"], list) and schema["anyOf"], f"{path}: anyOf must be a non-empty array")
+        _require(
+            isinstance(schema["anyOf"], list) and schema["anyOf"],
+            f"{path}: anyOf must be a non-empty array",
+        )
         failures = []
         for subschema in schema["anyOf"]:
             try:
@@ -76,10 +81,14 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
             validate(value, schema["if"], path, schema_root=schema_root, _ref_stack=_ref_stack)
         except AssertionError:
             if "else" in schema:
-                validate(value, schema["else"], path, schema_root=schema_root, _ref_stack=_ref_stack)
+                validate(
+                    value, schema["else"], path, schema_root=schema_root, _ref_stack=_ref_stack
+                )
         else:
             if "then" in schema:
-                validate(value, schema["then"], path, schema_root=schema_root, _ref_stack=_ref_stack)
+                validate(
+                    value, schema["then"], path, schema_root=schema_root, _ref_stack=_ref_stack
+                )
 
     schema_type = schema.get("type")
     if schema_type is not None:
@@ -102,7 +111,9 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
                 ok = ok or (isinstance(value, (int, float)) and not isinstance(value, bool))
             else:
                 ok = ok or isinstance(value, py_type)
-        _require(ok, f"{path}: expected type {schema_type!r}, got {type(value).__name__} ({value!r})")
+        _require(
+            ok, f"{path}: expected type {schema_type!r}, got {type(value).__name__} ({value!r})"
+        )
 
     if "enum" in schema:
         _require(value in schema["enum"], f"{path}: {value!r} not in enum {schema['enum']!r}")
@@ -115,23 +126,41 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
 
     if isinstance(value, str):
         if "maxLength" in schema:
-            _require(len(value) <= schema["maxLength"], f"{path}: length {len(value)} exceeds maxLength {schema['maxLength']}")
+            _require(
+                len(value) <= schema["maxLength"],
+                f"{path}: length {len(value)} exceeds maxLength {schema['maxLength']}",
+            )
         if "minLength" in schema:
-            _require(len(value) >= schema["minLength"], f"{path}: length {len(value)} is below minLength {schema['minLength']}")
+            _require(
+                len(value) >= schema["minLength"],
+                f"{path}: length {len(value)} is below minLength {schema['minLength']}",
+            )
         if "pattern" in schema:
-            _require(re.search(schema["pattern"], value) is not None, f"{path}: {value!r} does not match pattern {schema['pattern']!r}")
+            _require(
+                re.search(schema["pattern"], value) is not None,
+                f"{path}: {value!r} does not match pattern {schema['pattern']!r}",
+            )
 
     if isinstance(value, dict):
         if "maxProperties" in schema:
-            _require(len(value) <= schema["maxProperties"], f"{path}: {len(value)} properties exceeds maxProperties {schema['maxProperties']}")
+            _require(
+                len(value) <= schema["maxProperties"],
+                f"{path}: {len(value)} properties exceeds maxProperties {schema['maxProperties']}",
+            )
         if "minProperties" in schema:
-            _require(len(value) >= schema["minProperties"], f"{path}: {len(value)} properties is below minProperties {schema['minProperties']}")
+            _require(
+                len(value) >= schema["minProperties"],
+                f"{path}: {len(value)} properties is below minProperties {schema['minProperties']}",
+            )
         for key in schema.get("required", []):
             _require(key in value, f"{path}: missing required property {key!r}")
         properties = schema.get("properties", {})
         if schema.get("additionalProperties") is False:
             unexpected = set(value) - set(properties)
-            _require(not unexpected, f"{path}: unexpected propert{'y' if len(unexpected) == 1 else 'ies'} {sorted(unexpected)}")
+            _require(
+                not unexpected,
+                f"{path}: unexpected propert{'y' if len(unexpected) == 1 else 'ies'} {sorted(unexpected)}",
+            )
         for key, subvalue in value.items():
             if key in properties:
                 validate(
@@ -152,9 +181,15 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
 
     if isinstance(value, list):
         if "maxItems" in schema:
-            _require(len(value) <= schema["maxItems"], f"{path}: {len(value)} items exceeds maxItems {schema['maxItems']}")
+            _require(
+                len(value) <= schema["maxItems"],
+                f"{path}: {len(value)} items exceeds maxItems {schema['maxItems']}",
+            )
         if "minItems" in schema:
-            _require(len(value) >= schema["minItems"], f"{path}: {len(value)} items is fewer than minItems {schema['minItems']}")
+            _require(
+                len(value) >= schema["minItems"],
+                f"{path}: {len(value)} items is fewer than minItems {schema['minItems']}",
+            )
         item_schema = schema.get("items")
         if item_schema is not None:
             for index, item in enumerate(value):

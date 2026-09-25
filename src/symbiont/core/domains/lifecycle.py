@@ -1,4 +1,5 @@
 """Runtime lifecycle-event state and passive interoceptive reporting."""
+
 from __future__ import annotations
 
 import time
@@ -54,8 +55,7 @@ class LifecycleDomain:
         if current_state in {"stressed", "agonizing", "dormant"}:
             events.append("stress")
         if (
-            self.state.last_vital_state
-            in {"stressed", "agonizing", "dormant"}
+            self.state.last_vital_state in {"stressed", "agonizing", "dormant"}
             and current_state == "active"
         ):
             events.append("recovery")
@@ -80,31 +80,19 @@ class LifecycleDomain:
             for profile in knowledge_view
             for claim in profile.get("claims", ())
         )
-        if (
-            not self.state.first_prediction_emitted
-            and (
-                (
-                    cognition_result is not None
-                    and getattr(
-                        cognition_result, "prediction_errors", ()
-                    )
-                )
-                or knowledge_has_prediction
-            )
+        if not self.state.first_prediction_emitted and (
+            (cognition_result is not None and getattr(cognition_result, "prediction_errors", ()))
+            or knowledge_has_prediction
         ):
             events.append("first_prediction")
             self.state.first_prediction_emitted = True
 
         if any(
-            getattr(item, "kind", None)
-            and getattr(item.kind, "value", item.kind) == "regime_shift"
+            getattr(item, "kind", None) and getattr(item.kind, "value", item.kind) == "regime_shift"
             for item in drift_observations.values()
         ):
             events.append("regime_shift")
-        if (
-            current_phase == "terminal"
-            and self.state.last_development_phase != "terminal"
-        ):
+        if current_phase == "terminal" and self.state.last_development_phase != "terminal":
             events.append("terminal")
         if action_executed:
             events.append("action_executed")
@@ -180,31 +168,18 @@ class LifecycleDomain:
             "tick": int(tick),
             "vital_state": physiology_snapshot.state.value,
             "pressure": metabolism_snapshot.pressure.value,
-            "reserve": {
-                key: round(value, 4)
-                for key, value in metabolism_snapshot.reserve.items()
-            },
-            "resting": bool(
-                resting_for_tick
-                or physiology_snapshot.state.value == "dormant"
-            ),
+            "reserve": {key: round(value, 4) for key, value in metabolism_snapshot.reserve.items()},
+            "resting": bool(resting_for_tick or physiology_snapshot.state.value == "dormant"),
             "attended": [allocation.name for allocation in allocations],
             "investigated": investigated_capability,
             "regime_shifts": [
                 name
                 for name, observation in drift_observations.items()
-                if getattr(observation, "kind", None)
-                and observation.kind.value == "regime_shift"
+                if getattr(observation, "kind", None) and observation.kind.value == "regime_shift"
             ],
-            "dissent": (
-                dissent.capability_id if dissent is not None else None
-            ),
+            "dissent": (dissent.capability_id if dissent is not None else None),
             "assimilated_count": int(assimilation_count),
-            "narrative": [
-                entry.summary
-                for entry in narrative
-                if entry.attended
-            ][:3],
+            "narrative": [entry.summary for entry in narrative if entry.attended][:3],
         }
         journal.append(entry)
         if len(journal) > max_entries:
@@ -225,10 +200,7 @@ class LifecycleDomain:
             return
         tick_latency = time.monotonic() - tick_start
         surprise = 0.0
-        if (
-            cognition_result is not None
-            and getattr(cognition_result, "prediction_errors", None)
-        ):
+        if cognition_result is not None and getattr(cognition_result, "prediction_errors", None):
             errors = cognition_result.prediction_errors
             surprise = (
                 min(

@@ -1,7 +1,6 @@
 """Genetic expression and developmental prior dynamics."""
-from __future__ import annotations
 
-from dataclasses import dataclass
+from __future__ import annotations
 
 from ...genetics.expression import (
     ExpressionRegulator,
@@ -43,11 +42,7 @@ class DevelopmentDomain:
             if cognition is not None
             else []
         )
-        prediction_error = (
-            max(0.0, min(1.0, sum(losses) / len(losses)))
-            if losses
-            else 0.0
-        )
+        prediction_error = max(0.0, min(1.0, sum(losses) / len(losses))) if losses else 0.0
         novelty = max(
             (
                 novelty_from_drift_kind(observation.kind)
@@ -60,9 +55,7 @@ class DevelopmentDomain:
                 0.0,
                 min(
                     1.0,
-                    1.0
-                    - active_actuator_count
-                    / max(1, int(actuator_count)),
+                    1.0 - active_actuator_count / max(1, int(actuator_count)),
                 ),
             )
             if actuator_count
@@ -90,10 +83,7 @@ class DevelopmentDomain:
             embodiment_mismatch=embodiment_mismatch,
             resource_pressure=pressure_ratio,
         )
-        frozen = bool(
-            cognitive_bridge is not None
-            and cognitive_bridge.safety_state.frozen
-        )
+        frozen = bool(cognitive_bridge is not None and cognitive_bridge.safety_state.frozen)
         updated = expression_regulator.update(
             genome,
             expression_state,

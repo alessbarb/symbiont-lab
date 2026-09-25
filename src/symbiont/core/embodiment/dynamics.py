@@ -1,9 +1,10 @@
 """Low-level opaque sensorimotor forward model for Embodiment v2."""
+
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
-import math
 from typing import Mapping
 
 
@@ -64,9 +65,7 @@ class SensorimotorDynamicsModel:
                 for actuator_id, level in activations.items()
             )
         self._last_prediction = dict(result)
-        self._last_activations = {
-            str(key): float(value) for key, value in activations.items()
-        }
+        self._last_activations = {str(key): float(value) for key, value in activations.items()}
         return result
 
     def observe(

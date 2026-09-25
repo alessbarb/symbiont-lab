@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
-import math
 from typing import Any
 
 from .transduction import TransductionKind
@@ -53,9 +53,17 @@ class SensorState:
     utility_observations: int = 0
 
     def __post_init__(self) -> None:
-        if not isinstance(self.sensor_id, str) or not self.sensor_id or any(ch.isspace() for ch in self.sensor_id):
+        if (
+            not isinstance(self.sensor_id, str)
+            or not self.sensor_id
+            or any(ch.isspace() for ch in self.sensor_id)
+        ):
             raise ValueError("sensor_id must be a non-empty token")
-        if not isinstance(self.modality_id, str) or not self.modality_id or any(ch.isspace() for ch in self.modality_id):
+        if (
+            not isinstance(self.modality_id, str)
+            or not self.modality_id
+            or any(ch.isspace() for ch in self.modality_id)
+        ):
             raise ValueError("modality_id must be a non-empty token")
         if not self.source_ids or not self.cognitive_name:
             raise ValueError("sensor sources and cognitive_name are required")
@@ -63,13 +71,22 @@ class SensorState:
             raise ValueError("transduction must be a TransductionKind")
         if not isinstance(self.maturity, MaturityState):
             raise ValueError("maturity must be a MaturityState")
-        if not isinstance(self.cold_start_pending, bool) or not isinstance(self.cold_start_observed, bool):
+        if not isinstance(self.cold_start_pending, bool) or not isinstance(
+            self.cold_start_observed, bool
+        ):
             raise ValueError("cold-start flags must be boolean")
         if len(set(self.source_ids)) != len(self.source_ids):
             raise ValueError("sensor source_ids must be unique")
-        if any(not isinstance(item, str) or not item or any(ch.isspace() for ch in item) for item in self.source_ids):
+        if any(
+            not isinstance(item, str) or not item or any(ch.isspace() for ch in item)
+            for item in self.source_ids
+        ):
             raise ValueError("sensor source_ids must be non-empty tokens")
-        if not isinstance(self.cognitive_name, str) or not self.cognitive_name or any(ch.isspace() for ch in self.cognitive_name):
+        if (
+            not isinstance(self.cognitive_name, str)
+            or not self.cognitive_name
+            or any(ch.isspace() for ch in self.cognitive_name)
+        ):
             raise ValueError("cognitive_name must be a non-empty token")
         for name, value in (
             ("gain", self.gain),
@@ -82,7 +99,11 @@ class SensorState:
             ("acquisition_cost", self.acquisition_cost),
             ("transduction_cost", self.transduction_cost),
         ):
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+            ):
                 raise ValueError(f"{name} must be finite")
         if not 0.0 < self.gain <= 8.0 or not 0.0 <= self.decay <= 1.0:
             raise ValueError("sensor gain/decay outside bounds")
@@ -91,17 +112,31 @@ class SensorState:
                 raise ValueError(f"{name} must be within [0, 1]")
         if self.acquisition_cost < 0.0 or self.transduction_cost <= 0.0:
             raise ValueError("sensor costs must be non-negative/positive")
-        for name in ("born_tick", "age_ticks", "structural_revision", "output_observations", "utility_observations"):
+        for name in (
+            "born_tick",
+            "age_ticks",
+            "structural_revision",
+            "output_observations",
+            "utility_observations",
+        ):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"{name} must be a non-negative integer")
         for name in ("output_abs_ewma", "output_delta_ewma"):
             value = getattr(self, name)
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) or value < 0.0:
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or value < 0.0
+            ):
                 raise ValueError(f"{name} must be finite and non-negative")
         if len(set(self.parent_sensor_ids)) != len(self.parent_sensor_ids):
             raise ValueError("parent_sensor_ids must be unique")
-        if any(not isinstance(item, str) or not item or any(ch.isspace() for ch in item) for item in self.parent_sensor_ids):
+        if any(
+            not isinstance(item, str) or not item or any(ch.isspace() for ch in item)
+            for item in self.parent_sensor_ids
+        ):
             raise ValueError("parent_sensor_ids must be non-empty tokens")
 
     def advance_maturity(self) -> None:
@@ -127,12 +162,17 @@ class SensorState:
             return
         value = float(value)
         magnitude = min(1_000_000.0, abs(value))
-        delta = 0.0 if self.previous_output is None else min(1_000_000.0, abs(value - self.previous_output))
+        delta = (
+            0.0
+            if self.previous_output is None
+            else min(1_000_000.0, abs(value - self.previous_output))
+        )
         self.output_observations += 1
         alpha = 1.0 if self.output_observations == 1 else 0.1
         self.output_abs_ewma = (1.0 - alpha) * self.output_abs_ewma + alpha * magnitude
         self.output_delta_ewma = (1.0 - alpha) * self.output_delta_ewma + alpha * delta
         self.previous_output = value
+
     def observe_utility(self, contribution: float) -> None:
         contribution = max(0.0, min(1.0, float(contribution)))
         self.utility_observations += 1

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from symbiont.core.cognition_bridge import CognitiveBridge
+
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import StructuralPlasticity
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
 
 
 def test_generic_edge_candidate_pool_rejects_sense_targets_before_accumulation() -> None:

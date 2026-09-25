@@ -2,10 +2,11 @@
 §13). Numeric parameters only -- no field/resource ever carries a domain
 label such as "temperature" or "food" inside symbiont_world.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)

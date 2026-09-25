@@ -1,4 +1,6 @@
-from symbiont_lab.studies.social_runtime_context_replay import run_social_runtime_context_replay_study
+from symbiont_lab.studies.social_runtime_context_replay import (
+    run_social_runtime_context_replay_study,
+)
 
 
 def test_social_context_live_and_replay_remain_in_parity() -> None:

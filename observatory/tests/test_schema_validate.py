@@ -61,6 +61,7 @@ class SchemaValidateConditionalTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+
 class SignalKnowledgeSchemaTests(unittest.TestCase):
     def test_claims_reject_unknown_fields_and_require_identity(self):
         import json
@@ -78,26 +79,41 @@ class SignalKnowledgeSchemaTests(unittest.TestCase):
             "revision": 0,
             "reason_class": "initial_evidence",
         }
-        validate([{
-            "signal_id": signal_id,
-            "observed_opportunities": 1,
-            "valid_observations": 1,
-            "last_seen_age_class": "current",
-            "claims": [claim],
-        }], schema)
+        validate(
+            [
+                {
+                    "signal_id": signal_id,
+                    "observed_opportunities": 1,
+                    "valid_observations": 1,
+                    "last_seen_age_class": "current",
+                    "claims": [claim],
+                }
+            ],
+            schema,
+        )
         with self.assertRaises(AssertionError):
-            validate([{
-                "signal_id": signal_id,
-                "observed_opportunities": 1,
-                "valid_observations": 1,
-                "last_seen_age_class": "current",
-                "claims": [{**claim, "unexpected": True}],
-            }], schema)
+            validate(
+                [
+                    {
+                        "signal_id": signal_id,
+                        "observed_opportunities": 1,
+                        "valid_observations": 1,
+                        "last_seen_age_class": "current",
+                        "claims": [{**claim, "unexpected": True}],
+                    }
+                ],
+                schema,
+            )
         with self.assertRaises(AssertionError):
-            validate([{
-                "signal_id": signal_id,
-                "observed_opportunities": 1,
-                "valid_observations": 1,
-                "last_seen_age_class": "current",
-                "claims": [{k: v for k, v in claim.items() if k != "claim_id"}],
-            }], schema)
+            validate(
+                [
+                    {
+                        "signal_id": signal_id,
+                        "observed_opportunities": 1,
+                        "valid_observations": 1,
+                        "last_seen_age_class": "current",
+                        "claims": [{k: v for k, v in claim.items() if k != "claim_id"}],
+                    }
+                ],
+                schema,
+            )

@@ -4,10 +4,10 @@ from symbiont_lab.physics3d.humanoid import MOTOR_DOF
 from symbiont_lab.physics3d.monitor import (
     CameraState,
     MonitorSnapshot,
+    _event_context,
+    _event_transition,
     _put_latest,
     strongest_outputs,
-    _event_transition,
-    _event_context,
 )
 
 
@@ -163,7 +163,6 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.passive_baseline_samples == 6
 
 
-
 def test_camera_state_is_bounded_for_safe_passive_rendering():
     bounded = CameraState(
         yaw=725.0,
@@ -181,6 +180,7 @@ def test_camera_state_is_bounded_for_safe_passive_rendering():
 def test_viewer_process_poll_commands_and_stop():
     import time
     from multiprocessing import get_context
+
     from symbiont_lab.physics3d.monitor import UnifiedViewerProcess
 
     ctx = get_context("spawn")
@@ -282,8 +282,6 @@ def test_snapshot_to_physical_state_with_full_and_fallback_data():
     assert len(state_min["joints"]) == MOTOR_DOF  # neutral fallback for current body
     assert state_min["locomotion_resource"]["position"] == [2.5, 0.0, 0.15]
     assert set(state_min["_reconstructed_fields"]) == {"joints", "resource_position"}
-
-
 
 
 def test_event_transition_reports_only_evidence_backed_changes():
@@ -395,6 +393,7 @@ def test_event_context_handles_edges_and_missing_values():
 
 def test_pill_frame_delegates_fg_and_bg():
     import pytest
+
     from symbiont_lab.physics3d.monitor import PillFrame
 
     if PillFrame is None:

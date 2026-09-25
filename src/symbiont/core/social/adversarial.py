@@ -1,4 +1,5 @@
 """Synthetic adversarial ecology accounting (v0.76)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,7 +21,9 @@ class AdversarialEcology:
         self.max_sources = max_sources
         self._last_seen: dict[str, int] = {}
 
-    def assess(self, source: str, tick: int, *, age: int, contradiction: bool = False) -> AdversarialAssessment:
+    def assess(
+        self, source: str, tick: int, *, age: int, contradiction: bool = False
+    ) -> AdversarialAssessment:
         if not source or tick < 0 or age < 0:
             raise ValueError("invalid adversarial observation")
         stale = age > self.max_age

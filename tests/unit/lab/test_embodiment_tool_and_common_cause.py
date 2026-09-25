@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 
 from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.embodiment.tool_body_distinction import run_tool_body_distinction_study
 from symbiont_lab.studies.embodiment.hidden_common_cause import run_hidden_common_cause_study
+from symbiont_lab.studies.embodiment.tool_body_distinction import run_tool_body_distinction_study
 
 
 def test_e2_replay_and_bounds():
-    result = run_tool_body_distinction_study(seeds=(101,127), steps=200)
-    replay = run_tool_body_distinction_study(seeds=(101,127), steps=200)
+    result = run_tool_body_distinction_study(seeds=(101, 127), steps=200)
+    replay = run_tool_body_distinction_study(seeds=(101, 127), steps=200)
     assert result == replay
     assert result.replay_deterministic
     for value in (
@@ -24,8 +24,8 @@ def test_e2_replay_and_bounds():
 
 
 def test_e6_replay_and_bounds():
-    result = run_hidden_common_cause_study(seeds=(101,127), steps=200)
-    replay = run_hidden_common_cause_study(seeds=(101,127), steps=200)
+    result = run_hidden_common_cause_study(seeds=(101, 127), steps=200)
+    replay = run_hidden_common_cause_study(seeds=(101, 127), steps=200)
     assert result == replay
     assert result.replay_deterministic
     for value in (

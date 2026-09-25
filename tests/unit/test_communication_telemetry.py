@@ -1,10 +1,19 @@
 import pytest
 
-from symbiont.modeling import CommunicationEvent, CommunicationTelemetry, GroundingEvent, SequenceChannel, SequenceMessage, SymbolSequence
+from symbiont.modeling import (
+    CommunicationEvent,
+    CommunicationTelemetry,
+    GroundingEvent,
+    SequenceChannel,
+    SequenceMessage,
+    SymbolSequence,
+)
 
 
 def event(event_id="e1", tick=1, kind="EMIT", sender="a", receiver="b", message="m"):
-    return CommunicationEvent(event_id, tick, kind, sender, receiver, message, ("symbol.x",), 1, "delivered")
+    return CommunicationEvent(
+        event_id, tick, kind, sender, receiver, message, ("symbol.x",), 1, "delivered"
+    )
 
 
 def test_event_is_canonical_and_round_trips():
@@ -45,8 +54,11 @@ def test_telemetry_sink_failure_does_not_change_delivery_or_grounding():
     telemetry = CommunicationTelemetry(max_events=1, max_events_per_tick=1)
     channel = SequenceChannel(authorized_pairs={("a", "b")}, telemetry=telemetry)
     from symbiont.modeling import SequenceGroundingLedger
+
     receiver = SequenceGroundingLedger("b")
-    channel.deliver(SequenceMessage(SymbolSequence(("symbol.x",)), "a", "b", 3), receiver=receiver, tick=3)
+    channel.deliver(
+        SequenceMessage(SymbolSequence(("symbol.x",)), "a", "b", 3), receiver=receiver, tick=3
+    )
     receiver.observe_outcome(("outcome.ok",), tick=3)
     # The local ledger changed even though the bounded observation sink was full.
     assert receiver.predict_exact(SymbolSequence(("symbol.x",))) == ("outcome.ok",)
@@ -64,8 +76,11 @@ def test_sequence_channel_emits_only_after_real_delivery():
     telemetry = CommunicationTelemetry()
     channel = SequenceChannel(authorized_pairs={("a", "b")}, telemetry=telemetry)
     from symbiont.modeling import SequenceGroundingLedger
+
     receiver = SequenceGroundingLedger("b")
-    channel.deliver(SequenceMessage(SymbolSequence(("symbol.x",)), "a", "b", 3), receiver=receiver, tick=3)
+    channel.deliver(
+        SequenceMessage(SymbolSequence(("symbol.x",)), "a", "b", 3), receiver=receiver, tick=3
+    )
     assert len(telemetry.events) == 1
     assert telemetry.events[0].event_kind == "DELIVER"
     assert telemetry.events[0].receiver_id == "b"

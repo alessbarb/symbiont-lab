@@ -58,18 +58,20 @@ def _life_history(*, seed: int, ticks: int) -> tuple[ExperienceRecord, ...]:
         right = (phase * 3 + tick * 2) % 7
         action = (left + right + tick) % 3
         outcome = (left * 2 + right + action) % 5
-        records.append(ExperienceRecord(
-            record_id=f"episode.{seed}.{tick}",
-            organism_id=f"study-organism-{seed}",
-            tick_class=tick,
-            context_tokens=(f"sense.{left}", f"sense.{right}"),
-            action_token=f"action.{action}",
-            outcome_tokens=(f"outcome.{outcome}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.{seed}.{tick}",),
-            confidence_class=7,
-            source_kind=SourceKind.ACTION_OUTCOME,
-        ))
+        records.append(
+            ExperienceRecord(
+                record_id=f"episode.{seed}.{tick}",
+                organism_id=f"study-organism-{seed}",
+                tick_class=tick,
+                context_tokens=(f"sense.{left}", f"sense.{right}"),
+                action_token=f"action.{action}",
+                outcome_tokens=(f"outcome.{outcome}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.{seed}.{tick}",),
+                confidence_class=7,
+                source_kind=SourceKind.ACTION_OUTCOME,
+            )
+        )
     return tuple(records)
 
 
@@ -119,45 +121,47 @@ def run_private_model_utility_study(
         gru = by_arch["gru-v1"]
         transformer = by_arch["transformer-v1"]
         if len(result.temporal_challengers) != 2:
-            raise RuntimeError("private-model study requires stationary and decayed VOMM challengers")
+            raise RuntimeError(
+                "private-model study requires stationary and decayed VOMM challengers"
+            )
         stationary_vomm, decayed_vomm = result.temporal_challengers
         best_trivial = gru.evaluation.best_trivial_loss
-        seed_results.append(PrivateModelSeedResult(
-            seed=seed,
-            gru_test_loss=gru.evaluation.candidate.mean_log_loss,
-            gru_gain_over_trivial=gru.evaluation.gain_over_trivial,
-            gru_promoted=gru.promotion.promote,
-            gru_promotion_reason=gru.promotion.reason,
-            transformer_test_loss=transformer.evaluation.candidate.mean_log_loss,
-            transformer_gain_over_trivial=transformer.evaluation.gain_over_trivial,
-            transformer_gain_over_gru=(
-                gru.evaluation.candidate.mean_log_loss
-                - transformer.evaluation.candidate.mean_log_loss
-            ),
-            transformer_promoted=transformer.promotion.promote,
-            transformer_promotion_reason=transformer.promotion.reason,
-            vomm_test_loss=stationary_vomm.mean_log_loss,
-            vomm_gain_over_trivial=best_trivial - stationary_vomm.mean_log_loss,
-            decayed_vomm_test_loss=decayed_vomm.mean_log_loss,
-            decayed_vomm_gain_over_trivial=best_trivial - decayed_vomm.mean_log_loss,
-            temporal_responsibility=tuple(
-                getattr(result, "temporal_responsibility", ())
-            ),
-        ))
+        seed_results.append(
+            PrivateModelSeedResult(
+                seed=seed,
+                gru_test_loss=gru.evaluation.candidate.mean_log_loss,
+                gru_gain_over_trivial=gru.evaluation.gain_over_trivial,
+                gru_promoted=gru.promotion.promote,
+                gru_promotion_reason=gru.promotion.reason,
+                transformer_test_loss=transformer.evaluation.candidate.mean_log_loss,
+                transformer_gain_over_trivial=transformer.evaluation.gain_over_trivial,
+                transformer_gain_over_gru=(
+                    gru.evaluation.candidate.mean_log_loss
+                    - transformer.evaluation.candidate.mean_log_loss
+                ),
+                transformer_promoted=transformer.promotion.promote,
+                transformer_promotion_reason=transformer.promotion.reason,
+                vomm_test_loss=stationary_vomm.mean_log_loss,
+                vomm_gain_over_trivial=best_trivial - stationary_vomm.mean_log_loss,
+                decayed_vomm_test_loss=decayed_vomm.mean_log_loss,
+                decayed_vomm_gain_over_trivial=best_trivial - decayed_vomm.mean_log_loss,
+                temporal_responsibility=tuple(getattr(result, "temporal_responsibility", ())),
+            )
+        )
 
     count = len(seed_results)
-    responsibility_ids = sorted({
-        mechanism_id
-        for item in seed_results
-        for mechanism_id, _value in item.temporal_responsibility
-    })
+    responsibility_ids = sorted(
+        {
+            mechanism_id
+            for item in seed_results
+            for mechanism_id, _value in item.temporal_responsibility
+        }
+    )
     mean_responsibility = tuple(
         (
             mechanism_id,
-            sum(
-                dict(item.temporal_responsibility).get(mechanism_id, 0.0)
-                for item in seed_results
-            ) / count,
+            sum(dict(item.temporal_responsibility).get(mechanism_id, 0.0) for item in seed_results)
+            / count,
         )
         for mechanism_id in responsibility_ids
     )
@@ -168,16 +172,23 @@ def run_private_model_utility_study(
         gru_mean_test_loss=sum(item.gru_test_loss for item in seed_results) / count,
         transformer_mean_test_loss=sum(item.transformer_test_loss for item in seed_results) / count,
         gru_mean_gain_over_trivial=sum(item.gru_gain_over_trivial for item in seed_results) / count,
-        transformer_mean_gain_over_trivial=sum(item.transformer_gain_over_trivial for item in seed_results) / count,
-        transformer_mean_gain_over_gru=sum(item.transformer_gain_over_gru for item in seed_results) / count,
+        transformer_mean_gain_over_trivial=sum(
+            item.transformer_gain_over_trivial for item in seed_results
+        )
+        / count,
+        transformer_mean_gain_over_gru=sum(item.transformer_gain_over_gru for item in seed_results)
+        / count,
         gru_promotions=sum(int(item.gru_promoted) for item in seed_results),
         transformer_promotions=sum(int(item.transformer_promoted) for item in seed_results),
         vomm_mean_test_loss=sum(item.vomm_test_loss for item in seed_results) / count,
-        decayed_vomm_mean_test_loss=sum(item.decayed_vomm_test_loss for item in seed_results) / count,
-        vomm_mean_gain_over_trivial=sum(item.vomm_gain_over_trivial for item in seed_results) / count,
+        decayed_vomm_mean_test_loss=sum(item.decayed_vomm_test_loss for item in seed_results)
+        / count,
+        vomm_mean_gain_over_trivial=sum(item.vomm_gain_over_trivial for item in seed_results)
+        / count,
         decayed_vomm_mean_gain_over_trivial=sum(
             item.decayed_vomm_gain_over_trivial for item in seed_results
-        ) / count,
+        )
+        / count,
         mean_temporal_responsibility=mean_responsibility,
     )
 

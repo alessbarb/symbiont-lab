@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
-import math
 from typing import Any, Iterable
 
 from .acclimation import CapabilityBaseline, RunningStats
@@ -140,7 +140,9 @@ class RhythmModel:
             except (KeyError, TypeError, ValueError) as exc:
                 raise ValueError("rhythm replay entry is invalid") from exc
             if (
-                isinstance(count, bool) or not isinstance(count, int) or count < 0
+                isinstance(count, bool)
+                or not isinstance(count, int)
+                or count < 0
                 or not all(map(lambda value: math.isfinite(value), (mean, m2)))
                 or m2 < 0.0
             ):
@@ -162,11 +164,7 @@ class RhythmModel:
     def co_occurring_percepts(self, time_bucket: TimeBucket) -> tuple[str, ...]:
         """Percept names ever observed together within this time bucket."""
         return tuple(
-            sorted(
-                key.percept_name
-                for key in self._stats
-                if key.time_bucket == time_bucket
-            )
+            sorted(key.percept_name for key in self._stats if key.time_bucket == time_bucket)
         )
 
     @property

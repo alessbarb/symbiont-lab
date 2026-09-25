@@ -1,4 +1,5 @@
 from symbiont.core.heritage import HeritagePattern, SpeciesHeritage
+
 from symbiont_lab.studies.heritage.stress import (
     invert_heritage,
     misalign_heritage,

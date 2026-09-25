@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -52,9 +53,7 @@ def _parse_claim_rows(text: str) -> tuple[list[dict[str, str]], list[str]]:
             claim_id, tipo, anchor, source = cells
             if claim_id.startswith("_(") or not claim_id:
                 continue
-            rows.append(
-                {"claim_id": claim_id, "tipo": tipo, "anchor": anchor, "source": source}
-            )
+            rows.append({"claim_id": claim_id, "tipo": tipo, "anchor": anchor, "source": source})
         elif in_claims_table and not stripped.startswith("|"):
             # End of THIS table only — keep scanning the rest of the file
             # for further `| Claim ID |` header blocks.
@@ -65,7 +64,9 @@ def _parse_claim_rows(text: str) -> tuple[list[dict[str, str]], list[str]]:
 def _chapter_path(anchor: str) -> Path:
     chapter_num = anchor.split("#", 1)[0]
     matches = list((REPO_ROOT / "docs" / "explanation" / "concepts").glob(f"{chapter_num}-*.md"))
-    assert len(matches) == 1, f"expected exactly one chapter file for {chapter_num}, found {matches}"
+    assert len(matches) == 1, (
+        f"expected exactly one chapter file for {chapter_num}, found {matches}"
+    )
     return matches[0]
 
 
@@ -95,8 +96,7 @@ def malformed_claim_rows() -> list[str]:
 def test_no_malformed_claim_rows(malformed_claim_rows):
     assert not malformed_claim_rows, (
         "malformed claim row(s) in SOURCES.md (expected exactly 4 cells: "
-        "Claim ID | Tipo | Chapter anchor | Source):\n"
-        + "\n".join(malformed_claim_rows)
+        "Claim ID | Tipo | Chapter anchor | Source):\n" + "\n".join(malformed_claim_rows)
     )
 
 
@@ -169,6 +169,6 @@ def test_declared_markdown_anchor_exists_in_target(claim_rows):
         path_part, anchor = row["source"].split("#", 1)
         target_path = REPO_ROOT / path_part
         text = target_path.read_text(encoding="utf-8")
-        assert f'<a id="{anchor}"></a>' in text or f"id=\"{anchor}\"" in text, (
+        assert f'<a id="{anchor}"></a>' in text or f'id="{anchor}"' in text, (
             f"{row['claim_id']}: markdown anchor {anchor!r} not found in {target_path}"
         )

@@ -1,18 +1,20 @@
-from symbiont_lab.workbench.runs import ExperimentRunState
 from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
+from symbiont_lab.workbench.runs import ExperimentRunState
 
 
 def test_experiment_spec_parses_research_metadata_and_bounds_parameters():
-    spec = spec_from_payload({
-        "title": "  Drift recovery  ",
-        "hypothesis": "Novelty rises after drift.",
-        "success_criteria": "Recent drift FP falls.",
-        "notes": "comparison A",
-        "hosts": 0,
-        "steps": 9999999,
-        "poison_fraction": 2,
-        "drift_step": -1,
-    })
+    spec = spec_from_payload(
+        {
+            "title": "  Drift recovery  ",
+            "hypothesis": "Novelty rises after drift.",
+            "success_criteria": "Recent drift FP falls.",
+            "notes": "comparison A",
+            "hosts": 0,
+            "steps": 9999999,
+            "poison_fraction": 2,
+            "drift_step": -1,
+        }
+    )
     assert spec.title == "Drift recovery"
     assert spec.hypothesis == "Novelty rises after drift."
     assert spec.success_criteria == "Recent drift FP falls."

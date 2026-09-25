@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
-import math
 from typing import Any
 
 
@@ -39,9 +39,18 @@ class SensoryMutation:
         if any(not isinstance(item, str) or not item for item in self.parent_ids):
             raise ValueError("mutation parent ids must be non-empty strings")
         for digest in (self.pre_digest, self.post_digest):
-            if not isinstance(digest, str) or len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+            if (
+                not isinstance(digest, str)
+                or len(digest) != 64
+                or any(char not in "0123456789abcdef" for char in digest)
+            ):
                 raise ValueError("mutation digests must be SHA-256 hex")
-        if isinstance(self.cost, bool) or not isinstance(self.cost, (int, float)) or not math.isfinite(float(self.cost)) or self.cost < 0.0:
+        if (
+            isinstance(self.cost, bool)
+            or not isinstance(self.cost, (int, float))
+            or not math.isfinite(float(self.cost))
+            or self.cost < 0.0
+        ):
             raise ValueError("mutation cost must be finite and non-negative")
 
     @classmethod

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from symbiont.sensory.predictive_credit import (
     MIN_SELECTION_OBSERVATIONS,
     PairwisePredictiveEvidence,
@@ -14,13 +12,11 @@ from symbiont.sensory.predictive_credit import (
 def test_pairwise_predictive_evidence_beats_persistence_for_linear_relation() -> None:
     evidence = PairwisePredictiveEvidence("sensor.a", "sensor.target")
     previous_x = 0.0
-    previous_target = 0.0
     for tick in range(1, 80):
         x = math.sin(tick / 7.0)
         target = 2.0 * previous_x + 0.25
         evidence.observe(previous_x, target)
         previous_x = x
-        previous_target = target
 
     assert evidence.observations >= MIN_SELECTION_OBSERVATIONS
     assert evidence.positive_gain > 0.5
@@ -64,10 +60,7 @@ def test_selection_checkpoint_excludes_previous_raw_values() -> None:
 def test_selection_engine_is_bounded() -> None:
     engine = SensorySelectionEngine(max_pairs=4)
     for tick in range(12):
-        values = {
-            f"sensor.{index}": float(tick + index)
-            for index in range(6)
-        }
+        values = {f"sensor.{index}": float(tick + index) for index in range(6)}
         values["sensor.identity.target"] = float(tick)
         engine.observe(values, identity_targets={"sensor.identity.target"})
     assert len(engine.checkpoint()["pairs"]) <= 4

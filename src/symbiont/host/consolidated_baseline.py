@@ -14,9 +14,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from .acclimation import CapabilityBaseline
-
 from ..core.foundation.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+from .acclimation import CapabilityBaseline
 
 _CENTER_CLASSES = 32
 _CENTER_LOG_RANGE = (-6.0, 6.0)
@@ -62,7 +61,7 @@ def _center_class(mean: float) -> int:
 
 def _center_representative(cls: int) -> float:
     signed = _dequantize_signed(cls, _CENTER_LOG_RANGE, _CENTER_CLASSES)
-    magnitude = 10.0**abs(signed) - 1.0
+    magnitude = 10.0 ** abs(signed) - 1.0
     return math.copysign(magnitude, signed) if signed != 0 else 0.0
 
 

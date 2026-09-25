@@ -153,5 +153,7 @@ def second_look_at_local_host(
     actual current discovery, not a stale or hypothetical one.
     """
     resolved_manifest = manifest if manifest is not None else discover_local_host()
-    session = SecondLookSession(manifest=resolved_manifest, capability_id=capability_id, max_ticks=max_ticks)
+    session = SecondLookSession(
+        manifest=resolved_manifest, capability_id=capability_id, max_ticks=max_ticks
+    )
     return session.run_to_completion()

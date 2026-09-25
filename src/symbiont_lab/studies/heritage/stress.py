@@ -5,9 +5,15 @@ from hashlib import sha256
 from statistics import mean
 
 from symbiont.core.collective import CollectiveMemory
-from symbiont.core.heritage import HeritagePattern, SpeciesHeritage, apply_heritage, distill_heritage
+from symbiont.core.heritage import (
+    HeritagePattern,
+    SpeciesHeritage,
+    apply_heritage,
+    distill_heritage,
+)
 from symbiont.core.model import fingerprint
-from symbiont.simulation import EventContext, SimulationResult, _run_population, run_simulation
+
+from symbiont.simulation import EventContext, _run_population, run_simulation
 
 
 @dataclass(slots=True, frozen=True)
@@ -151,16 +157,12 @@ def _alignment(
 
         if live_certainty >= 0.30 and abs(pattern.threat_probability - 0.5) >= 0.05:
             override_candidates += 1
-            overrides += int(
-                (live_probability >= 0.5) != (pattern.threat_probability >= 0.5)
-            )
+            overrides += int((live_probability >= 0.5) != (pattern.threat_probability >= 0.5))
 
     prior_mae = _mae(prior_errors)
     combined_mae = _mae(combined_errors)
     correction_gain = (
-        prior_mae - combined_mae
-        if prior_mae is not None and combined_mae is not None
-        else None
+        prior_mae - combined_mae if prior_mae is not None and combined_mae is not None else None
     )
     return (
         len(prior_errors),

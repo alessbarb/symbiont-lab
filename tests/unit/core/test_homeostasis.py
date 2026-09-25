@@ -1,10 +1,17 @@
+import pytest
 from symbiont.core.homeostasis import HomeostaticAction, HomeostaticController
 from symbiont.core.metabolism import ResourcePressure
-import pytest
+
 
 def test_pressure_reduces_activity_and_pauses_plasticity():
- h=HomeostaticController(); s=h.regulate(ResourcePressure.SEVERE)
- assert s.action is HomeostaticAction.PAUSE_PLASTICITY and not s.plasticity_enabled and s.activity_scale < 1
+    h = HomeostaticController()
+    s = h.regulate(ResourcePressure.SEVERE)
+    assert (
+        s.action is HomeostaticAction.PAUSE_PLASTICITY
+        and not s.plasticity_enabled
+        and s.activity_scale < 1
+    )
+
 
 def test_homeostatic_checkpoint_preserves_shared_integrity() -> None:
     controller = HomeostaticController(integrity=0.5)
@@ -37,8 +44,7 @@ def test_constitutive_repair_stops_when_maintenance_reserve_is_empty() -> None:
     state = LivingBodyState(structural_integrity=0.5)
     metabolism = MetabolicLedger(
         replenishment={
-            kind: 0.0
-            for kind in ("observation", "cognition", "persistence", "maintenance")
+            kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
         },
         body_state=state,
     )

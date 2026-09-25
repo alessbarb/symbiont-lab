@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections import defaultdict, deque
 import math
+from collections import defaultdict, deque
 
 from symbiont.modeling.temporal import TemporalPrediction, TemporalResourceUsage
 
@@ -23,7 +23,11 @@ class DecayedVariableOrderMarkov:
         smoothing: float = 0.5,
         mechanism_id: str = "vomm-decayed-v1",
     ) -> None:
-        if isinstance(max_order, bool) or not isinstance(max_order, int) or not 1 <= max_order <= 64:
+        if (
+            isinstance(max_order, bool)
+            or not isinstance(max_order, int)
+            or not 1 <= max_order <= 64
+        ):
             raise ValueError("max_order must be within [1, 64]")
         if (
             isinstance(decay, bool)

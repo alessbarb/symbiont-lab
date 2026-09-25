@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from hashlib import sha256
 import math
-from pathlib import Path
 import time
+from hashlib import sha256
+from pathlib import Path
 from typing import Callable
 
 from ..contracts import Capability, CapabilityKind
@@ -57,7 +57,12 @@ class LinuxSurfaceProvider:
         if "thermal_zone" in lower or "temp" in lower:
             return {"label": "Temperature", "category": "thermal", "unit": "°C", "scale": 0.001}
         if "scaling_cur_freq" in lower or "gt_cur_freq" in lower or "gt_act_freq" in lower:
-            return {"label": "CPU/GPU frequency", "category": "compute", "unit": "MHz", "scale": 0.001}
+            return {
+                "label": "CPU/GPU frequency",
+                "category": "compute",
+                "unit": "MHz",
+                "scale": 0.001,
+            }
         if "gpu_busy_percent" in lower:
             return {"label": "GPU activity", "category": "compute", "unit": "%", "scale": 1.0}
         if "mem_busy_percent" in lower:
@@ -75,29 +80,62 @@ class LinuxSurfaceProvider:
         if "proc-loadavg" in lower:
             return {"label": "System load", "category": "compute", "unit": "load", "scale": 1.0}
         if "proc-entropy" in lower:
-            return {"label": "Kernel entropy available", "category": "system", "unit": "count", "scale": 1.0}
+            return {
+                "label": "Kernel entropy available",
+                "category": "system",
+                "unit": "count",
+                "scale": 1.0,
+            }
         if "proc-meminfo" in lower:
             key = locator.rsplit(":", 1)[-1]
             safe = {
-                "memtotal": "Memory total", "memfree": "Memory free",
-                "memavailable": "Memory available", "cached": "Memory cache",
-                "buffers": "Memory buffers", "swaptotal": "Swap total",
+                "memtotal": "Memory total",
+                "memfree": "Memory free",
+                "memavailable": "Memory available",
+                "cached": "Memory cache",
+                "buffers": "Memory buffers",
+                "swaptotal": "Swap total",
                 "swapfree": "Swap free",
             }.get(key.lower(), "Memory statistic")
             return {"label": safe, "category": "memory", "unit": "KiB", "scale": 1.0}
         if "/proc/net/dev" in lower:
-            return {"label": "Network activity", "category": "network", "unit": "count", "scale": 1.0}
+            return {
+                "label": "Network activity",
+                "category": "network",
+                "unit": "count",
+                "scale": 1.0,
+            }
         if "/proc/diskstats" in lower:
             return {"label": "Disk activity", "category": "storage", "unit": "count", "scale": 1.0}
         if "/proc/pressure/cpu" in lower:
-            return {"label": "CPU pressure", "category": "compute", "unit": "pressure", "scale": 1.0}
+            return {
+                "label": "CPU pressure",
+                "category": "compute",
+                "unit": "pressure",
+                "scale": 1.0,
+            }
         if "/proc/pressure/io" in lower:
-            return {"label": "I/O pressure", "category": "storage", "unit": "pressure", "scale": 1.0}
+            return {
+                "label": "I/O pressure",
+                "category": "storage",
+                "unit": "pressure",
+                "scale": 1.0,
+            }
         if "/proc/pressure/memory" in lower:
-            return {"label": "Memory pressure", "category": "memory", "unit": "pressure", "scale": 1.0}
+            return {
+                "label": "Memory pressure",
+                "category": "memory",
+                "unit": "pressure",
+                "scale": 1.0,
+            }
         if "proc-stat:cpu" in lower:
             return {"label": "CPU time", "category": "compute", "unit": "ticks", "scale": 1.0}
-        return {"label": "Linux aggregate signal", "category": "system", "unit": "count", "scale": 1.0}
+        return {
+            "label": "Linux aggregate signal",
+            "category": "system",
+            "unit": "count",
+            "scale": 1.0,
+        }
 
     def observer_descriptor(self, capability_id: str) -> dict[str, object] | None:
         descriptor = self._observer_descriptors.get(capability_id)
@@ -139,7 +177,7 @@ class LinuxSurfaceProvider:
             stripped = line.strip()
             if not stripped.startswith(key):
                 continue
-            values = stripped[len(key):].lstrip(": ").split()
+            values = stripped[len(key) :].lstrip(": ").split()
             numeric = [value for value in values if cls._safe_scalar(value) is not None]
             if value_index >= len(numeric):
                 return None
@@ -173,39 +211,55 @@ class LinuxSurfaceProvider:
         loadavg = Path("/proc/loadavg")
         if loadavg.is_file():
             for index in range(3):
-                self._append(capabilities, self._register(
-                    f"proc-loadavg:{index}",
-                    lambda path=loadavg, idx=index: self._read_token(path, idx),
-                ))
+                self._append(
+                    capabilities,
+                    self._register(
+                        f"proc-loadavg:{index}",
+                        lambda path=loadavg, idx=index: self._read_token(path, idx),
+                    ),
+                )
 
         entropy = Path("/proc/sys/kernel/random/entropy_avail")
         if entropy.is_file():
-            self._append(capabilities, self._register(
-                "proc-entropy",
-                lambda path=entropy: self._read_token(path, 0),
-            ))
+            self._append(
+                capabilities,
+                self._register(
+                    "proc-entropy",
+                    lambda path=entropy: self._read_token(path, 0),
+                ),
+            )
 
         for pattern in self._SYS_PATTERNS:
             if len(self._readers) >= self.MAX_SURFACES:
                 break
             for path in sorted(Path("/").glob(pattern.removeprefix("/")))[:64]:
                 if path.is_file():
-                    self._append(capabilities, self._register(
-                        f"sys-scalar:{path.as_posix()}",
-                        lambda target=path: self._read_token(target, 0),
-                    ))
+                    self._append(
+                        capabilities,
+                        self._register(
+                            f"sys-scalar:{path.as_posix()}",
+                            lambda target=path: self._read_token(target, 0),
+                        ),
+                    )
 
         meminfo = Path("/proc/meminfo")
         if meminfo.is_file():
             try:
-                keys = [line.partition(":")[0] for line in meminfo.read_text(encoding="utf-8").splitlines() if ":" in line]
+                keys = [
+                    line.partition(":")[0]
+                    for line in meminfo.read_text(encoding="utf-8").splitlines()
+                    if ":" in line
+                ]
             except (OSError, UnicodeError):
                 keys = []
             for key in keys[:128]:
-                self._append(capabilities, self._register(
-                    f"proc-meminfo:{key}",
-                    lambda path=meminfo, item=key: self._read_keyed_value(path, item),
-                ))
+                self._append(
+                    capabilities,
+                    self._register(
+                        f"proc-meminfo:{key}",
+                        lambda path=meminfo, item=key: self._read_keyed_value(path, item),
+                    ),
+                )
 
         stat = Path("/proc/stat")
         if stat.is_file() and len(self._readers) < self.MAX_SURFACES:
@@ -222,10 +276,15 @@ class LinuxSurfaceProvider:
                     continue
                 numeric_count = sum(self._safe_scalar(value) is not None for value in parts[1:])
                 for index in range(min(numeric_count, 16)):
-                    self._append(capabilities, self._register(
-                        f"proc-stat:{key}:{index}",
-                        lambda path=stat, item=key, idx=index: self._read_keyed_value(path, item, idx),
-                    ))
+                    self._append(
+                        capabilities,
+                        self._register(
+                            f"proc-stat:{key}:{index}",
+                            lambda path=stat, item=key, idx=index: self._read_keyed_value(
+                                path, item, idx
+                            ),
+                        ),
+                    )
 
         for path in self._TABLE_FILES:
             if len(self._readers) >= self.MAX_SURFACES or not path.is_file():
@@ -250,13 +309,20 @@ class LinuxSurfaceProvider:
                     # or virtual loop/ram block device — never guess an identity.
                     continue
                 seen_labels.add(label)
-                numeric_positions = [i for i, token in enumerate(tokens) if self._safe_scalar(token) is not None]
+                numeric_positions = [
+                    i for i, token in enumerate(tokens) if self._safe_scalar(token) is not None
+                ]
                 for numeric_index in range(min(len(numeric_positions), 16)):
                     locator = f"table:{path.as_posix()}:{label}:{numeric_index}"
-                    self._append(capabilities, self._register(
-                        locator,
-                        lambda target=path, row_label=label, idx=numeric_index: self._read_table_token(target, row_label, idx),
-                    ))
+                    self._append(
+                        capabilities,
+                        self._register(
+                            locator,
+                            lambda target=path, row_label=label, idx=numeric_index: (
+                                self._read_table_token(target, row_label, idx)
+                            ),
+                        ),
+                    )
 
         return tuple(sorted(capabilities, key=lambda item: item.capability_id))
 
@@ -268,7 +334,9 @@ class LinuxSurfaceProvider:
         rows can never silently alias one device's history onto another
         (roadmap safety finding A03). Returns ``None`` if every token in the
         row looks numeric, since there is then no stable label to key on."""
-        return next((token for token in tokens if LinuxSurfaceProvider._safe_scalar(token) is None), None)
+        return next(
+            (token for token in tokens if LinuxSurfaceProvider._safe_scalar(token) is None), None
+        )
 
     @classmethod
     def _read_table_token(cls, path: Path, row_label: str, numeric_index: int) -> float | None:
@@ -280,7 +348,9 @@ class LinuxSurfaceProvider:
             tokens = line.replace(":", " ").split()
             if not tokens or cls._row_label(tokens) != row_label:
                 continue
-            numeric_positions = [i for i, token in enumerate(tokens) if cls._safe_scalar(token) is not None]
+            numeric_positions = [
+                i for i, token in enumerate(tokens) if cls._safe_scalar(token) is not None
+            ]
             if numeric_index >= len(numeric_positions):
                 return None
             return cls._safe_scalar(tokens[numeric_positions[numeric_index]])
@@ -296,13 +366,17 @@ class LinuxSurfaceProvider:
             if reader is None:
                 continue
             value = reader()
-            readings.append(SensorReading(
-                capability_id=capability.capability_id,
-                source=self.provider_id,
-                value=value,
-                unit=Unit.COUNT,
-                monotonic_timestamp_ns=now,
-                quality=ReadingQuality.NOMINAL if value is not None else ReadingQuality.UNAVAILABLE,
-                privacy_class=ReadingPrivacyClass.AGGREGATE,
-            ))
+            readings.append(
+                SensorReading(
+                    capability_id=capability.capability_id,
+                    source=self.provider_id,
+                    value=value,
+                    unit=Unit.COUNT,
+                    monotonic_timestamp_ns=now,
+                    quality=ReadingQuality.NOMINAL
+                    if value is not None
+                    else ReadingQuality.UNAVAILABLE,
+                    privacy_class=ReadingPrivacyClass.AGGREGATE,
+                )
+            )
         return tuple(readings)

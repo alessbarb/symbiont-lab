@@ -1,4 +1,5 @@
 """Embodiment-local execution authority for learned motor competences."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -57,8 +58,7 @@ class CompetenceExecutionBindingRegistry:
         existing = self._items.get(competence_id)
         refs = tuple(
             dict.fromkeys(
-                (existing.evidence_refs if existing is not None else ())
-                + tuple(evidence_refs)
+                (existing.evidence_refs if existing is not None else ()) + tuple(evidence_refs)
             )
         )
         binding = CompetenceExecutionBinding(
@@ -104,8 +104,7 @@ class CompetenceExecutionBindingRegistry:
             binding is not None
             and binding.surface_fingerprint == surface_fingerprint
             and bool(binding.evidence_refs)
-            and competence.maturity
-            in {CompetenceMaturity.ESTABLISHED, CompetenceMaturity.ROBUST}
+            and competence.maturity in {CompetenceMaturity.ESTABLISHED, CompetenceMaturity.ROBUST}
         )
 
     def invalid_for_surface(self, surface_fingerprint: str) -> tuple[str, ...]:

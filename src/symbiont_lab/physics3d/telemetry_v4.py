@@ -4,18 +4,19 @@ The writer remains apparatus-side and passive. Runtime code still produces the
 full completed-tick observation; this module changes only how that observation
 is persisted.
 """
+
 from __future__ import annotations
 
+import json
+import os
+import queue
+import threading
+import uuid
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
-import json
-import os
 from pathlib import Path
-import queue
-import threading
 from typing import Any, Iterator, Mapping
-import uuid
 
 from .telemetry_compaction import (
     CompactionPolicy,
@@ -25,7 +26,6 @@ from .telemetry_compaction import (
     canonical_json_bytes,
     payload_sha256,
 )
-
 
 SCHEMA_VERSION = 4
 ENVELOPE_TYPE = "symbiont-physics3d-telemetry"
@@ -84,8 +84,7 @@ class TelemetryV4Writer:
         if flush_every < 1:
             raise ValueError("flush_every must be >= 1")
         generated_run_id = (
-            f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-"
-            f"{uuid.uuid4().hex[:12]}"
+            f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:12]}"
         )
         self.run_id = run_id or generated_run_id
         self.root = Path(root).expanduser() / self.run_id
@@ -99,12 +98,8 @@ class TelemetryV4Writer:
 
         self.transitions_path = self.root / "transitions.ndjson"
         self.anchor_index_path = self.indexes_dir / "anchors.ndjson"
-        self._transitions = self.transitions_path.open(
-            "a", encoding="utf-8", buffering=65536
-        )
-        self._anchor_index = self.anchor_index_path.open(
-            "a", encoding="utf-8", buffering=8192
-        )
+        self._transitions = self.transitions_path.open("a", encoding="utf-8", buffering=65536)
+        self._anchor_index = self.anchor_index_path.open("a", encoding="utf-8", buffering=8192)
         self._flush_every = int(flush_every)
         self._snapshot_interval = int(snapshot_interval)
         self._pending = 0
@@ -118,9 +113,7 @@ class TelemetryV4Writer:
         self._summary_patch_ops = 0
 
         self.object_store = ObjectStore(self.objects_dir)
-        policy = CompactionPolicy(
-            minimum_reference_bytes=minimum_reference_bytes
-        )
+        policy = CompactionPolicy(minimum_reference_bytes=minimum_reference_bytes)
         self._differ = StateDiffer(
             object_store=self.object_store,
             policy=policy,
@@ -210,9 +203,7 @@ class TelemetryV4Writer:
         tick = int(summary["tick"])
         rich_tick = state.get("tick")
         if rich_tick is not None and int(rich_tick) != tick:
-            raise ValueError(
-                f"rich telemetry tick mismatch: {rich_tick} != {tick}"
-            )
+            raise ValueError(f"rich telemetry tick mismatch: {rich_tick} != {tick}")
         if self._last_tick is not None and tick <= self._last_tick:
             raise ValueError(
                 f"telemetry ticks must be strictly increasing: {tick} <= {self._last_tick}"
@@ -292,9 +283,7 @@ class TelemetryV4Writer:
                 "objects": object_count,
                 "state_patch_operations": self._state_patch_ops,
                 "summary_patch_operations": self._summary_patch_ops,
-                "final_record_hash": (
-                    self._previous_hash if self._sequence else None
-                ),
+                "final_record_hash": (self._previous_hash if self._sequence else None),
             }
         )
         _write_json(self.root / "manifest.json", self.manifest)
@@ -339,10 +328,7 @@ class AsyncTelemetryV4Writer:
 
     def needs_snapshot(self, tick: int) -> bool:
         self._raise_worker_error()
-        return (
-            self._submitted == 0
-            or int(tick) % self._snapshot_interval == 0
-        )
+        return self._submitted == 0 or int(tick) % self._snapshot_interval == 0
 
     def append(
         self,
@@ -414,14 +400,10 @@ class TelemetryV4Reader:
         self.transitions_path = self.root / "transitions.ndjson"
         self.manifest_path = self.root / "manifest.json"
         if not self.transitions_path.is_file():
-            raise FileNotFoundError(
-                f"telemetry v4 transitions not found: {self.transitions_path}"
-            )
+            raise FileNotFoundError(f"telemetry v4 transitions not found: {self.transitions_path}")
         self.object_store = ObjectStore(self.root / "objects" / "sha256")
         self._patcher = StatePatcher(object_store=self.object_store)
-        self.manifest = json.loads(
-            self.manifest_path.read_text(encoding="utf-8")
-        )
+        self.manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
         if int(self.manifest.get("schema_version", -1)) != SCHEMA_VERSION:
             raise ValueError("not a telemetry v4 run")
 
@@ -435,9 +417,7 @@ class TelemetryV4Reader:
                 actual = payload_sha256(payload)
                 payload["anchor_sha256"] = claimed
                 if claimed != actual:
-                    raise ValueError(
-                        f"telemetry anchor hash mismatch: {path.name}"
-                    )
+                    raise ValueError(f"telemetry anchor hash mismatch: {path.name}")
             items.append((tick, path))
         return items
 
@@ -447,9 +427,7 @@ class TelemetryV4Reader:
             claimed = payload.pop("anchor_sha256", None)
             actual = payload_sha256(payload)
             if claimed != actual:
-                raise ValueError(
-                    f"telemetry anchor hash mismatch: {path.name}"
-                )
+                raise ValueError(f"telemetry anchor hash mismatch: {path.name}")
         summary = payload.get("summary")
         state = payload.get("state")
         if not isinstance(summary, dict) or not isinstance(state, dict):
@@ -467,31 +445,21 @@ class TelemetryV4Reader:
                     continue
                 item = json.loads(line)
                 if not isinstance(item, dict):
-                    raise ValueError(
-                        f"invalid telemetry transition at line {line_no}"
-                    )
+                    raise ValueError(f"invalid telemetry transition at line {line_no}")
                 if self.verify:
                     if int(item.get("sequence", -1)) != expected_sequence:
-                        raise ValueError(
-                            f"telemetry sequence gap at line {line_no}"
-                        )
+                        raise ValueError(f"telemetry sequence gap at line {line_no}")
                     if item.get("previous_record_hash") != previous_hash:
-                        raise ValueError(
-                            f"telemetry hash-chain break at line {line_no}"
-                        )
+                        raise ValueError(f"telemetry hash-chain break at line {line_no}")
                     claimed = item.get("record_hash")
                     unsigned = dict(item)
                     unsigned.pop("record_hash", None)
                     actual = payload_sha256(unsigned)
                     if claimed != actual:
-                        raise ValueError(
-                            f"telemetry record hash mismatch at line {line_no}"
-                        )
+                        raise ValueError(f"telemetry record hash mismatch at line {line_no}")
                     tick = int(item.get("tick", -1))
                     if previous_tick is not None and tick <= previous_tick:
-                        raise ValueError(
-                            f"telemetry tick order violation at line {line_no}"
-                        )
+                        raise ValueError(f"telemetry tick order violation at line {line_no}")
                     previous_hash = str(claimed)
                     previous_tick = tick
                     expected_sequence += 1
@@ -519,18 +487,12 @@ class TelemetryV4Reader:
                 if record_tick < anchor_tick:
                     continue
                 if record_tick > anchor_tick:
-                    raise ValueError(
-                        "first telemetry anchor has no transition record"
-                    )
+                    raise ValueError("first telemetry anchor has no transition record")
                 if self.verify:
                     if payload_sha256(summary) != record.get("summary_sha256"):
-                        raise ValueError(
-                            "telemetry summary hash mismatch at first anchor"
-                        )
+                        raise ValueError("telemetry summary hash mismatch at first anchor")
                     if payload_sha256(state) != record.get("state_sha256"):
-                        raise ValueError(
-                            "telemetry state hash mismatch at first anchor"
-                        )
+                        raise ValueError("telemetry state hash mismatch at first anchor")
                 found_anchor = True
                 yield (
                     anchor_tick,
@@ -552,13 +514,9 @@ class TelemetryV4Reader:
                 raise ValueError("telemetry patch did not reconstruct mappings")
             if self.verify:
                 if payload_sha256(summary) != record.get("summary_sha256"):
-                    raise ValueError(
-                        f"telemetry summary hash mismatch at tick {record_tick}"
-                    )
+                    raise ValueError(f"telemetry summary hash mismatch at tick {record_tick}")
                 if payload_sha256(state) != record.get("state_sha256"):
-                    raise ValueError(
-                        f"telemetry state hash mismatch at tick {record_tick}"
-                    )
+                    raise ValueError(f"telemetry state hash mismatch at tick {record_tick}")
             yield record_tick, deepcopy(summary), deepcopy(state), record
 
         if not found_anchor:
@@ -566,10 +524,7 @@ class TelemetryV4Reader:
 
     def state_at(self, tick: int) -> dict[str, Any]:
         requested = int(tick)
-        anchors = [
-            item for item in self._anchor_files()
-            if item[0] <= requested
-        ]
+        anchors = [item for item in self._anchor_files() if item[0] <= requested]
         if not anchors:
             raise KeyError(f"no telemetry state at or before tick {requested}")
         anchor_tick, anchor_path = anchors[-1]
@@ -593,13 +548,9 @@ class TelemetryV4Reader:
             )
             if self.verify:
                 if payload_sha256(summary) != record.get("summary_sha256"):
-                    raise ValueError(
-                        f"telemetry summary hash mismatch at tick {record_tick}"
-                    )
+                    raise ValueError(f"telemetry summary hash mismatch at tick {record_tick}")
                 if payload_sha256(state) != record.get("state_sha256"):
-                    raise ValueError(
-                        f"telemetry state hash mismatch at tick {record_tick}"
-                    )
+                    raise ValueError(f"telemetry state hash mismatch at tick {record_tick}")
             if record_tick == requested:
                 if not isinstance(state, dict):
                     raise ValueError("reconstructed telemetry state is not a mapping")
@@ -696,15 +647,14 @@ def verify_v4_run(path: str | Path) -> dict[str, Any]:
         "first_tick": first_tick,
         "last_tick": last_tick,
         "anchors": len(anchors),
-        "objects": sum(
-            1 for _ in (reader.root / "objects" / "sha256").glob("*/*.json")
-        ),
+        "objects": sum(1 for _ in (reader.root / "objects" / "sha256").glob("*/*.json")),
         "manifest_transition_records": manifest.get("transition_records"),
         "manifest_final_record_hash": manifest.get("final_record_hash"),
         "actual_final_record_hash": final_hash,
         "closed": closed,
         "complete": complete,
     }
+
 
 __all__ = [
     "AsyncTelemetryV4Writer",

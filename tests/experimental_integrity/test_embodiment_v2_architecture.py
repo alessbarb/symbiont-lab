@@ -3,12 +3,13 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from symbiont.core.symbiont import Symbiont
+
 from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.competence import CompetenceEvidence, MotorCompetence
 from symbiont.actuation.model import AgencyModel, CompetenceEffectModel
 from symbiont.core.embodiment.body_schema import BodySchemaEngine
 from symbiont.core.embodiment.dynamics import SensorimotorDynamicsModel
-from symbiont.core.symbiont import Symbiont
 
 
 def test_production_symbiont_uses_only_canonical_embodiment_models() -> None:
@@ -61,14 +62,7 @@ def test_motor_competence_has_no_execution_surface_authority() -> None:
 
 def test_retired_agency_stack_is_not_imported_by_production_symbiont() -> None:
     root = Path(__file__).resolve().parents[2]
-    production = (
-        root
-        / "src"
-        / "symbiont"
-        / "core"
-        / "orchestration"
-        / "symbiont.py"
-    )
+    production = root / "src" / "symbiont" / "core" / "orchestration" / "symbiont.py"
     tree = ast.parse(production.read_text(encoding="utf-8"))
     imported_modules: list[str] = []
     for node in ast.walk(tree):
@@ -76,10 +70,7 @@ def test_retired_agency_stack_is_not_imported_by_production_symbiont() -> None:
             imported_modules.append(node.module or "")
         elif isinstance(node, ast.Import):
             imported_modules.extend(alias.name for alias in node.names)
-    assert not any(
-        module.endswith("embodiment.agency")
-        for module in imported_modules
-    )
+    assert not any(module.endswith("embodiment.agency") for module in imported_modules)
 
 
 def test_core_public_api_does_not_export_retired_body_schema() -> None:
@@ -92,16 +83,11 @@ def test_core_public_api_does_not_export_retired_body_schema() -> None:
     assert not hasattr(core, "PerceptualStructure")
 
 
-
 def test_physics3d_run_catalog_reads_canonical_archive_not_legacy_memory() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (
-        root
-        / "src"
-        / "symbiont_lab"
-        / "app"
-        / "physics3d_runs.py"
-    ).read_text(encoding="utf-8")
+    source = (root / "src" / "symbiont_lab" / "app" / "physics3d_runs.py").read_text(
+        encoding="utf-8"
+    )
 
     assert 'payload.get("embodiment_archive")' in source
     assert 'payload.get("embodiment_memory")' not in source

@@ -1,4 +1,5 @@
 """Bounded opaque symbol sequences and receiver-side association learning."""
+
 from __future__ import annotations
 
 import hashlib
@@ -42,7 +43,11 @@ class SequenceMessage:
     def __post_init__(self) -> None:
         _id(self.sender_id, "sender_id")
         _id(self.receiver_id, "receiver_id")
-        if isinstance(self.emitted_tick, bool) or not isinstance(self.emitted_tick, int) or self.emitted_tick < 0:
+        if (
+            isinstance(self.emitted_tick, bool)
+            or not isinstance(self.emitted_tick, int)
+            or self.emitted_tick < 0
+        ):
             raise ValueError("emitted_tick must be non-negative")
 
 
@@ -61,9 +66,17 @@ class SequenceDecisionRecord:
     def __post_init__(self) -> None:
         _id(self.decision_id, "decision_id")
         _id(self.organism_id, "organism_id")
-        if isinstance(self.decision_tick, bool) or not isinstance(self.decision_tick, int) or self.decision_tick < 0:
+        if (
+            isinstance(self.decision_tick, bool)
+            or not isinstance(self.decision_tick, int)
+            or self.decision_tick < 0
+        ):
             raise ValueError("decision_tick must be non-negative")
-        if not isinstance(self.candidate_set_digest, str) or len(self.candidate_set_digest) != 64 or any(char not in "0123456789abcdef" for char in self.candidate_set_digest):
+        if (
+            not isinstance(self.candidate_set_digest, str)
+            or len(self.candidate_set_digest) != 64
+            or any(char not in "0123456789abcdef" for char in self.candidate_set_digest)
+        ):
             raise ValueError("candidate_set_digest must be SHA-256")
         if not isinstance(self.selected_action, SymbolAction):
             raise ValueError("invalid sequence action")
@@ -85,7 +98,14 @@ class SequenceDecisionRecord:
             or self.selected_recipient_id is None
         ):
             raise ValueError("emission must select sequence and recipient")
-        if self.selected_action is SymbolAction.SILENCE and any(value is not None for value in (self.selected_sequence_id, self.selected_symbols, self.selected_recipient_id)):
+        if self.selected_action is SymbolAction.SILENCE and any(
+            value is not None
+            for value in (
+                self.selected_sequence_id,
+                self.selected_symbols,
+                self.selected_recipient_id,
+            )
+        ):
             raise ValueError("silence cannot select sequence or recipient")
 
     @classmethod
@@ -99,10 +119,15 @@ class SequenceDecisionRecord:
                     raise ValueError("selected_symbols must be a sequence")
                 symbols = tuple(symbols)
             return cls(
-                payload["decision_id"], payload["organism_id"], payload["decision_tick"],
-                payload["candidate_set_digest"], SymbolAction(payload["selected_action"]),
-                payload.get("selected_sequence_id"), symbols,
-                payload.get("selected_recipient_id"), payload["cost"],
+                payload["decision_id"],
+                payload["organism_id"],
+                payload["decision_tick"],
+                payload["candidate_set_digest"],
+                SymbolAction(payload["selected_action"]),
+                payload.get("selected_sequence_id"),
+                symbols,
+                payload.get("selected_recipient_id"),
+                payload["cost"],
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid sequence decision") from exc
@@ -134,8 +159,13 @@ class SequenceGroundingLedger:
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, organism_id: str, *, max_associations: int = MAX_SEQUENCES,
-                 telemetry: CommunicationTelemetry | None = None) -> None:
+    def __init__(
+        self,
+        organism_id: str,
+        *,
+        max_associations: int = MAX_SEQUENCES,
+        telemetry: CommunicationTelemetry | None = None,
+    ) -> None:
         _id(organism_id, "organism_id")
         if not 1 <= max_associations <= MAX_SEQUENCES:
             raise ValueError("sequence association capacity exceeds bound")
@@ -169,7 +199,9 @@ class SequenceGroundingLedger:
         self._exposures.append(message)
         self._cost += len(message.sequence.symbols)
 
-    def observe_outcome(self, outcome_tokens: tuple[str, ...], *, tick: int, supported: bool = True) -> SequenceAssociation:
+    def observe_outcome(
+        self, outcome_tokens: tuple[str, ...], *, tick: int, supported: bool = True
+    ) -> SequenceAssociation:
         if not 1 <= len(outcome_tokens) <= MAX_SEQUENCE_LENGTH:
             raise ValueError("outcome arity exceeds bound")
         for token in outcome_tokens:
@@ -184,9 +216,14 @@ class SequenceGroundingLedger:
         current = self._associations.get(key)
         if current is None and len(self._associations) >= self.max_associations:
             raise ValueError("sequence association capacity exceeded")
-        item = SequenceAssociation(sequence.sequence_id, sequence.symbols, outcome_tokens,
-                                   (current.support if current else 0) + int(supported),
-                                   (current.contradiction if current else 0) + int(not supported), tick)
+        item = SequenceAssociation(
+            sequence.sequence_id,
+            sequence.symbols,
+            outcome_tokens,
+            (current.support if current else 0) + int(supported),
+            (current.contradiction if current else 0) + int(not supported),
+            tick,
+        )
         self._associations[key] = item
         self._cost += len(sequence.symbols)
         if self.telemetry is not None:
@@ -194,14 +231,25 @@ class SequenceGroundingLedger:
             after = item.support - item.contradiction
             base = (self.organism_id, sequence.sequence_id, tick, item.support, item.contradiction)
             try:
-                self.telemetry.record_grounding(GroundingEvent(
-                    event_id="grounding." + hashlib.sha256(repr(base).encode()).hexdigest()[:48],
-                    tick=tick, organism_id=self.organism_id, message_id=sequence.sequence_id,
-                    exposure_count=sum(1 for exposure in self._exposures if exposure.sequence.sequence_id == sequence.sequence_id),
-                    association_strength_before=max(0, before), association_strength_after=max(0, after),
-                    support_delta=int(supported), contradiction_delta=int(not supported),
-                    cost=len(sequence.symbols),
-                ))
+                self.telemetry.record_grounding(
+                    GroundingEvent(
+                        event_id="grounding."
+                        + hashlib.sha256(repr(base).encode()).hexdigest()[:48],
+                        tick=tick,
+                        organism_id=self.organism_id,
+                        message_id=sequence.sequence_id,
+                        exposure_count=sum(
+                            1
+                            for exposure in self._exposures
+                            if exposure.sequence.sequence_id == sequence.sequence_id
+                        ),
+                        association_strength_before=max(0, before),
+                        association_strength_after=max(0, after),
+                        support_delta=int(supported),
+                        contradiction_delta=int(not supported),
+                        cost=len(sequence.symbols),
+                    )
+                )
             except ValueError:
                 # Telemetry is a best-effort outbound observation sink. It must
                 # never roll back or alter local grounding.
@@ -209,13 +257,28 @@ class SequenceGroundingLedger:
         return item
 
     def predict_exact(self, sequence: SymbolSequence) -> tuple[str, ...] | None:
-        candidates = [item for item in self.associations if item.sequence_id == sequence.sequence_id and item.support > item.contradiction]
+        candidates = [
+            item
+            for item in self.associations
+            if item.sequence_id == sequence.sequence_id and item.support > item.contradiction
+        ]
         if not candidates:
             return None
-        return max(candidates, key=lambda item: (item.support - item.contradiction, item.last_tick, item.outcome_tokens)).outcome_tokens
+        return max(
+            candidates,
+            key=lambda item: (
+                item.support - item.contradiction,
+                item.last_tick,
+                item.outcome_tokens,
+            ),
+        ).outcome_tokens
 
     def forget(self, *, current_tick: int, max_age: int) -> int:
-        removed = [key for key, item in self._associations.items() if current_tick - item.last_tick > max_age]
+        removed = [
+            key
+            for key, item in self._associations.items()
+            if current_tick - item.last_tick > max_age
+        ]
         for key in removed:
             del self._associations[key]
         return len(removed)
@@ -225,28 +288,63 @@ class SequenceGroundingLedger:
             "schema_version": self.SCHEMA_VERSION,
             "organism_id": self.organism_id,
             "max_associations": self.max_associations,
-            "exposures": [{"symbols": item.sequence.symbols, "sender_id": item.sender_id, "receiver_id": item.receiver_id, "emitted_tick": item.emitted_tick} for item in self.exposures],
-            "associations": [{"sequence_id": item.sequence_id, "symbols": item.symbols, "outcome_tokens": item.outcome_tokens, "support": item.support, "contradiction": item.contradiction, "last_tick": item.last_tick} for item in self.associations],
+            "exposures": [
+                {
+                    "symbols": item.sequence.symbols,
+                    "sender_id": item.sender_id,
+                    "receiver_id": item.receiver_id,
+                    "emitted_tick": item.emitted_tick,
+                }
+                for item in self.exposures
+            ],
+            "associations": [
+                {
+                    "sequence_id": item.sequence_id,
+                    "symbols": item.symbols,
+                    "outcome_tokens": item.outcome_tokens,
+                    "support": item.support,
+                    "contradiction": item.contradiction,
+                    "last_tick": item.last_tick,
+                }
+                for item in self.associations
+            ],
             "cost": self._cost,
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None, *, organism_id: str) -> "SequenceGroundingLedger":
+    def restore(
+        cls, payload: Mapping[str, object] | None, *, organism_id: str
+    ) -> "SequenceGroundingLedger":
         if payload is None:
             return cls(organism_id)
         if not isinstance(payload, Mapping):
             raise ValueError("invalid sequence grounding checkpoint")
-        if payload.get("schema_version") != cls.SCHEMA_VERSION or payload.get("organism_id") != organism_id:
+        if (
+            payload.get("schema_version") != cls.SCHEMA_VERSION
+            or payload.get("organism_id") != organism_id
+        ):
             raise ValueError("invalid sequence grounding checkpoint")
         ledger = cls(organism_id, max_associations=payload["max_associations"])
         exposures = payload.get("exposures", [])
         associations = payload.get("associations", [])
-        if not isinstance(exposures, list) or not isinstance(associations, list) or len(exposures) > MAX_HISTORY or len(associations) > ledger.max_associations:
+        if (
+            not isinstance(exposures, list)
+            or not isinstance(associations, list)
+            or len(exposures) > MAX_HISTORY
+            or len(associations) > ledger.max_associations
+        ):
             raise ValueError("sequence grounding rows exceed bound")
         for row in exposures:
             if not isinstance(row, Mapping):
                 raise ValueError("invalid sequence exposure row")
-            ledger._exposures.append(SequenceMessage(SymbolSequence(tuple(row["symbols"])), row["sender_id"], row["receiver_id"], row["emitted_tick"]))
+            ledger._exposures.append(
+                SequenceMessage(
+                    SymbolSequence(tuple(row["symbols"])),
+                    row["sender_id"],
+                    row["receiver_id"],
+                    row["emitted_tick"],
+                )
+            )
         for row in associations:
             if not isinstance(row, Mapping):
                 raise ValueError("invalid sequence association row")
@@ -261,8 +359,13 @@ class SequenceGroundingLedger:
 
 
 class SequenceChannel:
-    def __init__(self, *, authorized_pairs: set[tuple[str, str]], max_deliveries: int = 256,
-                 telemetry: CommunicationTelemetry | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        authorized_pairs: set[tuple[str, str]],
+        max_deliveries: int = 256,
+        telemetry: CommunicationTelemetry | None = None,
+    ) -> None:
         if len(authorized_pairs) > MAX_HISTORY or not 1 <= max_deliveries <= MAX_HISTORY * 4:
             raise ValueError("sequence channel bound exceeded")
         if any(not isinstance(pair, tuple) or len(pair) != 2 for pair in authorized_pairs):
@@ -291,8 +394,14 @@ class SequenceChannel:
             _id(pair[1], "receiver_id")
         self.authorized_pairs = frozenset(self.authorized_pairs | pairs)
 
-    def deliver(self, message: SequenceMessage, *, receiver: SequenceGroundingLedger, tick: int,
-                event_kind: str = "DELIVER") -> None:
+    def deliver(
+        self,
+        message: SequenceMessage,
+        *,
+        receiver: SequenceGroundingLedger,
+        tick: int,
+        event_kind: str = "DELIVER",
+    ) -> None:
         if (message.sender_id, message.receiver_id) not in self.authorized_pairs:
             raise ValueError("unauthorized sequence delivery")
         if self.deliveries >= self.max_deliveries:
@@ -302,15 +411,29 @@ class SequenceChannel:
             receiver.telemetry = self.telemetry
         self.deliveries += 1
         if self.telemetry is not None:
-            base = (event_kind, message.sender_id, message.receiver_id, message.sequence.sequence_id, tick, self.deliveries)
+            base = (
+                event_kind,
+                message.sender_id,
+                message.receiver_id,
+                message.sequence.sequence_id,
+                tick,
+                self.deliveries,
+            )
             try:
-                self.telemetry.record(CommunicationEvent(
-                    event_id="communication." + hashlib.sha256(repr(base).encode()).hexdigest()[:48],
-                    tick=tick, event_kind=event_kind, sender_id=message.sender_id,
-                    receiver_id=message.receiver_id, message_id=message.sequence.sequence_id,
-                    symbol_ids=message.sequence.symbols, cost=len(message.sequence.symbols),
-                    delivery_status="delivered",
-                ))
+                self.telemetry.record(
+                    CommunicationEvent(
+                        event_id="communication."
+                        + hashlib.sha256(repr(base).encode()).hexdigest()[:48],
+                        tick=tick,
+                        event_kind=event_kind,
+                        sender_id=message.sender_id,
+                        receiver_id=message.receiver_id,
+                        message_id=message.sequence.sequence_id,
+                        symbol_ids=message.sequence.symbols,
+                        cost=len(message.sequence.symbols),
+                        delivery_status="delivered",
+                    )
+                )
             except ValueError:
                 # WARN(fail-closed): A full/malformed sink must not change delivery semantics.
                 pass
@@ -325,13 +448,32 @@ def choose_sequence(
     max_length: int = MAX_SEQUENCE_LENGTH,
 ) -> SequenceDecisionRecord:
     """Choose a variable-length opaque message from local state only."""
-    if isinstance(max_length, bool) or not isinstance(max_length, int) or not 1 <= max_length <= MAX_SEQUENCE_LENGTH:
+    if (
+        isinstance(max_length, bool)
+        or not isinstance(max_length, int)
+        or not 1 <= max_length <= MAX_SEQUENCE_LENGTH
+    ):
         raise ValueError("max_length exceeds sequence bound")
     neighbors = tuple(sorted(set(neighbor_ids)))
     candidate_digest = policy._digest((policy.symbol_space, neighbors, local_context_tokens))
-    decision_id = "sequence-decision." + policy._digest((policy.organism_id, policy.seed, tick, len(policy.decisions), candidate_digest))[:48]
+    decision_id = (
+        "sequence-decision."
+        + policy._digest(
+            (policy.organism_id, policy.seed, tick, len(policy.decisions), candidate_digest)
+        )[:48]
+    )
     if not local_context_tokens or not neighbors:
-        return SequenceDecisionRecord(decision_id, policy.organism_id, tick, candidate_digest, SymbolAction.SILENCE, None, None, None, 0)
+        return SequenceDecisionRecord(
+            decision_id,
+            policy.organism_id,
+            tick,
+            candidate_digest,
+            SymbolAction.SILENCE,
+            None,
+            None,
+            None,
+            0,
+        )
     for token in local_context_tokens:
         _id(token, "local context token")
     candidates = []
@@ -341,15 +483,51 @@ def choose_sequence(
     context_digest = policy._digest((policy.seed, local_context_tokens))
     for length in range(1, max_length + 1):
         symbols = tuple(
-            max(policy.symbol_space, key=lambda symbol: policy._digest((context_digest, length, index, symbol)))
+            max(
+                policy.symbol_space,
+                key=lambda symbol: policy._digest((context_digest, length, index, symbol)),
+            )
             for index in range(length)
         )
         candidates.append(SymbolSequence(symbols))
-    sequence = max(candidates, key=lambda candidate: policy._digest((context_digest, candidate.symbols)))
+    sequence = max(
+        candidates, key=lambda candidate: policy._digest((context_digest, candidate.symbols))
+    )
     if int(policy._digest((policy.seed, local_context_tokens, tick))[:2], 16) < 64:
-        return SequenceDecisionRecord(decision_id, policy.organism_id, tick, candidate_digest, SymbolAction.SILENCE, None, None, None, 0)
-    recipient = max(neighbors, key=lambda value: policy._digest((policy.seed, local_context_tokens, value, tick)))
-    return SequenceDecisionRecord(decision_id, policy.organism_id, tick, candidate_digest, SymbolAction.EMIT, sequence.sequence_id, sequence.symbols, recipient, len(sequence.symbols))
+        return SequenceDecisionRecord(
+            decision_id,
+            policy.organism_id,
+            tick,
+            candidate_digest,
+            SymbolAction.SILENCE,
+            None,
+            None,
+            None,
+            0,
+        )
+    recipient = max(
+        neighbors,
+        key=lambda value: policy._digest((policy.seed, local_context_tokens, value, tick)),
+    )
+    return SequenceDecisionRecord(
+        decision_id,
+        policy.organism_id,
+        tick,
+        candidate_digest,
+        SymbolAction.EMIT,
+        sequence.sequence_id,
+        sequence.symbols,
+        recipient,
+        len(sequence.symbols),
+    )
 
 
-__all__ = ["SequenceGroundingLedger", "SequenceAssociation", "SequenceChannel", "SequenceDecisionRecord", "SequenceMessage", "SymbolSequence", "choose_sequence"]
+__all__ = [
+    "SequenceGroundingLedger",
+    "SequenceAssociation",
+    "SequenceChannel",
+    "SequenceDecisionRecord",
+    "SequenceMessage",
+    "SymbolSequence",
+    "choose_sequence",
+]

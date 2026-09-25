@@ -17,9 +17,7 @@ def test_prospective_agency_has_no_lab_or_world_dependency():
                 for alias in node.names:
                     root = alias.name.split(".")[0]
                     if root in {"symbiont_lab", "symbiont_world"}:
-                        violations.append(
-                            f"{py_file.relative_to(repo_root)} imports {alias.name}"
-                        )
+                        violations.append(f"{py_file.relative_to(repo_root)} imports {alias.name}")
             elif isinstance(node, ast.ImportFrom) and node.module:
                 root = node.module.split(".")[0]
                 if root in {"symbiont_lab", "symbiont_world"}:
@@ -47,13 +45,9 @@ def test_prospective_agency_never_reads_evaluator_task_metrics():
         tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         for node in ast.walk(tree):
             if isinstance(node, ast.Name) and node.id in forbidden:
-                violations.append(
-                    f"{py_file.relative_to(repo_root)} references {node.id}"
-                )
+                violations.append(f"{py_file.relative_to(repo_root)} references {node.id}")
             elif isinstance(node, ast.Attribute) and node.attr in forbidden:
-                violations.append(
-                    f"{py_file.relative_to(repo_root)} references .{node.attr}"
-                )
+                violations.append(f"{py_file.relative_to(repo_root)} references .{node.attr}")
 
     assert not violations, "Evaluator metric contamination:\n" + "\n".join(violations)
 

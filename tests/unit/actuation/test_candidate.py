@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.actuation.candidate import ActuatorCandidateState, _MAX_EFFECT_RELATIONS_PER_CANDIDATE
+from symbiont.actuation.candidate import _MAX_EFFECT_RELATIONS_PER_CANDIDATE, ActuatorCandidateState
 
 
 def test_new_candidate_starts_dormant_with_zero_effect_strength():
@@ -29,7 +29,9 @@ def test_effect_strength_is_high_for_causal_relation_and_low_for_noise():
     rng = random.Random(7)
     for i in range(40):
         activation = float(i % 2)
-        causal.observe_effect("percept.x", activation=activation, delta_percept=activation + rng.gauss(0, 0.01))
+        causal.observe_effect(
+            "percept.x", activation=activation, delta_percept=activation + rng.gauss(0, 0.01)
+        )
         sham.observe_effect("percept.x", activation=activation, delta_percept=rng.gauss(0, 1.0))
     assert causal.effect_strength > 0.9
     assert causal.effect_strength > sham.effect_strength

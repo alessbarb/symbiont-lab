@@ -1,6 +1,6 @@
 import unittest
 
-from observatory._node_harness import ROOT, requires_node, call_js
+from observatory._node_harness import ROOT, call_js, requires_node
 
 MODULE = ROOT / "projection" / "self-schema.js"
 
@@ -51,13 +51,15 @@ def body_schema_v2():
         "schemaVersion": 2,
         "state": "partial",
         "parts": [sense(), first, second],
-        "dependencies": [{
-            "sourceId": first["partId"],
-            "targetId": second["partId"],
-            "relation": "precedes",
-            "confidenceClass": 12,
-            "supportClass": 9,
-        }],
+        "dependencies": [
+            {
+                "sourceId": first["partId"],
+                "targetId": second["partId"],
+                "relation": "precedes",
+                "confidenceClass": 12,
+                "supportClass": 9,
+            }
+        ],
         "globalState": {},
     }
 
@@ -106,11 +108,23 @@ class SelfSchemaTests(unittest.TestCase):
         malformed["parts"][1]["healthClass"] = 12
         self.assertEqual(project(malformed)["state"], "undeveloped")
         legacy = body_schema_v1()
-        legacy["dependencies"] = [{"sourceId": "x", "targetId": "y", "relation": "precedes", "confidenceClass": 9, "supportClass": 9}]
+        legacy["dependencies"] = [
+            {
+                "sourceId": "x",
+                "targetId": "y",
+                "relation": "precedes",
+                "confidenceClass": 9,
+                "supportClass": 9,
+            }
+        ]
         self.assertEqual(project(legacy)["state"], "undeveloped")
 
     def test_projection_never_accepts_phenotype_shaped_fallback_data(self):
-        phenotype = {"state": "partial", "parts": [{"nodeId": "sense-a", "kind": "sense"}], "dependencies": []}
+        phenotype = {
+            "state": "partial",
+            "parts": [{"nodeId": "sense-a", "kind": "sense"}],
+            "dependencies": [],
+        }
         self.assertEqual(project(phenotype)["state"], "undeveloped")
 
     def test_module_has_zero_imports_and_no_privileged_phenotype_state(self):

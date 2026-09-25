@@ -1,4 +1,5 @@
 import pytest
+
 from symbiont_lab.world.adapter import SingleOrganismGenesisRuntime
 from symbiont_lab.world.genesis_v1 import build_ground_truth
 from symbiont_world.topology import HexCoord, HexTopology
@@ -92,9 +93,9 @@ def test_no_deferred_config_means_no_deferred_damage():
 
 
 def test_reading_provider_reflects_current_observation_only():
+    from symbiont.host.contracts import Capability, CapabilityKind
     from symbiont_lab.world.adapter import WorldReadingProvider
     from symbiont_world.contracts import WorldObservation
-    from symbiont.host.contracts import Capability, CapabilityKind
 
     provider = WorldReadingProvider()
     cap = Capability(capability_id="abc123", kind=CapabilityKind.SIGNAL, source="symbiont_world")
@@ -107,7 +108,6 @@ def test_reading_provider_reflects_current_observation_only():
     assert readings[0].capability_id == "abc123"
 
 
-
 def test_anonymous_emission_reception_crosses_reading_provider_without_sender_identity():
     from symbiont_lab.world.adapter import WorldReadingProvider, _capabilities_for
     from symbiont_world.contracts import ReceivedEmission, WorldObservation
@@ -115,9 +115,7 @@ def test_anonymous_emission_reception_crosses_reading_provider_without_sender_id
     provider = WorldReadingProvider()
     capabilities = _capabilities_for(build_ground_truth())
     provider.set_observation(
-        WorldObservation(
-            reception=(ReceivedEmission(sequence=(17,), intensity=0.75),)
-        )
+        WorldObservation(reception=(ReceivedEmission(sequence=(17,), intensity=0.75),))
     )
     readings = provider.sample(capabilities)
     # Three fixed opaque reception channels: presence, symbol, intensity.
@@ -125,9 +123,6 @@ def test_anonymous_emission_reception_crosses_reading_provider_without_sender_id
     assert len(received) == 3
     assert all(reading.source == "symbiont_world" for reading in received)
     assert all("sender" not in reading.capability_id for reading in received)
-
-
-
 
 
 def test_clean_world_capabilities_are_only_mixed_opaque_receptors():
@@ -153,17 +148,12 @@ def test_clean_receptors_mix_material_but_do_not_sense_hazard_probability():
 
     truth = build_ground_truth()
     fields = {field_id: 0.2 for field_id in truth.fields}
-    resources = {
-        resource_id: law.capacity * 0.5
-        for resource_id, law in truth.resources.items()
-    }
+    resources = {resource_id: law.capacity * 0.5 for resource_id, law in truth.resources.items()}
     hazards_a = {hazard_id: 0.0 for hazard_id in truth.hazards}
     hazards_b = {hazard_id: 1.0 for hazard_id in truth.hazards}
 
     common = {**fields, **resources, LOCAL_OCCUPANCY_SIGNAL: 0.0}
-    first = physical_receptor_signals(
-        truth, WorldObservation(signals={**common, **hazards_a})
-    )
+    first = physical_receptor_signals(truth, WorldObservation(signals={**common, **hazards_a}))
     hazard_changed = physical_receptor_signals(
         truth, WorldObservation(signals={**common, **hazards_b})
     )
@@ -234,7 +224,6 @@ def test_clean_founders_do_not_share_signal_identity_namespace():
     assert first.individual.symbiont_id != second.individual.symbiont_id
 
 
-
 def test_private_receptor_ids_preserve_same_constitutional_transfer_geometry():
     from symbiont_lab.world.adapter import physical_receptor_ids, physical_receptor_signals
     from symbiont_world.contracts import WorldObservation
@@ -275,7 +264,6 @@ def test_clean_observation_strips_structured_side_channels_after_mixing():
     assert cleaned.internal == {}
 
 
-
 def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels():
     from symbiont_lab.world.adapter import physical_receptor_ids, physical_receptor_signals
     from symbiont_world.contracts import WorldObservation
@@ -285,10 +273,7 @@ def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels
     observation = WorldObservation(
         signals={
             **{field_id: 0.2 for field_id in truth.fields},
-            **{
-                resource_id: law.capacity * 0.5
-                for resource_id, law in truth.resources.items()
-            },
+            **{resource_id: law.capacity * 0.5 for resource_id, law in truth.resources.items()},
         }
     )
     healthy = physical_receptor_signals(
@@ -309,7 +294,6 @@ def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels
     assert all("reserve" not in signal_id for signal_id in healthy)
     assert all("integrity" not in signal_id for signal_id in healthy)
     assert all("activity" not in signal_id for signal_id in healthy)
-
 
 
 def test_clean_receptor_metadata_is_uniform_and_non_semantic():
@@ -337,9 +321,7 @@ def test_clean_receptor_metadata_is_uniform_and_non_semantic():
     assert len(readings) == len(receptor_ids)
     assert {reading.unit for reading in readings} == {Unit.RATIO}
     assert {reading.quality for reading in readings} == {ReadingQuality.NOMINAL}
-    assert {reading.privacy_class for reading in readings} == {
-        ReadingPrivacyClass.AGGREGATE
-    }
+    assert {reading.privacy_class for reading in readings} == {ReadingPrivacyClass.AGGREGATE}
 
 
 def test_clean_world_never_calls_structured_motor_probing():
@@ -496,12 +478,10 @@ def test_clean_material_exchange_conserves_mass_with_scarce_resources():
     for _ in range(64):
         record = pop.run_tick()
         current_tick = record.tick
-        tick_events = [
-            e for e in pop.journal.replay()
-            if e.tick == current_tick
-        ]
+        tick_events = [e for e in pop.journal.replay() if e.tick == current_tick]
         candidates = [
-            e for e in tick_events
+            e
+            for e in tick_events
             if e.kind == "ACTUATION_RESOLVED"
             and e.payload.get("effect") == "material_exchange"
             and e.payload.get("outcome") == "granted"
@@ -509,9 +489,9 @@ def test_clean_material_exchange_conserves_mass_with_scarce_resources():
         if candidates:
             transfer_event = candidates[-1]
             physiology_event = next(
-                e for e in tick_events
-                if e.kind == "PHYSIOLOGY_BALANCE"
-                and e.actor == "scarce-subject"
+                e
+                for e in tick_events
+                if e.kind == "PHYSIOLOGY_BALANCE" and e.actor == "scarce-subject"
             )
             break
 
@@ -566,4 +546,3 @@ def test_clean_organism_identity_is_world_independent():
     assert first.receptor_ids == second.receptor_ids
     assert first.individual.symbiont.symbiont_id == second.individual.symbiont.symbiont_id
     assert first.individual.symbiont.genome.identity == second.individual.symbiont.genome.identity
-

@@ -131,14 +131,22 @@ def test_import_rejects_non_dict_payload():
 
 def test_import_rejects_malformed_entries():
     with pytest.raises(CheckpointError):
-        import_checkpoint({"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"cpu": {"count": 5}}})
+        import_checkpoint(
+            {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"cpu": {"count": 5}}}
+        )
 
 
 def test_import_rejects_unknown_time_bucket():
     payload = {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "rhythms": [
-            {"percept_name": "x", "time_bucket": "midnight-ish", "count": 5, "mean": 1.0, "variance": 0.0}
+            {
+                "percept_name": "x",
+                "time_bucket": "midnight-ish",
+                "count": 5,
+                "mean": 1.0,
+                "variance": 0.0,
+            }
         ],
     }
     with pytest.raises(CheckpointError):
@@ -268,19 +276,28 @@ def test_save_checkpoint_rejects_over_limit_without_replacing_previous_file(tmp_
 
 
 def test_import_rejects_negative_variance():
-    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"x": {"count": 10, "mean": 0, "variance": -1}}}
+    payload = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "acclimation": {"x": {"count": 10, "mean": 0, "variance": -1}},
+    }
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
 
 
 def test_import_rejects_non_finite_mean():
-    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"x": {"count": 10, "mean": float("nan"), "variance": 1.0}}}
+    payload = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "acclimation": {"x": {"count": 10, "mean": float("nan"), "variance": 1.0}},
+    }
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
 
 
 def test_import_rejects_infinite_variance():
-    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"x": {"count": 10, "mean": 0.0, "variance": float("inf")}}}
+    payload = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "acclimation": {"x": {"count": 10, "mean": 0.0, "variance": float("inf")}},
+    }
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
 
@@ -288,14 +305,19 @@ def test_import_rejects_infinite_variance():
 def test_import_rejects_negative_count_in_rhythms():
     payload = {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
-        "rhythms": [{"percept_name": "x", "time_bucket": "night", "count": -1, "mean": 0.0, "variance": 0.0}],
+        "rhythms": [
+            {"percept_name": "x", "time_bucket": "night", "count": -1, "mean": 0.0, "variance": 0.0}
+        ],
     }
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
 
 
 def test_import_rejects_negative_variance_in_drift():
-    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "drift": {"x": {"count": 10, "mean": 0.0, "variance": -5.0}}}
+    payload = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "drift": {"x": {"count": 10, "mean": 0.0, "variance": -5.0}},
+    }
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
 
@@ -304,13 +326,19 @@ def test_import_rejects_negative_variance_in_drift():
 
 
 def test_import_rejects_a_non_integer_count_in_acclimation():
-    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"x": {"count": 5.5, "mean": 1.0, "variance": 1.0}}}
+    payload = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "acclimation": {"x": {"count": 5.5, "mean": 1.0, "variance": 1.0}},
+    }
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
 
 
 def test_import_rejects_a_non_integer_count_in_drift():
-    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "drift": {"x": {"count": 5.5, "mean": 1.0, "variance": 1.0}}}
+    payload = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "drift": {"x": {"count": 5.5, "mean": 1.0, "variance": 1.0}},
+    }
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
 
@@ -338,7 +366,11 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     # default HostAcclimation min_samples=5 after consolidated restore
     # (design §16: restore seeds a small fixed prior weight, not the real
     # historical count).
-    payload = {"schema_version": 2, "saved_at_tick": 3, "acclimation": {"x": {"count": 20, "mean": 1.0, "variance": 0.0}}}
+    payload = {
+        "schema_version": 2,
+        "saved_at_tick": 3,
+        "acclimation": {"x": {"count": 20, "mean": 1.0, "variance": 0.0}},
+    }
     acclimation, _, _ = import_checkpoint(payload)
     assert acclimation.baseline("x") is not None
 
@@ -362,37 +394,45 @@ def test_v8_checkpoint_without_contamination_migrates_to_current():
     """A v8 checkpoint that never used the removed typed local-action
     subsystem (the canonical default, since ``autonomous_behavior`` always
     defaulted to False) carries forward unchanged to v9."""
-    migrated = normalize_checkpoint({
-        "schema_version": 8,
-        "saved_at_tick": 5,
-        "effective_config": {"discover_senses": True},
-    })
+    migrated = normalize_checkpoint(
+        {
+            "schema_version": 8,
+            "saved_at_tick": 5,
+            "effective_config": {"discover_senses": True},
+        }
+    )
     assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     assert migrated["effective_config"] == {"discover_senses": True}
 
 
 def test_v8_checkpoint_with_action_evidence_is_rejected():
     with pytest.raises(CheckpointError, match="action_evidence"):
-        normalize_checkpoint({
-            "schema_version": 8,
-            "action_evidence": [{"tick": 0, "action_id": "wait"}],
-        })
+        normalize_checkpoint(
+            {
+                "schema_version": 8,
+                "action_evidence": [{"tick": 0, "action_id": "wait"}],
+            }
+        )
 
 
 def test_v8_checkpoint_with_autonomous_behavior_effective_config_is_rejected():
     with pytest.raises(CheckpointError, match="autonomous_behavior"):
-        normalize_checkpoint({
-            "schema_version": 8,
-            "effective_config": {"autonomous_behavior": True, "behavior_exploration": 0.25},
-        })
+        normalize_checkpoint(
+            {
+                "schema_version": 8,
+                "effective_config": {"autonomous_behavior": True, "behavior_exploration": 0.25},
+            }
+        )
 
 
 def test_v7_checkpoint_migrates_to_v8_without_inventing_sensory_phenotype():
-    migrated = normalize_checkpoint({
-        "schema_version": 7,
-        "saved_at_tick": 12,
-        "effective_config": {"discover_senses": True},
-    })
+    migrated = normalize_checkpoint(
+        {
+            "schema_version": 7,
+            "saved_at_tick": 12,
+            "effective_config": {"discover_senses": True},
+        }
+    )
     assert migrated["schema_version"] == 9
     assert migrated["sensory_system"] is None
     assert migrated["effective_config"]["sensory_plasticity"] is False
@@ -402,7 +442,14 @@ def test_v3_checkpoint_migrates_to_current_backfilling_recency_class():
     v3_payload = {
         "schema_version": 3,
         "saved_at_tick": 42,
-        "self_model": {"sense-a": {"cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4}},
+        "self_model": {
+            "sense-a": {
+                "cost_class": 0,
+                "health_class": 8,
+                "confidence_class": 8,
+                "maturity_class": 4,
+            }
+        },
     }
     migrated = normalize_checkpoint(dict(v3_payload))
     assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
@@ -457,7 +504,10 @@ def test_v5_self_model_with_exact_last_observed_tick_migrates_without_crashing()
         "saved_at_tick": 100,
         "self_model": {
             "cpu": {
-                "cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4,
+                "cost_class": 0,
+                "health_class": 8,
+                "confidence_class": 8,
+                "maturity_class": 4,
                 "last_observed_tick": 95,
             },
         },
@@ -466,9 +516,13 @@ def test_v5_self_model_with_exact_last_observed_tick_migrates_without_crashing()
     assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     entry = migrated["self_model"]["cpu"]
     assert "last_observed_tick" not in entry
-    assert entry["recency_class"] == RecencyClass.CURRENT.value  # idle 5 ticks, within the CURRENT threshold
+    assert (
+        entry["recency_class"] == RecencyClass.CURRENT.value
+    )  # idle 5 ticks, within the CURRENT threshold
 
-    restored = SelfModel.restore(migrated["self_model"], allowed_sense_ids={"cpu"}, current_tick=100)
+    restored = SelfModel.restore(
+        migrated["self_model"], allowed_sense_ids={"cpu"}, current_tick=100
+    )
     assert restored.is_established("cpu")
 
 
@@ -476,12 +530,26 @@ def test_v5_acclimation_with_exact_stats_migrates_to_consolidated_classes():
     v5_payload = {
         "schema_version": 5,
         "acclimation": {"cpu": {"count": 20, "mean": 10.0, "variance": 0.04}},
-        "rhythms": [{"percept_name": "cpu", "time_bucket": "night", "count": 10, "mean": 5.0, "variance": 1.0}],
+        "rhythms": [
+            {
+                "percept_name": "cpu",
+                "time_bucket": "night",
+                "count": 10,
+                "mean": 5.0,
+                "variance": 1.0,
+            }
+        ],
         "drift": {"cpu": {"count": 30, "mean": 10.0, "variance": 0.04}},
     }
     migrated = normalize_checkpoint(v5_payload)
     assert set(migrated["acclimation"]["cpu"]) == {"center_class", "scale_class", "maturity_class"}
-    assert set(migrated["rhythms"][0]) == {"percept_name", "time_bucket", "center_class", "scale_class", "maturity_class"}
+    assert set(migrated["rhythms"][0]) == {
+        "percept_name",
+        "time_bucket",
+        "center_class",
+        "scale_class",
+        "maturity_class",
+    }
     assert set(migrated["drift"]["cpu"]) == {"center_class", "scale_class", "maturity_class"}
 
     acclimation, rhythm_model, drift_baselines = import_checkpoint(migrated)

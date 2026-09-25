@@ -5,6 +5,7 @@ predictor.  The experiment records evaluator telemetry after each organism
 tick; no labels, rewards, anatomy names, or evaluator measurements enter the
 organism.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -47,9 +48,7 @@ class SensorimotorAgencyTrial:
 
     def as_dict(self) -> dict[str, object]:
         payload = asdict(self)
-        payload["body_model_discovery_validated"] = (
-            self.body_model_discovery_validated
-        )
+        payload["body_model_discovery_validated"] = self.body_model_discovery_validated
         return payload
 
 
@@ -100,10 +99,7 @@ def run_sensorimotor_agency_trial(
             last = runtime.step()
             completed += 1
             replay_ticks += int(last.primitive_replay_active)
-            if (
-                first_cognitive_tick is None
-                and last.cognitive_motor_primitives > 0
-            ):
+            if first_cognitive_tick is None and last.cognitive_motor_primitives > 0:
                 first_cognitive_tick = last.tick
             if not last.alive:
                 break

@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-import math
 
 from symbiont.modeling import (
+    ModeledOrganismRuntime,
     ModelObjective,
     ModelTrainingAuthority,
-    ModeledOrganismRuntime,
     TrainingRequest,
 )
 from symbiont_lab.modeling import TrainingConfig, encode_corpus, train_private_model
 from symbiont_lab.modeling.gateway import load_artifact_model
 from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
+
 from .adaptive_replay_matched_control import _normalize_seeds, _transition_history
 from .replay_pressure_curve import PRESSURES, _budget_for_pressure
 
@@ -152,13 +153,15 @@ def run_internal_learning_progress_study(
                 corpus=plan.corpus,
                 tokenizer=plan.tokenizer,
             )
-            doses.append(LearningProgressDose(
-                pressure=pressure,
-                epochs=measured.epochs,
-                steps=measured.steps,
-                internal_validation_loss=measured.internal_validation_loss,
-                evaluator_test_loss=measured.evaluator_test_loss,
-            ))
+            doses.append(
+                LearningProgressDose(
+                    pressure=pressure,
+                    epochs=measured.epochs,
+                    steps=measured.steps,
+                    internal_validation_loss=measured.internal_validation_loss,
+                    evaluator_test_loss=measured.evaluator_test_loss,
+                )
+            )
 
         internal_gains = tuple(
             left.internal_validation_loss - right.internal_validation_loss
@@ -172,13 +175,15 @@ def run_internal_learning_progress_study(
             (internal > 0.0) == (external > 0.0)
             for internal, external in zip(internal_gains, test_gains)
         )
-        results.append(LearningProgressSeedResult(
-            seed=seed,
-            doses=tuple(doses),
-            interval_sign_agreement=sign_agreement,
-            interval_count=len(internal_gains),
-            pearson_gain_correlation=_pearson(internal_gains, test_gains),
-        ))
+        results.append(
+            LearningProgressSeedResult(
+                seed=seed,
+                doses=tuple(doses),
+                interval_sign_agreement=sign_agreement,
+                interval_count=len(internal_gains),
+                pearson_gain_correlation=_pearson(internal_gains, test_gains),
+            )
+        )
 
     total_intervals = sum(item.interval_count for item in results)
     total_agreement = sum(item.interval_sign_agreement for item in results)
@@ -187,7 +192,8 @@ def run_internal_learning_progress_study(
         ticks=ticks,
         per_seed=tuple(results),
         mean_sign_agreement_fraction=total_agreement / total_intervals,
-        mean_pearson_gain_correlation=sum(item.pearson_gain_correlation for item in results) / len(results),
+        mean_pearson_gain_correlation=sum(item.pearson_gain_correlation for item in results)
+        / len(results),
         positive_correlation_seeds=sum(item.pearson_gain_correlation > 0.0 for item in results),
     )
 

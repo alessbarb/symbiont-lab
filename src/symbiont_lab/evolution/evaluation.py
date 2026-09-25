@@ -13,13 +13,23 @@ class EvaluationResult:
     seed_pair_id: str
 
 
-def select_archive(results: tuple[EvaluationResult, ...], *, max_archive_size: int) -> tuple[EvaluationResult, ...]:
-    if isinstance(max_archive_size, bool) or not isinstance(max_archive_size, int) or max_archive_size < 1:
+def select_archive(
+    results: tuple[EvaluationResult, ...], *, max_archive_size: int
+) -> tuple[EvaluationResult, ...]:
+    if (
+        isinstance(max_archive_size, bool)
+        or not isinstance(max_archive_size, int)
+        or max_archive_size < 1
+    ):
         raise ValueError("max_archive_size must be a positive integer")
 
     front: list[EvaluationResult] = []
     for candidate in results:
-        if any(dominates(other.objective, candidate.objective) for other in results if other is not candidate):
+        if any(
+            dominates(other.objective, candidate.objective)
+            for other in results
+            if other is not candidate
+        ):
             continue
         front.append(candidate)
 

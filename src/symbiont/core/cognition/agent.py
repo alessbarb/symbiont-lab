@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .beliefs import BeliefModel
-from ..social.collective import CollectiveMemory
-from .memory import AgentMemory, Episode
 from ..foundation.model import Assessment, HostModel, Observation, fingerprint
+from ..social.collective import CollectiveMemory
+from .beliefs import BeliefModel
+from .memory import AgentMemory, Episode
 
 
 @dataclass(slots=True)
@@ -56,11 +56,7 @@ class Agent:
         information_gain = novelty * (1.0 - collective_certainty)
         curiosity = min(
             1.0,
-            novelty
-            * uncertainty
-            * information_gain
-            * max(relevance, 0.05)
-            * self.curiosity_scale,
+            novelty * uncertainty * information_gain * max(relevance, 0.05) * self.curiosity_scale,
         )
 
         local_weight = 0.12 * local_certainty

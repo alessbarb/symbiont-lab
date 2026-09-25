@@ -2,7 +2,7 @@ import math
 import re
 import unittest
 
-from observatory._node_harness import ROOT, requires_node, call_js
+from observatory._node_harness import ROOT, call_js, requires_node
 
 MODULE = ROOT / "projection" / "morphology.js"
 
@@ -89,8 +89,22 @@ class MorphologyDeterminismTests(unittest.TestCase):
 
     def test_presentation_inputs_never_change_boundary_or_internal_anchors(self):
         nodes = [{"id": "c1", "kind": "concept"}]
-        a = project({"internalNodes": nodes, "topologyHealth": "connected", "recovering": False, "frozen": False})
-        b = project({"internalNodes": nodes, "topologyHealth": "degenerate", "recovering": True, "frozen": True})
+        a = project(
+            {
+                "internalNodes": nodes,
+                "topologyHealth": "connected",
+                "recovering": False,
+                "frozen": False,
+            }
+        )
+        b = project(
+            {
+                "internalNodes": nodes,
+                "topologyHealth": "degenerate",
+                "recovering": True,
+                "frozen": True,
+            }
+        )
         self.assertEqual(a["boundaryPath"], b["boundaryPath"])
         self.assertEqual(a["internalAnchors"], b["internalAnchors"])
         self.assertNotEqual(a["presentation"], b["presentation"])
@@ -102,7 +116,12 @@ class MorphologyDeterminismTests(unittest.TestCase):
         expected point independently, from the path string, using the same
         formula morphology.js uses internally, and asserts exact
         (to quantization) agreement -- not just "close enough"."""
-        result = project({"hasCurrentTopology": True, "structuralSenses": [{"id": "only-sense", "kind": "sense"}]})
+        result = project(
+            {
+                "hasCurrentTopology": True,
+                "structuralSenses": [{"id": "only-sense", "kind": "sense"}],
+            }
+        )
         segments = parse_path_segments(result["boundaryPath"])
         angle = (math.radians(130) + math.radians(230)) / 2  # single receptor -> arc midpoint
         u = (angle / (2 * math.pi)) % 1
@@ -120,20 +139,27 @@ class MorphologyDeterminismTests(unittest.TestCase):
 @requires_node
 class MorphologyStructureTests(unittest.TestCase):
     def test_no_edges_means_no_fibres_regardless_of_nodes(self):
-        result = project({
-            "hasCurrentTopology": True,
-            "structuralSenses": [{"id": "s1", "kind": "sense"}],
-            "internalNodes": [{"id": "c1", "kind": "concept"}, {"id": "r1", "kind": "readout"}],
-            "edges": [],
-        })
+        result = project(
+            {
+                "hasCurrentTopology": True,
+                "structuralSenses": [{"id": "s1", "kind": "sense"}],
+                "internalNodes": [{"id": "c1", "kind": "concept"}, {"id": "r1", "kind": "readout"}],
+                "edges": [],
+            }
+        )
         self.assertEqual(result["fibres"], [])
 
     def test_no_topology_falls_back_to_percepts_for_receptors(self):
-        result = project({
-            "hasCurrentTopology": False,
-            "percepts": [{"id": "p1", "quality": 0.5, "active": True}, {"id": "p2", "quality": 0.9, "active": True}],
-            "structuralSenses": [],
-        })
+        result = project(
+            {
+                "hasCurrentTopology": False,
+                "percepts": [
+                    {"id": "p1", "quality": 0.5, "active": True},
+                    {"id": "p2", "quality": 0.9, "active": True},
+                ],
+                "structuralSenses": [],
+            }
+        )
         self.assertEqual(len(result["receptorAnchors"]), 2)
         self.assertEqual(result["internalAnchors"], [])
         self.assertEqual(result["fibres"], [])
@@ -142,41 +168,56 @@ class MorphologyStructureTests(unittest.TestCase):
         """The P0 regression this input exists to prevent: a real, current
         topology that genuinely has no SENSE nodes must render zero
         receptors, never borrow percept ids as fabricated sensory organs."""
-        result = project({
-            "hasCurrentTopology": True,
-            "percepts": [{"id": "p1", "quality": 0.5, "active": True}, {"id": "p2", "quality": 0.9, "active": True}],
-            "structuralSenses": [],
-            "internalNodes": [{"id": "c1", "kind": "concept"}],
-        })
+        result = project(
+            {
+                "hasCurrentTopology": True,
+                "percepts": [
+                    {"id": "p1", "quality": 0.5, "active": True},
+                    {"id": "p2", "quality": 0.9, "active": True},
+                ],
+                "structuralSenses": [],
+                "internalNodes": [{"id": "c1", "kind": "concept"}],
+            }
+        )
         self.assertEqual(result["receptorAnchors"], [])
 
     def test_sense_concept_readout_chain_keeps_the_sense_incident_edge(self):
-        result = project({
-            "hasCurrentTopology": True,
-            "structuralSenses": [{"id": "s1", "kind": "sense"}],
-            "internalNodes": [{"id": "c1", "kind": "concept"}, {"id": "r1", "kind": "readout"}],
-            "edges": [
-                {"sourceId": "s1", "targetId": "c1", "kind": "excitatory"},
-                {"sourceId": "c1", "targetId": "r1", "kind": "predictive"},
-            ],
-        })
+        result = project(
+            {
+                "hasCurrentTopology": True,
+                "structuralSenses": [{"id": "s1", "kind": "sense"}],
+                "internalNodes": [{"id": "c1", "kind": "concept"}, {"id": "r1", "kind": "readout"}],
+                "edges": [
+                    {"sourceId": "s1", "targetId": "c1", "kind": "excitatory"},
+                    {"sourceId": "c1", "targetId": "r1", "kind": "predictive"},
+                ],
+            }
+        )
         edge_pairs = {(f["sourceId"], f["targetId"]) for f in result["fibres"]}
         self.assertIn(("s1", "c1"), edge_pairs)
         self.assertIn(("c1", "r1"), edge_pairs)
         self.assertEqual(len(result["fibres"]), 2)
 
     def test_edge_naming_an_unknown_id_is_dropped(self):
-        result = project({
-            "hasCurrentTopology": True,
-            "internalNodes": [{"id": "c1", "kind": "concept"}],
-            "edges": [{"sourceId": "c1", "targetId": "does-not-exist", "kind": "excitatory"}],
-        })
+        result = project(
+            {
+                "hasCurrentTopology": True,
+                "internalNodes": [{"id": "c1", "kind": "concept"}],
+                "edges": [{"sourceId": "c1", "targetId": "does-not-exist", "kind": "excitatory"}],
+            }
+        )
         self.assertEqual(result["fibres"], [])
 
     def test_readout_nodes_are_real_anchors_not_a_synthetic_centroid(self):
-        result = project({"hasCurrentTopology": True, "internalNodes": [
-            {"id": "r1", "kind": "readout"}, {"id": "r2", "kind": "readout"},
-        ]})
+        result = project(
+            {
+                "hasCurrentTopology": True,
+                "internalNodes": [
+                    {"id": "r1", "kind": "readout"},
+                    {"id": "r2", "kind": "readout"},
+                ],
+            }
+        )
         kinds = [a["kind"] for a in result["internalAnchors"]]
         self.assertEqual(kinds.count("readout"), 2)
 
@@ -190,8 +231,22 @@ class MorphologyStructureTests(unittest.TestCase):
             {"sourceId": "c1", "targetId": "c2", "kind": "predictive"},
         ]
         edges_b = list(reversed(edges_a))
-        result_a = project({"hasCurrentTopology": True, "structuralSenses": senses_a, "internalNodes": nodes_a, "edges": edges_a})
-        result_b = project({"hasCurrentTopology": True, "structuralSenses": senses_b, "internalNodes": nodes_b, "edges": edges_b})
+        result_a = project(
+            {
+                "hasCurrentTopology": True,
+                "structuralSenses": senses_a,
+                "internalNodes": nodes_a,
+                "edges": edges_a,
+            }
+        )
+        result_b = project(
+            {
+                "hasCurrentTopology": True,
+                "structuralSenses": senses_b,
+                "internalNodes": nodes_b,
+                "edges": edges_b,
+            }
+        )
         self.assertEqual(result_a, result_b)
 
     def test_receptor_anchors_are_id_paired_with_external_input_anchors_and_monotone(self):
@@ -214,35 +269,51 @@ class MorphologyStructureTests(unittest.TestCase):
         world = [{"id": f"world-{i}"} for i in range(3)]
         receptors = [{"id": f"sensor-{i}"} for i in range(7)]
         cognitive = [{"id": "sense-node", "kind": "sense"}, {"id": "concept-1", "kind": "concept"}]
-        result = project({
-            "hasCurrentTopology": True,
-            "worldSignals": world,
-            "receptors": receptors,
-            "structuralSenses": [{"id": "legacy-sense", "kind": "sense"}],
-            "internalNodes": cognitive,
-            "edges": [{"sourceId": "sense-node", "targetId": "concept-1", "kind": "excitatory"}],
-        })
-        self.assertEqual([a["id"] for a in result["externalInputAnchors"]], [f"world-{i}" for i in range(3)])
-        self.assertEqual({a["id"] for a in result["receptorAnchors"]}, {f"sensor-{i}" for i in range(7)})
+        result = project(
+            {
+                "hasCurrentTopology": True,
+                "worldSignals": world,
+                "receptors": receptors,
+                "structuralSenses": [{"id": "legacy-sense", "kind": "sense"}],
+                "internalNodes": cognitive,
+                "edges": [
+                    {"sourceId": "sense-node", "targetId": "concept-1", "kind": "excitatory"}
+                ],
+            }
+        )
+        self.assertEqual(
+            [a["id"] for a in result["externalInputAnchors"]], [f"world-{i}" for i in range(3)]
+        )
+        self.assertEqual(
+            {a["id"] for a in result["receptorAnchors"]}, {f"sensor-{i}" for i in range(7)}
+        )
         self.assertEqual({a["id"] for a in result["internalAnchors"]}, {"sense-node", "concept-1"})
         self.assertEqual(len(result["fibres"]), 1)
 
     def test_receptor_population_does_not_depend_on_cognitive_sense_count(self):
         receptors = [{"id": f"sensor-{i:02d}"} for i in range(64)]
-        result = project({
-            "hasCurrentTopology": True,
-            "worldSignals": [{"id": "world-0"}],
-            "receptors": receptors,
-            "structuralSenses": [{"id": "sense-only", "kind": "sense"}],
-            "internalNodes": [{"id": "sense-only", "kind": "sense"}],
-        })
+        result = project(
+            {
+                "hasCurrentTopology": True,
+                "worldSignals": [{"id": "world-0"}],
+                "receptors": receptors,
+                "structuralSenses": [{"id": "sense-only", "kind": "sense"}],
+                "internalNodes": [{"id": "sense-only", "kind": "sense"}],
+            }
+        )
         self.assertEqual(len(result["receptorAnchors"]), 64)
         self.assertEqual(len(result["externalInputAnchors"]), 1)
         self.assertEqual(len(result["internalAnchors"]), 1)
 
     def test_internal_anchors_fall_within_the_generated_boundary_interior(self):
         nodes = [{"id": f"c{i}", "kind": "concept"} for i in range(12)]
-        result = project({"identitySeed": "containment-check", "hasCurrentTopology": True, "internalNodes": nodes})
+        result = project(
+            {
+                "identitySeed": "containment-check",
+                "hasCurrentTopology": True,
+                "internalNodes": nodes,
+            }
+        )
         polygon = fine_polygon_from_path(result["boundaryPath"])
         for anchor in result["internalAnchors"]:
             self.assertTrue(

@@ -6,19 +6,16 @@ from typing import Iterable
 from symbiont.environment.rng import derive_seed
 from symbiont.simulation import EventContext, run_simulation
 from symbiont_lab.studies.common.causal_selection import (
-    OrderStatisticHistory as _OrderStatisticHistory,
-    historical_threshold as _historical_threshold,
     online_indices as _causal_online_indices,
 )
 
 from .retrospective import (
     BENIGN_FAMILIES,
     THREAT_FAMILIES,
-    _ScoredEvent,
     _rate,
     _score_events,
+    _ScoredEvent,
 )
-
 
 STRATEGIES = ("risk", "novelty", "risk_novelty", "random")
 NOVELTY_MIN_HISTORY = 6

@@ -15,6 +15,7 @@ developed percept names differ between replicas after N ticks. This is
 an honest re-run, not a guaranteed-positive rematch: whatever comes out
 is reported as-is.
 """
+
 from __future__ import annotations
 
 import json

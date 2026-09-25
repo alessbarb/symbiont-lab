@@ -1,7 +1,6 @@
 import json
-from pathlib import Path
 import unittest
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -27,20 +26,39 @@ class ObservatoryContractTests(unittest.TestCase):
         index = (ROOT / "index.html").read_text(encoding="utf-8")
         app = _read_js_bundle()
 
-        self.assertIn('./styles.css', index)
-        self.assertIn('./app.js', index)
+        self.assertIn("./styles.css", index)
+        self.assertIn("./app.js", index)
         self.assertNotIn('from "symbiont', app)
         self.assertNotIn("fetch(", app)
         self.assertIn("symbiont-observatory-snapshot", app)
         self.assertIn("event.origin !== window.location.origin", app)
-        for element_id in ("welcome", "replay-dialog", "replay-file", "audit-drawer", "export-replay", "history-search", "history-panel", "event-detail", "mark-a", "mark-b", "population-tools", "population-inspector", "organism-comparison", "summary-profile", "organism-profile", "research-profile", "help-drawer", "accessible-table"):
+        for element_id in (
+            "welcome",
+            "replay-dialog",
+            "replay-file",
+            "audit-drawer",
+            "export-replay",
+            "history-search",
+            "history-panel",
+            "event-detail",
+            "mark-a",
+            "mark-b",
+            "population-tools",
+            "population-inspector",
+            "organism-comparison",
+            "summary-profile",
+            "organism-profile",
+            "research-profile",
+            "help-drawer",
+            "accessible-table",
+        ):
             self.assertIn(f'id="{element_id}"', index)
         self.assertIn("5 * 1024 * 1024", app)
         self.assertIn("snapshots.length > 10000", app)
         self.assertIn('new BroadcastChannel("symbiont-observatory-v1")', app)
 
     def test_live_tick_never_drifts_from_the_last_real_snapshot(self) -> None:
-        snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+        (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
         commit_js = (ROOT / "state" / "commit.js").read_text(encoding="utf-8")
         timeline_js = (ROOT / "render" / "timeline.js").read_text(encoding="utf-8")
         app = (ROOT / "app.js").read_text(encoding="utf-8")
@@ -53,8 +71,13 @@ class ObservatoryContractTests(unittest.TestCase):
     def test_inspector_selection_re_resolves_against_the_new_snapshot(self) -> None:
         commit_js = (ROOT / "state" / "commit.js").read_text(encoding="utf-8")
 
-        self.assertIn("state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null", commit_js)
-        self.assertNotIn("beliefs.some(item => item.id === state.selected?.id) ? state.selected", commit_js)
+        self.assertIn(
+            "state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null",
+            commit_js,
+        )
+        self.assertNotIn(
+            "beliefs.some(item => item.id === state.selected?.id) ? state.selected", commit_js
+        )
 
     def test_snapshot_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
@@ -74,7 +97,9 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertEqual(organism["properties"]["investigations"]["maxItems"], 16)
         self.assertEqual(organism["properties"]["regime_changes"]["maxItems"], 16)
         self.assertFalse(organism["properties"]["resource_budget"]["additionalProperties"])
-        self.assertEqual(schema["properties"]["population"]["properties"]["members"]["maxItems"], 500)
+        self.assertEqual(
+            schema["properties"]["population"]["properties"]["members"]["maxItems"], 500
+        )
         relationships = schema["properties"]["population"]["properties"]["relationships"]
         self.assertEqual(relationships["maxItems"], 1000)
         self.assertFalse(relationships["items"]["additionalProperties"])
@@ -92,14 +117,21 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn('"const": 1', serialized)
         self.assertIn('"const": 2', serialized)
         self.assertIn('"const": 3', serialized)
-        v3_rule = next(rule for rule in schema["allOf"] if rule["if"]["properties"]["schema_version"].get("const") == 3)
+        v3_rule = next(
+            rule
+            for rule in schema["allOf"]
+            if rule["if"]["properties"]["schema_version"].get("const") == 3
+        )
         self.assertEqual(v3_rule["then"]["properties"]["organism"]["required"], ["body_schema"])
 
     def test_body_schema_contract_is_closed_bounded_and_versioned(self) -> None:
         schema = json.loads((ROOT / "body_schema.schema.json").read_text(encoding="utf-8"))
         self.assertFalse(schema["additionalProperties"])
         self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2])
-        self.assertEqual(schema["properties"]["state"]["enum"], ["undeveloped", "partial", "developing", "established", "revising"])
+        self.assertEqual(
+            schema["properties"]["state"]["enum"],
+            ["undeveloped", "partial", "developing", "established", "revising"],
+        )
         self.assertEqual(schema["properties"]["parts"]["maxItems"], 288)
         part = schema["properties"]["parts"]["items"]
         self.assertFalse(part["additionalProperties"])
@@ -107,7 +139,9 @@ class ObservatoryContractTests(unittest.TestCase):
         dependencies = schema["properties"]["dependencies"]
         self.assertEqual(dependencies["maxItems"], 256)
         self.assertFalse(dependencies["items"]["additionalProperties"])
-        self.assertEqual(dependencies["items"]["properties"]["relation"]["enum"], ["co_acts_with", "precedes"])
+        self.assertEqual(
+            dependencies["items"]["properties"]["relation"]["enum"], ["co_acts_with", "precedes"]
+        )
         self.assertFalse(schema["properties"]["global_state"]["additionalProperties"])
         self.assertEqual(schema["properties"]["global_state"]["maxProperties"], 0)
         serialized = json.dumps(schema)
@@ -140,7 +174,14 @@ class ObservatoryContractTests(unittest.TestCase):
     def test_instance_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "instance.schema.json").read_text(encoding="utf-8"))
         self.assertFalse(schema["additionalProperties"])
-        for field in ("instance_id", "run_id", "display_id", "started_at", "last_heartbeat", "topology_revision"):
+        for field in (
+            "instance_id",
+            "run_id",
+            "display_id",
+            "started_at",
+            "last_heartbeat",
+            "topology_revision",
+        ):
             self.assertIn(field, schema["required"])
         self.assertEqual(schema["properties"]["instance_id"]["pattern"], "^[0-9a-f]{16}$")
 
@@ -233,7 +274,7 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn("Self-known functional body", self_js)
         self.assertIn("Cognitive regions", self_js)
         self.assertIn("Functional dependencies", self_js)
-        self.assertIn('import { projectSelfSchema }', self_js)
+        self.assertIn("import { projectSelfSchema }", self_js)
         self.assertIn("projectSelfSchema(state.bodySchema)", self_js)
 
     def test_render_self_never_reads_privileged_phenotype_state(self) -> None:
@@ -245,13 +286,17 @@ class ObservatoryContractTests(unittest.TestCase):
         replay_js = (ROOT / "transport" / "replay.js").read_text(encoding="utf-8")
         self.assertIn('import { bodySchemaToWire } from "../projection/body-schema.js";', replay_js)
         self.assertIn("schema_version: bodySchema ? 3 : 1", replay_js)
-        self.assertNotIn("state.cognition", replay_js[replay_js.index("function currentSnapshot("):])
+        self.assertNotIn(
+            "state.cognition", replay_js[replay_js.index("function currentSnapshot(") :]
+        )
 
     def test_render_individual_perspective_is_the_single_dispatcher(self) -> None:
         individual_js = (ROOT / "render" / "individual.js").read_text(encoding="utf-8")
         self.assertIn("function renderIndividualPerspective(", individual_js)
         self.assertIn('if (state.view !== "individual") return;', individual_js)
-        self.assertIn('if (state.organismView === "self") renderSelf(); else renderOrganism();', individual_js)
+        self.assertIn(
+            'if (state.organismView === "self") renderSelf(); else renderOrganism();', individual_js
+        )
 
     def test_phenotype_internal_anchors_support_distinct_morphologies(self) -> None:
         organism_js = (ROOT / "render" / "organism.js").read_text(encoding="utf-8")
@@ -266,7 +311,6 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn(".internal-anchor-gate", styles_css)
 
 
-
 class ObserverProvenanceContractTests(unittest.TestCase):
     def test_observer_provenance_is_top_level_only(self) -> None:
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
@@ -276,7 +320,12 @@ class ObserverProvenanceContractTests(unittest.TestCase):
 
     def test_self_view_never_reads_observer_provenance(self) -> None:
         self_js = (ROOT / "render" / "self.js").read_text(encoding="utf-8")
-        for forbidden in ("observerProvenance", "provenanceFor", "humanSignalLabel", "formatObserverValue"):
+        for forbidden in (
+            "observerProvenance",
+            "provenanceFor",
+            "humanSignalLabel",
+            "formatObserverValue",
+        ):
             self.assertNotIn(forbidden, self_js)
 
     def test_phenotype_separates_world_signals_from_body_receptors(self) -> None:
@@ -291,7 +340,12 @@ class ObserverProvenanceContractTests(unittest.TestCase):
     def test_phenotype_exposes_functional_anatomy_without_fabricated_reproduction(self) -> None:
         organism_js = (ROOT / "render" / "organism.js").read_text(encoding="utf-8")
         styles = (ROOT / "styles.css").read_text(encoding="utf-8")
-        for symbol in ("renderMetabolicCore", "renderDegradationOrgan", "renderNeuralTerritories", "appendReceptorGlyph"):
+        for symbol in (
+            "renderMetabolicCore",
+            "renderDegradationOrgan",
+            "renderNeuralTerritories",
+            "appendReceptorGlyph",
+        ):
             self.assertIn(symbol, organism_js)
         self.assertIn("state.metabolism", organism_js)
         self.assertIn("state.degradation", organism_js)
@@ -310,7 +364,9 @@ class ObserverProvenanceContractTests(unittest.TestCase):
         morphology_js = (ROOT / "projection" / "morphology.js").read_text(encoding="utf-8")
         self.assertIn("worldSignals: state.senses.map", organism_js)
         self.assertIn("receptors: (state.sensoryPhenotype?.sensors ?? []).map", organism_js)
-        self.assertIn("const internalNodes = topologyIsCurrent ? state.topology.nodes : []", organism_js)
+        self.assertIn(
+            "const internalNodes = topologyIsCurrent ? state.topology.nodes : []", organism_js
+        )
         self.assertIn("worldSignals = null", morphology_js)
         self.assertIn("receptors = null", morphology_js)
 

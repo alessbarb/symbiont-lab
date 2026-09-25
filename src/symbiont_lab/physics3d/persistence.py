@@ -1,13 +1,13 @@
 """Durable files for Physics3D apparatus state and passive telemetry."""
+
 from __future__ import annotations
 
 import json
 import os
-from dataclasses import asdict
-from pathlib import Path
 import tempfile
 import zipfile
-from typing import Iterable
+from dataclasses import asdict
+from pathlib import Path
 
 from .runtime import Tick3D
 from .telemetry_reader import detect_telemetry_run, open_telemetry
@@ -15,13 +15,16 @@ from .telemetry_reader import detect_telemetry_run, open_telemetry
 
 def _atomic_write_json(path: Path, payload: dict) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(
-        payload,
-        sort_keys=True,
-        indent=2,
-        ensure_ascii=False,
-        allow_nan=False,
-    ) + "\n"
+    encoded = (
+        json.dumps(
+            payload,
+            sort_keys=True,
+            indent=2,
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + "\n"
+    )
     fd, temp_name = tempfile.mkstemp(
         prefix=f".{path.name}.",
         suffix=".tmp",
@@ -98,7 +101,6 @@ def save_symbiont_bundle(
     return target
 
 
-
 def read_symbiont_bundle_runtime(path: str | Path) -> dict:
     """Read only runtime.json from a portable organism bundle.
 
@@ -137,9 +139,7 @@ def load_symbiont_bundle(
             if not name.startswith("models/"):
                 continue
             leaf = name.removeprefix("models/")
-            if "/" in leaf or not leaf or not (
-                leaf.endswith(".json") or leaf.endswith(".pt")
-            ):
+            if "/" in leaf or not leaf or not (leaf.endswith(".json") or leaf.endswith(".pt")):
                 raise ValueError("portable Symbiont bundle contains unsafe model path")
             destination = models_root / leaf
             temporary = destination.with_name(f".{destination.name}.tmp")
@@ -236,9 +236,7 @@ def load_telemetry_records(
             except json.JSONDecodeError as exc:
                 if ignore_errors:
                     continue
-                raise ValueError(
-                    f"corrupt telemetry record at line {line_no}: {exc}"
-                ) from exc
+                raise ValueError(f"corrupt telemetry record at line {line_no}: {exc}") from exc
     return records
 
 
@@ -246,9 +244,7 @@ def load_telemetry_transitions(path: str | Path) -> list[dict]:
     """Read fully reconstructed rich states independent of storage version."""
     version, target = detect_telemetry_run(path)
     if version == "legacy":
-        raise ValueError(
-            "historical single-file telemetry has no reconstructible rich transitions"
-        )
+        raise ValueError("historical single-file telemetry has no reconstructible rich transitions")
     return list(open_telemetry(target).iter_states())
 
 

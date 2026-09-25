@@ -54,7 +54,9 @@ def _float(value: Any, default: float, low: float, high: float) -> float:
     return min(high, max(low, parsed))
 
 
-def spec_from_payload(payload: dict[str, Any], defaults: ExperimentSpec | None = None) -> ExperimentSpec:
+def spec_from_payload(
+    payload: dict[str, Any], defaults: ExperimentSpec | None = None
+) -> ExperimentSpec:
     d = defaults or ExperimentSpec()
     raw_drift = payload.get("drift_step", d.drift_step)
     if raw_drift in (None, "", -1, "-1"):
@@ -85,7 +87,10 @@ def spec_from_payload(payload: dict[str, Any], defaults: ExperimentSpec | None =
         drift_magnitude=_float(payload.get("drift_magnitude"), d.drift_magnitude, 0.0, 0.60),
         delay=_float(payload.get("delay"), d.delay, 0.0, 5.0),
         schema_version=_int(payload.get("schema_version", d.schema_version), 1, 1, 100),
-        experiment_id=_bounded_text(payload.get("id", payload.get("experiment_id", d.experiment_id)), default=d.experiment_id),
+        experiment_id=_bounded_text(
+            payload.get("id", payload.get("experiment_id", d.experiment_id)),
+            default=d.experiment_id,
+        ),
         protocol=_bounded_text(payload.get("protocol", d.protocol), default=d.protocol),
         protocol_version=_int(payload.get("protocol_version", d.protocol_version), 1, 1, 100),
         seeds=seeds,

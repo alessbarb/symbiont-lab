@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-import math
 import statistics
+from collections.abc import Iterable
 
 
 def safe_mean(values: Iterable[float | None]) -> float | None:

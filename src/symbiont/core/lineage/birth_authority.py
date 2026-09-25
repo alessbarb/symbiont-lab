@@ -1,9 +1,10 @@
 """Transactional organism identity, lineage and habitat carrying capacity."""
+
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from typing import Any
-import uuid
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,7 +162,9 @@ class HabitatBirthAuthority:
         authority._birth_counter = counter
 
         raw_live = payload.get("live", [])
-        if not isinstance(raw_live, list) or any(not isinstance(item, str) or not item for item in raw_live):
+        if not isinstance(raw_live, list) or any(
+            not isinstance(item, str) or not item for item in raw_live
+        ):
             raise ValueError("invalid lineage live set")
         authority._live = set(raw_live)
         if len(authority._live) > authority.capacity:
@@ -177,8 +180,7 @@ class HabitatBirthAuthority:
             authority._lineage[record.organism_id] = record
 
         authority._deaths = [
-            DeathRecord(str(item["organism_id"]))
-            for item in payload.get("deaths", [])
+            DeathRecord(str(item["organism_id"])) for item in payload.get("deaths", [])
         ]
         authority._dead_ids = {item.organism_id for item in authority._deaths}
         if not authority._live.issubset(authority._lineage):

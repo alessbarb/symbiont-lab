@@ -12,11 +12,12 @@ import tracemalloc
 from pathlib import Path
 from typing import Any
 
-from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode, TickContext
-from symbiont.cognition.structure import StructuralPlasticity, apply_mutations
 from symbiont.core.consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind
 from symbiont.core.weight_stability import WeightStabilityTracker
+
 from symbiont.cognition.checkpoint import dequantize_weight, quantize_weight
+from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode, TickContext
+from symbiont.cognition.structure import StructuralPlasticity, apply_mutations
 from symbiont.cognition.types import EdgeKind, NodeKind
 
 from .config import BASELINE_KERNEL, KernelVariant, complete_kernel
@@ -58,7 +59,11 @@ def _graph(
         scale = _feature_scale(index)
         source = senses[index % sense_count].node_id
         edges.append(PlasticEdge(source, node.node_id, EdgeKind.EXCITATORY, scale, 0.5, 0))
-        edges.append(PlasticEdge(node.node_id, readout.node_id, EdgeKind.EXCITATORY, 1.0 / lane_count, 0.5, 1))
+        edges.append(
+            PlasticEdge(
+                node.node_id, readout.node_id, EdgeKind.EXCITATORY, 1.0 / lane_count, 0.5, 1
+            )
+        )
     if fill_edges:
         # K2 is explicitly a connectivity/cost screen.  Zero-weight delayed
         # edges preserve the task while making the requested edge budget
@@ -75,7 +80,9 @@ def _graph(
                 edges.append(PlasticEdge(source, target, EdgeKind.EXCITATORY, 0.0, 0.5, 1))
             if len(edges) >= variant.max_edges:
                 break
-    return CognitiveGraph(nodes=nodes, edges=tuple(edges), kernel_limits=variant.limits()), tuple(item.node_id for item in senses)
+    return CognitiveGraph(nodes=nodes, edges=tuple(edges), kernel_limits=variant.limits()), tuple(
+        item.node_id for item in senses
+    )
 
 
 def _feature_scale(index: int) -> float:
@@ -136,7 +143,9 @@ def _run_seed(
                 previous_inputs = inputs
         _, peak = tracemalloc.get_traced_memory()
         elapsed = time.perf_counter() - started
-        payload = json.dumps({"nodes": len(graph.nodes), "edges": len(graph.edges)}, sort_keys=True).encode()
+        payload = json.dumps(
+            {"nodes": len(graph.nodes), "edges": len(graph.edges)}, sort_keys=True
+        ).encode()
         return {
             "seed": seed,
             "max_nodes": variant.max_nodes,
@@ -161,7 +170,13 @@ def _run_seed(
             "recovery_events": int(recovery_tick is not None),
         }
     except Exception as exc:  # The failure is data in a characterization run.
-        return {"seed": seed, "max_nodes": variant.max_nodes, "max_edges": variant.max_edges, "max_concepts": variant.max_concepts, "failure": f"{type(exc).__name__}: {exc}"}
+        return {
+            "seed": seed,
+            "max_nodes": variant.max_nodes,
+            "max_edges": variant.max_edges,
+            "max_concepts": variant.max_concepts,
+            "failure": f"{type(exc).__name__}: {exc}",
+        }
     finally:
         tracemalloc.stop()
         gc.collect()
@@ -216,7 +231,9 @@ def _run_physics_seed(variant: KernelVariant, seed: int, phase_ticks: int | None
             "concepts_used": concepts_used,
             "edges_used": edges_used,
             "structural_churn": 0,
-            "cpu_time_per_tick": (sum(organism_times) / len(organism_times) / 1000.0) if organism_times else 0.0,
+            "cpu_time_per_tick": (sum(organism_times) / len(organism_times) / 1000.0)
+            if organism_times
+            else 0.0,
             "peak_memory": 0,
             "checkpoint_bytes": checkpoint_bytes,
             "saturation_events": 0,
@@ -225,7 +242,11 @@ def _run_physics_seed(variant: KernelVariant, seed: int, phase_ticks: int | None
             "wall_seconds": elapsed,
         }
     except Exception as exc:
-        return {"seed": seed, "max_nodes": variant.max_nodes, "failure": f"{type(exc).__name__}: {exc}"}
+        return {
+            "seed": seed,
+            "max_nodes": variant.max_nodes,
+            "failure": f"{type(exc).__name__}: {exc}",
+        }
 
 
 def _summary_frontier(grouped: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -244,9 +265,14 @@ def _summary_frontier(grouped: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
-def _grouped(raw: list[dict[str, Any]], variants: list[KernelVariant], key: str) -> list[dict[str, Any]]:
+def _grouped(
+    raw: list[dict[str, Any]], variants: list[KernelVariant], key: str
+) -> list[dict[str, Any]]:
     return [
-        {key: getattr(variant, key), **summarize([row for row in raw if row[key] == getattr(variant, key)])}
+        {
+            key: getattr(variant, key),
+            **summarize([row for row in raw if row[key] == getattr(variant, key)]),
+        }
         for variant in variants
     ]
 
@@ -257,10 +283,16 @@ def run_k1(
     seeds: tuple[int, ...] = DEFAULT_SEEDS,
     phase_ticks: int | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]]]:
-    raw = [row for variant in variants for row in (_run_seed(variant, seed, phase_ticks) for seed in seeds)]
+    raw = [
+        row
+        for variant in variants
+        for row in (_run_seed(variant, seed, phase_ticks) for seed in seeds)
+    ]
     grouped = _grouped(raw, variants, "max_nodes")
-    return raw, {"protocol": "K1-A", "variants": grouped}, pareto_frontier(
-        _summary_frontier(grouped), benefit="accuracy"
+    return (
+        raw,
+        {"protocol": "K1-A", "variants": grouped},
+        pareto_frontier(_summary_frontier(grouped), benefit="accuracy"),
     )
 
 
@@ -272,10 +304,16 @@ def run_k1_b(
 ) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]]]:
     if any(variant.max_nodes < 192 for variant in variants):
         raise ValueError("K1-B Physics3D variants require at least 192 nodes")
-    raw = [row for variant in variants for row in (_run_physics_seed(variant, seed, phase_ticks) for seed in seeds)]
+    raw = [
+        row
+        for variant in variants
+        for row in (_run_physics_seed(variant, seed, phase_ticks) for seed in seeds)
+    ]
     grouped = _grouped(raw, variants, "max_nodes")
-    return raw, {"protocol": "K1-B", "variants": grouped}, pareto_frontier(
-        _summary_frontier(grouped), benefit="accuracy"
+    return (
+        raw,
+        {"protocol": "K1-B", "variants": grouped},
+        pareto_frontier(_summary_frontier(grouped), benefit="accuracy"),
     )
 
 
@@ -286,7 +324,11 @@ def run_k2(
     phase_ticks: int | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Screen connectivity density while holding node/concept limits fixed."""
-    raw = [row for variant in variants for row in (_run_seed(variant, seed, phase_ticks, fill_edges=True) for seed in seeds)]
+    raw = [
+        row
+        for variant in variants
+        for row in (_run_seed(variant, seed, phase_ticks, fill_edges=True) for seed in seeds)
+    ]
     grouped = _grouped(raw, variants, "max_edges")
     return raw, {"protocol": "K2", "variants": grouped}
 
@@ -312,7 +354,9 @@ def _run_structural_seed(variant: KernelVariant, seed: int, *, dimension: str) -
     limits = variant.limits()
     nodes = tuple(PlasticNode(f"state_{index}", NodeKind.STATE) for index in range(24))
     graph = CognitiveGraph(nodes=nodes, edges=(), kernel_limits=limits)
-    plasticity = StructuralPlasticity(min_candidate_support=1, tentative_lifetime_ticks=8, cooldown_ticks=0)
+    plasticity = StructuralPlasticity(
+        min_candidate_support=1, tentative_lifetime_ticks=8, cooldown_ticks=0
+    )
     proposals = 0
     accepted = 0
     batches = 0
@@ -371,8 +415,14 @@ def run_k4_k5(
     seeds: tuple[int, ...] = DEFAULT_SEEDS,
     dimension: str,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    raw = [row for variant in variants for row in (_run_structural_seed(variant, seed, dimension=dimension) for seed in seeds)]
-    key = "max_structural_mutations_per_consolidation" if dimension == "K4" else "max_tentative_edges"
+    raw = [
+        row
+        for variant in variants
+        for row in (_run_structural_seed(variant, seed, dimension=dimension) for seed in seeds)
+    ]
+    key = (
+        "max_structural_mutations_per_consolidation" if dimension == "K4" else "max_tentative_edges"
+    )
     return raw, {"protocol": dimension, "variants": _grouped(raw, variants, key)}
 
 
@@ -395,7 +445,9 @@ def run_k6(
             outcome = consolidator.observe(
                 "k6-pattern",
                 MemoryKind.STATISTICAL,
-                ConsolidationSignal(novelty=0.4, surprise=0.5, attention=0.7, reliability=0.9, coherence=0.8),
+                ConsolidationSignal(
+                    novelty=0.4, surprise=0.5, attention=0.7, reliability=0.9, coherence=0.8
+                ),
                 tick=tick,
             )
             if outcome.committed and not commits:
@@ -430,7 +482,10 @@ def run_k6(
         # the artifact remains comparable with the other protocols and future
         # stochastic consolidator changes cannot silently change its shape.
         raw.extend({"seed": seed, **base} for seed in seeds)
-    return raw, {"protocol": "K6", "variants": _grouped(raw, variants, "consolidation_interval_ticks")}
+    return raw, {
+        "protocol": "K6",
+        "variants": _grouped(raw, variants, "consolidation_interval_ticks"),
+    }
 
 
 def run_k7(
@@ -450,30 +505,43 @@ def run_k7(
                     continue
                 observations += 1
                 outcome = consolidator.observe(
-                    "k7-pattern", MemoryKind.STATISTICAL,
-                    ConsolidationSignal(novelty=0.4, surprise=0.5, attention=0.7, reliability=0.9, coherence=0.8),
+                    "k7-pattern",
+                    MemoryKind.STATISTICAL,
+                    ConsolidationSignal(
+                        novelty=0.4, surprise=0.5, attention=0.7, reliability=0.9, coherence=0.8
+                    ),
                     tick=tick,
                 )
                 if outcome.committed and not commits:
                     commits.append(tick)
-            raw.append({
-                "seed": seed,
-                "max_nodes": variant.max_nodes,
-                "max_edges": variant.max_edges,
-                "max_concepts": variant.max_concepts,
-                "slow_support_epochs": variant.slow_support_epochs,
-                "consolidation_interval_ticks": variant.consolidation_interval_ticks,
-                "prediction_error": 0.0,
-                "predictive_gain": 0.0,
-                "adaptation_latency": float(commits[0] if commits else 256),
-                "retention": float(bool(commits)),
-                "recovery_latency": float(commits[0] if commits else 256),
-                "nodes_used": 0, "node_utilization": 0.0, "concepts_used": 0, "edges_used": 0,
-                "structural_churn": 0, "cpu_time_per_tick": 0.0, "peak_memory": 0,
-                "checkpoint_bytes": len(str(consolidator.export_checkpoint()).encode()),
-                "saturation_events": 0, "frozen_events": 0, "recovery_events": len(commits),
-                "observations": observations, "commit_tick": commits[0] if commits else 256,
-            })
+            raw.append(
+                {
+                    "seed": seed,
+                    "max_nodes": variant.max_nodes,
+                    "max_edges": variant.max_edges,
+                    "max_concepts": variant.max_concepts,
+                    "slow_support_epochs": variant.slow_support_epochs,
+                    "consolidation_interval_ticks": variant.consolidation_interval_ticks,
+                    "prediction_error": 0.0,
+                    "predictive_gain": 0.0,
+                    "adaptation_latency": float(commits[0] if commits else 256),
+                    "retention": float(bool(commits)),
+                    "recovery_latency": float(commits[0] if commits else 256),
+                    "nodes_used": 0,
+                    "node_utilization": 0.0,
+                    "concepts_used": 0,
+                    "edges_used": 0,
+                    "structural_churn": 0,
+                    "cpu_time_per_tick": 0.0,
+                    "peak_memory": 0,
+                    "checkpoint_bytes": len(str(consolidator.export_checkpoint()).encode()),
+                    "saturation_events": 0,
+                    "frozen_events": 0,
+                    "recovery_events": len(commits),
+                    "observations": observations,
+                    "commit_tick": commits[0] if commits else 256,
+                }
+            )
     return raw, {"protocol": "K7", "variants": _grouped(raw, variants, "slow_support_epochs")}
 
 
@@ -491,7 +559,8 @@ def run_k8(
             for index in range(20):
                 reliable = index % 2 == 0
                 outcome = consolidator.observe(
-                    f"k8-event-{index}", MemoryKind.SALIENT_EVENT,
+                    f"k8-event-{index}",
+                    MemoryKind.SALIENT_EVENT,
                     ConsolidationSignal(
                         novelty=0.9 if reliable else 0.2,
                         surprise=0.9 if reliable else 0.2,
@@ -506,65 +575,121 @@ def run_k8(
                         true_commits += 1
                     else:
                         false_commits += 1
-            raw.append({
-                "seed": seed,
-                "max_nodes": variant.max_nodes,
-                "max_edges": variant.max_edges,
-                "max_concepts": variant.max_concepts,
-                "fast_consolidation_threshold": variant.fast_consolidation_threshold,
-                "fast_min_reliability": variant.fast_min_reliability,
-                "prediction_error": float(false_commits),
-                "predictive_gain": float(true_commits),
-                "adaptation_latency": 0.0,
-                "retention": true_commits / 10.0,
-                "recovery_latency": 0.0,
-                "nodes_used": 0, "node_utilization": 0.0, "concepts_used": 0, "edges_used": 0,
-                "structural_churn": false_commits, "cpu_time_per_tick": 0.0, "peak_memory": 0,
-                "checkpoint_bytes": len(str(consolidator.export_checkpoint()).encode()),
-                "saturation_events": false_commits, "frozen_events": 0,
-                "recovery_events": true_commits,
-                "true_fast_commits": true_commits, "false_fast_commits": false_commits,
-            })
+            raw.append(
+                {
+                    "seed": seed,
+                    "max_nodes": variant.max_nodes,
+                    "max_edges": variant.max_edges,
+                    "max_concepts": variant.max_concepts,
+                    "fast_consolidation_threshold": variant.fast_consolidation_threshold,
+                    "fast_min_reliability": variant.fast_min_reliability,
+                    "prediction_error": float(false_commits),
+                    "predictive_gain": float(true_commits),
+                    "adaptation_latency": 0.0,
+                    "retention": true_commits / 10.0,
+                    "recovery_latency": 0.0,
+                    "nodes_used": 0,
+                    "node_utilization": 0.0,
+                    "concepts_used": 0,
+                    "edges_used": 0,
+                    "structural_churn": false_commits,
+                    "cpu_time_per_tick": 0.0,
+                    "peak_memory": 0,
+                    "checkpoint_bytes": len(str(consolidator.export_checkpoint()).encode()),
+                    "saturation_events": false_commits,
+                    "frozen_events": 0,
+                    "recovery_events": true_commits,
+                    "true_fast_commits": true_commits,
+                    "false_fast_commits": false_commits,
+                }
+            )
     groups = []
     for variant in variants:
-        groups.append({
-            "fast_consolidation_threshold": variant.fast_consolidation_threshold,
-            "fast_min_reliability": variant.fast_min_reliability,
-            **summarize([
-                row for row in raw
-                if row["fast_consolidation_threshold"] == variant.fast_consolidation_threshold
-                and row["fast_min_reliability"] == variant.fast_min_reliability
-            ]),
-        })
+        groups.append(
+            {
+                "fast_consolidation_threshold": variant.fast_consolidation_threshold,
+                "fast_min_reliability": variant.fast_min_reliability,
+                **summarize(
+                    [
+                        row
+                        for row in raw
+                        if row["fast_consolidation_threshold"]
+                        == variant.fast_consolidation_threshold
+                        and row["fast_min_reliability"] == variant.fast_min_reliability
+                    ]
+                ),
+            }
+        )
     return raw, {"protocol": "K8", "variants": groups}
 
 
-def run_k9(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def run_k9(
+    variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Measure bounded candidate/trace retention with real memory storage."""
     raw = []
     for variant in variants:
         for seed in seeds:
             consolidator = MemoryConsolidator(kernel_limits=variant.limits())
-            signal = ConsolidationSignal(novelty=0.9, surprise=0.9, attention=0.9, reliability=0.9, coherence=0.9)
+            signal = ConsolidationSignal(
+                novelty=0.9, surprise=0.9, attention=0.9, reliability=0.9, coherence=0.9
+            )
             for index in range(variant.max_consolidation_candidates * 2):
-                consolidator.observe(f"candidate-{index}", MemoryKind.STATISTICAL, signal, tick=index + 1)
+                consolidator.observe(
+                    f"candidate-{index}", MemoryKind.STATISTICAL, signal, tick=index + 1
+                )
             for index in range(variant.max_salient_event_traces * 2):
-                consolidator.observe(f"trace-{index}", MemoryKind.SALIENT_EVENT, signal, tick=index + 1)
+                consolidator.observe(
+                    f"trace-{index}", MemoryKind.SALIENT_EVENT, signal, tick=index + 1
+                )
             checkpoint = consolidator.export_checkpoint()
-            raw.append({"seed": seed, "max_nodes": variant.max_nodes, "max_consolidation_candidates": variant.max_consolidation_candidates,
-                        "max_salient_event_traces": variant.max_salient_event_traces, "prediction_error": 0.0,
-                        "predictive_gain": float(len(checkpoint.get("statistical", {}))), "adaptation_latency": 0.0,
-                        "retention": float(len(consolidator.salient_events)), "recovery_latency": 0.0, "nodes_used": 0,
-                        "node_utilization": 0.0, "concepts_used": 0, "edges_used": 0, "structural_churn": 0,
-                        "cpu_time_per_tick": 0.0, "peak_memory": 0, "checkpoint_bytes": len(str(checkpoint).encode()),
-                        "saturation_events": 0, "frozen_events": 0, "recovery_events": 0,
-                        "candidate_count": len(checkpoint.get("statistical", {})), "trace_count": len(consolidator.salient_events)})
-    groups = [{"max_consolidation_candidates": v.max_consolidation_candidates, "max_salient_event_traces": v.max_salient_event_traces,
-               **summarize([r for r in raw if r["max_consolidation_candidates"] == v.max_consolidation_candidates and r["max_salient_event_traces"] == v.max_salient_event_traces])} for v in variants]
+            raw.append(
+                {
+                    "seed": seed,
+                    "max_nodes": variant.max_nodes,
+                    "max_consolidation_candidates": variant.max_consolidation_candidates,
+                    "max_salient_event_traces": variant.max_salient_event_traces,
+                    "prediction_error": 0.0,
+                    "predictive_gain": float(len(checkpoint.get("statistical", {}))),
+                    "adaptation_latency": 0.0,
+                    "retention": float(len(consolidator.salient_events)),
+                    "recovery_latency": 0.0,
+                    "nodes_used": 0,
+                    "node_utilization": 0.0,
+                    "concepts_used": 0,
+                    "edges_used": 0,
+                    "structural_churn": 0,
+                    "cpu_time_per_tick": 0.0,
+                    "peak_memory": 0,
+                    "checkpoint_bytes": len(str(checkpoint).encode()),
+                    "saturation_events": 0,
+                    "frozen_events": 0,
+                    "recovery_events": 0,
+                    "candidate_count": len(checkpoint.get("statistical", {})),
+                    "trace_count": len(consolidator.salient_events),
+                }
+            )
+    groups = [
+        {
+            "max_consolidation_candidates": v.max_consolidation_candidates,
+            "max_salient_event_traces": v.max_salient_event_traces,
+            **summarize(
+                [
+                    r
+                    for r in raw
+                    if r["max_consolidation_candidates"] == v.max_consolidation_candidates
+                    and r["max_salient_event_traces"] == v.max_salient_event_traces
+                ]
+            ),
+        }
+        for v in variants
+    ]
     return raw, {"protocol": "K9", "variants": groups}
 
 
-def run_k10(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def run_k10(
+    variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Measure the real weight-stability norm clamp."""
     raw = []
     for variant in variants:
@@ -576,39 +701,105 @@ def run_k10(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_S
             for tick in range(1, 64):
                 for key in keys:
                     tracker.observe(key, quantize_weight(3.0), tick=tick)
-            committed = tracker.consolidate_node(keys, {key: 3.0 for key in keys}, max_incoming_norm=variant.max_incoming_consolidated_weight_norm)
+            committed = tracker.consolidate_node(
+                keys,
+                {key: 3.0 for key in keys},
+                max_incoming_norm=variant.max_incoming_consolidated_weight_norm,
+            )
             norm = sum(abs(dequantize_weight(value)) for value in (committed or {}).values())
-            raw.append({"seed": seed, "max_nodes": variant.max_nodes, "max_incoming_consolidated_weight_norm": variant.max_incoming_consolidated_weight_norm,
-                        "prediction_error": max(0.0, norm - variant.max_incoming_consolidated_weight_norm), "predictive_gain": norm,
-                        "adaptation_latency": 0.0, "retention": float(committed is not None), "recovery_latency": 0.0,
-                        "nodes_used": 0, "node_utilization": 0.0, "concepts_used": 0, "edges_used": 2, "structural_churn": 0,
-                        "cpu_time_per_tick": 0.0, "peak_memory": 0, "checkpoint_bytes": 0, "saturation_events": 0,
-                        "frozen_events": 0, "recovery_events": 0, "weight_norm": norm})
-    return raw, {"protocol": "K10", "variants": _grouped(raw, variants, "max_incoming_consolidated_weight_norm")}
+            raw.append(
+                {
+                    "seed": seed,
+                    "max_nodes": variant.max_nodes,
+                    "max_incoming_consolidated_weight_norm": variant.max_incoming_consolidated_weight_norm,
+                    "prediction_error": max(
+                        0.0, norm - variant.max_incoming_consolidated_weight_norm
+                    ),
+                    "predictive_gain": norm,
+                    "adaptation_latency": 0.0,
+                    "retention": float(committed is not None),
+                    "recovery_latency": 0.0,
+                    "nodes_used": 0,
+                    "node_utilization": 0.0,
+                    "concepts_used": 0,
+                    "edges_used": 2,
+                    "structural_churn": 0,
+                    "cpu_time_per_tick": 0.0,
+                    "peak_memory": 0,
+                    "checkpoint_bytes": 0,
+                    "saturation_events": 0,
+                    "frozen_events": 0,
+                    "recovery_events": 0,
+                    "weight_norm": norm,
+                }
+            )
+    return raw, {
+        "protocol": "K10",
+        "variants": _grouped(raw, variants, "max_incoming_consolidated_weight_norm"),
+    }
 
 
-def run_k11(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def run_k11(
+    variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Characterize the restore gate's configured reacclimation window."""
     raw = []
     for variant in variants:
         for seed in seeds:
-            raw.append({"seed": seed, "max_nodes": variant.max_nodes, "reacclimation_ticks": variant.reacclimation_ticks,
-                        "prediction_error": 0.0, "predictive_gain": 0.0, "adaptation_latency": float(variant.reacclimation_ticks),
-                        "retention": 1.0, "recovery_latency": float(variant.reacclimation_ticks), "nodes_used": 0,
-                        "node_utilization": 0.0, "concepts_used": 0, "edges_used": 0, "structural_churn": 0,
-                        "cpu_time_per_tick": 0.0, "peak_memory": 0, "checkpoint_bytes": 0, "saturation_events": 0,
-                        "frozen_events": variant.reacclimation_ticks, "recovery_events": 1})
+            raw.append(
+                {
+                    "seed": seed,
+                    "max_nodes": variant.max_nodes,
+                    "reacclimation_ticks": variant.reacclimation_ticks,
+                    "prediction_error": 0.0,
+                    "predictive_gain": 0.0,
+                    "adaptation_latency": float(variant.reacclimation_ticks),
+                    "retention": 1.0,
+                    "recovery_latency": float(variant.reacclimation_ticks),
+                    "nodes_used": 0,
+                    "node_utilization": 0.0,
+                    "concepts_used": 0,
+                    "edges_used": 0,
+                    "structural_churn": 0,
+                    "cpu_time_per_tick": 0.0,
+                    "peak_memory": 0,
+                    "checkpoint_bytes": 0,
+                    "saturation_events": 0,
+                    "frozen_events": variant.reacclimation_ticks,
+                    "recovery_events": 1,
+                }
+            )
     return raw, {"protocol": "K11", "variants": _grouped(raw, variants, "reacclimation_ticks")}
 
 
-def run_k12(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def run_k12(
+    variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run the reduced interaction grid using the corrected K1 probe."""
-    raw = [row for variant in variants for row in (_run_seed(variant, seed, phase_ticks=4) for seed in seeds)]
+    raw = [
+        row
+        for variant in variants
+        for row in (_run_seed(variant, seed, phase_ticks=4) for seed in seeds)
+    ]
     groups = []
     for variant in variants:
-        groups.append({"max_nodes": variant.max_nodes, "max_edges": variant.max_edges, "max_concepts": variant.max_concepts,
-                       "max_structural_mutations_per_consolidation": variant.max_structural_mutations_per_consolidation,
-                       **summarize([r for r in raw if r["max_nodes"] == variant.max_nodes and r["max_edges"] == variant.max_edges and r["max_concepts"] == variant.max_concepts])})
+        groups.append(
+            {
+                "max_nodes": variant.max_nodes,
+                "max_edges": variant.max_edges,
+                "max_concepts": variant.max_concepts,
+                "max_structural_mutations_per_consolidation": variant.max_structural_mutations_per_consolidation,
+                **summarize(
+                    [
+                        r
+                        for r in raw
+                        if r["max_nodes"] == variant.max_nodes
+                        and r["max_edges"] == variant.max_edges
+                        and r["max_concepts"] == variant.max_concepts
+                    ]
+                ),
+            }
+        )
     return raw, {"protocol": "K12", "variants": groups}
 
 
@@ -662,7 +853,21 @@ def write_run(
     else:
         raise ValueError(f"unsupported K1 arm: {arm}")
     manifest = {
-        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3", "k4": "K4", "k5": "K5", "k6": "K6", "k7": "K7", "k8": "K8", "k9": "K9", "k10": "K10", "k11": "K11", "k12": "K12"}[arm],
+        "protocol": {
+            "k1-a": "K1-A",
+            "k1-b": "K1-B",
+            "k2": "K2",
+            "k3": "K3",
+            "k4": "K4",
+            "k5": "K5",
+            "k6": "K6",
+            "k7": "K7",
+            "k8": "K8",
+            "k9": "K9",
+            "k10": "K10",
+            "k11": "K11",
+            "k12": "K12",
+        }[arm],
         "protocol_version": 1,
         "arm": "abstract_synthetic" if arm != "k1-b" else "physics3d_embodied",
         "commit_sha": _git_sha(),
@@ -685,12 +890,24 @@ def write_run(
     run_dir = output_dir / run_id
     run_dir.mkdir(exist_ok=True)
     (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    (run_dir / "raw.jsonl").write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in raw))
+    (run_dir / "raw.jsonl").write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in raw)
+    )
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     (run_dir / "pareto.json").write_text(json.dumps(frontier, indent=2, sort_keys=True) + "\n")
-    report = [f"# {summary['protocol']} kernel characterization", "", "Preliminary screening; not evidence for a canonical limit.", "", f"Run: `{run_id}`", ""]
+    report = [
+        f"# {summary['protocol']} kernel characterization",
+        "",
+        "Preliminary screening; not evidence for a canonical limit.",
+        "",
+        f"Run: `{run_id}`",
+        "",
+    ]
     if frontier:
         report.extend(["## Pareto candidates", ""])
-        report.extend(f"- {row['max_nodes']} nodes: accuracy={float(row['accuracy']):.6g}, cpu/tick={float(row['cpu_time_per_tick']):.6g}" for row in frontier)
+        report.extend(
+            f"- {row['max_nodes']} nodes: accuracy={float(row['accuracy']):.6g}, cpu/tick={float(row['cpu_time_per_tick']):.6g}"
+            for row in frontier
+        )
     (run_dir / "report.md").write_text("\n".join(report) + "\n")
     return run_dir

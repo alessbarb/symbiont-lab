@@ -26,18 +26,24 @@ def _actuation(actuator_id: str, delivered: float) -> Actuation:
 
 def test_binding_fingerprint_is_deterministic_and_mapping_sensitive():
     ids = _constitution().actuator_ids
-    first = ActuationBindingConstitution((
-        ActuationBinding(ids[0], "move", "0"),
-        ActuationBinding(ids[1], "acquire", "local"),
-    ))
-    same = ActuationBindingConstitution((
-        ActuationBinding(ids[0], "move", "0"),
-        ActuationBinding(ids[1], "acquire", "local"),
-    ))
-    permuted = ActuationBindingConstitution((
-        ActuationBinding(ids[0], "move", "4"),
-        ActuationBinding(ids[1], "acquire", "local"),
-    ))
+    first = ActuationBindingConstitution(
+        (
+            ActuationBinding(ids[0], "move", "0"),
+            ActuationBinding(ids[1], "acquire", "local"),
+        )
+    )
+    same = ActuationBindingConstitution(
+        (
+            ActuationBinding(ids[0], "move", "0"),
+            ActuationBinding(ids[1], "acquire", "local"),
+        )
+    )
+    permuted = ActuationBindingConstitution(
+        (
+            ActuationBinding(ids[0], "move", "4"),
+            ActuationBinding(ids[1], "acquire", "local"),
+        )
+    )
     assert first.fingerprint == same.fingerprint
     assert first.fingerprint != permuted.fingerprint
 
@@ -60,10 +66,12 @@ def test_adapter_supports_opaque_local_interaction_and_emission():
     acquire_id, emit_id = constitution.actuator_ids[:2]
     adapter = ActuationAdapter(
         constitution,
-        ActuationBindingConstitution((
-            ActuationBinding(acquire_id, "acquire", "local"),
-            ActuationBinding(emit_id, "emit", "17"),
-        )),
+        ActuationBindingConstitution(
+            (
+                ActuationBinding(acquire_id, "acquire", "local"),
+                ActuationBinding(emit_id, "emit", "17"),
+            )
+        ),
     )
     assert adapter.translate(_actuation(acquire_id, 1.0)).acquire == "local"
     assert adapter.translate(_actuation(emit_id, 1.0)).emit == (17,)
@@ -80,7 +88,6 @@ def test_adapter_supports_opaque_local_interaction_and_emission():
 def test_binding_rejects_invalid_world_arguments(binding):
     with pytest.raises(ValueError):
         ActuationBindingConstitution((binding,))
-
 
 
 def test_local_substrate_signals_are_opaque_and_causally_change_after_impulse():

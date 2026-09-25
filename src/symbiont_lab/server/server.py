@@ -2,6 +2,7 @@
 
 Single canonical entry-point for the local web workbench.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,6 +26,7 @@ from symbiont_lab.workbench.runs import (
     start_experiment,
     start_study,
 )
+
 from .api import make_handler
 
 _ASSETS = WEB_ROOT
@@ -89,19 +91,22 @@ def make_server(
     session_holder: dict[str, Physics3DSession | None] = {"physics3d": None}
     server_holder: dict[str, UnifiedLabServer | None] = {"server": None}
 
-    exp_starter = lambda spec: start_experiment(
-        exp_state,
-        std_state,
-        spec,
-        coordinator=coordinator,
-    )
-    std_starter = lambda spec, **kw: start_study(
-        exp_state,
-        std_state,
-        spec,
-        coordinator=coordinator,
-        **kw,
-    )
+    def exp_starter(spec):
+        return start_experiment(
+            exp_state,
+            std_state,
+            spec,
+            coordinator=coordinator,
+        )
+
+    def std_starter(spec, **kw):
+        return start_study(
+            exp_state,
+            std_state,
+            spec,
+            coordinator=coordinator,
+            **kw,
+        )
 
     def start_physics_run(payload: dict[str, Any]) -> dict[str, object]:
         if demo:
@@ -230,7 +235,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--archive", default=".symbiont/experiments.jsonl")
     parser.add_argument("--study-archive", default=".symbiont/studies.jsonl")
     parser.add_argument("--no-record", action="store_true", help="Disable experiment archiving")
-    parser.add_argument("--no-browser", action="store_true", help="Don't open browser automatically")
+    parser.add_argument(
+        "--no-browser", action="store_true", help="Don't open browser automatically"
+    )
     parser.add_argument(
         "--demo",
         action="store_true",

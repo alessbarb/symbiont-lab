@@ -45,9 +45,8 @@ class RunningStat:
         delta = x - self.mean
         self.mean += self.alpha * delta
         self.variance_estimate = (
-            (1.0 - self.alpha) * self.variance_estimate
-            + self.alpha * delta * delta
-        )
+            1.0 - self.alpha
+        ) * self.variance_estimate + self.alpha * delta * delta
 
     @property
     def variance(self) -> float:

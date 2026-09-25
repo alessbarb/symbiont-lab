@@ -10,6 +10,7 @@ Signal of interest:
 Positive value → outcome historically improved physiological state.
 Negative value → outcome historically worsened physiological state.
 """
+
 from __future__ import annotations
 
 import math
@@ -131,11 +132,7 @@ class OutcomeValueLedger:
         Silently rejects NaN, Inf, or out-of-range values to prevent
         poisoning the running statistics.
         """
-        if (
-            not isinstance(outcome_id, str)
-            or not outcome_id
-            or len(outcome_id) > 128
-        ):
+        if not isinstance(outcome_id, str) or not outcome_id or len(outcome_id) > 128:
             raise ValueError("outcome_id must be a bounded non-empty string")
         if (
             isinstance(intrinsic_value, bool)
@@ -191,10 +188,7 @@ class OutcomeValueLedger:
     def checkpoint(self) -> dict[str, object]:
         return {
             "schema_version": self._SCHEMA_VERSION,
-            "stats": {
-                outcome_id: stat.checkpoint()
-                for outcome_id, stat in self._stats.items()
-            },
+            "stats": {outcome_id: stat.checkpoint() for outcome_id, stat in self._stats.items()},
         }
 
     @classmethod
@@ -204,9 +198,7 @@ class OutcomeValueLedger:
             raise ValueError("invalid outcome-value ledger checkpoint")
         version = payload.get("schema_version")
         if version != cls._SCHEMA_VERSION:
-            raise ValueError(
-                f"unsupported outcome-value ledger schema version: {version!r}"
-            )
+            raise ValueError(f"unsupported outcome-value ledger schema version: {version!r}")
         raw_stats = payload.get("stats", {})
         if not isinstance(raw_stats, dict):
             raise ValueError("invalid outcome-value ledger stats checkpoint")

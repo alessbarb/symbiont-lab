@@ -3,6 +3,7 @@
 The registry is apparatus-owned.  It exposes only body contracts and factories;
 it never supplies semantic labels to the organism.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -17,13 +18,13 @@ from .alternative_bodies import (
 from .humanoid import (
     BODY_KIND,
     BODY_STATE_SCHEMA_VERSION,
-    GROUND_MATERIAL,
-    MOTOR_DOF,
-    TOTAL_RECEPTOR_COUNT,
     CONTACT_LINK_NAMES,
+    GROUND_MATERIAL,
     JOINT_SPECS,
     JOINT_TOPOLOGY,
+    MOTOR_DOF,
     SEGMENTS,
+    TOTAL_RECEPTOR_COUNT,
     HumanoidPhysics,
     effector_contract_ids,
     interoceptive_receptor_contract_ids,
@@ -68,9 +69,7 @@ class BodyDescriptor:
                         "origin": [float(value) for value in segment.origin],
                     }
                     for name, segment in (
-                        self.observer_segments.items()
-                        if self.observer_segments is not None
-                        else ()
+                        self.observer_segments.items() if self.observer_segments is not None else ()
                     )
                 },
                 "joints": [
@@ -79,10 +78,7 @@ class BodyDescriptor:
                         "parent": str(topology.parent_link),
                         "child": str(topology.child_link),
                         "origin": [float(value) for value in topology.origin],
-                        "axis": [
-                            float(value)
-                            for value in self.observer_joint_specs[index].axis
-                        ],
+                        "axis": [float(value) for value in self.observer_joint_specs[index].axis],
                     }
                     for index, topology in enumerate(self.observer_joint_topology)
                 ],
@@ -169,11 +165,13 @@ ASYMMETRIC_V1 = BodyDescriptor(
     observer_base_link_name=ASYMMETRIC_SPEC.base_link_name,
 )
 
-DEFAULT_BODY_REGISTRY = BodyRegistry((
-    ANTHROPOMORPHIC_V6,
-    CRAWLER_V1,
-    ASYMMETRIC_V1,
-))
+DEFAULT_BODY_REGISTRY = BodyRegistry(
+    (
+        ANTHROPOMORPHIC_V6,
+        CRAWLER_V1,
+        ASYMMETRIC_V1,
+    )
+)
 
 
 __all__ = [

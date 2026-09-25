@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
+from dataclasses import dataclass
 from typing import Iterable
 
 from .experience import ExperienceRecord
-
 
 _RESERVED = ("<PAD>", "<UNK>", "<BOS>", "<EOS>", "<SEP>")
 _MAX_VOCAB = 32768
@@ -74,7 +73,9 @@ class NativeTokenizer:
         encoded = json.dumps(self.vocabulary, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
 
-    def encode_tokens(self, tokens: Iterable[str], *, max_sequence: int = _MAX_SEQUENCE) -> tuple[int, ...]:
+    def encode_tokens(
+        self, tokens: Iterable[str], *, max_sequence: int = _MAX_SEQUENCE
+    ) -> tuple[int, ...]:
         if isinstance(max_sequence, bool) or not isinstance(max_sequence, int):
             raise ValueError("max_sequence must be an integer")
         if not 1 <= max_sequence <= _MAX_SEQUENCE:
@@ -90,7 +91,9 @@ class NativeTokenizer:
                 break
         return tuple(encoded)
 
-    def encode_record(self, record: ExperienceRecord, *, max_sequence: int = _MAX_SEQUENCE) -> tuple[int, ...]:
+    def encode_record(
+        self, record: ExperienceRecord, *, max_sequence: int = _MAX_SEQUENCE
+    ) -> tuple[int, ...]:
         if not isinstance(record, ExperienceRecord):
             raise ValueError("record must be an ExperienceRecord")
         return self.encode_tokens(_record_tokens(record), max_sequence=max_sequence)

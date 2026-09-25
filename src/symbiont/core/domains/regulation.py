@@ -1,4 +1,5 @@
 """Regulatory phenotype and delayed homeostatic credit."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -52,12 +53,8 @@ class RegulationDomain:
                 )
             )
         if len(self.pending_homeostatic_action_credit) > 4096:
-            self.pending_homeostatic_action_credit.sort(
-                key=lambda item: item[0]
-            )
-            self.pending_homeostatic_action_credit = (
-                self.pending_homeostatic_action_credit[:4096]
-            )
+            self.pending_homeostatic_action_credit.sort(key=lambda item: item[0])
+            self.pending_homeostatic_action_credit = self.pending_homeostatic_action_credit[:4096]
 
     def resolve_homeostatic_action_credit(
         self,
@@ -72,9 +69,7 @@ class RegulationDomain:
             pending.clear()
             return
         current_error = services.homeostasis.deviation()
-        remaining: list[
-            tuple[int, str, str, tuple[str, ...], float, float]
-        ] = []
+        remaining: list[tuple[int, str, str, tuple[str, ...], float, float]] = []
         for (
             due_tick,
             family,

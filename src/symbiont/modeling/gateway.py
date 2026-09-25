@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from typing import Protocol
 
 from .proposals import ModelPredictionProposal, confidence_class
@@ -15,7 +15,11 @@ class TokenPrediction:
     probability: float
 
     def __post_init__(self) -> None:
-        if isinstance(self.token_id, bool) or not isinstance(self.token_id, int) or self.token_id < 0:
+        if (
+            isinstance(self.token_id, bool)
+            or not isinstance(self.token_id, int)
+            or self.token_id < 0
+        ):
             raise ValueError("token_id must be a non-negative integer")
         if isinstance(self.probability, bool) or not isinstance(self.probability, (int, float)):
             raise ValueError("probability must be numeric")

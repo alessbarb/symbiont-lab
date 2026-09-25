@@ -2,28 +2,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from symbiont_lab.experiments.registry import get_protocol
 from symbiont_lab.experiments.loader import load_experiment_file
+from symbiont_lab.experiments.registry import get_protocol
 
 
 def test_cognitive_ecology_protocols_are_registered():
     expected = {
-        "learning.structural-producer-fairness":
-            "run_structural_producer_fairness_study",
-        "learning.continuous-temporal-challenge":
-            "run_continuous_temporal_challenge",
-        "learning.cognitive-ecology-embodiment":
-            "run_cognitive_ecology_embodiment_study",
-        "learning.continuous-temporal-controls":
-            "run_continuous_temporal_controls",
-        "learning.embodied-behavioral-ablation":
-            "run_embodied_behavioral_ablation",
-        "learning.canonical-sensorimotor-agency":
-            "run_sensorimotor_agency_study",
-        "learning.canonical-sensorimotor-counterfactual":
-            "run_counterfactual_replay_study",
-        "learning.canonical-sensorimotor-adaptation":
-            "run_sensorimotor_adaptation_study",
+        "learning.structural-producer-fairness": "run_structural_producer_fairness_study",
+        "learning.continuous-temporal-challenge": "run_continuous_temporal_challenge",
+        "learning.cognitive-ecology-embodiment": "run_cognitive_ecology_embodiment_study",
+        "learning.continuous-temporal-controls": "run_continuous_temporal_controls",
+        "learning.embodied-behavioral-ablation": "run_embodied_behavioral_ablation",
+        "learning.canonical-sensorimotor-agency": "run_sensorimotor_agency_study",
+        "learning.canonical-sensorimotor-counterfactual": "run_counterfactual_replay_study",
+        "learning.canonical-sensorimotor-adaptation": "run_sensorimotor_adaptation_study",
     }
     for protocol, function_name in expected.items():
         assert get_protocol(protocol).__name__ == function_name
@@ -43,7 +35,6 @@ def test_cognitive_ecology_preregistrations_bind_expected_protocols():
         spec = load_experiment_file(root / directory / "experiment.toml")
         assert spec.protocol == protocol
         assert tuple(spec.seeds) == (101, 127, 149)
-
 
 
 def test_behavioral_ablation_preregisters_executable_horizon():

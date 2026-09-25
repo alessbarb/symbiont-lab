@@ -1,10 +1,12 @@
 """Evaluator-only longitudinal shadow-prediction study."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from .runtime_prediction_promotion import _runtime
 from symbiont.core.runtime import OrganismRuntime
+
+from .runtime_prediction_promotion import _runtime
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,21 +26,23 @@ class RuntimePredictionLongitudinalStudy:
 
 def _advance(runtime: OrganismRuntime, start: int, end: int) -> None:
     for tick in range(start, end + 1):
-        runtime.cognitive_bridge.tick(
-            {"s": float(tick % 2), "t": float((tick + 1) % 2)}, tick=tick
-        )
+        runtime.cognitive_bridge.tick({"s": float(tick % 2), "t": float((tick + 1) % 2)}, tick=tick)
 
 
 def _signal(runtime: OrganismRuntime):
     return next(
-        (candidate for candidate in runtime.shadow_predictions
-         if (candidate.source_id, candidate.target_id) == ("s", "t")),
+        (
+            candidate
+            for candidate in runtime.shadow_predictions
+            if (candidate.source_id, candidate.target_id) == ("s", "t")
+        ),
         None,
     )
 
 
 def run_runtime_prediction_longitudinal_study(
-    *, trials: int = 32,
+    *,
+    trials: int = 32,
 ) -> RuntimePredictionLongitudinalStudy:
     """Require evidence to survive a checkpoint before predictor promotion."""
     if trials < 16:
@@ -63,7 +67,8 @@ def run_runtime_prediction_longitudinal_study(
     # loss replay is not a contract.  The longitudinal contract is that the
     # evidence count and lifecycle decision survive restoration.
     continuation_equal = (
-        left is not None and right is not None
+        left is not None
+        and right is not None
         and left.status == right.status
         and left.predictive_gain > 0.0
         and right.predictive_gain > 0.0
@@ -82,8 +87,7 @@ def run_runtime_prediction_longitudinal_study(
             tick=next_tick,
         )
     predictor_count = sum(
-        1 for node in runtime.cognitive_bridge.graph.nodes
-        if node.kind.value == "predictor"
+        1 for node in runtime.cognitive_bridge.graph.nodes if node.kind.value == "predictor"
     )
     return RuntimePredictionLongitudinalStudy(
         trials=trials,

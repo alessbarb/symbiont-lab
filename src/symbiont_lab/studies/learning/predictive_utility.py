@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Iterable
+
+from symbiont.core.cognition_bridge import CognitiveBridge
 
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticEdge, PlasticNode
-from symbiont.core.cognition_bridge import CognitiveBridge
-from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.cognition.learning import huber_loss
+from symbiont.cognition.types import EdgeKind, NodeKind
 
 
 @dataclass(slots=True, frozen=True)
@@ -67,7 +68,9 @@ def _run_single_condition(
 ) -> tuple[float, float, float, float, float, float]:
     rng = random.Random(seed)
     sense = PlasticNode(node_id="s", kind=NodeKind.SENSE)
-    predictor = PlasticNode(node_id="p", kind=NodeKind.PREDICTOR, predicts_node_id="s", bias=0.0, tau=1.0)
+    predictor = PlasticNode(
+        node_id="p", kind=NodeKind.PREDICTOR, predicts_node_id="s", bias=0.0, tau=1.0
+    )
 
     # This study deliberately uses the production bridge.  In particular,
     # predictive utility must measure the same prediction-error and plasticity
@@ -103,7 +106,9 @@ def _run_single_condition(
         s_val = -0.82 * s_val + noise
         s_val = max(-0.95, min(0.95, s_val))
 
-        result = bridge.tick({"s": s_val}, tick=tick, plasticity_enabled=plasticity_enabled and not lesion)
+        result = bridge.tick(
+            {"s": s_val}, tick=tick, plasticity_enabled=plasticity_enabled and not lesion
+        )
         target = result.activations.get("s", 0.0)
         if tick > 1:
             zero_losses.append(huber_loss(target - 0.0))

@@ -22,6 +22,7 @@ exceeds the random policy's in at least 2 of 3 seeds. Otherwise H0 stands
 This script performs no fabrication: whatever it prints is the actual
 result of running the real adapter.
 """
+
 from __future__ import annotations
 
 import json
@@ -80,7 +81,12 @@ def w01() -> dict:
         if cognitive["composite_score"] > random_["composite_score"]:
             wins += 1
     reject_h0 = wins >= 2
-    return {"results": results, "cognitive_wins": wins, "of_seeds": len(SEEDS), "reject_h0": reject_h0}
+    return {
+        "results": results,
+        "cognitive_wins": wins,
+        "of_seeds": len(SEEDS),
+        "reject_h0": reject_h0,
+    }
 
 
 def w02(seed: int = 101) -> dict:

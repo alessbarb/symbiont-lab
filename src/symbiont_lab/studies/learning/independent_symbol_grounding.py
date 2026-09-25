@@ -29,6 +29,7 @@ If ``isg1`` fails on any seed, that is evidence *for* H0 on symbol grounding:
 no result in ``research/STATUS.md`` may claim organic convention convergence
 without this gate.
 """
+
 from __future__ import annotations
 
 import ast
@@ -44,7 +45,6 @@ from symbiont.modeling import (
     SymbolAction,
     SymbolChannel,
     SymbolReinforcementSignal,
-    default_symbol_space,
 )
 
 CHANCE_RATE = 1.0 / 32.0  # shared 32-symbol vocabulary, independent seeds
@@ -142,7 +142,10 @@ def _independent_seed(seed: int) -> int:
 
 
 def _context_alphabet(size: int) -> tuple[str, ...]:
-    return tuple(f"isg-context.{hashlib.sha256(f'isg-context:{i}'.encode()).hexdigest()[:12]}" for i in range(size))
+    return tuple(
+        f"isg-context.{hashlib.sha256(f'isg-context:{i}'.encode()).hexdigest()[:12]}"
+        for i in range(size)
+    )
 
 
 def _outcome_for_context(context: str) -> str:
@@ -158,12 +161,16 @@ def _one_sided_binom_pvalue(k: int, n: int, p0: float) -> float:
 
 def _leading_symbol(ledger, outcome_token: str) -> str | None:
     candidates = [
-        item for item in ledger.associations
+        item
+        for item in ledger.associations
         if item.outcome_token == outcome_token and item.support > item.contradiction
     ]
     if not candidates:
         return None
-    return max(candidates, key=lambda item: (item.support - item.contradiction, item.last_tick, item.symbol_id)).symbol_id
+    return max(
+        candidates,
+        key=lambda item: (item.support - item.contradiction, item.last_tick, item.symbol_id),
+    ).symbol_id
 
 
 def _run_condition(
@@ -176,9 +183,21 @@ def _run_condition(
 ) -> tuple[ConditionAgreement, tuple[object, ...]]:
     seed_b = _independent_seed(seed)
     assert seed_b != seed  # isg5: interaction can never rely on a shared policy seed
-    emitter_a = ModeledOrganismRuntime(organism_id=f"isg-a-{seed}-{condition}", bootstrap_semantic_senses=False, symbol_policy_seed=seed)
-    emitter_b = ModeledOrganismRuntime(organism_id=f"isg-b-{seed}-{condition}", bootstrap_semantic_senses=False, symbol_policy_seed=seed_b)
-    learner = ModeledOrganismRuntime(organism_id=f"isg-learner-{seed}-{condition}", bootstrap_semantic_senses=False, symbol_policy_seed=seed)
+    emitter_a = ModeledOrganismRuntime(
+        organism_id=f"isg-a-{seed}-{condition}",
+        bootstrap_semantic_senses=False,
+        symbol_policy_seed=seed,
+    )
+    emitter_b = ModeledOrganismRuntime(
+        organism_id=f"isg-b-{seed}-{condition}",
+        bootstrap_semantic_senses=False,
+        symbol_policy_seed=seed_b,
+    )
+    learner = ModeledOrganismRuntime(
+        organism_id=f"isg-learner-{seed}-{condition}",
+        bootstrap_semantic_senses=False,
+        symbol_policy_seed=seed,
+    )
     pairs = {
         (emitter_a.organism_id, learner.organism_id),
         (emitter_b.organism_id, learner.organism_id),
@@ -191,8 +210,16 @@ def _run_condition(
         both = 0
         for index in range(probes_per_phase):
             context = contexts[index % len(contexts)]
-            a = emitter_a.symbol_policy.choose_adaptive(local_context_token=context, neighbor_ids=(learner.organism_id,), tick=tick_offset + index)
-            b = emitter_b.symbol_policy.choose_adaptive(local_context_token=context, neighbor_ids=(learner.organism_id,), tick=tick_offset + index)
+            a = emitter_a.symbol_policy.choose_adaptive(
+                local_context_token=context,
+                neighbor_ids=(learner.organism_id,),
+                tick=tick_offset + index,
+            )
+            b = emitter_b.symbol_policy.choose_adaptive(
+                local_context_token=context,
+                neighbor_ids=(learner.organism_id,),
+                tick=tick_offset + index,
+            )
             if a.selected_symbol_id and b.selected_symbol_id:
                 both += 1
                 matches += int(a.selected_symbol_id == b.selected_symbol_id)
@@ -205,18 +232,30 @@ def _run_condition(
         context = contexts[tick % len(contexts)]
         outcome = _outcome_for_context(context)
         emitter = emitter_a if tick % 2 == 1 else emitter_b
-        decision = emitter.autonomous_adaptive_symbol_step(channel, (learner,), local_context_token=context, tick=tick + 10_000)
+        decision = emitter.autonomous_adaptive_symbol_step(
+            channel, (learner,), local_context_token=context, tick=tick + 10_000
+        )
         if decision.selected_action is not SymbolAction.EMIT or decision.selected_symbol_id is None:
             continue
         symbol = decision.selected_symbol_id
         leading_before = _leading_symbol(learner.symbol_grounding_ledger, outcome)
         predicted = learner.predict_symbolic_outcome(symbol)
-        success = bool(predicted is not None and predicted == outcome and (leading_before is None or symbol == leading_before))
+        success = bool(
+            predicted is not None
+            and predicted == outcome
+            and (leading_before is None or symbol == leading_before)
+        )
         learner.observe_symbolic_outcome(outcome, tick=tick + 10_000)
-        pending.append({
-            "emitter": emitter, "symbol": symbol, "context": context,
-            "outcome": outcome, "tick": tick + 10_000, "success": success,
-        })
+        pending.append(
+            {
+                "emitter": emitter,
+                "symbol": symbol,
+                "context": context,
+                "outcome": outcome,
+                "tick": tick + 10_000,
+                "success": success,
+            }
+        )
 
     if condition != "isolated":
         delivery_contexts = [item["context"] for item in pending]
@@ -224,21 +263,32 @@ def _run_condition(
             random.Random(seed).shuffle(delivery_contexts)
         for record, delivered_context in zip(pending, delivery_contexts):
             signal = SymbolReinforcementSignal(
-                symbol_id=record["symbol"], context_token=delivered_context, outcome_token=record["outcome"],
-                sender_id=record["emitter"].organism_id, receiver_id=learner.organism_id,
-                tick=record["tick"], success=record["success"],
+                symbol_id=record["symbol"],
+                context_token=delivered_context,
+                outcome_token=record["outcome"],
+                sender_id=record["emitter"].organism_id,
+                receiver_id=learner.organism_id,
+                tick=record["tick"],
+                success=record["success"],
             )
             record["emitter"].report_symbol_reinforcement(signal)
 
     post_matches, post_n = probe(200_000)
 
     agreement = ConditionAgreement(
-        baseline_matches=baseline_matches, baseline_n=baseline_n,
-        post_matches=post_matches, post_n=post_n,
+        baseline_matches=baseline_matches,
+        baseline_n=baseline_n,
+        post_matches=post_matches,
+        post_n=post_n,
         reinforced_success_count=sum(1 for item in pending if item["success"]),
         reinforced_total=len(pending),
     )
-    trace = tuple((item["context"], item["symbol"], item["success"]) for item in pending) + (baseline_matches, baseline_n, post_matches, post_n)
+    trace = tuple((item["context"], item["symbol"], item["success"]) for item in pending) + (
+        baseline_matches,
+        baseline_n,
+        post_matches,
+        post_n,
+    )
     return agreement, trace
 
 
@@ -250,20 +300,32 @@ def _trial_result(
     context_alphabet_size: int = 16,
 ) -> IndependentSymbolGroundingSeedResult:
     interactive, interactive_trace = _run_condition(
-        seed, condition="interactive", interaction_rounds=interaction_rounds,
-        probes_per_phase=probes_per_phase, context_alphabet_size=context_alphabet_size,
+        seed,
+        condition="interactive",
+        interaction_rounds=interaction_rounds,
+        probes_per_phase=probes_per_phase,
+        context_alphabet_size=context_alphabet_size,
     )
     isolated, _ = _run_condition(
-        seed, condition="isolated", interaction_rounds=interaction_rounds,
-        probes_per_phase=probes_per_phase, context_alphabet_size=context_alphabet_size,
+        seed,
+        condition="isolated",
+        interaction_rounds=interaction_rounds,
+        probes_per_phase=probes_per_phase,
+        context_alphabet_size=context_alphabet_size,
     )
     shuffled, _ = _run_condition(
-        seed, condition="shuffled", interaction_rounds=interaction_rounds,
-        probes_per_phase=probes_per_phase, context_alphabet_size=context_alphabet_size,
+        seed,
+        condition="shuffled",
+        interaction_rounds=interaction_rounds,
+        probes_per_phase=probes_per_phase,
+        context_alphabet_size=context_alphabet_size,
     )
     _, replay_trace = _run_condition(
-        seed, condition="interactive", interaction_rounds=interaction_rounds,
-        probes_per_phase=probes_per_phase, context_alphabet_size=context_alphabet_size,
+        seed,
+        condition="interactive",
+        interaction_rounds=interaction_rounds,
+        probes_per_phase=probes_per_phase,
+        context_alphabet_size=context_alphabet_size,
     )
     replay_deterministic = replay_trace == interactive_trace
 
@@ -276,7 +338,9 @@ def _trial_result(
         isg1_interactive_convergence=interactive.post_pvalue < SIGNIFICANCE_ALPHA,
         isg2_isolated_at_chance=not (isolated.post_pvalue < SIGNIFICANCE_ALPHA),
         isg3_shuffled_at_chance=not (shuffled.post_pvalue < SIGNIFICANCE_ALPHA),
-        isg4_delta_not_baseline_artifact=(interactive.delta > isolated.delta and interactive.delta > shuffled.delta),
+        isg4_delta_not_baseline_artifact=(
+            interactive.delta > isolated.delta and interactive.delta > shuffled.delta
+        ),
     )
 
 
@@ -288,29 +352,48 @@ def _static_leakage_checks() -> tuple[bool, bool]:
     based integration test over this module's source.
     """
     tree = ast.parse(_SOURCE.read_text())
-    calls = {node.func.attr for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)}
+    calls = {
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
     no_evaluator_selector = "choose_symbol" not in calls
     return True, no_evaluator_selector
 
 
-def run_independent_symbol_grounding_study(*, seeds: Sequence[int] = (101, 127, 149)) -> IndependentSymbolGroundingStudy:
+def run_independent_symbol_grounding_study(
+    *, seeds: Sequence[int] = (101, 127, 149)
+) -> IndependentSymbolGroundingStudy:
     normalized = _normalize_seeds(seeds)
     results = tuple(_trial_result(seed) for seed in normalized)
     isg5, isg6 = _static_leakage_checks()
-    gate_fields = ("isg1_interactive_convergence", "isg2_isolated_at_chance", "isg3_shuffled_at_chance", "isg4_delta_not_baseline_artifact")
+    gate_fields = (
+        "isg1_interactive_convergence",
+        "isg2_isolated_at_chance",
+        "isg3_shuffled_at_chance",
+        "isg4_delta_not_baseline_artifact",
+    )
     return IndependentSymbolGroundingStudy(
         seeds=normalized,
         per_seed=results,
-        isg1_interactive_convergence=all(getattr(item, "isg1_interactive_convergence") for item in results),
+        isg1_interactive_convergence=all(
+            getattr(item, "isg1_interactive_convergence") for item in results
+        ),
         isg2_isolated_at_chance=all(getattr(item, "isg2_isolated_at_chance") for item in results),
         isg3_shuffled_at_chance=all(getattr(item, "isg3_shuffled_at_chance") for item in results),
-        isg4_delta_not_baseline_artifact=all(getattr(item, "isg4_delta_not_baseline_artifact") for item in results),
+        isg4_delta_not_baseline_artifact=all(
+            getattr(item, "isg4_delta_not_baseline_artifact") for item in results
+        ),
         isg5_no_shared_seed_leakage=isg5,
         isg6_no_evaluator_symbol_selection=isg6,
         replay_deterministic=all(item.replay_deterministic for item in results),
         all_gates_pass=(
-            all(all(getattr(item, field) for field in gate_fields) and item.replay_deterministic for item in results)
-            and isg5 and isg6
+            all(
+                all(getattr(item, field) for field in gate_fields) and item.replay_deterministic
+                for item in results
+            )
+            and isg5
+            and isg6
         ),
     )
 

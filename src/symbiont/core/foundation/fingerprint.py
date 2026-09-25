@@ -9,18 +9,19 @@ instance identifiers (organism_id), tick counts, file paths, and environment dyn
 Full experimental replication requires the configuration fingerprint, the initial
 seed/checkpoint state, and the deterministic simulator/environment harness.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, is_dataclass
 import hashlib
 import json
 import math
+from dataclasses import asdict, is_dataclass
 from typing import Any
 
-from .epistemic import EpistemicConventions, DEFAULT_EPISTEMIC_CONVENTIONS
-from .limits import OrganismLimits
-from ..embodiment.physiology_config import PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
 from ...cognition.limits import KernelLimits
+from ..embodiment.physiology_config import DEFAULT_PHYSIOLOGY_CONFIG, PhysiologyConfig
+from .epistemic import DEFAULT_EPISTEMIC_CONVENTIONS, EpistemicConventions
+from .limits import OrganismLimits
 
 FINGERPRINT_SCHEMA_VERSION = 5
 
@@ -112,6 +113,7 @@ def generate_runtime_fingerprint_from_runtime(
     if software_version is None:
         try:
             import symbiont
+
             software_version = getattr(symbiont, "__version__", "unknown")
         except Exception:
             software_version = "unknown"
@@ -133,7 +135,9 @@ def generate_runtime_fingerprint_from_runtime(
     }
 
     normalized = _canonical_normalize(payload)
-    encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    encoded = json.dumps(
+        normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -164,7 +168,9 @@ def generate_runtime_fingerprint(
     }
 
     normalized = _canonical_normalize(payload)
-    encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    encoded = json.dumps(
+        normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 

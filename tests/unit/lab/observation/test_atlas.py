@@ -14,7 +14,12 @@ def _snapshot():
                 {"id": "predictor.1", "kind": "predictor", "predictsNodeId": "concept.1"},
             ],
             "edges": [
-                {"sourceId": "predictor.1", "targetId": "concept.1", "kind": "excitatory", "weight": 0.4},
+                {
+                    "sourceId": "predictor.1",
+                    "targetId": "concept.1",
+                    "kind": "excitatory",
+                    "weight": 0.4,
+                },
             ],
         },
         "motor_competences": [
@@ -34,7 +39,12 @@ def _snapshot():
             },
         ],
         "effects": [
-            {"effect_id": "effect.3", "feature_refs": ["signal.1"], "support": 12, "confidence": 0.7},
+            {
+                "effect_id": "effect.3",
+                "feature_refs": ["signal.1"],
+                "support": 12,
+                "confidence": 0.7,
+            },
         ],
         "embodiment": {
             "bindings": [
@@ -137,12 +147,32 @@ def _reembodiment_snapshots():
     after_raw = {
         "tick": 200,
         "motor_competences": [
-            {"competence_id": "competence.7", "effect_id": "effect.3", "maturity": "established", "support": 12},
-            {"competence_id": "competence.8", "effect_id": None, "maturity": "candidate", "support": 1},
-            {"competence_id": "competence.9", "effect_id": "effect.3", "maturity": "candidate", "support": 2},
+            {
+                "competence_id": "competence.7",
+                "effect_id": "effect.3",
+                "maturity": "established",
+                "support": 12,
+            },
+            {
+                "competence_id": "competence.8",
+                "effect_id": None,
+                "maturity": "candidate",
+                "support": 1,
+            },
+            {
+                "competence_id": "competence.9",
+                "effect_id": "effect.3",
+                "maturity": "candidate",
+                "support": 2,
+            },
         ],
         "effects": [
-            {"effect_id": "effect.3", "feature_refs": ["signal.1"], "support": 14, "confidence": 0.8},
+            {
+                "effect_id": "effect.3",
+                "feature_refs": ["signal.1"],
+                "support": 14,
+                "confidence": 0.8,
+            },
         ],
         "embodiment": {
             # competence.7's binding did not survive the body swap; a fresh
@@ -224,7 +254,9 @@ def test_build_cognitive_atlas_controllers_absent_without_competences():
 def test_build_cognitive_atlas_derives_competence_state_from_real_fields():
     atlas = build_cognitive_atlas(_snapshot())
 
-    states = {node.id: node.metadata["state"] for node in atlas.nodes if node.kind == "motor_competence"}
+    states = {
+        node.id: node.metadata["state"] for node in atlas.nodes if node.kind == "motor_competence"
+    }
     # established maturity + reliability 0.6 (>=0.5) with a binding -> usable
     assert states["competence.7"] == "usable"
     # candidate maturity, no binding at all -> unbound
@@ -236,14 +268,22 @@ def test_build_cognitive_atlas_competence_state_calibrating_and_degraded():
     # established but bound with low reliability -> degraded, not usable
     snapshot["embodiment"]["bindings"][0]["reliability"] = 0.2
     degraded_atlas = build_cognitive_atlas(snapshot)
-    degraded_states = {node.id: node.metadata["state"] for node in degraded_atlas.nodes if node.kind == "motor_competence"}
+    degraded_states = {
+        node.id: node.metadata["state"]
+        for node in degraded_atlas.nodes
+        if node.kind == "motor_competence"
+    }
     assert degraded_states["competence.7"] == "degraded"
 
     snapshot2 = _snapshot()
     # bound but still candidate maturity -> calibrating, not usable
     snapshot2["motor_competences"][0]["maturity"] = "emerging"
     calibrating_atlas = build_cognitive_atlas(snapshot2)
-    calibrating_states = {node.id: node.metadata["state"] for node in calibrating_atlas.nodes if node.kind == "motor_competence"}
+    calibrating_states = {
+        node.id: node.metadata["state"]
+        for node in calibrating_atlas.nodes
+        if node.kind == "motor_competence"
+    }
     assert calibrating_states["competence.7"] == "calibrating"
 
 
@@ -426,8 +466,12 @@ def test_diff_cognitive_atlas_to_delta_payload_matches_spec_wire_shape():
     payload = diff_cognitive_atlas(before, after).to_delta_payload()
 
     assert set(payload.keys()) == {
-        "nodes_added", "nodes_removed", "nodes_updated",
-        "edges_added", "edges_removed", "edges_updated",
+        "nodes_added",
+        "nodes_removed",
+        "nodes_updated",
+        "edges_added",
+        "edges_removed",
+        "edges_updated",
         "activity_updates",
     }
     assert "competence.99" in payload["nodes_added"]

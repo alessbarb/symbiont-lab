@@ -1,4 +1,5 @@
 """Passive public state for Sensorimotor v2."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

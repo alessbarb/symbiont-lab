@@ -29,8 +29,7 @@ def test_study_rejects_invalid_inputs() -> None:
 
 
 def test_resting_schedule_records_dormancy_without_free_replenishment() -> None:
-    result = run_physiology_study(ticks=12, maintenance_cost=0.1,
-                                  resting=[True] * 12)
+    result = run_physiology_study(ticks=12, maintenance_cost=0.1, resting=[True] * 12)
     assert result.dormant_ticks > 0
     assert result.final_reserve < 1.0
 

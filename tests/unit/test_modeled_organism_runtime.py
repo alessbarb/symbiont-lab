@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 import json
-import pytest
-from importlib import resources
 from dataclasses import replace
+from importlib import resources
+
+import pytest
+from symbiont.core.birth_authority import HabitatBirthAuthority
 
 from symbiont.cognition.genome import GenomeCodec
-from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.modeling import (
     ArchitectureId,
+    EpistemicStatus,
     ExperienceLedger,
     ExperienceRecord,
-    EpistemicStatus,
     ModelArtifactManifest,
+    ModeledOrganismRuntime,
     ModelObjective,
     ModelState,
-    ModeledOrganismRuntime,
     SourceKind,
     TrainingRequest,
 )
-
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
@@ -102,25 +102,26 @@ def test_clonal_child_inherits_modeling_capacity_but_not_private_model_or_experi
         discover_senses=False,
     )
     parent.adopt_private_model(_artifact(parent))
-    parent.record_experience(ExperienceRecord(
-        record_id="parent.experience",
-        organism_id=parent.organism_id,
-        tick_class=0,
-        context_tokens=("sense.parent",),
-        action_token=None,
-        outcome_tokens=("outcome.parent",),
-        epistemic_status=EpistemicStatus.OBSERVED,
-        evidence_refs=("evidence.parent",),
-        confidence_class=7,
-        source_kind=SourceKind.DIRECT,
-    ))
+    parent.record_experience(
+        ExperienceRecord(
+            record_id="parent.experience",
+            organism_id=parent.organism_id,
+            tick_class=0,
+            context_tokens=("sense.parent",),
+            action_token=None,
+            outcome_tokens=("outcome.parent",),
+            epistemic_status=EpistemicStatus.OBSERVED,
+            evidence_refs=("evidence.parent",),
+            confidence_class=7,
+            source_kind=SourceKind.DIRECT,
+        )
+    )
     parent.living_body_state.growth_progress = 1.0
     child = parent.materialize_clonal_bud()
     assert isinstance(child, ModeledOrganismRuntime)
     assert child is not None
     assert child.model_registry.records == ()
     assert child.experience_ledger.records == ()
-
 
 
 def _transition(runtime: ModeledOrganismRuntime, tick: int) -> ExperienceRecord:
@@ -187,7 +188,6 @@ def test_autonomous_private_learning_state_survives_checkpoint():
     assert restored.autonomous_private_learning_plan() is None
 
 
-
 def test_autonomous_private_learning_reacts_to_own_model_contradictions():
     runtime = ModeledOrganismRuntime(organism_id="learning-revision")
     shadow = runtime.adopt_private_model(_artifact(runtime), evaluation_summary=(1, 2))
@@ -209,18 +209,20 @@ def test_autonomous_private_learning_reacts_to_own_model_contradictions():
         runtime.record_experience(_transition(runtime, tick))
 
     for index in range(8):
-        runtime.record_experience(ExperienceRecord(
-            record_id=f"validation.test.{index}",
-            organism_id=runtime.organism_id,
-            tick_class=95 + index,
-            context_tokens=("model.context",),
-            action_token=None,
-            outcome_tokens=("model.outcome",),
-            epistemic_status=EpistemicStatus.CONTRADICTED,
-            evidence_refs=(f"evidence.validation.{index}",),
-            confidence_class=4,
-            source_kind=SourceKind.MODEL,
-        ))
+        runtime.record_experience(
+            ExperienceRecord(
+                record_id=f"validation.test.{index}",
+                organism_id=runtime.organism_id,
+                tick_class=95 + index,
+                context_tokens=("model.context",),
+                action_token=None,
+                outcome_tokens=("model.outcome",),
+                epistemic_status=EpistemicStatus.CONTRADICTED,
+                evidence_refs=(f"evidence.validation.{index}",),
+                confidence_class=4,
+                source_kind=SourceKind.MODEL,
+            )
+        )
 
     plan = runtime.autonomous_private_learning_plan()
 
@@ -228,7 +230,6 @@ def test_autonomous_private_learning_reacts_to_own_model_contradictions():
     assert plan.reason == "prediction-revision"
     assert plan.new_transition_count == 32
     assert plan.contradiction_ratio == 1.0
-
 
 
 def test_autonomous_replay_budget_grows_with_learning_pressure():
@@ -250,18 +251,20 @@ def test_autonomous_replay_budget_grows_with_learning_pressure():
     revision._private_learning_last_transition_tick = -1
     revision._private_learning_new_transition_count = 96
     for index in range(8):
-        revision.record_experience(ExperienceRecord(
-            record_id=f"validation.pressure.{index}",
-            organism_id=revision.organism_id,
-            tick_class=96 + index,
-            context_tokens=("model.context",),
-            action_token=None,
-            outcome_tokens=("model.outcome",),
-            epistemic_status=EpistemicStatus.CONTRADICTED,
-            evidence_refs=(f"evidence.pressure.{index}",),
-            confidence_class=4,
-            source_kind=SourceKind.MODEL,
-        ))
+        revision.record_experience(
+            ExperienceRecord(
+                record_id=f"validation.pressure.{index}",
+                organism_id=revision.organism_id,
+                tick_class=96 + index,
+                context_tokens=("model.context",),
+                action_token=None,
+                outcome_tokens=("model.outcome",),
+                epistemic_status=EpistemicStatus.CONTRADICTED,
+                evidence_refs=(f"evidence.pressure.{index}",),
+                confidence_class=4,
+                source_kind=SourceKind.MODEL,
+            )
+        )
     revision_plan = revision.autonomous_private_learning_plan()
     assert revision_plan is not None
 
@@ -281,7 +284,6 @@ def test_autonomous_replay_budget_is_bounded():
     assert plan.replay_pressure == 1.0
     assert plan.request.requested_epochs == 8
     assert plan.request.requested_steps == 48
-
 
 
 def test_autonomous_private_learning_plan_authors_stopping_policy():
@@ -326,7 +328,6 @@ def test_training_request_identity_includes_stopping_policy():
     assert base.request_id != autonomous.request_id
 
 
-
 def test_private_training_compute_settlement_is_actual_and_idempotent():
     runtime = ModeledOrganismRuntime(organism_id="settlement")
     request = runtime.request_private_model_training(
@@ -343,17 +344,23 @@ def test_private_training_compute_settlement_is_actual_and_idempotent():
         requested_min_validation_gain=0.005,
     )
     before = runtime.metabolism.snapshot().reserve["cognition"]
-    assert runtime.settle_private_model_training_compute(
-        request_id=request.request_id,
-        steps_completed=18,
-    ) is True
+    assert (
+        runtime.settle_private_model_training_compute(
+            request_id=request.request_id,
+            steps_completed=18,
+        )
+        is True
+    )
     after = runtime.metabolism.snapshot().reserve["cognition"]
     assert before - after == pytest.approx(18 / 100_000.0)
 
-    assert runtime.settle_private_model_training_compute(
-        request_id=request.request_id,
-        steps_completed=18,
-    ) is False
+    assert (
+        runtime.settle_private_model_training_compute(
+            request_id=request.request_id,
+            steps_completed=18,
+        )
+        is False
+    )
     assert runtime.metabolism.snapshot().reserve["cognition"] == pytest.approx(after)
 
 
@@ -376,11 +383,13 @@ def test_private_training_settlement_ids_survive_checkpoint():
 
     restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
 
-    assert restored.settle_private_model_training_compute(
-        request_id=request.request_id,
-        steps_completed=12,
-    ) is False
-
+    assert (
+        restored.settle_private_model_training_compute(
+            request_id=request.request_id,
+            steps_completed=12,
+        )
+        is False
+    )
 
 
 def test_observed_transitions_feed_episodic_memory_and_survive_checkpoint():
@@ -399,22 +408,23 @@ def test_observed_transitions_feed_episodic_memory_and_survive_checkpoint():
 
 def test_model_records_never_enter_episodic_memory():
     runtime = ModeledOrganismRuntime(organism_id="episodic-anti-self-confirm")
-    runtime.record_experience(ExperienceRecord(
-        record_id="model.episodic-test",
-        organism_id=runtime.organism_id,
-        tick_class=0,
-        context_tokens=("model.context",),
-        action_token=None,
-        outcome_tokens=("model.outcome",),
-        epistemic_status=EpistemicStatus.PREDICTED,
-        evidence_refs=(),
-        confidence_class=4,
-        source_kind=SourceKind.MODEL,
-    ))
+    runtime.record_experience(
+        ExperienceRecord(
+            record_id="model.episodic-test",
+            organism_id=runtime.organism_id,
+            tick_class=0,
+            context_tokens=("model.context",),
+            action_token=None,
+            outcome_tokens=("model.outcome",),
+            epistemic_status=EpistemicStatus.PREDICTED,
+            evidence_refs=(),
+            confidence_class=4,
+            source_kind=SourceKind.MODEL,
+        )
+    )
 
     assert runtime.episodic_memory.episodes == ()
     assert runtime.episodic_memory.metrics(current_tick=0).pending_records == 0
-
 
 
 def test_pre_episodic_checkpoint_migrates_retained_causal_history():
@@ -435,7 +445,6 @@ def test_pre_episodic_checkpoint_migrates_retained_causal_history():
     }
     assert "transition.test.0" in source_ids
     assert "transition.test.10" in source_ids
-
 
 
 def test_private_corpus_retains_exact_historical_evidence_after_hot_ledger_eviction():
@@ -463,7 +472,6 @@ def test_private_corpus_retains_exact_historical_evidence_after_hot_ledger_evict
     restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
     assert restored.experience_archive.records == runtime.experience_archive.records
     assert restored.experience_archive.seen_count == runtime.experience_archive.seen_count
-
 
 
 def test_episodic_projection_reports_total_independent_epoch_support():

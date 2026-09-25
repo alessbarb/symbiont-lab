@@ -1,4 +1,5 @@
 """Launch a persistent Symbiont World with Observatory as its only web UI."""
+
 from __future__ import annotations
 
 import argparse
@@ -22,7 +23,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--height", type=int, default=8)
     parser.add_argument("--tick-delay", type=float, default=0.5, help="seconds between ticks")
     parser.add_argument("--port", type=int, default=8766, help="Observatory port")
-    parser.add_argument("--storage-dir", type=str, default=None, help="Directory for checkpoint storage")
+    parser.add_argument(
+        "--storage-dir", type=str, default=None, help="Directory for checkpoint storage"
+    )
     parser.add_argument(
         "--observatory-dir",
         type=Path,

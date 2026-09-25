@@ -1,4 +1,5 @@
 """Deterministic multi-organism Genesis World runtime.\n\nThe class preserves legacy study modes, while the canonical persistent World\nenables experimental_clean: embodied actuation, mixed opaque perception and\nfail-closed semantic-contamination guards.\n\nThe experimental_clean=False (default) path is not dead: it backs the\nlocked, preregistered W03 study (experiments/world/genesis-v1/run_w03.py,\ndocs/design/symbiont-world-v2.md §11), whose regression tests\n(tests/unit/lab/world/test_w03_experiment.py) run it directly against this\nclass without ever going through WorldRuntimeState. WorldRuntimeState itself\nrefuses any experimental_clean=False population\n(assert_experimental_boundary / \"canonical World refuses\nlegacy/contaminated population\"), so this branch never reaches the\ncanonical live World -- it stays only to keep a historical study\nreproducible. Do not delete without first retiring that study and its lock\ntest.\n"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -14,10 +15,9 @@ from symbiont_world.state import WorldState
 from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology
 
 from .adapter import (
-    ActionExecutionResult,
+    _OCCUPANCY_SIGNAL,
     ActuationBindingConstitution,
     WorldTickRecord,
-    _OCCUPANCY_SIGNAL,
     _act,
     _capabilities_for,
     _construct_organism,
@@ -55,7 +55,7 @@ class PopulationTickRecord:
 
 
 class PopulationGenesisRuntime:
-    """Run N organism runtimes inside one shared Genesis World.\n\n    Per-tick ordering is deterministic. Legacy callers may disable movement or\n    use historical action surfaces; canonical persistent World selects the\n    fail-closed experimental-clean configuration.\n    """
+    """Run N organism runtimes inside one shared Genesis World.\n\n    Per-tick ordering is deterministic. Legacy callers may disable movement or\n    use historical action surfaces; canonical persistent World selects the\n    fail-closed experimental-clean configuration.\n"""
 
     def __init__(
         self,
@@ -87,7 +87,9 @@ class PopulationGenesisRuntime:
         self.environment = WorldEnvironment(ground_truth)
         self.state = WorldState(world_id=world_id)
         self.journal = journal if journal is not None else EventJournal()
-        self.deferred_queue = deferred_queue if deferred_queue is not None else DeferredEffectQueue()
+        self.deferred_queue = (
+            deferred_queue if deferred_queue is not None else DeferredEffectQueue()
+        )
         self.geography = (
             geography if geography is not None else DynamicGeography(topology, world_seed)
         )
@@ -101,7 +103,9 @@ class PopulationGenesisRuntime:
         for index, (organism_id, cell) in enumerate(sorted(zip(organism_ids, start_cells))):
             if not self.state.occupancy.occupy(cell, organism_id):
                 raise ValueError(f"start_cell {cell} already occupied (organism {organism_id!r})")
-            self.state.bodies[organism_id] = BodyPlacement(organism_id=organism_id, occupied_cell=cell)
+            self.state.bodies[organism_id] = BodyPlacement(
+                organism_id=organism_id, occupied_cell=cell
+            )
             self._rigs[organism_id] = _construct_organism(
                 organism_id=organism_id,
                 world_id=world_id,
@@ -119,9 +123,7 @@ class PopulationGenesisRuntime:
     def _observation_for(self, organism_id: str) -> WorldObservation:
         rig = self._rigs[organism_id]
         body = self.state.bodies[organism_id]
-        base = local_observation(
-            self.topology, self.state.occupancy, body, self.environment
-        )
+        base = local_observation(self.topology, self.state.occupancy, body, self.environment)
         reception: list[ReceivedEmission] = []
         for emitter_id, sequence in sorted(self._emissions.items()):
             if emitter_id == organism_id or emitter_id not in self.state.bodies:
@@ -163,8 +165,7 @@ class PopulationGenesisRuntime:
                             0.0,
                             min(
                                 1.0,
-                                metabolic.reserve[kind]
-                                / max(metabolic.capacity[kind], 1e-12),
+                                metabolic.reserve[kind] / max(metabolic.capacity[kind], 1e-12),
                             ),
                         )
                         for kind in sorted(metabolic.capacity)
@@ -195,9 +196,7 @@ class PopulationGenesisRuntime:
             )
             leaked = set(cleaned.signals) & forbidden
             if leaked:
-                raise RuntimeError(
-                    f"experimental contamination in observation: {sorted(leaked)}"
-                )
+                raise RuntimeError(f"experimental contamination in observation: {sorted(leaked)}")
             return cleaned
         signals = dict(apparatus_observation.signals)
         signals.update(local_substrate_signals(self.geography, body.occupied_cell))
@@ -228,22 +227,24 @@ class PopulationGenesisRuntime:
             if delivered <= 0.0:
                 return
             impulse = self.geography.apply_directional_impulse(cell, cell, delivered)
-            tx.stage_event(WorldEvent(
-                event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-local-{organism_id}",
-                world_id=self.state.world_id,
-                tick=current_tick,
-                kind="SUBSTRATE_IMPULSE",
-                actor=organism_id,
-                position=f"{cell.q},{cell.r}",
-                payload={
-                    "actuator_id": actuation.actuator_id if actuation is not None else None,
-                    "delivered": delivered,
-                    "water_transferred": impulse.water_transferred,
-                    "detritus_transferred": impulse.detritus_transferred,
-                    "origin_disturbance_added": impulse.origin_disturbance_added,
-                    "target_disturbance_added": impulse.target_disturbance_added,
-                },
-            ))
+            tx.stage_event(
+                WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-local-{organism_id}",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="SUBSTRATE_IMPULSE",
+                    actor=organism_id,
+                    position=f"{cell.q},{cell.r}",
+                    payload={
+                        "actuator_id": actuation.actuator_id if actuation is not None else None,
+                        "delivered": delivered,
+                        "water_transferred": impulse.water_transferred,
+                        "detritus_transferred": impulse.detritus_transferred,
+                        "origin_disturbance_added": impulse.origin_disturbance_added,
+                        "target_disturbance_added": impulse.target_disturbance_added,
+                    },
+                )
+            )
             return
         if action.acquire != "local":
             return
@@ -255,15 +256,17 @@ class PopulationGenesisRuntime:
             if amount > 0.0 and resource_id in rig.resource_habitats
         ]
         if not available:
-            tx.stage_event(WorldEvent(
-                event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
-                world_id=self.state.world_id,
-                tick=current_tick,
-                kind="ACTUATION_RESOLVED",
-                actor=organism_id,
-                position=f"{cell.q},{cell.r}",
-                payload={"effect": "acquire", "outcome": "no_local_resource"},
-            ))
+            tx.stage_event(
+                WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="ACTUATION_RESOLVED",
+                    actor=organism_id,
+                    position=f"{cell.q},{cell.r}",
+                    payload={"effect": "acquire", "outcome": "no_local_resource"},
+                )
+            )
             return
         actuation = rig.runtime.last_actuation
         requested = min(
@@ -280,19 +283,21 @@ class PopulationGenesisRuntime:
             kind="maintenance",
             resource_id=resource_id,
         )
-        tx.stage_event(WorldEvent(
-            event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
-            world_id=self.state.world_id,
-            tick=current_tick,
-            kind="ACTUATION_RESOLVED",
-            actor=organism_id,
-            position=f"{cell.q},{cell.r}",
-            payload={
-                "effect": "acquire",
-                "outcome": "granted" if granted > 0.0 else "no_transfer",
-                "amount": granted,
-            },
-        ))
+        tx.stage_event(
+            WorldEvent(
+                event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
+                world_id=self.state.world_id,
+                tick=current_tick,
+                kind="ACTUATION_RESOLVED",
+                actor=organism_id,
+                position=f"{cell.q},{cell.r}",
+                payload={
+                    "effect": "acquire",
+                    "outcome": "granted" if granted > 0.0 else "no_transfer",
+                    "amount": granted,
+                },
+            )
+        )
 
     def _resolve_embodied_material_exchange(
         self,
@@ -316,9 +321,7 @@ class PopulationGenesisRuntime:
             return
         pool = self.environment.resource_pool(cell)
         available = [
-            (resource_id, amount)
-            for resource_id, amount in sorted(pool.items())
-            if amount > 0.0
+            (resource_id, amount) for resource_id, amount in sorted(pool.items()) if amount > 0.0
         ]
         if not available:
             return
@@ -346,22 +349,26 @@ class PopulationGenesisRuntime:
         if unabsorbed > 0.0:
             for resource_id, withdrawn in withdrawn_per_res.items():
                 if actual_withdrawn > 0.0:
-                    self.environment.deposit(cell, resource_id, unabsorbed * (withdrawn / actual_withdrawn))
-        tx.stage_event(WorldEvent(
-            event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
-            world_id=self.state.world_id,
-            tick=current_tick,
-            kind="ACTUATION_RESOLVED",
-            actor=organism_id,
-            position=f"{cell.q},{cell.r}",
-            payload={
-                "effect": "material_exchange",
-                "outcome": "granted" if granted > 0.0 else "no_transfer",
-                "amount": granted,
-                "actuator_id": actuation.actuator_id,
-                "delivered": actuation.delivered,
-            },
-        ))
+                    self.environment.deposit(
+                        cell, resource_id, unabsorbed * (withdrawn / actual_withdrawn)
+                    )
+        tx.stage_event(
+            WorldEvent(
+                event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
+                world_id=self.state.world_id,
+                tick=current_tick,
+                kind="ACTUATION_RESOLVED",
+                actor=organism_id,
+                position=f"{cell.q},{cell.r}",
+                payload={
+                    "effect": "material_exchange",
+                    "outcome": "granted" if granted > 0.0 else "no_transfer",
+                    "amount": granted,
+                    "actuator_id": actuation.actuator_id,
+                    "delivered": actuation.delivered,
+                },
+            )
+        )
 
     def assert_experimental_boundary(self) -> None:
         """Fail closed if canonical clean-mode assumptions are violated."""
@@ -416,9 +423,7 @@ class PopulationGenesisRuntime:
                 )
             receptor_sets.append(rig_receptors)
             if not rig.experimental_clean:
-                raise RuntimeError(
-                    f"experimental contamination: {organism_id} is not marked clean"
-                )
+                raise RuntimeError(f"experimental contamination: {organism_id} is not marked clean")
             if rig.resource_habitats:
                 raise RuntimeError(
                     f"experimental contamination: World resource habitats injected into {organism_id}"
@@ -489,14 +494,16 @@ class PopulationGenesisRuntime:
                 )
             move_bindings = [item for item in bindings if item.effect == "move"]
             interaction_bindings = [item for item in bindings if item.effect == "interact"]
-            if (
-                len(move_bindings) != 6
-                or {item.argument for item in move_bindings} != {str(i) for i in range(6)}
-            ):
+            if len(move_bindings) != 6 or {item.argument for item in move_bindings} != {
+                str(i) for i in range(6)
+            }:
                 raise RuntimeError(
                     f"experimental contamination: directional motor constitution changed for {organism_id}"
                 )
-            if len(interaction_bindings) != 1 or interaction_bindings[0].argument not in {"", "local"}:
+            if len(interaction_bindings) != 1 or interaction_bindings[0].argument not in {
+                "",
+                "local",
+            }:
                 raise RuntimeError(
                     f"experimental contamination: local physical interaction body changed for {organism_id}"
                 )
@@ -567,15 +574,17 @@ class PopulationGenesisRuntime:
         )
         with tx:
             self.environment.propagate_fields(current_tick)
-            tx.stage_event(WorldEvent(
-                event_id=f"evt-{self.state.world_id}-{current_tick}-fields",
-                world_id=self.state.world_id,
-                tick=current_tick,
-                kind="WORLD_FIELD_CHANGED",
-                actor=None,
-                position=None,
-                payload=dict(self.environment.field_values()),
-            ))
+            tx.stage_event(
+                WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-fields",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="WORLD_FIELD_CHANGED",
+                    actor=None,
+                    position=None,
+                    payload=dict(self.environment.field_values()),
+                )
+            )
 
             # Ecology advances on the World clock, not on organism presence.
             # Every world cell receives exactly one renewal step per tick,
@@ -603,24 +612,24 @@ class PopulationGenesisRuntime:
                         if renewal_factor_max is None
                         else max(renewal_factor_max, renewal_factor)
                     )
-            tx.stage_event(WorldEvent(
-                event_id=f"evt-{self.state.world_id}-{current_tick}-renewal",
-                world_id=self.state.world_id,
-                tick=current_tick,
-                kind="RESOURCE_RENEWED",
-                actor=None,
-                position=None,
-                payload={
-                    "cell_count": renewal_cell_count,
-                    "mean_renewal_factor": (
-                        renewal_factor_sum / renewal_cell_count
-                        if renewal_cell_count
-                        else 0.0
-                    ),
-                    "min_renewal_factor": renewal_factor_min,
-                    "max_renewal_factor": renewal_factor_max,
-                },
-            ))
+            tx.stage_event(
+                WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-renewal",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="RESOURCE_RENEWED",
+                    actor=None,
+                    position=None,
+                    payload={
+                        "cell_count": renewal_cell_count,
+                        "mean_renewal_factor": (
+                            renewal_factor_sum / renewal_cell_count if renewal_cell_count else 0.0
+                        ),
+                        "min_renewal_factor": renewal_factor_min,
+                        "max_renewal_factor": renewal_factor_max,
+                    },
+                )
+            )
 
             for organism_id in self.organism_ids:
                 rig = self._rigs[organism_id]
@@ -647,7 +656,9 @@ class PopulationGenesisRuntime:
                     for effect_index, effect in enumerate(due_effects):
                         if self.is_alive(organism_id):
                             if rig.experimental_clean and rig.individual is not None:
-                                before_integrity = rig.individual.body.physiology.structural_integrity
+                                before_integrity = (
+                                    rig.individual.body.physiology.structural_integrity
+                                )
                                 rig.individual.body.apply_damage(effect.amount)
                                 diagnostic_deferred_damage += max(
                                     0.0,
@@ -656,23 +667,25 @@ class PopulationGenesisRuntime:
                                 )
                             elif rig.runtime is not None:
                                 rig.runtime.apply_environmental_damage(effect.amount)
-                            tx.stage_event(WorldEvent(
-                                event_id=(
-                                    f"evt-{self.state.world_id}-{current_tick}-defdmg-"
-                                    f"{organism_id}-{effect_index}"
-                                ),
-                                world_id=self.state.world_id,
-                                tick=current_tick,
-                                kind="PHYSIOLOGICAL_DAMAGE",
-                                actor=organism_id,
-                                position=f"{cell.q},{cell.r}",
-                                payload={
-                                    "damage": effect.amount,
-                                    "source": "deferred_effect",
-                                    "due_tick": effect.due_tick,
-                                    "effect_index": effect_index,
-                                },
-                            ))
+                            tx.stage_event(
+                                WorldEvent(
+                                    event_id=(
+                                        f"evt-{self.state.world_id}-{current_tick}-defdmg-"
+                                        f"{organism_id}-{effect_index}"
+                                    ),
+                                    world_id=self.state.world_id,
+                                    tick=current_tick,
+                                    kind="PHYSIOLOGICAL_DAMAGE",
+                                    actor=organism_id,
+                                    position=f"{cell.q},{cell.r}",
+                                    payload={
+                                        "damage": effect.amount,
+                                        "source": "deferred_effect",
+                                        "due_tick": effect.due_tick,
+                                        "effect_index": effect_index,
+                                    },
+                                )
+                            )
 
                 pre_pool = dict(self.environment.resource_pool(cell))
                 for resource_id, habitat in rig.resource_habitats.items():
@@ -709,22 +722,24 @@ class PopulationGenesisRuntime:
                     )
                     if delivered > 0.0:
                         impulse = self.geography.apply_directional_impulse(cell, cell, delivered)
-                        tx.stage_event(WorldEvent(
-                            event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-local-{organism_id}",
-                            world_id=self.state.world_id,
-                            tick=current_tick,
-                            kind="SUBSTRATE_IMPULSE",
-                            actor=organism_id,
-                            position=f"{cell.q},{cell.r}",
-                            payload={
-                                "actuator_id": "body_effector",
-                                "delivered": delivered,
-                                "water_transferred": impulse.water_transferred,
-                                "detritus_transferred": impulse.detritus_transferred,
-                                "origin_disturbance_added": impulse.origin_disturbance_added,
-                                "target_disturbance_added": impulse.target_disturbance_added,
-                            },
-                        ))
+                        tx.stage_event(
+                            WorldEvent(
+                                event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-local-{organism_id}",
+                                world_id=self.state.world_id,
+                                tick=current_tick,
+                                kind="SUBSTRATE_IMPULSE",
+                                actor=organism_id,
+                                position=f"{cell.q},{cell.r}",
+                                payload={
+                                    "actuator_id": "body_effector",
+                                    "delivered": delivered,
+                                    "water_transferred": impulse.water_transferred,
+                                    "detritus_transferred": impulse.detritus_transferred,
+                                    "origin_disturbance_added": impulse.origin_disturbance_added,
+                                    "target_disturbance_added": impulse.target_disturbance_added,
+                                },
+                            )
+                        )
                     pool = self.environment.resource_pool(cell)
                     available = [
                         (resource_id, amount)
@@ -740,13 +755,16 @@ class PopulationGenesisRuntime:
                             actual_withdrawn = 0.0
                             for resource_id, amount in available:
                                 physical_share = requested * (amount / total_available)
-                                withdrawn = self.environment.acquire(cell, resource_id, physical_share)
+                                withdrawn = self.environment.acquire(
+                                    cell, resource_id, physical_share
+                                )
                                 withdrawn_per_resource[resource_id] = withdrawn
                                 actual_withdrawn += withdrawn
 
                             if actual_withdrawn > 0.0:
                                 # 2. World issues MaterialTransfer for actually granted physical matter
                                 from symbiont.core.body import MaterialTransfer
+
                                 transfer = MaterialTransfer(
                                     source_id=f"world:{cell.q},{cell.r}",
                                     target_body_id=rig.individual.body_id,
@@ -764,21 +782,25 @@ class PopulationGenesisRuntime:
                                             refund = unabsorbed * (withdrawn / actual_withdrawn)
                                             self.environment.deposit(cell, resource_id, refund)
 
-                                tx.stage_event(WorldEvent(
-                                    event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
-                                    world_id=self.state.world_id,
-                                    tick=current_tick,
-                                    kind="ACTUATION_RESOLVED",
-                                    actor=organism_id,
-                                    position=f"{cell.q},{cell.r}",
-                                    payload={
-                                        "effect": "material_exchange",
-                                        "outcome": "granted" if absorbed > 0.0 else "no_transfer",
-                                        "amount": absorbed,
-                                        "actuator_id": "body_effector",
-                                        "delivered": delivered,
-                                    },
-                                ))
+                                tx.stage_event(
+                                    WorldEvent(
+                                        event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
+                                        world_id=self.state.world_id,
+                                        tick=current_tick,
+                                        kind="ACTUATION_RESOLVED",
+                                        actor=organism_id,
+                                        position=f"{cell.q},{cell.r}",
+                                        payload={
+                                            "effect": "material_exchange",
+                                            "outcome": "granted"
+                                            if absorbed > 0.0
+                                            else "no_transfer",
+                                            "amount": absorbed,
+                                            "actuator_id": "body_effector",
+                                            "delivered": delivered,
+                                        },
+                                    )
+                                )
                     action_result = _act(rig)
                 else:
                     rig.runtime.tick()
@@ -798,41 +820,48 @@ class PopulationGenesisRuntime:
                     )
                     if world_action is not None and world_action.emit is not None:
                         next_emissions[organism_id] = tuple(world_action.emit)
-                        tx.stage_event(WorldEvent(
-                            event_id=f"evt-{self.state.world_id}-{current_tick}-emit-{organism_id}",
-                            world_id=self.state.world_id,
-                            tick=current_tick,
-                            kind="ORGANISM_EMITTED",
-                            actor=organism_id,
-                            position=f"{cell.q},{cell.r}",
-                            payload={"sequence": list(world_action.emit)},
-                        ))
+                        tx.stage_event(
+                            WorldEvent(
+                                event_id=f"evt-{self.state.world_id}-{current_tick}-emit-{organism_id}",
+                                world_id=self.state.world_id,
+                                tick=current_tick,
+                                kind="ORGANISM_EMITTED",
+                                actor=organism_id,
+                                position=f"{cell.q},{cell.r}",
+                                payload={"sequence": list(world_action.emit)},
+                            )
+                        )
                     action_result = _act(rig)
                     if action_result.executed and "repair" in action_result.action_id.lower():
-                        tx.stage_event(WorldEvent(
-                            event_id=f"evt-{self.state.world_id}-{current_tick}-repair-{organism_id}",
-                            world_id=self.state.world_id,
-                            tick=current_tick,
-                            kind="REPAIR",
-                            actor=organism_id,
-                            position=f"{cell.q},{cell.r}",
-                            payload={"action_id": action_result.action_id},
-                        ))
-
+                        tx.stage_event(
+                            WorldEvent(
+                                event_id=f"evt-{self.state.world_id}-{current_tick}-repair-{organism_id}",
+                                world_id=self.state.world_id,
+                                tick=current_tick,
+                                kind="REPAIR",
+                                actor=organism_id,
+                                position=f"{cell.q},{cell.r}",
+                                payload={"action_id": action_result.action_id},
+                            )
+                        )
 
                 for resource_id, habitat in rig.resource_habitats.items():
-                    consumed = pre_pool.get(resource_id, 0.0) - habitat.snapshot().available_resources
+                    consumed = (
+                        pre_pool.get(resource_id, 0.0) - habitat.snapshot().available_resources
+                    )
                     if consumed > 0.0:
                         self.environment.acquire(cell, resource_id, consumed)
-                        tx.stage_event(WorldEvent(
-                            event_id=f"evt-{self.state.world_id}-{current_tick}-acq-{organism_id}-{resource_id}",
-                            world_id=self.state.world_id,
-                            tick=current_tick,
-                            kind="RESOURCE_ACQUIRED",
-                            actor=organism_id,
-                            position=f"{cell.q},{cell.r}",
-                            payload={"resource_id": resource_id, "amount": consumed},
-                        ))
+                        tx.stage_event(
+                            WorldEvent(
+                                event_id=f"evt-{self.state.world_id}-{current_tick}-acq-{organism_id}-{resource_id}",
+                                world_id=self.state.world_id,
+                                tick=current_tick,
+                                kind="RESOURCE_ACQUIRED",
+                                actor=organism_id,
+                                position=f"{cell.q},{cell.r}",
+                                payload={"resource_id": resource_id, "amount": consumed},
+                            )
+                        )
 
                 density = (
                     self._living_density(organism_id)
@@ -841,25 +870,33 @@ class PopulationGenesisRuntime:
                 )
                 hazard_hits: list[str] = []
                 if self.is_alive(organism_id):
-                    for hazard_id, exposure in self.environment.hazard_exposures_at(cell, density).items():
-                        rng = derive_world_rng(self.world_seed, f"hazard.{hazard_id}:{organism_id}:{current_tick}")
+                    for hazard_id, exposure in self.environment.hazard_exposures_at(
+                        cell, density
+                    ).items():
+                        rng = derive_world_rng(
+                            self.world_seed, f"hazard.{hazard_id}:{organism_id}:{current_tick}"
+                        )
                         if rng.random() < exposure:
                             haz_evt_id = f"evt-{self.state.world_id}-{current_tick}-haz-{hazard_id}-{organism_id}"
-                            tx.stage_event(WorldEvent(
-                                event_id=haz_evt_id,
-                                world_id=self.state.world_id,
-                                tick=current_tick,
-                                kind="HAZARD_EXPOSURE",
-                                actor=organism_id,
-                                position=f"{cell.q},{cell.r}",
-                                payload={
-                                    "hazard_id": hazard_id,
-                                    "exposure": exposure,
-                                    "living_density": density,
-                                },
-                            ))
+                            tx.stage_event(
+                                WorldEvent(
+                                    event_id=haz_evt_id,
+                                    world_id=self.state.world_id,
+                                    tick=current_tick,
+                                    kind="HAZARD_EXPOSURE",
+                                    actor=organism_id,
+                                    position=f"{cell.q},{cell.r}",
+                                    payload={
+                                        "hazard_id": hazard_id,
+                                        "exposure": exposure,
+                                        "living_density": density,
+                                    },
+                                )
+                            )
                             if rig.experimental_clean and rig.individual is not None:
-                                before_integrity = rig.individual.body.physiology.structural_integrity
+                                before_integrity = (
+                                    rig.individual.body.physiology.structural_integrity
+                                )
                                 rig.individual.body.apply_damage(0.05)
                                 diagnostic_hazard_damage += max(
                                     0.0,
@@ -868,16 +905,18 @@ class PopulationGenesisRuntime:
                                 )
                             elif rig.runtime is not None:
                                 rig.runtime.apply_environmental_damage(0.05)
-                            tx.stage_event(WorldEvent(
-                                event_id=f"evt-{self.state.world_id}-{current_tick}-dmg-{hazard_id}-{organism_id}",
-                                world_id=self.state.world_id,
-                                tick=current_tick,
-                                kind="PHYSIOLOGICAL_DAMAGE",
-                                actor=organism_id,
-                                position=f"{cell.q},{cell.r}",
-                                payload={"damage": 0.05, "source": hazard_id},
-                                causal_parent_ids=(haz_evt_id,),
-                            ))
+                            tx.stage_event(
+                                WorldEvent(
+                                    event_id=f"evt-{self.state.world_id}-{current_tick}-dmg-{hazard_id}-{organism_id}",
+                                    world_id=self.state.world_id,
+                                    tick=current_tick,
+                                    kind="PHYSIOLOGICAL_DAMAGE",
+                                    actor=organism_id,
+                                    position=f"{cell.q},{cell.r}",
+                                    payload={"damage": 0.05, "source": hazard_id},
+                                    causal_parent_ids=(haz_evt_id,),
+                                )
+                            )
                             hazard_hits.append(hazard_id)
 
                 is_now_alive = self.is_alive(organism_id)
@@ -892,28 +931,30 @@ class PopulationGenesisRuntime:
                             death_cause = "structural_failure"
                         else:
                             death_cause = "nonviable"
-                    tx.stage_event(WorldEvent(
-                        event_id=f"evt-{self.state.world_id}-{current_tick}-physiology-{organism_id}",
-                        world_id=self.state.world_id,
-                        tick=current_tick,
-                        kind="PHYSIOLOGY_BALANCE",
-                        actor=organism_id,
-                        position=f"{cell.q},{cell.r}",
-                        payload={
-                            "energy_start": diagnostic_energy_start,
-                            "energy_end": phys.energy_reserve,
-                            "absorbed": diagnostic_absorbed,
-                            "motor_cost": diagnostic_motor_cost,
-                            "basal_cost": diagnostic_basal_cost,
-                            "integrity_start": diagnostic_integrity_start,
-                            "integrity_end": phys.structural_integrity,
-                            "basal_wear": diagnostic_basal_wear,
-                            "deferred_damage": diagnostic_deferred_damage,
-                            "hazard_damage": diagnostic_hazard_damage,
-                            "alive": is_now_alive,
-                            "death_cause": death_cause,
-                        },
-                    ))
+                    tx.stage_event(
+                        WorldEvent(
+                            event_id=f"evt-{self.state.world_id}-{current_tick}-physiology-{organism_id}",
+                            world_id=self.state.world_id,
+                            tick=current_tick,
+                            kind="PHYSIOLOGY_BALANCE",
+                            actor=organism_id,
+                            position=f"{cell.q},{cell.r}",
+                            payload={
+                                "energy_start": diagnostic_energy_start,
+                                "energy_end": phys.energy_reserve,
+                                "absorbed": diagnostic_absorbed,
+                                "motor_cost": diagnostic_motor_cost,
+                                "basal_cost": diagnostic_basal_cost,
+                                "integrity_start": diagnostic_integrity_start,
+                                "integrity_end": phys.structural_integrity,
+                                "basal_wear": diagnostic_basal_wear,
+                                "deferred_damage": diagnostic_deferred_damage,
+                                "hazard_damage": diagnostic_hazard_damage,
+                                "alive": is_now_alive,
+                                "death_cause": death_cause,
+                            },
+                        )
+                    )
 
                 if was_alive and not is_now_alive:
                     death_cells.append(cell)
@@ -930,15 +971,17 @@ class PopulationGenesisRuntime:
                                 else "nonviable"
                             )
                         }
-                    tx.stage_event(WorldEvent(
-                        event_id=f"evt-{self.state.world_id}-{current_tick}-death-{organism_id}",
-                        world_id=self.state.world_id,
-                        tick=current_tick,
-                        kind="DEATH",
-                        actor=organism_id,
-                        position=f"{cell.q},{cell.r}",
-                        payload=death_payload,
-                    ))
+                    tx.stage_event(
+                        WorldEvent(
+                            event_id=f"evt-{self.state.world_id}-{current_tick}-death-{organism_id}",
+                            world_id=self.state.world_id,
+                            tick=current_tick,
+                            kind="DEATH",
+                            actor=organism_id,
+                            position=f"{cell.q},{cell.r}",
+                            payload=death_payload,
+                        )
+                    )
 
                 per_organism[organism_id] = WorldTickRecord(
                     tick=current_tick,
@@ -963,18 +1006,20 @@ class PopulationGenesisRuntime:
                 death_cells=death_cells,
             )
             if death_cells:
-                tx.stage_event(WorldEvent(
-                    event_id=f"evt-{self.state.world_id}-{current_tick}-ecology-death",
-                    world_id=self.state.world_id,
-                    tick=current_tick,
-                    kind="ECOLOGY_CHANGED",
-                    actor=None,
-                    position=None,
-                    payload={
-                        "death_cells": [f"{cell.q},{cell.r}" for cell in death_cells],
-                        "detritus_deposited": len(death_cells),
-                    },
-                ))
+                tx.stage_event(
+                    WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-ecology-death",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="ECOLOGY_CHANGED",
+                        actor=None,
+                        position=None,
+                        payload={
+                            "death_cells": [f"{cell.q},{cell.r}" for cell in death_cells],
+                            "detritus_deposited": len(death_cells),
+                        },
+                    )
+                )
 
         if not tx.committed:
             return None
@@ -1010,7 +1055,11 @@ class PopulationGenesisRuntime:
                     max_effect = 0.0
                     for port_id, c in last_rec.physical_consequences.items():
                         eff = rig.individual.body.get_effector(port_id)
-                        if eff is not None and eff.direction is not None and c.physical_effect > max_effect:
+                        if (
+                            eff is not None
+                            and eff.direction is not None
+                            and c.physical_effect > max_effect
+                        ):
                             max_effect = c.physical_effect
                             best_move = (eff.direction, port_id, c.physical_effect)
                     movement_intents[organism_id] = best_move
@@ -1051,56 +1100,62 @@ class PopulationGenesisRuntime:
                 target,
                 delivered,
             )
-            tx.stage_event(WorldEvent(
-                event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-{organism_id}",
-                world_id=self.state.world_id,
-                tick=current_tick,
-                kind="SUBSTRATE_IMPULSE",
-                actor=organism_id,
-                position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
-                payload={
-                    "actuator_id": actuator_id,
-                    "delivered": delivered,
-                    "target": f"{impulse.target.q},{impulse.target.r}",
-                    "water_transferred": impulse.water_transferred,
-                    "detritus_transferred": impulse.detritus_transferred,
-                    "origin_disturbance_added": impulse.origin_disturbance_added,
-                    "target_disturbance_added": impulse.target_disturbance_added,
-                },
-            ))
+            tx.stage_event(
+                WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-{organism_id}",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="SUBSTRATE_IMPULSE",
+                    actor=organism_id,
+                    position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
+                    payload={
+                        "actuator_id": actuator_id,
+                        "delivered": delivered,
+                        "target": f"{impulse.target.q},{impulse.target.r}",
+                        "water_transferred": impulse.water_transferred,
+                        "detritus_transferred": impulse.detritus_transferred,
+                        "origin_disturbance_added": impulse.origin_disturbance_added,
+                        "target_disturbance_added": impulse.target_disturbance_added,
+                    },
+                )
+            )
             # These checks are world consequence resolution, not pre-choice
             # filtering: the organism has already actuated at this point.
             if not moved:
-                tx.stage_event(WorldEvent(
-                    event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
-                    world_id=self.state.world_id,
-                    tick=current_tick,
-                    kind="ACTUATION_RESOLVED",
-                    actor=organism_id,
-                    position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
-                    payload={
-                        "effect": "move",
-                        "outcome": "boundary",
-                        "actuator_id": actuator_id,
-                        "delivered": delivered,
-                    },
-                ))
+                tx.stage_event(
+                    WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="ACTUATION_RESOLVED",
+                        actor=organism_id,
+                        position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
+                        payload={
+                            "effect": "move",
+                            "outcome": "boundary",
+                            "actuator_id": actuator_id,
+                            "delivered": delivered,
+                        },
+                    )
+                )
                 continue
             if not self.geography.can_traverse(body.occupied_cell, target):
-                tx.stage_event(WorldEvent(
-                    event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
-                    world_id=self.state.world_id,
-                    tick=current_tick,
-                    kind="ACTUATION_RESOLVED",
-                    actor=organism_id,
-                    position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
-                    payload={
-                        "effect": "move",
-                        "outcome": "terrain_blocked",
-                        "actuator_id": actuator_id,
-                        "delivered": delivered,
-                    },
-                ))
+                tx.stage_event(
+                    WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="ACTUATION_RESOLVED",
+                        actor=organism_id,
+                        position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
+                        payload={
+                            "effect": "move",
+                            "outcome": "terrain_blocked",
+                            "actuator_id": actuator_id,
+                            "delivered": delivered,
+                        },
+                    )
+                )
                 continue
             proposals.setdefault(target, []).append(organism_id)
             orig_cells[organism_id] = body.occupied_cell
@@ -1113,7 +1168,31 @@ class PopulationGenesisRuntime:
                 for organism_id in sorted(contenders):
                     actuator_id, delivered = intent_meta[organism_id]
                     origin = orig_cells[organism_id]
-                    tx.stage_event(WorldEvent(
+                    tx.stage_event(
+                        WorldEvent(
+                            event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
+                            world_id=self.state.world_id,
+                            tick=current_tick,
+                            kind="ACTUATION_RESOLVED",
+                            actor=organism_id,
+                            position=f"{origin.q},{origin.r}",
+                            payload={
+                                "effect": "move",
+                                "outcome": "occupied",
+                                "actuator_id": actuator_id,
+                                "delivered": delivered,
+                            },
+                        )
+                    )
+                continue
+            winner = contenders[0] if len(contenders) == 1 else rng.choice(sorted(contenders))
+            for organism_id in sorted(contenders):
+                if organism_id == winner:
+                    continue
+                actuator_id, delivered = intent_meta[organism_id]
+                origin = orig_cells[organism_id]
+                tx.stage_event(
+                    WorldEvent(
                         event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
                         world_id=self.state.world_id,
                         tick=current_tick,
@@ -1122,32 +1201,12 @@ class PopulationGenesisRuntime:
                         position=f"{origin.q},{origin.r}",
                         payload={
                             "effect": "move",
-                            "outcome": "occupied",
+                            "outcome": "contention_lost",
                             "actuator_id": actuator_id,
                             "delivered": delivered,
                         },
-                    ))
-                continue
-            winner = contenders[0] if len(contenders) == 1 else rng.choice(sorted(contenders))
-            for organism_id in sorted(contenders):
-                if organism_id == winner:
-                    continue
-                actuator_id, delivered = intent_meta[organism_id]
-                origin = orig_cells[organism_id]
-                tx.stage_event(WorldEvent(
-                    event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
-                    world_id=self.state.world_id,
-                    tick=current_tick,
-                    kind="ACTUATION_RESOLVED",
-                    actor=organism_id,
-                    position=f"{origin.q},{origin.r}",
-                    payload={
-                        "effect": "move",
-                        "outcome": "contention_lost",
-                        "actuator_id": actuator_id,
-                        "delivered": delivered,
-                    },
-                ))
+                    )
+                )
             origin = orig_cells[winner]
             if self.state.occupancy.move(winner, target):
                 self.state.bodies[winner].occupied_cell = target
@@ -1155,34 +1214,36 @@ class PopulationGenesisRuntime:
                 self.geography.deposit_trace(origin, 0.40)
                 actuator_id, delivered = intent_meta[winner]
                 resolution_id = f"evt-{self.state.world_id}-{current_tick}-act-move-{winner}"
-                tx.stage_event(WorldEvent(
-                    event_id=resolution_id,
-                    world_id=self.state.world_id,
-                    tick=current_tick,
-                    kind="ACTUATION_RESOLVED",
-                    actor=winner,
-                    position=f"{target.q},{target.r}",
-                    payload={
-                        "effect": "move",
-                        "outcome": "moved",
-                        "actuator_id": actuator_id,
-                        "delivered": delivered,
-                    },
-                ))
-                tx.stage_event(WorldEvent(
-                    event_id=f"evt-{self.state.world_id}-{current_tick}-move-{winner}",
-                    world_id=self.state.world_id,
-                    tick=current_tick,
-                    kind="MOVE",
-                    actor=winner,
-                    position=f"{target.q},{target.r}",
-                    payload={
-                        "from": f"{origin.q},{origin.r}",
-                        "to": f"{target.q},{target.r}",
-                        "actuator_id": actuator_id,
-                        "delivered": delivered,
-                    },
-                    causal_parent_ids=(resolution_id,),
-                ))
-
-
+                tx.stage_event(
+                    WorldEvent(
+                        event_id=resolution_id,
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="ACTUATION_RESOLVED",
+                        actor=winner,
+                        position=f"{target.q},{target.r}",
+                        payload={
+                            "effect": "move",
+                            "outcome": "moved",
+                            "actuator_id": actuator_id,
+                            "delivered": delivered,
+                        },
+                    )
+                )
+                tx.stage_event(
+                    WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-move-{winner}",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="MOVE",
+                        actor=winner,
+                        position=f"{target.q},{target.r}",
+                        payload={
+                            "from": f"{origin.q},{origin.r}",
+                            "to": f"{target.q},{target.r}",
+                            "actuator_id": actuator_id,
+                            "delivered": delivered,
+                        },
+                        causal_parent_ids=(resolution_id,),
+                    )
+                )

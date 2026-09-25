@@ -12,7 +12,9 @@ def test_shadow_conditions_preserve_causal_actions_and_zero_control():
     actions = [[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]]
     assert _condition_actions(actions, condition="causal", seed=3) == actions
     assert _condition_actions(actions, condition="no_action", seed=3) == [
-        [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]
+        [0.0, 0.0],
+        [0.0, 0.0],
+        [0.0, 0.0],
     ]
 
 

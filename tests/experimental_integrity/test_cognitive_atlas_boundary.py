@@ -9,7 +9,6 @@ import pytest
 from symbiont_lab.observation.atlas import (
     AtlasEdge,
     AtlasNode,
-    CognitiveAtlasSnapshot,
     build_cognitive_atlas,
     diff_cognitive_atlas,
 )
@@ -67,7 +66,11 @@ def test_build_cognitive_atlas_handles_large_snapshot_without_dropping_nodes():
         "topology": {
             "nodes": [{"id": f"concept.{i}", "kind": "concept"} for i in range(node_count)],
             "edges": [
-                {"sourceId": f"concept.{i}", "targetId": f"concept.{i + 1}", "kind": "associated_with"}
+                {
+                    "sourceId": f"concept.{i}",
+                    "targetId": f"concept.{i + 1}",
+                    "kind": "associated_with",
+                }
                 for i in range(node_count - 1)
             ],
         },
@@ -115,19 +118,33 @@ def test_diff_cognitive_atlas_incremental_delta_meets_5ms_budget():
     node_count = 200
     base_nodes = [{"id": f"concept.{i}", "kind": "concept"} for i in range(node_count)]
     base_edges = [
-        {"sourceId": f"concept.{i}", "targetId": f"concept.{i + 1}", "kind": "associated_with", "weight": 0.5}
+        {
+            "sourceId": f"concept.{i}",
+            "targetId": f"concept.{i + 1}",
+            "kind": "associated_with",
+            "weight": 0.5,
+        }
         for i in range(node_count - 1)
     ]
-    before = build_cognitive_atlas({
-        "tick": 100,
-        "topology": {"nodes": base_nodes, "edges": base_edges},
-    })
+    before = build_cognitive_atlas(
+        {
+            "tick": 100,
+            "topology": {"nodes": base_nodes, "edges": base_edges},
+        }
+    )
 
     # A realistic single-tick change: a handful of new nodes/edges plus
     # activation churn on existing ones, not a full graph rebuild.
-    next_nodes = base_nodes + [{"id": f"concept.{node_count + i}", "kind": "concept"} for i in range(5)]
+    next_nodes = base_nodes + [
+        {"id": f"concept.{node_count + i}", "kind": "concept"} for i in range(5)
+    ]
     next_edges = base_edges + [
-        {"sourceId": f"concept.{node_count - 1}", "targetId": f"concept.{node_count}", "kind": "associated_with", "weight": 0.6}
+        {
+            "sourceId": f"concept.{node_count - 1}",
+            "targetId": f"concept.{node_count}",
+            "kind": "associated_with",
+            "weight": 0.6,
+        }
     ]
     after_snapshot = {
         "tick": 101,
@@ -140,23 +157,29 @@ def test_diff_cognitive_atlas_incremental_delta_meets_5ms_budget():
     diff_cognitive_atlas(before, after)
     elapsed_ms = (time.perf_counter() - started) * 1000
 
-    assert elapsed_ms < 5, f"incremental delta took {elapsed_ms:.2f}ms for a {node_count}-node organism"
+    assert elapsed_ms < 5, (
+        f"incremental delta took {elapsed_ms:.2f}ms for a {node_count}-node organism"
+    )
 
 
 def test_diff_cognitive_atlas_isolation_between_snapshots():
     """Sec 73/78: diffing two Atlas snapshots must never mutate either one --
     verified byte-equivalent (field-for-field) before/after."""
-    before = build_cognitive_atlas({
-        "tick": 1,
-        "motor_competences": [{"competence_id": "competence.1", "maturity": "established"}],
-    })
-    after = build_cognitive_atlas({
-        "tick": 2,
-        "motor_competences": [
-            {"competence_id": "competence.1", "maturity": "established"},
-            {"competence_id": "competence.2", "maturity": "candidate"},
-        ],
-    })
+    before = build_cognitive_atlas(
+        {
+            "tick": 1,
+            "motor_competences": [{"competence_id": "competence.1", "maturity": "established"}],
+        }
+    )
+    after = build_cognitive_atlas(
+        {
+            "tick": 2,
+            "motor_competences": [
+                {"competence_id": "competence.1", "maturity": "established"},
+                {"competence_id": "competence.2", "maturity": "candidate"},
+            ],
+        }
+    )
     before_before = dataclasses.replace(before)
     after_before = dataclasses.replace(after)
 

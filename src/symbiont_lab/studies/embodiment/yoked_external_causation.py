@@ -7,11 +7,12 @@ This implementation covers exact yoking, jittered yoking, anti-causal ordering,
 independent control, break-of-yoking rejection latency and lead/lag reporting.
 Evaluator truth remains entirely in symbiont_lab.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import math
 import random
+from dataclasses import asdict, dataclass
 from typing import Sequence
 
 from symbiont.core.embodiment.agency import AgencyModel
@@ -102,10 +103,7 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
 
 
 def _activation_schedule(rng: random.Random, steps: int) -> list[float]:
-    return [
-        0.0 if rng.random() < 0.30 else rng.uniform(0.25, 1.0)
-        for _ in range(steps + 3)
-    ]
+    return [0.0 if rng.random() < 0.30 else rng.uniform(0.25, 1.0) for _ in range(steps + 3)]
 
 
 def _bounded_noise(rng: random.Random, sigma: float = 0.02) -> float:
@@ -117,12 +115,12 @@ def _corr(xs: Sequence[float], ys: Sequence[float]) -> float:
         return 0.0
     mx = sum(xs) / len(xs)
     my = sum(ys) / len(ys)
-    num = sum((x-mx)*(y-my) for x,y in zip(xs,ys))
-    dx = math.sqrt(sum((x-mx)**2 for x in xs))
-    dy = math.sqrt(sum((y-my)**2 for y in ys))
+    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    dx = math.sqrt(sum((x - mx) ** 2 for x in xs))
+    dy = math.sqrt(sum((y - my) ** 2 for y in ys))
     if dx <= 1e-12 or dy <= 1e-12:
         return 0.0
-    return max(-1.0, min(1.0, num/(dx*dy)))
+    return max(-1.0, min(1.0, num / (dx * dy)))
 
 
 def _confidence(model: AgencyModel) -> float:
@@ -188,19 +186,22 @@ def _run_seed(seed: int, *, steps: int) -> YokedCausationSeedResult:
     ic = _confidence(independent)
     bc = _confidence(broken)
 
-    false_flags = (ec >= AGENCY_THRESHOLD, jc >= AGENCY_THRESHOLD, ac >= AGENCY_THRESHOLD, ic >= AGENCY_THRESHOLD)
+    false_flags = (
+        ec >= AGENCY_THRESHOLD,
+        jc >= AGENCY_THRESHOLD,
+        ac >= AGENCY_THRESHOLD,
+        ic >= AGENCY_THRESHOLD,
+    )
     fpr = sum(false_flags) / len(false_flags)
     tpr = 1.0 if gc >= AGENCY_THRESHOLD else 0.0
 
     # Evaluator-only temporal diagnostics.
     lag0 = _corr(acts[:steps], exact_deltas)
-    lag1 = _corr(acts[:steps-1], exact_deltas[1:])
+    lag1 = _corr(acts[: steps - 1], exact_deltas[1:])
 
     break_rejected = rejection_latency is not None
     h1_seed_pass = (
-        fpr <= MAX_FALSE_POSITIVE_RATE
-        and tpr >= MIN_TRUE_POSITIVE_RATE
-        and break_rejected
+        fpr <= MAX_FALSE_POSITIVE_RATE and tpr >= MIN_TRUE_POSITIVE_RATE and break_rejected
     )
 
     return YokedCausationSeedResult(
@@ -227,7 +228,7 @@ def _run_seed(seed: int, *, steps: int) -> YokedCausationSeedResult:
 
 def run_yoked_external_causation_study(
     *,
-    seeds: Sequence[int] = (101,127,149,173,211,257,307,353,401,457),
+    seeds: Sequence[int] = (101, 127, 149, 173, 211, 257, 307, 353, 401, 457),
     steps: int = 600,
 ) -> YokedCausationStudy:
     normalized = _normalize_seeds(seeds)
@@ -237,10 +238,12 @@ def run_yoked_external_causation_study(
     results = tuple(_run_seed(seed, steps=steps) for seed in normalized)
     replay = tuple(_run_seed(seed, steps=steps) for seed in normalized)
 
-    mean_fpr = sum(x.false_positive_rate for x in results)/len(results)
-    mean_tpr = sum(x.true_positive_rate for x in results)/len(results)
-    mean_broken = sum(x.broken_yoke_final_confidence for x in results)/len(results)
-    rejection_rate = sum(x.broken_yoke_rejection_latency is not None for x in results)/len(results)
+    mean_fpr = sum(x.false_positive_rate for x in results) / len(results)
+    mean_tpr = sum(x.true_positive_rate for x in results) / len(results)
+    mean_broken = sum(x.broken_yoke_final_confidence for x in results) / len(results)
+    rejection_rate = sum(x.broken_yoke_rejection_latency is not None for x in results) / len(
+        results
+    )
     deterministic = results == replay
 
     fpr_gate = mean_fpr <= MAX_FALSE_POSITIVE_RATE

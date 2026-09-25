@@ -15,9 +15,7 @@ def test_frozen_fit_uses_only_the_training_prefix_and_predicts_paired_delta():
     intervention_actions[3][0] = 2.0
     candidate = OpaqueLagCandidate(source_effector=0, target_receptor=0, lag=1)
 
-    (predictor,) = fit_frozen_lag_predictors(
-        actions, baseline, (candidate,), train_end=4
-    )
+    (predictor,) = fit_frozen_lag_predictors(actions, baseline, (candidate,), train_end=4)
     result = evaluate_frozen_counterfactual(
         predictor,
         baseline_observations=baseline,

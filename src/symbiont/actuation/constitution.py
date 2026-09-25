@@ -3,6 +3,7 @@
 Actuation constitution is no longer genetic. New code should import
 symbiont.actuation.surface directly.
 """
+
 from .surface import (
     ActuatorChannel,
     ActuatorConstitution,

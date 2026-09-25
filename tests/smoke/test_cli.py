@@ -36,7 +36,18 @@ def test_cli_audit():
 
 def test_cli_simulate():
     result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "simulate", "--hosts", "10", "--steps", "20", "--seed", "1"],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "simulate",
+            "--hosts",
+            "10",
+            "--steps",
+            "20",
+            "--seed",
+            "1",
+        ],
         capture_output=True,
         text=True,
     )
@@ -58,9 +69,7 @@ def test_cli_host_discover():
     assert "clock.monotonic" in capability_ids
     forbidden = {"hostname", "username", "user", "home", "cwd", "ip", "mac"}
     detail_keys = {
-        key.lower()
-        for capability in payload["capabilities"]
-        for key in capability["detail"]
+        key.lower() for capability in payload["capabilities"] for key in capability["detail"]
     }
     assert not forbidden.intersection(detail_keys)
 
@@ -170,7 +179,16 @@ def test_cli_host_checkpoint_round_trips():
     # for that prior weight to clear the threshold -- 5 ticks is no longer
     # enough post-PR3.
     export_result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "export", "--ticks", "20"],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "host",
+            "checkpoint",
+            "export",
+            "--ticks",
+            "20",
+        ],
         capture_output=True,
         text=True,
     )
@@ -203,7 +221,17 @@ def test_cli_host_checkpoint_import_rejects_bad_schema_version():
 
 def test_cli_host_attend():
     result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "attend", "--ticks", "5", "--budget", "1.5"],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "host",
+            "attend",
+            "--ticks",
+            "5",
+            "--budget",
+            "1.5",
+        ],
         capture_output=True,
         text=True,
     )
@@ -228,8 +256,15 @@ def test_cli_host_attend_rejects_non_positive_budget():
 def test_cli_host_second_look():
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main",
-            "host", "second-look", "--capability-id", "compute.logical_cpu", "--ticks", "3",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "host",
+            "second-look",
+            "--capability-id",
+            "compute.logical_cpu",
+            "--ticks",
+            "3",
         ],
         capture_output=True,
         text=True,
@@ -246,8 +281,13 @@ def test_cli_host_second_look():
 def test_cli_host_second_look_rejects_unauthorized_capability():
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main",
-            "host", "second-look", "--capability-id", "nonexistent.thing",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "host",
+            "second-look",
+            "--capability-id",
+            "nonexistent.thing",
         ],
         capture_output=True,
         text=True,
@@ -259,9 +299,17 @@ def test_cli_host_second_look_rejects_unauthorized_capability():
 def test_cli_host_revise():
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main",
-            "host", "revise", "--capability-id", "compute.logical_cpu",
-            "--acclimate-ticks", "5", "--evidence-ticks", "3",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "host",
+            "revise",
+            "--capability-id",
+            "compute.logical_cpu",
+            "--acclimate-ticks",
+            "5",
+            "--evidence-ticks",
+            "3",
         ],
         capture_output=True,
         text=True,
@@ -275,7 +323,15 @@ def test_cli_host_revise():
 
 def test_cli_host_revise_rejects_unauthorized_capability():
     result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "revise", "--capability-id", "nonexistent.thing"],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "host",
+            "revise",
+            "--capability-id",
+            "nonexistent.thing",
+        ],
         capture_output=True,
         text=True,
     )
@@ -286,8 +342,17 @@ def test_cli_host_revise_rejects_unauthorized_capability():
 def test_cli_host_narrate():
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main",
-            "host", "narrate", "--ticks", "5", "--budget", "1.5", "--evidence-ticks", "3",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "host",
+            "narrate",
+            "--ticks",
+            "5",
+            "--budget",
+            "1.5",
+            "--evidence-ticks",
+            "3",
         ],
         capture_output=True,
         text=True,
@@ -297,8 +362,15 @@ def test_cli_host_narrate():
     assert payload["entries"]
     for entry in payload["entries"]:
         assert set(entry) == {
-            "capability_id", "familiarity", "uncertainty", "attended",
-            "attention_cost", "evidence_gathered", "contested", "dissent", "summary",
+            "capability_id",
+            "familiarity",
+            "uncertainty",
+            "attended",
+            "attention_cost",
+            "evidence_gathered",
+            "contested",
+            "dissent",
+            "summary",
         }
         assert entry["familiarity"] in ("familiar", "unfamiliar")
     attended = [entry for entry in payload["entries"] if entry["attended"]]
@@ -310,8 +382,15 @@ def test_cli_capsule_create_and_verify_round_trip(tmp_path):
     keyfile = tmp_path / "key.json"
     create_result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main",
-            "capsule", "create", "--ticks", "5", "--keyfile", str(keyfile),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "capsule",
+            "create",
+            "--ticks",
+            "5",
+            "--keyfile",
+            str(keyfile),
         ],
         capture_output=True,
         text=True,
@@ -337,16 +416,35 @@ def test_cli_capsule_create_and_verify_round_trip(tmp_path):
 def test_cli_capsule_reuses_signer_identity_across_invocations(tmp_path):
     keyfile = tmp_path / "key.json"
     first = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "create", "--keyfile", str(keyfile)],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "capsule",
+            "create",
+            "--keyfile",
+            str(keyfile),
+        ],
         capture_output=True,
         text=True,
     )
     second = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "create", "--keyfile", str(keyfile)],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "capsule",
+            "create",
+            "--keyfile",
+            str(keyfile),
+        ],
         capture_output=True,
         text=True,
     )
-    assert json.loads(first.stdout)["signer_public_key"] == json.loads(second.stdout)["signer_public_key"]
+    assert (
+        json.loads(first.stdout)["signer_public_key"]
+        == json.loads(second.stdout)["signer_public_key"]
+    )
 
 
 def test_cli_capsule_verify_rejects_tampered_payload():
@@ -392,7 +490,9 @@ def test_cli_capsule_ingest_rejects_tampered_capsule():
         text=True,
     )
     capsule = json.loads(create_result.stdout)
-    capsule["payload"] = {"acclimation": {"compute.logical_cpu": {"count": 5, "mean": 999.0, "variance": 0.0}}}
+    capsule["payload"] = {
+        "acclimation": {"compute.logical_cpu": {"count": 5, "mean": 999.0, "variance": 0.0}}
+    }
 
     ingest_result = subprocess.run(
         [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "ingest"],
@@ -407,8 +507,19 @@ def test_cli_capsule_ingest_rejects_tampered_capsule():
 def test_cli_organism_run():
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "4", "--attention-budget", "1.5", "--investigate-ticks", "2", "--min-samples", "2",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "4",
+            "--attention-budget",
+            "1.5",
+            "--investigate-ticks",
+            "2",
+            "--min-samples",
+            "2",
         ],
         capture_output=True,
         text=True,
@@ -429,9 +540,19 @@ def test_cli_organism_run_with_genome_and_graph_files_activates_cognition():
     graph_file = repo_root / "examples" / "cognition" / "graph.json"
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "3", "--min-samples", "1",
-            "--genome-file", str(genome_file), "--graph-file", str(graph_file),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "3",
+            "--min-samples",
+            "1",
+            "--genome-file",
+            str(genome_file),
+            "--graph-file",
+            str(graph_file),
         ],
         capture_output=True,
         text=True,
@@ -453,9 +574,21 @@ def test_cli_organism_run_resumes_cognition_without_repassing_genome_file(tmp_pa
 
     first = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "2", "--min-samples", "1", "--state-file", str(state_file),
-            "--genome-file", str(genome_file), "--graph-file", str(graph_file),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "2",
+            "--min-samples",
+            "1",
+            "--state-file",
+            str(state_file),
+            "--genome-file",
+            str(genome_file),
+            "--graph-file",
+            str(graph_file),
         ],
         capture_output=True,
         text=True,
@@ -464,8 +597,17 @@ def test_cli_organism_run_resumes_cognition_without_repassing_genome_file(tmp_pa
 
     second = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "2", "--min-samples", "1", "--state-file", str(state_file),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "2",
+            "--min-samples",
+            "1",
+            "--state-file",
+            str(state_file),
         ],
         capture_output=True,
         text=True,
@@ -482,8 +624,15 @@ def test_cli_organism_run_rejects_graph_file_without_genome_file():
     graph_file = repo_root / "examples" / "cognition" / "graph.json"
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "1", "--graph-file", str(graph_file),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "1",
+            "--graph-file",
+            str(graph_file),
         ],
         capture_output=True,
         text=True,
@@ -495,8 +644,17 @@ def test_cli_organism_run_rejects_graph_file_without_genome_file():
 def test_cli_organism_run_investigate_ticks_zero_disables_investigation():
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "2", "--investigate-ticks", "0", "--min-samples", "1",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "2",
+            "--investigate-ticks",
+            "0",
+            "--min-samples",
+            "1",
         ],
         capture_output=True,
         text=True,
@@ -510,7 +668,17 @@ def test_cli_organism_run_investigate_ticks_zero_disables_investigation():
 
 def test_cli_organism_run_reports_governor_state():
     result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run", "--ticks", "3", "--min-samples", "1"],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "3",
+            "--min-samples",
+            "1",
+        ],
         capture_output=True,
         text=True,
     )
@@ -523,7 +691,17 @@ def test_cli_organism_run_reports_governor_state():
 
 def test_cli_organism_run_advisory_disabled_by_default():
     result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run", "--ticks", "3", "--min-samples", "1"],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "3",
+            "--min-samples",
+            "1",
+        ],
         capture_output=True,
         text=True,
     )
@@ -536,8 +714,17 @@ def test_cli_organism_run_advisory_log_only_written_with_consent(tmp_path):
     log_path = tmp_path / "advisories.json"
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "3", "--min-samples", "1", "--advisory-log", str(log_path),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "3",
+            "--min-samples",
+            "1",
+            "--advisory-log",
+            str(log_path),
         ],
         capture_output=True,
         text=True,
@@ -551,8 +738,17 @@ def test_cli_organism_run_state_file_resumes_across_invocations(tmp_path):
 
     first = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "3", "--min-samples", "1", "--state-file", str(state_file),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "3",
+            "--min-samples",
+            "1",
+            "--state-file",
+            str(state_file),
         ],
         capture_output=True,
         text=True,
@@ -564,8 +760,17 @@ def test_cli_organism_run_state_file_resumes_across_invocations(tmp_path):
 
     second = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "2", "--min-samples", "1", "--state-file", str(state_file),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "2",
+            "--min-samples",
+            "1",
+            "--state-file",
+            str(state_file),
         ],
         capture_output=True,
         text=True,
@@ -579,8 +784,17 @@ def test_cli_organism_run_state_file_resumes_across_invocations(tmp_path):
 def test_cli_organism_run_stops_early_at_max_ticks():
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "5", "--max-ticks", "2", "--min-samples", "1",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "5",
+            "--max-ticks",
+            "2",
+            "--min-samples",
+            "1",
         ],
         capture_output=True,
         text=True,
@@ -615,9 +829,22 @@ def test_cli_evaluate_advisories_label_and_summary(tmp_path):
 
     label_result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "evaluate", "advisories", "label",
-            "--advisory-log", str(log_path), "--labels-file", str(labels_path),
-            "--tick", "1", "--capability-id", "compute.logical_cpu", "--judgment", "useful",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "evaluate",
+            "advisories",
+            "label",
+            "--advisory-log",
+            str(log_path),
+            "--labels-file",
+            str(labels_path),
+            "--tick",
+            "1",
+            "--capability-id",
+            "compute.logical_cpu",
+            "--judgment",
+            "useful",
         ],
         capture_output=True,
         text=True,
@@ -626,8 +853,16 @@ def test_cli_evaluate_advisories_label_and_summary(tmp_path):
 
     summary_result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "evaluate", "advisories", "summary",
-            "--advisory-log", str(log_path), "--labels-file", str(labels_path),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "evaluate",
+            "advisories",
+            "summary",
+            "--advisory-log",
+            str(log_path),
+            "--labels-file",
+            str(labels_path),
         ],
         capture_output=True,
         text=True,
@@ -644,9 +879,22 @@ def test_cli_evaluate_advisories_label_rejects_unfired_advisory(tmp_path):
 
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "evaluate", "advisories", "label",
-            "--advisory-log", str(log_path), "--labels-file", str(labels_path),
-            "--tick", "1", "--capability-id", "cpu", "--judgment", "useful",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "evaluate",
+            "advisories",
+            "label",
+            "--advisory-log",
+            str(log_path),
+            "--labels-file",
+            str(labels_path),
+            "--tick",
+            "1",
+            "--capability-id",
+            "cpu",
+            "--judgment",
+            "useful",
         ],
         capture_output=True,
         text=True,
@@ -658,7 +906,16 @@ def test_cli_evaluate_advisories_label_rejects_unfired_advisory(tmp_path):
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "study", "run", "attention.replicated", "--seeds", "1,2"],
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "study",
+            "run",
+            "attention.replicated",
+            "--seeds",
+            "1,2",
+        ],
         capture_output=True,
         text=True,
     )
@@ -674,8 +931,20 @@ def test_cli_study_run_longitudinal_with_seed():
     """Protocols expecting a single seed or custom parameters must dispatch correctly."""
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "study", "run", "heritage.longitudinal",
-            "--seed", "42", "--generations", "1", "--hosts", "5", "--steps", "10",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "study",
+            "run",
+            "heritage.longitudinal",
+            "--seed",
+            "42",
+            "--generations",
+            "1",
+            "--hosts",
+            "5",
+            "--steps",
+            "10",
         ],
         capture_output=True,
         text=True,
@@ -693,10 +962,25 @@ def test_cli_study_compare_records_lineage_and_archive_campaign_reads_it(tmp_pat
 
     root = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "study", "compare",
-            "--parameter", "threat_rate", "--baseline", "0.01", "--variant", "0.02",
-            "--seeds", "1,2", "--hosts", "10", "--steps", "20",
-            "--archive", str(archive_path),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "study",
+            "compare",
+            "--parameter",
+            "threat_rate",
+            "--baseline",
+            "0.01",
+            "--variant",
+            "0.02",
+            "--seeds",
+            "1,2",
+            "--hosts",
+            "10",
+            "--steps",
+            "20",
+            "--archive",
+            str(archive_path),
         ],
         capture_output=True,
         text=True,
@@ -712,10 +996,27 @@ def test_cli_study_compare_records_lineage_and_archive_campaign_reads_it(tmp_pat
 
     child = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "study", "compare",
-            "--parameter", "threat_rate", "--baseline", "0.02", "--variant", "0.03",
-            "--seeds", "1,2", "--hosts", "10", "--steps", "20",
-            "--archive", str(archive_path), "--parent-study-id", root_id,
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "study",
+            "compare",
+            "--parameter",
+            "threat_rate",
+            "--baseline",
+            "0.02",
+            "--variant",
+            "0.03",
+            "--seeds",
+            "1,2",
+            "--hosts",
+            "10",
+            "--steps",
+            "20",
+            "--archive",
+            str(archive_path),
+            "--parent-study-id",
+            root_id,
         ],
         capture_output=True,
         text=True,
@@ -730,8 +1031,15 @@ def test_cli_study_compare_records_lineage_and_archive_campaign_reads_it(tmp_pat
 
     campaign = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "archive", "campaign",
-            "--study-id", child_id, "--archive", str(archive_path),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "archive",
+            "campaign",
+            "--study-id",
+            child_id,
+            "--archive",
+            str(archive_path),
         ],
         capture_output=True,
         text=True,
@@ -747,8 +1055,15 @@ def test_cli_archive_campaign_rejects_unknown_study_id(tmp_path):
     archive_path = tmp_path / "studies.jsonl"
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "archive", "campaign",
-            "--study-id", "does-not-exist", "--archive", str(archive_path),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "archive",
+            "campaign",
+            "--study-id",
+            "does-not-exist",
+            "--archive",
+            str(archive_path),
         ],
         capture_output=True,
         text=True,
@@ -761,8 +1076,13 @@ def test_cli_organism_probe_not_found(tmp_path):
     missing_file = tmp_path / "nonexistent.json"
     result = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "probe",
-            "--state-file", str(missing_file),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "probe",
+            "--state-file",
+            str(missing_file),
         ],
         capture_output=True,
         text=True,
@@ -776,8 +1096,17 @@ def test_cli_organism_probe_success_and_json(tmp_path):
     # First generate a real state checkpoint
     init_run = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
-            "--ticks", "3", "--state-file", str(state_file), "--min-samples", "1",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "run",
+            "--ticks",
+            "3",
+            "--state-file",
+            str(state_file),
+            "--min-samples",
+            "1",
         ],
         capture_output=True,
         text=True,
@@ -788,8 +1117,13 @@ def test_cli_organism_probe_success_and_json(tmp_path):
     # Test formatted text probe
     probe_run = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "probe",
-            "--state-file", str(state_file),
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "probe",
+            "--state-file",
+            str(state_file),
         ],
         capture_output=True,
         text=True,
@@ -802,8 +1136,14 @@ def test_cli_organism_probe_success_and_json(tmp_path):
     # Test JSON probe
     json_run = subprocess.run(
         [
-            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "probe",
-            "--state-file", str(state_file), "--json",
+            sys.executable,
+            "-m",
+            "symbiont_lab.cli.main",
+            "organism",
+            "probe",
+            "--state-file",
+            str(state_file),
+            "--json",
         ],
         capture_output=True,
         text=True,
@@ -817,4 +1157,3 @@ def test_cli_organism_probe_success_and_json(tmp_path):
     assert "metabolism" in payload
     assert "narrative_journal" in payload
     assert len(payload["narrative_journal"]) > 0
-

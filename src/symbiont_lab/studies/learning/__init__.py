@@ -1,15 +1,22 @@
 from __future__ import annotations
 
-from .predictive_utility import (
-    PredictiveUtilityOutcome,
-    PredictiveUtilityStudyResult,
-    run_predictive_utility_study,
-    run_predictive_utility_trial,
+from .canonical_sensorimotor_adaptation import (
+    AdaptationStudy,
+    AdaptationTrial,
+    run_sensorimotor_adaptation_study,
+    run_sensorimotor_adaptation_trial,
 )
-from .private_model_adaptation import (
-    AdaptationSeedResult,
-    PrivateModelAdaptationStudy,
-    run_private_model_adaptation_study,
+from .canonical_sensorimotor_agency import (
+    SensorimotorAgencyStudy,
+    SensorimotorAgencyTrial,
+    run_sensorimotor_agency_study,
+    run_sensorimotor_agency_trial,
+)
+from .canonical_sensorimotor_counterfactual import (
+    CounterfactualReplayStudy,
+    CounterfactualReplayTrial,
+    run_counterfactual_replay_study,
+    run_counterfactual_replay_trial,
 )
 from .cultural_foundation import (
     CulturalFoundationStudy,
@@ -20,6 +27,27 @@ from .cumulative_culture import (
     CumulativeCultureStudy,
     CumulativeSeedResult,
     run_cumulative_culture_study,
+)
+from .embodied_counterfactual import (
+    CounterfactualSeedResult,
+    EmbodiedCounterfactualStudy,
+    FrozenCounterfactualResult,
+    FrozenOpaqueLagPredictor,
+    OpaqueLagCandidate,
+    evaluate_frozen_counterfactual,
+    fit_frozen_lag_predictors,
+    run_embodied_counterfactual,
+)
+from .embodied_intervention import EmbodiedInterventionStudy, run_embodied_intervention
+from .embodied_model_comparison import EmbodiedModelComparisonStudy, run_embodied_model_comparison
+from .embodied_sensorimotor_shadow import (
+    EmbodiedSensorimotorShadowStudy,
+    run_embodied_sensorimotor_shadow,
+)
+from .emergent_structured_communication import (
+    EmergentStructuredCommunicationStudy,
+    StructuredCommunicationSeedResult,
+    run_emergent_structured_communication_study,
 )
 from .emergent_symbol_grounding import (
     EmergentSymbolGroundingStudy,
@@ -33,48 +61,20 @@ from .independent_symbol_grounding import (
     run_independent_symbol_grounding_study,
 )
 from .predictive_discovery import (
-    PredictiveDiscoveryStudy,
     PredictiveDiscoverySeedResult,
+    PredictiveDiscoveryStudy,
     run_predictive_discovery_study,
 )
-from .emergent_structured_communication import (
-    EmergentStructuredCommunicationStudy,
-    StructuredCommunicationSeedResult,
-    run_emergent_structured_communication_study,
+from .predictive_utility import (
+    PredictiveUtilityOutcome,
+    PredictiveUtilityStudyResult,
+    run_predictive_utility_study,
+    run_predictive_utility_trial,
 )
-from .embodied_sensorimotor_shadow import (
-    EmbodiedSensorimotorShadowStudy,
-    run_embodied_sensorimotor_shadow,
-)
-from .embodied_intervention import EmbodiedInterventionStudy, run_embodied_intervention
-from .embodied_counterfactual import (
-    CounterfactualSeedResult,
-    EmbodiedCounterfactualStudy,
-    FrozenCounterfactualResult,
-    FrozenOpaqueLagPredictor,
-    OpaqueLagCandidate,
-    evaluate_frozen_counterfactual,
-    fit_frozen_lag_predictors,
-    run_embodied_counterfactual,
-)
-from .embodied_model_comparison import EmbodiedModelComparisonStudy, run_embodied_model_comparison
-from .canonical_sensorimotor_agency import (
-    SensorimotorAgencyStudy,
-    SensorimotorAgencyTrial,
-    run_sensorimotor_agency_study,
-    run_sensorimotor_agency_trial,
-)
-from .canonical_sensorimotor_counterfactual import (
-    CounterfactualReplayStudy,
-    CounterfactualReplayTrial,
-    run_counterfactual_replay_study,
-    run_counterfactual_replay_trial,
-)
-from .canonical_sensorimotor_adaptation import (
-    AdaptationStudy,
-    AdaptationTrial,
-    run_sensorimotor_adaptation_study,
-    run_sensorimotor_adaptation_trial,
+from .private_model_adaptation import (
+    AdaptationSeedResult,
+    PrivateModelAdaptationStudy,
+    run_private_model_adaptation_study,
 )
 
 __all__ = [
@@ -160,10 +160,10 @@ __all__ += [
 
 from .prospective_agency_embodied import (
     ProspectiveEmbodiedCondition,
-    ProspectiveEmbodiedTrial,
     ProspectiveEmbodiedStudy,
-    run_prospective_embodied_trial,
+    ProspectiveEmbodiedTrial,
     run_prospective_embodied_study,
+    run_prospective_embodied_trial,
 )
 
 __all__ += [

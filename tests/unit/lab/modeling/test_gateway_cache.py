@@ -52,8 +52,12 @@ class _FakeTorch:
     @staticmethod
     def no_grad():
         class _Ctx:
-            def __enter__(self): return self
-            def __exit__(self, *_args): return False
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
         return _Ctx()
 
     @staticmethod

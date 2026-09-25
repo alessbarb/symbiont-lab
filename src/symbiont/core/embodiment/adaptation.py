@@ -1,8 +1,9 @@
 """Evidence-driven embodiment adaptation; never a fixed adaptation timer."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from typing import Iterable, Mapping
 
 from .dynamics import PredictionResidual
@@ -77,20 +78,14 @@ class EmbodimentAdaptation:
         if prediction_error is not None:
             current = max(0.0, float(prediction_error))
         else:
-            current = (
-                sum(errors) / len(errors)
-                if errors
-                else self.prediction_error_recent
-            )
+            current = sum(errors) / len(errors) if errors else self.prediction_error_recent
         if self.adaptation_ticks == 1:
             self.prediction_error_recent = current
             self.prediction_error_baseline = current
         else:
             self.prediction_error_recent += 0.20 * (current - self.prediction_error_recent)
             # Baseline follows slowly so abrupt mismatch remains observable.
-            self.prediction_error_baseline += 0.015 * (
-                current - self.prediction_error_baseline
-            )
+            self.prediction_error_baseline += 0.015 * (current - self.prediction_error_baseline)
         denom = max(0.05, self.prediction_error_baseline)
         self.prediction_shock = max(
             0.0,
@@ -109,9 +104,7 @@ class EmbodimentAdaptation:
         if causal_confidence is not None:
             self.causal_confidence = max(0.0, min(1.0, float(causal_confidence)))
         if controllability_confidence is not None:
-            self.controllability_confidence = max(
-                0.0, min(1.0, float(controllability_confidence))
-            )
+            self.controllability_confidence = max(0.0, min(1.0, float(controllability_confidence)))
         if candidate_competences > 0:
             self.competence_revalidation_ratio = max(
                 0.0,
@@ -199,9 +192,7 @@ class EmbodimentAdaptation:
             else None
         )
         obj.recovery_tick = (
-            int(payload["recovery_tick"])
-            if payload.get("recovery_tick") is not None
-            else None
+            int(payload["recovery_tick"]) if payload.get("recovery_tick") is not None else None
         )
         obj._stable_ticks = int(payload.get("stable_ticks", 0))
         return obj

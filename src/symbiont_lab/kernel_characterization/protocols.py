@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 DEFAULT_SEEDS = (101, 127, 149, 163, 181, 197, 211, 227, 239, 251)
 
 

@@ -1,13 +1,13 @@
 import pytest
 
 from symbiont_lab.studies.learning.signal_knowledge import (
-    run_signal_knowledge,
+    measure_acceptance_resources,
     run_acceptance_scenarios,
     run_acceptance_suite,
-    summarize_acceptance,
-    measure_acceptance_resources,
     run_full_acceptance_suite,
+    run_signal_knowledge,
     run_signal_pressure,
+    summarize_acceptance,
 )
 
 
@@ -25,7 +25,13 @@ def test_acceptance_matrix_is_deterministic_and_exercises_gaps_and_id_change():
     second = run_acceptance_scenarios(101)
     assert first == second
     assert {item.name for item in first} == {
-        "constant", "positive_ar", "negative_ar", "lag", "common_source", "gaps", "id_change"
+        "constant",
+        "positive_ar",
+        "negative_ar",
+        "lag",
+        "common_source",
+        "gaps",
+        "id_change",
     }
     assert next(item for item in first if item.name == "gaps").coverage < 1.0
     assert next(item for item in first if item.name == "id_change").profiles >= 3

@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 _ALLOWED_COGNITION_GENOME_COMPATIBILITY = {
     "src/symbiont/cognition/genome.py",
 }
@@ -37,18 +36,14 @@ def test_production_genome_access_does_not_route_through_cognition() -> None:
             if rel in _ALLOWED_COGNITION_GENOME_COMPATIBILITY:
                 continue
             for module in _imports(path):
-                if module == "symbiont.cognition.genome" or module.endswith(
-                    ".cognition.genome"
-                ):
+                if module == "symbiont.cognition.genome" or module.endswith(".cognition.genome"):
                     violations.append(f"{rel}:{module}")
     assert violations == []
 
 
 def test_runtime_imports_domains_not_extracted_algorithm_helpers() -> None:
     root = Path(__file__).resolve().parents[2]
-    runtime = (
-        root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
-    )
+    runtime = root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
     source = runtime.read_text(encoding="utf-8")
     forbidden = (
         "SecondLookSession",

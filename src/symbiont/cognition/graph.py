@@ -6,7 +6,14 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from .limits import KernelLimits
-from .types import EDGE_DELAY_TICKS_RANGE, PLASTICITY_RANGE, TAU_RANGE, WEIGHT_RANGE, EdgeKind, NodeKind
+from .types import (
+    EDGE_DELAY_TICKS_RANGE,
+    PLASTICITY_RANGE,
+    TAU_RANGE,
+    WEIGHT_RANGE,
+    EdgeKind,
+    NodeKind,
+)
 
 _NODE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 
@@ -63,7 +70,11 @@ def _require_range(value: float, bounds: tuple[float, float], field: str) -> Non
 
 class CognitiveGraph:
     def __init__(
-        self, *, nodes: tuple[PlasticNode, ...], edges: tuple[PlasticEdge, ...], kernel_limits: KernelLimits
+        self,
+        *,
+        nodes: tuple[PlasticNode, ...],
+        edges: tuple[PlasticEdge, ...],
+        kernel_limits: KernelLimits,
     ) -> None:
         self._nodes_by_id: dict[str, PlasticNode] = {}
         for node in nodes:
@@ -81,32 +92,44 @@ class CognitiveGraph:
                 if node.predicts_node_id is None:
                     raise GraphError(f"PREDICTOR node {node.node_id!r} must set predicts_node_id")
                 if not _NODE_ID_PATTERN.match(node.predicts_node_id):
-                    raise GraphError(f"predicts_node_id {node.predicts_node_id!r} must match ^[A-Za-z0-9_.-]{{1,128}}$")
+                    raise GraphError(
+                        f"predicts_node_id {node.predicts_node_id!r} must match ^[A-Za-z0-9_.-]{{1,128}}$"
+                    )
                 if node.predicts_node_id not in self._nodes_by_id:
                     raise GraphError(
                         f"PREDICTOR node {node.node_id!r} predicts_node_id "
                         f"{node.predicts_node_id!r} is not a declared node"
                     )
             elif node.predicts_node_id is not None:
-                raise GraphError(f"non-PREDICTOR node {node.node_id!r} must not set predicts_node_id")
+                raise GraphError(
+                    f"non-PREDICTOR node {node.node_id!r} must not set predicts_node_id"
+                )
 
         if len(self._nodes_by_id) > kernel_limits.max_nodes:
             raise GraphError(
                 f"node count ({len(self._nodes_by_id)}) exceeds kernel_limits.max_nodes ({kernel_limits.max_nodes})"
             )
 
-        concept_count = sum(1 for node in self._nodes_by_id.values() if node.kind is NodeKind.CONCEPT)
+        concept_count = sum(
+            1 for node in self._nodes_by_id.values() if node.kind is NodeKind.CONCEPT
+        )
         if concept_count > kernel_limits.max_concepts:
             raise GraphError(
                 f"concept count ({concept_count}) exceeds kernel_limits.max_concepts ({kernel_limits.max_concepts})"
             )
 
         if len(edges) > kernel_limits.max_edges:
-            raise GraphError(f"edge count ({len(edges)}) exceeds kernel_limits.max_edges ({kernel_limits.max_edges})")
+            raise GraphError(
+                f"edge count ({len(edges)}) exceeds kernel_limits.max_edges ({kernel_limits.max_edges})"
+            )
 
         seen_edge_keys: set[tuple[str, str, EdgeKind]] = set()
-        incoming_by_target: dict[str, list[PlasticEdge]] = {node_id: [] for node_id in self._nodes_by_id}
-        incident_by_node: dict[str, list[PlasticEdge]] = {node_id: [] for node_id in self._nodes_by_id}
+        incoming_by_target: dict[str, list[PlasticEdge]] = {
+            node_id: [] for node_id in self._nodes_by_id
+        }
+        incident_by_node: dict[str, list[PlasticEdge]] = {
+            node_id: [] for node_id in self._nodes_by_id
+        }
         for edge in edges:
             if edge.source_id not in self._nodes_by_id:
                 raise GraphError(f"edge source {edge.source_id!r} is not a declared node")
@@ -118,10 +141,18 @@ class CognitiveGraph:
                 raise GraphError(f"duplicate edge {key}")
             seen_edge_keys.add(key)
 
-            _require_range(edge.weight, WEIGHT_RANGE, f"edge {edge.source_id}->{edge.target_id} weight")
-            _require_range(edge.plasticity, PLASTICITY_RANGE, f"edge {edge.source_id}->{edge.target_id} plasticity")
+            _require_range(
+                edge.weight, WEIGHT_RANGE, f"edge {edge.source_id}->{edge.target_id} weight"
+            )
+            _require_range(
+                edge.plasticity,
+                PLASTICITY_RANGE,
+                f"edge {edge.source_id}->{edge.target_id} plasticity",
+            )
             if edge.delay_ticks not in (EDGE_DELAY_TICKS_RANGE[0], EDGE_DELAY_TICKS_RANGE[1]):
-                raise GraphError(f"edge {edge.source_id}->{edge.target_id} delay_ticks must be 0 or 1")
+                raise GraphError(
+                    f"edge {edge.source_id}->{edge.target_id} delay_ticks must be 0 or 1"
+                )
 
             source_kind = self._nodes_by_id[edge.source_id].kind
             if edge.delay_ticks == 0 and source_kind is not NodeKind.SENSE:
@@ -224,7 +255,9 @@ class CognitiveGraph:
         return GraphFrame(tick=context.tick, activations=new_activations, readouts=readouts)
 
 
-def load_graph_definition(payload: Mapping[str, object], *, kernel_limits: KernelLimits) -> CognitiveGraph:
+def load_graph_definition(
+    payload: Mapping[str, object], *, kernel_limits: KernelLimits
+) -> CognitiveGraph:
     """Constructs a graph from an explicit, owner-authored JSON-shaped
     definition -- raw floats throughout, not quantized. Unlike
     cognition.checkpoint's export/restore (which persists continuously-

@@ -4,12 +4,12 @@ This module describes mechanics only. It does not define reward, utility,
 anatomical semantics, locomotion goals or action preference, and its outputs
 must never feed back into the organism runtime.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from typing import Mapping
-
 
 Vector3 = tuple[float, float, float]
 Quaternion = tuple[float, float, float, float]
@@ -176,11 +176,15 @@ def physical_state_from_payload(
         field="center_of_mass",
     )
     raw_contacts = payload.get("contact_links", ())
-    contacts = frozenset(
-        int(item)
-        for item in raw_contacts
-        if isinstance(item, int) and not isinstance(item, bool)
-    ) if isinstance(raw_contacts, (list, tuple, set, frozenset)) else frozenset()
+    contacts = (
+        frozenset(
+            int(item)
+            for item in raw_contacts
+            if isinstance(item, int) and not isinstance(item, bool)
+        )
+        if isinstance(raw_contacts, (list, tuple, set, frozenset))
+        else frozenset()
+    )
     return PhysicalState(
         tick=int(tick),
         position_world=position,
@@ -202,32 +206,23 @@ def state_distance(left: PhysicalState, right: PhysicalState) -> StateDistance:
     right_joints = dict(right.joint_positions)
     shared = sorted(set(left_joints) & set(right_joints))
     joint_rms = (
-        math.sqrt(
-            sum((right_joints[key] - left_joints[key]) ** 2 for key in shared)
-            / len(shared)
-        )
+        math.sqrt(sum((right_joints[key] - left_joints[key]) ** 2 for key in shared) / len(shared))
         if shared
         else 0.0
     )
     union = left.contact_links | right.contact_links
     contact_distance = (
-        1.0 - len(left.contact_links & right.contact_links) / len(union)
-        if union
-        else 0.0
+        1.0 - len(left.contact_links & right.contact_links) / len(union) if union else 0.0
     )
     return StateDistance(
         orientation_angle=orientation_angle,
-        linear_velocity_delta=_norm(
-            _sub(right.linear_velocity_world, left.linear_velocity_world)
-        ),
+        linear_velocity_delta=_norm(_sub(right.linear_velocity_world, left.linear_velocity_world)),
         angular_velocity_delta=_norm(
             _sub(right.angular_velocity_world, left.angular_velocity_world)
         ),
         joint_rms_delta=joint_rms,
         contact_jaccard_distance=contact_distance,
-        com_height_delta=abs(
-            right.center_of_mass_world[2] - left.center_of_mass_world[2]
-        ),
+        com_height_delta=abs(right.center_of_mass_world[2] - left.center_of_mass_world[2]),
     )
 
 
@@ -273,17 +268,14 @@ def physical_consequence(
     after_joints = dict(after.joint_positions)
     shared = sorted(set(before_joints) & set(after_joints))
     pose_delta = (
-        sum(abs(after_joints[key] - before_joints[key]) for key in shared)
-        / len(shared)
+        sum(abs(after_joints[key] - before_joints[key]) for key in shared) / len(shared)
         if shared
         else 0.0
     )
 
     union = before.contact_links | after.contact_links
     contact_persistence = (
-        len(before.contact_links & after.contact_links) / len(union)
-        if union
-        else 1.0
+        len(before.contact_links & after.contact_links) / len(union) if union else 1.0
     )
 
     return PhysicalConsequence(

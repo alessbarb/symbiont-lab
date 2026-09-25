@@ -18,6 +18,7 @@ Routes:
   POST /api/experiments/start → start an experiment run
   POST /api/studies/start     → start a comparative study
 """
+
 from __future__ import annotations
 
 import json
@@ -27,25 +28,26 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
+from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.observatory import (
     ObservatorySource,
     observatory_package_root,
     valid_instance_id,
 )
 from symbiont_lab.studies.campaigns.comparative import COMPARABLE_PARAMETERS
-from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.workbench.runs import ExperimentRunState, StudyRunState, _parse_seeds
+
 from .sse import CLIENT_ERRORS as _CLIENT_ERRORS
 from .sse import stream_fleet, stream_instance, stream_organism
 
 _STATIC_TYPES: dict[str, str] = {
     ".html": "text/html; charset=utf-8",
-    ".js":   "text/javascript; charset=utf-8",
-    ".css":  "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
     ".json": "application/json; charset=utf-8",
-    ".ico":  "image/x-icon",
-    ".svg":  "image/svg+xml",
-    ".png":  "image/png",
+    ".ico": "image/x-icon",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
 }
 _MAX_BODY_BYTES = 32768
 
@@ -175,13 +177,13 @@ def make_handler(
 
             # Static assets
             if path.startswith("/assets/"):
-                rel = path[len("/assets/"):]
+                rel = path[len("/assets/") :]
                 self._static_under(assets_dir, rel)
                 return
 
             # Observatory static files (render/, ui/, state/, transport/, etc.)
             if path.startswith("/observatory/"):
-                rel = path[len("/observatory/"):]
+                rel = path[len("/observatory/") :]
                 obs_root = observatory_package_root()
                 if obs_root is None:
                     self._json(404, {"error": "not found"})
@@ -222,7 +224,7 @@ def make_handler(
                 return
 
             if path.startswith("/instances/"):
-                instance_id = path[len("/instances/"):]
+                instance_id = path[len("/instances/") :]
                 if valid_instance_id(instance_id):
                     self._stream_instance(instance_id)
                     return
@@ -230,7 +232,7 @@ def make_handler(
                 return
 
             if path.startswith("/api/instance/") and path.endswith("/manifest"):
-                instance_id = path[len("/api/instance/"):-len("/manifest")]
+                instance_id = path[len("/api/instance/") : -len("/manifest")]
                 if observatory_dir and valid_instance_id(instance_id):
                     self._serve_manifest(instance_id)
                     return
@@ -238,7 +240,7 @@ def make_handler(
                 return
 
             if path.startswith("/api/instance/") and path.endswith("/history-summary"):
-                instance_id = path[len("/api/instance/"):-len("/history-summary")]
+                instance_id = path[len("/api/instance/") : -len("/history-summary")]
                 if observatory_dir and valid_instance_id(instance_id):
                     self._serve_history_summary(instance_id)
                     return
@@ -291,11 +293,14 @@ def make_handler(
                 if not experiment_starter(spec):
                     self._json(409, {"error": "another run is already active"})
                     return
-                self._json(202, {
-                    "started": True,
-                    "experiment_number": experiment_state.experiment_number,
-                    "spec": spec.as_dict(),
-                })
+                self._json(
+                    202,
+                    {
+                        "started": True,
+                        "experiment_number": experiment_state.experiment_number,
+                        "spec": spec.as_dict(),
+                    },
+                )
                 return
 
             if path == "/api/studies/start":

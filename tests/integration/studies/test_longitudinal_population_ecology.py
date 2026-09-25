@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 
 from symbiont_lab.experiments.loader import load_experiment_file
 from symbiont_lab.experiments.registry import get_protocol
@@ -28,7 +29,10 @@ def test_longitudinal_digest_and_registry_are_deterministic() -> None:
         seeds=(127,), stages=(4,), hosts=1, include_multigeneration=False
     )
     assert study_digest(first) == study_digest(second)
-    assert get_protocol("learning.longitudinal-population-ecology") is run_longitudinal_population_ecology_study
+    assert (
+        get_protocol("learning.longitudinal-population-ecology")
+        is run_longitudinal_population_ecology_study
+    )
 
 
 def test_longitudinal_preregistration_loads_with_bounded_campaign_controls() -> None:
@@ -39,10 +43,16 @@ def test_longitudinal_preregistration_loads_with_bounded_campaign_controls() -> 
     assert spec.extra_params["campaign"]["stages"] == [1000, 10000]
 
 
-@pytest.mark.parametrize("kwargs", [
-    {"stages": (0,)}, {"stages": (100_001,)}, {"hosts": 0}, {"hosts": 33},
-    {"stages": (1, 1)},
-])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"stages": (0,)},
+        {"stages": (100_001,)},
+        {"hosts": 0},
+        {"hosts": 33},
+        {"stages": (1, 1)},
+    ],
+)
 def test_longitudinal_limits_fail_closed(kwargs: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         run_longitudinal_population_ecology_study(

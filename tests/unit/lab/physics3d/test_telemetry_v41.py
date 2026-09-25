@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 
 import pytest
 
@@ -80,18 +80,12 @@ def _state(tick: int) -> dict:
                 {"signal_id": "signal.a", "samples": tick, "confidence": tick / 10}
             ],
             "sensory_phenotype": {
-                "sensors": [
-                    {"sensor_id": "signal.a", "health": 1.0, "cost": 0.1}
-                ]
+                "sensors": [{"sensor_id": "signal.a", "health": 1.0, "cost": 0.1}]
             },
-            "knowledge_events": (
-                [{"kind": "knowledge", "value": tick}] if tick % 2 == 0 else []
-            ),
+            "knowledge_events": ([{"kind": "knowledge", "value": tick}] if tick % 2 == 0 else []),
             "runtime_events": [],
             "experience_records_created": (
-                [{"record_id": f"r{tick}", "context_tokens": ["a", "b"]}]
-                if tick in (2, 5)
-                else []
+                [{"record_id": f"r{tick}", "context_tokens": ["a", "b"]}] if tick in (2, 5) else []
             ),
             "narrative": [f"tick-{tick}"],
             "homeostatic_deviation": tick * 0.001,
@@ -102,11 +96,7 @@ def _state(tick: int) -> dict:
             "motor_readouts": {},
             "primitive_readouts": {},
             "prediction_errors": [],
-            "mutations": (
-                [{"kind": "edge", "payload": {"tick": tick}}]
-                if tick == 3
-                else []
-            ),
+            "mutations": ([{"kind": "edge", "payload": {"tick": tick}}] if tick == 3 else []),
             "recycling_events": [],
             "predictive_gain": tick * 0.01,
         },
@@ -184,13 +174,9 @@ def _state(tick: int) -> dict:
         },
         "sensorimotor": {
             "episodes": episodes,
-            "motor_primitives": [
-                {"primitive_id": "primitive.example", "samples": tick}
-            ],
+            "motor_primitives": [{"primitive_id": "primitive.example", "samples": tick}],
             "active_motor_repertoire": ["primitive.example"] if tick >= 2 else [],
-            "actuator_evidence": [
-                {"actuator_id": "motor.0", "activations": tick, "relations": []}
-            ],
+            "actuator_evidence": [{"actuator_id": "motor.0", "activations": tick, "relations": []}],
         },
         "timing_ms": {"organism": tick * 0.1, "physics": tick * 0.2},
         "future_unknown": {
@@ -272,30 +258,18 @@ def test_v41_separates_checkpoints_from_anchors(tmp_path):
     _write(writer)
 
     anchors = sorted((writer.root / "anchors").glob("*.json"))
-    organism_checkpoints = sorted(
-        (writer.root / "checkpoints" / "organism").glob("*.json")
-    )
-    physical_checkpoints = sorted(
-        (writer.root / "checkpoints" / "physical").glob("*.json")
-    )
+    organism_checkpoints = sorted((writer.root / "checkpoints" / "organism").glob("*.json"))
+    physical_checkpoints = sorted((writer.root / "checkpoints" / "physical").glob("*.json"))
     assert anchors
     assert organism_checkpoints
     assert physical_checkpoints
-    assert all(
-        '"snapshot"' not in path.read_text(encoding="utf-8")
-        for path in anchors
-    )
-    organism_payload = json.loads(
-        organism_checkpoints[0].read_text(encoding="utf-8")
-    )
-    physical_payload = json.loads(
-        physical_checkpoints[0].read_text(encoding="utf-8")
-    )
+    assert all('"snapshot"' not in path.read_text(encoding="utf-8") for path in anchors)
+    organism_payload = json.loads(organism_checkpoints[0].read_text(encoding="utf-8"))
+    physical_payload = json.loads(physical_checkpoints[0].read_text(encoding="utf-8"))
     assert organism_payload["component"] == "organism"
     assert physical_payload["component"] == "physical"
     assert "state" in organism_payload
     assert "state" in physical_payload
-
 
 
 def test_v41_events_are_not_repeated_as_accumulated_snapshots(tmp_path):
@@ -312,13 +286,10 @@ def test_v41_events_are_not_repeated_as_accumulated_snapshots(tmp_path):
     )
     _write(writer)
 
-    events = list(
-        TelemetryV41Reader(writer.root).iter_events(
-            event_type="sensorimotor.episodes"
-        )
-    )
+    events = list(TelemetryV41Reader(writer.root).iter_events(event_type="sensorimotor.episodes"))
     assert len(events) == 2
     assert [item["payload"][0]["sample_index"] for item in events] == [2, 5]
+
 
 def test_v41_unknown_paths_use_exact_fallback(tmp_path):
     writer = TelemetryV41Writer(
@@ -337,8 +308,9 @@ def test_v41_unknown_paths_use_exact_fallback(tmp_path):
     manifest = json.loads((writer.root / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["compaction"]["fallback_records"] > 0
     assert manifest["compaction"]["fallback_bytes"] > 0
-    assert canonical_json_bytes(TelemetryV41Reader(writer.root).state_at(6)) == canonical_json_bytes(_state(6))
-
+    assert canonical_json_bytes(
+        TelemetryV41Reader(writer.root).state_at(6)
+    ) == canonical_json_bytes(_state(6))
 
 
 def test_v41_detects_frame_tampering(tmp_path):
@@ -363,6 +335,7 @@ def test_v41_detects_frame_tampering(tmp_path):
 
     with pytest.raises(ValueError):
         list(TelemetryV41Reader(writer.root).iter_states())
+
 
 def test_v41_detects_commit_tampering(tmp_path):
     writer = TelemetryV41Writer(
@@ -407,9 +380,7 @@ def test_v41_async_writer_is_semantically_equivalent(tmp_path):
     assert left == right
     sync_states = list(TelemetryV41Reader(sync.root).iter_states())
     async_states = list(TelemetryV41Reader(async_writer.root).iter_states())
-    assert [
-        canonical_json_bytes(item) for item in sync_states
-    ] == [
+    assert [canonical_json_bytes(item) for item in sync_states] == [
         canonical_json_bytes(item) for item in async_states
     ]
 
@@ -445,9 +416,7 @@ def test_v41_verify_detects_checkpoint_tampering(tmp_path):
     )
     _write(writer)
 
-    checkpoint = sorted(
-        (writer.root / "checkpoints" / "organism").glob("*.json")
-    )[-1]
+    checkpoint = sorted((writer.root / "checkpoints" / "organism").glob("*.json"))[-1]
     payload = json.loads(checkpoint.read_text(encoding="utf-8"))
     payload["state"]["large"] = "tampered"
     checkpoint.write_text(
@@ -479,6 +448,7 @@ def test_v41_state_at_rejects_self_consistent_but_divergent_anchor(tmp_path):
     payload.pop("anchor_sha256")
     payload["state"]["future_unknown"]["payload"][0] = 999999
     from symbiont_lab.physics3d.telemetry_compaction import payload_sha256
+
     payload["anchor_sha256"] = payload_sha256(payload)
     anchor.write_text(
         json.dumps(payload, separators=(",", ":")) + "\n",
@@ -488,7 +458,6 @@ def test_v41_state_at_rejects_self_consistent_but_divergent_anchor(tmp_path):
     tick = int(payload["tick"])
     with pytest.raises(ValueError, match="anchor state commitment mismatch"):
         TelemetryV41Reader(writer.root).state_at(tick)
-
 
 
 def test_v41_channel_disappearance_resets_writer_and_reader_baselines(tmp_path):
@@ -533,16 +502,12 @@ def test_v41_channel_disappearance_resets_writer_and_reader_baselines(tmp_path):
     writer.close()
 
     reconstructed = list(TelemetryV41Reader(writer.root).iter_states())
-    assert [
-        canonical_json_bytes(item) for item in reconstructed
-    ] == [
+    assert [canonical_json_bytes(item) for item in reconstructed] == [
         canonical_json_bytes(item) for item in states
     ]
 
     episode_records = list(
-        TelemetryV41Reader(writer.root).iter_events(
-            event_type="sensorimotor.episodes"
-        )
+        TelemetryV41Reader(writer.root).iter_events(event_type="sensorimotor.episodes")
     )
     assert len(episode_records) == 2
     assert [item["tick"] for item in episode_records] == [1, 3]
@@ -600,18 +565,12 @@ def test_v41_uses_exact_previous_post_copy_for_matching_pre_physical(tmp_path):
             item = iterator.next()
             if item is None:
                 break
-            if (
-                item["t"] == 2
-                and item["c"] == "pre.physical"
-                and item["m"] == 2
-            ):
+            if item["t"] == 2 and item["c"] == "pre.physical" and item["m"] == 2:
                 copies.append(item)
     assert len(copies) == 1
     assert copies[0]["f"] == "post.physical"
-    assert (
-        TelemetryV41Reader(writer.root).state_at(2)["pre"]["physical"]
-        == first_post
-    )
+    assert TelemetryV41Reader(writer.root).state_at(2)["pre"]["physical"] == first_post
+
 
 def test_v41_writes_derivative_tick_event_and_structure_indexes(tmp_path):
     writer = TelemetryV41Writer(
@@ -644,7 +603,6 @@ def test_v41_writes_derivative_tick_event_and_structure_indexes(tmp_path):
     assert all(item["tick"] >= 4 for item in events)
 
 
-
 def test_v41_manifest_declares_layout_revision_four(tmp_path):
     writer = TelemetryV41Writer(
         tmp_path,
@@ -659,13 +617,12 @@ def test_v41_manifest_declares_layout_revision_four(tmp_path):
     writer.append({"tick": 1}, rich_state={"tick": 1})
     writer.close()
 
-    manifest = json.loads(
-        (writer.root / "manifest.json").read_text(encoding="utf-8")
-    )
+    manifest = json.loads((writer.root / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["layout_revision"] == 4
     assert manifest["storage_model"] == "typed-binary-temporal-streams"
     assert (writer.root / "schemas" / "strings.bin").is_file()
     assert (writer.root / "frames" / "dense.bin").is_file()
+
 
 def test_v41_corrupt_event_index_falls_back_to_canonical_scan(tmp_path):
     writer = TelemetryV41Writer(
@@ -692,7 +649,6 @@ def test_v41_corrupt_event_index_falls_back_to_canonical_scan(tmp_path):
         )
     )
     assert [item["tick"] for item in events] == [2, 4, 6]
-
 
 
 def test_v41_structural_claim_growth_uses_path_deltas_not_frame_schemas(tmp_path):
@@ -778,8 +734,7 @@ def test_v41_structural_claim_growth_uses_path_deltas_not_frame_schemas(tmp_path
         strings,
     )
     assert all(
-        channel != "runtime.signal_knowledge"
-        for channel, _template in schemas.schemas.values()
+        channel != "runtime.signal_knowledge" for channel, _template in schemas.schemas.values()
     )
 
     rebuilt = TelemetryV41Reader(writer.root).state_at(2)
@@ -830,12 +785,7 @@ def test_v41_batches_ephemeral_events_per_channel_and_tick(tmp_path):
                 knowledge.append(item)
     assert len(knowledge) == 1
     assert knowledge[0]["v"] == events
-    assert (
-        TelemetryV41Reader(writer.root)
-        .state_at(1)["runtime"]["knowledge_events"]
-        == events
-    )
-
+    assert TelemetryV41Reader(writer.root).state_at(1)["runtime"]["knowledge_events"] == events
 
 
 def test_v41_random_access_uses_nearest_anchor_index_and_survives_corruption(tmp_path):
@@ -853,17 +803,13 @@ def test_v41_random_access_uses_nearest_anchor_index_and_survives_corruption(tmp
     originals, _summaries = _write(writer)
 
     reader = TelemetryV41Reader(writer.root)
-    assert canonical_json_bytes(reader.state_at(6)) == canonical_json_bytes(
-        originals[5]
-    )
+    assert canonical_json_bytes(reader.state_at(6)) == canonical_json_bytes(originals[5])
 
     index_path = writer.root / "indexes" / "anchors.ndjson"
     index_path.write_text("{corrupt-index}\n", encoding="utf-8")
 
     reader = TelemetryV41Reader(writer.root)
-    assert canonical_json_bytes(reader.state_at(6)) == canonical_json_bytes(
-        originals[5]
-    )
+    assert canonical_json_bytes(reader.state_at(6)) == canonical_json_bytes(originals[5])
 
 
 def test_v41_default_anchor_interval_is_256_and_checkpoint_interval_is_1024(tmp_path):

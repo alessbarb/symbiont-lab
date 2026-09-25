@@ -3,17 +3,18 @@
 PyBullet owns anatomy and physical truth. OrganismRuntime sees only bounded,
 opaque sensory capabilities and its inherited opaque actuator surface.
 """
+
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import replace
 import time
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
+
+from symbiont.core.physiology import LivingBodyState
 
 from symbiont import __version__ as symbiont_version
 from symbiont.actuation.surface import ActuatorConstitution, derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
-from symbiont.core.physiology import LivingBodyState
 from symbiont.cognition.limits import KernelLimits
 from symbiont.host.contracts import (
     AccessMode,
@@ -21,18 +22,16 @@ from symbiont.host.contracts import (
     CapabilityKind,
     CapabilityScope,
 )
-from symbiont.sensory.limits import SensoryLimits
-from symbiont.sensory.system import SensorySystem
 from symbiont.host.readings import (
     ReadingPrivacyClass,
     ReadingQuality,
     SensorReading,
     Unit,
 )
+from symbiont.sensory.limits import SensoryLimits
+from symbiont.sensory.system import SensorySystem
 
 from .humanoid import (
-    HumanoidPhysics,
-    effector_contract_ids,
     interoceptive_receptor_contract_ids,
 )
 
@@ -130,9 +129,7 @@ class OpaqueBodyInteroception:
         )
         return {
             receptor_id: float(source_values[source_ordinal])
-            for receptor_id, source_ordinal in zip(
-                self.receptor_ids, self._source_ordinals_by_slot
-            )
+            for receptor_id, source_ordinal in zip(self.receptor_ids, self._source_ordinals_by_slot)
         }
 
     def checkpoint(self) -> dict[str, object]:
@@ -199,11 +196,14 @@ class PhysicsReadingProvider:
             if interoception is not None
             else (OpaqueBodyInteroception() if body_state_getter is not None else None)
         )
-        self.receptor_ids = (
-            tuple(apparatus.receptor_ids)
-            + (() if self.interoception is None else self.interoception.receptor_ids)
+        self.receptor_ids = tuple(apparatus.receptor_ids) + (
+            () if self.interoception is None else self.interoception.receptor_ids
         )
-        expected = None if expected_receptor_ids is None else tuple(str(item) for item in expected_receptor_ids)
+        expected = (
+            None
+            if expected_receptor_ids is None
+            else tuple(str(item) for item in expected_receptor_ids)
+        )
         if expected is not None and self.receptor_ids != expected:
             raise ValueError("Physics3D receptor surface does not match selected body contract")
         self.last_values: dict[str, float] = {}
@@ -249,13 +249,8 @@ def actuator_to_effector_map(
     actuator_ids = constitution.actuator_ids
     effector_ids = apparatus.effector_ids
     if len(actuator_ids) != len(effector_ids):
-        raise ValueError(
-            "physical body effector surface must exactly match motor constitution"
-        )
-    return {
-        actuator_id: effector_ids[index]
-        for index, actuator_id in enumerate(actuator_ids)
-    }
+        raise ValueError("physical body effector surface must exactly match motor constitution")
+    return {actuator_id: effector_ids[index] for index, actuator_id in enumerate(actuator_ids)}
 
 
 def actuator_exclusion_groups(
@@ -271,56 +266,39 @@ def actuator_exclusion_groups(
     actuator_ids = constitution.actuator_ids
     effector_ids = tuple(str(value) for value in apparatus.effector_ids)
     if len(actuator_ids) != len(effector_ids):
-        raise ValueError(
-            "physical body effector surface must exactly match motor constitution"
-        )
-    effector_index = {
-        effector_id: index
-        for index, effector_id in enumerate(effector_ids)
-    }
+        raise ValueError("physical body effector surface must exactly match motor constitution")
+    effector_index = {effector_id: index for index, effector_id in enumerate(effector_ids)}
     groups: list[tuple[str, str]] = []
     seen: set[str] = set()
     for binding in apparatus.motor_bindings:
         positive = str(binding.positive_port)
         negative = str(binding.negative_port)
         if positive not in effector_index or negative not in effector_index:
-            raise ValueError(
-                "physical motor binding references unknown effector port"
-            )
+            raise ValueError("physical motor binding references unknown effector port")
         group = (
             actuator_ids[effector_index[positive]],
             actuator_ids[effector_index[negative]],
         )
         if group[0] == group[1] or seen.intersection(group):
-            raise ValueError(
-                "physical motor bindings must define disjoint directional pairs"
-            )
+            raise ValueError("physical motor bindings must define disjoint directional pairs")
         seen.update(group)
         groups.append(group)
 
     if seen != set(actuator_ids):
-        raise ValueError(
-            "physical motor bindings must cover the complete actuator constitution"
-        )
+        raise ValueError("physical motor bindings must cover the complete actuator constitution")
     return tuple(groups)
 
 
 def body_schema_summary(runtime) -> dict[str, float | int]:
     """Return evaluator-only BodySchema structure without exposing opaque IDs."""
-    representation = runtime.body_schema.export_representation(
-        current_tick=runtime.tick_count
-    )
+    representation = runtime.body_schema.export_representation(current_tick=runtime.tick_count)
     parts = representation.get("parts", ())
     dependencies = representation.get("dependencies", ())
     confidence_classes = [
-        int(part.get("existence_confidence_class", 0))
-        for part in parts
-        if isinstance(part, dict)
+        int(part.get("existence_confidence_class", 0)) for part in parts if isinstance(part, dict)
     ]
     confidence = (
-        sum(confidence_classes) / (15.0 * len(confidence_classes))
-        if confidence_classes
-        else 0.0
+        sum(confidence_classes) / (15.0 * len(confidence_classes)) if confidence_classes else 0.0
     )
     return {
         "confidence": float(confidence),

@@ -4,6 +4,7 @@ This is observational characterization, not a survival success test. It runs
 canonical clean populations and reports physical outcomes without changing
 cognition or tuning World parameters.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -177,11 +178,7 @@ def _run_seed(
         events = balances[oid]
         death = death_events.get(oid)
         alive = pop.is_alive(oid)
-        lifespan = (
-            int(death.tick) + 1
-            if death is not None
-            else min(steps, len(events))
-        )
+        lifespan = int(death.tick) + 1 if death is not None else min(steps, len(events))
         sums = {
             key: sum(float(event.payload.get(key, 0.0)) for event in events)
             for key in (
@@ -200,9 +197,7 @@ def _run_seed(
             hazard_id = str(hazard_event.payload.get("hazard_id", "unknown"))
             label = hazard_labels.get(hazard_id, hazard_id)
             exposure_by_label[label] = exposure_by_label.get(label, 0) + 1
-            living_densities.append(
-                float(hazard_event.payload.get("living_density", 0.0))
-            )
+            living_densities.append(float(hazard_event.payload.get("living_density", 0.0)))
         results.append(
             FounderViabilityResult(
                 organism_id=oid,
@@ -276,12 +271,10 @@ def run_genesis_viability_characterization(
     )
 
     all_founders = [founder for seed_result in results for founder in seed_result.founders]
-    extinction_fraction = (
-        sum(result.extinction_tick is not None for result in results) / len(results)
+    extinction_fraction = sum(result.extinction_tick is not None for result in results) / len(
+        results
     )
-    survivor_fraction = (
-        sum(founder.alive_at_end for founder in all_founders) / len(all_founders)
-    )
+    survivor_fraction = sum(founder.alive_at_end for founder in all_founders) / len(all_founders)
     overall_median = float(median([founder.lifespan_ticks for founder in all_founders]))
 
     return GenesisViabilityCharacterization(

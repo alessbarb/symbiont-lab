@@ -1,9 +1,10 @@
 """Bounded longitudinal memory and epoch summaries for Physics3D re-embodiment."""
+
 from __future__ import annotations
 
-from copy import deepcopy
 import hashlib
 import json
+from copy import deepcopy
 from typing import Any, Mapping
 
 _MEMORY_SCHEMA_VERSION = 1
@@ -66,23 +67,15 @@ def contract_fingerprint(
 ) -> str:
     """Hash the opaque sensorimotor constitution without anatomy labels."""
     actuation = payload.get("actuation")
-    constitution = (
-        actuation.get("constitution")
-        if isinstance(actuation, Mapping)
-        else None
-    )
+    constitution = actuation.get("constitution") if isinstance(actuation, Mapping) else None
     sensorimotor = _competence_development_payload(actuation)
     raw_groups = (
-        sensorimotor.get("exclusive_actuator_groups")
-        if isinstance(sensorimotor, Mapping)
-        else None
+        sensorimotor.get("exclusive_actuator_groups") if isinstance(sensorimotor, Mapping) else None
     )
     motor_unit_groups: list[list[str]] | None = None
     if raw_groups is not None:
         if not isinstance(raw_groups, list):
-            raise ValueError(
-                "exclusive actuator groups must be a list in embodiment contract"
-            )
+            raise ValueError("exclusive actuator groups must be a list in embodiment contract")
         normalized: list[tuple[str, ...]] = []
         for raw_group in raw_groups:
             if not isinstance(raw_group, (list, tuple)):
@@ -91,13 +84,9 @@ def contract_fingerprint(
                 )
             group = tuple(sorted(str(value) for value in raw_group))
             if len(group) < 2 or len(set(group)) != len(group):
-                raise ValueError(
-                    "exclusive actuator group is invalid in embodiment contract"
-                )
+                raise ValueError("exclusive actuator group is invalid in embodiment contract")
             normalized.append(group)
-        motor_unit_groups = [
-            list(group) for group in sorted(normalized)
-        ]
+        motor_unit_groups = [list(group) for group in sorted(normalized)]
 
     material = {
         "schema_version": CONTRACT_FINGERPRINT_SCHEMA_VERSION,
@@ -145,11 +134,13 @@ def historical_motor_candidates(
                     if isinstance(top_scope, str) and top_scope
                     else str(contract_fingerprint_value)
                 )
-            result.append({
-                "primitive_id": primitive_id,
-                "embodiment_fingerprint": motor_scope,
-                "sequence": deepcopy(sequence),
-            })
+            result.append(
+                {
+                    "primitive_id": primitive_id,
+                    "embodiment_fingerprint": motor_scope,
+                    "sequence": deepcopy(sequence),
+                }
+            )
     return result
 
 
@@ -183,9 +174,7 @@ def archive_contract_memory(
         ),
         "motor_cognitive_surface": deepcopy(motor_cognitive_surface),
         "private_model_ids": (
-            [active_private_model_id]
-            if isinstance(active_private_model_id, str)
-            else []
+            [active_private_model_id] if isinstance(active_private_model_id, str) else []
         ),
         "state": "historical",
     }
@@ -247,19 +236,14 @@ def inject_memory_candidates(
     if not isinstance(sensorimotor, dict):
         return fresh_actuation
     if int(sensorimotor.get("schema_version") or -1) not in {10, 11}:
-        raise ValueError(
-            "fresh embodiment must provide canonical competence-development state"
-        )
+        raise ValueError("fresh embodiment must provide canonical competence-development state")
     expected_scope = sensorimotor.get("embodiment_fingerprint")
     if not isinstance(expected_scope, str) or not expected_scope:
         raise ValueError("fresh sensorimotor state lacks embodiment fingerprint")
     sensorimotor["historical_candidates"] = [
         deepcopy(item)
         for item in raw[:_MAX_HISTORICAL_PRIMITIVES]
-        if (
-            isinstance(item, Mapping)
-            and item.get("embodiment_fingerprint") == expected_scope
-        )
+        if (isinstance(item, Mapping) and item.get("embodiment_fingerprint") == expected_scope)
     ]
     return fresh_actuation
 
@@ -270,11 +254,7 @@ def _count_graph_kind(payload: Mapping[str, Any], kind: str) -> int:
     nodes = graph.get("nodes") if isinstance(graph, Mapping) else None
     if not isinstance(nodes, list):
         return 0
-    return sum(
-        1
-        for item in nodes
-        if isinstance(item, Mapping) and item.get("kind") == kind
-    )
+    return sum(1 for item in nodes if isinstance(item, Mapping) and item.get("kind") == kind)
 
 
 def _count_motor_readouts(payload: Mapping[str, Any]) -> int:
@@ -331,16 +311,10 @@ def build_epoch_summary(
     sensorimotor = sensorimotor if isinstance(sensorimotor, Mapping) else {}
     primitives = sensorimotor.get("primitives")
     evidence = _actuator_evidence_payload(actuation)
-    candidates = (
-        evidence.get("candidates")
-        if isinstance(evidence, Mapping)
-        else None
-    )
+    candidates = evidence.get("candidates") if isinstance(evidence, Mapping) else None
     private_registry = payload.get("private_model_registry")
     private_records = (
-        private_registry.get("records")
-        if isinstance(private_registry, Mapping)
-        else []
+        private_registry.get("records") if isinstance(private_registry, Mapping) else []
     )
     if not isinstance(private_records, list):
         private_records = []
@@ -389,7 +363,9 @@ def build_epoch_summary(
         "predictor_count": _count_graph_kind(payload, "predictor"),
         "private_model_state_counts": model_states,
         "active_private_model_id": active_model_id,
-        "reacclimation_ticks_consumed": int(metric_payload.get("reacclimation_ticks_consumed") or 0),
+        "reacclimation_ticks_consumed": int(
+            metric_payload.get("reacclimation_ticks_consumed") or 0
+        ),
         "reacclimation_completed": bool(metric_payload.get("reacclimation_completed", False)),
         "vital_state_ticks": deepcopy(metric_payload.get("vital_state_ticks") or {}),
     }

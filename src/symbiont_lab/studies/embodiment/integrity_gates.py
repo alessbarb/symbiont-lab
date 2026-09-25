@@ -3,15 +3,16 @@
 These gates validate apparatus isolation. They do not score scientific H1/H0.
 A failed gate invalidates interpretation of the corresponding campaign run.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import inspect
-from typing import Sequence
+from dataclasses import asdict, dataclass
+
+from symbiont.core.symbiont import Symbiont
 
 from symbiont.genetics.genome import flatten_genes
 from symbiont.genetics.germline import GermlineState
-from symbiont.core.symbiont import Symbiont
 from symbiont_lab.world.adapter import _construct_organism
 from symbiont_lab.world.genesis_v1 import build_ground_truth
 
@@ -65,16 +66,19 @@ def run_embodiment_integrity_gates(
 
     step_params = tuple(inspect.signature(Symbiont.step).parameters)
     forbidden_step_tokens = (
-        "condition", "phase", "world", "body_id", "embodiment",
-        "truth", "label", "resource", "hazard", "schedule",
+        "condition",
+        "phase",
+        "world",
+        "body_id",
+        "embodiment",
+        "truth",
+        "label",
+        "resource",
+        "hazard",
+        "schedule",
     )
-    step_clean = (
-        step_params == ("self", "opaque_inputs")
-        and not any(
-            token in name.lower()
-            for name in step_params
-            for token in forbidden_step_tokens
-        )
+    step_clean = step_params == ("self", "opaque_inputs") and not any(
+        token in name.lower() for name in step_params for token in forbidden_step_tokens
     )
 
     germline_methods = (
@@ -82,25 +86,36 @@ def run_embodiment_integrity_gates(
         GermlineState.effective_value,
     )
     germline_param_names = {
-        name.lower()
-        for method in germline_methods
-        for name in inspect.signature(method).parameters
+        name.lower() for method in germline_methods for name in inspect.signature(method).parameters
     }
     forbidden_germline_tokens = {
-        "world", "condition", "phase", "resource", "hazard",
-        "body", "embodiment", "concept", "signal", "schedule",
+        "world",
+        "condition",
+        "phase",
+        "resource",
+        "hazard",
+        "body",
+        "embodiment",
+        "concept",
+        "signal",
+        "schedule",
     }
     germline_clean = not any(
-        token in param
-        for param in germline_param_names
-        for token in forbidden_germline_tokens
+        token in param for param in germline_param_names for token in forbidden_germline_tokens
     )
 
     genome_values = flatten_genes(genome) if genome is not None else {}
     genome_text = repr(sorted(genome_values.items())).lower()
     identity_tokens = (
-        "world", "resource", "hazard", "body", "embodiment",
-        "signal", "condition", "schedule", "intervention",
+        "world",
+        "resource",
+        "hazard",
+        "body",
+        "embodiment",
+        "signal",
+        "condition",
+        "schedule",
+        "intervention",
     )
     no_world_identity = not any(token in genome_text for token in identity_tokens)
 

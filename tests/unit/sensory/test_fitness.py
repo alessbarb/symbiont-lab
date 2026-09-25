@@ -4,14 +4,17 @@ from symbiont.sensory.fitness import sensory_fitness
 
 
 def test_health_and_novelty_cannot_create_utility_without_downstream_gain() -> None:
-    assert sensory_fitness(
-        predictive_contribution=0.0,
-        downstream_contribution=0.0,
-        novelty=1.0,
-        reliability=1.0,
-        redundancy=0.0,
-        cost=0.0,
-    ) == 0.0
+    assert (
+        sensory_fitness(
+            predictive_contribution=0.0,
+            downstream_contribution=0.0,
+            novelty=1.0,
+            reliability=1.0,
+            redundancy=0.0,
+            cost=0.0,
+        )
+        == 0.0
+    )
 
 
 def test_demonstrated_gain_is_modulated_by_quality_and_cost() -> None:

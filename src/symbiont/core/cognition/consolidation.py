@@ -108,7 +108,9 @@ def surprise_from_loss(loss: float | None) -> float:
 
 from ..foundation.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
 
-_MATURITY_THRESHOLDS = DEFAULT_EPISTEMIC_CONVENTIONS.maturity_thresholds  # support_epochs lower bound per class
+_MATURITY_THRESHOLDS = (
+    DEFAULT_EPISTEMIC_CONVENTIONS.maturity_thresholds
+)  # support_epochs lower bound per class
 
 
 def maturity_class_from_support_epochs(support_epochs: int) -> int:
@@ -172,7 +174,13 @@ class SalientEventTrace:
     def __post_init__(self) -> None:
         if not isinstance(self.pattern_id, str) or not self.pattern_id:
             raise MemoryError("pattern_id must be a non-empty string")
-        for field_name in ("novelty_class", "surprise_class", "reliability_class", "context_class", "recurrence_class"):
+        for field_name in (
+            "novelty_class",
+            "surprise_class",
+            "reliability_class",
+            "context_class",
+            "recurrence_class",
+        ):
             _require_trace_class(getattr(self, field_name), field_name)
 
 
@@ -202,7 +210,9 @@ class MemoryConsolidator:
 
     @property
     def salient_events(self) -> tuple[SalientEventTrace, ...]:
-        ordered_ids = sorted(self._salient_traces, key=lambda pattern_id: self._salient_reinforced_epoch[pattern_id])
+        ordered_ids = sorted(
+            self._salient_traces, key=lambda pattern_id: self._salient_reinforced_epoch[pattern_id]
+        )
         return tuple(self._salient_traces[pattern_id] for pattern_id in ordered_ids)
 
     def observe(
@@ -217,7 +227,9 @@ class MemoryConsolidator:
             and signal.reliability >= self._kernel_limits.fast_min_reliability
         ):
             self._commit_salient_trace(key, signal, epoch_id=epoch_id)
-            return ConsolidationOutcome(key=key, kind=kind, path="fast", committed=True, support_epochs=0, score=score)
+            return ConsolidationOutcome(
+                key=key, kind=kind, path="fast", committed=True, support_epochs=0, score=score
+            )
 
         candidate = self._candidates.get(key)
         if candidate is None:
@@ -234,14 +246,22 @@ class MemoryConsolidator:
 
         committed = candidate.support_epochs >= self._kernel_limits.slow_support_epochs
         if committed and kind is MemoryKind.STATISTICAL:
-            self._committed_statistical[key] = maturity_class_from_support_epochs(candidate.support_epochs)
+            self._committed_statistical[key] = maturity_class_from_support_epochs(
+                candidate.support_epochs
+            )
 
         return ConsolidationOutcome(
-            key=key, kind=kind, path="slow", committed=committed,
-            support_epochs=candidate.support_epochs, score=score,
+            key=key,
+            kind=kind,
+            path="slow",
+            committed=committed,
+            support_epochs=candidate.support_epochs,
+            score=score,
         )
 
-    def _commit_salient_trace(self, key: str, signal: ConsolidationSignal, *, epoch_id: int) -> None:
+    def _commit_salient_trace(
+        self, key: str, signal: ConsolidationSignal, *, epoch_id: int
+    ) -> None:
         existing = self._salient_traces.get(key)
         recurrence_class = min(15, (existing.recurrence_class + 1) if existing is not None else 0)
         trace = SalientEventTrace(
@@ -252,13 +272,19 @@ class MemoryConsolidator:
             context_class=existing.context_class if existing is not None else 0,
             recurrence_class=recurrence_class,
         )
-        if key not in self._salient_traces and len(self._salient_traces) >= self._kernel_limits.max_salient_event_traces:
+        if (
+            key not in self._salient_traces
+            and len(self._salient_traces) >= self._kernel_limits.max_salient_event_traces
+        ):
             self._evict_one_salient_trace()
         self._salient_traces[key] = trace
         self._salient_reinforced_epoch[key] = epoch_id
 
     def _evict_one_salient_trace(self) -> None:
-        victim_id = min(self._salient_reinforced_epoch, key=lambda pattern_id: (self._salient_reinforced_epoch[pattern_id], pattern_id))
+        victim_id = min(
+            self._salient_reinforced_epoch,
+            key=lambda pattern_id: (self._salient_reinforced_epoch[pattern_id], pattern_id),
+        )
         del self._salient_traces[victim_id]
         del self._salient_reinforced_epoch[victim_id]
 
@@ -289,7 +315,9 @@ class MemoryConsolidator:
         }
 
     @classmethod
-    def restore_checkpoint(cls, payload: dict[str, object] | None, *, kernel_limits: KernelLimits) -> "MemoryConsolidator":
+    def restore_checkpoint(
+        cls, payload: dict[str, object] | None, *, kernel_limits: KernelLimits
+    ) -> "MemoryConsolidator":
         consolidator = cls(kernel_limits=kernel_limits)
         if payload is None:
             return consolidator
@@ -298,7 +326,9 @@ class MemoryConsolidator:
         statistical = payload.get("statistical", {})
         if not isinstance(statistical, dict):
             raise MemoryError("memory checkpoint 'statistical' must be an object")
-        consolidator._committed_statistical = {str(key): int(value) for key, value in statistical.items()}
+        consolidator._committed_statistical = {
+            str(key): int(value) for key, value in statistical.items()
+        }
         salient_events = payload.get("salient_events", [])
         if not isinstance(salient_events, list):
             raise MemoryError("memory checkpoint 'salient_events' must be an array")

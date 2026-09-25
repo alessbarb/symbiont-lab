@@ -57,12 +57,8 @@ def _connect_world(time_step: float = DEFAULT_TIME_STEP):
 
 
 def _total_mass(p, client_id: int, body: HumanoidPhysics) -> float:
-    total = float(
-        p.getDynamicsInfo(body.body_id, -1, physicsClientId=client_id)[0]
-    )
-    for link_index in range(
-        int(p.getNumJoints(body.body_id, physicsClientId=client_id))
-    ):
+    total = float(p.getDynamicsInfo(body.body_id, -1, physicsClientId=client_id)[0])
+    for link_index in range(int(p.getNumJoints(body.body_id, physicsClientId=client_id))):
         total += float(
             p.getDynamicsInfo(
                 body.body_id,
@@ -77,9 +73,7 @@ def _center_of_mass_height(p, client_id: int, body: HumanoidPhysics) -> float:
     weighted_z = 0.0
     total = 0.0
 
-    base_mass = float(
-        p.getDynamicsInfo(body.body_id, -1, physicsClientId=client_id)[0]
-    )
+    base_mass = float(p.getDynamicsInfo(body.body_id, -1, physicsClientId=client_id)[0])
     base_pos, _ = p.getBasePositionAndOrientation(
         body.body_id,
         physicsClientId=client_id,
@@ -87,9 +81,7 @@ def _center_of_mass_height(p, client_id: int, body: HumanoidPhysics) -> float:
     weighted_z += base_mass * float(base_pos[2])
     total += base_mass
 
-    for link_index in range(
-        int(p.getNumJoints(body.body_id, physicsClientId=client_id))
-    ):
+    for link_index in range(int(p.getNumJoints(body.body_id, physicsClientId=client_id))):
         mass = float(
             p.getDynamicsInfo(
                 body.body_id,
@@ -226,12 +218,8 @@ def _passive_characterization(
             mean_reaction / expected_weight if expected_weight > 0.0 else 0.0
         ),
         "max_ground_penetration_m": max(penetrations, default=0.0),
-        "mean_ground_penetration_m": (
-            fmean(penetrations) if penetrations else 0.0
-        ),
-        "mean_ground_contact_points": (
-            fmean(ground_contacts) if ground_contacts else 0.0
-        ),
+        "mean_ground_penetration_m": (fmean(penetrations) if penetrations else 0.0),
+        "mean_ground_contact_points": (fmean(ground_contacts) if ground_contacts else 0.0),
         "max_ground_contact_points": max(ground_contacts, default=0),
         "max_base_linear_speed_m_s": max_linear_speed,
         "max_base_angular_speed_rad_s": max_angular_speed,
@@ -244,10 +232,7 @@ def _spread_indices(total: int, count: int, *, offset: int = 0) -> tuple[int, ..
         return tuple(range(total))
     if count <= 1:
         return (offset % total,)
-    base = {
-        round(i * (total - 1) / (count - 1))
-        for i in range(count)
-    }
+    base = {round(i * (total - 1) / (count - 1)) for i in range(count)}
     return tuple(sorted({(index + offset) % total for index in base}))
 
 
@@ -291,12 +276,10 @@ def _run_motor_trial(
             }
 
         activations = {
-            body.motor_bindings[index].positive_port: float(amplitudes[index])
-            for index in selected
+            body.motor_bindings[index].positive_port: float(amplitudes[index]) for index in selected
         }
         commanded_torque_capacity = sum(
-            JOINT_SPECS[index].max_motor_torque * float(amplitudes[index])
-            for index in selected
+            JOINT_SPECS[index].max_motor_torque * float(amplitudes[index]) for index in selected
         )
 
         start_pos, _ = p.getBasePositionAndOrientation(
@@ -367,10 +350,7 @@ def _run_motor_trial(
             "active_dof": len(selected),
             "active_directional_channels": len(selected),
             "selected_joint_indices": [int(value) for value in selected],
-            "amplitudes": {
-                str(index): float(amplitudes[index])
-                for index in selected
-            },
+            "amplitudes": {str(index): float(amplitudes[index]) for index in selected},
             "commanded_torque_capacity_nm": commanded_torque_capacity,
             "drive_steps": drive_steps,
             "settling": settle.as_dict(),
@@ -431,9 +411,7 @@ def _fixed_total_torque_trials(
     # Use a budget feasible for every individual DoF.  Otherwise low-torque
     # joints would saturate at activation=1 and the supposedly fixed-total-
     # torque arm would silently compare different total capacities.
-    torque_budget = min(
-        spec.max_motor_torque for spec in JOINT_SPECS
-    ) * reference_amplitude
+    torque_budget = min(spec.max_motor_torque for spec in JOINT_SPECS) * reference_amplitude
     trials: list[dict[str, object]] = []
     for dimension in dimensions:
         for selected in _matched_index_sets(len(JOINT_SPECS), dimension, repeats):
@@ -536,10 +514,7 @@ def run_constitution_audit(
         p.disconnect(physicsClientId=client_id)
 
     dimensions = tuple(
-        sorted({
-            max(1, min(len(JOINT_SPECS), int(value)))
-            for value in motor_dimensions
-        })
+        sorted({max(1, min(len(JOINT_SPECS), int(value))) for value in motor_dimensions})
     )
     fixed_amplitude = _dimensionality_trials(
         dimensions,
@@ -559,11 +534,7 @@ def run_constitution_audit(
         amplitude=motor_amplitude,
         drive_steps=motor_drive_steps,
         time_step=time_step,
-        joint_indices=(
-            None
-            if single_joint_indices is None
-            else tuple(single_joint_indices)
-        ),
+        joint_indices=(None if single_joint_indices is None else tuple(single_joint_indices)),
     )
 
     return {

@@ -1,21 +1,18 @@
 """Exact binary codecs for Physics3D telemetry v4.1 layout revision 4."""
+
 from __future__ import annotations
 
-from copy import deepcopy
 import hashlib
-import io
-from pathlib import Path
 import struct
+from copy import deepcopy
+from pathlib import Path
 from typing import Any, BinaryIO, Iterable, Mapping
 
 from .telemetry_compaction import (
-    StateDiffer,
     StatePatcher,
     canonical_json_bytes,
 )
 from .telemetry_schema import EVENT_RULES, TemporalClass, event_mode
-from .telemetry_structural import structural_view, logical_view
-
 
 # Value tags. The format is intentionally small, deterministic and self-describing.
 _NULL = 0
@@ -312,10 +309,7 @@ def _template_and_values(value: Any) -> tuple[Any, list[Any]]:
         if isinstance(item, Mapping):
             return (
                 "d",
-                tuple(
-                    (str(key), visit(item[key]))
-                    for key in sorted(item, key=str)
-                ),
+                tuple((str(key), visit(item[key])) for key in sorted(item, key=str)),
             )
         if isinstance(item, (list, tuple)):
             return ("l", tuple(visit(child) for child in item))
@@ -332,10 +326,7 @@ def _template_leaf_count(template: Any) -> int:
     if tag == "l":
         return sum(_template_leaf_count(child) for child in template[1])
     if tag == "d":
-        return sum(
-            _template_leaf_count(child)
-            for _key, child in template[1]
-        )
+        return sum(_template_leaf_count(child) for _key, child in template[1])
     raise ValueError(f"unknown binary frame template tag: {tag!r}")
 
 
@@ -348,10 +339,7 @@ def _inflate(template: Any, values: list[Any], index: list[int]) -> Any:
     if tag == "l":
         return [_inflate(child, values, index) for child in template[1]]
     if tag == "d":
-        return {
-            key: _inflate(child, values, index)
-            for key, child in template[1]
-        }
+        return {key: _inflate(child, values, index) for key, child in template[1]}
     raise ValueError(f"unknown binary frame template tag: {tag!r}")
 
 
@@ -539,12 +527,9 @@ class BinaryDenseWriter:
             changed = [
                 (index, item)
                 for index, item in enumerate(values)
-                if index >= len(previous[1])
-                or not _exact_equal(previous[1][index], item)
+                if index >= len(previous[1]) or not _exact_equal(previous[1][index], item)
             ]
-            sparse = bytearray(
-                self._header(tick, channel, schema_id, _MODE_SPARSE)
-            )
+            sparse = bytearray(self._header(tick, channel, schema_id, _MODE_SPARSE))
             sparse.extend(encode_uvarint(len(changed)))
             for index, item in changed:
                 sparse.extend(encode_uvarint(index))
@@ -581,9 +566,8 @@ class BinaryDenseWriter:
         schema_id, created = self.schemas.resolve(channel, template)
         if created:
             self.schema_changes += 1
-        payload = (
-            self._header(tick, channel, schema_id, _MODE_COPY)
-            + encode_uvarint(self.strings.id(source_channel))
+        payload = self._header(tick, channel, schema_id, _MODE_COPY) + encode_uvarint(
+            self.strings.id(source_channel)
         )
         self._previous[channel] = (
             schema_id,
@@ -603,8 +587,7 @@ class BinaryDenseWriter:
 
     def schema_state(self) -> dict[str, int]:
         return {
-            channel: schema_id
-            for channel, (schema_id, _values, _logical) in self._previous.items()
+            channel: schema_id for channel, (schema_id, _values, _logical) in self._previous.items()
         }
 
     @property
@@ -708,8 +691,7 @@ class BinaryDenseReader:
             expected = _template_leaf_count(template)
             if len(values) != expected:
                 raise ValueError(
-                    f"binary full frame leaf count mismatch: "
-                    f"{len(values)} != {expected}"
+                    f"binary full frame leaf count mismatch: {len(values)} != {expected}"
                 )
             cursor = [0]
             value = _inflate(template, values, cursor)
@@ -832,9 +814,7 @@ def _diff(left: Any, right: Any, path: str = "") -> list[dict[str, Any]]:
     if isinstance(right, Mapping):
         operations: list[dict[str, Any]] = []
         for key in sorted(set(left) - set(right), key=str):
-            operations.append(
-                {"op": "remove", "path": f"{path}/{_escape(key)}"}
-            )
+            operations.append({"op": "remove", "path": f"{path}/{_escape(key)}"})
         for key in sorted(right, key=str):
             child = f"{path}/{_escape(key)}"
             if key not in left:
@@ -852,12 +832,8 @@ def _diff(left: Any, right: Any, path: str = "") -> list[dict[str, Any]]:
         if len(left) != len(right):
             return [{"op": "set", "path": path, "value": deepcopy(right)}]
         operations = []
-        for index, (before, after) in enumerate(
-            zip(left, right, strict=True)
-        ):
-            operations.extend(
-                _diff(before, after, f"{path}/{index}")
-            )
+        for index, (before, after) in enumerate(zip(left, right, strict=True)):
+            operations.extend(_diff(before, after, f"{path}/{index}"))
         return operations
     if not _exact_equal(left, right):
         return [{"op": "set", "path": path, "value": deepcopy(right)}]
@@ -970,9 +946,7 @@ class BinaryDeltaReader:
             path = self.paths.path(path_id, channel)
             if opcode == _OP_SET:
                 value, offset = self.codec.decode(payload, offset)
-                operations.append(
-                    {"op": "set", "path": path, "value": value}
-                )
+                operations.append({"op": "set", "path": path, "value": value})
             elif opcode == _OP_REMOVE:
                 operations.append({"op": "remove", "path": path})
             else:
@@ -1041,12 +1015,11 @@ class BinaryEventWriter:
                     payload_value = current
                 else:
                     prefix = len(previous) <= len(current) and all(
-                        canonical_json_bytes(left)
-                        == canonical_json_bytes(right)
+                        canonical_json_bytes(left) == canonical_json_bytes(right)
                         for left, right in zip(previous, current, strict=False)
                     )
                     if prefix:
-                        appended = current[len(previous):]
+                        appended = current[len(previous) :]
                         if not appended:
                             self._previous_cumulative[channel] = current
                             return []
@@ -1109,10 +1082,7 @@ class BinaryEventReader:
 
     def begin_tick(self, event_rules: Iterable[Any] = EVENT_RULES) -> None:
         for rule in event_rules:
-            if (
-                rule.temporal_class is TemporalClass.EVENT_EPHEMERAL
-                and rule.channel in self.values
-            ):
+            if rule.temporal_class is TemporalClass.EVENT_EPHEMERAL and rule.channel in self.values:
                 self.values[rule.channel] = []
 
     def apply(self, record: Mapping[str, Any]) -> None:
@@ -1240,9 +1210,7 @@ class BinaryTickBucket:
                 break
             record_tick = int(self._pending.get("t", -1))
             if record_tick < tick:
-                raise ValueError(
-                    f"binary telemetry stream behind commit: {record_tick} < {tick}"
-                )
+                raise ValueError(f"binary telemetry stream behind commit: {record_tick} < {tick}")
             if record_tick > tick:
                 break
             result.append(self._pending)

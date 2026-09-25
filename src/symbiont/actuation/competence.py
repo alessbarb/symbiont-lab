@@ -1,4 +1,5 @@
 """Evidence-derived motor competence abstractions."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -72,6 +73,7 @@ class MotorCompetence:
     def maturity(self) -> CompetenceMaturity:
         return self.evidence.maturity
 
+
 class CompetenceLibrary:
     def __init__(self, *, max_competences: int = 512) -> None:
         self._max = int(max_competences)
@@ -94,11 +96,7 @@ class CompetenceLibrary:
         return self._items.get(competence_id)
 
     def for_effect(self, effect_id: str) -> tuple[MotorCompetence, ...]:
-        result = [
-            item
-            for item in self._items.values()
-            if item.effect_id == effect_id
-        ]
+        result = [item for item in self._items.values() if item.effect_id == effect_id]
         return tuple(
             sorted(
                 result,

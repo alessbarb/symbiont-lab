@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import tomllib
+from pathlib import Path
 from typing import Any
 
 from .spec import ExperimentSpec, spec_from_payload
@@ -64,8 +64,19 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         raise ValueError("world section must be an object")
     _reject_unknown_keys(
         world_block,
-        {"hosts", "steps", "seed", "seeds", "threat_rate", "poison_fraction", "heterogeneity",
-         "drift_step", "drift_fraction", "drift_magnitude", "delay"},
+        {
+            "hosts",
+            "steps",
+            "seed",
+            "seeds",
+            "threat_rate",
+            "poison_fraction",
+            "heterogeneity",
+            "drift_step",
+            "drift_fraction",
+            "drift_magnitude",
+            "delay",
+        },
         "world",
     )
     for k, v in world_block.items():
@@ -83,14 +94,36 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
     # Extra parameters for protocols (attention, evidence, heritage, etc.)
     extra = {}
     extension_keys = {
-        "attention": {"budget_per_1000", "budgets_per_1000", "curve_budgets_per_1000", "reference_strategy"},
-        "evidence": {"budget", "budget_per_1000", "budgets_per_1000", "exploration_fractions", "noise_levels", "sensor_noise", "reference_strategy"},
-        "heritage": {"source_threat_rate", "target_threat_rates", "target_offset", "heritage_limit"},
+        "attention": {
+            "budget_per_1000",
+            "budgets_per_1000",
+            "curve_budgets_per_1000",
+            "reference_strategy",
+        },
+        "evidence": {
+            "budget",
+            "budget_per_1000",
+            "budgets_per_1000",
+            "exploration_fractions",
+            "noise_levels",
+            "sensor_noise",
+            "reference_strategy",
+        },
+        "heritage": {
+            "source_threat_rate",
+            "target_threat_rates",
+            "target_offset",
+            "heritage_limit",
+        },
         # Long-running discovery protocols keep their bounded campaign
         # controls in an extension block rather than overloading ``world``.
         "campaign": {
-            "stages", "population_sizes", "multigeneration_generations",
-            "replay_windows", "deferred_stages", "deferred_reason",
+            "stages",
+            "population_sizes",
+            "multigeneration_generations",
+            "replay_windows",
+            "deferred_stages",
+            "deferred_reason",
         },
         "ablation": {"horizon_ticks"},
         "adaptation": {"horizon_ticks"},

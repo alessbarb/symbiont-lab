@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 
 from symbiont_lab.archive.runs import ExperimentArchive
@@ -17,7 +16,9 @@ def build_archive_parser(parser: argparse.ArgumentParser) -> None:
     campaign_cmd = sub.add_parser(
         "campaign", help="Assess a Symbiont Lab observer-side research lineage"
     )
-    campaign_cmd.add_argument("--study-id", required=True, help="Newest study record ID in the lineage")
+    campaign_cmd.add_argument(
+        "--study-id", required=True, help="Newest study record ID in the lineage"
+    )
     campaign_cmd.add_argument("--archive", default=".symbiont/studies.jsonl")
 
 
@@ -27,11 +28,15 @@ def run_archive_command(args: argparse.Namespace) -> int:
         studies = StudyArchive().recent(args.limit)
         print(f"=== Experiment Runs ({len(runs)}) ===")
         for r in runs:
-            print(f"[{r.record_id}] {r.created_at} — {r.spec.get('title', 'Untitled')} (source: {r.source})")
+            print(
+                f"[{r.record_id}] {r.created_at} — {r.spec.get('title', 'Untitled')} (source: {r.source})"
+            )
 
         print(f"\n=== Comparative Studies ({len(studies)}) ===")
         for s in studies:
-            print(f"[{s.record_id}] {s.created_at} — {s.base_spec.get('title', 'Untitled')} (source: {s.source})")
+            print(
+                f"[{s.record_id}] {s.created_at} — {s.base_spec.get('title', 'Untitled')} (source: {s.source})"
+            )
         return 0
     elif args.archive_action == "campaign":
         archive = StudyArchive(args.archive)

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import io
-
 from symbiont_lab.physics3d.telemetry_compaction import canonical_json_bytes
 from symbiont_lab.physics3d.telemetry_numeric import (
     FrameSchemaRegistryReader,
@@ -15,9 +13,10 @@ def test_frame_stream_uses_sparse_values_without_losing_signed_zero(tmp_path):
     return
     schema_path = tmp_path / "schemas.ndjson"
     frame_path = tmp_path / "frames.ndjson"
-    with schema_path.open("w+", encoding="utf-8") as schemas, frame_path.open(
-        "w+", encoding="utf-8"
-    ) as frames:
+    with (
+        schema_path.open("w+", encoding="utf-8") as schemas,
+        frame_path.open("w+", encoding="utf-8") as frames,
+    ):
         registry = FrameSchemaRegistryWriter(schemas)
         writer = FrameStreamWriter(frames, registry, stream_name="test")
         first = {"a": 0.0, "b": [1, 2, 3], "empty": {}}
@@ -43,9 +42,10 @@ def test_frame_stream_uses_sparse_values_without_losing_signed_zero(tmp_path):
 def test_frame_schema_revises_only_when_shape_changes(tmp_path):
     schema_path = tmp_path / "schemas.ndjson"
     frame_path = tmp_path / "frames.ndjson"
-    with schema_path.open("w+", encoding="utf-8") as schemas, frame_path.open(
-        "w+", encoding="utf-8"
-    ) as frames:
+    with (
+        schema_path.open("w+", encoding="utf-8") as schemas,
+        frame_path.open("w+", encoding="utf-8") as frames,
+    ):
         registry = FrameSchemaRegistryWriter(schemas)
         writer = FrameStreamWriter(frames, registry, stream_name="test")
         a = writer.append(1, "c", {"x": 1, "items": [1, 2]})
@@ -59,9 +59,10 @@ def test_frame_schema_revises_only_when_shape_changes(tmp_path):
 def test_frame_stream_copy_mode_reuses_exact_source_channel(tmp_path):
     schema_path = tmp_path / "schemas.ndjson"
     frame_path = tmp_path / "frames.ndjson"
-    with schema_path.open("w+", encoding="utf-8") as schemas, frame_path.open(
-        "w+", encoding="utf-8"
-    ) as frames:
+    with (
+        schema_path.open("w+", encoding="utf-8") as schemas,
+        frame_path.open("w+", encoding="utf-8") as frames,
+    ):
         registry = FrameSchemaRegistryWriter(schemas)
         writer = FrameStreamWriter(frames, registry, stream_name="test")
         post = {"base_position": [1.0, 2.0, 3.0], "velocity": [0.1, 0.2]}

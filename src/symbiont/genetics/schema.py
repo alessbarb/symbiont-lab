@@ -3,11 +3,12 @@
 The schema describes which values may vary genetically. It is not part of an
 individual genotype and therefore never changes an organism's genotype hash.
 """
+
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
-import math
 from typing import Any, Mapping
 
 
@@ -43,7 +44,10 @@ class GeneSpec:
     def __post_init__(self) -> None:
         if not self.locus:
             raise ValueError("gene locus must not be empty")
-        if not math.isfinite(self.mutation_probability) or not 0.0 <= self.mutation_probability <= 1.0:
+        if (
+            not math.isfinite(self.mutation_probability)
+            or not 0.0 <= self.mutation_probability <= 1.0
+        ):
             raise ValueError(f"{self.locus}: mutation_probability must be in [0,1]")
         if not math.isfinite(self.mutation_scale) or self.mutation_scale < 0.0:
             raise ValueError(f"{self.locus}: mutation_scale must be finite and non-negative")
@@ -115,7 +119,9 @@ class GenomeSchema:
         except KeyError as exc:
             raise ValueError(f"unknown gene locus {locus!r}") from exc
 
-    def validate_flat(self, values: Mapping[str, Any], *, require_all: bool = True) -> dict[str, Any]:
+    def validate_flat(
+        self, values: Mapping[str, Any], *, require_all: bool = True
+    ) -> dict[str, Any]:
         unknown = set(values) - set(self._specs)
         if unknown:
             raise ValueError(f"unknown genome loci: {sorted(unknown)}")
@@ -179,48 +185,176 @@ def _int(
 
 DEFAULT_GENOME_SCHEMA = GenomeSchema(
     {
-        "development.soft_node_budget": _int("development.soft_node_budget", 8, 768, step=8, group="development.capacity"),
-        "development.soft_edge_budget": _int("development.soft_edge_budget", 16, 6144, step=32, group="development.capacity"),
-        "development.sense_node_budget": _int("development.sense_node_budget", 4, 256, step=4, group="development.capacity"),
-        "development.capacity_growth_sensitivity": _float("development.capacity_growth_sensitivity", 0.0, 1.0, scale=0.04),
-        "development.consolidation_interval_ticks": _int("development.consolidation_interval_ticks", 1, 4096, step=8),
-        "plasticity.learning_rate.baseline": _float("plasticity.learning_rate.baseline", 0.0001, 0.5, scale=0.01, regulable=True, group="plasticity.learning_rate"),
-        "plasticity.learning_rate.minimum": _float("plasticity.learning_rate.minimum", 0.0, 0.5, scale=0.005, group="plasticity.learning_rate"),
-        "plasticity.learning_rate.maximum": _float("plasticity.learning_rate.maximum", 0.0001, 1.0, scale=0.02, group="plasticity.learning_rate"),
-        "plasticity.learning_rate.adaptation_rate": _float("plasticity.learning_rate.adaptation_rate", 0.00001, 0.25, scale=0.005, group="plasticity.learning_rate"),
-        "plasticity.eligibility_decay": _float("plasticity.eligibility_decay", 0.0, 1.0, scale=0.02),
-        "plasticity.structural_plasticity.baseline": _float("plasticity.structural_plasticity.baseline", 0.0, 1.0, scale=0.03, regulable=True, group="plasticity.structural"),
-        "plasticity.structural_plasticity.minimum": _float("plasticity.structural_plasticity.minimum", 0.0, 1.0, scale=0.02, group="plasticity.structural"),
-        "plasticity.structural_plasticity.maximum": _float("plasticity.structural_plasticity.maximum", 0.0, 1.0, scale=0.02, group="plasticity.structural"),
-        "plasticity.structural_plasticity.adaptation_rate": _float("plasticity.structural_plasticity.adaptation_rate", 0.0, 0.25, scale=0.005, group="plasticity.structural"),
+        "development.soft_node_budget": _int(
+            "development.soft_node_budget", 8, 768, step=8, group="development.capacity"
+        ),
+        "development.soft_edge_budget": _int(
+            "development.soft_edge_budget", 16, 6144, step=32, group="development.capacity"
+        ),
+        "development.sense_node_budget": _int(
+            "development.sense_node_budget", 4, 256, step=4, group="development.capacity"
+        ),
+        "development.capacity_growth_sensitivity": _float(
+            "development.capacity_growth_sensitivity", 0.0, 1.0, scale=0.04
+        ),
+        "development.consolidation_interval_ticks": _int(
+            "development.consolidation_interval_ticks", 1, 4096, step=8
+        ),
+        "plasticity.learning_rate.baseline": _float(
+            "plasticity.learning_rate.baseline",
+            0.0001,
+            0.5,
+            scale=0.01,
+            regulable=True,
+            group="plasticity.learning_rate",
+        ),
+        "plasticity.learning_rate.minimum": _float(
+            "plasticity.learning_rate.minimum",
+            0.0,
+            0.5,
+            scale=0.005,
+            group="plasticity.learning_rate",
+        ),
+        "plasticity.learning_rate.maximum": _float(
+            "plasticity.learning_rate.maximum",
+            0.0001,
+            1.0,
+            scale=0.02,
+            group="plasticity.learning_rate",
+        ),
+        "plasticity.learning_rate.adaptation_rate": _float(
+            "plasticity.learning_rate.adaptation_rate",
+            0.00001,
+            0.25,
+            scale=0.005,
+            group="plasticity.learning_rate",
+        ),
+        "plasticity.eligibility_decay": _float(
+            "plasticity.eligibility_decay", 0.0, 1.0, scale=0.02
+        ),
+        "plasticity.structural_plasticity.baseline": _float(
+            "plasticity.structural_plasticity.baseline",
+            0.0,
+            1.0,
+            scale=0.03,
+            regulable=True,
+            group="plasticity.structural",
+        ),
+        "plasticity.structural_plasticity.minimum": _float(
+            "plasticity.structural_plasticity.minimum",
+            0.0,
+            1.0,
+            scale=0.02,
+            group="plasticity.structural",
+        ),
+        "plasticity.structural_plasticity.maximum": _float(
+            "plasticity.structural_plasticity.maximum",
+            0.0,
+            1.0,
+            scale=0.02,
+            group="plasticity.structural",
+        ),
+        "plasticity.structural_plasticity.adaptation_rate": _float(
+            "plasticity.structural_plasticity.adaptation_rate",
+            0.0,
+            0.25,
+            scale=0.005,
+            group="plasticity.structural",
+        ),
         "regulation.uncertainty_gain": _float("regulation.uncertainty_gain", 0.0, 2.0, scale=0.05),
         "regulation.novelty_gain": _float("regulation.novelty_gain", 0.0, 2.0, scale=0.05),
-        "regulation.prediction_error_gain": _float("regulation.prediction_error_gain", 0.0, 2.0, scale=0.05),
-        "regulation.controllability_loss_gain": _float("regulation.controllability_loss_gain", 0.0, 2.0, scale=0.05),
-        "regulation.embodiment_mismatch_gain": _float("regulation.embodiment_mismatch_gain", 0.0, 2.0, scale=0.05),
-        "regulation.regulation_smoothing": _float("regulation.regulation_smoothing", 0.001, 1.0, scale=0.02),
+        "regulation.prediction_error_gain": _float(
+            "regulation.prediction_error_gain", 0.0, 2.0, scale=0.05
+        ),
+        "regulation.controllability_loss_gain": _float(
+            "regulation.controllability_loss_gain", 0.0, 2.0, scale=0.05
+        ),
+        "regulation.embodiment_mismatch_gain": _float(
+            "regulation.embodiment_mismatch_gain", 0.0, 2.0, scale=0.05
+        ),
+        "regulation.regulation_smoothing": _float(
+            "regulation.regulation_smoothing", 0.001, 1.0, scale=0.02
+        ),
         "regulation.regulation_decay": _float("regulation.regulation_decay", 0.0, 1.0, scale=0.02),
-        "sensorimotor.spontaneous_activity_baseline": _float("sensorimotor.spontaneous_activity_baseline", 0.0, 1.0, scale=0.03, regulable=True),
-        "sensorimotor.uncertainty_exploration_gain": _float("sensorimotor.uncertainty_exploration_gain", 0.0, 2.0, scale=0.05),
-        "sensorimotor.prediction_error_exploration_gain": _float("sensorimotor.prediction_error_exploration_gain", 0.0, 2.0, scale=0.05),
-        "sensorimotor.exploration_habituation": _float("sensorimotor.exploration_habituation", 0.0, 0.25, scale=0.005),
-        "sensorimotor.reacclimation_sensitivity": _float("sensorimotor.reacclimation_sensitivity", 0.0, 2.0, scale=0.05),
-        "structure.growth_threshold.baseline": _float("structure.growth_threshold.baseline", 0.0, 1.0, scale=0.03, regulable=True, group="structure.growth"),
-        "structure.growth_threshold.minimum": _float("structure.growth_threshold.minimum", 0.0, 1.0, scale=0.02, group="structure.growth"),
-        "structure.growth_threshold.maximum": _float("structure.growth_threshold.maximum", 0.0, 1.0, scale=0.02, group="structure.growth"),
-        "structure.growth_threshold.adaptation_rate": _float("structure.growth_threshold.adaptation_rate", 0.0, 0.25, scale=0.005, group="structure.growth"),
-        "structure.pruning_threshold.baseline": _float("structure.pruning_threshold.baseline", 0.0, 1.0, scale=0.02, regulable=True, group="structure.pruning"),
-        "structure.pruning_threshold.minimum": _float("structure.pruning_threshold.minimum", 0.0, 1.0, scale=0.02, group="structure.pruning"),
-        "structure.pruning_threshold.maximum": _float("structure.pruning_threshold.maximum", 0.0, 1.0, scale=0.02, group="structure.pruning"),
-        "structure.pruning_threshold.adaptation_rate": _float("structure.pruning_threshold.adaptation_rate", 0.0, 0.25, scale=0.005, group="structure.pruning"),
+        "sensorimotor.spontaneous_activity_baseline": _float(
+            "sensorimotor.spontaneous_activity_baseline", 0.0, 1.0, scale=0.03, regulable=True
+        ),
+        "sensorimotor.uncertainty_exploration_gain": _float(
+            "sensorimotor.uncertainty_exploration_gain", 0.0, 2.0, scale=0.05
+        ),
+        "sensorimotor.prediction_error_exploration_gain": _float(
+            "sensorimotor.prediction_error_exploration_gain", 0.0, 2.0, scale=0.05
+        ),
+        "sensorimotor.exploration_habituation": _float(
+            "sensorimotor.exploration_habituation", 0.0, 0.25, scale=0.005
+        ),
+        "sensorimotor.reacclimation_sensitivity": _float(
+            "sensorimotor.reacclimation_sensitivity", 0.0, 2.0, scale=0.05
+        ),
+        "structure.growth_threshold.baseline": _float(
+            "structure.growth_threshold.baseline",
+            0.0,
+            1.0,
+            scale=0.03,
+            regulable=True,
+            group="structure.growth",
+        ),
+        "structure.growth_threshold.minimum": _float(
+            "structure.growth_threshold.minimum", 0.0, 1.0, scale=0.02, group="structure.growth"
+        ),
+        "structure.growth_threshold.maximum": _float(
+            "structure.growth_threshold.maximum", 0.0, 1.0, scale=0.02, group="structure.growth"
+        ),
+        "structure.growth_threshold.adaptation_rate": _float(
+            "structure.growth_threshold.adaptation_rate",
+            0.0,
+            0.25,
+            scale=0.005,
+            group="structure.growth",
+        ),
+        "structure.pruning_threshold.baseline": _float(
+            "structure.pruning_threshold.baseline",
+            0.0,
+            1.0,
+            scale=0.02,
+            regulable=True,
+            group="structure.pruning",
+        ),
+        "structure.pruning_threshold.minimum": _float(
+            "structure.pruning_threshold.minimum", 0.0, 1.0, scale=0.02, group="structure.pruning"
+        ),
+        "structure.pruning_threshold.maximum": _float(
+            "structure.pruning_threshold.maximum", 0.0, 1.0, scale=0.02, group="structure.pruning"
+        ),
+        "structure.pruning_threshold.adaptation_rate": _float(
+            "structure.pruning_threshold.adaptation_rate",
+            0.0,
+            0.25,
+            scale=0.005,
+            group="structure.pruning",
+        ),
         "structure.minimum_support": _int("structure.minimum_support", 1, 4096, step=2),
-        "structure.tentative_lifetime_ticks": _int("structure.tentative_lifetime_ticks", 1, 65536, step=8),
-        "evolvability.development_mutation_scale": _float("evolvability.development_mutation_scale", 0.0, 2.0, scale=0.05),
-        "evolvability.plasticity_mutation_scale": _float("evolvability.plasticity_mutation_scale", 0.0, 2.0, scale=0.05),
-        "evolvability.regulation_mutation_scale": _float("evolvability.regulation_mutation_scale", 0.0, 2.0, scale=0.05),
-        "evolvability.sensorimotor_mutation_scale": _float("evolvability.sensorimotor_mutation_scale", 0.0, 2.0, scale=0.05),
-        "evolvability.structure_mutation_scale": _float("evolvability.structure_mutation_scale", 0.0, 2.0, scale=0.05),
-        "evolvability.recombination_linkage": _float("evolvability.recombination_linkage", 0.0, 1.0, scale=0.03),
+        "structure.tentative_lifetime_ticks": _int(
+            "structure.tentative_lifetime_ticks", 1, 65536, step=8
+        ),
+        "evolvability.development_mutation_scale": _float(
+            "evolvability.development_mutation_scale", 0.0, 2.0, scale=0.05
+        ),
+        "evolvability.plasticity_mutation_scale": _float(
+            "evolvability.plasticity_mutation_scale", 0.0, 2.0, scale=0.05
+        ),
+        "evolvability.regulation_mutation_scale": _float(
+            "evolvability.regulation_mutation_scale", 0.0, 2.0, scale=0.05
+        ),
+        "evolvability.sensorimotor_mutation_scale": _float(
+            "evolvability.sensorimotor_mutation_scale", 0.0, 2.0, scale=0.05
+        ),
+        "evolvability.structure_mutation_scale": _float(
+            "evolvability.structure_mutation_scale", 0.0, 2.0, scale=0.05
+        ),
+        "evolvability.recombination_linkage": _float(
+            "evolvability.recombination_linkage", 0.0, 1.0, scale=0.03
+        ),
     }
 )
 

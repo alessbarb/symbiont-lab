@@ -2,11 +2,11 @@ import pytest
 
 from symbiont.modeling import (
     ClaimGraph,
-    SocialClaim,
+    ModeledOrganismRuntime,
     SocialChannel,
+    SocialClaim,
     SocialEpistemicStatus,
     SocialEvidenceLedger,
-    ModeledOrganismRuntime,
 )
 
 
@@ -43,7 +43,13 @@ def test_duplicate_spoof_and_unauthorized_delivery_rejected():
     channel = SocialChannel(authorized_pairs={("A", "B")})
     receiver = SocialEvidenceLedger("C")
     with pytest.raises(ValueError):
-        channel.deliver(a.retransmit(root.claim_id, receiver_id="C", tick=4), sender_id="A", receiver=receiver, tick=4, source=a)
+        channel.deliver(
+            a.retransmit(root.claim_id, receiver_id="C", tick=4),
+            sender_id="A",
+            receiver=receiver,
+            tick=4,
+            source=a,
+        )
 
 
 def test_mass_copy_does_not_inflate_independent_roots():
@@ -74,7 +80,9 @@ def test_independent_confirmation_and_contradiction_remain_separate():
 def test_mutation_freshness_forgetting_checkpoint_and_restore():
     a = SocialEvidenceLedger("A")
     root = a.originate(proposition_tokens=("x",), evidence_id="e", tick=1)
-    mutated = a.mutate_and_retransmit(root.claim_id, receiver_id="B", proposition_tokens=("y",), tick=2)
+    mutated = a.mutate_and_retransmit(
+        root.claim_id, receiver_id="B", proposition_tokens=("y",), tick=2
+    )
     assert mutated.mutation_depth == 1
     assert a.graph.root_evidence_ids(mutated) == ("e",)
     assert a.freshness(mutated.claim_id, current_tick=2) < 1.0
@@ -87,13 +95,41 @@ def test_mutation_freshness_forgetting_checkpoint_and_restore():
 
 def test_graph_rejects_cycles_and_bound_overflow():
     graph = ClaimGraph()
-    root = SocialClaim.originate(organism_id="A", proposition_tokens=("x",), evidence_id="e", tick=0)
+    root = SocialClaim.originate(
+        organism_id="A", proposition_tokens=("x",), evidence_id="e", tick=0
+    )
     graph.add(root)
-    bad = SocialClaim("bad", ("x",), "A", "A", ("e",), ("missing",), 0, None, SocialEpistemicStatus.SOCIAL_CLAIM, 0, 0, 0)
+    bad = SocialClaim(
+        "bad",
+        ("x",),
+        "A",
+        "A",
+        ("e",),
+        ("missing",),
+        0,
+        None,
+        SocialEpistemicStatus.SOCIAL_CLAIM,
+        0,
+        0,
+        0,
+    )
     with pytest.raises(ValueError):
         graph.add(bad)
     with pytest.raises(ValueError):
-        SocialClaim("bad2", tuple(f"t{i}" for i in range(33)), "A", "A", ("e",), (), 0, None, SocialEpistemicStatus.SOCIAL_CLAIM, 0, 0, 0)
+        SocialClaim(
+            "bad2",
+            tuple(f"t{i}" for i in range(33)),
+            "A",
+            "A",
+            ("e",),
+            (),
+            0,
+            None,
+            SocialEpistemicStatus.SOCIAL_CLAIM,
+            0,
+            0,
+            0,
+        )
 
 
 def test_social_claim_is_not_private_experience_or_training_target():
@@ -111,5 +147,7 @@ def test_modeled_runtime_checkpoint_and_observatory_projection_are_passive():
     assert projection["claim_count"] == 1
     assert projection["independent_roots"] == 1
     assert projection["claim_lineage"][0]["claim_id"] == claim.claim_id
-    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint(), bootstrap_semantic_senses=False)
+    restored = ModeledOrganismRuntime.from_checkpoint(
+        runtime.checkpoint(), bootstrap_semantic_senses=False
+    )
     assert restored.cultural_observations() == runtime.cultural_observations()

@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.world.deferred import DeferredEffect, DeferredEffectQueue, MAX_QUEUE_SIZE
+from symbiont_lab.world.deferred import MAX_QUEUE_SIZE, DeferredEffect, DeferredEffectQueue
 
 
 def test_deferred_effect_rejects_out_of_bound_amount():

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-import math
 import random
+from dataclasses import asdict, dataclass
 from typing import Iterable
 
 from symbiont_lab.modeling import SparseEchoStateRegressor
@@ -156,9 +155,7 @@ def run_continuous_temporal_challenge(
         seeds=seed_list,
         trials=trials,
         mean_gain_pre_shift=sum(t.esn_gain_pre_shift for t in trials) / count,
-        mean_gain_post_shift_late=sum(
-            t.esn_gain_post_shift_late for t in trials
-        ) / count,
+        mean_gain_post_shift_late=sum(t.esn_gain_post_shift_late for t in trials) / count,
         mean_recovery_ratio=sum(t.adaptation_recovery_ratio for t in trials) / count,
     )
 

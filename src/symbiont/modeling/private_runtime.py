@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import math
+from dataclasses import dataclass
 
+from ..agency.types import CounterfactualPrediction
 from ..cognition.types import NodeKind
+from ..core.cognition.bridge import CognitiveBridgeResult
 from ..core.domains.context import TickContext
 from ..core.orchestration.runtime import RuntimeTickResult
+from ..host.percepts import Percept
 from .episodic import EpisodicProjection
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
+from .proposals import ModelPredictionProposal
 from .runtime import ModeledOrganismRuntime
-
 
 _MAX_CAPTURED_SENSES = 128
 _MAX_TEMPORAL_OUTCOMES = 64
@@ -187,6 +190,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         if not context:
             context.append("internal.quiet")
         return tuple(context[:512])
+
     def _episodic_projection(
         self,
         result: RuntimeTickResult,
@@ -205,10 +209,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         )
         kinds = {}
         if self._cognitive_bridge is not None:
-            kinds = {
-                node.node_id: node.kind
-                for node in self._cognitive_bridge.graph.nodes
-            }
+            kinds = {node.node_id: node.kind for node in self._cognitive_bridge.graph.nodes}
 
         ranked_senses = sorted(
             (
@@ -300,34 +301,29 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 context.append(_opaque_class("internal.action.reason", result.action_result.reason))
             source = SourceKind.ACTION_OUTCOME
             if len(evidence) < 16:
-                evidence.append(_evidence_ref(
-                    self.organism_id,
-                    result.tick,
-                    "action",
-                    action_id,
-                    result.action_result.executed,
-                ))
+                evidence.append(
+                    _evidence_ref(
+                        self.organism_id,
+                        result.tick,
+                        "action",
+                        action_id,
+                        result.action_result.executed,
+                    )
+                )
         elif result.actuations or result.actuation is not None:
             actuations = result.actuations or (
                 (result.actuation,) if result.actuation is not None else ()
             )
             action_source = self.last_action_source
             executed_pid = self._last_executed_competence_id
-            named_competence = (
-                executed_pid is not None
-                and action_source in {
-                    "competence",
-                    "protection",
-                    "prospection",
-                }
-            )
+            named_competence = executed_pid is not None and action_source in {
+                "competence",
+                "protection",
+                "prospection",
+            }
             for actuation in sorted(actuations, key=lambda item: item.actuator_id):
-                delivered_class = max(
-                    0, min(7, round(float(actuation.delivered) * 7))
-                )
-                requested_class = max(
-                    0, min(7, round(float(actuation.requested) * 7))
-                )
+                delivered_class = max(0, min(7, round(float(actuation.delivered) * 7)))
+                requested_class = max(0, min(7, round(float(actuation.requested) * 7)))
                 actuator_token = _opaque_class(
                     "motor.channel",
                     actuation.actuator_id,
@@ -338,20 +334,18 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 # counterfactual choice. Composite exploration still needs channel
                 # detail because it has no acquired action identity.
                 if not named_competence:
-                    context.append(
-                        f"internal.{actuator_token}.requested.{requested_class}"
-                    )
-                    context.append(
-                        f"internal.{actuator_token}.delivered.{delivered_class}"
-                    )
+                    context.append(f"internal.{actuator_token}.requested.{requested_class}")
+                    context.append(f"internal.{actuator_token}.delivered.{delivered_class}")
                 if len(evidence) < 16:
-                    evidence.append(_evidence_ref(
-                        self.organism_id,
-                        result.tick,
-                        "motor",
-                        actuation.actuator_id,
-                        delivered_class,
-                    ))
+                    evidence.append(
+                        _evidence_ref(
+                            self.organism_id,
+                            result.tick,
+                            "motor",
+                            actuation.actuator_id,
+                            delivered_class,
+                        )
+                    )
             # When the execution originated from a named competence, use the
             # competence's opaque identity as the action token. This gives
             # counterfactual inference the same token that was produced during
@@ -457,7 +451,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             action_token=previous.action_token,
             outcome_tokens=outcomes,
             epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=evidence or (_evidence_ref(self.organism_id, current.tick, "transition"),),
+            evidence_refs=evidence
+            or (_evidence_ref(self.organism_id, current.tick, "transition"),),
             confidence_class=7,
             source_kind=previous.source_kind,
         )
@@ -508,18 +503,20 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         validation_digest = hashlib.sha256(
             f"{prediction.record_id}:{status.value}:{episode.evidence_refs}".encode("utf-8")
         ).hexdigest()[:24]
-        self.record_experience(ExperienceRecord(
-            record_id=f"validation.{validation_digest}",
-            organism_id=self.organism_id,
-            tick_class=episode.tick_class,
-            context_tokens=prediction.context_tokens,
-            action_token=None,
-            outcome_tokens=prediction.outcome_tokens,
-            epistemic_status=status,
-            evidence_refs=episode.evidence_refs,
-            confidence_class=proposal.confidence_class,
-            source_kind=SourceKind.MODEL,
-        ))
+        self.record_experience(
+            ExperienceRecord(
+                record_id=f"validation.{validation_digest}",
+                organism_id=self.organism_id,
+                tick_class=episode.tick_class,
+                context_tokens=prediction.context_tokens,
+                action_token=None,
+                outcome_tokens=prediction.outcome_tokens,
+                epistemic_status=status,
+                evidence_refs=episode.evidence_refs,
+                confidence_class=proposal.confidence_class,
+                source_kind=SourceKind.MODEL,
+            )
+        )
 
     # ------------------------------------------------------------------ #
     #  L8: Prospective Agency integration                                  #
@@ -540,9 +537,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         self._last_prospective_decision = None
         self._last_prospective_query_count = 0
         self._last_prospective_cost = 0.0
-        self._pending_outcome_value_credit: list[
-            tuple[int, str, float, float]
-        ] = []
+        self._pending_outcome_value_credit: list[tuple[int, str, float, float]] = []
         if not enable_prospective_agency:
             return
 
@@ -620,9 +615,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         # A sensorimotor competence becomes a prospective action only after
         # its competence readout has actually entered the cognitive graph.
         competence_readouts = cognition.readouts_for_family("primitive")
-        admitted_ids = tuple(
-            cid for cid in candidate_ids if cid in competence_readouts
-        )
+        admitted_ids = tuple(cid for cid in candidate_ids if cid in competence_readouts)
         if not admitted_ids:
             return None
 
@@ -634,9 +627,9 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         )
 
         from ..agency import ProspectiveCandidate
+
         candidates = tuple(
-            ProspectiveCandidate(action_id=pid, family="competence")
-            for pid in admitted_ids
+            ProspectiveCandidate(action_id=pid, family="competence") for pid in admitted_ids
         )
 
         config = self.physiology_config
@@ -646,6 +639,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         def _predictor(action_id: str, ctx: tuple[str, ...]) -> "CounterfactualPrediction":
             nonlocal query_count
             from ..agency import CounterfactualPrediction
+
             # Count an actual inference attempt, including one that fails
             # inside the model gateway: computation was still requested.
             query_count += 1
@@ -657,6 +651,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             )
 
         from ..core.embodiment.physiology import VitalState
+
         decision = self._prospective_agency.deliberate(
             tick=tick,
             candidates=candidates,
@@ -703,6 +698,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         if len(self._pending_outcome_value_credit) > 4096:
             self._pending_outcome_value_credit.sort(key=lambda item: item[0])
             self._pending_outcome_value_credit = self._pending_outcome_value_credit[:4096]
+
     def _resolve_outcome_value_credit(self, *, tick: int) -> None:
         """Resolve pending outcome-value credit traces at due ticks."""
         if not self._pending_outcome_value_credit or self._prospective_agency is None:
@@ -811,6 +807,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 if not isinstance(raw_agency, dict):
                     raise ValueError("invalid prospective agency checkpoint")
                 from ..agency import ProspectiveAgency, ProspectivePolicy
+
                 config = runtime.physiology_config
                 policy = ProspectivePolicy(
                     organism_id=runtime.organism_id,

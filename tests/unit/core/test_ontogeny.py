@@ -1,5 +1,4 @@
 import pytest
-
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.ontogeny import OntogenyController, PhysicalLifeStage
 from symbiont.core.physiology import LivingBodyState, VitalState
@@ -7,10 +6,7 @@ from symbiont.core.physiology_config import PhysiologyConfig
 
 
 def _zero_replenishment():
-    return {
-        kind: 0.0
-        for kind in ("observation", "cognition", "persistence", "maintenance")
-    }
+    return {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
 
 
 def test_growth_is_constitutive_and_consumes_physical_energy() -> None:

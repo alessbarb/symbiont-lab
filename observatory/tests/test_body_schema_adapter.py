@@ -105,7 +105,9 @@ class BodySchemaAdapterTests(unittest.TestCase):
             recovering=False,
             topology_revision=0,
         )
-        snapshot = project_tick(result(cognition=cognition), genome=Obj(), body_schema=body_schema_v2())
+        snapshot = project_tick(
+            result(cognition=cognition), genome=Obj(), body_schema=body_schema_v2()
+        )
 
         self.assertEqual(snapshot["schema_version"], 3)
         self.assertIn("cognition", snapshot["organism"])
@@ -114,13 +116,24 @@ class BodySchemaAdapterTests(unittest.TestCase):
     def test_private_checkpoint_export_fails_closed_and_never_leaks_salt_or_learning_state(self):
         private = body_schema_v2(
             id_salt="f" * 32,
-            cognitive_learning={"channel_support": [{"channel_id": "channel.cognition." + "a" * 32, "support": 9}]},
+            cognitive_learning={
+                "channel_support": [{"channel_id": "channel.cognition." + "a" * 32, "support": 9}]
+            },
         )
         snapshot = project_tick(result(), body_schema=private)
         body = snapshot["organism"]["body_schema"]
 
         self.assertEqual(snapshot["schema_version"], 3)
-        self.assertEqual(body, {"schema_version": 2, "state": "undeveloped", "parts": [], "dependencies": [], "global_state": {}})
+        self.assertEqual(
+            body,
+            {
+                "schema_version": 2,
+                "state": "undeveloped",
+                "parts": [],
+                "dependencies": [],
+                "global_state": {},
+            },
+        )
         self.assertNotIn("id_salt", repr(snapshot))
         self.assertNotIn("channel.cognition", repr(snapshot))
         self.assertNotIn("cognitive_learning", repr(snapshot))
@@ -132,7 +145,13 @@ class BodySchemaAdapterTests(unittest.TestCase):
 
         self.assertEqual(
             snapshot["organism"]["body_schema"],
-            {"schema_version": 1, "state": "undeveloped", "parts": [], "dependencies": [], "global_state": {}},
+            {
+                "schema_version": 1,
+                "state": "undeveloped",
+                "parts": [],
+                "dependencies": [],
+                "global_state": {},
+            },
         )
         self.assertNotIn("compute.logical_cpu", repr(snapshot["organism"]["body_schema"]))
 
@@ -156,7 +175,13 @@ class BodySchemaAdapterTests(unittest.TestCase):
 
         self.assertEqual(
             snapshot["organism"]["body_schema"],
-            {"schema_version": 2, "state": "undeveloped", "parts": [], "dependencies": [], "global_state": {}},
+            {
+                "schema_version": 2,
+                "state": "undeveloped",
+                "parts": [],
+                "dependencies": [],
+                "global_state": {},
+            },
         )
 
     def test_omitting_body_schema_preserves_historical_v1_snapshot_contract(self):

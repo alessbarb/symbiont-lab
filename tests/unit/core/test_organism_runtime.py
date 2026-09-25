@@ -4,14 +4,14 @@ import json
 import random
 
 import pytest
-
-from symbiont.core.runtime import OrganismRuntime
-from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
 from symbiont.core.development import DevelopmentalTracker
+from symbiont.core.homeostasis import HomeostaticController
+from symbiont.core.runtime import OrganismRuntime
 from symbiont.core.signal_identity import SignalIdentity
 from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
-from symbiont.core.homeostasis import HomeostaticController
+
 from symbiont.host.checkpoint import CheckpointError
+from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
 
 
 def test_rejects_non_positive_attention_budget():
@@ -32,9 +32,7 @@ def test_constitutive_repair_consumes_maintenance_and_is_bounded():
     runtime.tick()
 
     repaired = runtime.homeostasis.integrity - before_integrity
-    assert repaired == pytest.approx(
-        runtime.physiology_config.autonomous_repair_rate
-    )
+    assert repaired == pytest.approx(runtime.physiology_config.autonomous_repair_rate)
     assert runtime.metabolism.snapshot().reserve["maintenance"] < before_reserve
 
 
@@ -92,6 +90,7 @@ def test_embodied_work_accumulation_rejects_numeric_overflow():
     runtime.register_embodied_work(sys.float_info.max)
     with pytest.raises(ValueError, match="overflowed"):
         runtime.register_embodied_work(sys.float_info.max)
+
 
 def test_predictor_promotion_is_explicitly_opt_in_and_checkpointed() -> None:
     runtime = OrganismRuntime(auto_promote_predictors=True)
@@ -154,7 +153,9 @@ def test_drift_observations_reported_per_percept():
     runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
     result = runtime.tick()
 
-    assert set(result.drift_observations) == {percept.name for percept in result.percepts if percept.value is not None}
+    assert set(result.drift_observations) == {
+        percept.name for percept in result.percepts if percept.value is not None
+    }
 
 
 def test_attention_always_allocates_at_least_one_capability_once_known():
@@ -202,9 +203,14 @@ def test_full_runtime_checkpoint_contains_bounded_signal_knowledge(tmp_path):
         runtime.signal_knowledge.observe(
             SignalObservationBatch(
                 tick,
-                tuple(SignalObservation(signal_id, True, True, rng.gauss(0.0, 1.0), "nominal") for signal_id in signal_ids),
+                tuple(
+                    SignalObservation(signal_id, True, True, rng.gauss(0.0, 1.0), "nominal")
+                    for signal_id in signal_ids
+                ),
             ),
-            candidate_pairs=tuple((signal_ids[index], signal_ids[(index + 1) % 64]) for index in range(64)),
+            candidate_pairs=tuple(
+                (signal_ids[index], signal_ids[(index + 1) % 64]) for index in range(64)
+            ),
         )
 
     # checkpoint() is a save *event* (each call advances checkpoint_lineage,
@@ -214,7 +220,10 @@ def test_full_runtime_checkpoint_contains_bounded_signal_knowledge(tmp_path):
     runtime.save(path)
     saved_payload = json.loads(path.read_text())
     assert len(saved_payload["signal_knowledge"]["profiles"]) == 64
-    assert sum(len(profile["claims"]) for profile in saved_payload["signal_knowledge"]["profiles"]) == 192
+    assert (
+        sum(len(profile["claims"]) for profile in saved_payload["signal_knowledge"]["profiles"])
+        == 192
+    )
     assert path.stat().st_size < 2 * 1024 * 1024
     restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
     assert restored.signal_knowledge.view() == runtime.signal_knowledge.view()
@@ -254,7 +263,10 @@ def test_restored_runtime_continues_ticking_normally(tmp_path):
 
 
 def test_from_checkpoint_with_v1_payload_lacking_living_body_fails_closed():
-    v1_payload = {"schema_version": 1, "acclimation": {"cpu": {"count": 5, "mean": 1.0, "variance": 0.0}}}
+    v1_payload = {
+        "schema_version": 1,
+        "acclimation": {"cpu": {"count": 5, "mean": 1.0, "variance": 0.0}},
+    }
 
     with pytest.raises(CheckpointError, match="Living Body L5"):
         OrganismRuntime.from_checkpoint(v1_payload, min_samples=1)
@@ -291,7 +303,9 @@ def test_stale_acclimation_entry_does_not_prevent_investigating_a_live_capabilit
     # Seed a capability the acclimation model "knows" but that discovery will
     # never actually report this tick — it must never be allowed to occupy
     # the entire attention budget and block investigation of real senses.
-    runtime.acclimation.restore("phantom-capability", CapabilityBaseline(count=1, mean=0.0, variance=0.0))
+    runtime.acclimation.restore(
+        "phantom-capability", CapabilityBaseline(count=1, mean=0.0, variance=0.0)
+    )
 
     result = runtime.tick()
 
@@ -373,10 +387,18 @@ def test_drift_baselines_stay_bounded_as_sensed_capabilities_renew():
         )
 
     adaptive = AdaptiveSenseModel(
-        min_samples=1, active_limit=2, max_candidates=2, relation_window=2, exploration_limit=2, probe_limit=2
+        min_samples=1,
+        active_limit=2,
+        max_candidates=2,
+        relation_window=2,
+        exploration_limit=2,
+        probe_limit=2,
     )
     runtime = OrganismRuntime(
-        discover_senses=True, bootstrap_semantic_senses=False, adaptive_senses=adaptive, investigate_ticks=0
+        discover_senses=True,
+        bootstrap_semantic_senses=False,
+        adaptive_senses=adaptive,
+        investigate_ticks=0,
     )
 
     for group in range(20):
@@ -400,7 +422,9 @@ def test_runtime_feeds_sampling_outcomes_into_self_model():
     for _ in range(10):
         runtime.tick()
 
-    assert any(runtime.self_model.is_established(capability_id) for capability_id in DEFAULT_PERCEPT_NAMES)
+    assert any(
+        runtime.self_model.is_established(capability_id) for capability_id in DEFAULT_PERCEPT_NAMES
+    )
 
 
 def test_self_model_survives_checkpoint_round_trip():
@@ -426,6 +450,8 @@ def test_established_but_persistently_unhealthy_sense_is_skipped_for_second_look
     from types import SimpleNamespace
 
     from symbiont.core.selfmodel import MIN_SELF_MODEL_ATTEMPTS, SelfModel
+
+    from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
     from symbiont.host.adaptive import AdaptiveSenseModel
     from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
     from symbiont.host.lifecycle import LifecycleSnapshot
@@ -437,7 +463,6 @@ def test_established_but_persistently_unhealthy_sense_is_skipped_for_second_look
         SensorReading,
         Unit,
     )
-    from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
 
     def reading(capability_id: str, value: float) -> SensorReading:
         return SensorReading(
@@ -497,7 +522,12 @@ def test_established_but_persistently_unhealthy_sense_is_skipped_for_second_look
         (),
     )
     snapshot = LifecycleSnapshot(
-        1, manifest, (reading("broken", 1.0), reading("healthy", 1.0)), (), (), ("broken", "healthy")
+        1,
+        manifest,
+        (reading("broken", 1.0), reading("healthy", 1.0)),
+        (),
+        (),
+        ("broken", "healthy"),
     )
     runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot)
 
@@ -507,9 +537,15 @@ def test_established_but_persistently_unhealthy_sense_is_skipped_for_second_look
 
 
 def test_one_failing_provider_only_degrades_its_own_capabilities_health():
-    from dataclasses import dataclass, field as dc_field
+    from dataclasses import dataclass
+    from dataclasses import field as dc_field
 
-    from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope, HostManifest
+    from symbiont.host.contracts import (
+        AccessMode,
+        Capability,
+        CapabilityKind,
+        CapabilityScope,
+    )
     from symbiont.host.discovery import HostDiscovery
     from symbiont.host.lifecycle import HostLifecycle
     from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
@@ -571,17 +607,27 @@ def test_one_failing_provider_only_degrades_its_own_capabilities_health():
     adaptive = AdaptiveSenseModel()
     for tick in range(10):
         adaptive.observe(
-            [_seed_reading("capability-broken", 1.0 + tick), _seed_reading("capability-healthy", 1.0 + tick)]
+            [
+                _seed_reading("capability-broken", 1.0 + tick),
+                _seed_reading("capability-healthy", 1.0 + tick),
+            ]
         )
 
     discovery = HostDiscovery(
-        providers=(_FakeDiscovery("fixture", (_capability("capability-broken"), _capability("capability-healthy"))),)
+        providers=(
+            _FakeDiscovery(
+                "fixture", (_capability("capability-broken"), _capability("capability-healthy"))
+            ),
+        )
     )
     provider = _MixedProvider()
     lifecycle = HostLifecycle(discovery=discovery, reading_providers=(provider,))
 
     runtime = OrganismRuntime(
-        discover_senses=True, bootstrap_semantic_senses=False, adaptive_senses=adaptive, investigate_ticks=0
+        discover_senses=True,
+        bootstrap_semantic_senses=False,
+        adaptive_senses=adaptive,
+        investigate_ticks=0,
     )
     runtime._lifecycle = lifecycle
 
@@ -597,7 +643,12 @@ def test_one_failing_provider_only_degrades_its_own_capabilities_health():
 
 def test_health_without_current_tick_stays_undecayed_from_the_perspective_of_runtime():
     from symbiont.core.selfmodel import IDLE_GRACE_TICKS, SelfModel
-    from symbiont.host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
+
+    from symbiont.host.readings import (
+        CapabilitySamplingOutcome,
+        ReadingQuality,
+        SamplingOutcomeKind,
+    )
 
     self_model = SelfModel()
     for tick in range(40):
@@ -640,7 +691,9 @@ def test_a_sense_observed_just_before_checkpoint_is_not_idle_immediately_after_r
         runtime.tick()
 
     established = [
-        capability_id for capability_id in DEFAULT_PERCEPT_NAMES if runtime.self_model.is_established(capability_id)
+        capability_id
+        for capability_id in DEFAULT_PERCEPT_NAMES
+        if runtime.self_model.is_established(capability_id)
     ]
     assert established
 
@@ -700,11 +753,20 @@ def test_runtime_with_genome_and_graph_activates_cognition_each_tick():
     sense_node = PlasticNode(node_id=sense_percept_name, kind=NodeKind.SENSE)
     concept_node = PlasticNode(node_id="concept-x", kind=NodeKind.CONCEPT)
     edge = PlasticEdge(
-        source_id=sense_percept_name, target_id="concept-x", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0
+        source_id=sense_percept_name,
+        target_id="concept-x",
+        kind=EdgeKind.EXCITATORY,
+        weight=0.5,
+        plasticity=0.5,
+        delay_ticks=0,
     )
-    graph = CognitiveGraph(nodes=(sense_node, concept_node), edges=(edge,), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(sense_node, concept_node), edges=(edge,), kernel_limits=KernelLimits()
+    )
 
-    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0, genome=genome, cognitive_graph=graph)
+    runtime = OrganismRuntime(
+        min_samples=1, investigate_ticks=0, genome=genome, cognitive_graph=graph
+    )
     assert runtime.cognitive_bridge is not None
 
     result = runtime.tick()
@@ -725,11 +787,20 @@ def test_cognitive_graph_state_survives_checkpoint_round_trip():
     sense_node = PlasticNode(node_id=sense_percept_name, kind=NodeKind.SENSE)
     concept_node = PlasticNode(node_id="concept-x", kind=NodeKind.CONCEPT)
     edge = PlasticEdge(
-        source_id=sense_percept_name, target_id="concept-x", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0
+        source_id=sense_percept_name,
+        target_id="concept-x",
+        kind=EdgeKind.EXCITATORY,
+        weight=0.5,
+        plasticity=0.5,
+        delay_ticks=0,
     )
-    graph = CognitiveGraph(nodes=(sense_node, concept_node), edges=(edge,), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(sense_node, concept_node), edges=(edge,), kernel_limits=KernelLimits()
+    )
 
-    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0, genome=genome, cognitive_graph=graph)
+    runtime = OrganismRuntime(
+        min_samples=1, investigate_ticks=0, genome=genome, cognitive_graph=graph
+    )
     for _ in range(10):
         runtime.tick()
 
@@ -737,8 +808,14 @@ def test_cognitive_graph_state_survives_checkpoint_round_trip():
     restored = OrganismRuntime.from_checkpoint(payload, min_samples=1, investigate_ticks=0)
 
     assert restored.cognitive_bridge is not None
-    assert {n.node_id for n in restored.cognitive_bridge.graph.nodes} == {sense_percept_name, "concept-x"}
-    assert restored.cognitive_bridge.graph.edges[0].support == runtime.cognitive_bridge.graph.edges[0].support
+    assert {n.node_id for n in restored.cognitive_bridge.graph.nodes} == {
+        sense_percept_name,
+        "concept-x",
+    }
+    assert (
+        restored.cognitive_bridge.graph.edges[0].support
+        == runtime.cognitive_bridge.graph.edges[0].support
+    )
 
 
 def test_p4_repeated_checkpoint_calls_never_force_consolidation():
@@ -796,57 +873,101 @@ def test_checkpoint_byte_bound_is_retained_with_real_cognition():
     limits = KernelLimits()
     genome = GenomeCodec().load(genome_payload)
     graph = CognitiveGraph(
-        nodes=(PlasticNode(node_id="s", kind=NodeKind.SENSE), PlasticNode(node_id="c", kind=NodeKind.CONCEPT)),
-        edges=(PlasticEdge(source_id="s", target_id="c", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0),),
+        nodes=(
+            PlasticNode(node_id="s", kind=NodeKind.SENSE),
+            PlasticNode(node_id="c", kind=NodeKind.CONCEPT),
+        ),
+        edges=(
+            PlasticEdge(
+                source_id="s",
+                target_id="c",
+                kind=EdgeKind.EXCITATORY,
+                weight=0.5,
+                plasticity=0.5,
+                delay_ticks=0,
+            ),
+        ),
         kernel_limits=limits,
     )
     runtime = OrganismRuntime(
-        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1,
-        genome=genome, kernel_limits=limits, cognitive_graph=graph,
+        discover_senses=False,
+        bootstrap_semantic_senses=True,
+        min_samples=1,
+        genome=genome,
+        kernel_limits=limits,
+        cognitive_graph=graph,
     )
     for _ in range(1, 50):
         runtime.tick()
-    encoded = json.dumps(runtime.checkpoint(), sort_keys=True, separators=(",", ":")).encode("utf-8")
+    encoded = json.dumps(runtime.checkpoint(), sort_keys=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
     assert len(encoded) <= limits.max_plastic_checkpoint_bytes
 
 
 # --- v0.59.5: MemoryConsolidator wired for salient-event detection ---
 
 
-def _drive_regime_shift_with_surprise(runtime, *, capability_id="compute.logical_cpu", stable_value=10.0, extreme_value=1000.0, extra_loss=1.0, stable_ticks=5, extreme_ticks=3):
+def _drive_regime_shift_with_surprise(
+    runtime,
+    *,
+    capability_id="compute.logical_cpu",
+    stable_value=10.0,
+    extreme_value=1000.0,
+    extra_loss=1.0,
+    stable_ticks=5,
+    extreme_ticks=3,
+):
     """Deterministically forces a real DriftKind.REGIME_SHIFT on `capability_id`
     (percept name "system_load" via DEFAULT_PERCEPT_NAMES) while also injecting
     a high-loss PredictionError for that same node, so the combined signal's
     score can cross fast_consolidation_threshold -- design §22's "flame"
     scenario. Uses the same _lifecycle-override pattern already used
     elsewhere in this file, not scripted drift-baseline internals."""
-    from types import SimpleNamespace
     import dataclasses
+    from types import SimpleNamespace
 
     from symbiont.cognition.learning import PredictionError
     from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
     from symbiont.host.lifecycle import LifecycleSnapshot
-    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
-
-    from symbiont.host.readings import CapabilitySamplingOutcome, SamplingOutcomeKind
+    from symbiont.host.readings import (
+        CapabilitySamplingOutcome,
+        ReadingPrivacyClass,
+        ReadingQuality,
+        SamplingOutcomeKind,
+        SensorReading,
+        Unit,
+    )
 
     def reading(value):
         return SensorReading(
-            capability_id=capability_id, source="fixture", value=value, unit=Unit.COUNT,
-            monotonic_timestamp_ns=1, quality=ReadingQuality.NOMINAL, privacy_class=ReadingPrivacyClass.AGGREGATE,
+            capability_id=capability_id,
+            source="fixture",
+            value=value,
+            unit=Unit.COUNT,
+            monotonic_timestamp_ns=1,
+            quality=ReadingQuality.NOMINAL,
+            privacy_class=ReadingPrivacyClass.AGGREGATE,
         )
 
     def outcome():
         return (
             CapabilitySamplingOutcome(
-                capability_id=capability_id, provider_id="fixture",
-                kind=SamplingOutcomeKind.SUCCEEDED, attributed_elapsed_s=0.0, quality=ReadingQuality.NOMINAL,
+                capability_id=capability_id,
+                provider_id="fixture",
+                kind=SamplingOutcomeKind.SUCCEEDED,
+                attributed_elapsed_s=0.0,
+                quality=ReadingQuality.NOMINAL,
             ),
         )
 
     manifest = HostManifest(1, (Capability(capability_id, CapabilityKind.SIGNAL, "fixture"),), ())
-    stable_snapshot = LifecycleSnapshot(1, manifest, (reading(stable_value),), (), (), (capability_id,), outcome())
-    extreme_snapshot = LifecycleSnapshot(1, manifest, (reading(extreme_value),), (), (), (capability_id,), outcome())
+    stable_snapshot = LifecycleSnapshot(
+        1, manifest, (reading(stable_value),), (), (), (capability_id,), outcome()
+    )
+    extreme_snapshot = LifecycleSnapshot(
+        1, manifest, (reading(extreme_value),), (), (), (capability_id,), outcome()
+    )
 
     real_bridge = runtime.cognitive_bridge
     if real_bridge is not None and not getattr(real_bridge, "_is_synthetic_fake", False):
@@ -855,21 +976,38 @@ def _drive_regime_shift_with_surprise(runtime, *, capability_id="compute.logical
         def boosted_tick(*args, **kwargs):
             result = original_tick(*args, **kwargs)
             boosted = result.prediction_errors + (
-                PredictionError(predictor_id="synthetic", target_id="system_load", error=extra_loss, loss=extra_loss),
+                PredictionError(
+                    predictor_id="synthetic",
+                    target_id="system_load",
+                    error=extra_loss,
+                    loss=extra_loss,
+                ),
             )
             return dataclasses.replace(result, prediction_errors=boosted)
 
         runtime._cognitive_bridge = SimpleNamespace(
-            tick=boosted_tick, restore=real_bridge.restore,
-            export_checkpoint=real_bridge.export_checkpoint, graph=real_bridge.graph,
+            tick=boosted_tick,
+            restore=real_bridge.restore,
+            export_checkpoint=real_bridge.export_checkpoint,
+            graph=real_bridge.graph,
         )
     else:
         fake_result = SimpleNamespace(
-            prediction_errors=(PredictionError(predictor_id="synthetic", target_id="system_load", error=extra_loss, loss=extra_loss),),
+            prediction_errors=(
+                PredictionError(
+                    predictor_id="synthetic",
+                    target_id="system_load",
+                    error=extra_loss,
+                    loss=extra_loss,
+                ),
+            ),
         )
         runtime._cognitive_bridge = SimpleNamespace(
-            tick=lambda *a, **k: fake_result, export_checkpoint=lambda: None,
-            restore=lambda *a, **k: None, graph=None, _is_synthetic_fake=True,
+            tick=lambda *a, **k: fake_result,
+            export_checkpoint=lambda: None,
+            restore=lambda *a, **k: None,
+            graph=None,
+            _is_synthetic_fake=True,
         )
 
     runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: stable_snapshot)
@@ -890,7 +1028,9 @@ def test_a_single_extraordinary_regime_shift_creates_a_durable_salient_trace():
     call."""
     from symbiont.host.drift import DriftKind
 
-    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0)
+    runtime = OrganismRuntime(
+        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0
+    )
     result = _drive_regime_shift_with_surprise(runtime)
 
     assert result.drift_observations["system_load"].kind == DriftKind.REGIME_SHIFT
@@ -904,7 +1044,9 @@ def test_p3_salient_trace_never_contains_a_raw_reading():
     but persisted fields are only bounded categorical classes and safe ids
     -- never the extreme raw value (1000.0) or exact loss (1.0) that
     triggered it."""
-    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0)
+    runtime = OrganismRuntime(
+        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0
+    )
     _drive_regime_shift_with_surprise(runtime)
 
     checkpoint = runtime.checkpoint()
@@ -929,9 +1071,13 @@ def test_p8_low_reliability_sense_cannot_create_a_one_shot_trace():
     from symbiont.core.consolidation import ConsolidationSignal, MemoryKind
 
     runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1)
-    borderline_unreliable = ConsolidationSignal(novelty=1.0, surprise=1.0, attention=1.0, reliability=0.59, coherence=1.0)
+    borderline_unreliable = ConsolidationSignal(
+        novelty=1.0, surprise=1.0, attention=1.0, reliability=0.59, coherence=1.0
+    )
     assert borderline_unreliable.score() >= runtime._kernel_limits.fast_consolidation_threshold
-    outcome = runtime.memory_consolidator.observe("noisy_percept", MemoryKind.SALIENT_EVENT, borderline_unreliable, tick=1)
+    outcome = runtime.memory_consolidator.observe(
+        "noisy_percept", MemoryKind.SALIENT_EVENT, borderline_unreliable, tick=1
+    )
     assert outcome.path == "slow"
     assert runtime.memory_consolidator.salient_events == ()
 
@@ -970,9 +1116,17 @@ def test_reacclimation_gate_blocks_salient_fast_path_after_restore():
     from symbiont.cognition.limits import KernelLimits
 
     limits = KernelLimits(reacclimation_ticks=20)
-    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0, kernel_limits=limits)
+    runtime = OrganismRuntime(
+        discover_senses=False,
+        bootstrap_semantic_senses=True,
+        min_samples=1,
+        investigate_ticks=0,
+        kernel_limits=limits,
+    )
     checkpoint = runtime.checkpoint()
-    restored = OrganismRuntime.from_checkpoint(checkpoint, min_samples=1, investigate_ticks=0, kernel_limits=limits)
+    restored = OrganismRuntime.from_checkpoint(
+        checkpoint, min_samples=1, investigate_ticks=0, kernel_limits=limits
+    )
 
     _drive_regime_shift_with_surprise(restored, stable_ticks=1, extreme_ticks=3)
     gated_checkpoint = restored.checkpoint()
@@ -980,7 +1134,14 @@ def test_reacclimation_gate_blocks_salient_fast_path_after_restore():
 
     for _ in range(20):
         restored.tick()
-    _drive_regime_shift_with_surprise(restored, capability_id="compute.logical_cpu", stable_value=10.0, extreme_value=2000.0, stable_ticks=1, extreme_ticks=3)
+    _drive_regime_shift_with_surprise(
+        restored,
+        capability_id="compute.logical_cpu",
+        stable_value=10.0,
+        extreme_value=2000.0,
+        stable_ticks=1,
+        extreme_ticks=3,
+    )
     reacclimated_checkpoint = restored.checkpoint()
     assert len(reacclimated_checkpoint["memory"]["salient_events"]) == 1
 
@@ -996,7 +1157,9 @@ def test_scenario_b_ordinary_operation_never_fast_paths_without_a_predictor():
     extreme, can never fast-path on its own. This is a real, falsifiable
     consequence of the weights, not a tautology of MemoryConsolidator's own
     bound (see test_p10 below for that one)."""
-    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0)
+    runtime = OrganismRuntime(
+        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0
+    )
     for _ in range(60):
         runtime.tick()
     checkpoint = runtime.checkpoint()
@@ -1015,23 +1178,56 @@ def test_p9_salient_trace_never_mutates_structure_by_itself():
     from symbiont.cognition.types import EdgeKind, NodeKind
 
     genome_payload = {
-        "schema_version": 1, "genome_id": "genome_p9test0000000000000000000", "parent_ids": [],
+        "schema_version": 1,
+        "genome_id": "genome_p9test0000000000000000000",
+        "parent_ids": [],
         "kernel_compatibility": ">=0.55,<0.60",
-        "development": {"initial_concepts": 4, "soft_node_budget": 64, "soft_edge_budget": 384, "consolidation_interval_ticks": 4},
-        "plasticity": {"learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08}, "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005}, "eligibility_decay": 0.9},
-        "structure": {"grow_threshold": 0.18, "prune_threshold": 0.01, "minimum_support": 16, "tentative_lifetime_ticks": 128},
+        "development": {
+            "initial_concepts": 4,
+            "soft_node_budget": 64,
+            "soft_edge_budget": 384,
+            "consolidation_interval_ticks": 4,
+        },
+        "plasticity": {
+            "learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08},
+            "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
+            "eligibility_decay": 0.9,
+        },
+        "structure": {
+            "grow_threshold": 0.18,
+            "prune_threshold": 0.01,
+            "minimum_support": 16,
+            "tentative_lifetime_ticks": 128,
+        },
         "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
     }
     limits = KernelLimits()
     genome = GenomeCodec().load(genome_payload)
     graph = CognitiveGraph(
-        nodes=(PlasticNode(node_id="system_load", kind=NodeKind.SENSE), PlasticNode(node_id="c", kind=NodeKind.CONCEPT)),
-        edges=(PlasticEdge(source_id="system_load", target_id="c", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0),),
+        nodes=(
+            PlasticNode(node_id="system_load", kind=NodeKind.SENSE),
+            PlasticNode(node_id="c", kind=NodeKind.CONCEPT),
+        ),
+        edges=(
+            PlasticEdge(
+                source_id="system_load",
+                target_id="c",
+                kind=EdgeKind.EXCITATORY,
+                weight=0.5,
+                plasticity=0.5,
+                delay_ticks=0,
+            ),
+        ),
         kernel_limits=limits,
     )
     runtime = OrganismRuntime(
-        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0,
-        genome=genome, kernel_limits=limits, cognitive_graph=graph,
+        discover_senses=False,
+        bootstrap_semantic_senses=True,
+        min_samples=1,
+        investigate_ticks=0,
+        genome=genome,
+        kernel_limits=limits,
+        cognitive_graph=graph,
     )
     edge_count_before = len(runtime.cognitive_bridge.graph.edges)
     node_count_before = len(runtime.cognitive_bridge.graph.nodes)
@@ -1061,8 +1257,14 @@ def test_p10_memory_stays_bounded_over_a_long_real_residence():
     for _ in range(300):
         runtime.tick()
     checkpoint = runtime.checkpoint()
-    assert len(checkpoint["memory"]["salient_events"]) <= runtime._kernel_limits.max_salient_event_traces
-    assert len(checkpoint["memory"]["statistical"]) <= runtime._kernel_limits.max_consolidation_candidates
+    assert (
+        len(checkpoint["memory"]["salient_events"])
+        <= runtime._kernel_limits.max_salient_event_traces
+    )
+    assert (
+        len(checkpoint["memory"]["statistical"])
+        <= runtime._kernel_limits.max_consolidation_candidates
+    )
 
 
 def test_runtime_degradation_queue_ages_excretes_and_replays() -> None:
@@ -1080,10 +1282,12 @@ def test_runtime_degradation_queue_ages_excretes_and_replays() -> None:
     first = runtime.tick()
     assert first.degradation_excreted == 0
     assert runtime.degradation_queue.items[0].state is RetentionState.AGING
-    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(),
-                                               bootstrap_semantic_senses=False,
-                                               discover_senses=False,
-                                               investigate_ticks=0)
+    restored = OrganismRuntime.from_checkpoint(
+        runtime.checkpoint(),
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        investigate_ticks=0,
+    )
     assert restored.degradation_queue.checkpoint() == runtime.degradation_queue.checkpoint()
     second = restored.tick()
     assert second.degradation_excreted == 1
@@ -1100,9 +1304,15 @@ def test_runtime_discovers_and_updates_interoception() -> None:
 
 def test_runtime_explicit_metabolism_tracks_finite_reserve() -> None:
     from symbiont.core.metabolism import MetabolicLedger
+
     metabolism = MetabolicLedger(
         reserve={"observation": 0.5, "cognition": 0.5, "persistence": 0.5, "maintenance": 0.5},
-        replenishment={"observation": 0.0, "cognition": 0.0, "persistence": 0.0, "maintenance": 0.0},
+        replenishment={
+            "observation": 0.0,
+            "cognition": 0.0,
+            "persistence": 0.0,
+            "maintenance": 0.0,
+        },
     )
     runtime = OrganismRuntime(
         metabolism=metabolism,
@@ -1131,7 +1341,12 @@ def test_explicit_metabolism_never_gains_reserve_from_cognitive_success() -> Non
 
     metabolism = MetabolicLedger(
         reserve={"observation": 0.9, "cognition": 0.9, "persistence": 0.9, "maintenance": 0.9},
-        replenishment={"observation": 0.0, "cognition": 0.0, "persistence": 0.0, "maintenance": 0.0},
+        replenishment={
+            "observation": 0.0,
+            "cognition": 0.0,
+            "persistence": 0.0,
+            "maintenance": 0.0,
+        },
     )
     runtime = OrganismRuntime(
         metabolism=metabolism,
@@ -1156,9 +1371,15 @@ def test_explicit_metabolism_never_gains_reserve_from_cognitive_success() -> Non
 def test_autonomous_rest_regulation_when_pressure_is_severe() -> None:
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.physiology import VitalState
+
     metabolism = MetabolicLedger(
         reserve={"observation": 0.05, "cognition": 0.05, "persistence": 0.05, "maintenance": 0.05},
-        replenishment={"observation": 0.0, "cognition": 0.0, "persistence": 0.0, "maintenance": 0.0},
+        replenishment={
+            "observation": 0.0,
+            "cognition": 0.0,
+            "persistence": 0.0,
+            "maintenance": 0.0,
+        },
     )
     runtime = OrganismRuntime(
         metabolism=metabolism,
@@ -1171,7 +1392,11 @@ def test_autonomous_rest_regulation_when_pressure_is_severe() -> None:
     # When pressure is severe or unrecoverable, resting_requested is set autonomously
     assert runtime.resting_requested is True
     assert result.physiology is not None
-    assert result.physiology.state in (VitalState.DORMANT, VitalState.AGONIZING, VitalState.STRESSED)
+    assert result.physiology.state in (
+        VitalState.DORMANT,
+        VitalState.AGONIZING,
+        VitalState.STRESSED,
+    )
 
 
 def test_narrative_journal_records_and_restores_chronicle() -> None:
@@ -1200,7 +1425,6 @@ def test_narrative_journal_records_and_restores_chronicle() -> None:
     assert restored.narrative_journal[-1]["tick"] == 2
 
 
-
 def test_runtime_accepts_external_lifecycle_for_sensor_disappearance_and_return():
     from symbiont.host.contracts import Capability, CapabilityKind
     from symbiont.host.discovery import HostDiscovery
@@ -1213,7 +1437,8 @@ def test_runtime_accepts_external_lifecycle_for_sensor_disappearance_and_return(
         def discover(self):
             return (
                 (Capability("signal.synthetic", CapabilityKind.SIGNAL, self.provider_id),)
-                if self.available else ()
+                if self.available
+                else ()
             )
 
     class Reader:
@@ -1223,9 +1448,7 @@ def test_runtime_accepts_external_lifecycle_for_sensor_disappearance_and_return(
             return ()
 
     discovery = Discovery()
-    lifecycle = HostLifecycle(
-        discovery=HostDiscovery((discovery,)), reading_providers=(Reader(),)
-    )
+    lifecycle = HostLifecycle(discovery=HostDiscovery((discovery,)), reading_providers=(Reader(),))
     runtime = OrganismRuntime(
         host_lifecycle=lifecycle,
         host_reading_providers=(Reader(),),
@@ -1258,9 +1481,15 @@ def test_developmental_decline_uses_accumulated_burden_not_an_age_counter():
     snapshot = None
     for _ in range(10):
         snapshot = tracker.observe(
-            state="active", integrity=0.7, topology_health="adaptive",
-            sensory_count=4, action_attempts=12, maintenance_ratio=0.9,
-            retained_items=64, degradation_excreted=1, repaired=True,
+            state="active",
+            integrity=0.7,
+            topology_health="adaptive",
+            sensory_count=4,
+            action_attempts=12,
+            maintenance_ratio=0.9,
+            retained_items=64,
+            degradation_excreted=1,
+            repaired=True,
             plasticity_enabled=False,
         )
 
@@ -1272,7 +1501,10 @@ def test_developmental_decline_uses_accumulated_burden_not_an_age_counter():
 
     restored = DevelopmentalTracker.from_checkpoint(tracker.checkpoint())
     continued = restored.observe(
-        state="active", integrity=0.7, topology_health="adaptive",
-        sensory_count=4, action_attempts=12,
+        state="active",
+        integrity=0.7,
+        topology_health="adaptive",
+        sensory_count=4,
+        action_attempts=12,
     )
     assert continued.senescence_index > 0.0

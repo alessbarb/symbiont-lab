@@ -6,6 +6,7 @@ temperature, fertility) and dynamic ecological state (disturbance, decaying orga
 Ground truth belongs exclusively to the apparatus/evaluator and is never
 leaked to organism cognition.
 """
+
 from __future__ import annotations
 
 import math
@@ -102,35 +103,25 @@ class DynamicGeography:
         self.topology = topology
         self.world_seed = world_seed
 
-        self._elevation: dict[HexCoord, float] = (
-            dict(elevation) if elevation is not None else {}
-        )
+        self._elevation: dict[HexCoord, float] = dict(elevation) if elevation is not None else {}
         self._permeability: dict[HexCoord, float] = (
             dict(permeability) if permeability is not None else {}
         )
-        self._moisture: dict[HexCoord, float] = (
-            dict(moisture) if moisture is not None else {}
-        )
+        self._moisture: dict[HexCoord, float] = dict(moisture) if moisture is not None else {}
         self._temperature: dict[HexCoord, float] = (
             dict(temperature) if temperature is not None else {}
         )
-        self._fertility: dict[HexCoord, float] = (
-            dict(fertility) if fertility is not None else {}
-        )
+        self._fertility: dict[HexCoord, float] = dict(fertility) if fertility is not None else {}
 
         # Dynamic state
-        self._traces: dict[HexCoord, float] = (
-            dict(traces) if traces is not None else {}
-        )
+        self._traces: dict[HexCoord, float] = dict(traces) if traces is not None else {}
         self._disturbance: dict[HexCoord, float] = (
             dict(disturbance) if disturbance is not None else {}
         )
         self._surface_water: dict[HexCoord, float] = (
             dict(surface_water) if surface_water is not None else {}
         )
-        self._detritus: dict[HexCoord, float] = (
-            dict(detritus) if detritus is not None else {}
-        )
+        self._detritus: dict[HexCoord, float] = dict(detritus) if detritus is not None else {}
         self._ecological_pressure: dict[HexCoord, float] = (
             dict(ecological_pressure) if ecological_pressure is not None else {}
         )
@@ -323,9 +314,7 @@ class DynamicGeography:
         detritus_transfer = min(origin_detritus, 0.06 * transfer_factor)
         if detritus_transfer > 0.0:
             self._detritus[origin] = max(0.0, origin_detritus - detritus_transfer)
-            self._detritus[target] = min(
-                1.0, self._detritus.get(target, 0.0) + detritus_transfer
-            )
+            self._detritus[target] = min(1.0, self._detritus.get(target, 0.0) + detritus_transfer)
 
         target_disturbance = 0.04 * magnitude
         self.deposit_disturbance(target, target_disturbance)
@@ -488,11 +477,13 @@ class DynamicGeography:
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> DynamicGeography:
         topo = HexTopology(width=int(data["width"]), height=int(data["height"]))
+
         def _parse_map(raw: Mapping[str, Any]) -> dict[HexCoord, float]:
             return {
                 HexCoord(int(k.split(",")[0]), int(k.split(",")[1])): float(v)
                 for k, v in raw.items()
             }
+
         return cls(
             topology=topo,
             world_seed=int(data["world_seed"]),

@@ -1,5 +1,5 @@
-import json
 import gzip
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -42,12 +42,17 @@ class JournalTests(unittest.TestCase):
 
     def test_retains_all_segments_until_explicit_compaction(self):
         with tempfile.TemporaryDirectory() as directory:
-            journal = Journal(Path(directory), run_id="run-1", max_lines_per_segment=1, max_segments=2)
+            journal = Journal(
+                Path(directory), run_id="run-1", max_lines_per_segment=1, max_segments=2
+            )
             for tick in range(5):
                 journal.append({"snapshot": {"tick": tick}})
             segments = journal.segments()
             self.assertEqual(len(segments), 5)
-            remaining_ticks = [json.loads(segment.read_text(encoding="utf-8"))["snapshot"]["tick"] for segment in segments]
+            remaining_ticks = [
+                json.loads(segment.read_text(encoding="utf-8"))["snapshot"]["tick"]
+                for segment in segments
+            ]
             self.assertEqual(remaining_ticks, [0, 1, 2, 3, 4])
 
     def test_compaction_is_lossless_and_keeps_active_segment(self):
@@ -73,8 +78,12 @@ class JournalTests(unittest.TestCase):
     def test_size_target_never_deletes_segments_across_runs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            Journal(root, run_id="old", max_lines_per_segment=1, max_total_bytes=180).append({"snapshot": {"tick": 1, "padding": "x" * 60}})
-            Journal(root, run_id="new", max_lines_per_segment=1, max_total_bytes=180).append({"snapshot": {"tick": 2, "padding": "y" * 60}})
+            Journal(root, run_id="old", max_lines_per_segment=1, max_total_bytes=180).append(
+                {"snapshot": {"tick": 1, "padding": "x" * 60}}
+            )
+            Journal(root, run_id="new", max_lines_per_segment=1, max_total_bytes=180).append(
+                {"snapshot": {"tick": 2, "padding": "y" * 60}}
+            )
             self.assertEqual(len(list((root / "journal").glob("*.ndjson"))), 2)
 
 

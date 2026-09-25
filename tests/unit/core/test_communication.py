@@ -1,5 +1,4 @@
 import pytest
-
 from symbiont.core.communication import ConsentBoundChannel
 from symbiont.core.exchange import ExchangeEnvelope
 

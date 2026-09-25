@@ -25,12 +25,21 @@ def build_evaluate_parser(parser: argparse.ArgumentParser) -> None:
         "label",
         help="Record a real operator's judgment of one specific fired advisory",
     )
-    label_cmd.add_argument("--advisory-log", required=True, help="Path to the organism's advisory log")
-    label_cmd.add_argument("--labels-file", required=True, help="Path to the (separate) operator labels file")
-    label_cmd.add_argument("--tick", type=int, required=True, help="Tick the advisory fired on")
-    label_cmd.add_argument("--capability-id", required=True, help="Capability the advisory concerned")
     label_cmd.add_argument(
-        "--judgment", required=True, choices=[j.value for j in OperatorJudgment], help="Your judgment of it"
+        "--advisory-log", required=True, help="Path to the organism's advisory log"
+    )
+    label_cmd.add_argument(
+        "--labels-file", required=True, help="Path to the (separate) operator labels file"
+    )
+    label_cmd.add_argument("--tick", type=int, required=True, help="Tick the advisory fired on")
+    label_cmd.add_argument(
+        "--capability-id", required=True, help="Capability the advisory concerned"
+    )
+    label_cmd.add_argument(
+        "--judgment",
+        required=True,
+        choices=[j.value for j in OperatorJudgment],
+        help="Your judgment of it",
     )
     label_cmd.add_argument("--note", default=None, help="Optional free-text note")
 
@@ -38,8 +47,12 @@ def build_evaluate_parser(parser: argparse.ArgumentParser) -> None:
         "summary",
         help="Summarize labeled/unlabeled advisories: usefulness rate, false-alarm rate, label coverage",
     )
-    summary_cmd.add_argument("--advisory-log", required=True, help="Path to the organism's advisory log")
-    summary_cmd.add_argument("--labels-file", required=True, help="Path to the operator labels file")
+    summary_cmd.add_argument(
+        "--advisory-log", required=True, help="Path to the organism's advisory log"
+    )
+    summary_cmd.add_argument(
+        "--labels-file", required=True, help="Path to the operator labels file"
+    )
     summary_cmd.add_argument(
         "--window-ticks",
         type=int,
@@ -76,7 +89,12 @@ def run_evaluate_command(args: argparse.Namespace) -> int:
             except ValueError as exc:
                 print(str(exc), file=sys.stderr)
                 return 1
-            print(json.dumps({"recorded": True, "tick": args.tick, "capability_id": args.capability_id}, indent=2))
+            print(
+                json.dumps(
+                    {"recorded": True, "tick": args.tick, "capability_id": args.capability_id},
+                    indent=2,
+                )
+            )
             return 0
         if args.advisories_action == "summary":
             if args.window_ticks is not None:

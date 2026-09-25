@@ -37,6 +37,7 @@ def test_resident_stops_at_explicit_budget_and_saves_on_exit(tmp_path) -> None:
 
 def test_resident_stops_cleanly_on_death(tmp_path) -> None:
     from types import SimpleNamespace
+
     from symbiont.core.physiology import VitalState
 
     class DyingRuntime(FakeRuntime):
@@ -90,6 +91,7 @@ def test_resident_publishes_capsule_to_local_habitat(tmp_path) -> None:
 def test_resident_dilates_interval_when_dormant(tmp_path, monkeypatch) -> None:
     import threading
     from types import SimpleNamespace
+
     from symbiont.core.physiology import VitalState
 
     waited_intervals = []
@@ -119,6 +121,3 @@ def test_resident_dilates_interval_when_dormant(tmp_path, monkeypatch) -> None:
     # First tick was dormant -> 4.0x interval (4.0s)
     # Second tick was max_ticks reached -> stopped before wait
     assert waited_intervals == [4.0]
-
-
-

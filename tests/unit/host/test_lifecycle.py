@@ -12,9 +12,9 @@ from symbiont.host import (
     DiscoveryPolicy,
     HostDiscovery,
     HostLifecycle,
-    SensorReading,
     ReadingPrivacyClass,
     ReadingQuality,
+    SensorReading,
     Unit,
     monitor_local_host,
 )

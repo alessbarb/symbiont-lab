@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from typing import Mapping
 
 
@@ -64,18 +64,12 @@ class TemporalResponsibilityTracker:
         samples = self._samples[mechanism_id]
         previous = self._losses[mechanism_id]
         self._losses[mechanism_id] = (
-            value
-            if samples == 0
-            else (1.0 - self._smoothing) * previous + self._smoothing * value
+            value if samples == 0 else (1.0 - self._smoothing) * previous + self._smoothing * value
         )
         self._samples[mechanism_id] = samples + 1
 
     def responsibilities(self) -> dict[str, float]:
-        observed = [
-            mechanism_id
-            for mechanism_id in self._ids
-            if self._samples[mechanism_id] > 0
-        ]
+        observed = [mechanism_id for mechanism_id in self._ids if self._samples[mechanism_id] > 0]
         if not observed:
             share = 1.0 / len(self._ids)
             return {mechanism_id: share for mechanism_id in self._ids}
@@ -99,10 +93,7 @@ class TemporalResponsibilityTracker:
                 mechanism_id: share if mechanism_id in observed else 0.0
                 for mechanism_id in self._ids
             }
-        return {
-            mechanism_id: weights[mechanism_id] / total
-            for mechanism_id in self._ids
-        }
+        return {mechanism_id: weights[mechanism_id] / total for mechanism_id in self._ids}
 
     def snapshot(self) -> ResponsibilitySnapshot:
         return ResponsibilitySnapshot(

@@ -5,9 +5,9 @@ from pathlib import Path
 
 def test_runtime_tick_is_domain_orchestration_not_algorithm_ownership() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (
-        root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
-    ).read_text(encoding="utf-8")
+    source = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
 
     required_domain_calls = (
         "self._physiology_domain.preflight(",
@@ -49,12 +49,13 @@ def test_runtime_tick_is_domain_orchestration_not_algorithm_ownership() -> None:
 
 def test_runtime_surfaces_real_action_domain_execution_result() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (
-        root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
-    ).read_text(encoding="utf-8")
+    source = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
     tick = source[
-        source.index("    def tick("):
-        source.index("\n    def run(", source.index("    def tick("))
+        source.index("    def tick(") : source.index(
+            "\n    def run(", source.index("    def tick(")
+        )
     ]
     assert "action_result = self._action_domain.step(" in tick
     assert "action_result: ActionExecutionResult | None = None" not in tick
@@ -62,10 +63,14 @@ def test_runtime_surfaces_real_action_domain_execution_result() -> None:
 
 def test_runtime_does_not_inspect_cognition_graph_or_action_evidence_in_tick() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (
-        root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
-    ).read_text(encoding="utf-8")
-    tick = source[source.index("    def tick("):source.index("\n    def run(", source.index("    def tick("))]
+    source = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
+    tick = source[
+        source.index("    def tick(") : source.index(
+            "\n    def run(", source.index("    def tick(")
+        )
+    ]
     assert "_cognitive_bridge.graph" not in tick
     assert "_action_domain.actuator_evidence" not in tick
     assert "_action_domain.competence_development" not in tick

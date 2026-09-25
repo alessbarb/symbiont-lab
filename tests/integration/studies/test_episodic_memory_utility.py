@@ -6,7 +6,6 @@ from symbiont_lab.studies.learning.episodic_memory_utility import (
     run_episodic_memory_utility_study,
 )
 
-
 ORG = "study-org"
 
 
@@ -53,7 +52,6 @@ def test_state_conditioned_memory_beats_action_only_when_action_is_ambiguous() -
     assert report.memory_coverage == 1.0
     assert report.memory_top1_accuracy > report.action_only_top1_accuracy
     assert report.state_conditioned_gain_vs_action_only > 0.0
-
 
 
 def test_replicated_episodic_utility_study_is_reproducible() -> None:

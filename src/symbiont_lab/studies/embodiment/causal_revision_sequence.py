@@ -6,10 +6,11 @@ marker, body identity, perturbation label or transplant notification.
 Reports prediction shock, first revision latency, recovery latency and causal
 mapping signatures before/after each phase.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Mapping, Sequence
 
 from symbiont.core.body import Body, create_standard_body
@@ -141,7 +142,9 @@ def _feedback(
     e0 = float(previous_effects.get("eff.0", 0.0))
     e1 = float(previous_effects.get("eff.1", 0.0))
     e2 = float(previous_effects.get("eff.2", 0.0))
-    noise = lambda: rng.gauss(0.0, 0.01)
+
+    def noise():
+        return rng.gauss(0.0, 0.01)
 
     if body_variant == "A":
         return {
@@ -161,8 +164,8 @@ def _recovery_latency(errors: Sequence[float], target: float, *, window: int = 5
         return None
     threshold = max(1e-6, target * 1.20)
     for start in range(0, max(1, len(errors) - window + 1)):
-        chunk = errors[start:start+window]
-        if len(chunk) == window and sum(chunk)/window <= threshold:
+        chunk = errors[start : start + window]
+        if len(chunk) == window and sum(chunk) / window <= threshold:
             return start
     return None
 
@@ -206,8 +209,8 @@ def _run_phase(
     revisions_after = ind.symbiont.body_schema_revision_count
     mapping_after = _mapping_signature(ind)
     early_n = min(5, len(errors))
-    initial_error = sum(errors[:early_n])/early_n if early_n else 0.0
-    final_error = sum(errors[-early_n:])/early_n if early_n else 0.0
+    initial_error = sum(errors[:early_n]) / early_n if early_n else 0.0
+    final_error = sum(errors[-early_n:]) / early_n if early_n else 0.0
     shock = initial_error - baseline_error
 
     return (
@@ -245,16 +248,26 @@ def _run_seed(seed: int, *, phase_ticks: int) -> CausalRevisionSeedResult:
     phases: list[PhaseResult] = []
 
     stable, previous_effects = _run_phase(
-        ind, name="stable_a", body_variant="A", ticks=phase_ticks, rng=rng,
-        previous_effects=previous_effects, baseline_error=0.0,
+        ind,
+        name="stable_a",
+        body_variant="A",
+        ticks=phase_ticks,
+        rng=rng,
+        previous_effects=previous_effects,
+        baseline_error=0.0,
     )
     phases.append(stable)
     stable_baseline = max(1e-6, stable.final_prediction_error)
 
     ind.session.permute_outputs(dict(original_bindings))
     sham, previous_effects = _run_phase(
-        ind, name="sham", body_variant="A", ticks=phase_ticks, rng=rng,
-        previous_effects=previous_effects, baseline_error=stable_baseline,
+        ind,
+        name="sham",
+        body_variant="A",
+        ticks=phase_ticks,
+        rng=rng,
+        previous_effects=previous_effects,
+        baseline_error=stable_baseline,
     )
     phases.append(sham)
 
@@ -264,30 +277,50 @@ def _run_seed(seed: int, *, phase_ticks: int) -> CausalRevisionSeedResult:
         permuted[keys[0]], permuted[keys[1]] = permuted[keys[1]], permuted[keys[0]]
     ind.session.permute_outputs(permuted)
     perm, previous_effects = _run_phase(
-        ind, name="permutation", body_variant="A", ticks=phase_ticks, rng=rng,
-        previous_effects=previous_effects, baseline_error=stable_baseline,
+        ind,
+        name="permutation",
+        body_variant="A",
+        ticks=phase_ticks,
+        rng=rng,
+        previous_effects=previous_effects,
+        baseline_error=stable_baseline,
     )
     phases.append(perm)
 
     ind.session.permute_outputs(dict(original_bindings))
     restored, previous_effects = _run_phase(
-        ind, name="restored_a", body_variant="A", ticks=phase_ticks, rng=rng,
-        previous_effects=previous_effects, baseline_error=stable_baseline,
+        ind,
+        name="restored_a",
+        body_variant="A",
+        ticks=phase_ticks,
+        rng=rng,
+        previous_effects=previous_effects,
+        baseline_error=stable_baseline,
     )
     phases.append(restored)
     restored_baseline = max(1e-6, restored.final_prediction_error)
 
     body_a.break_effector("eff.0")
     broken, previous_effects = _run_phase(
-        ind, name="broken_effector", body_variant="A", ticks=phase_ticks, rng=rng,
-        previous_effects=previous_effects, baseline_error=restored_baseline,
+        ind,
+        name="broken_effector",
+        body_variant="A",
+        ticks=phase_ticks,
+        rng=rng,
+        previous_effects=previous_effects,
+        baseline_error=restored_baseline,
     )
     phases.append(broken)
 
     body_a.repair_effector("eff.0")
     repaired, previous_effects = _run_phase(
-        ind, name="repaired", body_variant="A", ticks=phase_ticks, rng=rng,
-        previous_effects=previous_effects, baseline_error=restored_baseline,
+        ind,
+        name="repaired",
+        body_variant="A",
+        ticks=phase_ticks,
+        rng=rng,
+        previous_effects=previous_effects,
+        baseline_error=restored_baseline,
     )
     phases.append(repaired)
     repaired_baseline = max(1e-6, repaired.final_prediction_error)
@@ -302,16 +335,26 @@ def _run_seed(seed: int, *, phase_ticks: int) -> CausalRevisionSeedResult:
     ind.transplant_to(body_b)
     previous_effects = {}
     transplanted, previous_effects = _run_phase(
-        ind, name="transplant_b", body_variant="B", ticks=phase_ticks, rng=rng,
-        previous_effects=previous_effects, baseline_error=repaired_baseline,
+        ind,
+        name="transplant_b",
+        body_variant="B",
+        ticks=phase_ticks,
+        rng=rng,
+        previous_effects=previous_effects,
+        baseline_error=repaired_baseline,
     )
     phases.append(transplanted)
 
     ind.transplant_to(body_a)
     previous_effects = {}
     returned, previous_effects = _run_phase(
-        ind, name="return_a", body_variant="A", ticks=phase_ticks, rng=rng,
-        previous_effects=previous_effects, baseline_error=stable_baseline,
+        ind,
+        name="return_a",
+        body_variant="A",
+        ticks=phase_ticks,
+        rng=rng,
+        previous_effects=previous_effects,
+        baseline_error=stable_baseline,
     )
     phases.append(returned)
 
@@ -325,9 +368,8 @@ def _run_seed(seed: int, *, phase_ticks: int) -> CausalRevisionSeedResult:
 
     transplant_recovery = transplanted.recovery_latency
     return_recovery = returned.recovery_latency
-    return_advantage = (
-        return_recovery is not None
-        and (transplant_recovery is None or return_recovery < transplant_recovery)
+    return_advantage = return_recovery is not None and (
+        transplant_recovery is None or return_recovery < transplant_recovery
     )
 
     return CausalRevisionSeedResult(
@@ -349,7 +391,7 @@ def _run_seed(seed: int, *, phase_ticks: int) -> CausalRevisionSeedResult:
 
 def run_causal_revision_sequence_study(
     *,
-    seeds: Sequence[int] = (101,127,149,173,211,257,307,353,401,457),
+    seeds: Sequence[int] = (101, 127, 149, 173, 211, 257, 307, 353, 401, 457),
     steps: int = 320,
 ) -> CausalRevisionStudy:
     normalized = _normalize_seeds(seeds)
@@ -361,7 +403,10 @@ def run_causal_revision_sequence_study(
     replay = tuple(_run_seed(seed, phase_ticks=phase_ticks) for seed in normalized)
 
     n = len(results)
-    rate = lambda attr: sum(bool(getattr(x, attr)) for x in results)/n
+
+    def rate(attr):
+        return sum(bool(getattr(x, attr)) for x in results) / n
+
     perm_rate = rate("permutation_revision")
     break_rate = rate("break_revision")
     transplant_rate = rate("transplant_revision")

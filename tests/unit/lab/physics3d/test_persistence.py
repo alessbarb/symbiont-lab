@@ -63,7 +63,6 @@ def test_portable_bundle_does_not_contain_body_state(tmp_path):
     assert not any("body" in name for name in names)
 
 
-
 def test_telemetry_writer_persists_new_dataclass_metrics_without_whitelist(tmp_path):
     @dataclass
     class Record:
@@ -97,6 +96,7 @@ def test_telemetry_writer_persists_new_dataclass_metrics_without_whitelist(tmp_p
 
 def test_load_telemetry_records(tmp_path):
     import pytest
+
     from symbiont_lab.physics3d.persistence import load_telemetry_records
 
     path = tmp_path / "telemetry.ndjson"
@@ -122,9 +122,11 @@ def test_load_telemetry_records(tmp_path):
 
 
 def test_load_telemetry_records_nonexistent_raises():
-    import pytest
-    from symbiont_lab.physics3d.persistence import load_telemetry_records
     from pathlib import Path
+
+    import pytest
+
+    from symbiont_lab.physics3d.persistence import load_telemetry_records
 
     with pytest.raises(FileNotFoundError):
         load_telemetry_records(Path("/nonexistent/file.ndjson"))

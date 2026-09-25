@@ -4,11 +4,10 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
 from symbiont.modeling import (
-    ArchitectureId,
-    ExperienceRecord,
     EpistemicStatus,
-    ModelTrainingAuthority,
+    ExperienceRecord,
     ModeledOrganismRuntime,
+    ModelTrainingAuthority,
     SourceKind,
     TrainingRequest,
 )
@@ -75,18 +74,20 @@ def _transition_history(
         right = (phase * 3 + tick * 5) % 9
         action = (left + right + tick) % 4
         outcome = (left * 3 + right * 2 + action + (tick // 13)) % 7
-        records.append(ExperienceRecord(
-            record_id=f"transition.l73.{seed}.{tick}",
-            organism_id=organism_id,
-            tick_class=tick,
-            context_tokens=(f"sense.{left}", f"sense.{right}"),
-            action_token=f"action.{action}",
-            outcome_tokens=(f"outcome.{outcome}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.l73.{seed}.{tick}",),
-            confidence_class=7,
-            source_kind=SourceKind.ACTION_OUTCOME,
-        ))
+        records.append(
+            ExperienceRecord(
+                record_id=f"transition.l73.{seed}.{tick}",
+                organism_id=organism_id,
+                tick_class=tick,
+                context_tokens=(f"sense.{left}", f"sense.{right}"),
+                action_token=f"action.{action}",
+                outcome_tokens=(f"outcome.{outcome}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.l73.{seed}.{tick}",),
+                confidence_class=7,
+                source_kind=SourceKind.ACTION_OUTCOME,
+            )
+        )
     return tuple(records)
 
 
@@ -205,21 +206,23 @@ def run_adaptive_replay_matched_control_study(
             tokenizer=plan.tokenizer,
         )
 
-        results.append(AdaptiveReplaySeedResult(
-            seed=seed,
-            transitions=ticks,
-            replay_pressure=plan.replay_pressure,
-            adaptive_epochs=adaptive_request.requested_epochs,
-            adaptive_steps=adaptive_request.requested_steps,
-            control_epochs=control_request.requested_epochs,
-            control_steps=control_request.requested_steps,
-            adaptive_test_loss=adaptive.mean_log_loss,
-            control_test_loss=control.mean_log_loss,
-            adaptive_accuracy=adaptive.accuracy,
-            control_accuracy=control.accuracy,
-            loss_gain=control.mean_log_loss - adaptive.mean_log_loss,
-            accuracy_gain=adaptive.accuracy - control.accuracy,
-        ))
+        results.append(
+            AdaptiveReplaySeedResult(
+                seed=seed,
+                transitions=ticks,
+                replay_pressure=plan.replay_pressure,
+                adaptive_epochs=adaptive_request.requested_epochs,
+                adaptive_steps=adaptive_request.requested_steps,
+                control_epochs=control_request.requested_epochs,
+                control_steps=control_request.requested_steps,
+                adaptive_test_loss=adaptive.mean_log_loss,
+                control_test_loss=control.mean_log_loss,
+                adaptive_accuracy=adaptive.accuracy,
+                control_accuracy=control.accuracy,
+                loss_gain=control.mean_log_loss - adaptive.mean_log_loss,
+                accuracy_gain=adaptive.accuracy - control.accuracy,
+            )
+        )
 
     count = len(results)
     return AdaptiveReplayMatchedControlStudy(

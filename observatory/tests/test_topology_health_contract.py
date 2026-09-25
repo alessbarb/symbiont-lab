@@ -4,7 +4,6 @@ from types import SimpleNamespace
 
 from observatory.adapter import _cognition_state
 
-
 ROOT = Path(__file__).resolve().parent.parent
 
 

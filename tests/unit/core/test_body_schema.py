@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from symbiont.core.body_schema import (
     BODY_SCHEMA_VERSION,
     LEGACY_BODY_SCHEMA_VERSION,
@@ -234,7 +233,9 @@ def test_legacy_restore_rejects_dependencies():
 
 def test_restore_rejects_nonempty_global_state():
     with pytest.raises(ValueError, match="global_state"):
-        BodySchemaEngine.restore(_empty_checkpoint(global_state={"integrity_class": 15}), current_tick=0)
+        BodySchemaEngine.restore(
+            _empty_checkpoint(global_state={"integrity_class": 15}), current_tick=0
+        )
 
 
 def test_restore_rejects_missing_private_id_salt():

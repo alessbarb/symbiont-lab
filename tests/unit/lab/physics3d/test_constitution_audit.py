@@ -29,9 +29,7 @@ def test_passive_body_converges_and_is_supported_by_ground():
         for _ in range(240):
             body.prepare_physics_substep()
             p.stepSimulation(physicsClientId=client_id)
-            normal, penetration, _contacts = _contact_metrics(
-                p, client_id, body.body_id, plane_id
-            )
+            normal, penetration, _contacts = _contact_metrics(p, client_id, body.body_id, plane_id)
             forces.append(normal)
             penetrations.append(penetration)
 
@@ -69,9 +67,7 @@ def test_constitution_audit_separates_dimensionality_from_total_torque():
     assert constitution["directional_effector_channels"] == 62
     assert constitution["mutually_exclusive_effector_groups"] == 31
     assert constitution["total_mass_kg"] > 30.0
-    assert constitution["expected_weight_n"] == pytest.approx(
-        constitution["total_mass_kg"] * 9.81
-    )
+    assert constitution["expected_weight_n"] == pytest.approx(constitution["total_mass_kg"] * 9.81)
     assert constitution["passive_postural_tone"] is True
     assert settling["converged"] is True
 

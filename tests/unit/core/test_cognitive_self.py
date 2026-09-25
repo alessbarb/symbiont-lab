@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from symbiont.core.cognitive_self import (
     MAX_COGNITIVE_CHANNELS_PER_TICK,
     derive_cognitive_self_namespace,

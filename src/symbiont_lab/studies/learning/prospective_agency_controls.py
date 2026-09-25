@@ -9,6 +9,7 @@ OutcomeValueLedger.
 Passing this study is a mechanism gate, not evidence of embodied resource
 seeking or ecological competence.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -21,7 +22,6 @@ from symbiont.agency import (
     ProspectiveCandidate,
     ProspectivePolicy,
 )
-
 
 _ACTIONS = (
     "primitive.opaque.a",
@@ -87,8 +87,7 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
     if not normalized or len(normalized) > 16:
         raise ValueError("seeds must contain between 1 and 16 entries")
     if len(set(normalized)) != len(normalized) or any(
-        isinstance(seed, bool) or not isinstance(seed, int)
-        for seed in normalized
+        isinstance(seed, bool) or not isinstance(seed, int) for seed in normalized
     ):
         raise ValueError("seeds must be unique integers")
     return normalized
@@ -166,8 +165,7 @@ def _deliberate(
 ):
     mapping = _mapping(context=context, shuffled=shuffled_model)
     candidates = tuple(
-        ProspectiveCandidate(action_id=action_id, family="primitive")
-        for action_id in _ACTIONS
+        ProspectiveCandidate(action_id=action_id, family="primitive") for action_id in _ACTIONS
     )
 
     def predictor(action_id: str, context_tokens: tuple[str, ...]) -> CounterfactualPrediction:
@@ -264,45 +262,38 @@ def run_prospective_agency_controls_study(
         )
         babbling_value = _true_future_value(babbling_action)
 
-        results.append(ProspectiveAgencyControlSeedResult(
-            seed=seed,
-            full_action_context_a=decision_a.candidate_id,
-            full_action_context_b=decision_b.candidate_id,
-            full_future_value=full_value,
-            no_counterfactual_future_value=_true_future_value(no_counterfactual_action),
-            shuffled_model_future_value=shuffled_model_value,
-            shuffled_value_future_value=shuffled_value_future,
-            babbling_future_value=babbling_value,
-            prediction_diversity=prediction_diversity,
-            context_sensitive=(
-                decision_a.reason == "selected"
-                and decision_b.reason == "selected"
-                and decision_a.candidate_id != decision_b.candidate_id
-            ),
-            full_selected_optimal=(
-                decision_a.reason == "selected"
-                and decision_a.candidate_id == _ACTIONS[0]
-            ),
-            model_shuffle_degraded=shuffled_model_value < full_value,
-            value_shuffle_degraded=shuffled_value_future < full_value,
-        ))
+        results.append(
+            ProspectiveAgencyControlSeedResult(
+                seed=seed,
+                full_action_context_a=decision_a.candidate_id,
+                full_action_context_b=decision_b.candidate_id,
+                full_future_value=full_value,
+                no_counterfactual_future_value=_true_future_value(no_counterfactual_action),
+                shuffled_model_future_value=shuffled_model_value,
+                shuffled_value_future_value=shuffled_value_future,
+                babbling_future_value=babbling_value,
+                prediction_diversity=prediction_diversity,
+                context_sensitive=(
+                    decision_a.reason == "selected"
+                    and decision_b.reason == "selected"
+                    and decision_a.candidate_id != decision_b.candidate_id
+                ),
+                full_selected_optimal=(
+                    decision_a.reason == "selected" and decision_a.candidate_id == _ACTIONS[0]
+                ),
+                model_shuffle_degraded=shuffled_model_value < full_value,
+                value_shuffle_degraded=shuffled_value_future < full_value,
+            )
+        )
 
     count = len(results)
     mean_full = sum(item.full_future_value for item in results) / count
-    mean_no_counterfactual = (
-        sum(item.no_counterfactual_future_value for item in results) / count
-    )
-    mean_shuffled_model = (
-        sum(item.shuffled_model_future_value for item in results) / count
-    )
-    mean_shuffled_value = (
-        sum(item.shuffled_value_future_value for item in results) / count
-    )
+    mean_no_counterfactual = sum(item.no_counterfactual_future_value for item in results) / count
+    mean_shuffled_model = sum(item.shuffled_model_future_value for item in results) / count
+    mean_shuffled_value = sum(item.shuffled_value_future_value for item in results) / count
     mean_babbling = sum(item.babbling_future_value for item in results) / count
 
-    gate_prediction_discrimination = all(
-        item.prediction_diversity >= 2 for item in results
-    )
+    gate_prediction_discrimination = all(item.prediction_diversity >= 2 for item in results)
     gate_context_sensitive_choice = all(item.context_sensitive for item in results)
     gate_model_control = all(item.model_shuffle_degraded for item in results)
     gate_value_control = all(item.value_shuffle_degraded for item in results)
@@ -313,13 +304,15 @@ def run_prospective_agency_controls_study(
         and mean_full > mean_babbling
         and all(item.full_selected_optimal for item in results)
     )
-    all_gates_pass = all((
-        gate_prediction_discrimination,
-        gate_context_sensitive_choice,
-        gate_model_control,
-        gate_value_control,
-        gate_causal_benefit,
-    ))
+    all_gates_pass = all(
+        (
+            gate_prediction_discrimination,
+            gate_context_sensitive_choice,
+            gate_model_control,
+            gate_value_control,
+            gate_causal_benefit,
+        )
+    )
 
     return ProspectiveAgencyControlsStudy(
         seeds=normalized,

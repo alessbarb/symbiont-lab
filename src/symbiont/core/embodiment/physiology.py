@@ -1,14 +1,13 @@
 """Irreversible, resource-backed viability state for Milestone I."""
-from __future__ import annotations
-from dataclasses import dataclass, field
-import math
-from enum import StrEnum
-from .metabolism import MetabolicSnapshot, ResourcePressure
 
-from .physiology_config import (
-    DEFAULT_PHYSIOLOGY_CONFIG,
-    PhysiologyConfig,
-)
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from enum import StrEnum
+
+from .metabolism import MetabolicSnapshot, ResourcePressure
+from .physiology_config import DEFAULT_PHYSIOLOGY_CONFIG, PhysiologyConfig
 
 
 class VitalState(StrEnum):
@@ -85,6 +84,7 @@ class LivingBodyState:
     deliberately independent from the persistent Symbiont historical tick.
     Cognition never receives these field names directly.
     """
+
     energy_reserve: float = 1.0
     max_energy: float = 2.0
     structural_integrity: float = 1.0
@@ -132,9 +132,17 @@ class LivingBodyState:
             raise ValueError("growth_progress out of bounds")
         if not 0.0 <= self.senescence <= 1.0:
             raise ValueError("senescence out of bounds")
-        if isinstance(self.age_ticks, bool) or not isinstance(self.age_ticks, int) or self.age_ticks < 0:
+        if (
+            isinstance(self.age_ticks, bool)
+            or not isinstance(self.age_ticks, int)
+            or self.age_ticks < 0
+        ):
             raise ValueError("age_ticks must be non-negative")
-        if isinstance(self.transitions, bool) or not isinstance(self.transitions, int) or self.transitions < 0:
+        if (
+            isinstance(self.transitions, bool)
+            or not isinstance(self.transitions, int)
+            or self.transitions < 0
+        ):
             raise ValueError("transitions must be non-negative")
         if self.vital_state is VitalState.DEAD and self.death_tick is None:
             raise ValueError("dead body requires death_tick")
@@ -259,9 +267,7 @@ class LivingBodyState:
                     structure.repair_progress = min(1.0, structure.repair_progress + delta)
             self.structural_integrity = self._aggregate_structural_integrity()
         else:
-            self.structural_integrity = max(
-                0.0, min(1.0, self.structural_integrity + delta)
-            )
+            self.structural_integrity = max(0.0, min(1.0, self.structural_integrity + delta))
         if self.structural_integrity <= 0.0:
             self.mark_dead(self.age_ticks)
 
@@ -311,12 +317,9 @@ class LivingBodyState:
             for structure_id, raw_state in raw_structures.items()
         }
         if any(
-            structure_id != state.structure_id
-            for structure_id, state in structure_states.items()
+            structure_id != state.structure_id for structure_id, state in structure_states.items()
         ):
-            raise ValueError(
-                "invalid living body checkpoint: structure_states key/id mismatch"
-            )
+            raise ValueError("invalid living body checkpoint: structure_states key/id mismatch")
         return cls(
             energy_reserve=float(payload["energy_reserve"]),
             max_energy=float(payload["max_energy"]),
@@ -338,10 +341,10 @@ class LivingBodyState:
 
 @dataclass(frozen=True, slots=True)
 class PhysiologySnapshot:
-
     state: VitalState
     transitions: int
     death_tick: int | None
+
 
 class PhysiologyController:
     """Maps metabolic pressure to viability on one shared LivingBodyState."""
@@ -438,10 +441,13 @@ class PhysiologyController:
             raise ValueError("physiology checkpoint contradicts living body state")
         return cls(body_state=body_state)
 
+
 __all__ = [
     "BodyStructureState",
     "LivingBodyState",
     "PhysiologyController",
     "PhysiologySnapshot",
+    "DEFAULT_PHYSIOLOGY_CONFIG",
+    "PhysiologyConfig",
     "VitalState",
 ]

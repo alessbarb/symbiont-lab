@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from symbiont.core.cognition_bridge import CognitiveBridge, RepresentationMaturity
+
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge, RepresentationMaturity
-
 from tests.unit.core.test_actuation_cognition_p1 import _genome
 
 
@@ -84,7 +84,6 @@ def test_maturation_evidence_survives_checkpoint_roundtrip():
     assert restored._node_active_count["concept"] == 11
 
 
-
 def test_tick_representation_maturity_histogram_matches_direct_classification():
     bridge = _bridge()
     bridge._node_born_tick["concept"] = 0
@@ -102,8 +101,7 @@ def test_tick_representation_maturity_histogram_matches_direct_classification():
 
     expected = {
         maturity.value: sum(
-            bridge._representation_maturity(node.node_id) is maturity
-            for node in bridge.graph.nodes
+            bridge._representation_maturity(node.node_id) is maturity for node in bridge.graph.nodes
         )
         for maturity in RepresentationMaturity
     }

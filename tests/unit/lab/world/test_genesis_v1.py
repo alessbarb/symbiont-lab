@@ -25,7 +25,9 @@ def test_ground_truth_ids_are_opaque_not_labels():
 
 def test_metadata_maps_labels_to_the_same_ids_ground_truth_uses():
     truth = build_ground_truth()
-    assert set(GENESIS_V1_METADATA.values()) == set(truth.fields) | set(truth.resources) | set(truth.hazards)
+    assert set(GENESIS_V1_METADATA.values()) == set(truth.fields) | set(truth.resources) | set(
+        truth.hazards
+    )
 
 
 def test_at_least_one_hazard_is_density_coupled():
@@ -45,7 +47,9 @@ def test_constitution_dimensions_match_frozen_genesis_config():
 
 def test_build_genesis_v1_ties_constitution_to_its_own_ground_truth():
     genesis = build_genesis_v1()
-    assert genesis.constitution.fingerprint() == build_constitution(genesis.ground_truth).fingerprint()
+    assert (
+        genesis.constitution.fingerprint() == build_constitution(genesis.ground_truth).fingerprint()
+    )
 
 
 def test_field_ids_are_stable_across_calls():

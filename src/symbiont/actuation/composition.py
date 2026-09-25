@@ -1,4 +1,5 @@
 """Evidence-first sequential competence composition."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,10 +23,7 @@ class SequentialCompositionEvidence:
 
     @property
     def established(self) -> bool:
-        return (
-            self.support >= 4
-            and self.reproducibility >= (2.0 / 3.0)
-        )
+        return self.support >= 4 and self.reproducibility >= (2.0 / 3.0)
 
     def checkpoint(self) -> dict[str, object]:
         return {

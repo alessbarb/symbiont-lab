@@ -6,15 +6,17 @@ controlled directly by the same opaque activation statistics, and an
 uncontrolled object provides a negative control. Mid-run the attached tool is
 physically decoupled without notifying cognition.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Sequence
 
-from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema, PerceptualStructure
 from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
+
 from symbiont.core.embodiment import implant_body
+from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema, PerceptualStructure
 
 # Component-level falsification specimen marker (see §62 of
 # docs/design/herencia-evolutiva-multidimensional.md). This module
@@ -218,7 +220,7 @@ def _run_seed(seed: int, *, steps: int) -> ToolBodySeedResult:
 
 def run_tool_body_distinction_study(
     *,
-    seeds: Sequence[int] = (101,127,149,173,211,257,307,353,401,457),
+    seeds: Sequence[int] = (101, 127, 149, 173, 211, 257, 307, 353, 401, 457),
     steps: int = 600,
 ) -> ToolBodyDistinctionStudy:
     normalized = _normalize_seeds(seeds)
@@ -228,7 +230,9 @@ def run_tool_body_distinction_study(
     results = tuple(_run_seed(s, steps=steps) for s in normalized)
     replay = tuple(_run_seed(s, steps=steps) for s in normalized)
     n = len(results)
-    rate = lambda attr: sum(bool(getattr(x, attr)) for x in results) / n
+
+    def rate(attr):
+        return sum(bool(getattr(x, attr)) for x in results) / n
 
     body_rate = rate("body_internal")
     attached_pre = rate("attached_before_decouple_internal")

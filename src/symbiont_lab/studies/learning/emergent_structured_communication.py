@@ -5,6 +5,7 @@ local outcomes.  It never supplies message content, roles, positions, a
 grammar, or a desired code.  Structure is an evaluator-side description of
 the traces produced by the organisms, not an organism-side objective.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -20,7 +21,6 @@ from symbiont.modeling import (
     SymbolSequence,
     default_symbol_space,
 )
-
 
 SEEDS = (101, 127, 149)
 CONDITIONS = ("no_signal", "random_signal", "autonomous")
@@ -101,7 +101,9 @@ def _entropy(values: Sequence[str]) -> float:
     return -sum((count / total) * math.log2(count / total) for count in counts.values())
 
 
-def _trial(seed: int, *, condition: str, ticks: int = 48, permuted: bool = False) -> dict[str, object]:
+def _trial(
+    seed: int, *, condition: str, ticks: int = 48, permuted: bool = False
+) -> dict[str, object]:
     if condition not in CONDITIONS:
         raise ValueError(f"unknown condition: {condition}")
     space = default_symbol_space(f"study-{seed}")
@@ -126,9 +128,12 @@ def _trial(seed: int, *, condition: str, ticks: int = 48, permuted: bool = False
     decisions = []
 
     def deliver_random(tick: int) -> None:
-        index = int(hashlib.sha256(f"random:{seed}:{tick}".encode()).hexdigest()[:8], 16) % len(space)
+        index = int(hashlib.sha256(f"random:{seed}:{tick}".encode()).hexdigest()[:8], 16) % len(
+            space
+        )
         sequence = SymbolSequence((space[index],))
         from symbiont.modeling import SequenceMessage
+
         channel.deliver(
             SequenceMessage(sequence, emitter.organism_id, receiver.organism_id, tick),
             receiver=receiver.sequence_grounding_ledger,
@@ -152,9 +157,12 @@ def _trial(seed: int, *, condition: str, ticks: int = 48, permuted: bool = False
                 if permuted:
                     # A transport-only control renames opaque IDs; it does not
                     # provide a code or alter the organism's decision.
-                    renamed = tuple(space[(space.index(symbol) + 1) % len(space)] for symbol in sequence.symbols)
+                    renamed = tuple(
+                        space[(space.index(symbol) + 1) % len(space)] for symbol in sequence.symbols
+                    )
                     sequence = SymbolSequence(renamed)
                 from symbiont.modeling import SequenceMessage
+
                 channel.deliver(
                     SequenceMessage(sequence, emitter.organism_id, receiver.organism_id, tick),
                     receiver=receiver.sequence_grounding_ledger,
@@ -167,7 +175,12 @@ def _trial(seed: int, *, condition: str, ticks: int = 48, permuted: bool = False
         else:
             decisions.append(SymbolAction.SILENCE)
 
-        exposure = receiver.sequence_grounding_ledger.exposures[-1] if receiver.sequence_grounding_ledger.exposures and receiver.sequence_grounding_ledger.exposures[-1].emitted_tick == tick else None
+        exposure = (
+            receiver.sequence_grounding_ledger.exposures[-1]
+            if receiver.sequence_grounding_ledger.exposures
+            and receiver.sequence_grounding_ledger.exposures[-1].emitted_tick == tick
+            else None
+        )
         if exposure is not None:
             prediction = receiver.predict_sequence(exposure.sequence)
             if prediction is not None:
@@ -180,7 +193,11 @@ def _trial(seed: int, *, condition: str, ticks: int = 48, permuted: bool = False
     gain = correct / max(1, predictions) - baseline if predictions else 0.0
     trace = (
         tuple(
-            (decision.selected_action.value, decision.selected_symbols, decision.selected_recipient_id)
+            (
+                decision.selected_action.value,
+                decision.selected_symbols,
+                decision.selected_recipient_id,
+            )
             if hasattr(decision, "selected_action")
             else decision.value
             for decision in decisions
@@ -195,7 +212,8 @@ def _trial(seed: int, *, condition: str, ticks: int = 48, permuted: bool = False
             for decision in decisions
         ),
         "gain": gain,
-        "cost": receiver.sequence_grounding_ledger.cost + sum(len(item.symbols) for item in messages),
+        "cost": receiver.sequence_grounding_ledger.cost
+        + sum(len(item.symbols) for item in messages),
         "trace": trace,
         "emitter": emitter,
         "receiver": receiver,
@@ -214,12 +232,20 @@ def _result(seed: int) -> StructuredCommunicationSeedResult:
     # outcome token is an experience available to the organism, not a meaning
     # supplied by the apparatus.
     learner = autonomous["receiver"]
-    newborn = ModeledOrganismRuntime(organism_id=f"esc-newborn-{seed}", bootstrap_semantic_senses=False, symbol_space=default_symbol_space(f"study-{seed}"))
-    relay = SequenceChannel(authorized_pairs={(learner.organism_id, newborn.organism_id)}, max_deliveries=4)
+    newborn = ModeledOrganismRuntime(
+        organism_id=f"esc-newborn-{seed}",
+        bootstrap_semantic_senses=False,
+        symbol_space=default_symbol_space(f"study-{seed}"),
+    )
+    relay = SequenceChannel(
+        authorized_pairs={(learner.organism_id, newborn.organism_id)}, max_deliveries=4
+    )
     associations = learner.sequence_grounding_ledger.associations
     if associations:
         item = associations[0]
-        learner.autonomous_retransmit_sequence(relay, (newborn,), outcome_tokens=item.outcome_tokens, tick=100)
+        learner.autonomous_retransmit_sequence(
+            relay, (newborn,), outcome_tokens=item.outcome_tokens, tick=100
+        )
         if newborn.sequence_grounding_ledger.exposures:
             newborn.observe_sequence_outcome(item.outcome_tokens, tick=101)
     unique_sequences = {item.sequence_id for item in autonomous["messages"]}
@@ -247,15 +273,22 @@ def _result(seed: int) -> StructuredCommunicationSeedResult:
     )
 
 
-def run_emergent_structured_communication_study(*, seeds: Sequence[int] = SEEDS) -> EmergentStructuredCommunicationStudy:
+def run_emergent_structured_communication_study(
+    *, seeds: Sequence[int] = SEEDS
+) -> EmergentStructuredCommunicationStudy:
     normalized = _normalize_seeds(seeds)
     results = tuple(_result(seed) for seed in normalized)
-    analyses = tuple({
-        "seed": result.seed,
-        "classification": "functional_partially_structured" if result.unique_sequences > 1 else "functional_holistic_or_constant",
-        "sequence_reuse_observed": result.unique_sequences < result.messages_sent,
-        "message_length": result.mean_message_length,
-    } for result in results)
+    analyses = tuple(
+        {
+            "seed": result.seed,
+            "classification": "functional_partially_structured"
+            if result.unique_sequences > 1
+            else "functional_holistic_or_constant",
+            "sequence_reuse_observed": result.unique_sequences < result.messages_sent,
+            "message_length": result.mean_message_length,
+        }
+        for result in results
+    )
     return EmergentStructuredCommunicationStudy(
         seeds=normalized,
         conditions=CONDITIONS,
@@ -274,13 +307,21 @@ def run_emergent_structured_communication_study(*, seeds: Sequence[int] = SEEDS)
         esc11_shortcut_audit=True,
         esc12_replay_provenance=all(item.replay_deterministic for item in results),
         all_gates_pass=all(
-            item.esc1_autonomous_capability and item.esc2_communication_utility
-            and item.esc3_random_separation and item.esc4_nontrivial_code
-            and item.esc7_permutation_robustness and item.esc8_cultural_persistence
-            and item.esc9_newborn_acquisition and item.replay_deterministic
+            item.esc1_autonomous_capability
+            and item.esc2_communication_utility
+            and item.esc3_random_separation
+            and item.esc4_nontrivial_code
+            and item.esc7_permutation_robustness
+            and item.esc8_cultural_persistence
+            and item.esc9_newborn_acquisition
+            and item.replay_deterministic
             for item in results
         ),
     )
 
 
-__all__ = ["EmergentStructuredCommunicationStudy", "StructuredCommunicationSeedResult", "run_emergent_structured_communication_study"]
+__all__ = [
+    "EmergentStructuredCommunicationStudy",
+    "StructuredCommunicationSeedResult",
+    "run_emergent_structured_communication_study",
+]

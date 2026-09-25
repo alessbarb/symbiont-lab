@@ -25,14 +25,8 @@ def test_clean_founder_rng_is_reproducible_but_not_shared_between_individuals():
     a = _clean_population(seed=101, count=3)
     b = _clean_population(seed=101, count=3)
 
-    states_a = {
-        oid: a._rigs[oid].individual.symbiont._rng.getstate()
-        for oid in a.organism_ids
-    }
-    states_b = {
-        oid: b._rigs[oid].individual.symbiont._rng.getstate()
-        for oid in b.organism_ids
-    }
+    states_a = {oid: a._rigs[oid].individual.symbiont._rng.getstate() for oid in a.organism_ids}
+    states_b = {oid: b._rigs[oid].individual.symbiont._rng.getstate() for oid in b.organism_ids}
 
     assert states_a == states_b
     assert len({repr(state) for state in states_a.values()}) == len(states_a)
@@ -49,7 +43,9 @@ def test_clean_founders_do_not_emit_identical_exploration_sequences_from_rng_sym
     assert len(set(traces.values())) == len(traces)
 
 
-def test_resource_renewal_runs_once_per_world_cell_per_tick_independent_of_population_size(monkeypatch):
+def test_resource_renewal_runs_once_per_world_cell_per_tick_independent_of_population_size(
+    monkeypatch,
+):
     one = _clean_population(seed=101, count=1, width=3, height=2)
     three = _clean_population(seed=101, count=3, width=3, height=2)
 
@@ -81,16 +77,11 @@ def test_resource_renewal_runs_once_per_world_cell_per_tick_independent_of_popul
     assert len(set(calls_three)) == expected
 
 
-
 def test_physiology_balance_closes_energy_and_integrity_identities():
     pop = _clean_population(seed=101, count=1, width=3, height=2)
     pop.run_tick()
 
-    events = [
-        event
-        for event in pop.journal
-        if event.kind == "PHYSIOLOGY_BALANCE"
-    ]
+    events = [event for event in pop.journal if event.kind == "PHYSIOLOGY_BALANCE"]
     assert len(events) == 1
     payload = events[0].payload
 
@@ -123,14 +114,11 @@ def test_death_event_reports_physical_terminal_cause():
     assert deaths[0].payload["cause"] == "energy_depletion"
 
 
-
 def test_resource_renewal_telemetry_is_one_aggregate_event_per_tick():
     pop = _clean_population(seed=101, count=3, width=3, height=2)
     pop.run_tick()
 
-    renewal_events = [
-        event for event in pop.journal if event.kind == "RESOURCE_RENEWED"
-    ]
+    renewal_events = [event for event in pop.journal if event.kind == "RESOURCE_RENEWED"]
     assert len(renewal_events) == 1
     event = renewal_events[0]
     assert event.actor is None

@@ -1,8 +1,9 @@
 """Schema-backed lossless frame codec for telemetry v4.1."""
+
 from __future__ import annotations
 
-from copy import deepcopy
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping, TextIO
 
@@ -14,12 +15,7 @@ def _template_and_values(value: Any) -> tuple[Any, list[Any]]:
 
     def visit(item: Any) -> Any:
         if isinstance(item, Mapping):
-            return {
-                "d": [
-                    [str(key), visit(item[key])]
-                    for key in sorted(item, key=str)
-                ]
-            }
+            return {"d": [[str(key), visit(item[key])] for key in sorted(item, key=str)]}
         if isinstance(item, list):
             return {"l": [visit(child) for child in item]}
         if isinstance(item, tuple):
@@ -128,8 +124,7 @@ class FrameStreamWriter:
             changed = [
                 [index, deepcopy(item)]
                 for index, item in enumerate(values)
-                if index >= len(previous[1])
-                or not _exact_equal(previous[1][index], item)
+                if index >= len(previous[1]) or not _exact_equal(previous[1][index], item)
             ]
             sparse_record = {
                 "t": int(tick),
@@ -138,9 +133,7 @@ class FrameStreamWriter:
                 "m": "s",
                 "v": changed,
             }
-            if len(canonical_json_bytes(sparse_record)) < len(
-                canonical_json_bytes(full_record)
-            ):
+            if len(canonical_json_bytes(sparse_record)) < len(canonical_json_bytes(full_record)):
                 record = sparse_record
 
         encoded = canonical_json_bytes(record)
@@ -192,10 +185,7 @@ class FrameStreamWriter:
         }
 
     def schema_state(self) -> dict[str, int]:
-        return {
-            channel: schema_id
-            for channel, (schema_id, _values) in self._previous.items()
-        }
+        return {channel: schema_id for channel, (schema_id, _values) in self._previous.items()}
 
 
 class FrameSchemaRegistryReader:
@@ -217,9 +207,7 @@ class FrameSchemaRegistryReader:
                 template = item["template"]
                 digest = str(item["sha256"])
                 if payload_sha256(template) != digest:
-                    raise ValueError(
-                        f"frame schema hash mismatch at line {line_no}"
-                    )
+                    raise ValueError(f"frame schema hash mismatch at line {line_no}")
                 if schema_id in self.schemas:
                     raise ValueError(f"duplicate frame schema id: {schema_id}")
                 self.schemas[schema_id] = (channel, template, digest)
@@ -257,9 +245,7 @@ class FrameStreamReader:
         if resolved is None:
             resolved = self.registry.schema_id_for_value(channel, value)
         if resolved is None:
-            raise ValueError(
-                f"no frame schema available to prime channel {channel!r}"
-            )
+            raise ValueError(f"no frame schema available to prime channel {channel!r}")
         schema_channel, schema_template = self.registry.schema(resolved)
         if schema_channel != channel:
             raise ValueError("frame schema channel mismatch")
@@ -283,9 +269,7 @@ class FrameStreamReader:
         elif mode == "c":
             source_channel = str(record.get("f", ""))
             if not source_channel or source_channel not in self.values:
-                raise ValueError(
-                    f"copy frame source is unavailable: {source_channel!r}"
-                )
+                raise ValueError(f"copy frame source is unavailable: {source_channel!r}")
             source_value = deepcopy(self.values[source_channel])
             source_template, values = _template_and_values(source_value)
             if payload_sha256(source_template) != payload_sha256(template):
@@ -293,9 +277,7 @@ class FrameStreamReader:
         elif mode == "s":
             previous = self._previous.get(channel)
             if previous is None or previous[0] != schema_id:
-                raise ValueError(
-                    f"sparse frame has no matching base for {channel!r}"
-                )
+                raise ValueError(f"sparse frame has no matching base for {channel!r}")
             values = deepcopy(previous[1])
             if not isinstance(raw_values, list):
                 raise ValueError("sparse frame changes must be a list")

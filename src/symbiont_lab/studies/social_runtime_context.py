@@ -1,10 +1,12 @@
 """Evaluator-only multi-neighbor/context shift study for Milestone K."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.core.social import SocialHabitat
 
 
@@ -35,7 +37,9 @@ def run_social_runtime_context_study() -> SocialRuntimeContextStudy:
     observer.request_social_exchange("peer-a", "food", 2.0)
     observer.request_social_exchange("peer-b", "food", 2.0)
     before = observer.select_social_opportunity()
-    observer.social_ledger.observe("observer", "peer-a", cost=2.0, conflict=True, tick=1, channel="food")
+    observer.social_ledger.observe(
+        "observer", "peer-a", cost=2.0, conflict=True, tick=1, channel="food"
+    )
     after_contradiction = observer.select_social_opportunity()
 
     observer.suspend_social_interaction("peer-b")

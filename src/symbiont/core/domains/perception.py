@@ -1,4 +1,5 @@
 """Canonical sensory/perceptual phase of one organism tick."""
+
 from __future__ import annotations
 
 import time
@@ -26,8 +27,8 @@ from ..cognition.attention import (
     AttentionCandidate,
     attend_to_host,
 )
-from ..cognition.host_self_model import SelfModel
 from ..cognition.consolidation import novelty_from_drift_kind
+from ..cognition.host_self_model import SelfModel
 from ..embodiment.assimilation import AssimilationDecision, InformationAssimilator
 from ..signals.identity import SignalIdentity
 from ..signals.knowledge import SignalKnowledgeEngine
@@ -122,36 +123,23 @@ class PerceptionDomain:
             else reading
             for reading in raw_organism_readings
         )
-        readings_by_capability = {
-            reading.capability_id: reading for reading in organism_readings
-        }
+        readings_by_capability = {reading.capability_id: reading for reading in organism_readings}
         observations: list[SignalObservation] = []
         for capability in snapshot.manifest.available:
             reading = readings_by_capability.get(capability.capability_id)
             observations.append(
                 SignalObservation(
-                    signal_id=services.signal_identity.signal_id(
-                        capability.capability_id
-                    ),
+                    signal_id=services.signal_identity.signal_id(capability.capability_id),
                     available=True,
-                    selected=(
-                        capability.capability_id
-                        in snapshot.sampled_capability_ids
-                    ),
+                    selected=(capability.capability_id in snapshot.sampled_capability_ids),
                     value=None if reading is None else reading.value,
-                    quality=(
-                        "unavailable"
-                        if reading is None
-                        else reading.quality.value
-                    ),
+                    quality=("unavailable" if reading is None else reading.quality.value),
                 )
             )
         for reading in resource_readings:
             observations.append(
                 SignalObservation(
-                    signal_id=services.signal_identity.signal_id(
-                        reading.capability_id
-                    ),
+                    signal_id=services.signal_identity.signal_id(reading.capability_id),
                     available=True,
                     selected=True,
                     value=reading.value,
@@ -159,14 +147,9 @@ class PerceptionDomain:
                 )
             )
 
-        relation_percept_names = (
-            services.adaptive_senses.percept_names()
-            if discover_senses
-            else {}
-        )
+        relation_percept_names = services.adaptive_senses.percept_names() if discover_senses else {}
         name_to_capability = {
-            name: capability
-            for capability, name in relation_percept_names.items()
+            name: capability for capability, name in relation_percept_names.items()
         }
 
         def opaque_sense_id(value: str) -> str:
@@ -190,11 +173,11 @@ class PerceptionDomain:
 
         attempted: dict[str, tuple[str, bool]] = {}
         for outcome in snapshot.sampling_outcomes:
-            if (
-                outcome.capability_id not in readings_by_capability
-                and outcome.kind.value
-                in {"missing", "unavailable", "provider_failed"}
-            ):
+            if outcome.capability_id not in readings_by_capability and outcome.kind.value in {
+                "missing",
+                "unavailable",
+                "provider_failed",
+            }:
                 favorable = False
             elif (
                 outcome.kind.value == "succeeded"
@@ -233,19 +216,12 @@ class PerceptionDomain:
         interoceptive_reading_count = sum(
             reading.source == "interoception" for reading in snapshot.readings
         )
-        external_reading_count = max(
-            0, len(snapshot.readings) - interoceptive_reading_count
-        )
+        external_reading_count = max(0, len(snapshot.readings) - interoceptive_reading_count)
         services.charge_metabolism(
             "observation",
-            min(0.02, external_reading_count * 0.01)
-            + interoceptive_reading_count * 0.002,
+            min(0.02, external_reading_count * 0.01) + interoceptive_reading_count * 0.002,
         )
-        sampling_plan = (
-            services.adaptive_senses.last_sampling_plan
-            if discover_senses
-            else None
-        )
+        sampling_plan = services.adaptive_senses.last_sampling_plan if discover_senses else None
 
         services.adaptive_senses.observe(organism_readings)
         for outcome in snapshot.sampling_outcomes:
@@ -253,25 +229,18 @@ class PerceptionDomain:
         for evicted_name in services.adaptive_senses.drain_evicted_percept_names():
             services.drift_baselines.pop(evicted_name, None)
 
-        active_learned_names = (
-            services.adaptive_senses.percept_names() if discover_senses else {}
-        )
+        active_learned_names = services.adaptive_senses.percept_names() if discover_senses else {}
         developed_names = (
-            services.adaptive_senses.developed_percept_names()
-            if discover_senses
-            else {}
+            services.adaptive_senses.developed_percept_names() if discover_senses else {}
         )
         semantic_names = (
             DEFAULT_PERCEPT_NAMES
-            if bootstrap_semantic_senses
-            and not services.sensory_system.plasticity_enabled
+            if bootstrap_semantic_senses and not services.sensory_system.plasticity_enabled
             else {}
         )
         opaque_source_names = (
             {
-                reading.capability_id: services.signal_identity.signal_id(
-                    reading.capability_id
-                )
+                reading.capability_id: services.signal_identity.signal_id(reading.capability_id)
                 for reading in organism_readings
             }
             if services.sensory_system.plasticity_enabled
@@ -283,9 +252,7 @@ class PerceptionDomain:
             for capability_id in (f"habitat_surface.{resource_id}",)
         }
         interoceptive_names = {
-            reading.capability_id: services.signal_identity.signal_id(
-                reading.capability_id
-            )
+            reading.capability_id: services.signal_identity.signal_id(reading.capability_id)
             for reading in organism_readings
             if reading.source == "interoception"
         }
@@ -300,8 +267,7 @@ class PerceptionDomain:
             for capability_id, selected_name in selected_names.items()
         }
         capability_by_percept_name = {
-            name: capability_id
-            for capability_id, name in percept_names.items()
+            name: capability_id for capability_id, name in percept_names.items()
         }
         cognitive_aliases = {
             capability_id: semantic_name
@@ -311,9 +277,7 @@ class PerceptionDomain:
 
         selected_ids = set(percept_names)
         cognitive_readings = tuple(
-            reading
-            for reading in organism_readings
-            if reading.capability_id in selected_ids
+            reading for reading in organism_readings if reading.capability_id in selected_ids
         )
         consumed_proprioception = False
         if pending_proprioception:
@@ -332,9 +296,7 @@ class PerceptionDomain:
                     quality=ReadingQuality.NOMINAL,
                     privacy_class=ReadingPrivacyClass.AGGREGATE,
                 )
-                for capability_id, value in sorted(
-                    pending_proprioception.items()
-                )
+                for capability_id, value in sorted(pending_proprioception.items())
             )
             percept_names.update(proprio_names)
             cognitive_readings = (*cognitive_readings, *proprio_readings)
@@ -346,21 +308,17 @@ class PerceptionDomain:
             tick=context.symbiont_tick,
         )
         sensor_by_cognitive_name = {
-            sensor.cognitive_name: sensor
-            for sensor in services.sensory_system.sensors
+            sensor.cognitive_name: sensor for sensor in services.sensory_system.sensors
         }
 
         acquisition_costs: dict[str, float] = {}
         for outcome in snapshot.sampling_outcomes:
             acquisition_costs[outcome.capability_id] = (
-                acquisition_costs.get(outcome.capability_id, 0.0)
-                + outcome.attributed_elapsed_s
+                acquisition_costs.get(outcome.capability_id, 0.0) + outcome.attributed_elapsed_s
             )
         services.sensory_system.update_acquisition_costs(acquisition_costs)
         services.acclimation.observe(cognitive_readings)
-        services.rhythm_model.observe(
-            percepts, time_bucket=current_time_bucket()
-        )
+        services.rhythm_model.observe(percepts, time_bucket=current_time_bucket())
         for percept in percepts:
             sensor = sensor_by_cognitive_name.get(percept.name)
             if (
@@ -392,14 +350,11 @@ class PerceptionDomain:
             assimilation.append(decision)
             services.charge_metabolism(
                 "persistence",
-                0.005
-                if decision.action.value == "incorporate"
-                else 0.001,
+                0.005 if decision.action.value == "incorporate" else 0.001,
             )
 
         currently_available_ids = {
-            capability.capability_id
-            for capability in snapshot.manifest.available
+            capability.capability_id for capability in snapshot.manifest.available
         }
         eligible_ids = selected_ids & currently_available_ids
         services.self_model.reconcile(eligible_ids)
@@ -418,33 +373,23 @@ class PerceptionDomain:
 
         perceptual_allocations: tuple[AttentionAllocation, ...] = ()
         if services.sensory_system.plasticity_enabled:
-            allocated_sources = {
-                allocation.name for allocation in allocations
-            } | {
+            allocated_sources = {allocation.name for allocation in allocations} | {
                 reading.capability_id for reading in resource_readings
             }
-            available_percepts = {
-                percept.name
-                for percept in percepts
-                if percept.value is not None
-            }
+            available_percepts = {percept.name for percept in percepts if percept.value is not None}
             candidates: list[AttentionCandidate] = []
             for sensor in services.sensory_system.sensors:
                 if sensor.cognitive_name not in available_percepts:
                     continue
                 if not allocated_sources.intersection(sensor.source_ids):
                     continue
-                developmental_uncertainty = 1.0 / (
-                    1.0 + max(0, sensor.age_ticks) / 8.0
-                )
+                developmental_uncertainty = 1.0 / (1.0 + max(0, sensor.age_ticks) / 8.0)
                 uncertainty = max(
                     1.0 - sensor.confidence,
                     developmental_uncertainty,
                 )
                 utility_factor = (
-                    1.0 + 4.0 * sensor.utility
-                    if sensor.utility_observations >= 8
-                    else 1.0
+                    1.0 + 4.0 * sensor.utility if sensor.utility_observations >= 8 else 1.0
                 )
                 candidates.append(
                     AttentionCandidate(
@@ -453,10 +398,7 @@ class PerceptionDomain:
                         cost=1.0,
                         rank_cost=max(
                             0.10,
-                            (
-                                1.0 + sensor.transduction_cost * 10.0
-                            )
-                            / utility_factor,
+                            (1.0 + sensor.transduction_cost * 10.0) / utility_factor,
                         ),
                         observations=sensor.utility_observations,
                     )
@@ -472,8 +414,7 @@ class PerceptionDomain:
             if capability.source == "interoception"
         }
         interoceptive_allocations = sum(
-            allocation.name in interoceptive_capability_ids
-            for allocation in allocations
+            allocation.name in interoceptive_capability_ids for allocation in allocations
         )
         services.charge_metabolism(
             "cognition",
@@ -481,8 +422,7 @@ class PerceptionDomain:
             + interoceptive_allocations * 0.005,
         )
         availability_by_capability = {
-            state.capability_id: state.availability
-            for state in services.adaptive_senses.states
+            state.capability_id: state.availability for state in services.adaptive_senses.states
         }
         signal_references = {
             **{
@@ -490,13 +430,10 @@ class PerceptionDomain:
                 for capability_id, name in percept_names.items()
             },
             **{
-                percept.name: services.signal_identity.signal_id(
-                    sensor.source_ids[0]
-                )
+                percept.name: services.signal_identity.signal_id(sensor.source_ids[0])
                 for percept in percepts
                 if (
-                    (sensor := sensor_by_cognitive_name.get(percept.name))
-                    is not None
+                    (sensor := sensor_by_cognitive_name.get(percept.name)) is not None
                     and len(sensor.source_ids) == 1
                 )
             },

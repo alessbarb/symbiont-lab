@@ -1,4 +1,5 @@
 """Explicit viability and irreversible organism continuity (v0.64)."""
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -18,7 +19,9 @@ class LifeState(StrEnum):
 class ViabilityController:
     SCHEMA_VERSION = 1
 
-    def __init__(self, *, state: LifeState = LifeState.ACTIVE, organism_id: str | None = None) -> None:
+    def __init__(
+        self, *, state: LifeState = LifeState.ACTIVE, organism_id: str | None = None
+    ) -> None:
         self.state = LifeState(state)
         self.organism_id = organism_id
         self._death_finalized = self.state is LifeState.DEAD
@@ -46,7 +49,11 @@ class ViabilityController:
         self._death_finalized = True
 
     def checkpoint(self) -> dict[str, Any]:
-        return {"schema_version": self.SCHEMA_VERSION, "organism_id": self.organism_id, "state": self.state.value}
+        return {
+            "schema_version": self.SCHEMA_VERSION,
+            "organism_id": self.organism_id,
+            "state": self.state.value,
+        }
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, Any]) -> "ViabilityController":

@@ -6,16 +6,16 @@ and physical checkpoint.  The intervention changes only the physical mapping:
 one opaque actuator implicated by the replay is forced to zero.  The learner
 and cognitive state are never edited by the evaluator.
 """
+
 from __future__ import annotations
 
-from copy import deepcopy
-from dataclasses import asdict, dataclass
 import hashlib
 import json
+from copy import deepcopy
+from dataclasses import asdict, dataclass
 from typing import Any, Iterable, Mapping
 
 from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
-
 
 _SENSORY_DIVERGENCE_THRESHOLD = 1e-4
 _PHYSICAL_DIVERGENCE_THRESHOLD = 1e-5
@@ -118,9 +118,7 @@ def _find_replay_checkpoint(
             sensorimotor = checkpoint["actuation"]["sensorimotor"]
             primitive_id = str(snapshot.replay_primitive_id)
             primitive = next(
-                item
-                for item in sensorimotor["primitives"]
-                if item["primitive_id"] == primitive_id
+                item for item in sensorimotor["primitives"] if item["primitive_id"] == primitive_id
             )
             sequence = primitive["sequence"]
             replay_step = int(sensorimotor["replay_step"])
@@ -139,8 +137,7 @@ def _find_replay_checkpoint(
                 tick.tick,
             )
     raise RuntimeError(
-        f"seed {seed} did not reach a cognitive primitive replay within "
-        f"{warmup_ticks} ticks"
+        f"seed {seed} did not reach a cognitive primitive replay within {warmup_ticks} ticks"
     )
 
 
@@ -163,6 +160,7 @@ def _rollout(
     ) as runtime:
         original_apply = runtime.apparatus.apply_effectors
         if intervene:
+
             def masked_apply(values):
                 masked = dict(values)
                 masked[target_effector_id] = 0.0
@@ -216,12 +214,17 @@ def run_counterfactual_replay_trial(
 ) -> CounterfactualReplayTrial:
     if warmup_ticks < 1 or horizon_ticks < 1 or physics_substeps_per_tick < 1:
         raise ValueError("warmup_ticks, horizon_ticks and substeps must be positive")
-    checkpoint, physical_state, primitive_id, target_actuator_id, target_effector_id, checkpoint_tick = (
-        _find_replay_checkpoint(
-            seed,
-            warmup_ticks=warmup_ticks,
-            physics_substeps_per_tick=physics_substeps_per_tick,
-        )
+    (
+        checkpoint,
+        physical_state,
+        primitive_id,
+        target_actuator_id,
+        target_effector_id,
+        checkpoint_tick,
+    ) = _find_replay_checkpoint(
+        seed,
+        warmup_ticks=warmup_ticks,
+        physics_substeps_per_tick=physics_substeps_per_tick,
     )
     initial_digest = _state_digest(checkpoint, physical_state)
     normal_a, positions_a, actions_a = _rollout(
@@ -256,12 +259,10 @@ def run_counterfactual_replay_trial(
         default=0.0,
     )
     sensory_divergences = [
-        _mapping_distance(left, right)
-        for left, right in zip(normal_a, intervention)
+        _mapping_distance(left, right) for left, right in zip(normal_a, intervention)
     ]
     physical_divergences = [
-        _position_distance(left, right)
-        for left, right in zip(positions_a, positions_i)
+        _position_distance(left, right) for left, right in zip(positions_a, positions_i)
     ]
     return CounterfactualReplayTrial(
         seed=int(seed),

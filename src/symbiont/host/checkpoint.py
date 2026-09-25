@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from hashlib import sha256
 import json
 import os
 import tempfile
+from hashlib import sha256
 from pathlib import Path
 from typing import Any, Callable
 
+from ..core.foundation.limits import OrganismLimits
 from .acclimation import CapabilityBaseline, HostAcclimation
-from .consolidated_baseline import ConsolidatedBaselineSeed, consolidate_baseline, seed_capability_baseline
+from .consolidated_baseline import (
+    ConsolidatedBaselineSeed,
+    consolidate_baseline,
+    seed_capability_baseline,
+)
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
-
-from ..core.foundation.limits import OrganismLimits
 
 CHECKPOINT_SCHEMA_VERSION = 9
 # v8 -> v9 removes the contaminated typed local-action-selection subsystem
@@ -37,7 +40,11 @@ def _capability_fingerprint(capability_id: str) -> str:
 
 
 def _seed_payload(seed: ConsolidatedBaselineSeed) -> dict[str, int]:
-    return {"center_class": seed.center_class, "scale_class": seed.scale_class, "maturity_class": seed.maturity_class}
+    return {
+        "center_class": seed.center_class,
+        "scale_class": seed.scale_class,
+        "maturity_class": seed.maturity_class,
+    }
 
 
 def _seed_from_payload(entry: dict[str, Any]) -> ConsolidatedBaselineSeed:
@@ -112,8 +119,7 @@ def export_checkpoint(
         # otherwise restoring during a pending drift streak changes novelty,
         # regulation, and therefore the future trajectory.
         payload["drift_replay"] = {
-            name: baseline.replay_state()
-            for name, baseline in drift_baselines.items()
+            name: baseline.replay_state() for name, baseline in drift_baselines.items()
         }
 
     return payload
@@ -202,7 +208,9 @@ def _migrate_v4_to_v5(payload: dict[str, Any]) -> dict[str, Any]:
 def _migrate_acclimation_style_entry(entry: dict[str, Any]) -> dict[str, Any]:
     if "center_class" in entry:
         return entry
-    seed = consolidate_baseline(CapabilityBaseline(count=entry["count"], mean=entry["mean"], variance=entry["variance"]))
+    seed = consolidate_baseline(
+        CapabilityBaseline(count=entry["count"], mean=entry["mean"], variance=entry["variance"])
+    )
     return _seed_payload(seed)
 
 
@@ -236,10 +244,18 @@ def _migrate_v5_to_v6(payload: dict[str, Any]) -> dict[str, Any]:
         for entry in raw_rhythms:
             if not isinstance(entry, dict):
                 continue
-            stats = {key: value for key, value in entry.items() if key not in ("percept_name", "time_bucket")}
+            stats = {
+                key: value
+                for key, value in entry.items()
+                if key not in ("percept_name", "time_bucket")
+            }
             converted = _migrate_acclimation_style_entry(stats)
             migrated_rhythms.append(
-                {"percept_name": entry["percept_name"], "time_bucket": entry["time_bucket"], **converted}
+                {
+                    "percept_name": entry["percept_name"],
+                    "time_bucket": entry["time_bucket"],
+                    **converted,
+                }
             )
         migrated["rhythms"] = migrated_rhythms
 
@@ -253,7 +269,9 @@ def _migrate_v5_to_v6(payload: dict[str, Any]) -> dict[str, Any]:
 
     raw_self_model = migrated.get("self_model")
     if isinstance(raw_self_model, dict):
-        from ..core.selfmodel import RecencyClass  # local import: avoids a host->core module-load cycle
+        from ..core.selfmodel import (
+            RecencyClass,  # local import: avoids a host->core module-load cycle
+        )
 
         thresholds = (
             (10, RecencyClass.CURRENT),
@@ -298,7 +316,9 @@ def _migrate_v6_to_v7(payload: dict[str, Any]) -> dict[str, Any]:
     # Older checkpoints have no valid identity key or claims.  Starting with
     # NOTE(legacy): an empty block is explicit and safer than deriving knowledge from legacy
     # narrative, adaptive correlations, or exact aggregates.
-    migrated.setdefault("signal_knowledge", {"schema_version": 1, "last_tick": None, "profiles": []})
+    migrated.setdefault(
+        "signal_knowledge", {"schema_version": 1, "last_tick": None, "profiles": []}
+    )
     return migrated
 
 
@@ -329,7 +349,9 @@ _MIGRATIONS[7] = _migrate_v7_to_v8
 
 
 _CONTAMINATED_TOP_LEVEL_KEYS = (
-    "action_evidence", "action_model", "interoceptive_action_model",
+    "action_evidence",
+    "action_model",
+    "interoceptive_action_model",
     "pending_action_observation",
 )
 _CONTAMINATED_EFFECTIVE_CONFIG_KEYS = ("autonomous_behavior", "behavior_exploration")
@@ -490,7 +512,9 @@ def save_checkpoint_atomic(payload: dict[str, Any], path: str | Path) -> None:
     """
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode(
+        "utf-8"
+    )
     if len(encoded) > MAX_HOST_CHECKPOINT_BYTES:
         raise CheckpointError("checkpoint exceeds host size limit")
     fd, tmp_name = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")

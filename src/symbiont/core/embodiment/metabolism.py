@@ -4,12 +4,13 @@ The ledger is deliberately descriptive: it does not grant or revoke host
 permissions.  It turns declared work costs into finite reserve pressure that
 later physiology milestones can act on.
 """
+
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, TYPE_CHECKING
-import math
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .physiology import LivingBodyState
@@ -65,6 +66,7 @@ class MetabolicLedger:
         owns_fresh_body_state = body_state is None
         if body_state is None:
             from .physiology import LivingBodyState
+
             body_state = LivingBodyState()
         self._body_state = body_state
 
@@ -82,8 +84,10 @@ class MetabolicLedger:
             "replenishment",
             positive=False,
         )
-        initial = resolved_capacity if reserve is None and not state_reserve else (
-            state_reserve if reserve is None else reserve
+        initial = (
+            resolved_capacity
+            if reserve is None and not state_reserve
+            else (state_reserve if reserve is None else reserve)
         )
         resolved_reserve = self._validate(
             initial,
@@ -133,7 +137,9 @@ class MetabolicLedger:
     ) -> dict[str, float]:
         if set(values) != set(_KINDS):
             raise ValueError(f"{label} must define exactly {_KINDS}")
-        if any(isinstance(values[k], bool) or not isinstance(values[k], (int, float)) for k in _KINDS):
+        if any(
+            isinstance(values[k], bool) or not isinstance(values[k], (int, float)) for k in _KINDS
+        ):
             raise ValueError(f"{label} values must be numeric")
         result = {k: float(values[k]) for k in _KINDS}
         if any(not math.isfinite(v) for v in result.values()):
@@ -153,27 +159,23 @@ class MetabolicLedger:
         """Move persistent metabolic ownership to an existing canonical state."""
         if body_state is self._body_state:
             return
-        if (
-            body_state.metabolic_capacity
-            and body_state.metabolic_capacity != self._capacity
-        ):
+        if body_state.metabolic_capacity and body_state.metabolic_capacity != self._capacity:
             raise ValueError("living body metabolic capacity contradicts ledger")
         if (
             body_state.metabolic_replenishment
             and body_state.metabolic_replenishment != self._replenishment
         ):
             raise ValueError("living body replenishment contradicts ledger")
-        if (
-            body_state.metabolic_reserve
-            and body_state.metabolic_reserve != self._reserve
-        ):
+        if body_state.metabolic_reserve and body_state.metabolic_reserve != self._reserve:
             raise ValueError("living body reserve contradicts ledger")
 
         if (
             abs(body_state.energy_reserve - self._body_state.energy_reserve) > 1e-12
             or abs(body_state.max_energy - self._body_state.max_energy) > 1e-12
         ):
-            raise ValueError(f"living body physical energy contradicts ledger: {body_state.energy_reserve} != {self._body_state.energy_reserve} or {body_state.max_energy} != {self._body_state.max_energy}")
+            raise ValueError(
+                f"living body physical energy contradicts ledger: {body_state.energy_reserve} != {self._body_state.energy_reserve} or {body_state.max_energy} != {self._body_state.max_energy}"
+            )
         body_state.metabolic_capacity = self._capacity
         body_state.metabolic_replenishment = self._replenishment
         body_state.metabolic_reserve = self._reserve
@@ -189,7 +191,11 @@ class MetabolicLedger:
     def charge(self, kind: str, amount: float) -> None:
         if kind not in _KINDS:
             raise ValueError(f"unknown metabolic cost kind: {kind}")
-        if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount):
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(amount)
+        ):
             raise ValueError("metabolic charge must be finite")
         amount = float(amount)
         if amount < 0.0:
@@ -215,7 +221,11 @@ class MetabolicLedger:
         """Accept external energy once and credit one accounting channel."""
         if kind not in _KINDS:
             raise ValueError(f"unknown metabolic resource kind: {kind}")
-        if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount):
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(amount)
+        ):
             raise ValueError("metabolic intake must be finite")
         amount = float(amount)
         if amount < 0.0:
@@ -231,7 +241,11 @@ class MetabolicLedger:
 
     def intake_untyped(self, amount: float) -> float:
         """Accept anonymous physical input without making a compartment physical."""
-        if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount):
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(amount)
+        ):
             raise ValueError("metabolic intake must be finite")
         amount = float(amount)
         if amount < 0.0:
@@ -240,10 +254,7 @@ class MetabolicLedger:
         if accepted <= 0.0:
             return 0.0
 
-        deficits = {
-            kind: max(0.0, self._capacity[kind] - self._reserve[kind])
-            for kind in _KINDS
-        }
+        deficits = {kind: max(0.0, self._capacity[kind] - self._reserve[kind]) for kind in _KINDS}
         total_deficit = sum(deficits.values())
         if total_deficit > 0.0:
             remaining = accepted
@@ -264,11 +275,17 @@ class MetabolicLedger:
         return accepted
 
     def advance(self, *, retained_units: float = 0.0) -> MetabolicSnapshot:
-        if (isinstance(retained_units, bool) or not isinstance(retained_units, (int, float))
-                or not math.isfinite(retained_units) or retained_units < 0.0):
+        if (
+            isinstance(retained_units, bool)
+            or not isinstance(retained_units, (int, float))
+            or not math.isfinite(retained_units)
+            or retained_units < 0.0
+        ):
             raise ValueError("retained_units must be finite and non-negative")
         for kind in _KINDS:
-            self._reserve[kind] = min(self._capacity[kind], self._reserve[kind] + self._replenishment[kind])
+            self._reserve[kind] = min(
+                self._capacity[kind], self._reserve[kind] + self._replenishment[kind]
+            )
         self.charge("maintenance", retained_units)
         self._tick += 1
         snapshot = self.snapshot()
@@ -293,7 +310,14 @@ class MetabolicLedger:
         return ResourcePressure.NORMAL
 
     def snapshot(self) -> MetabolicSnapshot:
-        return MetabolicSnapshot(self._tick, dict(self._capacity), dict(self._reserve), dict(self._spent), self.pressure())
+        return MetabolicSnapshot(
+            self._tick,
+            dict(self._capacity),
+            dict(self._reserve),
+            dict(self._spent),
+            self.pressure(),
+        )
+
     def finalize_cycle(self, base: MetabolicSnapshot) -> MetabolicSnapshot:
         """Merge post-advance physiological costs into one tick snapshot.
 
@@ -349,24 +373,17 @@ class MetabolicLedger:
             raise ValueError("invalid metabolic checkpoint tick")
         if body_state is None:
             from .physiology import LivingBodyState
+
             body_state = LivingBodyState(
                 energy_reserve=float(payload["physical_energy_reserve"]),
                 max_energy=float(payload["physical_energy_capacity"]),
             )
         else:
             if (
-                abs(
-                    body_state.energy_reserve
-                    - float(payload["physical_energy_reserve"])
-                ) > 1e-12
-                or abs(
-                    body_state.max_energy
-                    - float(payload["physical_energy_capacity"])
-                ) > 1e-12
+                abs(body_state.energy_reserve - float(payload["physical_energy_reserve"])) > 1e-12
+                or abs(body_state.max_energy - float(payload["physical_energy_capacity"])) > 1e-12
             ):
-                raise ValueError(
-                    "living body physical energy contradicts ledger checkpoint"
-                )
+                raise ValueError("living body physical energy contradicts ledger checkpoint")
         return cls(
             capacity=payload["capacity"],
             replenishment=payload["replenishment"],

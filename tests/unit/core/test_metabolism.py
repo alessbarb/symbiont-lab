@@ -1,10 +1,11 @@
 import pytest
-
 from symbiont.core.metabolism import MetabolicLedger, ResourcePressure
 
 
 def test_ledger_charges_and_classifies_bounded_pressure():
-    ledger = MetabolicLedger(capacity={k: 1.0 for k in ("observation", "cognition", "persistence", "maintenance")})
+    ledger = MetabolicLedger(
+        capacity={k: 1.0 for k in ("observation", "cognition", "persistence", "maintenance")}
+    )
     ledger.charge("observation", 2.2)
     assert ledger.snapshot().pressure is ResourcePressure.ELEVATED
     ledger.charge("observation", 10.0)
@@ -69,12 +70,10 @@ def test_explicit_intake_restores_one_physical_pool_without_compartment_gating()
     assert state.energy_reserve == pytest.approx(1.5)
 
 
-
 def test_finalize_cycle_merges_post_advance_costs_without_leaking() -> None:
     ledger = MetabolicLedger(
         replenishment={
-            kind: 0.0
-            for kind in ("observation", "cognition", "persistence", "maintenance")
+            kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
         }
     )
 
@@ -118,11 +117,7 @@ def test_checkpoint_preserves_physical_pool_and_rejects_old_schema() -> None:
     ledger.charge("maintenance", 0.3)
     restored = MetabolicLedger.from_checkpoint(ledger.checkpoint())
 
-    assert restored.body_state.energy_reserve == pytest.approx(
-        ledger.body_state.energy_reserve
-    )
-    assert restored.body_state.max_energy == pytest.approx(
-        ledger.body_state.max_energy
-    )
+    assert restored.body_state.energy_reserve == pytest.approx(ledger.body_state.energy_reserve)
+    assert restored.body_state.max_energy == pytest.approx(ledger.body_state.max_energy)
     with pytest.raises(ValueError):
         MetabolicLedger.from_checkpoint({"schema_version": 1})

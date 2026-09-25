@@ -1,4 +1,5 @@
 """Temporal ownership of sensorimotor action."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -104,14 +105,16 @@ class ActionCommitment:
         if not isinstance(fingerprint, str) or not fingerprint:
             fingerprint = fallback_surface_fingerprint
         if not isinstance(fingerprint, str) or not fingerprint:
-            raise ValueError(
-                "legacy commitment requires an explicit current-surface migration"
-            )
+            raise ValueError("legacy commitment requires an explicit current-surface migration")
         obj = cls(
             commitment_id=str(payload["commitment_id"]),
             proposal_id=str(payload["proposal_id"]),
-            effect_target_id=payload.get("effect_target_id") if isinstance(payload.get("effect_target_id"), str) else None,
-            competence_id=payload.get("competence_id") if isinstance(payload.get("competence_id"), str) else None,
+            effect_target_id=payload.get("effect_target_id")
+            if isinstance(payload.get("effect_target_id"), str)
+            else None,
+            competence_id=payload.get("competence_id")
+            if isinstance(payload.get("competence_id"), str)
+            else None,
             started_tick=int(payload["started_tick"]),
             controller_id=str(payload["controller_id"]),
             surface_fingerprint=fingerprint,
@@ -122,7 +125,9 @@ class ActionCommitment:
             ),
             interruptibility=float(payload.get("interruptibility", 1.0)),
             minimum_duration=int(payload.get("minimum_duration", 0)),
-            maximum_duration=int(payload["maximum_duration"]) if payload.get("maximum_duration") is not None else None,
+            maximum_duration=int(payload["maximum_duration"])
+            if payload.get("maximum_duration") is not None
+            else None,
             status=CommitmentStatus(str(payload.get("status", "active"))),
         )
         ended = payload.get("ended_tick")

@@ -78,7 +78,6 @@ def test_sparse_esn_rejects_unsupported_multistep_prediction():
         model.predict(horizon=2)
 
 
-
 def test_vomm_evaluation_uses_same_held_out_outcome_positions_without_test_learning():
     train = EncodedSplit(
         sequences=((0, 1, 0, 1, 0, 1), (1, 0, 1, 0, 1, 0)),

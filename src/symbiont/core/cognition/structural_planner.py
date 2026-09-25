@@ -54,9 +54,7 @@ class AdaptiveStructuralBudgets:
             len(graph.edges),
             min(edge_ceiling, max(8, math.ceil(edge_ceiling * 0.25))),
         )
-        sense_count = sum(
-            1 for node in graph.nodes if node.kind.value == "sense"
-        )
+        sense_count = sum(1 for node in graph.nodes if node.kind.value == "sense")
         sense_budget = max(
             sense_count,
             min(
@@ -203,7 +201,6 @@ class StructuralPlan:
         )
 
 
-
 @dataclass(slots=True, frozen=True)
 class StructuralPlanningResult:
     mutations: tuple[Mutation, ...]
@@ -243,9 +240,7 @@ class StructuralPlanner:
         actuator_ids: Collection[str],
         tick: int,
     ) -> None:
-        requested = sorted({
-            str(value) for value in actuator_ids if str(value)
-        })
+        requested = sorted({str(value) for value in actuator_ids if str(value)})
         existing = {node.node_id for node in graph.nodes}
         requested_set = set(requested)
         for candidate_id, candidate in list(contention.candidates.items()):
@@ -284,32 +279,22 @@ class StructuralPlanner:
         tick: int,
         frozen: bool,
     ) -> tuple[CognitiveGraph, tuple[Mutation, ...]]:
-        requested = sorted({
-            str(value) for value in primitive_ids if str(value)
-        })
+        requested = sorted({str(value) for value in primitive_ids if str(value)})
         requested_set = set(requested)
-        requested_nodes = {
-            self.primitive_readout_id(primitive_id)
-            for primitive_id in requested
-        }
+        requested_nodes = {self.primitive_readout_id(primitive_id) for primitive_id in requested}
         existing_nodes = {node.node_id for node in graph.nodes}
         existing_primitive_nodes = {
-            node_id
-            for node_id in existing_nodes
-            if node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
+            node_id for node_id in existing_nodes if node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         }
 
         for candidate_id, candidate in list(contention.candidates.items()):
             if (
                 candidate.family == "primitive_readout"
-                and candidate_id.removeprefix("primitive:")
-                not in requested_set
+                and candidate_id.removeprefix("primitive:") not in requested_set
             ):
                 contention.drop(candidate_id)
 
-        mutation_cap = (
-            self._kernel_limits.max_structural_mutations_per_consolidation
-        )
+        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
         mutations: list[Mutation] = []
         planning_graph = graph
         for node_id in sorted(existing_primitive_nodes - requested_nodes):
@@ -397,11 +382,7 @@ class StructuralPlanner:
             return graph, 0
 
         existing_ids = {node.node_id for node in graph.nodes}
-        existing_senses = {
-            node.node_id
-            for node in graph.nodes
-            if node.kind is NodeKind.SENSE
-        }
+        existing_senses = {node.node_id for node in graph.nodes if node.kind is NodeKind.SENSE}
         observed_ids = set(sense_values)
         for sense_id in observed_ids & existing_senses:
             lifecycle.sense_last_seen_tick[sense_id] = tick
@@ -412,10 +393,7 @@ class StructuralPlanner:
 
         admitted = 0
         sense_count = len(existing_senses)
-        if (
-            len(graph.nodes) >= self.budgets.node_budget
-            or sense_count >= self.budgets.sense_limit
-        ):
+        if len(graph.nodes) >= self.budgets.node_budget or sense_count >= self.budgets.sense_limit:
             self.budgets.expand(
                 need_nodes=len(graph.nodes) >= self.budgets.node_budget,
                 need_senses=sense_count >= self.budgets.sense_limit,
@@ -459,14 +437,9 @@ class StructuralPlanner:
         readout = graph.node_by_id(readout_id)
         if readout is None or readout.kind is not NodeKind.READOUT:
             return False
-        node_kinds = {
-            node.node_id: node.kind
-            for node in graph.nodes
-        }
+        node_kinds = {node.node_id: node.kind for node in graph.nodes}
         recorded = False
-        for concept_id in sorted({
-            str(value) for value in concept_ids if str(value)
-        }):
+        for concept_id in sorted({str(value) for value in concept_ids if str(value)}):
             if node_kinds.get(concept_id) is not NodeKind.CONCEPT:
                 continue
             self._structural_plasticity.observe_motor_association_evidence(
@@ -487,9 +460,7 @@ class StructuralPlanner:
         actuator_ids: Collection[str],
         tick: int,
     ) -> None:
-        for actuator_id in sorted({
-            str(value) for value in actuator_ids if str(value)
-        }):
+        for actuator_id in sorted({str(value) for value in actuator_ids if str(value)}):
             self.record_action_association(
                 graph=graph,
                 concept_ids=concept_ids,
@@ -547,8 +518,7 @@ class StructuralPlanner:
                 (
                     edge
                     for edge in graph.edges
-                    if edge.source_id == predictor_id
-                    or edge.target_id == predictor_id
+                    if edge.source_id == predictor_id or edge.target_id == predictor_id
                 ),
                 key=lambda edge: (
                     edge.source_id,
@@ -581,17 +551,14 @@ class StructuralPlanner:
         if max_mutations <= 0:
             return ()
         incident_ids = {
-            node_id
-            for edge in graph.edges
-            for node_id in (edge.source_id, edge.target_id)
+            node_id for edge in graph.edges for node_id in (edge.source_id, edge.target_id)
         }
         candidates = sorted(
             predictor_id
             for predictor_id in predictors.retirement
             if predictor_id not in incident_ids
             and any(
-                node.node_id == predictor_id
-                and node.kind is NodeKind.PREDICTOR
+                node.node_id == predictor_id and node.kind is NodeKind.PREDICTOR
                 for node in graph.nodes
             )
         )
@@ -618,34 +585,21 @@ class StructuralPlanner:
     ) -> bool:
         existing_ids = {node.node_id for node in graph.nodes}
         if any(
-            mutation.kind == "add_node"
-            and str(mutation.payload.get("node_id", "")) in existing_ids
+            mutation.kind == "add_node" and str(mutation.payload.get("node_id", "")) in existing_ids
             for mutation in candidate.mutations
         ):
             return False
         if candidate.family == "motor_readout":
-            return candidate.candidate_id.removeprefix("motor:") in set(
-                active_motor_ids
-            )
+            return candidate.candidate_id.removeprefix("motor:") in set(active_motor_ids)
         if candidate.family == "primitive_readout":
-            return candidate.candidate_id.removeprefix("primitive:") in set(
-                active_primitive_ids
-            )
+            return candidate.candidate_id.removeprefix("primitive:") in set(active_primitive_ids)
         if candidate.family == "predictor":
             add_edge = next(
-                (
-                    mutation
-                    for mutation in candidate.mutations
-                    if mutation.kind == "add_edge"
-                ),
+                (mutation for mutation in candidate.mutations if mutation.kind == "add_edge"),
                 None,
             )
             add_node = next(
-                (
-                    mutation
-                    for mutation in candidate.mutations
-                    if mutation.kind == "add_node"
-                ),
+                (mutation for mutation in candidate.mutations if mutation.kind == "add_node"),
                 None,
             )
             if add_edge is None or add_node is None:
@@ -656,9 +610,7 @@ class StructuralPlanner:
             return bool(shadow is not None and shadow.promotable)
         if candidate.family == "concept":
             add_nodes = [
-                mutation
-                for mutation in candidate.mutations
-                if mutation.kind == "add_node"
+                mutation for mutation in candidate.mutations if mutation.kind == "add_node"
             ]
             if not add_nodes:
                 return False
@@ -666,14 +618,11 @@ class StructuralPlanner:
             if not isinstance(raw_sources, (list, tuple, set)):
                 return False
             source_ids = tuple(sorted(str(value) for value in raw_sources))
-            return (
-                len(source_ids) >= 2
-                and not lifecycle.concept_signature_exists(
-                    source_ids[:2],
-                    graph=graph,
-                    live_graph=live_graph,
-                    topology_revision=topology_revision,
-                )
+            return len(source_ids) >= 2 and not lifecycle.concept_signature_exists(
+                source_ids[:2],
+                graph=graph,
+                live_graph=live_graph,
+                topology_revision=topology_revision,
             )
         return True
 
@@ -725,9 +674,7 @@ class StructuralPlanner:
             graph,
             kernel_limits=self._kernel_limits,
             frozen=frozen,
-            mutation_cap=(
-                self._kernel_limits.max_structural_mutations_per_consolidation
-            ),
+            mutation_cap=(self._kernel_limits.max_structural_mutations_per_consolidation),
         )
 
         retirement_gc = self.retirement_node_gc(
@@ -809,9 +756,7 @@ class StructuralPlanner:
             plan.stage(sense_evictions)
 
         pending_concepts = sum(
-            1
-            for candidate in contention.candidates.values()
-            if candidate.family == "concept"
+            1 for candidate in contention.candidates.values() if candidate.family == "concept"
         )
         concept_proposal = lifecycle.propose_germinal_concept_candidate(
             graph=graph,
@@ -864,22 +809,14 @@ class StructuralPlanner:
             recycling_events = (event,) if event is not None else ()
 
         pending_node_demand = any(
-            candidate.required_nodes > 0
-            for candidate in contention.candidates.values()
+            candidate.required_nodes > 0 for candidate in contention.candidates.values()
         )
         pending_edge_demand = any(
-            candidate.required_edges > 0
-            for candidate in contention.candidates.values()
+            candidate.required_edges > 0 for candidate in contention.candidates.values()
         ) or bool(predictors.shadows)
         self.budgets.expand(
-            need_nodes=(
-                pending_node_demand
-                and len(plan.graph.nodes) >= self.budgets.node_budget
-            ),
-            need_edges=(
-                pending_edge_demand
-                and len(plan.graph.edges) >= self.budgets.edge_budget
-            ),
+            need_nodes=(pending_node_demand and len(plan.graph.nodes) >= self.budgets.node_budget),
+            need_edges=(pending_edge_demand and len(plan.graph.edges) >= self.budgets.edge_budget),
         )
         edge_slots = max(
             0,
@@ -932,21 +869,15 @@ class StructuralPlanner:
             if not (
                 mutation.kind == "add_edge"
                 and (
-                    str(mutation.payload.get("source_id", ""))
-                    in predictors.retirement
-                    or str(mutation.payload.get("target_id", ""))
-                    in predictors.retirement
+                    str(mutation.payload.get("source_id", "")) in predictors.retirement
+                    or str(mutation.payload.get("target_id", "")) in predictors.retirement
                 )
             )
         )
         plan.append_unvalidated(proposed)
 
         mutations = plan.ordered_mutations()
-        candidate_graph = (
-            plan.commit_candidate()
-            if mutations
-            else graph
-        )
+        candidate_graph = plan.commit_candidate() if mutations else graph
         return StructuralPlanningResult(
             mutations=mutations,
             candidate_graph=candidate_graph,

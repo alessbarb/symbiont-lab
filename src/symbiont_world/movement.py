@@ -4,6 +4,7 @@ Must run inside a WorldState.begin_tick() transaction: any inconsistency
 raises TickAborted so the caller's transaction rolls back the whole tick,
 not just the affected organism's move (§3 inv. 7).
 """
+
 from __future__ import annotations
 
 from typing import Mapping

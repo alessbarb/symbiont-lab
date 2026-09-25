@@ -76,7 +76,10 @@ def test_model_learns_same_tick_and_lagged_relations_without_semantic_labels() -
 
     relations = model.strongest_relations(limit=8)
     assert relations
-    assert all(item.sense_a.startswith("sense_") and item.sense_b.startswith("sense_") for item in relations)
+    assert all(
+        item.sense_a.startswith("sense_") and item.sense_b.startswith("sense_")
+        for item in relations
+    )
     assert any(item.synchronous is not None and abs(item.synchronous) > 0.99 for item in relations)
     assert any(
         value is not None and abs(value) > 0.99
@@ -244,7 +247,14 @@ def test_export_includes_a_relation_once_min_relation_samples_reached() -> None:
 
 
 def test_new_candidate_is_learned_after_old_ones_vanish_at_capacity() -> None:
-    model = AdaptiveSenseModel(min_samples=1, active_limit=4, max_candidates=4, relation_window=4, exploration_limit=4, probe_limit=4)
+    model = AdaptiveSenseModel(
+        min_samples=1,
+        active_limit=4,
+        max_candidates=4,
+        relation_window=4,
+        exploration_limit=4,
+        probe_limit=4,
+    )
     for tick in range(4):
         model.observe((reading(f"old-{i}", float(i), tick) for i in range(4)))
 
@@ -256,7 +266,14 @@ def test_new_candidate_is_learned_after_old_ones_vanish_at_capacity() -> None:
 
 
 def test_capacity_eviction_never_removes_something_seen_this_tick() -> None:
-    model = AdaptiveSenseModel(min_samples=1, active_limit=2, max_candidates=2, relation_window=2, exploration_limit=2, probe_limit=2)
+    model = AdaptiveSenseModel(
+        min_samples=1,
+        active_limit=2,
+        max_candidates=2,
+        relation_window=2,
+        exploration_limit=2,
+        probe_limit=2,
+    )
     model.observe((reading("a", 1.0, 1), reading("b", 1.0, 1)))
     # A single batch introducing two brand-new ids at once must not evict
     # either of the two just observed in the same call.
@@ -267,7 +284,15 @@ def test_capacity_eviction_never_removes_something_seen_this_tick() -> None:
 
 
 def test_stale_relations_are_dropped_when_their_state_is_evicted() -> None:
-    model = AdaptiveSenseModel(min_samples=1, active_limit=2, max_candidates=2, relation_window=2, min_relation_samples=3, exploration_limit=2, probe_limit=2)
+    model = AdaptiveSenseModel(
+        min_samples=1,
+        active_limit=2,
+        max_candidates=2,
+        relation_window=2,
+        min_relation_samples=3,
+        exploration_limit=2,
+        probe_limit=2,
+    )
     model.observe((reading("a", 1.0, 1), reading("b", 1.0, 1)))
     model.observe((reading("a", 2.0, 2), reading("b", 2.0, 2)))
     assert model._relations  # a<->b relation exists internally
@@ -279,7 +304,9 @@ def test_stale_relations_are_dropped_when_their_state_is_evicted() -> None:
 
 
 def test_relation_churn_is_bounded_and_drained_separately_from_evidence() -> None:
-    model = AdaptiveSenseModel(min_samples=1, max_candidates=64, relation_window=4, min_relation_samples=3)
+    model = AdaptiveSenseModel(
+        min_samples=1, max_candidates=64, relation_window=4, min_relation_samples=3
+    )
     model.observe((reading("a", 1.0, 1), reading("b", 2.0, 1)))
     assert model.drain_relation_churn() == 0.25
     assert model.drain_relation_churn() == 0.0
@@ -288,13 +315,21 @@ def test_relation_churn_is_bounded_and_drained_separately_from_evidence() -> Non
 
 
 def test_new_relation_pair_is_learned_after_old_relations_fill_capacity() -> None:
-    model = AdaptiveSenseModel(min_samples=1, max_candidates=64, relation_window=32, max_relations=4, min_relation_samples=3)
+    model = AdaptiveSenseModel(
+        min_samples=1,
+        max_candidates=64,
+        relation_window=32,
+        max_relations=4,
+        min_relation_samples=3,
+    )
     for group in range(2):
         model.observe([reading(f"g{group}-{i}", float(i), group) for i in range(4)])
     assert len(model._relations) == 4
 
     for tick in range(10, 13):
-        model.observe((reading("late-a", float(tick), tick), reading("late-b", float(tick * 2), tick)))
+        model.observe(
+            (reading("late-a", float(tick), tick), reading("late-b", float(tick * 2), tick))
+        )
 
     learned = any(
         {relation.capability_a, relation.capability_b} == {"late-a", "late-b"}
@@ -343,7 +378,14 @@ def test_export_withholds_lagged_accumulators_below_their_own_sample_count() -> 
 def test_pair_accumulator_migrates_legacy_sum_based_payload() -> None:
     from symbiont.host.adaptive import PairAccumulator
 
-    legacy = {"count": 6, "sum_x": 21.0, "sum_y": 42.0, "sum_xx": 91.0, "sum_yy": 364.0, "sum_xy": 182.0}
+    legacy = {
+        "count": 6,
+        "sum_x": 21.0,
+        "sum_y": 42.0,
+        "sum_xx": 91.0,
+        "sum_yy": 364.0,
+        "sum_xy": 182.0,
+    }
     restored = PairAccumulator.from_payload(legacy)
 
     assert restored.count == 6
@@ -361,9 +403,18 @@ def test_pair_accumulator_rejects_non_finite_moments() -> None:
 
 
 def test_evicted_states_expose_their_percept_names_for_downstream_cleanup() -> None:
-    model = AdaptiveSenseModel(min_samples=1, active_limit=1, max_candidates=2, relation_window=2, exploration_limit=2, probe_limit=1)
+    model = AdaptiveSenseModel(
+        min_samples=1,
+        active_limit=1,
+        max_candidates=2,
+        relation_window=2,
+        exploration_limit=2,
+        probe_limit=1,
+    )
     model.observe((reading("old", 1.0, 1),))
-    old_percept_name = next(state.percept_name for state in model.states if state.capability_id == "old")
+    old_percept_name = next(
+        state.percept_name for state in model.states if state.capability_id == "old"
+    )
     model.observe((reading("filler", 1.0, 2),))
 
     model.observe((reading("new", 1.0, 3),))
@@ -388,9 +439,14 @@ def test_sense_state_rejects_a_non_finite_mean() -> None:
 
     with pytest.raises(ValueError):
         SenseState.from_payload(
-            {"capability_id": "a", "percept_name": "sense_a", "samples": 4, "available_samples": 4, "mean": float("nan")}
+            {
+                "capability_id": "a",
+                "percept_name": "sense_a",
+                "samples": 4,
+                "available_samples": 4,
+                "mean": float("nan"),
+            }
         )
-
 
 
 def test_strongest_relations_matches_full_relation_ranking_semantics() -> None:

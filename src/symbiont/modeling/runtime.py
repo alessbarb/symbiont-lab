@@ -7,14 +7,23 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..cognition.birth import load_base_graph
-from ..core.embodiment.physiology import LivingBodyState, VitalState
 from ..core.embodiment.metabolism import MetabolicLedger
+from ..core.embodiment.physiology import LivingBodyState, VitalState
 from ..core.orchestration.runtime import OrganismDeadError, OrganismRuntime
 from .authority import ArchitectureId, ModelArtifactManifest, ModelObjective, TrainingRequest
 from .corpus import TrainingCorpus, build_training_corpus
-from .experience import EpistemicStatus, ExperienceRecord, SourceKind
-from .gateway import PrivateModelBridge
-from .ledger import ExperienceLedger, HistoricalExperienceArchive
+from .culture import (
+    CulturalAction,
+    CulturalComposite,
+    CulturalDecisionRecord,
+    CulturalPolicy,
+    CulturalPolicyConfig,
+    DeliveryResult,
+    SocialChannel,
+    SocialClaim,
+    SocialEpistemicStatus,
+    SocialEvidenceLedger,
+)
 from .episodic import (
     CognitiveReplay,
     EpisodeMatch,
@@ -22,17 +31,19 @@ from .episodic import (
     EpisodicPrediction,
     EpisodicProjection,
 )
-from .culture import (
-    CulturalAction,
-    CulturalComposite,
-    CulturalDecisionRecord,
-    CulturalPolicy,
-    CulturalPolicyConfig,
-    SocialClaim,
-    SocialChannel,
-    SocialEpistemicStatus,
-    SocialEvidenceLedger,
-    DeliveryResult,
+from .experience import EpistemicStatus, ExperienceRecord, SourceKind
+from .gateway import PrivateModelBridge
+from .ledger import ExperienceLedger, HistoricalExperienceArchive
+from .proposals import ModelPredictionProposal
+from .registry import ModelRecord, ModelRegistry, ModelState
+from .sequences import (
+    MAX_SEQUENCE_LENGTH,
+    SequenceChannel,
+    SequenceDecisionRecord,
+    SequenceGroundingLedger,
+    SequenceMessage,
+    SymbolSequence,
+    choose_sequence,
 )
 from .symbols import (
     MAX_HISTORY,
@@ -45,19 +56,7 @@ from .symbols import (
     SymbolReinforcementSignal,
     default_symbol_space,
 )
-from .sequences import (
-    MAX_SEQUENCE_LENGTH,
-    SequenceGroundingLedger,
-    SequenceChannel,
-    SequenceDecisionRecord,
-    SequenceMessage,
-    SymbolSequence,
-    choose_sequence,
-)
-from .proposals import ModelPredictionProposal
-from .registry import ModelRecord, ModelRegistry, ModelState
 from .tokenizer import NativeTokenizer
-
 
 _PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS = 64
 _PRIVATE_LEARNING_MIN_NEW_TRANSITIONS = 32
@@ -83,6 +82,7 @@ class AutonomousTrainingPlan:
     new_transition_count: int
     contradiction_ratio: float
     replay_pressure: float
+
 
 class ModeledOrganismRuntime(OrganismRuntime):
     """OrganismRuntime with an acquired private-model phenotype.
@@ -115,15 +115,19 @@ class ModeledOrganismRuntime(OrganismRuntime):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        if (isinstance(model_request_base_cost, bool)
-                or not isinstance(model_request_base_cost, (int, float))
-                or not math.isfinite(float(model_request_base_cost))
-                or not 0.0 <= float(model_request_base_cost) <= 0.25):
+        if (
+            isinstance(model_request_base_cost, bool)
+            or not isinstance(model_request_base_cost, (int, float))
+            or not math.isfinite(float(model_request_base_cost))
+            or not 0.0 <= float(model_request_base_cost) <= 0.25
+        ):
             raise ValueError("model_request_base_cost must be within [0, 0.25]")
-        if (isinstance(model_storage_scale, bool)
-                or not isinstance(model_storage_scale, (int, float))
-                or not math.isfinite(float(model_storage_scale))
-                or not 0.0 <= float(model_storage_scale) <= 0.25):
+        if (
+            isinstance(model_storage_scale, bool)
+            or not isinstance(model_storage_scale, (int, float))
+            or not math.isfinite(float(model_storage_scale))
+            or not 0.0 <= float(model_storage_scale) <= 0.25
+        ):
             raise ValueError("model_storage_scale must be within [0, 0.25]")
         if model_registry is not None and model_registry.organism_id != self.organism_id:
             raise ValueError("private model registry belongs to a different organism")
@@ -131,14 +135,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise ValueError("experience ledger belongs to a different organism")
         self._model_registry = model_registry or ModelRegistry(self.organism_id)
         self._experience_ledger = experience_ledger or ExperienceLedger(self.organism_id)
-        if (
-            experience_archive is not None
-            and experience_archive.organism_id != self.organism_id
-        ):
+        if experience_archive is not None and experience_archive.organism_id != self.organism_id:
             raise ValueError("experience archive belongs to a different organism")
-        self._experience_archive = (
-            experience_archive
-            or HistoricalExperienceArchive(self.organism_id)
+        self._experience_archive = experience_archive or HistoricalExperienceArchive(
+            self.organism_id
         )
         if episodic_memory is not None and episodic_memory.organism_id != self.organism_id:
             raise ValueError("episodic memory belongs to a different organism")
@@ -146,23 +146,46 @@ class ModeledOrganismRuntime(OrganismRuntime):
             self.organism_id,
             kernel_limits=self._kernel_limits,
         )
-        if social_evidence_ledger is not None and social_evidence_ledger.organism_id != self.organism_id:
+        if (
+            social_evidence_ledger is not None
+            and social_evidence_ledger.organism_id != self.organism_id
+        ):
             raise ValueError("social evidence ledger belongs to a different organism")
-        self._social_evidence_ledger = social_evidence_ledger or SocialEvidenceLedger(self.organism_id)
+        self._social_evidence_ledger = social_evidence_ledger or SocialEvidenceLedger(
+            self.organism_id
+        )
         self._private_model_bridge = private_model_bridge
         self._model_request_base_cost = float(model_request_base_cost)
         self._model_storage_scale = float(model_storage_scale)
         self._cultural_policy = CulturalPolicy(
             self.organism_id, seed=cultural_policy_seed, config=cultural_policy_config
         )
-        if symbol_grounding_ledger is not None and symbol_grounding_ledger.organism_id != self.organism_id:
+        if (
+            symbol_grounding_ledger is not None
+            and symbol_grounding_ledger.organism_id != self.organism_id
+        ):
             raise ValueError("symbol grounding ledger belongs to a different organism")
-        self._symbol_grounding_ledger = symbol_grounding_ledger or SymbolGroundingLedger(self.organism_id)
-        self._symbol_policy = SymbolPolicy(self.organism_id, seed=symbol_policy_seed, symbol_space=symbol_space or default_symbol_space())
-        if sequence_grounding_ledger is not None and sequence_grounding_ledger.organism_id != self.organism_id:
+        self._symbol_grounding_ledger = symbol_grounding_ledger or SymbolGroundingLedger(
+            self.organism_id
+        )
+        self._symbol_policy = SymbolPolicy(
+            self.organism_id,
+            seed=symbol_policy_seed,
+            symbol_space=symbol_space or default_symbol_space(),
+        )
+        if (
+            sequence_grounding_ledger is not None
+            and sequence_grounding_ledger.organism_id != self.organism_id
+        ):
             raise ValueError("sequence grounding ledger belongs to a different organism")
-        self._sequence_grounding_ledger = sequence_grounding_ledger or SequenceGroundingLedger(self.organism_id)
-        if isinstance(sequence_max_length, bool) or not isinstance(sequence_max_length, int) or not 1 <= sequence_max_length <= MAX_SEQUENCE_LENGTH:
+        self._sequence_grounding_ledger = sequence_grounding_ledger or SequenceGroundingLedger(
+            self.organism_id
+        )
+        if (
+            isinstance(sequence_max_length, bool)
+            or not isinstance(sequence_max_length, int)
+            or not 1 <= sequence_max_length <= MAX_SEQUENCE_LENGTH
+        ):
             raise ValueError("sequence_max_length exceeds sequence bound")
         self._sequence_max_length = sequence_max_length
         # Decision history is observational state and must remain bounded like
@@ -242,7 +265,16 @@ class ModeledOrganismRuntime(OrganismRuntime):
         by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
         if decision.selected_action is SymbolAction.EMIT and decision.selected_symbols is not None:
             receiver = by_id[decision.selected_recipient_id]
-            channel.deliver(SequenceMessage(SymbolSequence(decision.selected_symbols), self.organism_id, receiver.organism_id, current_tick), receiver=receiver.sequence_grounding_ledger, tick=current_tick)
+            channel.deliver(
+                SequenceMessage(
+                    SymbolSequence(decision.selected_symbols),
+                    self.organism_id,
+                    receiver.organism_id,
+                    current_tick,
+                ),
+                receiver=receiver.sequence_grounding_ledger,
+                tick=current_tick,
+            )
         return decision
 
     def autonomous_sequence_decision(
@@ -262,32 +294,83 @@ class ModeledOrganismRuntime(OrganismRuntime):
         by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
         if len(by_id) != len(neighbors) or self.organism_id in by_id:
             raise ValueError("invalid sequence neighbor set")
-        decision = choose_sequence(self._symbol_policy, local_context_tokens=local_context_tokens, neighbor_ids=by_id, tick=current_tick, max_length=self._sequence_max_length)
+        decision = choose_sequence(
+            self._symbol_policy,
+            local_context_tokens=local_context_tokens,
+            neighbor_ids=by_id,
+            tick=current_tick,
+            max_length=self._sequence_max_length,
+        )
         self._sequence_decisions.append(decision)
         return decision
 
-    def observe_sequence_outcome(self, outcome_tokens: tuple[str, ...], *, tick: int | None = None, supported: bool = True) -> None:
+    def observe_sequence_outcome(
+        self, outcome_tokens: tuple[str, ...], *, tick: int | None = None, supported: bool = True
+    ) -> None:
         current_tick = self._tick_count if tick is None else tick
-        self._sequence_grounding_ledger.observe_outcome(outcome_tokens, tick=current_tick, supported=supported)
+        self._sequence_grounding_ledger.observe_outcome(
+            outcome_tokens, tick=current_tick, supported=supported
+        )
 
     def predict_sequence(self, sequence: SymbolSequence) -> tuple[str, ...] | None:
         return self._sequence_grounding_ledger.predict_exact(sequence)
 
-    def autonomous_retransmit_sequence(self, channel: SequenceChannel, neighbors: tuple["ModeledOrganismRuntime", ...], *, outcome_tokens: tuple[str, ...], tick: int | None = None) -> SequenceDecisionRecord:
+    def autonomous_retransmit_sequence(
+        self,
+        channel: SequenceChannel,
+        neighbors: tuple["ModeledOrganismRuntime", ...],
+        *,
+        outcome_tokens: tuple[str, ...],
+        tick: int | None = None,
+    ) -> SequenceDecisionRecord:
         current_tick = self._tick_count if tick is None else tick
         by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
-        candidates = [item for item in self._sequence_grounding_ledger.associations if item.outcome_tokens == outcome_tokens and item.support > item.contradiction]
+        candidates = [
+            item
+            for item in self._sequence_grounding_ledger.associations
+            if item.outcome_tokens == outcome_tokens and item.support > item.contradiction
+        ]
         if not by_id or not candidates:
-            decision = choose_sequence(self._symbol_policy, local_context_tokens=(), neighbor_ids=by_id, tick=current_tick)
+            decision = choose_sequence(
+                self._symbol_policy, local_context_tokens=(), neighbor_ids=by_id, tick=current_tick
+            )
             self._sequence_decisions.append(decision)
             return decision
-        item = max(candidates, key=lambda value: (value.support - value.contradiction, value.last_tick, value.sequence_id))
-        recipient_id = max(by_id, key=lambda value: self._symbol_policy._digest((self.organism_id, value, current_tick)))
+        item = max(
+            candidates,
+            key=lambda value: (
+                value.support - value.contradiction,
+                value.last_tick,
+                value.sequence_id,
+            ),
+        )
+        recipient_id = max(
+            by_id,
+            key=lambda value: self._symbol_policy._digest((self.organism_id, value, current_tick)),
+        )
         digest = self._symbol_policy._digest((item.sequence_id, tuple(sorted(by_id))))
-        decision = SequenceDecisionRecord("sequence-decision." + self._symbol_policy._digest((self.organism_id, current_tick, item.sequence_id))[:48], self.organism_id, current_tick, digest, SymbolAction.EMIT, item.sequence_id, item.symbols, recipient_id, len(item.symbols))
+        decision = SequenceDecisionRecord(
+            "sequence-decision."
+            + self._symbol_policy._digest((self.organism_id, current_tick, item.sequence_id))[:48],
+            self.organism_id,
+            current_tick,
+            digest,
+            SymbolAction.EMIT,
+            item.sequence_id,
+            item.symbols,
+            recipient_id,
+            len(item.symbols),
+        )
         self._sequence_decisions.append(decision)
         receiver = by_id[recipient_id]
-        channel.deliver(SequenceMessage(SymbolSequence(item.symbols), self.organism_id, receiver.organism_id, current_tick), receiver=receiver.sequence_grounding_ledger, tick=current_tick, event_kind="RETRANSMIT")
+        channel.deliver(
+            SequenceMessage(
+                SymbolSequence(item.symbols), self.organism_id, receiver.organism_id, current_tick
+            ),
+            receiver=receiver.sequence_grounding_ledger,
+            tick=current_tick,
+            event_kind="RETRANSMIT",
+        )
         return decision
 
     def autonomous_symbol_step(
@@ -309,15 +392,24 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if decision.selected_action is SymbolAction.EMIT:
             receiver = by_id[decision.selected_recipient_id]
             channel.deliver(
-                SymbolMessage(decision.selected_symbol_id, self.organism_id, receiver.organism_id, current_tick),
+                SymbolMessage(
+                    decision.selected_symbol_id,
+                    self.organism_id,
+                    receiver.organism_id,
+                    current_tick,
+                ),
                 receiver=receiver.symbol_grounding_ledger,
                 tick=current_tick,
             )
         return decision
 
-    def observe_symbolic_outcome(self, outcome_token: str, *, tick: int | None = None, supported: bool = True) -> None:
+    def observe_symbolic_outcome(
+        self, outcome_token: str, *, tick: int | None = None, supported: bool = True
+    ) -> None:
         current_tick = self._tick_count if tick is None else tick
-        self._symbol_grounding_ledger.observe_outcome(outcome_token, tick=current_tick, supported=supported)
+        self._symbol_grounding_ledger.observe_outcome(
+            outcome_token, tick=current_tick, supported=supported
+        )
 
     def autonomous_grounded_symbol_step(
         self,
@@ -341,7 +433,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if decision.selected_action is SymbolAction.EMIT:
             receiver = by_id[decision.selected_recipient_id]
             channel.deliver(
-                SymbolMessage(decision.selected_symbol_id, self.organism_id, receiver.organism_id, current_tick),
+                SymbolMessage(
+                    decision.selected_symbol_id,
+                    self.organism_id,
+                    receiver.organism_id,
+                    current_tick,
+                ),
                 receiver=receiver.symbol_grounding_ledger,
                 tick=current_tick,
             )
@@ -369,7 +466,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if decision.selected_action is SymbolAction.EMIT:
             receiver = by_id[decision.selected_recipient_id]
             channel.deliver(
-                SymbolMessage(decision.selected_symbol_id, self.organism_id, receiver.organism_id, current_tick),
+                SymbolMessage(
+                    decision.selected_symbol_id,
+                    self.organism_id,
+                    receiver.organism_id,
+                    current_tick,
+                ),
                 receiver=receiver.symbol_grounding_ledger,
                 tick=current_tick,
             )
@@ -414,14 +516,18 @@ class ModeledOrganismRuntime(OrganismRuntime):
         decisions.append(composition_record)
         if composition_record.selected_action is CulturalAction.COMPOSE:
             self.compose_cultural_claims(
-                claim_ids, parent_composite_ids=parent_ids,
+                claim_ids,
+                parent_composite_ids=parent_ids,
                 operation="extend" if parent_ids else "combine",
             )
         transmission = self._cultural_policy.transmission(
             self._social_evidence_ledger, by_id, tick=current_tick
         )
         decisions.append(transmission)
-        if transmission.selected_action is CulturalAction.TRANSMIT and transmission.selected_recipient_id:
+        if (
+            transmission.selected_action is CulturalAction.TRANSMIT
+            and transmission.selected_recipient_id
+        ):
             receiver = by_id[transmission.selected_recipient_id]
             item_id = transmission.selected_item_ids[0]
             try:
@@ -451,7 +557,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         current_tick = self._tick_count if tick is None else tick
         return self._cultural_policy.validation(self._social_evidence_ledger, tick=current_tick)
 
-    def originate_social_claim(self, *, proposition_tokens: tuple[str, ...], evidence_id: str, confidence_class: int = 0) -> SocialClaim:
+    def originate_social_claim(
+        self, *, proposition_tokens: tuple[str, ...], evidence_id: str, confidence_class: int = 0
+    ) -> SocialClaim:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot originate social claims")
         return self._social_evidence_ledger.originate(
@@ -461,14 +569,18 @@ class ModeledOrganismRuntime(OrganismRuntime):
             confidence_class=confidence_class,
         )
 
-    def receive_social_claim(self, claim: SocialClaim, *, sender_id: str, tick: int | None = None) -> SocialClaim:
+    def receive_social_claim(
+        self, claim: SocialClaim, *, sender_id: str, tick: int | None = None
+    ) -> SocialClaim:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot receive social claims")
         return self._social_evidence_ledger.receive(
             claim, sender_id=sender_id, tick=self._tick_count if tick is None else tick
         )
 
-    def transmit_social_claim(self, channel: SocialChannel, claim_id: str, *, receiver: "ModeledOrganismRuntime") -> DeliveryResult:
+    def transmit_social_claim(
+        self, channel: SocialChannel, claim_id: str, *, receiver: "ModeledOrganismRuntime"
+    ) -> DeliveryResult:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot transmit social claims")
         if not isinstance(receiver, ModeledOrganismRuntime):
@@ -485,17 +597,31 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._charge_metabolism("cognition", self._social_exchange_cost)
         return result
 
-    def compose_cultural_claims(self, claim_ids: tuple[str, ...] = (), *, parent_composite_ids: tuple[str, ...] = (), operation: str = "combine", retired: bool = False, replace_component_claim_ids: tuple[str, ...] = ()) -> CulturalComposite:
+    def compose_cultural_claims(
+        self,
+        claim_ids: tuple[str, ...] = (),
+        *,
+        parent_composite_ids: tuple[str, ...] = (),
+        operation: str = "combine",
+        retired: bool = False,
+        replace_component_claim_ids: tuple[str, ...] = (),
+    ) -> CulturalComposite:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot compose cultural claims")
         composite = self._social_evidence_ledger.compose(
-            claim_ids, parent_composite_ids=parent_composite_ids, tick=self._tick_count,
-            operation=operation, retired=retired, replace_component_claim_ids=replace_component_claim_ids,
+            claim_ids,
+            parent_composite_ids=parent_composite_ids,
+            tick=self._tick_count,
+            operation=operation,
+            retired=retired,
+            replace_component_claim_ids=replace_component_claim_ids,
         )
         self._charge_metabolism("cognition", self._social_exchange_cost)
         return composite
 
-    def transmit_cultural_composite(self, channel: SocialChannel, composite_id: str, *, receiver: "ModeledOrganismRuntime") -> DeliveryResult:
+    def transmit_cultural_composite(
+        self, channel: SocialChannel, composite_id: str, *, receiver: "ModeledOrganismRuntime"
+    ) -> DeliveryResult:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot transmit cultural composites")
         if not isinstance(receiver, ModeledOrganismRuntime):
@@ -504,8 +630,11 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if composite is None:
             raise ValueError("unknown cultural composite")
         result = channel.deliver_composite(
-            composite, sender_id=self.organism_id, receiver=receiver.social_evidence_ledger,
-            tick=self._tick_count, source=self._social_evidence_ledger,
+            composite,
+            sender_id=self.organism_id,
+            receiver=receiver.social_evidence_ledger,
+            tick=self._tick_count,
+            source=self._social_evidence_ledger,
         )
         self._charge_metabolism("cognition", self._social_exchange_cost)
         return result
@@ -551,7 +680,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
         elif (
             record.record_id.startswith("validation.")
             and record.source_kind is SourceKind.MODEL
-            and record.epistemic_status in {
+            and record.epistemic_status
+            in {
                 EpistemicStatus.SUPPORTED,
                 EpistemicStatus.CONTRADICTED,
             }
@@ -600,11 +730,11 @@ class ModeledOrganismRuntime(OrganismRuntime):
     @staticmethod
     def _episodic_graph_sense_ids(sense_ids: tuple[str, ...]) -> tuple[str, ...]:
         """Return direct cognitive SENSE identities captured at experience time."""
-        return tuple(sorted({
-            str(sense_id)
-            for sense_id in sense_ids
-            if isinstance(sense_id, str) and sense_id
-        }))
+        return tuple(
+            sorted(
+                {str(sense_id) for sense_id in sense_ids if isinstance(sense_id, str) and sense_id}
+            )
+        )
 
     def _project_episodic_consolidation(self) -> int:
         """Expose consolidated episodic co-occurrence to normal concept formation."""
@@ -613,9 +743,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             return 0
         gained = 0
         for contingency in self._episodic_memory.consolidated:
-            source_ids = self._episodic_graph_sense_ids(
-                contingency.sense_ids
-            )
+            source_ids = self._episodic_graph_sense_ids(contingency.sense_ids)
             gained += bridge.observe_retrospective_support(
                 source_ids,
                 support_epochs=contingency.support_epochs,
@@ -709,13 +837,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 key=lambda record: (record.tick_class, record.record_id),
             )
         )
-        live_selected = live[-min(len(live), max_records):]
+        live_selected = live[-min(len(live), max_records) :]
         historical_slots = max(0, max_records - len(live_selected))
         archived = self._experience_archive.sample(historical_slots)
-        combined = {
-            record.record_id: record
-            for record in (*archived, *live_selected)
-        }
+        combined = {record.record_id: record for record in (*archived, *live_selected)}
         selected = tuple(
             sorted(
                 combined.values(),
@@ -741,11 +866,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         max_records: int = 8192,
     ) -> tuple[ExperienceRecord, ...]:
         """Return exact recent + cross-lifetime sampled causal transitions."""
-        if (
-            isinstance(max_records, bool)
-            or not isinstance(max_records, int)
-            or max_records < 3
-        ):
+        if isinstance(max_records, bool) or not isinstance(max_records, int) or max_records < 3:
             raise ValueError("max_records must be an integer >= 3")
         live = tuple(
             record
@@ -754,7 +875,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             and record.epistemic_status is EpistemicStatus.OBSERVED
             and record.source_kind is not SourceKind.MODEL
         )
-        live = live[-min(len(live), max_records):]
+        live = live[-min(len(live), max_records) :]
         slots = max(0, max_records - len(live))
         archive = tuple(
             record
@@ -797,9 +918,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         latest_tick = self._private_learning_latest_transition_tick
         new_transitions = self._private_learning_new_transition_count
         active = self._model_registry.active
-        validation_count, contradiction_ratio = (
-            self._private_validation_contradiction_ratio()
-        )
+        validation_count, contradiction_ratio = self._private_validation_contradiction_ratio()
 
         reason: str | None = None
         if active is None:
@@ -826,8 +945,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             int.from_bytes(
                 hashlib.sha256(
                     (
-                        f"{self.organism_id}:{latest_tick}:"
-                        f"{corpus.manifest.corpus_hash}:{reason}"
+                        f"{self.organism_id}:{latest_tick}:{corpus.manifest.corpus_hash}:{reason}"
                     ).encode("utf-8")
                 ).digest()[:8],
                 "big",
@@ -839,9 +957,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             new_transitions / float(_PRIVATE_LEARNING_FORCE_NEW_TRANSITIONS),
         )
         contradiction_pressure = (
-            contradiction_ratio
-            if validation_count >= _PRIVATE_LEARNING_MIN_VALIDATIONS
-            else 0.0
+            contradiction_ratio if validation_count >= _PRIVATE_LEARNING_MIN_VALIDATIONS else 0.0
         )
         replay_pressure = max(experience_pressure, contradiction_pressure)
         requested_epochs = 2 + round(6 * replay_pressure)
@@ -1006,7 +1122,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
             parent = self._model_registry.get(artifact.parent_model_id)
             if parent is None or parent.organism_id != self.organism_id:
                 raise ValueError("private model artifact parent is not owned by this organism")
-            if parent.architecture_id is not artifact.architecture_id or parent.tokenizer_hash != artifact.tokenizer_hash:
+            if (
+                parent.architecture_id is not artifact.architecture_id
+                or parent.tokenizer_hash != artifact.tokenizer_hash
+            ):
                 raise ValueError("private model artifact parent is structurally incompatible")
         storage_fraction = min(0.20, artifact.artifact_bytes / float(256 * 1024 * 1024))
         self._charge_metabolism("persistence", self._model_storage_scale + storage_fraction)
@@ -1021,14 +1140,17 @@ class ModeledOrganismRuntime(OrganismRuntime):
 
     def private_model_observations(self) -> tuple[dict[str, object], ...]:
         """Return passive, weight-free model status for the Observatory."""
-        return tuple({
-            "model_id": record.model_id,
-            "parent_model_id": record.parent_model_id,
-            "generation": record.generation,
-            "state": record.state.value,
-            "evaluation_summary": list(record.evaluation_summary),
-            "adaptation_count": record.generation,
-        } for record in self._model_registry.records)
+        return tuple(
+            {
+                "model_id": record.model_id,
+                "parent_model_id": record.parent_model_id,
+                "generation": record.generation,
+                "state": record.state.value,
+                "evaluation_summary": list(record.evaluation_summary),
+                "adaptation_count": record.generation,
+            }
+            for record in self._model_registry.records
+        )
 
     def cultural_observations(self) -> dict[str, object]:
         """Passive, weight-free cultural lineage for Observatory projection."""
@@ -1043,80 +1165,123 @@ class ModeledOrganismRuntime(OrganismRuntime):
         return {
             "claim_count": len(claims),
             "composite_count": len(composites),
-            "unique_contributors": len({organism_id for item in composites for organism_id in item.contributing_organism_ids}),
+            "unique_contributors": len(
+                {
+                    organism_id
+                    for item in composites
+                    for organism_id in item.contributing_organism_ids
+                }
+            ),
             "cultural_generation": max((item.generation for item in composites), default=0),
             "unique_roots": len(roots),
             "independent_roots": len(roots),
             "transmission_depth": max((claim.transmission_depth for claim in claims), default=0),
             "mutation_depth": max((claim.mutation_depth for claim in claims), default=0),
-            "confirmed_locally": sum(item.status is SocialEpistemicStatus.SOCIAL_SUPPORTED for item in assessments),
-            "contradicted_locally": sum(item.status is SocialEpistemicStatus.SOCIAL_CONTRADICTED for item in assessments),
-            "freshness": tuple({
-                "claim_id": claim.claim_id,
-                "value": ledger.freshness(claim.claim_id, current_tick=self._tick_count),
-            } for claim in claims),
-            "claim_lineage": tuple({
-                "claim_id": claim.claim_id,
-                "source": claim.source_organism_id,
-                "parents": claim.parent_claim_ids,
-                "roots": ledger.graph.root_evidence_ids(claim),
-            } for claim in claims),
-            "composite_lineage": tuple({
-                "composite_id": item.composite_id,
-                "components": item.component_claim_ids,
-                "parents": item.parent_composite_ids,
-                "contributors": item.contributing_organism_ids,
-                "roots": ledger.composite_graph.root_evidence_ids(item),
-                "generation": item.generation,
-                "retired": item.retired,
-            } for item in composites),
-            "cultural_decisions": tuple({
-                "decision_id": item.decision_id,
-                "tick": item.decision_tick,
-                "action": item.selected_action.value,
-                "items": item.selected_item_ids,
-                "recipient": item.selected_recipient_id,
-                "cost": item.cost,
-            } for item in self._cultural_policy.decisions),
+            "confirmed_locally": sum(
+                item.status is SocialEpistemicStatus.SOCIAL_SUPPORTED for item in assessments
+            ),
+            "contradicted_locally": sum(
+                item.status is SocialEpistemicStatus.SOCIAL_CONTRADICTED for item in assessments
+            ),
+            "freshness": tuple(
+                {
+                    "claim_id": claim.claim_id,
+                    "value": ledger.freshness(claim.claim_id, current_tick=self._tick_count),
+                }
+                for claim in claims
+            ),
+            "claim_lineage": tuple(
+                {
+                    "claim_id": claim.claim_id,
+                    "source": claim.source_organism_id,
+                    "parents": claim.parent_claim_ids,
+                    "roots": ledger.graph.root_evidence_ids(claim),
+                }
+                for claim in claims
+            ),
+            "composite_lineage": tuple(
+                {
+                    "composite_id": item.composite_id,
+                    "components": item.component_claim_ids,
+                    "parents": item.parent_composite_ids,
+                    "contributors": item.contributing_organism_ids,
+                    "roots": ledger.composite_graph.root_evidence_ids(item),
+                    "generation": item.generation,
+                    "retired": item.retired,
+                }
+                for item in composites
+            ),
+            "cultural_decisions": tuple(
+                {
+                    "decision_id": item.decision_id,
+                    "tick": item.decision_tick,
+                    "action": item.selected_action.value,
+                    "items": item.selected_item_ids,
+                    "recipient": item.selected_recipient_id,
+                    "cost": item.cost,
+                }
+                for item in self._cultural_policy.decisions
+            ),
             "cultural_policy_cost": self._cultural_policy.cost,
-            "symbols_known": len({item.symbol_id for item in self._symbol_grounding_ledger.exposures}),
-            "symbols_emitted": sum(record.selected_action is SymbolAction.EMIT for record in self._symbol_policy.decisions),
+            "symbols_known": len(
+                {item.symbol_id for item in self._symbol_grounding_ledger.exposures}
+            ),
+            "symbols_emitted": sum(
+                record.selected_action is SymbolAction.EMIT
+                for record in self._symbol_policy.decisions
+            ),
             "symbol_exposures": len(self._symbol_grounding_ledger.exposures),
             "grounding_updates": len(self._symbol_grounding_ledger.associations),
-            "symbol_grounding": tuple({
-                "symbol_id": item.symbol_id,
-                "support": item.support,
-                "contradiction": item.contradiction,
-                "strength": max(0, item.support - item.contradiction),
-            } for item in self._symbol_grounding_ledger.associations),
-            "symbol_decisions": tuple({
-                "decision_id": record.decision_id,
-                "tick": record.decision_tick,
-                "action": record.selected_action.value,
-                "symbol_id": record.selected_symbol_id,
-                "recipient_id": record.selected_recipient_id,
-                "cost": record.cost,
-            } for record in self._symbol_policy.decisions),
+            "symbol_grounding": tuple(
+                {
+                    "symbol_id": item.symbol_id,
+                    "support": item.support,
+                    "contradiction": item.contradiction,
+                    "strength": max(0, item.support - item.contradiction),
+                }
+                for item in self._symbol_grounding_ledger.associations
+            ),
+            "symbol_decisions": tuple(
+                {
+                    "decision_id": record.decision_id,
+                    "tick": record.decision_tick,
+                    "action": record.selected_action.value,
+                    "symbol_id": record.selected_symbol_id,
+                    "recipient_id": record.selected_recipient_id,
+                    "cost": record.cost,
+                }
+                for record in self._symbol_policy.decisions
+            ),
             "symbol_policy_cost": self._symbol_policy.cost,
-            "sequences_known": len({item.sequence.sequence_id for item in self._sequence_grounding_ledger.exposures}),
-            "sequence_emissions": sum(record.selected_action is SymbolAction.EMIT for record in self._sequence_decisions),
+            "sequences_known": len(
+                {item.sequence.sequence_id for item in self._sequence_grounding_ledger.exposures}
+            ),
+            "sequence_emissions": sum(
+                record.selected_action is SymbolAction.EMIT for record in self._sequence_decisions
+            ),
             "sequence_exposures": len(self._sequence_grounding_ledger.exposures),
             "sequence_grounding_updates": len(self._sequence_grounding_ledger.associations),
-            "sequence_grounding": tuple({
-                "sequence_id": item.sequence_id,
-                "length": len(item.symbols),
-                "support": item.support,
-                "contradiction": item.contradiction,
-                "strength": max(0, item.support - item.contradiction),
-            } for item in self._sequence_grounding_ledger.associations),
-            "sequence_decisions": tuple({
-                "decision_id": item.decision_id,
-                "tick": item.decision_tick,
-                "action": item.selected_action.value,
-                "sequence_id": item.selected_sequence_id,
-                "recipient_id": item.selected_recipient_id,
-                "cost": item.cost,
-            } for item in self._sequence_decisions),
+            "sequence_grounding": tuple(
+                {
+                    "sequence_id": item.sequence_id,
+                    "length": len(item.symbols),
+                    "support": item.support,
+                    "contradiction": item.contradiction,
+                    "strength": max(0, item.support - item.contradiction),
+                }
+                for item in self._sequence_grounding_ledger.associations
+            ),
+            "sequence_decisions": tuple(
+                {
+                    "decision_id": item.decision_id,
+                    "tick": item.decision_tick,
+                    "action": item.selected_action.value,
+                    "sequence_id": item.selected_sequence_id,
+                    "recipient_id": item.selected_recipient_id,
+                    "cost": item.cost,
+                }
+                for item in self._sequence_decisions
+            ),
             "sequence_policy_cost": sum(item.cost for item in self._sequence_decisions),
         }
 
@@ -1179,20 +1344,24 @@ class ModeledOrganismRuntime(OrganismRuntime):
         )
         if record:
             digest = hashlib.sha256(
-                f"{proposal.model_id}:{self._tick_count}:{context_tokens}:{proposal.predicted_token}".encode("utf-8")
+                f"{proposal.model_id}:{self._tick_count}:{context_tokens}:{proposal.predicted_token}".encode(
+                    "utf-8"
+                )
             ).hexdigest()[:24]
-            self.record_experience(ExperienceRecord(
-                record_id=f"model.{digest}",
-                organism_id=self.organism_id,
-                tick_class=self._tick_count,
-                context_tokens=context_tokens,
-                action_token=None,
-                outcome_tokens=(proposal.predicted_token,),
-                epistemic_status=EpistemicStatus.PREDICTED,
-                evidence_refs=(),
-                confidence_class=proposal.confidence_class,
-                source_kind=SourceKind.MODEL,
-            ))
+            self.record_experience(
+                ExperienceRecord(
+                    record_id=f"model.{digest}",
+                    organism_id=self.organism_id,
+                    tick_class=self._tick_count,
+                    context_tokens=context_tokens,
+                    action_token=None,
+                    outcome_tokens=(proposal.predicted_token,),
+                    epistemic_status=EpistemicStatus.PREDICTED,
+                    evidence_refs=(),
+                    confidence_class=proposal.confidence_class,
+                    source_kind=SourceKind.MODEL,
+                )
+            )
         return proposal
 
     def active_private_counterfactual(
@@ -1221,6 +1390,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         - Never calls record_experience().
         """
         from ..core.embodiment.physiology import VitalState
+
         if self._physiology.state is VitalState.DEAD:
             raise ValueError("counterfactual inference is not permitted after death")
         if self._private_model_bridge is None:
@@ -1235,11 +1405,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
             or len(action_token) > 96
             or any(ord(c) < 33 or ord(c) > 126 for c in action_token)
         ):
-            raise ValueError(
-                "action_token must be a bounded printable ASCII string"
-            )
+            raise ValueError("action_token must be a bounded printable ASCII string")
         # Build the counterfactual prefix exactly matching the training schema
         from .experience import EpistemicStatus, SourceKind
+
         prefix = (
             "<BOS>",
             *context_tokens,
@@ -1314,7 +1483,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload["symbol_policy"] = self._symbol_policy.checkpoint()
         payload["sequence_grounding_ledger"] = self._sequence_grounding_ledger.checkpoint()
         payload["sequence_max_length"] = self._sequence_max_length
-        payload["sequence_decisions"] = [item.__dict__ if hasattr(item, "__dict__") else {field: getattr(item, field) for field in item.__dataclass_fields__} for item in self._sequence_decisions]
+        payload["sequence_decisions"] = [
+            item.__dict__
+            if hasattr(item, "__dict__")
+            else {field: getattr(item, field) for field in item.__dataclass_fields__}
+            for item in self._sequence_decisions
+        ]
         return payload
 
     @classmethod
@@ -1324,11 +1498,15 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise ValueError("invalid private model configuration checkpoint")
         constructor = dict(kwargs)
         if "model_request_base_cost" not in constructor:
-            constructor["model_request_base_cost"] = float(raw_config.get("model_request_base_cost", 0.01))
+            constructor["model_request_base_cost"] = float(
+                raw_config.get("model_request_base_cost", 0.01)
+            )
         if "model_storage_scale" not in constructor:
             constructor["model_storage_scale"] = float(raw_config.get("model_storage_scale", 0.02))
         if "sequence_max_length" not in constructor:
-            constructor["sequence_max_length"] = payload.get("sequence_max_length", MAX_SEQUENCE_LENGTH)
+            constructor["sequence_max_length"] = payload.get(
+                "sequence_max_length", MAX_SEQUENCE_LENGTH
+            )
         runtime = super().from_checkpoint(payload, **constructor)
         if not isinstance(runtime, cls):
             raise RuntimeError("modeled runtime restore returned wrong runtime type")
@@ -1387,7 +1565,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
             for record in runtime._experience_ledger.records
             if record.record_id.startswith("validation.")
             and record.source_kind is SourceKind.MODEL
-            and record.epistemic_status in {
+            and record.epistemic_status
+            in {
                 EpistemicStatus.SUPPORTED,
                 EpistemicStatus.CONTRADICTED,
             }
@@ -1424,11 +1603,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 ("total_transition_count", raw_total, 0),
                 ("new_transition_count", raw_new, 0),
             ):
-                if (
-                    isinstance(value, bool)
-                    or not isinstance(value, int)
-                    or value < minimum
-                ):
+                if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
                     raise ValueError(f"invalid private learning {name}")
             raw_hash = raw_learning_state.get("last_corpus_hash")
             if raw_hash is not None and (
@@ -1564,6 +1739,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise RuntimeError("private model/corpus inheritance invariant violated")
         if child.symbol_grounding_ledger.exposures or child.symbol_grounding_ledger.associations:
             raise RuntimeError("symbol grounding inheritance invariant violated")
-        if child.sequence_grounding_ledger.exposures or child.sequence_grounding_ledger.associations:
+        if (
+            child.sequence_grounding_ledger.exposures
+            or child.sequence_grounding_ledger.associations
+        ):
             raise RuntimeError("sequence grounding inheritance invariant violated")
         return child

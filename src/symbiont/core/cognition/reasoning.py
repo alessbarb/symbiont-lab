@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from ..social.collective import CollectiveMemory, OpenQuestion
 from ..foundation.model import FEATURES
+from ..social.collective import CollectiveMemory, OpenQuestion
 
 
 @dataclass(slots=True, frozen=True)

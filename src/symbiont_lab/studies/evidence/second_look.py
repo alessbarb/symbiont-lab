@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import random
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from math import exp, log
-import random
 
 from symbiont.environment.rng import derive_seed
 from symbiont.simulation import EventContext, run_simulation
-from symbiont_lab.studies.attention.retrospective import _ScoredEvent, _score_events
+from symbiont_lab.studies.attention.retrospective import _score_events, _ScoredEvent
 
 
 @dataclass(slots=True, frozen=True)
@@ -119,9 +119,7 @@ def second_look_measurement(event: EventContext, *, seed: int, noise: float = 0.
     measurements.
     """
     mean = _SENSOR_MEANS.get(event.truth_label, 0.50)
-    rng = random.Random(
-        derive_seed(seed, f"second-look:{event.step}:{event.host_index}")
-    )
+    rng = random.Random(derive_seed(seed, f"second-look:{event.step}:{event.host_index}"))
     return min(1.0, max(0.0, rng.gauss(mean, max(0.01, float(noise)))))
 
 

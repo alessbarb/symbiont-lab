@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import math
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,12 +87,8 @@ def settle_passive_body(
             body.body_id,
             physicsClientId=client_id,
         )
-        last_linear = math.sqrt(
-            sum(float(value) ** 2 for value in linear_velocity)
-        )
-        last_angular = math.sqrt(
-            sum(float(value) ** 2 for value in angular_velocity)
-        )
+        last_linear = math.sqrt(sum(float(value) ** 2 for value in linear_velocity))
+        last_angular = math.sqrt(sum(float(value) ** 2 for value in angular_velocity))
         states = pybullet_module.getJointStates(
             body.body_id,
             body.motor_joint_indices,
@@ -115,9 +111,7 @@ def settle_passive_body(
             )
             peak_joint_index = int(body.motor_joint_indices[peak_ordinal])
             peak_joint_position_rad = positions[peak_ordinal]
-            peak_joint_reported_velocity_rad_s = float(
-                states[peak_ordinal][1]
-            )
+            peak_joint_reported_velocity_rad_s = float(states[peak_ordinal][1])
             try:
                 info = pybullet_module.getJointInfo(
                     body.body_id,
@@ -126,20 +120,17 @@ def settle_passive_body(
                 )
                 raw_name = info[1]
                 peak_joint_name = (
-                    raw_name.decode("utf-8")
-                    if isinstance(raw_name, bytes)
-                    else str(raw_name)
+                    raw_name.decode("utf-8") if isinstance(raw_name, bytes) else str(raw_name)
                 )
             except Exception:
                 peak_joint_name = None
 
             try:
                 joint_state = states[peak_ordinal]
-                reaction = joint_state[2] if len(joint_state) > 2 else None
+                joint_state[2] if len(joint_state) > 2 else None
                 peak_joint_applied_torque_nm = (
                     float(joint_state[3])
-                    if len(joint_state) > 3
-                    and isinstance(joint_state[3], (int, float))
+                    if len(joint_state) > 3 and isinstance(joint_state[3], (int, float))
                     else None
                 )
             except Exception:
@@ -159,19 +150,12 @@ def settle_passive_body(
                             continue
                         link_a = int(item[3])
                         link_b = int(item[4])
-                        if (
-                            link_a != peak_joint_index
-                            and link_b != peak_joint_index
-                        ):
+                        if link_a != peak_joint_index and link_b != peak_joint_index:
                             continue
                         body_a = int(item[1])
                         body_b = int(item[2])
-                        other_body = (
-                            body_b if body_a == body.body_id else body_a
-                        )
-                        other_link = (
-                            link_b if link_a == peak_joint_index else link_a
-                        )
+                        other_body = body_b if body_a == body.body_id else body_a
+                        other_link = link_b if link_a == peak_joint_index else link_a
                         other_name = str(other_link)
                         if other_body == body.body_id and other_link >= 0:
                             try:
@@ -187,9 +171,7 @@ def settle_passive_body(
                                 )
                             except Exception:
                                 pass
-                        contact_descriptions.append(
-                            f"body={other_body},link={other_name}"
-                        )
+                        contact_descriptions.append(f"body={other_body},link={other_name}")
                     peak_joint_contact_count = len(contact_descriptions)
                     peak_joint_contacts = tuple(sorted(contact_descriptions))
                 except Exception:

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import pytest
+from symbiont.core.physiology import LivingBodyState
+from symbiont.core.runtime import OrganismRuntime
 
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.runtime import OrganismRuntime
-from symbiont.core.physiology import LivingBodyState
 
 
 def _runtime() -> OrganismRuntime:
@@ -26,7 +26,9 @@ def _runtime() -> OrganismRuntime:
         cognitive_graph=graph,
         kernel_limits=limits,
         actuation_enabled=True,
-        actuator_constitution=derive_actuator_constitution(8, physical_contract="unit-motor-runtime-v2"),
+        actuator_constitution=derive_actuator_constitution(
+            8, physical_contract="unit-motor-runtime-v2"
+        ),
         bootstrap_semantic_senses=False,
         discover_senses=False,
         min_samples=1,
@@ -69,7 +71,6 @@ def test_proprioceptive_echo_alone_cannot_promote_an_actuator_as_world_causal():
     assert all(not state.effect_relations for state in proposer.states)
 
 
-
 def test_checkpoint_never_persists_raw_pending_motor_percept_baseline():
     runtime = _runtime()
     for _ in range(32):
@@ -98,7 +99,6 @@ def test_checkpoint_never_persists_raw_pending_motor_percept_baseline():
     # Only the incomplete t->t+1 evidence sample is deliberately cold-
     # started; the restored organism must still tick without error.
     restored.tick()
-
 
 
 def test_cognitive_motor_readouts_cannot_bypass_competence_layer():
@@ -146,7 +146,9 @@ def test_exploration_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
         cognitive_graph=graph,
         kernel_limits=limits,
         actuation_enabled=True,
-        actuator_constitution=derive_actuator_constitution(8, physical_contract="unit-exploration-runtime-v2"),
+        actuator_constitution=derive_actuator_constitution(
+            8, physical_contract="unit-exploration-runtime-v2"
+        ),
         bootstrap_semantic_senses=False,
         discover_senses=False,
         min_samples=1,
@@ -176,16 +178,15 @@ def test_exploration_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
     assert after == before
 
 
-
 def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
     from types import SimpleNamespace
+
     from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime.__new__(OrganismRuntime)
     runtime._sensory_system = SimpleNamespace(sensors=())
     percepts = tuple(
-        SimpleNamespace(name=f"sense.{index:03d}", value=float(index))
-        for index in range(96)
+        SimpleNamespace(name=f"sense.{index:03d}", value=float(index)) for index in range(96)
     )
 
     snapshot = runtime._motor_percept_snapshot(percepts)
@@ -193,7 +194,6 @@ def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
     assert len(snapshot) == 96
     assert snapshot["sense.000"] == 0.0
     assert snapshot["sense.095"] == 95.0
-
 
 
 def test_exploration_restore_rejects_missing_sensorimotor_checkpoint():
@@ -213,7 +213,6 @@ def test_exploration_restore_rejects_missing_sensorimotor_checkpoint():
             bootstrap_semantic_senses=False,
             discover_senses=False,
         )
-
 
 
 def test_restore_rejects_removed_pending_primitive_verification_state():

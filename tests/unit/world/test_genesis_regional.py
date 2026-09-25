@@ -15,14 +15,20 @@ def _split_region(cell: HexCoord) -> str:
 
 
 def _ground_truth() -> GroundTruth:
-    base_resource = ResourceLaw(capacity=10.0, renewal_rate=0.1, decay_rate=0.0, initial_quantity=5.0)
+    base_resource = ResourceLaw(
+        capacity=10.0, renewal_rate=0.1, decay_rate=0.0, initial_quantity=5.0
+    )
     base_hazard = HazardLaw(base_probability=0.1, density_coupling=0.0)
     return GroundTruth(
         resources={RESOURCE_ID: base_resource},
         hazards={HAZARD_ID: base_hazard},
         region_of=_split_region,
         regional_resources={
-            REGION_A: {RESOURCE_ID: ResourceLaw(capacity=20.0, renewal_rate=0.1, decay_rate=0.0, initial_quantity=20.0)},
+            REGION_A: {
+                RESOURCE_ID: ResourceLaw(
+                    capacity=20.0, renewal_rate=0.1, decay_rate=0.0, initial_quantity=20.0
+                )
+            },
         },
         regional_hazards={
             REGION_B: {HAZARD_ID: HazardLaw(base_probability=0.9, density_coupling=0.0)},
@@ -51,7 +57,13 @@ def test_hazard_regional_override():
 
 
 def test_ground_truth_without_regions_behaves_exactly_like_v1():
-    truth = GroundTruth(resources={RESOURCE_ID: ResourceLaw(capacity=10.0, renewal_rate=0.0, decay_rate=0.0, initial_quantity=3.0)})
+    truth = GroundTruth(
+        resources={
+            RESOURCE_ID: ResourceLaw(
+                capacity=10.0, renewal_rate=0.0, decay_rate=0.0, initial_quantity=3.0
+            )
+        }
+    )
     assert truth.region_of_cell(HexCoord(0, 0)) is None
     assert truth.resource_law(HexCoord(0, 0), RESOURCE_ID).initial_quantity == 3.0
 

@@ -26,10 +26,7 @@ class PlasticityEngine:
         self._tracked_edge_keys: set[tuple[str, str, str]] = set()
 
     def seed_new_edges(self, graph: CognitiveGraph) -> None:
-        current_keys = {
-            (edge.source_id, edge.target_id, edge.kind.value)
-            for edge in graph.edges
-        }
+        current_keys = {(edge.source_id, edge.target_id, edge.kind.value) for edge in graph.edges}
         self._weight_tracker.reconcile(current_keys)
         for edge in graph.edges:
             key = (edge.source_id, edge.target_id, edge.kind.value)
@@ -136,8 +133,7 @@ class PlasticityEngine:
                 decay=eligibility_decay,
             )
             retiring_edge = (
-                edge.source_id in retiring_predictors
-                or edge.target_id in retiring_predictors
+                edge.source_id in retiring_predictors or edge.target_id in retiring_predictors
             )
             eligible = (
                 not retiring_edge
@@ -150,11 +146,7 @@ class PlasticityEngine:
                 source_activation=source_value,
                 target_activation=target_current,
                 learning_rate=learning_rate,
-                modulation=(
-                    tick_modulation
-                    * edge.plasticity
-                    * structural_plasticity_factor
-                ),
+                modulation=(tick_modulation * edge.plasticity * structural_plasticity_factor),
                 eligible=eligible,
                 frozen=False,
             )
@@ -198,12 +190,10 @@ class PlasticityEngine:
 
         for target_edges in edges_by_target.values():
             keys: list[EdgeKey] = [
-                (edge.source_id, edge.target_id, edge.kind.value)
-                for edge in target_edges
+                (edge.source_id, edge.target_id, edge.kind.value) for edge in target_edges
             ]
             live_weights: dict[EdgeKey, float] = {
-                key: float(edge.weight)
-                for key, edge in zip(keys, target_edges)
+                key: float(edge.weight) for key, edge in zip(keys, target_edges)
             }
             self._weight_tracker.consolidate_node(
                 keys,
@@ -216,9 +206,8 @@ class PlasticityEngine:
         graph: CognitiveGraph,
     ) -> dict[tuple[str, str, str], int]:
         return {
-            (edge.source_id, edge.target_id, edge.kind.value):
-                self._weight_tracker.durable_class(
-                    (edge.source_id, edge.target_id, edge.kind.value)
-                )
+            (edge.source_id, edge.target_id, edge.kind.value): self._weight_tracker.durable_class(
+                (edge.source_id, edge.target_id, edge.kind.value)
+            )
             for edge in graph.edges
         }

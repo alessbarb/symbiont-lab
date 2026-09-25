@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 import builtins
+import json
 from contextlib import contextmanager
 from http.client import HTTPConnection
 from threading import Thread
@@ -9,7 +9,6 @@ from typing import Iterator
 
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.server.server import UnifiedLabServer, _default_observatory_dir, make_server
-from symbiont_lab.workbench.runs import ExperimentRunState
 
 
 @contextmanager
@@ -62,8 +61,6 @@ def test_demo_telemetry_requires_explicit_opt_in() -> None:
     assert server.demo_telemetry is None
 
 
-
-
 def test_api_state_exposes_source_availability() -> None:
     with running_server() as server:
         status, body = request(server, "/api/state")
@@ -79,6 +76,7 @@ def test_fleet_fails_closed_without_observatory() -> None:
         status, body = request(server, "/fleet")
         assert status == 503
         assert b"observatory not configured" in body
+
 
 def test_spa_and_api_state_are_served_by_unified_server() -> None:
     with running_server() as server:
@@ -107,7 +105,6 @@ def test_instance_stream_route_is_plural_and_fail_closed_without_observatory() -
 
         status, _ = request(server, "/instance/0123456789abcdef/stream")
         assert status == 404
-
 
 
 def test_request_body_limits_fail_closed() -> None:
@@ -140,7 +137,6 @@ def test_demo_and_physics3d_modes_are_mutually_exclusive() -> None:
         raise AssertionError("expected mutually exclusive telemetry modes to fail")
 
 
-
 def test_cross_origin_mutation_is_rejected() -> None:
     with running_server() as server:
         status, body = request(
@@ -155,7 +151,6 @@ def test_cross_origin_mutation_is_rejected() -> None:
         )
         assert status == 403
         assert b"untrusted origin" in body
-
 
 
 def test_unified_server_refuses_non_loopback_binding() -> None:
@@ -197,11 +192,13 @@ def test_physics3d_catalog_endpoints_are_available(tmp_path) -> None:
 
 def test_physics3d_start_validates_launch_before_spawning(tmp_path) -> None:
     with running_server(physics_state_root=tmp_path) as server:
-        payload = json.dumps({
-            "body_kind": "anthropomorphic-v6",
-            "organism": {"mode": "new"},
-            "body": {"mode": "resume"},
-        }).encode()
+        payload = json.dumps(
+            {
+                "body_kind": "anthropomorphic-v6",
+                "organism": {"mode": "new"},
+                "body": {"mode": "resume"},
+            }
+        ).encode()
         status, body = request(
             server,
             "/api/runs",

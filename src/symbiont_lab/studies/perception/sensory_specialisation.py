@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import math
 import random
+from dataclasses import asdict, dataclass
 from statistics import mean
 
 from symbiont.host.readings import (
@@ -11,7 +11,7 @@ from symbiont.host.readings import (
     SensorReading,
     Unit,
 )
-from symbiont.sensory import SensorySystem, TransductionKind
+from symbiont.sensory import SensorySystem
 
 
 @dataclass(slots=True, frozen=True)
@@ -127,13 +127,16 @@ def run_adaptive_delta_discovery(
         )
         if identity_id is None:
             identity_id = next(
-                sensor.sensor_id for sensor in system.sensors
-                if sensor.sensor_id.startswith("sensor.identity.") and sensor.source_ids == ("source.opaque",)
+                sensor.sensor_id
+                for sensor in system.sensors
+                if sensor.sensor_id.startswith("sensor.identity.")
+                and sensor.source_ids == ("source.opaque",)
             )
         if tick == 16:
             system.plastic_step(tick=tick)
             variants = [
-                sensor for sensor in system.sensors
+                sensor
+                for sensor in system.sensors
                 if not sensor.sensor_id.startswith("sensor.identity.")
             ]
             specialised_id = variants[0].sensor_id
@@ -188,7 +191,6 @@ def run_temporal_scale_specialisation(
     slow_target = 0.0
     alpha_id: str | None = None
     beta_id: str | None = None
-    identity_id: str | None = None
     alpha_fast: list[float] = []
     beta_fast: list[float] = []
     alpha_slow: list[float] = []
@@ -206,13 +208,15 @@ def run_temporal_scale_specialisation(
         if tick == 16:
             system.plastic_step(tick=16)
             alpha_id = next(
-                sensor.sensor_id for sensor in system.sensors
+                sensor.sensor_id
+                for sensor in system.sensors
                 if sensor.modality_id == "modality.alpha"
             )
         if tick == 32:
             system.plastic_step(tick=32)
             beta_id = next(
-                sensor.sensor_id for sensor in system.sensors
+                sensor.sensor_id
+                for sensor in system.sensors
                 if sensor.modality_id == "modality.beta"
             )
         by_name = {item.name: item for item in percepts}
@@ -262,7 +266,9 @@ class SensoryProtocolResult:
         }
 
 
-def _develop_two_source_system(seed: int, samples: int) -> tuple[SensorySystem, list[tuple[float, float, tuple[object, ...]]]]:
+def _develop_two_source_system(
+    seed: int, samples: int
+) -> tuple[SensorySystem, list[tuple[float, float, tuple[object, ...]]]]:
     if samples < 48:
         raise ValueError("samples must be at least 48")
     rng = random.Random(seed)
@@ -286,13 +292,18 @@ def run_modality_specialisation(seed: int = 101, *, samples: int = 128) -> dict[
     temporal = run_temporal_scale_specialisation(seed=seed, samples=max(48, samples))
     system, trace = _develop_two_source_system(seed, max(48, samples))
     gamma = next(
-        (sensor for sensor in system.sensors if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) == 2),
+        (
+            sensor
+            for sensor in system.sensors
+            if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) == 2
+        ),
         None,
     )
     if gamma is None:
         raise RuntimeError("multisource modality was not expressed")
     identity_a = next(
-        sensor.sensor_id for sensor in system.sensors
+        sensor.sensor_id
+        for sensor in system.sensors
         if sensor.sensor_id.startswith("sensor.identity.") and sensor.source_ids == ("source.a",)
     )
     gamma_values: list[float] = []
@@ -336,7 +347,9 @@ def run_duplication_divergence(seed: int = 101, *, samples: int = 96) -> dict[st
         if tick % system.limits.mutation_window_ticks == 0:
             mutations = system.plastic_step(tick=tick)
             mutation_counts[tick] = len(mutations)
-    variants = [sensor for sensor in system.sensors if not sensor.sensor_id.startswith("sensor.identity.")]
+    variants = [
+        sensor for sensor in system.sensors if not sensor.sensor_id.startswith("sensor.identity.")
+    ]
     return {
         "seed": seed,
         "variant_count": len(variants),
@@ -345,7 +358,8 @@ def run_duplication_divergence(seed: int = 101, *, samples: int = 96) -> dict[st
         "lineage_links": sum(bool(sensor.parent_sensor_ids) for sensor in variants),
         "max_mutations_per_window": max(mutation_counts.values(), default=0),
         "mutation_budget": system.limits.max_sensor_mutations_per_window,
-        "bounded": max(mutation_counts.values(), default=0) <= system.limits.max_sensor_mutations_per_window,
+        "bounded": max(mutation_counts.values(), default=0)
+        <= system.limits.max_sensor_mutations_per_window,
         "diverged": len({sensor.transduction for sensor in variants}) >= 2,
     }
 
@@ -373,16 +387,28 @@ def run_sensory_ablation(seed: int = 101, *, samples: int = 128) -> dict[str, ob
         )
         if identity_id is None:
             identity_id = next(
-                sensor.sensor_id for sensor in system.sensors
-                if sensor.sensor_id.startswith("sensor.identity.") and sensor.source_ids == ("source.opaque",)
+                sensor.sensor_id
+                for sensor in system.sensors
+                if sensor.sensor_id.startswith("sensor.identity.")
+                and sensor.source_ids == ("source.opaque",)
             )
         if tick % 16 == 0:
             system.plastic_step(tick=tick)
             alpha_id = alpha_id or next(
-                (sensor.sensor_id for sensor in system.sensors if sensor.modality_id == "modality.alpha"), None
+                (
+                    sensor.sensor_id
+                    for sensor in system.sensors
+                    if sensor.modality_id == "modality.alpha"
+                ),
+                None,
             )
             beta_id = beta_id or next(
-                (sensor.sensor_id for sensor in system.sensors if sensor.modality_id == "modality.beta"), None
+                (
+                    sensor.sensor_id
+                    for sensor in system.sensors
+                    if sensor.modality_id == "modality.beta"
+                ),
+                None,
             )
         by_name = {item.name: item for item in percepts}
         if previous is not None and alpha_id in by_name and beta_id in by_name:
@@ -413,7 +439,11 @@ def run_sensory_ablation(seed: int = 101, *, samples: int = 128) -> dict[str, ob
 def run_multisource_specialisation(seed: int = 101, *, samples: int = 128) -> dict[str, object]:
     system, trace = _develop_two_source_system(seed, max(64, samples))
     gamma = next(
-        (sensor for sensor in system.sensors if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) == 2),
+        (
+            sensor
+            for sensor in system.sensors
+            if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) == 2
+        ),
         None,
     )
     if gamma is None:
@@ -500,7 +530,9 @@ def run_same_world_phenotype_divergence(seed: int = 101, *, samples: int = 96) -
     }
 
 
-def _replicated(protocol: str, seeds: list[int] | tuple[int, ...], fn, *, steps: int) -> SensoryProtocolResult:
+def _replicated(
+    protocol: str, seeds: list[int] | tuple[int, ...], fn, *, steps: int
+) -> SensoryProtocolResult:
     resolved = tuple(int(seed) for seed in seeds)
     if not resolved:
         raise ValueError("at least one seed is required")
@@ -509,63 +541,108 @@ def _replicated(protocol: str, seeds: list[int] | tuple[int, ...], fn, *, steps:
 
 
 def run_identity_equivalence_study(seeds=(101, 127, 149), steps: int = 64) -> SensoryProtocolResult:
-    runs = tuple(run_identity_equivalence(samples=max(2, steps)).as_dict() | {"seed": int(seed)} for seed in seeds)
+    runs = tuple(
+        run_identity_equivalence(samples=max(2, steps)).as_dict() | {"seed": int(seed)}
+        for seed in seeds
+    )
     return SensoryProtocolResult(
-        "perception.identity-equivalence", tuple(int(seed) for seed in seeds), runs,
+        "perception.identity-equivalence",
+        tuple(int(seed) for seed in seeds),
+        runs,
         {"all_equivalent": all(bool(run["equivalent"]) for run in runs)},
     )
 
 
-def run_adaptive_delta_discovery_study(seeds=(101, 127, 149), steps: int = 96) -> SensoryProtocolResult:
-    runs = tuple(run_adaptive_delta_discovery(int(seed), samples=max(32, steps)).as_dict() for seed in seeds)
+def run_adaptive_delta_discovery_study(
+    seeds=(101, 127, 149), steps: int = 96
+) -> SensoryProtocolResult:
+    runs = tuple(
+        run_adaptive_delta_discovery(int(seed), samples=max(32, steps)).as_dict() for seed in seeds
+    )
     return SensoryProtocolResult(
-        "perception.adaptive-delta-discovery", tuple(int(seed) for seed in seeds), runs,
+        "perception.adaptive-delta-discovery",
+        tuple(int(seed) for seed in seeds),
+        runs,
         {"all_improved": all(float(run["improvement"]) > 0.0 for run in runs)},
     )
 
 
-def run_temporal_scale_specialisation_study(seeds=(101, 127, 149), steps: int = 128) -> SensoryProtocolResult:
-    runs = tuple(run_temporal_scale_specialisation(int(seed), samples=max(48, steps)).as_dict() for seed in seeds)
+def run_temporal_scale_specialisation_study(
+    seeds=(101, 127, 149), steps: int = 128
+) -> SensoryProtocolResult:
+    runs = tuple(
+        run_temporal_scale_specialisation(int(seed), samples=max(48, steps)).as_dict()
+        for seed in seeds
+    )
     return SensoryProtocolResult(
-        "perception.temporal-scale-specialisation", tuple(int(seed) for seed in seeds), runs,
-        {"all_niches_distinct": all(
-            float(run["fast_specialisation_gain"]) > 0.0 and float(run["slow_specialisation_gain"]) > 0.0
-            for run in runs
-        )},
+        "perception.temporal-scale-specialisation",
+        tuple(int(seed) for seed in seeds),
+        runs,
+        {
+            "all_niches_distinct": all(
+                float(run["fast_specialisation_gain"]) > 0.0
+                and float(run["slow_specialisation_gain"]) > 0.0
+                for run in runs
+            )
+        },
     )
 
 
-def run_modality_specialisation_study(seeds=(101, 127, 149), steps: int = 128) -> SensoryProtocolResult:
+def run_modality_specialisation_study(
+    seeds=(101, 127, 149), steps: int = 128
+) -> SensoryProtocolResult:
     runs = tuple(run_modality_specialisation(int(seed), samples=max(48, steps)) for seed in seeds)
     return SensoryProtocolResult(
-        "perception.modality-specialisation", tuple(int(seed) for seed in seeds), runs,
-        {"all_three_niches": all(
-            bool(run["fast_niche"]) and bool(run["slow_niche"]) and bool(run["distributed_niche"])
-            for run in runs
-        )},
+        "perception.modality-specialisation",
+        tuple(int(seed) for seed in seeds),
+        runs,
+        {
+            "all_three_niches": all(
+                bool(run["fast_niche"])
+                and bool(run["slow_niche"])
+                and bool(run["distributed_niche"])
+                for run in runs
+            )
+        },
     )
 
 
-def run_duplication_divergence_study(seeds=(101, 127, 149), steps: int = 96) -> SensoryProtocolResult:
+def run_duplication_divergence_study(
+    seeds=(101, 127, 149), steps: int = 96
+) -> SensoryProtocolResult:
     runs = tuple(run_duplication_divergence(int(seed), samples=max(64, steps)) for seed in seeds)
     return SensoryProtocolResult(
-        "perception.sensory-duplication-divergence", tuple(int(seed) for seed in seeds), runs,
-        {"all_bounded_and_diverged": all(bool(run["bounded"]) and bool(run["diverged"]) for run in runs)},
+        "perception.sensory-duplication-divergence",
+        tuple(int(seed) for seed in seeds),
+        runs,
+        {
+            "all_bounded_and_diverged": all(
+                bool(run["bounded"]) and bool(run["diverged"]) for run in runs
+            )
+        },
     )
 
 
 def run_sensory_ablation_study(seeds=(101, 127, 149), steps: int = 128) -> SensoryProtocolResult:
     runs = tuple(run_sensory_ablation(int(seed), samples=max(64, steps)) for seed in seeds)
     return SensoryProtocolResult(
-        "perception.sensory-ablation", tuple(int(seed) for seed in seeds), runs,
+        "perception.sensory-ablation",
+        tuple(int(seed) for seed in seeds),
+        runs,
         {"all_support_causal_role": all(bool(run["causal_support"]) for run in runs)},
     )
 
 
-def run_multisource_specialisation_study(seeds=(101, 127, 149), steps: int = 128) -> SensoryProtocolResult:
-    runs = tuple(run_multisource_specialisation(int(seed), samples=max(64, steps)) for seed in seeds)
+def run_multisource_specialisation_study(
+    seeds=(101, 127, 149), steps: int = 128
+) -> SensoryProtocolResult:
+    runs = tuple(
+        run_multisource_specialisation(int(seed), samples=max(64, steps)) for seed in seeds
+    )
     return SensoryProtocolResult(
-        "perception.multisource-specialisation", tuple(int(seed) for seed in seeds), runs,
+        "perception.multisource-specialisation",
+        tuple(int(seed) for seed in seeds),
+        runs,
         {
             "all_beat_single": all(bool(run["beats_single_source"]) for run in runs),
             "all_beat_frozen": all(bool(run["beats_frozen"]) for run in runs),
@@ -573,10 +650,16 @@ def run_multisource_specialisation_study(seeds=(101, 127, 149), steps: int = 128
     )
 
 
-def run_same_world_phenotype_divergence_study(seeds=(101, 127, 149), steps: int = 96) -> SensoryProtocolResult:
-    runs = tuple(run_same_world_phenotype_divergence(int(seed), samples=max(64, steps)) for seed in seeds)
+def run_same_world_phenotype_divergence_study(
+    seeds=(101, 127, 149), steps: int = 96
+) -> SensoryProtocolResult:
+    runs = tuple(
+        run_same_world_phenotype_divergence(int(seed), samples=max(64, steps)) for seed in seeds
+    )
     return SensoryProtocolResult(
-        "perception.same-world-phenotype-divergence", tuple(int(seed) for seed in seeds), runs,
+        "perception.same-world-phenotype-divergence",
+        tuple(int(seed) for seed in seeds),
+        runs,
         {
             "converged_runs": sum(bool(run["converged"]) for run in runs),
             "diverged_runs": sum(bool(run["diverged"]) for run in runs),

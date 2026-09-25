@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope, HostManifest
+from symbiont.host.contracts import (
+    AccessMode,
+    Capability,
+    CapabilityKind,
+    CapabilityScope,
+    HostManifest,
+)
 from symbiont.host.readings import (
     HostSampler,
     ReadingPrivacyClass,
@@ -59,7 +65,9 @@ def _manifest(*capability_ids: str) -> HostManifest:
 def _session(capability_id: str = "compute.logical_cpu", **kwargs) -> SecondLookSession:
     manifest = _manifest(capability_id)
     sampler = HostSampler(providers=(_CountingProvider(),))
-    return SecondLookSession(manifest=manifest, capability_id=capability_id, sampler=sampler, **kwargs)
+    return SecondLookSession(
+        manifest=manifest, capability_id=capability_id, sampler=sampler, **kwargs
+    )
 
 
 def test_rejects_capability_not_in_manifest():
@@ -121,7 +129,9 @@ def test_run_to_completion_after_cancel_reports_cancelled_and_partial_readings()
 def test_only_readings_for_this_session_capability_are_kept():
     manifest = _manifest("compute.logical_cpu", "storage.disk_usage")
     sampler = HostSampler(providers=(_CountingProvider(),))
-    session = SecondLookSession(manifest=manifest, capability_id="compute.logical_cpu", sampler=sampler, max_ticks=1)
+    session = SecondLookSession(
+        manifest=manifest, capability_id="compute.logical_cpu", sampler=sampler, max_ticks=1
+    )
 
     result = session.run_to_completion()
 

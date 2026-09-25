@@ -1,10 +1,12 @@
 """Evaluator-only longitudinal adaptation of local social evidence."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.core.social import SocialHabitat
 
 
@@ -36,13 +38,17 @@ def run_social_runtime_adaptation_study() -> SocialRuntimeAdaptationStudy:
     # unknown channel remains available for renewed evidence gathering.
     runtime.social_ledger.observe("observer", "candidate", cost=8.0, conflict=True, tick=1)
     revised = runtime.select_social_opportunity()
-    relation = next(item for item in runtime.social_ledger.relations if item.target_id == "candidate")
+    relation = next(
+        item for item in runtime.social_ledger.relations if item.target_id == "candidate"
+    )
     return SocialRuntimeAdaptationStudy(
         initial_choice=initial.target_id if initial else "none",
         revised_choice=revised.target_id if revised else "none",
         final_valence=relation.valence.value,
         evidence_observations=relation.observations,
-        changed_after_contradiction=(initial is not None and revised is not None and initial.target_id != revised.target_id),
+        changed_after_contradiction=(
+            initial is not None and revised is not None and initial.target_id != revised.target_id
+        ),
     )
 
 

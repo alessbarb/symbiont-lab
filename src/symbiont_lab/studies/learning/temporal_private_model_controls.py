@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import random
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
-import random
 
 from symbiont.modeling import (
     ArchitectureId,
@@ -20,8 +20,8 @@ from symbiont_lab.modeling import (
     TrainingConfig,
     encode_corpus,
     evaluate_candidate,
-    train_private_model,
     evaluate_vomm_challenger,
+    train_private_model,
 )
 
 
@@ -99,21 +99,23 @@ def temporal_history(*, seed: int, ticks: int) -> tuple[ExperienceRecord, ...]:
         action = rng.randrange(4)
         next_state = (state * 3 + action * 5 + 1) % 8
         delta = (next_state - state) % 8
-        records.append(ExperienceRecord(
-            record_id=f"transition.control.{seed}.{tick}",
-            organism_id=f"temporal-control-{seed}",
-            tick_class=tick,
-            context_tokens=(
-                "sense.opaque",
-                f"state.sense.opaque.level.{state}",
-            ),
-            action_token=f"action.motor.{action}",
-            outcome_tokens=(f"outcome.sense.opaque.delta.{delta}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.control.{seed}.{tick}",),
-            confidence_class=7,
-            source_kind=SourceKind.ACTION_OUTCOME,
-        ))
+        records.append(
+            ExperienceRecord(
+                record_id=f"transition.control.{seed}.{tick}",
+                organism_id=f"temporal-control-{seed}",
+                tick_class=tick,
+                context_tokens=(
+                    "sense.opaque",
+                    f"state.sense.opaque.level.{state}",
+                ),
+                action_token=f"action.motor.{action}",
+                outcome_tokens=(f"outcome.sense.opaque.delta.{delta}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.control.{seed}.{tick}",),
+                confidence_class=7,
+                source_kind=SourceKind.ACTION_OUTCOME,
+            )
+        )
         state = next_state
     return tuple(records)
 
@@ -132,15 +134,11 @@ def _permute(
 
     if field == "action":
         values = [records[index].action_token for index in indices]
-        return tuple(
-            replace(record, action_token=value)
-            for record, value in zip(records, values)
-        )
+        return tuple(replace(record, action_token=value) for record, value in zip(records, values))
     if field == "outcome":
         values = [records[index].outcome_tokens for index in indices]
         return tuple(
-            replace(record, outcome_tokens=value)
-            for record, value in zip(records, values)
+            replace(record, outcome_tokens=value) for record, value in zip(records, values)
         )
     raise ValueError("field must be action or outcome")
 
@@ -224,9 +222,7 @@ def _train_condition(
         vomm_loss=vomm.mean_log_loss,
         vomm_gain_over_trivial=baselines[best_baseline] - vomm.mean_log_loss,
         decayed_vomm_loss=decayed_vomm.mean_log_loss,
-        decayed_vomm_gain_over_trivial=(
-            baselines[best_baseline] - decayed_vomm.mean_log_loss
-        ),
+        decayed_vomm_gain_over_trivial=(baselines[best_baseline] - decayed_vomm.mean_log_loss),
     )
 
 
@@ -270,63 +266,52 @@ def run_temporal_private_model_controls_study(
             measured["next_state_shuffled"].decayed_vomm_gain_over_trivial,
             measured["no_action"].decayed_vomm_gain_over_trivial,
         )
-        results.append(TemporalPrivateModelControlSeedResult(
-            seed=seed,
-            causal=causal,
-            action_shuffled=measured["action_shuffled"],
-            next_state_shuffled=measured["next_state_shuffled"],
-            no_action=measured["no_action"],
-            causal_gain_margin_over_best_control=causal.gain_over_trivial - best_control,
-            all_controls_below_causal=all(
-                causal.gain_over_trivial > gain for gain in control_gains
-            ),
-            vomm_causal_gain_margin_over_best_control=(
-                causal.vomm_gain_over_trivial - max(vomm_control_gains)
-            ),
-            vomm_all_controls_below_causal=all(
-                causal.vomm_gain_over_trivial > gain
-                for gain in vomm_control_gains
-            ),
-            decayed_vomm_causal_gain_margin_over_best_control=(
-                causal.decayed_vomm_gain_over_trivial
-                - max(decayed_vomm_control_gains)
-            ),
-            decayed_vomm_all_controls_below_causal=all(
-                causal.decayed_vomm_gain_over_trivial > gain
-                for gain in decayed_vomm_control_gains
-            ),
-        ))
+        results.append(
+            TemporalPrivateModelControlSeedResult(
+                seed=seed,
+                causal=causal,
+                action_shuffled=measured["action_shuffled"],
+                next_state_shuffled=measured["next_state_shuffled"],
+                no_action=measured["no_action"],
+                causal_gain_margin_over_best_control=causal.gain_over_trivial - best_control,
+                all_controls_below_causal=all(
+                    causal.gain_over_trivial > gain for gain in control_gains
+                ),
+                vomm_causal_gain_margin_over_best_control=(
+                    causal.vomm_gain_over_trivial - max(vomm_control_gains)
+                ),
+                vomm_all_controls_below_causal=all(
+                    causal.vomm_gain_over_trivial > gain for gain in vomm_control_gains
+                ),
+                decayed_vomm_causal_gain_margin_over_best_control=(
+                    causal.decayed_vomm_gain_over_trivial - max(decayed_vomm_control_gains)
+                ),
+                decayed_vomm_all_controls_below_causal=all(
+                    causal.decayed_vomm_gain_over_trivial > gain
+                    for gain in decayed_vomm_control_gains
+                ),
+            )
+        )
 
     return TemporalPrivateModelControlsStudy(
         seeds=normalized,
         ticks=ticks,
         per_seed=tuple(results),
-        all_seeds_causal_beats_controls=all(
-            item.all_controls_below_causal for item in results
-        ),
+        all_seeds_causal_beats_controls=all(item.all_controls_below_causal for item in results),
         mean_causal_gain_margin=(
-            sum(item.causal_gain_margin_over_best_control for item in results)
-            / len(results)
+            sum(item.causal_gain_margin_over_best_control for item in results) / len(results)
         ),
         all_seeds_vomm_causal_beats_controls=all(
             item.vomm_all_controls_below_causal for item in results
         ),
         mean_vomm_causal_gain_margin=(
-            sum(
-                item.vomm_causal_gain_margin_over_best_control
-                for item in results
-            )
-            / len(results)
+            sum(item.vomm_causal_gain_margin_over_best_control for item in results) / len(results)
         ),
         all_seeds_decayed_vomm_causal_beats_controls=all(
-            item.decayed_vomm_all_controls_below_causal
-            for item in results
+            item.decayed_vomm_all_controls_below_causal for item in results
         ),
         mean_decayed_vomm_causal_gain_margin=(
-            sum(
-                item.decayed_vomm_causal_gain_margin_over_best_control
-                for item in results
-            )
+            sum(item.decayed_vomm_causal_gain_margin_over_best_control for item in results)
             / len(results)
         ),
     )

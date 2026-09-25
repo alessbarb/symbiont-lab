@@ -129,7 +129,9 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         "revise",
         help="Revise a capability's baseline from a second-look evidence batch, keeping any conflict as dissent",
     )
-    revise_cmd.add_argument("--capability-id", required=True, help="Capability id to revise (must be discovered)")
+    revise_cmd.add_argument(
+        "--capability-id", required=True, help="Capability id to revise (must be discovered)"
+    )
     revise_cmd.add_argument(
         "--acclimate-ticks",
         type=int,
@@ -293,7 +295,11 @@ def run_host_command(args: argparse.Namespace) -> int:
                 for observations in tick_observations
             ],
             "baselines": {
-                name: {"is_established": baseline.is_established, "mean": baseline.mean, "stdev": baseline.stdev}
+                name: {
+                    "is_established": baseline.is_established,
+                    "mean": baseline.mean,
+                    "stdev": baseline.stdev,
+                }
                 for name, baseline in baselines.items()
             },
         }
@@ -346,7 +352,11 @@ def run_host_command(args: argparse.Namespace) -> int:
             "budget": args.budget,
             "known_capabilities": list(acclimation.known_capabilities),
             "allocations": [
-                {"name": allocation.name, "uncertainty": allocation.uncertainty, "cost": allocation.cost}
+                {
+                    "name": allocation.name,
+                    "uncertainty": allocation.uncertainty,
+                    "cost": allocation.cost,
+                }
                 for allocation in allocations
             ],
         }
@@ -374,13 +384,17 @@ def run_host_command(args: argparse.Namespace) -> int:
             return 1
         acclimation, _ = acclimate_local_host(ticks=acclimate_ticks)
         try:
-            evidence_result = second_look_at_local_host(args.capability_id, max_ticks=evidence_ticks)
+            evidence_result = second_look_at_local_host(
+                args.capability_id, max_ticks=evidence_ticks
+            )
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 1
         ledger = EvidenceRevisionLedger(conflict_z=args.conflict_z)
         result = ledger.revise(
-            acclimation=acclimation, capability_id=args.capability_id, evidence=evidence_result.readings
+            acclimation=acclimation,
+            capability_id=args.capability_id,
+            evidence=evidence_result.readings,
         )
         payload = {
             "capability_id": result.capability_id,
@@ -424,7 +438,9 @@ def run_host_command(args: argparse.Namespace) -> int:
             evidence_counts[top_capability] = len(evidence_result.readings)
             ledger = EvidenceRevisionLedger(conflict_z=args.conflict_z)
             revision = ledger.revise(
-                acclimation=acclimation, capability_id=top_capability, evidence=evidence_result.readings
+                acclimation=acclimation,
+                capability_id=top_capability,
+                evidence=evidence_result.readings,
             )
             if revision.dissent is not None:
                 dissent_by_capability[top_capability] = revision.dissent

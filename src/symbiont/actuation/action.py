@@ -5,6 +5,7 @@ proposal is organism-owned intent; a MotorCommand is one controller correction
 made under exactly one existing ActionCommitment and exactly one actuator
 surface.
 """
+
 from __future__ import annotations
 
 import math

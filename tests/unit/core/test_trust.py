@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
-
 from symbiont.core.capsule import CapsuleKeyPair, create_capsule
 from symbiont.core.trust import SourceTrustModel, agreement_score, observe_capsule_trust
+
 from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
@@ -130,8 +130,12 @@ def test_observe_capsule_trust_rejects_forged_capsule():
     import dataclasses
 
     keypair = CapsuleKeyPair.generate()
-    capsule = create_capsule(keypair, {"acclimation": {"cpu": {"count": 5, "mean": 1.0, "variance": 0.01}}})
-    forged = dataclasses.replace(capsule, payload={"acclimation": {"cpu": {"count": 5, "mean": 999.0, "variance": 0.01}}})
+    capsule = create_capsule(
+        keypair, {"acclimation": {"cpu": {"count": 5, "mean": 1.0, "variance": 0.01}}}
+    )
+    forged = dataclasses.replace(
+        capsule, payload={"acclimation": {"cpu": {"count": 5, "mean": 999.0, "variance": 0.01}}}
+    )
 
     model = SourceTrustModel()
     acclimation = HostAcclimation(min_samples=2)
@@ -153,7 +157,9 @@ def test_observe_capsule_trust_updates_model_for_shared_capabilities():
         },
     )
     acclimation = HostAcclimation(min_samples=2)
-    acclimation.observe([_reading("cpu", 1.0), _reading("cpu", 1.02), _reading("cpu", 0.99), _reading("cpu", 1.01)])
+    acclimation.observe(
+        [_reading("cpu", 1.0), _reading("cpu", 1.02), _reading("cpu", 0.99), _reading("cpu", 1.01)]
+    )
 
     model = SourceTrustModel()
     scores = observe_capsule_trust(model, acclimation=acclimation, capsule=capsule)
@@ -165,7 +171,9 @@ def test_observe_capsule_trust_updates_model_for_shared_capabilities():
 
 def test_observe_capsule_trust_skips_capabilities_without_local_baseline():
     keypair = CapsuleKeyPair.generate()
-    capsule = create_capsule(keypair, {"acclimation": {"never_seen": {"count": 5, "mean": 1.0, "variance": 0.0}}})
+    capsule = create_capsule(
+        keypair, {"acclimation": {"never_seen": {"count": 5, "mean": 1.0, "variance": 0.0}}}
+    )
     acclimation = HostAcclimation(min_samples=2)  # nothing observed at all
 
     model = SourceTrustModel()

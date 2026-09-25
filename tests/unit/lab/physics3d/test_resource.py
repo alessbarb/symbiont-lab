@@ -110,7 +110,5 @@ def test_world_loss_equals_body_gain_for_accepted_physical_transfer():
     consumed = resource.consume_absorbed(accepted)
 
     assert consumed == pytest.approx(accepted)
-    assert world_before - resource.remaining == pytest.approx(
-        state.energy_reserve - body_before
-    )
+    assert world_before - resource.remaining == pytest.approx(state.energy_reserve - body_before)
     assert accepted == pytest.approx(1.5)

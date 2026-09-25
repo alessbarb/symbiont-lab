@@ -3,19 +3,19 @@
 The writer is intentionally apparatus-side and passive. It records completed
 runtime observations and never feeds data back into the organism.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, is_dataclass
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
-from pathlib import Path
 import queue
 import threading
-from typing import Any, Mapping
 import uuid
-
+from dataclasses import asdict, is_dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Mapping
 
 SCHEMA_VERSION = 3
 ENVELOPE_TYPE = "symbiont-physics3d-telemetry"
@@ -87,8 +87,7 @@ class TelemetryV3Writer:
         if flush_every < 1:
             raise ValueError("flush_every must be >= 1")
         generated_run_id = (
-            f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-"
-            f"{uuid.uuid4().hex[:12]}"
+            f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:12]}"
         )
         self.run_id = run_id or generated_run_id
         self.root = Path(root).expanduser() / self.run_id
@@ -214,9 +213,7 @@ class TelemetryV3Writer:
         tick = int(summary["tick"])
         rich_tick = rich_state.get("tick")
         if rich_tick is not None and int(rich_tick) != tick:
-            raise ValueError(
-                f"rich telemetry tick mismatch: {rich_tick} != {tick}"
-            )
+            raise ValueError(f"rich telemetry tick mismatch: {rich_tick} != {tick}")
         if self._last_tick is not None and tick <= self._last_tick:
             raise ValueError(
                 f"telemetry ticks must be strictly increasing: {tick} <= {self._last_tick}"
@@ -427,9 +424,7 @@ def iter_v3_envelopes(
                 continue
             envelope = json.loads(line)
             if not isinstance(envelope, dict):
-                raise ValueError(
-                    f"invalid telemetry envelope at line {line_no}"
-                )
+                raise ValueError(f"invalid telemetry envelope at line {line_no}")
             if verify:
                 if int(envelope.get("sequence", -1)) != expected_sequence:
                     raise ValueError(
@@ -437,22 +432,16 @@ def iter_v3_envelopes(
                         f"{envelope.get('sequence')} != {expected_sequence}"
                     )
                 if envelope.get("previous_record_hash") != previous_hash:
-                    raise ValueError(
-                        f"telemetry hash-chain break at line {line_no}"
-                    )
+                    raise ValueError(f"telemetry hash-chain break at line {line_no}")
                 claimed = envelope.get("record_hash")
                 unsigned = dict(envelope)
                 unsigned.pop("record_hash", None)
                 actual = _hash_payload(unsigned)
                 if claimed != actual:
-                    raise ValueError(
-                        f"telemetry record hash mismatch at line {line_no}"
-                    )
+                    raise ValueError(f"telemetry record hash mismatch at line {line_no}")
                 tick = int(envelope.get("tick", -1))
                 if previous_tick is not None and tick <= previous_tick:
-                    raise ValueError(
-                        f"telemetry tick order violation at line {line_no}"
-                    )
+                    raise ValueError(f"telemetry tick order violation at line {line_no}")
                 previous_tick = tick
                 previous_hash = str(claimed)
                 expected_sequence += 1
@@ -490,11 +479,7 @@ def load_v3_transitions(
     transitions: list[dict[str, Any]] = []
     for envelope in iter_v3_envelopes(path, verify=verify):
         payload = envelope.get("payload", {})
-        transition = (
-            payload.get("transition", {})
-            if isinstance(payload, dict)
-            else {}
-        )
+        transition = payload.get("transition", {}) if isinstance(payload, dict) else {}
         if isinstance(transition, dict):
             transitions.append(dict(transition))
     return transitions
@@ -515,14 +500,10 @@ def load_v3_deltas(path: str | Path) -> list[dict[str, Any]]:
                 continue
             item = json.loads(line)
             if not isinstance(item, dict):
-                raise ValueError(
-                    f"invalid telemetry delta at line {line_no}"
-                )
+                raise ValueError(f"invalid telemetry delta at line {line_no}")
             claimed = item.get("state_sha256")
             if claimed != _hash_payload(item.get("state")):
-                raise ValueError(
-                    f"telemetry delta hash mismatch at line {line_no}"
-                )
+                raise ValueError(f"telemetry delta hash mismatch at line {line_no}")
             deltas.append(item)
     return deltas
 
@@ -572,6 +553,7 @@ def verify_v3_run(path: str | Path) -> dict[str, Any]:
         "closed": closed,
         "complete": complete,
     }
+
 
 __all__ = [
     "ENVELOPE_TYPE",

@@ -1,4 +1,5 @@
 """Canonical cognition/learning phase of one organism tick."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -68,8 +69,7 @@ class CognitionDomain:
             sense_modulation: dict[str, float] = {}
             if services.sensory_system.plasticity_enabled:
                 sensor_by_name = {
-                    sensor.cognitive_name: sensor
-                    for sensor in services.sensory_system.sensors
+                    sensor.cognitive_name: sensor for sensor in services.sensory_system.sensors
                 }
                 for allocation in perception.perceptual_allocations:
                     sensor = sensor_by_name.get(allocation.name)
@@ -113,20 +113,12 @@ class CognitionDomain:
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
                 plasticity_enabled=plasticity_enabled,
-                active_motor_actuator_ids=(
-                    action_projection.active_motor_actuator_ids
-                ),
-                motor_effect_actuator_ids=(
-                    action_projection.motor_effect_actuator_ids
-                ),
-                active_primitive_ids=(
-                    action_projection.active_competence_ids
-                ),
+                active_motor_actuator_ids=(action_projection.active_motor_actuator_ids),
+                motor_effect_actuator_ids=(action_projection.motor_effect_actuator_ids),
+                active_primitive_ids=(action_projection.active_competence_ids),
             )
             if auto_promote_predictors:
-                bridge.nominate_shadow_prediction(
-                    tick=context.symbiont_tick
-                )
+                bridge.nominate_shadow_prediction(tick=context.symbiont_tick)
 
             activations = getattr(result, "activations", None)
             if (
@@ -139,12 +131,10 @@ class CognitionDomain:
                     | set(perception.developed_names.values())
                     | set(perception.cognitive_aliases.values())
                 )
-                cognitive_self_observation = (
-                    project_cognitive_self_observation(
-                        activations,
-                        sensory_ids=known_sensory_nodes,
-                        namespace_key=cognitive_self_namespace_key,
-                    )
+                cognitive_self_observation = project_cognitive_self_observation(
+                    activations,
+                    sensory_ids=known_sensory_nodes,
+                    namespace_key=cognitive_self_namespace_key,
                 )
 
         predictive_gain_by_name: dict[str, float] = {}
@@ -154,27 +144,18 @@ class CognitionDomain:
                     predictive_gain_by_name.get(candidate.source_id, 0.0),
                     max(0.0, candidate.predictive_gain),
                 )
-        services.sensory_system.update_downstream_utility(
-            predictive_gain_by_name
-        )
-        sensory_mutations = services.sensory_system.plastic_step(
-            tick=context.symbiont_tick
-        )
+        services.sensory_system.update_downstream_utility(predictive_gain_by_name)
+        sensory_mutations = services.sensory_system.plastic_step(tick=context.symbiont_tick)
         if sensory_mutations:
             services.charge_metabolism(
                 "cognition",
-                sum(
-                    min(0.01, mutation.cost * 0.01)
-                    for mutation in sensory_mutations
-                ),
+                sum(min(0.01, mutation.cost * 0.01) for mutation in sensory_mutations),
             )
 
         return CognitionStepResult(
             cognition=result,
             cognitive_self_observation=cognitive_self_observation,
             retained_node_count=(
-                len(bridge.graph.nodes)
-                if bridge is not None and bridge.graph is not None
-                else 0
+                len(bridge.graph.nodes) if bridge is not None and bridge.graph is not None else 0
             ),
         )

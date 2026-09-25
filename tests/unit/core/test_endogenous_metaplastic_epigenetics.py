@@ -5,7 +5,6 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-
 from symbiont.core.germline import (
     EpigeneticMark,
     GermlineState,
@@ -14,6 +13,7 @@ from symbiont.core.germline import (
     create_standard_genome,
 )
 from symbiont.core.symbiont import Symbiont
+
 from symbiont.genetics.expression import (
     ExpressionRegulator,
     GeneExpressionState,
@@ -83,7 +83,7 @@ def test_m1_regulator_is_semantically_invariant_to_external_names():
 def test_m2_transient_shock_does_not_create_acquired_mark():
     genome = _genome("m2")
     germline = create_germline_state(genome, acquired_capture_enabled=True)
-    sym = Symbiont("m2-sym", genome=genome, germline=germline)
+    Symbiont("m2-sym", genome=genome, germline=germline)
 
     state = GeneExpressionState.from_genome(genome, germline=germline)
     regulator = ExpressionRegulator()
@@ -222,18 +222,10 @@ def test_m6_forbidden_token_scan_excludes_comments_but_catches_code():
     the false failure that was fixed), but a genuine code-level dependency
     must still trip it (so the fix did not silently widen the exemption).
     """
-    disclaiming_source = (
-        "x = 1  # no evaluator-defined success or fitness enters here.\n"
-    )
-    assert not any(
-        "fitness" in token for token in _code_tokens(ast.parse(disclaiming_source))
-    )
+    disclaiming_source = "x = 1  # no evaluator-defined success or fitness enters here.\n"
+    assert not any("fitness" in token for token in _code_tokens(ast.parse(disclaiming_source)))
 
     real_dependency_source = (
-        "def compute(self):\n"
-        "    reward = self.upstream_reward_signal()\n"
-        "    return reward\n"
+        "def compute(self):\n    reward = self.upstream_reward_signal()\n    return reward\n"
     )
-    assert any(
-        "reward" in token for token in _code_tokens(ast.parse(real_dependency_source))
-    )
+    assert any("reward" in token for token in _code_tokens(ast.parse(real_dependency_source)))

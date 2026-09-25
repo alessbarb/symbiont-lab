@@ -3,16 +3,16 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
-
 from symbiont.core.germline import (
     EpigeneticMark,
     GermlineState,
     SymbiontGenome,
-    create_offspring_package,
     create_germline_state,
+    create_offspring_package,
     create_standard_genome,
 )
 from symbiont.core.symbiont import Symbiont
+
 from symbiont.genetics.germline import EpigeneticProtocol
 
 

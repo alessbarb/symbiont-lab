@@ -4,15 +4,17 @@ The genuine somatic signal is produced by an actual Body physiological state
 and routed through an actual ReceptorPort + EmbodimentSession. External controls
 are evaluator/world processes transduced through separate physical receptors.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Sequence
 
-from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema, PerceptualStructure
 from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
+
 from symbiont.core.embodiment import implant_body
+from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema, PerceptualStructure
 
 # Component-level falsification specimen marker (see §62 of
 # docs/design/herencia-evolutiva-multidimensional.md). This module
@@ -176,10 +178,7 @@ def _run_seed(seed: int, *, steps: int) -> SomaticTrapSeedResult:
         perceptual.observe(opaque)
 
         if previous_inputs is not None:
-            deltas = {
-                ch: value - previous_inputs.get(ch, value)
-                for ch, value in opaque.items()
-            }
+            deltas = {ch: value - previous_inputs.get(ch, value) for ch, value in opaque.items()}
             deltas["in.0"] = float(opaque["in.0"])
             agency.record_step({"out.0": act}, deltas)
         previous_inputs = dict(opaque)
@@ -207,7 +206,7 @@ def _run_seed(seed: int, *, steps: int) -> SomaticTrapSeedResult:
 
 def run_somatic_correlation_trap_study(
     *,
-    seeds: Sequence[int] = (101,127,149,173,211,257,307,353,401,457),
+    seeds: Sequence[int] = (101, 127, 149, 173, 211, 257, 307, 353, 401, 457),
     steps: int = 600,
 ) -> SomaticCorrelationTrapStudy:
     normalized = _normalize_seeds(seeds)

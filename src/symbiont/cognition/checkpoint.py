@@ -3,11 +3,17 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from typing import Any, Mapping
+from typing import Any
+
+from symbiont.genetics.genome import (
+    Genome,
+    GenomeError,
+    _genome_to_plain_dict,
+    legacy_validation_version,
+)
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeMigrationCodec
 
 from .activation import MIN_NORMALIZER_SAMPLES, SensoryNormalizer
-from symbiont.genetics.genome import Genome, GenomeError, _genome_to_plain_dict, legacy_validation_version
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeMigrationCodec
 from .graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
 from .limits import KernelLimits
 from .metaplasticity import SafetyState
@@ -61,7 +67,11 @@ def quantize_weight(value: float) -> int:
 
 
 def dequantize_weight(class_id: int) -> float:
-    if isinstance(class_id, bool) or not isinstance(class_id, int) or not 0 <= class_id < WEIGHT_CLASSES:
+    if (
+        isinstance(class_id, bool)
+        or not isinstance(class_id, int)
+        or not 0 <= class_id < WEIGHT_CLASSES
+    ):
         raise ValueError("invalid weight class")
     center = WEIGHT_CLASSES // 2
     if class_id == center:
@@ -83,6 +93,7 @@ def _dequantize_weight_v2(class_id: int) -> float:
         return 0.0
     step = max(abs(WEIGHT_RANGE[0]), abs(WEIGHT_RANGE[1])) / center
     return (class_id - center) * step
+
 
 def dequantize_signed(class_id: int, bounds: tuple[float, float], num_classes: int) -> float:
     low, high = bounds
@@ -112,9 +123,7 @@ def restore_genome_checkpoint(
     persisted_hash = payload["genome_hash"]
     persisted_genotype_hash = payload.get("genotype_hash")
     genome_fields = {
-        key: value
-        for key, value in payload.items()
-        if key not in {"genome_hash", "genotype_hash"}
+        key: value for key, value in payload.items() if key not in {"genome_hash", "genotype_hash"}
     }
     # Checkpoint persistence is the explicit historical compatibility boundary;
     # active cognition imports use the strict v2 codec.
@@ -130,19 +139,25 @@ def restore_genome_checkpoint(
         ).encode("utf-8")
         if hashlib.sha256(canonical_legacy).hexdigest() != persisted_hash:
             import logging
-            logging.getLogger(__name__).warning("legacy genome checkpoint hash mismatch -- payload may be corrupted or tampered")
+
+            logging.getLogger(__name__).warning(
+                "legacy genome checkpoint hash mismatch -- payload may be corrupted or tampered"
+            )
         genome = codec.load(genome_fields)
     else:
         genome = codec.load(genome_fields)
         if genome.genome_hash != persisted_hash:
             import logging
-            logging.getLogger(__name__).warning("genome checkpoint hash mismatch -- payload may be corrupted or tampered")
-        if (
-            persisted_genotype_hash is not None
-            and persisted_genotype_hash != genome.genotype_hash
-        ):
+
+            logging.getLogger(__name__).warning(
+                "genome checkpoint hash mismatch -- payload may be corrupted or tampered"
+            )
+        if persisted_genotype_hash is not None and persisted_genotype_hash != genome.genotype_hash:
             import logging
-            logging.getLogger(__name__).warning("genotype checkpoint hash mismatch -- payload may be corrupted or tampered")
+
+            logging.getLogger(__name__).warning(
+                "genotype checkpoint hash mismatch -- payload may be corrupted or tampered"
+            )
     # The 0.55-0.60 genome was the canonical format before the 0.80 kernel.
     # Keep its immutable genome/hash while validating it against the last
     # kernel it explicitly targeted.  This is a migration for persisted
@@ -184,7 +199,9 @@ def _require_int(value: Any, field: str) -> int:
 
 
 def export_graph_checkpoint(
-    graph: CognitiveGraph | None, *, weight_class_overrides: dict[tuple[str, str, str], int] | None = None
+    graph: CognitiveGraph | None,
+    *,
+    weight_class_overrides: dict[tuple[str, str, str], int] | None = None,
 ) -> dict[str, Any] | None:
     """Serialize graph structure, quantizing continuously learned edge state.
 
@@ -326,7 +343,9 @@ def restore_safety_state(payload: dict[str, Any] | None) -> SafetyState:
     if not isinstance(payload, dict):
         raise GraphError("safety_state checkpoint must be an object")
     try:
-        failures = _require_nonneg_int(payload["consecutive_failures"], "safety_state.consecutive_failures")
+        failures = _require_nonneg_int(
+            payload["consecutive_failures"], "safety_state.consecutive_failures"
+        )
         frozen = payload["frozen"]
     except KeyError as exc:
         raise GraphError(f"malformed safety_state checkpoint: missing {exc.args[0]!r}") from exc
@@ -338,7 +357,11 @@ def restore_safety_state(payload: dict[str, Any] | None) -> SafetyState:
 def export_sensory_normalizers(normalizers: dict[str, SensoryNormalizer]) -> dict[str, Any]:
     """Export only established normalizers; younger means can equal raw readings."""
     return {
-        sense_id: {"mean": normalizer.mean, "variance": normalizer.variance, "count": normalizer.count}
+        sense_id: {
+            "mean": normalizer.mean,
+            "variance": normalizer.variance,
+            "count": normalizer.count,
+        }
         for sense_id, normalizer in normalizers.items()
         if normalizer.is_established
     }
@@ -355,7 +378,9 @@ def restore_sensory_normalizers(payload: dict[str, Any] | None) -> dict[str, Sen
             raise GraphError(f"sensory normalizer {sense_id!r} must be an object")
         count = _require_nonneg_int(entry.get("count"), f"{sense_id}.count")
         if count < MIN_NORMALIZER_SAMPLES:
-            raise GraphError(f"sensory normalizer {sense_id!r} checkpoint count below MIN_NORMALIZER_SAMPLES")
+            raise GraphError(
+                f"sensory normalizer {sense_id!r} checkpoint count below MIN_NORMALIZER_SAMPLES"
+            )
         restored[sense_id] = SensoryNormalizer(
             mean=_require_finite(entry.get("mean"), f"{sense_id}.mean"),
             variance=_require_finite(entry.get("variance"), f"{sense_id}.variance"),

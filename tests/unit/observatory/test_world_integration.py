@@ -59,9 +59,19 @@ def test_api_state_shape(running_server):
     _, body = _get(running_server, "/world/state")
     data = json.loads(body)
     expected_keys = {
-        "running", "error", "tick", "alive_count", "text",
-        "world_id", "width", "height", "organisms", "fields", "cells",
-        "history", "events",
+        "running",
+        "error",
+        "tick",
+        "alive_count",
+        "text",
+        "world_id",
+        "width",
+        "height",
+        "organisms",
+        "fields",
+        "cells",
+        "history",
+        "events",
     }
     assert set(data) == expected_keys
     assert data["running"] is True
@@ -78,13 +88,21 @@ def test_api_state_includes_graphical_snapshot_for_svg_rendering(running_server)
     assert data["height"] == 6
     assert len(data["organisms"]) == 3
     org = data["organisms"][0]
-    assert {"id", "q", "r", "region", "alive", "vital_state", "integrity", "metabolic_reserve"}.issubset(set(org))
+    assert {
+        "id",
+        "q",
+        "r",
+        "region",
+        "alive",
+        "vital_state",
+        "integrity",
+        "metabolic_reserve",
+    }.issubset(set(org))
     cell_key = f"{org['q']},{org['r']}"
     assert cell_key in data["cells"]
     assert "resources" in data["cells"][cell_key]
     assert "hazards" in data["cells"][cell_key]
     assert isinstance(data["fields"], dict)
-
 
 
 def test_unknown_path_returns_404(running_server):
@@ -115,6 +133,7 @@ def test_world_runtime_stops_when_all_organisms_die():
         rig.individual.body.physiology.structural_integrity = 0.0
     else:
         from symbiont.core.physiology import VitalState
+
         physiology = rig.runtime._physiology
         physiology._state = VitalState.DEAD
         physiology._death_tick = 0
@@ -148,7 +167,6 @@ def test_world_runtime_saves_checkpoint_to_storage(tmp_path):
     assert len(chk.organisms) == 2
 
 
-
 def test_incremental_events_endpoint_is_read_only_and_gap_free(running_server):
     _, first_body = _get(running_server, "/world/events?limit=5")
     first_page = json.loads(first_body)
@@ -177,9 +195,7 @@ def test_incremental_events_endpoint_is_read_only_and_gap_free(running_server):
 def test_incremental_events_endpoint_rejects_unknown_cursor(running_server):
     port = running_server.server_address[1]
     try:
-        urllib.request.urlopen(
-            f"http://127.0.0.1:{port}/world/events?after=evt-does-not-exist"
-        )
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/world/events?after=evt-does-not-exist")
     except urllib.error.HTTPError as exc:
         assert exc.code == 400
         payload = json.loads(exc.read())
@@ -249,7 +265,6 @@ def test_v4_living_world_components_served(running_server):
     assert b"popClusterCanvas" in body
 
 
-
 def test_canonical_world_starts_in_decontaminated_embodied_mode():
     state = WorldRuntimeState(
         world_seed=2026,
@@ -268,7 +283,6 @@ def test_canonical_world_starts_in_decontaminated_embodied_mode():
     assert rig.actuation_adapter is None
     assert rig.individual is not None
     assert rig.individual.body is not None
-
 
 
 def test_canonical_runtime_rejects_legacy_population():

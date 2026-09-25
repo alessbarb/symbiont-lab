@@ -19,25 +19,41 @@ from symbiont.cognition.checkpoint import (
     quantize_signed,
     quantize_weight,
 )
-from symbiont.genetics.genome import Genome
 from symbiont.cognition.graph import CognitiveGraph
 from symbiont.cognition.types import WEIGHT_RANGE
+from symbiont.genetics.genome import Genome
 
 try:
     from .config import (
-        INGESTION_MAX_TICKS as MAX_TICKS,
-        INGESTION_MAX_SENSORY_PARTS as MAX_SENSORY_PARTS,
-        INGESTION_MAX_COGNITIVE_REGIONS as MAX_COGNITIVE_REGIONS,
-        INGESTION_MAX_BODY_PARTS as MAX_BODY_PARTS,
         INGESTION_MAX_BODY_DEPENDENCIES as MAX_BODY_DEPENDENCIES,
+    )
+    from .config import (
+        INGESTION_MAX_BODY_PARTS as MAX_BODY_PARTS,
+    )
+    from .config import (
+        INGESTION_MAX_COGNITIVE_REGIONS as MAX_COGNITIVE_REGIONS,
+    )
+    from .config import (
+        INGESTION_MAX_SENSORY_PARTS as MAX_SENSORY_PARTS,
+    )
+    from .config import (
+        INGESTION_MAX_TICKS as MAX_TICKS,
     )
 except ImportError:
     from config import (
-        INGESTION_MAX_TICKS as MAX_TICKS,
-        INGESTION_MAX_SENSORY_PARTS as MAX_SENSORY_PARTS,
-        INGESTION_MAX_COGNITIVE_REGIONS as MAX_COGNITIVE_REGIONS,
-        INGESTION_MAX_BODY_PARTS as MAX_BODY_PARTS,
         INGESTION_MAX_BODY_DEPENDENCIES as MAX_BODY_DEPENDENCIES,
+    )
+    from config import (
+        INGESTION_MAX_BODY_PARTS as MAX_BODY_PARTS,
+    )
+    from config import (
+        INGESTION_MAX_COGNITIVE_REGIONS as MAX_COGNITIVE_REGIONS,
+    )
+    from config import (
+        INGESTION_MAX_SENSORY_PARTS as MAX_SENSORY_PARTS,
+    )
+    from config import (
+        INGESTION_MAX_TICKS as MAX_TICKS,
     )
 
 SCHEMA_VERSION = 1
@@ -132,7 +148,11 @@ def _body_schema_state(body_schema: Any) -> dict[str, Any]:
     state = body_schema.get("state")
     raw_parts = body_schema.get("parts")
     raw_dependencies = body_schema.get("dependencies")
-    if state not in {"undeveloped", "partial", "developing", "established", "revising"} or not isinstance(raw_parts, list) or not isinstance(raw_dependencies, list):
+    if (
+        state not in {"undeveloped", "partial", "developing", "established", "revising"}
+        or not isinstance(raw_parts, list)
+        or not isinstance(raw_dependencies, list)
+    ):
         return fallback
     max_parts = MAX_SENSORY_PARTS if version == 1 else MAX_BODY_PARTS
     max_dependencies = 0 if version == 1 else MAX_BODY_DEPENDENCIES
@@ -144,12 +164,23 @@ def _body_schema_state(body_schema: Any) -> dict[str, Any]:
         return fallback
 
     sense_keys = {
-        "part_id", "kind", "existence_confidence_class", "health_class",
-        "confidence_class", "cost_class", "maturity_class", "recency_class",
+        "part_id",
+        "kind",
+        "existence_confidence_class",
+        "health_class",
+        "confidence_class",
+        "cost_class",
+        "maturity_class",
+        "recency_class",
     }
     region_keys = {
-        "part_id", "kind", "existence_confidence_class", "confidence_class",
-        "activity_class", "maturity_class", "recency_class",
+        "part_id",
+        "kind",
+        "existence_confidence_class",
+        "confidence_class",
+        "activity_class",
+        "maturity_class",
+        "recency_class",
     }
     parts: list[dict[str, Any]] = []
     seen_parts: set[str] = set()
@@ -184,16 +215,18 @@ def _body_schema_state(body_schema: Any) -> dict[str, Any]:
             if health is None or cost is None:
                 return fallback
             sensory_count += 1
-            parts.append({
-                "part_id": part_id,
-                "kind": "sense",
-                "existence_confidence_class": existence,
-                "health_class": health,
-                "confidence_class": confidence,
-                "cost_class": cost,
-                "maturity_class": maturity,
-                "recency_class": recency,
-            })
+            parts.append(
+                {
+                    "part_id": part_id,
+                    "kind": "sense",
+                    "existence_confidence_class": existence,
+                    "health_class": health,
+                    "confidence_class": confidence,
+                    "cost_class": cost,
+                    "maturity_class": maturity,
+                    "recency_class": recency,
+                }
+            )
         elif version == 2 and kind == "cognitive_region":
             if set(raw) != region_keys or not part_id.startswith("part.region."):
                 return fallback
@@ -205,15 +238,17 @@ def _body_schema_state(body_schema: Any) -> dict[str, Any]:
                 return fallback
             region_count += 1
             region_ids.add(part_id)
-            parts.append({
-                "part_id": part_id,
-                "kind": "cognitive_region",
-                "existence_confidence_class": existence,
-                "confidence_class": confidence,
-                "activity_class": activity,
-                "maturity_class": maturity,
-                "recency_class": recency,
-            })
+            parts.append(
+                {
+                    "part_id": part_id,
+                    "kind": "cognitive_region",
+                    "existence_confidence_class": existence,
+                    "confidence_class": confidence,
+                    "activity_class": activity,
+                    "maturity_class": maturity,
+                    "recency_class": recency,
+                }
+            )
         else:
             return fallback
 
@@ -247,13 +282,15 @@ def _body_schema_state(body_schema: Any) -> dict[str, Any]:
         if key in seen_dependencies:
             return fallback
         seen_dependencies.add(key)
-        dependencies.append({
-            "source_id": source,
-            "target_id": target,
-            "relation": relation,
-            "confidence_class": confidence,
-            "support_class": support,
-        })
+        dependencies.append(
+            {
+                "source_id": source,
+                "target_id": target,
+                "relation": relation,
+                "confidence_class": confidence,
+                "support_class": support,
+            }
+        )
 
     return {
         "schema_version": version,
@@ -275,7 +312,9 @@ def _edge_deltas(
     deltas = []
     for edge in graph.edges[:1024]:
         weight_class = quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES)
-        eligibility_class = quantize_signed(edge.eligibility, ELIGIBILITY_RANGE, ELIGIBILITY_CLASSES)
+        eligibility_class = quantize_signed(
+            edge.eligibility, ELIGIBILITY_RANGE, ELIGIBILITY_CLASSES
+        )
         current = (weight_class, eligibility_class)
         key = f"{edge.source_id}->{edge.target_id}"
         previous = previous_edge_classes.get(key) if previous_edge_classes is not None else None
@@ -320,9 +359,13 @@ def _cognition_state(
     genome: Genome | None = None,
     previous_edge_classes: dict[str, tuple[int, int]] | None = None,
 ) -> dict[str, Any]:
-    readouts = {key: round(float(value), 6) for key, value in dict(getattr(cognition, "readouts", {})).items()}
+    readouts = {
+        key: round(float(value), 6)
+        for key, value in dict(getattr(cognition, "readouts", {})).items()
+    }
     prediction_errors = {
-        error.predictor_id: loss_class(error.loss) for error in tuple(getattr(cognition, "prediction_errors", ()))
+        error.predictor_id: loss_class(error.loss)
+        for error in tuple(getattr(cognition, "prediction_errors", ()))
     }
     mutations = []
     for mutation in tuple(getattr(cognition, "mutations", ())):
@@ -359,32 +402,25 @@ def _cognition_state(
         "edge_deltas": _edge_deltas(graph, previous_edge_classes),
         "mutations": mutations[:8],
         "safety_state": safety,
-        "stranded_concepts": [_text(x, 128) for x in tuple(getattr(cognition, "stranded_concepts", ()))[:64]],
+        "stranded_concepts": [
+            _text(x, 128) for x in tuple(getattr(cognition, "stranded_concepts", ()))[:64]
+        ],
         "predictive_gain": round(float(getattr(cognition, "predictive_gain", 0.0)), 6),
         "retiring_predictors": [
-            _text(x, 128)
-            for x in tuple(getattr(cognition, "retiring_predictors", ()))[:128]
+            _text(x, 128) for x in tuple(getattr(cognition, "retiring_predictors", ()))[:128]
         ],
         "retirement_edges": max(0, int(getattr(cognition, "retirement_edges", 0))),
-        "structural_candidates": max(
-            0, int(getattr(cognition, "structural_candidates", 0))
-        ),
-        "structural_producers": max(
-            0, int(getattr(cognition, "structural_producers", 0))
-        ),
+        "structural_candidates": max(0, int(getattr(cognition, "structural_candidates", 0))),
+        "structural_producers": max(0, int(getattr(cognition, "structural_producers", 0))),
         "oldest_structural_wait_ticks": max(
             0, int(getattr(cognition, "oldest_structural_wait_ticks", 0))
         ),
         "representation_maturity": {
             str(key): max(0, int(value))
-            for key, value in dict(
-                getattr(cognition, "representation_maturity", {}) or {}
-            ).items()
+            for key, value in dict(getattr(cognition, "representation_maturity", {}) or {}).items()
             if str(key) in {"nascent", "provisional", "mature", "stable", "weakening", "retiring"}
         },
-        "max_contention_losses": max(
-            0, int(getattr(cognition, "max_contention_losses", 0))
-        ),
+        "max_contention_losses": max(0, int(getattr(cognition, "max_contention_losses", 0))),
     }
     if graph is not None and genome is not None:
         node_budget = max(1, int(genome.development.soft_node_budget))
@@ -400,7 +436,9 @@ def _cognition_state(
     return state
 
 
-def _physiology_state(physiology: Any, *, resting_requested: bool | None = None) -> dict[str, Any] | None:
+def _physiology_state(
+    physiology: Any, *, resting_requested: bool | None = None
+) -> dict[str, Any] | None:
     """Project viability without exposing raw metabolic measurements."""
     if physiology is None:
         return None
@@ -412,9 +450,12 @@ def _physiology_state(physiology: Any, *, resting_requested: bool | None = None)
     requested = resting_requested
     if requested is None:
         requested = getattr(physiology, "resting_requested", False)
-    return {"state": state, "transitions": transitions,
-            "death_tick": max(0, int(death_tick)) if death_tick is not None else None,
-            "resting_requested": bool(requested)}
+    return {
+        "state": state,
+        "transitions": transitions,
+        "death_tick": max(0, int(death_tick)) if death_tick is not None else None,
+        "resting_requested": bool(requested),
+    }
 
 
 def _metabolism_state(metabolism: Any) -> dict[str, Any] | None:
@@ -434,8 +475,13 @@ def _metabolism_state(metabolism: Any) -> dict[str, Any] | None:
             except (TypeError, ValueError, ZeroDivisionError):
                 ratio = 0.0
             reserve_classes[_text(kind, 32)] = (
-                "depleted" if ratio <= 0.0 else "low" if ratio < 0.25
-                else "moderate" if ratio < 0.75 else "replete"
+                "depleted"
+                if ratio <= 0.0
+                else "low"
+                if ratio < 0.25
+                else "moderate"
+                if ratio < 0.75
+                else "replete"
             )
     return {"pressure": pressure, "reserve_classes": reserve_classes}
 
@@ -460,7 +506,15 @@ def _development_state(development: Any) -> dict[str, Any] | None:
         return round(max(0.0, min(1.0, value)) if math.isfinite(value) else 0.0, 6)
 
     phase = _enum_value(getattr(development, "phase", "unknown")).lower()
-    allowed_phases = {"germinal", "developing", "juvenile", "mature", "declining", "terminal", "dead"}
+    allowed_phases = {
+        "germinal",
+        "developing",
+        "juvenile",
+        "mature",
+        "declining",
+        "terminal",
+        "dead",
+    }
     if phase not in allowed_phases:
         phase = "unknown"
     topology_health = _text(getattr(development, "topology_health", "unknown"), 64)
@@ -505,11 +559,15 @@ def _attention_state(allocations: Iterable[Any]) -> dict[str, float]:
     shares = [cost / total for cost in costs]
     entropy = -sum(share * math.log(share) for share in shares)
     normalizer = math.log(len(shares)) if len(shares) > 1 else 1.0
-    return {"concentration": round(max(shares), 6),
-            "entropy": round(max(0.0, min(1.0, entropy / normalizer)), 6)}
+    return {
+        "concentration": round(max(shares), 6),
+        "entropy": round(max(0.0, min(1.0, entropy / normalizer)), 6),
+    }
 
 
-def _social_state(relations: Iterable[Any], *, current_tick: int | None = None) -> list[dict[str, Any]]:
+def _social_state(
+    relations: Iterable[Any], *, current_tick: int | None = None
+) -> list[dict[str, Any]]:
     """Bounded, aggregate relation projection; identities are caller-provided opaque ids."""
     projected: list[dict[str, Any]] = []
     for relation in tuple(relations)[:128]:
@@ -534,21 +592,35 @@ def _social_state(relations: Iterable[Any], *, current_tick: int | None = None) 
                 reliability = max(0.0, min(1.0, float(relation.reliability(current_tick))))
             except (TypeError, ValueError):
                 reliability = None
-        projected.append({"source_id": source, "target_id": target, "valence": valence,
-                          "channel": _text(getattr(relation, "channel", "default"), 64) or "default",
-                          "support": support, "harm": harm,
-                          "observations": max(0, int(getattr(relation, "observations", 0))),
-                          "reciprocal_observations": max(0, int(getattr(relation, "reciprocal_observations", 0))),
-                          "conflicts": max(0, int(getattr(relation, "conflicts", 0))),
-                          "rejections": max(0, int(getattr(relation, "rejections", 0))),
-                          "freshness": freshness,
-                          "reliability": reliability,
-                          "last_tick": (max(0, int(getattr(relation, "last_tick")))
-                                       if getattr(relation, "last_tick", None) is not None else None)})
+        projected.append(
+            {
+                "source_id": source,
+                "target_id": target,
+                "valence": valence,
+                "channel": _text(getattr(relation, "channel", "default"), 64) or "default",
+                "support": support,
+                "harm": harm,
+                "observations": max(0, int(getattr(relation, "observations", 0))),
+                "reciprocal_observations": max(
+                    0, int(getattr(relation, "reciprocal_observations", 0))
+                ),
+                "conflicts": max(0, int(getattr(relation, "conflicts", 0))),
+                "rejections": max(0, int(getattr(relation, "rejections", 0))),
+                "freshness": freshness,
+                "reliability": reliability,
+                "last_tick": (
+                    max(0, int(getattr(relation, "last_tick")))
+                    if getattr(relation, "last_tick", None) is not None
+                    else None
+                ),
+            }
+        )
     return projected
 
 
-def _social_resource_state(evidence: Iterable[Any], *, current_tick: int | None = None) -> list[dict[str, Any]]:
+def _social_resource_state(
+    evidence: Iterable[Any], *, current_tick: int | None = None
+) -> list[dict[str, Any]]:
     """Project local opaque-resource evidence without exposing host semantics."""
     projected: list[dict[str, Any]] = []
     for item in tuple(evidence)[:64]:
@@ -566,26 +638,30 @@ def _social_resource_state(evidence: Iterable[Any], *, current_tick: int | None 
                 freshness = max(0.0, min(1.0, float(item.freshness(current_tick))))
             except (TypeError, ValueError):
                 freshness = None
-        projected.append({
-            "token": token,
-            "requested": requested,
-            "granted": granted,
-            "availability": (granted / requested if requested > 0.0 else 0.0),
-            "observations": observations,
-            "denied": denied,
-            "freshness": freshness,
-            "last_tick": max(0, int(last_tick)) if last_tick is not None else None,
-        })
+        projected.append(
+            {
+                "token": token,
+                "requested": requested,
+                "granted": granted,
+                "availability": (granted / requested if requested > 0.0 else 0.0),
+                "observations": observations,
+                "denied": denied,
+                "freshness": freshness,
+                "last_tick": max(0, int(last_tick)) if last_tick is not None else None,
+            }
+        )
     return projected
 
 
 def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
     """Project passive social lineage without exposing payloads or weights."""
+
     def count(name: str) -> int:
         try:
             return max(0, min(100_000, int(observations.get(name, 0))))
         except (TypeError, ValueError):
             return 0
+
     lineage = []
     for item in tuple(observations.get("claim_lineage", ()))[:128]:
         if not isinstance(item, Mapping):
@@ -593,12 +669,14 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
         claim_id = _text(item.get("claim_id", ""), 128)
         if not claim_id:
             continue
-        lineage.append({
-            "claim_id": claim_id,
-            "source": _text(item.get("source", ""), 128),
-            "parents": [_text(value, 128) for value in tuple(item.get("parents", ()))[:8]],
-            "roots": [_text(value, 128) for value in tuple(item.get("roots", ()))[:32]],
-        })
+        lineage.append(
+            {
+                "claim_id": claim_id,
+                "source": _text(item.get("source", ""), 128),
+                "parents": [_text(value, 128) for value in tuple(item.get("parents", ()))[:8]],
+                "roots": [_text(value, 128) for value in tuple(item.get("roots", ()))[:32]],
+            }
+        )
     freshness = []
     for item in tuple(observations.get("freshness", ()))[:128]:
         if isinstance(item, Mapping) and item.get("claim_id"):
@@ -611,27 +689,49 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
     for item in tuple(observations.get("composite_lineage", ()))[:128]:
         if not isinstance(item, Mapping) or not item.get("composite_id"):
             continue
-        composites.append({
-            "composite_id": _text(item["composite_id"], 128),
-            "components": [_text(value, 128) for value in tuple(item.get("components", ()))[:32]],
-            "parents": [_text(value, 128) for value in tuple(item.get("parents", ()))[:8]],
-            "contributors": [_text(value, 128) for value in tuple(item.get("contributors", ()))[:32]],
-            "roots": [_text(value, 128) for value in tuple(item.get("roots", ()))[:32]],
-            "generation": max(0, min(64, int(item.get("generation", 0))) if isinstance(item.get("generation", 0), int) and not isinstance(item.get("generation", 0), bool) else 0),
-            "retired": item.get("retired") is True,
-        })
+        composites.append(
+            {
+                "composite_id": _text(item["composite_id"], 128),
+                "components": [
+                    _text(value, 128) for value in tuple(item.get("components", ()))[:32]
+                ],
+                "parents": [_text(value, 128) for value in tuple(item.get("parents", ()))[:8]],
+                "contributors": [
+                    _text(value, 128) for value in tuple(item.get("contributors", ()))[:32]
+                ],
+                "roots": [_text(value, 128) for value in tuple(item.get("roots", ()))[:32]],
+                "generation": max(
+                    0,
+                    min(64, int(item.get("generation", 0)))
+                    if isinstance(item.get("generation", 0), int)
+                    and not isinstance(item.get("generation", 0), bool)
+                    else 0,
+                ),
+                "retired": item.get("retired") is True,
+            }
+        )
     decisions = []
     for item in tuple(observations.get("cultural_decisions", ()))[:256]:
         if not isinstance(item, Mapping) or not item.get("decision_id"):
             continue
-        decisions.append({
-            "decision_id": _text(item.get("decision_id", ""), 128),
-            "tick": max(0, int(item.get("tick", 0))) if isinstance(item.get("tick", 0), int) and not isinstance(item.get("tick", 0), bool) else 0,
-            "action": _text(item.get("action", ""), 32),
-            "items": [_text(value, 128) for value in tuple(item.get("items", ()))[:4]],
-            "recipient": _text(item.get("recipient", ""), 128) if item.get("recipient") else None,
-            "cost": max(0, int(item.get("cost", 0))) if isinstance(item.get("cost", 0), int) and not isinstance(item.get("cost", 0), bool) else 0,
-        })
+        decisions.append(
+            {
+                "decision_id": _text(item.get("decision_id", ""), 128),
+                "tick": max(0, int(item.get("tick", 0)))
+                if isinstance(item.get("tick", 0), int)
+                and not isinstance(item.get("tick", 0), bool)
+                else 0,
+                "action": _text(item.get("action", ""), 32),
+                "items": [_text(value, 128) for value in tuple(item.get("items", ()))[:4]],
+                "recipient": _text(item.get("recipient", ""), 128)
+                if item.get("recipient")
+                else None,
+                "cost": max(0, int(item.get("cost", 0)))
+                if isinstance(item.get("cost", 0), int)
+                and not isinstance(item.get("cost", 0), bool)
+                else 0,
+            }
+        )
     return {
         "claim_count": count("claim_count"),
         "unique_roots": count("unique_roots"),
@@ -653,40 +753,85 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
         "symbol_exposures": count("symbol_exposures"),
         "grounding_updates": count("grounding_updates"),
         "symbol_policy_cost": count("symbol_policy_cost"),
-        "symbol_decisions": [{
-            "decision_id": _text(item.get("decision_id", ""), 128),
-            "tick": max(0, item.get("tick", 0)) if isinstance(item, Mapping) and isinstance(item.get("tick", 0), int) else 0,
-            "action": _text(item.get("action", ""), 32),
-            "symbol_id": _text(item.get("symbol_id", ""), 128) if isinstance(item, Mapping) and item.get("symbol_id") else None,
-            "recipient_id": _text(item.get("recipient_id", ""), 128) if isinstance(item, Mapping) and item.get("recipient_id") else None,
-            "cost": max(0, item.get("cost", 0)) if isinstance(item, Mapping) and isinstance(item.get("cost", 0), int) else 0,
-        } for item in tuple(observations.get("symbol_decisions", ()))[:256] if isinstance(item, Mapping) and item.get("decision_id")],
-        "symbol_grounding": [{
-            "symbol_id": _text(item.get("symbol_id", ""), 128),
-            "support": max(0, item.get("support", 0)) if isinstance(item.get("support", 0), int) and not isinstance(item.get("support", 0), bool) else 0,
-            "contradiction": max(0, item.get("contradiction", 0)) if isinstance(item.get("contradiction", 0), int) and not isinstance(item.get("contradiction", 0), bool) else 0,
-            "strength": max(0, item.get("strength", 0)) if isinstance(item.get("strength", 0), int) and not isinstance(item.get("strength", 0), bool) else 0,
-        } for item in tuple(observations.get("symbol_grounding", ()))[:128] if isinstance(item, Mapping) and item.get("symbol_id")],
+        "symbol_decisions": [
+            {
+                "decision_id": _text(item.get("decision_id", ""), 128),
+                "tick": max(0, item.get("tick", 0))
+                if isinstance(item, Mapping) and isinstance(item.get("tick", 0), int)
+                else 0,
+                "action": _text(item.get("action", ""), 32),
+                "symbol_id": _text(item.get("symbol_id", ""), 128)
+                if isinstance(item, Mapping) and item.get("symbol_id")
+                else None,
+                "recipient_id": _text(item.get("recipient_id", ""), 128)
+                if isinstance(item, Mapping) and item.get("recipient_id")
+                else None,
+                "cost": max(0, item.get("cost", 0))
+                if isinstance(item, Mapping) and isinstance(item.get("cost", 0), int)
+                else 0,
+            }
+            for item in tuple(observations.get("symbol_decisions", ()))[:256]
+            if isinstance(item, Mapping) and item.get("decision_id")
+        ],
+        "symbol_grounding": [
+            {
+                "symbol_id": _text(item.get("symbol_id", ""), 128),
+                "support": max(0, item.get("support", 0))
+                if isinstance(item.get("support", 0), int)
+                and not isinstance(item.get("support", 0), bool)
+                else 0,
+                "contradiction": max(0, item.get("contradiction", 0))
+                if isinstance(item.get("contradiction", 0), int)
+                and not isinstance(item.get("contradiction", 0), bool)
+                else 0,
+                "strength": max(0, item.get("strength", 0))
+                if isinstance(item.get("strength", 0), int)
+                and not isinstance(item.get("strength", 0), bool)
+                else 0,
+            }
+            for item in tuple(observations.get("symbol_grounding", ()))[:128]
+            if isinstance(item, Mapping) and item.get("symbol_id")
+        ],
         "sequences_known": count("sequences_known"),
         "sequence_emissions": count("sequence_emissions"),
         "sequence_exposures": count("sequence_exposures"),
         "sequence_grounding_updates": count("sequence_grounding_updates"),
         "sequence_policy_cost": count("sequence_policy_cost"),
-        "sequence_decisions": [{
-            "decision_id": _text(item.get("decision_id", ""), 128),
-            "tick": max(0, item.get("tick", 0)) if isinstance(item.get("tick", 0), int) else 0,
-            "action": _text(item.get("action", ""), 32),
-            "sequence_id": _text(item.get("sequence_id", ""), 128) if item.get("sequence_id") else None,
-            "recipient_id": _text(item.get("recipient_id", ""), 128) if item.get("recipient_id") else None,
-            "cost": max(0, item.get("cost", 0)) if isinstance(item.get("cost", 0), int) else 0,
-        } for item in tuple(observations.get("sequence_decisions", ()))[:256] if isinstance(item, Mapping) and item.get("decision_id")],
-        "sequence_grounding": [{
-            "sequence_id": _text(item.get("sequence_id", ""), 128),
-            "length": max(1, min(4, item.get("length", 1))) if isinstance(item.get("length", 1), int) else 1,
-            "support": max(0, item.get("support", 0)) if isinstance(item.get("support", 0), int) else 0,
-            "contradiction": max(0, item.get("contradiction", 0)) if isinstance(item.get("contradiction", 0), int) else 0,
-            "strength": max(0, item.get("strength", 0)) if isinstance(item.get("strength", 0), int) else 0,
-        } for item in tuple(observations.get("sequence_grounding", ()))[:128] if isinstance(item, Mapping) and item.get("sequence_id")],
+        "sequence_decisions": [
+            {
+                "decision_id": _text(item.get("decision_id", ""), 128),
+                "tick": max(0, item.get("tick", 0)) if isinstance(item.get("tick", 0), int) else 0,
+                "action": _text(item.get("action", ""), 32),
+                "sequence_id": _text(item.get("sequence_id", ""), 128)
+                if item.get("sequence_id")
+                else None,
+                "recipient_id": _text(item.get("recipient_id", ""), 128)
+                if item.get("recipient_id")
+                else None,
+                "cost": max(0, item.get("cost", 0)) if isinstance(item.get("cost", 0), int) else 0,
+            }
+            for item in tuple(observations.get("sequence_decisions", ()))[:256]
+            if isinstance(item, Mapping) and item.get("decision_id")
+        ],
+        "sequence_grounding": [
+            {
+                "sequence_id": _text(item.get("sequence_id", ""), 128),
+                "length": max(1, min(4, item.get("length", 1)))
+                if isinstance(item.get("length", 1), int)
+                else 1,
+                "support": max(0, item.get("support", 0))
+                if isinstance(item.get("support", 0), int)
+                else 0,
+                "contradiction": max(0, item.get("contradiction", 0))
+                if isinstance(item.get("contradiction", 0), int)
+                else 0,
+                "strength": max(0, item.get("strength", 0))
+                if isinstance(item.get("strength", 0), int)
+                else 0,
+            }
+            for item in tuple(observations.get("sequence_grounding", ()))[:128]
+            if isinstance(item, Mapping) and item.get("sequence_id")
+        ],
     }
 
 
@@ -702,40 +847,73 @@ def _communication_telemetry(observations: Mapping[str, Any] | None) -> dict[str
         if kind not in {"EMIT", "DELIVER", "RECEIVE", "RETRANSMIT", "SILENCE"}:
             continue
         symbols = tuple(raw.get("symbol_ids", ()))
-        if (not 1 <= len(symbols) <= 4
-                or any(not isinstance(raw.get(key), str) or not raw.get(key) for key in ("event_id", "sender_id", "receiver_id", "message_id"))):
+        if not 1 <= len(symbols) <= 4 or any(
+            not isinstance(raw.get(key), str) or not raw.get(key)
+            for key in ("event_id", "sender_id", "receiver_id", "message_id")
+        ):
             continue
         symbols = tuple(symbol for symbol in symbols if isinstance(symbol, str) and symbol)
         if not 1 <= len(symbols) <= 4:
             continue
-        events.append({
-            "event_id": _text(raw["event_id"], 128),
-            "tick": max(0, int(raw.get("tick", 0))) if isinstance(raw.get("tick", 0), int) and not isinstance(raw.get("tick", 0), bool) else 0,
-            "event_kind": kind,
-            "sender_id": _text(raw.get("sender_id", ""), 128),
-            "receiver_id": _text(raw.get("receiver_id", ""), 128),
-            "message_id": _text(raw.get("message_id", ""), 128),
-            "symbol_ids": [_text(symbol, 128) for symbol in symbols if isinstance(symbol, str)][:4],
-            "message_length": len(symbols),
-            "cost": max(0, int(raw.get("cost", 0))) if isinstance(raw.get("cost", 0), int) and not isinstance(raw.get("cost", 0), bool) else 0,
-            "delivery_status": raw.get("delivery_status") if raw.get("delivery_status") in {"selected", "delivered", "rejected", "unknown"} else "unknown",
-            "sender_generation": raw.get("sender_generation") if isinstance(raw.get("sender_generation"), int) and raw.get("sender_generation") >= 0 else None,
-            "receiver_generation": raw.get("receiver_generation") if isinstance(raw.get("receiver_generation"), int) and raw.get("receiver_generation") >= 0 else None,
-        })
+        events.append(
+            {
+                "event_id": _text(raw["event_id"], 128),
+                "tick": max(0, int(raw.get("tick", 0)))
+                if isinstance(raw.get("tick", 0), int) and not isinstance(raw.get("tick", 0), bool)
+                else 0,
+                "event_kind": kind,
+                "sender_id": _text(raw.get("sender_id", ""), 128),
+                "receiver_id": _text(raw.get("receiver_id", ""), 128),
+                "message_id": _text(raw.get("message_id", ""), 128),
+                "symbol_ids": [_text(symbol, 128) for symbol in symbols if isinstance(symbol, str)][
+                    :4
+                ],
+                "message_length": len(symbols),
+                "cost": max(0, int(raw.get("cost", 0)))
+                if isinstance(raw.get("cost", 0), int) and not isinstance(raw.get("cost", 0), bool)
+                else 0,
+                "delivery_status": raw.get("delivery_status")
+                if raw.get("delivery_status") in {"selected", "delivered", "rejected", "unknown"}
+                else "unknown",
+                "sender_generation": raw.get("sender_generation")
+                if isinstance(raw.get("sender_generation"), int)
+                and raw.get("sender_generation") >= 0
+                else None,
+                "receiver_generation": raw.get("receiver_generation")
+                if isinstance(raw.get("receiver_generation"), int)
+                and raw.get("receiver_generation") >= 0
+                else None,
+            }
+        )
     grounding = []
     for raw in tuple(observations.get("grounding_events", ()))[:2048]:
         if not isinstance(raw, Mapping) or not raw.get("event_id"):
             continue
-        grounding.append({key: raw.get(key) for key in (
-            "event_id", "tick", "organism_id", "message_id", "exposure_count",
-            "association_strength_before", "association_strength_after", "support_delta",
-            "contradiction_delta", "cost")})
+        grounding.append(
+            {
+                key: raw.get(key)
+                for key in (
+                    "event_id",
+                    "tick",
+                    "organism_id",
+                    "message_id",
+                    "exposure_count",
+                    "association_strength_before",
+                    "association_strength_after",
+                    "support_delta",
+                    "contradiction_delta",
+                    "cost",
+                )
+            }
+        )
     return {
         "schema_version": 1,
         "events": events,
         "grounding_events": grounding,
         "history_truncated": observations.get("history_truncated") is True,
-        "earliest_available_tick": observations.get("earliest_available_tick") if isinstance(observations.get("earliest_available_tick"), int) else None,
+        "earliest_available_tick": observations.get("earliest_available_tick")
+        if isinstance(observations.get("earliest_available_tick"), int)
+        else None,
     }
 
 
@@ -760,17 +938,25 @@ def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any
         modality_id = _text(raw.get("modality_id", ""), 64)
         if not modality_id:
             continue
-        modalities.append({
-            "modality_id": modality_id,
-            "sensor_count": max(0, min(64, int(raw.get("sensor_count", 0)))) if isinstance(raw.get("sensor_count", 0), int) else 0,
-            "max_inputs": max(1, min(8, int(raw.get("max_inputs", 1)))) if isinstance(raw.get("max_inputs", 1), int) else 1,
-            "temporal_capacity": max(1, min(256, int(raw.get("temporal_capacity", 1)))) if isinstance(raw.get("temporal_capacity", 1), int) else 1,
-            "allowed_transductions": [
-                _text(value, 32)
-                for value in tuple(raw.get("allowed_transductions", ()))[:16]
-                if isinstance(value, str) and value
-            ],
-        })
+        modalities.append(
+            {
+                "modality_id": modality_id,
+                "sensor_count": max(0, min(64, int(raw.get("sensor_count", 0))))
+                if isinstance(raw.get("sensor_count", 0), int)
+                else 0,
+                "max_inputs": max(1, min(8, int(raw.get("max_inputs", 1))))
+                if isinstance(raw.get("max_inputs", 1), int)
+                else 1,
+                "temporal_capacity": max(1, min(256, int(raw.get("temporal_capacity", 1))))
+                if isinstance(raw.get("temporal_capacity", 1), int)
+                else 1,
+                "allowed_transductions": [
+                    _text(value, 32)
+                    for value in tuple(raw.get("allowed_transductions", ()))[:16]
+                    if isinstance(value, str) and value
+                ],
+            }
+        )
     sensors = []
     allowed_maturity = {"nascent", "immature", "established", "specialised", "degraded"}
     for raw in tuple(payload.get("sensors", ()))[:64]:
@@ -781,47 +967,78 @@ def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any
         maturity = raw.get("maturity")
         if not sensor_id or not modality_id or maturity not in allowed_maturity:
             continue
+
         def ratio(name: str) -> float:
             value = raw.get(name, 0.0)
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+            ):
                 return 0.0
             return round(max(0.0, min(1.0, float(value))), 6)
+
         parents = [
-            _text(item, 96) for item in tuple(raw.get("parent_sensor_ids", ()))[:4]
+            _text(item, 96)
+            for item in tuple(raw.get("parent_sensor_ids", ()))[:4]
             if isinstance(item, str) and item
         ]
         signal_ids = [
-            _text(item, 128) for item in tuple(raw.get("signal_ids", ()))[:8]
+            _text(item, 128)
+            for item in tuple(raw.get("signal_ids", ()))[:8]
             if isinstance(item, str) and item.startswith("signal.")
         ]
-        sensors.append({
-            "sensor_id": sensor_id,
-            "modality_id": modality_id,
-            "sample_geometry": _text(raw.get("sample_geometry", "scalar"), 32) or "scalar",
-            "transduction": _text(raw.get("transduction", "identity"), 32) or "identity",
-            "born_tick": max(0, min(1_000_000_000, int(raw.get("born_tick", 0)))) if isinstance(raw.get("born_tick", 0), int) and not isinstance(raw.get("born_tick", 0), bool) else 0,
-            "age_ticks": max(0, min(1_000_000_000, int(raw.get("age_ticks", 0)))) if isinstance(raw.get("age_ticks", 0), int) and not isinstance(raw.get("age_ticks", 0), bool) else 0,
-            "output_observations": max(0, min(1_000_000_000, int(raw.get("output_observations", 0)))) if isinstance(raw.get("output_observations", 0), int) and not isinstance(raw.get("output_observations", 0), bool) else 0,
-            "utility_observations": max(0, min(1_000_000_000, int(raw.get("utility_observations", 0)))) if isinstance(raw.get("utility_observations", 0), int) and not isinstance(raw.get("utility_observations", 0), bool) else 0,
-            "source_count": max(1, min(8, int(raw.get("source_count", 1)))) if isinstance(raw.get("source_count", 1), int) else 1,
-            "signal_ids": signal_ids,
-            "maturity": maturity,
-            "health": ratio("health"),
-            "confidence": ratio("confidence"),
-            "utility": ratio("utility"),
-            "selection_credit": ratio("selection_credit"),
-            "redundancy": ratio("redundancy"),
-            "cost": ratio("cost"),
-            "parent_sensor_ids": parents,
-            "downstream_name": _text(raw.get("downstream_name", ""), 128),
-            "cold_start": raw.get("cold_start") is True,
-        })
+        sensors.append(
+            {
+                "sensor_id": sensor_id,
+                "modality_id": modality_id,
+                "sample_geometry": _text(raw.get("sample_geometry", "scalar"), 32) or "scalar",
+                "transduction": _text(raw.get("transduction", "identity"), 32) or "identity",
+                "born_tick": max(0, min(1_000_000_000, int(raw.get("born_tick", 0))))
+                if isinstance(raw.get("born_tick", 0), int)
+                and not isinstance(raw.get("born_tick", 0), bool)
+                else 0,
+                "age_ticks": max(0, min(1_000_000_000, int(raw.get("age_ticks", 0))))
+                if isinstance(raw.get("age_ticks", 0), int)
+                and not isinstance(raw.get("age_ticks", 0), bool)
+                else 0,
+                "output_observations": max(
+                    0, min(1_000_000_000, int(raw.get("output_observations", 0)))
+                )
+                if isinstance(raw.get("output_observations", 0), int)
+                and not isinstance(raw.get("output_observations", 0), bool)
+                else 0,
+                "utility_observations": max(
+                    0, min(1_000_000_000, int(raw.get("utility_observations", 0)))
+                )
+                if isinstance(raw.get("utility_observations", 0), int)
+                and not isinstance(raw.get("utility_observations", 0), bool)
+                else 0,
+                "source_count": max(1, min(8, int(raw.get("source_count", 1))))
+                if isinstance(raw.get("source_count", 1), int)
+                else 1,
+                "signal_ids": signal_ids,
+                "maturity": maturity,
+                "health": ratio("health"),
+                "confidence": ratio("confidence"),
+                "utility": ratio("utility"),
+                "selection_credit": ratio("selection_credit"),
+                "redundancy": ratio("redundancy"),
+                "cost": ratio("cost"),
+                "parent_sensor_ids": parents,
+                "downstream_name": _text(raw.get("downstream_name", ""), 128),
+                "cold_start": raw.get("cold_start") is True,
+            }
+        )
     summary_raw = payload.get("summary", {})
     summary = {}
     for key in ("active", "nascent", "immature", "established", "specialised", "degraded"):
         value = summary_raw.get(key, 0) if isinstance(summary_raw, Mapping) else 0
-        summary[key] = max(0, min(64, value)) if isinstance(value, int) and not isinstance(value, bool) else 0
+        summary[key] = (
+            max(0, min(64, value)) if isinstance(value, int) and not isinstance(value, bool) else 0
+        )
     return {"schema_version": 1, "modalities": modalities, "sensors": sensors, "summary": summary}
+
 
 def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | None:
     """Closed passive projection of a canonical EmbodimentEpisode/telemetry view."""
@@ -914,8 +1131,7 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
         "prior": {
             "relation": (
                 str(prior_raw.get("relation"))
-                if prior_raw.get("relation")
-                in {"novel", "same-contract", "same-body"}
+                if prior_raw.get("relation") in {"novel", "same-contract", "same-body"}
                 else "novel"
             ),
             "authority": "hypothesis_only",
@@ -939,12 +1155,14 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
         },
         "execution": {
             "binding_count": bounded_count(
-                bindings_raw.get("count", len(bindings_raw.get("items", ()))
-                if isinstance(bindings_raw.get("items"), list) else 0)
+                bindings_raw.get(
+                    "count",
+                    len(bindings_raw.get("items", ()))
+                    if isinstance(bindings_raw.get("items"), list)
+                    else 0,
+                )
             ),
-            "executable_count": bounded_count(
-                bindings_raw.get("executable", 0)
-            ),
+            "executable_count": bounded_count(bindings_raw.get("executable", 0)),
         },
     }
 
@@ -993,7 +1211,12 @@ def project_tick(
     for percept in tuple(getattr(result, "percepts", ()))[:32]:
         score, available = _quality(getattr(percept, "quality", "unknown"))
         name = _text(getattr(percept, "name", "percept"), 64)
-        item = {"id": name, "label": name.replace("_", " "), "quality": score, "available": available}
+        item = {
+            "id": name,
+            "label": name.replace("_", " "),
+            "quality": score,
+            "available": available,
+        }
         if signal_references and name in signal_references:
             item["knowledge_signal_id"] = _text(signal_references[name], 71)
         percepts.append(item)
@@ -1008,26 +1231,52 @@ def project_tick(
             revision_count = revision_counts.get(capability, 0)
         else:
             revision_count = 1 if contested_now else 0
-        beliefs.append({
-            "id": capability,
-            "label": _text(getattr(entry, "summary", capability), 120),
-            "certainty": _certainty(getattr(entry, "uncertainty", None)),
-            "evidence_count": max(0, int(getattr(entry, "evidence_gathered", 0))),
-            "revision_count": revision_count,
-            "contested": bool(getattr(entry, "contested", False)),
-        })
+        beliefs.append(
+            {
+                "id": capability,
+                "label": _text(getattr(entry, "summary", capability), 120),
+                "certainty": _certainty(getattr(entry, "uncertainty", None)),
+                "evidence_count": max(0, int(getattr(entry, "evidence_gathered", 0))),
+                "revision_count": revision_count,
+                "contested": bool(getattr(entry, "contested", False)),
+            }
+        )
 
     tick = max(0, int(getattr(result, "tick", 0)))
     events = []
     for percept in percepts[:32]:
-        events.append({"id": _text(f"p-{tick}-{percept['id']}", 64), "type": "perception", "label": f"Observed {percept['label']}"})
+        events.append(
+            {
+                "id": _text(f"p-{tick}-{percept['id']}", 64),
+                "type": "perception",
+                "label": f"Observed {percept['label']}",
+            }
+        )
     for allocation in tuple(getattr(result, "allocations", ()))[:16]:
         name = _text(getattr(allocation, "name", "attention"), 64)
-        events.append({"id": _text(f"a-{tick}-{name}", 64), "type": "attention", "label": f"Attended to {name.replace('_', ' ')}"})
+        events.append(
+            {
+                "id": _text(f"a-{tick}-{name}", 64),
+                "type": "attention",
+                "label": f"Attended to {name.replace('_', ' ')}",
+            }
+        )
     dissent = getattr(result, "dissent", None)
     if dissent is not None:
         capability = _text(getattr(dissent, "capability_id", "belief"), 64)
-        events.append({"id": _text(f"d-{tick}-{capability}", 64), "type": "contradiction", "label": f"Preserved contradictory evidence for {capability}", "belief_id": capability, "causal_chain": ["bounded second look", "evidence conflicted with baseline", "dissent preserved"]})
+        events.append(
+            {
+                "id": _text(f"d-{tick}-{capability}", 64),
+                "type": "contradiction",
+                "label": f"Preserved contradictory evidence for {capability}",
+                "belief_id": capability,
+                "causal_chain": [
+                    "bounded second look",
+                    "evidence conflicted with baseline",
+                    "dissent preserved",
+                ],
+            }
+        )
     action = getattr(result, "action_result", None)
     if action is not None:
         action_id = _text(getattr(action, "action_id", "action"), 64)
@@ -1035,13 +1284,15 @@ def project_tick(
         raw_reason = getattr(action, "reason", None)
         reason = _text(raw_reason, 96) if raw_reason is not None else ""
         organism_action = {"action_id": action_id, "executed": executed, "reason": reason or None}
-        events.append({
-            "id": _text(f"x-{tick}-{action_id}", 64),
-            "type": "action",
-            "label": f"{'Executed' if executed else 'Rejected'} local action {action_id}",
-            "action_id": action_id,
-            "executed": executed,
-        })
+        events.append(
+            {
+                "id": _text(f"x-{tick}-{action_id}", 64),
+                "type": "action",
+                "label": f"{'Executed' if executed else 'Rejected'} local action {action_id}",
+                "action_id": action_id,
+                "executed": executed,
+            }
+        )
     else:
         organism_action = None
 
@@ -1055,17 +1306,27 @@ def project_tick(
             if not event_name:
                 continue
             label = event_name.replace("_", " ")
-            events.append({
-                "id": _text(f"l-{tick}-{index}-{event_name}", 64),
-                "type": "life_history",
-                "label": _text(label[:1].upper() + label[1:], 160),
-            })
+            events.append(
+                {
+                    "id": _text(f"l-{tick}-{index}-{event_name}", 64),
+                    "type": "life_history",
+                    "label": _text(label[:1].upper() + label[1:], 160),
+                }
+            )
 
     known = tuple(getattr(acclimation, "known_capabilities", ())) if acclimation is not None else ()
-    acclimated = tuple(getattr(acclimation, "acclimated_capabilities", ())) if acclimation is not None else ()
+    acclimated = (
+        tuple(getattr(acclimation, "acclimated_capabilities", ()))
+        if acclimation is not None
+        else ()
+    )
     salient_notes: list[str] = []
     physiology_obj = getattr(result, "physiology", None)
-    if physiology_obj is not None and getattr(physiology_obj, "state", None) and getattr(physiology_obj.state, "value", str(physiology_obj.state)) == "dormant":
+    if (
+        physiology_obj is not None
+        and getattr(physiology_obj, "state", None)
+        and getattr(physiology_obj.state, "value", str(physiology_obj.state)) == "dormant"
+    ):
         salient_notes.append("Resting in metabolic dormancy.")
     for name, observation in dict(getattr(result, "drift_observations", {})).items():
         if _enum_value(getattr(observation, "kind", "")).lower() == "regime_shift":
@@ -1073,8 +1334,16 @@ def project_tick(
     if dissent is not None:
         salient_notes.append(f"Contradictory evidence gathered for {capability}.")
 
-    attended_summaries = [_text(getattr(entry, "summary", ""), 300) for entry in narratives if getattr(entry, "attended", False)]
-    other_summaries = [_text(getattr(entry, "summary", ""), 300) for entry in narratives if not getattr(entry, "attended", False)]
+    attended_summaries = [
+        _text(getattr(entry, "summary", ""), 300)
+        for entry in narratives
+        if getattr(entry, "attended", False)
+    ]
+    other_summaries = [
+        _text(getattr(entry, "summary", ""), 300)
+        for entry in narratives
+        if not getattr(entry, "attended", False)
+    ]
     all_narratives = salient_notes + attended_summaries + other_summaries
     narrative_text = _text(" ".join(filter(None, all_narratives)), 600)
 
@@ -1084,9 +1353,21 @@ def project_tick(
         "narrative": narrative_text,
         "acclimation": len(acclimated) / len(known) if known else 0.0,
         "memory": [_text(s, 200) for s in all_narratives[:32]],
-        "open_questions": [f"Learn more about {_text(getattr(entry, 'capability_id', 'this capability'), 64)}" for entry in narratives if _certainty(getattr(entry, "uncertainty", None)) < 0.5][:16],
-        "investigations": ([f"Second look at {_text(result.investigated_capability, 64)}"] if getattr(result, "investigated_capability", None) else []),
-        "regime_changes": [_text(name, 200) for name, observation in dict(getattr(result, "drift_observations", {})).items() if _enum_value(getattr(observation, "kind", "")).lower() == "regime_shift"][:16],
+        "open_questions": [
+            f"Learn more about {_text(getattr(entry, 'capability_id', 'this capability'), 64)}"
+            for entry in narratives
+            if _certainty(getattr(entry, "uncertainty", None)) < 0.5
+        ][:16],
+        "investigations": (
+            [f"Second look at {_text(result.investigated_capability, 64)}"]
+            if getattr(result, "investigated_capability", None)
+            else []
+        ),
+        "regime_changes": [
+            _text(name, 200)
+            for name, observation in dict(getattr(result, "drift_observations", {})).items()
+            if _enum_value(getattr(observation, "kind", "")).lower() == "regime_shift"
+        ][:16],
         "percepts": percepts,
         "beliefs": beliefs,
         "events": events[:64],
@@ -1102,7 +1383,9 @@ def project_tick(
         organism["sensory_phenotype"] = sensory_projection
     if ticks_remaining is not None:
         organism["resource_budget"] = {"ticks_remaining": max(0, int(ticks_remaining))}
-    physiology = _physiology_state(getattr(result, "physiology", None), resting_requested=resting_requested)
+    physiology = _physiology_state(
+        getattr(result, "physiology", None), resting_requested=resting_requested
+    )
     if physiology is not None:
         organism["physiology"] = physiology
     metabolism = _metabolism_state(getattr(result, "metabolism", None))
@@ -1114,19 +1397,29 @@ def project_tick(
     if social_relations is not None:
         organism["social_relations"] = _social_state(social_relations, current_tick=tick)
     if social_resource_evidence is not None:
-        organism["social_resource_evidence"] = _social_resource_state(social_resource_evidence, current_tick=tick)
+        organism["social_resource_evidence"] = _social_resource_state(
+            social_resource_evidence, current_tick=tick
+        )
     if cultural_observations is not None:
         organism["cultural_claims"] = _cultural_state(cultural_observations)
     organism["degradation"] = _degradation_state(result)
 
     activity = min(1.0, (len(percepts) + len(getattr(result, "allocations", ())) * 2) / 12.0)
-    member = {"display_id": organism["display_id"], "ecology": 0, "activity": activity, "knowledge_count": len(beliefs), "contested_count": sum(1 for belief in beliefs if belief["contested"])}
+    member = {
+        "display_id": organism["display_id"],
+        "ecology": 0,
+        "activity": activity,
+        "knowledge_count": len(beliefs),
+        "contested_count": sum(1 for belief in beliefs if belief["contested"]),
+    }
 
     cognition = getattr(result, "cognition", None)
     schema_version = SCHEMA_VERSION
     if cognition is not None and genome is not None:
         schema_version = 2
-        organism["cognition"] = _cognition_state(cognition, graph=graph, genome=genome, previous_edge_classes=previous_edge_classes)
+        organism["cognition"] = _cognition_state(
+            cognition, graph=graph, genome=genome, previous_edge_classes=previous_edge_classes
+        )
         if relation_churn is not None:
             try:
                 churn = float(relation_churn)
@@ -1162,10 +1455,25 @@ def project_tick(
         or embodiment_projection is not None
     ):
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
-    snapshot = {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
+    snapshot = {
+        "schema_version": schema_version,
+        "tick": tick,
+        "organism": organism,
+        "population": {"members": [member], "relationships": []},
+    }
     if observer_provenance is not None:
         rows = []
-        allowed_categories = {"compute", "memory", "storage", "network", "thermal", "power", "system", "internal", "unknown"}
+        allowed_categories = {
+            "compute",
+            "memory",
+            "storage",
+            "network",
+            "thermal",
+            "power",
+            "system",
+            "internal",
+            "unknown",
+        }
         for raw in tuple(observer_provenance)[:256]:
             if not isinstance(raw, Mapping):
                 continue
@@ -1174,7 +1482,9 @@ def project_tick(
                 continue
             value = raw.get("value")
             if value is not None and (
-                isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value))
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
             ):
                 value = None
             category = _text(raw.get("category", "unknown"), 16)
@@ -1183,15 +1493,17 @@ def project_tick(
             quality = _text(raw.get("quality", "unavailable"), 16)
             if quality not in {"nominal", "degraded", "stale", "unavailable"}:
                 quality = "unavailable"
-            rows.append({
-                "signal_id": signal_id,
-                "label": _text(raw.get("label", "Aggregate signal"), 64),
-                "category": category,
-                "scope": "internal" if raw.get("scope") == "internal" else "external",
-                "value": None if value is None else round(float(value), 6),
-                "unit": _text(raw.get("unit", ""), 16),
-                "quality": quality,
-            })
+            rows.append(
+                {
+                    "signal_id": signal_id,
+                    "label": _text(raw.get("label", "Aggregate signal"), 64),
+                    "category": category,
+                    "scope": "internal" if raw.get("scope") == "internal" else "external",
+                    "value": None if value is None else round(float(value), 6),
+                    "unit": _text(raw.get("unit", ""), 16),
+                    "quality": quality,
+                }
+            )
         snapshot["observer"] = {"signal_provenance": rows}
     telemetry = _communication_telemetry(communication_telemetry)
     if telemetry is not None:
@@ -1199,7 +1511,9 @@ def project_tick(
     return snapshot
 
 
-def project_topology(graph: CognitiveGraph, *, genome: Genome, kernel_version: str) -> dict[str, Any]:
+def project_topology(
+    graph: CognitiveGraph, *, genome: Genome, kernel_version: str
+) -> dict[str, Any]:
     """Structural-only projection: never carries weight/eligibility -- those
     are per-tick CognitionState, quantized, in _cognition_state above."""
     return {
@@ -1207,11 +1521,20 @@ def project_topology(graph: CognitiveGraph, *, genome: Genome, kernel_version: s
         "kernel_version": _text(kernel_version, 32),
         "topology_revision": 0,  # caller overwrites with the bridge's live counter
         "nodes": [
-            {"node_id": _text(node.node_id, 128), "kind": node.kind.value, "bias": node.bias, "tau": node.tau}
+            {
+                "node_id": _text(node.node_id, 128),
+                "kind": node.kind.value,
+                "bias": node.bias,
+                "tau": node.tau,
+            }
             for node in graph.nodes[:128]
         ],
         "edges": [
-            {"source_id": _text(edge.source_id, 128), "target_id": _text(edge.target_id, 128), "kind": edge.kind.value}
+            {
+                "source_id": _text(edge.source_id, 128),
+                "target_id": _text(edge.target_id, 128),
+                "kind": edge.kind.value,
+            }
             for edge in graph.edges[:1024]
         ],
     }
@@ -1246,12 +1569,24 @@ def write_replay(path: str | Path, snapshots: Iterable[dict[str, Any]]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Record bounded real Symbiont ticks for the passive Observatory")
-    parser.add_argument("--ticks", type=int, default=20, help="finite tick budget (1-10000; default 20)")
+    parser = argparse.ArgumentParser(
+        description="Record bounded real Symbiont ticks for the passive Observatory"
+    )
+    parser.add_argument(
+        "--ticks", type=int, default=20, help="finite tick budget (1-10000; default 20)"
+    )
     parser.add_argument("--output", type=Path, default=Path("symbiont-replay.json"))
-    parser.add_argument("--display-id", default="local-symbiont", help="non-identifying display label")
-    parser.add_argument("--checkpoint", type=Path, help="optional durable abstract runtime checkpoint")
-    parser.add_argument("--stdout", action="store_true", help="also emit one postMessage-compatible JSON envelope per line")
+    parser.add_argument(
+        "--display-id", default="local-symbiont", help="non-identifying display label"
+    )
+    parser.add_argument(
+        "--checkpoint", type=Path, help="optional durable abstract runtime checkpoint"
+    )
+    parser.add_argument(
+        "--stdout",
+        action="store_true",
+        help="also emit one postMessage-compatible JSON envelope per line",
+    )
     args = parser.parse_args(argv)
     if not 1 <= args.ticks <= MAX_TICKS:
         parser.error(f"--ticks must be between 1 and {MAX_TICKS}")
@@ -1259,7 +1594,9 @@ def main(argv: list[str] | None = None) -> int:
     from symbiont.core.governor import GovernedOrganism
     from symbiont.core.runtime import OrganismRuntime
 
-    runtime = OrganismRuntime.load_or_create(args.checkpoint) if args.checkpoint else OrganismRuntime()
+    runtime = (
+        OrganismRuntime.load_or_create(args.checkpoint) if args.checkpoint else OrganismRuntime()
+    )
     organism = GovernedOrganism(runtime, max_ticks=args.ticks)
     revision_counts: dict[str, int] = {}
     snapshots = []
@@ -1277,11 +1614,18 @@ def main(argv: list[str] | None = None) -> int:
             signal_references=result.signal_references,
             social_relations=runtime.social_ledger.relations,
             social_resource_evidence=runtime.social_resource_ledger.evidence,
-            cultural_observations=(runtime.cultural_observations() if hasattr(runtime, "cultural_observations") else None),
+            cultural_observations=(
+                runtime.cultural_observations()
+                if hasattr(runtime, "cultural_observations")
+                else None
+            ),
         )
         snapshots.append(snapshot)
         if args.stdout:
-            print(json.dumps(envelope(snapshot), ensure_ascii=False, separators=(",", ":")), flush=True)
+            print(
+                json.dumps(envelope(snapshot), ensure_ascii=False, separators=(",", ":")),
+                flush=True,
+            )
     write_replay(args.output, snapshots)
     if args.checkpoint:
         runtime.save(args.checkpoint)

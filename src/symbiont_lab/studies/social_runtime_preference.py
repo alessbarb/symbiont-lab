@@ -1,10 +1,12 @@
 """Evaluator-only study of local evidence-driven social selection."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.core.social import SocialHabitat
 
 

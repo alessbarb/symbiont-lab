@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from hashlib import sha256
-import random
 
 
 def derive_seed(seed: int, namespace: str) -> int:

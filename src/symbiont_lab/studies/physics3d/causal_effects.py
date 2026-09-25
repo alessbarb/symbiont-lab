@@ -4,14 +4,14 @@ This module analyzes counterfactual trials produced by Physics3D studies. It
 never selects primitives, schedules organism actions, supplies reward or feeds
 results back into Symbiont.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from statistics import fmean
 
 from symbiont_lab.physics3d.effects import PhysicalConsequence, PhysicalState
-
 
 Vector3 = tuple[float, float, float]
 
@@ -61,9 +61,7 @@ def _sub(left: Vector3, right: Vector3) -> Vector3:
 def _mean_vector(vectors: list[Vector3]) -> Vector3:
     if not vectors:
         return (0.0, 0.0, 0.0)
-    return tuple(
-        fmean(item[axis] for item in vectors) for axis in range(3)
-    )  # type: ignore[return-value]
+    return tuple(fmean(item[axis] for item in vectors) for axis in range(3))  # type: ignore[return-value]
 
 
 def _directional_concentration(
@@ -105,8 +103,7 @@ def analyze_matched_controls(
         passive_vectors = [item.passive.translation_body for item in group]
         control_vectors = [item.motor_control.translation_body for item in group]
         passive_adjusted = [
-            _sub(item.primitive.translation_body, item.passive.translation_body)
-            for item in group
+            _sub(item.primitive.translation_body, item.passive.translation_body) for item in group
         ]
         control_adjusted = [
             _sub(
@@ -137,18 +134,10 @@ def analyze_matched_controls(
                 primitive_translation_mean=_mean_vector(primitive_vectors),
                 passive_translation_mean=_mean_vector(passive_vectors),
                 motor_control_translation_mean=_mean_vector(control_vectors),
-                primitive_minus_passive_translation_mean=_mean_vector(
-                    passive_adjusted
-                ),
-                primitive_minus_motor_control_translation_mean=_mean_vector(
-                    control_adjusted
-                ),
-                primitive_minus_passive_com_mean=_mean_vector(
-                    passive_adjusted_com
-                ),
-                primitive_minus_motor_control_com_mean=_mean_vector(
-                    control_adjusted_com
-                ),
+                primitive_minus_passive_translation_mean=_mean_vector(passive_adjusted),
+                primitive_minus_motor_control_translation_mean=_mean_vector(control_adjusted),
+                primitive_minus_passive_com_mean=_mean_vector(passive_adjusted_com),
+                primitive_minus_motor_control_com_mean=_mean_vector(control_adjusted_com),
                 passive_adjusted_directional_concentration=(
                     _directional_concentration(passive_adjusted)
                 ),
@@ -156,25 +145,20 @@ def analyze_matched_controls(
                     _directional_concentration(control_adjusted)
                 ),
                 primitive_minus_passive_rotation_mean=fmean(
-                    item.primitive.rotation_angle - item.passive.rotation_angle
-                    for item in group
+                    item.primitive.rotation_angle - item.passive.rotation_angle for item in group
                 ),
                 primitive_minus_motor_control_rotation_mean=fmean(
-                    item.primitive.rotation_angle
-                    - item.motor_control.rotation_angle
+                    item.primitive.rotation_angle - item.motor_control.rotation_angle
                     for item in group
                 ),
                 primitive_minus_passive_pose_mean=fmean(
-                    item.primitive.pose_delta - item.passive.pose_delta
-                    for item in group
+                    item.primitive.pose_delta - item.passive.pose_delta for item in group
                 ),
                 primitive_minus_motor_control_pose_mean=fmean(
-                    item.primitive.pose_delta - item.motor_control.pose_delta
-                    for item in group
+                    item.primitive.pose_delta - item.motor_control.pose_delta for item in group
                 ),
                 primitive_minus_passive_work_mean=fmean(
-                    item.primitive.mechanical_work_joules
-                    - item.passive.mechanical_work_joules
+                    item.primitive.mechanical_work_joules - item.passive.mechanical_work_joules
                     for item in group
                 ),
                 primitive_minus_motor_control_work_mean=fmean(

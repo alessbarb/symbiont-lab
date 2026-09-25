@@ -19,7 +19,9 @@ def build_experiment_parser(parser: argparse.ArgumentParser) -> None:
 def run_experiment_command(args: argparse.Namespace) -> int:
     if args.experiment_action == "run":
         spec = load_experiment_file(args.spec_path)
-        print(f"Loaded experiment '{spec.experiment_id}' (protocol: {spec.protocol}/v{spec.protocol_version})")
+        print(
+            f"Loaded experiment '{spec.experiment_id}' (protocol: {spec.protocol}/v{spec.protocol_version})"
+        )
         print(f"Hypothesis: {spec.hypothesis.strip()}")
         runner = ExperimentRunner()
         result, manifest, run_dir = _run_with_progress(runner, spec)

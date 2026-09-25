@@ -1,10 +1,11 @@
 """Thread-safe fan-out bus for passive organism observation events."""
+
 from __future__ import annotations
 
-from collections import deque
 import json
 import queue
 import threading
+from collections import deque
 from typing import Any
 
 _DEFAULT_QUEUE_SIZE = 64
@@ -66,11 +67,9 @@ class ObservationBus:
                 replay = list(self._last_by_type.values())
             else:
                 replay = [
-                    data
-                    for stream_id, data in self._history
-                    if stream_id > int(after_sequence)
+                    data for stream_id, data in self._history if stream_id > int(after_sequence)
                 ]
-            for data in replay[-self._queue_size:]:
+            for data in replay[-self._queue_size :]:
                 if consumer.full():
                     consumer.get_nowait()
                 consumer.put_nowait(data)

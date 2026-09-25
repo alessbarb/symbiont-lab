@@ -45,12 +45,16 @@ class ActuatorEvidenceModel:
 
     @property
     def active_repertoire(self) -> tuple[ActuatorId, ...]:
-        return tuple(
-            state.actuator_id for state in self.states if state.probing_state == "active"
-        )
+        return tuple(state.actuator_id for state in self.states if state.probing_state == "active")
 
     def record_effect(
-        self, actuator_id: ActuatorId, percept_id: str, *, activation: float, delta_percept: float, tick: int
+        self,
+        actuator_id: ActuatorId,
+        percept_id: str,
+        *,
+        activation: float,
+        delta_percept: float,
+        tick: int,
     ) -> None:
         state = self._states[actuator_id]
         state.observe_effect(percept_id, activation=activation, delta_percept=delta_percept)

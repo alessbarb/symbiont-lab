@@ -9,7 +9,7 @@ from symbiont.simulation import run_simulation
 
 def build_audit_parser(parser: argparse.ArgumentParser) -> None:
     sub = parser.add_subparsers(dest="audit_action", required=True)
-    verify_cmd = sub.add_parser("verify", help="Verify laboratory experimental invariants")
+    sub.add_parser("verify", help="Verify laboratory experimental invariants")
 
 
 def run_audit_command(args: argparse.Namespace) -> int:
@@ -31,8 +31,12 @@ def run_audit_command(args: argparse.Namespace) -> int:
         # 2. Same-seed same-world simulation parity
         res_a, _ = run_simulation(hosts=20, steps=60, seed=123)
         res_b, _ = run_simulation(hosts=20, steps=60, seed=123)
-        assert res_a.pathogen_events == res_b.pathogen_events, "Same seed produced different pathogen count!"
-        assert res_a.benign_events == res_b.benign_events, "Same seed produced different benign count!"
+        assert res_a.pathogen_events == res_b.pathogen_events, (
+            "Same seed produced different pathogen count!"
+        )
+        assert res_a.benign_events == res_b.benign_events, (
+            "Same seed produced different benign count!"
+        )
         print("✓ Deterministic simulation parity: verified.")
 
         print("All experimental invariants verified successfully.")

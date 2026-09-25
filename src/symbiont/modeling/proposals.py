@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
-
+from dataclasses import dataclass
 
 _MAX_TOKEN = 96
 _MAX_MODEL_ID = 128
@@ -36,9 +35,17 @@ class ModelPredictionProposal:
         _token(self.target_token, "target_token")
         _token(self.predicted_token, "predicted_token")
         _model_id(self.model_id)
-        if isinstance(self.horizon_class, bool) or not isinstance(self.horizon_class, int) or not 1 <= self.horizon_class <= 16:
+        if (
+            isinstance(self.horizon_class, bool)
+            or not isinstance(self.horizon_class, int)
+            or not 1 <= self.horizon_class <= 16
+        ):
             raise ValueError("horizon_class must be within [1, 16]")
-        if isinstance(self.confidence_class, bool) or not isinstance(self.confidence_class, int) or not 0 <= self.confidence_class <= 7:
+        if (
+            isinstance(self.confidence_class, bool)
+            or not isinstance(self.confidence_class, int)
+            or not 0 <= self.confidence_class <= 7
+        ):
             raise ValueError("confidence_class must be within [0, 7]")
 
 
@@ -57,12 +64,20 @@ class ModelHypothesisProposal:
         _token(self.relation_token, "relation_token")
         _token(self.object_token, "object_token")
         _model_id(self.model_id)
-        if isinstance(self.confidence_class, bool) or not isinstance(self.confidence_class, int) or not 0 <= self.confidence_class <= 7:
+        if (
+            isinstance(self.confidence_class, bool)
+            or not isinstance(self.confidence_class, int)
+            or not 0 <= self.confidence_class <= 7
+        ):
             raise ValueError("confidence_class must be within [0, 7]")
 
 
 def confidence_class(probability: float) -> int:
-    if isinstance(probability, bool) or not isinstance(probability, (int, float)) or not math.isfinite(float(probability)):
+    if (
+        isinstance(probability, bool)
+        or not isinstance(probability, (int, float))
+        or not math.isfinite(float(probability))
+    ):
         raise ValueError("probability must be finite")
     value = max(0.0, min(1.0, float(probability)))
     return min(7, int(value * 8.0))

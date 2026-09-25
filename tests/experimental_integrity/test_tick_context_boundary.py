@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from symbiont.core.runtime import OrganismRuntime
 
 from symbiont.core.domains.context import TickContext
-from symbiont.core.runtime import OrganismRuntime
 
 
 def test_tick_context_rejects_wrong_symbiont_identity() -> None:
@@ -21,9 +21,9 @@ def test_tick_context_rejects_wrong_symbiont_identity() -> None:
 
 def test_physics3d_passes_both_time_domains_explicitly() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (
-        root / "src" / "symbiont_lab" / "physics3d" / "runtime.py"
-    ).read_text(encoding="utf-8")
+    source = (root / "src" / "symbiont_lab" / "physics3d" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
     assert "symbiont_tick=self.tick_count + 1" in source
     assert "embodiment_tick=self.embodiment_tick" in source
     assert "body_id=self.body_identity" in source

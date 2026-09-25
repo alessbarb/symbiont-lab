@@ -16,16 +16,25 @@ from observatory.registry import read_registry
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _run_resident(state_file: Path, observatory_dir: Path, display_id: str) -> subprocess.CompletedProcess:
+def _run_resident(
+    state_file: Path, observatory_dir: Path, display_id: str
+) -> subprocess.CompletedProcess:
     return subprocess.run(
         [
-            sys.executable, "resident.py",
-            "--state-file", str(state_file),
-            "--observatory-dir", str(observatory_dir),
-            "--display-id", display_id,
-            "--max-ticks", "1",
-            "--interval", "0.01",
-            "--checkpoint-every", "1",
+            sys.executable,
+            "resident.py",
+            "--state-file",
+            str(state_file),
+            "--observatory-dir",
+            str(observatory_dir),
+            "--display-id",
+            display_id,
+            "--max-ticks",
+            "1",
+            "--interval",
+            "0.01",
+            "--checkpoint-every",
+            "1",
         ],
         cwd=ROOT,
         capture_output=True,

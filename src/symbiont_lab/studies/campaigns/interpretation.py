@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass
 
 from .comparative import COMPARABLE_PARAMETERS, METRICS, StudyResult
 
-
 _DESIRED_DIRECTION: dict[str, int] = {
     "attention_recall": 1,
     "attention_precision": 1,
@@ -186,11 +185,7 @@ def interpret_study(study: StudyResult) -> StudyInterpretation:
     for metric in METRICS:
         paired = study.paired_deltas[metric]
         threshold = _MEANINGFUL_DELTA[metric]
-        if (
-            paired.mean is None
-            or paired.stdev is None
-            or paired.direction_agreement is None
-        ):
+        if paired.mean is None or paired.stdev is None or paired.direction_agreement is None:
             findings.append(
                 StudyFinding(
                     metric=metric,
@@ -243,15 +238,12 @@ def interpret_study(study: StudyResult) -> StudyInterpretation:
     strong = [
         finding
         for finding in finding_tuple
-        if finding.evidence == "strong"
-        and finding.classification not in {"stable", "undefined"}
+        if finding.evidence == "strong" and finding.classification not in {"stable", "undefined"}
     ]
     strong_harm = [finding.metric for finding in strong if finding.classification == "worsened"]
     strong_gain = [finding.metric for finding in strong if finding.classification == "improved"]
     strong_shift = [
-        finding.metric
-        for finding in strong
-        if finding.classification in {"increased", "decreased"}
+        finding.metric for finding in strong if finding.classification in {"increased", "decreased"}
     ]
 
     if strong_harm:
@@ -265,7 +257,9 @@ def interpret_study(study: StudyResult) -> StudyInterpretation:
             + "."
         )
     else:
-        summary = "No strong paired effect is established yet; treat the current result as exploratory."
+        summary = (
+            "No strong paired effect is established yet; treat the current result as exploratory."
+        )
 
     informative = [
         finding

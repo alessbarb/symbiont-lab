@@ -4,6 +4,7 @@ Observatory is a passive, read-only scientific viewing apparatus.
 It understands only its own contracts and ingestion schemas, and does NOT
 depend on or import symbiont.core or organism internal limits.
 """
+
 from __future__ import annotations
 
 # Operational server & streaming defaults

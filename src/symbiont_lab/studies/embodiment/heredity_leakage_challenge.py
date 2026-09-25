@@ -9,6 +9,7 @@ The study has two layers:
    conditions. A lawful inherited learning-rate modulation may change learning
    speed, but no child may start with mapping-specific knowledge.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -19,8 +20,8 @@ from symbiont.core.germline import (
     GermlineState,
     InheritancePackage,
     SymbiontGenome,
-    create_offspring_package,
     create_germline_state,
+    create_offspring_package,
     create_standard_genome,
 )
 from symbiont.core.symbiont import Symbiont
@@ -161,8 +162,17 @@ def _learning_assay(
     elif condition == "renamed":
         out_ch, target_ch, sign, extra_inputs = "out.x7", "in.q3", 1.0, ()
     elif condition == "expanded_morphology":
-        out_ch, target_ch, sign, extra_inputs = "out.2", "in.4", 1.0, (
-            "in.0", "in.1", "in.2", "in.3", "in.5",
+        out_ch, target_ch, sign, extra_inputs = (
+            "out.2",
+            "in.4",
+            1.0,
+            (
+                "in.0",
+                "in.1",
+                "in.2",
+                "in.3",
+                "in.5",
+            ),
         )
     elif condition == "reversed":
         out_ch, target_ch, sign, extra_inputs = "out.0", "in.0", -1.0, ()
@@ -184,11 +194,7 @@ def _learning_assay(
 
         residuals = model.observe(deltas, tick=tick + 1)
         final_error = next(
-            (
-                float(item.error)
-                for item in residuals
-                if item.percept_id == target_ch
-            ),
+            (float(item.error) for item in residuals if item.percept_id == target_ch),
             0.0,
         )
 
@@ -241,9 +247,7 @@ def _run_transformed_conditions(
                 control_final_weight=control_weight,
                 # Neither inherited nor control child may begin with a
                 # mapping-specific sensorimotor solution.
-                zero_shot_mapping_equal=(
-                    inherited_initial == 0.0 and control_initial == 0.0
-                ),
+                zero_shot_mapping_equal=(inherited_initial == 0.0 and control_initial == 0.0),
             )
         )
     return tuple(results)
@@ -316,13 +320,9 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         and not hasattr(package, "sensorimotor_model")
         and not hasattr(package, "memories")
     )
-    sm_empty = (
-        child.sensorimotor_model.relation_count == 0
-        and child.causal_evidence.evidence == ()
-    )
+    sm_empty = child.sensorimotor_model.relation_count == 0 and child.causal_evidence.evidence == ()
     agency_empty = (
-        child.agency_model.estimates == ()
-        and child.controllability_model.estimates == ()
+        child.agency_model.estimates == () and child.controllability_model.estimates == ()
     )
     schema_empty = (
         child.body_schema.self_caused_channels == ()
@@ -331,8 +331,7 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         and child.body_schema.boundary_confidence == 0.0
     )
     perceptual_empty = (
-        child.effect_space.effects == ()
-        and child.competence_effect_model.context_count == 0
+        child.effect_space.effects == () and child.competence_effect_model.context_count == 0
     )
 
     transmitted = {m.locus: m for m in package.epigenetic_marks}
@@ -361,7 +360,7 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
 
 def run_heredity_leakage_challenge_study(
     *,
-    seeds: Sequence[int] = (101,127,149,173,211,257,307,353,401,457),
+    seeds: Sequence[int] = (101, 127, 149, 173, 211, 257, 307, 353, 401, 457),
 ) -> HeredityLeakageStudy:
     normalized = _normalize_seeds(seeds)
     results = tuple(_run_seed(s) for s in normalized)

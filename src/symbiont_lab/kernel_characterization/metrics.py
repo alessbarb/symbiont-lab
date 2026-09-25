@@ -33,13 +33,18 @@ def summarize(records: Iterable[Mapping[str, object]]) -> dict[str, object]:
         "trace_count",
         "weight_norm",
     )
-    result: dict[str, object] = {"runs": len(rows), "failures": sum(bool(row.get("failure")) for row in rows)}
+    result: dict[str, object] = {
+        "runs": len(rows),
+        "failures": sum(bool(row.get("failure")) for row in rows),
+    }
     for name in numeric:
         values = [float(row[name]) for row in rows if not row.get("failure") and name in row]
         if values:
             result[name] = {
                 "mean": statistics.fmean(values),
-                "p95": max(values) if len(values) < 20 else statistics.quantiles(values, n=20, method="inclusive")[18],
+                "p95": max(values)
+                if len(values) < 20
+                else statistics.quantiles(values, n=20, method="inclusive")[18],
                 "min": min(values),
                 "max": max(values),
             }

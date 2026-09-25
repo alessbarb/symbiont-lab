@@ -149,11 +149,21 @@ class Evaluator:
             predicted_threat=predicted,
         )
 
-        probability = min(1.0, max(0.0, assessment.threat_probability if assessment.threat_probability is not None else (1.0 if predicted else 0.0)))
+        probability = min(
+            1.0,
+            max(
+                0.0,
+                assessment.threat_probability
+                if assessment.threat_probability is not None
+                else (1.0 if predicted else 0.0),
+            ),
+        )
         target = 1.0 if is_threat else 0.0
         self.decisions += 1
         self.brier_sum += (probability - target) ** 2
-        bin_index = min(int(probability * len(self.calibration_bins)), len(self.calibration_bins) - 1)
+        bin_index = min(
+            int(probability * len(self.calibration_bins)), len(self.calibration_bins) - 1
+        )
         calibration_bin = self.calibration_bins[bin_index]
         calibration_bin.count += 1
         calibration_bin.probability_sum += probability
@@ -253,17 +263,12 @@ class Evaluator:
         return {
             "global": self.counts.as_dict(),
             "families": {
-                name: counts.as_dict()
-                for name, counts in sorted(self.family_counts.items())
+                name: counts.as_dict() for name, counts in sorted(self.family_counts.items())
             },
             "phases": {
-                name: counts.as_dict()
-                for name, counts in sorted(self.phase_counts.items())
+                name: counts.as_dict() for name, counts in sorted(self.phase_counts.items())
             },
-            "drift": {
-                name: counts.as_dict()
-                for name, counts in sorted(self.drift_counts.items())
-            },
+            "drift": {name: counts.as_dict() for name, counts in sorted(self.drift_counts.items())},
             "calibration": {
                 "ece": self.calibration_error,
                 "brier_score": self.brier_score,
@@ -275,9 +280,7 @@ class Evaluator:
                         "mean_probability": (
                             item.probability_sum / item.count if item.count else None
                         ),
-                        "event_rate": (
-                            item.target_sum / item.count if item.count else None
-                        ),
+                        "event_rate": (item.target_sum / item.count if item.count else None),
                     }
                     for item in self.calibration_bins
                 ],

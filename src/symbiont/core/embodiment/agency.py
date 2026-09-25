@@ -14,11 +14,12 @@ canonical Embodiment v2 stack:
 Do not import this module from runtime/production code. It intentionally remains
 available to studies that compare or falsify the historical formulation.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
-from typing import Any, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Mapping, Sequence
 
 
 @dataclass(slots=True)
@@ -83,10 +84,9 @@ class PerceptualStructure:
                 if pair_key not in self.cross_cov:
                     self.cross_cov[pair_key] = current_cov
                 else:
-                    self.cross_cov[pair_key] = (
-                        (1.0 - self.alpha) * self.cross_cov[pair_key]
-                        + self.alpha * current_cov
-                    )
+                    self.cross_cov[pair_key] = (1.0 - self.alpha) * self.cross_cov[
+                        pair_key
+                    ] + self.alpha * current_cov
 
     def correlation(self, ch_a: str, ch_b: str) -> float:
         """Compute Pearson correlation coefficient between two channels."""
@@ -339,8 +339,7 @@ class InferredBodySchema:
             else:
                 # Check if correlated with self-caused channels (somatic but less directly controllable, AUD-047)
                 is_somatic = any(
-                    abs(perceptual_structure.correlation(in_ch, sc)) > 0.5
-                    for sc in new_self_caused
+                    abs(perceptual_structure.correlation(in_ch, sc)) > 0.5 for sc in new_self_caused
                 )
                 if is_somatic:
                     new_somatic.add(in_ch)
@@ -410,12 +409,8 @@ class InferredSelfModel:
 
         # Update stability based on prediction errors
         error_penalty = min(0.5, prediction_error)
-        self.historical_stability = (
-            0.95 * self.historical_stability + 0.05 * (1.0 - error_penalty)
-        )
-        self.integrity_confidence = (
-            0.9 * self.integrity_confidence + 0.1 * body_schema_confidence
-        )
+        self.historical_stability = 0.95 * self.historical_stability + 0.05 * (1.0 - error_penalty)
+        self.integrity_confidence = 0.9 * self.integrity_confidence + 0.1 * body_schema_confidence
 
 
 __all__ = [

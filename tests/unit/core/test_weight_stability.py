@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from symbiont.core.weight_stability import WeightStabilityTracker
 
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.weight_stability import WeightStabilityTracker
 
 
 def test_seed_sets_the_durable_class_before_any_observation():
@@ -79,7 +79,9 @@ def test_consolidate_node_returns_none_when_nothing_changed():
     tracker.seed("b->n", 5)
     tracker.observe("a->n", 5, tick=1)
     tracker.observe("b->n", 5, tick=1)
-    result = tracker.consolidate_node(["a->n", "b->n"], {"a->n": 0.3, "b->n": 0.3}, max_incoming_norm=8.0)
+    result = tracker.consolidate_node(
+        ["a->n", "b->n"], {"a->n": 0.3, "b->n": 0.3}, max_incoming_norm=8.0
+    )
     assert result is None
 
 
@@ -93,7 +95,9 @@ def test_p13_node_atomic_commit_blocks_on_one_immature_changed_edge():
         tracker.observe("a->n", 9, tick=epoch * epoch_ticks + 1)
     tracker.observe("b->n", 6, tick=1)
 
-    result = tracker.consolidate_node(["a->n", "b->n"], {"a->n": 1.5, "b->n": 0.4}, max_incoming_norm=8.0)
+    result = tracker.consolidate_node(
+        ["a->n", "b->n"], {"a->n": 1.5, "b->n": 0.4}, max_incoming_norm=8.0
+    )
     assert result is None
     assert tracker.durable_class("a->n") == 5
     assert tracker.durable_class("b->n") == 5
@@ -109,7 +113,9 @@ def test_node_commits_when_all_changed_edges_are_ready_unchanged_sibling_untouch
         tracker.observe("a->n", 9, tick=epoch * epoch_ticks + 1)
         tracker.observe("b->n", 5, tick=epoch * epoch_ticks + 1)
 
-    result = tracker.consolidate_node(["a->n", "b->n"], {"a->n": 1.5, "b->n": 0.3}, max_incoming_norm=8.0)
+    result = tracker.consolidate_node(
+        ["a->n", "b->n"], {"a->n": 1.5, "b->n": 0.3}, max_incoming_norm=8.0
+    )
     assert result is not None
     assert "a->n" in result
     assert result["b->n"] == tracker.durable_class("b->n") == 5
@@ -125,7 +131,9 @@ def test_homeostatic_l1_normalization_scales_down_when_over_budget():
         tracker.observe("a->n", 15, tick=epoch * limits.consolidation_epoch_ticks + 1)
         tracker.observe("b->n", 15, tick=epoch * limits.consolidation_epoch_ticks + 1)
 
-    result = tracker.consolidate_node(["a->n", "b->n"], {"a->n": 1.9, "b->n": 1.9}, max_incoming_norm=8.0)
+    result = tracker.consolidate_node(
+        ["a->n", "b->n"], {"a->n": 1.9, "b->n": 1.9}, max_incoming_norm=8.0
+    )
     assert result is not None
 
     tracker2 = WeightStabilityTracker(kernel_limits=limits)
@@ -134,8 +142,11 @@ def test_homeostatic_l1_normalization_scales_down_when_over_budget():
     for epoch in range(limits.slow_support_epochs + 1):
         tracker2.observe("a->n", 15, tick=epoch * limits.consolidation_epoch_ticks + 1)
         tracker2.observe("b->n", 15, tick=epoch * limits.consolidation_epoch_ticks + 1)
-    scaled = tracker2.consolidate_node(["a->n", "b->n"], {"a->n": 1.9, "b->n": 1.9}, max_incoming_norm=1.0)
+    scaled = tracker2.consolidate_node(
+        ["a->n", "b->n"], {"a->n": 1.9, "b->n": 1.9}, max_incoming_norm=1.0
+    )
     assert scaled is not None
     from symbiont.cognition.checkpoint import dequantize_weight
+
     total = sum(abs(dequantize_weight(cls)) for cls in scaled.values())
     assert total <= 1.0 + 1e-6

@@ -1,4 +1,5 @@
 """Memory consolidation domain."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -37,12 +38,9 @@ class MemoryDomain:
         if reacclimation_remaining > 0:
             return
 
-        attended_capability_ids = {
-            allocation.name for allocation in perception.allocations
-        }
+        attended_capability_ids = {allocation.name for allocation in perception.allocations}
         capability_by_percept_name = {
-            name: capability_id
-            for capability_id, name in perception.percept_names.items()
+            name: capability_id for capability_id, name in perception.percept_names.items()
         }
         prediction_loss_by_node: dict[str, float] = {}
         if cognition.cognition is not None:
@@ -52,14 +50,8 @@ class MemoryDomain:
         for percept_name, observation in perception.drift_observations.items():
             capability_id = capability_by_percept_name.get(percept_name)
             novelty = novelty_from_drift_kind(observation.kind)
-            surprise = surprise_from_loss(
-                prediction_loss_by_node.get(percept_name)
-            )
-            attention = (
-                1.0
-                if capability_id in attended_capability_ids
-                else 0.0
-            )
+            surprise = surprise_from_loss(prediction_loss_by_node.get(percept_name))
+            attention = 1.0 if capability_id in attended_capability_ids else 0.0
             availability = (
                 perception.availability_by_capability.get(
                     capability_id,
@@ -100,6 +92,5 @@ class MemoryDomain:
         cognitive_node_count: int,
     ) -> float:
         return (
-            max(0, int(drift_baseline_count)) * 0.001
-            + max(0, int(cognitive_node_count)) * 0.0005
+            max(0, int(drift_baseline_count)) * 0.001 + max(0, int(cognitive_node_count)) * 0.0005
         )

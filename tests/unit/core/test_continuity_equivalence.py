@@ -6,6 +6,7 @@ biologically neutral, restoring must reproduce the same future as never
 stopping, restoring must not require a world, and checkpoint lineage must
 let two restores of one checkpoint be recognized as a branch.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -118,10 +119,7 @@ def test_checkpoint_branching_from_same_parent_is_detectable():
 def test_constitution_fingerprint_matches_recomputed_genome_hash():
     runtime = _fresh()
     payload = runtime.checkpoint()
-    assert (
-        payload["constitution_fingerprint"]["genome_hash"]
-        == _canonical_hash(payload["genome"])
-    )
+    assert payload["constitution_fingerprint"]["genome_hash"] == _canonical_hash(payload["genome"])
 
 
 def test_runtime_provenance_records_software_and_schema_version():
@@ -131,10 +129,7 @@ def test_runtime_provenance_records_software_and_schema_version():
     payload = _fresh().checkpoint()
 
     assert payload["runtime_provenance"]["software_version"] == symbiont.__version__
-    assert (
-        payload["runtime_provenance"]["checkpoint_schema_version"]
-        == CHECKPOINT_SCHEMA_VERSION
-    )
+    assert payload["runtime_provenance"]["checkpoint_schema_version"] == CHECKPOINT_SCHEMA_VERSION
 
 
 def test_direct_structural_damage_does_not_touch_cognition_before_any_sensing():
@@ -147,12 +142,8 @@ def test_direct_structural_damage_does_not_touch_cognition_before_any_sensing():
     injured.homeostasis.integrity = 0.4
 
     assert injured.homeostasis.integrity != healthy.homeostasis.integrity
-    assert injured.body_schema.export(current_tick=0) == healthy.body_schema.export(
-        current_tick=0
-    )
-    assert injured.self_model.export(current_tick=0) == healthy.self_model.export(
-        current_tick=0
-    )
+    assert injured.body_schema.export(current_tick=0) == healthy.body_schema.export(current_tick=0)
+    assert injured.self_model.export(current_tick=0) == healthy.self_model.export(current_tick=0)
 
 
 def test_lesion_survives_checkpoint_round_trip():
@@ -170,9 +161,7 @@ def test_organism_runtime_construction_takes_no_world_reference():
     params = inspect.signature(OrganismRuntime.__init__).parameters
     assert not any("world" in name.lower() for name in params)
 
-    from_checkpoint_params = inspect.signature(
-        OrganismRuntime.from_checkpoint
-    ).parameters
+    from_checkpoint_params = inspect.signature(OrganismRuntime.from_checkpoint).parameters
     assert not any("world" in name.lower() for name in from_checkpoint_params)
 
 
@@ -184,9 +173,7 @@ def _reproduction_genome():
     from symbiont.cognition.genome import GenomeCodec
 
     payload = json.loads(
-        resources.files("symbiont.cognition")
-        .joinpath("defaults/base-genome.json")
-        .read_text()
+        resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
     )
     return replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
 

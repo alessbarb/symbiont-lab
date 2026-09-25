@@ -6,7 +6,6 @@ from typing import Iterable
 
 from .second_look import SecondLookOutcome, run_second_look_study
 
-
 NOISE_METRICS = (
     "brier_gain",
     "net_correction_rate",
@@ -80,17 +79,13 @@ class EvidenceNoiseSweep:
             "strategies": self.strategies,
             "summaries": {
                 str(noise): {
-                    strategy: summary.as_dict()
-                    for strategy, summary in strategies.items()
+                    strategy: summary.as_dict() for strategy, summary in strategies.items()
                 }
                 for noise, strategies in self.summaries.items()
             },
             "paired_vs_lowest_noise": {
                 str(noise): {
-                    strategy: {
-                        metric: delta.as_dict()
-                        for metric, delta in metrics.items()
-                    }
+                    strategy: {metric: delta.as_dict() for metric, delta in metrics.items()}
                     for strategy, metrics in strategies.items()
                 }
                 for noise, strategies in self.paired_vs_lowest_noise.items()
@@ -236,9 +231,7 @@ def run_evidence_noise_sweep(
             metrics: dict[str, NoiseMetricSummary] = {}
             for metric in NOISE_METRICS:
                 values = [
-                    value
-                    for outcome in outcomes
-                    if (value := _metric(outcome, metric)) is not None
+                    value for outcome in outcomes if (value := _metric(outcome, metric)) is not None
                 ]
                 metrics[metric] = _summary(values)
             summaries[noise][strategy] = NoiseStrategySummary(

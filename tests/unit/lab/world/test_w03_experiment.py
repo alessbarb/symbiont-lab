@@ -4,11 +4,14 @@ the initially-hypothesized mechanism (hazard density-coupling) was ruled
 out by its own control -- both facts are locked here, not just the
 convenient one.
 """
+
 import importlib.util
 import sys
 from pathlib import Path
 
-_MODULE_PATH = Path(__file__).resolve().parents[4] / "experiments" / "world" / "genesis-v1" / "run_w03.py"
+_MODULE_PATH = (
+    Path(__file__).resolve().parents[4] / "experiments" / "world" / "genesis-v1" / "run_w03.py"
+)
 _spec = importlib.util.spec_from_file_location("run_w03", _MODULE_PATH)
 run_w03 = importlib.util.module_from_spec(_spec)
 sys.modules.setdefault("run_w03", run_w03)

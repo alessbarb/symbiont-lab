@@ -1,10 +1,12 @@
 """Evaluator-only study of local adaptation to opaque resource availability."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.core.social import SocialHabitat
 
 
@@ -36,7 +38,9 @@ def run_social_runtime_resource_adaptation_study() -> SocialRuntimeResourceAdapt
         raise AssertionError("resource adaptation study produced no initial request")
     checkpoint = runtime.checkpoint()
     restored = OrganismRuntime.from_checkpoint(checkpoint, social_habitat=habitat)
-    replay_equal = restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
+    replay_equal = (
+        restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
+    )
     second = restored.autonomous_social_step()
     if second is None:
         raise AssertionError("resource adaptation study produced no adapted request")

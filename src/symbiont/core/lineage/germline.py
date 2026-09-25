@@ -3,10 +3,11 @@
 All genetic state and operators live in symbiont.genetics. This module exists
 only so historical imports resolve to the same objects.
 """
+
 from __future__ import annotations
 
-from importlib import resources
 import json
+from importlib import resources
 
 from ...genetics.genome import Genome, GenomeCodec
 from ...genetics.germline import (
@@ -18,7 +19,6 @@ from ...genetics.germline import (
 from ...genetics.mutation import mutate_genome
 from ...genetics.recombination import recombine_genomes
 from ...genetics.schema import DEFAULT_GENOME_SCHEMA, GeneSpec, GeneType
-
 
 SymbiontGenome = Genome
 LocusSpec = GeneSpec
@@ -33,9 +33,7 @@ def create_standard_genome(genome_id: str) -> Genome:
         .read_text(encoding="utf-8")
     )
     payload["genome_id"] = (
-        str(genome_id)
-        if str(genome_id).startswith("genome_")
-        else f"genome_{genome_id}"
+        str(genome_id) if str(genome_id).startswith("genome_") else f"genome_{genome_id}"
     )
     return GenomeCodec().load(payload)
 

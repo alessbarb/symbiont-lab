@@ -18,7 +18,12 @@ def _concept(node_id: str = "c") -> PlasticNode:
 
 def _edge(weight: float = 0.75, eligibility: float = 3.2) -> PlasticEdge:
     edge = PlasticEdge(
-        source_id="s", target_id="c", kind=EdgeKind.EXCITATORY, weight=weight, plasticity=0.5, delay_ticks=0
+        source_id="s",
+        target_id="c",
+        kind=EdgeKind.EXCITATORY,
+        weight=weight,
+        plasticity=0.5,
+        delay_ticks=0,
     )
     edge.eligibility = eligibility
     edge.support = 42
@@ -33,7 +38,9 @@ def test_none_graph_round_trips_to_none():
 
 
 def test_exported_payload_round_trips_topology_and_static_fields():
-    graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(),), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(_sense(), _concept()), edges=(_edge(),), kernel_limits=KernelLimits()
+    )
     payload = export_graph_checkpoint(graph)
     restored = restore_graph_checkpoint(payload, kernel_limits=KernelLimits())
 
@@ -52,7 +59,11 @@ def test_exported_payload_round_trips_topology_and_static_fields():
 
 
 def test_weight_survives_quantized_round_trip_approximately():
-    graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(weight=0.75, eligibility=3.2),), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(_sense(), _concept()),
+        edges=(_edge(weight=0.75, eligibility=3.2),),
+        kernel_limits=KernelLimits(),
+    )
     payload = export_graph_checkpoint(graph)
     restored = restore_graph_checkpoint(payload, kernel_limits=KernelLimits())
     restored_edge = restored.edges[0]
@@ -61,7 +72,11 @@ def test_weight_survives_quantized_round_trip_approximately():
 
 def test_eligibility_is_never_exported_and_always_zero_on_restore():
     """Labile (design §10.3, P5): eligibility is never durable."""
-    graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(weight=0.75, eligibility=3.2),), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(_sense(), _concept()),
+        edges=(_edge(weight=0.75, eligibility=3.2),),
+        kernel_limits=KernelLimits(),
+    )
     payload = export_graph_checkpoint(graph)
     assert "eligibility_class" not in payload["edges"][0]
 
@@ -70,7 +85,9 @@ def test_eligibility_is_never_exported_and_always_zero_on_restore():
 
 
 def test_two_consecutive_checkpoints_cannot_be_differenced_to_recover_exact_weight():
-    graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(weight=0.750001),), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(_sense(), _concept()), edges=(_edge(weight=0.750001),), kernel_limits=KernelLimits()
+    )
     before = export_graph_checkpoint(graph)
     graph.edges[0].weight = 0.750002  # a change far smaller than one quantization bin
     after = export_graph_checkpoint(graph)
@@ -78,7 +95,9 @@ def test_two_consecutive_checkpoints_cannot_be_differenced_to_recover_exact_weig
 
 
 def test_restore_rejects_a_payload_that_would_violate_kernel_limits():
-    graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(),), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(_sense(), _concept()), edges=(_edge(),), kernel_limits=KernelLimits()
+    )
     payload = export_graph_checkpoint(graph)
     with pytest.raises(GraphError):
         restore_graph_checkpoint(payload, kernel_limits=KernelLimits(max_nodes=1))
@@ -90,7 +109,9 @@ def test_restore_rejects_malformed_payload_type():
 
 
 def test_restore_rejects_unknown_weight_codec_version():
-    graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(),), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(_sense(), _concept()), edges=(_edge(),), kernel_limits=KernelLimits()
+    )
     payload = export_graph_checkpoint(graph)
     payload["weight_codec_version"] = 99
     with pytest.raises(GraphError, match="codec version"):
@@ -132,7 +153,10 @@ def test_frozen_safety_state_survives_round_trip():
 # --- SensoryNormalizer checkpoint ---
 
 from symbiont.cognition.activation import SensoryNormalizer  # noqa: E402
-from symbiont.cognition.checkpoint import export_sensory_normalizers, restore_sensory_normalizers  # noqa: E402
+from symbiont.cognition.checkpoint import (  # noqa: E402
+    export_sensory_normalizers,
+    restore_sensory_normalizers,
+)
 
 
 def test_unestablished_normalizer_is_not_exported():
@@ -151,7 +175,6 @@ def test_established_normalizer_round_trips():
     assert restored["s"].mean == pytest.approx(normalizer.mean)
     assert restored["s"].variance == pytest.approx(normalizer.variance)
     assert restored["s"].count == normalizer.count
-
 
 
 def test_tentative_weight_does_not_collapse_to_zero_in_codec_v3():

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import math
+import secrets
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
-import math
-import secrets
 from typing import Any
 
 from ..cognition.self_model import MAX_COGNITIVE_CHANNELS_PER_TICK
@@ -64,7 +64,9 @@ def _sense_part_id(id_salt: str, sense_id: str) -> str:
 
 
 def _region_part_id(id_salt: str, anchor_channel: str) -> str:
-    digest = sha256(f"symbiont-body:{id_salt}:region:{anchor_channel}".encode("utf-8")).hexdigest()[:32]
+    digest = sha256(f"symbiont-body:{id_salt}:region:{anchor_channel}".encode("utf-8")).hexdigest()[
+        :32
+    ]
     return f"part.region.{digest}"
 
 
@@ -222,9 +224,8 @@ class BodySchemaEngine:
             for part in self._parts.values()
             if part.maturity_class >= 4 and part.confidence_class >= 3
         )
-        enough_sensory = (
-            self.sensory_part_count > 0
-            and mature_sensory >= max(1, self.sensory_part_count // 2)
+        enough_sensory = self.sensory_part_count > 0 and mature_sensory >= max(
+            1, self.sensory_part_count // 2
         )
         stable_regions = sum(
             1
@@ -252,6 +253,7 @@ class BodySchemaEngine:
     @property
     def dependency_evidence_count(self) -> int:
         return len(self._dependency_evidence)
+
     @property
     def sensorimotor_dependency_evidence_count(self) -> int:
         return len(self._sensorimotor_support)
@@ -297,9 +299,7 @@ class BodySchemaEngine:
         """
         observed = {str(value) for value in observed_channels if str(value)}
         self_caused = {str(value) for value in self_caused_channels if str(value)}
-        somatic = {
-            str(value) for value in somatic_correlated_channels if str(value)
-        } - self_caused
+        somatic = {str(value) for value in somatic_correlated_channels if str(value)} - self_caused
         if not self_caused.issubset(observed) or not somatic.issubset(observed):
             raise ValueError("body-boundary evidence must reference observed opaque channels")
         previous_internal = self._self_caused_channels | self._somatic_correlated_channels
@@ -316,11 +316,7 @@ class BodySchemaEngine:
         self._somatic_correlated_channels = somatic
         self._external_channels = observed - new_internal
         evidence_n = len(new_internal)
-        separation = (
-            evidence_n / max(1, len(observed))
-            if observed
-            else 0.0
-        )
+        separation = evidence_n / max(1, len(observed)) if observed else 0.0
         # Confidence is evidence-derived and penalized by current contradiction.
         self._boundary_confidence = max(
             0.0,
@@ -424,13 +420,19 @@ class BodySchemaEngine:
                 raise ValueError("self-model sense ids must be non-empty strings")
             if not isinstance(entry, dict):
                 raise ValueError(f"self-model entry for {sense_id!r} must be a JSON object")
-            health_class = _require_class(entry.get("health_class"), _HEALTH_CLASSES, "health_class")
+            health_class = _require_class(
+                entry.get("health_class"), _HEALTH_CLASSES, "health_class"
+            )
             confidence_class = _require_class(
                 entry.get("confidence_class"), _CONFIDENCE_CLASSES, "confidence_class"
             )
             cost_class = _require_class(entry.get("cost_class"), _COST_CLASSES, "cost_class")
-            maturity_class = _require_class(entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class")
-            recency_raw = _require_class(entry.get("recency_class"), len(RecencyClass), "recency_class")
+            maturity_class = _require_class(
+                entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class"
+            )
+            recency_raw = _require_class(
+                entry.get("recency_class"), len(RecencyClass), "recency_class"
+            )
             representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_raw)]
             part_id = _sense_part_id(self._id_salt, sense_id)
             self._parts[part_id] = _SensoryPartState(
@@ -494,7 +496,9 @@ class BodySchemaEngine:
             self._parts[part_id] = _SensoryPartState(
                 part_id=part_id,
                 health_class=ratio_class(entry.get("health", 0.0), _HEALTH_CLASSES, "health"),
-                confidence_class=ratio_class(entry.get("confidence", 0.0), _CONFIDENCE_CLASSES, "confidence"),
+                confidence_class=ratio_class(
+                    entry.get("confidence", 0.0), _CONFIDENCE_CLASSES, "confidence"
+                ),
                 cost_class=ratio_class(cost_ratio, _COST_CLASSES, "cost"),
                 maturity_class=min(_MATURITY_CLASSES - 1, maturity_map[maturity]),
                 last_evidence_tick=tick,
@@ -534,22 +538,14 @@ class BodySchemaEngine:
             observed_channels,
         )
         for channel, (before, after) in channel_decay.items():
-            if (
-                before >= _REGION_CHANNEL_SUPPORT_MIN
-            ) != (
-                after >= _REGION_CHANNEL_SUPPORT_MIN
-            ):
+            if (before >= _REGION_CHANNEL_SUPPORT_MIN) != (after >= _REGION_CHANNEL_SUPPORT_MIN):
                 dirty_channels.add(str(channel))
 
         for channel in observed_channels:
             before = self._channel_support.get(channel, 0)
             after = min(_REGION_SUPPORT_CAP, before + 1)
             self._channel_support[channel] = after
-            if (
-                before >= _REGION_CHANNEL_SUPPORT_MIN
-            ) != (
-                after >= _REGION_CHANNEL_SUPPORT_MIN
-            ):
+            if (before >= _REGION_CHANNEL_SUPPORT_MIN) != (after >= _REGION_CHANNEL_SUPPORT_MIN):
                 dirty_channels.add(channel)
 
         observed_pairs: set[tuple[str, str]] = set()
@@ -561,11 +557,7 @@ class BodySchemaEngine:
                 before = self._coactivity_support.get(pair, 0)
                 after = min(_REGION_SUPPORT_CAP, before + 1)
                 self._coactivity_support[pair] = after
-                if (
-                    before >= _REGION_PAIR_SUPPORT_MIN
-                ) != (
-                    after >= _REGION_PAIR_SUPPORT_MIN
-                ):
+                if (before >= _REGION_PAIR_SUPPORT_MIN) != (after >= _REGION_PAIR_SUPPORT_MIN):
                     dirty_channels.add(source)
                     dirty_channels.add(target)
 
@@ -574,11 +566,7 @@ class BodySchemaEngine:
             observed_pairs,
         )
         for (source, target), (before, after) in changed_pairs.items():
-            if (
-                before >= _REGION_PAIR_SUPPORT_MIN
-            ) != (
-                after >= _REGION_PAIR_SUPPORT_MIN
-            ):
+            if (before >= _REGION_PAIR_SUPPORT_MIN) != (after >= _REGION_PAIR_SUPPORT_MIN):
                 dirty_channels.add(source)
                 dirty_channels.add(target)
 
@@ -633,12 +621,9 @@ class BodySchemaEngine:
                     neighbor_counts[target] += 1
 
         density = strong_pairs / total_pairs
-        required_neighbors = math.ceil(
-            _REGION_MEMBER_COVERAGE_MIN * (len(members) - 1)
-        )
-        return (
-            density >= _REGION_PAIR_DENSITY_MIN
-            and all(count >= required_neighbors for count in neighbor_counts.values())
+        required_neighbors = math.ceil(_REGION_MEMBER_COVERAGE_MIN * (len(members) - 1))
+        return density >= _REGION_PAIR_DENSITY_MIN and all(
+            count >= required_neighbors for count in neighbor_counts.values()
         )
 
     def _cohesive_clusters(self, channels: set[str] | tuple[str, ...]) -> list[tuple[str, ...]]:
@@ -660,9 +645,7 @@ class BodySchemaEngine:
                 if not self._members_are_cohesive(members):
                     continue
                 supports = [self._pair_support(channel, member) for member in cluster]
-                strong_links = sum(
-                    support >= _REGION_PAIR_SUPPORT_MIN for support in supports
-                )
+                strong_links = sum(support >= _REGION_PAIR_SUPPORT_MIN for support in supports)
                 candidates.append((strong_links, sum(supports), index))
             if not candidates:
                 clusters.append([channel])
@@ -693,10 +676,7 @@ class BodySchemaEngine:
     ) -> None:
         """Revise only regions whose cohesion evidence may have changed."""
         for old_part_id, region in tuple(self._regions.items()):
-            if (
-                affected_channels is not None
-                and not affected_channels.intersection(region.members)
-            ):
+            if affected_channels is not None and not affected_channels.intersection(region.members):
                 continue
             if self._members_are_cohesive(region.members):
                 continue
@@ -723,9 +703,7 @@ class BodySchemaEngine:
                     members=members,
                     evidence_count=evidence_count,
                     confidence_class=self._region_confidence(members),
-                    activity_class=(
-                        activity if activity is not None else region.activity_class
-                    ),
+                    activity_class=(activity if activity is not None else region.activity_class),
                     last_evidence_tick=(
                         tick if activity is not None else region.last_evidence_tick
                     ),
@@ -746,8 +724,12 @@ class BodySchemaEngine:
         return _ratio_class(average, _REGION_SUPPORT_CAP)
 
     @staticmethod
-    def _region_activity(members: tuple[str, ...], activity_by_channel: dict[str, int]) -> int | None:
-        values = [activity_by_channel[channel] for channel in members if channel in activity_by_channel]
+    def _region_activity(
+        members: tuple[str, ...], activity_by_channel: dict[str, int]
+    ) -> int | None:
+        values = [
+            activity_by_channel[channel] for channel in members if channel in activity_by_channel
+        ]
         if not values:
             return None
         return max(0, min(_ACTIVITY_CLASSES - 1, round(sum(values) / len(values))))
@@ -764,14 +746,12 @@ class BodySchemaEngine:
             candidates: list[tuple[int, int, str, str, tuple[str, ...]]] = []
             region_items = sorted(self._regions.items())
             for index, (left_id, left) in enumerate(region_items):
-                left_affected = (
-                    affected_channels is None
-                    or bool(affected_channels.intersection(left.members))
+                left_affected = affected_channels is None or bool(
+                    affected_channels.intersection(left.members)
                 )
                 for right_id, right in region_items[index + 1 :]:
                     if affected_channels is not None and not (
-                        left_affected
-                        or affected_channels.intersection(right.members)
+                        left_affected or affected_channels.intersection(right.members)
                     ):
                         continue
                     members = tuple(sorted(set((*left.members, *right.members))))
@@ -785,8 +765,7 @@ class BodySchemaEngine:
                         for target in right.members
                     ]
                     strong_links = sum(
-                        support >= _REGION_PAIR_SUPPORT_MIN
-                        for support in cross_supports
+                        support >= _REGION_PAIR_SUPPORT_MIN for support in cross_supports
                     )
                     candidates.append(
                         (
@@ -800,9 +779,7 @@ class BodySchemaEngine:
             if not candidates:
                 break
 
-            candidates.sort(
-                key=lambda item: (-item[0], -item[1], item[2], item[3])
-            )
+            candidates.sort(key=lambda item: (-item[0], -item[1], item[2], item[3]))
             _, _, left_id, right_id, members = candidates[0]
             left = self._regions[left_id]
             right = self._regions[right_id]
@@ -844,15 +821,10 @@ class BodySchemaEngine:
             for part_id, region in self._regions.items():
                 if len(region.members) >= MAX_COGNITIVE_REGION_MEMBERS:
                     continue
-                supports = [
-                    self._pair_support(channel, member)
-                    for member in region.members
-                ]
+                supports = [self._pair_support(channel, member) for member in region.members]
                 members = tuple(sorted((*region.members, channel)))
                 if supports and self._members_are_cohesive(members):
-                    strong_links = sum(
-                        support >= _REGION_PAIR_SUPPORT_MIN for support in supports
-                    )
+                    strong_links = sum(support >= _REGION_PAIR_SUPPORT_MIN for support in supports)
                     scored.append((strong_links, sum(supports), part_id))
             if not scored:
                 continue
@@ -907,18 +879,24 @@ class BodySchemaEngine:
                 members=region.members,
                 evidence_count=min(_REGION_EVIDENCE_CAP, region.evidence_count + 1),
                 confidence_class=self._region_confidence(region.members),
-                activity_class=activity_class if activity_class is not None else region.activity_class,
+                activity_class=activity_class
+                if activity_class is not None
+                else region.activity_class,
                 last_evidence_tick=tick,
             )
         return active_regions
 
-    def _dependency(self, source_id: str, target_id: str, relation: DependencyKind) -> _DependencyEvidence:
+    def _dependency(
+        self, source_id: str, target_id: str, relation: DependencyKind
+    ) -> _DependencyEvidence:
         if relation is DependencyKind.CO_ACTS_WITH and target_id < source_id:
             source_id, target_id = target_id, source_id
         key = (source_id, target_id, relation)
         evidence = self._dependency_evidence.get(key)
         if evidence is None:
-            evidence = _DependencyEvidence(source_id=source_id, target_id=target_id, relation=relation)
+            evidence = _DependencyEvidence(
+                source_id=source_id, target_id=target_id, relation=relation
+            )
             self._dependency_evidence[key] = evidence
         return evidence
 
@@ -1006,7 +984,9 @@ class BodySchemaEngine:
         activity_by_channel: dict[str, int] = {}
         for entry in channels:
             if not isinstance(entry, dict) or set(entry) != {"channel_id", "activity_class"}:
-                raise ValueError("cognitive channel entries must contain channel_id and activity_class")
+                raise ValueError(
+                    "cognitive channel entries must contain channel_id and activity_class"
+                )
             channel_id = entry.get("channel_id")
             if not isinstance(channel_id, str) or not _valid_channel_id(channel_id):
                 raise ValueError("cognitive channel_id must be opaque channel.cognition.<32-hex>")
@@ -1024,8 +1004,7 @@ class BodySchemaEngine:
         # gap from the previous regions' last trusted evidence and drop only the
         # ephemeral adjacency context; absence of evidence is not negative evidence.
         if self._previous_active_regions and any(
-            part_id not in self._regions
-            or self._regions[part_id].last_evidence_tick != tick - 1
+            part_id not in self._regions or self._regions[part_id].last_evidence_tick != tick - 1
             for part_id in self._previous_active_regions
         ):
             self._previous_active_regions.clear()
@@ -1037,14 +1016,9 @@ class BodySchemaEngine:
         # intentionally amortized. Re-running split/merge clustering on every
         # observation is computationally redundant and can dominate the
         # organism clock once dozens of regions exist.
-        should_restructure = (
-            tick % _REGION_RESTRUCTURE_INTERVAL == 0
-            or not self._regions
-        )
+        should_restructure = tick % _REGION_RESTRUCTURE_INTERVAL == 0 or not self._regions
         has_structural_change = bool(self._pending_structural_channels)
-        if should_restructure and (
-            self._full_structural_review_required or has_structural_change
-        ):
+        if should_restructure and (self._full_structural_review_required or has_structural_change):
             affected = (
                 None
                 if self._full_structural_review_required
@@ -1081,7 +1055,9 @@ class BodySchemaEngine:
             "recency_class": _recency_class(idle_ticks).value,
         }
 
-    def _region_public_part(self, region: _CognitiveRegionState, *, current_tick: int) -> dict[str, Any]:
+    def _region_public_part(
+        self, region: _CognitiveRegionState, *, current_tick: int
+    ) -> dict[str, Any]:
         idle_ticks = max(0, current_tick - region.last_evidence_tick)
         return {
             "part_id": region.part_id,
@@ -1094,7 +1070,9 @@ class BodySchemaEngine:
         }
 
     def _export_dependencies(self) -> list[dict[str, Any]]:
-        eligible = [evidence for evidence in self._dependency_evidence.values() if evidence.exportable]
+        eligible = [
+            evidence for evidence in self._dependency_evidence.values() if evidence.exportable
+        ]
         eligible.sort(
             key=lambda evidence: (
                 -evidence.confidence_class,
@@ -1188,9 +1166,15 @@ class BodySchemaEngine:
         }
 
     @classmethod
-    def _restore_sensory_part(cls, model: "BodySchemaEngine", entry: dict[str, Any], *, current_tick: int) -> None:
+    def _restore_sensory_part(
+        cls, model: "BodySchemaEngine", entry: dict[str, Any], *, current_tick: int
+    ) -> None:
         part_id = entry.get("part_id")
-        if not isinstance(part_id, str) or not part_id.startswith("part.sense.") or len(part_id) != 43:
+        if (
+            not isinstance(part_id, str)
+            or not part_id.startswith("part.sense.")
+            or len(part_id) != 43
+        ):
             raise ValueError("body_schema sensory part_id must be part.sense.<32-hex>")
         suffix = part_id.removeprefix("part.sense.")
         if not _is_lower_hex(suffix, length=32) or part_id in model._parts:
@@ -1198,11 +1182,17 @@ class BodySchemaEngine:
         if entry.get("kind") != "sense":
             raise ValueError("sensory body_schema part must use kind='sense'")
         health_class = _require_class(entry.get("health_class"), _HEALTH_CLASSES, "health_class")
-        confidence_class = _require_class(entry.get("confidence_class"), _CONFIDENCE_CLASSES, "confidence_class")
+        confidence_class = _require_class(
+            entry.get("confidence_class"), _CONFIDENCE_CLASSES, "confidence_class"
+        )
         cost_class = _require_class(entry.get("cost_class"), _COST_CLASSES, "cost_class")
-        maturity_class = _require_class(entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class")
+        maturity_class = _require_class(
+            entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class"
+        )
         existence_class = _require_class(
-            entry.get("existence_confidence_class"), _CONFIDENCE_CLASSES, "existence_confidence_class"
+            entry.get("existence_confidence_class"),
+            _CONFIDENCE_CLASSES,
+            "existence_confidence_class",
         )
         if existence_class != _existence_confidence_class(maturity_class):
             raise ValueError("body_schema existence_confidence_class contradicts maturity_class")
@@ -1239,33 +1229,53 @@ class BodySchemaEngine:
             raise ValueError("body_schema cognitive_learning contains unexpected fields")
 
         raw_channel_support = payload["channel_support"]
-        if not isinstance(raw_channel_support, list) or len(raw_channel_support) > MAX_COGNITIVE_CHANNEL_CANDIDATES:
+        if (
+            not isinstance(raw_channel_support, list)
+            or len(raw_channel_support) > MAX_COGNITIVE_CHANNEL_CANDIDATES
+        ):
             raise ValueError("body_schema channel_support is invalid or unbounded")
         for entry in raw_channel_support:
             if not isinstance(entry, dict) or set(entry) != {"channel_id", "support"}:
                 raise ValueError("body_schema channel_support entry is invalid")
             channel_id = entry.get("channel_id")
             support = entry.get("support")
-            if not isinstance(channel_id, str) or not _valid_channel_id(channel_id) or channel_id in model._channel_support:
+            if (
+                not isinstance(channel_id, str)
+                or not _valid_channel_id(channel_id)
+                or channel_id in model._channel_support
+            ):
                 raise ValueError("body_schema channel_support channel_id is invalid")
-            model._channel_support[channel_id] = _require_class(support, _REGION_SUPPORT_CAP + 1, "support")
+            model._channel_support[channel_id] = _require_class(
+                support, _REGION_SUPPORT_CAP + 1, "support"
+            )
 
         raw_coactivity = payload["coactivity_support"]
         if not isinstance(raw_coactivity, list) or len(raw_coactivity) > MAX_COACTIVITY_CANDIDATES:
             raise ValueError("body_schema coactivity_support is invalid or unbounded")
         for entry in raw_coactivity:
-            if not isinstance(entry, dict) or set(entry) != {"source_channel", "target_channel", "support"}:
+            if not isinstance(entry, dict) or set(entry) != {
+                "source_channel",
+                "target_channel",
+                "support",
+            }:
                 raise ValueError("body_schema coactivity_support entry is invalid")
             source = entry.get("source_channel")
             target = entry.get("target_channel")
-            if not isinstance(source, str) or not isinstance(target, str) or not _valid_channel_id(source) or not _valid_channel_id(target):
+            if (
+                not isinstance(source, str)
+                or not isinstance(target, str)
+                or not _valid_channel_id(source)
+                or not _valid_channel_id(target)
+            ):
                 raise ValueError("body_schema coactivity channel ids are invalid")
             if source >= target:
                 raise ValueError("body_schema coactivity endpoints must be canonical and distinct")
             key = (source, target)
             if key in model._coactivity_support:
                 raise ValueError("duplicate body_schema coactivity entry")
-            model._coactivity_support[key] = _require_class(entry.get("support"), _REGION_SUPPORT_CAP + 1, "support")
+            model._coactivity_support[key] = _require_class(
+                entry.get("support"), _REGION_SUPPORT_CAP + 1, "support"
+            )
 
         raw_regions = payload["regions"]
         if not isinstance(raw_regions, list) or len(raw_regions) > MAX_COGNITIVE_REGIONS:
@@ -1281,24 +1291,47 @@ class BodySchemaEngine:
             }:
                 raise ValueError("body_schema cognitive region checkpoint entry is invalid")
             part_id = entry.get("part_id")
-            if not isinstance(part_id, str) or not part_id.startswith("part.region.") or len(part_id) != 44:
+            if (
+                not isinstance(part_id, str)
+                or not part_id.startswith("part.region.")
+                or len(part_id) != 44
+            ):
                 raise ValueError("body_schema cognitive region id must be part.region.<32-hex>")
             suffix = part_id.removeprefix("part.region.")
             if not _is_lower_hex(suffix, length=32) or part_id in model._regions:
                 raise ValueError("body_schema cognitive region id must be unique lowercase hex")
             members = entry.get("members")
-            if not isinstance(members, list) or not 1 <= len(members) <= MAX_COGNITIVE_REGION_MEMBERS:
+            if (
+                not isinstance(members, list)
+                or not 1 <= len(members) <= MAX_COGNITIVE_REGION_MEMBERS
+            ):
                 raise ValueError("body_schema cognitive region members are invalid")
             member_tuple = tuple(str(member) for member in members)
-            if tuple(sorted(set(member_tuple))) != member_tuple or not all(_valid_channel_id(member) for member in member_tuple):
-                raise ValueError("body_schema cognitive region members must be unique sorted opaque channels")
+            if tuple(sorted(set(member_tuple))) != member_tuple or not all(
+                _valid_channel_id(member) for member in member_tuple
+            ):
+                raise ValueError(
+                    "body_schema cognitive region members must be unique sorted opaque channels"
+                )
             evidence_count = entry.get("evidence_count")
-            if isinstance(evidence_count, bool) or not isinstance(evidence_count, int) or not 1 <= evidence_count <= _REGION_EVIDENCE_CAP:
+            if (
+                isinstance(evidence_count, bool)
+                or not isinstance(evidence_count, int)
+                or not 1 <= evidence_count <= _REGION_EVIDENCE_CAP
+            ):
                 raise ValueError("body_schema cognitive region evidence_count is invalid")
-            confidence_class = _require_class(entry.get("confidence_class"), _CONFIDENCE_CLASSES, "confidence_class")
-            activity_class = _require_class(entry.get("activity_class"), _ACTIVITY_CLASSES, "activity_class")
+            confidence_class = _require_class(
+                entry.get("confidence_class"), _CONFIDENCE_CLASSES, "confidence_class"
+            )
+            activity_class = _require_class(
+                entry.get("activity_class"), _ACTIVITY_CLASSES, "activity_class"
+            )
             last_tick = entry.get("last_evidence_tick")
-            if isinstance(last_tick, bool) or not isinstance(last_tick, int) or not 0 <= last_tick <= current_tick:
+            if (
+                isinstance(last_tick, bool)
+                or not isinstance(last_tick, int)
+                or not 0 <= last_tick <= current_tick
+            ):
                 raise ValueError("body_schema cognitive region last_evidence_tick is invalid")
             model._regions[part_id] = _CognitiveRegionState(
                 part_id=part_id,
@@ -1310,13 +1343,23 @@ class BodySchemaEngine:
             )
 
         if set(public_regions) != set(model._regions):
-            raise ValueError("body_schema public cognitive regions contradict private learning state")
+            raise ValueError(
+                "body_schema public cognitive regions contradict private learning state"
+            )
         for part_id, region in model._regions.items():
-            if model._region_public_part(region, current_tick=current_tick) != public_regions[part_id]:
-                raise ValueError("body_schema public cognitive region contradicts private learning state")
+            if (
+                model._region_public_part(region, current_tick=current_tick)
+                != public_regions[part_id]
+            ):
+                raise ValueError(
+                    "body_schema public cognitive region contradicts private learning state"
+                )
 
         raw_dependencies = payload["dependency_evidence"]
-        if not isinstance(raw_dependencies, list) or len(raw_dependencies) > MAX_DEPENDENCY_EVIDENCE:
+        if (
+            not isinstance(raw_dependencies, list)
+            or len(raw_dependencies) > MAX_DEPENDENCY_EVIDENCE
+        ):
             raise ValueError("body_schema dependency evidence is invalid or unbounded")
         for entry in raw_dependencies:
             if not isinstance(entry, dict) or set(entry) != {
@@ -1348,7 +1391,11 @@ class BodySchemaEngine:
             ):
                 if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                     raise ValueError(f"body_schema dependency {field} is invalid")
-            if support_count > opportunity_count or support_count > _DEPENDENCY_COUNTER_CAP or opportunity_count > _DEPENDENCY_COUNTER_CAP:
+            if (
+                support_count > opportunity_count
+                or support_count > _DEPENDENCY_COUNTER_CAP
+                or opportunity_count > _DEPENDENCY_COUNTER_CAP
+            ):
                 raise ValueError("body_schema dependency counters are contradictory or unbounded")
             if last_support_tick > current_tick:
                 raise ValueError("body_schema dependency last_support_tick is in the future")
@@ -1401,7 +1448,9 @@ class BodySchemaEngine:
         if len(raw_parts) > max_parts:
             raise ValueError(f"body_schema parts exceeds bound ({max_parts})")
         if payload.get("global_state") != {}:
-            raise ValueError("body_schema global_state must remain empty before physiology integration")
+            raise ValueError(
+                "body_schema global_state must remain empty before physiology integration"
+            )
 
         public_regions: dict[str, dict[str, Any]] = {}
         for entry in raw_parts:
@@ -1454,11 +1503,7 @@ class BodySchemaEngine:
             confidence = float(boundary.get("confidence", 0.0))
             disruption = float(boundary.get("disruption_score", 0.0))
             revisions = int(boundary.get("revision_count", 0))
-            if (
-                not 0.0 <= confidence <= 1.0
-                or not 0.0 <= disruption <= 1.0
-                or revisions < 0
-            ):
+            if not 0.0 <= confidence <= 1.0 or not 0.0 <= disruption <= 1.0 or revisions < 0:
                 raise ValueError("invalid body_schema boundary evidence")
             model._boundary_confidence = confidence
             model._boundary_disruption_score = disruption

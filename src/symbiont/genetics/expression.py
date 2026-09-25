@@ -2,10 +2,11 @@
 
 Evidence observed through tick t may update this state only for tick t+1.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 from typing import Mapping
 
 from .genome import AdaptiveGeneRange, Genome
@@ -174,9 +175,9 @@ class ExpressionRegulator:
         adaptive_pressure = max(mismatch_pressure, resource_pressure)
 
         learning = genome.plasticity.learning_rate
-        learning_target = learning.baseline + (
-            learning.maximum - learning.baseline
-        ) * mismatch_pressure
+        learning_target = (
+            learning.baseline + (learning.maximum - learning.baseline) * mismatch_pressure
+        )
         learning_value = self._move(
             state.effective_learning_rate,
             learning_target,
@@ -185,9 +186,9 @@ class ExpressionRegulator:
         )
 
         structural = genome.plasticity.structural_plasticity
-        structural_target = structural.baseline + (
-            structural.maximum - structural.baseline
-        ) * mismatch_pressure
+        structural_target = (
+            structural.baseline + (structural.maximum - structural.baseline) * mismatch_pressure
+        )
         structural_value = self._move(
             state.effective_structural_plasticity,
             structural_target,
@@ -196,9 +197,7 @@ class ExpressionRegulator:
         )
 
         growth = genome.structure.growth_threshold
-        growth_target = growth.baseline - (
-            growth.baseline - growth.minimum
-        ) * mismatch_pressure
+        growth_target = growth.baseline - (growth.baseline - growth.minimum) * mismatch_pressure
         growth_value = self._move(
             state.effective_growth_threshold,
             growth_target,
@@ -207,9 +206,7 @@ class ExpressionRegulator:
         )
 
         pruning = genome.structure.pruning_threshold
-        pruning_target = pruning.baseline - (
-            pruning.baseline - pruning.minimum
-        ) * mismatch_pressure
+        pruning_target = pruning.baseline - (pruning.baseline - pruning.minimum) * mismatch_pressure
         pruning_value = self._move(
             state.effective_pruning_threshold,
             pruning_target,
@@ -239,11 +236,7 @@ class ExpressionRegulator:
         exploration_value = _unit(
             state.exploration_drive
             + alpha * (exploration_target - state.exploration_drive)
-            + decay
-            * (
-                sm.spontaneous_activity_baseline
-                - state.exploration_drive
-            )
+            + decay * (sm.spontaneous_activity_baseline - state.exploration_drive)
         )
 
         return GeneExpressionState(

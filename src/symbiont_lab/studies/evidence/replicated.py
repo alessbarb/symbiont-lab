@@ -6,7 +6,6 @@ from typing import Iterable
 
 from .second_look import SecondLookOutcome, run_second_look_study
 
-
 EVIDENCE_METRICS = (
     "brier_gain",
     "mean_entropy_reduction",
@@ -76,13 +75,9 @@ class ReplicatedEvidenceStudy:
             "seeds": self.seeds,
             "strategies": self.strategies,
             "reference_strategy": self.reference_strategy,
-            "summaries": {
-                name: summary.as_dict() for name, summary in self.summaries.items()
-            },
+            "summaries": {name: summary.as_dict() for name, summary in self.summaries.items()},
             "paired_vs_reference": {
-                strategy: {
-                    metric: delta.as_dict() for metric, delta in metrics.items()
-                }
+                strategy: {metric: delta.as_dict() for metric, delta in metrics.items()}
                 for strategy, metrics in self.paired_vs_reference.items()
             },
             "budgets": self.budgets,
@@ -196,9 +191,7 @@ def run_replicated_evidence_study(
         metrics: dict[str, EvidenceMetricSummary] = {}
         for metric in EVIDENCE_METRICS:
             values = [
-                value
-                for outcome in outcomes
-                if (value := _metric(outcome, metric)) is not None
+                value for outcome in outcomes if (value := _metric(outcome, metric)) is not None
             ]
             metrics[metric] = _summary(values)
         summaries[strategy] = EvidenceStrategySummary(

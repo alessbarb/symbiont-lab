@@ -3,12 +3,18 @@
 EmbodimentSession is the apparatus/transduction coupling. EmbodimentEpisode is
 its persistent biological/cognitive domain counterpart.
 """
-from .session import EmbodimentSession, PortBinding, implant, implant_body
+
+from .adaptation import AdaptationSnapshot, EmbodimentAdaptation
 from .contract import (
     EmbodimentContract,
     PerceptualChannel,
     PerceptualSurface,
     TimingContract,
+)
+from .dynamics import (
+    EvidenceProvenance,
+    PredictionResidual,
+    SensorimotorDynamicsModel,
 )
 from .episode import (
     ContractTransition,
@@ -16,20 +22,20 @@ from .episode import (
     EmbodimentEpisode,
     EmbodimentState,
 )
-from .adaptation import AdaptationSnapshot, EmbodimentAdaptation
-from .dynamics import (
-    EvidenceProvenance,
-    PredictionResidual,
-    SensorimotorDynamicsModel,
-)
 from .history import EmbodimentEpisodeSummary
-from .memory import BodySpecificMemory, EmbodimentArchive, EmbodimentPrior, archive_episode_checkpoint
+from .memory import (
+    BodySpecificMemory,
+    EmbodimentArchive,
+    EmbodimentPrior,
+    archive_episode_checkpoint,
+)
 from .reachability import ReachabilityModel, ReachabilityRelation
 from .reembodiment import (
     begin_reembodiment,
     replace_body,
     select_prior,
 )
+from .session import EmbodimentSession, PortBinding, implant, implant_body
 
 __all__ = [
     "AdaptationSnapshot",

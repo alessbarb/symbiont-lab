@@ -1,7 +1,14 @@
 import inspect
 
 import pytest
+from symbiont.core.physiology import LivingBodyState
 
+from symbiont.cognition.limits import KernelLimits
+from symbiont_lab.physics3d.apparatus import (
+    OpaqueBodyInteroception,
+    physics3d_cognition,
+    physics3d_sensory_system,
+)
 from symbiont_lab.physics3d.humanoid import (
     BODY_KIND,
     BODY_MATERIAL,
@@ -19,18 +26,11 @@ from symbiont_lab.physics3d.humanoid import (
     apply_surface_material,
     build_anthropomorphic_urdf,
     effector_contract_ids,
-    mechanical_joint_limits,
     interoceptive_receptor_contract_ids,
+    mechanical_joint_limits,
     physical_receptor_contract_ids,
     receptor_contract_ids,
 )
-from symbiont_lab.physics3d.apparatus import (
-    OpaqueBodyInteroception,
-    physics3d_cognition,
-    physics3d_sensory_system,
-)
-from symbiont.cognition.limits import KernelLimits
-from symbiont.core.physiology import LivingBodyState
 
 
 def test_physics3d_contract_uses_only_opaque_port_ids():
@@ -54,9 +54,7 @@ def test_v6_body_is_generated_as_hard_limited_urdf():
 
     assert root.attrib["name"] == "symbiont_anthropomorphic_v6"
     assert len(joints) == MOTOR_DOF
-    assert [joint.attrib["name"] for joint in joints] == [
-        spec.name for spec in JOINT_SPECS
-    ]
+    assert [joint.attrib["name"] for joint in joints] == [spec.name for spec in JOINT_SPECS]
 
     for joint, spec in zip(joints, JOINT_SPECS):
         limit = joint.find("limit")
@@ -81,10 +79,7 @@ def test_v6_long_limbs_use_axially_symmetric_collision_geometry():
     import xml.etree.ElementTree as ET
 
     root = ET.fromstring(build_anthropomorphic_urdf())
-    links = {
-        link.attrib["name"]: link
-        for link in root.findall("link")
-    }
+    links = {link.attrib["name"]: link for link in root.findall("link")}
 
     for name in (
         "left_upper_arm",
@@ -147,7 +142,6 @@ def test_anatomical_labels_do_not_live_in_core_symbiont_surface():
         assert anatomical_term not in source
 
 
-
 def test_physics3d_uses_canonical_body_independent_genome():
     genome, _graph, limits = physics3d_cognition()
 
@@ -171,14 +165,12 @@ def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
     assert ".symbiont.step(" not in source
 
 
-
 def test_physics3d_grants_body_sized_bounded_sensory_checkpoint_budget():
     sensory = physics3d_sensory_system()
 
     assert sensory.plasticity_enabled is True
     assert sensory.limits.max_active_sensors == 256
     assert sensory.limits.max_sensor_checkpoint_bytes == 1024 * 1024
-
 
 
 def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
@@ -188,15 +180,12 @@ def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
     assert source.count("auto_promote_predictors=True") >= 2
 
 
-
 def test_humanoid_self_collision_excludes_direct_and_structural_neighbours():
     humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
     humanoid._direct_pairs = {(-1, 0), (0, 1), (1, 2), (2, 3)}
     humanoid._structural_collision_exclusions = {(-1, 2), (2, 4)}
 
-    assert humanoid._directly_connected_link_pairs() == {
-        (-1, 0), (0, 1), (1, 2), (2, 3)
-    }
+    assert humanoid._directly_connected_link_pairs() == {(-1, 0), (0, 1), (1, 2), (2, 3)}
     excluded = humanoid._self_collision_exclusions()
     assert (-1, 2) in excluded
     assert (2, 4) in excluded
@@ -219,9 +208,7 @@ def test_humanoid_configures_all_self_collision_pairs_explicitly():
             enableCollision,
             physicsClientId,
         ):
-            self.calls.append(
-                (body_a, body_b, link_a, link_b, enableCollision, physicsClientId)
-            )
+            self.calls.append((body_a, body_b, link_a, link_b, enableCollision, physicsClientId))
 
     fake = FakeBullet()
     humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
@@ -243,14 +230,12 @@ def test_humanoid_configures_all_self_collision_pairs_explicitly():
     assert any(call[2:5] == (0, 2, 1) for call in fake.calls)
 
 
-
 def test_new_physics3d_subjects_do_not_reuse_one_fixed_organism_identity():
     import symbiont_lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime)
     assert 'organism_id="symbiont:3d-subject"' not in source
     assert "secrets.token_hex(8)" in source
-
 
 
 def test_unified_viewer_mode_keeps_pybullet_native_gui_disabled():
@@ -271,14 +256,12 @@ def test_passive_camera_render_does_not_enter_organism_contract():
     assert "experience_ledger" not in source
 
 
-
 def test_unified_viewer_rendering_is_not_in_canonical_runtime_loop():
     import symbiont_lab.physics3d.cli as cli
 
     source = inspect.getsource(cli.run)
     assert "render_camera_frame(" not in source
     assert "physical_state=runtime.passive_physical_state()" in source
-
 
 
 def test_every_motor_joint_has_one_bounded_mechanical_limit():
@@ -313,7 +296,9 @@ def test_humanoid_configures_joint_velocity_ceilings_in_bullet():
             __import__(
                 "symbiont_lab.physics3d.humanoid",
                 fromlist=["JOINT_SPECS"],
-            ).JOINT_SPECS[link_index].max_velocity
+            )
+            .JOINT_SPECS[link_index]
+            .max_velocity
         )
 
 
@@ -416,6 +401,7 @@ def test_body_and_ground_have_nonzero_friction_without_semantic_specialization()
 
 def test_runtime_module_source_compiles():
     import pathlib
+
     import symbiont_lab.physics3d.runtime as runtime
 
     source = pathlib.Path(runtime.__file__).read_text(encoding="utf-8")
@@ -436,22 +422,29 @@ def test_runtime_reapplies_motor_command_each_physics_substep():
     assert source.index("prepare_physics_substep()") < source.index("stepSimulation(")
 
 
-
 def test_physics3d_locomotion_constitution_uses_explicit_metabolism():
     import symbiont_lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "explicit_metabolism=True" in source
     assert "replenishment={kind: 0.0 for kind in metabolic_capacity}" in source
-    assert "interoception_mode=\"absent\"" in source
+    assert 'interoception_mode="absent"' in source
 
 
 def test_l3_receptors_remain_opaque_ordinals():
     receptors = receptor_contract_ids()
     assert receptors == tuple(f"rec.{i}" for i in range(TOTAL_RECEPTOR_COUNT))
     for forbidden in (
-        "resource", "energy", "hunger", "integrity", "temperature",
-        "fatigue", "stress", "damage", "repair", "pressure",
+        "resource",
+        "energy",
+        "hunger",
+        "integrity",
+        "temperature",
+        "fatigue",
+        "stress",
+        "damage",
+        "repair",
+        "pressure",
     ):
         assert all(forbidden not in receptor for receptor in receptors)
 
@@ -499,12 +492,8 @@ def test_l3_interoception_mapping_is_label_invariant_under_permutation():
         temperature=0.3,
         fatigue=0.9,
     )
-    canonical = OpaqueBodyInteroception(
-        source_ordinals_by_slot=(0, 1, 2, 3)
-    )
-    permuted = OpaqueBodyInteroception(
-        source_ordinals_by_slot=(2, 0, 3, 1)
-    )
+    canonical = OpaqueBodyInteroception(source_ordinals_by_slot=(0, 1, 2, 3))
+    permuted = OpaqueBodyInteroception(source_ordinals_by_slot=(2, 0, 3, 1))
 
     canonical_values = tuple(canonical.sample(state).values())
     permuted_values = tuple(permuted.sample(state).values())
@@ -563,9 +552,7 @@ def test_l3_local_contact_loads_are_independent_physical_channels():
 
 
 def test_l3_checkpoint_preserves_only_opaque_ordinal_mapping():
-    surface = OpaqueBodyInteroception(
-        source_ordinals_by_slot=(3, 1, 0, 2)
-    )
+    surface = OpaqueBodyInteroception(source_ordinals_by_slot=(3, 1, 0, 2))
     checkpoint = surface.checkpoint()
 
     assert checkpoint == {
@@ -574,8 +561,14 @@ def test_l3_checkpoint_preserves_only_opaque_ordinal_mapping():
     }
     serialized = repr(checkpoint).lower()
     for forbidden in (
-        "reserve", "integrity", "temperature", "fatigue", "hunger",
-        "damage", "repair", "stress",
+        "reserve",
+        "integrity",
+        "temperature",
+        "fatigue",
+        "hunger",
+        "damage",
+        "repair",
+        "stress",
     ):
         assert forbidden not in serialized
 
@@ -594,9 +587,9 @@ def test_resource_ground_truth_is_evaluator_only():
     )
 
 
-
 def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
     from types import SimpleNamespace
+
     from symbiont.actuation.types import Actuation
     from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
@@ -631,10 +624,9 @@ def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
     }
 
 
-
-
 def test_physics3d_resume_projects_solver_penetration_but_direct_restore_stays_strict():
     import inspect
+
     import symbiont_lab.physics3d.runtime as runtime
     from symbiont_lab.physics3d.humanoid import HumanoidPhysics
 
@@ -643,6 +635,7 @@ def test_physics3d_resume_projects_solver_penetration_but_direct_restore_stays_s
 
     signature = inspect.signature(HumanoidPhysics.restore_physical_state)
     assert signature.parameters["strict_anatomical_limits"].default is True
+
 
 def test_physics3d_newborns_use_mode_free_sensorimotor_constitution():
     import symbiont_lab.physics3d.apparatus as apparatus
@@ -663,7 +656,6 @@ def test_physics3d_newborns_use_mode_free_sensorimotor_constitution():
     # not to the runtime constructor or the genome.
     assert "binding.positive_port" in exclusion_source
     assert "binding.negative_port" in exclusion_source
-
 
 
 def test_humanoid_anatomical_axes_match_reference_planes():
@@ -751,9 +743,7 @@ def _body_state_with_joint_position(joint_ordinal: int, position: float) -> dict
                 "position": (
                     float(position)
                     if ordinal == joint_ordinal
-                    else float(
-                        sum(mechanical_joint_limits(JOINT_SPECS[ordinal])) / 2.0
-                    )
+                    else float(sum(mechanical_joint_limits(JOINT_SPECS[ordinal])) / 2.0)
                 ),
                 "velocity": 0.0,
             }
@@ -768,14 +758,10 @@ def test_canonical_body_restore_still_rejects_large_anatomical_excursion():
     humanoid.body_id = 11
     humanoid.client_id = 3
     humanoid.motor_joint_indices = tuple(range(MOTOR_DOF))
-    humanoid._joint_ordinal_by_index = {
-        index: index for index in range(MOTOR_DOF)
-    }
+    humanoid._joint_ordinal_by_index = {index: index for index in range(MOTOR_DOF)}
 
     shoulder = next(
-        index
-        for index, spec in enumerate(JOINT_SPECS)
-        if spec.name == "right_shoulder_pitch"
+        index for index, spec in enumerate(JOINT_SPECS) if spec.name == "right_shoulder_pitch"
     )
     payload = _body_state_with_joint_position(
         shoulder,
@@ -820,14 +806,10 @@ def test_visual_body_restore_projects_large_solver_excursion_without_mutating_so
     humanoid.body_id = 11
     humanoid.client_id = 3
     humanoid.motor_joint_indices = tuple(range(MOTOR_DOF))
-    humanoid._joint_ordinal_by_index = {
-        index: index for index in range(MOTOR_DOF)
-    }
+    humanoid._joint_ordinal_by_index = {index: index for index in range(MOTOR_DOF)}
 
     shoulder = next(
-        index
-        for index, spec in enumerate(JOINT_SPECS)
-        if spec.name == "right_shoulder_pitch"
+        index for index, spec in enumerate(JOINT_SPECS) if spec.name == "right_shoulder_pitch"
     )
     raw_position = JOINT_SPECS[shoulder].upper + 0.25
     payload = _body_state_with_joint_position(shoulder, raw_position)
@@ -847,7 +829,6 @@ def test_monitor_uses_visual_only_non_strict_body_projection():
 
     source = inspect.getsource(monitor._viewer_main)
     assert "strict_anatomical_limits=False" in source
-
 
 
 def test_passive_postural_tone_is_body_owned_and_bounded():
@@ -873,9 +854,7 @@ def test_passive_postural_tone_is_body_owned_and_bounded():
             velocity=0.0,
         )
         assert displaced <= 0.0
-        assert abs(displaced) <= (
-            spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION + 1e-12
-        )
+        assert abs(displaced) <= (spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION + 1e-12)
 
 
 def test_passive_tone_is_elastic_and_damping_is_separate() -> None:
@@ -885,10 +864,7 @@ def test_passive_tone_is_elastic_and_damping_is_separate() -> None:
         _passive_postural_tone,
     )
 
-    spec = next(
-        item for item in JOINT_SPECS
-        if item.name == "left_forearm_roll"
-    )
+    spec = next(item for item in JOINT_SPECS if item.name == "left_forearm_roll")
     rest = _neutral_rest_position(spec)
 
     assert _passive_postural_tone(
@@ -900,14 +876,18 @@ def test_passive_tone_is_elastic_and_damping_is_separate() -> None:
         spec,
         velocity=0.0,
     ) == pytest.approx(0.0)
-    assert _passive_damping_force(
-        spec,
-        velocity=5.0,
-    ) > 0.0
+    assert (
+        _passive_damping_force(
+            spec,
+            velocity=5.0,
+        )
+        > 0.0
+    )
 
 
 def test_physics_substep_installs_damping_before_active_torque() -> None:
     import inspect
+
     from symbiont_lab.physics3d.humanoid import HumanoidPhysics
 
     source = inspect.getsource(HumanoidPhysics.prepare_physics_substep)
@@ -935,9 +915,7 @@ def test_actuator_work_decomposition_keeps_absolute_effort_distinct_from_net():
 def test_runtime_physics_trace_initializes_joint_payload_before_append():
     import symbiont_lab.physics3d.runtime as runtime
 
-    source = inspect.getsource(
-        runtime.PyBulletEmbodimentRuntime._physics_trace_sample
-    )
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime._physics_trace_sample)
     assert "joints: list[dict[str, object]] = []" in source
     assert source.index("joints: list") < source.index("joints.append")
 
@@ -981,7 +959,6 @@ def test_runtime_settling_fails_closed_instead_of_treating_timeout_as_success():
 
     assert runtime._settling_result.converged is False
     assert runtime._settling_result.steps == 3
-
 
 
 def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
@@ -1036,9 +1013,9 @@ def test_action_domain_applies_exclusion_before_execution_and_credit():
     assert constrain_at < issue_at < execute_at < credit_at
 
 
-
 def test_apparatus_projects_directional_pairs_to_opaque_actuator_groups():
     from types import SimpleNamespace
+
     from symbiont_lab.physics3d.apparatus import actuator_exclusion_groups
 
     constitution = SimpleNamespace(
@@ -1060,6 +1037,7 @@ def test_apparatus_projects_directional_pairs_to_opaque_actuator_groups():
 
 def test_apparatus_motor_unit_contract_requires_complete_disjoint_coverage():
     from types import SimpleNamespace
+
     from symbiont_lab.physics3d.apparatus import actuator_exclusion_groups
 
     constitution = SimpleNamespace(
@@ -1067,9 +1045,7 @@ def test_apparatus_motor_unit_contract_requires_complete_disjoint_coverage():
     )
     incomplete = SimpleNamespace(
         effector_ids=("e0", "e1", "e2", "e3"),
-        motor_bindings=(
-            SimpleNamespace(positive_port="e0", negative_port="e1"),
-        ),
+        motor_bindings=(SimpleNamespace(positive_port="e0", negative_port="e1"),),
     )
     with pytest.raises(ValueError, match="complete actuator constitution"):
         actuator_exclusion_groups(constitution, incomplete)
@@ -1083,7 +1059,6 @@ def test_apparatus_motor_unit_contract_requires_complete_disjoint_coverage():
     )
     with pytest.raises(ValueError, match="disjoint directional pairs"):
         actuator_exclusion_groups(constitution, overlapping)
-
 
 
 def test_actuator_work_metabolic_conversion_is_proportional_without_cap():
@@ -1102,17 +1077,13 @@ def test_actuator_work_metabolic_conversion_is_proportional_without_cap():
             metabolic_cost_from_actuator_work(work, rate)
 
 
-
 def test_articulated_body_reports_signed_and_absolute_actuator_work():
     from symbiont_lab.physics3d.articulated import ArticulatedPhysics
 
     class Bullet:
         def getJointStates(self, _body_id, indices, **_kwargs):
             velocities = {0: 2.0, 1: -3.0}
-            return tuple(
-                (0.0, velocities[index], 0.0, 0.0)
-                for index in indices
-            )
+            return tuple((0.0, velocities[index], 0.0, 0.0) for index in indices)
 
     body = ArticulatedPhysics.__new__(ArticulatedPhysics)
     body.p = Bullet()

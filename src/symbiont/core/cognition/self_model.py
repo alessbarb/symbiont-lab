@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Collection, Mapping
 from hashlib import sha256
-import math
 from typing import Any
 
 from ..foundation.limits import OrganismLimits

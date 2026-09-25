@@ -1,4 +1,5 @@
 """Bounded memory of acquired fast protective motor consequences."""
+
 from __future__ import annotations
 
 import math
@@ -15,11 +16,7 @@ class ReactiveAssociation:
 
     @property
     def reliable(self) -> bool:
-        return (
-            self.samples >= 2
-            and self.relief_mean >= 0.03
-            and self.relief_variance <= 0.04
-        )
+        return self.samples >= 2 and self.relief_mean >= 0.03 and self.relief_variance <= 0.04
 
 
 @dataclass(slots=True)
@@ -88,9 +85,7 @@ class ReactiveMemory:
         eligible = [
             assoc
             for assoc in self.associations()
-            if assoc.signature == signature
-            and assoc.primitive_id in allowed
-            and assoc.reliable
+            if assoc.signature == signature and assoc.primitive_id in allowed and assoc.reliable
         ]
         if not eligible:
             return None
@@ -136,11 +131,17 @@ class ReactiveMemory:
             mean = item.get("mean")
             m2 = item.get("m2")
             if (
-                not isinstance(signature, str) or not signature
-                or not isinstance(primitive_id, str) or not primitive_id
-                or isinstance(count, bool) or not isinstance(count, int) or count < 1
-                or isinstance(mean, bool) or not isinstance(mean, (int, float))
-                or isinstance(m2, bool) or not isinstance(m2, (int, float))
+                not isinstance(signature, str)
+                or not signature
+                or not isinstance(primitive_id, str)
+                or not primitive_id
+                or isinstance(count, bool)
+                or not isinstance(count, int)
+                or count < 1
+                or isinstance(mean, bool)
+                or not isinstance(mean, (int, float))
+                or isinstance(m2, bool)
+                or not isinstance(m2, (int, float))
                 or not math.isfinite(float(mean))
                 or not math.isfinite(float(m2))
                 or float(m2) < 0.0

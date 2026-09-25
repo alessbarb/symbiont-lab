@@ -4,54 +4,54 @@ PyBullet is an apparatus: it supplies physical senses and executes delivered
 opaque motor actuation. Cognition, BodySchema, physiology, metabolism, private
 experience and SLM state remain inside the canonical organism runtime.
 """
+
 from __future__ import annotations
 
-from copy import deepcopy
-from dataclasses import asdict, dataclass, is_dataclass
-from enum import Enum
 import hashlib
 import json
 import math
 import secrets
 import time
-from typing import Mapping, Any
+from copy import deepcopy
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Mapping
 
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import LivingBodyState, VitalState
-from symbiont.cognition.limits import KernelLimits
+
 from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine
+from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
-from symbiont.host.discovery import HostDiscovery
-from symbiont.host.lifecycle import HostLifecycle
-from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 from symbiont.core.domains.context import TickContext
 from symbiont.core.embodiment import (
+    EmbodimentArchive,
     EmbodimentContract,
     EmbodimentEndReason,
-    EmbodimentArchive,
     EmbodimentEpisode,
-    archive_episode_checkpoint,
     EmbodimentState,
     PerceptualSurface,
     TimingContract,
+    archive_episode_checkpoint,
 )
+from symbiont.host.discovery import HostDiscovery
+from symbiont.host.lifecycle import HostLifecycle
+from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
 from .apparatus import (
     OpaqueBodyInteroception,
     PhysicsDiscoveryProvider,
     PhysicsReadingProvider,
-    actuator_to_effector_map,
     actuator_exclusion_groups,
+    actuator_to_effector_map,
     body_schema_summary,
     physics3d_actuator_surface,
     physics3d_cognition,
     physics3d_sensory_system,
 )
-from .observer_semantics import motor_semantics, sensory_semantics
 from .bodies import DEFAULT_BODY_REGISTRY
 from .humanoid import apply_surface_material, configure_physics_solver
-from .resource import PhysicalResource
-from .settling import settle_passive_body
+from .observer_semantics import motor_semantics, sensory_semantics
 from .reembodiment import (
     PhysicsEmbodimentDescriptor,
     migrate_legacy_memory_store,
@@ -59,6 +59,8 @@ from .reembodiment import (
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
 )
+from .resource import PhysicalResource
+from .settling import settle_passive_body
 
 
 def metabolic_cost_from_actuator_work(
@@ -242,9 +244,7 @@ class PyBulletEmbodimentRuntime:
             or not math.isfinite(float(mechanical_work_cost_per_joule))
             or float(mechanical_work_cost_per_joule) < 0.0
         ):
-            raise ValueError(
-                "mechanical_work_cost_per_joule must be finite and non-negative"
-            )
+            raise ValueError("mechanical_work_cost_per_joule must be finite and non-negative")
         self.mechanical_work_cost_per_joule = float(mechanical_work_cost_per_joule)
         self.capture_physics_trace = bool(capture_physics_trace)
         self.body_descriptor = DEFAULT_BODY_REGISTRY.get(body_kind)
@@ -291,9 +291,7 @@ class PyBulletEmbodimentRuntime:
         # Symbiont. Legacy body files may borrow the associated Episode id once
         # during migration; the next physical save persists it here.
         raw_physical_body_id = (
-            physical_state.get("body_id")
-            if isinstance(physical_state, Mapping)
-            else None
+            physical_state.get("body_id") if isinstance(physical_state, Mapping) else None
         )
         if isinstance(raw_physical_body_id, str) and raw_physical_body_id:
             self._physical_body_id = raw_physical_body_id
@@ -304,15 +302,9 @@ class PyBulletEmbodimentRuntime:
                 else None
             )
             episode_body_id = (
-                raw_episode.get("body_id")
-                if isinstance(raw_episode, Mapping)
-                else None
+                raw_episode.get("body_id") if isinstance(raw_episode, Mapping) else None
             )
-            if (
-                physical_state is not None
-                and isinstance(episode_body_id, str)
-                and episode_body_id
-            ):
+            if physical_state is not None and isinstance(episode_body_id, str) and episode_body_id:
                 self._physical_body_id = episode_body_id
             elif physical_state is not None:
                 migration_material = {
@@ -335,10 +327,7 @@ class PyBulletEmbodimentRuntime:
                     separators=(",", ":"),
                     allow_nan=False,
                 ).encode("utf-8")
-                self._physical_body_id = (
-                    "body.legacy."
-                    + hashlib.sha256(encoded).hexdigest()[:24]
-                )
+                self._physical_body_id = "body.legacy." + hashlib.sha256(encoded).hexdigest()[:24]
             else:
                 self._physical_body_id = f"body.{secrets.token_hex(12)}"
 
@@ -357,14 +346,9 @@ class PyBulletEmbodimentRuntime:
             physicsClientId=self.client_id,
         )
         restored_origin = (
-            physical_state.get("origin_xy")
-            if isinstance(physical_state, Mapping)
-            else None
+            physical_state.get("origin_xy") if isinstance(physical_state, Mapping) else None
         )
-        if (
-            isinstance(restored_origin, (list, tuple))
-            and len(restored_origin) == 2
-        ):
+        if isinstance(restored_origin, (list, tuple)) and len(restored_origin) == 2:
             self._origin_xy = (
                 float(restored_origin[0]),
                 float(restored_origin[1]),
@@ -372,9 +356,7 @@ class PyBulletEmbodimentRuntime:
         else:
             self._origin_xy = (float(base_position[0]), float(base_position[1]))
 
-        current_distance = self.resource.distance_to(
-            tuple(float(value) for value in base_position)
-        )
+        current_distance = self.resource.distance_to(tuple(float(value) for value in base_position))
         evaluator_state = (
             physical_state.get("locomotion_evaluator")
             if isinstance(physical_state, Mapping)
@@ -394,14 +376,11 @@ class PyBulletEmbodimentRuntime:
             if not isinstance(raw_counts, Mapping):
                 raw_counts = {}
             self._action_source_counts = {
-                "exploration": int(
-                    raw_counts.get("exploration", raw_counts.get("babbling", 0))
-                ),
+                "exploration": int(raw_counts.get("exploration", raw_counts.get("babbling", 0))),
                 "competence": int(
                     raw_counts.get(
                         "competence",
-                        int(raw_counts.get("cognition", 0))
-                        + int(raw_counts.get("primitive", 0)),
+                        int(raw_counts.get("cognition", 0)) + int(raw_counts.get("primitive", 0)),
                     )
                 ),
                 "protection": int(raw_counts.get("protection", 0)),
@@ -484,9 +463,7 @@ class PyBulletEmbodimentRuntime:
             ),
             actuator_surface=canonical_actuator_surface,
             timing=TimingContract(
-                tick_hz=1.0 / (
-                    self.time_step * self.physics_substeps_per_tick
-                ),
+                tick_hz=1.0 / (self.time_step * self.physics_substeps_per_tick),
                 command_hold_ticks=1,
             ),
             exclusive_actuator_groups=canonical_exclusive_groups,
@@ -497,8 +474,7 @@ class PyBulletEmbodimentRuntime:
                 kernel_limits=kernel_limits,
             )
             metabolic_capacity = {
-                kind: 400.0
-                for kind in ("observation", "cognition", "persistence", "maintenance")
+                kind: 400.0 for kind in ("observation", "cognition", "persistence", "maintenance")
             }
             physical_energy_capacity = sum(metabolic_capacity.values())
             living_body_state = LivingBodyState(
@@ -571,9 +547,7 @@ class PyBulletEmbodimentRuntime:
                 or not isinstance(raw_genome.get("genome_id"), str)
                 or not raw_genome.get("genome_id")
             ):
-                raise RuntimeError(
-                    "Physics3D checkpoint is missing canonical genome identity"
-                )
+                raise RuntimeError("Physics3D checkpoint is missing canonical genome identity")
             # Genome identity is organism state, not a Physics3D body type.
             # The strict Genome codec below validates/migrates its schema and
             # hashes; Physics3D must not require a body-specific genome id.
@@ -598,25 +572,17 @@ class PyBulletEmbodimentRuntime:
 
             raw_lifecycle = restored_payload.get("embodiment_lifecycle")
             self._embodiment_lifecycle = (
-                deepcopy(raw_lifecycle)
-                if isinstance(raw_lifecycle, dict)
-                else None
+                deepcopy(raw_lifecycle) if isinstance(raw_lifecycle, dict) else None
             )
             raw_summaries = restored_payload.get("embodiment_epoch_summaries")
             self._embodiment_epoch_summaries = (
-                [
-                    deepcopy(item)
-                    for item in raw_summaries
-                    if isinstance(item, dict)
-                ]
+                [deepcopy(item) for item in raw_summaries if isinstance(item, dict)]
                 if isinstance(raw_summaries, list)
                 else []
             )
             raw_migration = restored_payload.get("temporal_migration")
             self._temporal_migration = (
-                deepcopy(raw_migration)
-                if isinstance(raw_migration, dict)
-                else None
+                deepcopy(raw_migration) if isinstance(raw_migration, dict) else None
             )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
                 restored_payload,
@@ -639,31 +605,33 @@ class PyBulletEmbodimentRuntime:
             else None
         )
         raw_epoch_metrics = (
-            current_lifecycle.get("metrics")
-            if isinstance(current_lifecycle, Mapping)
-            else None
+            current_lifecycle.get("metrics") if isinstance(current_lifecycle, Mapping) else None
         )
         raw_epoch_metrics = raw_epoch_metrics if isinstance(raw_epoch_metrics, Mapping) else {}
         self._epoch_metrics: dict[str, Any] = {
-            "absorbed_material_total": float(raw_epoch_metrics.get("absorbed_material_total") or 0.0),
+            "absorbed_material_total": float(
+                raw_epoch_metrics.get("absorbed_material_total") or 0.0
+            ),
             "mechanical_work_total": float(raw_epoch_metrics.get("mechanical_work_total") or 0.0),
-            "physiological_cost_total": float(raw_epoch_metrics.get("physiological_cost_total") or 0.0),
-            "reacclimation_ticks_consumed": int(raw_epoch_metrics.get("reacclimation_ticks_consumed") or 0),
-            "reacclimation_completed": bool(raw_epoch_metrics.get("reacclimation_completed", False)),
+            "physiological_cost_total": float(
+                raw_epoch_metrics.get("physiological_cost_total") or 0.0
+            ),
+            "reacclimation_ticks_consumed": int(
+                raw_epoch_metrics.get("reacclimation_ticks_consumed") or 0
+            ),
+            "reacclimation_completed": bool(
+                raw_epoch_metrics.get("reacclimation_completed", False)
+            ),
             "vital_state_ticks": dict(raw_epoch_metrics.get("vital_state_ticks") or {}),
         }
         raw_core_archive = (
-            restored_payload.get("embodiment_archive")
-            if runtime_checkpoint is not None
-            else None
+            restored_payload.get("embodiment_archive") if runtime_checkpoint is not None else None
         )
         self._embodiment_archive = EmbodimentArchive.restore(
             raw_core_archive if isinstance(raw_core_archive, Mapping) else None
         )
         legacy_memory = (
-            restored_payload.get("embodiment_memory")
-            if runtime_checkpoint is not None
-            else None
+            restored_payload.get("embodiment_memory") if runtime_checkpoint is not None else None
         )
         self._embodiment_archive = migrate_legacy_memory_store(
             self._embodiment_archive,
@@ -674,29 +642,24 @@ class PyBulletEmbodimentRuntime:
 
         self._last_physical_tick = self.tick_count
         self._telemetry_seen_experience_ids = {
-            str(record.record_id)
-            for record in self.organism.experience_ledger.records
+            str(record.record_id) for record in self.organism.experience_ledger.records
         }
         self._telemetry_last_ledger_index = len(self.organism.experience_ledger.records)
         self._telemetry_transition_records_count = sum(
-            1 for record in self.organism.experience_ledger.records
+            1
+            for record in self.organism.experience_ledger.records
             if record.record_id.startswith("transition.")
         )
 
         constitution = self.organism.actuator_constitution
         if constitution is None:
             raise RuntimeError("canonical runtime restored without motor constitution")
-        self._actuator_to_effector = actuator_to_effector_map(
-            constitution, self.apparatus
-        )
+        self._actuator_to_effector = actuator_to_effector_map(constitution, self.apparatus)
         expected_motor_units = actuator_exclusion_groups(
             constitution,
             self.apparatus,
         )
-        if (
-            self.organism.sensorimotor_exclusive_actuator_groups
-            != expected_motor_units
-        ):
+        if self.organism.sensorimotor_exclusive_actuator_groups != expected_motor_units:
             raise RuntimeError(
                 "Physics3D checkpoint motor-unit constitution does not match "
                 "the attached physical apparatus"
@@ -711,14 +674,10 @@ class PyBulletEmbodimentRuntime:
                 "restored actuator constitution contradicts canonical embodiment contract"
             )
         raw_episode = (
-            restored_payload.get("embodiment_episode")
-            if runtime_checkpoint is not None
-            else None
+            restored_payload.get("embodiment_episode") if runtime_checkpoint is not None else None
         )
         restored_same_episode = bool(
-            isinstance(raw_episode, Mapping)
-            and not self._reembodied
-            and physical_state is not None
+            isinstance(raw_episode, Mapping) and not self._reembodied and physical_state is not None
         )
         current_lifecycle = (
             self._embodiment_lifecycle.get("current")
@@ -738,44 +697,28 @@ class PyBulletEmbodimentRuntime:
                 )
             raw_episode_contract = raw_episode.get("contract")
             if not isinstance(raw_episode_contract, Mapping):
-                raise RuntimeError(
-                    "persisted embodiment episode is missing its contract"
-                )
-            raw_perceptual_surface = raw_episode_contract.get(
-                "perceptual_surface"
-            )
+                raise RuntimeError("persisted embodiment episode is missing its contract")
+            raw_perceptual_surface = raw_episode_contract.get("perceptual_surface")
             if not isinstance(raw_perceptual_surface, Mapping):
-                raise RuntimeError(
-                    "persisted embodiment contract is missing perceptual surface"
-                )
+                raise RuntimeError("persisted embodiment contract is missing perceptual surface")
             raw_perceptual_channels = raw_perceptual_surface.get("channels")
-            if (
-                not isinstance(raw_perceptual_channels, list)
-                or len(raw_perceptual_channels)
-                != len(
-                    self._core_embodiment_contract.perceptual_surface.channels
-                )
+            if not isinstance(raw_perceptual_channels, list) or len(raw_perceptual_channels) != len(
+                self._core_embodiment_contract.perceptual_surface.channels
             ):
                 raise RuntimeError(
                     "persisted perceptual surface contradicts attached physical interface"
                 )
             # Opaque ids/slots are deterministic by ordinal; availability is
             # contractual and must also match before preserving episode identity.
-            expected_percepts = (
-                self._core_embodiment_contract.perceptual_surface.channels
-            )
+            expected_percepts = self._core_embodiment_contract.perceptual_surface.channels
             for index, raw_channel in enumerate(raw_perceptual_channels):
                 if not isinstance(raw_channel, Mapping):
-                    raise RuntimeError(
-                        "invalid persisted perceptual channel"
-                    )
+                    raise RuntimeError("invalid persisted perceptual channel")
                 expected = expected_percepts[index]
                 if (
                     str(raw_channel.get("slot_id") or "") != expected.slot_id
-                    or str(raw_channel.get("percept_id") or "")
-                    != expected.percept_id
-                    or bool(raw_channel.get("available", True))
-                    != expected.available
+                    or str(raw_channel.get("percept_id") or "") != expected.percept_id
+                    or bool(raw_channel.get("available", True)) != expected.available
                 ):
                     raise RuntimeError(
                         "persisted perceptual channel contradicts attached physical interface"
@@ -809,17 +752,13 @@ class PyBulletEmbodimentRuntime:
                 )
                 migration_embodiment_id = (
                     "embodiment."
-                    + hashlib.sha256(
-                        migration_material.encode("utf-8")
-                    ).hexdigest()[:24]
+                    + hashlib.sha256(migration_material.encode("utf-8")).hexdigest()[:24]
                 )
             else:
                 migration_embodiment_id = None
             prior = self._embodiment_archive.prior_for(
                 body_id=logical_body_id,
-                contract_fingerprint=(
-                    self._core_embodiment_contract.contract_fingerprint
-                ),
+                contract_fingerprint=(self._core_embodiment_contract.contract_fingerprint),
             )
             self._embodiment_episode = EmbodimentEpisode.begin(
                 symbiont_id=self.organism_id,
@@ -832,15 +771,9 @@ class PyBulletEmbodimentRuntime:
             )
             # Canonical inference services are shared, never duplicated.
             self._embodiment_episode.body_schema = self.organism.body_schema
-            self._embodiment_episode.causal_evidence = (
-                self.organism.causal_evidence_ledger
-            )
-            self._embodiment_episode.effect_model = (
-                self.organism.sensorimotor_effect_model
-            )
-            self._embodiment_episode.controllability_model = (
-                self.organism.controllability_model
-            )
+            self._embodiment_episode.causal_evidence = self.organism.causal_evidence_ledger
+            self._embodiment_episode.effect_model = self.organism.sensorimotor_effect_model
+            self._embodiment_episode.controllability_model = self.organism.controllability_model
             self._embodiment_episode.agency_model = self.organism.agency_model
             self._embodiment_episode.execution_bindings = (
                 self.organism.competence_execution_bindings
@@ -852,9 +785,7 @@ class PyBulletEmbodimentRuntime:
             embodiment_tick=self._embodiment_episode.embodiment_tick,
             new_episode=not restored_same_episode,
         )
-        self._embodiment_episode.execution_bindings = (
-            self.organism.competence_execution_bindings
-        )
+        self._embodiment_episode.execution_bindings = self.organism.competence_execution_bindings
 
         self._previous_embodiment_percepts: dict[str, float] = {}
         percept_ids = self._core_embodiment_contract.perceptual_surface.percept_ids
@@ -955,11 +886,8 @@ class PyBulletEmbodimentRuntime:
         raw = current.get("candidate_private_model_ids") if isinstance(current, Mapping) else None
         if not isinstance(raw, list):
             return ()
-        return tuple(
-            str(value)
-            for value in raw
-            if isinstance(value, str) and value
-        )
+        return tuple(str(value) for value in raw if isinstance(value, str) and value)
+
     def _update_embodiment_evidence(self, result) -> None:
         """Feed only opaque organism-visible consequences into Embodiment v2."""
         self._embodiment_episode.advance()
@@ -970,14 +898,11 @@ class PyBulletEmbodimentRuntime:
             if receptor_id in self._embodiment_percept_map
         }
         deltas = {
-            percept_id: value - self._previous_embodiment_percepts.get(
-                percept_id, value
-            )
+            percept_id: value - self._previous_embodiment_percepts.get(percept_id, value)
             for percept_id, value in current.items()
         }
         activations = {
-            str(item.actuator_id): float(item.delivered)
-            for item in self.organism.last_actuations
+            str(item.actuator_id): float(item.delivered) for item in self.organism.last_actuations
         }
         dynamics = self._embodiment_episode.dynamics_model
         # The residual at t evaluates the prediction emitted at t-1.
@@ -994,13 +919,9 @@ class PyBulletEmbodimentRuntime:
         self._previous_embodiment_percepts = current
 
         schema = body_schema_summary(self.organism)
-        agency_values = [
-            float(item.confidence)
-            for item in self.organism.agency_model.estimates
-        ]
+        agency_values = [float(item.confidence) for item in self.organism.agency_model.estimates]
         controllability_values = [
-            float(item.confidence)
-            for item in self.organism.controllability_model.estimates
+            float(item.confidence) for item in self.organism.controllability_model.estimates
         ]
         current_surface = (
             self.organism.actuator_constitution.contract_fingerprint
@@ -1034,19 +955,15 @@ class PyBulletEmbodimentRuntime:
             residuals=residuals,
             prediction_error=prediction_error,
             schema_confidence=float(schema["confidence"]),
-            causal_confidence=(
-                sum(agency_values) / len(agency_values)
-                if agency_values else 0.0
-            ),
+            causal_confidence=(sum(agency_values) / len(agency_values) if agency_values else 0.0),
             controllability_confidence=(
                 sum(controllability_values) / len(controllability_values)
-                if controllability_values else 0.0
+                if controllability_values
+                else 0.0
             ),
             revalidated_competences=revalidated_count,
             candidate_competences=candidate_count,
-            schema_revised=(
-                self.organism.body_schema.boundary_disruption_score >= 0.5
-            ),
+            schema_revised=(self.organism.body_schema.boundary_disruption_score >= 0.5),
         )
 
         transition = getattr(result, "sensorimotor_transition", None)
@@ -1083,9 +1000,7 @@ class PyBulletEmbodimentRuntime:
         self, physical_state: dict[str, object] | None = None
     ) -> dict[str, object]:
         state = dict(
-            self.apparatus.export_physical_state()
-            if physical_state is None
-            else physical_state
+            self.apparatus.export_physical_state() if physical_state is None else physical_state
         )
         state["body_id"] = self._physical_body_id
         state["locomotion_resource"] = self.resource.checkpoint()
@@ -1121,9 +1036,7 @@ class PyBulletEmbodimentRuntime:
         if self._embodiment_lifecycle is not None:
             payload["embodiment_lifecycle"] = deepcopy(self._embodiment_lifecycle)
         if self._embodiment_epoch_summaries:
-            payload["embodiment_epoch_summaries"] = deepcopy(
-                self._embodiment_epoch_summaries
-            )
+            payload["embodiment_epoch_summaries"] = deepcopy(self._embodiment_epoch_summaries)
         if self._temporal_migration is not None:
             payload["temporal_migration"] = deepcopy(self._temporal_migration)
 
@@ -1139,9 +1052,7 @@ class PyBulletEmbodimentRuntime:
                     symbiont_tick=self.tick_count,
                     reason=EmbodimentEndReason.BODY_DEATH,
                 )
-            closed_payload = self._embodiment_episode.checkpoint(
-                current_tick=self.tick_count
-            )
+            closed_payload = self._embodiment_episode.checkpoint(current_tick=self.tick_count)
             archive_episode_checkpoint(
                 self._embodiment_archive,
                 closed_payload,
@@ -1173,19 +1084,13 @@ class PyBulletEmbodimentRuntime:
         self._embodiment_lifecycle = deepcopy(payload["embodiment_lifecycle"])
         raw_summaries = payload.get("embodiment_epoch_summaries")
         self._embodiment_epoch_summaries = (
-            [
-                deepcopy(item)
-                for item in raw_summaries
-                if isinstance(item, dict)
-            ]
+            [deepcopy(item) for item in raw_summaries if isinstance(item, dict)]
             if isinstance(raw_summaries, list)
             else []
         )
         raw_migration = payload.get("temporal_migration")
         self._temporal_migration = (
-            deepcopy(raw_migration)
-            if isinstance(raw_migration, dict)
-            else self._temporal_migration
+            deepcopy(raw_migration) if isinstance(raw_migration, dict) else self._temporal_migration
         )
         return payload
 
@@ -1220,8 +1125,7 @@ class PyBulletEmbodimentRuntime:
             return value if math.isfinite(value) else None
         if t is dict:
             return {
-                (k if type(k) is str else str(k)): cls._telemetry_value(v)
-                for k, v in value.items()
+                (k if type(k) is str else str(k)): cls._telemetry_value(v) for k, v in value.items()
             }
         if t in (list, tuple, set):
             return [cls._telemetry_value(item) for item in value]
@@ -1233,10 +1137,7 @@ class PyBulletEmbodimentRuntime:
                 for f_name in value.__dataclass_fields__
             }
         if isinstance(value, Mapping):
-            return {
-                str(key): cls._telemetry_value(item)
-                for key, item in value.items()
-            }
+            return {str(key): cls._telemetry_value(item) for key, item in value.items()}
         return str(value)
 
     @staticmethod
@@ -1252,7 +1153,13 @@ class PyBulletEmbodimentRuntime:
         return {
             "reserve": reserve,
             "capacity": capacity,
-            "pressure": str(getattr(getattr(snapshot, "pressure", None), "value", getattr(snapshot, "pressure", "unknown"))),
+            "pressure": str(
+                getattr(
+                    getattr(snapshot, "pressure", None),
+                    "value",
+                    getattr(snapshot, "pressure", "unknown"),
+                )
+            ),
         }
 
     @staticmethod
@@ -1267,33 +1174,39 @@ class PyBulletEmbodimentRuntime:
         nodes = []
         for node in tuple(getattr(graph, "nodes", ())):
             kind = getattr(getattr(node, "kind", None), "value", getattr(node, "kind", "concept"))
-            nodes.append({
-                "node_id": str(getattr(node, "node_id", ""))[:128],
-                "kind": str(kind),
-                "predicts_node_id": (
-                    str(getattr(node, "predicts_node_id"))[:128]
-                    if getattr(node, "predicts_node_id", None) is not None
-                    else None
-                ),
-                "bias": float(getattr(node, "bias", 0.0)),
-                "tau": float(getattr(node, "tau", 1.0)),
-            })
+            nodes.append(
+                {
+                    "node_id": str(getattr(node, "node_id", ""))[:128],
+                    "kind": str(kind),
+                    "predicts_node_id": (
+                        str(getattr(node, "predicts_node_id"))[:128]
+                        if getattr(node, "predicts_node_id", None) is not None
+                        else None
+                    ),
+                    "bias": float(getattr(node, "bias", 0.0)),
+                    "tau": float(getattr(node, "tau", 1.0)),
+                }
+            )
 
         edges = []
         for edge in tuple(getattr(graph, "edges", ())):
-            kind = getattr(getattr(edge, "kind", None), "value", getattr(edge, "kind", "excitatory"))
-            edges.append({
-                "source_id": str(getattr(edge, "source_id", ""))[:128],
-                "target_id": str(getattr(edge, "target_id", ""))[:128],
-                "kind": str(kind),
-                "weight": float(getattr(edge, "weight", 0.0)),
-                "plasticity": float(getattr(edge, "plasticity", 0.0)),
-                "delay_ticks": int(getattr(edge, "delay_ticks", 0)),
-                "support": int(getattr(edge, "support", 0)),
-                "age_ticks": int(getattr(edge, "age_ticks", 0)),
-                "stable_ticks": int(getattr(edge, "stable_ticks", 0)),
-                "last_use_tick": int(getattr(edge, "last_use_tick", 0)),
-            })
+            kind = getattr(
+                getattr(edge, "kind", None), "value", getattr(edge, "kind", "excitatory")
+            )
+            edges.append(
+                {
+                    "source_id": str(getattr(edge, "source_id", ""))[:128],
+                    "target_id": str(getattr(edge, "target_id", ""))[:128],
+                    "kind": str(kind),
+                    "weight": float(getattr(edge, "weight", 0.0)),
+                    "plasticity": float(getattr(edge, "plasticity", 0.0)),
+                    "delay_ticks": int(getattr(edge, "delay_ticks", 0)),
+                    "support": int(getattr(edge, "support", 0)),
+                    "age_ticks": int(getattr(edge, "age_ticks", 0)),
+                    "stable_ticks": int(getattr(edge, "stable_ticks", 0)),
+                    "last_use_tick": int(getattr(edge, "last_use_tick", 0)),
+                }
+            )
 
         return {"nodes": nodes, "edges": edges}
 
@@ -1341,14 +1254,17 @@ class PyBulletEmbodimentRuntime:
             },
             "prediction_errors": prediction_errors,
             "mutations": mutations,
-            "structural_mutations_applied": int(getattr(cognition, "structural_mutations_applied", 0)),
+            "structural_mutations_applied": int(
+                getattr(cognition, "structural_mutations_applied", 0)
+            ),
             "frozen": bool(getattr(cognition, "frozen", False)),
             "topology_revision": int(getattr(cognition, "topology_revision", 0)),
             "topology_health": str(getattr(health, "value", health)),
             "recovering": bool(getattr(cognition, "recovering", False)),
             "consecutive_failures": int(getattr(cognition, "consecutive_failures", 0)),
             "recycling_events": [
-                dict(item) for item in tuple(getattr(cognition, "recycling_events", ()))
+                dict(item)
+                for item in tuple(getattr(cognition, "recycling_events", ()))
                 if isinstance(item, Mapping)
             ],
             "stranded_concepts": list(getattr(cognition, "stranded_concepts", ()) or ()),
@@ -1358,8 +1274,12 @@ class PyBulletEmbodimentRuntime:
             "retirement_edges": int(getattr(cognition, "retirement_edges", 0)),
             "structural_candidates": int(getattr(cognition, "structural_candidates", 0)),
             "structural_producers": int(getattr(cognition, "structural_producers", 0)),
-            "oldest_structural_wait_ticks": int(getattr(cognition, "oldest_structural_wait_ticks", 0)),
-            "representation_maturity": dict(getattr(cognition, "representation_maturity", {}) or {}),
+            "oldest_structural_wait_ticks": int(
+                getattr(cognition, "oldest_structural_wait_ticks", 0)
+            ),
+            "representation_maturity": dict(
+                getattr(cognition, "representation_maturity", {}) or {}
+            ),
             "max_contention_losses": int(getattr(cognition, "max_contention_losses", 0)),
             "node_budget": int(getattr(cognition, "node_budget", 0)),
             "edge_budget": int(getattr(cognition, "edge_budget", 0)),
@@ -1498,29 +1418,20 @@ class PyBulletEmbodimentRuntime:
         if cognition is None:
             return None
         errors = getattr(cognition, "prediction_errors", ())
-        losses = [
-            float(getattr(item, "loss", 0.0))
-            for item in errors
-        ]
+        losses = [float(getattr(item, "loss", 0.0)) for item in errors]
         return sum(losses) / len(losses) if losses else None
 
     def _predictor_count(self) -> int:
         bridge = self.organism.cognitive_bridge
         if bridge is None or bridge.graph is None:
             return 0
-        return sum(
-            1 for node in bridge.graph.nodes
-            if node.kind is NodeKind.PREDICTOR
-        )
+        return sum(1 for node in bridge.graph.nodes if node.kind is NodeKind.PREDICTOR)
 
     def _cognitive_node_counts(self) -> tuple[int, int, int, int]:
         bridge = self.organism.cognitive_bridge
         if bridge is None or bridge.graph is None:
             return 0, 0, 0, 0
-        concepts = sum(
-            1 for node in bridge.graph.nodes
-            if node.kind is NodeKind.CONCEPT
-        )
+        concepts = sum(1 for node in bridge.graph.nodes if node.kind is NodeKind.CONCEPT)
         core_readouts = sum(
             1
             for node in bridge.graph.nodes
@@ -1533,17 +1444,14 @@ class PyBulletEmbodimentRuntime:
         motor_readouts = sum(
             1
             for node in bridge.graph.nodes
-            if node.kind is NodeKind.READOUT
-            and node.node_id.startswith("readout_motor:")
+            if node.kind is NodeKind.READOUT and node.node_id.startswith("readout_motor:")
         )
         primitive_readouts = sum(
             1
             for node in bridge.graph.nodes
-            if node.kind is NodeKind.READOUT
-            and node.node_id.startswith("readout_primitive:")
+            if node.kind is NodeKind.READOUT and node.node_id.startswith("readout_primitive:")
         )
         return concepts, core_readouts, motor_readouts, primitive_readouts
-
 
     def _cognitive_motor_output_edge_count(self) -> int:
         bridge = self.organism.cognitive_bridge
@@ -1565,9 +1473,7 @@ class PyBulletEmbodimentRuntime:
         pre_physical_state = self.apparatus.export_physical_state()
         pre_position = tuple(float(value) for value in pre_physical_state["base_position"])
         metabolic_snapshot = self.organism.metabolism.snapshot()
-        resource_field = self.resource.field_at(
-            tuple(float(value) for value in pre_position)
-        )
+        resource_field = self.resource.field_at(tuple(float(value) for value in pre_position))
         self.apparatus.set_opaque_environment_state(
             external_field=resource_field,
         )
@@ -1620,9 +1526,7 @@ class PyBulletEmbodimentRuntime:
                 else:
                     # Alternative apparatuses without decomposed work expose
                     # the established absolute-effort scalar only.
-                    fallback_work = float(
-                        self.apparatus.mechanical_work_step(self.time_step)
-                    )
+                    fallback_work = float(self.apparatus.mechanical_work_step(self.time_step))
                     positive_actuator_work_joules += fallback_work
                     net_actuator_work_joules += fallback_work
                     mechanical_work_joules += fallback_work
@@ -1635,9 +1539,7 @@ class PyBulletEmbodimentRuntime:
                             "tick": int(self.tick_count),
                             "substep_index": int(substep),
                             "physics_step": int(self._presentation_substep),
-                            "simulation_time_s": float(
-                                self._presentation_substep * self.time_step
-                            ),
+                            "simulation_time_s": float(self._presentation_substep * self.time_step),
                             "tick_simulation_span_s": float(
                                 self.physics_substeps_per_tick * self.time_step
                             ),
@@ -1651,7 +1553,11 @@ class PyBulletEmbodimentRuntime:
                     self.apparatus.body_id,
                     physicsClientId=self.client_id,
                 )
-                current_position = (float(current_position[0]), float(current_position[1]), float(current_position[2]))
+                current_position = (
+                    float(current_position[0]),
+                    float(current_position[1]),
+                    float(current_position[2]),
+                )
                 dx = current_position[0] - previous_substep_position[0]
                 dy = current_position[1] - previous_substep_position[1]
                 dz = current_position[2] - previous_substep_position[2]
@@ -1740,8 +1646,7 @@ class PyBulletEmbodimentRuntime:
         shadow_predictions = self.organism.shadow_predictions
         shadow_prediction_count = len(shadow_predictions)
         promotable_shadow_count = sum(
-            1 for candidate in shadow_predictions
-            if bool(getattr(candidate, "promotable", False))
+            1 for candidate in shadow_predictions if bool(getattr(candidate, "promotable", False))
         )
         ledger_records = self.organism.experience_ledger.records
         if self._telemetry_last_ledger_index > len(ledger_records):
@@ -1749,7 +1654,7 @@ class PyBulletEmbodimentRuntime:
             self._telemetry_seen_experience_ids.clear()
             self._telemetry_transition_records_count = 0
 
-        new_slice = ledger_records[self._telemetry_last_ledger_index:]
+        new_slice = ledger_records[self._telemetry_last_ledger_index :]
         self._telemetry_last_ledger_index = len(ledger_records)
 
         new_experience_records = []
@@ -1762,9 +1667,7 @@ class PyBulletEmbodimentRuntime:
                 self._telemetry_transition_records_count += 1
         transition_records = self._telemetry_transition_records_count
 
-        resource_distance = self.resource.distance_to(
-            tuple(float(value) for value in position)
-        )
+        resource_distance = self.resource.distance_to(tuple(float(value) for value in position))
         self._minimum_resource_distance = min(
             self._minimum_resource_distance,
             resource_distance,
@@ -1785,11 +1688,7 @@ class PyBulletEmbodimentRuntime:
         ) ** 0.5
 
         sensorimotor = self.organism.sensorimotor_snapshot
-        horizon_counts = (
-            dict(sensorimotor.horizon_samples)
-            if sensorimotor is not None
-            else {}
-        )
+        horizon_counts = dict(sensorimotor.horizon_samples) if sensorimotor is not None else {}
 
         self._last_physical_state = self._physical_state_payload(raw_physical_state)
         self._last_physical_tick = self.tick_count
@@ -1805,9 +1704,7 @@ class PyBulletEmbodimentRuntime:
         effects = self.organism.effect_representations
         causal_evidence = self.organism.causal_evidence
         motor_competences = self.organism.motor_competences
-        compositions = tuple(
-            self.organism._composition_engine.established
-        )
+        compositions = tuple(self.organism._composition_engine.established)
         current_surface = (
             self.organism.actuator_constitution.contract_fingerprint
             if self.organism.actuator_constitution is not None
@@ -1826,8 +1723,7 @@ class PyBulletEmbodimentRuntime:
         sensorimotor_payload = {}
         if sensorimotor is not None:
             motor_competence_candidates = [
-                dict(candidate)
-                for candidate in self.organism.sensorimotor_competence_candidates
+                dict(candidate) for candidate in self.organism.sensorimotor_competence_candidates
             ]
             actuator_evidence = []
             for state in self.organism.actuator_causal_states:
@@ -1836,18 +1732,22 @@ class PyBulletEmbodimentRuntime:
                     correlation = relation.correlation
                     if correlation is None:
                         continue
-                    relations.append({
-                        "percept_id": str(percept_id),
-                        "samples": int(relation.count),
-                        "correlation": float(correlation),
-                    })
-                actuator_evidence.append({
-                    "actuator_id": str(state.actuator_id),
-                    "state": str(state.probing_state),
-                    "activations": int(state.activations),
-                    "effect_strength": float(state.effect_strength),
-                    "relations": relations,
-                })
+                    relations.append(
+                        {
+                            "percept_id": str(percept_id),
+                            "samples": int(relation.count),
+                            "correlation": float(correlation),
+                        }
+                    )
+                actuator_evidence.append(
+                    {
+                        "actuator_id": str(state.actuator_id),
+                        "state": str(state.probing_state),
+                        "activations": int(state.activations),
+                        "effect_strength": float(state.effect_strength),
+                        "relations": relations,
+                    }
+                )
             sensorimotor_payload = {
                 "exploration_coverage": float(sensorimotor.exploration_coverage),
                 "known_patterns": int(sensorimotor.known_patterns),
@@ -1865,15 +1765,13 @@ class PyBulletEmbodimentRuntime:
                 "active_motor_repertoire": list(self.organism.active_motor_repertoire),
                 "motor_competence_candidates": motor_competence_candidates,
                 "episodes": [
-                    dict(episode)
-                    for episode in self.organism.sensorimotor_competence_episodes
+                    dict(episode) for episode in self.organism.sensorimotor_competence_episodes
                 ],
                 "actuator_evidence": actuator_evidence,
                 "v2": {
                     "active_commitment_id": (
                         active_commitment.commitment_id
-                        if active_commitment is not None
-                        and active_commitment.active
+                        if active_commitment is not None and active_commitment.active
                         else None
                     ),
                     "effect_count": len(effects),
@@ -1908,10 +1806,7 @@ class PyBulletEmbodimentRuntime:
                         }
                         for item in motor_competences
                     ],
-                    "compositions": [
-                        item.checkpoint()
-                        for item in compositions
-                    ],
+                    "compositions": [item.checkpoint() for item in compositions],
                 },
             }
 
@@ -1925,9 +1820,9 @@ class PyBulletEmbodimentRuntime:
             self._epoch_metrics.get("physiological_cost_total", 0.0)
         ) + float(metabolic_work_cost)
         if self.organism.reacclimation_remaining > 0:
-            self._epoch_metrics["reacclimation_ticks_consumed"] = int(
-                self._epoch_metrics.get("reacclimation_ticks_consumed", 0)
-            ) + 1
+            self._epoch_metrics["reacclimation_ticks_consumed"] = (
+                int(self._epoch_metrics.get("reacclimation_ticks_consumed", 0)) + 1
+            )
         else:
             self._epoch_metrics["reacclimation_completed"] = True
         state_name = str(
@@ -1945,56 +1840,35 @@ class PyBulletEmbodimentRuntime:
         physiology_state = getattr(result, "physiology", None)
         prospective_decision = self.organism.last_prospective_decision
         prospective_reason = (
-            prospective_decision.reason
-            if prospective_decision is not None
-            else None
+            prospective_decision.reason if prospective_decision is not None else None
         )
         prospective_payload = {
             "reason": prospective_reason,
-            "candidate_count": int(
-                self.organism.last_prospective_query_count
-            ),
+            "candidate_count": int(self.organism.last_prospective_query_count),
             "selected": bool(
-                prospective_decision is not None
-                and prospective_decision.reason == "selected"
+                prospective_decision is not None and prospective_decision.reason == "selected"
             ),
             "action_id": (
-                prospective_decision.candidate_id
-                if prospective_decision is not None
-                else None
+                prospective_decision.candidate_id if prospective_decision is not None else None
             ),
             "predicted_outcome": (
-                prospective_decision.predicted_outcome
-                if prospective_decision is not None
-                else None
+                prospective_decision.predicted_outcome if prospective_decision is not None else None
             ),
             "expected_value": (
-                prospective_decision.expected_value
-                if prospective_decision is not None
-                else None
+                prospective_decision.expected_value if prospective_decision is not None else None
             ),
             "model_confidence": (
-                prospective_decision.model_confidence
-                if prospective_decision is not None
-                else None
+                prospective_decision.model_confidence if prospective_decision is not None else None
             ),
             "value_confidence": (
-                prospective_decision.value_confidence
-                if prospective_decision is not None
-                else None
+                prospective_decision.value_confidence if prospective_decision is not None else None
             ),
-            "value_samples": int(
-                self.organism.last_prospective_value_samples
-            ),
+            "value_samples": int(self.organism.last_prospective_value_samples),
             "decision_margin": (
-                prospective_decision.decision_margin
-                if prospective_decision is not None
-                else None
+                prospective_decision.decision_margin if prospective_decision is not None else None
             ),
             "query_cost": float(self.organism.last_prospective_cost),
-            "known_outcome_values": int(
-                self.organism.prospective_outcome_value_count
-            ),
+            "known_outcome_values": int(self.organism.prospective_outcome_value_count),
         }
         self._last_telemetry_state = {
             "schema_version": 3,
@@ -2005,35 +1879,23 @@ class PyBulletEmbodimentRuntime:
                 "body_id": self.body_identity,
                 "epoch": self.embodiment_epoch,
                 "embodiment_tick": self.embodiment_tick,
-                "contract_fingerprint": (
-                    self._core_embodiment_contract.contract_fingerprint
-                ),
+                "contract_fingerprint": (self._core_embodiment_contract.contract_fingerprint),
                 "state": self._embodiment_episode.state.value,
                 "prior": {
                     "relation": self._embodiment_episode.prior.relation,
                     "authority": "hypothesis_only",
-                    "source_body_id": (
-                        self._embodiment_episode.prior.source_body_id
-                    ),
-                    "source_embodiment_id": (
-                        self._embodiment_episode.prior.source_embodiment_id
-                    ),
+                    "source_body_id": (self._embodiment_episode.prior.source_body_id),
+                    "source_embodiment_id": (self._embodiment_episode.prior.source_embodiment_id),
                 },
-                "adaptation": self._telemetry_value(
-                    self._embodiment_episode.adaptation.snapshot()
-                ),
+                "adaptation": self._telemetry_value(self._embodiment_episode.adaptation.snapshot()),
                 "dynamics": {
-                    "relation_count": int(
-                        self._embodiment_episode.dynamics_model.relation_count
-                    ),
+                    "relation_count": int(self._embodiment_episode.dynamics_model.relation_count),
                     "mean_prediction_error": float(
                         self._embodiment_episode.dynamics_model.mean_prediction_error
                     ),
                 },
                 "embodied_competences": {
-                    "count": len(
-                        self._embodiment_episode.execution_bindings.items
-                    ),
+                    "count": len(self._embodiment_episode.execution_bindings.items),
                     "executable": int(
                         sum(
                             1
@@ -2045,9 +1907,7 @@ class PyBulletEmbodimentRuntime:
                         )
                     ),
                 },
-                "bindings": self._embodiment_episode.execution_bindings.checkpoint()[
-                    "items"
-                ],
+                "bindings": self._embodiment_episode.execution_bindings.checkpoint()["items"],
             },
             "pre": {
                 "physical": pre_physical_state,
@@ -2060,9 +1920,7 @@ class PyBulletEmbodimentRuntime:
                     "physical_energy_reserve": float(
                         self.organism.living_body_state.energy_reserve
                     ),
-                    "physical_energy_capacity": float(
-                        self.organism.living_body_state.max_energy
-                    ),
+                    "physical_energy_capacity": float(self.organism.living_body_state.max_energy),
                     "physical_energy_ratio": float(reserve_ratio_after),
                 },
                 "sensory_input": {
@@ -2074,9 +1932,7 @@ class PyBulletEmbodimentRuntime:
                 "sensory": sensory_semantics(
                     self.organism.sensory_system.sensors,
                     joint_specs=self.body_descriptor.observer_joint_specs,
-                    contact_region_names=(
-                        self.body_descriptor.observer_contact_region_names
-                    ),
+                    contact_region_names=(self.body_descriptor.observer_contact_region_names),
                     interoceptive_source_ordinals=(
                         self._body_interoception.source_ordinals_by_slot
                     ),
@@ -2095,9 +1951,7 @@ class PyBulletEmbodimentRuntime:
                 "percepts": self._telemetry_value(result.percepts),
                 "narrative": self._telemetry_value(getattr(result, "narrative", ())),
                 "allocations": self._telemetry_value(result.allocations),
-                "perceptual_allocations": self._telemetry_value(
-                    result.perceptual_allocations
-                ),
+                "perceptual_allocations": self._telemetry_value(result.perceptual_allocations),
                 "investigated_capability": result.investigated_capability,
                 "evidence_gathered": int(result.evidence_gathered),
                 "signal_knowledge": self._telemetry_value(result.signal_knowledge),
@@ -2105,12 +1959,8 @@ class PyBulletEmbodimentRuntime:
                 "signal_references": self._telemetry_value(result.signal_references),
                 "assimilation": self._telemetry_value(result.assimilation),
                 "homeostasis": self._telemetry_value(result.homeostasis),
-                "homeostatic_deviation": float(
-                    self.organism.homeostatic_deviation
-                ),
-                "pending_homeostatic_credit": int(
-                    self.organism.pending_homeostatic_credit_count
-                ),
+                "homeostatic_deviation": float(self.organism.homeostatic_deviation),
+                "pending_homeostatic_credit": int(self.organism.pending_homeostatic_credit_count),
                 "prospective_agency": prospective_payload,
                 "development": self._telemetry_value(result.development),
                 "sensory_phenotype": self._telemetry_value(result.sensory_phenotype),
@@ -2150,14 +2000,20 @@ class PyBulletEmbodimentRuntime:
                 },
                 "metabolism": self._metabolism_payload(reserve_snapshot),
                 "physiology": {
-                    "state": str(getattr(getattr(physiology_state, "state", None), "value", getattr(physiology_state, "state", "unknown"))),
+                    "state": str(
+                        getattr(
+                            getattr(physiology_state, "state", None),
+                            "value",
+                            getattr(physiology_state, "state", "unknown"),
+                        )
+                    ),
                     "transitions": int(getattr(physiology_state, "transitions", 0) or 0),
                     "death_tick": getattr(physiology_state, "death_tick", None),
-                } if physiology_state is not None else None,
+                }
+                if physiology_state is not None
+                else None,
             },
-            "self_model": self.organism.self_model.export(
-                current_tick=self.tick_count
-            ),
+            "self_model": self.organism.self_model.export(current_tick=self.tick_count),
             "body_schema": body_schema_representation,
             "motor_competences": [
                 {
@@ -2199,9 +2055,7 @@ class PyBulletEmbodimentRuntime:
                 "initial_resource_distance": float(self._initial_resource_distance),
                 "minimum_resource_distance": float(self._minimum_resource_distance),
                 "current_resource_distance": float(resource_distance),
-                "resource_progress": float(
-                    self._initial_resource_distance - resource_distance
-                ),
+                "resource_progress": float(self._initial_resource_distance - resource_distance),
                 "resource_remaining": float(self.resource.remaining),
                 "absorbed_energy": float(absorbed_energy),
             },
@@ -2235,7 +2089,9 @@ class PyBulletEmbodimentRuntime:
                     sensorimotor.best_candidate_controllability if sensorimotor is not None else 0.0
                 ),
                 "best_candidate_directional_consistency": float(
-                    sensorimotor.best_candidate_directional_consistency if sensorimotor is not None else 0.0
+                    sensorimotor.best_candidate_directional_consistency
+                    if sensorimotor is not None
+                    else 0.0
                 ),
                 "lowest_recurrent_effect_variance": (
                     sensorimotor.lowest_recurrent_effect_variance
@@ -2254,10 +2110,7 @@ class PyBulletEmbodimentRuntime:
         return Tick3D(
             tick=self.tick_count,
             symbiont_tick=self.tick_count,
-            alive=(
-                result.physiology is None
-                or result.physiology.state is not VitalState.DEAD
-            ),
+            alive=(result.physiology is None or result.physiology.state is not VitalState.DEAD),
             base_position=tuple(float(x) for x in position),
             base_orientation=tuple(float(x) for x in orientation),
             schema_confidence=float(schema["confidence"]),
@@ -2270,15 +2123,11 @@ class PyBulletEmbodimentRuntime:
             embodiment_id=self.embodiment_id,
             body_identity=self.body_identity,
             embodiment_tick=self.embodiment_tick,
-            embodiment_prediction_shock=float(
-                self._embodiment_episode.adaptation.prediction_shock
-            ),
+            embodiment_prediction_shock=float(self._embodiment_episode.adaptation.prediction_shock),
             embodiment_schema_uncertainty=float(
                 self._embodiment_episode.adaptation.schema_uncertainty
             ),
-            embodiment_adapted=bool(
-                self._embodiment_episode.adaptation.snapshot().converged
-            ),
+            embodiment_adapted=bool(self._embodiment_episode.adaptation.snapshot().converged),
             body_age_ticks=int(self.organism.living_body_state.age_ticks),
             body_senescence=float(self.organism.living_body_state.senescence),
             reacclimation_remaining=int(self.organism.reacclimation_remaining),
@@ -2318,9 +2167,7 @@ class PyBulletEmbodimentRuntime:
             action_source=action_source,
             initial_resource_distance=float(self._initial_resource_distance),
             minimum_resource_distance=float(self._minimum_resource_distance),
-            resource_progress=float(
-                self._initial_resource_distance - resource_distance
-            ),
+            resource_progress=float(self._initial_resource_distance - resource_distance),
             action_source_exploration=int(self._action_source_counts["exploration"]),
             action_source_competence=int(self._action_source_counts["competence"]),
             action_source_protection=int(self._action_source_counts["protection"]),
@@ -2328,8 +2175,7 @@ class PyBulletEmbodimentRuntime:
             action_source_regulation=int(self._action_source_counts["regulation"]),
             active_commitment_id=(
                 active_commitment.commitment_id
-                if active_commitment is not None
-                and active_commitment.active
+                if active_commitment is not None and active_commitment.active
                 else None
             ),
             effect_count=len(effects),
@@ -2338,45 +2184,32 @@ class PyBulletEmbodimentRuntime:
             composition_count=len(compositions),
             unbound_competence_count=len(unbound_competences),
             prospective_reason=prospective_reason,
-            prospective_candidates=int(
-                self.organism.last_prospective_query_count
-            ),
+            prospective_candidates=int(self.organism.last_prospective_query_count),
             prospective_selected=bool(
-                prospective_decision is not None
-                and prospective_decision.reason == "selected"
+                prospective_decision is not None and prospective_decision.reason == "selected"
             ),
             prospective_action_id=(
-                prospective_decision.candidate_id
-                if prospective_decision is not None else None
+                prospective_decision.candidate_id if prospective_decision is not None else None
             ),
             prospective_predicted_outcome=(
-                prospective_decision.predicted_outcome
-                if prospective_decision is not None else None
+                prospective_decision.predicted_outcome if prospective_decision is not None else None
             ),
             prospective_expected_value=(
-                prospective_decision.expected_value
-                if prospective_decision is not None else None
+                prospective_decision.expected_value if prospective_decision is not None else None
             ),
             prospective_model_confidence=(
-                prospective_decision.model_confidence
-                if prospective_decision is not None else None
+                prospective_decision.model_confidence if prospective_decision is not None else None
             ),
             prospective_value_confidence=(
-                prospective_decision.value_confidence
-                if prospective_decision is not None else None
+                prospective_decision.value_confidence if prospective_decision is not None else None
             ),
-            prospective_value_samples=int(
-                self.organism.last_prospective_value_samples
-            ),
+            prospective_value_samples=int(self.organism.last_prospective_value_samples),
             prospective_decision_margin=(
-                prospective_decision.decision_margin
-                if prospective_decision is not None else None
+                prospective_decision.decision_margin if prospective_decision is not None else None
             ),
             prospective_cost=float(self.organism.last_prospective_cost),
             action_source_none=int(self._action_source_counts["none"]),
-            motor_repertoire_size=int(
-                len(self.organism.active_motor_repertoire)
-            ),
+            motor_repertoire_size=int(len(self.organism.active_motor_repertoire)),
             sensorimotor_coverage=float(
                 sensorimotor.exploration_coverage if sensorimotor is not None else 0.0
             ),
@@ -2387,9 +2220,7 @@ class PyBulletEmbodimentRuntime:
                 sensorimotor.competence_chunks if sensorimotor is not None else 0
             ),
             motor_competences=int(
-                sensorimotor.established_competences
-                if sensorimotor is not None
-                else 0
+                sensorimotor.established_competences if sensorimotor is not None else 0
             ),
             competence_candidates=int(
                 sensorimotor.competence_candidates if sensorimotor is not None else 0
@@ -2419,20 +2250,18 @@ class PyBulletEmbodimentRuntime:
                 sensorimotor.best_candidate_controllability if sensorimotor is not None else 0.0
             ),
             best_candidate_directional_consistency=float(
-                sensorimotor.best_candidate_directional_consistency if sensorimotor is not None else 0.0
+                sensorimotor.best_candidate_directional_consistency
+                if sensorimotor is not None
+                else 0.0
             ),
             lowest_recurrent_effect_variance=(
-                sensorimotor.lowest_recurrent_effect_variance
-                if sensorimotor is not None
-                else None
+                sensorimotor.lowest_recurrent_effect_variance if sensorimotor is not None else None
             ),
             best_motor_controllability=float(
                 sensorimotor.best_controllability if sensorimotor is not None else 0.0
             ),
             best_motor_directional_consistency=float(
-                sensorimotor.best_directional_consistency
-                if sensorimotor is not None
-                else 0.0
+                sensorimotor.best_directional_consistency if sensorimotor is not None else 0.0
             ),
             competence_replay_active=bool(
                 sensorimotor.replay_active if sensorimotor is not None else False
@@ -2442,28 +2271,23 @@ class PyBulletEmbodimentRuntime:
             sensorimotor_h16_samples=int(horizon_counts.get(16, 0)),
             sensorimotor_h64_samples=int(horizon_counts.get(64, 0)),
             passive_baseline_samples=int(
-                sensorimotor.passive_baseline_samples
-                if sensorimotor is not None
-                else 0
+                sensorimotor.passive_baseline_samples if sensorimotor is not None else 0
             ),
             cognitive_concepts=int(concept_count),
             cognitive_readouts=int(readout_count),
             motor_readout_nodes=int(motor_readout_nodes),
             competence_readout_nodes=int(primitive_readout_nodes),
-            cognitive_motor_output_edges=int(
-                self._cognitive_motor_output_edge_count()
-            ),
+            cognitive_motor_output_edges=int(self._cognitive_motor_output_edge_count()),
             structural_candidates=int(
-                getattr(cognition, "structural_candidates", 0)
-                if cognition is not None else 0
+                getattr(cognition, "structural_candidates", 0) if cognition is not None else 0
             ),
             structural_producers=int(
-                getattr(cognition, "structural_producers", 0)
-                if cognition is not None else 0
+                getattr(cognition, "structural_producers", 0) if cognition is not None else 0
             ),
             oldest_structural_wait_ticks=int(
                 getattr(cognition, "oldest_structural_wait_ticks", 0)
-                if cognition is not None else 0
+                if cognition is not None
+                else 0
             ),
             maturity_nascent=int(maturity.get("nascent", 0)),
             maturity_provisional=int(maturity.get("provisional", 0)),
@@ -2472,12 +2296,11 @@ class PyBulletEmbodimentRuntime:
             maturity_weakening=int(maturity.get("weakening", 0)),
             maturity_retiring=int(maturity.get("retiring", 0)),
             joints=tuple(
-                dict(j) for j in self._last_physical_state.get("joints", ())
+                dict(j)
+                for j in self._last_physical_state.get("joints", ())
                 if isinstance(j, (dict, Mapping))
             ),
-            contact_links=tuple(
-                int(c) for c in self._last_physical_state.get("contact_links", ())
-            ),
+            contact_links=tuple(int(c) for c in self._last_physical_state.get("contact_links", ())),
         )
 
     def render_camera_frame(
@@ -2534,9 +2357,7 @@ class PyBulletEmbodimentRuntime:
             flags=self.p.ER_NO_SEGMENTATION_MASK,
             physicsClientId=self.client_id,
         )
-        rgba = np.asarray(image[2], dtype=np.uint8).reshape(
-            int(height), int(width), 4
-        )
+        rgba = np.asarray(image[2], dtype=np.uint8).reshape(int(height), int(width), 4)
         return rgba[:, :, :3].tobytes()
 
     def motor_activity(self) -> dict[str, float]:
@@ -2544,8 +2365,7 @@ class PyBulletEmbodimentRuntime:
         if constitution is None:
             return {}
         index_by_id = {
-            actuator_id: index
-            for index, actuator_id in enumerate(constitution.actuator_ids)
+            actuator_id: index for index, actuator_id in enumerate(constitution.actuator_ids)
         }
         activity: dict[str, float] = {}
         for actuation in self.organism.last_actuations:

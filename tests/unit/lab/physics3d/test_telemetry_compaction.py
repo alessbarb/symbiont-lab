@@ -44,9 +44,9 @@ def test_json_pointer_escaping_is_lossless(tmp_path):
 
     differ = StateDiffer(object_store=ObjectStore(tmp_path / "objects"))
     patch = differ.diff(before, after)
-    reconstructed = StatePatcher(
-        object_store=ObjectStore(tmp_path / "objects")
-    ).apply(before, patch)
+    reconstructed = StatePatcher(object_store=ObjectStore(tmp_path / "objects")).apply(
+        before, patch
+    )
 
     assert reconstructed == after
     assert patch[0]["path"] == "/a~1b/x~0y"
@@ -57,11 +57,7 @@ def test_preferred_large_subtree_uses_content_addressed_reference(tmp_path):
     policy = CompactionPolicy(minimum_reference_bytes=32)
     differ = StateDiffer(object_store=store, policy=policy)
     before = {"cognitive_topology": {"nodes": [{"id": "a"}]}}
-    after = {
-        "cognitive_topology": {
-            "nodes": [{"id": "b", "payload": "x" * 128}]
-        }
-    }
+    after = {"cognitive_topology": {"nodes": [{"id": "b", "payload": "x" * 128}]}}
 
     patch = differ.diff(before, after)
 

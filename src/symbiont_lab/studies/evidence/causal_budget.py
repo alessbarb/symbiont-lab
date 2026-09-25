@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import random
 from dataclasses import asdict, dataclass
 from hashlib import sha256
-import random
 from statistics import mean, pstdev
 from typing import Iterable
 
@@ -10,8 +10,8 @@ from symbiont.environment.rng import derive_seed
 from symbiont.simulation import EventContext, run_simulation
 from symbiont_lab.studies.attention.causal import NOVELTY_MIN_HISTORY
 from symbiont_lab.studies.attention.retrospective import (
-    _ScoredEvent,
     _score_events,
+    _ScoredEvent,
 )
 from symbiont_lab.studies.common.causal_selection import OrderStatisticHistory, online_indices
 
@@ -21,7 +21,6 @@ from .second_look import (
     posterior_probability,
     second_look_measurement,
 )
-
 
 DIRECTED_STRATEGIES = ("risk", "novelty", "risk_novelty")
 REFERENCE_STRATEGY = "random"
@@ -195,8 +194,7 @@ class ReplicatedCausalEvidenceStudy:
             "world_digests": {str(seed): digest for seed, digest in self.world_digests.items()},
             "summaries": {
                 str(budget): {
-                    condition: summary.as_dict()
-                    for condition, summary in conditions.items()
+                    condition: summary.as_dict() for condition, summary in conditions.items()
                 }
                 for budget, conditions in self.summaries.items()
             },
@@ -393,18 +391,15 @@ def _evaluate(
     selected_events = [scored[index].event for index in selected_indices]
     total_threats = sum(scored[index].event.is_threat for index in eligible_indices)
     total_stealth = sum(
-        scored[index].event.truth_label == "pathogen:stealth_sim"
-        for index in eligible_indices
+        scored[index].event.truth_label == "pathogen:stealth_sim" for index in eligible_indices
     )
     selected_threats = sum(scored[index].event.is_threat for index in selected_indices)
     selected_stealth = sum(
-        scored[index].event.truth_label == "pathogen:stealth_sim"
-        for index in selected_indices
+        scored[index].event.truth_label == "pathogen:stealth_sim" for index in selected_indices
     )
     exploration_threats = sum(scored[index].event.is_threat for index in explored_indices)
     exploration_stealth = sum(
-        scored[index].event.truth_label == "pathogen:stealth_sim"
-        for index in explored_indices
+        scored[index].event.truth_label == "pathogen:stealth_sim" for index in explored_indices
     )
 
     pre_tp = pre_fp = pre_fn = 0
@@ -682,7 +677,11 @@ def run_replicated_causal_evidence_study(
         raise ValueError("budgets must be non-empty, unique, and limited to 20")
     if any(value < 0 for value in budget_tuple):
         raise ValueError("budgets must be non-negative")
-    if not fraction_tuple or len(fraction_tuple) > 20 or len(set(fraction_tuple)) != len(fraction_tuple):
+    if (
+        not fraction_tuple
+        or len(fraction_tuple) > 20
+        or len(set(fraction_tuple)) != len(fraction_tuple)
+    ):
         raise ValueError("exploration fractions must be non-empty, unique, and limited to 20")
     if any(not 0.0 <= value <= 1.0 for value in fraction_tuple):
         raise ValueError("exploration fractions must be between 0 and 1")
@@ -736,7 +735,11 @@ def run_replicated_causal_evidence_study(
         for condition, outcomes in by_budget[budget].items():
             metrics = {
                 metric: _summary(
-                    [value for outcome in outcomes if (value := _metric(outcome, metric)) is not None]
+                    [
+                        value
+                        for outcome in outcomes
+                        if (value := _metric(outcome, metric)) is not None
+                    ]
                 )
                 for metric in ACTIVE_METRICS
             }

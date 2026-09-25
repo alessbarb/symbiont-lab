@@ -1,11 +1,12 @@
 """Canonical Genome v2 model and strict codec."""
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
 import re
+from dataclasses import asdict, dataclass
 from typing import Any, Mapping
 
 from .schema import DEFAULT_GENOME_SCHEMA, GenomeSchema
@@ -239,8 +240,14 @@ def satisfies_kernel_compatibility(spec: str, running_version: tuple[int, int, i
     return True
 
 
-def legacy_validation_version(spec: str, running_version: tuple[int, int, int]) -> tuple[int, int, int]:
-    if spec in {">=0.55,<0.60", ">=0.59,<0.60"} and running_version[0] == 0 and running_version[1] >= 60:
+def legacy_validation_version(
+    spec: str, running_version: tuple[int, int, int]
+) -> tuple[int, int, int]:
+    if (
+        spec in {">=0.55,<0.60", ">=0.59,<0.60"}
+        and running_version[0] == 0
+        and running_version[1] >= 60
+    ):
         return (0, 59, 4)
     return running_version
 
@@ -307,7 +314,7 @@ def _require_mapping(value: Any, field: str, keys: set[str]) -> Mapping[str, Any
     actual = set(value)
     if actual != keys:
         raise GenomeError(
-            f"{field} keys mismatch - missing={sorted(keys-actual)} unknown={sorted(actual-keys)}"
+            f"{field} keys mismatch - missing={sorted(keys - actual)} unknown={sorted(actual - keys)}"
         )
     return value
 
@@ -355,8 +362,8 @@ class GenomeCodec:
         if not isinstance(payload, Mapping) or set(payload) != self.TOP_LEVEL:
             actual = set(payload) if isinstance(payload, Mapping) else set()
             raise GenomeError(
-                f"genome top-level keys mismatch - missing={sorted(self.TOP_LEVEL-actual)} "
-                f"unknown={sorted(actual-self.TOP_LEVEL)}"
+                f"genome top-level keys mismatch - missing={sorted(self.TOP_LEVEL - actual)} "
+                f"unknown={sorted(actual - self.TOP_LEVEL)}"
             )
         schema_version = _number(payload["schema_version"], "schema_version", integer=True)
         if schema_version != 2:
@@ -372,14 +379,34 @@ class GenomeCodec:
         d = _require_mapping(
             payload["development"],
             "development",
-            {"soft_node_budget", "soft_edge_budget", "sense_node_budget", "capacity_growth_sensitivity", "consolidation_interval_ticks"},
+            {
+                "soft_node_budget",
+                "soft_edge_budget",
+                "sense_node_budget",
+                "capacity_growth_sensitivity",
+                "consolidation_interval_ticks",
+            },
         )
         development = DevelopmentGenes(
-            soft_node_budget=int(_number(d["soft_node_budget"], "development.soft_node_budget", integer=True)),
-            soft_edge_budget=int(_number(d["soft_edge_budget"], "development.soft_edge_budget", integer=True)),
-            sense_node_budget=int(_number(d["sense_node_budget"], "development.sense_node_budget", integer=True)),
-            capacity_growth_sensitivity=float(_number(d["capacity_growth_sensitivity"], "development.capacity_growth_sensitivity")),
-            consolidation_interval_ticks=int(_number(d["consolidation_interval_ticks"], "development.consolidation_interval_ticks", integer=True)),
+            soft_node_budget=int(
+                _number(d["soft_node_budget"], "development.soft_node_budget", integer=True)
+            ),
+            soft_edge_budget=int(
+                _number(d["soft_edge_budget"], "development.soft_edge_budget", integer=True)
+            ),
+            sense_node_budget=int(
+                _number(d["sense_node_budget"], "development.sense_node_budget", integer=True)
+            ),
+            capacity_growth_sensitivity=float(
+                _number(d["capacity_growth_sensitivity"], "development.capacity_growth_sensitivity")
+            ),
+            consolidation_interval_ticks=int(
+                _number(
+                    d["consolidation_interval_ticks"],
+                    "development.consolidation_interval_ticks",
+                    integer=True,
+                )
+            ),
         )
 
         p = _require_mapping(
@@ -389,48 +416,107 @@ class GenomeCodec:
         )
         plasticity = PlasticityGenes(
             learning_rate=_load_range(p["learning_rate"], "plasticity.learning_rate"),
-            eligibility_decay=float(_number(p["eligibility_decay"], "plasticity.eligibility_decay")),
-            structural_plasticity=_load_range(p["structural_plasticity"], "plasticity.structural_plasticity"),
+            eligibility_decay=float(
+                _number(p["eligibility_decay"], "plasticity.eligibility_decay")
+            ),
+            structural_plasticity=_load_range(
+                p["structural_plasticity"], "plasticity.structural_plasticity"
+            ),
         )
 
         r = _require_mapping(
             payload["regulation"],
             "regulation",
-            {"uncertainty_gain", "novelty_gain", "prediction_error_gain", "controllability_loss_gain", "embodiment_mismatch_gain", "regulation_smoothing", "regulation_decay"},
+            {
+                "uncertainty_gain",
+                "novelty_gain",
+                "prediction_error_gain",
+                "controllability_loss_gain",
+                "embodiment_mismatch_gain",
+                "regulation_smoothing",
+                "regulation_decay",
+            },
         )
-        regulation = RegulationGenes(**{key: float(_number(r[key], f"regulation.{key}")) for key in r})
+        regulation = RegulationGenes(
+            **{key: float(_number(r[key], f"regulation.{key}")) for key in r}
+        )
 
         s = _require_mapping(
             payload["sensorimotor"],
             "sensorimotor",
-            {"spontaneous_activity_baseline", "uncertainty_exploration_gain", "prediction_error_exploration_gain", "exploration_habituation", "reacclimation_sensitivity"},
+            {
+                "spontaneous_activity_baseline",
+                "uncertainty_exploration_gain",
+                "prediction_error_exploration_gain",
+                "exploration_habituation",
+                "reacclimation_sensitivity",
+            },
         )
         sensorimotor = SensorimotorGenes(
-            spontaneous_activity_baseline=float(_number(s["spontaneous_activity_baseline"], "sensorimotor.spontaneous_activity_baseline")),
-            uncertainty_exploration_gain=float(_number(s["uncertainty_exploration_gain"], "sensorimotor.uncertainty_exploration_gain")),
-            prediction_error_exploration_gain=float(_number(s["prediction_error_exploration_gain"], "sensorimotor.prediction_error_exploration_gain")),
-            exploration_habituation=float(_number(s["exploration_habituation"], "sensorimotor.exploration_habituation")),
-            reacclimation_sensitivity=float(_number(s["reacclimation_sensitivity"], "sensorimotor.reacclimation_sensitivity")),
+            spontaneous_activity_baseline=float(
+                _number(
+                    s["spontaneous_activity_baseline"], "sensorimotor.spontaneous_activity_baseline"
+                )
+            ),
+            uncertainty_exploration_gain=float(
+                _number(
+                    s["uncertainty_exploration_gain"], "sensorimotor.uncertainty_exploration_gain"
+                )
+            ),
+            prediction_error_exploration_gain=float(
+                _number(
+                    s["prediction_error_exploration_gain"],
+                    "sensorimotor.prediction_error_exploration_gain",
+                )
+            ),
+            exploration_habituation=float(
+                _number(s["exploration_habituation"], "sensorimotor.exploration_habituation")
+            ),
+            reacclimation_sensitivity=float(
+                _number(s["reacclimation_sensitivity"], "sensorimotor.reacclimation_sensitivity")
+            ),
         )
 
         st = _require_mapping(
             payload["structure"],
             "structure",
-            {"growth_threshold", "pruning_threshold", "minimum_support", "tentative_lifetime_ticks"},
+            {
+                "growth_threshold",
+                "pruning_threshold",
+                "minimum_support",
+                "tentative_lifetime_ticks",
+            },
         )
         structure = StructuralGenes(
             growth_threshold=_load_range(st["growth_threshold"], "structure.growth_threshold"),
             pruning_threshold=_load_range(st["pruning_threshold"], "structure.pruning_threshold"),
-            minimum_support=int(_number(st["minimum_support"], "structure.minimum_support", integer=True)),
-            tentative_lifetime_ticks=int(_number(st["tentative_lifetime_ticks"], "structure.tentative_lifetime_ticks", integer=True)),
+            minimum_support=int(
+                _number(st["minimum_support"], "structure.minimum_support", integer=True)
+            ),
+            tentative_lifetime_ticks=int(
+                _number(
+                    st["tentative_lifetime_ticks"],
+                    "structure.tentative_lifetime_ticks",
+                    integer=True,
+                )
+            ),
         )
 
         e = _require_mapping(
             payload["evolvability"],
             "evolvability",
-            {"development_mutation_scale", "plasticity_mutation_scale", "regulation_mutation_scale", "sensorimotor_mutation_scale", "structure_mutation_scale", "recombination_linkage"},
+            {
+                "development_mutation_scale",
+                "plasticity_mutation_scale",
+                "regulation_mutation_scale",
+                "sensorimotor_mutation_scale",
+                "structure_mutation_scale",
+                "recombination_linkage",
+            },
         )
-        evolvability = EvolvabilityGenes(**{key: float(_number(e[key], f"evolvability.{key}")) for key in e})
+        evolvability = EvolvabilityGenes(
+            **{key: float(_number(e[key], f"evolvability.{key}")) for key in e}
+        )
 
         genome = Genome(
             schema_version=2,
@@ -455,7 +541,9 @@ class GenomeCodec:
         if genome.development.sense_node_budget > genome.development.soft_node_budget:
             raise GenomeError("sense_node_budget cannot exceed soft_node_budget")
 
-    def validate(self, genome: Genome, kernel_limits: Any, *, running_version: tuple[int, int, int]) -> None:
+    def validate(
+        self, genome: Genome, kernel_limits: Any, *, running_version: tuple[int, int, int]
+    ) -> None:
         self._validate_schema(genome)
         if not satisfies_kernel_compatibility(genome.kernel_compatibility, running_version):
             raise GenomeError(

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import replace
-from importlib import resources
 import inspect
 import json
+from dataclasses import replace
+from importlib import resources
 
+from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.graph import CognitiveGraph
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.cognition.bridge import CognitiveBridge
@@ -17,7 +18,6 @@ from symbiont.genetics.expression import (
 from symbiont.genetics.genome import GenomeCodec
 from symbiont.genetics.germline import EpigeneticProtocol, GermlineState
 from symbiont.genetics.schema import DEFAULT_GENOME_SCHEMA
-from symbiont.actuation.surface import derive_actuator_constitution
 
 
 def _genome():
@@ -87,11 +87,14 @@ def test_contract_metadata_cannot_enter_regulatory_signal_or_change_genotype():
     assert "contract" not in inspect.signature(RegulatorySignals).parameters
 
     regulator = ExpressionRegulator()
-    assert regulator.update(genome, state, signals).as_dict() == regulator.update(
-        genome,
-        state,
-        signals,
-    ).as_dict()
+    assert (
+        regulator.update(genome, state, signals).as_dict()
+        == regulator.update(
+            genome,
+            state,
+            signals,
+        ).as_dict()
+    )
 
 
 def test_developmental_capacity_starts_below_ceiling_and_never_crosses_it():
@@ -160,14 +163,16 @@ def test_epigenetic_capture_is_disabled_without_explicit_protocol():
         acquired_capture_enabled=True,
     )
     current = {
-        "plasticity.learning_rate.baseline":
-            genome.plasticity.learning_rate.baseline + 0.05,
+        "plasticity.learning_rate.baseline": genome.plasticity.learning_rate.baseline + 0.05,
     }
 
-    assert germline.capture_acquired_variation(
-        current,
-        genome=genome,
-    ) == ()
+    assert (
+        germline.capture_acquired_variation(
+            current,
+            genome=genome,
+        )
+        == ()
+    )
     assert germline.capture_acquired_variation(
         current,
         genome=genome,

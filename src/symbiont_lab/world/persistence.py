@@ -6,17 +6,19 @@ Guarantees:
 3. Checkpoint/replay equivalence:
    future(continuous_run) == future(checkpoint -> restore -> continue)
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
 import hashlib
 import json
 import os
+import uuid
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
-import uuid
 
 from symbiont.core.ecology import SharedHabitat
+
 from symbiont.modeling.runtime import ModeledOrganismRuntime
 from symbiont_world.constitution import WorldConstitution
 from symbiont_world.events import EventJournal
@@ -117,7 +119,11 @@ class PersistentWorldCheckpoint:
                 raise ValueError("emission sequence must contain at most 4 symbols")
             sequence: list[int] = []
             for raw_value in raw_sequence:
-                if isinstance(raw_value, bool) or not isinstance(raw_value, int) or not 0 <= raw_value <= 255:
+                if (
+                    isinstance(raw_value, bool)
+                    or not isinstance(raw_value, int)
+                    or not 0 <= raw_value <= 255
+                ):
                     raise ValueError("emission symbols must be integers within [0, 255]")
                 sequence.append(raw_value)
             emissions[oid] = sequence
@@ -180,8 +186,12 @@ def capture_checkpoint(
             organisms[oid] = {
                 "checkpoint": None,
                 "individual": {
-                    "energy": rig.individual.body.physiology.energy_reserve if rig.individual else 1.0,
-                    "integrity": rig.individual.body.physiology.structural_integrity if rig.individual else 1.0,
+                    "energy": rig.individual.body.physiology.energy_reserve
+                    if rig.individual
+                    else 1.0,
+                    "integrity": rig.individual.body.physiology.structural_integrity
+                    if rig.individual
+                    else 1.0,
                     "is_viable": rig.individual.body.is_viable if rig.individual else True,
                     "ticks": rig.individual.symbiont.total_ticks if rig.individual else 0,
                 },
@@ -237,7 +247,9 @@ def capture_checkpoint(
         journal_event_count=len(journal_snapshot),
         last_event_id=journal_snapshot[-1]["event_id"] if journal_snapshot else None,
         journal=journal_snapshot,
-        geography=pop.geography.to_dict() if hasattr(pop, "geography") and pop.geography is not None else None,
+        geography=pop.geography.to_dict()
+        if hasattr(pop, "geography") and pop.geography is not None
+        else None,
         movement_enabled=bool(pop.movement_enabled),
         experimental_clean=bool(pop.experimental_clean),
         emissions={oid: list(sequence) for oid, sequence in sorted(pop._emissions.items())},
@@ -258,8 +270,7 @@ def restore_population_from_checkpoint(
     )
     organism_ids = tuple(sorted(checkpoint.organisms.keys()))
     start_cells = tuple(
-        HexCoord(checkpoint.bodies[oid]["q"], checkpoint.bodies[oid]["r"])
-        for oid in organism_ids
+        HexCoord(checkpoint.bodies[oid]["q"], checkpoint.bodies[oid]["r"]) for oid in organism_ids
     )
 
     geography = (
@@ -318,7 +329,9 @@ def restore_population_from_checkpoint(
             ind_data = odata.get("individual")
             if ind_data and rig.individual is not None:
                 rig.individual.body.physiology.energy_reserve = float(ind_data.get("energy", 1.0))
-                rig.individual.body.physiology.structural_integrity = float(ind_data.get("integrity", 1.0))
+                rig.individual.body.physiology.structural_integrity = float(
+                    ind_data.get("integrity", 1.0)
+                )
                 rig.individual.symbiont.total_ticks = int(ind_data.get("ticks", 0))
             rig.policy = str(odata["policy"])
             rig.policy_rng.setstate(_restore_rng_state(odata["policy_rng_state"]))
@@ -365,13 +378,9 @@ def restore_population_from_checkpoint(
     unknown_emitters = set(restored_emissions) - set(pop._rigs)
     if unknown_emitters:
         raise ValueError(
-            "persisted emissions reference unknown organisms: "
-            f"{sorted(unknown_emitters)}"
+            f"persisted emissions reference unknown organisms: {sorted(unknown_emitters)}"
         )
-    pop._emissions = {
-        oid: tuple(sequence)
-        for oid, sequence in restored_emissions.items()
-    }
+    pop._emissions = {oid: tuple(sequence) for oid, sequence in restored_emissions.items()}
     return pop
 
 
@@ -659,8 +668,7 @@ class WorldStorage:
         head_path = self.checkpoints_dir / head_name
         candidates.append(head_path)
         candidates.extend(
-            p for p in sorted(self.checkpoints_dir.glob("*.chk"), reverse=True)
-            if p != head_path
+            p for p in sorted(self.checkpoints_dir.glob("*.chk"), reverse=True) if p != head_path
         )
 
         failures: list[str] = []

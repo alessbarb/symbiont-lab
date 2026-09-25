@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.experiments.loader import load_experiment_file
+from symbiont_lab.experiments.runner import ExperimentRunner
 
 
 @dataclass

@@ -1,4 +1,5 @@
 """Body-independent continuity model for the reduced autonomous Symbiont."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,14 +22,9 @@ class SymbiontContinuityModel:
     ) -> None:
         self.ticks_experienced += 1
         error_penalty = min(0.5, max(0.0, float(prediction_error)))
-        self.historical_stability = (
-            0.95 * self.historical_stability
-            + 0.05 * (1.0 - error_penalty)
-        )
+        self.historical_stability = 0.95 * self.historical_stability + 0.05 * (1.0 - error_penalty)
         bounded_schema = max(0.0, min(1.0, float(schema_confidence)))
-        self.integrity_confidence = (
-            0.9 * self.integrity_confidence + 0.1 * bounded_schema
-        )
+        self.integrity_confidence = 0.9 * self.integrity_confidence + 0.1 * bounded_schema
 
 
 __all__ = ["SymbiontContinuityModel"]

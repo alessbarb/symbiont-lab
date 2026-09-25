@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 _ALLOWED_COMMAND_AUTHORITY = {
     "src/symbiont/core/domains/action.py",
 }
@@ -42,16 +41,18 @@ def test_production_has_single_motor_command_authority() -> None:
                 and node.func.value.id == "MotorCommand"
             )
             is_actuator_system = name == "ActuatorSystem"
-            if (is_command_construction or is_actuator_system) and rel not in _ALLOWED_COMMAND_AUTHORITY:
+            if (
+                is_command_construction or is_actuator_system
+            ) and rel not in _ALLOWED_COMMAND_AUTHORITY:
                 violations.append(f"{rel}:{node.lineno}:{name}")
     assert violations == []
 
 
 def test_runtime_does_not_cross_physical_actuator_boundary() -> None:
     root = Path(__file__).resolve().parents[2]
-    runtime = (
-        root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
-    ).read_text(encoding="utf-8")
+    runtime = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
     assert ".execute_command(" not in runtime
     assert "ActuatorSystem(" not in runtime
     assert "MotorCommand.from_mapping(" not in runtime

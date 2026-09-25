@@ -4,8 +4,7 @@ from dataclasses import asdict, dataclass
 from statistics import mean, pstdev
 from typing import Iterable
 
-from .causal import CausalSelection, STRATEGIES, run_causal_attention_budget
-
+from .causal import STRATEGIES, CausalSelection, run_causal_attention_budget
 
 CAUSAL_METRICS = (
     "threat_recall",
@@ -79,24 +78,19 @@ class ReplicatedCausalBudgetStudy:
             "reference_strategy": self.reference_strategy,
             "summaries": {
                 str(budget): {
-                    strategy: summary.as_dict()
-                    for strategy, summary in strategies.items()
+                    strategy: summary.as_dict() for strategy, summary in strategies.items()
                 }
                 for budget, strategies in self.summaries.items()
             },
             "paired_vs_reference": {
                 str(budget): {
-                    strategy: {
-                        metric: delta.as_dict()
-                        for metric, delta in metrics.items()
-                    }
+                    strategy: {metric: delta.as_dict() for metric, delta in metrics.items()}
                     for strategy, metrics in strategies.items()
                 }
                 for budget, strategies in self.paired_vs_reference.items()
             },
             "absolute_budgets": {
-                str(budget): values
-                for budget, values in self.absolute_budgets.items()
+                str(budget): values for budget, values in self.absolute_budgets.items()
             },
         }
 
@@ -166,8 +160,7 @@ def run_replicated_causal_budget_study(
         raise ValueError(f"unknown reference strategy: {reference_strategy}")
 
     by_budget: dict[float, dict[str, list[CausalSelection]]] = {
-        budget: {strategy: [] for strategy in STRATEGIES}
-        for budget in budget_tuple
+        budget: {strategy: [] for strategy in STRATEGIES} for budget in budget_tuple
     }
     absolute_budgets: dict[float, list[int]] = {budget: [] for budget in budget_tuple}
 
@@ -203,9 +196,7 @@ def run_replicated_causal_budget_study(
             metrics: dict[str, CausalMetricSummary] = {}
             for metric in CAUSAL_METRICS:
                 values = [
-                    value
-                    for outcome in outcomes
-                    if (value := _metric(outcome, metric)) is not None
+                    value for outcome in outcomes if (value := _metric(outcome, metric)) is not None
                 ]
                 metrics[metric] = _summary(values)
             summaries[budget][strategy] = CausalStrategySummary(

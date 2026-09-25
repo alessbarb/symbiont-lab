@@ -4,8 +4,8 @@ deleted automatically; closed segments can be losslessly gzipped explicitly."""
 
 from __future__ import annotations
 
-import json
 import gzip
+import json
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +33,10 @@ class Journal:
         self._max_total_bytes = max_total_bytes  # compaction target, never a deletion quota
         self._sequence = 0
         indices = []
-        for path in (*self._dir.glob(f"{self._run_id}-*.ndjson"), *self._dir.glob(f"{self._run_id}-*.ndjson.gz")):
+        for path in (
+            *self._dir.glob(f"{self._run_id}-*.ndjson"),
+            *self._dir.glob(f"{self._run_id}-*.ndjson.gz"),
+        ):
             stem = path.name.removesuffix(".gz").removesuffix(".ndjson")
             suffix = stem.rsplit("-", 1)[-1]
             if suffix.isdigit():
@@ -58,7 +61,11 @@ class Journal:
             self._lines_in_current_segment = 0
         sequence = self._sequence
         self._sequence += 1
-        entry = {"run_id": self._run_id, "sequence": sequence, "snapshot": envelope.get("snapshot", envelope)}
+        entry = {
+            "run_id": self._run_id,
+            "sequence": sequence,
+            "snapshot": envelope.get("snapshot", envelope),
+        }
         with self._current_path().open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, ensure_ascii=False, separators=(",", ":")))
             handle.write("\n")
@@ -70,7 +77,9 @@ class Journal:
     def write_summary(self) -> None:
         """Write the current derived summary without changing raw history."""
         summary = build_history_summary(self._dir, run_id=self._run_id)
-        write_history_summary(summary, self._dir.parent / "summaries" / f"{self._run_id}.summary.json")
+        write_history_summary(
+            summary, self._dir.parent / "summaries" / f"{self._run_id}.summary.json"
+        )
 
     def compact(self) -> int:
         """Losslessly gzip closed segments; never deletes journal records.

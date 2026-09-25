@@ -128,10 +128,7 @@ class CollectiveMemory:
         agreement = abs(probability - 0.5) * 2.0
         certainty = min(
             1.0,
-            0.35 * diversity
-            + 0.25 * avg_confidence
-            + 0.25 * agreement
-            + 0.15 * avg_trust,
+            0.35 * diversity + 0.25 * avg_confidence + 0.25 * agreement + 0.15 * avg_trust,
         )
         return probability, certainty
 
@@ -146,10 +143,9 @@ class CollectiveMemory:
 
         prior_weight = prior.certainty * 0.65
         live_weight = max(live_certainty, 0.15)
-        probability = (
-            live_probability * live_weight
-            + prior.threat_probability * prior_weight
-        ) / (live_weight + prior_weight)
+        probability = (live_probability * live_weight + prior.threat_probability * prior_weight) / (
+            live_weight + prior_weight
+        )
         certainty = min(
             1.0,
             live_certainty + 0.18 * prior.certainty * (1.0 - live_certainty),

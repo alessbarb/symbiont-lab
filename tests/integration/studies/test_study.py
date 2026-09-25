@@ -80,6 +80,10 @@ def test_zero_denominator_metrics_are_undefined_not_zero():
 def test_study_rejects_unsupported_parameter_and_empty_seeds():
     spec = ExperimentSpec(hosts=4, steps=10)
     with pytest.raises(ValueError):
-        run_comparative_study(spec, parameter="hosts", baseline_value=4, variant_value=8, seeds=(1,))
+        run_comparative_study(
+            spec, parameter="hosts", baseline_value=4, variant_value=8, seeds=(1,)
+        )
     with pytest.raises(ValueError):
-        run_comparative_study(spec, parameter="poison_fraction", baseline_value=0, variant_value=0.2, seeds=())
+        run_comparative_study(
+            spec, parameter="poison_fraction", baseline_value=0, variant_value=0.2, seeds=()
+        )

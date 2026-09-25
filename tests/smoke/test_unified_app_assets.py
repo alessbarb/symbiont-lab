@@ -18,7 +18,7 @@ def test_unified_server_serves_native_spa_assets() -> None:
         with urllib.request.urlopen(url, timeout=5) as response:
             html = response.read().decode("utf-8")
             assert response.status == 200
-            assert "<main id=\"view-root\"" in html
+            assert '<main id="view-root"' in html
             assert "app.js" in html
 
         js_url = f"http://127.0.0.1:{port}/assets/app.js"
@@ -33,7 +33,7 @@ def test_unified_server_serves_native_spa_assets() -> None:
         with urllib.request.urlopen(api_url, timeout=5) as response:
             payload = response.read().decode("utf-8")
             assert response.status == 200
-            assert "\"running\"" in payload
+            assert '"running"' in payload
     finally:
         server.shutdown()
         server.server_close()
@@ -51,7 +51,7 @@ def test_unified_server_emits_live_organism_sse() -> None:
             payload = response.read(2048).decode("utf-8")
             assert response.status == 200
             assert '"type"' in payload
-            assert 'body' in payload or 'cognition' in payload or 'vitals' in payload
+            assert "body" in payload or "cognition" in payload or "vitals" in payload
     finally:
         server.shutdown()
         server.server_close()
@@ -75,7 +75,7 @@ def test_fleet_stream_is_available_without_observatory() -> None:
         with urllib.request.urlopen(url, timeout=5) as response:
             payload = response.read(512).decode("utf-8")
             assert response.status == 200
-            assert '"instances"' in payload or ': heartbeat' in payload
+            assert '"instances"' in payload or ": heartbeat" in payload
     finally:
         server.shutdown()
         server.server_close()

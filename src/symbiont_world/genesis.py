@@ -6,6 +6,7 @@ symbiont_world never loads TOML or knows about `experiments/`; a caller
 world-ground-truth.toml and injects it here. Only opaque FieldId/ResourceId
 strings and generic numeric laws ever reach this module -- no domain names.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -36,7 +37,9 @@ class GroundTruth:
     resources: Mapping[ResourceId, ResourceLaw] = field(default_factory=dict)
     hazards: Mapping[HazardId, HazardLaw] = field(default_factory=dict)
     region_of: Callable[[HexCoord], RegionId] | None = None
-    regional_resources: Mapping[RegionId, Mapping[ResourceId, ResourceLaw]] = field(default_factory=dict)
+    regional_resources: Mapping[RegionId, Mapping[ResourceId, ResourceLaw]] = field(
+        default_factory=dict
+    )
     regional_hazards: Mapping[RegionId, Mapping[HazardId, HazardLaw]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -175,5 +178,6 @@ class WorldEnvironment:
         """Restore internal mutable state from a snapshot."""
         self._tick = int(snap.get("tick", 0))
         self._field_values = dict(snap.get("field_values", {}))
-        self._resource_pools = {cell: dict(pool) for cell, pool in snap.get("resource_pools", {}).items()}
-
+        self._resource_pools = {
+            cell: dict(pool) for cell, pool in snap.get("resource_pools", {}).items()
+        }

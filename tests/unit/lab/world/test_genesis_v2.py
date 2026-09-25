@@ -1,5 +1,10 @@
 from symbiont_lab.world.genesis_v1 import RESOURCE_IDS, build_ground_truth
-from symbiont_lab.world.genesis_v2 import REGION_NORTH, REGION_SOUTH, build_ground_truth_v2, region_of
+from symbiont_lab.world.genesis_v2 import (
+    REGION_NORTH,
+    REGION_SOUTH,
+    build_ground_truth_v2,
+    region_of,
+)
 from symbiont_world.topology import HexCoord
 
 
@@ -31,6 +36,12 @@ def test_regional_override_only_touches_two_of_four_resources():
 
     north_cell, south_cell = HexCoord(0, 0), HexCoord(7, 0)
     # scarce-rich differs by region (overridden in north only)
-    assert truth.resource_law(north_cell, scarce_rich).capacity != truth.resource_law(south_cell, scarce_rich).capacity
+    assert (
+        truth.resource_law(north_cell, scarce_rich).capacity
+        != truth.resource_law(south_cell, scarce_rich).capacity
+    )
     # neutral has no override anywhere -- identical law in both regions
-    assert truth.resource_law(north_cell, neutral).capacity == truth.resource_law(south_cell, neutral).capacity
+    assert (
+        truth.resource_law(north_cell, neutral).capacity
+        == truth.resource_law(south_cell, neutral).capacity
+    )

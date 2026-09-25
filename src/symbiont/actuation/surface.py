@@ -4,6 +4,7 @@ The surface states only which opaque commands are legal.  Response quality,
 latency, cost, degradation and functional role are not supplied as organism
 knowledge; they must be learned from experienced consequences.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -36,7 +37,9 @@ class ActuatorChannel:
         maximum = float(self.command_max)
         neutral = float(self.neutral)
         if not 0.0 <= minimum <= neutral <= maximum <= 1.0:
-            raise ValueError("actuator command contract must satisfy 0 <= min <= neutral <= max <= 1")
+            raise ValueError(
+                "actuator command contract must satisfy 0 <= min <= neutral <= max <= 1"
+            )
         if not isinstance(self.available, bool):
             raise ValueError("available must be boolean")
 

@@ -14,12 +14,10 @@ def test_tick_scoped_domains_use_typed_tick_context() -> None:
         "action.py",
     )
     for name in domain_names:
-        source = (
-            root / "src" / "symbiont" / "core" / "domains" / name
-        ).read_text(encoding="utf-8")
+        source = (root / "src" / "symbiont" / "core" / "domains" / name).read_text(encoding="utf-8")
         assert "TickContext" in source
 
-    runtime = (
-        root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
-    ).read_text(encoding="utf-8")
+    runtime = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
     assert "context=context" in runtime

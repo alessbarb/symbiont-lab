@@ -1,10 +1,11 @@
 """Universal Sensorimotor v2 action arbitration."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from .action import ActionProposal, ActionSource
-from .commitment import ActionCommitment, CommitmentStatus
+from .commitment import ActionCommitment
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,9 +26,7 @@ class ActionArbitrator:
         tick: int,
     ) -> ArbitrationDecision:
         valid = [
-            proposal
-            for proposal in proposals
-            if (proposal.evaluation.estimated_risk or 0.0) < 1.0
+            proposal for proposal in proposals if (proposal.evaluation.estimated_risk or 0.0) < 1.0
         ]
         protective = [
             proposal
@@ -57,7 +56,9 @@ class ActionArbitrator:
                 return ArbitrationDecision(None, True, "continue_commitment")
 
         if not valid:
-            return ArbitrationDecision(None, current is not None and current.active, "no_valid_proposal")
+            return ArbitrationDecision(
+                None, current is not None and current.active, "no_valid_proposal"
+            )
 
         # Established/prospective control dominates open-ended exploration when
         # the organism itself has activated that competence.  This is source
@@ -82,11 +83,7 @@ class ActionArbitrator:
             )
             return ArbitrationDecision(chosen, False, "learned_control")
 
-        regulatory = [
-            proposal
-            for proposal in valid
-            if proposal.source is ActionSource.REGULATION
-        ]
+        regulatory = [proposal for proposal in valid if proposal.source is ActionSource.REGULATION]
         if regulatory:
             chosen = max(
                 regulatory,
@@ -99,9 +96,7 @@ class ActionArbitrator:
             return ArbitrationDecision(chosen, False, "regulatory_control")
 
         exploratory = [
-            proposal
-            for proposal in valid
-            if proposal.source is ActionSource.EXPLORATION
+            proposal for proposal in valid if proposal.source is ActionSource.EXPLORATION
         ]
         if exploratory:
             chosen = max(

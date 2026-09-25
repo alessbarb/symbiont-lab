@@ -19,7 +19,9 @@ class PopulationDynamicsTests(unittest.TestCase):
 
     def test_population_module_exports_and_dynamic_capabilities(self):
         pop = read("render", "population.js")
-        self.assertIn("export { renderPopulation, selectPopulationMember, renderPopulationInspector };", pop)
+        self.assertIn(
+            "export { renderPopulation, selectPopulationMember, renderPopulationInspector };", pop
+        )
         self.assertIn("stepPhysics", pop)
         self.assertIn("trafficPhase", pop)
         self.assertIn("trafficEnabled", pop)

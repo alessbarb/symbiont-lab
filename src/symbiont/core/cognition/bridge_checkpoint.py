@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from typing import Collection, Mapping
 
 from ...cognition.activation import SensoryNormalizer
@@ -15,9 +16,9 @@ from ...cognition.checkpoint import (
 from ...cognition.graph import CognitiveGraph, GraphError
 from ...cognition.learning import ShadowPrediction
 from ...cognition.limits import KernelLimits
+from ...cognition.metaplasticity import SafetyState
 from ...cognition.structure import Mutation
 from ...cognition.types import NodeKind
-from ...cognition.metaplasticity import SafetyState
 from ...genetics.genome import Genome
 from .plasticity_state import PlasticityEngine
 from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
@@ -25,7 +26,6 @@ from .sense_concept_lifecycle import ConceptLineage, SenseConceptLifecycle
 from .structural_candidates import StructuralCandidate, StructuralContention
 
 _MAX_SHADOW_PREDICTIONS = 16384
-
 
 
 @dataclass(slots=True)
@@ -84,16 +84,10 @@ def export_bridge_state(
             }
             for item in lifecycle.concept_lineage
         ],
-        "sense_last_seen_tick": dict(
-            sorted(lifecycle.sense_last_seen_tick.items())
-        ),
+        "sense_last_seen_tick": dict(sorted(lifecycle.sense_last_seen_tick.items())),
         "orphan_since_tick": dict(sorted(lifecycle.orphan_since_tick.items())),
-        "unrouted_since_tick": dict(
-            sorted(lifecycle.unrouted_since_tick.items())
-        ),
-        "concept_last_active_tick": dict(
-            sorted(lifecycle.concept_last_active_tick.items())
-        ),
+        "unrouted_since_tick": dict(sorted(lifecycle.unrouted_since_tick.items())),
+        "concept_last_active_tick": dict(sorted(lifecycle.concept_last_active_tick.items())),
         "node_born_tick": dict(sorted(node_born_tick.items())),
         "node_observation_count": dict(sorted(node_observation_count.items())),
         "node_active_count": dict(sorted(node_active_count.items())),
@@ -115,23 +109,20 @@ def export_bridge_state(
             for predictor_id, utility in sorted(predictors.utility.items())
         ],
         "predictor_retirement": [
-            retirement.checkpoint()
-            for _, retirement in sorted(predictors.retirement.items())
+            retirement.checkpoint() for _, retirement in sorted(predictors.retirement.items())
         ],
         "structural_candidates": [
-            candidate.checkpoint()
-            for _, candidate in sorted(contention.candidates.items())
+            candidate.checkpoint() for _, candidate in sorted(contention.candidates.items())
         ],
         "consolidation_generation": contention.consolidation_generation,
-        "last_consolidated_producer_id": (
-            contention.last_consolidated_producer_id
-        ),
+        "last_consolidated_producer_id": (contention.last_consolidated_producer_id),
         "adaptive_resource_budgets": {
             "nodes": adaptive_node_budget,
             "edges": adaptive_edge_budget,
             "senses": adaptive_sense_budget,
         },
     }
+
 
 def restore_nonnegative_tick_map(
     payload: object,
@@ -252,9 +243,7 @@ def restore_predictor_utility(
         ):
             raise GraphError("predictor recent gain must be finite")
         if any(
-            isinstance(value, bool)
-            or not isinstance(value, int)
-            or not 0 <= value <= 1_000_000_000
+            isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 1_000_000_000
             for value in (negative_streak, positive_streak)
         ):
             raise GraphError("predictor utility streak out of bounds")
@@ -289,9 +278,7 @@ def restore_predictor_retirement(
         if not isinstance(predictor_id, str) or predictor_id not in allowed:
             continue
         if any(
-            isinstance(value, bool)
-            or not isinstance(value, int)
-            or value < 0
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
             for value in (entered_tick, last_evaluated_tick)
         ):
             raise GraphError("predictor retirement ticks must be non-negative")
@@ -310,10 +297,7 @@ def restore_structural_candidates(
 ) -> dict[str, StructuralCandidate]:
     if payload is None:
         return {}
-    if (
-        not isinstance(payload, list)
-        or len(payload) > kernel_limits.max_consolidation_candidates
-    ):
+    if not isinstance(payload, list) or len(payload) > kernel_limits.max_consolidation_candidates:
         raise GraphError("structural_candidates must be a bounded list")
     restored: dict[str, StructuralCandidate] = {}
     for entry in payload:
@@ -335,24 +319,19 @@ def restore_structural_candidates(
             or len(family) > 128
             or (
                 producer_id is not None
-                and (
-                    not isinstance(producer_id, str)
-                    or not producer_id
-                    or len(producer_id) > 256
-                )
+                and (not isinstance(producer_id, str) or not producer_id or len(producer_id) > 256)
             )
         ):
             continue
         if any(
-            isinstance(value, bool)
-            or not isinstance(value, int)
-            or value < 0
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
             for value in (eligible_tick, contention_losses)
         ):
             raise GraphError("structural candidate counters must be non-negative")
         if (
             not isinstance(raw_mutations, list)
-            or not 1 <= len(raw_mutations)
+            or not 1
+            <= len(raw_mutations)
             <= kernel_limits.max_structural_mutations_per_consolidation
         ):
             raise GraphError("structural candidate mutations out of bounds")
@@ -406,11 +385,7 @@ def restore_concept_lineage(
     graph: CognitiveGraph,
     kernel_limits: KernelLimits,
 ) -> dict[str, ConceptLineage]:
-    concept_ids = {
-        node.node_id
-        for node in graph.nodes
-        if node.kind is NodeKind.CONCEPT
-    }
+    concept_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT}
     restored: dict[str, ConceptLineage] = {}
     if payload is not None:
         if not isinstance(payload, list):
@@ -425,31 +400,20 @@ def restore_concept_lineage(
                 continue
             raw_parents = entry.get("parent_ids")
             if not isinstance(raw_parents, list) or not 2 <= len(raw_parents) <= 4:
-                raise GraphError(
-                    "concept_lineage.parent_ids must contain 2 to 4 ids"
-                )
+                raise GraphError("concept_lineage.parent_ids must contain 2 to 4 ids")
             parent_ids = tuple(str(value) for value in raw_parents)
             if len(set(parent_ids)) != len(parent_ids):
                 raise GraphError("concept_lineage.parent_ids must be unique")
             born_tick = entry.get("born_tick")
-            if (
-                isinstance(born_tick, bool)
-                or not isinstance(born_tick, int)
-                or born_tick < 0
-            ):
-                raise GraphError(
-                    "concept_lineage.born_tick must be a non-negative integer"
-                )
+            if isinstance(born_tick, bool) or not isinstance(born_tick, int) or born_tick < 0:
+                raise GraphError("concept_lineage.born_tick must be a non-negative integer")
             restored[concept_id] = ConceptLineage(
                 concept_id,
                 parent_ids,
                 born_tick,
             )
 
-    incoming: dict[str, set[str]] = {
-        concept_id: set()
-        for concept_id in concept_ids
-    }
+    incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
     for edge in graph.edges:
         if edge.target_id in incoming:
             incoming[edge.target_id].add(edge.source_id)
@@ -512,9 +476,7 @@ def restore_bridge_state(
                 raise GraphError(f"invalid adaptive {field} budget")
         nodes = max(len(graph.nodes), int(raw_budgets["nodes"]))
         edges = max(len(graph.edges), int(raw_budgets["edges"]))
-        sense_count = sum(
-            1 for node in graph.nodes if node.kind is NodeKind.SENSE
-        )
+        sense_count = sum(1 for node in graph.nodes if node.kind is NodeKind.SENSE)
         senses = min(
             nodes,
             max(sense_count, int(raw_budgets["senses"])),
@@ -522,19 +484,11 @@ def restore_bridge_state(
         budgets = (nodes, edges, senses)
 
     raw_tick = payload.get("tick", 0)
-    if (
-        isinstance(raw_tick, bool)
-        or not isinstance(raw_tick, int)
-        or raw_tick < 0
-    ):
+    if isinstance(raw_tick, bool) or not isinstance(raw_tick, int) or raw_tick < 0:
         raise GraphError("tick must be a non-negative integer")
 
     raw_normalizers = payload.get("sensory_normalizers")
-    normalizers_payload = (
-        raw_normalizers
-        if isinstance(raw_normalizers, dict)
-        else None
-    )
+    normalizers_payload = raw_normalizers if isinstance(raw_normalizers, dict) else None
     normalizers = restore_sensory_normalizers(normalizers_payload)
 
     lifecycle = SenseConceptLifecycle()
@@ -543,26 +497,19 @@ def restore_bridge_state(
         graph=graph,
         kernel_limits=kernel_limits,
     )
-    sense_ids = {
-        node.node_id
-        for node in graph.nodes
-        if node.kind is NodeKind.SENSE
-    }
+    sense_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.SENSE}
     latent_ids = {
         node.node_id
         for node in graph.nodes
-        if node.kind in (
+        if node.kind
+        in (
             NodeKind.CONCEPT,
             NodeKind.STATE,
             NodeKind.GATE,
             NodeKind.READOUT,
         )
     }
-    concept_ids = {
-        node.node_id
-        for node in graph.nodes
-        if node.kind is NodeKind.CONCEPT
-    }
+    concept_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT}
     lifecycle.sense_last_seen_tick = restore_nonnegative_tick_map(
         payload.get("sense_last_seen_tick"),
         allowed_ids=sense_ids,
@@ -593,9 +540,7 @@ def restore_bridge_state(
             field="node_born_tick",
         )
     )
-    node_observation_count = {
-        node.node_id: 0 for node in graph.nodes
-    }
+    node_observation_count = {node.node_id: 0 for node in graph.nodes}
     node_observation_count.update(
         restore_nonnegative_tick_map(
             payload.get("node_observation_count"),
@@ -616,9 +561,7 @@ def restore_bridge_state(
     if isinstance(raw_next_idx, int) and raw_next_idx > 0:
         lifecycle.next_concept_index = raw_next_idx
     else:
-        lifecycle.next_concept_index = (
-            lifecycle.extract_max_concept_index(graph) + 1
-        )
+        lifecycle.next_concept_index = lifecycle.extract_max_concept_index(graph) + 1
 
     raw_recovery = payload.get("recovery_pending", False)
     if not isinstance(raw_recovery, bool):
@@ -636,11 +579,7 @@ def restore_bridge_state(
     predictors.invalidate_shadow_cache()
     predictors.mark_shadow_dirty()
 
-    predictor_ids = {
-        node.node_id
-        for node in graph.nodes
-        if node.kind is NodeKind.PREDICTOR
-    }
+    predictor_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.PREDICTOR}
     predictors.utility = restore_predictor_utility(
         payload.get("predictor_utility"),
         allowed_predictor_ids=predictor_ids,
@@ -673,17 +612,11 @@ def restore_bridge_state(
         or not raw_last_producer
         or len(raw_last_producer) > 256
     ):
-        raise GraphError(
-            "last_consolidated_producer_id must be a bounded string"
-        )
+        raise GraphError("last_consolidated_producer_id must be a bounded string")
     contention.last_consolidated_producer_id = raw_last_producer
 
     raw_revision = payload.get("topology_revision", 0)
-    if (
-        isinstance(raw_revision, bool)
-        or not isinstance(raw_revision, int)
-        or raw_revision < 0
-    ):
+    if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
         raise GraphError("topology_revision must be a non-negative integer")
 
     return RestoredBridgeState(

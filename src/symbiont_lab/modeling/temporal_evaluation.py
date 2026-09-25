@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 from symbiont.modeling.temporal import TemporalResourceUsage
 
@@ -24,7 +24,11 @@ class DiscreteTemporalMetrics:
             raise ValueError("mean_log_loss must be finite and non-negative")
         if not math.isfinite(self.accuracy) or not 0.0 <= self.accuracy <= 1.0:
             raise ValueError("accuracy must be within [0, 1]")
-        if isinstance(self.predictions, bool) or not isinstance(self.predictions, int) or self.predictions < 1:
+        if (
+            isinstance(self.predictions, bool)
+            or not isinstance(self.predictions, int)
+            or self.predictions < 1
+        ):
             raise ValueError("predictions must be positive")
 
 

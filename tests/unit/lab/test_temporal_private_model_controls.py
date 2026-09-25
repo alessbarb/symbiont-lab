@@ -20,9 +20,15 @@ def test_temporal_history_has_embodied_causal_shape():
 
     assert len(records) == 96
     assert all(record.record_id.startswith("transition.control.") for record in records)
-    assert all(record.action_token and record.action_token.startswith("action.motor.") for record in records)
+    assert all(
+        record.action_token and record.action_token.startswith("action.motor.")
+        for record in records
+    )
     assert all(record.outcome_tokens[0].startswith("outcome.sense.") for record in records)
-    assert all(any(token.startswith("state.sense.") for token in record.context_tokens) for record in records)
+    assert all(
+        any(token.startswith("state.sense.") for token in record.context_tokens)
+        for record in records
+    )
 
 
 def test_temporal_controls_break_only_the_declared_relation():

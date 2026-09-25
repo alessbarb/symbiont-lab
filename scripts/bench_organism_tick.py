@@ -11,6 +11,7 @@ Usage:
     python scripts/bench_organism_tick.py
     python scripts/bench_organism_tick.py --organisms 1 10 100 --ticks 2000
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,21 +20,19 @@ import json
 import resource
 import time
 
+from symbiont.core.physiology import LivingBodyState
+from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
+
 from symbiont import __version__ as symbiont_version
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.physiology import LivingBodyState
-from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
 
 _SEED = 7
 
 
 def _base_genome():
-    version = tuple(
-        int(part)
-        for part in (symbiont_version.split(".") + ["0", "0"])[:3]
-    )
+    version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
     return load_base_genome(
         kernel_limits=KernelLimits(),
         running_version=version,
@@ -62,9 +61,7 @@ def make_organism(organism_id: str, genome) -> OrganismRuntime:
 
 def run(n_organisms: int, n_ticks: int, *, seed: int = _SEED) -> dict[str, object]:
     genome = _base_genome()
-    organisms = [
-        make_organism(f"bench-{seed}-{i}", genome) for i in range(n_organisms)
-    ]
+    organisms = [make_organism(f"bench-{seed}-{i}", genome) for i in range(n_organisms)]
 
     gc.collect()
     gc.disable()

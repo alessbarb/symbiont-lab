@@ -1,11 +1,12 @@
 """CLI runner for the preregistered A→B→A Physics3D study."""
+
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
 import json
-from pathlib import Path
 import shutil
+from dataclasses import asdict
+from pathlib import Path
 from typing import Sequence
 
 from symbiont_lab.physics3d.engine import run as run_physics3d
@@ -14,7 +15,6 @@ from symbiont_lab.studies.embodiment.reembodiment_reacclimation import (
     analyze_reembodiment_observations,
     observation_from_checkpoint,
 )
-
 
 _BODY_ALIASES = {
     "humanoid": "anthropomorphic-v6",
@@ -46,12 +46,8 @@ def _observation_payload(
     observation: ReembodimentObservation,
 ) -> dict[str, object]:
     payload = asdict(observation)
-    payload["historical_candidate_ids"] = list(
-        observation.historical_candidate_ids
-    )
-    payload["executable_binding_ids"] = list(
-        observation.executable_binding_ids
-    )
+    payload["historical_candidate_ids"] = list(observation.historical_candidate_ids)
+    payload["executable_binding_ids"] = list(observation.executable_binding_ids)
     return payload
 
 
@@ -90,9 +86,7 @@ def _run_epoch(
         checkpoint_observer=observe,
     )
     if exit_code != 0:
-        raise RuntimeError(
-            f"Physics3D epoch {label} exited with status {exit_code}"
-        )
+        raise RuntimeError(f"Physics3D epoch {label} exited with status {exit_code}")
     if not trace:
         raise RuntimeError(f"Physics3D epoch {label} produced no observations")
     return tuple(trace)
@@ -111,9 +105,7 @@ def run_study(
         raise ValueError("ticks must be positive")
     if output.exists():
         if not overwrite:
-            raise FileExistsError(
-                f"output directory already exists: {output}; use --overwrite"
-            )
+            raise FileExistsError(f"output directory already exists: {output}; use --overwrite")
         shutil.rmtree(output)
     output.mkdir(parents=True)
 

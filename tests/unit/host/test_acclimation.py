@@ -12,7 +12,9 @@ from symbiont.host import (
 )
 
 
-def _reading(capability_id: str, value: float | None, quality: ReadingQuality = ReadingQuality.NOMINAL) -> SensorReading:
+def _reading(
+    capability_id: str, value: float | None, quality: ReadingQuality = ReadingQuality.NOMINAL
+) -> SensorReading:
     return SensorReading(
         capability_id=capability_id,
         source="stdlib",

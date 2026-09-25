@@ -6,12 +6,15 @@ Canonical ontology:
 EmbodimentSession is only the opaque transduction/routing adapter for the
 current coupling. EmbodimentEpisode is the persistent domain entity.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Mapping
 
 from ...actuation.surface import ActuatorSurface
+from ...genetics.genome import Genome
+from ...genetics.germline import GermlineState
 from ..embodiment.body import ActivationConsequence, Body
 from ..embodiment.contract import EmbodimentContract, PerceptualSurface
 from ..embodiment.episode import (
@@ -21,8 +24,6 @@ from ..embodiment.episode import (
 )
 from ..embodiment.memory import EmbodimentArchive, archive_episode_checkpoint
 from ..embodiment.session import EmbodimentSession, implant
-from ...genetics.genome import Genome
-from ...genetics.germline import GermlineState
 from .symbiont import Symbiont
 
 
@@ -84,12 +85,8 @@ class Individual:
         # Counts/opaque channel ordinals define the exposed interface. Physical
         # port labels deliberately do not enter the contract fingerprint.
         return EmbodimentContract(
-            perceptual_surface=PerceptualSurface.from_count(
-                len(session.input_bindings)
-            ),
-            actuator_surface=ActuatorSurface.from_count(
-                len(session.output_bindings)
-            ),
+            perceptual_surface=PerceptualSurface.from_count(len(session.input_bindings)),
+            actuator_surface=ActuatorSurface.from_count(len(session.output_bindings)),
         )
 
     def _begin_episode(
@@ -125,9 +122,7 @@ class Individual:
         episode.effect_model = self.symbiont.competence_effect_model
         episode.controllability_model = self.symbiont.controllability_model
         episode.agency_model = self.symbiont.agency_model
-        episode.execution_bindings = (
-            self.symbiont.competence_execution_bindings
-        )
+        episode.execution_bindings = self.symbiont.competence_execution_bindings
         return episode
 
     def _archive_current_episode(
@@ -143,9 +138,7 @@ class Individual:
         archive_episode_checkpoint(
             self.embodiment_archive,
             self.embodiment.checkpoint(current_tick=self._current_tick),
-            body_schema_prior=self.symbiont.body_schema.export(
-                current_tick=self._current_tick
-            ),
+            body_schema_prior=self.symbiont.body_schema.export(current_tick=self._current_tick),
             living_body=self.body.physiology.checkpoint(),
             symbiont_tick=self._current_tick,
             end_reason=reason.value,
@@ -179,9 +172,7 @@ class Individual:
             and self.embodiment.state is not EmbodimentState.CLOSED
         )
 
-    def step(
-        self, external_stimuli: Mapping[str, float] | None = None
-    ) -> IndividualTickRecord:
+    def step(self, external_stimuli: Mapping[str, float] | None = None) -> IndividualTickRecord:
         """Advance one physical/cognitive Embodiment step."""
         if self.embodiment.state is not EmbodimentState.ACTIVE:
             raise RuntimeError("only an active embodiment can advance")
@@ -195,16 +186,11 @@ class Individual:
         self.body.tick_physics()
 
         self.embodiment.advance()
-        agency_values = tuple(
-            item.confidence for item in self.symbiont.agency_model.estimates
-        )
+        agency_values = tuple(item.confidence for item in self.symbiont.agency_model.estimates)
         controllability_values = tuple(
-            item.confidence
-            for item in self.symbiont.controllability_model.estimates
+            item.confidence for item in self.symbiont.controllability_model.estimates
         )
-        current_surface = (
-            self.embodiment.contract.actuator_surface.contract_fingerprint
-        )
+        current_surface = self.embodiment.contract.actuator_surface.contract_fingerprint
         general_competences = self.symbiont.competence_library.items
         revalidated = sum(
             1
@@ -218,13 +204,11 @@ class Individual:
             tick=self.embodiment_tick,
             prediction_error=self.symbiont.last_prediction_error,
             schema_confidence=self.symbiont.body_schema_confidence,
-            causal_confidence=(
-                sum(agency_values) / len(agency_values)
-                if agency_values else 0.0
-            ),
+            causal_confidence=(sum(agency_values) / len(agency_values) if agency_values else 0.0),
             controllability_confidence=(
                 sum(controllability_values) / len(controllability_values)
-                if controllability_values else 0.0
+                if controllability_values
+                else 0.0
             ),
             revalidated_competences=revalidated,
             candidate_competences=len(general_competences),
@@ -286,9 +270,7 @@ class Individual:
         self.body = new_body
         self.session = new_session
         self.symbiont.begin_new_embodiment()
-        self.symbiont.register_output_channels(
-            list(new_session.output_bindings.keys())
-        )
+        self.symbiont.register_output_channels(list(new_session.output_bindings.keys()))
         self.embodiment = self._begin_episode(
             session=new_session,
             body=new_body,

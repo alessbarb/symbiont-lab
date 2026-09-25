@@ -4,9 +4,8 @@ from dataclasses import asdict, dataclass, replace
 from statistics import mean, pstdev
 from typing import Callable, Iterable
 
-from symbiont_lab.experiments.spec import ExperimentSpec
 from symbiont.simulation import SimulationResult, run_simulation
-
+from symbiont_lab.experiments.spec import ExperimentSpec
 
 COMPARABLE_PARAMETERS: dict[str, tuple[float, float]] = {
     "threat_rate": (0.0, 1.0),
@@ -102,9 +101,7 @@ class StudyResult:
 
     def as_dict(self) -> dict[str, object]:
         deltas = {metric: self.delta(metric) for metric in METRICS}
-        paired = {
-            metric: summary.as_dict() for metric, summary in self.paired_deltas.items()
-        }
+        paired = {metric: summary.as_dict() for metric, summary in self.paired_deltas.items()}
         for alias, canonical in LEGACY_SERIALIZED_ALIASES.items():
             deltas[alias] = deltas[canonical]
             paired[alias] = dict(paired[canonical])
@@ -168,11 +165,7 @@ def _summarize(
         raise ValueError("study condition requires at least one run")
     metrics: dict[str, MetricSummary] = {}
     for metric in METRICS:
-        values = [
-            value
-            for result in items
-            if (value := _metric_value(result, metric)) is not None
-        ]
+        values = [value for result in items if (value := _metric_value(result, metric)) is not None]
         avg, stdev, minimum, maximum = _summary(values)
         metrics[metric] = MetricSummary(
             mean=avg,

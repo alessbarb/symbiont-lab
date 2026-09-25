@@ -1,12 +1,14 @@
 """Seeded, policy-free interaction trace for bounded emergence measurements."""
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from collections import Counter
 import math
 import random
+from collections import Counter
+from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
+
 from symbiont.core.social import RelationValence, SocialHabitat
 
 
@@ -26,11 +28,15 @@ class SocialEmergenceStudy:
         return asdict(self)
 
 
-def run_social_emergence_study(*, seed: int = 7, ticks: int = 32, members: int = 6) -> SocialEmergenceStudy:
+def run_social_emergence_study(
+    *, seed: int = 7, ticks: int = 32, members: int = 6
+) -> SocialEmergenceStudy:
     if ticks < 1 or members < 2:
         raise ValueError("invalid emergence study parameters")
     rng = random.Random(seed)
-    habitat = SocialHabitat(EcologicalResourcePool({"food": float(ticks * members // 2)}), max_members=members)
+    habitat = SocialHabitat(
+        EcologicalResourcePool({"food": float(ticks * members // 2)}), max_members=members
+    )
     ids = tuple(f"org-{index}" for index in range(members))
     for organism_id in ids:
         habitat.admit(organism_id)
@@ -39,7 +45,8 @@ def run_social_emergence_study(*, seed: int = 7, ticks: int = 32, members: int =
     pair_counts: Counter[tuple[str, str]] = Counter()
     for _ in range(ticks):
         source, target = rng.sample(ids, 2)
-        touched.update((source, target)); interactions += 1
+        touched.update((source, target))
+        interactions += 1
         pair_counts[tuple(sorted((source, target)))] += 1
         if rng.random() < 0.5:
             habitat.exchange(source, target, "food", 1.0)

@@ -1,9 +1,10 @@
 """Explicit migration from the historical cognition Genome v1 to Genome v2."""
+
 from __future__ import annotations
 
-from dataclasses import replace
 import hashlib
 import json
+from dataclasses import replace
 from typing import Any, Mapping
 
 from .genome import Genome, GenomeCodec
@@ -17,7 +18,9 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
     plasticity = payload.get("plasticity")
     structure = payload.get("structure")
     mutation = payload.get("mutation_policy")
-    if not all(isinstance(value, Mapping) for value in (development, plasticity, structure, mutation)):
+    if not all(
+        isinstance(value, Mapping) for value in (development, plasticity, structure, mutation)
+    ):
         raise ValueError("malformed Genome v1 payload")
 
     try:
@@ -109,7 +112,6 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
     return v2
 
 
-
 def apply_legacy_heritable_payload(
     genome: Genome,
     payload: Mapping[str, object],
@@ -155,13 +157,16 @@ def apply_legacy_heritable_payload(
         "genome_id": genome_id,
         "loci": tuple(loci),
     }
-    legacy_identity = "genome_" + hashlib.sha256(
-        json.dumps(
-            legacy_material,
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode("utf-8")
-    ).hexdigest()[:16]
+    legacy_identity = (
+        "genome_"
+        + hashlib.sha256(
+            json.dumps(
+                legacy_material,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+    )
     if identity not in (None, legacy_identity):
         raise ValueError("legacy HeritableGenome identity mismatch")
 
@@ -197,6 +202,7 @@ def apply_legacy_heritable_payload(
         development=development,
         plasticity=plasticity,
     )
+
 
 class GenomeMigrationCodec(GenomeCodec):
     """Read historical Genome payloads through the genetics migration boundary.

@@ -106,7 +106,9 @@ def test_remove_node_rejects_unknown_node() -> None:
 
 
 def test_remove_node_preserves_non_edge_graph_invariants() -> None:
-    predictor = PlasticNode(node_id="predictor_a", kind=NodeKind.PREDICTOR, predicts_node_id="concept_a")
+    predictor = PlasticNode(
+        node_id="predictor_a", kind=NodeKind.PREDICTOR, predicts_node_id="concept_a"
+    )
     graph = CognitiveGraph(
         nodes=(_concept("concept_a"), predictor),
         edges=(),

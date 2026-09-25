@@ -13,11 +13,15 @@ def _torch() -> Any:
     try:
         import torch
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("private-model inference requires the optional 'modeling' dependency (torch)") from exc
+        raise RuntimeError(
+            "private-model inference requires the optional 'modeling' dependency (torch)"
+        ) from exc
     return torch
 
 
-def load_artifact_model(artifact: ModelArtifact, *, vocab_size: int, pad_id: int = 0, device: str = "cpu"):
+def load_artifact_model(
+    artifact: ModelArtifact, *, vocab_size: int, pad_id: int = 0, device: str = "cpu"
+):
     torch = _torch()
     model = build_model(
         artifact.manifest.architecture_id,
@@ -49,7 +53,11 @@ class ArtifactInferenceGateway:
         pad_id: int = 0,
         device: str = "cpu",
     ) -> None:
-        if isinstance(vocab_size, bool) or not isinstance(vocab_size, int) or not 8 <= vocab_size <= 8192:
+        if (
+            isinstance(vocab_size, bool)
+            or not isinstance(vocab_size, int)
+            or not 8 <= vocab_size <= 8192
+        ):
             raise ValueError("vocab_size must be within [8, 8192]")
         self._store = store
         self._vocab_size = vocab_size
@@ -89,9 +97,18 @@ class ArtifactInferenceGateway:
     ) -> ModelInferenceResult:
         if not isinstance(token_ids, tuple) or not token_ids:
             raise ValueError("token_ids must be a non-empty tuple")
-        if any(isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < self._vocab_size for value in token_ids):
+        if any(
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or not 0 <= value < self._vocab_size
+            for value in token_ids
+        ):
             raise ValueError("token_ids contain values outside vocabulary")
-        if isinstance(top_k, bool) or not isinstance(top_k, int) or not 1 <= top_k <= min(16, self._vocab_size):
+        if (
+            isinstance(top_k, bool)
+            or not isinstance(top_k, int)
+            or not 1 <= top_k <= min(16, self._vocab_size)
+        ):
             raise ValueError("top_k outside supported bounds")
         artifact = self._artifact(model_id)
         context = token_ids[-artifact.manifest.context_window :]

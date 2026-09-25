@@ -17,8 +17,18 @@ def sensory_fitness(
     Inputs are descriptive/local.  No evaluator label or task truth is
     accepted by this API.
     """
-    values = (predictive_contribution, downstream_contribution, novelty, reliability, redundancy, cost)
-    if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(float(v)) for v in values):
+    values = (
+        predictive_contribution,
+        downstream_contribution,
+        novelty,
+        reliability,
+        redundancy,
+        cost,
+    )
+    if any(
+        isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(float(v))
+        for v in values
+    ):
         raise ValueError("sensory fitness inputs must be finite")
     p, d, n, q, r, c = (max(0.0, min(1.0, float(v))) for v in values)
     # WARN(invariant): Reliability and novelty are evidence-quality multipliers, not utility

@@ -1,4 +1,5 @@
 """Typed Genome v2 mutation."""
+
 from __future__ import annotations
 
 import copy
@@ -11,7 +12,10 @@ from .schema import DEFAULT_GENOME_SCHEMA, GeneType, GenomeSchema, MutationMode
 
 
 def _path_parts(locus: str) -> tuple[str, ...]:
-    return tuple("min" if part == "minimum" else "max" if part == "maximum" else part for part in locus.split("."))
+    return tuple(
+        "min" if part == "minimum" else "max" if part == "maximum" else part
+        for part in locus.split(".")
+    )
 
 
 def _set_path(payload: dict[str, Any], locus: str, value: Any) -> None:
@@ -81,9 +85,9 @@ def mutate_genome(
             changed = True
 
     payload["genome_id"] = new_genome_id or (
-        f"genome_{genome.genotype_hash[:12]}_m{seed & 0xffff:x}"
+        f"genome_{genome.genotype_hash[:12]}_m{seed & 0xFFFF:x}"
         if changed
-        else f"genome_{genome.genotype_hash[:12]}_clone{seed & 0xffff:x}"
+        else f"genome_{genome.genotype_hash[:12]}_clone{seed & 0xFFFF:x}"
     )
     return GenomeCodec(schema).load(payload)
 

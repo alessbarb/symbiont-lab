@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import pytest
-
 from pathlib import Path
+
+import pytest
 
 from symbiont_lab.cli.main import run_reproduce
 from symbiont_lab.experiments.loader import load_experiment_file

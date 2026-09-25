@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experiments.registry import get_protocol
 from symbiont_lab.experiments.loader import load_experiment_file
+from symbiont_lab.experiments.registry import get_protocol
 from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.studies.learning.cognitive_graph_causal_composition import (
     run_cognitive_graph_causal_composition_study,

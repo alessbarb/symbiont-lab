@@ -7,7 +7,10 @@ from symbiont_lab.evolution.lineage import LineageArchive, LineageRecord
 
 def _record(genome_id: str, parent_ids: tuple[str, ...] = (), generation: int = 0) -> LineageRecord:
     return LineageRecord(
-        genome_id=genome_id, parent_ids=parent_ids, genome_hash=f"hash-{genome_id}", created_at_generation=generation
+        genome_id=genome_id,
+        parent_ids=parent_ids,
+        genome_hash=f"hash-{genome_id}",
+        created_at_generation=generation,
     )
 
 

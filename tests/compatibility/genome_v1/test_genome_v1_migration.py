@@ -1,21 +1,30 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.genetics.migration import migrate_v1_genome, migrate_v1_payload
 
+from symbiont.genetics.migration import migrate_v1_genome, migrate_v1_payload
 
 V1_PAYLOAD = {
     "schema_version": 1,
     "genome_id": "genome_historical_fixture",
     "parent_ids": [],
     "kernel_compatibility": ">=0.55,<0.60",
-    "development": {"soft_node_budget": 64, "soft_edge_budget": 384, "consolidation_interval_ticks": 32},
+    "development": {
+        "soft_node_budget": 64,
+        "soft_edge_budget": 384,
+        "consolidation_interval_ticks": 32,
+    },
     "plasticity": {
         "learning_rate": {"initial": 0.02, "min": 0.001, "max": 0.08},
         "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
         "eligibility_decay": 0.92,
     },
-    "structure": {"grow_threshold": 0.18, "prune_threshold": 0.01, "minimum_support": 16, "tentative_lifetime_ticks": 128},
+    "structure": {
+        "grow_threshold": 0.18,
+        "prune_threshold": 0.01,
+        "minimum_support": 16,
+        "tentative_lifetime_ticks": 128,
+    },
     "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
 }
 

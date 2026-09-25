@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import sqrt
 from typing import Any, Iterable
 
@@ -126,7 +126,10 @@ class HostAcclimation:
         ]
         if not candidates:
             return False
-        oldest = min(candidates, key=lambda capability_id: (self._last_seen.get(capability_id, 0), capability_id))
+        oldest = min(
+            candidates,
+            key=lambda capability_id: (self._last_seen.get(capability_id, 0), capability_id),
+        )
         del self._stats[oldest]
         self._last_seen.pop(oldest, None)
         return True
@@ -138,7 +141,9 @@ class HostAcclimation:
                 continue  # an unavailable reading carries no signal to learn from
             stats = self._stats.get(reading.capability_id)
             if stats is None:
-                if len(self._stats) >= self._max_capabilities and not self._evict_for(reading.capability_id):
+                if len(self._stats) >= self._max_capabilities and not self._evict_for(
+                    reading.capability_id
+                ):
                     continue
                 stats = RunningStats()
                 self._stats[reading.capability_id] = stats
@@ -206,8 +211,12 @@ class HostAcclimation:
             mean = float(entry.get("mean", 0.0))
             m2 = float(entry.get("m2", 0.0))
             if (
-                isinstance(count, bool) or not isinstance(count, int) or count < 0
-                or not math.isfinite(mean) or not math.isfinite(m2) or m2 < 0.0
+                isinstance(count, bool)
+                or not isinstance(count, int)
+                or count < 0
+                or not math.isfinite(mean)
+                or not math.isfinite(m2)
+                or m2 < 0.0
             ):
                 raise ValueError("acclimation replay numeric state is invalid")
             restored[capability_id] = RunningStats(count=count, mean=mean, _m2=m2)

@@ -3,11 +3,12 @@
 The predictor intentionally exposes only quantized losses to callers.  It is
 not persisted: restoring a runtime must warm up a fresh predictor.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from collections import deque
 import math
+from collections import deque
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,7 +59,9 @@ class RidgePredictor:
         self.regularization = float(regularization)
 
     def observe(self, features: tuple[float, ...], target: float) -> None:
-        if not features or any(isinstance(x, bool) or not math.isfinite(float(x)) for x in features):
+        if not features or any(
+            isinstance(x, bool) or not math.isfinite(float(x)) for x in features
+        ):
             raise ValueError("features must be finite numeric values")
         if isinstance(target, bool) or not math.isfinite(float(target)):
             raise ValueError("target must be finite")
@@ -78,19 +81,23 @@ class RidgePredictor:
         for row, target in self._rows:
             z = [1.0, *row]
             for i in range(width):
-                for j in range(width): matrix[i][j] += z[i] * z[j]
+                for j in range(width):
+                    matrix[i][j] += z[i] * z[j]
                 matrix[i][-1] += z[i] * target
-        for i in range(1, width): matrix[i][i] += self.regularization
+        for i in range(1, width):
+            matrix[i][i] += self.regularization
         # Gaussian elimination with pivoting; singular rows simply censor
         # this trial instead of emitting a non-finite prediction.
         for col in range(width):
             pivot = max(range(col, width), key=lambda r: abs(matrix[r][col]))
-            if abs(matrix[pivot][col]) < 1e-12: return None
+            if abs(matrix[pivot][col]) < 1e-12:
+                return None
             matrix[col], matrix[pivot] = matrix[pivot], matrix[col]
             divisor = matrix[col][col]
             matrix[col] = [v / divisor for v in matrix[col]]
             for r in range(width):
-                if r == col: continue
+                if r == col:
+                    continue
                 factor = matrix[r][col]
                 matrix[r] = [a - factor * b for a, b in zip(matrix[r], matrix[col])]
         value = sum(matrix[i][-1] * x[i] for i in range(width))
@@ -131,8 +138,9 @@ def absolute_loss(prediction: float | None, target: float | None) -> float | Non
     return abs(float(prediction) - float(target))
 
 
-def scaled_squared_loss(prediction: float | None, target: float | None,
-                        scale: float | None) -> float | None:
+def scaled_squared_loss(
+    prediction: float | None, target: float | None, scale: float | None
+) -> float | None:
     """Protocol loss: bounded squared error in units of past target scale."""
     if prediction is None or target is None or scale is None:
         return None
@@ -147,7 +155,11 @@ def scaled_squared_loss(prediction: float | None, target: float | None,
 
 def improvement_class(candidate_loss: float | None, baseline_loss: float | None) -> str | None:
     """Classify material improvement only when both losses are comparable."""
-    if candidate_loss is None or baseline_loss is None or not all(math.isfinite(v) for v in (candidate_loss, baseline_loss)):
+    if (
+        candidate_loss is None
+        or baseline_loss is None
+        or not all(math.isfinite(v) for v in (candidate_loss, baseline_loss))
+    ):
         return None
     if baseline_loss <= 0:
         return "none"
@@ -157,7 +169,9 @@ def improvement_class(candidate_loss: float | None, baseline_loss: float | None)
     return "substantial" if ratio >= 0.30 else "material"
 
 
-def baseline_predictions(history: list[float], *, scale_limit: float = 1e12) -> dict[str, float | None]:
+def baseline_predictions(
+    history: list[float], *, scale_limit: float = 1e12
+) -> dict[str, float | None]:
     """Return fixed, non-adaptive references for one-step validation."""
     finite = [float(v) for v in history if math.isfinite(float(v))]
     if not finite:
@@ -170,4 +184,12 @@ def baseline_predictions(history: list[float], *, scale_limit: float = 1e12) -> 
     return {"zero": 0.0, "mean": mean, "persistence": finite[-1]}
 
 
-__all__ = ["PredictionTrial", "BoundedPredictor", "RidgePredictor", "absolute_loss", "scaled_squared_loss", "improvement_class", "baseline_predictions"]
+__all__ = [
+    "PredictionTrial",
+    "BoundedPredictor",
+    "RidgePredictor",
+    "absolute_loss",
+    "scaled_squared_loss",
+    "improvement_class",
+    "baseline_predictions",
+]

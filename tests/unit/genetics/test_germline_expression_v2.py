@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from importlib import resources
-import json
 
 import pytest
 
@@ -72,9 +72,7 @@ def test_symbiont_uses_canonical_germline_expression_at_birth() -> None:
     )
     assert symbiont.exploration_rate == pytest.approx(expected)
     assert symbiont.gene_expression_state is not None
-    assert symbiont.gene_expression_state.exploration_drive == pytest.approx(
-        expected
-    )
+    assert symbiont.gene_expression_state.exploration_drive == pytest.approx(expected)
 
 
 def test_different_genome_locus_changes_operating_learning_phenotype() -> None:
@@ -123,10 +121,6 @@ def test_different_genome_locus_changes_operating_learning_phenotype() -> None:
 
     assert slow_symbiont.learning_rate == pytest.approx(0.005)
     assert fast_symbiont.learning_rate == pytest.approx(0.06)
-    assert slow_symbiont.sensorimotor_model.learning_rate == pytest.approx(
-        0.005
-    )
-    assert fast_symbiont.sensorimotor_model.learning_rate == pytest.approx(
-        0.06
-    )
+    assert slow_symbiont.sensorimotor_model.learning_rate == pytest.approx(0.005)
+    assert fast_symbiont.sensorimotor_model.learning_rate == pytest.approx(0.06)
     assert slow.genotype_hash != fast.genotype_hash

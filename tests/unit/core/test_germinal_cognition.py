@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from symbiont.core.cognition_bridge import CognitiveBridge
+
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
 
 
 def _fast_birth():

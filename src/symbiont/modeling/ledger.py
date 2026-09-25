@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections import deque
 import hashlib
 import json
+from collections import deque
 from typing import Iterable, Mapping
 
 from .experience import ExperienceRecord
@@ -22,7 +22,11 @@ class ExperienceLedger:
     def __init__(self, organism_id: str, *, max_records: int = 2048) -> None:
         if not isinstance(organism_id, str) or not organism_id or len(organism_id) > 128:
             raise ValueError("organism_id must be a bounded non-empty string")
-        if isinstance(max_records, bool) or not isinstance(max_records, int) or not 16 <= max_records <= 8192:
+        if (
+            isinstance(max_records, bool)
+            or not isinstance(max_records, int)
+            or not 16 <= max_records <= 8192
+        ):
             raise ValueError("max_records must be within [16, 8192]")
         self._organism_id = organism_id
         self._max_records = max_records
@@ -76,7 +80,9 @@ class ExperienceLedger:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None, *, organism_id: str) -> "ExperienceLedger":
+    def restore(
+        cls, payload: Mapping[str, object] | None, *, organism_id: str
+    ) -> "ExperienceLedger":
         if payload is None:
             return cls(organism_id)
         if not isinstance(payload, Mapping) or payload.get("schema_version") != cls.SCHEMA_VERSION:
@@ -95,7 +101,6 @@ class ExperienceLedger:
                 raise ValueError("experience ledger record must be an object")
             ledger.append(ExperienceRecord.restore(raw))
         return ledger
-
 
 
 class HistoricalExperienceArchive:
@@ -200,10 +205,7 @@ class HistoricalExperienceArchive:
         self._record_bytes[record.record_id] = record_bytes
         self._payload_bytes += record_bytes
 
-        while (
-            len(self._records) > self._max_records
-            or self._payload_bytes > self._max_bytes
-        ):
+        while len(self._records) > self._max_records or self._payload_bytes > self._max_bytes:
             worst_id, _ = max(
                 self._priorities.items(),
                 key=lambda item: (item[1], item[0]),

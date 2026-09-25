@@ -3,6 +3,7 @@
 Public contracts only. Never imports from symbiont_lab, Physics3D, World or
 evaluator. All types are immutable and semantically opaque.
 """
+
 from __future__ import annotations
 
 from .candidates import competence_candidates

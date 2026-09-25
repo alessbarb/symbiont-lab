@@ -1,4 +1,5 @@
 """Bounded longitudinal memory for bodies and embodiment episodes."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -73,9 +74,7 @@ class EmbodimentPrior:
             contract_fingerprint=memory.contract_fingerprint,
             body_schema_prior=deepcopy(memory.body_schema_prior),
             dynamics_prior=deepcopy(memory.dynamics_prior),
-            execution_binding_priors=deepcopy(
-                memory.execution_binding_priors
-            ),
+            execution_binding_priors=deepcopy(memory.execution_binding_priors),
             historical_motor_candidates=tuple(
                 deepcopy(item) for item in memory.historical_motor_candidates
             ),
@@ -91,9 +90,7 @@ class EmbodimentPrior:
             "contract_fingerprint": self.contract_fingerprint,
             "body_schema_prior": deepcopy(self.body_schema_prior),
             "dynamics_prior": deepcopy(self.dynamics_prior),
-            "execution_binding_priors": deepcopy(
-                self.execution_binding_priors
-            ),
+            "execution_binding_priors": deepcopy(self.execution_binding_priors),
             "historical_motor_candidates": [
                 deepcopy(item) for item in self.historical_motor_candidates
             ],
@@ -132,17 +129,11 @@ class EmbodimentPrior:
                 if payload.get("contract_fingerprint") is not None
                 else None
             ),
-            body_schema_prior=deepcopy(
-                payload.get("body_schema_prior")
-            ),
+            body_schema_prior=deepcopy(payload.get("body_schema_prior")),
             dynamics_prior=deepcopy(payload.get("dynamics_prior")),
-            execution_binding_priors=deepcopy(
-                payload.get("execution_binding_priors")
-            ),
+            execution_binding_priors=deepcopy(payload.get("execution_binding_priors")),
             historical_motor_candidates=tuple(
-                deepcopy(dict(item))
-                for item in candidates
-                if isinstance(item, Mapping)
+                deepcopy(dict(item)) for item in candidates if isinstance(item, Mapping)
             ),
             private_model_ids=tuple(str(value) for value in private_ids),
         )
@@ -175,9 +166,7 @@ class EmbodimentArchive:
 
     def append_summary(self, summary: EmbodimentEpisodeSummary) -> None:
         self._summaries = [
-            item
-            for item in self._summaries
-            if item.embodiment_id != summary.embodiment_id
+            item for item in self._summaries if item.embodiment_id != summary.embodiment_id
         ]
         self._summaries.append(summary)
         self._summaries = self._summaries[-self.max_summaries :]
@@ -267,21 +256,12 @@ class EmbodimentArchive:
                             entry.get("embodied_competence_priors"),
                         )
                     ),
-                    historical_causal_state=deepcopy(
-                        entry.get("historical_causal_state")
-                    ),
+                    historical_causal_state=deepcopy(entry.get("historical_causal_state")),
                     historical_motor_candidates=tuple(
-                        deepcopy(dict(item))
-                        for item in raw_candidates
-                        if isinstance(item, Mapping)
+                        deepcopy(dict(item)) for item in raw_candidates if isinstance(item, Mapping)
                     ),
-                    motor_cognitive_surface=deepcopy(
-                        entry.get("motor_cognitive_surface")
-                    ),
-                    private_model_ids=tuple(
-                        str(value)
-                        for value in raw_private_ids
-                    ),
+                    motor_cognitive_surface=deepcopy(entry.get("motor_cognitive_surface")),
+                    private_model_ids=tuple(str(value) for value in raw_private_ids),
                 )
             )
         for entry in raw_summaries:
@@ -345,9 +325,7 @@ def archive_episode_checkpoint(
                 Mapping,
             )
             else None,
-            historical_causal_state=deepcopy(
-                episode_payload.get("causal_evidence")
-            )
+            historical_causal_state=deepcopy(episode_payload.get("causal_evidence"))
             if isinstance(episode_payload.get("causal_evidence"), Mapping)
             else None,
             historical_motor_candidates=tuple(
@@ -375,9 +353,7 @@ def archive_episode_checkpoint(
         if isinstance(item, Mapping)
     ]
     schema_confidence = (
-        sum(confidence_classes) / (15.0 * len(confidence_classes))
-        if confidence_classes
-        else 0.0
+        sum(confidence_classes) / (15.0 * len(confidence_classes)) if confidence_classes else 0.0
     )
     bindings = episode_payload.get("execution_bindings")
     if not isinstance(bindings, Mapping):
@@ -411,15 +387,11 @@ def archive_episode_checkpoint(
         ),
         final_contract_fingerprint=contract_fp,
         contract_transition_count=len(contract_history),
-        started_at_symbiont_tick=int(
-            episode_payload.get("start_symbiont_tick") or 0
-        ),
+        started_at_symbiont_tick=int(episode_payload.get("start_symbiont_tick") or 0),
         ended_at_symbiont_tick=int(symbiont_tick),
         embodiment_ticks=int(episode_payload.get("embodiment_tick") or 0),
         final_body_age_ticks=(
-            int(body.get("age_ticks"))
-            if body.get("age_ticks") is not None
-            else None
+            int(body.get("age_ticks")) if body.get("age_ticks") is not None else None
         ),
         end_reason=str(end_reason),
         body_vital_state=str(body.get("vital_state") or "unknown"),
@@ -435,9 +407,7 @@ def archive_episode_checkpoint(
             ).get("revision_count", 0)
         ),
         initial_prediction_error=0.0,
-        final_prediction_error=float(
-            adaptation.get("prediction_error_recent", 0.0)
-        ),
+        final_prediction_error=float(adaptation.get("prediction_error_recent", 0.0)),
         peak_prediction_shock=float(
             adaptation.get(
                 "peak_prediction_shock",
@@ -445,9 +415,7 @@ def archive_episode_checkpoint(
             )
         ),
         initial_controllability_confidence=0.0,
-        final_controllability_confidence=float(
-            adaptation.get("controllability_confidence", 0.0)
-        ),
+        final_controllability_confidence=float(adaptation.get("controllability_confidence", 0.0)),
         competences_present_at_start=0,
         competences_revalidated=revalidated,
         competences_acquired=max(0, len(items) - revalidated),

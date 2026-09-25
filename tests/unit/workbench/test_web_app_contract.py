@@ -17,7 +17,7 @@ def test_shell_uses_native_landmarks_and_focusable_view_root():
     assert 'role="main"' not in html
     assert '<main id="view-root" tabindex="-1"></main>' in html
     assert 'class="skip-link"' in html
-    assert 'github.com/alessbarb/symbiont-lab' in html
+    assert "github.com/alessbarb/symbiont-lab" in html
 
 
 def test_live_region_is_scoped_to_runtime_state_not_entire_footer():
@@ -82,12 +82,10 @@ def test_package_data_contains_nested_workbench_modules():
 
 
 def test_server_sets_browser_security_headers():
-    api = (REPO_ROOT / "src" / "symbiont_lab" / "server" / "api.py").read_text(
-        encoding="utf-8"
-    )
+    api = (REPO_ROOT / "src" / "symbiont_lab" / "server" / "api.py").read_text(encoding="utf-8")
     assert '"Content-Security-Policy"' in api
     assert '"X-Frame-Options", "DENY"' in api
-    assert '"frame-ancestors \'none\'"' in api
+    assert "\"frame-ancestors 'none'\"" in api
 
 
 def test_mind_uses_real_tab_semantics():

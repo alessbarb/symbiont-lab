@@ -12,7 +12,11 @@ HAZARD_ID = "h9f3d1c8a2e60734"
 def _ground_truth() -> GroundTruth:
     return GroundTruth(
         fields={FIELD_ID: PeriodicFieldLaw(amplitude=1.0, bias=0.0, angular_frequency=0.2)},
-        resources={RESOURCE_ID: ResourceLaw(capacity=10.0, renewal_rate=0.5, decay_rate=0.1, initial_quantity=5.0)},
+        resources={
+            RESOURCE_ID: ResourceLaw(
+                capacity=10.0, renewal_rate=0.5, decay_rate=0.1, initial_quantity=5.0
+            )
+        },
         hazards={HAZARD_ID: HazardLaw(base_probability=0.1, density_coupling=1.0)},
     )
 
@@ -110,7 +114,6 @@ def test_resource_pool_and_field_values_return_snapshots_not_live_references():
     pool = env.resource_pool(cell)
     with pytest.raises(TypeError):
         pool[RESOURCE_ID] = 999.0
-
 
 
 def test_resource_renewal_factor_scales_positive_recovery():

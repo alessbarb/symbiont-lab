@@ -43,10 +43,16 @@ class ModelRecord:
     def __post_init__(self) -> None:
         if not isinstance(self.model_id, str) or not self.model_id or len(self.model_id) > 128:
             raise ValueError("model_id must be a bounded non-empty string")
-        if not isinstance(self.organism_id, str) or not self.organism_id or len(self.organism_id) > 128:
+        if (
+            not isinstance(self.organism_id, str)
+            or not self.organism_id
+            or len(self.organism_id) > 128
+        ):
             raise ValueError("organism_id must be a bounded non-empty string")
         if self.parent_model_id is not None and (
-            not isinstance(self.parent_model_id, str) or not self.parent_model_id or len(self.parent_model_id) > 128
+            not isinstance(self.parent_model_id, str)
+            or not self.parent_model_id
+            or len(self.parent_model_id) > 128
         ):
             raise ValueError("parent_model_id must be bounded when present")
         for name, digest in (
@@ -54,7 +60,11 @@ class ModelRecord:
             ("tokenizer_hash", self.tokenizer_hash),
             ("artifact_hash", self.artifact_hash),
         ):
-            if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            if (
+                not isinstance(digest, str)
+                or len(digest) != 64
+                or any(c not in "0123456789abcdef" for c in digest)
+            ):
                 raise ValueError(f"{name} must be a lowercase sha256 digest")
         if not isinstance(self.architecture_id, ArchitectureId):
             raise ValueError("invalid architecture_id")
@@ -62,14 +72,24 @@ class ModelRecord:
             raise ValueError("invalid objective")
         if not isinstance(self.state, ModelState):
             raise ValueError("invalid model state")
-        if isinstance(self.parameter_count, bool) or not isinstance(self.parameter_count, int) or self.parameter_count < 1:
+        if (
+            isinstance(self.parameter_count, bool)
+            or not isinstance(self.parameter_count, int)
+            or self.parameter_count < 1
+        ):
             raise ValueError("parameter_count must be positive")
-        if isinstance(self.created_tick_class, bool) or not isinstance(self.created_tick_class, int) or self.created_tick_class < 0:
+        if (
+            isinstance(self.created_tick_class, bool)
+            or not isinstance(self.created_tick_class, int)
+            or self.created_tick_class < 0
+        ):
             raise ValueError("created_tick_class must be non-negative")
         if not isinstance(self.evaluation_summary, tuple) or len(self.evaluation_summary) > 16:
             raise ValueError("evaluation_summary must be a bounded tuple")
-        if any(isinstance(value, bool) or not isinstance(value, int) or not -32768 <= value <= 32767
-               for value in self.evaluation_summary):
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or not -32768 <= value <= 32767
+            for value in self.evaluation_summary
+        ):
             raise ValueError("evaluation summary entries must be bounded integers")
         if (
             isinstance(self.generation, bool)
@@ -118,8 +138,14 @@ class ModelRecord:
             raise ValueError("model record checkpoint must be an object")
         try:
             required_strings = (
-                "model_id", "organism_id", "corpus_hash", "tokenizer_hash",
-                "architecture_id", "objective", "state", "artifact_hash",
+                "model_id",
+                "organism_id",
+                "corpus_hash",
+                "tokenizer_hash",
+                "architecture_id",
+                "objective",
+                "state",
+                "artifact_hash",
             )
             for key in required_strings:
                 if not isinstance(payload.get(key), str):
@@ -168,7 +194,11 @@ class ModelRegistry:
     def __init__(self, organism_id: str, *, max_models: int = 64) -> None:
         if not isinstance(organism_id, str) or not organism_id or len(organism_id) > 128:
             raise ValueError("organism_id must be a bounded non-empty string")
-        if isinstance(max_models, bool) or not isinstance(max_models, int) or not 1 <= max_models <= 1024:
+        if (
+            isinstance(max_models, bool)
+            or not isinstance(max_models, int)
+            or not 1 <= max_models <= 1024
+        ):
             raise ValueError("max_models must be within [1, 1024]")
         self._organism_id = organism_id
         self._max_models = max_models
@@ -180,7 +210,12 @@ class ModelRegistry:
 
     @property
     def records(self) -> tuple[ModelRecord, ...]:
-        return tuple(sorted(self._records.values(), key=lambda record: (record.created_tick_class, record.model_id)))
+        return tuple(
+            sorted(
+                self._records.values(),
+                key=lambda record: (record.created_tick_class, record.model_id),
+            )
+        )
 
     @property
     def active(self) -> ModelRecord | None:

@@ -30,12 +30,20 @@ class RegimeCompassViewTests(unittest.TestCase):
     def test_controls_manage_regime_compass(self):
         controls = read("ui", "controls.js")
         self.assertIn('state.organismView === "regimes"', controls)
-        self.assertIn('document.querySelector("#regime-compass-wrap")?.classList.toggle("hidden", !isRegimes);', controls)
-        self.assertIn('document.querySelector("#open-regime-compass")?.addEventListener("click"', controls)
+        self.assertIn(
+            'document.querySelector("#regime-compass-wrap")?.classList.toggle("hidden", !isRegimes);',
+            controls,
+        )
+        self.assertIn(
+            'document.querySelector("#open-regime-compass")?.addEventListener("click"', controls
+        )
 
     def test_regime_compass_module_exports_and_logic(self):
         compass = read("render", "regime-compass.js")
-        self.assertIn("export { renderRegimeCompass, REGIMES, computeHostCoordinates, evaluateRegimes };", compass)
+        self.assertIn(
+            "export { renderRegimeCompass, REGIMES, computeHostCoordinates, evaluateRegimes };",
+            compass,
+        )
         self.assertIn("Quiescencia Nocturna", compass)
         self.assertIn("Carga Sostenida / Trabajo Regular", compass)
         self.assertIn("Transición Concurrente / Ráfagas E/S", compass)

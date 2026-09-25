@@ -13,15 +13,15 @@ from pathlib import Path
 try:  # Package invocation: ``python -m observatory.resident``.
     from .adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
     from .manifest import create_capture_manifest, write_capture_manifest
+    from .provenance import build_observer_provenance
     from .publisher import JournalSink, SnapshotPublisher, StdoutSink
     from .registry import derive_instance_id, new_run_id, write_heartbeat
-    from .provenance import build_observer_provenance
 except ImportError:  # Direct script invocation remains a documented interface.
     from adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
     from manifest import create_capture_manifest, write_capture_manifest
+    from provenance import build_observer_provenance
     from publisher import JournalSink, SnapshotPublisher, StdoutSink
     from registry import derive_instance_id, new_run_id, write_heartbeat
-    from provenance import build_observer_provenance
 
 
 def _rounded(value: float | None) -> float | None:
@@ -71,18 +71,24 @@ def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict)
     if args.graph_file and not args.genome_file:
         raise ValueError("--graph-file requires --genome-file")
 
-    from symbiont.cognition.birth import load_base_graph, load_base_genome
-    from symbiont.genetics.genome import legacy_validation_version
-    from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
+    from symbiont.cognition.birth import load_base_genome, load_base_graph
     from symbiont.cognition.graph import load_graph_definition
     from symbiont.cognition.limits import KernelLimits
+    from symbiont.genetics.genome import legacy_validation_version
+    from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 
     kernel_limits = KernelLimits()
     if args.genome_file:
         genome_payload = json.loads(Path(args.genome_file).expanduser().read_text(encoding="utf-8"))
         codec = GenomeCodec()
         genome = codec.load(genome_payload)
-        codec.validate(genome, kernel_limits, running_version=legacy_validation_version(genome.kernel_compatibility, _running_version_tuple()))
+        codec.validate(
+            genome,
+            kernel_limits,
+            running_version=legacy_validation_version(
+                genome.kernel_compatibility, _running_version_tuple()
+            ),
+        )
     else:
         genome = load_base_genome(
             kernel_limits=kernel_limits,
@@ -106,17 +112,22 @@ def main(argv: list[str] | None = None) -> int:
         DEFAULT_STATE_FILE,
         DEFAULT_TICK_INTERVAL_SECONDS,
     )
+
     try:
         from .config import DEFAULT_OBSERVATORY_DIR
     except ImportError:
         from config import DEFAULT_OBSERVATORY_DIR
 
-    parser = argparse.ArgumentParser(description="Stream a resident self-discovering Symbiont to Observatory")
+    parser = argparse.ArgumentParser(
+        description="Stream a resident self-discovering Symbiont to Observatory"
+    )
     parser.add_argument("--state-file", type=Path, default=Path(DEFAULT_STATE_FILE).expanduser())
     parser.add_argument("--interval", type=float, default=DEFAULT_TICK_INTERVAL_SECONDS)
     parser.add_argument("--checkpoint-every", type=int, default=DEFAULT_CHECKPOINT_TICKS)
     parser.add_argument("--display-id", default="local-symbiont")
-    parser.add_argument("--max-ticks", type=int, default=None, help="optional finite budget for testing")
+    parser.add_argument(
+        "--max-ticks", type=int, default=None, help="optional finite budget for testing"
+    )
     parser.add_argument(
         "--sensory-plasticity",
         action="store_true",
@@ -165,10 +176,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
-    from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
     from symbiont.core.capsule import CapsuleKeyPair
     from symbiont.core.local_habitat import LocalHabitat
+
+    from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
+    from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
     from symbiont.host.checkpoint import load_checkpoint_file
 
     runtime_kwargs = {
@@ -180,11 +192,12 @@ def main(argv: list[str] | None = None) -> int:
         runtime_kwargs["sensory_plasticity"] = True
     existing_payload = load_checkpoint_file(args.state_file)
     if args.enable_slm:
+        from symbiont.core.cognition_bridge import CognitiveBridge
+
         from symbiont.cognition.birth import load_base_cognition
         from symbiont.cognition.checkpoint import export_genome_checkpoint
         from symbiont.cognition.limits import KernelLimits
         from symbiont.core.canonical_birth import _running_version
-        from symbiont.core.cognition_bridge import CognitiveBridge
         from symbiont.host.checkpoint import normalize_checkpoint
         from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
@@ -378,12 +391,12 @@ def main(argv: list[str] | None = None) -> int:
     slm_store = None
     if args.enable_slm:
         try:
-            from symbiont_lab.modeling.artifacts import FileArtifactStore
-            from symbiont_lab.modeling.factory import PrivateModelFactory
-            from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
             from symbiont.modeling.corpus import build_training_corpus
             from symbiont.modeling.gateway import PrivateModelBridge
             from symbiont.modeling.tokenizer import NativeTokenizer
+            from symbiont_lab.modeling.artifacts import FileArtifactStore
+            from symbiont_lab.modeling.factory import PrivateModelFactory
+            from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
 
             models_dir = Path(args.state_file).parent / "models" / runtime.organism_id
             models_dir.mkdir(parents=True, exist_ok=True)
@@ -420,8 +433,8 @@ def main(argv: list[str] | None = None) -> int:
             return
 
         try:
-            from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
             from symbiont.modeling.gateway import PrivateModelBridge
+            from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
 
             plan = runtime.autonomous_private_learning_plan()
             if plan is None:
@@ -437,10 +450,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             slm_factory.adopt(runtime, factory_result)
             active = runtime.model_registry.active
-            if (
-                active is not None
-                and active.tokenizer_hash == plan.tokenizer.tokenizer_hash
-            ):
+            if active is not None and active.tokenizer_hash == plan.tokenizer.tokenizer_hash:
                 gateway = ArtifactInferenceGateway(
                     slm_store,
                     vocab_size=len(plan.tokenizer.vocabulary),

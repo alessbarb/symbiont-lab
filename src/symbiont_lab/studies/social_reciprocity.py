@@ -4,11 +4,13 @@ The harness supplies bounded synthetic events; it does not label them for a
 runtime or install a preference for cooperation.  Results are observations of
 the relation ledger and can be replayed from the seed.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
+
 from symbiont.core.social import RelationValence, SocialHabitat
 
 

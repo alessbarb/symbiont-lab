@@ -1,10 +1,11 @@
 """Constitutive bodily homeostasis and physiological activity regulation."""
+
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
-import math
 
 from .metabolism import MetabolicLedger, ResourcePressure
 
@@ -24,7 +25,7 @@ class HomeostaticSnapshot:
     action: HomeostaticAction
 
 
-from .physiology import LivingBodyState, PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
+from .physiology import DEFAULT_PHYSIOLOGY_CONFIG, LivingBodyState, PhysiologyConfig
 
 
 class HomeostaticController:
@@ -79,8 +80,7 @@ class HomeostaticController:
         internally owned physiological variable is farther from viability.
         """
         energy_deficit = 1.0 - (
-            self._body_state.energy_reserve
-            / max(self._body_state.max_energy, 1e-12)
+            self._body_state.energy_reserve / max(self._body_state.max_energy, 1e-12)
         )
         integrity_deficit = 1.0 - self._body_state.structural_integrity
         thermal_span = max(
@@ -88,9 +88,9 @@ class HomeostaticController:
             1.0 - self.config.thermal_setpoint,
             1e-12,
         )
-        thermal_deviation = abs(
-            self._body_state.temperature - self.config.thermal_setpoint
-        ) / thermal_span
+        thermal_deviation = (
+            abs(self._body_state.temperature - self.config.thermal_setpoint) / thermal_span
+        )
         fatigue = self._body_state.fatigue
         return max(
             0.0,
@@ -131,9 +131,10 @@ class HomeostaticController:
         )
 
         target = self.config.thermal_setpoint
-        relaxed = self._body_state.temperature + (
-            target - self._body_state.temperature
-        ) * self.config.thermal_relaxation_rate
+        relaxed = (
+            self._body_state.temperature
+            + (target - self._body_state.temperature) * self.config.thermal_relaxation_rate
+        )
         heated = relaxed + embodied_work * self.config.thermal_work_gain
         self._body_state.temperature = max(0.0, min(1.0, heated))
 
@@ -159,13 +160,22 @@ class HomeostaticController:
             pressure = ResourcePressure(str(pressure))
         action = HomeostaticAction.MAINTAIN
         if pressure is ResourcePressure.ELEVATED:
-            self.activity_scale = max(self.config.activity_elevated_floor, self.activity_scale * self.config.activity_elevated_penalty)
+            self.activity_scale = max(
+                self.config.activity_elevated_floor,
+                self.activity_scale * self.config.activity_elevated_penalty,
+            )
             action = HomeostaticAction.REDUCE_ACTIVITY
         elif pressure is ResourcePressure.SEVERE:
-            self.activity_scale = max(self.config.activity_severe_floor, self.activity_scale * self.config.activity_severe_penalty)
+            self.activity_scale = max(
+                self.config.activity_severe_floor,
+                self.activity_scale * self.config.activity_severe_penalty,
+            )
             self.plasticity_enabled = False
             action = HomeostaticAction.PAUSE_PLASTICITY
-        elif pressure is ResourcePressure.UNRECOVERABLE or self.integrity <= self.config.safe_mode_integrity_threshold:
+        elif (
+            pressure is ResourcePressure.UNRECOVERABLE
+            or self.integrity <= self.config.safe_mode_integrity_threshold
+        ):
             self.activity_scale = self.config.safe_mode_activity_scale
             self.plasticity_enabled = False
             action = HomeostaticAction.SAFE_MODE
@@ -175,24 +185,25 @@ class HomeostaticController:
 
         if self._body_state.fatigue > self.config.fatigue_activity_threshold:
             span = max(1e-12, 1.0 - self.config.fatigue_activity_threshold)
-            excess = (
-                self._body_state.fatigue - self.config.fatigue_activity_threshold
-            ) / span
-            fatigue_scale = 1.0 - excess * (
-                1.0 - self.config.fatigue_activity_floor
-            )
+            excess = (self._body_state.fatigue - self.config.fatigue_activity_threshold) / span
+            fatigue_scale = 1.0 - excess * (1.0 - self.config.fatigue_activity_floor)
             self.activity_scale = min(
                 self.activity_scale,
                 max(self.config.fatigue_activity_floor, fatigue_scale),
             )
             if action is HomeostaticAction.MAINTAIN:
                 action = HomeostaticAction.REDUCE_ACTIVITY
-        return HomeostaticSnapshot(self.integrity, self.activity_scale, self.plasticity_enabled, action)
-
+        return HomeostaticSnapshot(
+            self.integrity, self.activity_scale, self.plasticity_enabled, action
+        )
 
     def checkpoint(self) -> dict[str, Any]:
-        return {"schema_version": self.SCHEMA_VERSION, "integrity": self.integrity,
-                "activity_scale": self.activity_scale, "plasticity_enabled": self.plasticity_enabled}
+        return {
+            "schema_version": self.SCHEMA_VERSION,
+            "integrity": self.integrity,
+            "activity_scale": self.activity_scale,
+            "plasticity_enabled": self.plasticity_enabled,
+        }
 
     @classmethod
     def from_checkpoint(

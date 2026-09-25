@@ -95,10 +95,15 @@ class GovernedOrganism:
         if not self._granted:
             raise ConsentRevokedError("consent has been revoked; call grant() to resume")
         if self._max_ticks is not None and self._ticks_run >= self._max_ticks:
-            raise TickBudgetExhaustedError(f"tick budget of {self._max_ticks} has already been reached")
+            raise TickBudgetExhaustedError(
+                f"tick budget of {self._max_ticks} has already been reached"
+            )
 
         now = self._clock()
-        if self._last_tick_at is not None and (now - self._last_tick_at) < self._min_seconds_between_ticks:
+        if (
+            self._last_tick_at is not None
+            and (now - self._last_tick_at) < self._min_seconds_between_ticks
+        ):
             waited = now - self._last_tick_at
             raise RateLimitedError(
                 f"must wait at least {self._min_seconds_between_ticks}s between ticks "

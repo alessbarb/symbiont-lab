@@ -15,7 +15,9 @@ def test_signal_knowledge_renderer_consumes_projected_claim_fields():
 def test_cognition_renderer_surfaces_bounded_developmental_metrics():
     source = (Path(__file__).parents[1] / "render" / "cognition.js").read_text()
 
-    assert "cognition-developmental-metrics" in (Path(__file__).parents[1] / "index.html").read_text()
+    assert (
+        "cognition-developmental-metrics" in (Path(__file__).parents[1] / "index.html").read_text()
+    )
     assert "cognition.structuralPressure ?? cognition.structural_pressure" in source
     assert "cognition.quantizationError ?? cognition.quantization_error" in source
     assert "cognition.relationChurn ?? cognition.relation_churn" in source
@@ -38,9 +40,9 @@ def test_snapshot_strings_are_escaped_before_html_interpolation():
     inspector = (Path(__file__).parents[1] / "render" / "inspector.js").read_text()
 
     assert "function escapeHtml" in svg
-    assert 'import { palette, escapeHtml }' in signal
-    assert 'import { svg, palette, escapeHtml }' in population
-    assert 'import { palette, escapeHtml }' in inspector
+    assert "import { palette, escapeHtml }" in signal
+    assert "import { svg, palette, escapeHtml }" in population
+    assert "import { palette, escapeHtml }" in inspector
     assert "escapeHtml(description)" in population
     assert "escapeHtml(shorten(ev.claimId" in signal
     assert "escapeHtml(shorten(e.sourceId))" in inspector

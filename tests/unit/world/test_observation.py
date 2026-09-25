@@ -18,7 +18,9 @@ def test_signal_id_is_opaque_hash_not_a_readable_name():
 
 
 def test_signal_id_is_stable_for_the_same_label():
-    assert opaque_signal_id("local-occupancy-density") == opaque_signal_id("local-occupancy-density")
+    assert opaque_signal_id("local-occupancy-density") == opaque_signal_id(
+        "local-occupancy-density"
+    )
 
 
 def test_local_observation_reports_zero_density_when_alone():
@@ -62,7 +64,11 @@ def test_local_observation_includes_real_field_and_resource_signals_when_environ
     field_id, resource_id, hazard_id = "f01a4b7eb3833241", "r7c2e9a1b4d80556", "h9f3d1c8a2e60734"
     truth = GroundTruth(
         fields={field_id: PeriodicFieldLaw(amplitude=1.0, bias=0.0, angular_frequency=0.1)},
-        resources={resource_id: ResourceLaw(capacity=10.0, renewal_rate=0.1, decay_rate=0.0, initial_quantity=4.0)},
+        resources={
+            resource_id: ResourceLaw(
+                capacity=10.0, renewal_rate=0.1, decay_rate=0.0, initial_quantity=4.0
+            )
+        },
         hazards={hazard_id: HazardLaw(base_probability=0.1, density_coupling=1.0)},
     )
     env = WorldEnvironment(truth)

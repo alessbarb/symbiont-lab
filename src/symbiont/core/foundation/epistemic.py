@@ -6,6 +6,7 @@ smoothes, and considers signals established or mature.
 These are distinct from physical resource bounds (:class:`~symbiont.core.limits.OrganismLimits`)
 and physiological dynamics (:class:`~symbiont.core.physiology.PhysiologyConfig`).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -56,17 +57,27 @@ class EpistemicConventions:
 
     def __post_init__(self) -> None:
         # Check no bool masquerading as int/float
-        if isinstance(self.established_signal_min_samples, bool) or not isinstance(self.established_signal_min_samples, int):
+        if isinstance(self.established_signal_min_samples, bool) or not isinstance(
+            self.established_signal_min_samples, int
+        ):
             raise ValueError("established_signal_min_samples must be an integer, not bool")
         if self.established_signal_min_samples < 1:
-            raise ValueError(f"established_signal_min_samples must be >= 1; got {self.established_signal_min_samples}")
+            raise ValueError(
+                f"established_signal_min_samples must be >= 1; got {self.established_signal_min_samples}"
+            )
 
         if isinstance(self.ewma_alpha, bool) or not isinstance(self.ewma_alpha, (int, float)):
             raise ValueError("ewma_alpha must be a float, not bool")
         if not (0.0 < float(self.ewma_alpha) <= 1.0):
             raise ValueError(f"ewma_alpha must be in (0, 1]; got {self.ewma_alpha}")
 
-        for class_name in ("health_classes", "confidence_classes", "cost_classes", "maturity_classes", "activity_classes"):
+        for class_name in (
+            "health_classes",
+            "confidence_classes",
+            "cost_classes",
+            "maturity_classes",
+            "activity_classes",
+        ):
             val = getattr(self, class_name)
             if isinstance(val, bool) or not isinstance(val, int):
                 raise ValueError(f"{class_name} must be an integer, not bool")
@@ -80,7 +91,9 @@ class EpistemicConventions:
             )
         for t in self.recency_thresholds:
             if isinstance(t, bool) or not isinstance(t, int) or t < 0:
-                raise ValueError(f"recency_thresholds elements must be non-negative integers; got {t}")
+                raise ValueError(
+                    f"recency_thresholds elements must be non-negative integers; got {t}"
+                )
         for i in range(len(self.recency_thresholds) - 1):
             if self.recency_thresholds[i] >= self.recency_thresholds[i + 1]:
                 raise ValueError(
@@ -89,7 +102,9 @@ class EpistemicConventions:
 
         for t in self.maturity_thresholds:
             if isinstance(t, bool) or not isinstance(t, int) or t < 0:
-                raise ValueError(f"maturity_thresholds elements must be non-negative integers; got {t}")
+                raise ValueError(
+                    f"maturity_thresholds elements must be non-negative integers; got {t}"
+                )
         for i in range(len(self.maturity_thresholds) - 1):
             if self.maturity_thresholds[i] > self.maturity_thresholds[i + 1]:
                 raise ValueError(
@@ -104,7 +119,9 @@ class EpistemicConventions:
         classes_seen: list[RecencyClass] = []
         for pair in self.recency_representative_idle_ticks:
             if not (isinstance(pair, (tuple, list)) and len(pair) == 2):
-                raise ValueError("recency_representative_idle_ticks must contain (RecencyClass, int) pairs")
+                raise ValueError(
+                    "recency_representative_idle_ticks must contain (RecencyClass, int) pairs"
+                )
             rc, ticks = pair
             if not isinstance(rc, RecencyClass):
                 raise ValueError(f"expected RecencyClass in representative map; got {type(rc)}")

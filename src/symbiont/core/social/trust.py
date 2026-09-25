@@ -177,6 +177,8 @@ def observe_capsule_trust(
         score = agreement_score(local_baseline, _remote_mean(remote_stats))
         if score is None:
             continue
-        model.observe(source=capsule.signer_public_key, pattern_family=capability_id, agreement=score)
+        model.observe(
+            source=capsule.signer_public_key, pattern_family=capability_id, agreement=score
+        )
         scores[capability_id] = score
     return scores

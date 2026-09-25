@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
+
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.metaplasticity import SafetyState
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
 
 _GENOME_PAYLOAD = {
     "schema_version": 1,
@@ -40,7 +41,14 @@ def _genome():
 def _simple_graph() -> CognitiveGraph:
     sense = PlasticNode(node_id="s", kind=NodeKind.SENSE)
     concept = PlasticNode(node_id="c", kind=NodeKind.CONCEPT)
-    edge = PlasticEdge(source_id="s", target_id="c", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0)
+    edge = PlasticEdge(
+        source_id="s",
+        target_id="c",
+        kind=EdgeKind.EXCITATORY,
+        weight=0.5,
+        plasticity=0.5,
+        delay_ticks=0,
+    )
     return CognitiveGraph(nodes=(sense, concept), edges=(edge,), kernel_limits=KernelLimits())
 
 
@@ -89,7 +97,9 @@ def test_frozen_safety_state_prevents_learning():
     safety.record_failure()
     safety.record_failure()
     assert safety.frozen
-    bridge = CognitiveBridge(graph=graph, genome=_genome(), kernel_limits=KernelLimits(), safety_state=safety)
+    bridge = CognitiveBridge(
+        graph=graph, genome=_genome(), kernel_limits=KernelLimits(), safety_state=safety
+    )
     weight_before = bridge.graph.edges[0].weight
     for tick in range(1, 10):
         result = bridge.tick({"s": 1.0}, tick=tick)
@@ -152,7 +162,9 @@ def test_checkpoint_preserves_frozen_safety_state():
     safety = SafetyState()
     for _ in range(3):
         safety.record_failure()
-    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=KernelLimits(), safety_state=safety)
+    bridge = CognitiveBridge(
+        graph=graph, genome=genome, kernel_limits=KernelLimits(), safety_state=safety
+    )
 
     payload = bridge.export_checkpoint()
     restored = CognitiveBridge.restore(payload, genome=genome, kernel_limits=KernelLimits())

@@ -3,13 +3,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
-from symbiont.modeling import ModelObjective, ModelTrainingAuthority, TrainingRequest
+from symbiont.modeling import (
+    ModeledOrganismRuntime,
+    ModelObjective,
+    ModelTrainingAuthority,
+    TrainingRequest,
+)
 from symbiont_lab.modeling import TrainingConfig, encode_corpus, train_private_model
 from symbiont_lab.modeling.gateway import load_artifact_model
 from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
-from .adaptive_replay_matched_control import _normalize_seeds, _transition_history
-from symbiont.modeling import ModeledOrganismRuntime
 
+from .adaptive_replay_matched_control import _normalize_seeds, _transition_history
 
 PRESSURES = (0.0, 0.25, 0.5, 0.75, 1.0)
 
@@ -127,24 +131,27 @@ def run_replay_pressure_curve_study(
                 corpus=plan.corpus,
                 tokenizer=plan.tokenizer,
             )
-            doses.append(ReplayDose(
-                pressure=pressure,
-                epochs=request.requested_epochs,
-                steps=request.requested_steps,
-                test_loss=metrics.mean_log_loss,
-                accuracy=metrics.accuracy,
-            ))
+            doses.append(
+                ReplayDose(
+                    pressure=pressure,
+                    epochs=request.requested_epochs,
+                    steps=request.requested_steps,
+                    test_loss=metrics.mean_log_loss,
+                    accuracy=metrics.accuracy,
+                )
+            )
 
         monotonic = all(
-            right.test_loss <= left.test_loss + 1e-12
-            for left, right in zip(doses, doses[1:])
+            right.test_loss <= left.test_loss + 1e-12 for left, right in zip(doses, doses[1:])
         )
-        results.append(ReplayPressureSeedResult(
-            seed=seed,
-            doses=tuple(doses),
-            monotonic_nonincreasing_loss=monotonic,
-            saturation_gain_last_quarter=doses[-2].test_loss - doses[-1].test_loss,
-        ))
+        results.append(
+            ReplayPressureSeedResult(
+                seed=seed,
+                doses=tuple(doses),
+                monotonic_nonincreasing_loss=monotonic,
+                saturation_gain_last_quarter=doses[-2].test_loss - doses[-1].test_loss,
+            )
+        )
 
     return ReplayPressureCurveStudy(
         seeds=normalized,

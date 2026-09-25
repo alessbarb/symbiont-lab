@@ -4,8 +4,8 @@ import argparse
 from pprint import pprint
 
 from symbiont_lab.studies.learning.prospective_agency_embodied import (
-    run_prospective_embodied_trial,
     run_prospective_embodied_study,
+    run_prospective_embodied_trial,
 )
 
 

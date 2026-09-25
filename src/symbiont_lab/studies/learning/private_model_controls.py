@@ -14,7 +14,12 @@ from symbiont.modeling import (
     TrainingRequest,
     build_training_corpus,
 )
-from symbiont_lab.modeling import TrainingConfig, encode_corpus, remap_encoded_corpus, train_private_model
+from symbiont_lab.modeling import (
+    TrainingConfig,
+    encode_corpus,
+    remap_encoded_corpus,
+    train_private_model,
+)
 from symbiont_lab.modeling.gateway import load_artifact_model
 from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
 
@@ -88,18 +93,20 @@ def _history(
             outcome = (left + right * 2 + action * 3 + 1) % 5
         else:
             raise ValueError("unsupported controlled rule")
-        records.append(ExperienceRecord(
-            record_id=f"episode.{organism_id}.{tick}",
-            organism_id=organism_id,
-            tick_class=tick,
-            context_tokens=(f"sense.{left}", f"sense.{right}"),
-            action_token=f"action.{action}",
-            outcome_tokens=(f"outcome.{outcome}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.{organism_id}.{tick}",),
-            confidence_class=7,
-            source_kind=SourceKind.ACTION_OUTCOME,
-        ))
+        records.append(
+            ExperienceRecord(
+                record_id=f"episode.{organism_id}.{tick}",
+                organism_id=organism_id,
+                tick_class=tick,
+                context_tokens=(f"sense.{left}", f"sense.{right}"),
+                action_token=f"action.{action}",
+                outcome_tokens=(f"outcome.{outcome}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.{organism_id}.{tick}",),
+                confidence_class=7,
+                source_kind=SourceKind.ACTION_OUTCOME,
+            )
+        )
     return tuple(records)
 
 
@@ -180,19 +187,27 @@ def run_private_model_controls_study(
         # A. Individual specificity. Both individuals expose the same opaque
         # vocabulary but live under different hidden contingencies. Identity is
         # never a model-facing token.
-        corpus_a = build_training_corpus(_history(
-            organism_id=f"specific-a-{seed}", seed=seed, ticks=ticks, rule=0
-        ))
-        corpus_b = build_training_corpus(_history(
-            organism_id=f"specific-b-{seed}", seed=seed, ticks=ticks, rule=1
-        ))
+        corpus_a = build_training_corpus(
+            _history(organism_id=f"specific-a-{seed}", seed=seed, ticks=ticks, rule=0)
+        )
+        corpus_b = build_training_corpus(
+            _history(organism_id=f"specific-b-{seed}", seed=seed, ticks=ticks, rule=1)
+        )
         shared_tokenizer = NativeTokenizer.from_records((*corpus_a.train, *corpus_b.train))
         encoded_a = encode_corpus(corpus_a, shared_tokenizer, context_window=32)
         encoded_b = encode_corpus(corpus_b, shared_tokenizer, context_window=32)
-        trained_a = _train(corpus=corpus_a, encoded=encoded_a,
-                           tokenizer_hash=shared_tokenizer.tokenizer_hash, seed=seed)
-        trained_b = _train(corpus=corpus_b, encoded=encoded_b,
-                           tokenizer_hash=shared_tokenizer.tokenizer_hash, seed=seed + 10_000)
+        trained_a = _train(
+            corpus=corpus_a,
+            encoded=encoded_a,
+            tokenizer_hash=shared_tokenizer.tokenizer_hash,
+            seed=seed,
+        )
+        trained_b = _train(
+            corpus=corpus_b,
+            encoded=encoded_b,
+            tokenizer_hash=shared_tokenizer.tokenizer_hash,
+            seed=seed + 10_000,
+        )
         own_a = _loss(trained_a, encoded_a)
         cross_a = _cross_loss(trained_a, encoded_b)
         own_b = _loss(trained_b, encoded_b)
@@ -205,8 +220,9 @@ def run_private_model_controls_study(
         original_symbol_loss = own_a
         remapped = remap_encoded_corpus(encoded_a, seed=seed + 20_000)
         stale_remap_loss = _cross_loss(trained_a, remapped)
-        remap_training = _train(corpus=corpus_a, encoded=remapped,
-                                tokenizer_hash=remapped.tokenizer_hash, seed=seed)
+        remap_training = _train(
+            corpus=corpus_a, encoded=remapped, tokenizer_hash=remapped.tokenizer_hash, seed=seed
+        )
         retrained_remap_loss = _loss(remap_training, remapped)
         remap_disruption = stale_remap_loss - original_symbol_loss
         remap_recovery_gap = retrained_remap_loss - original_symbol_loss
@@ -215,43 +231,53 @@ def run_private_model_controls_study(
         # another, then train a fresh successor from post-shift experience. The
         # experiment measures degradation and recovery without changing labels or
         # evaluator knowledge available to the model.
-        post_corpus = build_training_corpus(_history(
-            organism_id=f"regime-{seed}", seed=seed, ticks=ticks, rule=1
-        ))
-        pre_corpus = build_training_corpus(_history(
-            organism_id=f"regime-{seed}", seed=seed, ticks=ticks, rule=0
-        ))
+        post_corpus = build_training_corpus(
+            _history(organism_id=f"regime-{seed}", seed=seed, ticks=ticks, rule=1)
+        )
+        pre_corpus = build_training_corpus(
+            _history(organism_id=f"regime-{seed}", seed=seed, ticks=ticks, rule=0)
+        )
         regime_tokenizer = NativeTokenizer.from_records((*pre_corpus.train, *post_corpus.train))
         pre_encoded = encode_corpus(pre_corpus, regime_tokenizer, context_window=32)
         post_encoded = encode_corpus(post_corpus, regime_tokenizer, context_window=32)
-        pre_training = _train(corpus=pre_corpus, encoded=pre_encoded,
-                              tokenizer_hash=regime_tokenizer.tokenizer_hash, seed=seed)
-        post_training = _train(corpus=post_corpus, encoded=post_encoded,
-                               tokenizer_hash=regime_tokenizer.tokenizer_hash, seed=seed + 30_000)
+        pre_training = _train(
+            corpus=pre_corpus,
+            encoded=pre_encoded,
+            tokenizer_hash=regime_tokenizer.tokenizer_hash,
+            seed=seed,
+        )
+        post_training = _train(
+            corpus=post_corpus,
+            encoded=post_encoded,
+            tokenizer_hash=regime_tokenizer.tokenizer_hash,
+            seed=seed + 30_000,
+        )
         pre_shift_loss = _loss(pre_training, pre_encoded)
         post_shift_stale_loss = _cross_loss(pre_training, post_encoded)
         post_shift_retrained_loss = _loss(post_training, post_encoded)
         regime_degradation = post_shift_stale_loss - pre_shift_loss
         regime_recovery = post_shift_stale_loss - post_shift_retrained_loss
 
-        results.append(PrivateModelControlSeedResult(
-            seed=seed,
-            specificity_margin=specificity_margin,
-            own_a_loss=own_a,
-            cross_a_loss=cross_a,
-            own_b_loss=own_b,
-            cross_b_loss=cross_b,
-            original_symbol_loss=original_symbol_loss,
-            stale_remap_loss=stale_remap_loss,
-            retrained_remap_loss=retrained_remap_loss,
-            remap_disruption=remap_disruption,
-            remap_recovery_gap=remap_recovery_gap,
-            pre_shift_loss=pre_shift_loss,
-            post_shift_stale_loss=post_shift_stale_loss,
-            post_shift_retrained_loss=post_shift_retrained_loss,
-            regime_degradation=regime_degradation,
-            regime_recovery=regime_recovery,
-        ))
+        results.append(
+            PrivateModelControlSeedResult(
+                seed=seed,
+                specificity_margin=specificity_margin,
+                own_a_loss=own_a,
+                cross_a_loss=cross_a,
+                own_b_loss=own_b,
+                cross_b_loss=cross_b,
+                original_symbol_loss=original_symbol_loss,
+                stale_remap_loss=stale_remap_loss,
+                retrained_remap_loss=retrained_remap_loss,
+                remap_disruption=remap_disruption,
+                remap_recovery_gap=remap_recovery_gap,
+                pre_shift_loss=pre_shift_loss,
+                post_shift_stale_loss=post_shift_stale_loss,
+                post_shift_retrained_loss=post_shift_retrained_loss,
+                regime_degradation=regime_degradation,
+                regime_recovery=regime_recovery,
+            )
+        )
 
     count = len(results)
     return PrivateModelControlsStudy(

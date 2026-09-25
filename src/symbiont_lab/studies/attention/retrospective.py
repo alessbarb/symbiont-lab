@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+import random
 from dataclasses import asdict, dataclass
 from math import sqrt
-import random
 from typing import Iterable
 
 from symbiont.environment.rng import derive_seed
 from symbiont.simulation import EventContext, SimulationResult, run_simulation
-
 
 THREAT_FAMILIES = (
     "pathogen:ransom_sim",
@@ -60,8 +59,7 @@ class BudgetAnalysis:
             "natural_budget_per_1000": self.natural_budget_per_1000,
             "matched": [item.as_dict() for item in self.matched],
             "curves": {
-                name: [item.as_dict() for item in items]
-                for name, items in self.curves.items()
+                name: [item.as_dict() for item in items] for name, items in self.curves.items()
             },
         }
 
@@ -192,7 +190,7 @@ def _selection_from_events(
 def _policy_selection(result: SimulationResult, total_events: int) -> BudgetSelection:
     breakdown = result.evaluation_breakdown
     families = dict(breakdown.get("families", {}))
-    global_counts = dict(breakdown.get("global", {}))
+    dict(breakdown.get("global", {}))
     family_recall: dict[str, float | None] = {}
     selected_by_family: dict[str, int] = {}
     for family in (*BENIGN_FAMILIES, *THREAT_FAMILIES):
@@ -228,13 +226,21 @@ def _ranked_selection(
 ) -> BudgetSelection:
     budget = min(max(int(budget), 0), len(scored))
     if strategy == "risk":
-        key = lambda item: item.risk
+
+        def key(item):
+            return item.risk
     elif strategy == "novelty":
-        key = lambda item: item.novelty
+
+        def key(item):
+            return item.novelty
     elif strategy == "risk_novelty":
-        key = lambda item: item.risk_novelty
+
+        def key(item):
+            return item.risk_novelty
     elif strategy == "random":
-        key = lambda item: item.random_score
+
+        def key(item):
+            return item.random_score
     else:
         raise ValueError(f"unsupported attention strategy: {strategy}")
 
@@ -281,10 +287,7 @@ def run_attention_budget_analysis(
     strategies = ("risk", "novelty", "risk_novelty", "random")
 
     matched = [_policy_selection(result, len(events))]
-    matched.extend(
-        _ranked_selection(strategy, scored, natural_budget)
-        for strategy in strategies
-    )
+    matched.extend(_ranked_selection(strategy, scored, natural_budget) for strategy in strategies)
 
     curves: dict[str, tuple[BudgetSelection, ...]] = {}
     for strategy in strategies:

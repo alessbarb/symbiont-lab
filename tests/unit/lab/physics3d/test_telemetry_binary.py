@@ -114,9 +114,7 @@ def test_binary_structural_delta_round_trip_claim_growth(tmp_path):
     first = [
         {
             "signal_id": "signal.a",
-            "claims": [
-                {"claim_id": "claim.1", "status": "candidate", "count": 1}
-            ],
+            "claims": [{"claim_id": "claim.1", "status": "candidate", "count": 1}],
         }
     ]
     second = [
@@ -221,5 +219,6 @@ def test_binary_dense_reader_rejects_wrong_full_leaf_count(tmp_path):
     record["v"] = record["v"][:-1]
 
     import pytest
+
     with pytest.raises(ValueError, match="leaf count mismatch"):
         reader.apply(record)

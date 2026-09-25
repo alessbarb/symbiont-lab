@@ -1,16 +1,16 @@
 """Unit tests for DynamicGeography, rich CellPhenotype, and spatial movement (Phase P0)."""
+
 import pytest
 
-from symbiont_world.genesis import GroundTruth
-from symbiont_world.state import TickAborted
-from symbiont_world.topology import HexCoord, HexTopology
 from symbiont_lab.world.genesis_v1 import build_ground_truth
 from symbiont_lab.world.persistence import (
     capture_checkpoint,
     restore_population_from_checkpoint,
 )
 from symbiont_lab.world.population import PopulationGenesisRuntime
-from symbiont_lab.world.terrain import CellPhenotype, DynamicGeography
+from symbiont_lab.world.terrain import DynamicGeography
+from symbiont_world.state import TickAborted
+from symbiont_world.topology import HexCoord, HexTopology
 
 
 def test_dynamic_geography_determinism():
@@ -84,7 +84,7 @@ def test_spatial_movement_when_enabled():
         movement_enabled=True,
     )
 
-    initial_pos = {oid: pop.state.bodies[oid].occupied_cell for oid in pop.organism_ids}
+    {oid: pop.state.bodies[oid].occupied_cell for oid in pop.organism_ids}
 
     # Run for 25 ticks
     records = pop.run(25)
@@ -121,6 +121,7 @@ def test_geography_rollback_on_failed_tick():
 
     # Simulate a forced tick failure
     from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
+
     tx = IntegratedWorldTickTransaction(
         state=pop.state,
         environment=pop.environment,
@@ -161,10 +162,14 @@ def test_geography_checkpoint_and_restore_equivalence():
     assert restored.geography is not None
     assert restored.geography.traces(HexCoord(1, 1)) == pop.geography.traces(HexCoord(1, 1))
     assert restored.geography.elevation(HexCoord(2, 2)) == pop.geography.elevation(HexCoord(2, 2))
-    assert restored.geography.snapshot()["surface_water"] == pop.geography.snapshot()["surface_water"]
+    assert (
+        restored.geography.snapshot()["surface_water"] == pop.geography.snapshot()["surface_water"]
+    )
     assert restored.geography.snapshot()["detritus"] == pop.geography.snapshot()["detritus"]
-    assert restored.geography.snapshot()["ecological_pressure"] == pop.geography.snapshot()["ecological_pressure"]
-
+    assert (
+        restored.geography.snapshot()["ecological_pressure"]
+        == pop.geography.snapshot()["ecological_pressure"]
+    )
 
 
 def test_dynamic_ecology_death_deposits_detritus_and_changes_fertility():
@@ -228,7 +233,6 @@ def test_ecological_pressure_reduces_resource_renewal_factor():
     assert geo.resource_renewal_factor(cell) < baseline
 
 
-
 def test_directional_impulse_redistributes_existing_substrate_without_semantic_action():
     topo = HexTopology(width=4, height=4)
     geo = DynamicGeography(topo, 707)
@@ -281,6 +285,7 @@ def test_substrate_impulse_is_transactionally_rolled_back():
     before = pop.geography.snapshot()
 
     from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
+
     tx = IntegratedWorldTickTransaction(
         state=pop.state,
         environment=pop.environment,
@@ -294,7 +299,6 @@ def test_substrate_impulse_is_transactionally_rolled_back():
         raise TickAborted("rollback impulse")
 
     assert pop.geography.snapshot() == before
-
 
 
 def test_substrate_history_can_open_and_close_traversal_without_new_action_type():
@@ -339,15 +343,18 @@ def test_population_observation_changes_after_same_opaque_motor_consequence():
 
     expected_before = local_substrate_signals(pop.geography, cell)
     obs_before = pop._observation_for("org-a")
-    assert all(obs_before.signals[key] == pytest.approx(value) for key, value in expected_before.items())
+    assert all(
+        obs_before.signals[key] == pytest.approx(value) for key, value in expected_before.items()
+    )
 
     pop.geography.apply_directional_impulse(cell, target, 1.0)
     expected_after = local_substrate_signals(pop.geography, cell)
     obs_after = pop._observation_for("org-a")
 
     assert any(expected_before[key] != expected_after[key] for key in expected_before)
-    assert all(obs_after.signals[key] == pytest.approx(value) for key, value in expected_after.items())
-
+    assert all(
+        obs_after.signals[key] == pytest.approx(value) for key, value in expected_after.items()
+    )
 
 
 def test_motor_actuation_commits_substrate_impulse_event_without_new_world_action():
@@ -389,7 +396,6 @@ def test_motor_actuation_commits_substrate_impulse_event_without_new_world_actio
     assert impulse_events[0].actor == "org-a"
     assert impulse_events[0].payload["actuator_id"] == actuator_id
     assert impulse_events[0].payload["delivered"] == pytest.approx(1.0)
-
 
 
 def test_clean_population_observation_contains_no_apparatus_resource_hazard_or_occupancy_ids():
@@ -436,7 +442,13 @@ def test_clean_population_does_not_execute_typed_local_action_frontier():
     action = record.per_organism["clean-a"].action
     assert action.action_id == "opaque_motor"
     assert action.action_id not in {
-        "rest", "intake", "repair", "observe", "investigate",
-        "social_exchange", "compete", "reproduce", "wait",
+        "rest",
+        "intake",
+        "repair",
+        "observe",
+        "investigate",
+        "social_exchange",
+        "compete",
+        "reproduce",
+        "wait",
     }
-

@@ -1,11 +1,12 @@
 """Genome v2 inheritance and germline invariants."""
+
 from __future__ import annotations
 
 from dataclasses import replace
 
 import pytest
-
 from symbiont.core.germline import create_standard_genome
+
 from symbiont.genetics import (
     DEFAULT_GENOME_SCHEMA,
     EpigeneticMark,
@@ -97,14 +98,16 @@ def test_acquired_epigenetic_capture_is_disabled_by_default():
         acquired_capture_enabled=True,
     )
     current = {
-        "plasticity.learning_rate.baseline":
-            genome.plasticity.learning_rate.baseline + 0.03,
+        "plasticity.learning_rate.baseline": genome.plasticity.learning_rate.baseline + 0.03,
     }
 
-    assert state.capture_acquired_variation(
-        current,
-        genome=genome,
-    ) == ()
+    assert (
+        state.capture_acquired_variation(
+            current,
+            genome=genome,
+        )
+        == ()
+    )
     assert state.acquired_marks == {}
 
 
@@ -122,10 +125,8 @@ def test_explicit_epigenetic_protocol_can_capture_only_regulable_loci():
 
     captured = state.capture_acquired_variation(
         {
-            "plasticity.learning_rate.baseline":
-                genome.plasticity.learning_rate.baseline + 0.02,
-            "development.soft_node_budget":
-                float(genome.development.soft_node_budget + 32),
+            "plasticity.learning_rate.baseline": genome.plasticity.learning_rate.baseline + 0.02,
+            "development.soft_node_budget": float(genome.development.soft_node_budget + 32),
         },
         genome=genome,
         protocol=protocol,

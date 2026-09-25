@@ -3,6 +3,7 @@ from __future__ import annotations
 from symbiont.core.attention import AttentionAllocation
 from symbiont.core.evidence import DissentRecord
 from symbiont.core.narrative import narrate_capability, narrate_host
+
 from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
@@ -78,7 +79,9 @@ def test_no_evidence_gathered_omits_evidence_clause():
 
 def test_contested_revision_reports_what_changed():
     baseline = CapabilityBaseline(count=5, mean=1.0, variance=0.04)
-    dissent = DissentRecord(capability_id="cpu", prior_mean=1.0, prior_stdev=0.2, evidence_mean=5.0, z_score=20.0)
+    dissent = DissentRecord(
+        capability_id="cpu", prior_mean=1.0, prior_stdev=0.2, evidence_mean=5.0, z_score=20.0
+    )
 
     entry = narrate_capability(capability_id="cpu", baseline=baseline, dissent=dissent)
 
@@ -116,7 +119,9 @@ def test_narrate_host_cross_references_allocations_and_dissent():
     acclimation = HostAcclimation(min_samples=2)
     acclimation.observe([_reading("cpu", 1.0), _reading("cpu", 1.0)])
     allocation = AttentionAllocation(name="cpu", uncertainty=0.0, cost=1.0)
-    dissent = DissentRecord(capability_id="cpu", prior_mean=1.0, prior_stdev=0.1, evidence_mean=5.0, z_score=40.0)
+    dissent = DissentRecord(
+        capability_id="cpu", prior_mean=1.0, prior_stdev=0.1, evidence_mean=5.0, z_score=40.0
+    )
 
     entries = narrate_host(
         acclimation,

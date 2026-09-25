@@ -11,7 +11,9 @@ def assert_unique_seeds(seeds: Sequence[int], label: str = "seeds") -> None:
         seen.add(s)
 
 
-def assert_disjoint_seeds(seeds_a: Sequence[int], seeds_b: Sequence[int], label_a: str = "set A", label_b: str = "set B") -> None:
+def assert_disjoint_seeds(
+    seeds_a: Sequence[int], seeds_b: Sequence[int], label_a: str = "set A", label_b: str = "set B"
+) -> None:
     intersection = set(seeds_a).intersection(set(seeds_b))
     if intersection:
         raise ValueError(f"Colliding seeds between {label_a} and {label_b}: {sorted(intersection)}")

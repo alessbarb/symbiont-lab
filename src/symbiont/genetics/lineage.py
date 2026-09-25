@@ -1,4 +1,5 @@
 """Genotype-independent genealogy for Genome v2."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

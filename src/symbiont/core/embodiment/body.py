@@ -9,12 +9,12 @@ the replaceable physical substrate of an organism. It encapsulates:
 - Strict physical causality: metabolic reserve increases exclusively through
   explicit physical intake via MaterialTransfer, never cognitive/social success (Invariant C).
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-import hashlib
 import math
-from typing import Any, Callable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Callable, Mapping, Sequence
 
 from .physiology import LivingBodyState
 
@@ -157,12 +157,8 @@ class Body:
             raise ValueError("body_id must not be empty")
         self.body_id = body_id
         self.morphology_name = morphology_name
-        self._receptors: dict[str, ReceptorPort] = {
-            r.port_id: r for r in (receptors or ())
-        }
-        self._effectors: dict[str, EffectorPort] = {
-            e.port_id: e for e in (effectors or ())
-        }
+        self._receptors: dict[str, ReceptorPort] = {r.port_id: r for r in (receptors or ())}
+        self._effectors: dict[str, EffectorPort] = {e.port_id: e for e in (effectors or ())}
         self.physiology = physiology or LivingBodyState()
         self.basal_metabolic_rate = float(basal_metabolic_rate)
         self.degradation_rate = float(degradation_rate)
@@ -226,9 +222,7 @@ class Body:
             return 0.0
         return self.physiology.add_energy(transfer.amount)
 
-    def _test_physical_intake(
-        self, amount: float, *, source_id: str = "test:apparatus"
-    ) -> float:
+    def _test_physical_intake(self, amount: float, *, source_id: str = "test:apparatus") -> float:
         """Test-only helper for injecting material without environment (AUD-034, NEW-AUD-001).
 
         Production code MUST receive material through World environment via MaterialTransfer.

@@ -89,8 +89,12 @@ def test_population_is_deterministic_for_same_seed():
     b = _population(seed=101)
     records_a = a.run(20)
     records_b = b.run(20)
-    actions_a = [{oid: r.action.action_id for oid, r in rec.per_organism.items()} for rec in records_a]
-    actions_b = [{oid: r.action.action_id for oid, r in rec.per_organism.items()} for rec in records_b]
+    actions_a = [
+        {oid: r.action.action_id for oid, r in rec.per_organism.items()} for rec in records_a
+    ]
+    actions_b = [
+        {oid: r.action.action_id for oid, r in rec.per_organism.items()} for rec in records_b
+    ]
     assert actions_a == actions_b
 
 
@@ -98,7 +102,6 @@ def test_dead_organisms_are_skipped_not_crashed_on():
     pop = _population(count=2)
     pop.run(5)
     # Force one organism dead directly and confirm the population keeps going.
-    from symbiont.core.physiology import VitalState
     victim = pop.organism_ids[0]
     pop._rigs[victim].runtime._living_body_state.mark_dead(pop.state.tick)
     records = pop.run(5)

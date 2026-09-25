@@ -127,7 +127,11 @@ def read_registry(observatory_dir: Path) -> list[dict[str, Any]]:
 
 
 def classify_liveness(
-    record: dict[str, Any], *, now: datetime, heartbeat_interval_seconds: float, ttl_seconds: float = 600.0
+    record: dict[str, Any],
+    *,
+    now: datetime,
+    heartbeat_interval_seconds: float,
+    ttl_seconds: float = 600.0,
 ) -> str:
     """Heartbeat timestamp is authoritative; malformed/future records expire."""
     last_heartbeat = _aware_datetime(record.get("last_heartbeat"))

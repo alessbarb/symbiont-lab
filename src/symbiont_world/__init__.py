@@ -4,12 +4,13 @@ W0 scope only: package boundary, constitution, contracts, topology, state,
 events, RNG and checkpoint. No fields, resources, hazards or organisms yet.
 See docs/design/symbiont-world-v1.md for the normative spec.
 """
+
 from __future__ import annotations
 
+from .checkpoint import WorldCheckpoint, restore, take_checkpoint
 from .constitution import WorldConstitution
 from .contracts import ContactEvidence, ReceivedEmission, WorldAction, WorldObservation
 from .events import EventJournal, WorldEvent
-from .checkpoint import WorldCheckpoint, restore, take_checkpoint
 from .genesis import GroundTruth, WorldEnvironment
 from .laws import HazardLaw, PeriodicFieldLaw, ResourceLaw
 from .movement import resolve_movement

@@ -25,9 +25,7 @@ def test_checkpoint_round_trips_occupancy_and_tick():
 
 def test_checkpoint_occupancy_is_immutable_snapshot():
     state = _seed_state()
-    checkpoint = take_checkpoint(
-        state, constitution_fingerprint="abc123", rng_states={}
-    )
+    checkpoint = take_checkpoint(state, constitution_fingerprint="abc123", rng_states={})
     state.occupancy.occupy(HexCoord(2, 2), "org-c")
     assert HexCoord(2, 2) not in checkpoint.occupancy
 

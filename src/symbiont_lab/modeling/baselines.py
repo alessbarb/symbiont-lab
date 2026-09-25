@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import math
 from collections import Counter
 from dataclasses import dataclass
-import math
 
 from .dataset import EncodedSplit
 
@@ -21,7 +21,11 @@ class BaselineMetrics:
             raise ValueError("mean_log_loss must be finite and non-negative")
         if not math.isfinite(self.accuracy) or not 0.0 <= self.accuracy <= 1.0:
             raise ValueError("accuracy must be within [0, 1]")
-        if isinstance(self.predictions, bool) or not isinstance(self.predictions, int) or self.predictions < 1:
+        if (
+            isinstance(self.predictions, bool)
+            or not isinstance(self.predictions, int)
+            or self.predictions < 1
+        ):
             raise ValueError("predictions must be positive")
 
 
@@ -55,7 +59,9 @@ def evaluate_persistence_baseline(split: EncodedSplit, *, vocab_size: int) -> Ba
     return BaselineMetrics("persistence", loss / count, correct / count, count)
 
 
-def evaluate_frequency_baseline(train: EncodedSplit, test: EncodedSplit, *, vocab_size: int) -> BaselineMetrics:
+def evaluate_frequency_baseline(
+    train: EncodedSplit, test: EncodedSplit, *, vocab_size: int
+) -> BaselineMetrics:
     counts: Counter[int] = Counter(target for _, target in _outcome_transitions(train))
     total = sum(counts.values())
     if total < 1:

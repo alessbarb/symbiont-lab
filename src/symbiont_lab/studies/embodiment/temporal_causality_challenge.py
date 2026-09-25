@@ -7,10 +7,11 @@ The current AgencyModel receives contemporaneous activation/delta pairs. This
 study tests whether genuine delayed consequences are lost while an immediate
 external distractor is incorrectly promoted.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Sequence
 
 from symbiont.core.embodiment.agency import AgencyModel
@@ -88,10 +89,7 @@ def _confidence(model: AgencyModel) -> float:
 
 def _run_seed(seed: int, *, steps: int) -> TemporalSeedResult:
     rng = random.Random(seed)
-    activations = [
-        0.0 if rng.random() < 0.30 else rng.uniform(0.25, 1.0)
-        for _ in range(steps + 8)
-    ]
+    activations = [0.0 if rng.random() < 0.30 else rng.uniform(0.25, 1.0) for _ in range(steps + 8)]
     variable_delays = [rng.randint(1, 4) for _ in range(steps + 8)]
 
     models = {
@@ -104,7 +102,9 @@ def _run_seed(seed: int, *, steps: int) -> TemporalSeedResult:
 
     for tick in range(steps):
         act = activations[tick]
-        noise = lambda: rng.gauss(0.0, 0.015)
+
+        def noise():
+            return rng.gauss(0.0, 0.015)
 
         d0 = 0.38 * act + noise()
         d1 = 0.38 * (activations[tick - 1] if tick >= 1 else 0.0) + noise()
@@ -146,7 +146,9 @@ def run_temporal_causality_challenge_study(
     replay = tuple(_run_seed(seed, steps=steps) for seed in normalized)
     n = len(results)
 
-    rate = lambda attr: sum(getattr(item, attr) >= AGENCY_THRESHOLD for item in results) / n
+    def rate(attr):
+        return sum(getattr(item, attr) >= AGENCY_THRESHOLD for item in results) / n
+
     d0 = rate("delay0_confidence")
     d1 = rate("delay1_confidence")
     d3 = rate("delay3_confidence")
@@ -157,12 +159,7 @@ def run_temporal_causality_challenge_study(
     # Strong H1 requires delayed causal sensitivity and rejection of the
     # immediate external distractor. This is intentionally demanding.
     supported = (
-        d0 >= 0.70
-        and d1 >= 0.70
-        and d3 >= 0.70
-        and dv >= 0.70
-        and ext <= 0.10
-        and deterministic
+        d0 >= 0.70 and d1 >= 0.70 and d3 >= 0.70 and dv >= 0.70 and ext <= 0.10 and deterministic
     )
 
     return TemporalCausalityStudy(

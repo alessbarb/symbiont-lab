@@ -31,9 +31,13 @@ except ImportError:
 
 from symbiont_lab.observation.observatory import (
     ObservatorySource,
-    parse_journal_line as _canonical_parse_journal_line,
-    read_journal as _canonical_read_journal,
     valid_instance_id,
+)
+from symbiont_lab.observation.observatory import (
+    parse_journal_line as _canonical_parse_journal_line,
+)
+from symbiont_lab.observation.observatory import (
+    read_journal as _canonical_read_journal,
 )
 from symbiont_lab.server.sse import stream_fleet, stream_instance
 
@@ -43,6 +47,7 @@ _STATIC_CONTENT_TYPES = {
     ".js": "text/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8",
 }
+
 
 def _valid_instance_id(value: str) -> bool:
     """Compatibility alias for the canonical instance-id validator."""
@@ -82,7 +87,9 @@ class _Handler(BaseHTTPRequestHandler):
                 limit = int(query.get("limit", ["256"])[0])
                 payload = self.server.world_state.events_after(after, limit=limit)
             except (TypeError, ValueError) as exc:
-                body = (json.dumps({"error": str(exc)}, separators=(",", ":")) + "\n").encode("utf-8")
+                body = (json.dumps({"error": str(exc)}, separators=(",", ":")) + "\n").encode(
+                    "utf-8"
+                )
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
@@ -119,14 +126,15 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _serve_json(self, payload: dict) -> None:
-        body = (json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+        body = (json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n").encode(
+            "utf-8"
+        )
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-
 
     def _serve_instance_manifest(self, instance_id: str) -> None:
         payload = self.server.observatory_source.manifest(instance_id)

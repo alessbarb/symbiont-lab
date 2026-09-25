@@ -4,6 +4,7 @@ Detects when ordinary behaviour should be interrupted or given defensive
 priority. It never chooses actuators and contains no anatomy, Physics3D,
 environment, resource, or task semantics.
 """
+
 from __future__ import annotations
 
 import math
@@ -72,19 +73,14 @@ class InnateReactivity:
         deviation = _unit(homeostatic_deviation)
         current = self._finite_percepts(percepts)
         raw_velocity = (
-            0.0 if self._previous_deviation is None
-            else deviation - self._previous_deviation
+            0.0 if self._previous_deviation is None else deviation - self._previous_deviation
         )
         self._smoothed_velocity = (
-            self._smoothing * raw_velocity
-            + (1.0 - self._smoothing) * self._smoothed_velocity
+            self._smoothing * raw_velocity + (1.0 - self._smoothing) * self._smoothed_velocity
         )
         shared = set(current).intersection(self._previous_percepts)
         surprise = max(
-            (
-                min(1.0, abs(current[key] - self._previous_percepts[key]))
-                for key in shared
-            ),
+            (min(1.0, abs(current[key] - self._previous_percepts[key])) for key in shared),
             default=0.0,
         )
         worsening = _unit(max(0.0, self._smoothed_velocity) / self._acute_velocity)

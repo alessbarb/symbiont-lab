@@ -7,6 +7,7 @@ collection cardinalities, and growth protection).
 They deliberately exclude temporal dynamics, maturation rates, decay intervals,
 or homeostatic thresholds, which belong to physiology or epistemic conventions.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, fields

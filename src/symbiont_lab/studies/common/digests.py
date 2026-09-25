@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from hashlib import sha256
 import json
+from hashlib import sha256
 from typing import Any, Iterable
 
 
@@ -21,7 +21,11 @@ def compute_world_digest(events: Iterable[Any]) -> str:
     for ev in events:
         if hasattr(ev, "step") and hasattr(ev, "host_index") and hasattr(ev, "truth_label"):
             observation = getattr(ev, "observation", None)
-            vector = observation.vector() if observation is not None and hasattr(observation, "vector") else ()
+            vector = (
+                observation.vector()
+                if observation is not None and hasattr(observation, "vector")
+                else ()
+            )
             values = ",".join(repr(float(value)) for value in vector)
             phase = getattr(ev, "phase", "")
             drift_state = getattr(ev, "drift_state", "")

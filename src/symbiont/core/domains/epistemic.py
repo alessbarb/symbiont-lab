@@ -1,11 +1,11 @@
 """Epistemic investigation and evidence-revision phase."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...host.readings import ReadingProvider
+from ...host.readings import HostSampler, ReadingProvider
 from ...host.second_look import SecondLookSession
-from ...host.readings import HostSampler
 from ..cognition.evidence import DissentRecord, EvidenceRevisionLedger
 from ..cognition.host_self_model import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
 from ..foundation.narrative import NarrativeEntry, narrate_host
@@ -55,17 +55,11 @@ class EpistemicDomain:
                 observation,
             ) in perception.drift_observations.items():
                 if observation.kind.value == "regime_shift":
-                    capability_id = (
-                        perception.capability_by_percept_name.get(
-                            percept_name
-                        )
-                    )
+                    capability_id = perception.capability_by_percept_name.get(percept_name)
                     if (
                         capability_id
                         and capability_id in perception.selected_ids
-                        and perception.snapshot.manifest.supports(
-                            capability_id
-                        )
+                        and perception.snapshot.manifest.supports(capability_id)
                     ):
                         investigation_candidates.append(capability_id)
             for allocation in perception.allocations:

@@ -1,5 +1,10 @@
 from symbiont_lab.world.cli_view import render_world, world_snapshot
-from symbiont_lab.world.genesis_v1 import GENESIS_V1_METADATA, HAZARD_IDS, RESOURCE_IDS, build_ground_truth
+from symbiont_lab.world.genesis_v1 import (
+    GENESIS_V1_METADATA,
+    HAZARD_IDS,
+    RESOURCE_IDS,
+    build_ground_truth,
+)
 from symbiont_lab.world.genesis_v2 import build_ground_truth_v2
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.events import WorldEvent
@@ -105,7 +110,11 @@ def test_world_snapshot_reports_unknown_cognition_as_null_not_plausible_defaults
     pop, truth, topo = _population(count=2)
     pop.run(2)
     snapshot = world_snapshot(
-        pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo,
+        pop.state,
+        pop.environment,
+        truth,
+        GENESIS_V1_METADATA,
+        topo,
         population=pop,
     )
     for org in snapshot["organisms"]:
@@ -113,16 +122,18 @@ def test_world_snapshot_reports_unknown_cognition_as_null_not_plausible_defaults
         assert cognition["prediction_confidence"] is None
         assert isinstance(cognition["private_model_bridge_active"], bool)
         assert cognition["interoception_mode"] in {"enabled", "sham", "absent"}
-        assert org["metabolic_pressure"] in {
-            "normal", "elevated", "severe", "unrecoverable"
-        }
+        assert org["metabolic_pressure"] in {"normal", "elevated", "severe", "unrecoverable"}
 
 
 def test_perception_projection_keeps_opaque_signal_ids():
     pop, truth, topo = _population(count=1)
     pop.run(1)
     snapshot = world_snapshot(
-        pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo,
+        pop.state,
+        pop.environment,
+        truth,
+        GENESIS_V1_METADATA,
+        topo,
         population=pop,
     )
     perception = snapshot["organisms"][0]["perception"]
@@ -143,18 +154,24 @@ def test_recent_damage_is_summed_from_committed_damage_events():
         and event.actor == organism_id
         and event.kind == "PHYSIOLOGICAL_DAMAGE"
     )
-    pop.journal.append(WorldEvent(
-        event_id="evt-test-observatory-damage",
-        world_id=pop.state.world_id,
-        tick=tick,
-        kind="PHYSIOLOGICAL_DAMAGE",
-        actor=organism_id,
-        position=None,
-        payload={"damage": 0.13, "source": "test"},
-    ))
+    pop.journal.append(
+        WorldEvent(
+            event_id="evt-test-observatory-damage",
+            world_id=pop.state.world_id,
+            tick=tick,
+            kind="PHYSIOLOGICAL_DAMAGE",
+            actor=organism_id,
+            position=None,
+            payload={"damage": 0.13, "source": "test"},
+        )
+    )
 
     snapshot = world_snapshot(
-        pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo,
+        pop.state,
+        pop.environment,
+        truth,
+        GENESIS_V1_METADATA,
+        topo,
         population=pop,
     )
     org = next(item for item in snapshot["organisms"] if item["id"] == organism_id)
@@ -190,7 +207,11 @@ def test_world_snapshot_uses_effective_regional_resource_capacity():
         ),
     )
     snapshot = world_snapshot(
-        pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo,
+        pop.state,
+        pop.environment,
+        truth,
+        GENESIS_V1_METADATA,
+        topo,
         population=pop,
     )
     scarce_label = "resource-scarce-rich"
@@ -201,14 +222,22 @@ def test_world_snapshot_uses_effective_regional_resource_capacity():
 
     assert north_cell["resource_capacities"][scarce_label] == round(
         truth.resource_law(
-            next(cell for cell in pop.state.occupancy.snapshot() if pop.state.occupancy.occupant(cell) == "north"),
+            next(
+                cell
+                for cell in pop.state.occupancy.snapshot()
+                if pop.state.occupancy.occupant(cell) == "north"
+            ),
             RESOURCE_IDS[scarce_label],
         ).capacity,
         3,
     )
     assert south_cell["resource_capacities"][scarce_label] == round(
         truth.resource_law(
-            next(cell for cell in pop.state.occupancy.snapshot() if pop.state.occupancy.occupant(cell) == "south"),
+            next(
+                cell
+                for cell in pop.state.occupancy.snapshot()
+                if pop.state.occupancy.occupant(cell) == "south"
+            ),
             RESOURCE_IDS[scarce_label],
         ).capacity,
         3,
@@ -231,16 +260,18 @@ def test_empty_cells_still_reflect_neighbor_density_in_hazard_projection():
         start_cells=(center,),
     )
     snapshot = world_snapshot(
-        pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo,
+        pop.state,
+        pop.environment,
+        truth,
+        GENESIS_V1_METADATA,
+        topo,
         population=pop,
     )
     neighboring_empty_cells = [
-        cell for cell in snapshot["cells"].values()
+        cell
+        for cell in snapshot["cells"].values()
         if cell["occupant"] is None and cell["density"] > 0.0
     ]
     assert neighboring_empty_cells
     base = truth.hazards[HAZARD_IDS["hazard-density-coupled"]].base_probability
-    assert any(
-        cell["hazards"]["hazard-density-coupled"] > base
-        for cell in neighboring_empty_cells
-    )
+    assert any(cell["hazards"]["hazard-density-coupled"] > base for cell in neighboring_empty_cells)

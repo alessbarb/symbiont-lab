@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
-from pathlib import Path
 from typing import Any, Callable
 
 from symbiont_lab.archive.studies import StudyArchive
@@ -21,10 +20,21 @@ def build_study_parser(parser: argparse.ArgumentParser) -> None:
     sub = parser.add_subparsers(dest="study_action", required=True)
     run_cmd = sub.add_parser("run", help="Run a scientific study protocol")
     run_cmd.add_argument("protocol", choices=sorted(PROTOCOLS.keys()), help="Protocol name")
-    run_cmd.add_argument("--seeds", "--seed", dest="seeds", default="101,127,149", help="Seed or comma-separated seeds")
+    run_cmd.add_argument(
+        "--seeds",
+        "--seed",
+        dest="seeds",
+        default="101,127,149",
+        help="Seed or comma-separated seeds",
+    )
     run_cmd.add_argument("--hosts", type=int, default=None, help="Override synthetic host count")
     run_cmd.add_argument("--steps", type=int, default=None, help="Override simulation steps")
-    run_cmd.add_argument("--generations", type=int, default=None, help="Override generation count for longitudinal protocols")
+    run_cmd.add_argument(
+        "--generations",
+        type=int,
+        default=None,
+        help="Override generation count for longitudinal protocols",
+    )
 
     show_cmd = sub.add_parser("show", help="Show details of an archived study run")
     show_cmd.add_argument("record_id", help="Study record identifier")
@@ -85,7 +95,9 @@ def _prepare_protocol_kwargs(
     elif "source_seed" in params:
         kwargs["source_seed"] = seeds[0] if seeds else 7
         if "target_seed" in params:
-            kwargs["target_seed"] = seeds[1] if len(seeds) > 1 else (seeds[0] + 1009 if seeds else 1016)
+            kwargs["target_seed"] = (
+                seeds[1] if len(seeds) > 1 else (seeds[0] + 1009 if seeds else 1016)
+            )
 
     # Forward optional overrides if accepted by protocol
     if getattr(args, "hosts", None) is not None and "hosts" in params:

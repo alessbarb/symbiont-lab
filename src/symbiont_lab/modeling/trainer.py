@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import io
 import math
+from dataclasses import dataclass
 from typing import Any
 
 from symbiont.modeling.authority import (
@@ -13,7 +13,12 @@ from symbiont.modeling.authority import (
     TrainingRequest,
 )
 
-from .architectures import architecture_spec_from_manifest, build_model, count_parameters, resolve_architecture_spec
+from .architectures import (
+    architecture_spec_from_manifest,
+    build_model,
+    count_parameters,
+    resolve_architecture_spec,
+)
 from .artifacts import ModelArtifact
 from .dataset import EncodedCorpus, EncodedSplit
 
@@ -32,11 +37,24 @@ class TrainingConfig:
             ("weight_decay", self.weight_decay, 0.0, 1.0),
             ("gradient_clip", self.gradient_clip, 0.01, 100.0),
         ):
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) or not low <= float(value) <= high:
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or not low <= float(value) <= high
+            ):
                 raise ValueError(f"{name} outside supported bounds")
-        if isinstance(self.batch_size, bool) or not isinstance(self.batch_size, int) or not 1 <= self.batch_size <= 512:
+        if (
+            isinstance(self.batch_size, bool)
+            or not isinstance(self.batch_size, int)
+            or not 1 <= self.batch_size <= 512
+        ):
             raise ValueError("batch_size must be within [1, 512]")
-        if isinstance(self.patience, bool) or not isinstance(self.patience, int) or not 1 <= self.patience <= 64:
+        if (
+            isinstance(self.patience, bool)
+            or not isinstance(self.patience, int)
+            or not 1 <= self.patience <= 64
+        ):
             raise ValueError("patience must be within [1, 64]")
 
 
@@ -64,7 +82,9 @@ def _torch() -> Any:
         import torch
         import torch.nn.functional as F
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("private-model training requires the optional 'modeling' dependency (torch)") from exc
+        raise RuntimeError(
+            "private-model training requires the optional 'modeling' dependency (torch)"
+        ) from exc
     return torch, F
 
 
@@ -85,7 +105,9 @@ def _batch_tensors(sequences, *, pad_id: int, context_window: int, device, torch
     return inputs, targets, mask
 
 
-def evaluate_model(model, split: EncodedSplit, *, pad_id: int, context_window: int, device=None) -> TrainingMetrics:
+def evaluate_model(
+    model, split: EncodedSplit, *, pad_id: int, context_window: int, device=None
+) -> TrainingMetrics:
     """Evaluate only causal outcome targets, never record grammar."""
     torch, F = _torch()
     if device is None:
@@ -98,8 +120,7 @@ def evaluate_model(model, split: EncodedSplit, *, pad_id: int, context_window: i
         for sequence, positions in zip(split.sequences, split.outcome_target_positions):
             bounded = tuple(sequence[: context_window + 1])
             valid_positions = tuple(
-                position for position in positions
-                if 0 <= position < len(bounded) - 1
+                position for position in positions if 0 <= position < len(bounded) - 1
             )
             if not valid_positions:
                 continue
@@ -130,7 +151,9 @@ def _serialize_weights(model) -> bytes:
     return buffer.getvalue()
 
 
-def _load_parent_state(parent: ModelArtifact, *, request: TrainingRequest, corpus: EncodedCorpus, model, torch) -> None:
+def _load_parent_state(
+    parent: ModelArtifact, *, request: TrainingRequest, corpus: EncodedCorpus, model, torch
+) -> None:
     manifest = parent.manifest
     if manifest.organism_id != request.organism_id:
         raise ValueError("parent model belongs to a different organism")
@@ -140,7 +163,10 @@ def _load_parent_state(parent: ModelArtifact, *, request: TrainingRequest, corpu
         raise ValueError("parent architecture is incompatible")
     if manifest.objective is not request.objective:
         raise ValueError("parent objective is incompatible")
-    if manifest.tokenizer_hash != request.tokenizer_hash or manifest.tokenizer_hash != corpus.tokenizer_hash:
+    if (
+        manifest.tokenizer_hash != request.tokenizer_hash
+        or manifest.tokenizer_hash != corpus.tokenizer_hash
+    ):
         raise ValueError("parent tokenizer is incompatible")
     if manifest.context_window != request.context_window:
         raise ValueError("parent context window is incompatible")
@@ -175,7 +201,9 @@ def _train_private_model(
         raise ValueError("request hashes do not match encoded corpus")
     authorization = authority.authorize(
         request,
-        corpus_records=len(corpus.train.sequences) + len(corpus.validation.sequences) + len(corpus.test.sequences),
+        corpus_records=len(corpus.train.sequences)
+        + len(corpus.validation.sequences)
+        + len(corpus.test.sequences),
     )
     selected_config = config or TrainingConfig()
     torch, F = _torch()
@@ -210,7 +238,9 @@ def _train_private_model(
             f"architecture parameter count {parameter_count} exceeds authorized ceiling {authorization.parameter_ceiling}"
         )
     if parent_artifact is not None:
-        _load_parent_state(parent_artifact, request=request, corpus=corpus, model=model, torch=torch)
+        _load_parent_state(
+            parent_artifact, request=request, corpus=corpus, model=model, torch=torch
+        )
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -245,9 +275,7 @@ def _train_private_model(
         validation_trace.append(validation)
         last_validation_step = steps
         min_gain = (
-            float(request.requested_min_validation_gain)
-            if request.autonomous_stopping
-            else 1e-9
+            float(request.requested_min_validation_gain) if request.autonomous_stopping else 1e-9
         )
         patience = (
             int(request.requested_patience)
@@ -256,7 +284,9 @@ def _train_private_model(
         )
         if validation.mean_log_loss + min_gain < best_validation:
             best_validation = validation.mean_log_loss
-            best_state = {name: tensor.detach().cpu().clone() for name, tensor in model.state_dict().items()}
+            best_state = {
+                name: tensor.detach().cpu().clone() for name, tensor in model.state_dict().items()
+            }
             stale_checks = 0
             return False
         stale_checks += 1
@@ -273,7 +303,9 @@ def _train_private_model(
                 break
             batch_indices = order[start : start + selected_config.batch_size]
             batch = tuple(train_sequences[index] for index in batch_indices)
-            batch_positions = tuple(corpus.train.outcome_target_positions[index] for index in batch_indices)
+            batch_positions = tuple(
+                corpus.train.outcome_target_positions[index] for index in batch_indices
+            )
             inputs, targets, mask = _batch_tensors(
                 batch,
                 pad_id=corpus.pad_id,
@@ -304,10 +336,7 @@ def _train_private_model(
             if (
                 request.autonomous_stopping
                 and validation_interval_steps is not None
-                and (
-                    steps % validation_interval_steps == 0
-                    or steps >= authorization.step_ceiling
-                )
+                and (steps % validation_interval_steps == 0 or steps >= authorization.step_ceiling)
             ):
                 if capture_validation():
                     stop_requested = True
@@ -328,10 +357,18 @@ def _train_private_model(
     model.load_state_dict(best_state)
     model.to(resolved_device)
     train_metrics = evaluate_model(
-        model, corpus.train, pad_id=corpus.pad_id, context_window=request.context_window, device=resolved_device
+        model,
+        corpus.train,
+        pad_id=corpus.pad_id,
+        context_window=request.context_window,
+        device=resolved_device,
     )
     validation_metrics = evaluate_model(
-        model, corpus.validation, pad_id=corpus.pad_id, context_window=request.context_window, device=resolved_device
+        model,
+        corpus.validation,
+        pad_id=corpus.pad_id,
+        context_window=request.context_window,
+        device=resolved_device,
     )
     weights = _serialize_weights(model.to("cpu"))
     if len(weights) > authorization.artifact_byte_ceiling:

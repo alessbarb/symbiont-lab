@@ -57,13 +57,15 @@ def wire_schema_v2(**overrides):
         "schema_version": 2,
         "state": "partial",
         "parts": [sense_part(), first, second],
-        "dependencies": [{
-            "source_id": first["part_id"],
-            "target_id": second["part_id"],
-            "relation": "co_acts_with",
-            "confidence_class": 12,
-            "support_class": 8,
-        }],
+        "dependencies": [
+            {
+                "source_id": first["part_id"],
+                "target_id": second["part_id"],
+                "relation": "co_acts_with",
+                "confidence_class": 12,
+                "support_class": 8,
+            }
+        ],
         "global_state": {},
     }
     payload.update(overrides)
@@ -87,7 +89,13 @@ class BodySchemaSnapshotTests(unittest.TestCase):
         self.assertEqual(to_wire(internal), source)
 
     def test_undeveloped_v2_round_trips_without_fabrication(self):
-        source = {"schema_version": 2, "state": "undeveloped", "parts": [], "dependencies": [], "global_state": {}}
+        source = {
+            "schema_version": 2,
+            "state": "undeveloped",
+            "parts": [],
+            "dependencies": [],
+            "global_state": {},
+        }
         internal = bounded(source)
         self.assertEqual(internal["state"], "undeveloped")
         self.assertEqual(to_wire(internal), source)
@@ -103,7 +111,8 @@ class BodySchemaSnapshotTests(unittest.TestCase):
 
         source = wire_schema_v2()
         source["dependencies"][0]["source_id"], source["dependencies"][0]["target_id"] = (
-            source["dependencies"][0]["target_id"], source["dependencies"][0]["source_id"]
+            source["dependencies"][0]["target_id"],
+            source["dependencies"][0]["source_id"],
         )
         self.assertIsNone(bounded(source))
 

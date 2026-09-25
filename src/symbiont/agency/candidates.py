@@ -1,9 +1,11 @@
 """Prospective candidate repertoire from learned motor competences."""
+
 from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 
 from symbiont.actuation.competence import CompetenceMaturity, MotorCompetence
+
 from .types import ProspectiveCandidate
 
 _MAX_CANDIDATES = 8
@@ -21,8 +23,7 @@ def competence_candidates(
     eligible = sorted(
         competence.competence_id
         for competence in competences
-        if competence.maturity
-        in {CompetenceMaturity.ESTABLISHED, CompetenceMaturity.ROBUST}
+        if competence.maturity in {CompetenceMaturity.ESTABLISHED, CompetenceMaturity.ROBUST}
         and competence.competence_id in competence_readouts
     )
     return tuple(
@@ -50,8 +51,7 @@ def motor_competence_candidates(
     eligible = sorted(
         primitive.primitive_id
         for primitive in primitives
-        if primitive.maturity
-        in {CompetenceMaturity.ESTABLISHED, CompetenceMaturity.ROBUST}
+        if primitive.maturity in {CompetenceMaturity.ESTABLISHED, CompetenceMaturity.ROBUST}
         and primitive.primitive_id in readouts
     )
     return tuple(

@@ -1,10 +1,12 @@
 """Evaluator-only proof that repeated local denials revise resource choice."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.core.social import SocialHabitat
 
 
@@ -31,7 +33,8 @@ def _run_post_shift(runtime: OrganismRuntime, ticks: int) -> tuple[tuple[str, fl
 
 
 def run_social_runtime_denial_revision_study(
-    *, phase_ticks: int = 8,
+    *,
+    phase_ticks: int = 8,
 ) -> SocialRuntimeDenialRevisionStudy:
     """Change one opaque inventory and require revision after local denials.
 
@@ -62,7 +65,9 @@ def run_social_runtime_denial_revision_study(
     runtime_checkpoint = runtime.checkpoint()
     habitat_checkpoint = habitat.checkpoint()
     restored = OrganismRuntime.from_checkpoint(runtime_checkpoint, social_habitat=habitat)
-    checkpoint_replay_equal = restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
+    checkpoint_replay_equal = (
+        restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
+    )
 
     habitat.engine.pool.replenish("alpha", float(phase_ticks))
     post_shift = _run_post_shift(restored, phase_ticks)
@@ -76,7 +81,9 @@ def run_social_runtime_denial_revision_study(
             break
 
     replay_habitat = SocialHabitat.from_checkpoint(habitat_checkpoint)
-    replay_runtime = OrganismRuntime.from_checkpoint(runtime_checkpoint, social_habitat=replay_habitat)
+    replay_runtime = OrganismRuntime.from_checkpoint(
+        runtime_checkpoint, social_habitat=replay_habitat
+    )
     replay_habitat.engine.pool.replenish("alpha", float(phase_ticks))
     replay_post_shift = _run_post_shift(replay_runtime, phase_ticks)
     return SocialRuntimeDenialRevisionStudy(

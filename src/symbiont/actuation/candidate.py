@@ -98,7 +98,8 @@ class ActuatorCandidateState:
             "last_seen_tick": self.last_seen_tick,
             "natural_promotion_samples": self.natural_promotion_samples,
             "effect_relations": {
-                percept_id: relation.to_payload() for percept_id, relation in self.effect_relations.items()
+                percept_id: relation.to_payload()
+                for percept_id, relation in self.effect_relations.items()
             },
         }
 
@@ -122,7 +123,9 @@ class ActuatorCandidateState:
 
         probing_state = payload["probing_state"]
         if probing_state not in _VALID_PROBING_STATES:
-            raise ValueError(f"probing_state must be one of {sorted(_VALID_PROBING_STATES)}, got {probing_state!r}")
+            raise ValueError(
+                f"probing_state must be one of {sorted(_VALID_PROBING_STATES)}, got {probing_state!r}"
+            )
         raw_relations = payload["effect_relations"]
         if not isinstance(raw_relations, dict):
             raise ValueError("effect_relations must be an object")

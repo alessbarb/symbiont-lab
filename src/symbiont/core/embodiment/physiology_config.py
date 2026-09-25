@@ -3,10 +3,11 @@
 Defines immutable thresholds, rates, and parameters for organism viability,
 homeostatic response, and computational metabolism.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,7 +145,9 @@ class PhysiologyConfig:
 
         # Repair rate
         if self.max_repair_per_tick <= 0.0:
-            raise ValueError(f"max_repair_per_tick must be positive; got {self.max_repair_per_tick}")
+            raise ValueError(
+                f"max_repair_per_tick must be positive; got {self.max_repair_per_tick}"
+            )
 
         if not 0.0 < self.autonomous_repair_rate <= self.max_repair_per_tick:
             raise ValueError("autonomous_repair_rate must be within (0, max_repair_per_tick]")
@@ -165,23 +168,37 @@ class PhysiologyConfig:
 
         # Activity scaling and floors
         if not (0.0 <= self.activity_elevated_penalty <= 1.0):
-            raise ValueError(f"activity_elevated_penalty must be within [0, 1]; got {self.activity_elevated_penalty}")
+            raise ValueError(
+                f"activity_elevated_penalty must be within [0, 1]; got {self.activity_elevated_penalty}"
+            )
         if not (0.0 < self.activity_elevated_floor <= 1.0):
-            raise ValueError(f"activity_elevated_floor must be within (0, 1]; got {self.activity_elevated_floor}")
+            raise ValueError(
+                f"activity_elevated_floor must be within (0, 1]; got {self.activity_elevated_floor}"
+            )
         if not (0.0 <= self.activity_severe_penalty <= 1.0):
-            raise ValueError(f"activity_severe_penalty must be within [0, 1]; got {self.activity_severe_penalty}")
+            raise ValueError(
+                f"activity_severe_penalty must be within [0, 1]; got {self.activity_severe_penalty}"
+            )
         if not (0.0 < self.activity_severe_floor <= 1.0):
-            raise ValueError(f"activity_severe_floor must be within (0, 1]; got {self.activity_severe_floor}")
+            raise ValueError(
+                f"activity_severe_floor must be within (0, 1]; got {self.activity_severe_floor}"
+            )
 
         # Safe mode
         if not (0.0 <= self.safe_mode_integrity_threshold <= 1.0):
-            raise ValueError(f"safe_mode_integrity_threshold must be within [0, 1]; got {self.safe_mode_integrity_threshold}")
+            raise ValueError(
+                f"safe_mode_integrity_threshold must be within [0, 1]; got {self.safe_mode_integrity_threshold}"
+            )
         if not (0.0 < self.safe_mode_activity_scale <= 1.0):
-            raise ValueError(f"safe_mode_activity_scale must be within (0, 1]; got {self.safe_mode_activity_scale}")
+            raise ValueError(
+                f"safe_mode_activity_scale must be within (0, 1]; got {self.safe_mode_activity_scale}"
+            )
 
         # Dormant factor
         if not (0.0 < self.dormant_metabolic_factor <= 1.0):
-            raise ValueError(f"dormant_metabolic_factor must be within (0, 1]; got {self.dormant_metabolic_factor}")
+            raise ValueError(
+                f"dormant_metabolic_factor must be within (0, 1]; got {self.dormant_metabolic_factor}"
+            )
 
         # Aging and waste ticks
         if not isinstance(self.aging_ticks, int) or self.aging_ticks < 1:
@@ -193,9 +210,7 @@ class PhysiologyConfig:
         if not 0.0 < self.growth_rate_per_tick <= 1.0:
             raise ValueError("growth_rate_per_tick must be within (0, 1]")
         if not 0.0 < self.growth_energy_fraction_per_progress <= 1.0:
-            raise ValueError(
-                "growth_energy_fraction_per_progress must be within (0, 1]"
-            )
+            raise ValueError("growth_energy_fraction_per_progress must be within (0, 1]")
         if not isinstance(self.senescence_start_ticks, int) or self.senescence_start_ticks < 1:
             raise ValueError("senescence_start_ticks must be an integer >= 1")
         if not 0.0 <= self.senescence_rate_per_tick <= 1.0:

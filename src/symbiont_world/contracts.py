@@ -6,6 +6,7 @@ are coerced into MappingProxyType so a caller cannot mutate them after
 construction, and no field carries cell_id, absolute coordinates, entity
 types or any other ground-truth semantics.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

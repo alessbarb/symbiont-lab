@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import pytest
-
 from symbiont.core.attention import (
     AttentionBudget,
     AttentionCandidate,
     attend_to_host,
     uncertainty_from_baseline,
 )
+
 from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
@@ -38,7 +38,9 @@ def test_candidate_rejects_nan_uncertainty_but_allows_unacclimated_infinity():
     with pytest.raises(ValueError):
         AttentionCandidate(name="a", uncertainty=float("nan"), cost=1.0)
 
-    assert AttentionCandidate(name="a", uncertainty=float("inf"), cost=1.0).uncertainty == float("inf")
+    assert AttentionCandidate(name="a", uncertainty=float("inf"), cost=1.0).uncertainty == float(
+        "inf"
+    )
 
 
 @pytest.mark.parametrize("field", ["cost", "rank_cost"])
@@ -201,7 +203,9 @@ def test_rank_cost_defaults_to_one_and_does_not_change_existing_behavior():
 
 def test_rank_cost_reorders_ranking_without_changing_budget_consumption():
     candidates = [
-        AttentionCandidate(name="expensive-but-uncertain", uncertainty=10.0, cost=1.0, rank_cost=4.0),
+        AttentionCandidate(
+            name="expensive-but-uncertain", uncertainty=10.0, cost=1.0, rank_cost=4.0
+        ),
         AttentionCandidate(name="cheap-and-uncertain", uncertainty=10.0, cost=1.0, rank_cost=1.0),
     ]
     allocations = AttentionBudget(budget=1.0).allocate(candidates)

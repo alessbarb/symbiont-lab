@@ -4,16 +4,17 @@ Training stays outside the organism process. The canonical runtime owns the
 request, corpus and registry; this worker only executes an authorized bounded
 training job and stores the resulting artifact.
 """
+
 from __future__ import annotations
 
-from concurrent.futures import Future, ProcessPoolExecutor
-from contextlib import suppress
 import json
 import multiprocessing as mp
 import os
 import signal
 import tempfile
 import time
+from concurrent.futures import Future, ProcessPoolExecutor
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Protocol, TypedDict
 
@@ -56,9 +57,7 @@ class _PrivateModelRuntime(Protocol):
     def settle_private_model_training_compute(
         self, *, request_id: str, steps_completed: int
     ) -> None: ...
-    def adopt_private_model(
-        self, manifest: Any, *, evaluation_summary: tuple[int, ...]
-    ) -> Any: ...
+    def adopt_private_model(self, manifest: Any, *, evaluation_summary: tuple[int, ...]) -> Any: ...
     def activate_private_model(
         self,
         model_id: str,
@@ -90,6 +89,7 @@ def _train_job(
             pass
         try:
             import torch
+
             torch.set_num_threads(1)
             torch.set_num_interop_threads(1)
         except (ImportError, RuntimeError):
@@ -318,9 +318,7 @@ class Physics3DSlmManager:
         if active is not None:
             path = _tokenizer_path(self.models_dir, active.model_id)
             if not path.is_file():
-                self._last_error = (
-                    "active SLM artifact exists but its tokenizer sidecar is missing"
-                )
+                self._last_error = "active SLM artifact exists but its tokenizer sidecar is missing"
                 return
             try:
                 self._attach_model(runtime, active.model_id)
@@ -370,9 +368,7 @@ class Physics3DSlmManager:
         runtime.retire_private_model(candidates[0].model_id)
 
     @staticmethod
-    def _retire_stale_candidates(
-        runtime: _PrivateModelRuntime, *, keep: int = 3
-    ) -> None:
+    def _retire_stale_candidates(runtime: _PrivateModelRuntime, *, keep: int = 3) -> None:
         active = runtime.model_registry.active
         replaceable = [
             record
@@ -455,9 +451,7 @@ class Physics3DSlmManager:
             if self._future is not None:
                 time.sleep(poll_interval_s)
 
-    def maybe_schedule(
-        self, runtime: _PrivateModelRuntime, *, current_tick: int
-    ) -> bool:
+    def maybe_schedule(self, runtime: _PrivateModelRuntime, *, current_tick: int) -> bool:
         """Service one organism-authored learning plan when compute is free.
 
         The manager may defer service while a worker is busy or while the local

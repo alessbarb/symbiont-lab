@@ -1,9 +1,8 @@
 """Unit tests for motor_competence_candidates() builder."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-
-import pytest
 
 from symbiont.actuation.competence import CompetenceMaturity
 from symbiont.agency.candidates import _MAX_CANDIDATES, motor_competence_candidates
@@ -18,11 +17,7 @@ class _FakeController:
 
 
 def _prims(*ids, competent=True):
-    maturity = (
-        CompetenceMaturity.ESTABLISHED
-        if competent
-        else CompetenceMaturity.CANDIDATE
-    )
+    maturity = CompetenceMaturity.ESTABLISHED if competent else CompetenceMaturity.CANDIDATE
     return [_FakeController(primitive_id=pid, maturity=maturity) for pid in ids]
 
 

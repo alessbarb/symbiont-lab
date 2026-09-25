@@ -4,6 +4,7 @@ The substrate deliberately contains no symbol-to-meaning table.  A symbol is
 only an opaque identifier; outcome associations are created by the receiving
 organism after local experience.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -62,10 +63,21 @@ class SymbolDecisionRecord:
     def __post_init__(self) -> None:
         _id(self.decision_id, "decision_id")
         _id(self.organism_id, "organism_id")
-        if isinstance(self.decision_tick, bool) or not isinstance(self.decision_tick, int) or self.decision_tick < 0:
+        if (
+            isinstance(self.decision_tick, bool)
+            or not isinstance(self.decision_tick, int)
+            or self.decision_tick < 0
+        ):
             raise ValueError("decision_tick must be non-negative")
-        for value, name in ((self.candidate_symbols_digest, "candidate_symbols_digest"), (self.local_state_digest, "local_state_digest")):
-            if not isinstance(value, str) or len(value) != 64 or any(char not in "0123456789abcdef" for char in value):
+        for value, name in (
+            (self.candidate_symbols_digest, "candidate_symbols_digest"),
+            (self.local_state_digest, "local_state_digest"),
+        ):
+            if (
+                not isinstance(value, str)
+                or len(value) != 64
+                or any(char not in "0123456789abcdef" for char in value)
+            ):
                 raise ValueError(f"{name} must be a SHA-256 digest")
         if not isinstance(self.selected_action, SymbolAction):
             raise ValueError("invalid symbol action")
@@ -93,9 +105,14 @@ class SymbolDecisionRecord:
     def restore(cls, payload: Mapping[str, object]) -> "SymbolDecisionRecord":
         try:
             return cls(
-                str(payload["decision_id"]), str(payload["organism_id"]), payload["decision_tick"],
-                str(payload["candidate_symbols_digest"]), SymbolAction(payload["selected_action"]),
-                payload.get("selected_symbol_id"), payload.get("selected_recipient_id"), payload["cost"],
+                str(payload["decision_id"]),
+                str(payload["organism_id"]),
+                payload["decision_tick"],
+                str(payload["candidate_symbols_digest"]),
+                SymbolAction(payload["selected_action"]),
+                payload.get("selected_symbol_id"),
+                payload.get("selected_recipient_id"),
+                payload["cost"],
                 str(payload["local_state_digest"]),
             )
         except (KeyError, TypeError, ValueError) as exc:
@@ -114,9 +131,17 @@ class SymbolMessage:
         _id(self.symbol_id, "symbol_id")
         _id(self.sender_id, "sender_id")
         _id(self.receiver_id, "receiver_id")
-        if isinstance(self.emitted_tick, bool) or not isinstance(self.emitted_tick, int) or self.emitted_tick < 0:
+        if (
+            isinstance(self.emitted_tick, bool)
+            or not isinstance(self.emitted_tick, int)
+            or self.emitted_tick < 0
+        ):
             raise ValueError("emitted_tick must be non-negative")
-        if isinstance(self.transmission_depth, bool) or not isinstance(self.transmission_depth, int) or not 0 <= self.transmission_depth <= 32:
+        if (
+            isinstance(self.transmission_depth, bool)
+            or not isinstance(self.transmission_depth, int)
+            or not 0 <= self.transmission_depth <= 32
+        ):
             raise ValueError("transmission_depth exceeds its bound")
 
 
@@ -160,7 +185,11 @@ class SymbolAssociation:
     def __post_init__(self) -> None:
         _id(self.symbol_id, "symbol_id")
         _id(self.outcome_token, "outcome_token")
-        for value, name in ((self.support, "support"), (self.contradiction, "contradiction"), (self.last_tick, "last_tick")):
+        for value, name in (
+            (self.support, "support"),
+            (self.contradiction, "contradiction"),
+            (self.last_tick, "last_tick"),
+        ):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"{name} must be a bounded non-negative integer")
 
@@ -201,14 +230,25 @@ class SymbolGroundingLedger:
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("tick must be non-negative")
         self._exposures.append(message)
-        self._history.append({"kind": "exposure", "symbol_id": message.symbol_id, "sender_id": message.sender_id, "tick": tick})
+        self._history.append(
+            {
+                "kind": "exposure",
+                "symbol_id": message.symbol_id,
+                "sender_id": message.sender_id,
+                "tick": tick,
+            }
+        )
         self._cost += 1
 
-    def observe_outcome(self, outcome_token: str, *, tick: int, supported: bool = True, symbol_id: str | None = None) -> SymbolAssociation:
+    def observe_outcome(
+        self, outcome_token: str, *, tick: int, supported: bool = True, symbol_id: str | None = None
+    ) -> SymbolAssociation:
         _id(outcome_token, "outcome_token")
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("tick must be non-negative")
-        candidates = [item for item in self._exposures if symbol_id is None or item.symbol_id == symbol_id]
+        candidates = [
+            item for item in self._exposures if symbol_id is None or item.symbol_id == symbol_id
+        ]
         if not candidates:
             raise ValueError("no local symbol exposure available")
         selected = candidates[-1]
@@ -224,16 +264,35 @@ class SymbolGroundingLedger:
             tick,
         )
         self._associations[key] = association
-        self._history.append({"kind": "outcome", "symbol_id": selected.symbol_id, "outcome_token": outcome_token, "supported": supported, "tick": tick})
+        self._history.append(
+            {
+                "kind": "outcome",
+                "symbol_id": selected.symbol_id,
+                "outcome_token": outcome_token,
+                "supported": supported,
+                "tick": tick,
+            }
+        )
         self._cost += 1
         return association
 
     def predict(self, symbol_id: str) -> str | None:
         _id(symbol_id, "symbol_id")
-        candidates = [item for item in self.associations if item.symbol_id == symbol_id and item.support > item.contradiction]
+        candidates = [
+            item
+            for item in self.associations
+            if item.symbol_id == symbol_id and item.support > item.contradiction
+        ]
         if not candidates:
             return None
-        return max(candidates, key=lambda item: (item.support - item.contradiction, item.last_tick, item.outcome_token)).outcome_token
+        return max(
+            candidates,
+            key=lambda item: (
+                item.support - item.contradiction,
+                item.last_tick,
+                item.outcome_token,
+            ),
+        ).outcome_token
 
     def grounding_strength(self, symbol_id: str) -> int:
         predicted = self.predict(symbol_id)
@@ -245,7 +304,11 @@ class SymbolGroundingLedger:
     def forget(self, *, current_tick: int, max_age: int) -> int:
         if isinstance(max_age, bool) or not isinstance(max_age, int) or max_age < 0:
             raise ValueError("max_age must be non-negative")
-        removed = [key for key, item in self._associations.items() if current_tick - item.last_tick > max_age]
+        removed = [
+            key
+            for key, item in self._associations.items()
+            if current_tick - item.last_tick > max_age
+        ]
         for key in removed:
             del self._associations[key]
         return len(removed)
@@ -255,21 +318,40 @@ class SymbolGroundingLedger:
             "schema_version": self.SCHEMA_VERSION,
             "organism_id": self.organism_id,
             "max_associations": self.max_associations,
-            "exposures": [message.__dict__ if hasattr(message, "__dict__") else {field: getattr(message, field) for field in message.__dataclass_fields__} for message in self.exposures],
-            "associations": [{field: getattr(item, field) for field in item.__dataclass_fields__} for item in self.associations],
+            "exposures": [
+                message.__dict__
+                if hasattr(message, "__dict__")
+                else {field: getattr(message, field) for field in message.__dataclass_fields__}
+                for message in self.exposures
+            ],
+            "associations": [
+                {field: getattr(item, field) for field in item.__dataclass_fields__}
+                for item in self.associations
+            ],
             "history": list(self._history),
             "cost": self._cost,
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None, *, organism_id: str) -> "SymbolGroundingLedger":
+    def restore(
+        cls, payload: Mapping[str, object] | None, *, organism_id: str
+    ) -> "SymbolGroundingLedger":
         if payload is None:
             return cls(organism_id)
-        if payload.get("schema_version") != cls.SCHEMA_VERSION or payload.get("organism_id") != organism_id:
+        if (
+            payload.get("schema_version") != cls.SCHEMA_VERSION
+            or payload.get("organism_id") != organism_id
+        ):
             raise ValueError("invalid symbol grounding checkpoint")
-        if not isinstance(payload.get("exposures", []), list) or len(payload["exposures"]) > MAX_HISTORY:
+        if (
+            not isinstance(payload.get("exposures", []), list)
+            or len(payload["exposures"]) > MAX_HISTORY
+        ):
             raise ValueError("invalid symbol exposures")
-        if not isinstance(payload.get("associations", []), list) or len(payload["associations"]) > MAX_ASSOCIATIONS:
+        if (
+            not isinstance(payload.get("associations", []), list)
+            or len(payload["associations"]) > MAX_ASSOCIATIONS
+        ):
             raise ValueError("invalid symbol associations")
         ledger = cls(organism_id, max_associations=payload["max_associations"])
         for row in payload.get("exposures", []):
@@ -277,7 +359,10 @@ class SymbolGroundingLedger:
         for row in payload.get("associations", []):
             item = SymbolAssociation(**row)
             ledger._associations[(item.symbol_id, item.outcome_token)] = item
-        if not isinstance(payload.get("history", []), list) or len(payload["history"]) > MAX_HISTORY:
+        if (
+            not isinstance(payload.get("history", []), list)
+            or len(payload["history"]) > MAX_HISTORY
+        ):
             raise ValueError("invalid symbol history")
         ledger._history.extend(payload.get("history", []))
         ledger._cost = payload.get("cost", 0)
@@ -289,7 +374,9 @@ class SymbolGroundingLedger:
 class SymbolChannel:
     """Authorized in-memory symbolic transport; no discovery or host I/O."""
 
-    def __init__(self, *, authorized_pairs: set[tuple[str, str]], max_deliveries: int = 256) -> None:
+    def __init__(
+        self, *, authorized_pairs: set[tuple[str, str]], max_deliveries: int = 256
+    ) -> None:
         if len(authorized_pairs) > MAX_HISTORY:
             raise ValueError("authorized symbol pairs exceed bound")
         if isinstance(max_deliveries, bool) or not 1 <= max_deliveries <= MAX_HISTORY * 4:
@@ -298,7 +385,9 @@ class SymbolChannel:
         self.max_deliveries = max_deliveries
         self.deliveries = 0
 
-    def deliver(self, message: SymbolMessage, *, receiver: SymbolGroundingLedger, tick: int) -> None:
+    def deliver(
+        self, message: SymbolMessage, *, receiver: SymbolGroundingLedger, tick: int
+    ) -> None:
         if (message.sender_id, message.receiver_id) not in self.authorized_pairs:
             raise ValueError("unauthorized symbol delivery")
         if self.deliveries >= self.max_deliveries:
@@ -328,7 +417,9 @@ class SymbolPolicy:
         self.organism_id = organism_id
         self.seed = seed
         self.symbol_space = tuple(symbol_space or default_symbol_space())
-        if not 1 <= len(self.symbol_space) <= MAX_SYMBOLS or len(set(self.symbol_space)) != len(self.symbol_space):
+        if not 1 <= len(self.symbol_space) <= MAX_SYMBOLS or len(set(self.symbol_space)) != len(
+            self.symbol_space
+        ):
             raise ValueError("invalid symbol space")
         for symbol in self.symbol_space:
             _id(symbol, "symbol")
@@ -347,18 +438,28 @@ class SymbolPolicy:
 
     @staticmethod
     def _digest(value: object) -> str:
-        return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        return hashlib.sha256(
+            json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
 
-    def choose(self, *, local_context_token: str, neighbor_ids: Iterable[str], tick: int) -> SymbolDecisionRecord:
+    def choose(
+        self, *, local_context_token: str, neighbor_ids: Iterable[str], tick: int
+    ) -> SymbolDecisionRecord:
         _id(local_context_token, "local_context_token")
         neighbors = tuple(sorted(set(neighbor_ids)))
         for neighbor in neighbors:
             _id(neighbor, "neighbor_id")
-        candidates = tuple((symbol, receiver) for symbol in self.symbol_space for receiver in neighbors)
+        candidates = tuple(
+            (symbol, receiver) for symbol in self.symbol_space for receiver in neighbors
+        )
         candidate_digest = self._digest(candidates)
         if not candidates:
             return self._record(tick, candidate_digest, SymbolAction.SILENCE, None, None, 0)
-        ranked = sorted(candidates, key=lambda item: self._digest((self.seed, local_context_token, item)), reverse=True)
+        ranked = sorted(
+            candidates,
+            key=lambda item: self._digest((self.seed, local_context_token, item)),
+            reverse=True,
+        )
         symbol, receiver = ranked[0]
         # A deterministic bounded silence gate prevents forced signalling.
         if int(self._digest((self.seed, local_context_token, tick))[:2], 16) < 32:
@@ -378,18 +479,27 @@ class SymbolPolicy:
         neighbors = tuple(sorted(set(neighbor_ids)))
         for neighbor in neighbors:
             _id(neighbor, "neighbor_id")
-        known = tuple(sorted(
-            item.symbol_id for item in ledger.associations
-            if item.outcome_token == outcome_token and item.support > item.contradiction
-        ))
+        known = tuple(
+            sorted(
+                item.symbol_id
+                for item in ledger.associations
+                if item.outcome_token == outcome_token and item.support > item.contradiction
+            )
+        )
         candidates = tuple((symbol, receiver) for symbol in known for receiver in neighbors)
         candidate_digest = self._digest(candidates)
         if not candidates:
             return self._record(tick, candidate_digest, SymbolAction.SILENCE, None, None, 0)
-        symbol, receiver = sorted(candidates, key=lambda item: (self._digest((self.seed, outcome_token, item)), item), reverse=True)[0]
+        symbol, receiver = sorted(
+            candidates,
+            key=lambda item: (self._digest((self.seed, outcome_token, item)), item),
+            reverse=True,
+        )[0]
         return self._record(tick, candidate_digest, SymbolAction.EMIT, symbol, receiver, 1)
 
-    def reinforce(self, *, local_context_token: str, symbol_id: str, success: bool, tick: int) -> None:
+    def reinforce(
+        self, *, local_context_token: str, symbol_id: str, success: bool, tick: int
+    ) -> None:
         """Update local emission preference from a receiver's own success report.
 
         Bounded to ``max_bias_entries``; the lowest-support entry is evicted on
@@ -415,7 +525,9 @@ class SymbolPolicy:
         self._emission_bias[key] = updated
         self._cost += 1
 
-    def choose_adaptive(self, *, local_context_token: str, neighbor_ids: Iterable[str], tick: int) -> SymbolDecisionRecord:
+    def choose_adaptive(
+        self, *, local_context_token: str, neighbor_ids: Iterable[str], tick: int
+    ) -> SymbolDecisionRecord:
         """Like :meth:`choose`, but ranks candidates primarily by locally
         accumulated ``(support - contradiction)`` bias for ``(local_context_token,
         symbol)``; ties -- including the all-zero state before any reinforcement
@@ -426,7 +538,9 @@ class SymbolPolicy:
         neighbors = tuple(sorted(set(neighbor_ids)))
         for neighbor in neighbors:
             _id(neighbor, "neighbor_id")
-        candidates = tuple((symbol, receiver) for symbol in self.symbol_space for receiver in neighbors)
+        candidates = tuple(
+            (symbol, receiver) for symbol in self.symbol_space for receiver in neighbors
+        )
         candidate_digest = self._digest(candidates)
         if not candidates:
             return self._record(tick, candidate_digest, SymbolAction.SILENCE, None, None, 0)
@@ -442,9 +556,35 @@ class SymbolPolicy:
             return self._record(tick, candidate_digest, SymbolAction.SILENCE, None, None, 0)
         return self._record(tick, candidate_digest, SymbolAction.EMIT, symbol, receiver, 1)
 
-    def _record(self, tick: int, candidate_digest: str, action: SymbolAction, symbol: str | None, receiver: str | None, cost: int) -> SymbolDecisionRecord:
-        payload = (self.organism_id, self.seed, tick, len(self._decisions), action.value, symbol, receiver)
-        record = SymbolDecisionRecord("symbol-decision." + self._digest(payload)[:48], self.organism_id, tick, candidate_digest, action, symbol, receiver, cost, self._digest(payload))
+    def _record(
+        self,
+        tick: int,
+        candidate_digest: str,
+        action: SymbolAction,
+        symbol: str | None,
+        receiver: str | None,
+        cost: int,
+    ) -> SymbolDecisionRecord:
+        payload = (
+            self.organism_id,
+            self.seed,
+            tick,
+            len(self._decisions),
+            action.value,
+            symbol,
+            receiver,
+        )
+        record = SymbolDecisionRecord(
+            "symbol-decision." + self._digest(payload)[:48],
+            self.organism_id,
+            tick,
+            candidate_digest,
+            action,
+            symbol,
+            receiver,
+            cost,
+            self._digest(payload),
+        )
         self._decisions.append(record)
         self._cost += cost
         return record
@@ -459,7 +599,12 @@ class SymbolPolicy:
             "decisions": [item.canonical_payload() for item in self.decisions],
             "max_bias_entries": self.max_bias_entries,
             "emission_bias": [
-                {"context": key[0], "symbol_id": key[1], "support": value[0], "contradiction": value[1]}
+                {
+                    "context": key[0],
+                    "symbol_id": key[1],
+                    "support": value[0],
+                    "contradiction": value[1],
+                }
                 for key, value in sorted(self._emission_bias.items())
             ],
         }
@@ -471,7 +616,9 @@ class SymbolPolicy:
         version = payload.get("schema_version")
         if version not in (1, cls.SCHEMA_VERSION) or payload.get("organism_id") != organism_id:
             raise ValueError("invalid symbol policy checkpoint")
-        if not isinstance(payload.get("symbol_space"), list) or not isinstance(payload.get("decisions", []), list):
+        if not isinstance(payload.get("symbol_space"), list) or not isinstance(
+            payload.get("decisions", []), list
+        ):
             raise ValueError("invalid symbol policy rows")
         if len(payload["decisions"]) > MAX_HISTORY:
             raise ValueError("symbol policy history exceeds bound")
@@ -503,7 +650,14 @@ class SymbolPolicy:
 
 
 __all__ = [
-    "SymbolAction", "SymbolAssociation", "SymbolChannel", "SymbolDecisionRecord",
-    "SymbolGroundingLedger", "SymbolMessage", "SymbolPolicy", "SymbolReinforcementSignal",
-    "build_opaque_symbol", "default_symbol_space",
+    "SymbolAction",
+    "SymbolAssociation",
+    "SymbolChannel",
+    "SymbolDecisionRecord",
+    "SymbolGroundingLedger",
+    "SymbolMessage",
+    "SymbolPolicy",
+    "SymbolReinforcementSignal",
+    "build_opaque_symbol",
+    "default_symbol_space",
 ]

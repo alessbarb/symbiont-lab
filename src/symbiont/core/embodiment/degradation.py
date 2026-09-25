@@ -1,4 +1,5 @@
 """Bounded lifecycle for low-value retained state (v0.62)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -66,12 +67,17 @@ class DegradationQueue:
             item.age += 1
             if item.state is RetentionState.ACTIVE and item.age >= self.aging_ticks:
                 item.state = RetentionState.AGING
-            if item.state is RetentionState.AGING and item.age >= self.aging_ticks + self.waste_ticks:
+            if (
+                item.state is RetentionState.AGING
+                and item.age >= self.aging_ticks + self.waste_ticks
+            ):
                 item.state = RetentionState.WASTE
         return self._excrete_waste()
 
     def _excrete_waste(self) -> int:
-        ids = [item_id for item_id, item in self._items.items() if item.state is RetentionState.WASTE]
+        ids = [
+            item_id for item_id, item in self._items.items() if item.state is RetentionState.WASTE
+        ]
         for item_id in ids:
             self._items[item_id].state = RetentionState.EXCRETED
             self.excreted_units += 1
@@ -79,21 +85,34 @@ class DegradationQueue:
         return len(ids)
 
     def checkpoint(self) -> dict[str, Any]:
-        return {"schema_version": self.SCHEMA_VERSION, "max_items": self.max_items,
-                "aging_ticks": self.aging_ticks, "waste_ticks": self.waste_ticks,
-                "excreted_units": self.excreted_units,
-                "items": [{"item_id": i.item_id, "value": i.value, "age": i.age, "state": i.state.value} for i in self.items]}
+        return {
+            "schema_version": self.SCHEMA_VERSION,
+            "max_items": self.max_items,
+            "aging_ticks": self.aging_ticks,
+            "waste_ticks": self.waste_ticks,
+            "excreted_units": self.excreted_units,
+            "items": [
+                {"item_id": i.item_id, "value": i.value, "age": i.age, "state": i.state.value}
+                for i in self.items
+            ],
+        }
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, Any]) -> "DegradationQueue":
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("invalid degradation checkpoint")
-        q = cls(max_items=int(payload["max_items"]), aging_ticks=int(payload["aging_ticks"]), waste_ticks=int(payload["waste_ticks"]))
+        q = cls(
+            max_items=int(payload["max_items"]),
+            aging_ticks=int(payload["aging_ticks"]),
+            waste_ticks=int(payload["waste_ticks"]),
+        )
         q.excreted_units = int(payload.get("excreted_units", 0))
         for raw in payload.get("items", []):
             if not isinstance(raw, dict) or raw.get("state") == RetentionState.EXCRETED.value:
                 raise ValueError("invalid degradation item")
-            q._items[raw["item_id"]] = RetainedItem(raw["item_id"], float(raw["value"]), int(raw["age"]), RetentionState(raw["state"]))
+            q._items[raw["item_id"]] = RetainedItem(
+                raw["item_id"], float(raw["value"]), int(raw["age"]), RetentionState(raw["state"])
+            )
         if len(q._items) > q.max_items:
             raise ValueError("degradation checkpoint exceeds max_items")
         return q

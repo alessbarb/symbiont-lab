@@ -8,12 +8,14 @@ from symbiont_lab.studies.learning.emergent_structured_communication import (
     run_emergent_structured_communication_study,
 )
 
-
 SOURCE = Path("src/symbiont_lab/studies/learning/emergent_structured_communication.py")
 
 
 def test_structured_communication_study_is_registered_and_replayable() -> None:
-    assert get_protocol("learning.emergent-structured-communication").__name__ == "run_emergent_structured_communication_study"
+    assert (
+        get_protocol("learning.emergent-structured-communication").__name__
+        == "run_emergent_structured_communication_study"
+    )
     result = run_emergent_structured_communication_study()
     assert result.seeds == (101, 127, 149)
     assert result.conditions == ("no_signal", "random_signal", "autonomous")

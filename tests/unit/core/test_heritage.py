@@ -1,7 +1,7 @@
 import pytest
-
 from symbiont.core.collective import CollectiveMemory
-from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
+from symbiont.core.heritage import apply_heritage, distill_heritage
+
 from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_species
 
 

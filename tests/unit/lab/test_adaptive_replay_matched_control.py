@@ -51,12 +51,14 @@ def test_matched_control_study_uses_identical_corpus_for_both_arms(monkeypatch):
     seen: list[tuple[str, str, int, int]] = []
 
     def fake_train_and_score(*, request, corpus, tokenizer):
-        seen.append((
-            request.corpus_hash,
-            tokenizer.tokenizer_hash,
-            request.requested_epochs,
-            request.requested_steps,
-        ))
+        seen.append(
+            (
+                request.corpus_hash,
+                tokenizer.tokenizer_hash,
+                request.requested_epochs,
+                request.requested_steps,
+            )
+        )
         loss = 1.0 - request.requested_steps / 1000.0
         accuracy = request.requested_steps / 100.0
         return SimpleNamespace(mean_log_loss=loss, accuracy=accuracy)

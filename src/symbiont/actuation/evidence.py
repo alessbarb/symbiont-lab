@@ -1,4 +1,5 @@
 """Canonical factual evidence for Sensorimotor v2."""
+
 from __future__ import annotations
 
 import math
@@ -53,7 +54,9 @@ class SensorimotorTransition:
         ):
             if not value:
                 raise ValueError("transition references must not be empty")
-        if self.observed_effect_id is not None and not self.observed_effect_id.startswith("effect."):
+        if self.observed_effect_id is not None and not self.observed_effect_id.startswith(
+            "effect."
+        ):
             raise ValueError("observed effect must be organism-owned")
 
 
@@ -159,7 +162,7 @@ class CausalEvidenceLedger:
         raw = payload.get("evidence", [])
         if not isinstance(raw, list):
             raise ValueError("invalid causal evidence")
-        for item in raw[-obj._capacity:]:
+        for item in raw[-obj._capacity :]:
             if not isinstance(item, dict):
                 raise ValueError("invalid causal evidence item")
             normalized = dict(item)

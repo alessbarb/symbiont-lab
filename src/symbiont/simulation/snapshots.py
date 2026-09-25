@@ -4,8 +4,8 @@ from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from symbiont.core.curiosity import CuriosityProbe
     from symbiont.core.cognition.reasoning import Hypothesis
+    from symbiont.core.curiosity import CuriosityProbe
 
 
 @dataclass(slots=True, frozen=True)

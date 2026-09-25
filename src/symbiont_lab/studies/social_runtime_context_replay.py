@@ -1,10 +1,12 @@
 """Evaluator-only live/replay parity for multi-neighbor social decisions."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.core.social import SocialHabitat
 
 
@@ -33,8 +35,10 @@ def run_social_runtime_context_replay_study() -> SocialRuntimeContextReplayStudy
     habitat_payload = habitat.checkpoint()
     restored_habitat = SocialHabitat.from_checkpoint(habitat_payload)
     restored = OrganismRuntime.from_checkpoint(
-        runtime_payload, social_habitat=restored_habitat,
-        bootstrap_semantic_senses=False, discover_senses=False,
+        runtime_payload,
+        social_habitat=restored_habitat,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
     )
     checkpoint_equal = restored.social_ledger.checkpoint() == live.social_ledger.checkpoint()
 
@@ -45,8 +49,9 @@ def run_social_runtime_context_replay_study() -> SocialRuntimeContextReplayStudy
     restored_choice = restored.select_social_opportunity()
     live.suspend_social_interaction("peer-b")
     restored.suspend_social_interaction("peer-b")
-    suspension_parity = (live.select_social_opportunity().target_id
-                         == restored.select_social_opportunity().target_id)
+    suspension_parity = (
+        live.select_social_opportunity().target_id == restored.select_social_opportunity().target_id
+    )
     return SocialRuntimeContextReplayStudy(
         choice_before=before.target_id if before else "none",
         choice_after_live=live_choice.target_id if live_choice else "none",

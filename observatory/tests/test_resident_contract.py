@@ -42,7 +42,9 @@ class ResidentContractTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         lines = [line for line in result.stdout.splitlines() if line.strip()]
-        self.assertEqual(len(lines), 1, msg=f"expected exactly one envelope, got: {result.stdout!r}")
+        self.assertEqual(
+            len(lines), 1, msg=f"expected exactly one envelope, got: {result.stdout!r}"
+        )
 
         envelope = json.loads(lines[0])
         self.assertEqual(envelope["type"], "symbiont-observatory-snapshot")

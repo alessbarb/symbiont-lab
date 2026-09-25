@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import math
+from dataclasses import asdict, dataclass
 from typing import Any, Mapping
-
 
 SELECTION_SCHEMA_VERSION = 2
 MAX_SELECTION_PAIRS = 256
@@ -48,9 +47,7 @@ class PairwisePredictiveEvidence:
             return
         prediction = self._predict(x)
         mean_prediction = (
-            self.sum_y / self.effective_weight
-            if self.effective_weight > 0.0
-            else None
+            self.sum_y / self.effective_weight if self.effective_weight > 0.0 else None
         )
         if prediction is not None and self.last_target is not None and mean_prediction is not None:
             model_error = abs(y - prediction)
@@ -65,8 +62,8 @@ class PairwisePredictiveEvidence:
             self.gain_ewma = (1.0 - alpha) * self.gain_ewma + alpha * instantaneous
             self.model_error_ewma = (1.0 - alpha) * self.model_error_ewma + alpha * model_error
             self.baseline_error_ewma = (
-                (1.0 - alpha) * self.baseline_error_ewma + alpha * baseline_error
-            )
+                1.0 - alpha
+            ) * self.baseline_error_ewma + alpha * baseline_error
 
         self.observations += 1
         self.effective_weight = _SELECTION_FORGETTING * self.effective_weight + 1.0
@@ -82,9 +79,9 @@ class PairwisePredictiveEvidence:
             return 0.0
         if self.baseline_error_ewma <= 1e-12:
             return 0.0
-        relative_gain = (
-            self.baseline_error_ewma - self.model_error_ewma
-        ) / (self.baseline_error_ewma + 1e-12)
+        relative_gain = (self.baseline_error_ewma - self.model_error_ewma) / (
+            self.baseline_error_ewma + 1e-12
+        )
         # A weak positive fluctuation is not enough to become sensory fitness.
         if relative_gain <= 0.05:
             return 0.0
@@ -133,14 +130,28 @@ class PairwisePredictiveEvidence:
             raise ValueError("selection source_id must be non-empty")
         if not isinstance(evidence.target_id, str) or not evidence.target_id:
             raise ValueError("selection target_id must be non-empty")
-        if isinstance(evidence.observations, bool) or not isinstance(evidence.observations, int) or evidence.observations < 0:
+        if (
+            isinstance(evidence.observations, bool)
+            or not isinstance(evidence.observations, int)
+            or evidence.observations < 0
+        ):
             raise ValueError("selection observations must be non-negative integer")
         for name in (
-            "effective_weight", "sum_x", "sum_y", "sum_xx", "sum_xy", "gain_ewma",
-            "model_error_ewma", "baseline_error_ewma",
+            "effective_weight",
+            "sum_x",
+            "sum_y",
+            "sum_xx",
+            "sum_xy",
+            "gain_ewma",
+            "model_error_ewma",
+            "baseline_error_ewma",
         ):
             value = getattr(evidence, name)
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+            ):
                 raise ValueError(f"selection {name} must be finite")
         if evidence.effective_weight < 0.0:
             raise ValueError("selection effective_weight must be non-negative")
@@ -209,7 +220,11 @@ class SensorySelectionEngine:
                         # Same-source predictability is usually persistence or
                         # filtering of the receptor's own input. It cannot by
                         # itself justify sensory selection as downstream value.
-                        if source_sources and target_sources and source_sources.intersection(target_sources):
+                        if (
+                            source_sources
+                            and target_sources
+                            and source_sources.intersection(target_sources)
+                        ):
                             continue
                     key = (source_id, target_id)
                     evidence = self._pairs.get(key)
@@ -237,10 +252,7 @@ class SensorySelectionEngine:
         return {
             "schema_version": SELECTION_SCHEMA_VERSION,
             "max_pairs": self.max_pairs,
-            "pairs": [
-                self._pairs[key].checkpoint()
-                for key in sorted(self._pairs)
-            ],
+            "pairs": [self._pairs[key].checkpoint() for key in sorted(self._pairs)],
             # Previous raw percept values are deliberately transient/private.
         }
 
@@ -248,7 +260,10 @@ class SensorySelectionEngine:
     def restore(cls, payload: Mapping[str, Any] | None) -> "SensorySelectionEngine":
         if payload is None:
             return cls()
-        if not isinstance(payload, Mapping) or payload.get("schema_version") not in (1, SELECTION_SCHEMA_VERSION):
+        if not isinstance(payload, Mapping) or payload.get("schema_version") not in (
+            1,
+            SELECTION_SCHEMA_VERSION,
+        ):
             raise ValueError("unsupported sensory selection checkpoint")
         engine = cls(max_pairs=payload.get("max_pairs", MAX_SELECTION_PAIRS))
         raw_pairs = payload.get("pairs", [])

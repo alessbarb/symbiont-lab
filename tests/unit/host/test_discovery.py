@@ -112,11 +112,7 @@ def test_builtin_discovery_exposes_capabilities_without_identity():
     assert manifest.supports("storage.disk_usage")
     assert not manifest.failures
     forbidden = {"hostname", "username", "user", "home", "cwd", "ip", "mac"}
-    keys = {
-        key.lower()
-        for item in manifest.capabilities
-        for key, _ in item.detail
-    }
+    keys = {key.lower() for item in manifest.capabilities for key, _ in item.detail}
     assert not forbidden.intersection(keys)
 
 

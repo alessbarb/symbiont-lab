@@ -4,6 +4,7 @@ The treatment receives only an opaque local context at the emitter and local
 outcomes at the receiver.  The apparatus never supplies a symbol meaning or a
 symbol choice.  Evaluator-only outcome comparisons are kept in this module.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -87,17 +88,33 @@ def _event(seed: int, tick: int) -> tuple[str, str]:
 
 
 def _permutation(space: tuple[str, ...], seed: int) -> dict[str, str]:
-    rotated = tuple(space[(index + (seed % (len(space) - 1) + 1)) % len(space)] for index in range(len(space)))
+    rotated = tuple(
+        space[(index + (seed % (len(space) - 1) + 1)) % len(space)] for index in range(len(space))
+    )
     return dict(zip(space, rotated))
 
 
-def _trial(seed: int, *, condition: str, training_ticks: int = 32, evaluation_ticks: int = 16) -> dict[str, object]:
+def _trial(
+    seed: int, *, condition: str, training_ticks: int = 32, evaluation_ticks: int = 16
+) -> dict[str, object]:
     space = default_symbol_space()
-    emitter_a = ModeledOrganismRuntime(organism_id=f"esg-a-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed)
-    emitter_b = ModeledOrganismRuntime(organism_id=f"esg-b-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed)
-    learner = ModeledOrganismRuntime(organism_id=f"esg-learner-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed)
-    newborn = ModeledOrganismRuntime(organism_id=f"esg-newborn-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed)
-    pairs = {(emitter_a.organism_id, learner.organism_id), (emitter_b.organism_id, learner.organism_id), (learner.organism_id, newborn.organism_id)}
+    emitter_a = ModeledOrganismRuntime(
+        organism_id=f"esg-a-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed
+    )
+    emitter_b = ModeledOrganismRuntime(
+        organism_id=f"esg-b-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed
+    )
+    learner = ModeledOrganismRuntime(
+        organism_id=f"esg-learner-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed
+    )
+    newborn = ModeledOrganismRuntime(
+        organism_id=f"esg-newborn-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed
+    )
+    pairs = {
+        (emitter_a.organism_id, learner.organism_id),
+        (emitter_b.organism_id, learner.organism_id),
+        (learner.organism_id, newborn.organism_id),
+    }
     channel = SymbolChannel(authorized_pairs=pairs, max_deliveries=256)
     permutation = _permutation(space, seed)
     decisions = []
@@ -111,23 +128,36 @@ def _trial(seed: int, *, condition: str, training_ticks: int = 32, evaluation_ti
         nonlocal decisions
         neighbors = (learner,)
         if condition == "random":
-            index = int(hashlib.sha256(f"random:{seed}:{tick}:{emitter.organism_id}".encode()).hexdigest()[:8], 16) % len(space)
+            index = int(
+                hashlib.sha256(f"random:{seed}:{tick}:{emitter.organism_id}".encode()).hexdigest()[
+                    :8
+                ],
+                16,
+            ) % len(space)
             symbol = space[index]
             message = SymbolMessage(symbol, emitter.organism_id, learner.organism_id, tick)
             channel.deliver(message, receiver=learner.symbol_grounding_ledger, tick=tick)
             decisions.append(SymbolAction.EMIT)
             used.append(symbol)
         elif condition == "permuted":
-            decision = emitter.symbol_policy.choose(local_context_token=context, neighbor_ids=(learner.organism_id,), tick=tick)
+            decision = emitter.symbol_policy.choose(
+                local_context_token=context, neighbor_ids=(learner.organism_id,), tick=tick
+            )
             decisions.append(decision.selected_action)
             if decision.selected_action is SymbolAction.EMIT:
                 symbol = permutation[decision.selected_symbol_id]
-                channel.deliver(SymbolMessage(symbol, emitter.organism_id, learner.organism_id, tick), receiver=learner.symbol_grounding_ledger, tick=tick)
+                channel.deliver(
+                    SymbolMessage(symbol, emitter.organism_id, learner.organism_id, tick),
+                    receiver=learner.symbol_grounding_ledger,
+                    tick=tick,
+                )
                 used.append(symbol)
         elif condition == "none":
             decisions.append(SymbolAction.SILENCE)
         else:
-            decision = emitter.autonomous_symbol_step(channel, neighbors, local_context_token=context, tick=tick)
+            decision = emitter.autonomous_symbol_step(
+                channel, neighbors, local_context_token=context, tick=tick
+            )
             decisions.append(decision.selected_action)
             if decision.selected_symbol_id is not None:
                 used.append(decision.selected_symbol_id)
@@ -137,13 +167,21 @@ def _trial(seed: int, *, condition: str, training_ticks: int = 32, evaluation_ti
         emitter = emitter_a if tick % 2 == 0 else emitter_b
         send(emitter, context, tick)
         if tick < training_ticks:
-            if learner.symbol_grounding_ledger.exposures and learner.symbol_grounding_ledger.exposures[-1].emitted_tick == tick:
+            if (
+                learner.symbol_grounding_ledger.exposures
+                and learner.symbol_grounding_ledger.exposures[-1].emitted_tick == tick
+            ):
                 learner.observe_symbolic_outcome(outcome, tick=tick)
             continue
         evaluated += 1
         # Only a message delivered for this event may be used as the signal.
         # Reusing an older exposure would turn silence into a hidden clock.
-        exposure = learner.symbol_grounding_ledger.exposures[-1] if learner.symbol_grounding_ledger.exposures and learner.symbol_grounding_ledger.exposures[-1].emitted_tick == tick else None
+        exposure = (
+            learner.symbol_grounding_ledger.exposures[-1]
+            if learner.symbol_grounding_ledger.exposures
+            and learner.symbol_grounding_ledger.exposures[-1].emitted_tick == tick
+            else None
+        )
         if exposure is not None:
             symbol = exposure.symbol_id
             predicted = learner.predict_symbolic_outcome(symbol)
@@ -156,8 +194,13 @@ def _trial(seed: int, *, condition: str, training_ticks: int = 32, evaluation_ti
     # outcome experience.  No evaluator-selected symbol is passed here.
     for tick in range(training_ticks, training_ticks + 4):
         _, outcome = _event(seed, tick)
-        decision = learner.autonomous_grounded_symbol_step(channel, (newborn,), outcome_token=outcome, tick=tick)
-        if decision.selected_action is SymbolAction.EMIT and newborn.symbol_grounding_ledger.exposures:
+        decision = learner.autonomous_grounded_symbol_step(
+            channel, (newborn,), outcome_token=outcome, tick=tick
+        )
+        if (
+            decision.selected_action is SymbolAction.EMIT
+            and newborn.symbol_grounding_ledger.exposures
+        ):
             symbol = newborn.symbol_grounding_ledger.exposures[-1].symbol_id
             predicted = newborn.predict_symbolic_outcome(symbol)
             if predicted is not None and first_newborn_prediction is None:
@@ -167,30 +210,57 @@ def _trial(seed: int, *, condition: str, training_ticks: int = 32, evaluation_ti
     same_context = []
     for tick in range(8):
         context, _ = _event(seed, tick)
-        a = emitter_a.symbol_policy.choose(local_context_token=context, neighbor_ids=(learner.organism_id,), tick=100 + tick)
-        b = emitter_b.symbol_policy.choose(local_context_token=context, neighbor_ids=(learner.organism_id,), tick=100 + tick)
+        a = emitter_a.symbol_policy.choose(
+            local_context_token=context, neighbor_ids=(learner.organism_id,), tick=100 + tick
+        )
+        b = emitter_b.symbol_policy.choose(
+            local_context_token=context, neighbor_ids=(learner.organism_id,), tick=100 + tick
+        )
         if a.selected_symbol_id and b.selected_symbol_id:
             same_context.append(a.selected_symbol_id == b.selected_symbol_id)
-    prediction_gain = (correct_with_signal / max(1, evaluated)) - (correct_baseline / max(1, evaluated))
-    no_signal_gain = 0.0
+    prediction_gain = (correct_with_signal / max(1, evaluated)) - (
+        correct_baseline / max(1, evaluated)
+    )
     random_gain = prediction_gain if condition == "random" else 0.0
     return {
         "emissions": sum(action is SymbolAction.EMIT for action in decisions),
         "used": len(set(used)),
         "exposed": len(learner.symbol_grounding_ledger.exposures),
         "updates": len(learner.symbol_grounding_ledger.associations),
-        "grounding_gain": min(1.0, len(learner.symbol_grounding_ledger.associations) / max(1, training_ticks)),
+        "grounding_gain": min(
+            1.0, len(learner.symbol_grounding_ledger.associations) / max(1, training_ticks)
+        ),
         "prediction_gain": prediction_gain,
         "agreement": sum(same_context) / max(1, len(same_context)),
         "random_gain": random_gain,
         "permuted_gain": prediction_gain if condition == "permuted" else 0.0,
         "persistence": bool(newborn.symbol_grounding_ledger.associations),
-        "newborn_ticks": first_newborn_prediction if first_newborn_prediction is not None else training_ticks + 1,
+        "newborn_ticks": first_newborn_prediction
+        if first_newborn_prediction is not None
+        else training_ticks + 1,
         "decisions": tuple(decisions),
         "trace": (
             tuple(decisions),
-            tuple((item.symbol_id, item.outcome_token, item.support, item.contradiction, item.last_tick) for item in learner.symbol_grounding_ledger.associations),
-            tuple((item.symbol_id, item.outcome_token, item.support, item.contradiction, item.last_tick) for item in newborn.symbol_grounding_ledger.associations),
+            tuple(
+                (
+                    item.symbol_id,
+                    item.outcome_token,
+                    item.support,
+                    item.contradiction,
+                    item.last_tick,
+                )
+                for item in learner.symbol_grounding_ledger.associations
+            ),
+            tuple(
+                (
+                    item.symbol_id,
+                    item.outcome_token,
+                    item.support,
+                    item.contradiction,
+                    item.last_tick,
+                )
+                for item in newborn.symbol_grounding_ledger.associations
+            ),
         ),
     }
 
@@ -229,10 +299,14 @@ def _trial_result(seed: int) -> SymbolGroundingSeedResult:
     )
 
 
-def run_emergent_symbol_grounding_study(*, seeds: Sequence[int] = (101, 127, 149)) -> EmergentSymbolGroundingStudy:
+def run_emergent_symbol_grounding_study(
+    *, seeds: Sequence[int] = (101, 127, 149)
+) -> EmergentSymbolGroundingStudy:
     normalized = _normalize_seeds(seeds)
     results = tuple(_trial_result(seed) for seed in normalized)
-    fields = tuple(name for name in SymbolGroundingSeedResult.__dataclass_fields__ if name.startswith("esg"))
+    fields = tuple(
+        name for name in SymbolGroundingSeedResult.__dataclass_fields__ if name.startswith("esg")
+    )
     return EmergentSymbolGroundingStudy(
         seeds=normalized,
         per_seed=results,
@@ -245,10 +319,19 @@ def run_emergent_symbol_grounding_study(*, seeds: Sequence[int] = (101, 127, 149
         esg7_newborn_acquisition=all(item.esg7_newborn_acquisition for item in results),
         esg8_symbol_persistence=all(item.esg8_symbol_persistence for item in results),
         esg9_no_semantic_leakage=True,
-        esg10_random_control_separation=all(item.esg10_random_control_separation for item in results),
-        all_gates_pass=all(all(getattr(item, field) for field in fields) and item.replay_deterministic for item in results),
+        esg10_random_control_separation=all(
+            item.esg10_random_control_separation for item in results
+        ),
+        all_gates_pass=all(
+            all(getattr(item, field) for field in fields) and item.replay_deterministic
+            for item in results
+        ),
         replay_deterministic=all(item.replay_deterministic for item in results),
     )
 
 
-__all__ = ["EmergentSymbolGroundingStudy", "SymbolGroundingSeedResult", "run_emergent_symbol_grounding_study"]
+__all__ = [
+    "EmergentSymbolGroundingStudy",
+    "SymbolGroundingSeedResult",
+    "run_emergent_symbol_grounding_study",
+]

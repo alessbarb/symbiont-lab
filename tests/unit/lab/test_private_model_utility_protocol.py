@@ -46,7 +46,13 @@ def test_private_model_utility_preserves_each_preregistered_seed(monkeypatch):
         offset = seed / 10_000.0
         return SimpleNamespace(
             families=(
-                _family("gru-v1", loss=1.8 + offset, gain=0.02 + offset, promoted=True, reason="held_out_gain"),
+                _family(
+                    "gru-v1",
+                    loss=1.8 + offset,
+                    gain=0.02 + offset,
+                    promoted=True,
+                    reason="held_out_gain",
+                ),
                 _family(
                     "transformer-v1",
                     loss=1.7 + offset,

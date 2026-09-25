@@ -6,6 +6,7 @@ WorldObservation). A world state transition failure must never leave
 partial causality committed — either the whole tick applies, or none of
 it does and the tick is not counted.
 """
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -74,7 +75,11 @@ class TickTransaction:
         return self._state
 
     def __exit__(self, exc_type, exc, tb) -> bool:
-        if self._snapshot_tick is None or self._snapshot_occupancy is None or self._snapshot_bodies is None:
+        if (
+            self._snapshot_tick is None
+            or self._snapshot_occupancy is None
+            or self._snapshot_bodies is None
+        ):
             return False
         if exc_type is None:
             self._state.tick = self._snapshot_tick + 1
@@ -86,4 +91,3 @@ class TickTransaction:
         if issubclass(exc_type, TickAborted):
             return True
         return False
-

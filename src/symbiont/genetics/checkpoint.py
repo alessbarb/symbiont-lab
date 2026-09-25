@@ -1,4 +1,5 @@
 """Checkpoint codecs for Genome v2, expression and germline."""
+
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -30,9 +31,7 @@ def restore_genome(
     if not isinstance(persisted_hash, str) or not isinstance(persisted_genotype, str):
         raise GenomeError("genome checkpoint hashes are required")
     fields = {
-        key: value
-        for key, value in payload.items()
-        if key not in {"genome_hash", "genotype_hash"}
+        key: value for key, value in payload.items() if key not in {"genome_hash", "genotype_hash"}
     }
     genome = GenomeCodec(schema).load(fields)
     if genome.genome_hash != persisted_hash:
@@ -87,7 +86,9 @@ def _mark_from_dict(payload: Mapping[str, object]) -> EpigeneticMark:
 def export_germline(state: GermlineState) -> dict[str, object]:
     return {
         "birth_expression": dict(state.birth_expression),
-        "inherited_marks": [_mark_to_dict(mark) for _, mark in sorted(state.inherited_marks.items())],
+        "inherited_marks": [
+            _mark_to_dict(mark) for _, mark in sorted(state.inherited_marks.items())
+        ],
         "acquired_marks": [_mark_to_dict(mark) for _, mark in sorted(state.acquired_marks.items())],
         "acquired_capture_enabled": state.acquired_capture_enabled,
     }
@@ -111,12 +112,18 @@ def restore_germline(
     inherited = payload["inherited_marks"]
     acquired = payload["acquired_marks"]
     enabled = payload["acquired_capture_enabled"]
-    if not isinstance(birth, Mapping) or not isinstance(inherited, list) or not isinstance(acquired, list):
+    if (
+        not isinstance(birth, Mapping)
+        or not isinstance(inherited, list)
+        or not isinstance(acquired, list)
+    ):
         raise ValueError("malformed germline checkpoint")
     if not isinstance(enabled, bool):
         raise ValueError("acquired_capture_enabled must be bool")
     schema.validate_flat(birth)
-    inherited_marks = tuple(_mark_from_dict(item) for item in inherited if isinstance(item, Mapping))
+    inherited_marks = tuple(
+        _mark_from_dict(item) for item in inherited if isinstance(item, Mapping)
+    )
     acquired_marks = tuple(_mark_from_dict(item) for item in acquired if isinstance(item, Mapping))
     for mark in (*inherited_marks, *acquired_marks):
         if not schema.spec(mark.locus).regulable:

@@ -4,6 +4,7 @@ Bounded descriptive state only, per the repo-wide checkpoint contract:
 world_id, tick, constitution fingerprint, occupancy and RNG stream states.
 No raw telemetry.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

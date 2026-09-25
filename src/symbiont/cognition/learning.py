@@ -7,7 +7,9 @@ from typing import Deque, Mapping
 from .graph import CognitiveGraph, PlasticEdge
 from .types import WEIGHT_RANGE, NodeKind
 
-ELIGIBILITY_BOUND = 10.0  # generous relative to a_i, a_j in (-1, 1); prevents unbounded growth when decay==1.0
+ELIGIBILITY_BOUND = (
+    10.0  # generous relative to a_i, a_j in (-1, 1); prevents unbounded growth when decay==1.0
+)
 
 
 def huber_loss(error: float, delta: float = 1.0) -> float:
@@ -29,7 +31,8 @@ def compute_prediction_errors(
     graph: CognitiveGraph, *, current: Mapping[str, float], previous: Mapping[str, float]
 ) -> tuple[PredictionError, ...]:
     predictors = sorted(
-        (node for node in graph.nodes if node.kind is NodeKind.PREDICTOR), key=lambda node: node.node_id
+        (node for node in graph.nodes if node.kind is NodeKind.PREDICTOR),
+        key=lambda node: node.node_id,
     )
     errors: list[PredictionError] = []
     for predictor in predictors:
@@ -41,12 +44,19 @@ def compute_prediction_errors(
         predicted_value = previous[predictor.node_id]
         error = target_value - predicted_value
         errors.append(
-            PredictionError(predictor_id=predictor.node_id, target_id=target_id, error=error, loss=huber_loss(error))
+            PredictionError(
+                predictor_id=predictor.node_id,
+                target_id=target_id,
+                error=error,
+                loss=huber_loss(error),
+            )
         )
     return tuple(errors)
 
 
-def update_eligibility(edge: PlasticEdge, *, source_previous: float, target_current: float, decay: float) -> None:
+def update_eligibility(
+    edge: PlasticEdge, *, source_previous: float, target_current: float, decay: float
+) -> None:
     updated = decay * edge.eligibility + source_previous * target_current
     edge.eligibility = max(-ELIGIBILITY_BOUND, min(ELIGIBILITY_BOUND, updated))
 
@@ -63,15 +73,22 @@ def apply_oja_update(
 ) -> None:
     if frozen or not eligible or modulation == 0.0:
         return
-    delta = learning_rate * modulation * (
-        source_activation * target_activation - target_activation * target_activation * edge.weight
+    delta = (
+        learning_rate
+        * modulation
+        * (
+            source_activation * target_activation
+            - target_activation * target_activation * edge.weight
+        )
     )
     new_weight = edge.weight + delta
     edge.weight = max(WEIGHT_RANGE[0], min(WEIGHT_RANGE[1], new_weight))
 
+
 @dataclass(slots=True)
 class ShadowPrediction:
     """Out-of-sample predictor candidate; never mutates the cognitive graph."""
+
     source_id: str
     target_id: str
     samples: int = 0
@@ -79,7 +96,9 @@ class ShadowPrediction:
     persistence_loss: float = 0.0
     status: str = "candidate"
 
-    def observe(self, source_previous: float, target_current: float, target_previous: float) -> None:
+    def observe(
+        self, source_previous: float, target_current: float, target_previous: float
+    ) -> None:
         # The source value is the one-step model prediction in shadow mode.
         self.samples += 1
         self.model_loss += huber_loss(target_current - source_previous)
@@ -203,7 +222,9 @@ class ComposedShadowPrediction:
     def second_relation_slope(self) -> float:
         return self._slope(self._second_pairs)
 
-    def observe(self, source_current: float, intermediate_current: float, target_current: float) -> None:
+    def observe(
+        self, source_current: float, intermediate_current: float, target_current: float
+    ) -> None:
         source_current = float(source_current)
         intermediate_current = float(intermediate_current)
         target_current = float(target_current)

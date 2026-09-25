@@ -3,7 +3,10 @@ from symbiont_lab.studies.learning.structured_causal_experience import _records
 
 
 def test_structured_causal_protocol_registered():
-    assert get_protocol("learning.structured-causal-experience").__name__ == "run_structured_causal_experience_study"
+    assert (
+        get_protocol("learning.structured-causal-experience").__name__
+        == "run_structured_causal_experience_study"
+    )
 
 
 def test_structured_motor_representation_reuses_action_identity():

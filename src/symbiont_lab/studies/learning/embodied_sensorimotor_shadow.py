@@ -5,10 +5,11 @@ the same bounded opaque receptor/effector contract through the lab apparatus,
 so the result cannot change Symbiont behaviour or leak evaluator truth into
 cognition.  It is a falsifiable pre-integration experiment.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Iterable
 
 from symbiont_lab.modeling import SparseEchoStateRegressor
@@ -76,9 +77,7 @@ def _new_apparatus(pybullet, *, seed: int, time_step: float):
         baseCollisionShapeIndex=plane_shape,
         physicsClientId=client_id,
     )
-    apply_surface_material(
-        pybullet, plane_id, -1, GROUND_MATERIAL, client_id=client_id
-    )
+    apply_surface_material(pybullet, plane_id, -1, GROUND_MATERIAL, client_id=client_id)
     apparatus = HumanoidPhysics(pybullet, client_id)
     # Match the embodiment runtime's passive settling before observations.
     apparatus.apply_effectors({})
@@ -109,10 +108,12 @@ def _trace(*, seed: int, ticks: int, substeps: int) -> tuple[list[list[float]], 
     actions: list[list[float]] = []
     try:
         for _ in range(ticks):
-            observations.append([
-                float(apparatus.sample_receptors()[receptor_id])
-                for receptor_id in apparatus.receptor_ids
-            ])
+            observations.append(
+                [
+                    float(apparatus.sample_receptors()[receptor_id])
+                    for receptor_id in apparatus.receptor_ids
+                ]
+            )
             current_action = _action(rng, apparatus.effector_ids)
             actions.append(current_action)
             apparatus.apply_effectors(dict(zip(apparatus.effector_ids, current_action)))
@@ -124,7 +125,9 @@ def _trace(*, seed: int, ticks: int, substeps: int) -> tuple[list[list[float]], 
     return observations, actions
 
 
-def _condition_actions(actions: list[list[float]], *, condition: str, seed: int) -> list[list[float]]:
+def _condition_actions(
+    actions: list[list[float]], *, condition: str, seed: int
+) -> list[list[float]]:
     if condition == "causal":
         return [list(row) for row in actions]
     if condition == "no_action":
@@ -139,7 +142,11 @@ def _condition_actions(actions: list[list[float]], *, condition: str, seed: int)
 
 
 def _run_condition(
-    *, seed: int, observations: list[list[float]], actions: list[list[float]], condition: str,
+    *,
+    seed: int,
+    observations: list[list[float]],
+    actions: list[list[float]],
+    condition: str,
     reservoir_size: int,
 ) -> ShadowCondition:
     conditioned = _condition_actions(actions, condition=condition, seed=seed + 31_337)
@@ -170,7 +177,9 @@ def _run_condition(
             raise RuntimeError("shadow model produced no prediction")
         target = observations[index + 1]
         losses.extend(_huber(target[i] - prediction.value[i]) for i in range(receptor_count))
-        persistence.extend(_huber(target[i] - observations[index][i]) for i in range(receptor_count))
+        persistence.extend(
+            _huber(target[i] - observations[index][i]) for i in range(receptor_count)
+        )
     loss = sum(losses) / len(losses)
     baseline = sum(persistence) / len(persistence)
     return ShadowCondition(condition, loss, baseline, baseline - loss)
@@ -178,7 +187,10 @@ def _run_condition(
 
 def run_embodied_sensorimotor_shadow(
     seeds: Iterable[int] = (101, 127, 149),
-    *, ticks: int = 160, physics_substeps_per_tick: int = 2, reservoir_size: int = 16,
+    *,
+    ticks: int = 160,
+    physics_substeps_per_tick: int = 2,
+    reservoir_size: int = 16,
 ) -> EmbodiedSensorimotorShadowStudy:
     seed_list = tuple(seeds)
     if not seed_list:
@@ -189,13 +201,14 @@ def run_embodied_sensorimotor_shadow(
         raise ValueError("physics_substeps_per_tick must be positive")
     results: list[EmbodiedShadowSeedResult] = []
     for seed in seed_list:
-        observations, actions = _trace(
-            seed=seed, ticks=ticks, substeps=physics_substeps_per_tick
-        )
+        observations, actions = _trace(seed=seed, ticks=ticks, substeps=physics_substeps_per_tick)
         conditions = {
             name: _run_condition(
-                seed=seed, observations=observations, actions=actions,
-                condition=name, reservoir_size=reservoir_size,
+                seed=seed,
+                observations=observations,
+                actions=actions,
+                condition=name,
+                reservoir_size=reservoir_size,
             )
             for name in ("causal", "action_shuffled", "no_action")
         }
@@ -205,20 +218,30 @@ def run_embodied_sensorimotor_shadow(
         margin = causal.gain_over_persistence - max(
             shuffled.gain_over_persistence, no_action.gain_over_persistence
         )
-        results.append(EmbodiedShadowSeedResult(
-            seed=seed, receptor_count=len(observations[0]), effector_count=len(actions[0]),
-            causal=causal, action_shuffled=shuffled, no_action=no_action,
-            causal_margin_over_best_control=margin,
-            causal_beats_controls=(
-                causal.gain_over_persistence > shuffled.gain_over_persistence
-                and causal.gain_over_persistence > no_action.gain_over_persistence
-            ),
-        ))
+        results.append(
+            EmbodiedShadowSeedResult(
+                seed=seed,
+                receptor_count=len(observations[0]),
+                effector_count=len(actions[0]),
+                causal=causal,
+                action_shuffled=shuffled,
+                no_action=no_action,
+                causal_margin_over_best_control=margin,
+                causal_beats_controls=(
+                    causal.gain_over_persistence > shuffled.gain_over_persistence
+                    and causal.gain_over_persistence > no_action.gain_over_persistence
+                ),
+            )
+        )
     return EmbodiedSensorimotorShadowStudy(
-        seeds=seed_list, ticks=ticks, physics_substeps_per_tick=physics_substeps_per_tick,
-        reservoir_size=reservoir_size, per_seed=tuple(results),
+        seeds=seed_list,
+        ticks=ticks,
+        physics_substeps_per_tick=physics_substeps_per_tick,
+        reservoir_size=reservoir_size,
+        per_seed=tuple(results),
         all_seeds_causal_beats_controls=all(item.causal_beats_controls for item in results),
-        mean_causal_margin=sum(item.causal_margin_over_best_control for item in results) / len(results),
+        mean_causal_margin=sum(item.causal_margin_over_best_control for item in results)
+        / len(results),
     )
 
 

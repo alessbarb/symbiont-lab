@@ -14,10 +14,12 @@ from symbiont_world.topology import HexCoord, HexTopology
 def _binding(effect: str, argument: str) -> ActuationBindingConstitution:
     _load_base_genome()  # assert canonical Genome v2 remains loadable
     constitution = derive_actuator_constitution(8, physical_contract="genesis-world-body-v2")
-    return ActuationBindingConstitution(tuple(
-        ActuationBinding(actuator_id, effect, argument)
-        for actuator_id in constitution.actuator_ids
-    ))
+    return ActuationBindingConstitution(
+        tuple(
+            ActuationBinding(actuator_id, effect, argument)
+            for actuator_id in constitution.actuator_ids
+        )
+    )
 
 
 def test_blocked_move_is_attempted_and_journaled_not_prefiltered_by_lab():
@@ -35,7 +37,8 @@ def test_blocked_move_is_attempted_and_journaled_not_prefiltered_by_lab():
     )
     pop.run(80)
     resolutions = [
-        event for event in pop.journal.replay()
+        event
+        for event in pop.journal.replay()
         if event.kind == "ACTUATION_RESOLVED"
         and event.actor == "org-a"
         and event.payload.get("effect") == "move"
@@ -56,11 +59,11 @@ def test_local_interaction_actuator_reaches_world_without_resource_semantics_in_
     )
     records = pop.run(80)
     assert all(
-        not record.per_organism["org-a"].action.action_id.startswith("intake")
-        for record in records
+        not record.per_organism["org-a"].action.action_id.startswith("intake") for record in records
     )
     resolutions = [
-        event for event in pop.journal.replay()
+        event
+        for event in pop.journal.replay()
         if event.kind == "ACTUATION_RESOLVED"
         and event.actor == "org-a"
         and event.payload.get("effect") == "acquire"

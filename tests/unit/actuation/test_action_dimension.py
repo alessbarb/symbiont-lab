@@ -72,7 +72,9 @@ def test_registry_record_usage_unknown_dimension_raises():
     registry = ActionDimensionRegistry()
 
     with pytest.raises(KeyError):
-        registry.record_usage("action.dimension.missing", controllability=0.5, confidence=0.5, embodiment_bound=False)
+        registry.record_usage(
+            "action.dimension.missing", controllability=0.5, confidence=0.5, embodiment_bound=False
+        )
 
 
 def test_registry_enforces_capacity_keeping_most_used():

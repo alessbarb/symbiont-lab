@@ -12,9 +12,8 @@ from collections.abc import Collection, Hashable
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
-from ...cognition.checkpoint import WEIGHT_CLASSES, dequantize_weight, quantize_weight
+from ...cognition.checkpoint import dequantize_weight, quantize_weight
 from ...cognition.limits import KernelLimits
-from ...cognition.types import WEIGHT_RANGE
 
 EdgeKey = Hashable
 
@@ -61,7 +60,10 @@ class WeightStabilityTracker:
         state = self._state.get(edge_key)
         if state is None:
             self._state[edge_key] = _EdgeStability(
-                pending_class=weight_class, pending_epoch=epoch_id, candidate_class=weight_class, support_epochs=0
+                pending_class=weight_class,
+                pending_epoch=epoch_id,
+                candidate_class=weight_class,
+                support_epochs=0,
             )
             return
         if epoch_id == state.pending_epoch:

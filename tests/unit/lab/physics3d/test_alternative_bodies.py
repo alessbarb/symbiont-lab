@@ -15,7 +15,7 @@ from symbiont_lab.physics3d.articulated import build_articulated_urdf
 def test_alternative_body_urdf_contains_exact_motor_constitution(spec) -> None:
     urdf = build_articulated_urdf(spec)
 
-    assert urdf.count('<joint name=') == spec.motor_dof
+    assert urdf.count("<joint name=") == spec.motor_dof
     assert urdf.count('type="revolute"') == spec.motor_dof
     for joint in spec.joint_specs:
         assert f'name="{joint.name}"' in urdf
@@ -28,11 +28,7 @@ def test_alternative_body_contract_dimensions_are_self_consistent(spec) -> None:
     assert len(spec.receptor_ids()) == spec.total_receptor_count
     assert len(spec.interoceptive_receptor_ids()) == 4
     assert spec.total_receptor_count == (
-        spec.motor_dof * 2
-        + 10
-        + spec.somatic_region_count * 2
-        + 1
-        + 4
+        spec.motor_dof * 2 + 10 + spec.somatic_region_count * 2 + 1 + 4
     )
 
 

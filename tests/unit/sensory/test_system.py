@@ -13,7 +13,9 @@ from symbiont.host.readings import (
 from symbiont.sensory import SensorySystem, TransductionKind
 
 
-def reading(source: str, value: float, *, quality: ReadingQuality = ReadingQuality.NOMINAL) -> SensorReading:
+def reading(
+    source: str, value: float, *, quality: ReadingQuality = ReadingQuality.NOMINAL
+) -> SensorReading:
     return SensorReading(
         capability_id=source,
         source="test-provider",
@@ -81,7 +83,10 @@ def test_modalities_are_structurally_non_equivalent() -> None:
     system = SensorySystem()
     by_id = {item.modality_id: item for item in system.modalities}
 
-    assert by_id["modality.alpha"].allowed_transductions != by_id["modality.beta"].allowed_transductions
+    assert (
+        by_id["modality.alpha"].allowed_transductions
+        != by_id["modality.beta"].allowed_transductions
+    )
     assert by_id["modality.alpha"].temporal_capacity != by_id["modality.beta"].temporal_capacity
     assert by_id["modality.gamma"].max_inputs > by_id["modality.alpha"].max_inputs
 
@@ -142,7 +147,9 @@ def test_plastic_step_can_develop_non_identity_receptor_without_target_label() -
     mutations = system.plastic_step(tick=16)
 
     assert any(item.kind.value == "duplicate" for item in mutations)
-    variants = [sensor for sensor in system.sensors if not sensor.sensor_id.startswith("sensor.identity.")]
+    variants = [
+        sensor for sensor in system.sensors if not sensor.sensor_id.startswith("sensor.identity.")
+    ]
     assert len(variants) == 1
     assert variants[0].source_ids == ("source.a",)
     assert variants[0].modality_id == "modality.alpha"
@@ -201,7 +208,8 @@ def test_plastic_step_can_create_multisource_receptor_without_evaluator_pair() -
             system.plastic_step(tick=tick)
 
     multisource = [
-        sensor for sensor in system.sensors
+        sensor
+        for sensor in system.sensors
         if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) == 2
     ]
     assert multisource
@@ -209,7 +217,9 @@ def test_plastic_step_can_create_multisource_receptor_without_evaluator_pair() -
     assert len(multisource[0].parent_sensor_ids) == 2
 
 
-def test_adaptive_identity_sensor_keeps_stable_organism_owned_name_when_source_alias_changes() -> None:
+def test_adaptive_identity_sensor_keeps_stable_organism_owned_name_when_source_alias_changes() -> (
+    None
+):
     system = SensorySystem(plasticity_enabled=True)
     first = system.transduce(
         [reading("source.a", 1.0)],
@@ -308,7 +318,9 @@ def test_temporal_sensor_marks_exactly_first_post_restore_output_as_cold_start()
     assert "cold_start" not in json.dumps(payload)
 
     restored = SensorySystem.restore(payload)
-    restored_child = next(sensor for sensor in restored.sensors if sensor.sensor_id == child.sensor_id)
+    restored_child = next(
+        sensor for sensor in restored.sensors if sensor.sensor_id == child.sensor_id
+    )
     assert restored_child.cold_start_pending is True
 
     restored.transduce(
@@ -317,7 +329,8 @@ def test_temporal_sensor_marks_exactly_first_post_restore_output_as_cold_start()
         tick=3,
     )
     first_view = next(
-        item for item in restored.phenotype_view()["sensors"]
+        item
+        for item in restored.phenotype_view()["sensors"]
         if item["sensor_id"] == child.sensor_id
     )
     assert first_view["cold_start"] is True
@@ -328,7 +341,8 @@ def test_temporal_sensor_marks_exactly_first_post_restore_output_as_cold_start()
         tick=4,
     )
     second_view = next(
-        item for item in restored.phenotype_view()["sensors"]
+        item
+        for item in restored.phenotype_view()["sensors"]
         if item["sensor_id"] == child.sensor_id
     )
     assert second_view["cold_start"] is False
@@ -396,7 +410,9 @@ def test_modality_cannot_exceed_sensory_constitution_bounds() -> None:
         temporal_capacity=65,
         base_cost=0.001,
     )
-    identity = next(item for item in SensorySystem().modalities if item.modality_id == "modality.identity")
+    identity = next(
+        item for item in SensorySystem().modalities if item.modality_id == "modality.identity"
+    )
     with pytest.raises(ValueError, match="temporal_capacity"):
         SensorySystem(
             limits=SensoryLimits(max_temporal_depth=64),
@@ -493,11 +509,11 @@ def test_phenotype_view_exposes_current_substrate_without_source_semantics() -> 
         tick=2,
     )
 
-    payload = system.phenotype_view(
-        signal_ids_by_source={"source.a": "signal." + "a" * 64}
-    )
+    payload = system.phenotype_view(signal_ids_by_source={"source.a": "signal." + "a" * 64})
     sensor = next(item for item in payload["sensors"] if item["sensor_id"] == child.sensor_id)
-    modality = next(item for item in payload["modalities"] if item["modality_id"] == "modality.alpha")
+    modality = next(
+        item for item in payload["modalities"] if item["modality_id"] == "modality.alpha"
+    )
 
     assert sensor["sample_geometry"] == "scalar"
     assert sensor["transduction"] == "difference"

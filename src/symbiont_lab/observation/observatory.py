@@ -1,4 +1,5 @@
 """Read-only adapter for Observatory registry, journals, topology and manifests."""
+
 from __future__ import annotations
 
 import gzip
@@ -82,10 +83,12 @@ def read_journal(
     positions: dict[Path, int],
 ) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
-    segments = sorted([
-        *journal_dir.glob(f"{run_id}-*.ndjson"),
-        *journal_dir.glob(f"{run_id}-*.ndjson.gz"),
-    ])
+    segments = sorted(
+        [
+            *journal_dir.glob(f"{run_id}-*.ndjson"),
+            *journal_dir.glob(f"{run_id}-*.ndjson.gz"),
+        ]
+    )
     live = set(segments)
     for stale in list(positions):
         if stale not in live:
@@ -201,14 +204,10 @@ class ObservatorySource:
     def manifest(self, instance_id: str) -> dict[str, Any] | None:
         if self.root is None or not valid_instance_id(instance_id):
             return None
-        evidence = _read_json_object(
-            self.root / "manifests" / f"{instance_id}.manifest.json"
-        )
+        evidence = _read_json_object(self.root / "manifests" / f"{instance_id}.manifest.json")
         if evidence is None or evidence.get("instance_id") != instance_id:
             return None
-        projected = {
-            key: value for key, value in evidence.items() if key in _MANIFEST_FIELDS
-        }
+        projected = {key: value for key, value in evidence.items() if key in _MANIFEST_FIELDS}
         projected["projection"] = "observatory-provenance-v1"
         return projected
 

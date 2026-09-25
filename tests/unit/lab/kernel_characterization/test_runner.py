@@ -3,7 +3,14 @@ from __future__ import annotations
 import json
 
 from symbiont_lab.kernel_characterization.config import BASELINE_KERNEL, KernelVariant
-from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, run_k3, run_k4_k5, run_k6, write_run
+from symbiont_lab.kernel_characterization.runner import (
+    run_k1,
+    run_k2,
+    run_k3,
+    run_k4_k5,
+    run_k6,
+    write_run,
+)
 
 
 def test_variant_does_not_change_canonical_defaults():
@@ -17,7 +24,15 @@ def test_k1_is_deterministic_and_includes_control():
     variants = [KernelVariant(max_nodes=value) for value in (64, 192)]
     first = run_k1(variants, seeds=(101,), phase_ticks=2)
     second = run_k1(variants, seeds=(101,), phase_ticks=2)
-    stable_fields = ("seed", "max_nodes", "prediction_error", "predictive_gain", "nodes_used", "concepts_used", "edges_used")
+    stable_fields = (
+        "seed",
+        "max_nodes",
+        "prediction_error",
+        "predictive_gain",
+        "nodes_used",
+        "concepts_used",
+        "edges_used",
+    )
     assert [tuple(row.get(field) for field in stable_fields) for row in first[0]] == [
         tuple(row.get(field) for field in stable_fields) for row in second[0]
     ]
@@ -73,7 +88,10 @@ def test_k3_varies_concept_ceiling():
 
 def test_k4_and_k5_exercise_structural_limits():
     k4_raw, k4_summary = run_k4_k5(
-        [KernelVariant(max_nodes=192, max_structural_mutations_per_consolidation=value) for value in (1, 8)],
+        [
+            KernelVariant(max_nodes=192, max_structural_mutations_per_consolidation=value)
+            for value in (1, 8)
+        ],
         seeds=(101,),
         dimension="K4",
     )

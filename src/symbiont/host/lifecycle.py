@@ -7,7 +7,13 @@ from typing import Callable, Deque, Iterable
 
 from .contracts import HostManifest
 from .discovery import HostDiscovery
-from .readings import CapabilitySamplingOutcome, HostSampler, ReadingFailure, ReadingProvider, SensorReading
+from .readings import (
+    CapabilitySamplingOutcome,
+    HostSampler,
+    ReadingFailure,
+    ReadingProvider,
+    SensorReading,
+)
 
 SamplingSelector = Callable[[HostManifest], Iterable[str] | None]
 
@@ -89,7 +95,9 @@ class HostLifecycle:
             selected = sampling_selector(manifest)
             if selected is not None:
                 available_ids = {capability.capability_id for capability in manifest.available}
-                requested = frozenset(capability_id for capability_id in selected if capability_id in available_ids)
+                requested = frozenset(
+                    capability_id for capability_id in selected if capability_id in available_ids
+                )
 
         eligible = [
             provider

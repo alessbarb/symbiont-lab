@@ -109,7 +109,4 @@ class DiscoveryPolicy:
     )
 
     def accepts(self, capability: Capability) -> bool:
-        return (
-            capability.access in self.allowed_access
-            and capability.scope in self.allowed_scopes
-        )
+        return capability.access in self.allowed_access and capability.scope in self.allowed_scopes

@@ -34,7 +34,6 @@ def test_plasticity_engine_preserves_construction_weight_class_until_consolidate
     assert overrides[("sense_a", "readout_core", EdgeKind.EXCITATORY.value)] == quantize_weight(0.5)
 
 
-
 def test_plasticity_engine_applies_homeostatic_value_to_existing_action_relation() -> None:
     limits = KernelLimits()
     edge = PlasticEdge(
@@ -67,7 +66,6 @@ def test_plasticity_engine_applies_homeostatic_value_to_existing_action_relation
     assert edge.weight == 0.6
     assert edge.last_use_tick == 7
     assert edge.support == 1
-
 
 
 def test_plasticity_engine_decay_retiring_edge_preserves_reversible_schedule() -> None:

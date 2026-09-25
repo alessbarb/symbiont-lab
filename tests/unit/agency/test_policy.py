@@ -1,4 +1,5 @@
 """Unit tests for ProspectivePolicy — utility, gates, tiebreaking, decision reasons."""
+
 from __future__ import annotations
 
 import pytest
@@ -26,7 +27,9 @@ def _make_policy(
     )
 
 
-def _candidate(action_id: str, predicted_outcome: str, cc: int, mean_value: float, samples: int = 8) -> EvaluatedCandidate:
+def _candidate(
+    action_id: str, predicted_outcome: str, cc: int, mean_value: float, samples: int = 8
+) -> EvaluatedCandidate:
     return EvaluatedCandidate(
         candidate=ProspectiveCandidate(action_id=action_id, family="primitive"),
         prediction=CounterfactualPrediction(
@@ -127,8 +130,7 @@ def test_tiebreaking_is_deterministic():
     ec2 = _candidate("prim.beta", "outcome.x", cc=7, mean_value=0.5, samples=16)
     candidates = [ec1, ec2]
     decisions = [
-        policy.choose(candidates, homeostatic_deviation=0.5, tick=42).candidate_id
-        for _ in range(5)
+        policy.choose(candidates, homeostatic_deviation=0.5, tick=42).candidate_id for _ in range(5)
     ]
     assert len(set(decisions)) == 1, "tiebreaking must be deterministic"
 
@@ -168,10 +170,18 @@ def test_zero_confidence_class_is_excluded():
 
 def test_policy_construction_validates_inputs():
     with pytest.raises(ValueError):
-        ProspectivePolicy(organism_id="", min_model_confidence=0.5, min_value_samples=4, decision_margin=0.02)
+        ProspectivePolicy(
+            organism_id="", min_model_confidence=0.5, min_value_samples=4, decision_margin=0.02
+        )
     with pytest.raises(ValueError):
-        ProspectivePolicy(organism_id="x", min_model_confidence=1.5, min_value_samples=4, decision_margin=0.02)
+        ProspectivePolicy(
+            organism_id="x", min_model_confidence=1.5, min_value_samples=4, decision_margin=0.02
+        )
     with pytest.raises(ValueError):
-        ProspectivePolicy(organism_id="x", min_model_confidence=0.5, min_value_samples=0, decision_margin=0.02)
+        ProspectivePolicy(
+            organism_id="x", min_model_confidence=0.5, min_value_samples=0, decision_margin=0.02
+        )
     with pytest.raises(ValueError):
-        ProspectivePolicy(organism_id="x", min_model_confidence=0.5, min_value_samples=4, decision_margin=-0.1)
+        ProspectivePolicy(
+            organism_id="x", min_model_confidence=0.5, min_value_samples=4, decision_margin=-0.1
+        )

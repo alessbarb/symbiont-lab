@@ -1,26 +1,25 @@
 from __future__ import annotations
 
+
 def _mind_sources() -> str:
     """Read the modular Mind implementation as one searchable architecture surface."""
     # The Mind view is intentionally split into small modules.  Search the
     # complete module directory instead of maintaining a second, stale list of
     # files in this contract test whenever a concern is extracted.
-    paths = [WEB_ROOT / "views" / "mind.js", *sorted(
-        (WEB_ROOT / "views" / "mind").glob("*.js")
-    )]
+    paths = [WEB_ROOT / "views" / "mind.js", *sorted((WEB_ROOT / "views" / "mind").glob("*.js"))]
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
 
 import json
 
-from symbiont_lab.workbench import WEB_ROOT
+from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
-from symbiont_lab.server.sse import _encode_sse
 from symbiont_lab.observation.projection import (
     mind_snapshot_from_rich_state,
     runtime_tick_events,
 )
-from symbiont_lab.observation.bus import ObservationBus
+from symbiont_lab.server.sse import _encode_sse
+from symbiont_lab.workbench import WEB_ROOT
 
 
 def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
@@ -110,7 +109,6 @@ def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
     assert '"tick":3' in events[1]
 
 
-
 def test_mind_projection_preserves_completely_absent_sections() -> None:
     snapshot = mind_snapshot_from_rich_state({"tick": 9})
 
@@ -174,7 +172,6 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
     assert '"position":0.42' in joined
 
 
-
 def test_physics3d_bridge_emits_stop_command_on_shutdown() -> None:
     bridge = Physics3DObservationBridge(ObservationBus())
     assert bridge.poll_commands() == []
@@ -185,62 +182,63 @@ def test_physics3d_bridge_emits_stop_command_on_shutdown() -> None:
     assert bridge.poll_commands() == [{"type": "stop"}]
 
 
-
 def test_physics3d_rich_state_projects_into_mind_contract() -> None:
-    snapshot = mind_snapshot_from_rich_state({
-        "tick": 33,
-        "organism_id": "symbiont:3d:test",
-        "runtime": {
-            "percepts": [
-                {"name": "rec.0", "quality": "nominal"},
-                {"name": "rec.1", "quality": "unavailable"},
-            ],
-            "narrative": [
-                {
-                    "capability_id": "rec.0",
-                    "summary": "stable signal",
-                    "uncertainty": 0.2,
-                    "evidence_gathered": 4,
-                    "contested": False,
-                }
-            ],
-            "sensory_phenotype": {"status": "developing"},
-            "development": {"stage": "nascent"},
-            "evidence_gathered": 4,
-            "homeostatic_deviation": 0.12,
-        },
-        "cognition": {
-            "activations": {"concept.1": 0.5},
-            "readouts": {"readout.1": 0.3},
-            "prediction_errors": [
-                {"target_id": "concept.1", "error": 0.08},
-            ],
-            "topology_health": "connected",
-            "frozen": False,
-            "consecutive_failures": 0,
-            "stranded_concepts": [],
-            "predictive_gain": 0.2,
-            "topology_revision": 7,
-        },
-        "cognitive_topology": {
-            "nodes": [
-                {"node_id": "concept.1", "kind": "concept"},
-                {"node_id": "readout.1", "kind": "readout"},
-            ],
-            "edges": [
-                {
-                    "source_id": "concept.1",
-                    "target_id": "readout.1",
-                    "kind": "excitatory",
-                }
-            ],
-        },
-        "body_schema": {"status": "developing"},
-        "post": {
-            "metabolism": {"reserve": {"energy": 0.8}},
-            "physiology": {"state": "alive"},
-        },
-    })
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 33,
+            "organism_id": "symbiont:3d:test",
+            "runtime": {
+                "percepts": [
+                    {"name": "rec.0", "quality": "nominal"},
+                    {"name": "rec.1", "quality": "unavailable"},
+                ],
+                "narrative": [
+                    {
+                        "capability_id": "rec.0",
+                        "summary": "stable signal",
+                        "uncertainty": 0.2,
+                        "evidence_gathered": 4,
+                        "contested": False,
+                    }
+                ],
+                "sensory_phenotype": {"status": "developing"},
+                "development": {"stage": "nascent"},
+                "evidence_gathered": 4,
+                "homeostatic_deviation": 0.12,
+            },
+            "cognition": {
+                "activations": {"concept.1": 0.5},
+                "readouts": {"readout.1": 0.3},
+                "prediction_errors": [
+                    {"target_id": "concept.1", "error": 0.08},
+                ],
+                "topology_health": "connected",
+                "frozen": False,
+                "consecutive_failures": 0,
+                "stranded_concepts": [],
+                "predictive_gain": 0.2,
+                "topology_revision": 7,
+            },
+            "cognitive_topology": {
+                "nodes": [
+                    {"node_id": "concept.1", "kind": "concept"},
+                    {"node_id": "readout.1", "kind": "readout"},
+                ],
+                "edges": [
+                    {
+                        "source_id": "concept.1",
+                        "target_id": "readout.1",
+                        "kind": "excitatory",
+                    }
+                ],
+            },
+            "body_schema": {"status": "developing"},
+            "post": {
+                "metabolism": {"reserve": {"energy": 0.8}},
+                "physiology": {"state": "alive"},
+            },
+        }
+    )
 
     assert snapshot["tick"] == 33
     assert snapshot["display_id"] == "symbiont:3d:test"
@@ -259,44 +257,46 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
 
 
 def test_physics3d_rich_state_projects_motor_knowledge_into_mind_contract() -> None:
-    snapshot = mind_snapshot_from_rich_state({
-        "tick": 40,
-        "organism_id": "symbiont:3d:test",
-        "embodiment": {
-            "embodiment_epoch": 2,
-            "bindings": [
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 40,
+            "organism_id": "symbiont:3d:test",
+            "embodiment": {
+                "embodiment_epoch": 2,
+                "bindings": [
+                    {
+                        "competence_id": "competence.7",
+                        "surface_fingerprint": "humanoid:v1",
+                        "effect_id": "effect.3",
+                        "reliability": 0.6,
+                        "controllability": 0.5,
+                        "last_evidence_tick": 39,
+                    },
+                ],
+            },
+            "motor_competences": [
                 {
                     "competence_id": "competence.7",
-                    "surface_fingerprint": "humanoid:v1",
+                    "controller_id": "controller.2",
                     "effect_id": "effect.3",
-                    "reliability": 0.6,
+                    "maturity": "established",
+                    "support": 12,
+                    "failures": 1,
+                    "reproducibility": 0.9,
                     "controllability": 0.5,
-                    "last_evidence_tick": 39,
+                    "directional_consistency": 0.8,
                 },
             ],
-        },
-        "motor_competences": [
-            {
-                "competence_id": "competence.7",
-                "controller_id": "controller.2",
-                "effect_id": "effect.3",
-                "maturity": "established",
-                "support": 12,
-                "failures": 1,
-                "reproducibility": 0.9,
-                "controllability": 0.5,
-                "directional_consistency": 0.8,
-            },
-        ],
-        "effects": [
-            {
-                "effect_id": "effect.3",
-                "feature_refs": ["signal.12", "channel.4"],
-                "support": 12,
-                "confidence": 0.7,
-            },
-        ],
-    })
+            "effects": [
+                {
+                    "effect_id": "effect.3",
+                    "feature_refs": ["signal.12", "channel.4"],
+                    "support": 12,
+                    "confidence": 0.7,
+                },
+            ],
+        }
+    )
 
     assert snapshot["motor_competences"][0]["competence_id"] == "competence.7"
     assert snapshot["motor_competences"][0]["maturity"] == "established"
@@ -318,20 +318,22 @@ def test_physics3d_rich_state_omits_motor_knowledge_when_absent() -> None:
 
 
 def test_physics3d_rich_state_projects_action_dimensions() -> None:
-    snapshot = mind_snapshot_from_rich_state({
-        "tick": 42,
-        "action_dimensions": [
-            {
-                "dimension_id": "action.dimension.aaaa",
-                "actuator_slot_id": "slot.0",
-                "availability": True,
-                "controllability": 0.4,
-                "confidence": 0.3,
-                "usage_count": 5,
-                "embodiment_bound": False,
-            },
-        ],
-    })
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 42,
+            "action_dimensions": [
+                {
+                    "dimension_id": "action.dimension.aaaa",
+                    "actuator_slot_id": "slot.0",
+                    "availability": True,
+                    "controllability": 0.4,
+                    "confidence": 0.3,
+                    "usage_count": 5,
+                    "embodiment_bound": False,
+                },
+            ],
+        }
+    )
 
     assert snapshot["action_dimensions"][0]["dimension_id"] == "action.dimension.aaaa"
     assert snapshot["action_dimensions"][0]["usage_count"] == 5
@@ -391,9 +393,7 @@ def test_physics3d_bridge_projects_active_morphology_without_humanoid_names() ->
 
     payload = json.loads(queue.get_nowait())
     assert payload["body_kind"] == "crawler-v1"
-    assert payload["joints"] == [
-        {"name": "front_left_hip_yaw", "position": 0.2}
-    ]
+    assert payload["joints"] == [{"name": "front_left_hip_yaw", "position": 0.2}]
 
 
 def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
@@ -401,13 +401,15 @@ def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
     bridge = Physics3DObservationBridge(stream)
     queue = stream.subscribe()
 
-    bridge.publish_rich_state({
-        "tick": 44,
-        "organism_id": "symbiont:3d:test",
-        "runtime": {"percepts": [{"name": "rec.0", "quality": "nominal"}]},
-        "cognition": {},
-        "post": {},
-    })
+    bridge.publish_rich_state(
+        {
+            "tick": 44,
+            "organism_id": "symbiont:3d:test",
+            "runtime": {"percepts": [{"name": "rec.0", "quality": "nominal"}]},
+            "cognition": {},
+            "post": {},
+        }
+    )
 
     events = []
     while not queue.empty():
@@ -419,20 +421,22 @@ def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
     assert '"rec.0"' in joined
 
 
-
 def test_physics3d_topology_projection_keeps_nodes_beyond_128() -> None:
     from types import SimpleNamespace
+
     from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
     nodes = [
         SimpleNamespace(node_id=f"sensor.{index}", kind=SimpleNamespace(value="sense"))
         for index in range(128)
     ]
-    nodes.extend([
-        SimpleNamespace(node_id="concept.1", kind=SimpleNamespace(value="concept")),
-        SimpleNamespace(node_id="predictor.1", kind=SimpleNamespace(value="predictor")),
-        SimpleNamespace(node_id="readout_core", kind=SimpleNamespace(value="readout")),
-    ])
+    nodes.extend(
+        [
+            SimpleNamespace(node_id="concept.1", kind=SimpleNamespace(value="concept")),
+            SimpleNamespace(node_id="predictor.1", kind=SimpleNamespace(value="predictor")),
+            SimpleNamespace(node_id="readout_core", kind=SimpleNamespace(value="readout")),
+        ]
+    )
     edges = [
         SimpleNamespace(
             source_id="sensor.0",
@@ -456,7 +460,6 @@ def test_physics3d_topology_projection_keeps_nodes_beyond_128() -> None:
     assert len(payload["edges"]) == 2
 
 
-
 def test_mind_asset_uses_body_schema_class_contract() -> None:
     asset = _mind_sources()
 
@@ -471,7 +474,9 @@ def test_mind_asset_uses_body_schema_class_contract() -> None:
 
 def test_mind_observer_analysis_is_secondary_and_finite_safe() -> None:
     asset = _mind_sources()
-    observer_model = (WEB_ROOT / "views" / "mind" / "observer-map-model.js").read_text(encoding="utf-8")
+    observer_model = (WEB_ROOT / "views" / "mind" / "observer-map-model.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "id: 'history'" in asset
     assert "label: 'History'" in asset
@@ -493,7 +498,6 @@ def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
     assert "Sensory funnel:" in asset
     assert "cognition-integrated" in asset
     assert "function sensoryFacts()" in asset
-
 
 
 def test_mind_cognition_layout_is_relationship_aware() -> None:
@@ -520,7 +524,6 @@ def test_mind_self_is_organism_owned_self_portrait() -> None:
     assert "region.activity_class" in asset
 
 
-
 def test_mind_compares_phenotype_and_self_side_by_side() -> None:
     asset = _mind_sources()
 
@@ -533,7 +536,6 @@ def test_mind_compares_phenotype_and_self_side_by_side() -> None:
     assert "renderPhenotype();" in asset
     assert "renderIdentityGap();" in asset
     assert "renderSelf();" in asset
-
 
 
 def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self() -> None:
@@ -550,11 +552,12 @@ def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self()
     assert "source_receptor_id" not in asset
 
 
-
 def test_mind_cognition_uses_atlas_modes_and_route_tracing() -> None:
     asset = _mind_sources()
     atlas = (WEB_ROOT / "views" / "mind" / "cognitive-atlas.js").read_text(encoding="utf-8")
-    graph_selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
+    graph_selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(
+        encoding="utf-8"
+    )
 
     for mode in ("Structure", "Activity", "Learning", "Prediction", "Motor", "Evidence"):
         assert f"label: '{mode}'" in atlas
@@ -593,14 +596,16 @@ def test_body_and_mind_use_resource_delta_as_distance_not_percent() -> None:
 
 
 def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
-    body = "\n".join([
-        (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8"),
-        (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8"),
-        (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
-        (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
-        (WEB_ROOT / "views" / "body" / "camera-controls.js").read_text(encoding="utf-8"),
-        (WEB_ROOT / "views" / "body" / "workspace.js").read_text(encoding="utf-8"),
-    ])
+    body = "\n".join(
+        [
+            (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8"),
+            (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8"),
+            (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
+            (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
+            (WEB_ROOT / "views" / "body" / "camera-controls.js").read_text(encoding="utf-8"),
+            (WEB_ROOT / "views" / "body" / "workspace.js").read_text(encoding="utf-8"),
+        ]
+    )
 
     assert "Follow body" in body
     assert "resetCameraToBody" in body
@@ -644,9 +649,7 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
 
 
 def test_physics3d_engine_decouples_body_and_rich_viewer_cadence() -> None:
-    engine = (
-        WEB_ROOT.parent.parent / "physics3d" / "engine.py"
-    ).read_text(encoding="utf-8")
+    engine = (WEB_ROOT.parent.parent / "physics3d" / "engine.py").read_text(encoding="utf-8")
 
     assert "rich_render_due = (" in engine
     assert "body_render_due = rich_render_due" in engine
@@ -657,19 +660,20 @@ def test_physics3d_engine_decouples_body_and_rich_viewer_cadence() -> None:
 
 
 def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
-    events = runtime_tick_events({
-        "tick": 5,
-        "predictor_count": 7,
-        "sensorimotor_patterns": 13,
-        "motor_primitives": 4,
-        "cognitive_motor_primitives": 2,
-    })
+    events = runtime_tick_events(
+        {
+            "tick": 5,
+            "predictor_count": 7,
+            "sensorimotor_patterns": 13,
+            "motor_primitives": 4,
+            "cognitive_motor_primitives": 2,
+        }
+    )
     joined = "\n".join(json.dumps(event, separators=(",", ":")) for event in events)
     assert '"predictor_count":7' in joined
     assert '"sensorimotor_patterns":13' in joined
     assert '"motor_primitives":4' in joined
     assert '"cognitive_motor_primitives":2' in joined
-
 
 
 def test_mind_cognition_has_contextual_atlas_inspector() -> None:
@@ -695,44 +699,46 @@ def test_mind_ingests_sensorimotor_counts_from_cognition_stream() -> None:
 
 
 def test_mind_projection_keeps_observer_semantics_separate_from_organism_facts() -> None:
-    snapshot = mind_snapshot_from_rich_state({
-        "tick": 12,
-        "runtime": {
-            "percepts": [
-                {"name": "sense_deadbeef0001", "quality": "nominal"},
-            ],
-        },
-        "cognitive_topology": {
-            "nodes": [
-                {"node_id": "sense_deadbeef0001", "kind": "sense"},
-                {"node_id": "concept.1", "kind": "concept"},
-            ],
-            "edges": [
-                {
-                    "source_id": "sense_deadbeef0001",
-                    "target_id": "concept.1",
-                    "kind": "excitatory",
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 12,
+            "runtime": {
+                "percepts": [
+                    {"name": "sense_deadbeef0001", "quality": "nominal"},
+                ],
+            },
+            "cognitive_topology": {
+                "nodes": [
+                    {"node_id": "sense_deadbeef0001", "kind": "sense"},
+                    {"node_id": "concept.1", "kind": "concept"},
+                ],
+                "edges": [
+                    {
+                        "source_id": "sense_deadbeef0001",
+                        "target_id": "concept.1",
+                        "kind": "excitatory",
+                    },
+                ],
+            },
+            "observer_semantics": {
+                "sensory": {
+                    "sense_deadbeef0001": {
+                        "self_label": "sense_deadbeef0001",
+                        "source_ids": ["rec.0"],
+                        "observer_labels": ["trunk yaw angle"],
+                        "observer_summary": "trunk yaw angle",
+                        "observer_categories": ["proprioception"],
+                        "mapping": "exact-source",
+                    },
                 },
-            ],
-        },
-        "observer_semantics": {
-            "sensory": {
-                "sense_deadbeef0001": {
-                    "self_label": "sense_deadbeef0001",
-                    "source_ids": ["rec.0"],
-                    "observer_labels": ["trunk yaw angle"],
-                    "observer_summary": "trunk yaw angle",
-                    "observer_categories": ["proprioception"],
-                    "mapping": "exact-source",
+                "provenance": {
+                    "owner": "observer",
+                    "source": "physics3d-apparatus",
+                    "feeds_back": False,
                 },
             },
-            "provenance": {
-                "owner": "observer",
-                "source": "physics3d-apparatus",
-                "feeds_back": False,
-            },
-        },
-    })
+        }
+    )
 
     assert snapshot["senses"][0]["id"] == "sense_deadbeef0001"
     semantic = snapshot["observer_semantics"]["sensory"]["sense_deadbeef0001"]
@@ -756,7 +762,6 @@ def test_mind_dual_semantics_are_explicit_in_the_ui() -> None:
     assert "exact-source" in semantics
     assert "sensory-context" in semantics
     assert "unresolved" in semantics
-
 
 
 def test_mind_research_navigation_matches_telemetry_story() -> None:
@@ -839,61 +844,63 @@ def test_mind_bottom_strip_is_glanceable_not_a_metric_dump() -> None:
 
 
 def test_rich_mind_projection_preserves_self_outcome_and_graph_evidence() -> None:
-    snapshot = mind_snapshot_from_rich_state({
-        "tick": 99,
-        "self_model": {
-            "opaque.1": {
-                "health_class": 14,
-                "confidence_class": 13,
-                "maturity_class": 6,
-                "cost_class": 1,
-                "recency_class": 0,
-            }
-        },
-        "outcome": {
-            "initial_resource_distance": 2.5,
-            "minimum_resource_distance": 1.4,
-            "current_resource_distance": 1.5,
-            "resource_progress": 1.0,
-            "resource_remaining": 200.0,
-            "absorbed_energy": 0.0,
-        },
-        "sensorimotor": {
-            "known_patterns": 494,
-            "primitives": 32,
-            "active_motor_repertoire": ["primitive.1"],
-        },
-        "cognitive_topology": {
-            "nodes": [
-                {
-                    "node_id": "concept.1",
-                    "kind": "concept",
-                    "bias": 0.1,
-                    "tau": 1.2,
-                },
-                {
-                    "node_id": "readout_core",
-                    "kind": "readout",
-                    "bias": 0.0,
-                    "tau": 1.0,
-                },
-            ],
-            "edges": [
-                {
-                    "source_id": "concept.1",
-                    "target_id": "readout_core",
-                    "kind": "excitatory",
-                    "weight": 0.7,
-                    "plasticity": 0.2,
-                    "delay_ticks": 1,
-                    "support": 123,
-                    "age_ticks": 456,
-                    "stable_ticks": 400,
-                    "last_use_tick": 98,
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 99,
+            "self_model": {
+                "opaque.1": {
+                    "health_class": 14,
+                    "confidence_class": 13,
+                    "maturity_class": 6,
+                    "cost_class": 1,
+                    "recency_class": 0,
                 }
-            ],
-        },
-    })
+            },
+            "outcome": {
+                "initial_resource_distance": 2.5,
+                "minimum_resource_distance": 1.4,
+                "current_resource_distance": 1.5,
+                "resource_progress": 1.0,
+                "resource_remaining": 200.0,
+                "absorbed_energy": 0.0,
+            },
+            "sensorimotor": {
+                "known_patterns": 494,
+                "primitives": 32,
+                "active_motor_repertoire": ["primitive.1"],
+            },
+            "cognitive_topology": {
+                "nodes": [
+                    {
+                        "node_id": "concept.1",
+                        "kind": "concept",
+                        "bias": 0.1,
+                        "tau": 1.2,
+                    },
+                    {
+                        "node_id": "readout_core",
+                        "kind": "readout",
+                        "bias": 0.0,
+                        "tau": 1.0,
+                    },
+                ],
+                "edges": [
+                    {
+                        "source_id": "concept.1",
+                        "target_id": "readout_core",
+                        "kind": "excitatory",
+                        "weight": 0.7,
+                        "plasticity": 0.2,
+                        "delay_ticks": 1,
+                        "support": 123,
+                        "age_ticks": 456,
+                        "stable_ticks": 400,
+                        "last_use_tick": 98,
+                    }
+                ],
+            },
+        }
+    )
 
     assert snapshot["self_model"]["opaque.1"]["confidence_class"] == 13
     assert snapshot["outcome"]["resource_progress"] == 1.0
@@ -909,18 +916,20 @@ def test_rich_mind_projection_preserves_self_outcome_and_graph_evidence() -> Non
 
 
 def test_runtime_tick_projects_extended_motor_readiness() -> None:
-    events = runtime_tick_events({
-        "tick": 8,
-        "motor_repertoire_size": 2,
-        "recurrent_primitive_candidates": 5,
-        "max_primitive_samples": 3,
-        "full_competence_gate_candidates": 0,
-        "motor_readout_nodes": 1,
-        "primitive_readout_nodes": 1,
-        "cognitive_motor_output_edges": 0,
-        "cognitive_concepts": 32,
-        "cognitive_readouts": 2,
-    })
+    events = runtime_tick_events(
+        {
+            "tick": 8,
+            "motor_repertoire_size": 2,
+            "recurrent_primitive_candidates": 5,
+            "max_primitive_samples": 3,
+            "full_competence_gate_candidates": 0,
+            "motor_readout_nodes": 1,
+            "primitive_readout_nodes": 1,
+            "cognitive_motor_output_edges": 0,
+            "cognitive_concepts": 32,
+            "cognitive_readouts": 2,
+        }
+    )
     cognition = next(event for event in events if event["type"] == "cognition")
     assert cognition["motor_repertoire_size"] == 2
     assert cognition["recurrent_primitive_candidates"] == 5
@@ -928,7 +937,6 @@ def test_runtime_tick_projects_extended_motor_readiness() -> None:
     assert cognition["motor_readout_nodes"] == 1
     assert cognition["cognitive_motor_output_edges"] == 0
     assert cognition["cognitive_concepts"] == 32
-
 
 
 def test_cognition_map_includes_motor_learning_structure() -> None:
@@ -950,7 +958,6 @@ def test_cognition_map_includes_motor_learning_structure() -> None:
     assert "physical composition only" in asset
 
 
-
 def test_cognition_map_uses_emergent_functional_cartography() -> None:
     asset = _mind_sources()
     sectors = (WEB_ROOT / "views" / "mind" / "functional-sectors.js").read_text(encoding="utf-8")
@@ -969,6 +976,7 @@ def test_cognition_map_uses_emergent_functional_cartography() -> None:
     assert "collapsedMotorDegree" in cartography
     assert "edge.kind !== 'motor_component'" in cartography
     assert "edge.kind !== 'causal_effect'" in cartography
+
 
 def test_cognition_view_modes_own_projection_without_redundant_dimension_buttons() -> None:
     asset = _mind_sources()
@@ -1032,6 +1040,7 @@ def test_cognition_map_never_projects_physical_actuator_endpoints() -> None:
     assert "expandedActuators" not in cartography
     assert "linkedMotorEndpoints" not in cartography
 
+
 def test_connected_view_preserves_motor_capabilities_with_actuators_hidden() -> None:
     selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
@@ -1041,6 +1050,7 @@ def test_connected_view_preserves_motor_capabilities_with_actuators_hidden() -> 
     assert "node.kind === 'motor_primitive'" in selection
     assert "node.collapsedMotorDegree" in selection
 
+
 def test_connected_motor_degree_survives_graph_model_projection() -> None:
     asset = _mind_sources()
     selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
@@ -1049,7 +1059,6 @@ def test_connected_motor_degree_survives_graph_model_projection() -> None:
     assert "collapsedMotorDegree: finiteNumber(n.collapsedMotorDegree, 0)" in asset
     assert "node.collapsedMotorDegree" in selection
     assert "collapsedMotorDegree" in cartography
-
 
 
 def test_cognition_sector_drilldown_remains_an_observer_selection_in_3d() -> None:
@@ -1086,12 +1095,10 @@ def test_workbench_view_entrypoints_stay_modular() -> None:
     assert "./archive/render.js" in archive
 
 
-
 def test_sse_event_identity_is_encoded_for_browser_resume() -> None:
     encoded = _encode_sse({"type": "vitals", "tick": 4}, event_id="run-a:4")
     assert encoded.startswith(b"id: run-a:4\ndata: ")
     assert encoded.endswith(b"\n\n")
-
 
 
 def test_stream_replays_from_transport_sequence() -> None:
@@ -1108,7 +1115,6 @@ def test_stream_replays_from_transport_sequence() -> None:
 
     assert [event["tick"] for event in replayed] == [2, 2]
     assert all(event["_stream_id"] > first_id for event in replayed)
-
 
 
 def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
@@ -1130,13 +1136,15 @@ def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
             "joints": [],
         },
     )
-    bridge.publish_rich_state({
-        "tick": 55,
-        "organism_id": "symbiont:3d:test",
-        "runtime": {"percepts": []},
-        "cognition": {},
-        "post": {},
-    })
+    bridge.publish_rich_state(
+        {
+            "tick": 55,
+            "organism_id": "symbiont:3d:test",
+            "runtime": {"percepts": []},
+            "cognition": {},
+            "post": {},
+        }
+    )
 
     payloads = []
     while not consumer.empty():
@@ -1153,7 +1161,6 @@ def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
     assert frame["provenance"]["feeds_back"] is False
 
 
-
 def test_cognition_3d_keeps_actuators_hidden() -> None:
     asset = _mind_sources()
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
@@ -1162,6 +1169,7 @@ def test_cognition_3d_keeps_actuators_hidden() -> None:
     assert "complete learned motor substrate expanded" not in asset
     assert "□ actuator" not in asset
     assert ".filter(node => node.kind !== 'actuator')" in cartography
+
 
 def test_cognition_map_keeps_only_nonphysical_motor_relations_visible() -> None:
     asset = _mind_sources()
@@ -1175,7 +1183,6 @@ def test_cognition_map_keeps_only_nonphysical_motor_relations_visible() -> None:
     assert "edge.kind !== 'motor_component'" in cartography
     assert "edge.kind !== 'causal_effect'" in cartography
     assert "edge.kind === 'invokes'" in asset
-
 
 
 def test_cognitive_atlas_regions_are_first_class_and_clickable() -> None:
@@ -1334,7 +1341,9 @@ def test_mind_inspector_shows_motor_and_embodiment_tabs_only_when_relevant() -> 
 def test_mind_atlas_has_search_by_id_kind_or_physical_binding() -> None:
     atlas = (WEB_ROOT / "views" / "mind" / "cognitive-atlas.js").read_text(encoding="utf-8")
     layout = (WEB_ROOT / "views" / "mind" / "layout.js").read_text(encoding="utf-8")
-    controller = (WEB_ROOT / "views" / "mind" / "cognition-controller.js").read_text(encoding="utf-8")
+    controller = (WEB_ROOT / "views" / "mind" / "cognition-controller.js").read_text(
+        encoding="utf-8"
+    )
     mind = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
 
     assert "export function searchAtlasNodes(" in atlas
@@ -1358,7 +1367,9 @@ def test_mind_atlas_graphs_controller_and_body_schema_as_distinct_kinds() -> Non
 
 def test_cognitive_observatory_synthesizes_current_evidence_without_intent_claims() -> None:
     asset = _mind_sources()
-    observatory = (WEB_ROOT / "views" / "mind" / "cognitive-observatory.js").read_text(encoding="utf-8")
+    observatory = (WEB_ROOT / "views" / "mind" / "cognitive-observatory.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "export function cognitiveSituation(" in observatory
     assert "claimsIntent: false" in observatory
@@ -1389,7 +1400,9 @@ def test_cognitive_live_observatory_is_temporal_and_observer_only() -> None:
 
 
 def test_cognitive_observatory_exposes_full_stage_counts_and_evidence() -> None:
-    observatory = (WEB_ROOT / "views" / "mind" / "cognitive-observatory.js").read_text(encoding="utf-8")
+    observatory = (WEB_ROOT / "views" / "mind" / "cognitive-observatory.js").read_text(
+        encoding="utf-8"
+    )
     asset = _mind_sources()
 
     assert "const allActiveNodes" in observatory
@@ -1412,7 +1425,9 @@ def test_cognitive_observatory_keeps_atlas_as_spatial_instrument() -> None:
 
 def test_cognitive_observatory_final_refinements_are_contractual() -> None:
     asset = _mind_sources()
-    refinement = (WEB_ROOT / "views" / "mind" / "cognitive-refinement.js").read_text(encoding="utf-8")
+    refinement = (WEB_ROOT / "views" / "mind" / "cognitive-refinement.js").read_text(
+        encoding="utf-8"
+    )
     lod = (WEB_ROOT / "views" / "mind" / "cognitive-lod.js").read_text(encoding="utf-8")
     history = (WEB_ROOT / "views" / "mind" / "history.js").read_text(encoding="utf-8")
 
@@ -1565,13 +1580,14 @@ def test_physicalized_3d_zoom_is_continuous_and_scene_relative() -> None:
     assert "zoomCamera(graph.camera3d, ev.deltaY" in asset
 
 
-
 def test_body_viewer_selects_observer_model_by_body_kind() -> None:
-    body = "\n".join([
-        (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8"),
-        (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8"),
-        (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
-    ])
+    body = "\n".join(
+        [
+            (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8"),
+            (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8"),
+            (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
+        ]
+    )
     assert "BodyViewer" in body
     assert "bodyModelFromCatalog" in body
     assert "observer_model" in body
@@ -1580,12 +1596,9 @@ def test_body_viewer_selects_observer_model_by_body_kind() -> None:
     assert "rebuildSkeleton" in body
 
 
-
 def test_mind_ingests_embodiment_reacclimation_state() -> None:
     asset = _mind_sources()
-    telemetry = (
-        WEB_ROOT / "views" / "mind" / "telemetry.js"
-    ).read_text(encoding="utf-8")
+    telemetry = (WEB_ROOT / "views" / "mind" / "telemetry.js").read_text(encoding="utf-8")
 
     assert "embodimentEpoch" in asset
     assert "reacclimationRemaining" in asset
@@ -1596,7 +1609,9 @@ def test_mind_ingests_embodiment_reacclimation_state() -> None:
 
 def test_motor_learning_observer_model_is_epistemically_conservative() -> None:
     model = (WEB_ROOT / "views" / "mind" / "motor-learning-model.js").read_text(encoding="utf-8")
-    history = (WEB_ROOT / "views" / "mind" / "motor-learning-history.js").read_text(encoding="utf-8")
+    history = (WEB_ROOT / "views" / "mind" / "motor-learning-history.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "deriveMotorStage" in model
     assert "deriveAgencyStatus" in model
@@ -1611,12 +1626,14 @@ def test_motor_learning_observer_model_is_epistemically_conservative() -> None:
 
 
 def test_mind_snapshot_preserves_embodiment_context() -> None:
-    snapshot = mind_snapshot_from_rich_state({
-        "tick": 81,
-        "embodiment_epoch": 3,
-        "reacclimating": True,
-        "reacclimation_remaining": 12,
-    })
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 81,
+            "embodiment_epoch": 3,
+            "reacclimating": True,
+            "reacclimation_remaining": 12,
+        }
+    )
 
     assert snapshot["embodiment"] == {
         "epoch": 3,
@@ -1644,7 +1661,11 @@ def test_motor_learning_temporal_ui_distinguishes_live_stale_and_partial_observa
 
 def test_mind_has_observer_side_freshness_timeout_and_app_lifecycle_update() -> None:
     mind = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
-    app = (WEB_ROOT.parent / "app.js").read_text(encoding="utf-8") if False else (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+    app = (
+        (WEB_ROOT.parent / "app.js").read_text(encoding="utf-8")
+        if False
+        else (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+    )
 
     assert "STALE_AFTER_MS         = 5000" in mind
     assert "coherent-frame-timeout" in mind

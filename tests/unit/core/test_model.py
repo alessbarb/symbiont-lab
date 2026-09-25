@@ -1,9 +1,9 @@
 import pytest
-
 from symbiont.core.agent import Agent
 from symbiont.core.collective import CollectiveMemory
 from symbiont.core.memory import AgentMemory, Episode
 from symbiont.core.model import Observation
+
 from symbiont.simulation import run_simulation
 from symbiont_lab.workbench.runs import ExperimentRunState
 

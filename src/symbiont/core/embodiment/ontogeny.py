@@ -3,6 +3,7 @@
 Ontogeny is body physiology. It never inspects cognition, learned topology,
 sensor count, action experience, evaluator scores, or World semantics.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -69,7 +70,9 @@ class OntogenyController:
             and body.energy_reserve + 1e-12 >= self.reproduction_energy()
         )
 
-    def constitutive_step(self, metabolism: MetabolicLedger, *, resting: bool = False) -> OntogenySnapshot:
+    def constitutive_step(
+        self, metabolism: MetabolicLedger, *, resting: bool = False
+    ) -> OntogenySnapshot:
         body = self._body_state
         growth_cost = 0.0
         senescence_wear = 0.0
@@ -79,10 +82,7 @@ class OntogenyController:
                 self._config.growth_rate_per_tick,
                 1.0 - body.growth_progress,
             )
-            energy_per_progress = (
-                self._config.growth_energy_fraction_per_progress
-                * body.max_energy
-            )
+            energy_per_progress = self._config.growth_energy_fraction_per_progress * body.max_energy
             requested_cost = requested_progress * energy_per_progress
             affordable_cost = min(requested_cost, body.energy_reserve)
             if affordable_cost > 0.0:
@@ -90,8 +90,7 @@ class OntogenyController:
                 growth_cost = affordable_cost
                 body.growth_progress = min(
                     1.0,
-                    body.growth_progress
-                    + affordable_cost / energy_per_progress,
+                    body.growth_progress + affordable_cost / energy_per_progress,
                 )
 
         if (

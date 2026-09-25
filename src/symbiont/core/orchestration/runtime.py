@@ -1,16 +1,40 @@
 from __future__ import annotations
 
-import json
-import platform
 import hashlib
-import uuid
+import json
 import math
+import platform
 import time
+import uuid
 from copy import deepcopy
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from ...actuation.action import MotorCommand
+from ...actuation.binding import CompetenceExecutionBindingRegistry
+from ...actuation.candidate import ActuatorCandidateState
+from ...actuation.checkpoint import restore_actuation_state
+from ...actuation.commitment import ActionCommitment, CommitmentStatus
+from ...actuation.competence import CompetenceLibrary, MotorCompetence
+from ...actuation.constitution import ActuatorConstitution
+from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
+from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
+from ...actuation.proposer import ActuatorEvidenceModel
+from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
+from ...actuation.state import SensorimotorV2Snapshot
+from ...actuation.surface import ActuatorChannel, ActuatorSurface
+from ...actuation.system import ActuatorSystem
+from ...actuation.types import Actuation, MotorIntent
+from ...cognition.birth import load_base_graph
+from ...cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
+from ...cognition.graph import CognitiveGraph
+from ...cognition.learning import ShadowPrediction
+from ...cognition.limits import KernelLimits
+from ...genetics.expression import ExpressionRegulator, GeneExpressionState
+from ...genetics.genome import Genome
+from ...genetics.migration import apply_legacy_heritable_payload
+from ...genetics.mutation import mutate_genome
 from ...host.acclimation import HostAcclimation
 from ...host.adaptive import AdaptiveSenseModel, SamplingPlan
 from ...host.checkpoint import (
@@ -32,23 +56,34 @@ from ...host.providers.stdlib_readings import StandardLibraryReadingProvider
 from ...host.readings import ReadingProvider
 from ...host.rhythms import RhythmModel
 from ...sensory import SensorySystem
-from ...cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
-from ...genetics.genome import Genome, DevelopmentGenes, PlasticityGenes, RangeSpec
-from ...cognition.graph import CognitiveGraph
-from ...cognition.learning import ShadowPrediction
-from ...cognition.limits import KernelLimits
-from ...genetics.expression import ExpressionRegulator, GeneExpressionState
 from ..cognition.attention import AttentionAllocation
-from ..embodiment.body_schema import BodySchemaEngine
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
-from ..cognition.self_model import derive_cognitive_self_namespace
 from ..cognition.consolidation import MemoryConsolidator
 from ..cognition.evidence import DissentRecord, EvidenceRevisionLedger
-from ..foundation.narrative import NarrativeEntry
 from ..cognition.host_self_model import SelfModel
-from ..signals.identity import SignalIdentity
-from ..signals.knowledge import SignalKnowledgeEngine, MAX_KNOWLEDGE_CHECKPOINT_BYTES
+from ..cognition.self_model import derive_cognitive_self_namespace
+from ..domains.action import ActionDomain, ActionServices, ActionStepResult
+from ..domains.cognition import CognitionDomain, CognitionServices
+from ..domains.context import TickContext
+from ..domains.development import DevelopmentDomain
+from ..domains.embodiment import EmbodimentDomain, EmbodimentServices
+from ..domains.epistemic import EpistemicDomain, EpistemicServices
+from ..domains.lifecycle import LifecycleDomain
+from ..domains.memory import MemoryDomain, MemoryServices
+from ..domains.perception import PerceptionDomain, PerceptionServices
+from ..domains.physiology import (
+    PhysiologyDomain,
+    PhysiologyPreflightServices,
+    PhysiologyServices,
+)
+from ..domains.regulation import RegulationDomain, RegulationServices
+from ..embodiment.assimilation import AssimilationDecision, InformationAssimilator
+from ..embodiment.body_schema import BodySchemaEngine
 from ..embodiment.degradation import DegradationQueue
+from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
+from ..embodiment.homeostasis import HomeostaticController, HomeostaticSnapshot
+from ..embodiment.metabolism import MetabolicLedger, MetabolicSnapshot
+from ..embodiment.ontogeny import OntogenyController, OntogenySnapshot
 from ..embodiment.physiology import (
     DEFAULT_PHYSIOLOGY_CONFIG,
     BodyStructureState,
@@ -58,54 +93,25 @@ from ..embodiment.physiology import (
     PhysiologySnapshot,
     VitalState,
 )
-from ..signals.knowledge_checkpoint import validate_checkpoint
-from ..embodiment.metabolism import MetabolicLedger, MetabolicSnapshot
-from ..embodiment.assimilation import InformationAssimilator, AssimilationDecision
-from ..embodiment.homeostasis import HomeostaticController, HomeostaticSnapshot
-from ..regulation import InnateReactivity, ReactiveMemory, ReactiveState
-from ..social.ecology import SharedHabitat
-from ..social.trust import SourceTrustModel
-from ..social.relations import (InteractionOutcome, RelationLedger, RelationValence,
-                     SocialRelation,
-                     ResourceEvidenceLedger, SocialCompetitionRequest,
-                     SocialHabitat, SocialPresence)
-from ..lineage.birth_authority import BirthRecord, HabitatBirthAuthority
-from ..embodiment.ontogeny import OntogenyController, OntogenySnapshot
+from ..foundation.narrative import NarrativeEntry
+from ..lineage.birth_authority import HabitatBirthAuthority
 from ..lineage.inheritance import EpigeneticPrior
-from ...genetics.migration import apply_legacy_heritable_payload
-from ...genetics.mutation import mutate_genome
-from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
-from ...cognition.birth import load_base_graph
-from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
-from ...actuation.proposer import ActuatorEvidenceModel
-from ...actuation.binding import CompetenceExecutionBindingRegistry
-from ...actuation.constitution import ActuatorConstitution
-from ...actuation.surface import ActuatorChannel, ActuatorSurface
-from ...actuation.candidate import ActuatorCandidateState
-from ...actuation.types import Actuation, MotorIntent
-from ...actuation.system import ActuatorSystem
-from ...actuation.action import MotorCommand
-from ...actuation.commitment import ActionCommitment, CommitmentStatus
-from ...actuation.competence import CompetenceLibrary, MotorCompetence
-from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
-from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
-from ...actuation.state import SensorimotorV2Snapshot
-from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
-from ..domains.action import ActionDomain, ActionServices, ActionStepResult
-from ..domains.context import TickContext
-from ..domains.physiology import (
-    PhysiologyDomain,
-    PhysiologyPreflightServices,
-    PhysiologyServices,
+from ..regulation import InnateReactivity, ReactiveMemory
+from ..signals.identity import SignalIdentity
+from ..signals.knowledge import MAX_KNOWLEDGE_CHECKPOINT_BYTES, SignalKnowledgeEngine
+from ..signals.knowledge_checkpoint import validate_checkpoint
+from ..social.ecology import SharedHabitat
+from ..social.relations import (
+    InteractionOutcome,
+    RelationLedger,
+    RelationValence,
+    ResourceEvidenceLedger,
+    SocialCompetitionRequest,
+    SocialHabitat,
+    SocialPresence,
+    SocialRelation,
 )
-from ..domains.perception import PerceptionDomain, PerceptionServices
-from ..domains.cognition import CognitionDomain, CognitionServices
-from ..domains.epistemic import EpistemicDomain, EpistemicServices
-from ..domains.lifecycle import LifecycleDomain
-from ..domains.regulation import RegulationDomain, RegulationServices
-from ..domains.embodiment import EmbodimentDomain, EmbodimentServices
-from ..domains.development import DevelopmentDomain
-from ..domains.memory import MemoryDomain, MemoryServices
+from ..social.trust import SourceTrustModel
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -118,9 +124,9 @@ def _parse_running_version(version_string: str) -> tuple[int, int, int]:
 
 def _canonical_hash(payload: dict[str, Any]) -> str:
     """Content hash of a JSON-serializable payload, key order independent."""
-    encoded = json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), allow_nan=False
-    ).encode("utf-8")
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode(
+        "utf-8"
+    )
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -272,15 +278,22 @@ class OrganismRuntime:
             raise ValueError("attention_budget must be positive")
         if investigate_ticks < 0:
             raise ValueError("investigate_ticks must be non-negative (0 disables investigation)")
-        if (tick_count < 0 or generation < 0
-                or social_exchange_quantum <= 0.0 or social_exchange_cost < 0.0):
+        if (
+            tick_count < 0
+            or generation < 0
+            or social_exchange_quantum <= 0.0
+            or social_exchange_cost < 0.0
+        ):
             raise ValueError("invalid tick, generation, social quantum or social cost")
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
         self._bootstrap_semantic_senses = bootstrap_semantic_senses
-        self._adaptive_senses = adaptive_senses if adaptive_senses is not None else AdaptiveSenseModel()
+        self._adaptive_senses = (
+            adaptive_senses if adaptive_senses is not None else AdaptiveSenseModel()
+        )
         self._sensory_system = (
-            sensory_system if sensory_system is not None
+            sensory_system
+            if sensory_system is not None
             else SensorySystem(plasticity_enabled=sensory_plasticity)
         )
         self._discover_senses = discover_senses
@@ -306,13 +319,14 @@ class OrganismRuntime:
                 ShamInteroceptionProvider,
             )
             from ...host.providers.linux_surfaces import LinuxSurfaceProvider
+
             linux_provider = LinuxSurfaceProvider()
             discovery_providers.append(linux_provider)
             reading_providers.append(linux_provider)
 
-            provider_type = (ShamInteroceptionProvider
-                             if interoception_mode == "sham"
-                             else InteroceptionProvider)
+            provider_type = (
+                ShamInteroceptionProvider if interoception_mode == "sham" else InteroceptionProvider
+            )
             self._interoception_provider = provider_type() if self._interoception_enabled else None
             if self._interoception_provider is not None:
                 discovery_providers.append(self._interoception_provider)
@@ -328,7 +342,9 @@ class OrganismRuntime:
             self._reading_providers = tuple(host_reading_providers or ())
         else:
             self._lifecycle = HostLifecycle(
-                discovery=HostDiscovery(providers=tuple(discovery_providers), policy=discovery_policy),
+                discovery=HostDiscovery(
+                    providers=tuple(discovery_providers), policy=discovery_policy
+                ),
                 reading_providers=self._reading_providers,
             )
         provided_min_samples: list[int] = []
@@ -345,26 +361,44 @@ class OrganismRuntime:
         else:
             self._min_samples = int(min_samples)
 
-        self._acclimation = acclimation if acclimation is not None else HostAcclimation(min_samples=self._min_samples)
-        self._rhythm_model = rhythm_model if rhythm_model is not None else RhythmModel(min_samples=self._min_samples)
+        self._acclimation = (
+            acclimation
+            if acclimation is not None
+            else HostAcclimation(min_samples=self._min_samples)
+        )
+        self._rhythm_model = (
+            rhythm_model if rhythm_model is not None else RhythmModel(min_samples=self._min_samples)
+        )
         self._drift_baselines = dict(drift_baselines) if drift_baselines is not None else {}
         if evidence_ledger is not None and hasattr(evidence_ledger, "_conflict_z"):
             self._conflict_z = float(evidence_ledger._conflict_z)
         else:
             self._conflict_z = float(conflict_z)
         self._evidence_ledger = (
-            evidence_ledger if evidence_ledger is not None else EvidenceRevisionLedger(conflict_z=self._conflict_z)
+            evidence_ledger
+            if evidence_ledger is not None
+            else EvidenceRevisionLedger(conflict_z=self._conflict_z)
         )
         self._attention_budget = attention_budget
         self._investigate_ticks = investigate_ticks
         self._tick_count = tick_count
-        self._organism_id = str(organism_id) if organism_id is not None else f"org_{uuid.uuid4().hex[:16]}"
-        self._signal_identity = signal_identity if signal_identity is not None else SignalIdentity(b"symbiont-signal-knowledge-key-32")
-        self._signal_knowledge = signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
+        self._organism_id = (
+            str(organism_id) if organism_id is not None else f"org_{uuid.uuid4().hex[:16]}"
+        )
+        self._signal_identity = (
+            signal_identity
+            if signal_identity is not None
+            else SignalIdentity(b"symbiont-signal-knowledge-key-32")
+        )
+        self._signal_knowledge = (
+            signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
+        )
         self._explicit_metabolism = bool(explicit_metabolism)
         self._auto_promote_predictors = bool(auto_promote_predictors)
         self._birth_authority = birth_authority
-        self._developmental_tracker = developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
+        self._developmental_tracker = (
+            developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
+        )
         self._lifecycle_domain = LifecycleDomain()
         self._generation = generation
         self._last_checkpoint_hash: str | None = None
@@ -379,17 +413,27 @@ class OrganismRuntime:
                     or degradation_queue.waste_ticks != self._physiology_config.waste_ticks
                 ):
                     raise ValueError("incompatible degradation_queue ticks with physiology_config")
-            if metabolism is not None and getattr(metabolism, "physiology_config", None) is not None:
+            if (
+                metabolism is not None
+                and getattr(metabolism, "physiology_config", None) is not None
+            ):
                 if metabolism.physiology_config != self._physiology_config:
-                    raise ValueError("incompatible metabolism physiology_config with runtime physiology_config")
+                    raise ValueError(
+                        "incompatible metabolism physiology_config with runtime physiology_config"
+                    )
             if homeostasis is not None and getattr(homeostasis, "config", None) is not None:
                 if homeostasis.config != self._physiology_config:
-                    raise ValueError("incompatible homeostasis config with runtime physiology_config")
+                    raise ValueError(
+                        "incompatible homeostasis config with runtime physiology_config"
+                    )
         else:
             provided_configs: list[PhysiologyConfig] = []
             if homeostasis is not None and getattr(homeostasis, "config", None) is not None:
                 provided_configs.append(homeostasis.config)
-            if metabolism is not None and getattr(metabolism, "physiology_config", None) is not None:
+            if (
+                metabolism is not None
+                and getattr(metabolism, "physiology_config", None) is not None
+            ):
                 provided_configs.append(metabolism.physiology_config)
 
             if provided_configs:
@@ -406,13 +450,16 @@ class OrganismRuntime:
                         degradation_queue.aging_ticks != base_config.aging_ticks
                         or degradation_queue.waste_ticks != base_config.waste_ticks
                     ):
-                        raise ValueError("incompatible degradation_queue ticks with subsystem physiology config")
+                        raise ValueError(
+                            "incompatible degradation_queue ticks with subsystem physiology config"
+                        )
                     self._physiology_config = base_config
                 else:
                     aging = degradation_queue.aging_ticks
                     waste = degradation_queue.waste_ticks
                     if aging != base_config.aging_ticks or waste != base_config.waste_ticks:
                         from dataclasses import replace
+
                         self._physiology_config = replace(
                             base_config, aging_ticks=aging, waste_ticks=waste
                         )
@@ -455,7 +502,7 @@ class OrganismRuntime:
             # initial state.  Starting the provider at an unconditional 1.0
             # would create a one-cycle blind spot exactly when a germinal
             # organism has to make its first local decision.
-            initial_metabolism = self._metabolism.snapshot()
+            self._metabolism.snapshot()
             initial_ratio = self._metabolism.body_state.energy_reserve / max(
                 self._metabolism.body_state.max_energy,
                 1e-12,
@@ -477,14 +524,10 @@ class OrganismRuntime:
                 homeostasis.body_state
                 if homeostasis is not None
                 else (
-                    physiology.body_state
-                    if physiology is not None
-                    else self._metabolism.body_state
+                    physiology.body_state if physiology is not None else self._metabolism.body_state
                 )
             )
-            physiology_snapshot = (
-                physiology.snapshot() if physiology is not None else None
-            )
+            physiology_snapshot = physiology.snapshot() if physiology is not None else None
             living_body_state = LivingBodyState(
                 energy_reserve=self._metabolism.body_state.energy_reserve,
                 max_energy=self._metabolism.body_state.max_energy,
@@ -553,7 +596,9 @@ class OrganismRuntime:
         self._habitat = habitat
         self._resource_habitats = dict(resource_habitats or {})
         if len(self._resource_habitats) > 16 or any(
-            not isinstance(resource_id, str) or not resource_id or len(resource_id) > 64
+            not isinstance(resource_id, str)
+            or not resource_id
+            or len(resource_id) > 64
             or not isinstance(resource, SharedHabitat)
             for resource_id, resource in self._resource_habitats.items()
         ):
@@ -561,7 +606,9 @@ class OrganismRuntime:
         self._social_habitat = social_habitat
         self._social_ledger = social_ledger if social_ledger is not None else RelationLedger()
         self._social_resource_ledger = (
-            social_resource_ledger if social_resource_ledger is not None else ResourceEvidenceLedger()
+            social_resource_ledger
+            if social_resource_ledger is not None
+            else ResourceEvidenceLedger()
         )
         self._source_trust = source_trust if source_trust is not None else SourceTrustModel()
         self._social_habitat_released = False
@@ -570,7 +617,9 @@ class OrganismRuntime:
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
             self._habitat.admit(self._organism_id)
         for resource in self._resource_habitats.values():
-            if not resource.has_allocation(self._organism_id) and not resource.admit(self._organism_id):
+            if not resource.has_allocation(self._organism_id) and not resource.admit(
+                self._organism_id
+            ):
                 raise ValueError("resource habitat cannot register runtime")
         self._self_model = self_model if self_model is not None else SelfModel()
         if body_schema is not None:
@@ -595,13 +644,19 @@ class OrganismRuntime:
         self._expression_regulator = expression_regulator or ExpressionRegulator()
         if isinstance(mutation_seed, bool) or not isinstance(mutation_seed, int):
             raise ValueError("mutation_seed must be an integer")
-        if (not isinstance(epigenetic_decay, (int, float)) or isinstance(epigenetic_decay, bool)
-                or not math.isfinite(float(epigenetic_decay)) or not 0.0 <= epigenetic_decay <= 1.0):
+        if (
+            not isinstance(epigenetic_decay, (int, float))
+            or isinstance(epigenetic_decay, bool)
+            or not math.isfinite(float(epigenetic_decay))
+            or not 0.0 <= epigenetic_decay <= 1.0
+        ):
             raise ValueError("epigenetic_decay must be within [0, 1]")
-        if (len(epigenetic_priors) > 16
-                or any(not isinstance(item, EpigeneticPrior) for item in epigenetic_priors)
-                or len({item.key for item in epigenetic_priors}) != len(epigenetic_priors)
-                or any(item.key not in self._SUPPORTED_EPIGENETIC_KEYS for item in epigenetic_priors)):
+        if (
+            len(epigenetic_priors) > 16
+            or any(not isinstance(item, EpigeneticPrior) for item in epigenetic_priors)
+            or len({item.key for item in epigenetic_priors}) != len(epigenetic_priors)
+            or any(item.key not in self._SUPPORTED_EPIGENETIC_KEYS for item in epigenetic_priors)
+        ):
             raise ValueError("epigenetic_priors exceed bounded capacity")
         # Historical heritable_genome input is no longer an operative genetic
         # source. Reject non-null values rather than running two genomes.
@@ -611,15 +666,23 @@ class OrganismRuntime:
         self._mutation_seed = mutation_seed
         self._epigenetic_priors = tuple(epigenetic_priors)
         self._epigenetic_decay = float(epigenetic_decay)
-        if self._birth_authority is not None and self._organism_id not in self._birth_authority.live_ids:
+        if (
+            self._birth_authority is not None
+            and self._organism_id not in self._birth_authority.live_ids
+        ):
             genome_id = self._genome.genome_id if self._genome is not None else "runtime"
-            if self._birth_authority.register_existing(organism_id=self._organism_id,
-                                                       genome_id=genome_id,
-                                                       generation=self._generation) is None:
+            if (
+                self._birth_authority.register_existing(
+                    organism_id=self._organism_id, genome_id=genome_id, generation=self._generation
+                )
+                is None
+            ):
                 raise ValueError("birth authority cannot register runtime")
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
         self._memory_consolidator = (
-            memory_consolidator if memory_consolidator is not None else MemoryConsolidator(kernel_limits=self._kernel_limits)
+            memory_consolidator
+            if memory_consolidator is not None
+            else MemoryConsolidator(kernel_limits=self._kernel_limits)
         )
         self._reacclimation_remaining = 0  # matches CognitiveBridge's own §16a semantics
         self._cognitive_bridge: CognitiveBridge | None = cognitive_bridge
@@ -777,7 +840,6 @@ class OrganismRuntime:
     def gene_expression_state(self) -> GeneExpressionState | None:
         return self._gene_expression_state
 
-
     @property
     def reacclimation_remaining(self) -> int:
         """Ticks remaining in the organism-owned post-restore reacclimation gate."""
@@ -825,16 +887,10 @@ class OrganismRuntime:
 
         current = self._action_domain.embodiment_id
         if current is not None and current != embodiment_id:
-            raise RuntimeError(
-                "restored action authority belongs to another embodiment"
-            )
+            raise RuntimeError("restored action authority belongs to another embodiment")
         self._action_domain.embodiment_id = embodiment_id
         commitment = self._action_domain.active_commitment
-        if (
-            commitment is not None
-            and commitment.active
-            and commitment.embodiment_id is None
-        ):
+        if commitment is not None and commitment.active and commitment.embodiment_id is None:
             # Explicit migration of a pre-Embodiment-id commitment.  This is
             # only legal when the surrounding physical episode itself was
             # restored rather than replaced.
@@ -939,7 +995,6 @@ class OrganismRuntime:
             for episode in self._action_domain.competence_development.last_primitive_episodes
         )
 
-
     @property
     def sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
         return self._action_domain.snapshot(
@@ -947,6 +1002,7 @@ class OrganismRuntime:
                 self._body_schema.sensorimotor_dependency_evidence_count
             )
         )
+
     @property
     def motor_competences(self) -> tuple[MotorCompetence, ...]:
         """Canonical learned competence view used outside the legacy learner."""
@@ -971,7 +1027,6 @@ class OrganismRuntime:
             return ()
         return self._action_domain.actuator_evidence.states
 
-
     def _motor_percept_snapshot(
         self,
         percepts: tuple[Percept, ...],
@@ -990,9 +1045,6 @@ class OrganismRuntime:
             sensory_system=self._sensory_system,
         )
 
-
-
-
     def _choose_acquired_competence(
         self,
         *,
@@ -1009,7 +1061,6 @@ class OrganismRuntime:
         MotorCommand; the universal ActionArbitrator remains authoritative.
         """
         return None
-
 
     def _motor_step(
         self,
@@ -1030,7 +1081,7 @@ class OrganismRuntime:
             )
         elif tick is not None and int(tick) != context.symbiont_tick:
             raise ValueError("motor step tick contradicts TickContext")
-        action_result = self._action_domain.step(
+        self._action_domain.step(
             cognition,
             percepts,
             context=context,
@@ -1052,7 +1103,6 @@ class OrganismRuntime:
                 ),
             ),
         )
-
 
     @property
     def last_action_source(self) -> str:
@@ -1086,6 +1136,7 @@ class OrganismRuntime:
 
     def effective_configuration(self) -> dict[str, Any]:
         from dataclasses import asdict
+
         config: dict[str, Any] = {
             "organism_id": self._organism_id,
             "attention_budget": self._attention_budget,
@@ -1108,9 +1159,7 @@ class OrganismRuntime:
             "epigenetic_decay": self._epigenetic_decay,
             "actuation_enabled": self._actuation_enabled,
             "motor_selection_threshold": (
-                self._action_domain.selection_threshold
-                if self._actuation_enabled
-                else None
+                self._action_domain.selection_threshold if self._actuation_enabled else None
             ),
             "physiology": asdict(self._physiology_config),
         }
@@ -1162,6 +1211,7 @@ class OrganismRuntime:
     ) -> str:
         """Derive a canonical configuration fingerprint for this organism runtime."""
         from symbiont.core.foundation.fingerprint import generate_runtime_fingerprint_from_runtime
+
         return generate_runtime_fingerprint_from_runtime(
             self,
             software_version=software_version,
@@ -1187,7 +1237,6 @@ class OrganismRuntime:
     @property
     def sensory_system(self) -> SensorySystem:
         return self._sensory_system
-
 
     @property
     def self_model(self) -> SelfModel:
@@ -1218,7 +1267,7 @@ class OrganismRuntime:
     @property
     def competence_library(self) -> CompetenceLibrary:
         return self._action_domain.competence_library
-    
+
     @property
     def competence_execution_bindings(self) -> CompetenceExecutionBindingRegistry:
         return self._action_domain.execution_bindings
@@ -1235,7 +1284,7 @@ class OrganismRuntime:
             competence,
             surface_fingerprint=self._current_surface_fingerprint(),
         )
-    
+
     @property
     def evidence_ledger(self) -> EvidenceRevisionLedger:
         return self._evidence_ledger
@@ -1253,7 +1302,6 @@ class OrganismRuntime:
     def epigenetic_priors(self) -> tuple[EpigeneticPrior, ...]:
         """Coarse, non-semantic developmental biases; never lifetime knowledge."""
         return self._epigenetic_priors
-
 
     def _next_heritable_genome(self) -> Genome | None:
         """Create the next genotype through the single typed Genome v2 path."""
@@ -1355,7 +1403,9 @@ class OrganismRuntime:
 
         return min(candidates, key=priority)
 
-    def request_social_exchange(self, target_id: str, resource: str, amount: float) -> InteractionOutcome:
+    def request_social_exchange(
+        self, target_id: str, resource: str, amount: float
+    ) -> InteractionOutcome:
         """Issue one explicit social exchange request.
 
         The runtime never schedules peers or chooses a social objective; the
@@ -1368,9 +1418,12 @@ class OrganismRuntime:
         outcome = self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
         self._charge_metabolism("cognition", self._social_exchange_cost)
         self._social_ledger.observe(
-            self._organism_id, target_id, benefit=outcome.granted,
+            self._organism_id,
+            target_id,
+            benefit=outcome.granted,
             reciprocal=outcome.relation.reciprocal_observations > 0,
-            tick=self._tick_count, channel=resource,
+            tick=self._tick_count,
+            channel=resource,
         )
         self._social_resource_ledger.observe(
             resource, requested=amount, granted=outcome.granted, tick=self._tick_count
@@ -1413,7 +1466,8 @@ class OrganismRuntime:
             raise ValueError("no social habitat is attached")
         opportunities = tuple(item for item in self.observe_social_presence() if item.available)
         negative = tuple(
-            item for item in self._social_ledger.relations
+            item
+            for item in self._social_ledger.relations
             if item.source_id == self._organism_id
             and item.valence is RelationValence.NEGATIVE
             and any(item.target_id == opportunity.target_id for opportunity in opportunities)
@@ -1430,8 +1484,10 @@ class OrganismRuntime:
                 item.channel,
             ),
         )
-        resource = relation.channel if relation.channel in resources else self._social_resource_ledger.choose(
-            resources, current_tick=self._tick_count
+        resource = (
+            relation.channel
+            if relation.channel in resources
+            else self._social_resource_ledger.choose(resources, current_tick=self._tick_count)
         )
         if resource is None:
             return None
@@ -1464,7 +1520,9 @@ class OrganismRuntime:
             raise ValueError("no social habitat is attached")
         return self._social_habitat.resume(self._organism_id, target_id)
 
-    def request_social_competition(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
+    def request_social_competition(
+        self, requests: list[tuple[str, str, float]]
+    ) -> tuple[InteractionOutcome, ...]:
         """Submit an explicit finite-resource competition request batch."""
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot interact")
@@ -1476,19 +1534,28 @@ class OrganismRuntime:
         self._charge_metabolism("cognition", self._social_exchange_cost * len(requests))
         requested = {(source, resource): amount for source, resource, amount in requests}
         for outcome in outcomes:
-            loss = max(0.0, requested.get((outcome.source_id, outcome.resource), outcome.granted) - outcome.granted)
+            loss = max(
+                0.0,
+                requested.get((outcome.source_id, outcome.resource), outcome.granted)
+                - outcome.granted,
+            )
             # The habitat relation records which competing peer was observed;
             # retain that target rather than collapsing scarcity onto the
             # habitat token in the runtime's local memory.
             self._social_ledger.observe(
-                outcome.source_id, outcome.relation.target_id, cost=loss,
-                tick=self._tick_count, channel=outcome.resource,
+                outcome.source_id,
+                outcome.relation.target_id,
+                cost=loss,
+                tick=self._tick_count,
+                channel=outcome.resource,
             )
             requested_amount = requested.get((outcome.source_id, outcome.resource), outcome.granted)
             if requested_amount > 0.0:
                 self._social_resource_ledger.observe(
-                    outcome.resource, requested=requested_amount,
-                    granted=outcome.granted, tick=self._tick_count
+                    outcome.resource,
+                    requested=requested_amount,
+                    granted=outcome.granted,
+                    tick=self._tick_count,
                 )
         return outcomes
 
@@ -1518,9 +1585,7 @@ class OrganismRuntime:
             return None
 
         inherited = self._next_heritable_genome()
-        child_genome_id = (
-            inherited.genome_id if inherited is not None else self._genome.genome_id
-        )
+        child_genome_id = inherited.genome_id if inherited is not None else self._genome.genome_id
         record = self._birth_authority.birth(
             genome_id=child_genome_id,
             parent_ids=(self._organism_id,),
@@ -1530,9 +1595,7 @@ class OrganismRuntime:
             return None
 
         birth_energy = self._ontogeny.reproduction_energy()
-        child_genome = (
-            self._child_genome(inherited) if inherited is not None else self._genome
-        )
+        child_genome = self._child_genome(inherited) if inherited is not None else self._genome
         child_state = LivingBodyState(
             energy_reserve=birth_energy,
             max_energy=self._living_body_state.max_energy,
@@ -1660,15 +1723,20 @@ class OrganismRuntime:
         """Absorb anonymous physical energy into the one conserved body pool."""
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot absorb metabolic energy")
-        if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount):
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(amount)
+        ):
             raise ValueError("absorbed metabolic energy must be finite")
         amount = float(amount)
         if amount < 0.0:
             raise ValueError("absorbed metabolic energy must be non-negative")
         return self._metabolism.intake_untyped(amount)
 
-    def request_resource_intake(self, amount: float, *, kind: str = "maintenance",
-                                resource_id: str | None = None) -> float:
+    def request_resource_intake(
+        self, amount: float, *, kind: str = "maintenance", resource_id: str | None = None
+    ) -> float:
         """Acquire bounded resource from the attached shared habitat.
 
         Habitat scarcity is authoritative; only the granted amount enters the
@@ -1677,18 +1745,25 @@ class OrganismRuntime:
         """
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot acquire resources")
-        habitat = self._resource_habitats.get(resource_id) if resource_id is not None else self._habitat
+        habitat = (
+            self._resource_habitats.get(resource_id) if resource_id is not None else self._habitat
+        )
         if habitat is None:
             raise ValueError("no shared habitat is attached")
-        if kind not in {"observation", "cognition", "persistence", "maintenance"} or isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or amount <= 0.0:
+        if (
+            kind not in {"observation", "cognition", "persistence", "maintenance"}
+            or isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(amount)
+            or amount <= 0.0
+        ):
             raise ValueError("invalid resource intake")
         # Physical body headroom is authoritative. The requested accounting
         # kind may receive bookkeeping credit, but it cannot gate or create
         # physical energy.
         available = max(
             0.0,
-            self._living_body_state.max_energy
-            - self._living_body_state.energy_reserve,
+            self._living_body_state.max_energy - self._living_body_state.energy_reserve,
         )
         accepted_request = min(float(amount), available)
         if accepted_request <= 0.0:
@@ -1735,10 +1810,7 @@ class OrganismRuntime:
         surfaces = list(self._resource_habitats.values())
         if self._habitat is not None:
             surfaces.append(self._habitat)
-        return all(
-            surface.snapshot().population < surface.capacity
-            for surface in surfaces
-        )
+        return all(surface.snapshot().population < surface.capacity for surface in surfaces)
 
     @property
     def source_trust(self) -> SourceTrustModel:
@@ -1756,7 +1828,6 @@ class OrganismRuntime:
             raise OrganismDeadError("dead organisms cannot resume activity")
         self._resting_requested = False
 
-
     def apply_environmental_damage(self, amount: float) -> float:
         """Apply a bounded physical perturbation from the supplied habitat.
 
@@ -1766,8 +1837,12 @@ class OrganismRuntime:
         """
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot receive damage")
-        if (isinstance(amount, bool) or not isinstance(amount, (int, float))
-                or not math.isfinite(float(amount)) or not 0.0 < amount <= 0.25):
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(float(amount))
+            or not 0.0 < amount <= 0.25
+        ):
             raise ValueError("environmental damage must be within (0, 0.25]")
         before = self._homeostasis.integrity
         self._homeostasis.integrity = max(0.0, before - float(amount))
@@ -1806,22 +1881,16 @@ class OrganismRuntime:
             if context.symbiont_id != self._organism_id:
                 raise ValueError("tick context belongs to another Symbiont")
             if context.symbiont_tick != expected_tick:
-                raise ValueError(
-                    "tick context symbiont time is not the next organism tick"
-                )
+                raise ValueError("tick context symbiont time is not the next organism tick")
         self._embodiment_domain.validate_context(context)
         if (
             self._action_domain.embodiment_id is not None
             and context.embodiment_id != self._action_domain.embodiment_id
         ):
-            raise ValueError(
-                "tick context belongs to another action EmbodimentEpisode"
-            )
+            raise ValueError("tick context belongs to another action EmbodimentEpisode")
         tick_start = time.monotonic()
-        self._reacclimation_remaining = (
-            self._embodiment_domain.advance_reacclimation(
-                self._reacclimation_remaining
-            )
+        self._reacclimation_remaining = self._embodiment_domain.advance_reacclimation(
+            self._reacclimation_remaining
         )
         physiology_preflight = self._physiology_domain.preflight(
             services=PhysiologyPreflightServices(
@@ -1858,9 +1927,7 @@ class OrganismRuntime:
             attention_budget=self._attention_budget,
             sampling_selector=self._sampling_selector,
             pending_proprioception=(
-                self._action_domain.pending_proprioception
-                if self._actuation_enabled
-                else {}
+                self._action_domain.pending_proprioception if self._actuation_enabled else {}
             ),
         )
         percepts = perception.percepts
@@ -1983,7 +2050,6 @@ class OrganismRuntime:
         physiology_snapshot = physiology_step.physiology
         ontogeny_snapshot = physiology_step.ontogeny
         development_snapshot = physiology_step.development
-        repaired_amount = physiology_step.repaired_amount
         self._resting_requested = physiology_step.resting_requested
         resting_for_tick = physiology_step.resting_for_tick
         self._regulation_domain.resolve_homeostatic_action_credit(
@@ -2025,27 +2091,21 @@ class OrganismRuntime:
             percepts=percepts,
             knowledge_view=perception.knowledge_view,
             drift_observations=drift_observations,
-            action_executed=bool(
-                action_result is not None and action_result.executed
-            ),
+            action_executed=bool(action_result is not None and action_result.executed),
         )
 
         # Evidence from tick t regulates the operating phenotype for t+1.
         action_development = self._action_domain.development_projection()
-        self._gene_expression_state = (
-            self._development_domain.update_gene_expression(
-                genome=self._genome,
-                expression_state=self._gene_expression_state,
-                expression_regulator=self._expression_regulator,
-                cognitive_bridge=self._cognitive_bridge,
-                cognition=cognition_result,
-                drift_observations=drift_observations,
-                metabolic_pressure=metabolism_snapshot.pressure.value,
-                actuator_count=action_development.actuator_count,
-                active_actuator_count=(
-                    action_development.active_actuator_count
-                ),
-            )
+        self._gene_expression_state = self._development_domain.update_gene_expression(
+            genome=self._genome,
+            expression_state=self._gene_expression_state,
+            expression_regulator=self._expression_regulator,
+            cognitive_bridge=self._cognitive_bridge,
+            cognition=cognition_result,
+            drift_observations=drift_observations,
+            metabolic_pressure=metabolism_snapshot.pressure.value,
+            actuator_count=action_development.actuator_count,
+            active_actuator_count=(action_development.active_actuator_count),
         )
 
         self._tick_count = context.symbiont_tick
@@ -2064,11 +2124,9 @@ class OrganismRuntime:
             assimilation_count=len(perception.assimilation),
             narrative=epistemic.narrative,
         )
-        self._epigenetic_priors = (
-            self._development_domain.decay_epigenetic_priors(
-                self._epigenetic_priors,
-                decay=self._epigenetic_decay,
-            )
+        self._epigenetic_priors = self._development_domain.decay_epigenetic_priors(
+            self._epigenetic_priors,
+            decay=self._epigenetic_decay,
         )
         return RuntimeTickResult(
             tick=self._tick_count,
@@ -2150,13 +2208,9 @@ class OrganismRuntime:
         )
         if self._actuation_enabled:
             if self._action_domain.surface is None:
-                raise CheckpointError(
-                    "actuation enabled without actuator constitution"
-                )
+                raise CheckpointError("actuation enabled without actuator constitution")
             constitution_payload = {
-                "contract_fingerprint": (
-                    self._action_domain.surface.contract_fingerprint
-                ),
+                "contract_fingerprint": (self._action_domain.surface.contract_fingerprint),
                 "slots": [
                     {
                         "slot_id": slot.slot_id,
@@ -2199,7 +2253,11 @@ class OrganismRuntime:
             payload["actuation"] = {"enabled": False}
         payload["memory"] = self._memory_consolidator.export_checkpoint()
         knowledge_payload = self._signal_knowledge.checkpoint()
-        knowledge_size = len(json.dumps(knowledge_payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8"))
+        knowledge_size = len(
+            json.dumps(
+                knowledge_payload, sort_keys=True, separators=(",", ":"), allow_nan=False
+            ).encode("utf-8")
+        )
         if knowledge_size > MAX_KNOWLEDGE_CHECKPOINT_BYTES:
             raise CheckpointError("signal knowledge checkpoint exceeds 256 KiB")
         payload["signal_knowledge"] = knowledge_payload
@@ -2238,7 +2296,9 @@ class OrganismRuntime:
         genome_data = payload.get("genome")
         payload["constitution_fingerprint"] = {
             "schema_version": 1,
-            "genome_hash": _canonical_hash(cast(dict[str, Any], genome_data)) if genome_data is not None else None,
+            "genome_hash": _canonical_hash(cast(dict[str, Any], genome_data))
+            if genome_data is not None
+            else None,
         }
         payload["runtime_provenance"] = {
             "software_version": _symbiont_version,
@@ -2282,13 +2342,10 @@ class OrganismRuntime:
             "actuator_constitution_override",
             None,
         )
-        if (
-            actuator_constitution_override is not None
-            and not isinstance(actuator_constitution_override, ActuatorSurface)
+        if actuator_constitution_override is not None and not isinstance(
+            actuator_constitution_override, ActuatorSurface
         ):
-            raise CheckpointError(
-                "actuator_constitution_override must be an ActuatorSurface"
-            )
+            raise CheckpointError("actuator_constitution_override must be an ActuatorSurface")
         fingerprint_migration: tuple[str, str] | None = None
         normalized = normalize_checkpoint(payload)
         effective = normalized.get("effective_config", {})
@@ -2303,7 +2360,9 @@ class OrganismRuntime:
         explicit_sensory_override = (
             kwargs["sensory_plasticity"] if "sensory_plasticity" in kwargs else None
         )
-        if explicit_sensory_override is not None and not isinstance(explicit_sensory_override, bool):
+        if explicit_sensory_override is not None and not isinstance(
+            explicit_sensory_override, bool
+        ):
             raise CheckpointError("sensory_plasticity override must be boolean")
         effective_sensory_plasticity = effective.get("sensory_plasticity", False)
         if not isinstance(effective_sensory_plasticity, bool):
@@ -2374,9 +2433,7 @@ class OrganismRuntime:
                     kernel_limits=kernel_limits,
                 )
             except ValueError as exc:
-                raise CheckpointError(
-                    f"invalid legacy HeritableGenome checkpoint: {exc}"
-                ) from exc
+                raise CheckpointError(f"invalid legacy HeritableGenome checkpoint: {exc}") from exc
         heritable_genome = None
 
         gene_expression_state = None
@@ -2389,14 +2446,13 @@ class OrganismRuntime:
                     raise CheckpointError("invalid gene expression checkpoint")
                 try:
                     from ...genetics.expression import restore_expression_state
+
                     gene_expression_state = restore_expression_state(
                         raw_expression,
                         genome,
                     )
                 except ValueError as exc:
-                    raise CheckpointError(
-                        f"invalid gene expression checkpoint: {exc}"
-                    ) from exc
+                    raise CheckpointError(f"invalid gene expression checkpoint: {exc}") from exc
         raw_priors = normalized.get("epigenetic_priors")
         if raw_priors is None:
             raw_priors = []
@@ -2435,9 +2491,7 @@ class OrganismRuntime:
             actuation_enabled = enabled
             raw_mode = raw_actuation.get("exploration_mode")
             if raw_mode == "structured_probe":
-                raise CheckpointError(
-                    "checkpoint carries removed scheduled motor probing state"
-                )
+                raise CheckpointError("checkpoint carries removed scheduled motor probing state")
             # Legacy spontaneous/exploration mode is read only for migration;
             # Sensorimotor v2 has no runtime motor mode.
             if enabled:
@@ -2460,7 +2514,9 @@ class OrganismRuntime:
                         for item in raw_slots
                     )
                 except (KeyError, TypeError, ValueError) as exc:
-                    raise CheckpointError(f"invalid body-owned actuator constitution: {exc}") from exc
+                    raise CheckpointError(
+                        f"invalid body-owned actuator constitution: {exc}"
+                    ) from exc
                 stored_fingerprint = raw_constitution.get("contract_fingerprint")
                 if stored_fingerprint is None:
                     legacy_material = {
@@ -2482,10 +2538,7 @@ class OrganismRuntime:
                     contract_fingerprint=stored_fingerprint,
                 )
                 if actuator_constitution_override is not None:
-                    if (
-                        restored_constitution.channels
-                        != actuator_constitution_override.channels
-                    ):
+                    if restored_constitution.channels != actuator_constitution_override.channels:
                         raise CheckpointError(
                             "actuator constitution override changes legal channels"
                         )
@@ -2500,53 +2553,31 @@ class OrganismRuntime:
                         )
                 else:
                     actuator_constitution = restored_constitution
-                raw_action_domain = raw_actuation.get(
-                    "action_domain"
-                )
+                raw_action_domain = raw_actuation.get("action_domain")
                 if raw_action_domain is not None:
                     if (
                         not isinstance(raw_action_domain, dict)
                         or raw_action_domain.get("schema_version") != 1
                     ):
-                        raise CheckpointError(
-                            "invalid canonical action_domain checkpoint"
-                        )
-                    raw_evidence_state = raw_action_domain.get(
-                        "actuator_evidence"
-                    )
-                    raw_selection_threshold = raw_action_domain.get(
-                        "selection_threshold", 0.1
-                    )
-                    raw_sensorimotor = raw_action_domain.get(
-                        "competence_development"
-                    )
+                        raise CheckpointError("invalid canonical action_domain checkpoint")
+                    raw_evidence_state = raw_action_domain.get("actuator_evidence")
+                    raw_selection_threshold = raw_action_domain.get("selection_threshold", 0.1)
+                    raw_sensorimotor = raw_action_domain.get("competence_development")
                     if not isinstance(raw_sensorimotor, dict):
                         raise CheckpointError(
                             "canonical action domain is missing competence_development"
                         )
-                    raw_pending = raw_action_domain.get(
-                        "pending_motor_observation"
-                    )
-                    raw_proprio = raw_action_domain.get(
-                        "pending_proprioception", {}
-                    )
+                    raw_pending = raw_action_domain.get("pending_motor_observation")
+                    raw_proprio = raw_action_domain.get("pending_proprioception", {})
                 else:
                     # Migration-only path for pre-ActionDomain checkpoints.
                     raw_evidence_state = raw_actuation.get("proposer")
-                    raw_selection_threshold = raw_actuation.get(
-                        "selection_threshold", 0.1
-                    )
+                    raw_selection_threshold = raw_actuation.get("selection_threshold", 0.1)
                     raw_sensorimotor = raw_actuation.get("sensorimotor")
-                    raw_pending = raw_actuation.get(
-                        "pending_motor_observation"
-                    )
-                    raw_proprio = raw_actuation.get(
-                        "pending_proprioception", {}
-                    )
+                    raw_pending = raw_actuation.get("pending_motor_observation")
+                    raw_proprio = raw_actuation.get("pending_proprioception", {})
                 if not isinstance(raw_evidence_state, dict):
-                    raise CheckpointError(
-                        "action domain actuator evidence is missing"
-                    )
+                    raise CheckpointError("action domain actuator evidence is missing")
                 try:
                     actuator_evidence = restore_actuation_state(
                         raw_evidence_state,
@@ -2568,10 +2599,7 @@ class OrganismRuntime:
                     raw_sensorimotor_restore = deepcopy(raw_sensorimotor)
                     if fingerprint_migration is not None:
                         old_fp, new_fp = fingerprint_migration
-                        if (
-                            raw_sensorimotor_restore.get("embodiment_fingerprint")
-                            == old_fp
-                        ):
+                        if raw_sensorimotor_restore.get("embodiment_fingerprint") == old_fp:
                             raw_sensorimotor_restore["embodiment_fingerprint"] = new_fp
                         for key in ("primitives", "historical_candidates"):
                             raw_items = raw_sensorimotor_restore.get(key)
@@ -2579,8 +2607,7 @@ class OrganismRuntime:
                                 for item in raw_items:
                                     if (
                                         isinstance(item, dict)
-                                        and item.get("embodiment_fingerprint")
-                                        == old_fp
+                                        and item.get("embodiment_fingerprint") == old_fp
                                     ):
                                         item["embodiment_fingerprint"] = new_fp
                     try:
@@ -2591,9 +2618,7 @@ class OrganismRuntime:
                             embodiment_fingerprint=actuator_constitution.contract_fingerprint,
                         )
                     except (TypeError, ValueError, KeyError) as exc:
-                        raise CheckpointError(
-                            f"invalid sensorimotor checkpoint: {exc}"
-                        ) from exc
+                        raise CheckpointError(f"invalid sensorimotor checkpoint: {exc}") from exc
                 if raw_pending is not None:
                     if isinstance(raw_pending, dict):
                         raw_pending_items = [raw_pending]
@@ -2610,7 +2635,9 @@ class OrganismRuntime:
                         actuator_id = item.get("actuator_id")
                         activation = item.get("activation")
                         if actuator_id not in set(actuator_constitution.actuator_ids):
-                            raise CheckpointError("pending motor observation references unknown actuator")
+                            raise CheckpointError(
+                                "pending motor observation references unknown actuator"
+                            )
                         if (
                             isinstance(activation, bool)
                             or not isinstance(activation, (int, float))
@@ -2619,16 +2646,13 @@ class OrganismRuntime:
                         ):
                             raise CheckpointError("invalid pending motor activation")
                         if "baseline" in item:
-                            raise CheckpointError("raw motor percept baselines must not be persisted")
-                        restored_pending.append(
-                            (str(actuator_id), float(activation), None)
-                        )
+                            raise CheckpointError(
+                                "raw motor percept baselines must not be persisted"
+                            )
+                        restored_pending.append((str(actuator_id), float(activation), None))
                     pending_motor_observation = tuple(restored_pending)
                 max_proprioception = 3 * len(actuator_constitution.actuator_ids)
-                if (
-                    not isinstance(raw_proprio, dict)
-                    or len(raw_proprio) > max_proprioception
-                ):
+                if not isinstance(raw_proprio, dict) or len(raw_proprio) > max_proprioception:
                     raise CheckpointError("invalid pending proprioception")
                 for key, value in raw_proprio.items():
                     if (
@@ -2675,11 +2699,18 @@ class OrganismRuntime:
                 try:
                     resolved_physiology_config = PhysiologyConfig(**raw_phys)
                 except Exception as exc:
-                    raise CheckpointError(f"invalid physiology config in checkpoint: {exc}") from exc
+                    raise CheckpointError(
+                        f"invalid physiology config in checkpoint: {exc}"
+                    ) from exc
             else:
                 raw_deg = normalized.get("degradation")
-                if isinstance(raw_deg, dict) and "aging_ticks" in raw_deg and "waste_ticks" in raw_deg:
+                if (
+                    isinstance(raw_deg, dict)
+                    and "aging_ticks" in raw_deg
+                    and "waste_ticks" in raw_deg
+                ):
                     from dataclasses import replace
+
                     try:
                         resolved_physiology_config = replace(
                             DEFAULT_PHYSIOLOGY_CONFIG,
@@ -2687,22 +2718,37 @@ class OrganismRuntime:
                             waste_ticks=int(raw_deg["waste_ticks"]),
                         )
                     except Exception as exc:
-                        raise CheckpointError(f"failed to migrate degradation ticks into physiology config: {exc}") from exc
+                        raise CheckpointError(
+                            f"failed to migrate degradation ticks into physiology config: {exc}"
+                        ) from exc
                 else:
                     resolved_physiology_config = DEFAULT_PHYSIOLOGY_CONFIG
 
-        signal_knowledge = SignalKnowledgeEngine.from_checkpoint(validate_checkpoint(normalized.get("signal_knowledge"))) if normalized.get("signal_knowledge") else SignalKnowledgeEngine()
-        metabolism = (
-            MetabolicLedger.from_checkpoint(normalized["metabolism"], physiology_config=resolved_physiology_config)
-            if normalized.get("metabolism")
-            else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0, physiology_config=resolved_physiology_config)
+        signal_knowledge = (
+            SignalKnowledgeEngine.from_checkpoint(
+                validate_checkpoint(normalized.get("signal_knowledge"))
+            )
+            if normalized.get("signal_knowledge")
+            else SignalKnowledgeEngine()
         )
-        assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
+        metabolism = (
+            MetabolicLedger.from_checkpoint(
+                normalized["metabolism"], physiology_config=resolved_physiology_config
+            )
+            if normalized.get("metabolism")
+            else MetabolicLedger(
+                tick=normalized.get("saved_at_tick") or 0,
+                physiology_config=resolved_physiology_config,
+            )
+        )
+        assimilator = (
+            InformationAssimilator.from_checkpoint(normalized["assimilation"])
+            if normalized.get("assimilation")
+            else InformationAssimilator()
+        )
         raw_living_body = normalized.get("living_body")
         if raw_living_body is None:
-            raise CheckpointError(
-                "Living Body L5 requires canonical living_body checkpoint state"
-            )
+            raise CheckpointError("Living Body L5 requires canonical living_body checkpoint state")
         try:
             living_body_state = LivingBodyState.from_checkpoint(raw_living_body)
         except (KeyError, TypeError, ValueError) as exc:
@@ -2730,23 +2776,39 @@ class OrganismRuntime:
             if normalized.get("physiology")
             else PhysiologyController(body_state=living_body_state)
         )
-        social_ledger = RelationLedger.from_checkpoint(normalized["social_ledger"]) if normalized.get("social_ledger") else RelationLedger()
-        social_resource_ledger = ResourceEvidenceLedger.from_checkpoint(
-            normalized["social_resource_ledger"]
-        ) if normalized.get("social_resource_ledger") else ResourceEvidenceLedger()
-        degradation_queue = DegradationQueue.from_checkpoint(
-            normalized["degradation"]
-        ) if normalized.get("degradation") else DegradationQueue()
-        source_trust = SourceTrustModel.from_checkpoint(
-            normalized["source_trust"]
-        ) if normalized.get("source_trust") else SourceTrustModel()
-        developmental_tracker = DevelopmentalTracker.from_checkpoint(
-            normalized["development"]
-        ) if normalized.get("development") else DevelopmentalTracker()
+        social_ledger = (
+            RelationLedger.from_checkpoint(normalized["social_ledger"])
+            if normalized.get("social_ledger")
+            else RelationLedger()
+        )
+        social_resource_ledger = (
+            ResourceEvidenceLedger.from_checkpoint(normalized["social_resource_ledger"])
+            if normalized.get("social_resource_ledger")
+            else ResourceEvidenceLedger()
+        )
+        degradation_queue = (
+            DegradationQueue.from_checkpoint(normalized["degradation"])
+            if normalized.get("degradation")
+            else DegradationQueue()
+        )
+        source_trust = (
+            SourceTrustModel.from_checkpoint(normalized["source_trust"])
+            if normalized.get("source_trust")
+            else SourceTrustModel()
+        )
+        developmental_tracker = (
+            DevelopmentalTracker.from_checkpoint(normalized["development"])
+            if normalized.get("development")
+            else DevelopmentalTracker()
+        )
         if physiology.state is VitalState.DEAD:
             raise CheckpointError("dead organism checkpoints cannot be restored")
         raw_identity_key = normalized.get("signal_identity_key")
-        signal_identity = SignalIdentity(bytes.fromhex(raw_identity_key)) if isinstance(raw_identity_key, str) else None
+        signal_identity = (
+            SignalIdentity(bytes.fromhex(raw_identity_key))
+            if isinstance(raw_identity_key, str)
+            else None
+        )
         constructor_kwargs = dict(kwargs)
         constructor_kwargs.pop("birth_authority", None)
         constructor_kwargs.pop("generation", None)
@@ -2764,8 +2826,16 @@ class OrganismRuntime:
         constructor_kwargs.pop("actuator_system", None)
         constructor_kwargs.pop("competence_development", None)
         effective = normalized.get("effective_config", {})
-        for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses",
-                     "interoception_enabled", "interoception_mode", "conflict_z", "min_samples"):
+        for name in (
+            "attention_budget",
+            "investigate_ticks",
+            "discover_senses",
+            "bootstrap_semantic_senses",
+            "interoception_enabled",
+            "interoception_mode",
+            "conflict_z",
+            "min_samples",
+        ):
             if name not in constructor_kwargs and name in effective:
                 constructor_kwargs[name] = effective[name]
         if "min_samples" not in constructor_kwargs:
@@ -2793,7 +2863,10 @@ class OrganismRuntime:
             cognitive_bridge=cognitive_bridge,
             gene_expression_state=gene_expression_state,
             memory_consolidator=memory_consolidator,
-            tick_count=max(int(normalized.get("saved_at_tick") or 0), int(getattr(signal_knowledge, "_last_tick", 0) or 0)),
+            tick_count=max(
+                int(normalized.get("saved_at_tick") or 0),
+                int(getattr(signal_knowledge, "_last_tick", 0) or 0),
+            ),
             organism_id=normalized.get("organism_id"),
             signal_knowledge=signal_knowledge,
             signal_identity=signal_identity,
@@ -2805,13 +2878,38 @@ class OrganismRuntime:
             physiology_config=resolved_physiology_config,
             social_ledger=social_ledger,
             social_resource_ledger=social_resource_ledger,
-            explicit_metabolism=bool(kwargs.get("explicit_metabolism", effective.get("explicit_metabolism", False))),
-            auto_promote_predictors=bool(kwargs.get("auto_promote_predictors", effective.get("auto_promote_predictors", False))),
+            explicit_metabolism=bool(
+                kwargs.get("explicit_metabolism", effective.get("explicit_metabolism", False))
+            ),
+            auto_promote_predictors=bool(
+                kwargs.get(
+                    "auto_promote_predictors", effective.get("auto_promote_predictors", False)
+                )
+            ),
             birth_authority=kwargs.get("birth_authority"),
-            generation=int(normalized.get("generation", normalized.get("effective_config", {}).get("generation", 0))),
-            social_exchange_quantum=float(normalized.get("social_exchange_quantum", normalized.get("effective_config", {}).get("social_exchange_quantum", 0.1))),
-            social_exchange_cost=float(normalized.get("social_exchange_cost", normalized.get("effective_config", {}).get("social_exchange_cost", 0.01))),
-            resting_requested=bool(normalized.get("resting_requested", normalized.get("effective_config", {}).get("resting_requested", False))),
+            generation=int(
+                normalized.get(
+                    "generation", normalized.get("effective_config", {}).get("generation", 0)
+                )
+            ),
+            social_exchange_quantum=float(
+                normalized.get(
+                    "social_exchange_quantum",
+                    normalized.get("effective_config", {}).get("social_exchange_quantum", 0.1),
+                )
+            ),
+            social_exchange_cost=float(
+                normalized.get(
+                    "social_exchange_cost",
+                    normalized.get("effective_config", {}).get("social_exchange_cost", 0.01),
+                )
+            ),
+            resting_requested=bool(
+                normalized.get(
+                    "resting_requested",
+                    normalized.get("effective_config", {}).get("resting_requested", False),
+                )
+            ),
             degradation_queue=degradation_queue,
             source_trust=source_trust,
             developmental_tracker=developmental_tracker,
@@ -2826,9 +2924,7 @@ class OrganismRuntime:
         if isinstance(raw_actuation, dict):
             raw_action_domain = raw_actuation.get("action_domain")
             if isinstance(raw_action_domain, dict):
-                raw_commitment = raw_action_domain.get(
-                    "active_commitment"
-                )
+                raw_commitment = raw_action_domain.get("active_commitment")
             else:
                 raw_commitment = raw_actuation.get("action_commitment")
             if isinstance(raw_commitment, dict):
@@ -2863,39 +2959,26 @@ class OrganismRuntime:
                         fingerprint_migration=fingerprint_migration,
                     )
                 except (TypeError, ValueError, KeyError) as exc:
-                    raise CheckpointError(
-                        f"invalid sensorimotor v2 checkpoint: {exc}"
-                    ) from exc
+                    raise CheckpointError(f"invalid sensorimotor v2 checkpoint: {exc}") from exc
 
         raw_reactivity = normalized.get("innate_reactivity")
         if raw_reactivity is not None:
-            if (
-                not isinstance(raw_reactivity, dict)
-                or raw_reactivity.get("schema_version") != 1
-            ):
+            if not isinstance(raw_reactivity, dict) or raw_reactivity.get("schema_version") != 1:
                 raise CheckpointError("invalid innate reactivity checkpoint")
             try:
                 runtime._innate_reactivity = InnateReactivity.restore(
                     raw_reactivity.get("reactivity")
                 )
-                runtime._reactive_memory = ReactiveMemory.restore(
-                    raw_reactivity.get("memory")
-                )
+                runtime._reactive_memory = ReactiveMemory.restore(raw_reactivity.get("memory"))
             except (TypeError, ValueError, KeyError) as exc:
-                raise CheckpointError(
-                    f"invalid innate reactivity checkpoint: {exc}"
-                ) from exc
+                raise CheckpointError(f"invalid innate reactivity checkpoint: {exc}") from exc
         raw_last_primitive = None
         if isinstance(raw_actuation, dict):
             raw_action_domain = raw_actuation.get("action_domain")
             if isinstance(raw_action_domain, dict):
-                raw_last_primitive = raw_action_domain.get(
-                    "last_executed_controller_seed_id"
-                )
+                raw_last_primitive = raw_action_domain.get("last_executed_controller_seed_id")
             else:
-                raw_last_primitive = raw_actuation.get(
-                    "last_executed_primitive_id"
-                )
+                raw_last_primitive = raw_actuation.get("last_executed_primitive_id")
         if raw_last_primitive is not None and not isinstance(raw_last_primitive, str):
             raise CheckpointError("invalid last executed primitive id")
         runtime._last_executed_primitive_id = raw_last_primitive
@@ -2922,9 +3005,13 @@ class OrganismRuntime:
         runtime._narrative_journal = list(normalized.get("narrative_journal", []))
         raw_last_state = normalized.get("last_runtime_vital_state")
         raw_last_phase = normalized.get("last_runtime_development_phase")
-        if raw_last_state is not None and (not isinstance(raw_last_state, str) or len(raw_last_state) > 32):
+        if raw_last_state is not None and (
+            not isinstance(raw_last_state, str) or len(raw_last_state) > 32
+        ):
             raise ValueError("invalid last runtime vital state")
-        if raw_last_phase is not None and (not isinstance(raw_last_phase, str) or len(raw_last_phase) > 32):
+        if raw_last_phase is not None and (
+            not isinstance(raw_last_phase, str) or len(raw_last_phase) > 32
+        ):
             raise ValueError("invalid last runtime development phase")
         runtime._last_runtime_vital_state = raw_last_state
         runtime._last_runtime_development_phase = raw_last_phase
@@ -2940,9 +3027,8 @@ class OrganismRuntime:
 
         raw_lineage = normalized.get("checkpoint_lineage")
         if raw_lineage is not None:
-            if (
-                not isinstance(raw_lineage, dict)
-                or not isinstance(raw_lineage.get("checkpoint_id"), str)
+            if not isinstance(raw_lineage, dict) or not isinstance(
+                raw_lineage.get("checkpoint_id"), str
             ):
                 raise CheckpointError("invalid checkpoint_lineage")
             # The restored organism's next save chains from the checkpoint

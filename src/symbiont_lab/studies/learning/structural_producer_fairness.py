@@ -3,12 +3,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
+from symbiont.core.cognition_bridge import CognitiveBridge
+
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import Mutation
 from symbiont.cognition.types import NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,11 +30,7 @@ class ProducerFairnessTrial:
 
     @property
     def passed(self) -> bool:
-        return (
-            self.all_producers_served
-            and self.bounded_waiting
-            and self.multiplicity_neutral
-        )
+        return self.all_producers_served and self.bounded_waiting and self.multiplicity_neutral
 
     def as_dict(self) -> dict[str, object]:
         payload = asdict(self)
@@ -79,21 +76,14 @@ def _maximum_service_wait(
     """Measure initial and between-service waits in completed arbitration rounds."""
     maximum = 0
     for producer_id in producer_ids:
-        positions = [
-            index
-            for index, served in enumerate(schedule)
-            if served == producer_id
-        ]
+        positions = [index for index, served in enumerate(schedule) if served == producer_id]
         if not positions:
             return len(schedule)
         maximum = max(maximum, positions[0])
         maximum = max(
             maximum,
             max(
-                (
-                    right - left - 1
-                    for left, right in zip(positions, positions[1:])
-                ),
+                (right - left - 1 for left, right in zip(positions, positions[1:])),
                 default=0,
             ),
         )
@@ -127,10 +117,7 @@ def _trial(
     # This is a lab-only scheduler stress test. Varying opaque producer IDs by
     # preregistered seed exercises different deterministic ring orders without
     # changing any organism-side scheduling rule.
-    producer_ids = tuple(
-        f"producer.synthetic.{seed}.{index}"
-        for index in range(producers)
-    )
+    producer_ids = tuple(f"producer.synthetic.{seed}.{index}" for index in range(producers))
     candidate_index = {producer_id: 0 for producer_id in producer_ids}
 
     def register_next(producer_id: str) -> bool:
@@ -222,10 +209,7 @@ def _trial(
         service_schedule=schedule_tuple,
         all_producers_served=all_served,
         bounded_waiting=maximum_wait <= expected_bound,
-        multiplicity_neutral=(
-            accepted_flood == 1
-            and maximum_pending <= 1
-        ),
+        multiplicity_neutral=(accepted_flood == 1 and maximum_pending <= 1),
     )
 
 

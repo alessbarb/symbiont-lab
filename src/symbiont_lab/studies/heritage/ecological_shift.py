@@ -7,6 +7,7 @@ from typing import Iterable
 
 from symbiont.core.collective import CollectiveMemory
 from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
+
 from symbiont.simulation import EventContext, SimulationResult, _run_population, run_simulation
 
 
@@ -95,9 +96,7 @@ class EcologyHeritageStudy:
             "analysis_split_step": self.analysis_split_step,
             "world_digest": self.world_digest,
             "comparisons": [item.as_dict() for item in self.comparisons],
-            "summaries": {
-                str(rate): summary.as_dict() for rate, summary in self.summaries.items()
-            },
+            "summaries": {str(rate): summary.as_dict() for rate, summary in self.summaries.items()},
         }
 
 
@@ -393,11 +392,7 @@ def run_ecological_shift_study(
         rows = [row for row in comparisons if row.target_threat_rate == target_rate]
         metric_summaries: dict[str, EcologyMetricSummary] = {}
         for metric in _METRICS:
-            values = [
-                value
-                for row in rows
-                if (value := getattr(row, metric)) is not None
-            ]
+            values = [value for row in rows if (value := getattr(row, metric)) is not None]
             metric_summaries[metric] = _summarize(values)
         summaries[target_rate] = EcologyRateSummary(
             target_threat_rate=target_rate,

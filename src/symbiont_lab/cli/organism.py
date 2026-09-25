@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import signal
 import sys
 from pathlib import Path
-import signal
+from typing import Any
 
-from symbiont.cognition.birth import load_base_graph, load_base_genome
-from symbiont.genetics.genome import Genome, GenomeError, legacy_validation_version
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
+from symbiont.cognition.birth import load_base_genome, load_base_graph
 from symbiont.cognition.graph import CognitiveGraph, GraphError, load_graph_definition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core import (
@@ -23,6 +22,8 @@ from symbiont.core import (
     append_advisories_to_log,
 )
 from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
+from symbiont.genetics.genome import Genome, GenomeError, legacy_validation_version
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 from symbiont.host.checkpoint import load_checkpoint_file
 
 
@@ -41,8 +42,13 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     run_cmd.add_argument("--advisory-consent", action="store_true")
     run_cmd.add_argument("--advisory-uncertainty-threshold", type=float, default=1.0)
     run_cmd.add_argument("--advisory-log")
-    run_cmd.add_argument("--genome-file", help="Override the canonical birth genome with an owner-authored genome JSON file")
-    run_cmd.add_argument("--graph-file", help="Override the canonical germinal graph (requires --genome-file)")
+    run_cmd.add_argument(
+        "--genome-file",
+        help="Override the canonical birth genome with an owner-authored genome JSON file",
+    )
+    run_cmd.add_argument(
+        "--graph-file", help="Override the canonical germinal graph (requires --genome-file)"
+    )
     run_cmd.add_argument(
         "--sensory-plasticity",
         action="store_true",
@@ -50,6 +56,7 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     )
 
     from symbiont.core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+
     from symbiont.core.runtime_defaults import (
         DEFAULT_CHECKPOINT_TICKS,
         DEFAULT_STATE_FILE,
@@ -65,13 +72,29 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         default=DEFAULT_STATE_FILE,
         help="Durable abstract memory checkpoint",
     )
-    live_cmd.add_argument("--interval", type=float, default=DEFAULT_TICK_INTERVAL_SECONDS, help="Seconds between cognitive cycles")
-    live_cmd.add_argument("--checkpoint-every", type=int, default=DEFAULT_CHECKPOINT_TICKS, help="Ticks between atomic checkpoints")
-    live_cmd.add_argument("--max-ticks", type=int, default=None, help="Optional finite budget for testing")
+    live_cmd.add_argument(
+        "--interval",
+        type=float,
+        default=DEFAULT_TICK_INTERVAL_SECONDS,
+        help="Seconds between cognitive cycles",
+    )
+    live_cmd.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=DEFAULT_CHECKPOINT_TICKS,
+        help="Ticks between atomic checkpoints",
+    )
+    live_cmd.add_argument(
+        "--max-ticks", type=int, default=None, help="Optional finite budget for testing"
+    )
     live_cmd.add_argument("--attention-budget", type=float, default=1.0)
     live_cmd.add_argument("--investigate-ticks", type=int, default=2)
     live_cmd.add_argument("--conflict-z", type=float, default=2.0)
-    live_cmd.add_argument("--min-samples", type=int, default=DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples)
+    live_cmd.add_argument(
+        "--min-samples",
+        type=int,
+        default=DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples,
+    )
     live_cmd.add_argument(
         "--sensory-plasticity",
         action="store_true",
@@ -88,7 +111,8 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         help="Emit bounded non-identifying tick summaries for local observers",
     )
     live_cmd.add_argument(
-        "--no-interoception", action="store_true",
+        "--no-interoception",
+        action="store_true",
         help="Ablate the internal aggregate signal provider for a controlled study",
     )
     live_cmd.add_argument(
@@ -135,7 +159,11 @@ def _load_genome_file(path: str, *, kernel_limits: KernelLimits) -> Genome:
     payload = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
     codec = GenomeCodec()
     genome = codec.load(payload)
-    codec.validate(genome, kernel_limits, running_version=legacy_validation_version(genome.kernel_compatibility, _running_version()))
+    codec.validate(
+        genome,
+        kernel_limits,
+        running_version=legacy_validation_version(genome.kernel_compatibility, _running_version()),
+    )
     return genome
 
 
@@ -173,7 +201,9 @@ def _load_cognition_from_args(args: argparse.Namespace, kwargs: dict) -> None:
             else load_base_graph(kernel_limits=kernel_limits)
         )
     except (GenomeError, GraphError, OSError, json.JSONDecodeError, ValueError) as exc:
-        source = "owner cognition files" if genome_file or graph_file else "canonical birth cognition"
+        source = (
+            "owner cognition files" if genome_file or graph_file else "canonical birth cognition"
+        )
         print(f"error: could not load {source}: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
 
@@ -227,50 +257,75 @@ def _run_finite(args: argparse.Namespace) -> int:
                 append_advisories_to_log(tick_advisories, args.advisory_log)
     if args.state_file:
         runtime.save(args.state_file)
-    print(json.dumps({
-        "ticks": [{
-            "tick": result.tick,
-            "allocations": [
-                {"name": allocation.name, "uncertainty": allocation.uncertainty, "cost": allocation.cost}
-                for allocation in result.allocations
-            ],
-            "investigated_capability": result.investigated_capability,
-            "perceptual_allocations": [
-                {"name": allocation.name, "uncertainty": allocation.uncertainty, "cost": allocation.cost}
-                for allocation in result.perceptual_allocations
-            ],
-            "sensory_phenotype": result.sensory_phenotype,
-            "evidence_gathered": result.evidence_gathered,
-            "contested": result.dissent is not None,
-            "narrative": [entry.summary for entry in result.narrative],
-            "cognition": (
-                {
-                    "readouts": dict(result.cognition.readouts),
-                    "prediction_errors": [
-                        {"predictor_id": e.predictor_id, "target_id": e.target_id, "loss": e.loss}
-                        for e in result.cognition.prediction_errors
-                    ],
-                    "structural_mutations_applied": result.cognition.structural_mutations_applied,
-                    "frozen": result.cognition.frozen,
-                }
-                if result.cognition is not None
-                else None
-            ),
-        } for result in results],
-        "advisories": [{
-            "tick": advisory.tick,
-            "capability_id": advisory.capability_id,
-            "signals": [{"kind": s.kind, "detail": s.detail} for s in advisory.signals],
-            "summary": advisory.summary,
-        } for advisory in all_advisories],
-        "governor": {
-            "ticks_run": governed.ticks_run,
-            "ticks_remaining": governed.ticks_remaining,
-            "is_consented": governed.is_consented,
-            "stopped_early": stopped_reason,
-        },
-        "checkpoint": governed.checkpoint(),
-    }, indent=2, sort_keys=True, default=str))
+    print(
+        json.dumps(
+            {
+                "ticks": [
+                    {
+                        "tick": result.tick,
+                        "allocations": [
+                            {
+                                "name": allocation.name,
+                                "uncertainty": allocation.uncertainty,
+                                "cost": allocation.cost,
+                            }
+                            for allocation in result.allocations
+                        ],
+                        "investigated_capability": result.investigated_capability,
+                        "perceptual_allocations": [
+                            {
+                                "name": allocation.name,
+                                "uncertainty": allocation.uncertainty,
+                                "cost": allocation.cost,
+                            }
+                            for allocation in result.perceptual_allocations
+                        ],
+                        "sensory_phenotype": result.sensory_phenotype,
+                        "evidence_gathered": result.evidence_gathered,
+                        "contested": result.dissent is not None,
+                        "narrative": [entry.summary for entry in result.narrative],
+                        "cognition": (
+                            {
+                                "readouts": dict(result.cognition.readouts),
+                                "prediction_errors": [
+                                    {
+                                        "predictor_id": e.predictor_id,
+                                        "target_id": e.target_id,
+                                        "loss": e.loss,
+                                    }
+                                    for e in result.cognition.prediction_errors
+                                ],
+                                "structural_mutations_applied": result.cognition.structural_mutations_applied,
+                                "frozen": result.cognition.frozen,
+                            }
+                            if result.cognition is not None
+                            else None
+                        ),
+                    }
+                    for result in results
+                ],
+                "advisories": [
+                    {
+                        "tick": advisory.tick,
+                        "capability_id": advisory.capability_id,
+                        "signals": [{"kind": s.kind, "detail": s.detail} for s in advisory.signals],
+                        "summary": advisory.summary,
+                    }
+                    for advisory in all_advisories
+                ],
+                "governor": {
+                    "ticks_run": governed.ticks_run,
+                    "ticks_remaining": governed.ticks_remaining,
+                    "is_consented": governed.is_consented,
+                    "stopped_early": stopped_reason,
+                },
+                "checkpoint": governed.checkpoint(),
+            },
+            indent=2,
+            sort_keys=True,
+            default=str,
+        )
+    )
     return 0
 
 
@@ -302,14 +357,20 @@ def _run_live(args: argparse.Namespace) -> int:
         payload = {
             "type": "symbiont-resident-tick",
             "tick": result.tick,
-            "state": "reflecting" if result.dissent is not None else ("exploring" if result.investigated_capability else "observing"),
+            "state": "reflecting"
+            if result.dissent is not None
+            else ("exploring" if result.investigated_capability else "observing"),
             "percepts": [percept.name for percept in result.percepts[:32]],
             "sensory_phenotype": result.sensory_phenotype,
             "perceptual_attention": [
                 allocation.name for allocation in result.perceptual_allocations[:32]
             ],
             "active_senses": [
-                {"name": state.percept_name, "samples": state.samples, "utility": round(state.utility, 6)}
+                {
+                    "name": state.percept_name,
+                    "samples": state.samples,
+                    "utility": round(state.utility, 6),
+                }
                 for state in runtime.adaptive_senses.states
                 if state.capability_id in active_ids
             ][:32],
@@ -392,13 +453,15 @@ def _probe_payload(state_file: Path) -> tuple[int, dict[str, Any]]:
     senses = []
     for s in senses_raw:
         if isinstance(s, dict):
-            senses.append({
-                "name": s.get("percept_name", "unknown"),
-                "samples": s.get("samples", 0),
-                "utility": float(s.get("utility", 0.0)),
-                "availability": float(s.get("availability", 0.0)),
-                "established": bool(s.get("is_established", False)),
-            })
+            senses.append(
+                {
+                    "name": s.get("percept_name", "unknown"),
+                    "samples": s.get("samples", 0),
+                    "utility": float(s.get("utility", 0.0)),
+                    "availability": float(s.get("availability", 0.0)),
+                    "established": bool(s.get("is_established", False)),
+                }
+            )
     senses.sort(key=lambda x: (x["utility"], x["samples"]), reverse=True)
 
     source_trust = payload.get("source_trust", {}) or {}
@@ -409,12 +472,14 @@ def _probe_payload(state_file: Path) -> tuple[int, dict[str, Any]]:
             score = float(rec.get("score", 0.5))
             count = int(rec.get("interaction_count", 0))
             label = "trusted" if score >= 0.7 else ("dissenting" if score < 0.4 else "neutral")
-            peers.append({
-                "peer_id": key_hex[:16] + "..." if len(key_hex) > 16 else key_hex,
-                "score": round(score, 4),
-                "interactions": count,
-                "status": label,
-            })
+            peers.append(
+                {
+                    "peer_id": key_hex[:16] + "..." if len(key_hex) > 16 else key_hex,
+                    "score": round(score, 4),
+                    "interactions": count,
+                    "status": label,
+                }
+            )
     peers.sort(key=lambda x: x["score"], reverse=True)
 
     journal = payload.get("narrative_journal", []) or []
@@ -472,7 +537,9 @@ def _format_probe_text(data: dict[str, Any]) -> str:
     if data["top_senses"]:
         for i, s in enumerate(data["top_senses"], 1):
             est = "established" if s["established"] else "forming"
-            lines.append(f"  {i}. {s['name']:<32} util: {s['utility']:.3f} | samples: {s['samples']:>4} [{est}]")
+            lines.append(
+                f"  {i}. {s['name']:<32} util: {s['utility']:.3f} | samples: {s['samples']:>4} [{est}]"
+            )
     else:
         lines.append("  (No adaptive senses recorded yet)")
 
@@ -480,7 +547,9 @@ def _format_probe_text(data: dict[str, Any]) -> str:
     lines.append("[HABITAT SOCIAL TRUST]")
     if data["peers"]:
         for p in data["peers"][:5]:
-            lines.append(f"  Peer {p['peer_id']}: trust={p['score']:.3f} ({p['status']}, {p['interactions']} exchanges)")
+            lines.append(
+                f"  Peer {p['peer_id']}: trust={p['score']:.3f} ({p['status']}, {p['interactions']} exchanges)"
+            )
     else:
         lines.append("  (No direct peer trust interactions yet)")
 
@@ -503,6 +572,7 @@ def _format_probe_text(data: dict[str, Any]) -> str:
 
 def _run_probe(args: argparse.Namespace) -> int:
     import time
+
     state_file = Path(args.state_file).expanduser()
 
     while True:

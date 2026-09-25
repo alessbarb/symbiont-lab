@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-
 import pytest
 
 from symbiont.modeling import (
@@ -19,7 +17,6 @@ from symbiont.modeling import (
     TrainingRequest,
 )
 from symbiont.modeling.experience import EpistemicStatus, ExperienceRecord, SourceKind
-
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
@@ -144,9 +141,7 @@ def test_active_private_counterfactual_is_non_mutating_and_active_only():
     from symbiont.modeling.proposals import ModelPredictionProposal
 
     runtime = ModeledOrganismRuntime(organism_id="counterfactual-runtime")
-    runtime._model_registry = SimpleNamespace(
-        active=SimpleNamespace(model_id="model.active")
-    )
+    runtime._model_registry = SimpleNamespace(active=SimpleNamespace(model_id="model.active"))
 
     class Bridge:
         def __init__(self):
@@ -160,9 +155,7 @@ def test_active_private_counterfactual_is_non_mutating_and_active_only():
             target_token,
             allow_shadow,
         ):
-            self.calls.append(
-                (tuple(context_tokens), model_id, target_token, allow_shadow)
-            )
+            self.calls.append((tuple(context_tokens), model_id, target_token, allow_shadow))
             return ModelPredictionProposal(
                 target_token=target_token,
                 horizon_class=1,

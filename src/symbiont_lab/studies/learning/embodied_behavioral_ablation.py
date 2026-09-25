@@ -6,7 +6,6 @@ from typing import Any, Iterable, Mapping
 
 from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
-
 _MOTOR_PREFIX = "readout_motor:"
 _PRIMITIVE_PREFIX = "readout_primitive:"
 
@@ -125,12 +124,10 @@ def _lesion_cognitive_motor_outputs(checkpoint: dict[str, Any]) -> int:
             for entry in raw_candidates
             if not (
                 isinstance(entry, Mapping)
-                and str(entry.get("family", ""))
-                in {"motor_readout", "primitive_readout"}
+                and str(entry.get("family", "")) in {"motor_readout", "primitive_readout"}
             )
         ]
     return removed
-
 
 
 def _motor_output_edges(checkpoint: dict[str, Any]) -> list[dict[str, Any]]:
@@ -161,15 +158,8 @@ def _shuffle_cognitive_motor_outputs(checkpoint: dict[str, Any]) -> int:
     edges = _motor_output_edges(checkpoint)
     changed = 0
     for prefix in (_MOTOR_PREFIX, _PRIMITIVE_PREFIX):
-        family_edges = [
-            edge
-            for edge in edges
-            if str(edge.get("target_id", "")).startswith(prefix)
-        ]
-        targets = sorted({
-            str(edge.get("target_id", ""))
-            for edge in family_edges
-        })
+        family_edges = [edge for edge in edges if str(edge.get("target_id", "")).startswith(prefix)]
+        targets = sorted({str(edge.get("target_id", "")) for edge in family_edges})
         if len(targets) < 2:
             continue
         rotated = targets[1:] + targets[:1]
@@ -356,16 +346,16 @@ def _trial(
         lesion=lesion,
         shuffled=shuffled,
         displacement_effect=normal.displacement_delta - lesion.displacement_delta,
-        resource_progress_effect=(
-            normal.resource_progress_delta - lesion.resource_progress_delta
-        ),
+        resource_progress_effect=(normal.resource_progress_delta - lesion.resource_progress_delta),
         shuffled_displacement_effect=(
             normal.displacement_delta - shuffled.displacement_delta
-            if shuffled is not None else None
+            if shuffled is not None
+            else None
         ),
         shuffled_resource_progress_effect=(
             normal.resource_progress_delta - shuffled.resource_progress_delta
-            if shuffled is not None else None
+            if shuffled is not None
+            else None
         ),
     )
 

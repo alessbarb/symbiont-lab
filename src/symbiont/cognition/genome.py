@@ -4,6 +4,7 @@ Historical payloads are deliberately not accepted through this module. Callers
 that read persisted legacy artifacts must use ``symbiont.genetics.migration``
 at the explicit compatibility boundary instead.
 """
+
 from __future__ import annotations
 
 from symbiont.genetics.genome import (
@@ -11,6 +12,7 @@ from symbiont.genetics.genome import (
     DevelopmentGenes,
     EvolvabilityGenes,
     Genome,
+    GenomeCodec,
     GenomeError,
     MotorGenes,
     MutationPolicyGenes,
@@ -26,8 +28,6 @@ from symbiont.genetics.genome import (
     parse_kernel_compatibility,
     satisfies_kernel_compatibility,
 )
-from symbiont.genetics.genome import GenomeCodec
-
 
 __all__ = [
     "AdaptiveGeneRange",

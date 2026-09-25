@@ -1,4 +1,5 @@
 """Typed orchestration context shared by organism domains."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,6 +27,4 @@ class TickContext:
         if self.embodiment_id is None and (
             self.body_id is not None or self.embodiment_tick is not None
         ):
-            raise ValueError(
-                "body_id/embodiment_tick require an embodiment_id"
-            )
+            raise ValueError("body_id/embodiment_tick require an embodiment_id")

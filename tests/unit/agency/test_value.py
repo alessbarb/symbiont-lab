@@ -1,10 +1,12 @@
 """Unit tests for OutcomeValueLedger — Welford statistics, eviction, checkpoint."""
+
 from __future__ import annotations
 
 import math
+
 import pytest
 
-from symbiont.agency.value import MAX_OUTCOME_VALUES, OutcomeValueLedger, OutcomeValueStat
+from symbiont.agency.value import MAX_OUTCOME_VALUES, OutcomeValueLedger
 
 
 def test_empty_ledger_estimate_returns_none():

@@ -9,4 +9,3 @@ def test_runtime_emergence_study_is_deterministic_and_uses_local_choices() -> No
     assert first.unique_pairs >= 2
     assert first.isolated_members == 0
     assert first.reciprocal_observations > 0
-

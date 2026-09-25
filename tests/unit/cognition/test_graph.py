@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.cognition.graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode, TickContext
+from symbiont.cognition.graph import (
+    CognitiveGraph,
+    GraphError,
+    PlasticEdge,
+    PlasticNode,
+    TickContext,
+)
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
 
@@ -23,12 +29,19 @@ def _edge(
     delay_ticks: int = 0,
 ) -> PlasticEdge:
     return PlasticEdge(
-        source_id=source, target_id=target, kind=kind, weight=weight, plasticity=0.5, delay_ticks=delay_ticks
+        source_id=source,
+        target_id=target,
+        kind=kind,
+        weight=weight,
+        plasticity=0.5,
+        delay_ticks=delay_ticks,
     )
 
 
 def test_valid_graph_constructs_without_error():
-    CognitiveGraph(nodes=(_sense_node(), _concept_node()), edges=(_edge(),), kernel_limits=KernelLimits())
+    CognitiveGraph(
+        nodes=(_sense_node(), _concept_node()), edges=(_edge(),), kernel_limits=KernelLimits()
+    )
 
 
 def test_nodes_view_is_stable_for_immutable_graph():
@@ -41,7 +54,9 @@ def test_nodes_view_is_stable_for_immutable_graph():
 
 def test_rejects_duplicate_node_id():
     with pytest.raises(GraphError):
-        CognitiveGraph(nodes=(_sense_node("x"), _concept_node("x")), edges=(), kernel_limits=KernelLimits())
+        CognitiveGraph(
+            nodes=(_sense_node("x"), _concept_node("x")), edges=(), kernel_limits=KernelLimits()
+        )
 
 
 def test_rejects_dangling_edge_source():
@@ -100,7 +115,12 @@ def test_rejects_weight_outside_range(weight):
 def test_rejects_plasticity_outside_range():
     nodes = (_sense_node(), _concept_node())
     bad_edge = PlasticEdge(
-        source_id="sense-a", target_id="concept-a", kind=EdgeKind.EXCITATORY, weight=1.0, plasticity=1.5, delay_ticks=0
+        source_id="sense-a",
+        target_id="concept-a",
+        kind=EdgeKind.EXCITATORY,
+        weight=1.0,
+        plasticity=1.5,
+        delay_ticks=0,
     )
     with pytest.raises(GraphError):
         CognitiveGraph(nodes=nodes, edges=(bad_edge,), kernel_limits=KernelLimits())
@@ -109,7 +129,12 @@ def test_rejects_plasticity_outside_range():
 def test_rejects_delay_outside_zero_or_one():
     nodes = (_sense_node(), _concept_node())
     bad_edge = PlasticEdge(
-        source_id="sense-a", target_id="concept-a", kind=EdgeKind.EXCITATORY, weight=1.0, plasticity=0.5, delay_ticks=2
+        source_id="sense-a",
+        target_id="concept-a",
+        kind=EdgeKind.EXCITATORY,
+        weight=1.0,
+        plasticity=0.5,
+        delay_ticks=2,
     )
     with pytest.raises(GraphError):
         CognitiveGraph(nodes=nodes, edges=(bad_edge,), kernel_limits=KernelLimits())
@@ -151,7 +176,14 @@ def test_load_graph_definition_builds_a_valid_graph():
             {"node_id": "concept-a", "kind": "concept", "bias": 0.1, "tau": 1.2},
         ],
         "edges": [
-            {"source_id": "sense-a", "target_id": "concept-a", "kind": "excitatory", "weight": 0.6, "plasticity": 0.5, "delay_ticks": 0}
+            {
+                "source_id": "sense-a",
+                "target_id": "concept-a",
+                "kind": "excitatory",
+                "weight": 0.6,
+                "plasticity": 0.5,
+                "delay_ticks": 0,
+            }
         ],
     }
     graph = load_graph_definition(payload, kernel_limits=KernelLimits())
@@ -166,8 +198,13 @@ def test_load_graph_definition_applies_field_defaults():
     from symbiont.cognition.graph import load_graph_definition
 
     payload = {
-        "nodes": [{"node_id": "sense-a", "kind": "sense"}, {"node_id": "concept-a", "kind": "concept"}],
-        "edges": [{"source_id": "sense-a", "target_id": "concept-a", "kind": "excitatory", "weight": 0.5}],
+        "nodes": [
+            {"node_id": "sense-a", "kind": "sense"},
+            {"node_id": "concept-a", "kind": "concept"},
+        ],
+        "edges": [
+            {"source_id": "sense-a", "target_id": "concept-a", "kind": "excitatory", "weight": 0.5}
+        ],
     }
     graph = load_graph_definition(payload, kernel_limits=KernelLimits())
     concept = next(n for n in graph.nodes if n.node_id == "concept-a")
@@ -181,8 +218,13 @@ def test_load_graph_definition_reuses_construction_validation():
     from symbiont.cognition.graph import load_graph_definition
 
     payload = {
-        "nodes": [{"node_id": "sense-a", "kind": "sense"}, {"node_id": "concept-a", "kind": "concept"}],
-        "edges": [{"source_id": "sense-a", "target_id": "concept-a", "kind": "excitatory", "weight": 99.0}],
+        "nodes": [
+            {"node_id": "sense-a", "kind": "sense"},
+            {"node_id": "concept-a", "kind": "concept"},
+        ],
+        "edges": [
+            {"source_id": "sense-a", "target_id": "concept-a", "kind": "excitatory", "weight": 99.0}
+        ],
     }
     with pytest.raises(GraphError):
         load_graph_definition(payload, kernel_limits=KernelLimits())
@@ -206,14 +248,18 @@ def test_activate_echoes_sense_inputs_directly():
 def test_activate_computes_bias_only_with_no_edges():
     import math
 
-    graph = CognitiveGraph(nodes=(_concept_node(bias=0.5, tau=1.0),), edges=(), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(_concept_node(bias=0.5, tau=1.0),), edges=(), kernel_limits=KernelLimits()
+    )
     frame = graph.activate(inputs={}, context=TickContext(tick=1))
     assert frame.activations["concept-a"] == pytest.approx(math.tanh(0.5))
 
 
 def test_delay_zero_sense_edge_reacts_immediately():
     graph = CognitiveGraph(
-        nodes=(_sense_node(), _concept_node()), edges=(_edge(delay_ticks=0),), kernel_limits=KernelLimits()
+        nodes=(_sense_node(), _concept_node()),
+        edges=(_edge(delay_ticks=0),),
+        kernel_limits=KernelLimits(),
     )
     frame = graph.activate(inputs={"sense-a": 1.0}, context=TickContext(tick=1))
     assert frame.activations["concept-a"] > 0.5
@@ -240,11 +286,15 @@ def test_cold_start_with_no_previous_treats_delay_one_sources_as_zero():
 def test_activation_is_independent_of_node_and_edge_construction_order():
     nodes_forward = (_sense_node(), _concept_node("c1"), _concept_node("c2"))
     edges_forward = (_edge(target="c1"), _edge(target="c2"))
-    graph_forward = CognitiveGraph(nodes=nodes_forward, edges=edges_forward, kernel_limits=KernelLimits())
+    graph_forward = CognitiveGraph(
+        nodes=nodes_forward, edges=edges_forward, kernel_limits=KernelLimits()
+    )
 
     nodes_reversed = tuple(reversed(nodes_forward))
     edges_reversed = tuple(reversed(edges_forward))
-    graph_reversed = CognitiveGraph(nodes=nodes_reversed, edges=edges_reversed, kernel_limits=KernelLimits())
+    graph_reversed = CognitiveGraph(
+        nodes=nodes_reversed, edges=edges_reversed, kernel_limits=KernelLimits()
+    )
 
     frame_forward = graph_forward.activate(inputs={"sense-a": 0.6}, context=TickContext(tick=1))
     frame_reversed = graph_reversed.activate(inputs={"sense-a": 0.6}, context=TickContext(tick=1))
@@ -253,7 +303,9 @@ def test_activation_is_independent_of_node_and_edge_construction_order():
 
 def test_extreme_inputs_never_produce_nan_or_inf():
     graph = CognitiveGraph(
-        nodes=(_sense_node(), _concept_node(bias=1e6)), edges=(_edge(weight=2.0),), kernel_limits=KernelLimits()
+        nodes=(_sense_node(), _concept_node(bias=1e6)),
+        edges=(_edge(weight=2.0),),
+        kernel_limits=KernelLimits(),
     )
     frame = graph.activate(inputs={"sense-a": 1e12}, context=TickContext(tick=1))
     import math
@@ -263,7 +315,11 @@ def test_extreme_inputs_never_produce_nan_or_inf():
 
 
 def test_readouts_contains_only_readout_kind_nodes():
-    nodes = (_sense_node(), _concept_node(), PlasticNode(node_id="r1", kind=NodeKind.READOUT, bias=0.1))
+    nodes = (
+        _sense_node(),
+        _concept_node(),
+        PlasticNode(node_id="r1", kind=NodeKind.READOUT, bias=0.1),
+    )
     edges = (_edge(target="concept-a"),)
     graph = CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=KernelLimits())
     frame = graph.activate(inputs={"sense-a": 0.5}, context=TickContext(tick=1))
@@ -278,11 +334,18 @@ def test_gating_edge_near_zero_suppresses_a_co_targeting_edge():
     nodes = (_sense_node("gate-source"), _sense_node("signal-source"), _concept_node())
     contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
     gating = PlasticEdge(
-        source_id="gate-source", target_id="concept-a", kind=EdgeKind.GATING, weight=1.0, plasticity=0.5, delay_ticks=0
+        source_id="gate-source",
+        target_id="concept-a",
+        kind=EdgeKind.GATING,
+        weight=1.0,
+        plasticity=0.5,
+        delay_ticks=0,
     )
     graph = CognitiveGraph(nodes=nodes, edges=(contributing, gating), kernel_limits=KernelLimits())
 
-    frame = graph.activate(inputs={"gate-source": 0.0, "signal-source": 1.0}, context=TickContext(tick=1))
+    frame = graph.activate(
+        inputs={"gate-source": 0.0, "signal-source": 1.0}, context=TickContext(tick=1)
+    )
     assert abs(frame.activations["concept-a"]) < 0.05
 
 
@@ -290,28 +353,58 @@ def test_gating_edge_near_one_passes_signal_through():
     nodes = (_sense_node("gate-source"), _sense_node("signal-source"), _concept_node())
     contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
     gating = PlasticEdge(
-        source_id="gate-source", target_id="concept-a", kind=EdgeKind.GATING, weight=1.0, plasticity=0.5, delay_ticks=0
+        source_id="gate-source",
+        target_id="concept-a",
+        kind=EdgeKind.GATING,
+        weight=1.0,
+        plasticity=0.5,
+        delay_ticks=0,
     )
     graph = CognitiveGraph(nodes=nodes, edges=(contributing, gating), kernel_limits=KernelLimits())
 
-    frame_open = graph.activate(inputs={"gate-source": 1.0, "signal-source": 1.0}, context=TickContext(tick=1))
-    ungated_graph = CognitiveGraph(
-        nodes=(_sense_node("signal-source"), _concept_node()), edges=(contributing,), kernel_limits=KernelLimits()
+    frame_open = graph.activate(
+        inputs={"gate-source": 1.0, "signal-source": 1.0}, context=TickContext(tick=1)
     )
-    frame_ungated = ungated_graph.activate(inputs={"signal-source": 1.0}, context=TickContext(tick=1))
-    assert frame_open.activations["concept-a"] == pytest.approx(frame_ungated.activations["concept-a"], abs=1e-6)
+    ungated_graph = CognitiveGraph(
+        nodes=(_sense_node("signal-source"), _concept_node()),
+        edges=(contributing,),
+        kernel_limits=KernelLimits(),
+    )
+    frame_ungated = ungated_graph.activate(
+        inputs={"signal-source": 1.0}, context=TickContext(tick=1)
+    )
+    assert frame_open.activations["concept-a"] == pytest.approx(
+        frame_ungated.activations["concept-a"], abs=1e-6
+    )
 
 
 def test_two_gating_edges_combine_by_product():
-    nodes = (_sense_node("gate-a"), _sense_node("gate-b"), _sense_node("signal-source"), _concept_node())
+    nodes = (
+        _sense_node("gate-a"),
+        _sense_node("gate-b"),
+        _sense_node("signal-source"),
+        _concept_node(),
+    )
     contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
     gate_a = PlasticEdge(
-        source_id="gate-a", target_id="concept-a", kind=EdgeKind.GATING, weight=1.0, plasticity=0.5, delay_ticks=0
+        source_id="gate-a",
+        target_id="concept-a",
+        kind=EdgeKind.GATING,
+        weight=1.0,
+        plasticity=0.5,
+        delay_ticks=0,
     )
     gate_b = PlasticEdge(
-        source_id="gate-b", target_id="concept-a", kind=EdgeKind.GATING, weight=1.0, plasticity=0.5, delay_ticks=0
+        source_id="gate-b",
+        target_id="concept-a",
+        kind=EdgeKind.GATING,
+        weight=1.0,
+        plasticity=0.5,
+        delay_ticks=0,
     )
-    graph = CognitiveGraph(nodes=nodes, edges=(contributing, gate_a, gate_b), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=nodes, edges=(contributing, gate_a, gate_b), kernel_limits=KernelLimits()
+    )
 
     frame_both_open = graph.activate(
         inputs={"gate-a": 1.0, "gate-b": 1.0, "signal-source": 1.0}, context=TickContext(tick=1)
@@ -319,13 +412,19 @@ def test_two_gating_edges_combine_by_product():
     frame_one_closed = graph.activate(
         inputs={"gate-a": 1.0, "gate-b": 0.0, "signal-source": 1.0}, context=TickContext(tick=1)
     )
-    assert abs(frame_one_closed.activations["concept-a"]) < abs(frame_both_open.activations["concept-a"])
+    assert abs(frame_one_closed.activations["concept-a"]) < abs(
+        frame_both_open.activations["concept-a"]
+    )
 
 
 @pytest.mark.parametrize("bad_id", ["", "../../etc/passwd", "has space", "rm -rf ~", "a" * 129])
 def test_rejects_malformed_node_id(bad_id):
     with pytest.raises(GraphError):
-        CognitiveGraph(nodes=(PlasticNode(node_id=bad_id, kind=NodeKind.SENSE),), edges=(), kernel_limits=KernelLimits())
+        CognitiveGraph(
+            nodes=(PlasticNode(node_id=bad_id, kind=NodeKind.SENSE),),
+            edges=(),
+            kernel_limits=KernelLimits(),
+        )
 
 
 def test_predictor_node_without_predicts_node_id_is_rejected():
@@ -356,16 +455,27 @@ def test_gating_edge_weight_scales_before_clipping():
     nodes = (_sense_node("gate-source"), _sense_node("signal-source"), _concept_node())
     contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
     negative_gate = PlasticEdge(
-        source_id="gate-source", target_id="concept-a", kind=EdgeKind.GATING, weight=-1.0, plasticity=0.5, delay_ticks=0
+        source_id="gate-source",
+        target_id="concept-a",
+        kind=EdgeKind.GATING,
+        weight=-1.0,
+        plasticity=0.5,
+        delay_ticks=0,
     )
-    graph = CognitiveGraph(nodes=nodes, edges=(contributing, negative_gate), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=nodes, edges=(contributing, negative_gate), kernel_limits=KernelLimits()
+    )
 
-    frame = graph.activate(inputs={"gate-source": 1.0, "signal-source": 1.0}, context=TickContext(tick=1))
+    frame = graph.activate(
+        inputs={"gate-source": 1.0, "signal-source": 1.0}, context=TickContext(tick=1)
+    )
     assert abs(frame.activations["concept-a"]) < 0.05
 
 
 def test_node_by_id_matches_linear_scan_over_nodes():
-    graph = CognitiveGraph(nodes=(_sense_node(), _concept_node()), edges=(_edge(),), kernel_limits=KernelLimits())
+    graph = CognitiveGraph(
+        nodes=(_sense_node(), _concept_node()), edges=(_edge(),), kernel_limits=KernelLimits()
+    )
     for node in graph.nodes:
         assert graph.node_by_id(node.node_id) is node
     assert graph.node_by_id("does-not-exist") is None
@@ -388,7 +498,12 @@ def test_incident_edges_matches_source_or_target_filter():
 def test_incident_edges_counts_a_self_loop_once():
     node = PlasticNode(node_id="loop", kind=NodeKind.CONCEPT)
     self_loop = PlasticEdge(
-        source_id="loop", target_id="loop", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1
+        source_id="loop",
+        target_id="loop",
+        kind=EdgeKind.EXCITATORY,
+        weight=0.5,
+        plasticity=0.5,
+        delay_ticks=1,
     )
     graph = CognitiveGraph(nodes=(node,), edges=(self_loop,), kernel_limits=KernelLimits())
 

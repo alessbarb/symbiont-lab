@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import replace
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -16,7 +16,6 @@ from symbiont.modeling.experience import (
     ExperienceRecord,
     SourceKind,
 )
-
 
 ORG = "episodic-v2-test"
 
@@ -192,9 +191,7 @@ def test_reinterpretation_indexes_old_family_without_rewriting_projection() -> N
 
     assert changed == 1
     assert memory.episodes[0].projection == before
-    assert memory.interpretations_for(memory.episodes[0].episode_id) == (
-        "concept.new",
-    )
+    assert memory.interpretations_for(memory.episodes[0].episode_id) == ("concept.new",)
 
 
 def test_prediction_is_conditioned_on_sparse_cognitive_state() -> None:
@@ -234,7 +231,9 @@ def test_prediction_is_conditioned_on_sparse_cognitive_state() -> None:
     )
 
     assert predicted is not None
-    assert any(".up" in token or token == "effect.balance.up" for token in predicted.predicted_outcomes)
+    assert any(
+        ".up" in token or token == "effect.balance.up" for token in predicted.predicted_outcomes
+    )
 
 
 def test_compact_families_fit_hundreds_under_default_byte_budget() -> None:
@@ -349,7 +348,6 @@ def test_episodic_memory_does_not_fabricate_raw_replay_records() -> None:
     memory.observe(record(0), projection())
     memory.flush()
     assert memory.replay_records() == ()
-
 
 
 def test_borderline_family_variant_is_retained_as_bounded_exception() -> None:

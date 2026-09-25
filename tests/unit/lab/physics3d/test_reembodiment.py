@@ -75,16 +75,18 @@ def _checkpoint(*, vital_state: str = "dead") -> dict:
                 "schema_version": 10,
                 "embodiment_fingerprint": "motor-surface-62",
                 "exclusive_actuator_groups": [],
-                "primitives": [{
-                    "primitive_id": "primitive.old",
-                    "embodiment_fingerprint": "motor-surface-62",
-                    "sequence": [
-                        [["actuator.0", 5]],
-                        [["actuator.1", 5]],
-                        [["actuator.2", 5]],
-                        [["actuator.3", 5]],
-                    ],
-                }],
+                "primitives": [
+                    {
+                        "primitive_id": "primitive.old",
+                        "embodiment_fingerprint": "motor-surface-62",
+                        "sequence": [
+                            [["actuator.0", 5]],
+                            [["actuator.1", 5]],
+                            [["actuator.2", 5]],
+                            [["actuator.3", 5]],
+                        ],
+                    }
+                ],
             },
             "pending_motor_observation": [{"old": True}],
             "pending_proprioception": {"old": 1.0},
@@ -198,6 +200,7 @@ def test_canonical_contract_fingerprint_drives_archive_and_lifecycle() -> None:
     # the new active lifecycle is already on the canonical v3 contract.
     assert all(item["contract_fingerprint"] for item in memories)
 
+
 def test_legacy_embodiment_memory_migrates_one_way_into_core_archive() -> None:
     legacy = {
         "schema_version": 1,
@@ -231,6 +234,7 @@ def test_legacy_embodiment_memory_migrates_one_way_into_core_archive() -> None:
     assert memory.private_model_ids == ("model.old",)
     assert memory.historical_motor_candidates[0]["primitive_id"] == "primitive.old"
 
+
 def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledge() -> None:
     previous = _checkpoint()
     transformed = prepare_fresh_embodiment_checkpoint(
@@ -247,10 +251,7 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     assert records[0]["model_id"] == "model-1"
     assert records[0]["state"] == "degraded"
 
-    active_nodes = {
-        node["node_id"]
-        for node in transformed["cognitive_bridge"]["graph"]["nodes"]
-    }
+    active_nodes = {node["node_id"] for node in transformed["cognitive_bridge"]["graph"]["nodes"]}
     assert active_nodes == {"concept.old"}
     assert transformed["cognitive_bridge"]["graph"]["edges"] == []
 
@@ -263,16 +264,18 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     sensorimotor = transformed["actuation"]["sensorimotor"]
     assert sensorimotor["schema_version"] == 10
     assert sensorimotor["primitives"] == []
-    assert sensorimotor["historical_candidates"] == [{
-        "primitive_id": "primitive.old",
-        "embodiment_fingerprint": "motor-surface-62",
-        "sequence": [
-            [["actuator.0", 5]],
-            [["actuator.1", 5]],
-            [["actuator.2", 5]],
-            [["actuator.3", 5]],
-        ],
-    }]
+    assert sensorimotor["historical_candidates"] == [
+        {
+            "primitive_id": "primitive.old",
+            "embodiment_fingerprint": "motor-surface-62",
+            "sequence": [
+                [["actuator.0", 5]],
+                [["actuator.1", 5]],
+                [["actuator.2", 5]],
+                [["actuator.3", 5]],
+            ],
+        }
+    ]
 
     lifecycle = lifecycle_summary(transformed)
     assert lifecycle["state"] == "active"
@@ -286,6 +289,7 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     assert len(transformed["embodiment_epoch_summaries"]) == 1
     assert "embodiment_memory" not in transformed
     assert len(transformed["embodiment_archive"]["body_memories"]) == 1
+
 
 def test_changed_contract_archives_old_schema_and_restarts_body_specific_learning() -> None:
     previous = _checkpoint(vital_state="active")
@@ -302,10 +306,7 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
     assert records[0]["model_id"] == "model-1"
     assert records[0]["state"] == "degraded"
 
-    active_nodes = {
-        node["node_id"]
-        for node in transformed["cognitive_bridge"]["graph"]["nodes"]
-    }
+    active_nodes = {node["node_id"] for node in transformed["cognitive_bridge"]["graph"]["nodes"]}
     assert "concept.old" in active_nodes
     assert active_nodes == {"concept.old"}
     assert transformed["cognitive_bridge"]["graph"]["edges"] == []
@@ -350,19 +351,21 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
             "strength_memory": {"actuator.a": 0.8},
             "active_preference": ["actuator.a"],
         },
-        "competences": [{
-            "competence_id": "competence.old",
-            "controller_id": "controller.old",
-            "effect_id": "effect.old",
-            "surface_binding": "surface.old",
-            "controller_strategy_ref": "seed.old",
-            "parent_competence_ids": [],
-            "support": 8,
-            "failures": 0,
-            "reproducibility": 0.9,
-            "controllability": 0.7,
-            "directional_consistency": 0.9,
-        }],
+        "competences": [
+            {
+                "competence_id": "competence.old",
+                "controller_id": "controller.old",
+                "effect_id": "effect.old",
+                "surface_binding": "surface.old",
+                "controller_strategy_ref": "seed.old",
+                "parent_competence_ids": [],
+                "support": 8,
+                "failures": 0,
+                "reproducibility": 0.9,
+                "controllability": 0.7,
+                "directional_consistency": 0.9,
+            }
+        ],
         "composition": {
             "engine": {
                 "schema_version": 1,
@@ -425,6 +428,7 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
     assert v2["composition"]["active_children"] == []
     assert transformed["actuation"]["action_commitment"] is None
 
+
 def test_stopping_marks_symbiont_dormant_without_changing_body_death_state() -> None:
     payload = deepcopy(_checkpoint(vital_state="active"))
     updated = update_lifecycle_for_checkpoint(
@@ -434,7 +438,6 @@ def test_stopping_marks_symbiont_dormant_without_changing_body_death_state() -> 
     )
     assert updated["living_body"]["vital_state"] == "active"
     assert updated["embodiment_lifecycle"]["state"] == "dormant"
-
 
 
 def test_known_contract_return_recovers_hypotheses_without_restoring_authority() -> None:
@@ -466,10 +469,9 @@ def test_known_contract_return_recovers_hypotheses_without_restoring_authority()
     ]
 
     assert returned["body_schema"]["state"] == "undeveloped"
-    assert {
-        node["node_id"]
-        for node in returned["cognitive_bridge"]["graph"]["nodes"]
-    } == {"concept.old"}
+    assert {node["node_id"] for node in returned["cognitive_bridge"]["graph"]["nodes"]} == {
+        "concept.old"
+    }
     assert returned["private_model_registry"]["records"][0]["state"] == "degraded"
 
 
@@ -565,7 +567,6 @@ def test_dead_checkpoint_closes_epoch_summary_and_archives_memory() -> None:
     assert updated["embodiment_memory"]["contracts"]
 
 
-
 def test_contract_fingerprint_changes_when_opaque_motor_unit_grouping_changes() -> None:
     base = _fresh()
     grouped = deepcopy(base)
@@ -601,31 +602,30 @@ def test_contract_fingerprint_ignores_group_order_but_not_membership() -> None:
 
     assert contract_fingerprint(
         left, receptor_count=107, effector_count=62
-    ) == contract_fingerprint(
-        right, receptor_count=107, effector_count=62
-    )
-
+    ) == contract_fingerprint(right, receptor_count=107, effector_count=62)
 
 
 def test_lifecycle_recomputes_pre_v2_contract_fingerprint() -> None:
     payload = _fresh()
     payload["saved_at_tick"] = 9
     payload["living_body"]["max_energy"] = 1600.0
-    payload["living_body"].update({
-        "schema_version": 3,
-        "structural_integrity": 1.0,
-        "temperature": 0.5,
-        "fatigue": 0.0,
-        "growth_progress": 1.0,
-        "senescence": 0.0,
-        "age_ticks": 9,
-        "transitions": 0,
-        "death_tick": None,
-        "metabolic_capacity": {},
-        "metabolic_replenishment": {},
-        "metabolic_reserve": {},
-        "structure_states": {},
-    })
+    payload["living_body"].update(
+        {
+            "schema_version": 3,
+            "structural_integrity": 1.0,
+            "temperature": 0.5,
+            "fatigue": 0.0,
+            "growth_progress": 1.0,
+            "senescence": 0.0,
+            "age_ticks": 9,
+            "transitions": 0,
+            "death_tick": None,
+            "metabolic_capacity": {},
+            "metabolic_replenishment": {},
+            "metabolic_reserve": {},
+            "structure_states": {},
+        }
+    )
     payload["embodiment_lifecycle"] = {
         "schema_version": 1,
         "state": "active",
@@ -657,7 +657,6 @@ def test_lifecycle_recomputes_pre_v2_contract_fingerprint() -> None:
     )
 
 
-
 def test_legacy_known_contract_memory_maps_to_canonical_v3_identity() -> None:
     previous = _checkpoint(vital_state="active")
     fresh = _fresh()
@@ -666,9 +665,7 @@ def test_legacy_known_contract_memory_maps_to_canonical_v3_identity() -> None:
     legacy_surface = ActuatorSurface.from_count(
         descriptor.effector_count,
         fingerprint_material=(
-            f"{descriptor.body_kind}:"
-            f"{descriptor.receptor_count}:"
-            f"{descriptor.effector_count}"
+            f"{descriptor.body_kind}:{descriptor.receptor_count}:{descriptor.effector_count}"
         ),
     )
     legacy_equivalent = deepcopy(fresh)
@@ -720,10 +717,7 @@ def test_legacy_known_contract_memory_maps_to_canonical_v3_identity() -> None:
         if item["contract_fingerprint"] == canonical
     ]
     assert canonical_memories
-    assert any(
-        item["private_model_ids"] == ["model.return"]
-        for item in canonical_memories
-    )
+    assert any(item["private_model_ids"] == ["model.return"] for item in canonical_memories)
 
 
 def test_canonical_action_domain_reembodiment_preserves_knowledge_not_authority() -> None:
@@ -757,18 +751,20 @@ def test_canonical_action_domain_reembodiment_preserves_knowledge_not_authority(
                 "strength_memory": {"actuator.a": 0.8},
                 "active_preference": ["actuator.a"],
             },
-            "competences": [{
-                "competence_id": "competence.old",
-                "controller_id": "controller.old",
-                "effect_id": "effect.old",
-                "controller_strategy_ref": "seed.old",
-                "parent_competence_ids": [],
-                "support": 8,
-                "failures": 0,
-                "reproducibility": 0.9,
-                "controllability": 0.7,
-                "directional_consistency": 0.9,
-            }],
+            "competences": [
+                {
+                    "competence_id": "competence.old",
+                    "controller_id": "controller.old",
+                    "effect_id": "effect.old",
+                    "controller_strategy_ref": "seed.old",
+                    "parent_competence_ids": [],
+                    "support": 8,
+                    "failures": 0,
+                    "reproducibility": 0.9,
+                    "controllability": 0.7,
+                    "directional_consistency": 0.9,
+                }
+            ],
             "execution_bindings": {
                 "schema_version": 1,
                 "capacity": 512,

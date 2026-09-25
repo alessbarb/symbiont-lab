@@ -1,6 +1,6 @@
 import unittest
 
-from observatory._node_harness import ROOT, requires_node, call_js
+from observatory._node_harness import ROOT, call_js, requires_node
 
 MODULE = ROOT / "projection" / "topology.js"
 
@@ -29,45 +29,66 @@ class BoundedTopologyTests(unittest.TestCase):
         result = bounded(VALID_RAW)
         self.assertEqual(result["genomeId"], "genome-abc")
         self.assertEqual(result["topologyRevision"], 3)
-        self.assertEqual(result["nodes"], [
-            {"id": "n-sense-1", "kind": "sense", "bias": 0.1, "tau": 1.0},
-            {"id": "n-concept-1", "kind": "concept", "bias": 0.2, "tau": 2.0},
-        ])
-        self.assertEqual(result["edges"], [
-            {"sourceId": "n-sense-1", "targetId": "n-concept-1", "kind": "excitatory"},
-        ])
+        self.assertEqual(
+            result["nodes"],
+            [
+                {"id": "n-sense-1", "kind": "sense", "bias": 0.1, "tau": 1.0},
+                {"id": "n-concept-1", "kind": "concept", "bias": 0.2, "tau": 2.0},
+            ],
+        )
+        self.assertEqual(
+            result["edges"],
+            [
+                {"sourceId": "n-sense-1", "targetId": "n-concept-1", "kind": "excitatory"},
+            ],
+        )
 
     def test_drops_node_with_unknown_kind(self):
-        raw = {**VALID_RAW, "nodes": [{"node_id": "x", "kind": "not-a-real-kind", "bias": 0, "tau": 1}]}
+        raw = {
+            **VALID_RAW,
+            "nodes": [{"node_id": "x", "kind": "not-a-real-kind", "bias": 0, "tau": 1}],
+        }
         result = bounded(raw)
         self.assertEqual(result["nodes"], [])
 
     def test_drops_duplicate_node_id_keeping_the_first(self):
-        raw = {**VALID_RAW, "nodes": [
-            {"node_id": "dup", "kind": "sense", "bias": 0, "tau": 1},
-            {"node_id": "dup", "kind": "readout", "bias": 0, "tau": 1},
-        ]}
+        raw = {
+            **VALID_RAW,
+            "nodes": [
+                {"node_id": "dup", "kind": "sense", "bias": 0, "tau": 1},
+                {"node_id": "dup", "kind": "readout", "bias": 0, "tau": 1},
+            ],
+        }
         result = bounded(raw)
         self.assertEqual(result["nodes"], [{"id": "dup", "kind": "sense", "bias": 0, "tau": 1}])
 
     def test_caps_nodes_at_128(self):
-        raw = {**VALID_RAW, "nodes": [
-            {"node_id": f"n{i}", "kind": "sense", "bias": 0, "tau": 1} for i in range(140)
-        ]}
+        raw = {
+            **VALID_RAW,
+            "nodes": [
+                {"node_id": f"n{i}", "kind": "sense", "bias": 0, "tau": 1} for i in range(140)
+            ],
+        }
         result = bounded(raw)
         self.assertEqual(len(result["nodes"]), 128)
 
     def test_caps_edges_at_1024(self):
-        raw = {**VALID_RAW, "edges": [
-            {"source_id": "a", "target_id": "b", "kind": "excitatory"} for _ in range(1100)
-        ]}
+        raw = {
+            **VALID_RAW,
+            "edges": [
+                {"source_id": "a", "target_id": "b", "kind": "excitatory"} for _ in range(1100)
+            ],
+        }
         result = bounded(raw)
         self.assertEqual(len(result["edges"]), 1024)
 
     def test_edge_with_unresolvable_endpoint_is_still_kept(self):
-        raw = {**VALID_RAW, "edges": [
-            {"source_id": "no-such-node", "target_id": "also-missing", "kind": "excitatory"},
-        ]}
+        raw = {
+            **VALID_RAW,
+            "edges": [
+                {"source_id": "no-such-node", "target_id": "also-missing", "kind": "excitatory"},
+            ],
+        }
         result = bounded(raw)
         self.assertEqual(len(result["edges"]), 1)
 
@@ -96,15 +117,21 @@ class BoundedTopologyTests(unittest.TestCase):
         self.assertIsNone(bounded(raw))
 
     def test_node_missing_bias_or_tau_is_dropped(self):
-        raw = {**VALID_RAW, "nodes": [
-            {"node_id": "no-bias", "kind": "sense", "tau": 1.0},
-            {"node_id": "no-tau", "kind": "sense", "bias": 0.1},
-        ]}
+        raw = {
+            **VALID_RAW,
+            "nodes": [
+                {"node_id": "no-bias", "kind": "sense", "tau": 1.0},
+                {"node_id": "no-tau", "kind": "sense", "bias": 0.1},
+            ],
+        }
         result = bounded(raw)
         self.assertEqual(result["nodes"], [])
 
     def test_node_with_tau_out_of_range_is_dropped(self):
-        raw = {**VALID_RAW, "nodes": [{"node_id": "bad-tau", "kind": "sense", "bias": 0, "tau": 15.0}]}
+        raw = {
+            **VALID_RAW,
+            "nodes": [{"node_id": "bad-tau", "kind": "sense", "bias": 0, "tau": 15.0}],
+        }
         result = bounded(raw)
         self.assertEqual(result["nodes"], [])
 

@@ -4,10 +4,11 @@ A hidden evaluator-side variable Z modulates both activation opportunity and an
 external sensory channel. The subject never observes Z. This tests whether the
 current intervention/baseline contrast can reject a confounded external channel.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Sequence
 
 from symbiont.core.embodiment.agency import AgencyModel
@@ -113,7 +114,7 @@ def _run_seed(seed: int, *, steps: int) -> CommonCauseSeedResult:
 
 def run_hidden_common_cause_study(
     *,
-    seeds: Sequence[int] = (101,127,149,173,211,257,307,353,401,457),
+    seeds: Sequence[int] = (101, 127, 149, 173, 211, 257, 307, 353, 401, 457),
     steps: int = 600,
 ) -> HiddenCommonCauseStudy:
     normalized = _normalize_seeds(seeds)
@@ -122,9 +123,9 @@ def run_hidden_common_cause_study(
     results = tuple(_run_seed(s, steps=steps) for s in normalized)
     replay = tuple(_run_seed(s, steps=steps) for s in normalized)
     n = len(results)
-    tpr = sum(x.genuine_agentic for x in results)/n
-    cfpr = sum(x.confounded_agentic for x in results)/n
-    ifpr = sum(x.independent_agentic for x in results)/n
+    tpr = sum(x.genuine_agentic for x in results) / n
+    cfpr = sum(x.confounded_agentic for x in results) / n
+    ifpr = sum(x.independent_agentic for x in results) / n
     deterministic = results == replay
     supported = tpr >= 0.70 and cfpr <= 0.10 and ifpr <= 0.10 and deterministic
     return HiddenCommonCauseStudy(

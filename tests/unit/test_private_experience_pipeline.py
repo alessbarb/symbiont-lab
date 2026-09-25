@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import pytest
 from types import SimpleNamespace
+
+import pytest
+from symbiont.core.runtime import RuntimeTickResult
 
 from symbiont.actuation.types import Actuation
 from symbiont.cognition.types import NodeKind
-from symbiont.core.runtime import RuntimeTickResult
 from symbiont.modeling import (
     EpistemicStatus,
     ExperienceRecord,
@@ -98,14 +99,16 @@ def test_private_runtime_captures_temporal_transition_and_restores_ledger():
     assert record.tick_class == first.tick
     assert second.tick == first.tick + 1
     assert record.outcome_tokens
-    assert all("system_load" not in token and "storage_pressure" not in token for token in record.context_tokens)
+    assert all(
+        "system_load" not in token and "storage_pressure" not in token
+        for token in record.context_tokens
+    )
     assert all(not token.startswith("event.") for token in record.context_tokens)
 
     restored = PrivateModelOrganismRuntime.from_checkpoint(runtime.checkpoint())
     assert restored.capture_private_experience is True
     assert restored.experience_ledger.records == runtime.experience_ledger.records
     assert restored._pending_private_frame is None
-
 
 
 def test_private_runtime_captures_motor_as_context_and_next_tick_as_outcome():
@@ -279,8 +282,7 @@ def test_observed_outcome_credit_never_uses_counterfactual_prediction():
     assert runtime._pending_outcome_value_credit
     assert {
         outcome_id
-        for _due, outcome_id, _baseline, _discount
-        in runtime._pending_outcome_value_credit
+        for _due, outcome_id, _baseline, _discount in runtime._pending_outcome_value_credit
     } == {"outcome.observed.actual"}
 
 
@@ -353,12 +355,9 @@ def test_observed_outcome_credit_resolves_against_pre_consequence_baseline(monke
 
     runtime._resolve_outcome_value_credit(tick=14)
 
-    estimate = runtime._prospective_agency.outcome_value_ledger.estimate(
-        "outcome.immediate"
-    )
+    estimate = runtime._prospective_agency.outcome_value_ledger.estimate("outcome.immediate")
     assert estimate is not None
     assert estimate.mean_value == pytest.approx(0.6)
-
 
 
 def test_private_frame_episodic_projection_uses_direct_cognitive_ids():
@@ -405,6 +404,5 @@ def test_private_frame_episodic_projection_uses_direct_cognitive_ids():
     )
     assert frame.episodic_projection.concept_ids == ("concept.000001",)
     assert all(
-        not sense_id.startswith("signal.")
-        for sense_id in frame.episodic_projection.sense_ids
+        not sense_id.startswith("signal.") for sense_id in frame.episodic_projection.sense_ids
     )

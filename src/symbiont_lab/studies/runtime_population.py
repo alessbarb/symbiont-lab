@@ -1,12 +1,17 @@
 """Evaluator-only parent/child population lifecycle study for Milestone I."""
+
 from __future__ import annotations
+
 from dataclasses import asdict, dataclass
+
+from symbiont.core.birth_authority import HabitatBirthAuthority
+from symbiont.core.metabolism import MetabolicLedger
+from symbiont.core.runtime import OrganismRuntime
+
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.birth_authority import HabitatBirthAuthority
-from symbiont.core.runtime import OrganismRuntime
-from symbiont.core.metabolism import MetabolicLedger
+
 
 @dataclass(frozen=True, slots=True)
 class RuntimePopulationStudy:
@@ -21,14 +26,21 @@ class RuntimePopulationStudy:
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
 
+
 def run_runtime_population_study() -> RuntimePopulationStudy:
     version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
     genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="population-study", capacity=2)
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
-    parent = OrganismRuntime(organism_id="parent", genome=genome, birth_authority=authority,
-                             metabolism=MetabolicLedger(replenishment=zero), explicit_metabolism=True,
-                             bootstrap_semantic_senses=False, discover_senses=False)
+    parent = OrganismRuntime(
+        organism_id="parent",
+        genome=genome,
+        birth_authority=authority,
+        metabolism=MetabolicLedger(replenishment=zero),
+        explicit_metabolism=True,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
     parent.living_body_state.growth_progress = 1.0
     child = parent.materialize_clonal_bud()
     if child is None:
@@ -44,8 +56,15 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
         child.tick()
     except RuntimeError:
         duplicate_release_prevented = True
-    return RuntimePopulationStudy(parent.organism_id, child.organism_id, child_died,
-                                  len(authority.live_ids), slot_released,
-                                  duplicate_release_prevented, capacity_blocked_birth)
+    return RuntimePopulationStudy(
+        parent.organism_id,
+        child.organism_id,
+        child_died,
+        len(authority.live_ids),
+        slot_released,
+        duplicate_release_prevented,
+        capacity_blocked_birth,
+    )
+
 
 __all__ = ["RuntimePopulationStudy", "run_runtime_population_study"]

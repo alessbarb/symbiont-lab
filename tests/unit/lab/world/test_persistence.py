@@ -10,12 +10,20 @@ Verifies the Phase P1 technical gate:
    - Constitution fingerprint enforcement.
 3. Genesis canonical vs smoke constitution separation.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 
+from symbiont.actuation.surface import derive_actuator_constitution
+from symbiont_lab.world.adapter import (
+    ActuationBinding,
+    ActuationBindingConstitution,
+    _load_base_genome,
+)
 from symbiont_lab.world.genesis_v1 import (
     build_genesis_smoke_v1,
     build_genesis_v1,
@@ -26,18 +34,14 @@ from symbiont_lab.world.persistence import (
     capture_checkpoint,
     restore_population_from_checkpoint,
 )
-from symbiont.actuation.surface import derive_actuator_constitution
-from symbiont_lab.world.adapter import (
-    ActuationBinding,
-    ActuationBindingConstitution,
-    _load_base_genome,
-)
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.events import EventJournal
 from symbiont_world.topology import HexCoord, HexTopology
 
 
-def _make_pop(seed: int = 101, count: int = 4, world_id: str = "genesis-v1-population") -> PopulationGenesisRuntime:
+def _make_pop(
+    seed: int = 101, count: int = 4, world_id: str = "genesis-v1-population"
+) -> PopulationGenesisRuntime:
     topo = HexTopology(width=8, height=8)
     gt = build_ground_truth()
     cells = founder_placement(seed, topo, count)
@@ -117,19 +121,32 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
     # append-only presentation history. Their bounded causal replay blocks are
     # compared by the dedicated first-tick contract below.
     lossy_baseline_keys = {
-        "acclimation", "rhythms", "drift", "sensory_development",
-        "sensory_system", "signal_knowledge", "narrative_journal",
+        "acclimation",
+        "rhythms",
+        "drift",
+        "sensory_development",
+        "sensory_system",
+        "signal_knowledge",
+        "narrative_journal",
         # Motor discovery and its bounded frame history are checked by the
         # dedicated sensorimotor replay assertions.
         "actuation",
     }
-    
+
     d1 = {
-        oid: {k: v for k, v in pop_a._rigs[oid].runtime.checkpoint().items() if k not in lossy_baseline_keys}
+        oid: {
+            k: v
+            for k, v in pop_a._rigs[oid].runtime.checkpoint().items()
+            if k not in lossy_baseline_keys
+        }
         for oid in pop_a.organism_ids
     }
     d2 = {
-        oid: {k: v for k, v in pop_b._rigs[oid].runtime.checkpoint().items() if k not in lossy_baseline_keys}
+        oid: {
+            k: v
+            for k, v in pop_b._rigs[oid].runtime.checkpoint().items()
+            if k not in lossy_baseline_keys
+        }
         for oid in pop_b.organism_ids
     }
     for oid in pop_a.organism_ids:
@@ -139,14 +156,12 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
 
     assert {
         oid: {
-            rid: habitat.checkpoint()
-            for rid, habitat in pop_a._rigs[oid].resource_habitats.items()
+            rid: habitat.checkpoint() for rid, habitat in pop_a._rigs[oid].resource_habitats.items()
         }
         for oid in pop_a.organism_ids
     } == {
         oid: {
-            rid: habitat.checkpoint()
-            for rid, habitat in pop_b._rigs[oid].resource_habitats.items()
+            rid: habitat.checkpoint() for rid, habitat in pop_b._rigs[oid].resource_habitats.items()
         }
         for oid in pop_b.organism_ids
     }
@@ -157,7 +172,7 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
         ground_truth=pop_a.ground_truth,
         expected_constitution=smoke_genesis.constitution,
     )
-    records_b2 = pop_b2.run(10)
+    pop_b2.run(10)
     assert pop_b.state.snapshot() == pop_b2.state.snapshot()
     assert pop_b.environment.snapshot() == pop_b2.environment.snapshot()
     assert pop_b.journal.snapshot() == pop_b2.journal.snapshot()
@@ -197,7 +212,6 @@ def test_checkpoint_replay_matches_the_first_causal_tick(tmp_path: Path):
     state_a.pop("checkpoint_lineage", None)
     state_b.pop("checkpoint_lineage", None)
     assert state_a == state_b
-
 
 
 def test_storage_atomic_files_and_head_pointer(tmp_path: Path):
@@ -320,7 +334,9 @@ def test_journal_is_segmented_once_and_not_duplicated_inside_checkpoint(tmp_path
 
     segments_after_first = sorted(storage.events_dir.glob("segment-*.jsonl"))
     assert len(segments_after_first) == 1
-    assert len(segments_after_first[0].read_text(encoding="utf-8").splitlines()) == first_event_count
+    assert (
+        len(segments_after_first[0].read_text(encoding="utf-8").splitlines()) == first_event_count
+    )
 
     pop.run(2)
     storage.save_checkpoint(
@@ -331,8 +347,7 @@ def test_journal_is_segmented_once_and_not_duplicated_inside_checkpoint(tmp_path
     segments_after_second = sorted(storage.events_dir.glob("segment-*.jsonl"))
     assert len(segments_after_second) == 2
     total_lines = sum(
-        len(path.read_text(encoding="utf-8").splitlines())
-        for path in segments_after_second
+        len(path.read_text(encoding="utf-8").splitlines()) for path in segments_after_second
     )
     assert total_lines == len(pop.journal)
 
@@ -457,10 +472,7 @@ def test_missing_manifest_recovers_event_prefix_without_duplicate_segments(tmp_p
 
     segments = sorted(storage.events_dir.glob("segment-*.jsonl"))
     assert len(segments) == 2
-    total_lines = sum(
-        len(path.read_text(encoding="utf-8").splitlines())
-        for path in segments
-    )
+    total_lines = sum(len(path.read_text(encoding="utf-8").splitlines()) for path in segments)
     assert total_lines == len(pop.journal)
     assert total_lines > first_count
     restored = storage.load_latest_checkpoint()
@@ -530,12 +542,8 @@ def test_actuation_world_replay_equivalence_with_movement_enabled(tmp_path: Path
     # itself may differ by one deliberately discarded in-flight percept
     # comparison (raw telemetry is never persisted), so compare durable
     # binding identity rather than claiming transient evidence equality.
-    assert {
-        oid: pop_a._rigs[oid].actuation_binding.fingerprint
-        for oid in pop_a.organism_ids
-    } == {
-        oid: pop_b._rigs[oid].actuation_binding.fingerprint
-        for oid in pop_b.organism_ids
+    assert {oid: pop_a._rigs[oid].actuation_binding.fingerprint for oid in pop_a.organism_ids} == {
+        oid: pop_b._rigs[oid].actuation_binding.fingerprint for oid in pop_b.organism_ids
     }
 
 
@@ -544,10 +552,11 @@ def test_actuation_binding_and_pending_emissions_survive_world_checkpoint(tmp_pa
     storage = WorldStorage(tmp_path / "actuation_emission")
     _load_base_genome()  # assert canonical Genome v2 remains loadable
     constitution = derive_actuator_constitution(8, physical_contract="genesis-world-body-v2")
-    binding = ActuationBindingConstitution(tuple(
-        ActuationBinding(actuator_id, "emit", "23")
-        for actuator_id in constitution.actuator_ids
-    ))
+    binding = ActuationBindingConstitution(
+        tuple(
+            ActuationBinding(actuator_id, "emit", "23") for actuator_id in constitution.actuator_ids
+        )
+    )
     pop = PopulationGenesisRuntime(
         organism_ids=("emit-a", "emit-b"),
         world_seed=1414,
@@ -573,10 +582,8 @@ def test_actuation_binding_and_pending_emissions_survive_world_checkpoint(tmp_pa
     )
     assert restored._emissions == pop._emissions
     assert {
-        oid: restored._rigs[oid].actuation_binding.fingerprint
-        for oid in restored.organism_ids
+        oid: restored._rigs[oid].actuation_binding.fingerprint for oid in restored.organism_ids
     } == {oid: binding.fingerprint for oid in restored.organism_ids}
-
 
 
 def test_clean_mode_is_checkpointed_and_restored():

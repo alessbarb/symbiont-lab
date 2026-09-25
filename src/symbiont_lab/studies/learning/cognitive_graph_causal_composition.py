@@ -12,18 +12,20 @@ asks what the current CognitiveGraph actually discovers:
 The protocol is intentionally a capability test, not an implementation of a
 causal learner.  A failed gate is evidence about the current substrate.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Sequence
+
+from symbiont.core.cognition_bridge import CognitiveBridge
 
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticNode
-from symbiont.cognition.metaplasticity import SafetyState
 from symbiont.cognition.learning import ComposedShadowPrediction, LaggedShadowPrediction
+from symbiont.cognition.metaplasticity import SafetyState
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
 
 _STUDY_ID = "learning.cognitive-graph-causal-composition"
 
@@ -108,7 +110,9 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
 def _build_bridge(channel_ids: Sequence[str]) -> CognitiveBridge:
     limits = KernelLimits()
     graph = CognitiveGraph(
-        nodes=tuple(PlasticNode(node_id=channel_id, kind=NodeKind.SENSE) for channel_id in channel_ids),
+        nodes=tuple(
+            PlasticNode(node_id=channel_id, kind=NodeKind.SENSE) for channel_id in channel_ids
+        ),
         edges=(),
         kernel_limits=limits,
     )
@@ -123,10 +127,17 @@ def _build_bridge(channel_ids: Sequence[str]) -> CognitiveBridge:
 
 
 def _promote_target(bridge, target_id: str, *, tick: int) -> None:
-    if any(node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id for node in bridge.graph.nodes):
+    if any(
+        node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id
+        for node in bridge.graph.nodes
+    ):
         return
     candidates = sorted(
-        (item for item in bridge.shadow_predictions if item.target_id == target_id and item.promotable),
+        (
+            item
+            for item in bridge.shadow_predictions
+            if item.target_id == target_id and item.promotable
+        ),
         key=lambda item: item.predictive_gain,
         reverse=True,
     )
@@ -177,12 +188,15 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
     context_persistence: list[float] = []
     for index, tick in enumerate(range(ticks + 1, ticks * 2 + 1), start=1):
         result = bridge.tick({"x": q[index], "m": q_m[index], "y": q_y[index]}, tick=tick)
-        context_losses.extend(error.loss for error in result.prediction_errors if error.target_id == "y")
+        context_losses.extend(
+            error.loss for error in result.prediction_errors if error.target_id == "y"
+        )
         context_persistence.append(0.5 * (q_y[index] - q_y[index - 1]) ** 2)
     context_gain = (
         sum(context_persistence) / len(context_persistence)
         - sum(context_losses) / len(context_losses)
-        if context_losses else 0.0
+        if context_losses
+        else 0.0
     )
     composed_context_losses: list[float] = []
     composed_context_persistence: list[float] = []
@@ -193,16 +207,18 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
             0.5 * (q_y[index] - first_slope * second_slope * q[index - 2]) ** 2
         )
         composed_context_persistence.append(0.5 * (q_y[index] - q_y[index - 1]) ** 2)
-    composed_context_gain = (
-        sum(composed_context_persistence) / len(composed_context_persistence)
-        - sum(composed_context_losses) / len(composed_context_losses)
-    )
+    composed_context_gain = sum(composed_context_persistence) / len(
+        composed_context_persistence
+    ) - sum(composed_context_losses) / len(composed_context_losses)
 
     # Contradiction phase: the previously learned m -> y relation becomes
     # false.  m remains opaque and no phase marker is supplied.
     predictor_edge = next(
-        (edge for edge in bridge.graph.edges
-         if edge.source_id == "m" and edge.kind is EdgeKind.PREDICTIVE),
+        (
+            edge
+            for edge in bridge.graph.edges
+            if edge.source_id == "m" and edge.kind is EdgeKind.PREDICTIVE
+        ),
         None,
     )
     weight_before = predictor_edge.weight if predictor_edge is not None else 0.0
@@ -240,7 +256,9 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         previous_a = a_now
         previous_y = y_now
         obs.tick({"a": a_now, "y": y_now}, tick=tick)
-    source_gain = sum(persistence_losses) / len(persistence_losses) - sum(source_losses) / len(source_losses)
+    source_gain = sum(persistence_losses) / len(persistence_losses) - sum(source_losses) / len(
+        source_losses
+    )
 
     # The composed predictor is then exposed to a randomized source while
     # the downstream channels continue following the latent driver.  This is
@@ -265,14 +283,15 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         source_history.append(a_now)
         y_now = z[index - 2]
         source_value = source_history[-3]
-        prediction = composed_obs.first_relation_slope * composed_obs.second_relation_slope * source_value
+        prediction = (
+            composed_obs.first_relation_slope * composed_obs.second_relation_slope * source_value
+        )
         composed_intervention_losses.append(0.5 * (y_now - prediction) ** 2)
         composed_intervention_persistence.append(0.5 * (y_now - previous_y) ** 2)
         previous_y = y_now
-    composed_intervention_gain = (
-        sum(composed_intervention_persistence) / len(composed_intervention_persistence)
-        - sum(composed_intervention_losses) / len(composed_intervention_losses)
-    )
+    composed_intervention_gain = sum(composed_intervention_persistence) / len(
+        composed_intervention_persistence
+    ) - sum(composed_intervention_losses) / len(composed_intervention_losses)
 
     return CausalCompositionSeedResult(
         seed=seed,
@@ -316,7 +335,10 @@ def run_cognitive_graph_causal_composition_study(
         for a, b in zip(results, replay)
     )
     n = len(results)
-    rate = lambda field: sum(bool(getattr(item, field)) for item in results) / n
+
+    def rate(field):
+        return sum(bool(getattr(item, field)) for item in results) / n
+
     return CausalCompositionStudy(
         seeds=normalized,
         per_seed=tuple(
@@ -345,4 +367,8 @@ def run_cognitive_graph_causal_composition_study(
     )
 
 
-__all__ = ["CausalCompositionSeedResult", "CausalCompositionStudy", "run_cognitive_graph_causal_composition_study"]
+__all__ = [
+    "CausalCompositionSeedResult",
+    "CausalCompositionStudy",
+    "run_cognitive_graph_causal_composition_study",
+]

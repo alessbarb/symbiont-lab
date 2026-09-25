@@ -1,18 +1,27 @@
 import pytest
-
-from symbiont.core.signal_prediction import BoundedPredictor, RidgePredictor, absolute_loss, baseline_predictions, scaled_squared_loss, improvement_class
 from symbiont.core.signal_knowledge_checkpoint import validate_checkpoint
+from symbiont.core.signal_prediction import (
+    BoundedPredictor,
+    RidgePredictor,
+    absolute_loss,
+    baseline_predictions,
+    improvement_class,
+    scaled_squared_loss,
+)
 
 
 def test_bounded_predictor_is_in_memory_and_deterministic():
     predictor = BoundedPredictor(history_limit=2)
     assert predictor.predict() is None
-    predictor.observe(1.0); predictor.observe(2.0); predictor.observe(3.0)
+    predictor.observe(1.0)
+    predictor.observe(2.0)
+    predictor.observe(3.0)
     assert predictor.predict() == 3.0
     assert predictor.count == 2
     assert absolute_loss(2.0, 3.5) == 1.5
     assert absolute_loss(None, 1.0) is None
-    with pytest.raises(ValueError): predictor.observe(float("nan"))
+    with pytest.raises(ValueError):
+        predictor.observe(float("nan"))
     refs = baseline_predictions([1.0, 2.0, 3.0])
     assert refs["zero"] == 0.0 and refs["persistence"] == 3.0
 

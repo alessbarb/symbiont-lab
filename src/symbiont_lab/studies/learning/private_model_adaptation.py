@@ -11,7 +11,12 @@ from symbiont.modeling import (
     TrainingRequest,
     build_training_corpus,
 )
-from symbiont_lab.modeling import TrainingConfig, adapt_private_model, encode_corpus, train_private_model
+from symbiont_lab.modeling import (
+    TrainingConfig,
+    adapt_private_model,
+    encode_corpus,
+    train_private_model,
+)
 from symbiont_lab.modeling.gateway import load_artifact_model
 from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
 
@@ -62,7 +67,9 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
     return values
 
 
-def _request(corpus, tokenizer: NativeTokenizer, *, seed: int, parent: str | None = None) -> TrainingRequest:
+def _request(
+    corpus, tokenizer: NativeTokenizer, *, seed: int, parent: str | None = None
+) -> TrainingRequest:
     return TrainingRequest(
         organism_id=corpus.manifest.organism_id,
         corpus_hash=corpus.manifest.corpus_hash,
@@ -81,15 +88,21 @@ def _request(corpus, tokenizer: NativeTokenizer, *, seed: int, parent: str | Non
 
 
 def _loss(training, encoded) -> float:
-    model = load_artifact_model(training.artifact, vocab_size=encoded.vocab_size, pad_id=encoded.pad_id)
+    model = load_artifact_model(
+        training.artifact, vocab_size=encoded.vocab_size, pad_id=encoded.pad_id
+    )
     return evaluate_outcome_model(
-        model, encoded.test, pad_id=encoded.pad_id,
+        model,
+        encoded.test,
+        pad_id=encoded.pad_id,
         context_window=training.artifact.manifest.context_window,
     ).mean_log_loss
 
 
 def run_private_model_adaptation_study(
-    *, seeds: Sequence[int] = (101, 127, 149), ticks: int = 128,
+    *,
+    seeds: Sequence[int] = (101, 127, 149),
+    ticks: int = 128,
 ) -> PrivateModelAdaptationStudy:
     """Compare stale, cold-start fresh, and bounded parent-initialized adaptation."""
     normalized = _normalize_seeds(seeds)
@@ -99,48 +112,69 @@ def run_private_model_adaptation_study(
     results: list[AdaptationSeedResult] = []
     for seed in normalized:
         organism_id = f"adaptation-{seed}"
-        pre_corpus = build_training_corpus(_history(organism_id=organism_id, seed=seed, ticks=ticks, shifted=False))
-        post_corpus = build_training_corpus(_history(organism_id=organism_id, seed=seed, ticks=ticks, shifted=True))
+        pre_corpus = build_training_corpus(
+            _history(organism_id=organism_id, seed=seed, ticks=ticks, shifted=False)
+        )
+        post_corpus = build_training_corpus(
+            _history(organism_id=organism_id, seed=seed, ticks=ticks, shifted=True)
+        )
         tokenizer = NativeTokenizer.from_records((*pre_corpus.train, *post_corpus.train))
         pre_encoded = encode_corpus(pre_corpus, tokenizer, context_window=32)
         post_encoded = encode_corpus(post_corpus, tokenizer, context_window=32)
         authority = ModelTrainingAuthority()
         config = TrainingConfig(batch_size=16, patience=3)
         pre_training = train_private_model(
-            request=_request(pre_corpus, tokenizer, seed=seed), corpus=pre_encoded,
-            authority=authority, config=config,
+            request=_request(pre_corpus, tokenizer, seed=seed),
+            corpus=pre_encoded,
+            authority=authority,
+            config=config,
         )
         fresh_training = train_private_model(
-            request=_request(post_corpus, tokenizer, seed=seed + 40_000), corpus=post_encoded,
-            authority=authority, config=config,
+            request=_request(post_corpus, tokenizer, seed=seed + 40_000),
+            corpus=post_encoded,
+            authority=authority,
+            config=config,
         )
         adapted_training = adapt_private_model(
-            request=_request(post_corpus, tokenizer, seed=seed, parent=pre_training.artifact.manifest.model_id),
-            corpus=post_encoded, parent_artifact=pre_training.artifact,
-            authority=authority, config=config,
+            request=_request(
+                post_corpus, tokenizer, seed=seed, parent=pre_training.artifact.manifest.model_id
+            ),
+            corpus=post_encoded,
+            parent_artifact=pre_training.artifact,
+            authority=authority,
+            config=config,
         )
         pre_loss = _loss(pre_training, pre_encoded)
         stale_post = _loss(pre_training, post_encoded)
         fresh_post = _loss(fresh_training, post_encoded)
         adapted_post = _loss(adapted_training, post_encoded)
-        results.append(AdaptationSeedResult(
-            seed=seed, pre_shift_loss=pre_loss, stale_post_loss=stale_post,
-            fresh_post_loss=fresh_post, adapted_post_loss=adapted_post,
-            stale_degradation=stale_post - pre_loss,
-            fresh_recovery=stale_post - fresh_post,
-            adapted_recovery=stale_post - adapted_post,
-            adapted_vs_fresh=fresh_post - adapted_post,
-            adapted_vs_stale=stale_post - adapted_post,
-            lineage_valid=(
-                adapted_training.artifact.manifest.parent_model_id == pre_training.artifact.manifest.model_id
-                and adapted_training.artifact.manifest.ancestor_model_id == pre_training.artifact.manifest.model_id
-                and adapted_training.artifact.manifest.generation == 1
-            ),
-            adaptation_cost=adapted_training.steps_completed,
-        ))
+        results.append(
+            AdaptationSeedResult(
+                seed=seed,
+                pre_shift_loss=pre_loss,
+                stale_post_loss=stale_post,
+                fresh_post_loss=fresh_post,
+                adapted_post_loss=adapted_post,
+                stale_degradation=stale_post - pre_loss,
+                fresh_recovery=stale_post - fresh_post,
+                adapted_recovery=stale_post - adapted_post,
+                adapted_vs_fresh=fresh_post - adapted_post,
+                adapted_vs_stale=stale_post - adapted_post,
+                lineage_valid=(
+                    adapted_training.artifact.manifest.parent_model_id
+                    == pre_training.artifact.manifest.model_id
+                    and adapted_training.artifact.manifest.ancestor_model_id
+                    == pre_training.artifact.manifest.model_id
+                    and adapted_training.artifact.manifest.generation == 1
+                ),
+                adaptation_cost=adapted_training.steps_completed,
+            )
+        )
     count = len(results)
     return PrivateModelAdaptationStudy(
-        seeds=normalized, ticks=ticks, per_seed=tuple(results),
+        seeds=normalized,
+        ticks=ticks,
+        per_seed=tuple(results),
         mean_stale_degradation=sum(item.stale_degradation for item in results) / count,
         mean_fresh_recovery=sum(item.fresh_recovery for item in results) / count,
         mean_adapted_recovery=sum(item.adapted_recovery for item in results) / count,
@@ -151,4 +185,8 @@ def run_private_model_adaptation_study(
     )
 
 
-__all__ = ["AdaptationSeedResult", "PrivateModelAdaptationStudy", "run_private_model_adaptation_study"]
+__all__ = [
+    "AdaptationSeedResult",
+    "PrivateModelAdaptationStudy",
+    "run_private_model_adaptation_study",
+]

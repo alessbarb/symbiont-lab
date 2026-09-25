@@ -17,6 +17,7 @@ promotion that production materialized the same source selected by shadow
 evidence. Generalization remains evaluated against frozen fresh-seed data using
 the discovered source's one-step loss versus persistence.
 """
+
 from __future__ import annotations
 
 import ast
@@ -25,19 +26,22 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
 
+from symbiont.core.cognition_bridge import CognitiveBridge
+
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticNode
 from symbiont.cognition.learning import huber_loss
 from symbiont.cognition.metaplasticity import SafetyState
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
 from symbiont_lab.evaluation.holdout import DevelopmentPhase, FrozenEvaluationPhase, SeedLedger
 
 _SOURCE = Path(__file__)
 _STUDY_ID = "learning.predictive-discovery"
 _CANDIDATE_IDS = ("s_true", "decoy_indep", "decoy_wronglag", "decoy_antiphase")
 _TARGET_ID = "t"
-LOSS_GAIN_THRESHOLD = 0.0002  # calibrated against a pilot run (observed s_true gain ~0.00043-0.00046,
+LOSS_GAIN_THRESHOLD = (
+    0.0002  # calibrated against a pilot run (observed s_true gain ~0.00043-0.00046,
+)
 # best-decoy gain negative ~-0.002 to -0.004); see audit methods section
 
 
@@ -145,12 +149,17 @@ def _build_bridge(*, frozen: bool = False) -> CognitiveBridge:
     graph = CognitiveGraph(nodes=nodes, edges=(), kernel_limits=limits)
     genome = _genome()
     return CognitiveBridge(
-        graph=graph, genome=genome, kernel_limits=limits,
-        develop_senses=True, safety_state=SafetyState(frozen=frozen),
+        graph=graph,
+        genome=genome,
+        kernel_limits=limits,
+        develop_senses=True,
+        safety_state=SafetyState(frozen=frozen),
     )
 
 
-def _run_development(seed: int, *, ticks: int) -> tuple[CognitiveBridge, str | None, tuple[str, ...]]:
+def _run_development(
+    seed: int, *, ticks: int
+) -> tuple[CognitiveBridge, str | None, tuple[str, ...]]:
     bridge = _build_bridge(frozen=False)
     series = _generate(seed, ticks)
     promoted_source: str | None = None
@@ -169,16 +178,23 @@ def _run_development(seed: int, *, ticks: int) -> tuple[CognitiveBridge, str | N
         # naming bias deciding which one wins the single available PREDICTOR
         # slot for this target.
         candidates = sorted(
-            (item for item in bridge.shadow_predictions if item.target_id == _TARGET_ID and item.promotable),
+            (
+                item
+                for item in bridge.shadow_predictions
+                if item.target_id == _TARGET_ID and item.promotable
+            ),
             key=lambda item: item.predictive_gain,
             reverse=True,
         )
         for candidate in candidates:
-            if bridge.promote_shadow_prediction(candidate.source_id, candidate.target_id, tick=tick + 1):
+            if bridge.promote_shadow_prediction(
+                candidate.source_id, candidate.target_id, tick=tick + 1
+            ):
                 promoted_source = candidate.source_id
                 break
     decoy_status = tuple(
-        p.status for p in bridge.shadow_predictions
+        p.status
+        for p in bridge.shadow_predictions
         if p.target_id == _TARGET_ID and p.source_id != "s_true"
     )
     return bridge, promoted_source, decoy_status
@@ -232,8 +248,12 @@ def _trial_result(
     development_ticks: int = 400,
     evaluation_ticks: int = 200,
 ) -> PredictiveDiscoverySeedResult:
-    bridge, promoted_source, decoy_status = _run_development(development_seed, ticks=development_ticks)
-    replay_bridge, replay_source, replay_status = _run_development(development_seed, ticks=development_ticks)
+    bridge, promoted_source, decoy_status = _run_development(
+        development_seed, ticks=development_ticks
+    )
+    replay_bridge, replay_source, replay_status = _run_development(
+        development_seed, ticks=development_ticks
+    )
     learned_input = _has_learned_predictor_input(bridge, promoted_source)
     replay_learned_input = _has_learned_predictor_input(replay_bridge, replay_source)
     replay_deterministic = (
@@ -247,8 +267,12 @@ def _trial_result(
     source_loss = losses.get(promoted_source, float("inf")) if promoted_source else float("inf")
     source_gain = persist_loss - source_loss
 
-    decoy_losses = {node_id: losses[node_id] for node_id in _CANDIDATE_IDS if node_id != promoted_source}
-    best_decoy_id = min(decoy_losses, key=lambda node_id: decoy_losses[node_id]) if decoy_losses else ""
+    decoy_losses = {
+        node_id: losses[node_id] for node_id in _CANDIDATE_IDS if node_id != promoted_source
+    }
+    best_decoy_id = (
+        min(decoy_losses, key=lambda node_id: decoy_losses[node_id]) if decoy_losses else ""
+    )
     best_decoy_loss = decoy_losses.get(best_decoy_id, float("inf"))
     best_decoy_gain = persist_loss - best_decoy_loss
 
@@ -257,7 +281,11 @@ def _trial_result(
         evaluation_seed=evaluation_seed,
         promoted_source_id=promoted_source,
         pd1_correct_source_promoted=(promoted_source == "s_true"),
-        pd2_no_decoy_promoted=not any(status not in ("contradicted", "retired", "candidate") for status in decoy_status) if promoted_source == "s_true" else False,
+        pd2_no_decoy_promoted=not any(
+            status not in ("contradicted", "retired", "candidate") for status in decoy_status
+        )
+        if promoted_source == "s_true"
+        else False,
         evaluation_persist_loss=persist_loss,
         evaluation_source_loss=source_loss,
         evaluation_source_gain=source_gain,
@@ -290,7 +318,11 @@ def _static_no_precabled_structure_check() -> bool:
     for node in ast.walk(tree):
         if isinstance(node, ast.keyword) and node.arg == "predicts_node_id":
             return False
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "PlasticEdge":
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "PlasticEdge"
+        ):
             return False
         if (
             isinstance(node, ast.keyword)
@@ -326,7 +358,9 @@ def run_predictive_discovery_study(
     active_ledger.record_development(development_phase)
 
     results = tuple(
-        _trial_result(dev, ev, development_ticks=development_ticks, evaluation_ticks=evaluation_ticks)
+        _trial_result(
+            dev, ev, development_ticks=development_ticks, evaluation_ticks=evaluation_ticks
+        )
         for dev, ev in zip(dev_seeds, eval_seeds)
     )
     pd5 = _static_no_precabled_structure_check()
@@ -349,7 +383,10 @@ def run_predictive_discovery_study(
         pd6_learned_predictor_input=all(item.pd6_learned_predictor_input for item in results),
         replay_deterministic=all(item.replay_deterministic for item in results),
         all_gates_pass=(
-            all(all(getattr(item, field) for field in gate_fields) and item.replay_deterministic for item in results)
+            all(
+                all(getattr(item, field) for field in gate_fields) and item.replay_deterministic
+                for item in results
+            )
             and pd5
         ),
     )

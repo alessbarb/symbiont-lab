@@ -11,7 +11,14 @@ def read(*parts):
 class FleetResearchContractTests(unittest.TestCase):
     def test_fleet_projection_carries_research_fields_without_global_relationships(self):
         population = read("transport", "fleet-population.js")
-        for field in ("schemaVersion", "physiology", "organismState", "acclimation", "attentionConcentration", "activeSenses"):
+        for field in (
+            "schemaVersion",
+            "physiology",
+            "organismState",
+            "acclimation",
+            "attentionConcentration",
+            "activeSenses",
+        ):
             self.assertIn(field, population)
         self.assertIn("fleetRelationships: []", population)
 
@@ -29,7 +36,7 @@ class FleetResearchContractTests(unittest.TestCase):
         self.assertIn("knowledge: local?.knowledge ?? null", population)
         self.assertIn("contested: local?.contested ?? null", population)
         module = read("ui", "observability.js")
-        self.assertIn('return value == null', module)
+        self.assertIn("return value == null", module)
         self.assertIn('"not published"', module)
 
     def test_shortlist_compares_up_to_four_without_scoring(self):

@@ -1,9 +1,11 @@
 """Bounded longitudinal social evidence study (evaluator-only)."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
+
 from symbiont.core.social import SocialHabitat
 
 
@@ -24,7 +26,8 @@ def run_social_longitudinal_study(*, ticks: int = 12) -> SocialLongitudinalStudy
     if ticks < 4:
         raise ValueError("ticks must be at least 4")
     habitat = SocialHabitat(EcologicalResourcePool({"food": float(ticks)}))
-    habitat.admit("a"); habitat.admit("b")
+    habitat.admit("a")
+    habitat.admit("b")
     successful = rejected = 0
     resumed_once = False
     suspension_tick = ticks // 2
@@ -42,8 +45,9 @@ def run_social_longitudinal_study(*, ticks: int = 12) -> SocialLongitudinalStudy
         except ValueError:
             rejected += 1
     relation = habitat.engine.ledger.relations[0]
-    return SocialLongitudinalStudy(ticks, successful, rejected, resumed_once,
-                                   relation.observations, relation.freshness(ticks))
+    return SocialLongitudinalStudy(
+        ticks, successful, rejected, resumed_once, relation.observations, relation.freshness(ticks)
+    )
 
 
 __all__ = ["SocialLongitudinalStudy", "run_social_longitudinal_study"]

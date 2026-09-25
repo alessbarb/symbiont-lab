@@ -66,7 +66,10 @@ class EvidenceRevisionLedger:
         return dict(self._conflict_counts)
 
     def _remember_conflict(self, capability_id: str) -> None:
-        if capability_id not in self._conflict_counts and len(self._conflict_counts) >= self._max_dissent:
+        if (
+            capability_id not in self._conflict_counts
+            and len(self._conflict_counts) >= self._max_dissent
+        ):
             oldest = next(iter(self._conflict_counts))
             del self._conflict_counts[oldest]
         self._conflict_counts[capability_id] = self._conflict_counts.get(capability_id, 0) + 1
@@ -121,7 +124,9 @@ class EvidenceRevisionLedger:
         values = [reading.value for reading in evidence if reading.value is not None]
         if not values:
             return EvidenceRevisionResult(
-                capability_id=capability_id, baseline=acclimation.baseline(capability_id), dissent=None
+                capability_id=capability_id,
+                baseline=acclimation.baseline(capability_id),
+                dissent=None,
             )
 
         prior = acclimation.baseline(capability_id)
@@ -142,5 +147,7 @@ class EvidenceRevisionLedger:
 
         acclimation.observe(evidence)
         return EvidenceRevisionResult(
-            capability_id=capability_id, baseline=acclimation.baseline(capability_id), dissent=dissent
+            capability_id=capability_id,
+            baseline=acclimation.baseline(capability_id),
+            dissent=dissent,
         )

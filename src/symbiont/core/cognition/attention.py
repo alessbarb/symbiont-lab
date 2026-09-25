@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from typing import Iterable
 
 from ...host.acclimation import CapabilityBaseline, HostAcclimation
@@ -26,14 +26,26 @@ class AttentionCandidate:
     def __post_init__(self) -> None:
         if isinstance(self.cost, bool) or not math.isfinite(self.cost) or self.cost <= 0.0:
             raise ValueError("cost must be positive")
-        if isinstance(self.rank_cost, bool) or not math.isfinite(self.rank_cost) or self.rank_cost <= 0.0:
+        if (
+            isinstance(self.rank_cost, bool)
+            or not math.isfinite(self.rank_cost)
+            or self.rank_cost <= 0.0
+        ):
             raise ValueError("rank_cost must be positive")
         # +inf is intentional: an unacclimated capability has no baseline and
         # must outrank every finite candidate. NaN (and -inf) is never a
         # meaningful uncertainty and would make sorting non-deterministic.
-        if isinstance(self.uncertainty, bool) or math.isnan(self.uncertainty) or self.uncertainty < 0.0:
+        if (
+            isinstance(self.uncertainty, bool)
+            or math.isnan(self.uncertainty)
+            or self.uncertainty < 0.0
+        ):
             raise ValueError("uncertainty must be non-negative")
-        if isinstance(self.observations, bool) or not isinstance(self.observations, int) or self.observations < 0:
+        if (
+            isinstance(self.observations, bool)
+            or not isinstance(self.observations, int)
+            or self.observations < 0
+        ):
             raise ValueError("observations must be non-negative")
 
 
@@ -90,7 +102,9 @@ class AttentionBudget:
         for candidate in ranked:
             if candidate.cost <= remaining:
                 selected.append(
-                    AttentionAllocation(name=candidate.name, uncertainty=candidate.uncertainty, cost=candidate.cost)
+                    AttentionAllocation(
+                        name=candidate.name, uncertainty=candidate.uncertainty, cost=candidate.cost
+                    )
                 )
                 remaining -= candidate.cost
         return tuple(selected)

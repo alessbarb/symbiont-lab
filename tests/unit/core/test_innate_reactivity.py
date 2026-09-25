@@ -6,12 +6,10 @@ from symbiont.actuation.action import (
     ActionProposal,
     ActionSource,
 )
-
 from symbiont.core.regulation import (
     ActionArbitrator,
     InnateReactivity,
     ReactiveMemory,
-    ReactiveState,
 )
 
 
@@ -45,25 +43,34 @@ def test_innate_reactivity_orients_to_opaque_unexpected_change() -> None:
 def test_reactive_memory_requires_repeated_real_relief() -> None:
     memory = ReactiveMemory()
     memory.observe(signature="r3:s0:c0", primitive_id="primitive.x", relief=0.2)
-    assert memory.best(
-        signature="r3:s0:c0",
-        candidates=("primitive.x",),
-    ) is None
+    assert (
+        memory.best(
+            signature="r3:s0:c0",
+            candidates=("primitive.x",),
+        )
+        is None
+    )
     memory.observe(signature="r3:s0:c0", primitive_id="primitive.x", relief=0.2)
-    assert memory.best(
-        signature="r3:s0:c0",
-        candidates=("primitive.x",),
-    ) == "primitive.x"
+    assert (
+        memory.best(
+            signature="r3:s0:c0",
+            candidates=("primitive.x",),
+        )
+        == "primitive.x"
+    )
 
 
 def test_negative_experience_prevents_fast_response() -> None:
     memory = ReactiveMemory()
     memory.observe(signature="r3:s0:c0", primitive_id="primitive.x", relief=-0.2)
     memory.observe(signature="r3:s0:c0", primitive_id="primitive.x", relief=-0.1)
-    assert memory.best(
-        signature="r3:s0:c0",
-        candidates=("primitive.x",),
-    ) is None
+    assert (
+        memory.best(
+            signature="r3:s0:c0",
+            candidates=("primitive.x",),
+        )
+        is None
+    )
 
 
 def test_arbitrator_never_invents_protective_motor_action() -> None:
@@ -114,7 +121,10 @@ def test_reactive_checkpoint_roundtrip() -> None:
     memory.observe(signature="r3:s0:c0", primitive_id="primitive.x", relief=0.2)
     memory.observe(signature="r3:s0:c0", primitive_id="primitive.x", relief=0.2)
     restored_memory = ReactiveMemory.restore(memory.checkpoint())
-    assert restored_memory.best(
-        signature="r3:s0:c0",
-        candidates=("primitive.x",),
-    ) == "primitive.x"
+    assert (
+        restored_memory.best(
+            signature="r3:s0:c0",
+            candidates=("primitive.x",),
+        )
+        == "primitive.x"
+    )

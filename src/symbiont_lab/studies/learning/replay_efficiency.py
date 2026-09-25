@@ -4,9 +4,7 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
 from symbiont_lab.studies.learning.replay_pressure_curve import (
-    PRESSURES,
     ReplayDose,
-    _budget_for_pressure,
     run_replay_pressure_curve_study,
 )
 
@@ -49,13 +47,15 @@ def _intervals(doses: tuple[ReplayDose, ...]) -> tuple[ReplayEfficiencyInterval,
         if added_steps <= 0:
             raise ValueError("replay step budget must increase strictly across doses")
         loss_gain = left.test_loss - right.test_loss
-        values.append(ReplayEfficiencyInterval(
-            start_pressure=left.pressure,
-            end_pressure=right.pressure,
-            added_steps=added_steps,
-            loss_gain=loss_gain,
-            gain_per_step=loss_gain / added_steps,
-        ))
+        values.append(
+            ReplayEfficiencyInterval(
+                start_pressure=left.pressure,
+                end_pressure=right.pressure,
+                added_steps=added_steps,
+                loss_gain=loss_gain,
+                gain_per_step=loss_gain / added_steps,
+            )
+        )
     return tuple(values)
 
 
@@ -69,17 +69,16 @@ def run_replay_efficiency_study(
     for item in curve.per_seed:
         intervals = _intervals(item.doses)
         gains = [interval.gain_per_step for interval in intervals]
-        diminishing = all(
-            later <= earlier + 1e-12
-            for earlier, later in zip(gains, gains[1:])
+        diminishing = all(later <= earlier + 1e-12 for earlier, later in zip(gains, gains[1:]))
+        results.append(
+            ReplayEfficiencySeedResult(
+                seed=item.seed,
+                intervals=intervals,
+                diminishing_returns=diminishing,
+                best_gain_per_step=max(gains),
+                final_gain_per_step=gains[-1],
+            )
         )
-        results.append(ReplayEfficiencySeedResult(
-            seed=item.seed,
-            intervals=intervals,
-            diminishing_returns=diminishing,
-            best_gain_per_step=max(gains),
-            final_gain_per_step=gains[-1],
-        ))
 
     return ReplayEfficiencyStudy(
         seeds=curve.seeds,

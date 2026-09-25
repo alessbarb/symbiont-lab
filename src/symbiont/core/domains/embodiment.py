@@ -1,4 +1,5 @@
 """Embodiment-local body schema observation phase."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -56,17 +57,9 @@ class EmbodimentDomain:
         state = self.identity
         if not new_episode and state.embodiment_id is not None:
             if state.embodiment_id != embodiment_id:
-                raise RuntimeError(
-                    "restored embodiment identity does not match current episode"
-                )
-            if (
-                state.body_id is not None
-                and body_id is not None
-                and state.body_id != body_id
-            ):
-                raise RuntimeError(
-                    "restored body identity does not match current episode"
-                )
+                raise RuntimeError("restored embodiment identity does not match current episode")
+            if state.body_id is not None and body_id is not None and state.body_id != body_id:
+                raise RuntimeError("restored body identity does not match current episode")
 
         state.embodiment_id = embodiment_id
         if body_id is not None:
@@ -87,15 +80,9 @@ class EmbodimentDomain:
             symbiont_tick=symbiont_tick,
             embodiment_id=embodiment_id,
             embodiment_tick=(
-                state.expected_embodiment_tick
-                if state.embodiment_id is not None
-                else None
+                state.expected_embodiment_tick if state.embodiment_id is not None else None
             ),
-            body_id=(
-                state.body_id
-                if state.embodiment_id is not None
-                else None
-            ),
+            body_id=(state.body_id if state.embodiment_id is not None else None),
         )
 
     def validate_context(self, context: TickContext) -> None:
@@ -103,29 +90,18 @@ class EmbodimentDomain:
         if state.embodiment_id is None:
             return
         if context.embodiment_id != state.embodiment_id:
-            raise ValueError(
-                "tick context belongs to another EmbodimentEpisode"
-            )
-        if (
-            state.body_id is not None
-            and context.body_id != state.body_id
-        ):
+            raise ValueError("tick context belongs to another EmbodimentEpisode")
+        if state.body_id is not None and context.body_id != state.body_id:
             raise ValueError("tick context belongs to another Body")
         if (
             state.expected_embodiment_tick is not None
-            and context.embodiment_tick
-            != state.expected_embodiment_tick
+            and context.embodiment_tick != state.expected_embodiment_tick
         ):
-            raise ValueError(
-                "tick context embodiment time is not the expected body time"
-            )
+            raise ValueError("tick context embodiment time is not the expected body time")
 
     def complete_context(self, context: TickContext) -> None:
         state = self.identity
-        if (
-            state.embodiment_id is not None
-            and context.embodiment_tick is not None
-        ):
+        if state.embodiment_id is not None and context.embodiment_tick is not None:
             state.expected_embodiment_tick = context.embodiment_tick + 1
 
     @staticmethod

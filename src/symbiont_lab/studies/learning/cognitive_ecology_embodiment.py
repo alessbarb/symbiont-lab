@@ -130,9 +130,7 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
     # prediction has saturated cognition while no concept/readout substrate has
     # managed to survive. This captures the failure that motivated the redesign.
     predictor_monopoly = (
-        peak_predictors > 0
-        and last.cognitive_concepts == 0
-        and last.cognitive_readouts == 0
+        peak_predictors > 0 and last.cognitive_concepts == 0 and last.cognitive_readouts == 0
     )
 
     return CognitiveEcologyEmbodimentTrial(
@@ -170,8 +168,7 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         resource_progress=last.resource_progress,
         predictor_monopoly=predictor_monopoly,
         cognition_reached_motor_output=(
-            last.action_source_competence > 0
-            or last.action_source_prospection > 0
+            last.action_source_competence > 0 or last.action_source_prospection > 0
         ),
     )
 

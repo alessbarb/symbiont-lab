@@ -1,18 +1,24 @@
 import pytest
+
 from symbiont.core.social import RelationLedger, RelationValence
 
+
 def test_relation_valence_is_evidence_based():
- l=RelationLedger(); assert l.observe("a","b",benefit=2).valence is RelationValence.POSITIVE; assert l.observe("a","b",cost=3).valence is RelationValence.NEGATIVE
+    ledger = RelationLedger()
+    assert ledger.observe("a", "b", benefit=2).valence is RelationValence.POSITIVE
+    assert ledger.observe("a", "b", cost=3).valence is RelationValence.NEGATIVE
+
 
 def test_engine_supports_exchange_and_finite_competition():
- return
- from symbiont.core.interactions import EcologicalResourcePool
- from symbiont.core.social.engine import SocialInteractionEngine
- e=SocialInteractionEngine(EcologicalResourcePool({"food":1.0}))
- assert e.exchange("a","b","food",0.4).granted == 0.4
- out=e.compete([("a","food",0.8),("b","food",0.8)])
- assert sum(x.granted for x in out) == 0.6
- assert {x.relation.target_id for x in out} == {"a", "b"}
+    return
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.social.engine import SocialInteractionEngine
+
+    e = SocialInteractionEngine(EcologicalResourcePool({"food": 1.0}))
+    assert e.exchange("a", "b", "food", 0.4).granted == 0.4
+    out = e.compete([("a", "food", 0.8), ("b", "food", 0.8)])
+    assert sum(x.granted for x in out) == 0.6
+    assert {x.relation.target_id for x in out} == {"a", "b"}
 
 
 def test_relation_ledger_checkpoint_round_trip_preserves_aggregate_evidence() -> None:
@@ -25,7 +31,9 @@ def test_relation_ledger_checkpoint_round_trip_preserves_aggregate_evidence() ->
 
 def test_social_habitat_requires_authorized_members() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
+
     from symbiont.core.social import SocialHabitat
+
     habitat = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
     assert habitat.admit("a") and habitat.admit("b")
     assert habitat.exchange("a", "b", "food", 0.2).granted == 0.2
@@ -40,7 +48,9 @@ def test_social_habitat_requires_authorized_members() -> None:
 
 def test_habitat_checkpoint_roundtrip_preserves_boundary_and_evidence() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
+
     from symbiont.core.social import SocialHabitat
+
     habitat = SocialHabitat(EcologicalResourcePool({"food": 10.0}), max_members=3)
     assert habitat.admit("a") and habitat.admit("b")
     habitat.exchange("a", "b", "food", 2.0)
@@ -52,7 +62,9 @@ def test_habitat_checkpoint_roundtrip_preserves_boundary_and_evidence() -> None:
 
 def test_habitat_checkpoint_rejects_duplicate_members() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
+
     from symbiont.core.social import SocialHabitat
+
     payload = SocialHabitat(EcologicalResourcePool({"food": 1.0})).checkpoint()
     payload["members"] = ["a", "a"]
     with pytest.raises(ValueError, match="duplicate"):
@@ -71,12 +83,15 @@ def test_relation_tracks_reciprocity_conflict_and_freshness() -> None:
     assert restored == relation
 
 
-@pytest.mark.parametrize("kwargs", [
-    {"benefit": float("nan")},
-    {"cost": float("inf")},
-    {"tick": True},
-    {"channel": ""},
-])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"benefit": float("nan")},
+        {"cost": float("inf")},
+        {"tick": True},
+        {"channel": ""},
+    ],
+)
 def test_relation_observation_rejects_non_finite_or_ambiguous_values(kwargs) -> None:
     with pytest.raises(ValueError, match="invalid relation observation"):
         RelationLedger().observe("a", "b", **kwargs)
@@ -85,10 +100,16 @@ def test_relation_observation_rejects_non_finite_or_ambiguous_values(kwargs) -> 
 def test_relation_checkpoint_rejects_non_finite_and_fractional_ticks() -> None:
     ledger = RelationLedger()
     payload = ledger.checkpoint()
-    payload["relations"] = [{
-        "source_id": "a", "target_id": "b", "support": float("nan"),
-        "harm": 0.0, "observations": 1, "last_tick": 1,
-    }]
+    payload["relations"] = [
+        {
+            "source_id": "a",
+            "target_id": "b",
+            "support": float("nan"),
+            "harm": 0.0,
+            "observations": 1,
+            "last_tick": 1,
+        }
+    ]
     with pytest.raises(ValueError, match="invalid relation values"):
         RelationLedger.from_checkpoint(payload)
     payload["relations"][0]["support"] = 1.0
@@ -140,9 +161,12 @@ def test_resource_evidence_revises_a_previously_useful_token_after_repeated_deni
 
 def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
+
     from symbiont.core.social import SocialHabitat
+
     habitat = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
-    habitat.admit("a"); habitat.admit("b")
+    habitat.admit("a")
+    habitat.admit("b")
     habitat.suspend("a", "b")
     with pytest.raises(ValueError, match="suspended"):
         habitat.exchange("a", "b", "food", 1.0)
@@ -155,19 +179,25 @@ def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
 
 
 def test_runtime_social_requests_are_explicit_and_stop_after_death() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.physiology import PhysiologyController, VitalState
     from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
-    from symbiont.core.interactions import EcologicalResourcePool
+
     from symbiont.core.social import SocialHabitat
 
     social = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
-    social.admit("a"); social.admit("b")
+    social.admit("a")
+    social.admit("b")
     runtime = OrganismRuntime(organism_id="a", social_habitat=social)
     assert runtime.request_social_exchange("b", "food", 0.25).granted == 0.25
     restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), social_habitat=social)
     assert restored.social_ledger.relations[0].support == 0.25
     assert restored.social_ledger.relations[0].channel == "food"
-    dead = OrganismRuntime(organism_id="dead", physiology=PhysiologyController(state=VitalState.DEAD, death_tick=1), social_habitat=social)
+    dead = OrganismRuntime(
+        organism_id="dead",
+        physiology=PhysiologyController(state=VitalState.DEAD, death_tick=1),
+        social_habitat=social,
+    )
     social.admit("dead")
     with pytest.raises(OrganismDeadError):
         dead.request_social_exchange("b", "food", 0.1)
@@ -176,10 +206,12 @@ def test_runtime_social_requests_are_explicit_and_stop_after_death() -> None:
 def test_runtime_can_suspend_and_resume_its_own_social_channel() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
 
     social = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
-    social.admit("a"); social.admit("b")
+    social.admit("a")
+    social.admit("b")
     runtime = OrganismRuntime(organism_id="a", social_habitat=social)
     runtime.suspend_social_interaction("b")
     with pytest.raises(ValueError, match="suspended"):
@@ -194,10 +226,12 @@ def test_runtime_can_suspend_and_resume_its_own_social_channel() -> None:
 def test_runtime_can_reject_and_retain_directional_evidence() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
 
     social = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
-    social.admit("a"); social.admit("b")
+    social.admit("a")
+    social.admit("b")
     runtime = OrganismRuntime(organism_id="a", social_habitat=social)
     runtime.reject_social_interaction("b")
     relation = runtime.social_ledger.relations[0]
@@ -211,10 +245,12 @@ def test_runtime_can_reject_and_retain_directional_evidence() -> None:
 def test_runtime_competition_records_resource_availability_evidence() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
 
     social = SocialHabitat(EcologicalResourcePool({"food": 0.25}))
-    social.admit("a"); social.admit("b")
+    social.admit("a")
+    social.admit("b")
     runtime = OrganismRuntime(organism_id="a", social_habitat=social)
     outcomes = runtime.request_social_competition([("a", "food", 1.0)])
     assert outcomes[0].granted == 0.25
@@ -224,6 +260,7 @@ def test_runtime_competition_records_resource_availability_evidence() -> None:
 def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
 
     social = SocialHabitat(EcologicalResourcePool({"food": 4.0}))
@@ -238,6 +275,7 @@ def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() 
 def test_runtime_selection_considers_the_best_opaque_channel_per_target() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
 
     social = SocialHabitat(EcologicalResourcePool({"food": 4.0, "water": 4.0}))
@@ -253,10 +291,12 @@ def test_runtime_selection_considers_the_best_opaque_channel_per_target() -> Non
 def test_runtime_autonomous_social_step_selects_opaque_target_and_resource() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
 
     social = SocialHabitat(EcologicalResourcePool({"opaque-resource": 1.0}))
-    social.admit("a"); social.admit("b")
+    social.admit("a")
+    social.admit("b")
     runtime = OrganismRuntime(organism_id="a", social_habitat=social, social_exchange_quantum=0.2)
     outcome = runtime.autonomous_social_step()
     assert outcome is not None
@@ -273,14 +313,19 @@ def test_social_exchange_charges_declared_cognitive_metabolism_and_roundtrips() 
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
 
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     habitat = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
-    habitat.admit("a"); habitat.admit("b")
+    habitat.admit("a")
+    habitat.admit("b")
     runtime = OrganismRuntime(
-        organism_id="a", social_habitat=habitat, explicit_metabolism=True,
-        metabolism=MetabolicLedger(replenishment=zero), social_exchange_cost=0.04,
+        organism_id="a",
+        social_habitat=habitat,
+        explicit_metabolism=True,
+        metabolism=MetabolicLedger(replenishment=zero),
+        social_exchange_cost=0.04,
     )
     runtime.request_social_exchange("b", "food", 0.1)
     assert runtime.metabolism.snapshot().spent["cognition"] == 0.04
@@ -288,20 +333,27 @@ def test_social_exchange_charges_declared_cognitive_metabolism_and_roundtrips() 
     assert restored.effective_configuration()["social_exchange_cost"] == 0.04
 
 
-
-
 def test_runtime_death_releases_social_membership_once() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.physiology import PhysiologyController
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
-    from symbiont.core.interactions import EcologicalResourcePool
+
     social = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
     social.admit("a")
-    metabolism = MetabolicLedger(replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")})
+    metabolism = MetabolicLedger(
+        replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
+    )
     metabolism.charge("maintenance", metabolism.body_state.energy_reserve)
-    runtime = OrganismRuntime(organism_id="a", social_habitat=social, metabolism=metabolism, explicit_metabolism=True,
-                              physiology=PhysiologyController())
+    runtime = OrganismRuntime(
+        organism_id="a",
+        social_habitat=social,
+        metabolism=metabolism,
+        explicit_metabolism=True,
+        physiology=PhysiologyController(),
+    )
     runtime.tick()
     assert "a" not in social.members
 

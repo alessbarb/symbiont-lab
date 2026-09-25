@@ -268,13 +268,10 @@ class CognitiveBridgeCompatibility:
             tick=tick,
             retiring_predictors={
                 predictor_id: retirement.entered_tick
-                for predictor_id, retirement
-                in self._predictors.retirement.items()
+                for predictor_id, retirement in self._predictors.retirement.items()
             },
             structural_wait=self._oldest_blocked_structural_wait(tick=tick),
-            tentative_lifetime_ticks=(
-                self._genome.structure.tentative_lifetime_ticks
-            ),
+            tentative_lifetime_ticks=(self._genome.structure.tentative_lifetime_ticks),
         )
 
     def _retirement_edge_gc_mutations(
@@ -340,15 +337,11 @@ class CognitiveBridgeCompatibility:
 
     @property
     def _live_shadow_limit(self) -> int:
-        return self._predictors.live_shadow_limit(
-            self._kernel_limits.max_nodes
-        )
+        return self._predictors.live_shadow_limit(self._kernel_limits.max_nodes)
 
     @property
     def _preliminary_shadow_limit(self) -> int:
-        return self._predictors.preliminary_shadow_limit(
-            self._kernel_limits.max_nodes
-        )
+        return self._predictors.preliminary_shadow_limit(self._kernel_limits.max_nodes)
 
     def _prune_preliminary_shadow_support(self) -> None:
         node_kinds, _ = self._topology_cache()

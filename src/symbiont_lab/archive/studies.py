@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-import json
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -46,7 +46,9 @@ class StudyArchive:
         parent = str(parent_record_id).strip() if parent_record_id else None
         base_spec_dict = base_spec.as_dict() if hasattr(base_spec, "as_dict") else dict(base_spec)
         study_dict = study.as_dict() if hasattr(study, "as_dict") else dict(study)
-        interpretation_dict = interpretation.as_dict() if hasattr(interpretation, "as_dict") else dict(interpretation)
+        interpretation_dict = (
+            interpretation.as_dict() if hasattr(interpretation, "as_dict") else dict(interpretation)
+        )
         record = StudyRecord(
             record_id=uuid4().hex[:12],
             created_at=datetime.now(timezone.utc).isoformat(),
@@ -84,9 +86,7 @@ class StudyArchive:
                         created_at=str(raw["created_at"]),
                         source=str(raw.get("source", "unknown")),
                         parent_record_id=(
-                            str(raw["parent_record_id"])
-                            if raw.get("parent_record_id")
-                            else None
+                            str(raw["parent_record_id"]) if raw.get("parent_record_id") else None
                         ),
                         base_spec=dict(raw.get("base_spec", {})),
                         study=dict(raw.get("study", {})),

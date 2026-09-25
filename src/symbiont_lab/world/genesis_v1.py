@@ -3,11 +3,12 @@
 resource or hazard *means* -- symbiont_world never sees GENESIS_V1_METADATA,
 only the opaque ids it labels.
 """
+
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from hashlib import sha256
-import math
 from types import MappingProxyType
 from typing import Mapping
 
@@ -27,12 +28,23 @@ CHECKPOINT_INTERVAL = 1024
 # Apparatus-only labels. Never imported by symbiont_world, never reaches a
 # WorldObservation field name -- only opaque_signal_id(label) does.
 _FIELD_LABELS = ("field-cycle-a", "field-gradient-b", "field-noise-c", "field-rare-event-d")
-_RESOURCE_LABELS = ("resource-abundant-cheap", "resource-scarce-rich", "resource-immediate-deferred", "resource-neutral")
+_RESOURCE_LABELS = (
+    "resource-abundant-cheap",
+    "resource-scarce-rich",
+    "resource-immediate-deferred",
+    "resource-neutral",
+)
 _HAZARD_LABELS = ("hazard-cyclical", "hazard-density-coupled")
 
-FIELD_IDS: Mapping[str, str] = MappingProxyType({label: opaque_signal_id(label) for label in _FIELD_LABELS})
-RESOURCE_IDS: Mapping[str, str] = MappingProxyType({label: opaque_signal_id(label) for label in _RESOURCE_LABELS})
-HAZARD_IDS: Mapping[str, str] = MappingProxyType({label: opaque_signal_id(label) for label in _HAZARD_LABELS})
+FIELD_IDS: Mapping[str, str] = MappingProxyType(
+    {label: opaque_signal_id(label) for label in _FIELD_LABELS}
+)
+RESOURCE_IDS: Mapping[str, str] = MappingProxyType(
+    {label: opaque_signal_id(label) for label in _RESOURCE_LABELS}
+)
+HAZARD_IDS: Mapping[str, str] = MappingProxyType(
+    {label: opaque_signal_id(label) for label in _HAZARD_LABELS}
+)
 
 # label -> opaque id, for Observatory / apparatus-side interpretation only.
 GENESIS_V1_METADATA: Mapping[str, str] = MappingProxyType(
@@ -42,10 +54,18 @@ GENESIS_V1_METADATA: Mapping[str, str] = MappingProxyType(
 
 def _fields() -> dict[str, PeriodicFieldLaw]:
     return {
-        FIELD_IDS["field-cycle-a"]: PeriodicFieldLaw(amplitude=1.0, bias=0.0, angular_frequency=0.05, phase=0.0),
-        FIELD_IDS["field-gradient-b"]: PeriodicFieldLaw(amplitude=0.5, bias=0.5, angular_frequency=0.01, phase=1.2),
-        FIELD_IDS["field-noise-c"]: PeriodicFieldLaw(amplitude=0.2, bias=0.0, angular_frequency=0.37, phase=2.9),
-        FIELD_IDS["field-rare-event-d"]: PeriodicFieldLaw(amplitude=1.0, bias=-0.98, angular_frequency=0.002, phase=0.0),
+        FIELD_IDS["field-cycle-a"]: PeriodicFieldLaw(
+            amplitude=1.0, bias=0.0, angular_frequency=0.05, phase=0.0
+        ),
+        FIELD_IDS["field-gradient-b"]: PeriodicFieldLaw(
+            amplitude=0.5, bias=0.5, angular_frequency=0.01, phase=1.2
+        ),
+        FIELD_IDS["field-noise-c"]: PeriodicFieldLaw(
+            amplitude=0.2, bias=0.0, angular_frequency=0.37, phase=2.9
+        ),
+        FIELD_IDS["field-rare-event-d"]: PeriodicFieldLaw(
+            amplitude=1.0, bias=-0.98, angular_frequency=0.002, phase=0.0
+        ),
     }
 
 
@@ -159,14 +179,16 @@ def build_constitution(
         world_dimensions=dimensions,
         field_laws_hash=_laws_hash({k: repr(v) for k, v in truth.fields.items()}),
         resource_laws_hash=_laws_hash({k: repr(v) for k, v in truth.resources.items()}),
-        hazard_laws_hash=_laws_hash({
-            **{f"base:{k}": repr(v) for k, v in truth.hazards.items()},
-            **{
-                f"region:{region}:{hazard_id}": repr(law)
-                for region, hazards in truth.regional_hazards.items()
-                for hazard_id, law in hazards.items()
-            },
-        }),
+        hazard_laws_hash=_laws_hash(
+            {
+                **{f"base:{k}": repr(v) for k, v in truth.hazards.items()},
+                **{
+                    f"region:{region}:{hazard_id}": repr(law)
+                    for region, hazards in truth.regional_hazards.items()
+                    for hazard_id, law in hazards.items()
+                },
+            }
+        ),
         interaction_rules_hash=sha256(
             b"lottery-deterministic:rng-namespaced:ecology-v2:founder-rng-v2:hazard-ecology-v2:living-density-v1:hazard-patches-4x4-v1:physical-affordances-v1:decontamination-p2"
         ).hexdigest(),
@@ -186,11 +208,15 @@ class GenesisV1:
 def build_genesis_v1() -> GenesisV1:
     """Canonical Genesis-v1 (64x64, canonical terrarium)."""
     truth = build_ground_truth()
-    return GenesisV1(ground_truth=truth, constitution=build_constitution(truth, dimensions=(WIDTH, HEIGHT)))
+    return GenesisV1(
+        ground_truth=truth, constitution=build_constitution(truth, dimensions=(WIDTH, HEIGHT))
+    )
 
 
 def build_genesis_smoke_v1() -> GenesisV1:
     """Genesis-Smoke-v1 (8x8, rapid verification terrarium with distinct fingerprint)."""
     truth = build_ground_truth()
-    return GenesisV1(ground_truth=truth, constitution=build_constitution(truth, dimensions=(SMOKE_WIDTH, SMOKE_HEIGHT)))
-
+    return GenesisV1(
+        ground_truth=truth,
+        constitution=build_constitution(truth, dimensions=(SMOKE_WIDTH, SMOKE_HEIGHT)),
+    )

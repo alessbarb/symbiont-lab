@@ -37,7 +37,10 @@ def test_e1_yoked_external_causation_is_deterministic_and_bounded():
             assert 0.0 <= confidence <= 1.0
         assert -1.0 <= result.exact_lag0_correlation <= 1.0
         assert -1.0 <= result.exact_lag1_correlation <= 1.0
-        assert result.broken_yoke_rejection_latency is None or result.broken_yoke_rejection_latency >= 0
+        assert (
+            result.broken_yoke_rejection_latency is None
+            or result.broken_yoke_rejection_latency >= 0
+        )
 
 
 def test_e1_contains_positive_and_negative_controls():

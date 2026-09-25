@@ -8,19 +8,18 @@ and the same physical checkpoint.
 Ablations are evaluator-side manipulations of experimental twins. They never
 enter the canonical organism implementation or the developmental warmup.
 """
+
 from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import time
 from types import MethodType
 from typing import Any, Iterable
 
 from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 from symbiont_lab.physics3d.slm import Physics3DSlmManager
-
 
 _CONDITIONS = (
     "full",
@@ -145,9 +144,7 @@ def _disable_counterfactual(runtime: PyBulletEmbodimentRuntime) -> None:
 
 
 def _shuffle_private_model_action_identity(runtime: PyBulletEmbodimentRuntime) -> bool:
-    action_ids = tuple(
-        sorted(runtime.organism.available_motor_competence_ids)
-    )
+    action_ids = tuple(sorted(runtime.organism.available_motor_competence_ids))
     if len(action_ids) < 2:
         return False
 
@@ -180,10 +177,7 @@ def _shuffle_outcome_value_identity(runtime: PyBulletEmbodimentRuntime) -> bool:
     keys = sorted(stats)
     copied = [deepcopy(stats[key]) for key in keys]
     rotated = copied[1:] + copied[:1]
-    ledger._stats = {
-        key: stat
-        for key, stat in zip(keys, rotated, strict=True)
-    }
+    ledger._stats = {key: stat for key, stat in zip(keys, rotated, strict=True)}
     return True
 
 
@@ -250,9 +244,8 @@ def _run_condition(
         applicable = _apply_condition(runtime, condition)
 
         start_deviation = float(runtime.organism.homeostatic_deviation)
-        start_reserve = (
-            runtime.organism.living_body_state.energy_reserve
-            / max(1e-12, runtime.organism.living_body_state.max_energy)
+        start_reserve = runtime.organism.living_body_state.energy_reserve / max(
+            1e-12, runtime.organism.living_body_state.max_energy
         )
 
         last = None
@@ -265,9 +258,7 @@ def _run_condition(
             completed += 1
             absorbed_total += max(0.0, float(last.absorbed_energy))
             selected_ticks += int(last.prospective_selected)
-            prospective_motor_ticks += int(
-                last.action_source == "prospection"
-            )
+            prospective_motor_ticks += int(last.action_source == "prospection")
             if not last.alive:
                 break
 
@@ -371,22 +362,14 @@ def run_prospective_embodied_trial(
                     slm.poll(runtime)
 
                     active = runtime.organism.model_registry.active
-                    active_model_id = (
-                        active.model_id if active is not None else None
-                    )
+                    active_model_id = active.model_id if active is not None else None
                     final_tick = tick.tick
                     motor_competence_candidates = tick.motor_competence_candidates
                     motor_competences = tick.cognitive_motor_competence_candidates
                     competence_readout_nodes = tick.competence_readout_nodes
-                    if (
-                        first_motor_competence_tick is None
-                        and motor_competences > 0
-                    ):
+                    if first_motor_competence_tick is None and motor_competences > 0:
                         first_motor_competence_tick = tick.tick
-                    if (
-                        first_competence_readout_tick is None
-                        and competence_readout_nodes > 0
-                    ):
+                    if first_competence_readout_tick is None and competence_readout_nodes > 0:
                         first_competence_readout_tick = tick.tick
                     known_outcome_values = _value_entry_count(runtime)
                     competence_candidates = tick.competence_candidates
@@ -401,9 +384,7 @@ def run_prospective_embodied_trial(
                     best_candidate_directional_consistency = (
                         tick.best_candidate_directional_consistency
                     )
-                    lowest_recurrent_effect_variance = (
-                        tick.lowest_recurrent_effect_variance
-                    )
+                    lowest_recurrent_effect_variance = tick.lowest_recurrent_effect_variance
                     cognitive_concepts = tick.cognitive_concepts
                     cognitive_readouts = tick.cognitive_readouts
                     structural_candidates = tick.structural_candidates
@@ -418,9 +399,7 @@ def run_prospective_embodied_trial(
                         tick.oldest_structural_wait_ticks,
                     )
 
-                    current_cognitive_ids = (
-                        runtime.organism.available_motor_competence_ids
-                    )
+                    current_cognitive_ids = runtime.organism.available_motor_competence_ids
                     bridge = getattr(runtime.organism, "_cognitive_bridge", None)
                     current_readout_ids = ()
                     if bridge is not None:
@@ -456,9 +435,7 @@ def run_prospective_embodied_trial(
                         checkpoint = runtime.checkpoint()
                         physical_state, physical_tick = runtime.physical_checkpoint()
                         if physical_tick != runtime.tick_count:
-                            raise RuntimeError(
-                                "organism and physical checkpoints are not aligned"
-                            )
+                            raise RuntimeError("organism and physical checkpoints are not aligned")
                         readiness_tick = tick.tick
                         readiness_reason = "natural_prospective_selection"
                         start_displacement = tick.displacement_from_origin
@@ -568,9 +545,7 @@ def run_prospective_embodied_trial(
             direction_gate_candidates=int(direction_gate_candidates),
             full_competence_gate_candidates=int(full_competence_gate_candidates),
             best_candidate_controllability=float(best_candidate_controllability),
-            best_candidate_directional_consistency=float(
-                best_candidate_directional_consistency
-            ),
+            best_candidate_directional_consistency=float(best_candidate_directional_consistency),
             lowest_recurrent_effect_variance=lowest_recurrent_effect_variance,
             cognitive_concepts=int(cognitive_concepts),
             cognitive_readouts=int(cognitive_readouts),

@@ -1,4 +1,5 @@
 """Passive adapter from Physics3D viewer frames to observer telemetry."""
+
 from __future__ import annotations
 
 import threading
@@ -7,7 +8,6 @@ from typing import Any, Mapping, Protocol
 
 from .contracts import ObservedFrame
 from .projection import mind_snapshot_from_rich_state, runtime_tick_events
-
 
 
 def _body_descriptor_for_state(physical_state: Mapping[str, object]):
@@ -80,9 +80,7 @@ class Physics3DObservationBridge:
                 except (TypeError, ValueError):
                     continue
                 name = (
-                    joint_specs[index].name
-                    if 0 <= index < len(joint_specs)
-                    else f"joint_{index}"
+                    joint_specs[index].name if 0 <= index < len(joint_specs) else f"joint_{index}"
                 )
                 try:
                     position = float(item["position"])

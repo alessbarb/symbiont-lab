@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import random
+from dataclasses import dataclass
 
 from symbiont.core.foundation.model import Observation
-from .regimes import apply_regime_shift
 
 
 @dataclass(slots=True)

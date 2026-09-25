@@ -6,9 +6,8 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
-from .types import MotorIntent
 from .competence import CompetenceEvidence, CompetenceMaturity
-
+from .types import MotorIntent
 
 _HORIZONS = (1, 4, 16, 64)
 _PRIMITIVE_TICKS = 4
@@ -87,10 +86,7 @@ def _pattern_key(vector: Mapping[str, float]) -> MotorPattern:
 
 
 def _sequence_payload(sequence: MotorSequence) -> list[list[list[object]]]:
-    return [
-        [[actuator_id, level] for actuator_id, level in pattern]
-        for pattern in sequence
-    ]
+    return [[[actuator_id, level] for actuator_id, level in pattern] for pattern in sequence]
 
 
 def _restore_sequence(
@@ -382,9 +378,9 @@ class CompetenceDevelopmentEngine:
         if not ids or len(ids) != len(set(ids)):
             raise ValueError("sensorimotor learner requires unique actuator ids")
         if embodiment_fingerprint is None:
-            embodiment_fingerprint = "legacy-surface:" + hashlib.sha256(
-                "|".join(ids).encode("utf-8")
-            ).hexdigest()
+            embodiment_fingerprint = (
+                "legacy-surface:" + hashlib.sha256("|".join(ids).encode("utf-8")).hexdigest()
+            )
         if not isinstance(embodiment_fingerprint, str) or not embodiment_fingerprint:
             raise ValueError("embodiment_fingerprint must be a non-empty string")
         if max_concurrent is not None and (
@@ -406,18 +402,12 @@ class CompetenceDevelopmentEngine:
         for raw_group in raw_groups:
             group = tuple(str(value) for value in raw_group)
             if len(group) < 2 or len(set(group)) != len(group):
-                raise ValueError(
-                    "exclusive actuator groups require at least two unique ids"
-                )
+                raise ValueError("exclusive actuator groups require at least two unique ids")
             if any(value not in set(ids) for value in group):
-                raise ValueError(
-                    "exclusive actuator group references unknown actuator"
-                )
+                raise ValueError("exclusive actuator group references unknown actuator")
             overlap = grouped_ids.intersection(group)
             if overlap:
-                raise ValueError(
-                    "exclusive actuator groups must not overlap"
-                )
+                raise ValueError("exclusive actuator groups must not overlap")
             grouped_ids.update(group)
             groups.append(group)
 
@@ -427,14 +417,10 @@ class CompetenceDevelopmentEngine:
         # semantics cross this boundary.
         self._exclusive_actuator_groups = tuple(groups)
         self._exclusive_group_by_id = {
-            actuator_id: group
-            for group in self._exclusive_actuator_groups
-            for actuator_id in group
+            actuator_id: group for group in self._exclusive_actuator_groups for actuator_id in group
         }
         singleton_units = tuple(
-            (actuator_id,)
-            for actuator_id in ids
-            if actuator_id not in grouped_ids
+            (actuator_id,) for actuator_id in ids if actuator_id not in grouped_ids
         )
         self._exploration_units = (*self._exclusive_actuator_groups, *singleton_units)
         concurrency_ceiling = len(self._exploration_units)
@@ -462,9 +448,7 @@ class CompetenceDevelopmentEngine:
         self._primitive_last_evidence_blocks: dict[MotorSequence, frozenset[int]] = {}
         self._passive_effect_stat = _RunningStat()
         self._passive_direction_stats: dict[str, _RunningStat] = {}
-        self._primitive_direction_stats: dict[
-            MotorSequence, dict[str, _RunningStat]
-        ] = {}
+        self._primitive_direction_stats: dict[MotorSequence, dict[str, _RunningStat]] = {}
         self._last_episode_end_tick: dict[MotorSequence, int] = {}
         self._primitives: dict[str, MotorPrimitive] = {}
         self._primitive_id_by_sequence: dict[MotorSequence, str] = {}
@@ -498,9 +482,7 @@ class CompetenceDevelopmentEngine:
                 item.primitive_id,
             ),
         )[:_MAX_PRIMITIVES]
-        self._primitives = {
-            primitive.primitive_id: primitive for primitive in retained
-        }
+        self._primitives = {primitive.primitive_id: primitive for primitive in retained}
         self._invalidate_primitive_caches()
 
     def _primitive_id_for_sequence(self, sequence: MotorSequence) -> str:
@@ -538,11 +520,7 @@ class CompetenceDevelopmentEngine:
         the cognitive graph.
         """
         if self._cognitive_primitives_cache is None:
-            eligible = [
-                primitive
-                for primitive in self.primitives
-                if primitive.established
-            ]
+            eligible = [primitive for primitive in self.primitives if primitive.established]
             self._cognitive_primitives_cache = tuple(
                 sorted(
                     eligible,
@@ -627,11 +605,7 @@ class CompetenceDevelopmentEngine:
         by_id = {intent.actuator_id: intent for intent in intents}
         suppressed: set[str] = set()
         for group in self._exclusive_actuator_groups:
-            requested = [
-                by_id[actuator_id]
-                for actuator_id in group
-                if actuator_id in by_id
-            ]
+            requested = [by_id[actuator_id] for actuator_id in group if actuator_id in by_id]
             if len(requested) <= 1:
                 continue
             winner = min(
@@ -646,11 +620,7 @@ class CompetenceDevelopmentEngine:
                 for intent in requested
                 if intent.actuator_id != winner.actuator_id
             )
-        return tuple(
-            intent
-            for intent in intents
-            if intent.actuator_id not in suppressed
-        )
+        return tuple(intent for intent in intents if intent.actuator_id not in suppressed)
 
     def _pattern_respects_exclusive_groups(
         self,
@@ -666,10 +636,7 @@ class CompetenceDevelopmentEngine:
         self,
         sequence: MotorSequence,
     ) -> bool:
-        return all(
-            self._pattern_respects_exclusive_groups(pattern)
-            for pattern in sequence
-        )
+        return all(self._pattern_respects_exclusive_groups(pattern) for pattern in sequence)
 
     @property
     def exploration_coverage(self) -> float:
@@ -701,9 +668,7 @@ class CompetenceDevelopmentEngine:
 
     def _hash_unit(self, actuator_id: str, epoch: int) -> float:
         digest = hashlib.sha256(
-            f"sensorimotor-exploration:{self._organism_id}:{actuator_id}:{epoch}".encode(
-                "utf-8"
-            )
+            f"sensorimotor-exploration:{self._organism_id}:{actuator_id}:{epoch}".encode("utf-8")
         ).digest()
         return int.from_bytes(digest[:8], "big") / float((1 << 64) - 1)
 
@@ -722,14 +687,10 @@ class CompetenceDevelopmentEngine:
         if self._max_concurrent <= 1 or len(self._exploration_units) <= 1:
             return 1
         digest = hashlib.sha256(
-            f"sensorimotor-cardinality:{self._organism_id}:{epoch}".encode(
-                "utf-8"
-            )
+            f"sensorimotor-cardinality:{self._organism_id}:{epoch}".encode("utf-8")
         ).digest()
         unit = int.from_bytes(digest[:8], "big") / float((1 << 64) - 1)
-        cardinality = round(
-            math.exp(unit * math.log(float(self._max_concurrent)))
-        )
+        cardinality = round(math.exp(unit * math.log(float(self._max_concurrent))))
         return max(1, min(self._max_concurrent, cardinality))
 
     def _exploration_vector(
@@ -740,37 +701,20 @@ class CompetenceDevelopmentEngine:
     ) -> dict[str, float]:
         epoch = tick // _EXPLORATION_BOUT_TICKS
         valid_preference = tuple(
-            actuator_id
-            for actuator_id in preferred_actuator_ids
-            if actuator_id in self._use_counts
+            actuator_id for actuator_id in preferred_actuator_ids if actuator_id in self._use_counts
         )
         preference_changed = bool(
-            valid_preference
-            and not set(valid_preference).intersection(self._exploration_ids)
+            valid_preference and not set(valid_preference).intersection(self._exploration_ids)
         )
-        if (
-            epoch != self._exploration_epoch
-            or not self._exploration_ids
-            or preference_changed
-        ):
+        if epoch != self._exploration_epoch or not self._exploration_ids or preference_changed:
             scored_units = []
             for unit_index, unit in enumerate(self._exploration_units):
                 use_count = min(self._use_counts[actuator_id] for actuator_id in unit)
-                tie_break = min(
-                    self._hash_unit(actuator_id, epoch)
-                    for actuator_id in unit
-                )
-                preferred = int(
-                    not any(actuator_id in valid_preference for actuator_id in unit)
-                )
-                scored_units.append(
-                    (preferred, use_count, -tie_break, unit_index, unit)
-                )
+                tie_break = min(self._hash_unit(actuator_id, epoch) for actuator_id in unit)
+                preferred = int(not any(actuator_id in valid_preference for actuator_id in unit))
+                scored_units.append((preferred, use_count, -tie_break, unit_index, unit))
             cardinality = self._exploration_cardinality(epoch)
-            chosen_units = [
-                item[4]
-                for item in sorted(scored_units)[:cardinality]
-            ]
+            chosen_units = [item[4] for item in sorted(scored_units)[:cardinality]]
 
             selected: list[str] = []
             for unit in chosen_units:
@@ -778,9 +722,7 @@ class CompetenceDevelopmentEngine:
                 # one opaque channel for this epoch.  Fairness is based on the
                 # organism's own use history; the apparatus never supplies
                 # "positive", "negative", joint or anatomical semantics.
-                preferred_in_unit = [
-                    value for value in unit if value in valid_preference
-                ]
+                preferred_in_unit = [value for value in unit if value in valid_preference]
                 actuator_id = min(
                     preferred_in_unit or list(unit),
                     key=lambda value: (
@@ -796,9 +738,7 @@ class CompetenceDevelopmentEngine:
         vector: dict[str, float] = {}
         for actuator_id in self._ids:
             target = (
-                self._target_for(actuator_id, tick)
-                if actuator_id in self._exploration_ids
-                else 0.0
+                self._target_for(actuator_id, tick) if actuator_id in self._exploration_ids else 0.0
             )
             current = self._levels[actuator_id]
             current += self._smoothing * (target - current)
@@ -826,9 +766,7 @@ class CompetenceDevelopmentEngine:
                 primitive_id = primitive.primitive_id
                 self._last_output_primitive_id = primitive_id
                 self._last_output_source = "primitive"
-                intents = primitive.intents_at(self._replay_step)[
-                    : self._max_concurrent
-                ]
+                intents = primitive.intents_at(self._replay_step)[: self._max_concurrent]
                 self._replay_step += 1
                 if self._replay_step >= primitive.duration_ticks:
                     self._replay_id = None
@@ -870,28 +808,13 @@ class CompetenceDevelopmentEngine:
                 step_distances.append(0.0)
                 continue
 
-            amplitude_distance = (
-                sum(
-                    abs(
-                        int(left_map.get(actuator_id, 0))
-                        - int(right_map.get(actuator_id, 0))
-                    )
-                    for actuator_id in union
-                )
-                / (7.0 * len(union))
-            )
-            support_distance = (
-                len(left_ids.symmetric_difference(right_ids))
-                / len(union)
-            )
-            step_distances.append(
-                max(amplitude_distance, support_distance)
-            )
-        return (
-            sum(step_distances) / len(step_distances)
-            if step_distances
-            else 0.0
-        )
+            amplitude_distance = sum(
+                abs(int(left_map.get(actuator_id, 0)) - int(right_map.get(actuator_id, 0)))
+                for actuator_id in union
+            ) / (7.0 * len(union))
+            support_distance = len(left_ids.symmetric_difference(right_ids)) / len(union)
+            step_distances.append(max(amplitude_distance, support_distance))
+        return sum(step_distances) / len(step_distances) if step_distances else 0.0
 
     def _matched_primitive_sequence(
         self,
@@ -936,11 +859,7 @@ class CompetenceDevelopmentEngine:
             (
                 magnitude
                 for key in shared
-                if (
-                    magnitude := abs(
-                        float(after[key]) - float(before[key])
-                    )
-                ) > 1e-12
+                if (magnitude := abs(float(after[key]) - float(before[key]))) > 1e-12
             ),
             reverse=True,
         )
@@ -953,8 +872,7 @@ class CompetenceDevelopmentEngine:
         after: Mapping[str, float],
     ) -> dict[str, float]:
         return {
-            key: float(after[key]) - float(before[key])
-            for key in sorted(set(before) & set(after))
+            key: float(after[key]) - float(before[key]) for key in sorted(set(before) & set(after))
         }
 
     @staticmethod
@@ -1012,9 +930,7 @@ class CompetenceDevelopmentEngine:
             passive_stat = self._passive_direction_stats.get(signal_id)
             passive_mean = passive_stat.mean if passive_stat is not None else 0.0
             residual_delta = delta - passive_mean
-            direction_stats.setdefault(signal_id, _RunningStat()).observe(
-                residual_delta
-            )
+            direction_stats.setdefault(signal_id, _RunningStat()).observe(residual_delta)
         self._last_episode_end_tick[sequence] = end_tick
 
         if len(self._primitive_stats) > _MAX_PRIMITIVE_STATS:
@@ -1046,12 +962,9 @@ class CompetenceDevelopmentEngine:
                 for key in stale:
                     lifecycle.pop(key, None)
             retained_primitive_ids = {
-                self._primitive_id_for_sequence(key)
-                for key in retained_sequences
+                self._primitive_id_for_sequence(key) for key in retained_sequences
             }
-            historical_sequences = set(
-                self._historical_primitive_candidates.values()
-            )
+            historical_sequences = set(self._historical_primitive_candidates.values())
             self._primitive_id_by_sequence = {
                 key: primitive_id
                 for key, primitive_id in self._primitive_id_by_sequence.items()
@@ -1084,11 +997,7 @@ class CompetenceDevelopmentEngine:
 
         reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
         directional_consistency = self._directional_consistency(direction_stats)
-        controllability = (
-            max(0.0, stat.mean)
-            * reproducibility
-            * directional_consistency
-        )
+        controllability = max(0.0, stat.mean) * reproducibility * directional_consistency
         if controllability <= 0.002:
             if self._primitives.pop(primitive_id, None) is not None:
                 self._invalidate_primitive_caches()
@@ -1125,10 +1034,7 @@ class CompetenceDevelopmentEngine:
         self._enforce_primitive_bound()
 
         retained_primitive = self._primitives.get(primitive_id)
-        competence = bool(
-            retained_primitive is not None
-            and retained_primitive.established
-        )
+        competence = bool(retained_primitive is not None and retained_primitive.established)
         self._publish_primitive_episode(
             primitive_id=primitive_id,
             end_tick=end_tick,
@@ -1155,8 +1061,7 @@ class CompetenceDevelopmentEngine:
         self._last_natural_competence_ids = ()
         self._last_primitive_episodes = ()
         normalized_motor_vector = {
-            str(key): _finite_unit(value)
-            for key, value in motor_vector.items()
+            str(key): _finite_unit(value) for key, value in motor_vector.items()
         }
         frame = _Frame(
             tick=int(tick),
@@ -1165,9 +1070,7 @@ class CompetenceDevelopmentEngine:
             motor_pattern=_pattern_key(normalized_motor_vector),
             discovery_eligible=bool(discovery_eligible),
             execution_primitive_id=(
-                str(execution_primitive_id)
-                if execution_primitive_id is not None
-                else None
+                str(execution_primitive_id) if execution_primitive_id is not None else None
             ),
         )
         self._frames.append(frame)
@@ -1239,8 +1142,7 @@ class CompetenceDevelopmentEngine:
         # Delivery may legitimately vary with actuator health/reliability.
         replay_sequence: MotorSequence | None = None
         if len(primitive_ids) == 1 and all(
-            action_frame.execution_primitive_id is not None
-            for action_frame in action_frames
+            action_frame.execution_primitive_id is not None for action_frame in action_frames
         ):
             primitive_id = next(iter(primitive_ids))
             primitive = self._primitives.get(primitive_id)
@@ -1255,20 +1157,14 @@ class CompetenceDevelopmentEngine:
                 end_tick=frame.tick,
                 may_create=False,
                 evidence_blocks=frozenset(
-                    action_frame.tick // _EVIDENCE_BLOCK_TICKS
-                    for action_frame in action_frames
+                    action_frame.tick // _EVIDENCE_BLOCK_TICKS for action_frame in action_frames
                 ),
                 source="primitive",
             )
             return
 
-        sequence = tuple(
-            action_frame.motor_pattern
-            for action_frame in action_frames
-        )
-        if len(sequence) != _PRIMITIVE_TICKS or any(
-            not pattern for pattern in sequence
-        ):
+        sequence = tuple(action_frame.motor_pattern for action_frame in action_frames)
+        if len(sequence) != _PRIMITIVE_TICKS or any(not pattern for pattern in sequence):
             return
 
         # New candidates arise only from organism-generated non-primitive
@@ -1288,8 +1184,7 @@ class CompetenceDevelopmentEngine:
             end_tick=frame.tick,
             may_create=may_create,
             evidence_blocks=frozenset(
-                action_frame.tick // _EVIDENCE_BLOCK_TICKS
-                for action_frame in action_frames
+                action_frame.tick // _EVIDENCE_BLOCK_TICKS for action_frame in action_frames
             ),
             source="natural",
         )
@@ -1303,11 +1198,7 @@ class CompetenceDevelopmentEngine:
                 self._primitive_direction_stats.get(sequence, {})
             )
             reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
-            controllability = (
-                max(0.0, stat.mean)
-                * reproducibility
-                * direction
-            )
+            controllability = max(0.0, stat.mean) * reproducibility * direction
             candidate_metrics.append(
                 (
                     int(stat.count),
@@ -1319,24 +1210,13 @@ class CompetenceDevelopmentEngine:
 
         recurrent = [item for item in candidate_metrics if item[0] >= 2]
         sample_gate = [item for item in candidate_metrics if item[0] >= 2]
-        controllability_gate = [
-            item for item in candidate_metrics if item[2] > 0.002
-        ]
-        variance_gate = [
-            item for item in candidate_metrics if item[1] <= 0.02
-        ]
-        direction_gate = [
-            item for item in candidate_metrics if item[3] >= 0.60
-        ]
+        controllability_gate = [item for item in candidate_metrics if item[2] > 0.002]
+        variance_gate = [item for item in candidate_metrics if item[1] <= 0.02]
+        direction_gate = [item for item in candidate_metrics if item[3] >= 0.60]
         competence_gate = [
             item
             for item in candidate_metrics
-            if (
-                item[0] >= 2
-                and item[2] > 0.002
-                and item[1] <= 0.02
-                and item[3] >= 0.60
-            )
+            if (item[0] >= 2 and item[2] > 0.002 and item[1] <= 0.02 and item[3] >= 0.60)
         ]
 
         best = max(
@@ -1344,15 +1224,10 @@ class CompetenceDevelopmentEngine:
             default=0.0,
         )
         best_direction = max(
-            (
-                primitive.directional_consistency
-                for primitive in self._primitives.values()
-            ),
+            (primitive.directional_consistency for primitive in self._primitives.values()),
             default=0.0,
         )
-        known_patterns = {
-            pattern for _horizon, pattern in self._horizon_stats
-        }
+        known_patterns = {pattern for _horizon, pattern in self._horizon_stats}
         return SensorimotorSnapshot(
             exploration_coverage=self.exploration_coverage,
             known_patterns=len(known_patterns),
@@ -1378,17 +1253,14 @@ class CompetenceDevelopmentEngine:
                 default=0.0,
             ),
             lowest_recurrent_effect_variance=(
-                min(item[1] for item in recurrent)
-                if recurrent
-                else None
+                min(item[1] for item in recurrent) if recurrent else None
             ),
             best_controllability=float(best),
             best_directional_consistency=float(best_direction),
             replay_active=self._replay_id is not None,
             active_competence_id=self._replay_id,
             horizon_samples=tuple(
-                (horizon, self._horizon_counts[horizon])
-                for horizon in _HORIZONS
+                (horizon, self._horizon_counts[horizon]) for horizon in _HORIZONS
             ),
             passive_baseline_samples=self._passive_effect_stat.count,
         )
@@ -1398,9 +1270,7 @@ class CompetenceDevelopmentEngine:
             "schema_version": 11,
             "actuator_ids": list(self._ids),
             "embodiment_fingerprint": self._embodiment_fingerprint,
-            "exclusive_actuator_groups": [
-                list(group) for group in self._exclusive_actuator_groups
-            ],
+            "exclusive_actuator_groups": [list(group) for group in self._exclusive_actuator_groups],
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
             "use_counts": dict(self._use_counts),
@@ -1429,19 +1299,15 @@ class CompetenceDevelopmentEngine:
                     "pattern": [[aid, level] for aid, level in pattern],
                     "stat": stat.checkpoint(),
                 }
-                for (horizon, pattern), stat
-                in sorted(self._horizon_stats.items())
+                for (horizon, pattern), stat in sorted(self._horizon_stats.items())
             ],
             "horizon_counts": {
-                str(horizon): count
-                for horizon, count in self._horizon_counts.items()
+                str(horizon): count for horizon, count in self._horizon_counts.items()
             },
             "passive_effect_stat": self._passive_effect_stat.checkpoint(),
             "passive_direction_stats": {
                 signal_id: stat.checkpoint()
-                for signal_id, stat in sorted(
-                    self._passive_direction_stats.items()
-                )
+                for signal_id, stat in sorted(self._passive_direction_stats.items())
             },
             "primitive_stats": [
                 {
@@ -1456,8 +1322,7 @@ class CompetenceDevelopmentEngine:
                     ),
                     "signals": {
                         signal_id: signal_stat.checkpoint()
-                        for signal_id, signal_stat
-                        in sorted(
+                        for signal_id, signal_stat in sorted(
                             self._primitive_direction_stats.get(
                                 sequence,
                                 {},
@@ -1467,18 +1332,14 @@ class CompetenceDevelopmentEngine:
                 }
                 for sequence, stat in sorted(self._primitive_stats.items())
             ],
-            "primitives": [
-                primitive.checkpoint() for primitive in self.primitives
-            ],
+            "primitives": [primitive.checkpoint() for primitive in self.primitives],
             "historical_candidates": [
                 {
                     "primitive_id": primitive_id,
                     "embodiment_fingerprint": self._embodiment_fingerprint,
                     "sequence": _sequence_payload(sequence),
                 }
-                for primitive_id, sequence in sorted(
-                    self._historical_primitive_candidates.items()
-                )
+                for primitive_id, sequence in sorted(self._historical_primitive_candidates.items())
             ],
             "replay_id": self._replay_id,
             "replay_step": self._replay_step,
@@ -1516,9 +1377,7 @@ class CompetenceDevelopmentEngine:
         allowed = set(expected)
 
         if "exclusive_actuator_groups" not in payload:
-            raise ValueError(
-                "sensorimotor v9 checkpoint is missing exclusive actuator groups"
-            )
+            raise ValueError("sensorimotor v9 checkpoint is missing exclusive actuator groups")
         raw_groups = payload.get("exclusive_actuator_groups")
         if not isinstance(raw_groups, list):
             raise ValueError("invalid exclusive actuator groups")
@@ -1613,15 +1472,11 @@ class CompetenceDevelopmentEngine:
                     )
                 raw_stat = item.get("stat", {})
                 if isinstance(raw_stat, Mapping):
-                    learner._horizon_stats[(horizon, pattern)] = (
-                        _RunningStat.restore(raw_stat)
-                    )
+                    learner._horizon_stats[(horizon, pattern)] = _RunningStat.restore(raw_stat)
 
         raw_passive_effect = payload.get("passive_effect_stat")
         if isinstance(raw_passive_effect, Mapping):
-            learner._passive_effect_stat = _RunningStat.restore(
-                raw_passive_effect
-            )
+            learner._passive_effect_stat = _RunningStat.restore(raw_passive_effect)
         raw_passive_directions = payload.get("passive_direction_stats", {})
         if isinstance(raw_passive_directions, Mapping):
             learner._passive_direction_stats = {
@@ -1643,14 +1498,10 @@ class CompetenceDevelopmentEngine:
                 except ValueError:
                     continue
                 if not learner._sequence_respects_exclusive_groups(sequence):
-                    raise ValueError(
-                        "sensorimotor sequence violates exclusive actuator groups"
-                    )
+                    raise ValueError("sensorimotor sequence violates exclusive actuator groups")
                 raw_stat = item.get("stat", {})
                 if isinstance(raw_stat, Mapping):
-                    learner._primitive_stats[sequence] = _RunningStat.restore(
-                        raw_stat
-                    )
+                    learner._primitive_stats[sequence] = _RunningStat.restore(raw_stat)
                 if "first_sample_tick" not in item or "last_sample_tick" not in item:
                     raise ValueError("missing primitive lifecycle chronology")
                 first_sample_tick = _require_int(
@@ -1744,12 +1595,8 @@ class CompetenceDevelopmentEngine:
                     allowed_ids=allowed,
                     embodiment_fingerprint=learner.embodiment_fingerprint,
                 )
-                if not learner._sequence_respects_exclusive_groups(
-                    primitive.sequence
-                ):
-                    raise ValueError(
-                        "motor primitive violates exclusive actuator groups"
-                    )
+                if not learner._sequence_respects_exclusive_groups(primitive.sequence):
+                    raise ValueError("motor primitive violates exclusive actuator groups")
                 supporting_stat = learner._primitive_stats.get(primitive.sequence)
                 if (
                     supporting_stat is None
@@ -1774,8 +1621,7 @@ class CompetenceDevelopmentEngine:
                 raise ValueError("invalid historical primitive candidate")
             if (
                 schema == 10
-                and item.get("embodiment_fingerprint")
-                != learner.embodiment_fingerprint
+                and item.get("embodiment_fingerprint") != learner.embodiment_fingerprint
             ):
                 raise ValueError("historical primitive embodiment scope mismatch")
             primitive_id = item.get("primitive_id")
@@ -1788,10 +1634,7 @@ class CompetenceDevelopmentEngine:
                 # Historical memory is non-authoritative, but an impossible
                 # motor hypothesis must not be reintroduced into matching.
                 continue
-            if (
-                primitive_id in learner._primitives
-                or sequence in learner._primitive_id_by_sequence
-            ):
+            if primitive_id in learner._primitives or sequence in learner._primitive_id_by_sequence:
                 continue
             learner._historical_primitive_candidates[primitive_id] = sequence
             learner._primitive_id_by_sequence[sequence] = primitive_id
@@ -1900,6 +1743,7 @@ class CompetenceDevelopmentEngine:
             self._primitive_id_by_sequence[sequence] = primitive_id
             added += 1
         return added
+
     def has_cognitive_primitive(self, primitive_id: str) -> bool:
         """Return True iff primitive_id is currently a supported competence.
 

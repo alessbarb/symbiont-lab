@@ -4,10 +4,11 @@ The assay reads immutable Physics3D telemetry. It never schedules actions,
 changes primitive competence, supplies reward, or feeds any result back into
 the organism.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from pathlib import Path
 from statistics import fmean, median, pstdev
 from typing import Mapping
@@ -138,8 +139,7 @@ def _states_comparable(
         and distance.linear_velocity_delta <= criteria.linear_velocity_delta_max
         and distance.angular_velocity_delta <= criteria.angular_velocity_delta_max
         and distance.joint_rms_delta <= criteria.joint_rms_delta_max
-        and distance.contact_jaccard_distance
-        <= criteria.contact_jaccard_distance_max
+        and distance.contact_jaccard_distance <= criteria.contact_jaccard_distance_max
         and distance.com_height_delta <= criteria.com_height_delta_max
     )
 
@@ -172,14 +172,10 @@ def _episode_samples(
     summaries: list[dict[str, object]],
 ) -> tuple[PrimitiveEffectSample, ...]:
     transition_by_tick = {
-        int(item["tick"]): item
-        for item in transitions
-        if isinstance(item.get("tick"), int)
+        int(item["tick"]): item for item in transitions if isinstance(item.get("tick"), int)
     }
     summary_by_tick = {
-        int(item["tick"]): item
-        for item in summaries
-        if isinstance(item.get("tick"), int)
+        int(item["tick"]): item for item in summaries if isinstance(item.get("tick"), int)
     }
     samples: list[PrimitiveEffectSample] = []
 
@@ -206,12 +202,8 @@ def _episode_samples(
             end_transition = transition_by_tick.get(end_tick)
             if start_transition is None or end_transition is None:
                 continue
-            before_payload = _mapping(
-                _mapping(start_transition.get("pre")).get("physical")
-            )
-            after_payload = _mapping(
-                _mapping(end_transition.get("pre")).get("physical")
-            )
+            before_payload = _mapping(_mapping(start_transition.get("pre")).get("physical"))
+            after_payload = _mapping(_mapping(end_transition.get("pre")).get("physical"))
             if not before_payload or not after_payload:
                 continue
 
@@ -247,11 +239,15 @@ def _episode_samples(
                 metabolic_cost=metabolic_cost,
             )
             raw_blocks = raw_episode.get("evidence_blocks", ())
-            blocks = tuple(
-                int(item)
-                for item in raw_blocks
-                if isinstance(item, int) and not isinstance(item, bool)
-            ) if isinstance(raw_blocks, (list, tuple)) else ()
+            blocks = (
+                tuple(
+                    int(item)
+                    for item in raw_blocks
+                    if isinstance(item, int) and not isinstance(item, bool)
+                )
+                if isinstance(raw_blocks, (list, tuple))
+                else ()
+            )
             samples.append(
                 PrimitiveEffectSample(
                     primitive_id=primitive_id,
@@ -334,9 +330,7 @@ def analyze_primitive_effects(
         magnitude_mean = fmean(magnitudes)
         magnitude_std = pstdev(magnitudes) if len(magnitudes) > 1 else 0.0
         evidence_blocks = {
-            block
-            for sample in primitive_samples
-            for block in sample.evidence_blocks
+            block for sample in primitive_samples for block in sample.evidence_blocks
         }
 
         reports.append(
@@ -347,9 +341,7 @@ def analyze_primitive_effects(
                 competence=any(item.competence for item in primitive_samples),
                 independent_evidence_blocks=len(evidence_blocks),
                 replication_target_met=len(effects) >= replication_target,
-                body_translation_mean=_mean_vector(
-                    [effect.translation_body for effect in effects]
-                ),
+                body_translation_mean=_mean_vector([effect.translation_body for effect in effects]),
                 com_translation_mean=_mean_vector(
                     [effect.com_translation_body for effect in effects]
                 ),
@@ -357,74 +349,54 @@ def analyze_primitive_effects(
                 translation_magnitude_median=median(magnitudes),
                 translation_magnitude_std=magnitude_std,
                 translation_magnitude_cv=(
-                    magnitude_std / magnitude_mean
-                    if magnitude_mean > 1e-12
-                    else None
+                    magnitude_std / magnitude_mean if magnitude_mean > 1e-12 else None
                 ),
                 directional_concentration=_directional_concentration(effects),
                 rotation_mean=fmean(rotations),
-                rotation_std=(
-                    pstdev(rotations) if len(rotations) > 1 else 0.0
-                ),
-                path_efficiency_mean=fmean(
-                    effect.translation_efficiency for effect in effects
-                ),
-                base_com_agreement_mean=fmean(
-                    effect.base_com_agreement for effect in effects
-                ),
-                mechanical_work_mean=fmean(
-                    effect.mechanical_work_joules for effect in effects
-                ),
-                metabolic_cost_mean=fmean(
-                    effect.metabolic_cost for effect in effects
-                ),
-                contact_persistence_mean=fmean(
-                    effect.contact_persistence for effect in effects
-                ),
+                rotation_std=(pstdev(rotations) if len(rotations) > 1 else 0.0),
+                path_efficiency_mean=fmean(effect.translation_efficiency for effect in effects),
+                base_com_agreement_mean=fmean(effect.base_com_agreement for effect in effects),
+                mechanical_work_mean=fmean(effect.mechanical_work_joules for effect in effects),
+                metabolic_cost_mean=fmean(effect.metabolic_cost for effect in effects),
+                contact_persistence_mean=fmean(effect.contact_persistence for effect in effects),
                 initial_orientation_spread=(
                     fmean(item.orientation_angle for item in pair_distances)
-                    if pair_distances else 0.0
+                    if pair_distances
+                    else 0.0
                 ),
                 initial_linear_velocity_spread=(
                     fmean(item.linear_velocity_delta for item in pair_distances)
-                    if pair_distances else 0.0
+                    if pair_distances
+                    else 0.0
                 ),
                 initial_angular_velocity_spread=(
                     fmean(item.angular_velocity_delta for item in pair_distances)
-                    if pair_distances else 0.0
+                    if pair_distances
+                    else 0.0
                 ),
                 initial_joint_spread=(
                     fmean(item.joint_rms_delta for item in pair_distances)
-                    if pair_distances else 0.0
+                    if pair_distances
+                    else 0.0
                 ),
                 initial_contact_spread=(
                     fmean(item.contact_jaccard_distance for item in pair_distances)
-                    if pair_distances else 0.0
+                    if pair_distances
+                    else 0.0
                 ),
                 initial_com_height_spread=(
                     fmean(item.com_height_delta for item in pair_distances)
-                    if pair_distances else 0.0
+                    if pair_distances
+                    else 0.0
                 ),
                 comparable_state_pairs=comparable_pairs,
                 noncomparable_state_pairs=noncomparable_pairs,
-                within_state_translation_delta_mean=_mean_or_none(
-                    comparable_translation
-                ),
-                between_state_translation_delta_mean=_mean_or_none(
-                    noncomparable_translation
-                ),
-                within_state_direction_delta_mean=_mean_or_none(
-                    comparable_direction
-                ),
-                between_state_direction_delta_mean=_mean_or_none(
-                    noncomparable_direction
-                ),
-                within_state_com_translation_delta_mean=_mean_or_none(
-                    comparable_com
-                ),
-                between_state_com_translation_delta_mean=_mean_or_none(
-                    noncomparable_com
-                ),
+                within_state_translation_delta_mean=_mean_or_none(comparable_translation),
+                between_state_translation_delta_mean=_mean_or_none(noncomparable_translation),
+                within_state_direction_delta_mean=_mean_or_none(comparable_direction),
+                between_state_direction_delta_mean=_mean_or_none(noncomparable_direction),
+                within_state_com_translation_delta_mean=_mean_or_none(comparable_com),
+                between_state_com_translation_delta_mean=_mean_or_none(noncomparable_com),
             )
         )
     return tuple(reports)

@@ -3,6 +3,7 @@ the "immediate benefit, delayed damage" resource v1 §7 required but never
 modeled. Lives entirely in symbiont_lab -- no new API in symbiont_world or
 symbiont; fires through the existing apply_environmental_damage.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -58,13 +59,18 @@ class DeferredEffectQueue:
 
     def restore(self, snap: list[dict[str, Any]]) -> None:
         self._pending = [
-            DeferredEffect(organism_id=str(d["organism_id"]), due_tick=int(d["due_tick"]), amount=float(d["amount"]))
+            DeferredEffect(
+                organism_id=str(d["organism_id"]),
+                due_tick=int(d["due_tick"]),
+                amount=float(d["amount"]),
+            )
             for d in snap
         ]
 
     @classmethod
-    def from_snapshot(cls, snap: list[dict[str, Any]], max_size: int = MAX_QUEUE_SIZE) -> "DeferredEffectQueue":
+    def from_snapshot(
+        cls, snap: list[dict[str, Any]], max_size: int = MAX_QUEUE_SIZE
+    ) -> "DeferredEffectQueue":
         q = cls(max_size=max_size)
         q.restore(snap)
         return q
-

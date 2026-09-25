@@ -13,6 +13,7 @@ this harness instead reads the module's source and imports it as a
 `data:text/javascript;base64,...` URL -- data: URLs are unambiguously ESM
 to Node's loader regardless of extension, package.json, or Node version,
 so this works identically on Node 18 through 24+."""
+
 import base64
 import json
 import shutil

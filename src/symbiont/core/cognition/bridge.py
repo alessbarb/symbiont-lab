@@ -6,18 +6,19 @@ from enum import StrEnum
 from typing import Collection, Mapping
 
 from ...cognition.activation import SensoryNormalizer
-from ...genetics.genome import Genome
-from ...cognition.graph import CognitiveGraph, GraphError, PlasticNode, TickContext
+from ...cognition.graph import CognitiveGraph, GraphError, TickContext
 from ...cognition.learning import PredictionError, ShadowPrediction, compute_prediction_errors
 from ...cognition.limits import KernelLimits
-from ...genetics.expression import GeneExpressionState
 from ...cognition.metaplasticity import SafetyState
 from ...cognition.structure import (
     Mutation,
     StructuralPlasticity,
-    apply_mutations,
 )
 from ...cognition.types import NodeKind
+from ...genetics.expression import GeneExpressionState
+from ...genetics.genome import Genome
+from .bridge_checkpoint import export_bridge_state, restore_bridge_state
+from .bridge_compat import CognitiveBridgeCompatibility
 from .plasticity_state import PlasticityEngine
 from .predictors import PredictorLifecycle
 from .sense_concept_lifecycle import (
@@ -28,8 +29,6 @@ from .sense_concept_lifecycle import (
 )
 from .structural_candidates import StructuralContention
 from .structural_planner import AdaptiveStructuralBudgets, StructuralPlanner
-from .bridge_checkpoint import export_bridge_state, restore_bridge_state
-from .bridge_compat import CognitiveBridgeCompatibility
 
 _ACTIVITY_THRESHOLD = 0.1
 _MOTOR_READOUT_PREFIX = "readout_motor:"
@@ -252,9 +251,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             orphan_since_tick=self._lifecycle.orphan_since_tick,
             retiring_predictor_ids=self._predictors.retirement,
             predictor_utility=self._predictors.utility,
-            tentative_lifetime_ticks=(
-                self._genome.structure.tentative_lifetime_ticks
-            ),
+            tentative_lifetime_ticks=(self._genome.structure.tentative_lifetime_ticks),
             minimum_support=self._genome.structure.minimum_support,
         )
 
@@ -277,7 +274,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
     def _actuator_id_from_motor_readout(node_id: str) -> str | None:
         if not node_id.startswith(_MOTOR_READOUT_PREFIX):
             return None
-        return node_id[len(_MOTOR_READOUT_PREFIX):]
+        return node_id[len(_MOTOR_READOUT_PREFIX) :]
 
     @staticmethod
     def _primitive_readout_id(primitive_id: str) -> str:
@@ -287,7 +284,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
     def _primitive_id_from_readout(node_id: str) -> str | None:
         if not node_id.startswith(_PRIMITIVE_READOUT_PREFIX):
             return None
-        return node_id[len(_PRIMITIVE_READOUT_PREFIX):]
+        return node_id[len(_PRIMITIVE_READOUT_PREFIX) :]
 
     def _oldest_blocked_structural_wait(self, *, tick: int) -> int:
         return self._planner.oldest_blocked_wait(
@@ -303,9 +300,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             soft_node_limit=self._soft_node_limit,
             structural_wait=self._oldest_blocked_structural_wait(tick=tick),
             minimum_support=self._genome.structure.minimum_support,
-            tentative_lifetime_ticks=(
-                self._genome.structure.tentative_lifetime_ticks
-            ),
+            tentative_lifetime_ticks=(self._genome.structure.tentative_lifetime_ticks),
         )
 
     def _sync_motor_readouts(
@@ -417,8 +412,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         concept_set = {
             str(concept_id)
             for concept_id in concept_ids
-            if str(concept_id)
-            and node_kinds.get(str(concept_id)) is NodeKind.CONCEPT
+            if str(concept_id) and node_kinds.get(str(concept_id)) is NodeKind.CONCEPT
         }
         if not concept_set:
             return False
@@ -529,9 +523,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         )
 
     def nominate_shadow_prediction(self, *, tick: int) -> bool:
-        producer_id = StructuralContention.producer_id_for_family(
-            "predictor"
-        )
+        producer_id = StructuralContention.producer_id_for_family("predictor")
         if any(
             candidate.producer_id == producer_id
             for candidate in self._contention.candidates.values()
@@ -552,7 +544,13 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
     def stranded_concepts(self) -> tuple[str, ...]:
         """Concepts receiving activation but lacking a path to a readout."""
         unrouted = set(self._lifecycle.unrouted_since_tick)
-        return tuple(sorted(node_id for node_id in unrouted if node_id in self._lifecycle.concept_last_active_tick))
+        return tuple(
+            sorted(
+                node_id
+                for node_id in unrouted
+                if node_id in self._lifecycle.concept_last_active_tick
+            )
+        )
 
     def _salient_concept_ids(
         self,
@@ -598,9 +596,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             graph=self._graph,
             topology_revision=self._topology_revision,
             tick=self._tick,
-            growth_threshold=(
-                self._expression_state.effective_growth_threshold
-            ),
+            growth_threshold=(self._expression_state.effective_growth_threshold),
             develop_senses=self._develop_senses,
         )
 
@@ -622,9 +618,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         self,
         graph: CognitiveGraph | None = None,
     ) -> int:
-        return self._lifecycle.extract_max_concept_index(
-            self._graph if graph is None else graph
-        )
+        return self._lifecycle.extract_max_concept_index(self._graph if graph is None else graph)
 
     def _new_node_id(
         self,
@@ -645,9 +639,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
     ) -> None:
         active_graph = self._graph if graph is None else graph
         pending_concepts = sum(
-            1
-            for candidate in self._contention.candidates.values()
-            if candidate.family == "concept"
+            1 for candidate in self._contention.candidates.values() if candidate.family == "concept"
         )
         proposal = self._lifecycle.propose_germinal_concept_candidate(
             graph=active_graph,
@@ -866,7 +858,9 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                     if isinstance(raw_sources, (list, tuple, set)):
                         parent_ids = tuple(sorted(str(value) for value in raw_sources))
                         if parent_ids:
-                            self._lifecycle.lineage[node_id] = ConceptLineage(node_id, parent_ids, tick)
+                            self._lifecycle.lineage[node_id] = ConceptLineage(
+                                node_id, parent_ids, tick
+                            )
                             self._consume_concept_support(parent_ids)
             elif mutation.kind == "add_edge":
                 source_id = str(mutation.payload.get("source_id", ""))
@@ -886,7 +880,9 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                 self._predictors.utility.pop(node_id, None)
                 self._predictors.retirement.pop(node_id, None)
                 self._representations.remove(node_id)
-                dead_prediction_keys = [k for k in self._predictors.shadows if k[0] == node_id or k[1] == node_id]
+                dead_prediction_keys = [
+                    k for k in self._predictors.shadows if k[0] == node_id or k[1] == node_id
+                ]
                 for k in dead_prediction_keys:
                     del self._predictors.shadows[k]
                 if dead_prediction_keys:
@@ -899,18 +895,35 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         latent_ids = {
             node.node_id
             for node in self._graph.nodes
-            if node.kind in (
+            if node.kind
+            in (
                 NodeKind.CONCEPT,
                 NodeKind.STATE,
                 NodeKind.GATE,
                 NodeKind.READOUT,
             )
         }
-        self._lifecycle.sense_last_seen_tick = {key: value for key, value in self._lifecycle.sense_last_seen_tick.items() if key in sense_ids}
-        self._lifecycle.lineage = {key: value for key, value in self._lifecycle.lineage.items() if key in concept_ids}
-        self._lifecycle.orphan_since_tick = {key: value for key, value in self._lifecycle.orphan_since_tick.items() if key in latent_ids}
-        self._lifecycle.unrouted_since_tick = {key: value for key, value in self._lifecycle.unrouted_since_tick.items() if key in concept_ids}
-        self._normalizers = {key: value for key, value in self._normalizers.items() if key in sense_ids}
+        self._lifecycle.sense_last_seen_tick = {
+            key: value
+            for key, value in self._lifecycle.sense_last_seen_tick.items()
+            if key in sense_ids
+        }
+        self._lifecycle.lineage = {
+            key: value for key, value in self._lifecycle.lineage.items() if key in concept_ids
+        }
+        self._lifecycle.orphan_since_tick = {
+            key: value
+            for key, value in self._lifecycle.orphan_since_tick.items()
+            if key in latent_ids
+        }
+        self._lifecycle.unrouted_since_tick = {
+            key: value
+            for key, value in self._lifecycle.unrouted_since_tick.items()
+            if key in concept_ids
+        }
+        self._normalizers = {
+            key: value for key, value in self._normalizers.items() if key in sense_ids
+        }
         self._representations.reconcile(self._graph)
         self._lifecycle.concept_support = {
             pair: count
@@ -924,18 +937,13 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             if key[0] in node_ids and key[1] in node_ids
         }
         predictor_ids = {
-            node.node_id for node in self._graph.nodes
-            if node.kind is NodeKind.PREDICTOR
+            node.node_id for node in self._graph.nodes if node.kind is NodeKind.PREDICTOR
         }
         self._predictors.utility = {
-            key: value
-            for key, value in self._predictors.utility.items()
-            if key in predictor_ids
+            key: value for key, value in self._predictors.utility.items() if key in predictor_ids
         }
         self._predictors.retirement = {
-            key: value
-            for key, value in self._predictors.retirement.items()
-            if key in predictor_ids
+            key: value for key, value in self._predictors.retirement.items() if key in predictor_ids
         }
 
     def export_checkpoint(self) -> dict[str, object]:
@@ -978,9 +986,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
 
         structural_plasticity = StructuralPlasticity(
             min_candidate_support=genome.structure.minimum_support,
-            tentative_lifetime_ticks=(
-                genome.structure.tentative_lifetime_ticks
-            ),
+            tentative_lifetime_ticks=(genome.structure.tentative_lifetime_ticks),
             cooldown_ticks=genome.structure.tentative_lifetime_ticks,
         )
         bridge = cls(
@@ -1076,7 +1082,9 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             sense_inputs[node_id] = normalizer.normalize(raw)
 
         try:
-            frame = self._graph.activate(sense_inputs, TickContext(tick=tick), previous=self._previous_frame)
+            frame = self._graph.activate(
+                sense_inputs, TickContext(tick=tick), previous=self._previous_frame
+            )
         except GraphError:
             self._safety_state.record_failure()
             return CognitiveBridgeResult(
@@ -1119,8 +1127,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                 learning_nodes=learning_nodes,
                 retiring_predictors={
                     predictor_id: retirement.entered_tick
-                    for predictor_id, retirement
-                    in self._predictors.retirement.items()
+                    for predictor_id, retirement in self._predictors.retirement.items()
                 },
                 tick=tick,
                 eligibility_decay=self._genome.plasticity.eligibility_decay,
@@ -1129,20 +1136,14 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                 structural_plasticity_factor=(
                     self._expression_state.effective_structural_plasticity
                 ),
-                tentative_lifetime_ticks=(
-                    self._genome.structure.tentative_lifetime_ticks
-                ),
+                tentative_lifetime_ticks=(self._genome.structure.tentative_lifetime_ticks),
                 structural_wait=self._oldest_blocked_structural_wait(tick=tick),
-                max_incoming_norm=(
-                    self._kernel_limits.max_incoming_consolidated_weight_norm
-                ),
+                max_incoming_norm=(self._kernel_limits.max_incoming_consolidated_weight_norm),
             )
 
             node_kinds, existing_relation_pairs = self._topology_cache()
             self._representations.observe(frame.activations)
-            action_context_concepts = set(
-                self._salient_concept_ids(frame.activations)
-            )
+            action_context_concepts = set(self._salient_concept_ids(frame.activations))
             active_nodes = [
                 node_id
                 for node_id, value in frame.activations.items()
@@ -1173,7 +1174,9 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                         source_kind=node_kinds.get(source_id),
                         target_kind=node_kinds.get(target_id),
                     )
-            motor_effect_ids = tuple(sorted({str(value) for value in motor_effect_actuator_ids if str(value)}))
+            motor_effect_ids = tuple(
+                sorted({str(value) for value in motor_effect_actuator_ids if str(value)})
+            )
             if motor_effect_ids:
                 for source_id in sorted(action_context_concepts):
                     # This is evidence *from* an actually active concept to an
@@ -1213,11 +1216,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             1,
             self._genome.development.consolidation_interval_ticks,
         )
-        if (
-            not frozen
-            and self._reacclimation_remaining <= 0
-            and tick % interval == 0
-        ):
+        if not frozen and self._reacclimation_remaining <= 0 and tick % interval == 0:
             planning = self._planner.plan_consolidation(
                 graph=self._graph,
                 tick=tick,
@@ -1229,16 +1228,10 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                 topology_revision=self._topology_revision,
                 active_motor_ids=active_motor_actuator_ids,
                 active_primitive_ids=active_primitive_ids,
-                pruning_threshold=(
-                    self._expression_state.effective_pruning_threshold
-                ),
+                pruning_threshold=(self._expression_state.effective_pruning_threshold),
                 minimum_support=self._genome.structure.minimum_support,
-                lifetime_ticks=(
-                    self._genome.structure.tentative_lifetime_ticks
-                ),
-                sense_retention_ticks=(
-                    self._genome.development.sense_retention_ticks
-                ),
+                lifetime_ticks=(self._genome.structure.tentative_lifetime_ticks),
+                sense_retention_ticks=(self._genome.development.sense_retention_ticks),
                 max_concepts=self._kernel_limits.max_concepts,
             )
             recycling_events = planning.recycling_events
@@ -1251,9 +1244,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                     )
                     self._plasticity.seed_new_edges(self._graph)
                     self._reconcile_node_metadata()
-                    structural_mutations_applied = len(
-                        planning.mutations
-                    )
+                    structural_mutations_applied = len(planning.mutations)
                     applied_mutations = planning.mutations
                     self._topology_revision += 1
                     self._contention.commit(
@@ -1268,22 +1259,28 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         live_nodes = self._graph.nodes
         live_node_ids = {node.node_id for node in live_nodes}
         concept_node_ids = set(self._topology_node_ids(NodeKind.CONCEPT))
-        self._previous_frame = {node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids}
+        self._previous_frame = {
+            node_id: value
+            for node_id, value in frame.activations.items()
+            if node_id in live_node_ids
+        }
 
         # Passive/reporting projection only.  The previous implementation
         # traversed every live node once for *each* maturity enum member,
         # calling _representation_maturity() ~N_states * N_nodes per tick.
         # Derive the same histogram in one node pass instead.
-        representation_maturity_counts = {
-            maturity.value: 0 for maturity in RepresentationMaturity
-        }
+        representation_maturity_counts = {maturity.value: 0 for maturity in RepresentationMaturity}
         for node in live_nodes:
             maturity = self._representation_maturity(node.node_id)
             representation_maturity_counts[maturity.value] += 1
 
         return CognitiveBridgeResult(
             tick=tick,
-            activations={node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids},
+            activations={
+                node_id: value
+                for node_id, value in frame.activations.items()
+                if node_id in live_node_ids
+            },
             readouts={
                 node_id: value
                 for node_id, value in frame.readouts.items()
@@ -1303,7 +1300,9 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             recovering=self._recovery_pending,
             recycling_events=recycling_events,
             stranded_concepts=self.stranded_concepts,
-            predictive_gain=max((item.predictive_gain for item in self._predictors.shadows.values()), default=0.0),
+            predictive_gain=max(
+                (item.predictive_gain for item in self._predictors.shadows.values()), default=0.0
+            ),
             motor_readouts={
                 actuator_id: value
                 for node_id, value in frame.readouts.items()
@@ -1333,10 +1332,9 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                 )
             ),
             structural_candidates=len(self._contention.candidates),
-            structural_producers=len({
-                candidate.producer_id
-                for candidate in self._contention.candidates.values()
-            }),
+            structural_producers=len(
+                {candidate.producer_id for candidate in self._contention.candidates.values()}
+            ),
             oldest_structural_wait_ticks=max(
                 (
                     max(0, tick - candidate.eligible_tick)

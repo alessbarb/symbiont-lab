@@ -4,12 +4,18 @@ The harness supplies only a bounded complete local topology, ticks and costs.
 It never passes a claim/composite identifier to the treatment and never calls
 composition or transmission with evaluator-selected content.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
-from symbiont.modeling import CulturalAction, CulturalPolicyConfig, ModeledOrganismRuntime, SocialChannel
+from symbiont.modeling import (
+    CulturalAction,
+    CulturalPolicyConfig,
+    ModeledOrganismRuntime,
+    SocialChannel,
+)
 from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
 
 
@@ -69,7 +75,9 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
 
 def _trial(seed: int, *, ticks: int, contact_rounds: int) -> AutonomousAgencySeedResult:
     ids = tuple(f"aca-{seed}-{index}" for index in range(4))
-    config = CulturalPolicyConfig(retention_capacity=2, transmission_threshold=72, composition_threshold=64)
+    config = CulturalPolicyConfig(
+        retention_capacity=2, transmission_threshold=72, composition_threshold=64
+    )
     organisms = tuple(
         ModeledOrganismRuntime(
             organism_id=organism_id,
@@ -87,7 +95,9 @@ def _trial(seed: int, *, ticks: int, contact_rounds: int) -> AutonomousAgencySee
             evidence_id=f"aca.evidence.{seed}.{index}",
         )
     channel = SocialChannel(
-        authorized_pairs={(sender, receiver) for sender in ids for receiver in ids if sender != receiver},
+        authorized_pairs={
+            (sender, receiver) for sender in ids for receiver in ids if sender != receiver
+        },
         max_deliveries=4096,
     )
     records = []
@@ -107,7 +117,9 @@ def _trial(seed: int, *, ticks: int, contact_rounds: int) -> AutonomousAgencySee
         for composite in organism.social_evidence_ledger.composites
     )
     useful = tuple(composite for composite in composites if len(composite.component_claim_ids) >= 3)
-    multi = tuple(composite for composite in useful if len(composite.contributing_organism_ids) >= 3)
+    multi = tuple(
+        composite for composite in useful if len(composite.contributing_organism_ids) >= 3
+    )
     attempts = sum(action is CulturalAction.TRANSMIT for action in actions)
     compositions = sum(action is CulturalAction.COMPOSE for action in actions)
     drops = sum(action is CulturalAction.DROP for action in actions)
@@ -115,7 +127,9 @@ def _trial(seed: int, *, ticks: int, contact_rounds: int) -> AutonomousAgencySee
     silence = sum(action is CulturalAction.SILENCE for action in actions)
     costs = sum(organism.cultural_policy.cost for organism in organisms)
     nontrivial = bool(attempts and silence and compositions and drops and validation)
-    directed = run_cumulative_culture_study(seeds=(seed,), ticks=128).per_seed[0].cumulative_solution
+    directed = (
+        run_cumulative_culture_study(seeds=(seed,), ticks=128).per_seed[0].cumulative_solution
+    )
     autonomous_solution = bool(multi)
     return AutonomousAgencySeedResult(
         seed=seed,
@@ -145,7 +159,11 @@ def run_autonomous_cultural_agency_study(
     normalized = _normalize_seeds(seeds)
     if isinstance(ticks, bool) or not isinstance(ticks, int) or not 8 <= ticks <= 256:
         raise ValueError("ticks must be within [8, 256]")
-    if isinstance(contact_rounds, bool) or not isinstance(contact_rounds, int) or not 1 <= contact_rounds <= ticks:
+    if (
+        isinstance(contact_rounds, bool)
+        or not isinstance(contact_rounds, int)
+        or not 1 <= contact_rounds <= ticks
+    ):
         raise ValueError("contact_rounds must be within [1, ticks]")
     first = tuple(_trial(seed, ticks=ticks, contact_rounds=contact_rounds) for seed in normalized)
     replay = tuple(_trial(seed, ticks=ticks, contact_rounds=contact_rounds) for seed in normalized)
@@ -154,12 +172,20 @@ def run_autonomous_cultural_agency_study(
         seeds=normalized,
         per_seed=first,
         aca1_nontrivial=all(item.nontrivial_policy for item in first),
-        aca2_autonomous_transmission=all(item.transmission_attempts < item.cultural_opportunities for item in first),
-        aca3_autonomous_retention=all(item.retention_decisions + item.drop_decisions > 0 for item in first),
+        aca2_autonomous_transmission=all(
+            item.transmission_attempts < item.cultural_opportunities for item in first
+        ),
+        aca3_autonomous_retention=all(
+            item.retention_decisions + item.drop_decisions > 0 for item in first
+        ),
         aca4_autonomous_validation=all(item.validation_attempts > 0 for item in first),
         aca5_autonomous_composition=all(item.multi_contributor_composites > 0 for item in first),
-        aca6_cultural_utility=all(item.autonomous_solution and not item.no_culture_solution for item in first),
-        aca7_cost_bounded=all(item.cultural_cost <= item.cultural_opportunities * 4 for item in first),
+        aca6_cultural_utility=all(
+            item.autonomous_solution and not item.no_culture_solution for item in first
+        ),
+        aca7_cost_bounded=all(
+            item.cultural_cost <= item.cultural_opportunities * 4 for item in first
+        ),
         aca8_opportunity_sensitivity=all(item.silence_count > 0 for item in first),
         aca9_no_truth_oracle=True,
         aca10_cumulative_without_planner=all(item.autonomous_solution for item in first),
@@ -179,9 +205,18 @@ def run_autonomous_cultural_agency_study(
         aca8_opportunity_sensitivity=result.aca8_opportunity_sensitivity,
         aca9_no_truth_oracle=result.aca9_no_truth_oracle,
         aca10_cumulative_without_planner=result.aca10_cumulative_without_planner,
-        all_gates_pass=all(getattr(result, field) for field in result.__dataclass_fields__ if field.startswith("aca")) and replay_ok,
+        all_gates_pass=all(
+            getattr(result, field)
+            for field in result.__dataclass_fields__
+            if field.startswith("aca")
+        )
+        and replay_ok,
         replay_deterministic=replay_ok,
     )
 
 
-__all__ = ["AutonomousCulturalAgencyStudy", "AutonomousAgencySeedResult", "run_autonomous_cultural_agency_study"]
+__all__ = [
+    "AutonomousCulturalAgencyStudy",
+    "AutonomousAgencySeedResult",
+    "run_autonomous_cultural_agency_study",
+]

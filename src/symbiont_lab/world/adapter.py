@@ -4,43 +4,40 @@ Historical single-organism adapters remain for frozen studies. The canonical
 persistent World uses the experimental-clean population path: mixed opaque
 physical receptors, opaque motor actuation and no typed local behavior priors.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import math
+import random
 import time
-from dataclasses import dataclass, replace
-from importlib import resources
+from dataclasses import dataclass
 from typing import Any
 
-import random
-
-from symbiont.genetics.genome import Genome
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
-from symbiont.cognition.birth import load_base_genome
-from symbiont.actuation.constitution import ActuatorConstitution
-from symbiont.actuation.surface import derive_actuator_constitution
-from symbiont.cognition.limits import KernelLimits
-from symbiont.actuation.types import Actuation
 from symbiont.core.ecology import SharedHabitat
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import PhysiologyController, VitalState
-from symbiont.core.signal_identity import SignalIdentity
+
+from symbiont.actuation.constitution import ActuatorConstitution
+from symbiont.actuation.surface import derive_actuator_constitution
+from symbiont.actuation.types import Actuation
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
+from symbiont.genetics.genome import Genome
 from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 from symbiont.modeling.runtime import ModeledOrganismRuntime
-
-from .deferred import DeferredEffect, DeferredEffectQueue
-
 from symbiont_world.contracts import WorldAction, WorldObservation
 from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.observation import local_observation, opaque_signal_id
 from symbiont_world.rng import derive_world_rng, derive_world_seed
 from symbiont_world.state import WorldState
 from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology
+
+from .deferred import DeferredEffect, DeferredEffectQueue
 
 _HAZARD_DAMAGE_QUANTUM = 0.05
 _OCCUPANCY_SIGNAL = opaque_signal_id("local-occupancy-density")
@@ -54,15 +51,12 @@ _LOCAL_DISTURBANCE_SIGNAL = opaque_signal_id("local-disturbance")
 # Canonical clean-world sensory body. These IDs are organism-facing, but their
 # apparatus meanings are not. Individual World variables never cross the
 # boundary one-to-one.
-_PHYSICAL_RECEPTOR_IDS = tuple(
-    opaque_signal_id(f"physical-receptor-{index}") for index in range(8)
-)
+_PHYSICAL_RECEPTOR_IDS = tuple(opaque_signal_id(f"physical-receptor-{index}") for index in range(8))
 
 
 def physical_receptor_ids(identity_salt: str) -> tuple[str, ...]:
     return tuple(
-        opaque_signal_id(f"physical-receptor:{identity_salt}:{index}")
-        for index in range(8)
+        opaque_signal_id(f"physical-receptor:{identity_salt}:{index}") for index in range(8)
     )
 
 
@@ -230,34 +224,38 @@ def physical_receptor_signals(
     material_fractions: list[float] = []
     for resource_id, law in sorted(ground_truth.resources.items()):
         amount = max(0.0, float(observation.signals.get(resource_id, 0.0)))
-        material_fractions.append(
-            min(1.0, amount / max(float(law.capacity), 1e-12))
-        )
+        material_fractions.append(min(1.0, amount / max(float(law.capacity), 1e-12)))
     if material_fractions:
         # Composition identity is deliberately unavailable. Until World gives
         # materials genuine physical properties, clean receptors perceive only
         # aggregate local material abundance.
-        sources.append((
-            "material:aggregate",
-            sum(material_fractions) / len(material_fractions),
-        ))
+        sources.append(
+            (
+                "material:aggregate",
+                sum(material_fractions) / len(material_fractions),
+            )
+        )
 
     if geography is not None and cell is not None:
-        sources.extend((
-            ("substrate:surface", max(0.0, min(1.0, float(geography.surface_water(cell))))),
-            ("substrate:residual", max(0.0, min(1.0, float(geography.detritus(cell))))),
-            ("substrate:change", max(0.0, min(1.0, float(geography.disturbance(cell))))),
-        ))
+        sources.extend(
+            (
+                ("substrate:surface", max(0.0, min(1.0, float(geography.surface_water(cell))))),
+                ("substrate:residual", max(0.0, min(1.0, float(geography.detritus(cell))))),
+                ("substrate:change", max(0.0, min(1.0, float(geography.disturbance(cell))))),
+            )
+        )
 
     if observation.reception:
         strongest = max(observation.reception, key=lambda item: (item.intensity, item.sequence))
-        sources.extend((
-            ("reception:amplitude", max(0.0, min(1.0, float(strongest.intensity)))),
+        sources.extend(
             (
-                "reception:waveform",
-                float(strongest.sequence[0]) / 255.0 if strongest.sequence else 0.0,
-            ),
-        ))
+                ("reception:amplitude", max(0.0, min(1.0, float(strongest.intensity)))),
+                (
+                    "reception:waveform",
+                    float(strongest.sequence[0]) / 255.0 if strongest.sequence else 0.0,
+                ),
+            )
+        )
 
     if somatic_state:
         for source_id, value in sorted(somatic_state.items()):
@@ -271,10 +269,13 @@ def physical_receptor_signals(
     scale = math.sqrt(float(len(sources)))
     mixed: dict[str, float] = {}
     for receptor_index, receptor_id in enumerate(active_receptors):
-        activation = sum(
-            _mix_weight(receptor_index, source_id) * (2.0 * value - 1.0)
-            for source_id, value in sources
-        ) / scale
+        activation = (
+            sum(
+                _mix_weight(receptor_index, source_id) * (2.0 * value - 1.0)
+                for source_id, value in sources
+            )
+            / scale
+        )
         mixed[receptor_id] = max(0.0, min(1.0, 0.5 + 0.5 * math.tanh(activation)))
     return mixed
 
@@ -340,7 +341,9 @@ class ActuationBindingConstitution:
         ids = [item.actuator_id for item in self.bindings]
         if len(ids) != len(set(ids)):
             raise ValueError("actuation binding actuator ids must be unique")
-        if any(item.effect not in {"move", "interact", "acquire", "emit"} for item in self.bindings):
+        if any(
+            item.effect not in {"move", "interact", "acquire", "emit"} for item in self.bindings
+        ):
             raise ValueError("unsupported actuation binding effect")
         for item in self.bindings:
             if item.effect == "move":
@@ -363,7 +366,12 @@ class ActuationBindingConstitution:
     @property
     def fingerprint(self) -> str:
         payload = [
-            {"actuator_id": item.actuator_id, "effect": item.effect, "argument": item.argument, "minimum_activation": item.minimum_activation}
+            {
+                "actuator_id": item.actuator_id,
+                "effect": item.effect,
+                "argument": item.argument,
+                "minimum_activation": item.minimum_activation,
+            }
             for item in sorted(self.bindings, key=lambda value: value.actuator_id)
         ]
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -511,15 +519,18 @@ def _construct_organism(
     )
 
     if experimental_clean:
-        from symbiont.core.symbiont import Symbiont
         from symbiont.core.body import create_standard_body
-        from symbiont.core.embodiment import implant_body
         from symbiont.core.individual import Individual
+        from symbiont.core.symbiont import Symbiont
+
+        from symbiont.core.embodiment import implant_body
         from symbiont.genetics.germline import GermlineState
 
         num_rec = len(receptor_ids) if receptor_ids else 8
         num_eff = 8
-        body = create_standard_body(f"body:{organism_id}", num_receptors=num_rec, num_effectors=num_eff)
+        body = create_standard_body(
+            f"body:{organism_id}", num_receptors=num_rec, num_effectors=num_eff
+        )
         sym_genome = _load_base_genome()
         germline = GermlineState.from_genome(sym_genome)
         sym_seed = derive_world_seed(world_seed, f"symbiont.cognitive:{organism_id}")
@@ -627,8 +638,7 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
     if rig.experimental_clean:
         if rig.individual is not None:
             has_act = bool(
-                rig.individual.history
-                and rig.individual.history[-1].physical_consequences
+                rig.individual.history and rig.individual.history[-1].physical_consequences
             )
             return ActionExecutionResult(
                 action_id="opaque_motor",
@@ -652,7 +662,9 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
     intake_habitats = (
         tuple(rig.resource_habitats.items())
         if rig.resource_habitats
-        else ((None, rig.runtime._habitat),) if rig.runtime._habitat is not None else ()
+        else ((None, rig.runtime._habitat),)
+        if rig.runtime._habitat is not None
+        else ()
     )
     # Bounded reserve capacity means only the first successful draw each
     # tick actually accepts anything; rotate which habitat goes first so
@@ -711,7 +723,9 @@ class SingleOrganismGenesisRuntime:
         self.state = WorldState(world_id=world_id)
         if not self.state.occupancy.occupy(start_cell, organism_id):
             raise ValueError("start_cell already occupied")
-        self.state.bodies[organism_id] = BodyPlacement(organism_id=organism_id, occupied_cell=start_cell)
+        self.state.bodies[organism_id] = BodyPlacement(
+            organism_id=organism_id, occupied_cell=start_cell
+        )
 
         self._rig = _construct_organism(
             organism_id=organism_id,
@@ -759,7 +773,12 @@ class SingleOrganismGenesisRuntime:
             for resource_id, habitat in self._resource_habitats.items():
                 habitat.set_environment_resources(pre_pool.get(resource_id, 0.0))
 
-            observation = local_observation(self.topology, self.state.occupancy, self.state.bodies[self.organism_id], self.environment)
+            observation = local_observation(
+                self.topology,
+                self.state.occupancy,
+                self.state.bodies[self.organism_id],
+                self.environment,
+            )
             self._reading_provider.set_observation(observation)
 
             self.runtime.tick()
@@ -771,15 +790,19 @@ class SingleOrganismGenesisRuntime:
                     self.environment.acquire(cell, resource_id, consumed)
                     delay = self._deferred_resource_delays.get(resource_id)
                     if delay is not None:
-                        self._deferred_queue.schedule(DeferredEffect(
-                            organism_id=self.organism_id,
-                            due_tick=current_tick + delay,
-                            amount=self._deferred_damage_amount,
-                        ))
+                        self._deferred_queue.schedule(
+                            DeferredEffect(
+                                organism_id=self.organism_id,
+                                due_tick=current_tick + delay,
+                                amount=self._deferred_damage_amount,
+                            )
+                        )
 
             density = observation.signals.get(_OCCUPANCY_SIGNAL, 0.0)
             if self.is_alive():
-                for hazard_id, exposure in self.environment.hazard_exposures_at(cell, density).items():
+                for hazard_id, exposure in self.environment.hazard_exposures_at(
+                    cell, density
+                ).items():
                     rng = derive_world_rng(self.world_seed, f"hazard.{hazard_id}:{current_tick}")
                     if rng.random() < exposure:
                         self.runtime.apply_environmental_damage(_HAZARD_DAMAGE_QUANTUM)

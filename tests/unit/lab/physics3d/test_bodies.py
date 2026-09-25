@@ -19,7 +19,6 @@ def test_body_registry_rejects_unknown_body_kind() -> None:
         DEFAULT_BODY_REGISTRY.get("unknown-body")
 
 
-
 def test_default_registry_exposes_three_distinct_morphologies() -> None:
     bodies = {item.body_kind: item for item in DEFAULT_BODY_REGISTRY.list()}
     assert set(bodies) == {
@@ -56,7 +55,6 @@ def test_alternative_body_contracts_remain_opaque_ordinals() -> None:
             f"eff.{i}" for i in range(descriptor.effector_count)
         )
         assert len(descriptor.interoceptive_receptor_ids) == 4
-
 
 
 def test_body_catalog_exposes_observer_only_presentation_models() -> None:

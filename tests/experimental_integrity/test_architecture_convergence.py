@@ -34,10 +34,6 @@ def test_runtime_and_core_cognition_use_canonical_genome_type() -> None:
     )
     for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        imports = [
-            node.module or ""
-            for node in ast.walk(tree)
-            if isinstance(node, ast.ImportFrom)
-        ]
+        imports = [node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
         assert not any(module.endswith("cognition.genome") for module in imports)
         assert "SymbiontGenome" not in path.read_text(encoding="utf-8")

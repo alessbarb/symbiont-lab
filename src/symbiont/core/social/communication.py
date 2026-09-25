@@ -1,9 +1,10 @@
 """Consent-bound in-memory communication channel (v0.75)."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import hmac
+from dataclasses import dataclass
 
 from .exchange import ExchangeEnvelope
 
@@ -43,13 +44,21 @@ class ConsentBoundChannel:
         encoded = envelope.encode()
         body = self.habitat_id.encode() + b"\0" + recipient.encode() + b"\0" + encoded
         signature = hmac.new(self._key, body, hashlib.sha256).hexdigest()
-        return SignedMessage(envelope.sender, recipient, envelope.sequence, envelope.payload, signature)
+        return SignedMessage(
+            envelope.sender, recipient, envelope.sequence, envelope.payload, signature
+        )
 
     def verify(self, message: SignedMessage) -> bool:
         if self._revoked or (message.sender, message.recipient) not in self._consent:
             return False
         envelope = ExchangeEnvelope(message.sender, message.sequence, message.payload)
-        body = self.habitat_id.encode() + b"\0" + message.recipient.encode() + b"\0" + envelope.encode()
+        body = (
+            self.habitat_id.encode()
+            + b"\0"
+            + message.recipient.encode()
+            + b"\0"
+            + envelope.encode()
+        )
         expected = hmac.new(self._key, body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, message.signature)
 

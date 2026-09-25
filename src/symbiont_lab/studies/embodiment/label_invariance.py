@@ -9,15 +9,17 @@ Two levels are tested:
 Any divergence at level 2 identifies apparatus identity leaking into physical
 trajectory rather than a cognitive effect.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
 from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
-from symbiont.core.embodiment import implant_body
 from symbiont.core.individual import Individual
 from symbiont.core.symbiont import Symbiont
+
+from symbiont.core.embodiment import implant_body
 from symbiont_lab.world.population import PopulationGenesisRuntime
 from symbiont_world.genesis import GroundTruth
 from symbiont_world.laws import HazardLaw, ResourceLaw
@@ -259,7 +261,7 @@ def _run_seed(seed: int, *, steps: int) -> LabelInvarianceSeedResult:
 
 def run_label_invariance_study(
     *,
-    seeds: Sequence[int] = (101,127,149,173,211,257,307,353,401,457),
+    seeds: Sequence[int] = (101, 127, 149, 173, 211, 257, 307, 353, 401, 457),
     steps: int = 300,
 ) -> LabelInvarianceStudy:
     normalized = _normalize_seeds(seeds)

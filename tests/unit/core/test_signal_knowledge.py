@@ -1,5 +1,4 @@
 import pytest
-
 from symbiont.core.signal_identity import SignalIdentity, claim_id
 from symbiont.core.signal_knowledge import SignalKnowledgeEngine
 from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
@@ -69,7 +68,13 @@ def test_lead_prediction_requires_long_validation_and_uses_preissued_target():
     for tick in range(1, 194):
         # A ramp makes the bounded delta predictor beat persistence without
         # exposing any evaluator label or future target to the engine.
-        engine.observe(SignalObservationBatch(tick, (obs(identity, "a", value=float(tick)), obs(identity, "b", value=float(2 * tick)))), candidate_pairs=((a, b),))
+        engine.observe(
+            SignalObservationBatch(
+                tick,
+                (obs(identity, "a", value=float(tick)), obs(identity, "b", value=float(2 * tick))),
+            ),
+            candidate_pairs=((a, b),),
+        )
     claim = next(c for p in engine.view() for c in p["claims"] if c["kind"] == "lead_prediction")
     assert claim["validation_opportunities"] >= 143
     assert claim["status"] == "supported"
@@ -80,7 +85,11 @@ def test_gap_censors_predictive_trial_instead_of_using_a_stale_target():
     a, b = identity.signal_id("a"), identity.signal_id("b")
     engine = SignalKnowledgeEngine()
     for tick in range(1, 5):
-        values = (obs(identity, "a", value=float(tick)),) if tick == 3 else (obs(identity, "a", value=float(tick)), obs(identity, "b", value=float(tick)))
+        values = (
+            (obs(identity, "a", value=float(tick)),)
+            if tick == 3
+            else (obs(identity, "a", value=float(tick)), obs(identity, "b", value=float(tick)))
+        )
         engine.observe(SignalObservationBatch(tick, values), candidate_pairs=((a, b),))
     claim = next(c for p in engine.view() for c in p["claims"] if c["kind"] == "lead_prediction")
     assert claim["validation_opportunities"] == 1

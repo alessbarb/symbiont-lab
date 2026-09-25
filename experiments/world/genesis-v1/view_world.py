@@ -3,6 +3,7 @@ read-only world view (docs/design/symbiont-world-v2.md §8). All logic lives
 in symbiont_lab.world.cli_view.render_world (a pure function); this script
 only calls it and prints.
 """
+
 from __future__ import annotations
 
 import sys
@@ -32,7 +33,11 @@ def main() -> None:
         start_cells=cells,
     )
     population.run(TICKS)
-    print(render_world(population.state, population.environment, ground_truth, GENESIS_V1_METADATA, topology))
+    print(
+        render_world(
+            population.state, population.environment, ground_truth, GENESIS_V1_METADATA, topology
+        )
+    )
 
 
 if __name__ == "__main__":

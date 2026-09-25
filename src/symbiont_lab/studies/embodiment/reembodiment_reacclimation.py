@@ -3,12 +3,12 @@
 This module is evaluator-only. It consumes checkpoints captured during real
 embodiment runs and never feeds targets, labels or priors back into Symbiont.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from typing import Any, Mapping, Sequence
-
 
 _CAUSAL_THRESHOLD = 0.45
 _CONTROLLABILITY_THRESHOLD = 0.35
@@ -116,21 +116,13 @@ def observation_from_checkpoint(
 
     actuation = _mapping(payload.get("actuation"))
     action_domain = _mapping(actuation.get("action_domain"))
-    competence_development = _mapping(
-        action_domain.get("competence_development")
-    )
-    historical = _items(
-        competence_development.get("historical_candidates")
-    )
+    competence_development = _mapping(action_domain.get("competence_development"))
+    historical = _items(competence_development.get("historical_candidates"))
 
     bindings = _mapping(episode.get("execution_bindings"))
     if not bindings:
-        sensorimotor_v2 = _mapping(
-            action_domain.get("sensorimotor_v2")
-        )
-        bindings = _mapping(
-            sensorimotor_v2.get("execution_bindings")
-        )
+        sensorimotor_v2 = _mapping(action_domain.get("sensorimotor_v2"))
+        bindings = _mapping(sensorimotor_v2.get("execution_bindings"))
     binding_items = _items(bindings.get("items"))
 
     causal = _mapping(episode.get("causal_evidence"))
@@ -141,16 +133,14 @@ def observation_from_checkpoint(
         sorted(
             str(item["primitive_id"])
             for item in historical
-            if isinstance(item.get("primitive_id"), str)
-            and item.get("primitive_id")
+            if isinstance(item.get("primitive_id"), str) and item.get("primitive_id")
         )
     )
     binding_ids = tuple(
         sorted(
             str(item["competence_id"])
             for item in binding_items
-            if isinstance(item.get("competence_id"), str)
-            and item.get("competence_id")
+            if isinstance(item.get("competence_id"), str) and item.get("competence_id")
         )
     )
 
@@ -158,25 +148,13 @@ def observation_from_checkpoint(
         embodiment_id=str(episode.get("embodiment_id") or ""),
         body_id=str(episode.get("body_id") or ""),
         embodiment_tick=int(episode.get("embodiment_tick") or 0),
-        contract_fingerprint=str(
-            contract.get("contract_fingerprint") or ""
-        ),
+        contract_fingerprint=str(contract.get("contract_fingerprint") or ""),
         prior_relation=str(prior.get("relation") or "novel"),
-        prior_authority=str(
-            prior.get("authority") or "hypothesis_only"
-        ),
-        prediction_shock=float(
-            adaptation.get("prediction_shock") or 0.0
-        ),
-        schema_uncertainty=float(
-            adaptation.get("schema_uncertainty", 1.0)
-        ),
-        causal_confidence=float(
-            adaptation.get("causal_confidence") or 0.0
-        ),
-        controllability_confidence=float(
-            adaptation.get("controllability_confidence") or 0.0
-        ),
+        prior_authority=str(prior.get("authority") or "hypothesis_only"),
+        prediction_shock=float(adaptation.get("prediction_shock") or 0.0),
+        schema_uncertainty=float(adaptation.get("schema_uncertainty", 1.0)),
+        causal_confidence=float(adaptation.get("causal_confidence") or 0.0),
+        controllability_confidence=float(adaptation.get("controllability_confidence") or 0.0),
         recovery_tick=(
             int(adaptation["recovery_tick"])
             if adaptation.get("recovery_tick") is not None
@@ -233,24 +211,15 @@ def analyze_observation_epoch(
         ),
         first_controllability_tick=_first_tick(
             trace,
-            lambda point: (
-                point.controllability_confidence
-                >= _CONTROLLABILITY_THRESHOLD
-            ),
+            lambda point: point.controllability_confidence >= _CONTROLLABILITY_THRESHOLD,
         ),
         first_low_uncertainty_tick=_first_tick(
             trace,
-            lambda point: (
-                point.schema_uncertainty
-                <= _SCHEMA_UNCERTAINTY_THRESHOLD
-            ),
+            lambda point: point.schema_uncertainty <= _SCHEMA_UNCERTAINTY_THRESHOLD,
         ),
         first_low_prediction_shock_tick=_first_tick(
             trace,
-            lambda point: (
-                point.prediction_shock
-                <= _PREDICTION_SHOCK_THRESHOLD
-            ),
+            lambda point: point.prediction_shock <= _PREDICTION_SHOCK_THRESHOLD,
         ),
         first_binding_tick=_first_tick(
             trace,
@@ -258,18 +227,10 @@ def analyze_observation_epoch(
         ),
         first_prior_revalidation_tick=_first_tick(
             trace,
-            lambda point: bool(
-                historical.intersection(
-                    point.executable_binding_ids
-                )
-            ),
+            lambda point: bool(historical.intersection(point.executable_binding_ids)),
         ),
         recovery_tick=next(
-            (
-                point.recovery_tick
-                for point in trace
-                if point.recovery_tick is not None
-            ),
+            (point.recovery_tick for point in trace if point.recovery_tick is not None),
             None,
         ),
         final_executable_count=final.executable_count,
@@ -306,13 +267,8 @@ def analyze_reembodiment_observations(
         a1.contract_fingerprint == a2.contract_fingerprint
         and b.contract_fingerprint != a1.contract_fingerprint
     )
-    clean_a2_start = (
-        a2.prior_relation == "same-contract"
-        and a2.start_executable_count == 0
-    )
-    historical_hypotheses_present = (
-        a2.start_historical_candidate_count > 0
-    )
+    clean_a2_start = a2.prior_relation == "same-contract" and a2.start_executable_count == 0
+    historical_hypotheses_present = a2.start_historical_candidate_count > 0
 
     comparisons = {
         "causal_confidence": (
@@ -337,17 +293,11 @@ def analyze_reembodiment_observations(
         ),
     }
     faster_dimensions = tuple(
-        name
-        for name, (first, second) in comparisons.items()
-        if _faster(first, second)
+        name for name, (first, second) in comparisons.items() if _faster(first, second)
     )
 
-    a2_has_instant_authority = (
-        a2.start_executable_count > 0
-        or (
-            a2.first_binding_tick is not None
-            and a2.first_binding_tick <= 0
-        )
+    a2_has_instant_authority = a2.start_executable_count > 0 or (
+        a2.first_binding_tick is not None and a2.first_binding_tick <= 0
     )
     if a2_has_instant_authority:
         verdict = ReacclimationVerdict.CONTAMINATED_RESTORE
@@ -393,15 +343,9 @@ def analyze_reembodiment_reacclimation(
     a2_trace: Sequence[Mapping[str, Any]],
 ) -> ReembodimentReacclimationStudy:
     return analyze_reembodiment_observations(
-        a1_trace=tuple(
-            observation_from_checkpoint(item) for item in a1_trace
-        ),
-        b_trace=tuple(
-            observation_from_checkpoint(item) for item in b_trace
-        ),
-        a2_trace=tuple(
-            observation_from_checkpoint(item) for item in a2_trace
-        ),
+        a1_trace=tuple(observation_from_checkpoint(item) for item in a1_trace),
+        b_trace=tuple(observation_from_checkpoint(item) for item in b_trace),
+        a2_trace=tuple(observation_from_checkpoint(item) for item in a2_trace),
     )
 
 

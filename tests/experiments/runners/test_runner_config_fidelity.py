@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from symbiont_lab.experiments.spec import spec_from_payload
 from symbiont_lab.experiments.runner import ExperimentRunner
+from symbiont_lab.experiments.spec import spec_from_payload
 
 
 def test_generic_fallback_protocol_uses_declared_seeds_not_defaults(tmp_path: Path) -> None:

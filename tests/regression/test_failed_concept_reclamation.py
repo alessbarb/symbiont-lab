@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
+
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
 
 
 def test_failed_concept_bundle_is_pruned_then_garbage_collected() -> None:

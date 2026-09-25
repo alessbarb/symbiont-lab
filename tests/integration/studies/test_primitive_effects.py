@@ -45,16 +45,18 @@ def test_assay_recovers_recurrent_body_frame_translation(tmp_path):
     for tick in range(13):
         episodes = []
         if tick in (4, 12):
-            episodes = [{
-                "primitive_id": "primitive.example",
-                "start_tick": tick - 4,
-                "end_tick": tick,
-                "source": "natural",
-                "evidence_blocks": [0 if tick == 4 else 1],
-                "sample_index": 1 if tick == 4 else 2,
-                "materialized": tick == 12,
-                "competence": False,
-            }]
+            episodes = [
+                {
+                    "primitive_id": "primitive.example",
+                    "start_tick": tick - 4,
+                    "end_tick": tick,
+                    "source": "natural",
+                    "evidence_blocks": [0 if tick == 4 else 1],
+                    "sample_index": 1 if tick == 4 else 2,
+                    "materialized": tick == 12,
+                    "competence": False,
+                }
+            ]
         x = 0.01 * tick
         rich = {
             "schema_version": 3,
@@ -120,16 +122,18 @@ def test_assay_separates_within_state_from_between_state_effect_variation(tmp_pa
             last = states[tick]
         episodes = []
         if tick in (4, 8, 12):
-            episodes = [{
-                "primitive_id": "primitive.conditioned",
-                "start_tick": tick - 4,
-                "end_tick": tick,
-                "source": "natural",
-                "evidence_blocks": [tick // 4 - 1],
-                "sample_index": tick // 4,
-                "materialized": tick >= 8,
-                "competence": False,
-            }]
+            episodes = [
+                {
+                    "primitive_id": "primitive.conditioned",
+                    "start_tick": tick - 4,
+                    "end_tick": tick,
+                    "source": "natural",
+                    "evidence_blocks": [tick // 4 - 1],
+                    "sample_index": tick // 4,
+                    "materialized": tick >= 8,
+                    "competence": False,
+                }
+            ]
         writer.append(
             {"tick": tick, "metabolic_work_cost": 0.0},
             rich_state={
@@ -163,10 +167,7 @@ def test_assay_separates_within_state_from_between_state_effect_variation(tmp_pa
     assert report.noncomparable_state_pairs == 2
     assert report.within_state_translation_delta_mean is not None
     assert report.between_state_translation_delta_mean is not None
-    assert (
-        report.within_state_translation_delta_mean
-        < report.between_state_translation_delta_mean
-    )
+    assert report.within_state_translation_delta_mean < report.between_state_translation_delta_mean
 
 
 def test_assay_reads_v41_without_version_specific_code(tmp_path):
@@ -184,16 +185,18 @@ def test_assay_reads_v41_without_version_specific_code(tmp_path):
     for tick in range(9):
         episodes = []
         if tick in (4, 8):
-            episodes = [{
-                "primitive_id": "primitive.v41",
-                "start_tick": tick - 4,
-                "end_tick": tick,
-                "source": "natural",
-                "evidence_blocks": [tick // 4 - 1],
-                "sample_index": tick // 4,
-                "materialized": tick == 8,
-                "competence": False,
-            }]
+            episodes = [
+                {
+                    "primitive_id": "primitive.v41",
+                    "start_tick": tick - 4,
+                    "end_tick": tick,
+                    "source": "natural",
+                    "evidence_blocks": [tick // 4 - 1],
+                    "sample_index": tick // 4,
+                    "materialized": tick == 8,
+                    "competence": False,
+                }
+            ]
         writer.append(
             {"tick": tick, "metabolic_work_cost": 0.001},
             rich_state={

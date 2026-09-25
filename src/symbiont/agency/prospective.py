@@ -9,9 +9,9 @@ Separation:
     runtime executes
     sensorimotor owns motor skill
 """
+
 from __future__ import annotations
 
-import math
 from collections.abc import Callable, Collection
 
 from .policy import EvaluatedCandidate, ProspectivePolicy
@@ -55,11 +55,7 @@ class ProspectiveAgency:
             raise ValueError("outcome_value_ledger must be an OutcomeValueLedger")
         if not isinstance(policy, ProspectivePolicy):
             raise ValueError("policy must be a ProspectivePolicy")
-        if (
-            isinstance(query_budget, bool)
-            or not isinstance(query_budget, int)
-            or query_budget < 1
-        ):
+        if isinstance(query_budget, bool) or not isinstance(query_budget, int) or query_budget < 1:
             raise ValueError("query_budget must be a positive integer")
 
         self._organism_id = organism_id

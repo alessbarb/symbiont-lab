@@ -13,6 +13,7 @@ Usage:
 
 The benchmark does not mutate production defaults or organism behavior.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,12 +40,10 @@ def _build_graph(node_count: int, fan_in: int) -> tuple[CognitiveGraph, dict[str
         raise ValueError("node_count leaves no room for concepts")
 
     senses = [
-        PlasticNode(node_id=f"sense_{i:04d}", kind=NodeKind.SENSE)
-        for i in range(sense_count)
+        PlasticNode(node_id=f"sense_{i:04d}", kind=NodeKind.SENSE) for i in range(sense_count)
     ]
     concepts = [
-        PlasticNode(node_id=f"concept_{i:05d}", kind=NodeKind.CONCEPT)
-        for i in range(concept_count)
+        PlasticNode(node_id=f"concept_{i:05d}", kind=NodeKind.CONCEPT) for i in range(concept_count)
     ]
     readout = PlasticNode(node_id="readout_0000", kind=NodeKind.READOUT)
     nodes = tuple([*senses, *concepts, readout])
@@ -87,10 +86,7 @@ def _build_graph(node_count: int, fan_in: int) -> tuple[CognitiveGraph, dict[str
         max_edges=max(1024, len(edges)),
     )
     graph = CognitiveGraph(nodes=nodes, edges=tuple(edges), kernel_limits=limits)
-    inputs = {
-        sense.node_id: math.sin((i + 1) * 0.37)
-        for i, sense in enumerate(senses)
-    }
+    inputs = {sense.node_id: math.sin((i + 1) * 0.37) for i, sense in enumerate(senses)}
     return graph, inputs
 
 
@@ -145,8 +141,7 @@ def main() -> None:
     args = parser.parse_args()
 
     results = [
-        _run_case(node_count, args.fan_in, args.ticks, args.warmup)
-        for node_count in args.nodes
+        _run_case(node_count, args.fan_in, args.ticks, args.warmup) for node_count in args.nodes
     ]
     print(json.dumps(results, indent=2))
 

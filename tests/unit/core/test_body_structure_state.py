@@ -1,16 +1,14 @@
 """L5.5.1 v1 — per-structure damage (BodyStructureState)."""
+
 from __future__ import annotations
 
 import pytest
-
 from symbiont.core.physiology import BodyStructureState, LivingBodyState
 
 
 def _uniform_body(n: int = 3) -> LivingBodyState:
     return LivingBodyState(
-        structure_states={
-            f"s{i}": BodyStructureState(structure_id=f"s{i}") for i in range(n)
-        }
+        structure_states={f"s{i}": BodyStructureState(structure_id=f"s{i}") for i in range(n)}
     )
 
 
@@ -96,6 +94,7 @@ def test_apply_wear_kills_body_when_all_structures_destroyed():
 
 def test_organism_runtime_populates_structures_from_actuator_slots():
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.actuation.constitution import ActuatorConstitution, MotorSlot
 
     constitution = ActuatorConstitution(

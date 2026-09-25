@@ -21,6 +21,7 @@ case (the law itself differs) -- they say nothing about ontogenetic/social
 differentiation. Within-region disagreement would be the actual candidate
 signal W03 is looking for.
 """
+
 from __future__ import annotations
 
 import json

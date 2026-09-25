@@ -14,11 +14,16 @@ def _record(
     organism_id: str = "organism.a",
     status: EpistemicStatus = EpistemicStatus.OBSERVED,
 ) -> ExperienceRecord:
-    evidence = (f"evidence.{index}",) if status in {
-        EpistemicStatus.OBSERVED,
-        EpistemicStatus.SUPPORTED,
-        EpistemicStatus.CONTRADICTED,
-    } else ()
+    evidence = (
+        (f"evidence.{index}",)
+        if status
+        in {
+            EpistemicStatus.OBSERVED,
+            EpistemicStatus.SUPPORTED,
+            EpistemicStatus.CONTRADICTED,
+        }
+        else ()
+    )
     return ExperienceRecord(
         record_id=f"record.{index}",
         organism_id=organism_id,
@@ -80,8 +85,12 @@ def test_corpus_is_temporal_deterministic_and_has_held_out_tail():
     assert forward.manifest.train_count == 7
     assert forward.manifest.validation_count == 1
     assert forward.manifest.test_count == 2
-    assert max(record.tick_class for record in forward.train) < min(record.tick_class for record in forward.validation)
-    assert max(record.tick_class for record in forward.validation) < min(record.tick_class for record in forward.test)
+    assert max(record.tick_class for record in forward.train) < min(
+        record.tick_class for record in forward.validation
+    )
+    assert max(record.tick_class for record in forward.validation) < min(
+        record.tick_class for record in forward.test
+    )
 
 
 def test_exact_duplicate_content_does_not_gain_training_weight():
@@ -101,9 +110,13 @@ def test_exact_duplicate_content_does_not_gain_training_weight():
     corpus = build_training_corpus((original, duplicate, _record(2), _record(3), _record(4)))
 
     assert corpus.manifest.record_count == 4
-    assert sum(record.content_hash == original.content_hash for record in (
-        *corpus.train, *corpus.validation, *corpus.test
-    )) == 1
+    assert (
+        sum(
+            record.content_hash == original.content_hash
+            for record in (*corpus.train, *corpus.validation, *corpus.test)
+        )
+        == 1
+    )
 
 
 def test_speculative_and_contradicted_claims_remain_in_ledger_not_v1_training_corpus():

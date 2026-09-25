@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from symbiont.core.cognition_bridge import CognitiveBridge
+
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
 
 
 def _genome(*, interval: int = 1, lifetime: int = 2, sense_budget: int = 32):
@@ -221,7 +222,6 @@ def test_owner_authored_graph_does_not_enter_automatic_gc_or_eviction() -> None:
     }
 
 
-
 def test_retrospective_support_enters_normal_concept_birth_path() -> None:
     limits, genome = _genome(interval=1, lifetime=8)
     graph = CognitiveGraph(
@@ -244,10 +244,13 @@ def test_retrospective_support_enters_normal_concept_birth_path() -> None:
         support_epochs=2,
     )
     assert applied == 2
-    assert bridge.observe_retrospective_support(
-        ("sense_alpha", "sense_beta"),
-        support_epochs=2,
-    ) == 0
+    assert (
+        bridge.observe_retrospective_support(
+            ("sense_alpha", "sense_beta"),
+            support_epochs=2,
+        )
+        == 0
+    )
 
     bridge.tick({}, tick=1)
 
@@ -256,7 +259,6 @@ def test_retrospective_support_enters_normal_concept_birth_path() -> None:
         "sense_alpha",
         "sense_beta",
     )
-
 
 
 def test_retrospective_support_does_not_add_to_live_support() -> None:
@@ -296,7 +298,6 @@ def test_retrospective_support_does_not_add_to_live_support() -> None:
     assert len(bridge.concept_lineage) == 1
 
 
-
 def test_developmental_node_budget_expands_when_supported_structure_is_blocked() -> None:
     limits, genome = _genome(interval=1, lifetime=8, sense_budget=2)
     genome = replace(
@@ -334,10 +335,7 @@ def test_developmental_node_budget_expands_when_supported_structure_is_blocked()
 
     assert result.node_budget > 4
     assert result.node_budget <= limits.max_nodes
-    assert any(
-        node.kind is NodeKind.CONCEPT
-        for node in bridge.graph.nodes
-    )
+    assert any(node.kind is NodeKind.CONCEPT for node in bridge.graph.nodes)
 
     restored = CognitiveBridge.restore(
         bridge.export_checkpoint(),
@@ -346,7 +344,6 @@ def test_developmental_node_budget_expands_when_supported_structure_is_blocked()
     )
     assert restored is not None
     assert restored._soft_node_limit == result.node_budget
-
 
 
 def test_legacy_checkpoint_without_adaptive_budgets_restores_birth_budget() -> None:

@@ -8,10 +8,13 @@ def _channel(index):
 
 
 def _observation(*entries):
-    return {"schema_version": 1, "channels": [
-        {"channel_id": _channel(index), "activity_class": activity}
-        for index, activity in entries
-    ]}
+    return {
+        "schema_version": 1,
+        "channels": [
+            {"channel_id": _channel(index), "activity_class": activity}
+            for index, activity in entries
+        ],
+    }
 
 
 def _learn_singleton(schema, index, tick):
@@ -76,12 +79,18 @@ def test_saturated_dependency_counters_remain_revisable():
         tick += 1
     schema.observe_cognition(_observation((1, 12), (2, 12)), tick=tick)
     tick += 1
-    assert any(x["relation"] == "co_acts_with" for x in schema.export_representation(current_tick=tick)["dependencies"])
+    assert any(
+        x["relation"] == "co_acts_with"
+        for x in schema.export_representation(current_tick=tick)["dependencies"]
+    )
 
     for _ in range(300):
         schema.observe_cognition(_observation((1, 12)), tick=tick)
         tick += 1
-    assert not any(x["relation"] == "co_acts_with" for x in schema.export_representation(current_tick=tick)["dependencies"])
+    assert not any(
+        x["relation"] == "co_acts_with"
+        for x in schema.export_representation(current_tick=tick)["dependencies"]
+    )
     for item in schema.export(current_tick=tick)["cognitive_learning"]["dependency_evidence"]:
         assert 0 <= item["support_count"] <= item["opportunity_count"] <= 255
 
@@ -133,7 +142,6 @@ def test_precedence_does_not_cross_a_missing_cognitive_observation_tick():
     assert support_after_gap == support_before_gap
 
 
-
 def test_independent_coactive_groups_form_separate_cohesive_regions():
     return
     schema = BodySchemaEngine(id_salt="d" * 32)
@@ -151,8 +159,7 @@ def test_independent_coactive_groups_form_separate_cohesive_regions():
     assert frozenset((_channel(1), _channel(2))) in member_sets
     assert frozenset((_channel(3), _channel(4))) in member_sets
     assert not any(
-        {_channel(1), _channel(3)}.issubset(set(region["members"]))
-        for region in regions
+        {_channel(1), _channel(3)}.issubset(set(region["members"])) for region in regions
     )
 
 
@@ -168,12 +175,9 @@ def test_dense_clique_can_consolidate_as_one_region():
 
     regions = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
     assert any(
-        set(region["members"]) == {
-            _channel(1), _channel(2), _channel(3), _channel(4)
-        }
+        set(region["members"]) == {_channel(1), _channel(2), _channel(3), _channel(4)}
         for region in regions
     )
-
 
 
 def test_dense_incomplete_group_can_form_region_without_becoming_transitive_bridge():
@@ -193,12 +197,9 @@ def test_dense_incomplete_group_can_form_region_without_becoming_transitive_brid
 
     regions = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
     assert any(
-        set(region["members"]) == {
-            _channel(1), _channel(2), _channel(3), _channel(4)
-        }
+        set(region["members"]) == {_channel(1), _channel(2), _channel(3), _channel(4)}
         for region in regions
     )
-
 
 
 def test_initial_singletons_merge_after_later_pair_evidence_becomes_cohesive():
@@ -231,13 +232,9 @@ def test_initial_singletons_merge_after_later_pair_evidence_becomes_cohesive():
     tick += 1
 
     after = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
-    assert any(
-        set(region["members"]) == {_channel(1), _channel(2)}
-        for region in after
-    )
+    assert any(set(region["members"]) == {_channel(1), _channel(2)} for region in after)
     assert not any(region["members"] == [_channel(1)] for region in after)
     assert not any(region["members"] == [_channel(2)] for region in after)
-
 
 
 def test_structural_dirty_set_only_tracks_threshold_crossings():
@@ -303,7 +300,6 @@ def test_region_merge_filter_skips_unaffected_region_pairs():
     # The unrelated 3/4 region is left untouched by an update affecting channel 1.
     assert frozenset((_channel(3), _channel(4))) in before_members
     assert frozenset((_channel(3), _channel(4))) in after_members
-
 
 
 def test_structural_crossings_accumulate_until_next_review_tick():

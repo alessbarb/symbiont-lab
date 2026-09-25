@@ -1,4 +1,5 @@
 """Longitudinal shadow-prediction promotion gate (evaluator-only)."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -31,9 +32,14 @@ def run_prediction_promotion_study(*, trials: int = 32) -> PredictionPromotionSt
         signal.observe(previous, target, previous - 0.5)
         # The noise candidate is no better than persistence.
         noise.observe(previous - 0.5, previous, previous)
-    return PredictionPromotionStudy(signal.samples, signal.predictive_gain,
-                                    signal.promotable, noise.samples,
-                                    noise.predictive_gain, noise.promotable)
+    return PredictionPromotionStudy(
+        signal.samples,
+        signal.predictive_gain,
+        signal.promotable,
+        noise.samples,
+        noise.predictive_gain,
+        noise.promotable,
+    )
 
 
 __all__ = ["PredictionPromotionStudy", "run_prediction_promotion_study"]

@@ -58,7 +58,16 @@ def test_observatory_source_reads_topology_and_manifest_without_mutation(tmp_pat
         encoding="utf-8",
     )
     (manifests / f"{instance_id}.manifest.json").write_text(
-        json.dumps({"instance_id": instance_id, "run_id": "run-a", "organism_id": "o-1", "host_agent": "a", "platform": "linux", "run_started": "1970-01-01T00:00:00Z"}),
+        json.dumps(
+            {
+                "instance_id": instance_id,
+                "run_id": "run-a",
+                "organism_id": "o-1",
+                "host_agent": "a",
+                "platform": "linux",
+                "run_started": "1970-01-01T00:00:00Z",
+            }
+        ),
         encoding="utf-8",
     )
     (instances / f"{instance_id}.topology.json").write_text(

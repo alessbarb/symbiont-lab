@@ -32,11 +32,15 @@ class LineageArchive:
     def record(self, entry: LineageRecord) -> None:
         if entry.genome_id in self._records:
             raise ValueError(f"genome_id {entry.genome_id!r} already recorded")
-        missing_parents = [parent_id for parent_id in entry.parent_ids if parent_id not in self._records]
+        missing_parents = [
+            parent_id for parent_id in entry.parent_ids if parent_id not in self._records
+        ]
         if missing_parents:
             raise ValueError(f"parent id(s) not yet recorded: {missing_parents}")
         if self._would_create_cycle(entry.genome_id, entry.parent_ids):
-            raise ValueError(f"recording {entry.genome_id!r} with parents {entry.parent_ids} would create a cycle")
+            raise ValueError(
+                f"recording {entry.genome_id!r} with parents {entry.parent_ids} would create a cycle"
+            )
         self._records[entry.genome_id] = entry
 
     def ancestors_of(self, genome_id: str) -> tuple[LineageRecord, ...]:

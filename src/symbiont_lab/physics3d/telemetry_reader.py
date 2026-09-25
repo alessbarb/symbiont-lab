@@ -1,4 +1,5 @@
 """Version-independent Physics3D telemetry readers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -91,24 +92,20 @@ class _V3Reader:
         for state in self.iter_states(start_tick=start_tick, end_tick=end_tick):
             tick = int(state.get("tick", -1))
             candidates = {
-                "runtime.knowledge_events": (
-                    state.get("runtime", {}) or {}
-                ).get("knowledge_events", []),
-                "runtime.runtime_events": (
-                    state.get("runtime", {}) or {}
-                ).get("runtime_events", []),
-                "runtime.experience_records_created": (
-                    state.get("runtime", {}) or {}
-                ).get("experience_records_created", []),
-                "cognition.mutations": (
-                    state.get("cognition", {}) or {}
-                ).get("mutations", []),
-                "cognition.recycling_events": (
-                    state.get("cognition", {}) or {}
-                ).get("recycling_events", []),
-                "sensorimotor.episodes": (
-                    state.get("sensorimotor", {}) or {}
-                ).get("episodes", []),
+                "runtime.knowledge_events": (state.get("runtime", {}) or {}).get(
+                    "knowledge_events", []
+                ),
+                "runtime.runtime_events": (state.get("runtime", {}) or {}).get(
+                    "runtime_events", []
+                ),
+                "runtime.experience_records_created": (state.get("runtime", {}) or {}).get(
+                    "experience_records_created", []
+                ),
+                "cognition.mutations": (state.get("cognition", {}) or {}).get("mutations", []),
+                "cognition.recycling_events": (state.get("cognition", {}) or {}).get(
+                    "recycling_events", []
+                ),
+                "sensorimotor.episodes": (state.get("sensorimotor", {}) or {}).get("episodes", []),
             }
             for channel, values in candidates.items():
                 if event_type is not None and channel != event_type:
@@ -149,10 +146,9 @@ class _V4ReaderAdapter:
     def iter_records(self, *, start_tick=None, end_tick=None):
         for state, summary in zip(
             self.iter_states(start_tick=start_tick, end_tick=end_tick),
-            self.iter_summaries(start_tick=start_tick, end_tick=end_tick)
+            self.iter_summaries(start_tick=start_tick, end_tick=end_tick),
         ):
             yield state, summary
-
 
     def iter_summaries(self, *, start_tick=None, end_tick=None):
         yield from self._reader.iter_summaries(
@@ -186,13 +182,9 @@ class _LogicalEventProjection:
             candidates = {
                 "runtime.knowledge_events": runtime.get("knowledge_events", []),
                 "runtime.runtime_events": runtime.get("runtime_events", []),
-                "runtime.experience_records_created": runtime.get(
-                    "experience_records_created", []
-                ),
+                "runtime.experience_records_created": runtime.get("experience_records_created", []),
                 "cognition.mutations": cognition.get("mutations", []),
-                "cognition.recycling_events": cognition.get(
-                    "recycling_events", []
-                ),
+                "cognition.recycling_events": cognition.get("recycling_events", []),
                 "sensorimotor.episodes": sensorimotor.get("episodes", []),
             }
             for channel, values in candidates.items():
@@ -233,10 +225,7 @@ def detect_telemetry_run(path: str | Path) -> tuple[str, Path]:
                 child
                 for child in target.iterdir()
                 if child.is_dir()
-                and (
-                    (child / "transitions.ndjson").is_file()
-                    or (child / "ticks.ndjson").is_file()
-                )
+                and ((child / "transitions.ndjson").is_file() or (child / "ticks.ndjson").is_file())
             ),
             reverse=True,
         )

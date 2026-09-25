@@ -89,8 +89,7 @@ class StructuralContention:
             )
             return True
         if any(
-            candidate.producer_id == resolved_producer
-            for candidate in self.candidates.values()
+            candidate.producer_id == resolved_producer for candidate in self.candidates.values()
         ):
             return False
         if len(self.candidates) >= self._kernel_limits.max_consolidation_candidates:
@@ -112,9 +111,9 @@ class StructuralContention:
         return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
 
     def candidate_tiebreak(self, candidate_id: str) -> int:
-        material = (
-            f"{self._identity}|{self.consolidation_generation}|{candidate_id}"
-        ).encode("utf-8")
+        material = (f"{self._identity}|{self.consolidation_generation}|{candidate_id}").encode(
+            "utf-8"
+        )
         return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
 
     def select(

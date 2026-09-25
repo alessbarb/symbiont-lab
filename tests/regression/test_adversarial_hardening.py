@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
+from symbiont.core.cognition_bridge import CognitiveBridge
+from symbiont.core.evidence import EvidenceRevisionLedger
+from symbiont.core.runtime import OrganismRuntime
 
 from symbiont.cognition.checkpoint import (
     export_graph_checkpoint,
@@ -15,20 +18,21 @@ from symbiont.cognition.graph import CognitiveGraph, GraphError, PlasticEdge, Pl
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import Mutation, apply_mutations, validate_mutation
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
-from symbiont.core.evidence import EvidenceRevisionLedger
-from symbiont.core.runtime import OrganismRuntime
 from symbiont.host.checkpoint import CheckpointError
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def _genome():
-    payload = json.loads((ROOT / "examples" / "cognition" / "genome.json").read_text(encoding="utf-8"))
+    payload = json.loads(
+        (ROOT / "examples" / "cognition" / "genome.json").read_text(encoding="utf-8")
+    )
     return GenomeCodec().load(payload)
 
 
-def _edge(source: str, target: str, *, plasticity: float = 0.5, delay_ticks: int = 1) -> PlasticEdge:
+def _edge(
+    source: str, target: str, *, plasticity: float = 0.5, delay_ticks: int = 1
+) -> PlasticEdge:
     return PlasticEdge(
         source_id=source,
         target_id=target,
@@ -157,7 +161,9 @@ def test_bridge_topology_revision_survives_checkpoint_roundtrip() -> None:
     genome = _genome()
     bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=KernelLimits())
     bridge._topology_revision = 7
-    restored = CognitiveBridge.restore(bridge.export_checkpoint(), genome=genome, kernel_limits=KernelLimits())
+    restored = CognitiveBridge.restore(
+        bridge.export_checkpoint(), genome=genome, kernel_limits=KernelLimits()
+    )
     assert restored is not None
     assert restored.topology_revision == 7
 
@@ -167,7 +173,9 @@ def test_dissent_aggregate_memory_survives_checkpoint_without_numeric_evidence()
     ledger._conflict_counts["sense-a"] = 3
     payload = ledger.export_checkpoint()
     assert payload == {"conflict_counts": [{"capability_id": "sense-a", "count": 3}]}
-    restored = EvidenceRevisionLedger.restore_checkpoint(payload, allowed_capability_ids={"sense-a"})
+    restored = EvidenceRevisionLedger.restore_checkpoint(
+        payload, allowed_capability_ids={"sense-a"}
+    )
     assert restored.conflict_counts == {"sense-a": 3}
     assert restored.dissent_history == ()
 

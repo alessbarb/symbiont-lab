@@ -1,4 +1,5 @@
 """Unit tests for ProspectiveAgency orchestrator."""
+
 from __future__ import annotations
 
 import pytest
@@ -7,7 +8,6 @@ from symbiont.agency.policy import ProspectivePolicy
 from symbiont.agency.prospective import ProspectiveAgency
 from symbiont.agency.types import (
     CounterfactualPrediction,
-    OutcomeValueEstimate,
     ProspectiveCandidate,
 )
 from symbiont.agency.value import OutcomeValueLedger

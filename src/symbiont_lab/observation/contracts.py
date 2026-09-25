@@ -4,6 +4,7 @@ Nothing in this module is consumed by the organism runtime. These structures
 exist solely to make the boundary between scientific evidence and UI projection
 explicit and testable.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

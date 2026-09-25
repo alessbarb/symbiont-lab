@@ -15,6 +15,7 @@ Usage:
     python scripts/profile_cognitive_hotpath.py --ticks 1000 --top 50 --output /tmp/cognition.prof
     python scripts/profile_cognitive_hotpath.py --synthetic
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,11 +23,12 @@ import cProfile
 import io
 import pstats
 
+from symbiont.core.physiology import LivingBodyState
+from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.physiology import LivingBodyState
-from symbiont.core.runtime import OrganismRuntime
 
 
 def make_organism(*, synthetic: bool) -> OrganismRuntime:

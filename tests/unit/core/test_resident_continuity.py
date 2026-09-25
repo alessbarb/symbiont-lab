@@ -3,20 +3,19 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from symbiont.core.cognition_bridge import CognitiveBridge
+from symbiont.core.runtime import OrganismRuntime
 
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import StructuralPlasticity
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
-from symbiont.core.runtime import OrganismRuntime
 from symbiont.host.adaptive import AdaptiveSenseModel
 from symbiont.host.checkpoint import normalize_checkpoint
 from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
 from symbiont.host.lifecycle import LifecycleSnapshot
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
-
 
 _GENOME_PAYLOAD = {
     "schema_version": 1,

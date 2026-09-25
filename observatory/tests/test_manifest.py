@@ -1,17 +1,17 @@
 import json
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
+
+from symbiont.core.runtime import OrganismRuntime
 
 from observatory.manifest import (
-    CaptureManifest,
     create_capture_manifest,
     verify_capture_manifest,
     write_capture_manifest,
 )
-from observatory.registry import write_heartbeat, read_registry
+from observatory.registry import read_registry, write_heartbeat
 from observatory.schema_validate import validate
-from symbiont.core.runtime import OrganismRuntime
 
 
 class ManifestTests(unittest.TestCase):
@@ -98,9 +98,13 @@ class ManifestTests(unittest.TestCase):
             write_capture_manifest(manifest_path, manifest)
 
             # Mutate checkpoint (simulating uncoordinated subsequent write or in-flight copy)
-            ckpt_path.write_text('{"tick": 43, "organism_id": "org_123", "mutated": true}', encoding="utf-8")
+            ckpt_path.write_text(
+                '{"tick": 43, "organism_id": "org_123", "mutated": true}', encoding="utf-8"
+            )
 
-            valid, errors = verify_capture_manifest(manifest_path, base_dir=base_dir, topology_path=topo_path)
+            valid, errors = verify_capture_manifest(
+                manifest_path, base_dir=base_dir, topology_path=topo_path
+            )
             self.assertFalse(valid)
             self.assertTrue(any("Checkpoint SHA256 mismatch" in err for err in errors))
 
@@ -161,8 +165,14 @@ class ManifestTests(unittest.TestCase):
             self.assertEqual(records[0]["organism_id"], "org_persistent_abc")
 
             # Validate against instance.schema.json
-            payload = json.loads((observatory_dir / "instances" / f"{'b' * 16}.json").read_text(encoding="utf-8"))
-            schema = json.loads((Path(__file__).resolve().parent.parent / "instance.schema.json").read_text(encoding="utf-8"))
+            payload = json.loads(
+                (observatory_dir / "instances" / f"{'b' * 16}.json").read_text(encoding="utf-8")
+            )
+            schema = json.loads(
+                (Path(__file__).resolve().parent.parent / "instance.schema.json").read_text(
+                    encoding="utf-8"
+                )
+            )
             validate(payload, schema)
 
     def test_runtime_organism_id_and_effective_configuration_provenance(self):

@@ -9,6 +9,7 @@ Not persisted:
 
 Schema version is checked strictly; unknown versions fail closed.
 """
+
 from __future__ import annotations
 
 PROSPECTIVE_AGENCY_SCHEMA_VERSION = 1

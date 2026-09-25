@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import dataclasses
 
-import pytest
-
 from symbiont.core.capsule import (
     CAPSULE_SCHEMA_VERSION,
     CapsuleKeyPair,

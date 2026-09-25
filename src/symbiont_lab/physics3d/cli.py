@@ -1,4 +1,5 @@
 """Command-line adapter for the canonical Physics3D execution engine."""
+
 from __future__ import annotations
 
 import argparse
@@ -6,20 +7,15 @@ import sys
 from pathlib import Path
 
 from symbiont_lab.app.physics3d_monitor import _viewer_main
+
 from .engine import (
     DEFAULT_BODY_FILE,
-    DEFAULT_STATE_DIR,
     DEFAULT_SYMBIONT_FILE,
     DEFAULT_TELEMETRY_FILE,
-    LEGACY_RUNTIME_FILE,
-    LEGACY_SYMBIONT_FILE,
-    MonitorSnapshot,
-    UnifiedViewerProcess,
-    _archive_existing_subject,
-    _save_checkpoint,
     run,
 )
 from .persistence import load_telemetry_records
+
 
 def run_replay(telemetry_file: Path) -> int:
     path = telemetry_file.expanduser()

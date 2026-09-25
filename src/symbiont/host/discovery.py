@@ -71,7 +71,5 @@ class HostDiscovery:
         return HostManifest(
             schema_version=1,
             capabilities=tuple(accepted[key] for key in sorted(accepted)),
-            failures=tuple(
-                sorted(failures, key=lambda item: (item.provider_id, item.reason))
-            ),
+            failures=tuple(sorted(failures, key=lambda item: (item.provider_id, item.reason))),
         )

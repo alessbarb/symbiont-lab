@@ -6,6 +6,7 @@ from typing import Iterable
 
 from symbiont.core.collective import CollectiveMemory
 from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
+
 from symbiont.simulation import SimulationResult, _run_population, run_simulation
 
 
@@ -232,21 +233,15 @@ def run_longitudinal_species(
         heritage_effect_generations=len(intervention),
         mean_detection_delta=_mean_defined(item.detection_delta for item in intervention),
         mean_precision_delta=_mean_defined(item.precision_delta for item in intervention),
-        mean_false_positive_delta=_mean_defined(
-            item.false_positive_delta for item in intervention
-        ),
+        mean_false_positive_delta=_mean_defined(item.false_positive_delta for item in intervention),
         mean_classification_recall_delta=_mean_defined(
             item.classification_recall_delta for item in intervention
         ),
         mean_classification_precision_delta=_mean_defined(
             item.classification_precision_delta for item in intervention
         ),
-        mean_calibration_delta=_mean_defined(
-            item.calibration_delta for item in intervention
-        ),
-        mean_blind_spot_delta=_mean_defined(
-            item.blind_spot_delta for item in intervention
-        ),
+        mean_calibration_delta=_mean_defined(item.calibration_delta for item in intervention),
+        mean_blind_spot_delta=_mean_defined(item.blind_spot_delta for item in intervention),
         final_heritage=heritage,
     )
 

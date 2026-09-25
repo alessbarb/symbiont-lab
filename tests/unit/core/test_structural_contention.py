@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from symbiont.core.cognition_bridge import CognitiveBridge, _PredictorUtility
+
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import Mutation, apply_mutations
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge, _PredictorUtility
-
 from tests.unit.core.test_actuation_cognition_p1 import _genome
 
 
@@ -146,9 +146,10 @@ def test_candidate_multiplicity_cannot_create_global_voting_power():
     )
 
     assert len(bridge._structural_candidates) == 2
-    assert {
-        candidate.producer_id for candidate in bridge._structural_candidates.values()
-    } == {"producer.flood", "producer.rare"}
+    assert {candidate.producer_id for candidate in bridge._structural_candidates.values()} == {
+        "producer.flood",
+        "producer.rare",
+    }
 
 
 def test_atomic_multi_node_structural_proposal_is_supported():
@@ -217,23 +218,18 @@ def test_primitive_producer_admits_one_nominee_per_round():
 
     bridge.tick({}, tick=1, active_primitive_ids=("a", "b"))
     primitive_nodes = {
-        node.node_id
-        for node in bridge.graph.nodes
-        if node.node_id.startswith("readout_primitive:")
+        node.node_id for node in bridge.graph.nodes if node.node_id.startswith("readout_primitive:")
     }
     assert len(primitive_nodes) == 1
 
     bridge.tick({}, tick=2, active_primitive_ids=("a", "b"))
     primitive_nodes = {
-        node.node_id
-        for node in bridge.graph.nodes
-        if node.node_id.startswith("readout_primitive:")
+        node.node_id for node in bridge.graph.nodes if node.node_id.startswith("readout_primitive:")
     }
     assert primitive_nodes == {
         "readout_primitive:a",
         "readout_primitive:b",
     }
-
 
 
 def test_germinal_concept_bootstrap_is_one_atomic_functional_proposal():
@@ -262,13 +258,11 @@ def test_germinal_concept_bootstrap_is_one_atomic_functional_proposal():
     assert candidate.family == "concept"
     assert candidate.required_nodes == 2
     assert any(
-        mutation.kind == "add_node"
-        and mutation.payload.get("node_id") == "readout_core"
+        mutation.kind == "add_node" and mutation.payload.get("node_id") == "readout_core"
         for mutation in candidate.mutations
     )
     assert any(
-        mutation.kind == "add_edge"
-        and mutation.payload.get("target_id") == "readout_core"
+        mutation.kind == "add_edge" and mutation.payload.get("target_id") == "readout_core"
         for mutation in candidate.mutations
     )
 
@@ -343,7 +337,6 @@ def test_checkpoint_preserves_structural_birth_time_for_maturation():
     assert restored._node_born_tick["readout_core"] == 17
 
 
-
 def test_round_robin_cursor_survives_last_producer_becoming_inactive():
     bridge = _bridge()
     producers = ("producer.a", "producer.b", "producer.c")
@@ -385,7 +378,6 @@ def test_round_robin_cursor_survives_last_producer_becoming_inactive():
 
     winner2, _, _ = _select(bridge)
     assert bridge._structural_candidates[winner2].producer_id == expected_next
-
 
 
 def test_new_producer_churn_cannot_starve_older_pending_proposal():

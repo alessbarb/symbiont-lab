@@ -4,13 +4,13 @@ No body, world, lab or evaluator semantic label is accepted here.  Effects are
 identified only from opaque organism-visible feature references and observed
 transition structure.
 """
+
 from __future__ import annotations
 
 import hashlib
 import math
 from dataclasses import dataclass
 from typing import Mapping
-
 
 _ALLOWED_PREFIXES = ("signal.", "latent.", "part.", "channel.", "internal.", "effect.")
 
@@ -47,7 +47,9 @@ class EffectTarget:
             raise ValueError("EffectTarget must reference organism-owned EffectSpace")
         if self.desired_change is not None and not math.isfinite(float(self.desired_change)):
             raise ValueError("desired_change must be finite")
-        if self.tolerance is not None and (not math.isfinite(float(self.tolerance)) or self.tolerance < 0):
+        if self.tolerance is not None and (
+            not math.isfinite(float(self.tolerance)) or self.tolerance < 0
+        ):
             raise ValueError("tolerance must be finite and non-negative")
 
 
@@ -105,7 +107,9 @@ class EffectSpace:
             )[: self._max_effects]
             self._effects = {item.effect_id: item for item in retained}
             retained_signatures = {item.transition_signature for item in retained}
-            self._support = {key: value for key, value in self._support.items() if key in retained_signatures}
+            self._support = {
+                key: value for key, value in self._support.items() if key in retained_signatures
+            }
         return representation
 
     def get(self, effect_id: str) -> EffectRepresentation | None:
@@ -115,7 +119,9 @@ class EffectSpace:
     def effects(self) -> tuple[EffectRepresentation, ...]:
         return tuple(sorted(self._effects.values(), key=lambda item: item.effect_id))
 
-    def target(self, effect_id: str, *, desired_change: float | None = None, tolerance: float | None = None) -> EffectTarget:
+    def target(
+        self, effect_id: str, *, desired_change: float | None = None, tolerance: float | None = None
+    ) -> EffectTarget:
         if effect_id not in self._effects:
             raise KeyError("EffectTarget cannot be constructed from an external/unknown effect")
         return EffectTarget(effect_id, desired_change, tolerance)

@@ -3,21 +3,75 @@ from __future__ import annotations
 import math
 from typing import Any
 
-
 _KNOWN = {
-    "compute.logical_cpu": {"label": "CPU load", "category": "compute", "unit": "%", "scale": 100.0},
+    "compute.logical_cpu": {
+        "label": "CPU load",
+        "category": "compute",
+        "unit": "%",
+        "scale": 100.0,
+    },
     "storage.disk_usage": {"label": "Disk usage", "category": "storage", "unit": "%", "scale": 1.0},
-    "internal.tick_latency": {"label": "Tick latency", "category": "internal", "unit": "ms", "scale": 1000.0},
-    "internal.memory_rss": {"label": "Process memory", "category": "internal", "unit": "MiB", "scale": 1.0 / (1024.0 * 1024.0)},
-    "internal.epistemic_surprise": {"label": "Epistemic surprise", "category": "internal", "unit": "ratio", "scale": 1.0},
-    "internal.metabolic_reserve": {"label": "Metabolic reserve", "category": "internal", "unit": "ratio", "scale": 1.0},
-    "internal.integrity": {"label": "Integrity", "category": "internal", "unit": "ratio", "scale": 1.0},
-    "internal.metabolic_pressure": {"label": "Metabolic pressure", "category": "internal", "unit": "ratio", "scale": 1.0},
-    "internal.repair_pressure": {"label": "Repair pressure", "category": "internal", "unit": "ratio", "scale": 1.0},
-    "internal.waste_pressure": {"label": "Waste pressure", "category": "internal", "unit": "ratio", "scale": 1.0},
+    "internal.tick_latency": {
+        "label": "Tick latency",
+        "category": "internal",
+        "unit": "ms",
+        "scale": 1000.0,
+    },
+    "internal.memory_rss": {
+        "label": "Process memory",
+        "category": "internal",
+        "unit": "MiB",
+        "scale": 1.0 / (1024.0 * 1024.0),
+    },
+    "internal.epistemic_surprise": {
+        "label": "Epistemic surprise",
+        "category": "internal",
+        "unit": "ratio",
+        "scale": 1.0,
+    },
+    "internal.metabolic_reserve": {
+        "label": "Metabolic reserve",
+        "category": "internal",
+        "unit": "ratio",
+        "scale": 1.0,
+    },
+    "internal.integrity": {
+        "label": "Integrity",
+        "category": "internal",
+        "unit": "ratio",
+        "scale": 1.0,
+    },
+    "internal.metabolic_pressure": {
+        "label": "Metabolic pressure",
+        "category": "internal",
+        "unit": "ratio",
+        "scale": 1.0,
+    },
+    "internal.repair_pressure": {
+        "label": "Repair pressure",
+        "category": "internal",
+        "unit": "ratio",
+        "scale": 1.0,
+    },
+    "internal.waste_pressure": {
+        "label": "Waste pressure",
+        "category": "internal",
+        "unit": "ratio",
+        "scale": 1.0,
+    },
 }
 
-_ALLOWED_CATEGORIES = {"compute", "memory", "storage", "network", "thermal", "power", "system", "internal", "unknown"}
+_ALLOWED_CATEGORIES = {
+    "compute",
+    "memory",
+    "storage",
+    "network",
+    "thermal",
+    "power",
+    "system",
+    "internal",
+    "unknown",
+}
 
 
 def _descriptor(runtime: Any, capability: Any) -> dict[str, object]:
@@ -35,7 +89,9 @@ def _descriptor(runtime: Any, capability: Any) -> dict[str, object]:
             payload = describe(capability_id)
             if isinstance(payload, dict):
                 return dict(payload)
-    kind = str(getattr(getattr(capability, "kind", None), "value", getattr(capability, "kind", "unknown")))
+    kind = str(
+        getattr(getattr(capability, "kind", None), "value", getattr(capability, "kind", "unknown"))
+    )
     category = kind if kind in _ALLOWED_CATEGORIES else "unknown"
     label = {
         "compute": "Compute signal",
@@ -80,20 +136,26 @@ def build_observer_provenance(runtime: Any, result: Any) -> list[dict[str, objec
             value = None
         if value is not None and (not math.isfinite(value) or abs(value) > 1e15):
             value = None
-        quality = str(getattr(getattr(reading, "quality", None), "value", "unavailable")) if reading is not None else "unavailable"
+        quality = (
+            str(getattr(getattr(reading, "quality", None), "value", "unavailable"))
+            if reading is not None
+            else "unavailable"
+        )
         if quality not in {"nominal", "degraded", "stale", "unavailable"}:
             quality = "unavailable"
         category = str(descriptor.get("category", "unknown"))
         if category not in _ALLOWED_CATEGORIES:
             category = "unknown"
-        rows.append({
-            "signal_id": signal_id,
-            "label": str(descriptor.get("label", "Aggregate signal"))[:64],
-            "category": category,
-            "scope": "internal" if category == "internal" else "external",
-            "value": None if value is None else round(value, 6),
-            "unit": str(descriptor.get("unit", ""))[:16],
-            "quality": quality,
-        })
+        rows.append(
+            {
+                "signal_id": signal_id,
+                "label": str(descriptor.get("label", "Aggregate signal"))[:64],
+                "category": category,
+                "scope": "internal" if category == "internal" else "external",
+                "value": None if value is None else round(value, 6),
+                "unit": str(descriptor.get("unit", ""))[:16],
+                "quality": quality,
+            }
+        )
     rows.sort(key=lambda row: str(row["signal_id"]))
     return rows

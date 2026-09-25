@@ -3,10 +3,11 @@
 Genome v2 supplies inherited developmental rules. The germinal cognitive graph
 is intentionally empty; body surfaces are connected independently after birth.
 """
+
 from __future__ import annotations
 
-from importlib import resources
 import json
+from importlib import resources
 from typing import Any
 
 from symbiont.genetics.genome import Genome, GenomeCodec

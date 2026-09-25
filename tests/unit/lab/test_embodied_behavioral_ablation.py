@@ -89,8 +89,7 @@ def test_behavioral_ablation_drops_pending_motor_reconstruction_only():
     _lesion_cognitive_motor_outputs(checkpoint)
 
     families = [
-        candidate["family"]
-        for candidate in checkpoint["cognitive_bridge"]["structural_candidates"]
+        candidate["family"] for candidate in checkpoint["cognitive_bridge"]["structural_candidates"]
     ]
     assert families == ["concept"]
 
@@ -105,7 +104,6 @@ def test_behavioral_ablation_freezes_learning_without_changing_failure_history()
     assert safety["consecutive_failures"] == 0
 
 
-
 def test_behavioral_ablation_shuffles_only_within_output_family():
     checkpoint = _checkpoint()
 
@@ -114,14 +112,10 @@ def test_behavioral_ablation_shuffles_only_within_output_family():
     assert changed == 4
     edges = checkpoint["cognitive_bridge"]["graph"]["edges"]
     motor_targets = [
-        edge["target_id"]
-        for edge in edges
-        if edge["target_id"].startswith("readout_motor:")
+        edge["target_id"] for edge in edges if edge["target_id"].startswith("readout_motor:")
     ]
     primitive_targets = [
-        edge["target_id"]
-        for edge in edges
-        if edge["target_id"].startswith("readout_primitive:")
+        edge["target_id"] for edge in edges if edge["target_id"].startswith("readout_primitive:")
     ]
     assert set(motor_targets) == {"readout_motor:a", "readout_motor:b"}
     assert set(primitive_targets) == {

@@ -1,8 +1,8 @@
 """Passive observability studies."""
 
 from .population_communication import (
-    PopulationCommunicationStudy,
     PopulationCommunicationSeedResult,
+    PopulationCommunicationStudy,
     run_population_communication_study,
 )
 

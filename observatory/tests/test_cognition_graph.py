@@ -28,8 +28,13 @@ class CognitionGraphViewTests(unittest.TestCase):
     def test_controls_toggle_cognition_graph_visibility(self):
         controls = read("ui", "controls.js")
         self.assertIn('state.organismView === "cognition"', controls)
-        self.assertIn('document.querySelector("#cognition-graph-wrap")?.classList.toggle("hidden", !isCognition);', controls)
-        self.assertIn('document.querySelector("#open-cognition-graph")?.addEventListener("click"', controls)
+        self.assertIn(
+            'document.querySelector("#cognition-graph-wrap")?.classList.toggle("hidden", !isCognition);',
+            controls,
+        )
+        self.assertIn(
+            'document.querySelector("#open-cognition-graph")?.addEventListener("click"', controls
+        )
 
     def test_cognition_graph_module_has_physics_and_interaction(self):
         graph = read("render", "cognition-graph.js")

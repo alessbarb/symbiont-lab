@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 
 import pytest
 
@@ -150,9 +150,7 @@ def test_v4_detects_transition_tampering(tmp_path):
     writer.append(DummyTick(tick=2), rich_state=_rich(2))
     writer.close()
 
-    lines = (writer.root / "transitions.ndjson").read_text(
-        encoding="utf-8"
-    ).splitlines()
+    lines = (writer.root / "transitions.ndjson").read_text(encoding="utf-8").splitlines()
     second = json.loads(lines[1])
     second["state_patch"][0]["value"] = 999
     lines[1] = json.dumps(second, separators=(",", ":"))
@@ -227,9 +225,7 @@ def test_v4_reconstruction_streams_transition_records(tmp_path, monkeypatch):
     monkeypatch.setattr(
         reader,
         "transitions",
-        lambda: (_ for _ in ()).throw(
-            AssertionError("materializing transitions is forbidden")
-        ),
+        lambda: (_ for _ in ()).throw(AssertionError("materializing transitions is forbidden")),
     )
 
     assert list(reader.iter_states()) == [_rich(tick) for tick in range(1, 7)]

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import time
+from pathlib import Path
 from typing import Any
 
-from ..social.capsule import CapsuleKeyPair, KnowledgeCapsule, create_capsule, verify_capsule
+from ..social.capsule import KnowledgeCapsule, verify_capsule
 
 
 class LocalHabitat:

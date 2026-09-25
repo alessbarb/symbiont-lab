@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from enum import IntEnum
 from statistics import median
 from typing import Any, Collection, Iterable
 
 from ...host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
-
-
 from ..foundation.epistemic import (
     DEFAULT_EPISTEMIC_CONVENTIONS,
     RecencyClass,
@@ -103,7 +100,9 @@ class SelfModel:
         state.attempts += 1
         state.last_observed_tick = tick
         state.cost_ewma_s = (
-            _ewma(state.cost_ewma_s, outcome.attributed_elapsed_s) if state.attempts > 1 else outcome.attributed_elapsed_s
+            _ewma(state.cost_ewma_s, outcome.attributed_elapsed_s)
+            if state.attempts > 1
+            else outcome.attributed_elapsed_s
         )
 
         if outcome.kind is SamplingOutcomeKind.SUCCEEDED:
@@ -180,7 +179,11 @@ class SelfModel:
 
     @classmethod
     def restore(
-        cls, payload: dict[str, Any] | None, *, allowed_sense_ids: Collection[str], current_tick: int
+        cls,
+        payload: dict[str, Any] | None,
+        *,
+        allowed_sense_ids: Collection[str],
+        current_tick: int,
     ) -> "SelfModel":
         model = cls()
         if not payload:
@@ -205,7 +208,9 @@ class SelfModel:
             _require_class_range(confidence_class, _CONFIDENCE_CLASSES, "confidence_class")
             _require_class_range(maturity_class, _MATURITY_CLASSES, "maturity_class")
             _require_class_range(recency_class_raw, len(RecencyClass), "recency_class")
-            representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_class_raw)]
+            representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[
+                RecencyClass(recency_class_raw)
+            ]
             last_observed_tick = max(0, current_tick - representative_idle)
             maturity = maturity_class / (_MATURITY_CLASSES - 1)
             successes = int(round(math.expm1(maturity * math.log1p(MIN_SELF_MODEL_ATTEMPTS))))

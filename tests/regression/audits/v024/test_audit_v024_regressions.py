@@ -1,10 +1,11 @@
 from symbiont.core.collective import CollectiveMemory
 from symbiont.core.model import Observation
+
 from symbiont.simulation import EventContext
 from symbiont_lab.studies.attention.causal import (
-    _OrderStatisticHistory,
     _historical_threshold,
     _online_indices,
+    _OrderStatisticHistory,
 )
 from symbiont_lab.studies.attention.retrospective import _ScoredEvent
 from symbiont_lab.studies.evidence.noise_sweep import run_evidence_noise_sweep
@@ -41,10 +42,7 @@ def test_zero_novelty_startup_does_not_consume_front_of_budget():
 
 
 def test_online_order_statistics_match_reference_sorting_exactly():
-    values = [
-        ((index * 37) % 101) / 100
-        for index in range(160)
-    ] + [0.0] * 40 + [0.5] * 40
+    values = [((index * 37) % 101) / 100 for index in range(160)] + [0.0] * 40 + [0.5] * 40
     history = _OrderStatisticHistory()
     reference: list[float] = []
 
@@ -115,9 +113,7 @@ def test_second_look_exposes_exact_world_and_selection_digests():
     )
 
     assert low.world_digest == high.world_digest
-    assert {
-        row.strategy: row.selected_event_digest for row in low.outcomes
-    } == {
+    assert {row.strategy: row.selected_event_digest for row in low.outcomes} == {
         row.strategy: row.selected_event_digest for row in high.outcomes
     }
 

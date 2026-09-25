@@ -3,9 +3,9 @@ import math
 import pytest
 
 from symbiont_lab.physics3d.humanoid import (
-    HumanoidPhysics,
     JOINT_LIMIT_SOLVER_TOLERANCE,
     JOINT_SPECS,
+    HumanoidPhysics,
     configure_physics_solver,
 )
 
@@ -58,9 +58,7 @@ def test_humanoid_v4_hard_limits_hold_under_deterministic_actuation():
                 )
                 speeds = [abs(float(state[1])) for state in states]
                 max_speed_seen = max(max_speed_seen, max(speeds, default=0.0))
-                max_total_speed_seen = max(
-                    max_total_speed_seen, sum(speeds)
-                )
+                max_total_speed_seen = max(max_total_speed_seen, sum(speeds))
 
                 for ordinal, state in enumerate(states):
                     position = float(state[0])
@@ -82,8 +80,7 @@ def test_humanoid_v4_hard_limits_hold_under_deterministic_actuation():
         # resistance may slow approach, but the declared anatomical envelope
         # itself must never be crossed beyond solver tolerance.
         assert max_limit_violation < JOINT_LIMIT_SOLVER_TOLERANCE, (
-            f"worst_joint={worst_joint} "
-            f"violation={math.degrees(max_limit_violation):.3f}deg"
+            f"worst_joint={worst_joint} violation={math.degrees(max_limit_violation):.3f}deg"
         )
 
         end_position, _ = pybullet.getBasePositionAndOrientation(

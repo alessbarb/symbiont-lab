@@ -1,4 +1,5 @@
 """Core re-embodiment semantics independent of any simulator."""
+
 from __future__ import annotations
 
 from .contract import EmbodimentContract

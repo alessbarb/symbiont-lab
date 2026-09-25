@@ -3,8 +3,9 @@ import random
 from symbiont.core.agent import Agent
 from symbiont.core.collective import CollectiveMemory
 from symbiont.core.model import Observation
-from symbiont.simulation import run_simulation
+
 from symbiont.environment.world import apply_regime_shift, make_profiles
+from symbiont.simulation import run_simulation
 
 
 def test_regime_shift_changes_only_selected_synthetic_profiles():

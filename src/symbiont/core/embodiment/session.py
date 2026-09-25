@@ -12,11 +12,12 @@ Key architectural invariants:
 - Permutation of bindings (port permutation) alters the causal routing without
   mutating the Symbiont's internal state or the Body's physical structure.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import hashlib
 import uuid
+from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 
@@ -42,7 +43,7 @@ class EmbodimentSession:
     body_id: str
     started_at: int
     ended_at: int | None = None
-    input_bindings: dict[str, str] = field(default_factory=dict)   # channel_id -> port_id
+    input_bindings: dict[str, str] = field(default_factory=dict)  # channel_id -> port_id
     output_bindings: dict[str, str] = field(default_factory=dict)  # channel_id -> port_id
     active: bool = True
     _step_count: int = 0
@@ -71,9 +72,7 @@ class EmbodimentSession:
         """Remap sensory input channels to different physical receptor ports."""
         self.input_bindings = dict(new_channel_to_port)
 
-    def transduce_to_symbiont(
-        self, physical_readings: Mapping[str, float]
-    ) -> dict[str, float]:
+    def transduce_to_symbiont(self, physical_readings: Mapping[str, float]) -> dict[str, float]:
         """Convert physical body port readings into opaque Symbiont input channels.
 
         Only bound channels are routed; port names are completely stripped.
@@ -86,9 +85,7 @@ class EmbodimentSession:
                 opaque_inputs[channel_id] = 0.0
         return opaque_inputs
 
-    def route_to_body(
-        self, opaque_activations: Mapping[str, float]
-    ) -> dict[str, float]:
+    def route_to_body(self, opaque_activations: Mapping[str, float]) -> dict[str, float]:
         """Convert opaque Symbiont output activations into physical body port commands."""
         physical_commands: dict[str, float] = {}
         for channel_id, level in opaque_activations.items():
@@ -131,15 +128,17 @@ def implant(
         return (default_idx, str(item))
 
     ordered_receptors = [
-        port_id for _, port_id in sorted(
+        port_id
+        for _, port_id in sorted(
             [_port_key_and_id(item, idx) for idx, item in enumerate(receptor_ids)],
-            key=lambda t: t[0]
+            key=lambda t: t[0],
         )
     ]
     ordered_effectors = [
-        port_id for _, port_id in sorted(
+        port_id
+        for _, port_id in sorted(
             [_port_key_and_id(item, idx) for idx, item in enumerate(effector_ids)],
-            key=lambda t: t[0]
+            key=lambda t: t[0],
         )
     ]
 

@@ -1,12 +1,12 @@
 """Non-semantic physical resource for Physics3D locomotion experiments."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 from typing import Mapping
 
 from .humanoid import SurfaceMaterial, apply_surface_material
-
 
 RESOURCE_MATERIAL = SurfaceMaterial(
     lateral_friction=0.72,
@@ -127,7 +127,9 @@ class PhysicalResource:
         }
 
     @classmethod
-    def from_state(cls, p, client_id: int, payload: Mapping[str, object] | None) -> "PhysicalResource":
+    def from_state(
+        cls, p, client_id: int, payload: Mapping[str, object] | None
+    ) -> "PhysicalResource":
         if payload is None:
             return cls(p, client_id)
         if int(payload.get("schema_version", -1)) != 1:

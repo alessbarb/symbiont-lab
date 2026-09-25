@@ -1,8 +1,10 @@
 """Canonical physiology/homeostasis phase of one organism tick."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ...host.adaptive import AdaptiveSenseModel
 from ...sensory import SensorySystem
 from ..cognition.bridge import CognitiveBridge
 from ..embodiment.degradation import DegradationQueue
@@ -11,7 +13,6 @@ from ..embodiment.homeostasis import HomeostaticController, HomeostaticSnapshot
 from ..embodiment.metabolism import MetabolicLedger, MetabolicSnapshot
 from ..embodiment.ontogeny import OntogenyController, OntogenySnapshot
 from ..embodiment.physiology import LivingBodyState, PhysiologyController, PhysiologySnapshot
-from ...host.adaptive import AdaptiveSenseModel
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,9 +115,7 @@ class PhysiologyDomain:
         resting_requested: bool,
         degradation_excreted: int,
     ) -> PhysiologyStepResult:
-        retained_units = max(0.0, float(retained_memory_units)) + max(
-            0.0, float(embodied_work)
-        )
+        retained_units = max(0.0, float(retained_memory_units)) + max(0.0, float(embodied_work))
         metabolism = services.metabolism.advance(retained_units=retained_units)
         repaired_amount = services.homeostasis.constitutive_step(
             services.metabolism,
@@ -141,19 +140,14 @@ class PhysiologyDomain:
             metabolism,
             tick=services.living_body_state.age_ticks,
             resting=(
-                resting_for_tick
-                or homeostasis.action.value in {"pause_plasticity", "safe_mode"}
+                resting_for_tick or homeostasis.action.value in {"pause_plasticity", "safe_mode"}
             ),
         )
         topology = getattr(services.cognitive_bridge, "topology_health", None)
         topology_health = (
             getattr(topology, "value", str(topology))
             if topology is not None
-            else (
-                "developing"
-                if services.cognitive_bridge is not None
-                else "germinal"
-            )
+            else ("developing" if services.cognitive_bridge is not None else "germinal")
         )
         development = services.developmental_tracker.observe(
             state=physiology.state.value,
@@ -167,8 +161,7 @@ class PhysiologyDomain:
             action_attempts=0,
             maintenance_ratio=min(
                 1.0,
-                metabolism.spent["maintenance"]
-                / max(0.000001, metabolism.capacity["maintenance"]),
+                metabolism.spent["maintenance"] / max(0.000001, metabolism.capacity["maintenance"]),
             ),
             retained_items=len(services.degradation.items),
             degradation_excreted=int(degradation_excreted),

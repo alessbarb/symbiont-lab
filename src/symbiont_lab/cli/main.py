@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from symbiont_lab.experiments.manifest import RunManifest
 from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.experiments.spec import spec_from_payload
+
 from .archive import build_archive_parser, run_archive_command
 from .audit import build_audit_parser, run_audit_command
 from .capsule import build_capsule_parser, run_capsule_command
@@ -44,7 +45,9 @@ def run_reproduce(manifest_path: str | Path, base_dir: Path | str | None = None)
         # nothing to compare, so this is neither a verified reproduction
         # nor a mismatch. An absent digest must never be read as "equal"
         # (roadmap safety finding A01).
-        print("UNVERIFIABLE: the original run recorded no world digest; nothing to compare it against.")
+        print(
+            "UNVERIFIABLE: the original run recorded no world digest; nothing to compare it against."
+        )
         return 2
     if manifest.world_digest != new_manifest.world_digest:
         print("FAIL: World digest mismatch!")
@@ -59,6 +62,7 @@ def main(argv: list[str] | None = None) -> None:
     is_help = "-h" in argv or "--help" in argv
     if not is_help and (not argv or argv[0].startswith("--")):
         from symbiont_lab.server.server import main as unified_main
+
         unified_main(argv)
         return
 
@@ -74,16 +78,22 @@ def main(argv: list[str] | None = None) -> None:
     server_p.add_argument("--archive", default=".symbiont/experiments.jsonl")
     server_p.add_argument("--study-archive", default=".symbiont/studies.jsonl")
     server_p.add_argument("--no-record", action="store_true", help="Disable experiment archiving")
-    server_p.add_argument("--no-browser", action="store_true", help="Don't open the browser automatically")
+    server_p.add_argument(
+        "--no-browser", action="store_true", help="Don't open the browser automatically"
+    )
     server_p.add_argument("--demo", action="store_true", help="Use explicit synthetic UI telemetry")
-    server_p.add_argument("--physics3d", action="store_true", help="Run canonical Physics3D in the web app")
+    server_p.add_argument(
+        "--physics3d", action="store_true", help="Run canonical Physics3D in the web app"
+    )
     server_p.add_argument("--observatory-dir", default=None, help="Observatory state directory")
 
     # Subcommands
     simulate_p = subparsers.add_parser("simulate", help="Run a synthetic ecology simulation")
     build_simulate_parser(simulate_p)
 
-    experiment_p = subparsers.add_parser("experiment", help="Manage and run declarative experiments")
+    experiment_p = subparsers.add_parser(
+        "experiment", help="Manage and run declarative experiments"
+    )
     build_experiment_parser(experiment_p)
 
     study_p = subparsers.add_parser("study", help="Run multi-seed comparative studies")
@@ -116,30 +126,45 @@ def main(argv: list[str] | None = None) -> None:
     )
     build_evaluate_parser(evaluate_p)
 
-    world_p = subparsers.add_parser("world", help="Launch or resume persistent Symbiont World and Observatory")
-    world_p.add_argument("world", nargs="?", default="Genesis", help="World name (default: Genesis)")
+    world_p = subparsers.add_parser(
+        "world", help="Launch or resume persistent Symbiont World and Observatory"
+    )
+    world_p.add_argument(
+        "world", nargs="?", default="Genesis", help="World name (default: Genesis)"
+    )
     world_p.add_argument("--seed", type=int, default=101)
     world_p.add_argument("--founders", type=int, default=8)
     world_p.add_argument("--width", type=int, default=8)
     world_p.add_argument("--height", type=int, default=8)
     world_p.add_argument("--tick-delay", type=float, default=0.5, help="seconds between ticks")
     world_p.add_argument("--port", type=int, default=8766)
-    world_p.add_argument("--storage-dir", type=str, default=None, help="Directory for checkpoint storage")
-    world_p.add_argument("--observatory-dir", type=str, default=None, help="Observatory state directory")
-    world_p.add_argument("--checkpoint-interval", type=int, default=50, help="Ticks between automatic checkpoints")
+    world_p.add_argument(
+        "--storage-dir", type=str, default=None, help="Directory for checkpoint storage"
+    )
+    world_p.add_argument(
+        "--observatory-dir", type=str, default=None, help="Observatory state directory"
+    )
+    world_p.add_argument(
+        "--checkpoint-interval", type=int, default=50, help="Ticks between automatic checkpoints"
+    )
 
     args = parser.parse_args(argv)
 
     if args.subcommand == "app":
         from symbiont_lab.app.main import main as app_main
+
         app_main()
         return
     if args.subcommand == "server":
         from symbiont_lab.server.server import main as unified_main
+
         server_argv = [
-            "--port", str(args.port),
-            "--archive", str(args.archive),
-            "--study-archive", str(args.study_archive),
+            "--port",
+            str(args.port),
+            "--archive",
+            str(args.archive),
+            "--study-archive",
+            str(args.study_archive),
         ]
         if args.no_record:
             server_argv.append("--no-record")
@@ -157,15 +182,23 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(run_simulate_command(args))
     elif args.subcommand == "world":
         from symbiont_lab.cli.world import main as world_main
+
         world_argv = [
             args.world,
-            "--seed", str(args.seed),
-            "--founders", str(args.founders),
-            "--width", str(args.width),
-            "--height", str(args.height),
-            "--tick-delay", str(args.tick_delay),
-            "--port", str(args.port),
-            "--checkpoint-interval", str(args.checkpoint_interval),
+            "--seed",
+            str(args.seed),
+            "--founders",
+            str(args.founders),
+            "--width",
+            str(args.width),
+            "--height",
+            str(args.height),
+            "--tick-delay",
+            str(args.tick_delay),
+            "--port",
+            str(args.port),
+            "--checkpoint-interval",
+            str(args.checkpoint_interval),
         ]
         if args.storage_dir:
             world_argv.extend(["--storage-dir", args.storage_dir])

@@ -3,6 +3,7 @@
 symbiont-world-v2.md §3, §11). genesis_v1's preset is untouched -- this is
 additive, a separate preset, not a mutation of the frozen v1 one.
 """
+
 from __future__ import annotations
 
 from symbiont_world.genesis import GroundTruth
@@ -31,10 +32,14 @@ def build_ground_truth_v2() -> GroundTruth:
 
     regional_resources = {
         REGION_NORTH: {
-            scarce_rich_id: ResourceLaw(capacity=14.0, renewal_rate=0.15, decay_rate=0.0, initial_quantity=14.0),
+            scarce_rich_id: ResourceLaw(
+                capacity=14.0, renewal_rate=0.15, decay_rate=0.0, initial_quantity=14.0
+            ),
         },
         REGION_SOUTH: {
-            abundant_cheap_id: ResourceLaw(capacity=30.0, renewal_rate=0.5, decay_rate=0.0, initial_quantity=30.0),
+            abundant_cheap_id: ResourceLaw(
+                capacity=30.0, renewal_rate=0.5, decay_rate=0.0, initial_quantity=30.0
+            ),
         },
     }
 

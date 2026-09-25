@@ -1,5 +1,5 @@
-import json
 import gzip
+import json
 import tempfile
 import threading
 import unittest
@@ -48,7 +48,7 @@ class ServerTests(unittest.TestCase):
                 self.assertIn("text/event-stream", response.headers.get("Content-Type", ""))
                 first_line = response.readline().decode("utf-8")
             self.assertTrue(first_line.startswith("data: "))
-            payload = json.loads(first_line[len("data: "):])
+            payload = json.loads(first_line[len("data: ") :])
             self.assertEqual(payload["instances"][0]["instance_id"], "a" * 16)
 
     def test_serves_index_html_at_root_same_origin_as_the_sse_routes(self):
@@ -69,11 +69,15 @@ class ServerTests(unittest.TestCase):
                 self.assertIn("javascript", response.headers.get("Content-Type", ""))
                 js = response.read().decode("utf-8")
             self.assertIn("projection/snapshot.js", js)
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/projection/snapshot.js", timeout=2) as response:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/projection/snapshot.js", timeout=2
+            ) as response:
                 self.assertIn("javascript", response.headers.get("Content-Type", ""))
                 snapshot_js = response.read().decode("utf-8")
             self.assertIn("function normalizeSnapshot(", snapshot_js)
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/styles.css", timeout=2) as response:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/styles.css", timeout=2
+            ) as response:
                 self.assertIn("text/css", response.headers.get("Content-Type", ""))
 
     def test_refuses_path_traversal_outside_the_static_root(self):
@@ -109,12 +113,14 @@ class ServerTests(unittest.TestCase):
             )
             server = self._start_server(observatory_dir)
             port = server.server_address[1]
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/instance/{'b' * 16}/stream", timeout=2) as response:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/instance/{'b' * 16}/stream", timeout=2
+            ) as response:
                 id_line = response.readline().decode("utf-8")
                 data_line = response.readline().decode("utf-8")
             self.assertEqual(id_line.strip(), "id: run-1:0")
             self.assertTrue(data_line.startswith("data: "))
-            first_payload = json.loads(data_line[len("data: "):])
+            first_payload = json.loads(data_line[len("data: ") :])
             self.assertEqual(first_payload["snapshot"]["tick"], 1)
 
     def test_reader_replays_losslessly_compacted_segments(self):

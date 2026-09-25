@@ -6,7 +6,6 @@ from typing import Iterable
 
 from .stress import HeritageStressCondition, HeritageStressStudy, run_heritage_stress_study
 
-
 PERFORMANCE_METRICS = (
     "attention_recall",
     "attention_precision",
@@ -97,13 +96,9 @@ class ReplicatedHeritageStressStudy:
             "target_offset": self.target_offset,
             "source_pattern_counts": self.source_pattern_counts,
             "conditions": self.conditions,
-            "summaries": {
-                name: summary.as_dict() for name, summary in self.summaries.items()
-            },
+            "summaries": {name: summary.as_dict() for name, summary in self.summaries.items()},
             "paired_vs_naive": {
-                condition: {
-                    metric: delta.as_dict() for metric, delta in metrics.items()
-                }
+                condition: {metric: delta.as_dict() for metric, delta in metrics.items()}
                 for condition, metrics in self.paired_vs_naive.items()
             },
             "world_digests": self.world_digests,
@@ -166,9 +161,7 @@ def run_replicated_heritage_stress_study(
 
     targets = tuple(seed + int(target_offset) for seed in sources)
     if set(targets) & set(sources):
-        raise ValueError(
-            "target_offset must not make any target seed collide with a source seed"
-        )
+        raise ValueError("target_offset must not make any target seed collide with a source seed")
     runs: list[HeritageStressStudy] = []
     for source_seed, target_seed in zip(sources, targets):
         runs.append(
@@ -188,9 +181,7 @@ def run_replicated_heritage_stress_study(
         )
 
     condition_names = tuple(condition.name for condition in runs[0].conditions)
-    by_condition: dict[str, list[HeritageStressCondition]] = {
-        name: [] for name in condition_names
-    }
+    by_condition: dict[str, list[HeritageStressCondition]] = {name: [] for name in condition_names}
     world_digests: list[str] = []
 
     for run in runs:

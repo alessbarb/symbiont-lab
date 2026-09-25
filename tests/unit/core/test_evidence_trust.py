@@ -1,5 +1,4 @@
 import pytest
-
 from symbiont.core.evidence_trust import EvidenceTrust
 
 

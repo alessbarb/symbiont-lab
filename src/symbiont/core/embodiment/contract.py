@@ -4,15 +4,15 @@ The contract describes only the surfaces made available to the organism.  It
 never exports anatomy, simulator link names, body-kind labels, actuator roles
 or learned response quality.
 """
+
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from hashlib import sha256
-import json
 from typing import Sequence
 
 from ...actuation.surface import ActuatorSurface
-
 
 _CONTRACT_SCHEMA = "symbiont-embodiment-contract-v3"
 _PERCEPTUAL_SURFACE_SCHEMA = "symbiont-perceptual-surface-v1"
@@ -73,9 +73,7 @@ class PerceptualSurface:
             for index in range(count)
         )
         material = fingerprint_material or f"count:{count}"
-        digest = sha256(
-            f"{_PERCEPTUAL_SURFACE_SCHEMA}:{material}".encode("utf-8")
-        ).hexdigest()
+        digest = sha256(f"{_PERCEPTUAL_SURFACE_SCHEMA}:{material}".encode("utf-8")).hexdigest()
         return cls(channels=channels, surface_fingerprint=digest)
 
     @classmethod
@@ -122,17 +120,11 @@ class EmbodimentContract:
         for raw_group in self.exclusive_actuator_groups:
             group = tuple(sorted(str(value) for value in raw_group))
             if len(group) < 2 or len(set(group)) != len(group):
-                raise ValueError(
-                    "exclusive actuator groups must contain unique ids"
-                )
+                raise ValueError("exclusive actuator groups must contain unique ids")
             if not set(group).issubset(known):
-                raise ValueError(
-                    "exclusive actuator group references unknown actuator"
-                )
+                raise ValueError("exclusive actuator group references unknown actuator")
             if seen.intersection(group):
-                raise ValueError(
-                    "exclusive actuator groups must be disjoint"
-                )
+                raise ValueError("exclusive actuator groups must be disjoint")
             seen.update(group)
             normalized.append(group)
         normalized.sort()
@@ -150,9 +142,7 @@ class EmbodimentContract:
             "actuator_surface": self.actuator_surface.contract_fingerprint,
             "tick_hz": self.timing.tick_hz,
             "command_hold_ticks": self.timing.command_hold_ticks,
-            "exclusive_actuator_groups": [
-                list(group) for group in self.exclusive_actuator_groups
-            ],
+            "exclusive_actuator_groups": [list(group) for group in self.exclusive_actuator_groups],
         }
         raw = json.dumps(
             material,
@@ -195,9 +185,7 @@ class EmbodimentContract:
                 "tick_hz": self.timing.tick_hz,
                 "command_hold_ticks": self.timing.command_hold_ticks,
             },
-            "exclusive_actuator_groups": [
-                list(group) for group in self.exclusive_actuator_groups
-            ],
+            "exclusive_actuator_groups": [list(group) for group in self.exclusive_actuator_groups],
         }
 
 

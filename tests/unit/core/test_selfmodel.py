@@ -3,8 +3,8 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from symbiont.core.selfmodel import IDLE_GRACE_TICKS, RecencyClass, SelfModel
+
 from symbiont.host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
 
 
@@ -45,7 +45,9 @@ def test_provider_failure_lowers_health_but_not_other_senses():
         model.observe(outcome=_outcome(), tick=tick)
         model.observe(outcome=_outcome(capability_id="sense-b"), tick=tick)
     for tick in range(50, 60):
-        model.observe(outcome=_outcome(kind=SamplingOutcomeKind.PROVIDER_FAILED, quality=None), tick=tick)
+        model.observe(
+            outcome=_outcome(kind=SamplingOutcomeKind.PROVIDER_FAILED, quality=None), tick=tick
+        )
     assert model.health("sense-a") < 0.9
     assert model.health("sense-b") > 0.9
 
@@ -105,7 +107,13 @@ def test_export_omits_unestablished_senses_and_restore_round_trips():
 
 def test_restore_rejects_payload_over_max_senses():
     huge_payload = {
-        f"sense-{i}": {"cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4, "recency_class": 0}
+        f"sense-{i}": {
+            "cost_class": 0,
+            "health_class": 8,
+            "confidence_class": 8,
+            "maturity_class": 4,
+            "recency_class": 0,
+        }
         for i in range(SelfModel.MAX_SENSES + 1)
     }
     with pytest.raises(ValueError):

@@ -12,5 +12,6 @@ def test_runtime_preference_is_local_and_replayable() -> None:
 
 def test_runtime_preference_rejects_invalid_horizon() -> None:
     import pytest
+
     with pytest.raises(ValueError):
         run_social_runtime_preference_study(ticks=0)

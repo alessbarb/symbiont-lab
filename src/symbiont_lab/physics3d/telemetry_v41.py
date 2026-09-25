@@ -1,24 +1,18 @@
 """Telemetry v4.1: typed temporal streams with exact reconstruction."""
+
 from __future__ import annotations
 
+import json
+import os
+import queue
+import threading
+import uuid
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
-import json
-import os
 from pathlib import Path
-import queue
-import threading
 from typing import Any, Iterator, Mapping, TextIO
-import uuid
 
-from .telemetry_compaction import (
-    ObjectStore,
-    StateDiffer,
-    StatePatcher,
-    canonical_json_bytes,
-    payload_sha256,
-)
 from .telemetry_binary import (
     BinaryDeltaReader,
     BinaryDeltaWriter,
@@ -38,29 +32,29 @@ from .telemetry_binary import (
     BinaryTickBucket,
     binary_record_hash,
 )
-from .telemetry_events import EventStreamReader, EventStreamWriter
+from .telemetry_compaction import (
+    ObjectStore,
+    StateDiffer,
+    StatePatcher,
+    canonical_json_bytes,
+    payload_sha256,
+)
+from .telemetry_events import EventStreamReader
 from .telemetry_numeric import (
     FrameSchemaRegistryReader,
-    FrameSchemaRegistryWriter,
     FrameStreamReader,
-    FrameStreamWriter,
 )
 from .telemetry_schema import (
-    EVENT_RULES,
-    TemporalClass,
     partition_state,
     reassemble_state,
 )
 from .telemetry_structural import (
     LegacyStructuralStreamReader,
     StructuralDeltaReader,
-    StructuralDeltaWriter,
     StructuralPathRegistryReader,
-    StructuralPathRegistryWriter,
     logical_view,
     structural_view,
 )
-
 
 SCHEMA_VERSION = "4.1"
 ENVELOPE_TYPE = "symbiont-physics3d-telemetry"
@@ -84,13 +78,16 @@ def _write_json(path: Path, payload: Mapping[str, Any], *, compact: bool = False
     if compact:
         encoded = canonical_json_bytes(dict(payload)).decode("utf-8") + "\n"
     else:
-        encoded = json.dumps(
-            dict(payload),
-            sort_keys=True,
-            indent=2,
-            ensure_ascii=False,
-            allow_nan=False,
-        ) + "\n"
+        encoded = (
+            json.dumps(
+                dict(payload),
+                sort_keys=True,
+                indent=2,
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            + "\n"
+        )
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     temporary.write_text(encoded, encoding="utf-8")
     os.replace(temporary, path)
@@ -251,8 +248,7 @@ class TelemetryV41Writer:
         if flush_every < 1:
             raise ValueError("flush_every must be >= 1")
         generated = (
-            f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-"
-            f"{uuid.uuid4().hex[:12]}"
+            f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:12]}"
         )
         self.run_id = run_id or generated
         self.root = Path(root).expanduser() / self.run_id
@@ -273,33 +269,17 @@ class TelemetryV41Writer:
             (self.root / directory).mkdir(parents=True, exist_ok=True)
 
         self._handles: dict[str, Any] = {
-            "strings": (self.root / "schemas" / "strings.bin").open(
-                "ab", buffering=65536
-            ),
-            "schemas": (self.root / "schemas" / "frames.bin").open(
-                "ab", buffering=65536
-            ),
-            "structural_paths": (
-                self.root / "schemas" / "structural-paths.bin"
-            ).open("ab", buffering=32768),
-            "dense": (self.root / "frames" / "dense.bin").open(
-                "ab", buffering=65536
-            ),
-            "summary": (self.root / "frames" / "summary.bin").open(
-                "ab", buffering=65536
-            ),
-            "structural": (self.root / "structures" / "state.bin").open(
-                "ab", buffering=65536
-            ),
-            "events": (self.root / "events" / "events.bin").open(
-                "ab", buffering=65536
-            ),
-            "static": (self.root / "structures" / "static.bin").open(
+            "strings": (self.root / "schemas" / "strings.bin").open("ab", buffering=65536),
+            "schemas": (self.root / "schemas" / "frames.bin").open("ab", buffering=65536),
+            "structural_paths": (self.root / "schemas" / "structural-paths.bin").open(
                 "ab", buffering=32768
             ),
-            "fallback": (self.root / "frames" / "fallback.bin").open(
-                "ab", buffering=65536
-            ),
+            "dense": (self.root / "frames" / "dense.bin").open("ab", buffering=65536),
+            "summary": (self.root / "frames" / "summary.bin").open("ab", buffering=65536),
+            "structural": (self.root / "structures" / "state.bin").open("ab", buffering=65536),
+            "events": (self.root / "events" / "events.bin").open("ab", buffering=65536),
+            "static": (self.root / "structures" / "static.bin").open("ab", buffering=32768),
+            "fallback": (self.root / "frames" / "fallback.bin").open("ab", buffering=65536),
             "ticks": (self.root / "ticks.ndjson").open(
                 "a", encoding="utf-8", buffering=65536, newline="\n"
             ),
@@ -312,9 +292,7 @@ class TelemetryV41Writer:
             "event_index": (self.root / "indexes" / "events.ndjson").open(
                 "a", encoding="utf-8", buffering=8192, newline="\n"
             ),
-            "structure_index": (
-                self.root / "indexes" / "structures.ndjson"
-            ).open(
+            "structure_index": (self.root / "indexes" / "structures.ndjson").open(
                 "a", encoding="utf-8", buffering=8192, newline="\n"
             ),
         }
@@ -502,7 +480,8 @@ class TelemetryV41Writer:
             "stream_offsets": {
                 key: int(value)
                 for key, value in stream_offsets.items()
-                if key not in (
+                if key
+                not in (
                     "ticks",
                     "strings",
                     "schemas",
@@ -577,22 +556,16 @@ class TelemetryV41Writer:
 
         current_post_physical = partition.dense.get("post.physical")
         self._last_post_physical = (
-            deepcopy(current_post_physical)
-            if current_post_physical is not None
-            else None
+            deepcopy(current_post_physical) if current_post_physical is not None else None
         )
 
         for channel, value in partition.structural.items():
             info = self._structural.append(tick, channel, value)
             if info is not None:
-                emitted_hashes["structural"].append(
-                    str(info["record_sha256"])
-                )
+                emitted_hashes["structural"].append(str(info["record_sha256"]))
 
         for channel, value in partition.events.items():
-            emitted_hashes["events"].extend(
-                self._events.append(tick, channel, value)
-            )
+            emitted_hashes["events"].extend(self._events.append(tick, channel, value))
 
         for channel, value in partition.static.items():
             digest = self._static.append(tick, channel, value)
@@ -605,28 +578,16 @@ class TelemetryV41Writer:
             partition.fallback,
         )
         if fallback_info is not None:
-            emitted_hashes["fallback"].append(
-                str(fallback_info["record_sha256"])
-            )
+            emitted_hashes["fallback"].append(str(fallback_info["record_sha256"]))
 
         summary_info = self._summary.append(tick, "summary", summary)
-        emitted_hashes["summary"].append(
-            str(summary_info["record_sha256"])
-        )
+        emitted_hashes["summary"].append(str(summary_info["record_sha256"]))
 
         removed = {
-            "dense": sorted(
-                self._previous_presence["dense"] - set(partition.dense)
-            ),
-            "structural": sorted(
-                self._previous_presence["structural"] - set(partition.structural)
-            ),
-            "events": sorted(
-                self._previous_presence["events"] - set(partition.events)
-            ),
-            "static": sorted(
-                self._previous_presence["static"] - set(partition.static)
-            ),
+            "dense": sorted(self._previous_presence["dense"] - set(partition.dense)),
+            "structural": sorted(self._previous_presence["structural"] - set(partition.structural)),
+            "events": sorted(self._previous_presence["events"] - set(partition.events)),
+            "static": sorted(self._previous_presence["static"] - set(partition.static)),
         }
         for channel in removed["dense"]:
             self._dense.drop(channel)
@@ -683,7 +644,8 @@ class TelemetryV41Writer:
             "stream_offsets": {
                 key: int(value)
                 for key, value in offsets.items()
-                if key not in (
+                if key
+                not in (
                     "ticks",
                     "strings",
                     "schemas",
@@ -792,9 +754,7 @@ class TelemetryV41Writer:
                 "tick_records": self._sequence,
                 "anchors": self._anchor_count,
                 "checkpoints": self._checkpoint_count,
-                "final_commit_hash": (
-                    self._previous_commit_hash if self._sequence else None
-                ),
+                "final_commit_hash": (self._previous_commit_hash if self._sequence else None),
                 "compaction": {
                     "stream_bytes": sizes,
                     "dense_records": self._dense.records,
@@ -937,21 +897,15 @@ class TelemetryV41Reader:
             root = root.parent
         self.root = root
         self.verify = bool(verify)
-        self.manifest = json.loads(
-            (self.root / "manifest.json").read_text(encoding="utf-8")
-        )
+        self.manifest = json.loads((self.root / "manifest.json").read_text(encoding="utf-8"))
         if str(self.manifest.get("schema_version")) != SCHEMA_VERSION:
             raise ValueError("not a telemetry v4.1 run")
         self.ticks_path = self.root / "ticks.ndjson"
         if not self.ticks_path.is_file():
             raise FileNotFoundError(f"telemetry tick commits not found: {self.ticks_path}")
-        self.layout_revision = int(
-            self.manifest.get("layout_revision", 1) or 1
-        )
+        self.layout_revision = int(self.manifest.get("layout_revision", 1) or 1)
         if self.layout_revision >= 4:
-            self.strings = BinaryStringTableReader(
-                self.root / "schemas" / "strings.bin"
-            )
+            self.strings = BinaryStringTableReader(self.root / "schemas" / "strings.bin")
             self.registry = BinaryFrameSchemaReader(
                 self.root / "schemas" / "frames.bin",
                 self.strings,
@@ -963,9 +917,7 @@ class TelemetryV41Reader:
             self.object_store = None
         else:
             self.strings = None
-            self.registry = FrameSchemaRegistryReader(
-                self.root / "schemas" / "frames.ndjson"
-            )
+            self.registry = FrameSchemaRegistryReader(self.root / "schemas" / "frames.ndjson")
             self.structural_paths = StructuralPathRegistryReader(
                 self.root / "schemas" / "structural-paths.ndjson"
             )
@@ -973,11 +925,7 @@ class TelemetryV41Reader:
         self._patcher = StatePatcher(object_store=None)
 
     def _stream_path(self, name: str) -> Path:
-        paths = (
-            self._BINARY_STREAM_PATHS
-            if self.layout_revision >= 4
-            else self._TEXT_STREAM_PATHS
-        )
+        paths = self._BINARY_STREAM_PATHS if self.layout_revision >= 4 else self._TEXT_STREAM_PATHS
         return self.root.joinpath(*paths[name])
 
     def _anchor_files(self) -> list[tuple[int, Path]]:
@@ -1012,11 +960,7 @@ class TelemetryV41Reader:
                         if item_tick > requested:
                             break
                         raw_path = Path(str(item.get("path", "")))
-                        if (
-                            not raw_path.parts
-                            or raw_path.is_absolute()
-                            or ".." in raw_path.parts
-                        ):
+                        if not raw_path.parts or raw_path.is_absolute() or ".." in raw_path.parts:
                             raise ValueError("unsafe telemetry anchor index path")
                         path = self.root / raw_path
                         if not path.is_file():
@@ -1032,14 +976,9 @@ class TelemetryV41Reader:
         if candidate is not None:
             return candidate
 
-        candidates = [
-            item for item in self._anchor_files()
-            if item[0] <= requested
-        ]
+        candidates = [item for item in self._anchor_files() if item[0] <= requested]
         if not candidates:
-            raise KeyError(
-                f"no telemetry anchor at or before tick {requested}"
-            )
+            raise KeyError(f"no telemetry anchor at or before tick {requested}")
         return candidates[-1][1]
 
     def _iter_commits(
@@ -1063,18 +1002,17 @@ class TelemetryV41Reader:
                     unsigned = dict(item)
                     unsigned.pop("commit_hash", None)
                     if payload_sha256(unsigned) != claimed:
-                        raise ValueError(
-                            f"telemetry commit hash mismatch at line {line_no}"
-                        )
+                        raise ValueError(f"telemetry commit hash mismatch at line {line_no}")
                     sequence = int(item.get("sequence", -1))
                     tick = int(item.get("tick", -1))
                     if previous_sequence is not None and sequence != previous_sequence + 1:
                         raise ValueError("telemetry commit sequence gap")
                     if previous_tick is not None and tick <= previous_tick:
                         raise ValueError("telemetry commit tick order violation")
-                    if previous_hash is not None and item.get(
-                        "previous_commit_hash"
-                    ) != previous_hash:
+                    if (
+                        previous_hash is not None
+                        and item.get("previous_commit_hash") != previous_hash
+                    ):
                         raise ValueError("telemetry commit hash-chain break")
                     previous_hash = str(claimed)
                     previous_sequence = sequence
@@ -1150,9 +1088,7 @@ class TelemetryV41Reader:
                     structural.prime(channel, value)
             else:
                 structural = LegacyStructuralStreamReader(self.registry)
-                structural_schemas = dict(
-                    anchor.get("schemas", {}).get("structural", {})
-                )
+                structural_schemas = dict(anchor.get("schemas", {}).get("structural", {}))
                 for channel, value in partition.structural.items():
                     structural.prime(
                         channel,
@@ -1176,6 +1112,7 @@ class TelemetryV41Reader:
             fallback = deepcopy(partition.fallback)
 
         return dense, structural, summary_reader, events, static, fallback
+
     @staticmethod
     def _apply_removed(
         removed: Mapping[str, Any],
@@ -1195,11 +1132,7 @@ class TelemetryV41Reader:
 
     def _anchor_commit(self, anchor: Mapping[str, Any]) -> dict[str, Any]:
         try:
-            commit = next(
-                self._iter_commits(
-                    start_offset=int(anchor.get("ticks_offset", 0))
-                )
-            )
+            commit = next(self._iter_commits(start_offset=int(anchor.get("ticks_offset", 0))))
         except StopIteration as exc:
             raise ValueError("telemetry anchor has no committed tick") from exc
         anchor_tick = int(anchor["tick"])
@@ -1223,9 +1156,7 @@ class TelemetryV41Reader:
         yield_intermediate: bool = True,
     ) -> Iterator[tuple[int, dict[str, Any], dict[str, Any], dict[str, Any]]]:
         anchor_commit = self._anchor_commit(anchor)
-        dense, structural, summary_reader, events, static, fallback = (
-            self._prime_decoders(anchor)
-        )
+        dense, structural, summary_reader, events, static, fallback = self._prime_decoders(anchor)
         anchor_tick = int(anchor["tick"])
         anchor_state = deepcopy(dict(anchor["state"]))
         anchor_summary = deepcopy(dict(anchor["summary"]))
@@ -1235,15 +1166,10 @@ class TelemetryV41Reader:
 
         offsets = dict(anchor.get("stream_offsets", {}))
         stream_names = (
-            self._BINARY_STREAM_PATHS
-            if self.layout_revision >= 4
-            else self._TEXT_STREAM_PATHS
+            self._BINARY_STREAM_PATHS if self.layout_revision >= 4 else self._TEXT_STREAM_PATHS
         )
         if self.layout_revision >= 4:
-            handles = {
-                name: self._stream_path(name).open("rb")
-                for name in stream_names
-            }
+            handles = {name: self._stream_path(name).open("rb") for name in stream_names}
             binary_decoders = {
                 "dense": dense.decode_record,
                 "summary": summary_reader.decode_record,
@@ -1262,9 +1188,7 @@ class TelemetryV41Reader:
             }
         else:
             handles = {
-                name: self._stream_path(name).open(
-                    "r", encoding="utf-8", newline="\n"
-                )
+                name: self._stream_path(name).open("r", encoding="utf-8", newline="\n")
                 for name in stream_names
             }
             buckets = {
@@ -1275,9 +1199,7 @@ class TelemetryV41Reader:
                 for name, handle in handles.items()
             }
         try:
-            for commit in self._iter_commits(
-                start_offset=int(anchor.get("ticks_offset", 0))
-            ):
+            for commit in self._iter_commits(start_offset=int(anchor.get("ticks_offset", 0))):
                 tick = int(commit["tick"])
                 if tick < anchor_tick:
                     continue
@@ -1288,9 +1210,7 @@ class TelemetryV41Reader:
 
                 events.begin_tick()
                 fallback_state = (
-                    fallback.values.get("fallback", {})
-                    if self.layout_revision >= 4
-                    else fallback
+                    fallback.values.get("fallback", {}) if self.layout_revision >= 4 else fallback
                 )
                 self._apply_removed(
                     commit.get("removed_channels", {}),
@@ -1312,8 +1232,7 @@ class TelemetryV41Reader:
                         actual_hashes = [_stream_record_hash(item) for item in records]
                         if actual_hashes != list(expected_records.get(stream_name, ())):
                             raise ValueError(
-                                f"telemetry {stream_name} record commitment mismatch "
-                                f"at tick {tick}"
+                                f"telemetry {stream_name} record commitment mismatch at tick {tick}"
                             )
                     for item in records:
                         decoder.apply(item)
@@ -1356,9 +1275,7 @@ class TelemetryV41Reader:
                             item.get("p", ()),
                         )
                         if not isinstance(fallback, dict):
-                            raise ValueError(
-                                "fallback patch did not reconstruct a mapping"
-                            )
+                            raise ValueError("fallback patch did not reconstruct a mapping")
                     fallback_state = fallback
 
                 summary_records = buckets["summary"].take(tick)
@@ -1374,11 +1291,7 @@ class TelemetryV41Reader:
                         )
                 _summary_channel, summary = summary_reader.apply(summary_records[0])
 
-                if (
-                    not yield_intermediate
-                    and end_tick is not None
-                    and tick < int(end_tick)
-                ):
+                if not yield_intermediate and end_tick is not None and tick < int(end_tick):
                     continue
 
                 state = reassemble_state(
@@ -1390,13 +1303,9 @@ class TelemetryV41Reader:
                 )
                 if self.verify and verify_logical_each_tick:
                     if payload_sha256(state) != commit.get("state_sha256"):
-                        raise ValueError(
-                            f"telemetry state hash mismatch at tick {tick}"
-                        )
+                        raise ValueError(f"telemetry state hash mismatch at tick {tick}")
                     if payload_sha256(summary) != commit.get("summary_sha256"):
-                        raise ValueError(
-                            f"telemetry summary hash mismatch at tick {tick}"
-                        )
+                        raise ValueError(f"telemetry summary hash mismatch at tick {tick}")
                 yield tick, deepcopy(summary), state, commit
         finally:
             for handle in handles.values():
@@ -1413,21 +1322,14 @@ class TelemetryV41Reader:
             yield_intermediate=False,
         ):
             if current_tick == requested:
-                if (
-                    self.verify
-                    and payload_sha256(state) != commit.get("state_sha256")
-                ):
-                    raise ValueError(
-                        f"telemetry state hash mismatch at tick {requested}"
-                    )
+                if self.verify and payload_sha256(state) != commit.get("state_sha256"):
+                    raise ValueError(f"telemetry state hash mismatch at tick {requested}")
                 return state
         raise KeyError(f"telemetry tick not found: {requested}")
 
     def summary_at(self, tick: int) -> dict[str, Any]:
         requested = int(tick)
-        anchor = self._load_anchor(
-            self._nearest_anchor_path(requested)
-        )
+        anchor = self._load_anchor(self._nearest_anchor_path(requested))
         for current_tick, summary, _state, commit in self._reconstruct_from_anchor(
             anchor,
             end_tick=requested,
@@ -1435,13 +1337,8 @@ class TelemetryV41Reader:
             yield_intermediate=False,
         ):
             if current_tick == requested:
-                if (
-                    self.verify
-                    and payload_sha256(summary) != commit.get("summary_sha256")
-                ):
-                    raise ValueError(
-                        f"telemetry summary hash mismatch at tick {requested}"
-                    )
+                if self.verify and payload_sha256(summary) != commit.get("summary_sha256"):
+                    raise ValueError(f"telemetry summary hash mismatch at tick {requested}")
                 return summary
         raise KeyError(f"telemetry tick not found: {requested}")
 
@@ -1544,7 +1441,6 @@ class TelemetryV41Reader:
             return 0
         return candidate_offset
 
-
     def iter_events(
         self,
         *,
@@ -1629,11 +1525,7 @@ def _verify_checkpoint_file(
     component: str | None,
 ) -> None:
     relative = Path(str(reference.get("path", "")))
-    if (
-        not relative.parts
-        or relative.is_absolute()
-        or ".." in relative.parts
-    ):
+    if not relative.parts or relative.is_absolute() or ".." in relative.parts:
         raise ValueError("unsafe telemetry checkpoint path")
     path = root / relative
     if not path.is_file():
@@ -1650,9 +1542,7 @@ def _verify_checkpoint_file(
     if payload.get("run_id") != commit.get("run_id"):
         raise ValueError(f"telemetry checkpoint run mismatch: {relative}")
     if component is not None and payload.get("component") != component:
-        raise ValueError(
-            f"telemetry checkpoint component mismatch: {relative}"
-        )
+        raise ValueError(f"telemetry checkpoint component mismatch: {relative}")
 
 
 def _verify_checkpoint_reference(
@@ -1715,9 +1605,7 @@ def verify_v41_run(path: str | Path) -> dict[str, Any]:
         last_tick = tick
 
     if committed_records != reconstructed_records:
-        raise ValueError(
-            "telemetry committed tick count differs from reconstructed tick count"
-        )
+        raise ValueError("telemetry committed tick count differs from reconstructed tick count")
 
     manifest = reader.manifest
     complete = (

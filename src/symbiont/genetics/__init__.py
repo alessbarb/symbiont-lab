@@ -1,4 +1,6 @@
 """Genome v2: inherited predispositions, expression and germline."""
+
+from .bindings import GeneBinding, canonical_gene_bindings
 from .checkpoint import (
     export_expression,
     export_genome,
@@ -20,9 +22,14 @@ from .genome import (
     SensorimotorGenes,
     StructuralGenes,
 )
-from .germline import EpigeneticMark, EpigeneticProtocol, GermlineState, InheritancePackage, create_offspring_package
+from .germline import (
+    EpigeneticMark,
+    EpigeneticProtocol,
+    GermlineState,
+    InheritancePackage,
+    create_offspring_package,
+)
 from .lineage import GenomeLineageRecord
-from .bindings import GeneBinding, canonical_gene_bindings
 from .migration import migrate_v1_genome, migrate_v1_payload
 from .mutation import mutate_genome
 from .recombination import recombine_genomes

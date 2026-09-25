@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import random
-from dataclasses import replace
-from importlib import resources
 import json
+import random
+from importlib import resources
 
 from symbiont.cognition.genome import Genome, GenomeCodec
 from symbiont_lab.evolution.mutation import (
@@ -74,13 +73,8 @@ def test_mutate_soft_budget_changes_only_targeted_field():
         field="soft_node_budget",
         delta=8,
     )
-    assert mutated.development.soft_node_budget == (
-        parent.development.soft_node_budget + 8
-    )
-    assert (
-        mutated.development.soft_edge_budget
-        == parent.development.soft_edge_budget
-    )
+    assert mutated.development.soft_node_budget == (parent.development.soft_node_budget + 8)
+    assert mutated.development.soft_edge_budget == parent.development.soft_edge_budget
 
 
 def test_derive_child_genome_changes_instance_not_genealogy_or_genotype():

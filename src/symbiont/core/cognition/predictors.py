@@ -159,11 +159,7 @@ class PredictorLifecycle:
         minimum_support: int,
         tentative_lifetime_ticks: int,
     ) -> None:
-        predictor_ids = {
-            node.node_id
-            for node in graph.nodes
-            if node.kind is NodeKind.PREDICTOR
-        }
+        predictor_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.PREDICTOR}
         capacity_pressure = len(graph.nodes) >= soft_node_limit
         minimum_samples = max(8, minimum_support)
         enter_streak = max(4, minimum_support // 2)
@@ -238,8 +234,7 @@ class PredictorLifecycle:
         if graph.node_by_id(target_id) is None or target_id in self.retirement:
             return None
         if any(
-            node.kind is NodeKind.PREDICTOR
-            and node.predicts_node_id == target_id
+            node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id
             for node in graph.nodes
         ):
             return None
@@ -281,17 +276,11 @@ class PredictorLifecycle:
         tiebreak,
     ) -> tuple[str, str] | None:
         ranked = sorted(
-            (
-                candidate
-                for candidate in self.shadows.values()
-                if candidate.promotable
-            ),
+            (candidate for candidate in self.shadows.values() if candidate.promotable),
             key=lambda candidate: (
                 -candidate.predictive_gain,
                 -candidate.samples,
-                tiebreak(
-                    f"{candidate.source_id}:{candidate.target_id}"
-                ),
+                tiebreak(f"{candidate.source_id}:{candidate.target_id}"),
                 candidate.source_id,
                 candidate.target_id,
             ),
@@ -336,10 +325,7 @@ class PredictorLifecycle:
                         target_value,
                         target_previous,
                     )
-                    if (
-                        previous_status != "retired"
-                        and predictor.status == "retired"
-                    ):
+                    if previous_status != "retired" and predictor.status == "retired":
                         self.mark_shadow_dirty()
                     continue
 
@@ -399,9 +385,7 @@ class PredictorLifecycle:
         topology_revision: int,
         max_nodes: int,
     ) -> None:
-        topology_changed = (
-            self._shadow_prune_topology_revision != topology_revision
-        )
+        topology_changed = self._shadow_prune_topology_revision != topology_revision
         limit = self.live_shadow_limit(max_nodes)
         over_limit = len(self.shadows) > limit
         if not self._shadow_prune_dirty and not topology_changed and not over_limit:

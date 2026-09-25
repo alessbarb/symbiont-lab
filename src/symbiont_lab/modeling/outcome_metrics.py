@@ -11,7 +11,9 @@ def _torch() -> Any:
         import torch
         import torch.nn.functional as F
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("private-model evaluation requires the optional 'modeling' dependency (torch)") from exc
+        raise RuntimeError(
+            "private-model evaluation requires the optional 'modeling' dependency (torch)"
+        ) from exc
     return torch, F
 
 
@@ -37,7 +39,9 @@ def evaluate_outcome_model(
             if not positions:
                 continue
             bounded = tuple(sequence[: context_window + 1])
-            valid_positions = tuple(position for position in positions if position < len(bounded) - 1)
+            valid_positions = tuple(
+                position for position in positions if position < len(bounded) - 1
+            )
             if not valid_positions:
                 continue
             inputs = torch.tensor([bounded[:-1]], dtype=torch.long, device=device)

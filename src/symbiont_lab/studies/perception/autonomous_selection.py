@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-import math
 import random
+from dataclasses import dataclass
 from statistics import mean
 
-from symbiont.sensory import SensorySystem, TransductionKind
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+from symbiont.sensory import SensorySystem, TransductionKind
 
 from .sensory_specialisation import SensoryProtocolResult
 
@@ -61,7 +60,8 @@ def _candidate_pool(seed: int) -> CandidatePool:
         tick=1,
     )
     driver_identity = next(
-        sensor for sensor in system.sensors
+        sensor
+        for sensor in system.sensors
         if sensor.sensor_id.startswith("sensor.identity.")
         and sensor.source_ids == ("source.driver",)
     )
@@ -166,8 +166,7 @@ def run_autonomous_sensory_selection(seed: int = 101, *, samples: int = 192) -> 
         previous_driver = driver
 
     evaluator_mae = {
-        sensor_id: _holdout_mae(values, ys[: len(values)])
-        for sensor_id, values in xs.items()
+        sensor_id: _holdout_mae(values, ys[: len(values)]) for sensor_id, values in xs.items()
     }
     selected_id = _preferred(pool)
     best_id = min(evaluator_mae, key=evaluator_mae.get)
@@ -230,7 +229,11 @@ def run_sensory_regime_reversal(seed: int = 101, *, samples: int = 320) -> dict[
         preferred_role = pool.roles[preferred_id]
         if protocol_tick == shift_tick:
             preference_before = preferred_role
-        if protocol_tick > shift_tick and preferred_role == "integrate" and first_integrate_tick is None:
+        if (
+            protocol_tick > shift_tick
+            and preferred_role == "integrate"
+            and first_integrate_tick is None
+        ):
             first_integrate_tick = protocol_tick
 
         previous_previous_driver = previous_driver
@@ -246,8 +249,7 @@ def run_sensory_regime_reversal(seed: int = 101, *, samples: int = 320) -> dict[
         "preference_after": preference_after,
         "first_integrate_tick": first_integrate_tick,
         "switch_delay": (
-            None if first_integrate_tick is None
-            else first_integrate_tick - shift_tick
+            None if first_integrate_tick is None else first_integrate_tick - shift_tick
         ),
         "switched_delta_to_integrate": (
             preference_before == "difference" and preference_after == "integrate"
@@ -295,7 +297,9 @@ def run_sensory_null_selection(seed: int = 101, *, samples: int = 256) -> dict[s
     }
 
 
-def run_experience_conditioned_phenotype(seed: int = 101, *, samples: int = 256) -> dict[str, object]:
+def run_experience_conditioned_phenotype(
+    seed: int = 101, *, samples: int = 256
+) -> dict[str, object]:
     if samples < 192:
         raise ValueError("samples must be at least 192")
     world_rng = random.Random(seed)
@@ -328,7 +332,10 @@ def run_experience_conditioned_phenotype(seed: int = 101, *, samples: int = 256)
                     _reading("source.driver", perceived_driver),
                     _reading("source.outcome", perceived_outcome),
                 ],
-                percept_names={"source.driver": "signal.driver", "source.outcome": "signal.outcome"},
+                percept_names={
+                    "source.driver": "signal.driver",
+                    "source.outcome": "signal.outcome",
+                },
                 tick=tick,
             )
             pool.system.update_downstream_utility({})
@@ -352,7 +359,9 @@ def run_experience_conditioned_phenotype(seed: int = 101, *, samples: int = 256)
 def run_autonomous_sensory_selection_study(
     seeds=(101, 127, 149), steps: int = 192
 ) -> SensoryProtocolResult:
-    runs = tuple(run_autonomous_sensory_selection(int(seed), samples=max(128, steps)) for seed in seeds)
+    runs = tuple(
+        run_autonomous_sensory_selection(int(seed), samples=max(128, steps)) for seed in seeds
+    )
     return SensoryProtocolResult(
         "perception.autonomous-sensory-selection",
         tuple(int(seed) for seed in seeds),
@@ -402,7 +411,9 @@ def run_sensory_null_selection_study(
 def run_experience_conditioned_phenotype_study(
     seeds=(101, 127, 149), steps: int = 256
 ) -> SensoryProtocolResult:
-    runs = tuple(run_experience_conditioned_phenotype(int(seed), samples=max(192, steps)) for seed in seeds)
+    runs = tuple(
+        run_experience_conditioned_phenotype(int(seed), samples=max(192, steps)) for seed in seeds
+    )
     return SensoryProtocolResult(
         "perception.experience-conditioned-phenotype",
         tuple(int(seed) for seed in seeds),

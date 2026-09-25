@@ -18,7 +18,6 @@ from symbiont_lab.modeling import TrainingConfig, encode_corpus, train_private_m
 from symbiont_lab.modeling.gateway import load_artifact_model
 from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
 
-
 _OUTCOME_PERMUTATION = (2, 4, 1, 0, 3)
 
 
@@ -59,7 +58,9 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
     return normalized
 
 
-def _history(*, organism_id: str, seed: int, ticks: int, shifted: bool) -> tuple[ExperienceRecord, ...]:
+def _history(
+    *, organism_id: str, seed: int, ticks: int, shifted: bool
+) -> tuple[ExperienceRecord, ...]:
     """Create matched regimes with identical context/action distribution and bijective outcome relabeling."""
 
     records: list[ExperienceRecord] = []
@@ -70,18 +71,20 @@ def _history(*, organism_id: str, seed: int, ticks: int, shifted: bool) -> tuple
         action = (left + right + tick) % 3
         base_outcome = (left * 2 + right + action) % 5
         outcome = _OUTCOME_PERMUTATION[base_outcome] if shifted else base_outcome
-        records.append(ExperienceRecord(
-            record_id=f"episode.{organism_id}.{tick}",
-            organism_id=organism_id,
-            tick_class=tick,
-            context_tokens=(f"sense.{left}", f"sense.{right}"),
-            action_token=f"action.{action}",
-            outcome_tokens=(f"outcome.{outcome}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.{organism_id}.{tick}",),
-            confidence_class=7,
-            source_kind=SourceKind.ACTION_OUTCOME,
-        ))
+        records.append(
+            ExperienceRecord(
+                record_id=f"episode.{organism_id}.{tick}",
+                organism_id=organism_id,
+                tick_class=tick,
+                context_tokens=(f"sense.{left}", f"sense.{right}"),
+                action_token=f"action.{action}",
+                outcome_tokens=(f"outcome.{outcome}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.{organism_id}.{tick}",),
+                confidence_class=7,
+                source_kind=SourceKind.ACTION_OUTCOME,
+            )
+        )
     return tuple(records)
 
 
@@ -145,12 +148,12 @@ def run_private_model_symmetric_regime_study(
     results: list[SymmetricRegimeSeedResult] = []
     for seed in normalized:
         organism_id = f"symmetric-regime-{seed}"
-        pre_corpus = build_training_corpus(_history(
-            organism_id=organism_id, seed=seed, ticks=ticks, shifted=False
-        ))
-        post_corpus = build_training_corpus(_history(
-            organism_id=organism_id, seed=seed, ticks=ticks, shifted=True
-        ))
+        pre_corpus = build_training_corpus(
+            _history(organism_id=organism_id, seed=seed, ticks=ticks, shifted=False)
+        )
+        post_corpus = build_training_corpus(
+            _history(organism_id=organism_id, seed=seed, ticks=ticks, shifted=True)
+        )
         tokenizer = NativeTokenizer.from_records((*pre_corpus.train, *post_corpus.train))
         pre_encoded = encode_corpus(pre_corpus, tokenizer, context_window=32)
         post_encoded = encode_corpus(post_corpus, tokenizer, context_window=32)
@@ -171,15 +174,17 @@ def run_private_model_symmetric_regime_study(
         pre_loss = _loss(pre_training, pre_encoded)
         stale_post_loss = _loss(pre_training, post_encoded)
         retrained_post_loss = _loss(post_training, post_encoded)
-        results.append(SymmetricRegimeSeedResult(
-            seed=seed,
-            pre_loss=pre_loss,
-            stale_post_loss=stale_post_loss,
-            retrained_post_loss=retrained_post_loss,
-            stale_degradation=stale_post_loss - pre_loss,
-            recovery=stale_post_loss - retrained_post_loss,
-            recovered_vs_pre_gap=retrained_post_loss - pre_loss,
-        ))
+        results.append(
+            SymmetricRegimeSeedResult(
+                seed=seed,
+                pre_loss=pre_loss,
+                stale_post_loss=stale_post_loss,
+                retrained_post_loss=retrained_post_loss,
+                stale_degradation=stale_post_loss - pre_loss,
+                recovery=stale_post_loss - retrained_post_loss,
+                recovered_vs_pre_gap=retrained_post_loss - pre_loss,
+            )
+        )
 
     count = len(results)
     return SymmetricRegimeStudy(

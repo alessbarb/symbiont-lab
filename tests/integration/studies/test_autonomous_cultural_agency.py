@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonomous_cultural_agency_study
+from symbiont_lab.studies.learning.autonomous_cultural_agency import (
+    run_autonomous_cultural_agency_study,
+)
 
 
 def test_preregistered_autonomous_agency_replays_and_has_no_planner_result():
@@ -14,7 +16,9 @@ def test_preregistered_autonomous_agency_replays_and_has_no_planner_result():
 
 
 def test_autonomous_treatment_has_no_content_planner_or_truth_input():
-    source = Path("src/symbiont_lab/studies/learning/autonomous_cultural_agency.py").read_text(encoding="utf-8")
+    source = Path("src/symbiont_lab/studies/learning/autonomous_cultural_agency.py").read_text(
+        encoding="utf-8"
+    )
 
     # The study may evaluate outcomes, but its treatment must not choose
     # content or invoke the explicit content-bearing composition API.

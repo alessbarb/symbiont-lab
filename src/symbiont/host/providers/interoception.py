@@ -25,14 +25,16 @@ class InteroceptionProvider:
     provider_id = "interoception"
     # Computational host measurements remain apparatus evidence.  Only these
     # bounded physiological/cognitive channels cross into organism learning.
-    ORGANISM_CAPABILITY_IDS = frozenset({
-        "internal.epistemic_surprise",
-        "internal.metabolic_reserve",
-        "internal.integrity",
-        "internal.metabolic_pressure",
-        "internal.repair_pressure",
-        "internal.waste_pressure",
-    })
+    ORGANISM_CAPABILITY_IDS = frozenset(
+        {
+            "internal.epistemic_surprise",
+            "internal.metabolic_reserve",
+            "internal.integrity",
+            "internal.metabolic_pressure",
+            "internal.repair_pressure",
+            "internal.waste_pressure",
+        }
+    )
 
     @classmethod
     def organism_facing(cls, capability_id: str) -> bool:
@@ -142,7 +144,9 @@ class InteroceptionProvider:
 
     def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]:
         now_ns = time.monotonic_ns()
-        available_ids = {cap.capability_id for cap in capabilities if cap.source == self.provider_id}
+        available_ids = {
+            cap.capability_id for cap in capabilities if cap.source == self.provider_id
+        }
         readings: list[SensorReading] = []
 
         if "internal.tick_latency" in available_ids:
@@ -170,7 +174,9 @@ class InteroceptionProvider:
                     value=rss_bytes,
                     unit=Unit.BYTE,
                     monotonic_timestamp_ns=now_ns,
-                    quality=ReadingQuality.NOMINAL if rss_bytes is not None else ReadingQuality.UNAVAILABLE,
+                    quality=ReadingQuality.NOMINAL
+                    if rss_bytes is not None
+                    else ReadingQuality.UNAVAILABLE,
                     privacy_class=ReadingPrivacyClass.AGGREGATE,
                 )
             )
@@ -208,15 +214,17 @@ class InteroceptionProvider:
             ("internal.waste_pressure", self._waste_pressure),
         ):
             if capability_id in available_ids:
-                readings.append(SensorReading(
-                    capability_id=capability_id,
-                    source=self.provider_id,
-                    value=value,
-                    unit=Unit.RATIO,
-                    monotonic_timestamp_ns=now_ns,
-                    quality=ReadingQuality.NOMINAL,
-                    privacy_class=ReadingPrivacyClass.AGGREGATE,
-                ))
+                readings.append(
+                    SensorReading(
+                        capability_id=capability_id,
+                        source=self.provider_id,
+                        value=value,
+                        unit=Unit.RATIO,
+                        monotonic_timestamp_ns=now_ns,
+                        quality=ReadingQuality.NOMINAL,
+                        privacy_class=ReadingPrivacyClass.AGGREGATE,
+                    )
+                )
 
         return tuple(readings)
 
@@ -279,13 +287,17 @@ class InteroceptionProvider:
         reach the endogenous learner; otherwise environmental damage is
         recorded by the provider but cannot condition repair behaviour.
         """
-        return max(0.0, min(1.0,
-            0.25 * (1.0 - self._metabolic_reserve)
-            + 0.20 * self._epistemic_surprise
-            + 0.25 * self._repair_pressure
-            + 0.20 * self._metabolic_pressure
-            + 0.10 * self._waste_pressure
-        ))
+        return max(
+            0.0,
+            min(
+                1.0,
+                0.25 * (1.0 - self._metabolic_reserve)
+                + 0.20 * self._epistemic_surprise
+                + 0.25 * self._repair_pressure
+                + 0.20 * self._metabolic_pressure
+                + 0.10 * self._waste_pressure,
+            ),
+        )
 
 
 class ShamInteroceptionProvider(InteroceptionProvider):

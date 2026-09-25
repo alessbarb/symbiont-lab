@@ -1,10 +1,11 @@
 """Canonical persistent Embodiment episode aggregate."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import StrEnum
 import hashlib
 import uuid
+from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Mapping
 
 from ...actuation.binding import CompetenceExecutionBindingRegistry
@@ -16,7 +17,6 @@ from .contract import EmbodimentContract
 from .dynamics import SensorimotorDynamicsModel
 from .memory import EmbodimentPrior
 from .reachability import ReachabilityModel
-
 
 _MAX_CONTRACT_HISTORY = 64
 
@@ -60,14 +60,10 @@ class EmbodimentEpisode:
     embodiment_tick: int = 0
     end_reason: EmbodimentEndReason | None = None
     body_schema: BodySchemaEngine = field(default_factory=BodySchemaEngine)
-    dynamics_model: SensorimotorDynamicsModel = field(
-        default_factory=SensorimotorDynamicsModel
-    )
+    dynamics_model: SensorimotorDynamicsModel = field(default_factory=SensorimotorDynamicsModel)
     causal_evidence: CausalEvidenceLedger = field(default_factory=CausalEvidenceLedger)
     effect_model: CompetenceEffectModel = field(default_factory=CompetenceEffectModel)
-    controllability_model: ControllabilityModel = field(
-        default_factory=ControllabilityModel
-    )
+    controllability_model: ControllabilityModel = field(default_factory=ControllabilityModel)
     agency_model: AgencyModel = field(default_factory=AgencyModel)
     adaptation: EmbodimentAdaptation = field(default_factory=EmbodimentAdaptation)
     reachability: ReachabilityModel = field(default_factory=ReachabilityModel)
@@ -96,13 +92,10 @@ class EmbodimentEpisode:
         prior: EmbodimentPrior | None = None,
     ) -> "EmbodimentEpisode":
         if embodiment_id is None:
-            material = (
-                f"{symbiont_id}|{body_id}|{epoch}|{start_symbiont_tick}|"
-                f"{uuid.uuid4().hex}"
+            material = f"{symbiont_id}|{body_id}|{epoch}|{start_symbiont_tick}|{uuid.uuid4().hex}"
+            embodiment_id = (
+                "embodiment." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:24]
             )
-            embodiment_id = "embodiment." + hashlib.sha256(
-                material.encode("utf-8")
-            ).hexdigest()[:24]
         return cls(
             embodiment_id=embodiment_id,
             symbiont_id=symbiont_id,
@@ -300,16 +293,11 @@ class EmbodimentEpisode:
             ),
             execution_bindings=execution_bindings,
             prior=EmbodimentPrior.restore(
-                payload.get("prior")
-                if isinstance(payload.get("prior"), Mapping)
-                else None
+                payload.get("prior") if isinstance(payload.get("prior"), Mapping) else None
             ),
         )
         raw_history = payload.get("contract_history", [])
-        if (
-            not isinstance(raw_history, list)
-            or len(raw_history) > _MAX_CONTRACT_HISTORY
-        ):
+        if not isinstance(raw_history, list) or len(raw_history) > _MAX_CONTRACT_HISTORY:
             raise ValueError("invalid or unbounded embodiment contract history")
         for item in raw_history:
             if not isinstance(item, Mapping):

@@ -1,9 +1,9 @@
 """Genetic and explicitly optional epigenetic inheritance for Genome v2."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
-import random
+from dataclasses import dataclass, field
 from typing import Mapping
 
 from .genome import Genome, flatten_genes
@@ -114,9 +114,7 @@ class GermlineState:
         """Capture only under an explicitly enabled transgenerational protocol."""
         active = protocol or EpigeneticProtocol()
         if not (
-            self.acquired_capture_enabled
-            and active.enabled
-            and active.acquired_capture_enabled
+            self.acquired_capture_enabled and active.enabled and active.acquired_capture_enabled
         ):
             return ()
         captured: list[str] = []

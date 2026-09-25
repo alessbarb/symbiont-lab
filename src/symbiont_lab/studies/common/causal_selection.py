@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from math import floor
 from typing import Callable, Sequence, TypeVar
 
-
 T = TypeVar("T")
 _MASK64 = (1 << 64) - 1
 
@@ -133,11 +132,7 @@ def online_indices(
     The returned forced count records selections needed only to honor the fixed
     ex-ante budget at the end of the stream.
     """
-    eligible_items = [
-        (index, item)
-        for index, item in enumerate(items)
-        if eligible(item)
-    ]
+    eligible_items = [(index, item) for index, item in enumerate(items) if eligible(item)]
     total = len(eligible_items)
     budget = min(max(int(budget), 0), total)
     if budget == 0:

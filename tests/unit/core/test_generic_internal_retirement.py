@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from symbiont.core.cognition_bridge import CognitiveBridge
+
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
-
 from tests.unit.core.test_actuation_cognition_p1 import _genome
 
 
@@ -36,9 +36,7 @@ def test_generic_internal_orphans_are_reclaimed_after_grace():
     )
 
     removed = {
-        mutation.payload["node_id"]
-        for mutation in mutations
-        if mutation.kind == "remove_node"
+        mutation.payload["node_id"] for mutation in mutations if mutation.kind == "remove_node"
     }
     assert removed == {"gate_x", "state_x"}
 
@@ -97,9 +95,7 @@ def test_active_action_readout_is_not_reclaimed_as_orphan():
     )
 
     removed = {
-        mutation.payload["node_id"]
-        for mutation in mutations
-        if mutation.kind == "remove_node"
+        mutation.payload["node_id"] for mutation in mutations if mutation.kind == "remove_node"
     }
     assert "readout_primitive:primitive.keep" not in removed
     assert "readout_primitive:primitive.drop" in removed

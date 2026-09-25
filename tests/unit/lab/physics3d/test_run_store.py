@@ -5,16 +5,18 @@ import json
 import pytest
 
 from symbiont_lab.app.physics3d_runs import Physics3DRunStore
-from symbiont_lab.physics3d.bodies import BodyDescriptor, BodyRegistry, DEFAULT_BODY_REGISTRY
+from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyDescriptor, BodyRegistry
 
 
 def test_run_store_prepares_new_organism_and_fresh_body(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
-    launch = store.prepare({
-        "body_kind": "anthropomorphic-v6",
-        "organism": {"mode": "new"},
-        "body": {"mode": "fresh"},
-    })
+    launch = store.prepare(
+        {
+            "body_kind": "anthropomorphic-v6",
+            "organism": {"mode": "new"},
+            "body": {"mode": "fresh"},
+        }
+    )
 
     assert launch.embodiment_mode == "new"
     assert launch.symbiont_file.parent.parent == tmp_path / "organisms"
@@ -30,20 +32,24 @@ def test_run_store_prepares_new_organism_and_fresh_body(tmp_path) -> None:
 def test_new_organism_cannot_resume_body(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
     with pytest.raises(ValueError, match="cannot resume"):
-        store.prepare({
-            "body_kind": "anthropomorphic-v6",
-            "organism": {"mode": "new"},
-            "body": {"mode": "resume"},
-        })
+        store.prepare(
+            {
+                "body_kind": "anthropomorphic-v6",
+                "organism": {"mode": "new"},
+                "body": {"mode": "resume"},
+            }
+        )
 
 
 def test_run_store_catalogs_managed_runs(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
-    launch = store.prepare({
-        "body_kind": "anthropomorphic-v6",
-        "organism": {"mode": "new"},
-        "body": {"mode": "fresh"},
-    })
+    launch = store.prepare(
+        {
+            "body_kind": "anthropomorphic-v6",
+            "organism": {"mode": "new"},
+            "body": {"mode": "fresh"},
+        }
+    )
     store.mark_running(launch)
     runs = store.runs()
     assert runs[0]["run_id"] == launch.run_id
@@ -96,20 +102,23 @@ def test_dead_body_leaves_symbiont_runnable_for_fresh_reembodiment(tmp_path) -> 
     assert item["symbiont_state"] == "dormant"
     assert item["vital_state"] == "dead"
 
-    launch = store.prepare({
-        "body_kind": "anthropomorphic-v6",
-        "organism": {"mode": "existing", "ref": "org-dead"},
-        "body": {"mode": "fresh"},
-    })
+    launch = store.prepare(
+        {
+            "body_kind": "anthropomorphic-v6",
+            "organism": {"mode": "existing", "ref": "org-dead"},
+            "body": {"mode": "fresh"},
+        }
+    )
     assert launch.embodiment_mode == "reembodiment"
 
     with pytest.raises(ValueError, match="previous body is dead"):
-        store.prepare({
-            "body_kind": "anthropomorphic-v6",
-            "organism": {"mode": "existing", "ref": "org-dead"},
-            "body": {"mode": "resume"},
-        })
-
+        store.prepare(
+            {
+                "body_kind": "anthropomorphic-v6",
+                "organism": {"mode": "existing", "ref": "org-dead"},
+                "body": {"mode": "resume"},
+            }
+        )
 
 
 def test_changed_contract_is_reembodiment_not_incompatible(tmp_path) -> None:
@@ -149,13 +158,13 @@ def test_changed_contract_is_reembodiment_not_incompatible(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    launch = store.prepare({
-        "body_kind": "compact-v1",
-        "organism": {"mode": "existing", "ref": "org-old"},
-        "body": {"mode": "fresh"},
-    })
-    manifest = json.loads(
-        (tmp_path / "runs" / launch.run_id / "manifest.json").read_text()
+    launch = store.prepare(
+        {
+            "body_kind": "compact-v1",
+            "organism": {"mode": "existing", "ref": "org-old"},
+            "body": {"mode": "fresh"},
+        }
     )
+    manifest = json.loads((tmp_path / "runs" / launch.run_id / "manifest.json").read_text())
     assert manifest["compatibility"] == "reembodiment"
     assert launch.fresh_body is True

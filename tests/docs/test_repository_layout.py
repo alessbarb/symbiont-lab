@@ -1,4 +1,5 @@
 """Guard the boundary between executable tests and scientific runs."""
+
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parents[2]
@@ -25,7 +26,14 @@ def _meaningful_readme(path: Path) -> bool:
     lowered = text.lower()
     return len(text.strip()) >= 180 and all(
         marker in lowered
-        for marker in ("## purpose", "## belongs here", "## does not belong here", "## criterion for creating a file", "## execution", "## limits")
+        for marker in (
+            "## purpose",
+            "## belongs here",
+            "## does not belong here",
+            "## criterion for creating a file",
+            "## execution",
+            "## limits",
+        )
     )
 
 
@@ -36,7 +44,9 @@ def test_expected_test_layers_have_specific_readmes() -> None:
 
 def test_every_directory_containing_tests_has_a_readme() -> None:
     dirs = {path.parent for path in TESTS.rglob("test_*.py") if "__pycache__" not in path.parts}
-    missing = sorted(str(path.relative_to(REPO_ROOT)) for path in dirs if not _meaningful_readme(path))
+    missing = sorted(
+        str(path.relative_to(REPO_ROOT)) for path in dirs if not _meaningful_readme(path)
+    )
     assert not missing, f"test directories without README: {missing}"
 
 
@@ -46,7 +56,9 @@ def test_experiment_directories_with_protocol_content_have_readmes() -> None:
         for path in EXPERIMENTS.rglob("*")
         if path.is_file() and path.name not in {"README.md"} and "__pycache__" not in path.parts
     }
-    missing = sorted(str(path.relative_to(REPO_ROOT)) for path in dirs if not _meaningful_readme(path))
+    missing = sorted(
+        str(path.relative_to(REPO_ROOT)) for path in dirs if not _meaningful_readme(path)
+    )
     assert not missing, f"experiment directories without README: {missing}"
 
 

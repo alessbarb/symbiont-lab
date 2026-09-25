@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections import Counter
-from dataclasses import dataclass, field
 import hashlib
 import json
 import math
+from collections import Counter
+from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
 from ..cognition.limits import KernelLimits
@@ -179,11 +179,7 @@ class EpisodicProjection:
             for token in record.context_tokens
             if token.startswith("concept.")
         ]
-        internal = [
-            token
-            for token in record.context_tokens
-            if token.startswith("internal.")
-        ]
+        internal = [token for token in record.context_tokens if token.startswith("internal.")]
         return cls(
             sense_ids=_bounded_unique(senses, limit=16),
             concept_ids=_bounded_unique(concepts, limit=8),
@@ -226,7 +222,11 @@ class EpisodeStep:
     source_kind: SourceKind
 
     def __post_init__(self) -> None:
-        if isinstance(self.tick_offset, bool) or not isinstance(self.tick_offset, int) or self.tick_offset < 0:
+        if (
+            isinstance(self.tick_offset, bool)
+            or not isinstance(self.tick_offset, int)
+            or self.tick_offset < 0
+        ):
             raise EpisodicMemoryError("tick_offset must be non-negative")
         if not _valid_token(self.source_record_id):
             raise EpisodicMemoryError("invalid episodic source record id")
@@ -362,7 +362,10 @@ class ExperienceEpisode:
             or any(not isinstance(item, EpisodicProjection) for item in self.exceptions)
         ):
             raise EpisodicMemoryError("invalid episodic exceptions")
-        if any(not math.isfinite(value) or not 0.0 <= value <= 1.0 for value in (self.novelty, self.surprise)):
+        if any(
+            not math.isfinite(value) or not 0.0 <= value <= 1.0
+            for value in (self.novelty, self.surprise)
+        ):
             raise EpisodicMemoryError("invalid episodic novelty/surprise")
 
     @staticmethod
@@ -476,8 +479,7 @@ class ExperienceEpisode:
                 not isinstance(raw_occurrences, list)
                 or not raw_occurrences
                 or any(
-                    isinstance(tick, bool) or not isinstance(tick, int)
-                    for tick in raw_occurrences
+                    isinstance(tick, bool) or not isinstance(tick, int) for tick in raw_occurrences
                 )
                 or not isinstance(raw_trace, list)
                 or len(raw_trace) > 8
@@ -503,16 +505,15 @@ class ExperienceEpisode:
                 start_tick=raw_start_tick,
                 end_tick=raw_end_tick,
                 occurrence_ticks=tuple(raw_occurrences),
-                trace=tuple(EpisodeStep.restore(step) for step in raw_trace if isinstance(step, Mapping)),
+                trace=tuple(
+                    EpisodeStep.restore(step) for step in raw_trace if isinstance(step, Mapping)
+                ),
                 action_token=raw_action,
                 sense_support=support("sense_support", 32, recurrence),
                 concept_support=support("concept_support", 16, recurrence),
                 internal_support=support("internal_support", 16, recurrence),
                 effect_support=support("effect_support", 32, recurrence),
-                exceptions=tuple(
-                    EpisodicProjection.restore(item)
-                    for item in raw_exceptions
-                ),
+                exceptions=tuple(EpisodicProjection.restore(item) for item in raw_exceptions),
                 evidence_refs=_bounded_unique((str(item) for item in raw_evidence), limit=32),
                 source_record_ids=_bounded_unique((str(item) for item in raw_sources), limit=32),
                 novelty=float(raw_novelty),
@@ -648,9 +649,7 @@ class EpisodicExperienceMemory:
             components.append((0.28, _jaccard(left.concept_ids, right.concept_ids)))
         if left.internal_tokens or right.internal_tokens:
             components.append((0.15, _jaccard(left.internal_tokens, right.internal_tokens)))
-        components.append(
-            (0.15, 1.0 if left.action_token == right.action_token else 0.0)
-        )
+        components.append((0.15, 1.0 if left.action_token == right.action_token else 0.0))
         total_weight = sum(weight for weight, _ in components)
         state = sum(weight * value for weight, value in components) / total_weight
         if not include_effect:
@@ -660,9 +659,7 @@ class EpisodicExperienceMemory:
 
     @staticmethod
     def _effect_similarity(left: EpisodicProjection, right: EpisodicProjection) -> float:
-        left_summary = tuple(
-            token for token in left.effect_features if token.startswith("effect.")
-        )
+        left_summary = tuple(token for token in left.effect_features if token.startswith("effect."))
         right_summary = tuple(
             token for token in right.effect_features if token.startswith("effect.")
         )
@@ -703,8 +700,12 @@ class EpisodicExperienceMemory:
             return EpisodicProjection()
         sense_counts = Counter(token for item in items for token in item.projection.sense_ids)
         concept_counts = Counter(token for item in items for token in item.projection.concept_ids)
-        internal_counts = Counter(token for item in items for token in item.projection.internal_tokens)
-        effect_counts = Counter(token for item in items for token in item.projection.effect_features)
+        internal_counts = Counter(
+            token for item in items for token in item.projection.internal_tokens
+        )
+        effect_counts = Counter(
+            token for item in items for token in item.projection.effect_features
+        )
         action_counts = Counter(
             item.projection.action_token
             for item in items
@@ -844,9 +845,7 @@ class EpisodicExperienceMemory:
                 surprise=surprise,
             )
             self._episodes.append(episode)
-            self._episode_payload_bytes[episode.episode_id] = self._episode_size(
-                episode
-            )
+            self._episode_payload_bytes[episode.episode_id] = self._episode_size(episode)
             episode_id = episode.episode_id
         else:
             episode = self._episodes[best_index]
@@ -868,9 +867,7 @@ class EpisodicExperienceMemory:
                     projection,
                 ),
             )
-            self._episode_payload_bytes[episode.episode_id] = self._episode_size(
-                episode
-            )
+            self._episode_payload_bytes[episode.episode_id] = self._episode_size(episode)
             episode_id = episode.episode_id
             self._compaction_count += 1
 
@@ -915,7 +912,9 @@ class EpisodicExperienceMemory:
         episode.occurrence_ticks = tuple(occurrence_values)
         self._bounded_support_merge(episode.sense_support, projection.sense_ids, maximum=32)
         self._bounded_support_merge(episode.concept_support, projection.concept_ids, maximum=16)
-        self._bounded_support_merge(episode.internal_support, projection.internal_tokens, maximum=16)
+        self._bounded_support_merge(
+            episode.internal_support, projection.internal_tokens, maximum=16
+        )
         self._bounded_support_merge(episode.effect_support, projection.effect_features, maximum=32)
 
         if state_similarity < 0.66 or effect_similarity < 0.60:
@@ -951,7 +950,9 @@ class EpisodicExperienceMemory:
                 break
         episode.trace = tuple(sorted(combined_steps, key=lambda item: item.tick_offset)[:8])
         episode.evidence_refs = _bounded_unique((*episode.evidence_refs, *evidence), limit=32)
-        episode.source_record_ids = _bounded_unique((*episode.source_record_ids, *sources), limit=32)
+        episode.source_record_ids = _bounded_unique(
+            (*episode.source_record_ids, *sources), limit=32
+        )
         episode.novelty = max(episode.novelty, self._novelty_for(projection))
         episode.surprise = max(episode.surprise, self._surprise_for(projection))
 
@@ -959,8 +960,7 @@ class EpisodicExperienceMemory:
         if not self._episodes:
             return 1.0
         best = max(
-            self.projection_similarity(episode.projection, projection)
-            for episode in self._episodes
+            self.projection_similarity(episode.projection, projection) for episode in self._episodes
         )
         return max(0.0, min(1.0, 1.0 - best))
 
@@ -994,16 +994,12 @@ class EpisodicExperienceMemory:
         # interpretations and checkpoint structure. Episode payloads themselves
         # are tracked exactly and updated only when a family changes.
         interpretation_bytes = sum(
-            len(episode_id)
-            + sum(len(value) + 8 for value in values)
-            + 64
+            len(episode_id) + sum(len(value) + 8 for value in values) + 64
             for episode_id, values in self._interpretations.items()
         )
         structural_overhead = 4096 + 256 * len(self._episodes)
         return (
-            structural_overhead
-            + sum(self._episode_payload_bytes.values())
-            + interpretation_bytes
+            structural_overhead + sum(self._episode_payload_bytes.values()) + interpretation_bytes
         )
 
     def _least_informative_index(self) -> int:
@@ -1014,7 +1010,12 @@ class EpisodicExperienceMemory:
             age = max(0, newest - episode.end_tick)
             recurrence = min(1.0, episode.recurrence / 8.0)
             retrieval = min(1.0, self._retrieval_counts.get(episode.episode_id, 0) / 8.0)
-            keep = 0.35 * episode.novelty + 0.35 * episode.surprise + 0.20 * recurrence + 0.10 * retrieval
+            keep = (
+                0.35 * episode.novelty
+                + 0.35 * episode.surprise
+                + 0.20 * recurrence
+                + 0.10 * retrieval
+            )
             return keep, -age, episode.episode_id
 
         return min(enumerate(self._episodes), key=score)[0]
@@ -1118,7 +1119,9 @@ class EpisodicExperienceMemory:
             return 0
         changed = 0
         for episode in self._episodes:
-            factual = set(episode.projection.context_tokens) | set(episode.projection.effect_features)
+            factual = set(episode.projection.context_tokens) | set(
+                episode.projection.effect_features
+            )
             indexed = factual | self._interpretations.get(episode.episode_id, set())
             if len(indexed & support) / len(support) < min_overlap:
                 continue
@@ -1135,8 +1138,7 @@ class EpisodicExperienceMemory:
         consolidated: dict[str, ConsolidatedContingency] = {}
         for episode in self._episodes:
             epochs = {
-                tick // self._limits.episodic_epoch_ticks
-                for tick in episode.occurrence_ticks
+                tick // self._limits.episodic_epoch_ticks for tick in episode.occurrence_ticks
             }
             if len(epochs) < self._limits.episodic_min_consolidation_epochs:
                 continue
@@ -1145,8 +1147,7 @@ class EpisodicExperienceMemory:
             contingency_id = "contingency." + hashlib.sha256(material.encode()).hexdigest()[:32]
             confidence = min(
                 1.0,
-                0.5 * min(1.0, len(epochs) / 6.0)
-                + 0.5 * min(1.0, episode.recurrence / 8.0),
+                0.5 * min(1.0, len(epochs) / 6.0) + 0.5 * min(1.0, episode.recurrence / 8.0),
             )
             consolidated[contingency_id] = ConsolidatedContingency(
                 contingency_id=contingency_id,
@@ -1238,11 +1239,7 @@ class EpisodicExperienceMemory:
             pending_records=len(self._pending),
             compressed_episode_count=sum(episode.recurrence > 1 for episode in self._episodes),
             total_occurrences=total_occurrences,
-            mean_recurrence=(
-                total_occurrences / len(self._episodes)
-                if self._episodes
-                else 0.0
-            ),
+            mean_recurrence=(total_occurrences / len(self._episodes) if self._episodes else 0.0),
             exception_count=sum(len(episode.exceptions) for episode in self._episodes),
             checkpoint_bytes=self._estimated_size(),
             interpretation_count=sum(len(values) for values in self._interpretations.values()),
@@ -1293,10 +1290,7 @@ class EpisodicExperienceMemory:
         self._enforce_capacity()
         payload = self._checkpoint_payload(include_pending=False)
         encoded_size = self._json_size(payload)
-        while (
-            encoded_size > self._limits.max_episodic_checkpoint_bytes
-            and self._episodes
-        ):
+        while encoded_size > self._limits.max_episodic_checkpoint_bytes and self._episodes:
             victim = self._least_informative_index()
             episode = self._episodes.pop(victim)
             self._episode_payload_bytes.pop(episode.episode_id, None)
@@ -1330,7 +1324,9 @@ class EpisodicExperienceMemory:
             outcomes = raw.get("outcome_tokens", [])
             sources = raw.get("source_record_ids", [])
             evidence = raw.get("evidence_refs", [])
-            if not all(isinstance(value, list) for value in (initial, actions, outcomes, sources, evidence)):
+            if not all(
+                isinstance(value, list) for value in (initial, actions, outcomes, sources, evidence)
+            ):
                 continue
             pseudo_record = ExperienceRecord(
                 record_id=(
@@ -1355,9 +1351,7 @@ class EpisodicExperienceMemory:
             valid_occurrences = [
                 tick
                 for tick in raw_occurrences
-                if isinstance(tick, int)
-                and not isinstance(tick, bool)
-                and tick >= 0
+                if isinstance(tick, int) and not isinstance(tick, bool) and tick >= 0
             ]
             if not valid_occurrences:
                 valid_occurrences = [pseudo_record.tick_class]
@@ -1412,9 +1406,7 @@ class EpisodicExperienceMemory:
         if not isinstance(raw_episodes, list) or len(raw_episodes) > limits.max_episodic_episodes:
             raise EpisodicMemoryError("invalid episodic episode collection")
         memory._episodes = [
-            ExperienceEpisode.restore(raw)
-            for raw in raw_episodes
-            if isinstance(raw, Mapping)
+            ExperienceEpisode.restore(raw) for raw in raw_episodes if isinstance(raw, Mapping)
         ]
         if len(memory._episodes) != len(raw_episodes):
             raise EpisodicMemoryError("invalid episode checkpoint entry")
@@ -1422,8 +1414,7 @@ class EpisodicExperienceMemory:
         if len(ids) != len(set(ids)):
             raise EpisodicMemoryError("duplicate episodic episode id")
         memory._episode_payload_bytes = {
-            episode.episode_id: memory._episode_size(episode)
-            for episode in memory._episodes
+            episode.episode_id: memory._episode_size(episode) for episode in memory._episodes
         }
 
         raw_interpretations = payload.get("interpretations", {})
@@ -1442,7 +1433,12 @@ class EpisodicExperienceMemory:
         raw_counts = payload.get("retrieval_counts", {})
         if isinstance(raw_counts, Mapping):
             for episode_id, count in raw_counts.items():
-                if episode_id in set(ids) and isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+                if (
+                    episode_id in set(ids)
+                    and isinstance(count, int)
+                    and not isinstance(count, bool)
+                    and count >= 0
+                ):
                     memory._retrieval_counts[str(episode_id)] = count
 
         raw_metrics = payload.get("metrics", {})

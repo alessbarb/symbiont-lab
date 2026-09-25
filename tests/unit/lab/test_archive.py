@@ -1,6 +1,6 @@
+from symbiont.simulation import run_simulation
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.experiments.spec import ExperimentSpec
-from symbiont.simulation import run_simulation
 
 
 def test_archive_round_trip_keeps_spec_and_final_metrics(tmp_path):

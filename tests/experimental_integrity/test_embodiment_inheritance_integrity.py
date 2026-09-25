@@ -11,31 +11,32 @@ Enforces invariants from docs/design/herencia-evolutiva-multidimensional.md:
   component-level falsification studies (modules carrying the module-level
   ``__falsification_specimen__ = True`` marker) and have no causal path back to an organism.
 """
+
 from __future__ import annotations
 
 import ast
 import inspect
 from pathlib import Path
-import pytest
 
-from symbiont.core.body import Body, create_standard_body
-from symbiont.core.embodiment import implant
-from symbiont.actuation.model import AgencyModel as CanonicalAgencyModel
-from symbiont.core.embodiment.agency import (
-    AgencyModel as LegacyAgencyModel,
-    InferredBodySchema,
-    InferredSelfModel,
-)
-from symbiont.core.embodiment.body_schema import BodySchemaEngine
-from symbiont.core.symbiont import Symbiont
+import pytest
+from symbiont.core.body import Body
 from symbiont.core.germline import (
-    EpigeneticMark,
     GermlineState,
     InheritancePackage,
     create_offspring_package,
     create_standard_genome,
 )
 from symbiont.core.individual import create_individual
+from symbiont.core.symbiont import Symbiont
+
+from symbiont.actuation.model import AgencyModel as CanonicalAgencyModel
+from symbiont.core.embodiment.agency import (
+    AgencyModel as LegacyAgencyModel,
+)
+from symbiont.core.embodiment.agency import (
+    InferredBodySchema,
+)
+from symbiont.core.embodiment.body_schema import BodySchemaEngine
 
 
 def test_ast_body_morphology_and_names_never_enter_cognition():
@@ -49,8 +50,16 @@ def test_ast_body_morphology_and_names_never_enter_cognition():
     ]
 
     forbidden_terms = {
-        "pierna", "brazo", "rodilla", "limb", "quadruped", "wheeled",
-        "morphology", "body_topology", "effector_kind", "receptor_kind",
+        "pierna",
+        "brazo",
+        "rodilla",
+        "limb",
+        "quadruped",
+        "wheeled",
+        "morphology",
+        "body_topology",
+        "effector_kind",
+        "receptor_kind",
     }
 
     violations: list[str] = []
@@ -142,7 +151,9 @@ def test_world_cannot_write_body_schema_or_agency_model():
                 if node.id in _ALL_FORBIDDEN_SYMBOLS:
                     violations.append(f"{py_file.relative_to(repo_root)} references {node.id}")
 
-    assert not violations, "Integrity violation: World accessing internal schema models:\n" + "\n".join(violations)
+    assert not violations, (
+        "Integrity violation: World accessing internal schema models:\n" + "\n".join(violations)
+    )
 
 
 def test_lab_body_schema_access_confined_to_marked_falsification_specimens():
@@ -208,8 +219,10 @@ def test_lab_body_schema_access_confined_to_marked_falsification_specimens():
                         )
             elif isinstance(node, ast.Call):
                 func = node.func
-                func_name = func.id if isinstance(func, ast.Name) else (
-                    func.attr if isinstance(func, ast.Attribute) else None
+                func_name = (
+                    func.id
+                    if isinstance(func, ast.Name)
+                    else (func.attr if isinstance(func, ast.Attribute) else None)
                 )
                 if func_name in _LIVE_ORGANISM_SYMBOLS:
                     violations.append(
@@ -277,14 +290,10 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
     place; this test only proves nothing organism-shaped leaks out through
     the result.)
     """
-    from symbiont.core.embodiment.agency import (
-        AgencyModel as LegacyAgencyModel,
-        InferredBodySchema,
-    )
-    from symbiont.core.body import Body
-    from symbiont.core.embodiment import EmbodimentSession
     from symbiont.core.individual import Individual
     from symbiont.core.symbiont import Symbiont
+
+    from symbiont.core.embodiment import EmbodimentSession
     from symbiont_lab.studies.embodiment.hidden_common_cause import (
         run_hidden_common_cause_study,
     )
@@ -292,7 +301,14 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
         run_tool_body_distinction_study,
     )
 
-    escaped_types = (LegacyAgencyModel, InferredBodySchema, Symbiont, Individual, Body, EmbodimentSession)
+    escaped_types = (
+        LegacyAgencyModel,
+        InferredBodySchema,
+        Symbiont,
+        Individual,
+        Body,
+        EmbodimentSession,
+    )
 
     def _walk(obj: object, seen: set[int], path: str) -> None:
         if id(obj) in seen:
@@ -450,4 +466,3 @@ def test_clean_world_architecture_has_zero_legacy_runtime_dependency():
     assert rig.individual.session is not None
     assert rig.individual.genome is not None
     assert rig.individual.germline is not None
-

@@ -1,4 +1,5 @@
 """Contextual exploration without a developmental mode or scalar reward."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

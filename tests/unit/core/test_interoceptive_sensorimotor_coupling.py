@@ -8,12 +8,14 @@ percept pipeline as everything else (L3), so when interoception is enabled
 they are simply part of the same body_state ordinary evidence already
 feeding primitive formation and actuator causal-evidence tracking.
 """
+
 from __future__ import annotations
+
+from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
 
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
 
 
 def _reproduction_genome():
@@ -28,7 +30,9 @@ def _runtime(interoception_mode: str) -> OrganismRuntime:
         organism_id="interoception-coupling-probe",
         genome=_reproduction_genome(),
         actuation_enabled=True,
-        actuator_constitution=derive_actuator_constitution(8, physical_contract="interoception-probe-v2"),
+        actuator_constitution=derive_actuator_constitution(
+            8, physical_contract="interoception-probe-v2"
+        ),
         bootstrap_semantic_senses=True,
         discover_senses=True,
         min_samples=1,
@@ -61,12 +65,8 @@ def _capture_snapshot_sizes(runtime: OrganismRuntime, method_name: str, ticks: i
 
 
 def test_interoception_enabled_widens_sensorimotor_body_state():
-    on_sizes = _capture_snapshot_sizes(
-        _runtime("enabled"), "_sensorimotor_body_snapshot", ticks=40
-    )
-    off_sizes = _capture_snapshot_sizes(
-        _runtime("absent"), "_sensorimotor_body_snapshot", ticks=40
-    )
+    on_sizes = _capture_snapshot_sizes(_runtime("enabled"), "_sensorimotor_body_snapshot", ticks=40)
+    off_sizes = _capture_snapshot_sizes(_runtime("absent"), "_sensorimotor_body_snapshot", ticks=40)
     assert on_sizes and off_sizes
     assert max(on_sizes) > max(off_sizes)
 
@@ -75,12 +75,8 @@ def test_interoception_enabled_widens_actuator_effect_percept_snapshot():
     """The same generic filtering feeds ActuatorEvidenceModel.record_effect's
     percept snapshot — interoceptive channels can drive actuator causal
     promotion too, not only exteroceptive ones."""
-    on_sizes = _capture_snapshot_sizes(
-        _runtime("enabled"), "_motor_percept_snapshot", ticks=40
-    )
-    off_sizes = _capture_snapshot_sizes(
-        _runtime("absent"), "_motor_percept_snapshot", ticks=40
-    )
+    on_sizes = _capture_snapshot_sizes(_runtime("enabled"), "_motor_percept_snapshot", ticks=40)
+    off_sizes = _capture_snapshot_sizes(_runtime("absent"), "_motor_percept_snapshot", ticks=40)
     assert on_sizes and off_sizes
     assert max(on_sizes) > max(off_sizes)
 
@@ -116,8 +112,7 @@ def test_sensorimotor_primitive_formation_is_channel_identity_agnostic():
             drive = sum(vector.values())
             signed = (step + 1) / len(sequence)
             state = {
-                "interoceptive.channel_7": state["interoceptive.channel_7"]
-                + drive * 0.01 * signed
+                "interoceptive.channel_7": state["interoceptive.channel_7"] + drive * 0.01 * signed
             }
             tick += 1
         learner.observe(

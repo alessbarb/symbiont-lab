@@ -4,18 +4,19 @@ Owns ticking, persistence and observer-safe snapshot/event projection. It has no
 HTTP or presentation responsibility: Observatory (or another passive consumer)
 may read payload() and events_after() without steering the world.
 """
+
 from __future__ import annotations
 
-from threading import Lock, Thread
 import time
-
+from threading import Lock, Thread
 from typing import Any
+
+from symbiont_world.topology import HexTopology
 
 from .cli_view import render_world, world_snapshot
 from .genesis_v1 import GENESIS_V1_METADATA, build_constitution, build_ground_truth
 from .persistence import WorldStorage
 from .population import PopulationGenesisRuntime, founder_placement
-from symbiont_world.topology import HexTopology
 
 
 class WorldRuntimeState:
@@ -89,7 +90,7 @@ class WorldRuntimeState:
         oids = self.population.organism_ids
         alive_count = sum(self.population.is_alive(o) for o in oids)
         tot = len(oids) or 1
-        
+
         integ_sum = 0.0
         res_sum = 0.0
         for o in oids:
@@ -119,14 +120,16 @@ class WorldRuntimeState:
                 hits_count += len(rec.hazard_hits)
             # Apparatus metric: count committed physical transfer resolutions,
             # never infer acquisition from an organism-facing semantic action name.
-            acq_count = float(sum(
-                1
-                for event in self.population.journal.replay()
-                if event.tick == tick
-                and event.kind == "ACTUATION_RESOLVED"
-                and event.payload.get("effect") == "material_exchange"
-                and event.payload.get("outcome") == "granted"
-            ))
+            acq_count = float(
+                sum(
+                    1
+                    for event in self.population.journal.replay()
+                    if event.tick == tick
+                    and event.kind == "ACTUATION_RESOLVED"
+                    and event.payload.get("effect") == "material_exchange"
+                    and event.payload.get("outcome") == "granted"
+                )
+            )
 
         self._history_ticks.append(tick)
         self._history_alive.append(alive_count)
@@ -209,7 +212,7 @@ class WorldRuntimeState:
                         break
                 else:
                     raise ValueError("unknown after event_id")
-            page = events[start:start + limit]
+            page = events[start : start + limit]
             next_after = page[-1].event_id if page else after
             return {
                 "events": [self._event_payload(event) for event in page],
@@ -236,14 +239,15 @@ class WorldRuntimeState:
                 population=self.population,
             )
             events = [
-                self._event_payload(event)
-                for event in self.population.journal.replay()[-60:]
+                self._event_payload(event) for event in self.population.journal.replay()[-60:]
             ]
             return {
                 "running": self._running,
                 "error": self._error,
                 "tick": self.population.state.tick,
-                "alive_count": sum(self.population.is_alive(o) for o in self.population.organism_ids),
+                "alive_count": sum(
+                    self.population.is_alive(o) for o in self.population.organism_ids
+                ),
                 "text": text,
                 "history": {
                     "ticks": list(self._history_ticks),
@@ -256,4 +260,3 @@ class WorldRuntimeState:
                 "events": events,
                 **snapshot,
             }
-

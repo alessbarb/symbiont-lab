@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
+from dataclasses import dataclass
 from typing import Iterable
 
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
-
 
 # NOTE(design): Private SLM v1 is deliberately conservative: speculative, predicted,
 # contradicted and retired claims remain inspectable in the ledger but are not
 # next-token training targets. Later multi-task objectives may learn from those
 # states explicitly without conflating them with factual outcome evidence.
-_DEFAULT_ALLOWED_STATES = frozenset({
-    EpistemicStatus.OBSERVED,
-    EpistemicStatus.SUPPORTED,
-})
+_DEFAULT_ALLOWED_STATES = frozenset(
+    {
+        EpistemicStatus.OBSERVED,
+        EpistemicStatus.SUPPORTED,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +58,9 @@ def _split_counts(total: int) -> tuple[int, int, int]:
     return train, validation, test
 
 
-def _admissible_record(record: ExperienceRecord, allowed_states: frozenset[EpistemicStatus]) -> bool:
+def _admissible_record(
+    record: ExperienceRecord, allowed_states: frozenset[EpistemicStatus]
+) -> bool:
     if record.epistemic_status not in allowed_states:
         return False
     if record.source_kind is not SourceKind.MODEL:
@@ -82,7 +85,11 @@ def build_training_corpus(
     Private SLM v1 admits only evidence-backed states by default.
     """
 
-    if isinstance(max_records, bool) or not isinstance(max_records, int) or not 3 <= max_records <= 65536:
+    if (
+        isinstance(max_records, bool)
+        or not isinstance(max_records, int)
+        or not 3 <= max_records <= 65536
+    ):
         raise ValueError("max_records must be an integer within [3, 65536]")
     if not isinstance(allowed_states, frozenset) or not allowed_states:
         raise ValueError("allowed_states must be a non-empty frozenset")

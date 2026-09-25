@@ -18,7 +18,10 @@ class EncodedSplit:
         if any(len(sequence) < 2 for sequence in self.sequences):
             raise ValueError("every encoded sequence must contain at least two tokens")
         for sequence, positions in zip(self.sequences, self.outcome_target_positions):
-            if any(isinstance(position, bool) or not isinstance(position, int) for position in positions):
+            if any(
+                isinstance(position, bool) or not isinstance(position, int)
+                for position in positions
+            ):
                 raise ValueError("outcome target positions must be integers")
             if any(position < 0 or position >= len(sequence) - 1 for position in positions):
                 raise ValueError("outcome target position outside causal sequence")
@@ -55,12 +58,14 @@ def _encode_split(records, tokenizer: NativeTokenizer, context_window: int) -> E
         suffix: list[str] = ["<SEP>"]
         if record.action_token is not None:
             suffix.append(record.action_token)
-        suffix.extend((
-            f"<EPI:{record.epistemic_status.value}>",
-            f"<SRC:{record.source_kind.value}>",
-            *record.outcome_tokens,
-            "<EOS>",
-        ))
+        suffix.extend(
+            (
+                f"<EPI:{record.epistemic_status.value}>",
+                f"<SRC:{record.source_kind.value}>",
+                *record.outcome_tokens,
+                "<EOS>",
+            )
+        )
         reserved = 1 + len(suffix)  # BOS + full causal suffix
         if reserved > max_sequence:
             # A record whose causal suffix alone cannot fit is not safe to use:
@@ -74,9 +79,7 @@ def _encode_split(records, tokenizer: NativeTokenizer, context_window: int) -> E
             continue
 
         first_outcome_sequence_index = (
-            1 + len(context) + 1
-            + (1 if record.action_token is not None else 0)
-            + 2
+            1 + len(context) + 1 + (1 if record.action_token is not None else 0) + 2
         )
         positions = tuple(
             sequence_index - 1
@@ -104,7 +107,11 @@ def encode_corpus(
         raise ValueError("corpus must be a TrainingCorpus")
     if not isinstance(tokenizer, NativeTokenizer):
         raise ValueError("tokenizer must be a NativeTokenizer")
-    if isinstance(context_window, bool) or not isinstance(context_window, int) or not 8 <= context_window <= 512:
+    if (
+        isinstance(context_window, bool)
+        or not isinstance(context_window, int)
+        or not 8 <= context_window <= 512
+    ):
         raise ValueError("context_window must be within [8, 512]")
     mapping = tokenizer.token_to_id
     encoded = EncodedCorpus(
@@ -117,5 +124,7 @@ def encode_corpus(
         pad_id=mapping["<PAD>"],
     )
     if encoded.validation.outcome_predictions < 1 or encoded.test.outcome_predictions < 1:
-        raise ValueError("validation and test splits require at least one observable outcome target")
+        raise ValueError(
+            "validation and test splits require at least one observable outcome target"
+        )
     return encoded

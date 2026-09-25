@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.action import (
     ActionEvaluation,
     ActionJustification,
@@ -13,13 +12,14 @@ from symbiont.actuation.action import (
     MotorCommand,
 )
 from symbiont.actuation.arbitration import ActionArbitrator
-from symbiont.actuation.composition import CompositionEngine
+from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.commitment import ActionCommitment
 from symbiont.actuation.competence import (
     CompetenceEvidence,
     CompetenceMaturity,
     MotorCompetence,
 )
+from symbiont.actuation.composition import CompositionEngine
 from symbiont.actuation.effects import EffectSpace
 from symbiont.actuation.evidence import (
     CausalEvidenceLedger,
@@ -168,7 +168,9 @@ def test_execution_binding_is_separate_from_competence_evidence():
 
 def test_controllability_requires_advantage_over_alternative_actions():
     ledger = CausalEvidenceLedger()
-    for index, competence in enumerate(("competence.a", "competence.a", "competence.b", "competence.b")):
+    for index, competence in enumerate(
+        ("competence.a", "competence.a", "competence.b", "competence.b")
+    ):
         transition = SensorimotorTransition(
             transition_id=f"transition.{index}",
             tick_start=index,
@@ -257,9 +259,7 @@ def test_agency_is_inferred_from_same_ledger_not_a_second_evidence_store():
             actuation_ref=f"actuation.agency.{index}",
             prediction_ref=None,
             state_after_ref=f"state.after.agency.{index}",
-            observed_effect_id=(
-                "effect.agency" if competence == "competence.a" else None
-            ),
+            observed_effect_id=("effect.agency" if competence == "competence.a" else None),
         )
         ledger.observe(transition)
 

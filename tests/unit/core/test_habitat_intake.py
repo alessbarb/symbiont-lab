@@ -1,5 +1,4 @@
 import pytest
-
 from symbiont.core.ecology import SharedHabitat
 from symbiont.core.runtime import OrganismRuntime
 

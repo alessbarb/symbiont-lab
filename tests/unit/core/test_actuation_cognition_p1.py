@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from symbiont.cognition.genome import GenomeCodec
+from symbiont.core.cognition_bridge import CognitiveBridge
+
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
 
 
 def _genome():
@@ -18,9 +18,23 @@ def _genome():
             "genome_id": "genome_motorp10000000000000000000",
             "parent_ids": [],
             "kernel_compatibility": ">=0.55,<0.60",
-            "development": {"initial_concepts": 1, "soft_node_budget": 32, "soft_edge_budget": 64, "consolidation_interval_ticks": 1},
-            "plasticity": {"learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08}, "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005}, "eligibility_decay": 0.9},
-            "structure": {"grow_threshold": 0.1, "prune_threshold": 0.001, "minimum_support": 2, "tentative_lifetime_ticks": 64},
+            "development": {
+                "initial_concepts": 1,
+                "soft_node_budget": 32,
+                "soft_edge_budget": 64,
+                "consolidation_interval_ticks": 1,
+            },
+            "plasticity": {
+                "learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08},
+                "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
+                "eligibility_decay": 0.9,
+            },
+            "structure": {
+                "grow_threshold": 0.1,
+                "prune_threshold": 0.001,
+                "minimum_support": 2,
+                "tentative_lifetime_ticks": 64,
+            },
             "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
         }
     )
@@ -102,8 +116,7 @@ def test_p1_motor_association_grows_tentative_edge_without_fake_target_activatio
         )
 
     assert any(
-        edge.source_id == "concept_a"
-        and edge.target_id == "readout_motor:actuator.test"
+        edge.source_id == "concept_a" and edge.target_id == "readout_motor:actuator.test"
         for edge in bridge.graph.edges
     )
     assert "concept_a" in bridge._nodes_with_path_to_motor_readout("actuator.test")
@@ -136,7 +149,6 @@ def test_p1_motor_only_route_never_counts_as_core_route():
     )
     assert "concept_a" not in bridge._nodes_with_path_to_core_readout()
     assert "concept_a" in bridge._nodes_with_path_to_motor_readout("actuator.test")
-
 
 
 def test_verified_motor_primitive_gets_its_own_readout_family():
@@ -195,15 +207,11 @@ def test_primitive_association_can_grow_without_becoming_core_route():
     )
 
     assert any(
-        edge.source_id == "concept_a"
-        and edge.target_id == "readout_primitive:primitive.test"
+        edge.source_id == "concept_a" and edge.target_id == "readout_primitive:primitive.test"
         for edge in bridge.graph.edges
     )
-    assert "concept_a" in bridge._nodes_with_path_to_primitive_readout(
-        "primitive.test"
-    )
+    assert "concept_a" in bridge._nodes_with_path_to_primitive_readout("primitive.test")
     assert "concept_a" in bridge._nodes_with_path_to_core_readout()
-
 
 
 def test_refuted_primitive_readout_is_removed_from_graph():
@@ -237,7 +245,6 @@ def test_refuted_primitive_readout_is_removed_from_graph():
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.keep" in node_ids
     assert "readout_primitive:primitive.drop" not in node_ids
-
 
 
 def test_primitive_choice_credit_does_not_remove_sibling_readouts():
@@ -274,7 +281,6 @@ def test_primitive_choice_credit_does_not_remove_sibling_readouts():
     assert "readout_primitive:primitive.b" in node_ids
 
 
-
 def test_primitive_association_requires_real_concept_evidence():
     bridge = CognitiveBridge(
         graph=_graph(),
@@ -289,17 +295,23 @@ def test_primitive_association_requires_real_concept_evidence():
         active_primitive_ids=("primitive.test",),
     )
 
-    assert bridge.observe_primitive_execution(
-        "primitive.test",
-        concept_ids=(),
-        tick=1,
-    ) is False
+    assert (
+        bridge.observe_primitive_execution(
+            "primitive.test",
+            concept_ids=(),
+            tick=1,
+        )
+        is False
+    )
 
-    assert bridge.observe_primitive_execution(
-        "primitive.test",
-        concept_ids=("concept_a",),
-        tick=1,
-    ) is True
+    assert (
+        bridge.observe_primitive_execution(
+            "primitive.test",
+            concept_ids=("concept_a",),
+            tick=1,
+        )
+        is True
+    )
 
 
 def test_newly_verified_primitive_waits_for_normal_readout_admission():
@@ -315,11 +327,14 @@ def test_newly_verified_primitive_waits_for_normal_readout_admission():
         tick=1,
         active_primitive_ids=("primitive.sibling",),
     )
-    assert bridge.observe_primitive_execution(
-        "primitive.new",
-        concept_ids=("concept_a",),
-        tick=1,
-    ) is False
+    assert (
+        bridge.observe_primitive_execution(
+            "primitive.new",
+            concept_ids=("concept_a",),
+            tick=1,
+        )
+        is False
+    )
 
     # The next normal cognition tick admits the verified skill within the
     # ordinary mutation budget; only then can state→action evidence be stored.
@@ -328,16 +343,18 @@ def test_newly_verified_primitive_waits_for_normal_readout_admission():
         tick=2,
         active_primitive_ids=("primitive.sibling", "primitive.new"),
     )
-    assert bridge.observe_primitive_execution(
-        "primitive.new",
-        concept_ids=("concept_a",),
-        tick=2,
-    ) is True
+    assert (
+        bridge.observe_primitive_execution(
+            "primitive.new",
+            concept_ids=("concept_a",),
+            tick=2,
+        )
+        is True
+    )
 
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.new" in node_ids
     assert "readout_primitive:primitive.sibling" in node_ids
-
 
 
 def _full_predictor_graph() -> CognitiveGraph:
@@ -391,6 +408,7 @@ def _capacity_genome():
     genome = _genome()
     # Keep the cognitive budget deliberately saturated at four nodes.
     from dataclasses import replace
+
     return replace(
         genome,
         development=replace(
@@ -426,10 +444,7 @@ def test_verified_skill_reclaims_capacity_progressively_without_reserved_slots()
 
     # Make the predictor's only incident edge already weak and unused so the
     # ordinary lifecycle, not a monolithic reclaim batch, can retire it.
-    predictor_edge = next(
-        edge for edge in bridge.graph.edges
-        if edge.target_id == "predictor_bad"
-    )
+    predictor_edge = next(edge for edge in bridge.graph.edges if edge.target_id == "predictor_bad")
     predictor_edge.weight = 0.001
     predictor_edge.last_use_tick = 0
 
@@ -534,7 +549,6 @@ def test_predictor_retention_evidence_survives_checkpoint_before_competition():
     )
 
 
-
 def test_predictor_retirement_is_reversible_before_detachment():
     bridge = CognitiveBridge(
         graph=_full_predictor_graph(),
@@ -560,10 +574,7 @@ def test_predictor_retirement_is_reversible_before_detachment():
     )
     assert "predictor_bad" in bridge._predictor_retirement
 
-    edge = next(
-        edge for edge in bridge.graph.edges
-        if edge.target_id == "predictor_bad"
-    )
+    edge = next(edge for edge in bridge.graph.edges if edge.target_id == "predictor_bad")
     weight_after_quarantine = edge.weight
 
     utility.recent_gain = 1.0
@@ -579,10 +590,7 @@ def test_predictor_retirement_is_reversible_before_detachment():
     )
 
     assert "predictor_bad" not in bridge._predictor_retirement
-    edge = next(
-        edge for edge in bridge.graph.edges
-        if edge.target_id == "predictor_bad"
-    )
+    edge = next(edge for edge in bridge.graph.edges if edge.target_id == "predictor_bad")
     # Plasticity is zero in this fixture, so cancellation of quarantine means
     # no further soft-pruning occurs.
     assert edge.weight == weight_after_quarantine
@@ -591,6 +599,7 @@ def test_predictor_retirement_is_reversible_before_detachment():
 def test_retirement_requires_capacity_pressure():
     genome = _capacity_genome()
     from dataclasses import replace
+
     roomy_genome = replace(
         genome,
         # The bridge starts with a bounded fraction of the genetic ceiling.
@@ -617,7 +626,6 @@ def test_retirement_requires_capacity_pressure():
     bridge.tick({"sense_a": 0.25}, tick=3)
 
     assert bridge._predictor_retirement == {}
-
 
 
 def test_capacity_pressure_retires_only_one_predictor_at_a_time():
@@ -658,6 +666,7 @@ def test_capacity_pressure_retires_only_one_predictor_at_a_time():
     graph = CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=KernelLimits())
 
     from dataclasses import replace
+
     genome = _capacity_genome()
     genome = replace(
         genome,
@@ -749,10 +758,7 @@ def test_aged_structural_demand_accelerates_only_already_retiring_edges():
         tick=3,
         active_primitive_ids=("primitive.waiting",),
     )
-    edge = next(
-        edge for edge in bridge.graph.edges
-        if edge.target_id == "predictor_bad"
-    )
+    edge = next(edge for edge in bridge.graph.edges if edge.target_id == "predictor_bad")
     first = edge.weight
 
     bridge.tick(
@@ -760,10 +766,7 @@ def test_aged_structural_demand_accelerates_only_already_retiring_edges():
         tick=4,
         active_primitive_ids=("primitive.waiting",),
     )
-    edge = next(
-        edge for edge in bridge.graph.edges
-        if edge.target_id == "predictor_bad"
-    )
+    edge = next(edge for edge in bridge.graph.edges if edge.target_id == "predictor_bad")
     second = edge.weight
     assert second <= first * 0.951
 
@@ -849,14 +852,9 @@ def test_intrinsic_homeostatic_value_modulates_only_experienced_action_edge():
     )
 
     action_edge = next(
-        edge
-        for edge in bridge.graph.edges
-        if edge.target_id == "readout_primitive:primitive.test"
+        edge for edge in bridge.graph.edges if edge.target_id == "readout_primitive:primitive.test"
     )
-    core_edge = next(
-        edge for edge in bridge.graph.edges
-        if edge.target_id == "readout_core"
-    )
+    core_edge = next(edge for edge in bridge.graph.edges if edge.target_id == "readout_core")
     action_before = action_edge.weight
     core_before = core_edge.weight
 
@@ -902,8 +900,7 @@ def test_low_amplitude_concept_context_remains_behaviorally_available():
 
 def test_relative_salience_is_bounded_and_ignores_flat_tiny_noise():
     nodes = tuple(
-        PlasticNode(node_id=f"concept_{index}", kind=NodeKind.CONCEPT)
-        for index in range(12)
+        PlasticNode(node_id=f"concept_{index}", kind=NodeKind.CONCEPT) for index in range(12)
     )
     graph = CognitiveGraph(
         nodes=nodes,
@@ -916,10 +913,7 @@ def test_relative_salience_is_bounded_and_ignores_flat_tiny_noise():
         kernel_limits=KernelLimits(),
         develop_senses=True,
     )
-    activations = {
-        f"concept_{index}": 0.00001 * (index + 1)
-        for index in range(12)
-    }
+    activations = {f"concept_{index}": 0.00001 * (index + 1) for index in range(12)}
 
     salient = bridge._salient_concept_ids(activations)
 

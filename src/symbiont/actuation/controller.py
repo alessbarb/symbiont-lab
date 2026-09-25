@@ -1,4 +1,5 @@
 """Low-level controller frames for an existing action commitment."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -40,10 +41,7 @@ class SequenceController:
             channels: tuple[tuple[str, float], ...] = ()
         else:
             intents = self.sequence[min(self.step, len(self.sequence) - 1)]
-            channels = tuple(
-                (intent.actuator_id, float(intent.activation))
-                for intent in intents
-            )
+            channels = tuple((intent.actuator_id, float(intent.activation)) for intent in intents)
             self.step += 1
         return ControllerFrame(
             controller_id=self.controller_id,

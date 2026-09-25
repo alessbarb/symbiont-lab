@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from typing import Generic, Protocol, TypeVar, runtime_checkable
-
 
 T = TypeVar("T")
 

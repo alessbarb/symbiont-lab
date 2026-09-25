@@ -5,6 +5,7 @@ scenario calls the bounded channel and grounding ledger; Observatory receives
 their exported records and may aggregate them, but does not infer missing
 edges or causal intent.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -17,7 +18,6 @@ from symbiont.modeling import (
     SequenceMessage,
     SymbolSequence,
 )
-
 
 SEEDS = (101, 127, 149)
 EXPECTED_PATH = ("A", "B", "C", "D")
@@ -98,9 +98,13 @@ def _run_seed(seed: int) -> PopulationCommunicationSeedResult:
     )
 
 
-def run_population_communication_study(*, seeds: tuple[int, ...] = SEEDS) -> PopulationCommunicationStudy:
+def run_population_communication_study(
+    *, seeds: tuple[int, ...] = SEEDS
+) -> PopulationCommunicationStudy:
     normalized = tuple(seeds)
-    if not normalized or any(isinstance(seed, bool) or not isinstance(seed, int) for seed in normalized):
+    if not normalized or any(
+        isinstance(seed, bool) or not isinstance(seed, int) for seed in normalized
+    ):
         raise ValueError("seeds must be non-empty integers")
     results = tuple(_run_seed(seed) for seed in normalized)
     return PopulationCommunicationStudy(
@@ -112,4 +116,8 @@ def run_population_communication_study(*, seeds: tuple[int, ...] = SEEDS) -> Pop
     )
 
 
-__all__ = ["PopulationCommunicationSeedResult", "PopulationCommunicationStudy", "run_population_communication_study"]
+__all__ = [
+    "PopulationCommunicationSeedResult",
+    "PopulationCommunicationStudy",
+    "run_population_communication_study",
+]

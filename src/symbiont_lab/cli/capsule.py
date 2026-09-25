@@ -5,9 +5,21 @@ import json
 import sys
 from pathlib import Path
 
-from symbiont.core import CapsuleKeyPair, SourceTrustModel, create_capsule, observe_capsule_trust, verify_capsule
 from symbiont.core.capsule import KnowledgeCapsule
-from symbiont.host import acclimate_local_host, export_checkpoint, learn_local_host_rhythms, track_local_host_drift
+
+from symbiont.core import (
+    CapsuleKeyPair,
+    SourceTrustModel,
+    create_capsule,
+    observe_capsule_trust,
+    verify_capsule,
+)
+from symbiont.host import (
+    acclimate_local_host,
+    export_checkpoint,
+    learn_local_host_rhythms,
+    track_local_host_drift,
+)
 
 
 def build_capsule_parser(parser: argparse.ArgumentParser) -> None:
@@ -128,7 +140,8 @@ def run_capsule_command(args: argparse.Namespace) -> int:
                     "variance": snapshot.variance,
                 }
                 for pattern_family in scores
-                if (snapshot := model.reliability(capsule.signer_public_key, pattern_family)) is not None
+                if (snapshot := model.reliability(capsule.signer_public_key, pattern_family))
+                is not None
             },
         }
         print(json.dumps(payload, indent=2, sort_keys=True))

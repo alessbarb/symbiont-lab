@@ -38,11 +38,15 @@ def test_evaluation_seeds_are_disjoint_from_development_seeds(tmp_path) -> None:
 def test_reusing_a_development_seed_as_an_evaluation_seed_is_rejected(tmp_path) -> None:
     ledger = SeedLedger(tmp_path / "ledger.json")
     run_predictive_discovery_study(
-        development_seeds=(11, 23, 37), evaluation_seeds=(211, 233, 257), ledger=ledger,
+        development_seeds=(11, 23, 37),
+        evaluation_seeds=(211, 233, 257),
+        ledger=ledger,
     )
     with pytest.raises(ValueError, match="overlap"):
         run_predictive_discovery_study(
-            development_seeds=(999,), evaluation_seeds=(11,), ledger=ledger,
+            development_seeds=(999,),
+            evaluation_seeds=(11,),
+            ledger=ledger,
         )
 
 
@@ -52,6 +56,10 @@ def test_no_precabled_predictor_or_edge_in_source() -> None:
     for node in ast.walk(tree):
         if isinstance(node, ast.keyword) and node.arg == "predicts_node_id":
             raise AssertionError("predicts_node_id must never be constructed at graph-build time")
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "PlasticEdge":
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "PlasticEdge"
+        ):
             raise AssertionError("no PlasticEdge may be constructed in this module")
     assert "kind=NodeKind.PREDICTOR" not in source

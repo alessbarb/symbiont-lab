@@ -31,18 +31,20 @@ def _records() -> tuple[ExperienceRecord, ...]:
     records = []
     for tick in range(48):
         phase = tick % 3
-        records.append(ExperienceRecord(
-            record_id=f"r{tick}",
-            organism_id="organism-training",
-            tick_class=tick,
-            context_tokens=(f"sense.{phase}", "state.stable"),
-            action_token="action.observe",
-            outcome_tokens=(f"outcome.{phase}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.{tick}",),
-            confidence_class=6,
-            source_kind=SourceKind.DIRECT,
-        ))
+        records.append(
+            ExperienceRecord(
+                record_id=f"r{tick}",
+                organism_id="organism-training",
+                tick_class=tick,
+                context_tokens=(f"sense.{phase}", "state.stable"),
+                action_token="action.observe",
+                outcome_tokens=(f"outcome.{phase}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.{tick}",),
+                confidence_class=6,
+                source_kind=SourceKind.DIRECT,
+            )
+        )
     return tuple(records)
 
 
@@ -96,23 +98,24 @@ def test_real_gru_candidate_is_hash_bound_and_inferable(tmp_path):
     assert len(inference.predictions) == 3
 
 
-
 def test_autonomous_stopping_checks_progress_before_step_ceiling():
     records = []
     for tick in range(320):
         phase = tick % 5
-        records.append(ExperienceRecord(
-            record_id=f"long-{tick}",
-            organism_id="organism-long-training",
-            tick_class=tick,
-            context_tokens=(f"sense.{phase}", "state.stable"),
-            action_token="action.observe",
-            outcome_tokens=(f"outcome.{phase}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.long.{tick}",),
-            confidence_class=6,
-            source_kind=SourceKind.DIRECT,
-        ))
+        records.append(
+            ExperienceRecord(
+                record_id=f"long-{tick}",
+                organism_id="organism-long-training",
+                tick_class=tick,
+                context_tokens=(f"sense.{phase}", "state.stable"),
+                action_token="action.observe",
+                outcome_tokens=(f"outcome.{phase}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.long.{tick}",),
+                confidence_class=6,
+                source_kind=SourceKind.DIRECT,
+            )
+        )
     corpus = build_training_corpus(tuple(records))
     tokenizer = NativeTokenizer.from_records(corpus.train)
     encoded = encode_corpus(corpus, tokenizer, context_window=32)
@@ -135,7 +138,9 @@ def test_autonomous_stopping_checks_progress_before_step_ceiling():
     result = train_private_model(
         request=request,
         corpus=encoded,
-        authority=ModelTrainingAuthority(TrainingBudget(max_parameters=1_000_000, max_epochs=8, max_steps=48)),
+        authority=ModelTrainingAuthority(
+            TrainingBudget(max_parameters=1_000_000, max_epochs=8, max_steps=48)
+        ),
         config=TrainingConfig(batch_size=16, patience=8),
     )
 

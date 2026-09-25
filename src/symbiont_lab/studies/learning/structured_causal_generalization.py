@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import asdict, dataclass
 import hashlib
 import random
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass
 
 from symbiont.modeling import (
     ArchitectureId,
@@ -66,7 +66,9 @@ def _channel_token(index: int) -> str:
     return "motor.channel." + hashlib.sha256(f"l79v2-channel:{index}".encode()).hexdigest()[:16]
 
 
-def _motor_trace(*, seed: int, ticks: int, channels: int) -> tuple[tuple[int, tuple[int, ...], tuple[int, ...], int], ...]:
+def _motor_trace(
+    *, seed: int, ticks: int, channels: int
+) -> tuple[tuple[int, tuple[int, ...], tuple[int, ...], int], ...]:
     """Deterministic high-cardinality motor history with compositional outcomes.
 
     Whole motor vectors are effectively unique over the temporal split while
@@ -79,17 +81,12 @@ def _motor_trace(*, seed: int, ticks: int, channels: int) -> tuple[tuple[int, tu
     for tick in range(ticks):
         requested = tuple(rng.randrange(8) for _ in range(channels))
         delivered = tuple(
-            max(0, min(7, value - (1 if rng.random() < 0.22 else 0)))
-            for value in requested
+            max(0, min(7, value - (1 if rng.random() < 0.22 else 0))) for value in requested
         )
         state = (latent + tick // 9 + requested[-1]) % 11
         # Depend on reusable components, not whole-vector identity.
         outcome = (
-            state
-            + delivered[0]
-            + 2 * delivered[1]
-            + 3 * delivered[2]
-            + (delivered[3] >= 4)
+            state + delivered[0] + 2 * delivered[1] + 3 * delivered[2] + (delivered[3] >= 4)
         ) % 7
         rows.append((state, requested, delivered, outcome))
         latent = (latent + delivered[0] - delivered[1]) % 11
@@ -116,18 +113,20 @@ def _records(
             payload = repr((requested, delivered)).encode()
             action = "action.motor.pattern." + hashlib.sha256(payload).hexdigest()[:24]
 
-        records.append(ExperienceRecord(
-            record_id=f"transition.l79v2.{seed}.{tick}",
-            organism_id=organism_id,
-            tick_class=tick,
-            context_tokens=tuple(context),
-            action_token=action,
-            outcome_tokens=(f"outcome.opaque.{outcome}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.l79v2.{seed}.{tick}",),
-            confidence_class=7,
-            source_kind=SourceKind.ACTION_OUTCOME,
-        ))
+        records.append(
+            ExperienceRecord(
+                record_id=f"transition.l79v2.{seed}.{tick}",
+                organism_id=organism_id,
+                tick_class=tick,
+                context_tokens=tuple(context),
+                action_token=action,
+                outcome_tokens=(f"outcome.opaque.{outcome}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.l79v2.{seed}.{tick}",),
+                confidence_class=7,
+                source_kind=SourceKind.ACTION_OUTCOME,
+            )
+        )
     return tuple(records)
 
 
@@ -168,9 +167,7 @@ def _train(records: tuple[ExperienceRecord, ...], *, seed: int) -> CausalGeneral
     evaluation, _ = evaluate_candidate(result.artifact, encoded)
 
     test_actions = tuple(
-        record.action_token
-        for record in corpus.test
-        if record.action_token is not None
+        record.action_token for record in corpus.test if record.action_token is not None
     )
     test_motor_tokens = tuple(
         token
@@ -180,9 +177,9 @@ def _train(records: tuple[ExperienceRecord, ...], *, seed: int) -> CausalGeneral
     )
     return CausalGeneralizationArm(
         vocab_size=len(tokenizer.vocabulary),
-        unique_train_actions=len({
-            record.action_token for record in corpus.train if record.action_token is not None
-        }),
+        unique_train_actions=len(
+            {record.action_token for record in corpus.train if record.action_token is not None}
+        ),
         unseen_test_action_fraction=_unseen_fraction(test_actions, vocabulary),
         unseen_test_motor_token_fraction=_unseen_fraction(test_motor_tokens, vocabulary),
         candidate_loss=evaluation.candidate.mean_log_loss,
@@ -210,25 +207,36 @@ def run_structured_causal_generalization_study(
         trace = _motor_trace(seed=seed, ticks=ticks, channels=channels)
         legacy = _train(_records(trace, seed=seed, structured=False), seed=seed)
         structured = _train(_records(trace, seed=seed, structured=True), seed=seed)
-        rows.append(CausalGeneralizationSeedResult(
-            seed=seed,
-            legacy=legacy,
-            structured=structured,
-            structured_loss_improvement=legacy.candidate_loss - structured.candidate_loss,
-            structured_vocab_reduction_fraction=1.0 - structured.vocab_size / legacy.vocab_size,
-        ))
+        rows.append(
+            CausalGeneralizationSeedResult(
+                seed=seed,
+                legacy=legacy,
+                structured=structured,
+                structured_loss_improvement=legacy.candidate_loss - structured.candidate_loss,
+                structured_vocab_reduction_fraction=1.0 - structured.vocab_size / legacy.vocab_size,
+            )
+        )
 
     return StructuredCausalGeneralizationStudy(
         seeds=normalized,
         ticks=ticks,
         channels=channels,
         per_seed=tuple(rows),
-        lower_loss_seeds=sum(row.structured.candidate_loss < row.legacy.candidate_loss for row in rows),
+        lower_loss_seeds=sum(
+            row.structured.candidate_loss < row.legacy.candidate_loss for row in rows
+        ),
         positive_gain_seeds=sum(row.structured.gain_over_trivial > 0.0 for row in rows),
         mean_loss_improvement=sum(row.structured_loss_improvement for row in rows) / len(rows),
-        mean_vocab_reduction_fraction=sum(row.structured_vocab_reduction_fraction for row in rows) / len(rows),
-        mean_legacy_unseen_action_fraction=sum(row.legacy.unseen_test_action_fraction for row in rows) / len(rows),
-        mean_structured_unseen_motor_token_fraction=sum(row.structured.unseen_test_motor_token_fraction for row in rows) / len(rows),
+        mean_vocab_reduction_fraction=sum(row.structured_vocab_reduction_fraction for row in rows)
+        / len(rows),
+        mean_legacy_unseen_action_fraction=sum(
+            row.legacy.unseen_test_action_fraction for row in rows
+        )
+        / len(rows),
+        mean_structured_unseen_motor_token_fraction=sum(
+            row.structured.unseen_test_motor_token_fraction for row in rows
+        )
+        / len(rows),
     )
 
 

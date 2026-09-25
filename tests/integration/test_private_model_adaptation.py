@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from dataclasses import replace
+
+import pytest
 
 torch = pytest.importorskip("torch")
 
@@ -32,24 +33,33 @@ def _records(organism: str, *, flipped: bool = False) -> tuple[ExperienceRecord,
     for tick in range(36):
         phase = tick % 3
         outcome = (phase + (1 if flipped else 0)) % 3
-        rows.append(ExperienceRecord(
-            record_id=f"{organism}-{flipped}-{tick}",
-            organism_id=organism,
-            tick_class=tick,
-            context_tokens=(f"sense.{phase}", "state.stable"),
-            action_token="action.observe",
-            outcome_tokens=(f"outcome.{outcome}",),
-            epistemic_status=EpistemicStatus.OBSERVED,
-            evidence_refs=(f"evidence.{tick}",),
-            confidence_class=6,
-            source_kind=SourceKind.DIRECT,
-        ))
+        rows.append(
+            ExperienceRecord(
+                record_id=f"{organism}-{flipped}-{tick}",
+                organism_id=organism,
+                tick_class=tick,
+                context_tokens=(f"sense.{phase}", "state.stable"),
+                action_token="action.observe",
+                outcome_tokens=(f"outcome.{outcome}",),
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=(f"evidence.{tick}",),
+                confidence_class=6,
+                source_kind=SourceKind.DIRECT,
+            )
+        )
     return tuple(rows)
 
 
-def _request(corpus, tokenizer, *, seed: int, parent: str | None = None,
-             architecture: ArchitectureId = ArchitectureId.GRU_V1,
-             tokenizer_hash: str | None = None, reason: str | None = None) -> TrainingRequest:
+def _request(
+    corpus,
+    tokenizer,
+    *,
+    seed: int,
+    parent: str | None = None,
+    architecture: ArchitectureId = ArchitectureId.GRU_V1,
+    tokenizer_hash: str | None = None,
+    reason: str | None = None,
+) -> TrainingRequest:
     return TrainingRequest(
         organism_id=corpus.manifest.organism_id,
         corpus_hash=corpus.manifest.corpus_hash,
@@ -88,7 +98,10 @@ def test_adaptation_loads_parent_weights_and_records_real_lineage(tmp_path):
     post_corpus = build_training_corpus(_records("organism-adapt", flipped=True))
     encoded = encode_corpus(post_corpus, tokenizer, context_window=32)
     request = _request(
-        post_corpus, tokenizer, seed=101, parent=parent_result.artifact.manifest.model_id,
+        post_corpus,
+        tokenizer,
+        seed=101,
+        parent=parent_result.artifact.manifest.model_id,
         reason="post-shift direct evidence",
     )
     adapted = adapt_private_model(
@@ -108,7 +121,9 @@ def test_adaptation_loads_parent_weights_and_records_real_lineage(tmp_path):
     assert successor.manifest.adaptation_cost_steps > 0
     assert successor.manifest.authorized_step_ceiling == 6
     parent_model = load_artifact_model(parent, vocab_size=encoded.vocab_size, pad_id=encoded.pad_id)
-    successor_model = load_artifact_model(successor, vocab_size=encoded.vocab_size, pad_id=encoded.pad_id)
+    successor_model = load_artifact_model(
+        successor, vocab_size=encoded.vocab_size, pad_id=encoded.pad_id
+    )
     sample = torch.tensor([encoded.test.sequences[0][:-1]], dtype=torch.long)
     with torch.no_grad():
         expected = parent_model(sample, attention_mask=torch.ones_like(sample, dtype=torch.bool))
@@ -123,29 +138,50 @@ def test_adaptation_rejects_cross_organism_architecture_and_tokenizer(tmp_path):
     foreign_tokenizer = NativeTokenizer.from_records(foreign.train)
     encoded = encode_corpus(foreign, foreign_tokenizer, context_window=32)
     request = _request(
-        foreign, foreign_tokenizer, seed=101, parent=parent_result.artifact.manifest.model_id,
+        foreign,
+        foreign_tokenizer,
+        seed=101,
+        parent=parent_result.artifact.manifest.model_id,
         reason="invalid",
     )
     with pytest.raises(ValueError, match="different organism"):
         adapt_private_model(
-            request=request, corpus=encoded, parent_artifact=store.get(request.parent_model_id),
+            request=request,
+            corpus=encoded,
+            parent_artifact=store.get(request.parent_model_id),
             authority=ModelTrainingAuthority(TrainingBudget(max_epochs=2, max_steps=6)),
         )
 
     own = build_training_corpus(_records("organism-adapt", flipped=True))
     own_encoded = encode_corpus(own, tokenizer, context_window=32)
-    bad_arch = _request(own, tokenizer, seed=101, parent=parent_result.artifact.manifest.model_id,
-                        architecture=ArchitectureId.TRANSFORMER_V1, reason="invalid")
+    bad_arch = _request(
+        own,
+        tokenizer,
+        seed=101,
+        parent=parent_result.artifact.manifest.model_id,
+        architecture=ArchitectureId.TRANSFORMER_V1,
+        reason="invalid",
+    )
     with pytest.raises(ValueError, match="architecture"):
         adapt_private_model(
-            request=bad_arch, corpus=own_encoded, parent_artifact=store.get(bad_arch.parent_model_id),
+            request=bad_arch,
+            corpus=own_encoded,
+            parent_artifact=store.get(bad_arch.parent_model_id),
             authority=ModelTrainingAuthority(TrainingBudget(max_epochs=2, max_steps=6)),
         )
-    bad_tokenizer = _request(own, tokenizer, seed=101, parent=parent_result.artifact.manifest.model_id,
-                             tokenizer_hash="f" * 64, reason="invalid")
+    bad_tokenizer = _request(
+        own,
+        tokenizer,
+        seed=101,
+        parent=parent_result.artifact.manifest.model_id,
+        tokenizer_hash="f" * 64,
+        reason="invalid",
+    )
     with pytest.raises(ValueError, match="hash|tokenizer"):
         adapt_private_model(
-            request=bad_tokenizer, corpus=own_encoded, parent_artifact=store.get(bad_tokenizer.parent_model_id),
+            request=bad_tokenizer,
+            corpus=own_encoded,
+            parent_artifact=store.get(bad_tokenizer.parent_model_id),
             authority=ModelTrainingAuthority(TrainingBudget(max_epochs=2, max_steps=6)),
         )
 
@@ -165,9 +201,15 @@ def test_cold_start_remains_available_and_predictions_are_not_ground_truth():
     runtime = ModeledOrganismRuntime(organism_id="organism-cold")
     assert runtime.model_registry.records == ()
     prediction = ExperienceRecord(
-        record_id="prediction-1", organism_id="organism-cold", tick_class=1,
-        context_tokens=("sense.1",), action_token=None, outcome_tokens=("outcome.1",),
-        epistemic_status=EpistemicStatus.PREDICTED, evidence_refs=(), confidence_class=1,
+        record_id="prediction-1",
+        organism_id="organism-cold",
+        tick_class=1,
+        context_tokens=("sense.1",),
+        action_token=None,
+        outcome_tokens=("outcome.1",),
+        epistemic_status=EpistemicStatus.PREDICTED,
+        evidence_refs=(),
+        confidence_class=1,
         source_kind=SourceKind.MODEL,
     )
     runtime.record_experience(prediction)
@@ -179,9 +221,13 @@ def test_registry_keeps_parent_until_authorized_successor_promotion_and_restores
     parent_result, post_corpus, tokenizer, store = _train_parent(tmp_path)
     encoded = encode_corpus(post_corpus, tokenizer, context_window=32)
     successor = adapt_private_model(
-        request=_request(post_corpus, tokenizer, seed=101,
-                         parent=parent_result.artifact.manifest.model_id,
-                         reason="bounded continuation"),
+        request=_request(
+            post_corpus,
+            tokenizer,
+            seed=101,
+            parent=parent_result.artifact.manifest.model_id,
+            reason="bounded continuation",
+        ),
         corpus=encoded,
         parent_artifact=parent_result.artifact,
         authority=ModelTrainingAuthority(TrainingBudget(max_epochs=2, max_steps=6)),
@@ -189,6 +235,7 @@ def test_registry_keeps_parent_until_authorized_successor_promotion_and_restores
     ).artifact
 
     from symbiont.modeling.runtime import ModeledOrganismRuntime
+
     runtime = ModeledOrganismRuntime(organism_id="organism-adapt")
     parent_record = runtime.adopt_private_model(parent_result.artifact.manifest)
     runtime.activate_private_model(parent_record.model_id, promotion_authorized=True)
@@ -202,8 +249,11 @@ def test_registry_keeps_parent_until_authorized_successor_promotion_and_restores
     assert restored_successor is not None
     assert restored_successor.parent_model_id == parent_record.model_id
     assert restored_successor.generation == 1
-    observation = next(item for item in restored.private_model_observations()
-                       if item["model_id"] == successor.manifest.model_id)
+    observation = next(
+        item
+        for item in restored.private_model_observations()
+        if item["model_id"] == successor.manifest.model_id
+    )
     assert observation["adaptation_count"] == 1
 
     broken = replace(successor.manifest, parent_model_id="f" * 64)

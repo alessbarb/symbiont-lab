@@ -1,10 +1,10 @@
 """Offline, bounded knowledge exchange envelopes (v0.72)."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
-
+from dataclasses import dataclass
 
 from ..foundation.limits import OrganismLimits
 
@@ -20,7 +20,11 @@ class ExchangeEnvelope:
     def encode(self) -> bytes:
         if not self.sender or self.sequence < 0 or any(not k for k in self.payload):
             raise ValueError("invalid exchange envelope")
-        raw = json.dumps({"sender": self.sender, "sequence": self.sequence, "payload": self.payload}, sort_keys=True, separators=(",", ":")).encode()
+        raw = json.dumps(
+            {"sender": self.sender, "sequence": self.sequence, "payload": self.payload},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
         if len(raw) > MAX_EXCHANGE_BYTES:
             raise ValueError("exchange envelope exceeds bound")
         return raw

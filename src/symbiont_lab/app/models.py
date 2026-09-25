@@ -1,11 +1,14 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+
 class RunKind(str, Enum):
     EXPERIMENT = "experiment"
     PHYSICS3D = "physics3d"
+
 
 class RunStatus(str, Enum):
     IDLE = "idle"
@@ -15,6 +18,7 @@ class RunStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     STOPPED = "stopped"
+
 
 @dataclass(frozen=True, slots=True)
 class ExperimentEntry:
@@ -28,6 +32,7 @@ class ExperimentEntry:
     success_criteria: str
     steps: int
     seeds: tuple[int, ...]
+
 
 @dataclass(slots=True)
 class RunDescriptor:

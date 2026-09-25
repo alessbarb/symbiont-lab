@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import time
+from pathlib import Path
 
 from symbiont.core.capsule import CapsuleKeyPair, create_capsule
 from symbiont.core.local_habitat import LocalHabitat

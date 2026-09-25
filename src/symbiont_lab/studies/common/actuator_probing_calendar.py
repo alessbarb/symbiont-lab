@@ -7,6 +7,7 @@ survives as an explicit Lab tool for matched intervention/control actuator
 studies (docs/design symbiont-actuation-v1 §6-7, §16.D
 "actuator-lesion-adaptation"), run from *outside* the subject.
 """
+
 from __future__ import annotations
 
 import random

@@ -129,7 +129,9 @@ class PrivateModelFactory:
         if runtime.organism_id != result.training.artifact.manifest.organism_id:
             raise ValueError("factory result belongs to a different organism")
         summary = result.decision.summary_classes()
-        record = runtime.adopt_private_model(result.training.artifact.manifest, evaluation_summary=summary)
+        record = runtime.adopt_private_model(
+            result.training.artifact.manifest, evaluation_summary=summary
+        )
         if result.decision.promote:
             record = runtime.activate_private_model(
                 record.model_id,

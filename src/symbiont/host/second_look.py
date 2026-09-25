@@ -34,11 +34,17 @@ class SecondLookSession:
         if max_ticks < 1:
             raise ValueError("max_ticks must be at least 1")
         if not manifest.supports(capability_id):
-            raise ValueError(f"capability {capability_id!r} is not available in this host's manifest")
+            raise ValueError(
+                f"capability {capability_id!r} is not available in this host's manifest"
+            )
         self._manifest = manifest
         self._capability_id = capability_id
         self._max_ticks = max_ticks
-        self._sampler = sampler if sampler is not None else HostSampler(providers=(StandardLibraryReadingProvider(),))
+        self._sampler = (
+            sampler
+            if sampler is not None
+            else HostSampler(providers=(StandardLibraryReadingProvider(),))
+        )
         self._clock = clock
         self._ticks_run = 0
         self._cancelled = False
@@ -70,7 +76,9 @@ class SecondLookSession:
         )
         self._ticks_run += 1
         self._outcomes.extend(outcomes)
-        match = next((reading for reading in readings if reading.capability_id == self._capability_id), None)
+        match = next(
+            (reading for reading in readings if reading.capability_id == self._capability_id), None
+        )
         if match is not None:
             self._readings.append(match)
         return match

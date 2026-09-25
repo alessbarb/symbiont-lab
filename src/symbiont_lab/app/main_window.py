@@ -158,7 +158,9 @@ class SymbiontLabWindow:
         menu.add_cascade(label="Run", menu=run_menu)
 
         view_menu = tk.Menu(menu, tearoff=False, bg=self.SURFACE, fg=self.FG)
-        view_menu.add_command(label="Lab", command=lambda: self.notebook.select(self.experiment_tab))
+        view_menu.add_command(
+            label="Lab", command=lambda: self.notebook.select(self.experiment_tab)
+        )
         view_menu.add_command(label="Output", command=lambda: self.notebook.select(self.output_tab))
         menu.add_cascade(label="View", menu=view_menu)
 
@@ -311,7 +313,9 @@ class SymbiontLabWindow:
             btn.pack(fill="x", pady=2)
             return btn
 
-        self.lab_nav = nav_button("LAB", "Experiments", lambda: self.notebook.select(self.experiment_tab))
+        self.lab_nav = nav_button(
+            "LAB", "Experiments", lambda: self.notebook.select(self.experiment_tab)
+        )
         self.body_nav = nav_button("3D", "Body", self._select_or_launch_physics)
         self.log_nav = nav_button("LOG", "Output", lambda: self.notebook.select(self.output_tab))
         self._nav_buttons = {
@@ -567,13 +571,13 @@ class SymbiontLabWindow:
 
     def toggle_physics_pause(self) -> None:
         self._physics_paused = not self._physics_paused
-        self.controller.send_physics_command({
-            "type": "pause",
-            "paused": self._physics_paused,
-        })
-        self.pause_button.configure(
-            text="Resume" if self._physics_paused else "Pause"
+        self.controller.send_physics_command(
+            {
+                "type": "pause",
+                "paused": self._physics_paused,
+            }
         )
+        self.pause_button.configure(text="Resume" if self._physics_paused else "Pause")
 
     def step_physics(self) -> None:
         self.controller.send_physics_command({"type": "step"})
@@ -610,9 +614,7 @@ class SymbiontLabWindow:
             )
             self.entries[iid] = entry
 
-        self.detail_var.set(
-            f"{len(entries)} experiments · {root if root else 'not found'}"
-        )
+        self.detail_var.set(f"{len(entries)} experiments · {root if root else 'not found'}")
 
     def _on_select(self, _event=None) -> None:
         selection = self.tree.selection()
@@ -680,9 +682,7 @@ class SymbiontLabWindow:
             )
         except Exception as exc:
             self.controller.stop()
-            self._append_output(
-                f"3D WORKSPACE ERROR · {type(exc).__name__}: {exc}\n"
-            )
+            self._append_output(f"3D WORKSPACE ERROR · {type(exc).__name__}: {exc}\n")
             for child in self.physics_tab.winfo_children():
                 child.destroy()
             tk.Label(

@@ -1,4 +1,5 @@
 from symbiont.core.model import Observation
+
 from symbiont.simulation import EventContext
 from symbiont_lab.studies.evidence.second_look import (
     run_second_look_study,

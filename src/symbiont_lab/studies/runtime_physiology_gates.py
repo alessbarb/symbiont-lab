@@ -1,11 +1,12 @@
 """Evaluator-only integration gate for Milestone I physiology boundaries."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from .physiology import run_sustained_repair_study
-from .runtime_population import run_runtime_population_study
 from .reproduction_runtime import run_runtime_reproduction_study
+from .runtime_population import run_runtime_population_study
 from .social_runtime_longitudinal import run_social_runtime_longitudinal_study
 
 
@@ -36,13 +37,15 @@ def run_runtime_physiology_gate_study() -> RuntimePhysiologyGateStudy:
     population = run_runtime_population_study()
     reproduction = run_runtime_reproduction_study()
     social = run_social_runtime_longitudinal_study(ticks=24, members=4)
-    all_gates_pass = all((
-        repair.checkpoint_replay_equal,
-        repair.no_intake_repaired == 0.0,
-        reproduction.replay_equal,
-        population.capacity_blocked_birth,
-        social.continuation_replay_equal,
-    ))
+    all_gates_pass = all(
+        (
+            repair.checkpoint_replay_equal,
+            repair.no_intake_repaired == 0.0,
+            reproduction.replay_equal,
+            population.capacity_blocked_birth,
+            social.continuation_replay_equal,
+        )
+    )
     return RuntimePhysiologyGateStudy(
         repair_replay_equal=repair.checkpoint_replay_equal,
         repair_without_intake=repair.no_intake_repaired,

@@ -239,7 +239,6 @@ def test_closed_episode_archives_body_specific_state_without_authority() -> None
     assert len(archive.summaries) == 1
 
 
-
 def test_episode_contract_v2_identity_migrates_without_new_episode() -> None:
     old_contract = _contract()
     episode = EmbodimentEpisode.begin(
@@ -258,9 +257,7 @@ def test_episode_contract_v2_identity_migrates_without_new_episode() -> None:
         perceptual_surface=old_contract.perceptual_surface,
         actuator_surface=old_contract.actuator_surface,
         timing=old_contract.timing,
-        exclusive_actuator_groups=(
-            tuple(old_contract.actuator_surface.actuator_ids),
-        ),
+        exclusive_actuator_groups=(tuple(old_contract.actuator_surface.actuator_ids),),
     )
     schema = BodySchemaEngine()
     ledger = CausalEvidenceLedger()
@@ -285,7 +282,6 @@ def test_episode_contract_v2_identity_migrates_without_new_episode() -> None:
     assert restored.contract.contract_fingerprint == new_contract.contract_fingerprint
     assert restored.contract_history[-1].reason == "contract_schema_v2_to_v3"
     assert restored.contract_history[-1].previous_fingerprint == "legacy-contract-fingerprint"
-
 
 
 def test_episode_contract_mismatch_fails_closed_without_verified_migration() -> None:
@@ -318,7 +314,6 @@ def test_episode_contract_mismatch_fails_closed_without_verified_migration() -> 
             execution_bindings=CompetenceExecutionBindingRegistry(),
             current_tick=0,
         )
-
 
 
 def test_contract_identity_depends_on_interface_not_body_name() -> None:
@@ -374,7 +369,6 @@ def test_contract_identity_changes_when_legal_motor_constraints_change() -> None
     assert first.contract_fingerprint != second.contract_fingerprint
 
 
-
 def test_embodiment_archive_v2_migrates_execution_binding_prior_name() -> None:
     legacy = {
         "schema_version": 2,
@@ -413,7 +407,6 @@ def test_embodiment_archive_v2_migrates_execution_binding_prior_name() -> None:
         == memory.execution_binding_priors
     )
     assert "embodied_competence_priors" not in checkpoint["body_memories"][0]
-
 
 
 def test_embodiment_prior_rejects_any_restored_authority() -> None:

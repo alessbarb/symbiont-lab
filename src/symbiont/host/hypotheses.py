@@ -1,9 +1,12 @@
 """Evidence-gated lifecycle for relationships between opaque senses."""
+
 from __future__ import annotations
+
+import math
 from dataclasses import dataclass
 from enum import StrEnum
-import math
 from typing import Any
+
 
 class HypothesisStatus(StrEnum):
     CANDIDATE = "candidate"
@@ -11,6 +14,7 @@ class HypothesisStatus(StrEnum):
     SUPPORTED = "supported"
     CONTRADICTED = "contradicted"
     RETIRED = "retired"
+
 
 @dataclass(slots=True)
 class SignalHypothesis:
@@ -45,7 +49,10 @@ class SignalHypothesis:
         source_ids = payload.get("source_ids")
         if not isinstance(source_ids, list) or len(source_ids) != 2:
             raise ValueError("hypothesis source_ids must contain exactly two identifiers")
-        if any(not isinstance(source_id, str) or not source_id or len(source_id) > 128 for source_id in source_ids):
+        if any(
+            not isinstance(source_id, str) or not source_id or len(source_id) > 128
+            for source_id in source_ids
+        ):
             raise ValueError("hypothesis source_ids must be bounded strings")
         if source_ids[0] == source_ids[1]:
             raise ValueError("hypothesis source_ids must be distinct")
@@ -58,7 +65,11 @@ class SignalHypothesis:
 
         def finite(name: str, *, maximum: float = 1.0) -> float:
             value = payload.get(name, 0.0)
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+            ):
                 raise ValueError(f"{name} must be finite")
             if value < 0.0 or value > maximum:
                 raise ValueError(f"{name} must be within [0, {maximum}]")
@@ -78,7 +89,9 @@ class SignalHypothesis:
         contradiction_streak = count("contradiction_streak")
         if status is not HypothesisStatus.CONTRADICTED and status is not HypothesisStatus.RETIRED:
             if contradiction_streak:
-                raise ValueError("contradiction_streak requires a contradictory or retired hypothesis")
+                raise ValueError(
+                    "contradiction_streak requires a contradictory or retired hypothesis"
+                )
         item = cls(
             tuple(sorted(source_ids)),
             born_tick=born_tick,
@@ -91,7 +104,9 @@ class SignalHypothesis:
         )
         return item
 
-    def update(self, *, correlation: float | None, samples: int, min_samples: int, tick: int) -> None:
+    def update(
+        self, *, correlation: float | None, samples: int, min_samples: int, tick: int
+    ) -> None:
         if isinstance(samples, bool) or not isinstance(samples, int) or samples < 0:
             raise ValueError("samples must be a non-negative integer")
         if isinstance(min_samples, bool) or not isinstance(min_samples, int) or min_samples < 3:
@@ -100,7 +115,11 @@ class SignalHypothesis:
             raise ValueError("tick must be a non-negative integer")
         if correlation is None:
             return
-        if isinstance(correlation, bool) or not math.isfinite(correlation) or not -1.0 <= correlation <= 1.0:
+        if (
+            isinstance(correlation, bool)
+            or not math.isfinite(correlation)
+            or not -1.0 <= correlation <= 1.0
+        ):
             raise ValueError("correlation must be finite and within [-1, 1]")
         if self.status is HypothesisStatus.RETIRED:
             return
@@ -123,18 +142,31 @@ class SignalHypothesis:
             self.contradiction_streak += 1
             self.status = (
                 HypothesisStatus.RETIRED
-                if self.validation_samples >= 2 * min_samples and self.contradiction_streak >= min_samples
+                if self.validation_samples >= 2 * min_samples
+                and self.contradiction_streak >= min_samples
                 else HypothesisStatus.CONTRADICTED
             )
+
 
 class HypothesisTracker:
     def __init__(self) -> None:
         self._items: dict[tuple[str, str], SignalHypothesis] = {}
 
-    def observe(self, source_ids: tuple[str, str], *, correlation: float | None, samples: int, min_samples: int, tick: int) -> None:
+    def observe(
+        self,
+        source_ids: tuple[str, str],
+        *,
+        correlation: float | None,
+        samples: int,
+        min_samples: int,
+        tick: int,
+    ) -> None:
         if not isinstance(source_ids, tuple) or len(source_ids) != 2:
             raise ValueError("source_ids must contain exactly two identifiers")
-        if any(not isinstance(source_id, str) or not source_id or len(source_id) > 128 for source_id in source_ids):
+        if any(
+            not isinstance(source_id, str) or not source_id or len(source_id) > 128
+            for source_id in source_ids
+        ):
             raise ValueError("source_ids must be non-empty bounded strings")
         if source_ids[0] == source_ids[1]:
             raise ValueError("source_ids must identify two distinct sources")

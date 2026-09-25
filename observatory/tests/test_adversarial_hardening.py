@@ -22,7 +22,7 @@ def _next_sse_payload(response):
         if not line:
             raise AssertionError("SSE stream closed before the next event")
         if line.startswith("data: "):
-            return json.loads(line[len("data: "):])
+            return json.loads(line[len("data: ") :])
 
 
 class ObservatoryAdversarialHardeningTests(unittest.TestCase):

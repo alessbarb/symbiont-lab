@@ -3,6 +3,7 @@
 This module owns only physical mechanics. Human-readable joint/link names are
 observer-side metadata; organisms see ordinal rec.N / eff.N channels only.
 """
+
 from __future__ import annotations
 
 import math
@@ -20,14 +21,13 @@ from .humanoid import (
     JOINT_LIMIT_SOLVER_TOLERANCE,
     MECHANICAL_LIMIT_GUARD,
     ActuatorWork,
-    MotorBinding,
-    SegmentSpec,
     JointSpec,
     JointTopology,
+    MotorBinding,
+    SegmentSpec,
     SurfaceMaterial,
     apply_surface_material,
 )
-
 
 GLOBAL_KINEMATIC_RECEPTORS = 10
 ECOLOGICAL_RECEPTORS = 1
@@ -261,9 +261,8 @@ class ArticulatedPhysics:
             handle.write(urdf)
             path = handle.name
         try:
-            flags = (
-                int(getattr(self.p, "URDF_USE_INERTIA_FROM_FILE", 0))
-                | int(getattr(self.p, "URDF_USE_SELF_COLLISION", 0))
+            flags = int(getattr(self.p, "URDF_USE_INERTIA_FROM_FILE", 0)) | int(
+                getattr(self.p, "URDF_USE_SELF_COLLISION", 0)
             )
             body_id = self.p.loadURDF(
                 path,
@@ -283,9 +282,7 @@ class ArticulatedPhysics:
         spec = self.SPEC
         count = int(self.p.getNumJoints(self.body_id, physicsClientId=self.client_id))
         if count != spec.motor_dof:
-            raise RuntimeError(
-                f"{spec.body_kind} loaded {count} joints, expected {spec.motor_dof}"
-            )
+            raise RuntimeError(f"{spec.body_kind} loaded {count} joints, expected {spec.motor_dof}")
         index_by_joint_name: dict[str, int] = {}
         index_by_link_name: dict[str, int] = {spec.base_link_name: -1}
         parent_by_index: dict[int, int] = {}
@@ -302,12 +299,9 @@ class ArticulatedPhysics:
             index_by_joint_name[item.name] for item in spec.joint_specs
         )
         if self.motor_joint_indices != tuple(range(spec.motor_dof)):
-            raise RuntimeError(
-                f"Bullet reordered {spec.body_kind} joints; opaque contract unsafe"
-            )
+            raise RuntimeError(f"Bullet reordered {spec.body_kind} joints; opaque contract unsafe")
         self._joint_ordinal_by_index = {
-            joint_index: ordinal
-            for ordinal, joint_index in enumerate(self.motor_joint_indices)
+            joint_index: ordinal for ordinal, joint_index in enumerate(self.motor_joint_indices)
         }
         self._link_index_by_name = index_by_link_name
         self._contact_links = (
@@ -315,8 +309,7 @@ class ArticulatedPhysics:
             *(index_by_link_name[name] for name in spec.contact_link_names),
         )
         self._direct_pairs = {
-            tuple(sorted((parent_by_index[index], index)))
-            for index in range(count)
+            tuple(sorted((parent_by_index[index], index))) for index in range(count)
         }
         self._structural_collision_exclusions = {
             tuple(sorted((index_by_link_name[left], index_by_link_name[right])))
@@ -326,9 +319,7 @@ class ArticulatedPhysics:
 
     def _verify_loaded_joint_contract(self) -> None:
         for ordinal, joint_index in enumerate(self.motor_joint_indices):
-            info = self.p.getJointInfo(
-                self.body_id, joint_index, physicsClientId=self.client_id
-            )
+            info = self.p.getJointInfo(self.body_id, joint_index, physicsClientId=self.client_id)
             spec = self.SPEC.joint_specs[ordinal]
             lower, upper = _mechanical_joint_limits(spec)
             if abs(float(info[8]) - lower) > 1e-6 or abs(float(info[9]) - upper) > 1e-6:
@@ -338,7 +329,7 @@ class ArticulatedPhysics:
         excluded = self._direct_pairs | self._structural_collision_exclusions
         links = tuple(range(-1, self.SPEC.motor_dof))
         for offset, link_a in enumerate(links):
-            for link_b in links[offset + 1:]:
+            for link_b in links[offset + 1 :]:
                 pair = tuple(sorted((link_a, link_b)))
                 self.p.setCollisionFilterPair(
                     self.body_id,
@@ -407,10 +398,12 @@ class ArticulatedPhysics:
                 for idx in self.motor_joint_indices
             ]
         for state in states:
-            values.extend((
-                self._signed_unit(state[0], math.pi),
-                self._signed_unit(state[1], 6.0),
-            ))
+            values.extend(
+                (
+                    self._signed_unit(state[0], math.pi),
+                    self._signed_unit(state[1], 6.0),
+                )
+            )
 
         _position, orientation = self.p.getBasePositionAndOrientation(
             self.body_id, physicsClientId=self.client_id
@@ -422,18 +415,12 @@ class ArticulatedPhysics:
         values.extend(self._signed_unit(v, 4.0) for v in linear_velocity)
         values.extend(self._signed_unit(v, 6.0) for v in angular_velocity)
 
-        contacts = self.p.getContactPoints(
-            bodyA=self.body_id, physicsClientId=self.client_id
-        )
+        contacts = self.p.getContactPoints(bodyA=self.body_id, physicsClientId=self.client_id)
         active_links: set[int] = set()
         for item in contacts:
             if len(item) > 3:
                 active_links.add(int(item[3]))
-            if (
-                len(item) > 4
-                and int(item[1]) == self.body_id
-                and int(item[2]) == self.body_id
-            ):
+            if len(item) > 4 and int(item[1]) == self.body_id and int(item[2]) == self.body_id:
                 active_links.add(int(item[4]))
         values.extend(1.0 if link in active_links else 0.0 for link in self._contact_links)
         values.append(self._external_field_signal)
@@ -446,11 +433,7 @@ class ArticulatedPhysics:
             link_a = int(item[3])
             if link_a in peak_force:
                 peak_force[link_a] = max(peak_force[link_a], force)
-            if (
-                len(item) > 4
-                and int(item[1]) == self.body_id
-                and int(item[2]) == self.body_id
-            ):
+            if len(item) > 4 and int(item[1]) == self.body_id and int(item[2]) == self.body_id:
                 link_b = int(item[4])
                 if link_b in peak_force:
                     peak_force[link_b] = max(peak_force[link_b], force)
@@ -478,9 +461,7 @@ class ArticulatedPhysics:
             positive = max(0.0, min(1.0, float(activations.get(binding.positive_port, 0.0))))
             negative = max(0.0, min(1.0, float(activations.get(binding.negative_port, 0.0))))
             spec = self.SPEC.joint_specs[ordinal]
-            applied[binding.joint_index] = (
-                (positive - negative) * spec.max_motor_torque * scale
-            )
+            applied[binding.joint_index] = (positive - negative) * spec.max_motor_torque * scale
         self._applied_torque_by_joint = applied
         self.prepare_physics_substep()
 
@@ -578,9 +559,7 @@ class ArticulatedPhysics:
                 "velocity": float(state[1]),
                 "applied_torque": float(self._applied_torque_by_joint.get(joint_index, 0.0)),
             }
-            for ordinal, (joint_index, state) in enumerate(
-                zip(self.motor_joint_indices, states)
-            )
+            for ordinal, (joint_index, state) in enumerate(zip(self.motor_joint_indices, states))
         ]
 
         links: list[dict[str, object]] = []
@@ -609,12 +588,14 @@ class ArticulatedPhysics:
             total_mass += mass
             for axis in range(3):
                 weighted_com[axis] += mass * float(com[axis])
-            links.append({
-                "link_index": int(index),
-                "link_name": str(name),
-                "position": [float(x) for x in link_position],
-                "orientation": [float(x) for x in link_orientation],
-            })
+            links.append(
+                {
+                    "link_index": int(index),
+                    "link_name": str(name),
+                    "position": [float(x) for x in link_position],
+                    "orientation": [float(x) for x in link_orientation],
+                }
+            )
         center_of_mass = (
             [value / total_mass for value in weighted_com]
             if total_mass > 0.0
@@ -632,9 +613,7 @@ class ArticulatedPhysics:
             "total_mass": float(total_mass),
             "joints": joints,
             "links": links,
-            "contact_links": sorted({
-                int(item[3]) for item in contacts if len(item) > 3
-            }),
+            "contact_links": sorted({int(item[3]) for item in contacts if len(item) > 3}),
             "contact_count": len(contacts),
         }
 
@@ -679,14 +658,15 @@ class ArticulatedPhysics:
             ordinal = self._joint_ordinal_by_index[raw_index]
             spec = self.SPEC.joint_specs[ordinal]
             joint_position = float(raw_position)
-            if not (
-                spec.lower - JOINT_LIMIT_SOLVER_TOLERANCE
-                <= joint_position
-                <= spec.upper + JOINT_LIMIT_SOLVER_TOLERANCE
-            ) and strict_anatomical_limits:
-                raise ValueError(
-                    f"joint state outside hard anatomical limit: {spec.name}"
+            if (
+                not (
+                    spec.lower - JOINT_LIMIT_SOLVER_TOLERANCE
+                    <= joint_position
+                    <= spec.upper + JOINT_LIMIT_SOLVER_TOLERANCE
                 )
+                and strict_anatomical_limits
+            ):
+                raise ValueError(f"joint state outside hard anatomical limit: {spec.name}")
             lower, upper = _mechanical_joint_limits(spec)
             joint_position = max(lower, min(upper, joint_position))
             joint_velocity = float(raw_velocity)

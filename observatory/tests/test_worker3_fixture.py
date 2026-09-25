@@ -1,6 +1,6 @@
 import unittest
 
-from observatory._node_harness import ROOT, requires_node, call_js
+from observatory._node_harness import ROOT, call_js, requires_node
 
 MODULE = ROOT / "projection" / "morphology.js"
 
@@ -20,25 +20,25 @@ class Worker3FixtureTests(unittest.TestCase):
         fibres -- Observatory must not invent connectivity to fill the
         visual gap left by a genuinely disconnected graph."""
         structural_senses, internal_nodes = build_worker3_topology()
-        result = call_js(MODULE, "projectPhenotypeMorphology", {
-            "identitySeed": "worker-3-genome:worker-3-instance",
-            "percepts": [],
-            "hasCurrentTopology": True,
-            "structuralSenses": structural_senses,
-            "internalNodes": internal_nodes,
-            "edges": [],
-            "topologyHealth": "connected",
-            "recovering": False,
-            "frozen": False,
-        })
+        result = call_js(
+            MODULE,
+            "projectPhenotypeMorphology",
+            {
+                "identitySeed": "worker-3-genome:worker-3-instance",
+                "percepts": [],
+                "hasCurrentTopology": True,
+                "structuralSenses": structural_senses,
+                "internalNodes": internal_nodes,
+                "edges": [],
+                "topologyHealth": "connected",
+                "recovering": False,
+                "frozen": False,
+            },
+        )
         self.assertEqual(len(result["receptorAnchors"]), 58)
         self.assertEqual(len(result["internalAnchors"]), 6)
-        self.assertEqual(
-            sum(1 for a in result["internalAnchors"] if a["kind"] == "readout"), 1
-        )
-        self.assertEqual(
-            sum(1 for a in result["internalAnchors"] if a["kind"] == "concept"), 5
-        )
+        self.assertEqual(sum(1 for a in result["internalAnchors"] if a["kind"] == "readout"), 1)
+        self.assertEqual(sum(1 for a in result["internalAnchors"] if a["kind"] == "concept"), 5)
         self.assertEqual(result["fibres"], [])
 
 

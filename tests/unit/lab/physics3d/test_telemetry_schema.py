@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from symbiont_lab.physics3d.telemetry_compaction import canonical_json_bytes
+from symbiont_lab.physics3d.telemetry_numeric import (
+    FrameSchemaRegistryReader,
+    FrameSchemaRegistryWriter,
+)
 from symbiont_lab.physics3d.telemetry_schema import (
     TemporalClass,
     event_mode,
     partition_state,
     reassemble_state,
-)
-from symbiont_lab.physics3d.telemetry_numeric import (
-    FrameSchemaRegistryReader,
-    FrameSchemaRegistryWriter,
 )
 from symbiont_lab.physics3d.telemetry_structural import (
     LegacyStructuralStreamReader,
@@ -90,12 +90,8 @@ def test_keyed_structural_view_preserves_original_order():
 def test_reassembly_materializes_parents_before_extracted_children():
     state = {
         "runtime": {
-            "narrative": [
-                {"capability_id": "cpu", "summary": "current"}
-            ],
-            "signal_knowledge": [
-                {"signal_id": "signal.a", "confidence": 0.5}
-            ],
+            "narrative": [{"capability_id": "cpu", "summary": "current"}],
+            "signal_knowledge": [{"signal_id": "signal.a", "confidence": 0.5}],
             "knowledge_events": [{"kind": "learned"}],
             "homeostatic_deviation": 0.2,
         },
@@ -221,9 +217,10 @@ def test_legacy_structural_codec_does_not_reinterpret_claim_id(tmp_path):
         }
     ]
 
-    with schema_path.open("w+", encoding="utf-8") as schemas, stream_path.open(
-        "w+", encoding="utf-8"
-    ) as stream:
+    with (
+        schema_path.open("w+", encoding="utf-8") as schemas,
+        stream_path.open("w+", encoding="utf-8") as stream,
+    ):
         registry = FrameSchemaRegistryWriter(schemas)
         writer = LegacyStructuralStreamWriter(stream, registry)
         writer.append(1, "runtime.signal_knowledge", value)
@@ -233,6 +230,7 @@ def test_legacy_structural_codec_does_not_reinterpret_claim_id(tmp_path):
     registry = FrameSchemaRegistryReader(schema_path)
     reader = LegacyStructuralStreamReader(registry)
     import json
+
     record = json.loads(stream_path.read_text(encoding="utf-8"))
     channel, restored = reader.apply(record)
 

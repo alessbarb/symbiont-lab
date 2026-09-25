@@ -75,9 +75,7 @@ class BeliefModel:
         prior = state.probability
         surprise = abs(probability - prior)
         weight = max(0.05, confidence)
-        posterior = (
-            prior * state.evidence + probability * weight
-        ) / (state.evidence + weight)
+        posterior = (prior * state.evidence + probability * weight) / (state.evidence + weight)
         reversed_belief = (prior >= 0.5) != (posterior >= 0.5) and state.revisions > 0
 
         state.probability = max(0.0, min(1.0, posterior))

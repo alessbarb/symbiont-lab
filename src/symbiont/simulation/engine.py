@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import Callable
 
 from symbiont.core.cognition.agent import Agent
-from symbiont.core.social.collective import CollectiveMemory
 from symbiont.core.cognition.curiosity import CuriosityPlanner, CuriosityProbe
 from symbiont.core.cognition.metacognition import MetacognitionEngine, MetacognitiveState
-from symbiont.core.foundation.model import Assessment
 from symbiont.core.cognition.reasoning import Hypothesis, ReasoningEngine
+from symbiont.core.foundation.model import Assessment
+from symbiont.core.social.collective import CollectiveMemory
 from symbiont.environment.regimes import apply_regime_shift
 from symbiont.environment.rng import make_rng_streams
 from symbiont.environment.world import benign_event, make_profiles, pathogen_event
@@ -32,7 +32,9 @@ class SimulationConfig:
     drift_magnitude: float = 0.22
 
 
-def _make_agents(hosts: int, rng, poison_fraction: float, heterogeneity: float) -> tuple[list[Agent], set[str]]:
+def _make_agents(
+    hosts: int, rng, poison_fraction: float, heterogeneity: float
+) -> tuple[list[Agent], set[str]]:
     poison_count = min(hosts, max(0, round(hosts * poison_fraction)))
     poisoned_indexes = set(rng.sample(range(hosts), poison_count)) if poison_count else set()
     agents: list[Agent] = []
@@ -62,9 +64,7 @@ def _trust_gap(collective: CollectiveMemory, poisoned_ids: set[str]) -> float:
         if source not in poisoned_ids
     ]
     poisoned = [
-        state.score
-        for source, state in collective.source_trust.items()
-        if source in poisoned_ids
+        state.score for source, state in collective.source_trust.items() if source in poisoned_ids
     ]
     if not honest or not poisoned:
         return 0.0
@@ -185,11 +185,7 @@ def _run_population(
     curiosity = CuriosityPlanner()
     metacognition = MetacognitionEngine()
     meta = metacognition.assess([], collective)
-    resolved_drift_step = (
-        max(50, int(steps * 0.55))
-        if drift_step is None
-        else max(0, drift_step)
-    )
+    resolved_drift_step = max(50, int(steps * 0.55)) if drift_step is None else max(0, drift_step)
     drifted_hosts: set[int] = set()
 
     for step in range(steps):
@@ -206,13 +202,7 @@ def _run_population(
             inject = step >= 50 and streams.schedule.random() < threat_rate
             if inject:
                 roll = streams.schedule.random()
-                kind = (
-                    "ransom_sim"
-                    if roll < 0.40
-                    else "bot_sim"
-                    if roll < 0.72
-                    else "stealth_sim"
-                )
+                kind = "ransom_sim" if roll < 0.40 else "bot_sim" if roll < 0.72 else "stealth_sim"
                 event = pathogen_event(kind, profile, streams.observations)
             else:
                 event = benign_event(profile, streams.observations)

@@ -1,4 +1,5 @@
 """Learned action-relative reachability for the current embodiment."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -65,9 +66,7 @@ class ReachabilityModel:
                 item.competence_id,
             ),
         )[: self.capacity]
-        self._relations = {
-            (item.state_region_id, item.competence_id): item for item in retained
-        }
+        self._relations = {(item.state_region_id, item.competence_id): item for item in retained}
 
     @property
     def relations(self) -> tuple[ReachabilityRelation, ...]:

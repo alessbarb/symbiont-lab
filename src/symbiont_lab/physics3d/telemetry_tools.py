@@ -1,10 +1,11 @@
 """Operational conversion and benchmarking for Physics3D telemetry."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
-from pathlib import Path
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Mapping
 
 from .telemetry_compaction import canonical_json_bytes
@@ -102,13 +103,9 @@ def convert_run(
         strict=True,
     ):
         if canonical_json_bytes(left_state) != canonical_json_bytes(right_state):
-            raise ValueError(
-                f"converted state differs at tick {left_state.get('tick')}"
-            )
+            raise ValueError(f"converted state differs at tick {left_state.get('tick')}")
         if canonical_json_bytes(left_summary) != canonical_json_bytes(right_summary):
-            raise ValueError(
-                f"converted summary differs at tick {left_summary.get('tick')}"
-            )
+            raise ValueError(f"converted summary differs at tick {left_summary.get('tick')}")
         checked += 1
 
     if checked != ticks:
@@ -123,11 +120,7 @@ def convert_run(
 
 
 def _tree_bytes(root: Path) -> int:
-    return sum(
-        path.stat().st_size
-        for path in root.rglob("*")
-        if path.is_file()
-    )
+    return sum(path.stat().st_size for path in root.rglob("*") if path.is_file())
 
 
 def _first_existing(*paths: Path) -> Path:
@@ -191,11 +184,7 @@ def benchmark_run(path: str | Path) -> dict[str, Any]:
         raw_bytes += len(canonical_json_bytes(summary))
 
     total_bytes = _tree_bytes(root)
-    breakdown = (
-        _v41_breakdown(root)
-        if version == "v4.1"
-        else {"total": total_bytes}
-    )
+    breakdown = _v41_breakdown(root) if version == "v4.1" else {"total": total_bytes}
     if version == "v4.1":
         evidence_bytes = total_bytes - breakdown.get("checkpoints", 0)
     else:
@@ -227,16 +216,10 @@ def benchmark_run(path: str | Path) -> dict[str, Any]:
         else None
     )
     manifest = _read_manifest(root)
-    integrity = (
-        verify_v41_run(root)
-        if version == "v4.1"
-        else None
-    )
+    integrity = verify_v41_run(root) if version == "v4.1" else None
     fallback_bytes = int(
         (
-            manifest.get("compaction", {})
-            if isinstance(manifest.get("compaction"), dict)
-            else {}
+            manifest.get("compaction", {}) if isinstance(manifest.get("compaction"), dict) else {}
         ).get("fallback_bytes", 0)
         or 0
     )
@@ -248,26 +231,16 @@ def benchmark_run(path: str | Path) -> dict[str, Any]:
         "last_tick": ticks[-1] if ticks else None,
         "total_bytes": total_bytes,
         "evidence_bytes_excluding_checkpoints": evidence_bytes,
-        "bytes_per_tick": (
-            evidence_bytes / len(ticks) if ticks else None
-        ),
+        "bytes_per_tick": (evidence_bytes / len(ticks) if ticks else None),
         "raw_canonical_bytes": raw_bytes,
-        "storage_ratio_vs_raw": (
-            evidence_bytes / raw_bytes if raw_bytes else None
-        ),
+        "storage_ratio_vs_raw": (evidence_bytes / raw_bytes if raw_bytes else None),
         "fallback_bytes": fallback_bytes,
-        "fallback_fraction": (
-            fallback_bytes / evidence_bytes if evidence_bytes else 0.0
-        ),
+        "fallback_fraction": (fallback_bytes / evidence_bytes if evidence_bytes else 0.0),
         "integrity": integrity,
         "breakdown": breakdown,
         "state_at_ms": {
             "samples": latencies_ms,
-            "p50": (
-                sorted_latency[len(sorted_latency) // 2]
-                if sorted_latency
-                else None
-            ),
+            "p50": (sorted_latency[len(sorted_latency) // 2] if sorted_latency else None),
             "p95": p95,
             "max": max(sorted_latency) if sorted_latency else None,
         },
@@ -284,20 +257,11 @@ def evaluate_acceptance_gates(
 ) -> dict[str, Any]:
     version = str(report.get("version", ""))
     integrity = report.get("integrity")
-    integrity_complete = (
-        isinstance(integrity, Mapping)
-        and bool(integrity.get("complete"))
-    )
-    evidence_bytes = int(
-        report.get("evidence_bytes_excluding_checkpoints", 0) or 0
-    )
+    integrity_complete = isinstance(integrity, Mapping) and bool(integrity.get("complete"))
+    evidence_bytes = int(report.get("evidence_bytes_excluding_checkpoints", 0) or 0)
     fallback_fraction = float(report.get("fallback_fraction", 0.0) or 0.0)
     state_at = report.get("state_at_ms", {})
-    p95_raw = (
-        state_at.get("p95")
-        if isinstance(state_at, Mapping)
-        else None
-    )
+    p95_raw = state_at.get("p95") if isinstance(state_at, Mapping) else None
     p95_ms = float(p95_raw) if p95_raw is not None else float("inf")
     ticks = int(report.get("ticks", 0) or 0)
 
@@ -307,9 +271,7 @@ def evaluate_acceptance_gates(
         "evidence_bytes": evidence_bytes <= int(max_evidence_bytes),
         "fallback_fraction": fallback_fraction <= float(max_fallback_fraction),
         "state_at_p95_ms": p95_ms <= float(max_state_at_p95_ms),
-        "expected_ticks": (
-            True if expected_ticks is None else ticks == int(expected_ticks)
-        ),
+        "expected_ticks": (True if expected_ticks is None else ticks == int(expected_ticks)),
     }
     return {
         "passed": all(checks.values()),
@@ -338,9 +300,7 @@ def compare_runs(left: str | Path, right: str | Path) -> dict[str, Any]:
         "left": a,
         "right": b,
         "saved_bytes": a_bytes - b_bytes,
-        "saved_fraction": (
-            (a_bytes - b_bytes) / a_bytes if a_bytes else None
-        ),
+        "saved_fraction": ((a_bytes - b_bytes) / a_bytes if a_bytes else None),
     }
 
 

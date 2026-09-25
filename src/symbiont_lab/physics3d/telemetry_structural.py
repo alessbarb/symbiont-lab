@@ -1,12 +1,13 @@
 """Keyed structural path-delta codec for telemetry v4.1."""
+
 from __future__ import annotations
 
-from copy import deepcopy
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping, TextIO
 
-from .telemetry_compaction import canonical_json_bytes, payload_sha256, StatePatcher
+from .telemetry_compaction import StatePatcher, canonical_json_bytes, payload_sha256
 from .telemetry_numeric import (
     FrameSchemaRegistryReader,
     FrameSchemaRegistryWriter,
@@ -55,9 +56,7 @@ def _key_tokens_for_list(
     edge_fields = ("source_id", "target_id", "kind", "delay_ticks")
     if all(all(field in item for field in edge_fields) for item in items):
         tokens = [
-            "edge:" + canonical_json_bytes(
-                [item[field] for field in edge_fields]
-            ).decode("utf-8")
+            "edge:" + canonical_json_bytes([item[field] for field in edge_fields]).decode("utf-8")
             for item in items
         ]
         if len(tokens) == len(set(tokens)):
@@ -68,12 +67,7 @@ def _key_tokens_for_list(
 def structural_view(value: Any) -> Any:
     """Collision-free AST optimized for keyed temporal deltas."""
     if isinstance(value, Mapping):
-        return {
-            "@m": {
-                str(key): structural_view(value[key])
-                for key in sorted(value, key=str)
-            }
-        }
+        return {"@m": {str(key): structural_view(value[key]) for key in sorted(value, key=str)}}
     if isinstance(value, tuple):
         value = list(value)
     if isinstance(value, list):
@@ -307,9 +301,7 @@ class StructuralDeltaReader:
 
 
 # Revision 1/2 reader compatibility.
-_LEGACY_ID_CANDIDATES = tuple(
-    candidate for candidate in _ID_CANDIDATES if candidate != "claim_id"
-)
+_LEGACY_ID_CANDIDATES = tuple(candidate for candidate in _ID_CANDIDATES if candidate != "claim_id")
 
 
 def _legacy_key_tokens_for_list(
@@ -325,9 +317,7 @@ def _legacy_key_tokens_for_list(
     edge_fields = ("source_id", "target_id", "kind", "delay_ticks")
     if all(all(field in item for field in edge_fields) for item in items):
         tokens = [
-            "edge:" + canonical_json_bytes(
-                [item[field] for field in edge_fields]
-            ).decode("utf-8")
+            "edge:" + canonical_json_bytes([item[field] for field in edge_fields]).decode("utf-8")
             for item in items
         ]
         if len(tokens) == len(set(tokens)):

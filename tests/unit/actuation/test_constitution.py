@@ -5,7 +5,6 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from symbiont.actuation.constitution import (
-    ActuatorConstitution,
     MotorSlot,
     derive_actuator_constitution,
 )

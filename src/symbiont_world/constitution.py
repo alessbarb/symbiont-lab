@@ -4,11 +4,12 @@ docs/design/symbiont-world-v1.md §9. A world_seed alone does not identify a
 reproducible universe across implementations or code revisions; the
 fingerprint of this frozen structure does.
 """
+
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from hashlib import sha256
-import json
 
 CONSTITUTION_SCHEMA_VERSION = 1
 

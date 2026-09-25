@@ -3,25 +3,34 @@
 Run with Python 3.11+: python experiments/learning/signal-knowledge-pilot/pilot.py
 Synthetic truth and environment labels stay in this evaluator only.
 """
+
 from __future__ import annotations
 
-from collections import deque
 import json
 import math
 import random
+from collections import deque
 
-
-CONFIG = dict(ticks=1152, training_window=64, epoch_ticks=64,
-              minimum_comparable=48, improvement=0.15, absolute_gain=0.01,
-              consecutive_epochs=3, seeds=[17, 29, 43])
+CONFIG = dict(
+    ticks=1152,
+    training_window=64,
+    epoch_ticks=64,
+    minimum_comparable=48,
+    improvement=0.15,
+    absolute_gain=0.01,
+    consecutive_epochs=3,
+    seeds=[17, 29, 43],
+)
 
 
 def fit(rows, feature):
     """Ridge least squares with an intercept, fit exclusively on past rows."""
     n = len(feature)
-    matrix = [[sum(r[i] * r[j] for r, _ in rows) + (1e-6 if i == j else 0)
-               for j in range(n)] + [sum(r[i] * y for r, y in rows)]
-              for i in range(n)]
+    matrix = [
+        [sum(r[i] * r[j] for r, _ in rows) + (1e-6 if i == j else 0) for j in range(n)]
+        + [sum(r[i] * y for r, y in rows)]
+        for i in range(n)
+    ]
     for col in range(n):
         pivot = max(range(col, n), key=lambda i: abs(matrix[i][col]))
         matrix[col], matrix[pivot] = matrix[pivot], matrix[col]
@@ -110,17 +119,31 @@ def evaluate(values):
                     pending = (None, 1.0, own_features, features, y0)
                 else:
                     mean = sum(levels) / len(levels)
-                    scale = max(1e-12, math.sqrt(sum((y - mean) ** 2 for y in levels) / len(levels)))
-                    predictions = [y0 + fit(candidate, features), 0.0, mean, y0,
-                                   y0 + fit(own, own_features)]
+                    scale = max(
+                        1e-12, math.sqrt(sum((y - mean) ** 2 for y in levels) / len(levels))
+                    )
+                    predictions = [
+                        y0 + fit(candidate, features),
+                        0.0,
+                        mean,
+                        y0,
+                        y0 + fit(own, own_features),
+                    ]
                     pending = (predictions, scale, own_features, features, y0)
         if (tick + 1) % CONFIG["epoch_ticks"] == 0:
             win = comparable >= CONFIG["minimum_comparable"] and all(
-                loss - losses[0] >= max(CONFIG["absolute_gain"] * comparable,
-                                        CONFIG["improvement"] * loss)
-                for loss in losses[1:])
-            epoch_results.append(dict(tick=tick, comparable=comparable, win=win,
-                                      losses=[round(x / max(1, comparable), 6) for x in losses]))
+                loss - losses[0]
+                >= max(CONFIG["absolute_gain"] * comparable, CONFIG["improvement"] * loss)
+                for loss in losses[1:]
+            )
+            epoch_results.append(
+                dict(
+                    tick=tick,
+                    comparable=comparable,
+                    win=win,
+                    losses=[round(x / max(1, comparable), 6) for x in losses],
+                )
+            )
             streak = streak + 1 if win else 0
             epochs_won += int(win)
             failures = failures + 1 if comparable >= CONFIG["minimum_comparable"] and not win else 0
@@ -131,22 +154,49 @@ def evaluate(values):
                 supported = False
                 reversals.append(tick)
             losses, comparable = [0.0] * 5, 0
-    return dict(trials=trials, censored=censored, epochs_won=epochs_won,
-                promotions=promotions, reversals=reversals, final_supported=supported,
-                epochs=epoch_results)
+    return dict(
+        trials=trials,
+        censored=censored,
+        epochs_won=epochs_won,
+        promotions=promotions,
+        reversals=reversals,
+        final_supported=supported,
+        epochs=epoch_results,
+    )
 
 
 def main():
     outcomes = []
-    for environment in ("constant", "noise", "positive_ar", "negative_ar", "lead",
-                        "common", "trend", "gaps", "regime", "scaled_lead"):
+    for environment in (
+        "constant",
+        "noise",
+        "positive_ar",
+        "negative_ar",
+        "lead",
+        "common",
+        "trend",
+        "gaps",
+        "regime",
+        "scaled_lead",
+    ):
         for seed in CONFIG["seeds"]:
-            outcomes.append(dict(environment=environment, seed=seed,
-                                 **evaluate(series(environment, seed, CONFIG["ticks"]))))
+            outcomes.append(
+                dict(
+                    environment=environment,
+                    seed=seed,
+                    **evaluate(series(environment, seed, CONFIG["ticks"])),
+                )
+            )
     for seed in CONFIG["seeds"]:
         for pair in range(32):
-            outcomes.append(dict(environment="multiple_noise", seed=seed, pair=pair,
-                                 **evaluate(series("noise", seed * 1000 + pair, CONFIG["ticks"]))))
+            outcomes.append(
+                dict(
+                    environment="multiple_noise",
+                    seed=seed,
+                    pair=pair,
+                    **evaluate(series("noise", seed * 1000 + pair, CONFIG["ticks"])),
+                )
+            )
     print(json.dumps(dict(config=CONFIG, outcomes=outcomes), indent=2))
 
 

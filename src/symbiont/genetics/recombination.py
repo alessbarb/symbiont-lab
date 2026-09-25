@@ -1,4 +1,5 @@
 """Genome v2 recombination with linkage groups."""
+
 from __future__ import annotations
 
 import copy
@@ -10,7 +11,10 @@ from .schema import DEFAULT_GENOME_SCHEMA, GenomeSchema
 
 
 def _parts(locus: str) -> tuple[str, ...]:
-    return tuple("min" if part == "minimum" else "max" if part == "maximum" else part for part in locus.split("."))
+    return tuple(
+        "min" if part == "minimum" else "max" if part == "maximum" else part
+        for part in locus.split(".")
+    )
 
 
 def _set_path(payload: dict[str, Any], locus: str, value: Any) -> None:
@@ -62,7 +66,7 @@ def recombine_genomes(
             choose_a = linked_choice if use_linked else rng.random() < 0.5
             _set_path(payload, locus, a[locus] if choose_a else b[locus])
 
-    payload["genome_id"] = new_genome_id or f"genome_recombined_{seed & 0xffffffff:08x}"
+    payload["genome_id"] = new_genome_id or f"genome_recombined_{seed & 0xFFFFFFFF:08x}"
     return GenomeCodec(schema).load(payload)
 
 

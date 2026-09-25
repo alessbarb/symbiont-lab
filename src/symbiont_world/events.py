@@ -4,32 +4,35 @@ causal_parent_ids is reserved for mechanical causality the kernel
 guarantees by construction; everything that depends on accumulated state
 or multiple concurrent antecedents goes in contributing_event_ids instead.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Mapping
 
-EVENT_KINDS = frozenset({
-    "WORLD_FIELD_CHANGED",
-    "RESOURCE_RENEWED",
-    "ORGANISM_MOVED",
-    "MOVE",
-    "ACTUATION_RESOLVED",
-    "SUBSTRATE_IMPULSE",
-    "ECOLOGY_CHANGED",
-    "RESOURCE_ACQUIRED",
-    "ORGANISM_EMITTED",
-    "ORGANISM_CONTACT",
-    "HAZARD_EXPOSURE",
-    "PHYSIOLOGICAL_DAMAGE",
-    "PHYSIOLOGY_BALANCE",
-    "REPAIR",
-    "BIRTH",
-    "DEATH",
-    "GENOME_MUTATION",
-    "CULTURAL_TRANSMISSION",
-})
+EVENT_KINDS = frozenset(
+    {
+        "WORLD_FIELD_CHANGED",
+        "RESOURCE_RENEWED",
+        "ORGANISM_MOVED",
+        "MOVE",
+        "ACTUATION_RESOLVED",
+        "SUBSTRATE_IMPULSE",
+        "ECOLOGY_CHANGED",
+        "RESOURCE_ACQUIRED",
+        "ORGANISM_EMITTED",
+        "ORGANISM_CONTACT",
+        "HAZARD_EXPOSURE",
+        "PHYSIOLOGICAL_DAMAGE",
+        "PHYSIOLOGY_BALANCE",
+        "REPAIR",
+        "BIRTH",
+        "DEATH",
+        "GENOME_MUTATION",
+        "CULTURAL_TRANSMISSION",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,16 +106,17 @@ class EventJournal:
     def from_snapshot(cls, events_data: list[dict[str, Any]]) -> "EventJournal":
         journal = cls()
         for d in events_data:
-            journal.append(WorldEvent(
-                event_id=d["event_id"],
-                world_id=d["world_id"],
-                tick=d["tick"],
-                kind=d["kind"],
-                actor=d.get("actor"),
-                position=d.get("position"),
-                payload=d.get("payload", {}),
-                causal_parent_ids=tuple(d.get("causal_parent_ids", ())),
-                contributing_event_ids=tuple(d.get("contributing_event_ids", ())),
-            ))
+            journal.append(
+                WorldEvent(
+                    event_id=d["event_id"],
+                    world_id=d["world_id"],
+                    tick=d["tick"],
+                    kind=d["kind"],
+                    actor=d.get("actor"),
+                    position=d.get("position"),
+                    payload=d.get("payload", {}),
+                    causal_parent_ids=tuple(d.get("causal_parent_ids", ())),
+                    contributing_event_ids=tuple(d.get("contributing_event_ids", ())),
+                )
+            )
         return journal
-

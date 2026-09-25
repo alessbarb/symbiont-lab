@@ -11,10 +11,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import load_graph_definition
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.runtime import OrganismRuntime
 
 _EXAMPLES = Path(__file__).resolve().parents[3] / "examples" / "cognition"
 

@@ -77,8 +77,7 @@ class SensorReading:
 
 def reading_matches_manifest(reading: SensorReading, manifest: HostManifest) -> bool:
     return any(
-        capability.capability_id == reading.capability_id
-        and capability.source == reading.source
+        capability.capability_id == reading.capability_id and capability.source == reading.source
         for capability in manifest.available
     )
 
@@ -156,7 +155,9 @@ class HostSampler:
         *,
         capability_ids: Iterable[str] | None = None,
         clock: Callable[[], float] = time.perf_counter,
-    ) -> tuple[tuple[SensorReading, ...], tuple[ReadingFailure, ...], tuple[CapabilitySamplingOutcome, ...]]:
+    ) -> tuple[
+        tuple[SensorReading, ...], tuple[ReadingFailure, ...], tuple[CapabilitySamplingOutcome, ...]
+    ]:
         """Like :meth:`sample`, but also reports what happened to every
         attempted capability and how much wall-clock time it cost (roadmap
         v0.53's self-model). ``clock`` is injectable for deterministic
@@ -169,7 +170,9 @@ class HostSampler:
         *,
         capability_ids: Iterable[str] | None,
         clock: Callable[[], float],
-    ) -> tuple[tuple[SensorReading, ...], tuple[ReadingFailure, ...], tuple[CapabilitySamplingOutcome, ...]]:
+    ) -> tuple[
+        tuple[SensorReading, ...], tuple[ReadingFailure, ...], tuple[CapabilitySamplingOutcome, ...]
+    ]:
         readings: list[SensorReading] = []
         failures: list[ReadingFailure] = []
         outcomes: list[CapabilitySamplingOutcome] = []

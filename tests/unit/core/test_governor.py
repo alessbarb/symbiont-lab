@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from symbiont.core.governor import (
     ConsentRevokedError,
     GovernedOrganism,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Iterable
 
 from symbiont_lab.modeling import SparseEchoStateRegressor
@@ -48,11 +48,7 @@ def _trajectory(seed: int, ticks: int) -> tuple[list[float], list[float]]:
     actions: list[float] = []
     for _ in range(ticks):
         action = -1.0 if rng.random() < 0.5 else 1.0
-        next_state = (
-            0.58 * states[-1]
-            + 0.34 * action
-            + rng.gauss(0.0, 0.04)
-        )
+        next_state = 0.58 * states[-1] + 0.34 * action + rng.gauss(0.0, 0.04)
         next_state = max(-0.98, min(0.98, next_state))
         actions.append(action)
         states.append(next_state)
@@ -176,10 +172,8 @@ def run_continuous_temporal_controls(
                 no_action=no_action,
                 causal_margin_over_best_control=margin,
                 causal_beats_controls=(
-                    causal.gain_over_persistence
-                    > shuffled.gain_over_persistence
-                    and causal.gain_over_persistence
-                    > no_action.gain_over_persistence
+                    causal.gain_over_persistence > shuffled.gain_over_persistence
+                    and causal.gain_over_persistence > no_action.gain_over_persistence
                 ),
             )
         )
@@ -188,12 +182,9 @@ def run_continuous_temporal_controls(
         seeds=seed_list,
         ticks=ticks,
         per_seed=tuple(results),
-        all_seeds_causal_beats_controls=all(
-            result.causal_beats_controls for result in results
-        ),
+        all_seeds_causal_beats_controls=all(result.causal_beats_controls for result in results),
         mean_causal_margin=(
-            sum(result.causal_margin_over_best_control for result in results)
-            / len(results)
+            sum(result.causal_margin_over_best_control for result in results) / len(results)
         ),
     )
 

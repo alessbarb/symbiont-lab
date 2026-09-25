@@ -20,15 +20,17 @@ not just their timing. A fully synthetic organism (no real host reads,
 already the standard pattern across this repo's own test suite) is
 deterministic across runs -- verified over 500 ticks, two instances.
 """
+
 from __future__ import annotations
 
 import argparse
 
+from symbiont.core.physiology import LivingBodyState
+from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.physiology import LivingBodyState
-from symbiont.core.runtime import OrganismRuntime
 
 
 def main() -> None:

@@ -1,4 +1,5 @@
 """Body-independent Symbiont lifecycle and re-embodiment transforms."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -22,7 +23,6 @@ from .longitudinal import (
     inject_memory_candidates,
     memory_for_contract,
 )
-
 
 _MAX_EMBODIMENT_HISTORY = 8
 _SCHEMA_VERSION = 1
@@ -78,7 +78,10 @@ def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
     saved_tick = result.get("saved_at_tick")
     started_tick = current.get("started_tick")
     stored_age = living.get("age_ticks")
-    if any(isinstance(v, bool) or not isinstance(v, int) for v in (saved_tick, started_tick, stored_age)):
+    if any(
+        isinstance(v, bool) or not isinstance(v, int)
+        for v in (saved_tick, started_tick, stored_age)
+    ):
         return result
     if started_tick <= 0 or saved_tick < started_tick:
         return result
@@ -116,12 +119,10 @@ def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
     return result
 
+
 def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
     episode = payload.get("embodiment_episode")
-    if (
-        isinstance(episode, Mapping)
-        and int(episode.get("schema_version") or 0) in {2, 3}
-    ):
+    if isinstance(episode, Mapping) and int(episode.get("schema_version") or 0) in {2, 3}:
         contract = episode.get("contract")
         contract = contract if isinstance(contract, Mapping) else {}
         return {
@@ -132,9 +133,7 @@ def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
                 "body_id": str(episode.get("body_id") or ""),
                 "started_tick": int(episode.get("start_symbiont_tick") or 0),
                 "embodiment_tick": int(episode.get("embodiment_tick") or 0),
-                "contract_fingerprint": str(
-                    contract.get("contract_fingerprint") or ""
-                ),
+                "contract_fingerprint": str(contract.get("contract_fingerprint") or ""),
                 "body_vital_state": _body_vital_state(payload),
             },
             "history_count": len(payload.get("embodiment_epoch_summaries", ()))
@@ -218,19 +217,13 @@ def _detach_body_specific_cognition(
         deepcopy(edge)
         for edge in edges
         if isinstance(edge, Mapping)
-        and (
-            str(edge.get("source_id")) in removed_ids
-            or str(edge.get("target_id")) in removed_ids
-        )
+        and (str(edge.get("source_id")) in removed_ids or str(edge.get("target_id")) in removed_ids)
     ]
 
     graph["nodes"] = [
         node
         for node in nodes
-        if not (
-            isinstance(node, Mapping)
-            and str(node.get("node_id")) in removed_ids
-        )
+        if not (isinstance(node, Mapping) and str(node.get("node_id")) in removed_ids)
     ]
     graph["edges"] = [
         edge
@@ -278,9 +271,7 @@ def _detach_body_specific_cognition(
         raw = bridge.get(key)
         if isinstance(raw, dict):
             bridge[key] = {
-                node_id: value
-                for node_id, value in raw.items()
-                if str(node_id) not in removed_ids
+                node_id: value for node_id, value in raw.items() if str(node_id) not in removed_ids
             }
 
     raw_shadow = bridge.get("shadow_predictions")
@@ -328,8 +319,7 @@ def _detach_body_specific_cognition(
             if not (
                 isinstance(item, Mapping)
                 and (
-                    str(item.get("family"))
-                    in {"motor_readout", "primitive_readout", "predictor"}
+                    str(item.get("family")) in {"motor_readout", "primitive_readout", "predictor"}
                     or _references_removed(item)
                 )
             )
@@ -467,9 +457,7 @@ def migrate_legacy_memory_store(
             BodySpecificMemory(
                 body_id=f"legacy-body.{fingerprint[:20]}.{index}",
                 contract_fingerprint=fingerprint,
-                last_embodiment_id=(
-                    f"legacy-embodiment.{int(entry.get('last_seen_epoch') or 0)}"
-                ),
+                last_embodiment_id=(f"legacy-embodiment.{int(entry.get('last_seen_epoch') or 0)}"),
                 body_schema_prior=(
                     deepcopy(dict(entry["body_schema"]))
                     if isinstance(entry.get("body_schema"), Mapping)
@@ -485,10 +473,7 @@ def migrate_legacy_memory_store(
                     if isinstance(entry.get("motor_cognitive_surface"), Mapping)
                     else None
                 ),
-                private_model_ids=tuple(
-                    str(value)
-                    for value in entry.get("private_model_ids", [])
-                ),
+                private_model_ids=tuple(str(value) for value in entry.get("private_model_ids", [])),
             )
         )
     return archive
@@ -502,9 +487,7 @@ def _legacy_equivalent_contract_fingerprint(
     legacy_surface = ActuatorSurface.from_count(
         descriptor.effector_count,
         fingerprint_material=(
-            f"{descriptor.body_kind}:"
-            f"{descriptor.receptor_count}:"
-            f"{descriptor.effector_count}"
+            f"{descriptor.body_kind}:{descriptor.receptor_count}:{descriptor.effector_count}"
         ),
     )
     translated = deepcopy(dict(fresh))
@@ -512,9 +495,7 @@ def _legacy_equivalent_contract_fingerprint(
     if isinstance(actuation, dict):
         constitution = actuation.get("constitution")
         if isinstance(constitution, dict):
-            constitution["contract_fingerprint"] = (
-                legacy_surface.contract_fingerprint
-            )
+            constitution["contract_fingerprint"] = legacy_surface.contract_fingerprint
     return contract_fingerprint(
         translated,
         receptor_count=descriptor.receptor_count,
@@ -539,10 +520,7 @@ def prepare_fresh_embodiment_checkpoint(
     result = deepcopy(dict(previous))
     # Archive the canonical episode before removing its current authority.
     raw_episode = previous.get("embodiment_episode")
-    if (
-        isinstance(raw_episode, Mapping)
-        and int(raw_episode.get("schema_version") or 0) in {2, 3}
-    ):
+    if isinstance(raw_episode, Mapping) and int(raw_episode.get("schema_version") or 0) in {2, 3}:
         raw_archive = previous.get("embodiment_archive")
         archive = EmbodimentArchive.restore(
             raw_archive if isinstance(raw_archive, Mapping) else None
@@ -561,18 +539,17 @@ def prepare_fresh_embodiment_checkpoint(
                 else None
             ),
             symbiont_tick=int(previous.get("saved_at_tick") or 0),
-            end_reason=(
-                "body_death"
-                if _body_vital_state(previous) == "dead"
-                else "body_replaced"
-            ),
+            end_reason=("body_death" if _body_vital_state(previous) == "dead" else "body_replaced"),
         )
         result["embodiment_archive"] = archive.checkpoint()
     # A new physical Body always starts a new canonical episode. Never carry
     # the previous body/episode identity through the compatibility transform.
     result.pop("embodiment_episode", None)
     prior_lifecycle = previous.get("embodiment_lifecycle")
-    if isinstance(prior_lifecycle, Mapping) and prior_lifecycle.get("schema_version") == _SCHEMA_VERSION:
+    if (
+        isinstance(prior_lifecycle, Mapping)
+        and prior_lifecycle.get("schema_version") == _SCHEMA_VERSION
+    ):
         epoch = max(1, int(prior_lifecycle.get("epoch") or 1))
         prior_current = prior_lifecycle.get("current")
         current = (
@@ -597,14 +574,8 @@ def prepare_fresh_embodiment_checkpoint(
     )
     saved_tick = int(previous.get("saved_at_tick") or 0)
     started_tick = int(current.get("started_tick") or 0)
-    current_fingerprint_version = int(
-        current.get("contract_fingerprint_schema_version") or 0
-    )
-    episode_contract = (
-        raw_episode.get("contract")
-        if isinstance(raw_episode, Mapping)
-        else None
-    )
+    current_fingerprint_version = int(current.get("contract_fingerprint_schema_version") or 0)
+    episode_contract = raw_episode.get("contract") if isinstance(raw_episode, Mapping) else None
     episode_fingerprint = (
         str(episode_contract.get("contract_fingerprint"))
         if isinstance(episode_contract, Mapping)
@@ -659,19 +630,14 @@ def prepare_fresh_embodiment_checkpoint(
 
     # EmbodimentArchive is the sole v2 longitudinal memory authority.
     raw_archive = result.get("embodiment_archive")
-    archive = EmbodimentArchive.restore(
-        raw_archive if isinstance(raw_archive, Mapping) else None
-    )
+    archive = EmbodimentArchive.restore(raw_archive if isinstance(raw_archive, Mapping) else None)
     current_candidates = tuple(
         historical_motor_candidates(
             previous,
             contract_fingerprint_value=previous_fingerprint,
         )
     )
-    if (
-        isinstance(raw_episode, Mapping)
-        and int(raw_episode.get("schema_version") or 0) in {2, 3}
-    ):
+    if isinstance(raw_episode, Mapping) and int(raw_episode.get("schema_version") or 0) in {2, 3}:
         body_id = str(raw_episode.get("body_id") or "")
         existing = archive.for_body(body_id) if body_id else None
         if existing is not None:
@@ -691,9 +657,7 @@ def prepare_fresh_embodiment_checkpoint(
                         else None
                     ),
                     private_model_ids=(
-                        (active_model_id,)
-                        if isinstance(active_model_id, str)
-                        else ()
+                        (active_model_id,) if isinstance(active_model_id, str) else ()
                     ),
                 )
             )
@@ -725,11 +689,7 @@ def prepare_fresh_embodiment_checkpoint(
                     if isinstance(historical_motor_surface, Mapping)
                     else None
                 ),
-                private_model_ids=(
-                    (active_model_id,)
-                    if isinstance(active_model_id, str)
-                    else ()
-                ),
+                private_model_ids=((active_model_id,) if isinstance(active_model_id, str) else ()),
             )
         )
         legacy_known = memory_for_contract(
@@ -760,8 +720,7 @@ def prepare_fresh_embodiment_checkpoint(
                         else None
                     ),
                     private_model_ids=tuple(
-                        str(value)
-                        for value in legacy_known.get("private_model_ids", [])
+                        str(value) for value in legacy_known.get("private_model_ids", [])
                     ),
                 )
             )
@@ -774,8 +733,7 @@ def prepare_fresh_embodiment_checkpoint(
     known_memory = (
         {
             "historical_primitives": [
-                deepcopy(item)
-                for item in known_prior.historical_motor_candidates
+                deepcopy(item) for item in known_prior.historical_motor_candidates
             ],
             "private_model_ids": list(known_prior.private_model_ids),
         }
@@ -783,20 +741,22 @@ def prepare_fresh_embodiment_checkpoint(
         else None
     )
 
-    history.append({
-        "epoch": epoch,
-        "body_kind": previous_contract.body_kind,
-        "receptor_count": previous_contract.receptor_count,
-        "effector_count": previous_contract.effector_count,
-        "contract_fingerprint": previous_fingerprint,
-        "started_tick": started_tick,
-        "ended_tick": saved_tick,
-        "end_body_vital_state": _body_vital_state(previous),
-        "body_schema": deepcopy(previous.get("body_schema")),
-        "motor_cognitive_surface": historical_motor_surface,
-        "active_private_model_id": active_model_id,
-        "epoch_summary": deepcopy(summary),
-    })
+    history.append(
+        {
+            "epoch": epoch,
+            "body_kind": previous_contract.body_kind,
+            "receptor_count": previous_contract.receptor_count,
+            "effector_count": previous_contract.effector_count,
+            "contract_fingerprint": previous_fingerprint,
+            "started_tick": started_tick,
+            "ended_tick": saved_tick,
+            "end_body_vital_state": _body_vital_state(previous),
+            "body_schema": deepcopy(previous.get("body_schema")),
+            "motor_cognitive_surface": historical_motor_surface,
+            "active_private_model_id": active_model_id,
+            "epoch_summary": deepcopy(summary),
+        }
+    )
     history = history[-_MAX_EMBODIMENT_HISTORY:]
 
     # A fresh Body owns fresh physiology regardless of Symbiont history.
@@ -847,9 +807,7 @@ def prepare_fresh_embodiment_checkpoint(
             "contract_relation": relation,
             "known_contract_memory": known_memory is not None,
             "candidate_private_model_ids": (
-                list(known_prior.private_model_ids)
-                if known_prior is not None
-                else []
+                list(known_prior.private_model_ids) if known_prior is not None else []
             ),
             "metrics": {
                 "absorbed_material_total": 0.0,
@@ -863,6 +821,7 @@ def prepare_fresh_embodiment_checkpoint(
         "history": history,
     }
     return result
+
 
 def update_lifecycle_for_checkpoint(
     payload: dict[str, Any],
@@ -892,8 +851,7 @@ def update_lifecycle_for_checkpoint(
     episode = payload.get("embodiment_episode")
     episode_contract = (
         episode.get("contract")
-        if isinstance(episode, Mapping)
-        and int(episode.get("schema_version") or 0) in {2, 3}
+        if isinstance(episode, Mapping) and int(episode.get("schema_version") or 0) in {2, 3}
         else None
     )
     canonical_fingerprint = (
@@ -920,9 +878,7 @@ def update_lifecycle_for_checkpoint(
                 receptor_count=contract.receptor_count,
                 effector_count=contract.effector_count,
             )
-        current["contract_fingerprint_schema_version"] = (
-            CONTRACT_FINGERPRINT_SCHEMA_VERSION
-        )
+        current["contract_fingerprint_schema_version"] = CONTRACT_FINGERPRINT_SCHEMA_VERSION
     if metrics is not None:
         current["metrics"] = deepcopy(dict(metrics))
 
@@ -949,8 +905,7 @@ def update_lifecycle_for_checkpoint(
         current["epoch_summary"] = deepcopy(summary)
         if not (
             isinstance(payload.get("embodiment_episode"), Mapping)
-            and int(payload["embodiment_episode"].get("schema_version") or 0)
-            in {2, 3}
+            and int(payload["embodiment_episode"].get("schema_version") or 0) in {2, 3}
         ):
             # Pre-v2 compatibility only. Canonical Physics3D checkpoints have
             # already archived the closed episode in EmbodimentArchive.

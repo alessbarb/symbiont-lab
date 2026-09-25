@@ -1,4 +1,5 @@
 """Evaluator-only integrated boundary matrix for Milestone K."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -29,25 +30,24 @@ def run_social_boundary_gate_study() -> SocialBoundaryGateStudy:
     context = run_social_runtime_context_replay_study()
     generations = run_social_runtime_generations_study(generations=2)
     cooperation_bounded = 0.0 < adversarial.cooperation_granted <= 0.5
-    contention_bounded = (
-        0.0 <= adversarial.contention_granted < adversarial.contention_requested
-    )
+    contention_bounded = 0.0 <= adversarial.contention_granted < adversarial.contention_requested
     isolation_observable = adversarial.isolated_opportunities == 1
     rejection_reversible = (
-        adversarial.rejected_exchange_blocked
-        and adversarial.resumed_exchange_granted > 0.0
+        adversarial.rejected_exchange_blocked and adversarial.resumed_exchange_granted > 0.0
     )
     context_replay_equal = context.checkpoint_equal and context.post_restore_parity
     lineage_replay_equal = generations.checkpoint_replay_equal and generations.lineage_closed
-    all_gates_pass = all((
-        cooperation_bounded,
-        contention_bounded,
-        isolation_observable,
-        rejection_reversible,
-        context_replay_equal,
-        lineage_replay_equal,
-        generations.final_child_live,
-    ))
+    all_gates_pass = all(
+        (
+            cooperation_bounded,
+            contention_bounded,
+            isolation_observable,
+            rejection_reversible,
+            context_replay_equal,
+            lineage_replay_equal,
+            generations.final_child_live,
+        )
+    )
     return SocialBoundaryGateStudy(
         cooperation_bounded=cooperation_bounded,
         contention_bounded=contention_bounded,

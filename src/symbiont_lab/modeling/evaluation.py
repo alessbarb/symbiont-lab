@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 from symbiont.modeling.authority import ArchitectureId
 
@@ -30,7 +30,9 @@ class CandidateEvaluation:
 
     @property
     def best_trivial_loss(self) -> float:
-        return min(self.uniform.mean_log_loss, self.frequency.mean_log_loss, self.persistence.mean_log_loss)
+        return min(
+            self.uniform.mean_log_loss, self.frequency.mean_log_loss, self.persistence.mean_log_loss
+        )
 
     @property
     def gain_over_trivial(self) -> float:
@@ -48,10 +50,12 @@ class PromotionPolicy:
             ("minimum_log_loss_gain", self.minimum_log_loss_gain),
             ("minimum_recurrent_gain", self.minimum_recurrent_gain),
         ):
-            if (isinstance(value, bool)
-                    or not isinstance(value, (int, float))
-                    or not math.isfinite(float(value))
-                    or value < 0.0):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or value < 0.0
+            ):
                 raise ValueError(f"{name} must be finite and non-negative")
         if not isinstance(self.require_cognitive_reference_gain, bool):
             raise ValueError("require_cognitive_reference_gain must be boolean")
@@ -78,7 +82,10 @@ def evaluate_candidate(
     cognitive_reference_loss: float | None = None,
     device: str = "cpu",
 ) -> tuple[CandidateEvaluation, PromotionDecision]:
-    if artifact.manifest.corpus_hash != corpus.corpus_hash or artifact.manifest.tokenizer_hash != corpus.tokenizer_hash:
+    if (
+        artifact.manifest.corpus_hash != corpus.corpus_hash
+        or artifact.manifest.tokenizer_hash != corpus.tokenizer_hash
+    ):
         raise ValueError("artifact provenance does not match evaluation corpus")
     selected_policy = policy or PromotionPolicy()
     model = load_artifact_model(
@@ -115,11 +122,16 @@ def evaluate_candidate(
         if artifact.manifest.architecture_id is ArchitectureId.TRANSFORMER_V1:
             recurrent_gain = recurrent_reference_loss - candidate_metrics.mean_log_loss
             if recurrent_gain < selected_policy.minimum_recurrent_gain:
-                return evaluation, PromotionDecision(False, "no_gain_over_recurrent_reference", gain)
+                return evaluation, PromotionDecision(
+                    False, "no_gain_over_recurrent_reference", gain
+                )
 
     if cognitive_reference_loss is not None:
         if not math.isfinite(cognitive_reference_loss) or cognitive_reference_loss < 0.0:
             raise ValueError("cognitive_reference_loss must be finite and non-negative")
-        if selected_policy.require_cognitive_reference_gain and candidate_metrics.mean_log_loss >= cognitive_reference_loss:
+        if (
+            selected_policy.require_cognitive_reference_gain
+            and candidate_metrics.mean_log_loss >= cognitive_reference_loss
+        ):
             return evaluation, PromotionDecision(False, "no_gain_over_cognitive_reference", gain)
     return evaluation, PromotionDecision(True, "held_out_outcome_gain", gain)

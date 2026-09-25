@@ -1,4 +1,5 @@
 """Long-lived Server-Sent Events transport for the unified local server."""
+
 from __future__ import annotations
 
 import json
@@ -119,15 +120,11 @@ def stream_instance(
             if run_id != current_run_id:
                 current_run_id = run_id
                 last_sequence = (
-                    resume_sequence
-                    if run_id is not None and run_id == resume_run
-                    else -1
+                    resume_sequence if run_id is not None and run_id == resume_run else -1
                 )
                 positions.clear()
                 last_revision = None
-                initial_replay = not (
-                    run_id is not None and run_id == resume_run
-                )
+                initial_replay = not (run_id is not None and run_id == resume_run)
 
             if record and record.get("topology_revision") != last_revision:
                 last_revision = record["topology_revision"]
@@ -144,9 +141,7 @@ def stream_instance(
                     initial_replay = False
                 for entry in entries:
                     sequence = int(entry["sequence"])
-                    handler.wfile.write(
-                        _encode_sse(entry, event_id=f"{run_id}:{sequence}")
-                    )
+                    handler.wfile.write(_encode_sse(entry, event_id=f"{run_id}:{sequence}"))
                     last_sequence = sequence
 
             handler.wfile.flush()

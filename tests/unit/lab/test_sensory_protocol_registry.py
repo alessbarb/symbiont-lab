@@ -3,7 +3,6 @@ from pathlib import Path
 from symbiont_lab.experiments.loader import load_experiment_file
 from symbiont_lab.experiments.registry import PROTOCOLS
 
-
 _PROTOCOLS = (
     "perception.identity-equivalence",
     "perception.adaptive-delta-discovery",

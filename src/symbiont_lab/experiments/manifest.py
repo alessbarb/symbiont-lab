@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
-import json
 import hashlib
-from pathlib import Path
+import json
 import platform
 import subprocess
 import sys
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 from symbiont_lab import __version__ as lab_version
@@ -56,7 +55,9 @@ class RunManifest:
 
     def as_dict(self) -> dict[str, Any]:
         if not self.config_digest:
-            self.config_digest = hashlib.sha256(json.dumps(self.config, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            self.config_digest = hashlib.sha256(
+                json.dumps(self.config, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
         return asdict(self)
 
     def save(self, run_dir: Path | str) -> Path:

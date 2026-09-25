@@ -3,7 +3,13 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from observatory.registry import classify_liveness, derive_instance_id, new_run_id, read_registry, write_heartbeat
+from observatory.registry import (
+    classify_liveness,
+    derive_instance_id,
+    new_run_id,
+    read_registry,
+    write_heartbeat,
+)
 
 
 class RegistryTests(unittest.TestCase):
@@ -54,9 +60,15 @@ class RegistryTests(unittest.TestCase):
         def record(seconds_ago):
             return {"last_heartbeat": (now - timedelta(seconds=seconds_ago)).isoformat()}
 
-        self.assertEqual(classify_liveness(record(5), now=now, heartbeat_interval_seconds=15.0), "alive")
-        self.assertEqual(classify_liveness(record(40), now=now, heartbeat_interval_seconds=15.0), "stale")
-        self.assertEqual(classify_liveness(record(700), now=now, heartbeat_interval_seconds=15.0), "expired")
+        self.assertEqual(
+            classify_liveness(record(5), now=now, heartbeat_interval_seconds=15.0), "alive"
+        )
+        self.assertEqual(
+            classify_liveness(record(40), now=now, heartbeat_interval_seconds=15.0), "stale"
+        )
+        self.assertEqual(
+            classify_liveness(record(700), now=now, heartbeat_interval_seconds=15.0), "expired"
+        )
 
 
 if __name__ == "__main__":

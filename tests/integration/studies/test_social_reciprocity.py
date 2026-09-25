@@ -7,4 +7,3 @@ def test_reciprocity_study_keeps_directional_evidence_and_isolation() -> None:
     assert result.one_way_observations >= 1
     assert result.conflicted_relations == 1
     assert result.isolated_members == 1
-

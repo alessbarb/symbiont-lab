@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.competence import (
     CompetenceEvidence,
     MotorCompetence,
@@ -51,9 +50,7 @@ def test_schema3_roundtrip_preserves_execution_binding_authority() -> None:
         surface=surface,
     )
     restored.restore_v2(payload, body_schema=BodySchemaEngine())
-    restored_competence = restored.competence_library.get(
-        "competence.roundtrip"
-    )
+    restored_competence = restored.competence_library.get("competence.roundtrip")
     assert restored_competence is not None
     assert restored.embodiment_id == "embodiment.roundtrip"
     assert restored.execution_bindings.is_executable(

@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import asdict, dataclass
 import random
+from dataclasses import asdict, dataclass
 from typing import Iterable, Sequence
 
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
+from symbiont.core.cognition_bridge import CognitiveBridge
+
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticEdge, PlasticNode
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 
 _BASE_GENOME_PAYLOAD = {
     "schema_version": 1,
@@ -121,7 +122,9 @@ class RestorationContinuityStudyResult:
         }
 
 
-def _build_fixed_bridge(genome_payload: dict[str, object]) -> tuple[CognitiveBridge, CognitiveGraph, KernelLimits]:
+def _build_fixed_bridge(
+    genome_payload: dict[str, object],
+) -> tuple[CognitiveBridge, CognitiveGraph, KernelLimits]:
     genome = GenomeCodec().load(genome_payload)
     limits = KernelLimits(max_nodes=64, max_edges=128)
     s1 = PlasticNode(node_id="s1", kind=NodeKind.SENSE)
@@ -129,10 +132,38 @@ def _build_fixed_bridge(genome_payload: dict[str, object]) -> tuple[CognitiveBri
     c1 = PlasticNode(node_id="c1", kind=NodeKind.CONCEPT, bias=0.0, tau=1.0)
     r1 = PlasticNode(node_id="r1", kind=NodeKind.READOUT, bias=0.0, tau=1.0)
 
-    e1 = PlasticEdge(source_id="s1", target_id="c1", kind=EdgeKind.EXCITATORY, weight=0.35, plasticity=0.5, delay_ticks=0)
-    e2 = PlasticEdge(source_id="s2", target_id="c1", kind=EdgeKind.EXCITATORY, weight=-0.45, plasticity=0.5, delay_ticks=0)
-    e3 = PlasticEdge(source_id="c1", target_id="r1", kind=EdgeKind.EXCITATORY, weight=0.6, plasticity=0.5, delay_ticks=1)
-    e4 = PlasticEdge(source_id="c1", target_id="c1", kind=EdgeKind.EXCITATORY, weight=0.4, plasticity=0.5, delay_ticks=1)
+    e1 = PlasticEdge(
+        source_id="s1",
+        target_id="c1",
+        kind=EdgeKind.EXCITATORY,
+        weight=0.35,
+        plasticity=0.5,
+        delay_ticks=0,
+    )
+    e2 = PlasticEdge(
+        source_id="s2",
+        target_id="c1",
+        kind=EdgeKind.EXCITATORY,
+        weight=-0.45,
+        plasticity=0.5,
+        delay_ticks=0,
+    )
+    e3 = PlasticEdge(
+        source_id="c1",
+        target_id="r1",
+        kind=EdgeKind.EXCITATORY,
+        weight=0.6,
+        plasticity=0.5,
+        delay_ticks=1,
+    )
+    e4 = PlasticEdge(
+        source_id="c1",
+        target_id="c1",
+        kind=EdgeKind.EXCITATORY,
+        weight=0.4,
+        plasticity=0.5,
+        delay_ticks=1,
+    )
 
     graph = CognitiveGraph(nodes=(s1, s2, c1, r1), edges=(e1, e2, e3, e4), kernel_limits=limits)
     bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits, develop_senses=False)
@@ -257,10 +288,18 @@ def _evaluate_level_2(
         bridge_d.tick(inputs_seq[tick - 1], tick=tick)
 
     def _diff_metrics(br_test: CognitiveBridge, br_ref: CognitiveBridge) -> tuple[float, float]:
-        edges_test = sorted(br_test._graph.edges, key=lambda e: (e.source_id, e.target_id, e.kind.value))
-        edges_ref = sorted(br_ref._graph.edges, key=lambda e: (e.source_id, e.target_id, e.kind.value))
-        w_diff = sum(abs(e1.weight - e2.weight) for e1, e2 in zip(edges_test, edges_ref)) / len(edges_test)
-        q_diff = sum(abs(e1.eligibility - e2.eligibility) for e1, e2 in zip(edges_test, edges_ref)) / len(edges_test)
+        edges_test = sorted(
+            br_test._graph.edges, key=lambda e: (e.source_id, e.target_id, e.kind.value)
+        )
+        edges_ref = sorted(
+            br_ref._graph.edges, key=lambda e: (e.source_id, e.target_id, e.kind.value)
+        )
+        w_diff = sum(abs(e1.weight - e2.weight) for e1, e2 in zip(edges_test, edges_ref)) / len(
+            edges_test
+        )
+        q_diff = sum(
+            abs(e1.eligibility - e2.eligibility) for e1, e2 in zip(edges_test, edges_ref)
+        ) / len(edges_test)
         return w_diff, q_diff
 
     bw, bq = _diff_metrics(bridge_b, bridge_a)
@@ -292,18 +331,22 @@ def _evaluate_level_3(
     s3 = PlasticNode(node_id="s3", kind=NodeKind.SENSE)
     s4 = PlasticNode(node_id="s4", kind=NodeKind.SENSE)
     graph = CognitiveGraph(nodes=(s1, s2, s3, s4), edges=(), kernel_limits=limits)
-    bridge_a = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits, develop_senses=True)
+    bridge_a = CognitiveBridge(
+        graph=graph, genome=genome, kernel_limits=limits, develop_senses=True
+    )
 
     total_ticks = warmup_ticks + eval_ticks
     inputs_seq: list[dict[str, float]] = []
     for _ in range(total_ticks):
         base = rng.uniform(-1.0, 1.0)
-        inputs_seq.append({
-            "s1": max(-1.0, min(1.0, base + rng.gauss(0, 0.05))),
-            "s2": max(-1.0, min(1.0, base + rng.gauss(0, 0.05))),
-            "s3": max(-1.0, min(1.0, -base + rng.gauss(0, 0.05))),
-            "s4": rng.uniform(-1.0, 1.0),
-        })
+        inputs_seq.append(
+            {
+                "s1": max(-1.0, min(1.0, base + rng.gauss(0, 0.05))),
+                "s2": max(-1.0, min(1.0, base + rng.gauss(0, 0.05))),
+                "s3": max(-1.0, min(1.0, -base + rng.gauss(0, 0.05))),
+                "s4": rng.uniform(-1.0, 1.0),
+            }
+        )
 
     for tick in range(1, warmup_ticks + 1):
         bridge_a.tick(inputs_seq[tick - 1], tick=tick)
@@ -402,18 +445,28 @@ def run_recurrent_restoration_study(
         for s in seed_tuple
     )
 
-    d_ticks = [o.level1.condition_d_ticks_to_converge for o in outcomes if o.level1.condition_d_ticks_to_converge is not None]
+    d_ticks = [
+        o.level1.condition_d_ticks_to_converge
+        for o in outcomes
+        if o.level1.condition_d_ticks_to_converge is not None
+    ]
     l1_d_mean_ticks = sum(d_ticks) / len(d_ticks) if d_ticks else 0.0
 
-    l1_c_conv_fraction = sum(1.0 for o in outcomes if o.level1.condition_c_converged) / len(outcomes)
+    l1_c_conv_fraction = sum(1.0 for o in outcomes if o.level1.condition_c_converged) / len(
+        outcomes
+    )
     l1_c_mean_late = sum(o.level1.condition_c_late_mean_diff for o in outcomes) / len(outcomes)
 
     l2_c_mean_w = sum(o.level2.condition_c_weight_diff for o in outcomes) / len(outcomes)
     l2_d_mean_w = sum(o.level2.condition_d_weight_diff for o in outcomes) / len(outcomes)
 
     # In Level 3, immediate divergence means divergence at the first consolidation tick (48)
-    l3_c_immediate = sum(1.0 for o in outcomes if o.level3.condition_c_divergence_tick == 48) / len(outcomes)
-    l3_b_parity = sum(1.0 for o in outcomes if o.level3.condition_b_divergence_tick is None) / len(outcomes)
+    l3_c_immediate = sum(1.0 for o in outcomes if o.level3.condition_c_divergence_tick == 48) / len(
+        outcomes
+    )
+    l3_b_parity = sum(1.0 for o in outcomes if o.level3.condition_b_divergence_tick is None) / len(
+        outcomes
+    )
 
     return RestorationContinuityStudyResult(
         seeds=seed_tuple,

@@ -5,6 +5,7 @@ only opaque rec.N/eff.N channels. The URDF is generated from the canonical
 constitution at runtime so joint ranges are mechanical constraints owned by
 Bullet, not controller suggestions.
 """
+
 from __future__ import annotations
 
 import math
@@ -13,7 +14,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
-
 
 BODY_KIND = "anthropomorphic-v6"
 BODY_STATE_SCHEMA_VERSION = 6
@@ -33,10 +33,7 @@ SOMATIC_REGION_COUNT = 15
 GLOBAL_KINEMATIC_RECEPTORS = 10
 ECOLOGICAL_RECEPTORS = 1
 PHYSICAL_RECEPTOR_COUNT = (
-    MOTOR_DOF * 2
-    + GLOBAL_KINEMATIC_RECEPTORS
-    + SOMATIC_REGION_COUNT * 2
-    + ECOLOGICAL_RECEPTORS
+    MOTOR_DOF * 2 + GLOBAL_KINEMATIC_RECEPTORS + SOMATIC_REGION_COUNT * 2 + ECOLOGICAL_RECEPTORS
 )
 INTEROCEPTIVE_RECEPTOR_COUNT = 4
 TOTAL_RECEPTOR_COUNT = PHYSICAL_RECEPTOR_COUNT + INTEROCEPTIVE_RECEPTOR_COUNT
@@ -165,8 +162,7 @@ if len(JOINT_SPECS) != MOTOR_DOF:
     raise RuntimeError("anthropomorphic-v6 must expose exactly 31 motor DoF")
 
 JOINT_LIMITS: dict[int, JointLimit] = {
-    ordinal: JointLimit(spec.lower, spec.upper)
-    for ordinal, spec in enumerate(JOINT_SPECS)
+    ordinal: JointLimit(spec.lower, spec.upper) for ordinal, spec in enumerate(JOINT_SPECS)
 }
 JOINT_AXES: dict[int, tuple[float, float, float]] = {
     ordinal: spec.axis for ordinal, spec in enumerate(JOINT_SPECS)
@@ -208,50 +204,84 @@ JOINT_TOPOLOGY: tuple[JointTopology, ...] = (
     JointTopology("neck_yaw", "torso", "neck_yaw_carrier", (0.0, 0.0, 0.48)),
     JointTopology("neck_pitch", "neck_yaw_carrier", "head", (0.0, 0.0, 0.0)),
     JointTopology("left_shoulder_yaw", "torso", "left_shoulder_yaw_carrier", (-0.28, 0.0, 0.36)),
-    JointTopology("left_shoulder_roll", "left_shoulder_yaw_carrier", "left_shoulder_roll_carrier", (0.0, 0.0, 0.0)),
-    JointTopology("left_shoulder_pitch", "left_shoulder_roll_carrier", "left_upper_arm", (0.0, 0.0, 0.0)),
+    JointTopology(
+        "left_shoulder_roll",
+        "left_shoulder_yaw_carrier",
+        "left_shoulder_roll_carrier",
+        (0.0, 0.0, 0.0),
+    ),
+    JointTopology(
+        "left_shoulder_pitch", "left_shoulder_roll_carrier", "left_upper_arm", (0.0, 0.0, 0.0)
+    ),
     JointTopology("left_elbow_pitch", "left_upper_arm", "left_elbow_carrier", (0.0, 0.0, -0.31)),
     JointTopology("left_forearm_roll", "left_elbow_carrier", "left_forearm", (0.0, 0.0, 0.0)),
     JointTopology("left_wrist_pitch", "left_forearm", "left_wrist_carrier", (0.0, 0.0, -0.27)),
     JointTopology("left_wrist_deviation", "left_wrist_carrier", "left_hand", (0.0, 0.0, 0.0)),
     JointTopology("right_shoulder_yaw", "torso", "right_shoulder_yaw_carrier", (0.28, 0.0, 0.36)),
-    JointTopology("right_shoulder_roll", "right_shoulder_yaw_carrier", "right_shoulder_roll_carrier", (0.0, 0.0, 0.0)),
-    JointTopology("right_shoulder_pitch", "right_shoulder_roll_carrier", "right_upper_arm", (0.0, 0.0, 0.0)),
+    JointTopology(
+        "right_shoulder_roll",
+        "right_shoulder_yaw_carrier",
+        "right_shoulder_roll_carrier",
+        (0.0, 0.0, 0.0),
+    ),
+    JointTopology(
+        "right_shoulder_pitch", "right_shoulder_roll_carrier", "right_upper_arm", (0.0, 0.0, 0.0)
+    ),
     JointTopology("right_elbow_pitch", "right_upper_arm", "right_elbow_carrier", (0.0, 0.0, -0.31)),
     JointTopology("right_forearm_roll", "right_elbow_carrier", "right_forearm", (0.0, 0.0, 0.0)),
     JointTopology("right_wrist_pitch", "right_forearm", "right_wrist_carrier", (0.0, 0.0, -0.27)),
     JointTopology("right_wrist_deviation", "right_wrist_carrier", "right_hand", (0.0, 0.0, 0.0)),
     JointTopology("left_hip_yaw", "pelvis", "left_hip_yaw_carrier", (-0.10, 0.0, -0.10)),
-    JointTopology("left_hip_roll", "left_hip_yaw_carrier", "left_hip_roll_carrier", (0.0, 0.0, 0.0)),
+    JointTopology(
+        "left_hip_roll", "left_hip_yaw_carrier", "left_hip_roll_carrier", (0.0, 0.0, 0.0)
+    ),
     JointTopology("left_hip_pitch", "left_hip_roll_carrier", "left_thigh", (0.0, 0.0, 0.0)),
     JointTopology("left_knee_pitch", "left_thigh", "left_shin", (0.0, 0.0, -0.40)),
     JointTopology("left_ankle_pitch", "left_shin", "left_ankle_pitch_carrier", (0.0, 0.0, -0.40)),
     JointTopology("left_ankle_roll", "left_ankle_pitch_carrier", "left_foot", (0.0, 0.0, 0.0)),
     JointTopology("right_hip_yaw", "pelvis", "right_hip_yaw_carrier", (0.10, 0.0, -0.10)),
-    JointTopology("right_hip_roll", "right_hip_yaw_carrier", "right_hip_roll_carrier", (0.0, 0.0, 0.0)),
+    JointTopology(
+        "right_hip_roll", "right_hip_yaw_carrier", "right_hip_roll_carrier", (0.0, 0.0, 0.0)
+    ),
     JointTopology("right_hip_pitch", "right_hip_roll_carrier", "right_thigh", (0.0, 0.0, 0.0)),
     JointTopology("right_knee_pitch", "right_thigh", "right_shin", (0.0, 0.0, -0.40)),
-    JointTopology("right_ankle_pitch", "right_shin", "right_ankle_pitch_carrier", (0.0, 0.0, -0.40)),
+    JointTopology(
+        "right_ankle_pitch", "right_shin", "right_ankle_pitch_carrier", (0.0, 0.0, -0.40)
+    ),
     JointTopology("right_ankle_roll", "right_ankle_pitch_carrier", "right_foot", (0.0, 0.0, 0.0)),
 )
 if tuple(item.joint_name for item in JOINT_TOPOLOGY) != tuple(spec.name for spec in JOINT_SPECS):
     raise RuntimeError("joint topology order must exactly match JOINT_SPECS")
 
 CONTACT_LINK_NAMES = (
-    "torso", "head",
-    "left_upper_arm", "left_forearm", "left_hand",
-    "right_upper_arm", "right_forearm", "right_hand",
-    "left_thigh", "left_shin", "left_foot",
-    "right_thigh", "right_shin", "right_foot",
+    "torso",
+    "head",
+    "left_upper_arm",
+    "left_forearm",
+    "left_hand",
+    "right_upper_arm",
+    "right_forearm",
+    "right_hand",
+    "left_thigh",
+    "left_shin",
+    "left_foot",
+    "right_thigh",
+    "right_shin",
+    "right_foot",
 )
 STRUCTURAL_NEIGHBOUR_NAMES = (
-    ("pelvis", "torso"), ("torso", "head"),
-    ("torso", "left_upper_arm"), ("left_upper_arm", "left_forearm"),
+    ("pelvis", "torso"),
+    ("torso", "head"),
+    ("torso", "left_upper_arm"),
+    ("left_upper_arm", "left_forearm"),
     ("left_forearm", "left_hand"),
-    ("torso", "right_upper_arm"), ("right_upper_arm", "right_forearm"),
+    ("torso", "right_upper_arm"),
+    ("right_upper_arm", "right_forearm"),
     ("right_forearm", "right_hand"),
-    ("pelvis", "left_thigh"), ("left_shin", "left_foot"),
-    ("pelvis", "right_thigh"), ("right_shin", "right_foot"),
+    ("pelvis", "left_thigh"),
+    ("left_shin", "left_foot"),
+    ("pelvis", "right_thigh"),
+    ("right_shin", "right_foot"),
     # Carriers with zero offset share AABB space with their structural neighbours;
     # exclude them to suppress spurious self-collision impulses in trunk and hips.
     ("pelvis", "left_hip_roll_carrier"),
@@ -273,16 +303,18 @@ def _box_inertia(mass: float, size: tuple[float, float, float]) -> tuple[float, 
     )
 
 
-CYLINDRICAL_COLLISION_LINKS = frozenset({
-    "left_upper_arm",
-    "left_forearm",
-    "right_upper_arm",
-    "right_forearm",
-    "left_thigh",
-    "left_shin",
-    "right_thigh",
-    "right_shin",
-})
+CYLINDRICAL_COLLISION_LINKS = frozenset(
+    {
+        "left_upper_arm",
+        "left_forearm",
+        "right_upper_arm",
+        "right_forearm",
+        "left_thigh",
+        "left_shin",
+        "right_thigh",
+        "right_shin",
+    }
+)
 
 
 def _cylinder_inertia(
@@ -309,9 +341,7 @@ def _segment_link_xml(name: str, segment: SegmentSpec) -> str:
             radius=radius,
             length=length,
         )
-        collision_geometry = (
-            f'<cylinder radius="{radius:.10g}" length="{length:.10g}"/>'
-        )
+        collision_geometry = f'<cylinder radius="{radius:.10g}" length="{length:.10g}"/>'
     else:
         ixx, iyy, izz = _box_inertia(segment.mass, segment.size)
         collision_geometry = f'<box size="{size}"/>'
@@ -386,8 +416,8 @@ def build_anthropomorphic_urdf() -> str:
   </joint>"""
         )
     return (
-        "<?xml version=\"1.0\"?>\n"
-        "<robot name=\"symbiont_anthropomorphic_v6\">"
+        '<?xml version="1.0"?>\n'
+        '<robot name="symbiont_anthropomorphic_v6">'
         + "".join(link_xml)
         + "".join(joint_xml)
         + "\n</robot>\n"
@@ -423,7 +453,6 @@ def _end_range_resistance(
     return max(-bound, min(bound, torque))
 
 
-
 def _neutral_rest_position(spec: JointSpec) -> float:
     lower, upper = mechanical_joint_limits(spec)
     return max(lower, min(upper, 0.0))
@@ -444,9 +473,7 @@ def _passive_postural_tone(
     del velocity
     rest = _neutral_rest_position(spec)
     stiffness = spec.max_motor_torque * PASSIVE_TONE_STIFFNESS_FRACTION
-    elastic_cap = (
-        spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION
-    )
+    elastic_cap = spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION
     return max(
         -elastic_cap,
         min(elastic_cap, stiffness * (rest - position)),
@@ -542,9 +569,8 @@ class HumanoidPhysics:
             handle.write(urdf)
             urdf_path = handle.name
         try:
-            flags = (
-                int(getattr(self.p, "URDF_USE_INERTIA_FROM_FILE", 0))
-                | int(getattr(self.p, "URDF_USE_SELF_COLLISION", 0))
+            flags = int(getattr(self.p, "URDF_USE_INERTIA_FROM_FILE", 0)) | int(
+                getattr(self.p, "URDF_USE_SELF_COLLISION", 0)
             )
             body_id = self.p.loadURDF(
                 urdf_path,
@@ -578,9 +604,7 @@ class HumanoidPhysics:
         index_by_link_name: dict[str, int] = {"pelvis": -1}
         parent_by_index: dict[int, int] = {}
         for joint_index in range(joint_count):
-            info = p.getJointInfo(
-                self.body_id, joint_index, physicsClientId=self.client_id
-            )
+            info = p.getJointInfo(self.body_id, joint_index, physicsClientId=self.client_id)
             joint_name = self._decode_name(info[1])
             link_name = self._decode_name(info[12])
             index_by_joint_name[joint_name] = joint_index
@@ -591,9 +615,7 @@ class HumanoidPhysics:
         if missing:
             raise RuntimeError(f"URDF missing canonical joints: {missing}")
 
-        self.motor_joint_indices = tuple(
-            index_by_joint_name[spec.name] for spec in JOINT_SPECS
-        )
+        self.motor_joint_indices = tuple(index_by_joint_name[spec.name] for spec in JOINT_SPECS)
         # Stable ordinal identity is part of the opaque receptor/effector
         # WARN(fail-closed): contract. Fail closed if Bullet ever reorders our generated tree.
         if self.motor_joint_indices != tuple(range(MOTOR_DOF)):
@@ -602,8 +624,7 @@ class HumanoidPhysics:
             )
 
         self._joint_ordinal_by_index = {
-            joint_index: ordinal
-            for ordinal, joint_index in enumerate(self.motor_joint_indices)
+            joint_index: ordinal for ordinal, joint_index in enumerate(self.motor_joint_indices)
         }
         self._link_index_by_name = index_by_link_name
         self._contact_links = (
@@ -628,19 +649,14 @@ class HumanoidPhysics:
 
     def _verify_loaded_joint_contract(self) -> None:
         for ordinal, joint_index in enumerate(self.motor_joint_indices):
-            info = self.p.getJointInfo(
-                self.body_id, joint_index, physicsClientId=self.client_id
-            )
+            info = self.p.getJointInfo(self.body_id, joint_index, physicsClientId=self.client_id)
             spec = JOINT_SPECS[ordinal]
             lower = float(info[8])
             upper = float(info[9])
             max_force = float(info[10])
             max_velocity = float(info[11])
             mechanical_lower, mechanical_upper = mechanical_joint_limits(spec)
-            if (
-                abs(lower - mechanical_lower) > 1e-6
-                or abs(upper - mechanical_upper) > 1e-6
-            ):
+            if abs(lower - mechanical_lower) > 1e-6 or abs(upper - mechanical_upper) > 1e-6:
                 raise RuntimeError(f"Bullet did not load limits for {spec.name}")
             if abs(max_force - spec.max_motor_torque) > 1e-6:
                 raise RuntimeError(f"Bullet did not load effort for {spec.name}")
@@ -651,9 +667,7 @@ class HumanoidPhysics:
         return set(self._direct_pairs)
 
     def _self_collision_exclusions(self) -> set[tuple[int, int]]:
-        return self._directly_connected_link_pairs() | set(
-            self._structural_collision_exclusions
-        )
+        return self._directly_connected_link_pairs() | set(self._structural_collision_exclusions)
 
     def _configure_self_collisions(self) -> None:
         p = self.p
@@ -763,11 +777,7 @@ class HumanoidPhysics:
         for item in contacts:
             if len(item) > 3:
                 active_links.add(int(item[3]))
-            if (
-                len(item) > 4
-                and int(item[1]) == self.body_id
-                and int(item[2]) == self.body_id
-            ):
+            if len(item) > 4 and int(item[1]) == self.body_id and int(item[2]) == self.body_id:
                 active_links.add(int(item[4]))
         values.extend(1.0 if link in active_links else 0.0 for link in self._contact_links)
         values.append(self._external_field_signal)
@@ -781,17 +791,12 @@ class HumanoidPhysics:
             if link_a in peak_force_by_link:
                 peak_force_by_link[link_a] = max(peak_force_by_link[link_a], force)
             # For self-contacts, also credit the second participating link.
-            if (
-                int(item[1]) == self.body_id
-                and int(item[2]) == self.body_id
-                and len(item) > 4
-            ):
+            if int(item[1]) == self.body_id and int(item[2]) == self.body_id and len(item) > 4:
                 link_b = int(item[4])
                 if link_b in peak_force_by_link:
                     peak_force_by_link[link_b] = max(peak_force_by_link[link_b], force)
         values.extend(
-            self._bounded_contact_load(peak_force_by_link[link])
-            for link in self._contact_links
+            self._bounded_contact_load(peak_force_by_link[link]) for link in self._contact_links
         )
         if len(values) != len(self.receptor_ids):
             raise RuntimeError(
@@ -832,9 +837,7 @@ class HumanoidPhysics:
                 "joint_name": JOINT_SPECS[ordinal].name,
                 "position": float(raw_state[0]),
                 "velocity": float(raw_state[1]),
-                "applied_torque": float(
-                    self._applied_torque_by_joint.get(joint_index, 0.0)
-                ),
+                "applied_torque": float(self._applied_torque_by_joint.get(joint_index, 0.0)),
             }
             for ordinal, (joint_index, raw_state) in enumerate(
                 zip(self.motor_joint_indices, raw_joint_states)
@@ -997,9 +1000,7 @@ class HumanoidPhysics:
                 <= spec.upper + JOINT_LIMIT_SOLVER_TOLERANCE
             ):
                 if strict_anatomical_limits:
-                    raise ValueError(
-                        f"joint state outside hard anatomical limit: {spec.name}"
-                    )
+                    raise ValueError(f"joint state outside hard anatomical limit: {spec.name}")
                 # Rendering uses a separate passive PyBullet body. A live
                 # simulation frame can transiently contain solver penetration
                 # beyond the canonical envelope after a contact impulse. The
@@ -1056,12 +1057,8 @@ class HumanoidPhysics:
         scale = max(0.0, float(torque_scale))
         applied: dict[int, float] = {}
         for ordinal, binding in enumerate(self.motor_bindings):
-            positive = max(
-                0.0, min(1.0, float(activations.get(binding.positive_port, 0.0)))
-            )
-            negative = max(
-                0.0, min(1.0, float(activations.get(binding.negative_port, 0.0)))
-            )
+            positive = max(0.0, min(1.0, float(activations.get(binding.positive_port, 0.0))))
+            negative = max(0.0, min(1.0, float(activations.get(binding.negative_port, 0.0))))
             spec = JOINT_SPECS[ordinal]
             torque = (positive - negative) * spec.max_motor_torque * scale
             applied[binding.joint_index] = float(torque)
@@ -1083,23 +1080,18 @@ class HumanoidPhysics:
                 p.getJointState(self.body_id, i, physicsClientId=self.client_id)
                 for i in self.motor_joint_indices
             ]
-        for ordinal, (joint_index, state) in enumerate(
-            zip(self.motor_joint_indices, states)
-        ):
+        for ordinal, (joint_index, state) in enumerate(zip(self.motor_joint_indices, states)):
             spec = JOINT_SPECS[ordinal]
             position = float(state[0])
             velocity = float(state[1])
-            elastic_and_limits = (
-                _passive_postural_tone(
-                    spec,
-                    position=position,
-                    velocity=velocity,
-                )
-                + _end_range_resistance(
-                    spec,
-                    position=position,
-                    velocity=velocity,
-                )
+            elastic_and_limits = _passive_postural_tone(
+                spec,
+                position=position,
+                velocity=velocity,
+            ) + _end_range_resistance(
+                spec,
+                position=position,
+                velocity=velocity,
             )
             damping_force = _passive_damping_force(
                 spec,
@@ -1138,13 +1130,10 @@ class HumanoidPhysics:
         indices = [item[0] for item in active]
         p = self.p
         if hasattr(p, "getJointStates"):
-            raw_states = p.getJointStates(
-                self.body_id, indices, physicsClientId=self.client_id
-            )
+            raw_states = p.getJointStates(self.body_id, indices, physicsClientId=self.client_id)
         else:
             raw_states = [
-                p.getJointState(self.body_id, i, physicsClientId=self.client_id)
-                for i in indices
+                p.getJointState(self.body_id, i, physicsClientId=self.client_id) for i in indices
             ]
 
         positive = 0.0

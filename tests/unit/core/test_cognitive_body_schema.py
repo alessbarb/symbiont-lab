@@ -3,7 +3,6 @@ from __future__ import annotations
 from copy import deepcopy
 
 import pytest
-
 from symbiont.core.body_schema import (
     BODY_SCHEMA_VERSION,
     LEGACY_BODY_SCHEMA_VERSION,
@@ -67,8 +66,13 @@ def test_repeated_internal_activity_consolidates_opaque_region():
     assert region["part_id"].startswith("part.region.")
     assert "channel.cognition" not in repr(schema.export_representation(current_tick=end_tick))
     assert set(region) == {
-        "part_id", "kind", "existence_confidence_class", "confidence_class",
-        "activity_class", "maturity_class", "recency_class",
+        "part_id",
+        "kind",
+        "existence_confidence_class",
+        "confidence_class",
+        "activity_class",
+        "maturity_class",
+        "recency_class",
     }
 
 
@@ -123,7 +127,9 @@ def test_dependency_confidence_can_fall_for_the_contradicted_direction():
         tick += 1
     before = schema.export_representation(current_tick=tick)["dependencies"]
     assert any(
-        item["relation"] == "precedes" and item["source_id"] == region_a and item["target_id"] == region_b
+        item["relation"] == "precedes"
+        and item["source_id"] == region_a
+        and item["target_id"] == region_b
         for item in before
     )
 
@@ -138,7 +144,9 @@ def test_dependency_confidence_can_fall_for_the_contradicted_direction():
 
     after = schema.export_representation(current_tick=tick)["dependencies"]
     assert not any(
-        item["relation"] == "precedes" and item["source_id"] == region_a and item["target_id"] == region_b
+        item["relation"] == "precedes"
+        and item["source_id"] == region_a
+        and item["target_id"] == region_b
         for item in after
     )
 
@@ -219,6 +227,8 @@ def test_legacy_v1_sensory_checkpoint_migrates_without_changing_part_identity():
     migrated = restored.export_representation(current_tick=10)
 
     assert migrated["schema_version"] == BODY_SCHEMA_VERSION
-    assert next(part["part_id"] for part in migrated["parts"] if part["kind"] == "sense") == sense_id
+    assert (
+        next(part["part_id"] for part in migrated["parts"] if part["kind"] == "sense") == sense_id
+    )
     assert migrated["dependencies"] == []
     assert migrated["global_state"] == {}

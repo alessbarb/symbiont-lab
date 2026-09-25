@@ -43,10 +43,14 @@ class EvidenceEndpointTests(unittest.TestCase):
                 "git_commit": "deadbeef",
                 "consistency": "atomic",
             }
-            (manifest_dir / f"{instance_id}.manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+            (manifest_dir / f"{instance_id}.manifest.json").write_text(
+                json.dumps(payload), encoding="utf-8"
+            )
             server = self._start_server(root)
             port = server.server_address[1]
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/instance/{instance_id}/manifest", timeout=2) as response:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/instance/{instance_id}/manifest", timeout=2
+            ) as response:
                 result = json.load(response)
             self.assertEqual(result["projection"], "observatory-provenance-v1")
             self.assertEqual(result["checkpoint_sha256"], "a" * 64)
@@ -69,11 +73,21 @@ class EvidenceEndpointTests(unittest.TestCase):
             )
             summaries = root / "summaries"
             summaries.mkdir(parents=True)
-            summary = {"summary_version": 1, "run_id": "run-2", "segments": [], "entries": 7, "tick_range": {"min": 1, "max": 7}, "schema_versions": {"3": 7}, "organism_states": {"observing": 7}}
+            summary = {
+                "summary_version": 1,
+                "run_id": "run-2",
+                "segments": [],
+                "entries": 7,
+                "tick_range": {"min": 1, "max": 7},
+                "schema_versions": {"3": 7},
+                "organism_states": {"observing": 7},
+            }
             (summaries / "run-2.summary.json").write_text(json.dumps(summary), encoding="utf-8")
             server = self._start_server(root)
             port = server.server_address[1]
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/instance/{instance_id}/history-summary", timeout=2) as response:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/instance/{instance_id}/history-summary", timeout=2
+            ) as response:
                 result = json.load(response)
             self.assertEqual(result["run_id"], "run-2")
             self.assertEqual(result["entries"], 7)
@@ -84,7 +98,9 @@ class EvidenceEndpointTests(unittest.TestCase):
             port = server.server_address[1]
             for suffix in ("manifest", "history-summary"):
                 with self.assertRaises(urllib.error.HTTPError) as ctx:
-                    urllib.request.urlopen(f"http://127.0.0.1:{port}/instance/../{suffix}", timeout=2)
+                    urllib.request.urlopen(
+                        f"http://127.0.0.1:{port}/instance/../{suffix}", timeout=2
+                    )
                 self.assertEqual(ctx.exception.code, 404)
 
 

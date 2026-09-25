@@ -49,9 +49,7 @@ def test_checkpoint_saves_portable_symbiont_before_reading_physics(monkeypatch, 
     monkeypatch.setattr(engine, "save_symbiont_bundle", save_bundle)
     monkeypatch.setattr(engine, "save_body_state_file", save_body)
 
-    runtime = _FakeRuntimeForSave(
-        physical_error=RuntimeError("physics server already closed")
-    )
+    runtime = _FakeRuntimeForSave(physical_error=RuntimeError("physics server already closed"))
 
     with pytest.raises(RuntimeError, match="physics server already closed"):
         cli._save_checkpoint(
@@ -111,7 +109,6 @@ def test_runtime_close_is_idempotent_after_native_server_disconnect():
 
     assert runtime.client_id == -1
     assert runtime.p.disconnect_calls == 0
-
 
 
 def test_new_subject_archives_existing_artifacts(tmp_path):

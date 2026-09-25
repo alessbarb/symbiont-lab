@@ -1,4 +1,5 @@
 """Immutable longitudinal summaries for Embodiment v2."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass

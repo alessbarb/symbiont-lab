@@ -3,11 +3,10 @@
 These labels are evaluator ground truth. They are never exposed to the
 organism's discovery, sensory, cognition, BodySchema, or actuation inputs.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable
-
-
 
 _INTEROCEPTIVE_SOURCE_LABELS = (
     "energy reserve",
@@ -116,9 +115,7 @@ def sensory_semantics(
         self_label = str(getattr(sensor, "cognitive_name", "") or "")
         if not self_label:
             continue
-        source_ids = tuple(
-            str(item) for item in tuple(getattr(sensor, "source_ids", ()) or ())
-        )
+        source_ids = tuple(str(item) for item in tuple(getattr(sensor, "source_ids", ()) or ()))
         matches = [truth[source_id] for source_id in source_ids if source_id in truth]
         observer_labels = [str(item["label"]) for item in matches]
         categories = sorted({str(item["category"]) for item in matches})

@@ -3,13 +3,14 @@
 This module is deliberately observational.  It contains no policy, meaning,
 ground truth, evaluator labels, or feedback path to an organism.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping
 
 MAX_TELEMETRY_EVENTS = 2048
 MAX_EVENT_BYTES = 4096
@@ -51,14 +52,20 @@ class CommunicationEvent:
         _id(self.sender_id, "sender_id")
         _id(self.receiver_id, "receiver_id")
         _id(self.message_id, "message_id")
-        if not isinstance(self.symbol_ids, tuple) or not 1 <= len(self.symbol_ids) <= MAX_SYMBOLS_PER_EVENT:
+        if (
+            not isinstance(self.symbol_ids, tuple)
+            or not 1 <= len(self.symbol_ids) <= MAX_SYMBOLS_PER_EVENT
+        ):
             raise ValueError("event symbol count exceeds bound")
         for symbol in self.symbol_ids:
             _id(symbol, "symbol_id")
         _nonnegative(self.cost, "cost")
         if self.delivery_status not in {"selected", "delivered", "rejected", "unknown"}:
             raise ValueError("unsupported delivery status")
-        for value, name in ((self.sender_generation, "sender_generation"), (self.receiver_generation, "receiver_generation")):
+        for value, name in (
+            (self.sender_generation, "sender_generation"),
+            (self.receiver_generation, "receiver_generation"),
+        ):
             if value is not None:
                 _nonnegative(value, name)
 
@@ -72,11 +79,17 @@ class CommunicationEvent:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "event_id": self.event_id, "tick": self.tick, "event_kind": self.event_kind,
-            "sender_id": self.sender_id, "receiver_id": self.receiver_id,
-            "message_id": self.message_id, "symbol_ids": list(self.symbol_ids),
-            "cost": self.cost, "delivery_status": self.delivery_status,
-            "sender_generation": self.sender_generation, "receiver_generation": self.receiver_generation,
+            "event_id": self.event_id,
+            "tick": self.tick,
+            "event_kind": self.event_kind,
+            "sender_id": self.sender_id,
+            "receiver_id": self.receiver_id,
+            "message_id": self.message_id,
+            "symbol_ids": list(self.symbol_ids),
+            "cost": self.cost,
+            "delivery_status": self.delivery_status,
+            "sender_generation": self.sender_generation,
+            "receiver_generation": self.receiver_generation,
         }
 
     @classmethod
@@ -84,10 +97,19 @@ class CommunicationEvent:
         if not isinstance(payload, Mapping):
             raise ValueError("invalid communication event")
         try:
-            return cls(payload["event_id"], payload["tick"], payload["event_kind"], payload["sender_id"],
-                       payload["receiver_id"], payload["message_id"], tuple(payload["symbol_ids"]),
-                       payload["cost"], payload["delivery_status"], payload.get("sender_generation"),
-                       payload.get("receiver_generation"))
+            return cls(
+                payload["event_id"],
+                payload["tick"],
+                payload["event_kind"],
+                payload["sender_id"],
+                payload["receiver_id"],
+                payload["message_id"],
+                tuple(payload["symbol_ids"]),
+                payload["cost"],
+                payload["delivery_status"],
+                payload.get("sender_generation"),
+                payload.get("receiver_generation"),
+            )
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid communication event") from exc
 
@@ -110,21 +132,33 @@ class GroundingEvent:
         _nonnegative(self.tick, "tick")
         _id(self.organism_id, "organism_id")
         _id(self.message_id, "message_id")
-        for value, name in ((self.exposure_count, "exposure_count"), (self.association_strength_before, "association_strength_before"),
-                            (self.association_strength_after, "association_strength_after"), (self.cost, "cost")):
+        for value, name in (
+            (self.exposure_count, "exposure_count"),
+            (self.association_strength_before, "association_strength_before"),
+            (self.association_strength_after, "association_strength_after"),
+            (self.cost, "cost"),
+        ):
             _nonnegative(value, name)
         if isinstance(self.support_delta, bool) or not isinstance(self.support_delta, int):
             raise ValueError("support_delta must be an integer")
-        if isinstance(self.contradiction_delta, bool) or not isinstance(self.contradiction_delta, int):
+        if isinstance(self.contradiction_delta, bool) or not isinstance(
+            self.contradiction_delta, int
+        ):
             raise ValueError("contradiction_delta must be an integer")
 
     def to_dict(self) -> dict[str, Any]:
-        return {"event_id": self.event_id, "tick": self.tick, "organism_id": self.organism_id,
-                "message_id": self.message_id, "exposure_count": self.exposure_count,
-                "association_strength_before": self.association_strength_before,
-                "association_strength_after": self.association_strength_after,
-                "support_delta": self.support_delta, "contradiction_delta": self.contradiction_delta,
-                "cost": self.cost}
+        return {
+            "event_id": self.event_id,
+            "tick": self.tick,
+            "organism_id": self.organism_id,
+            "message_id": self.message_id,
+            "exposure_count": self.exposure_count,
+            "association_strength_before": self.association_strength_before,
+            "association_strength_after": self.association_strength_after,
+            "support_delta": self.support_delta,
+            "contradiction_delta": self.contradiction_delta,
+            "cost": self.cost,
+        }
 
     @classmethod
     def restore(cls, payload: Mapping[str, Any]) -> "GroundingEvent":
@@ -141,13 +175,31 @@ class CommunicationTelemetry:
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, *, max_events: int = MAX_TELEMETRY_EVENTS, max_events_per_tick: int = 256, max_age_ticks: int | None = None) -> None:
-        if isinstance(max_events, bool) or not isinstance(max_events, int) or isinstance(max_events_per_tick, bool) or not isinstance(max_events_per_tick, int):
+    def __init__(
+        self,
+        *,
+        max_events: int = MAX_TELEMETRY_EVENTS,
+        max_events_per_tick: int = 256,
+        max_age_ticks: int | None = None,
+    ) -> None:
+        if (
+            isinstance(max_events, bool)
+            or not isinstance(max_events, int)
+            or isinstance(max_events_per_tick, bool)
+            or not isinstance(max_events_per_tick, int)
+        ):
             raise ValueError("telemetry capacities must be integers")
         max_events_per_tick = min(max_events, max_events_per_tick)
-        if not 1 <= max_events <= MAX_TELEMETRY_EVENTS or not 1 <= max_events_per_tick <= max_events:
+        if (
+            not 1 <= max_events <= MAX_TELEMETRY_EVENTS
+            or not 1 <= max_events_per_tick <= max_events
+        ):
             raise ValueError("telemetry capacity exceeds bound")
-        if max_age_ticks is not None and (isinstance(max_age_ticks, bool) or not isinstance(max_age_ticks, int) or max_age_ticks < 0):
+        if max_age_ticks is not None and (
+            isinstance(max_age_ticks, bool)
+            or not isinstance(max_age_ticks, int)
+            or max_age_ticks < 0
+        ):
             raise ValueError("max_age_ticks must be non-negative")
         self.max_events = max_events
         self.max_events_per_tick = max_events_per_tick
@@ -178,41 +230,67 @@ class CommunicationTelemetry:
 
     def _prune(self, tick: int) -> None:
         cutoff = tick - self.max_age_ticks if self.max_age_ticks is not None else None
-        while self._events and (len(self._events) > self.max_events or (cutoff is not None and self._events[0].tick < cutoff)):
-            self._event_ids.discard(self._events.popleft().event_id); self._truncated = True
-        while self._grounding and (len(self._grounding) > self.max_events or (cutoff is not None and self._grounding[0].tick < cutoff)):
-            self._grounding_ids.discard(self._grounding.popleft().event_id); self._truncated = True
+        while self._events and (
+            len(self._events) > self.max_events
+            or (cutoff is not None and self._events[0].tick < cutoff)
+        ):
+            self._event_ids.discard(self._events.popleft().event_id)
+            self._truncated = True
+        while self._grounding and (
+            len(self._grounding) > self.max_events
+            or (cutoff is not None and self._grounding[0].tick < cutoff)
+        ):
+            self._grounding_ids.discard(self._grounding.popleft().event_id)
+            self._truncated = True
 
     def record(self, event: CommunicationEvent) -> bool:
-        if not isinstance(event, CommunicationEvent) or len(event.canonical_bytes) > MAX_EVENT_BYTES:
+        if (
+            not isinstance(event, CommunicationEvent)
+            or len(event.canonical_bytes) > MAX_EVENT_BYTES
+        ):
             raise ValueError("communication event exceeds telemetry bound")
         if event.event_id in self._event_ids:
             return False
         if sum(1 for item in self._events if item.tick == event.tick) >= self.max_events_per_tick:
             self._truncated = True
             return False
-        self._events.append(event); self._event_ids.add(event.event_id); self._current_tick = max(self._current_tick or event.tick, event.tick)
+        self._events.append(event)
+        self._event_ids.add(event.event_id)
+        self._current_tick = max(self._current_tick or event.tick, event.tick)
         self._prune(event.tick)
         return True
 
     def record_grounding(self, event: GroundingEvent) -> bool:
-        if not isinstance(event, GroundingEvent) or len(json.dumps(event.to_dict(), sort_keys=True, separators=(",", ":")).encode()) > MAX_EVENT_BYTES:
+        if (
+            not isinstance(event, GroundingEvent)
+            or len(json.dumps(event.to_dict(), sort_keys=True, separators=(",", ":")).encode())
+            > MAX_EVENT_BYTES
+        ):
             raise ValueError("grounding event exceeds telemetry bound")
         if event.event_id in self._grounding_ids:
             return False
-        if sum(1 for item in self._grounding if item.tick == event.tick) >= self.max_events_per_tick:
+        if (
+            sum(1 for item in self._grounding if item.tick == event.tick)
+            >= self.max_events_per_tick
+        ):
             self._truncated = True
             return False
-        self._grounding.append(event); self._grounding_ids.add(event.event_id); self._current_tick = max(self._current_tick or event.tick, event.tick)
+        self._grounding.append(event)
+        self._grounding_ids.add(event.event_id)
+        self._current_tick = max(self._current_tick or event.tick, event.tick)
         self._prune(event.tick)
         return True
 
     def checkpoint(self) -> dict[str, Any]:
-        return {"schema_version": self.SCHEMA_VERSION, "max_events": self.max_events,
-                "max_events_per_tick": self.max_events_per_tick, "max_age_ticks": self.max_age_ticks,
-                "events": [event.to_dict() for event in self._events],
-                "grounding_events": [event.to_dict() for event in self._grounding],
-                "history_truncated": self._truncated}
+        return {
+            "schema_version": self.SCHEMA_VERSION,
+            "max_events": self.max_events,
+            "max_events_per_tick": self.max_events_per_tick,
+            "max_age_ticks": self.max_age_ticks,
+            "events": [event.to_dict() for event in self._events],
+            "grounding_events": [event.to_dict() for event in self._grounding],
+            "history_truncated": self._truncated,
+        }
 
     @classmethod
     def restore(cls, payload: Mapping[str, Any]) -> "CommunicationTelemetry":
@@ -223,7 +301,8 @@ class CommunicationTelemetry:
             max_events_per_tick=payload["max_events_per_tick"],
             max_age_ticks=payload.get("max_age_ticks"),
         )
-        events = payload.get("events", []); grounding = payload.get("grounding_events", [])
+        events = payload.get("events", [])
+        grounding = payload.get("grounding_events", [])
         if (
             not isinstance(events, list)
             or not isinstance(grounding, list)
@@ -241,9 +320,13 @@ class CommunicationTelemetry:
         return telemetry
 
     def export(self) -> dict[str, Any]:
-        return {"schema_version": self.SCHEMA_VERSION, "events": [event.to_dict() for event in self._events],
-                "grounding_events": [event.to_dict() for event in self._grounding],
-                "history_truncated": self._truncated, "earliest_available_tick": self.earliest_available_tick}
+        return {
+            "schema_version": self.SCHEMA_VERSION,
+            "events": [event.to_dict() for event in self._events],
+            "grounding_events": [event.to_dict() for event in self._grounding],
+            "history_truncated": self._truncated,
+            "earliest_available_tick": self.earliest_available_tick,
+        }
 
 
 __all__ = ["CommunicationEvent", "CommunicationTelemetry", "GroundingEvent", "MAX_TELEMETRY_EVENTS"]

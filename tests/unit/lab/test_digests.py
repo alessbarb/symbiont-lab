@@ -24,7 +24,13 @@ class _Event:
     observation: _Observation
 
 
-def _event(step: int, observation_values: tuple[float, ...], *, phase: str = "steady", drift_state: str = "none") -> _Event:
+def _event(
+    step: int,
+    observation_values: tuple[float, ...],
+    *,
+    phase: str = "steady",
+    drift_state: str = "none",
+) -> _Event:
     return _Event(
         step=step,
         host_index=0,
@@ -67,4 +73,6 @@ def test_digest_is_stable_for_identical_event_streams():
 
 
 def test_digest_falls_back_to_str_for_objects_without_the_expected_shape():
-    assert compute_world_digest(["plain-string-event"]) == compute_world_digest(["plain-string-event"])
+    assert compute_world_digest(["plain-string-event"]) == compute_world_digest(
+        ["plain-string-event"]
+    )

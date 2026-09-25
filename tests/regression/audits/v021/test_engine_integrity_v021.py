@@ -1,6 +1,6 @@
 import pytest
-
 from symbiont.core.collective import CollectiveMemory
+
 from symbiont.environment.rng import make_rng_streams
 from symbiont.simulation import _make_agents
 from symbiont_lab.studies.evidence.replicated import run_replicated_evidence_study
@@ -12,10 +12,7 @@ from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
 
 
 def _traits(agents):
-    return [
-        (agent.risk_scale, agent.curiosity_scale, agent.investigation_bias)
-        for agent in agents
-    ]
+    return [(agent.risk_scale, agent.curiosity_scale, agent.investigation_bias) for agent in agents]
 
 
 def test_poison_fraction_does_not_shift_agent_trait_draws():

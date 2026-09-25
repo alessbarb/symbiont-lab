@@ -1,5 +1,6 @@
 from symbiont.core.collective import CollectiveMemory
 from symbiont.core.reasoning import ReasoningEngine
+
 from symbiont.simulation import run_simulation
 
 

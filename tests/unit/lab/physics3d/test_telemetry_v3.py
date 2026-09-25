@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import pytest
 
 from symbiont_lab.physics3d.persistence import load_telemetry_records
-from symbiont_lab.physics3d.telemetry_reader import open_telemetry
 from symbiont_lab.physics3d.telemetry import (
     AsyncTelemetryV3Writer,
     TelemetryV3Writer,
@@ -14,6 +13,7 @@ from symbiont_lab.physics3d.telemetry import (
     load_v3_transitions,
     verify_v3_run,
 )
+from symbiont_lab.physics3d.telemetry_reader import open_telemetry
 
 
 @dataclass
@@ -223,7 +223,6 @@ def test_writer_rejects_rich_tick_mismatch(tmp_path):
             writer.append(DummyTick(tick=2), rich_state=_rich(1))
     finally:
         writer.close()
-
 
 
 def _write_three_ticks(writer) -> None:

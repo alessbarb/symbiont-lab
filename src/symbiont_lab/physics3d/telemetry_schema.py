@@ -1,4 +1,5 @@
 """Declarative temporal layout for Physics3D telemetry v4.1."""
+
 from __future__ import annotations
 
 from copy import deepcopy

@@ -1,15 +1,21 @@
+import pytest
 from symbiont.core.metabolism import MetabolicSnapshot, ResourcePressure
 from symbiont.core.physiology import PhysiologyController, VitalState
-import pytest
 
-def snap(p): return MetabolicSnapshot(1, {"x":1}, {"x":-1}, {}, p)
+
+def snap(p):
+    return MetabolicSnapshot(1, {"x": 1}, {"x": -1}, {}, p)
+
+
 def test_unrecoverable_pressure_causes_irreversible_death():
-    c=PhysiologyController(); assert c.advance(snap(ResourcePressure.UNRECOVERABLE),tick=4).state is VitalState.DEAD
-    assert c.advance(snap(ResourcePressure.NORMAL),tick=5).state is VitalState.DEAD
+    c = PhysiologyController()
+    assert c.advance(snap(ResourcePressure.UNRECOVERABLE), tick=4).state is VitalState.DEAD
+    assert c.advance(snap(ResourcePressure.NORMAL), tick=5).state is VitalState.DEAD
 
 
 def test_runtime_refuses_execution_after_death() -> None:
     from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
+
     runtime = OrganismRuntime(physiology=PhysiologyController(state=VitalState.DEAD, death_tick=1))
     try:
         runtime.tick()
@@ -21,6 +27,7 @@ def test_runtime_refuses_execution_after_death() -> None:
 
 def test_runtime_explicit_metabolism_disables_automatic_replenishment() -> None:
     from symbiont.core.runtime import OrganismRuntime
+
     runtime = OrganismRuntime(explicit_metabolism=True)
     assert all(value == 0.0 for value in runtime.metabolism.checkpoint()["replenishment"].values())
     assert runtime.effective_configuration()["explicit_metabolism"] is True
@@ -32,8 +39,7 @@ def test_environmental_damage_is_bounded_and_repairs_only_when_affordable() -> N
 
     metabolism = MetabolicLedger(
         replenishment={
-            kind: 0.0
-            for kind in ("observation", "cognition", "persistence", "maintenance")
+            kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
         }
     )
     runtime = OrganismRuntime(
@@ -58,13 +64,15 @@ def test_environmental_damage_is_bounded_and_repairs_only_when_affordable() -> N
 
 
 def test_dormant_runtime_scales_declared_activity_costs() -> None:
-    from symbiont.core.runtime import OrganismRuntime
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.runtime import OrganismRuntime
 
     state = LivingBodyState(vital_state=VitalState.DORMANT)
     metabolism = MetabolicLedger(
-        replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")},
+        replenishment={
+            kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
+        },
         body_state=state,
     )
     runtime = OrganismRuntime(
@@ -80,12 +88,11 @@ def _reproduction_genome():
     import json
     from dataclasses import replace
     from importlib import resources
+
     from symbiont.cognition.genome import GenomeCodec
 
     payload = json.loads(
-        resources.files("symbiont.cognition")
-        .joinpath("defaults/base-genome.json")
-        .read_text()
+        resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
     )
     return replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
 
@@ -128,12 +135,9 @@ def test_materialized_birth_conserves_parent_child_energy() -> None:
     assert child.generation == 1
     assert child.living_body_state.energy_reserve == pytest.approx(birth_energy)
     assert child.living_body_state.growth_progress == pytest.approx(0.0)
-    assert parent.living_body_state.energy_reserve == pytest.approx(
-        parent_before - birth_energy
-    )
+    assert parent.living_body_state.energy_reserve == pytest.approx(parent_before - birth_energy)
     assert (
-        parent.living_body_state.energy_reserve
-        + child.living_body_state.energy_reserve
+        parent.living_body_state.energy_reserve + child.living_body_state.energy_reserve
         == pytest.approx(parent_before)
     )
 
@@ -187,6 +191,7 @@ def test_materialized_child_can_join_parent_social_habitat() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime
+
     from symbiont.core.social import SocialHabitat
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
@@ -239,8 +244,7 @@ def test_birth_uses_parent_energy_not_shared_habitat_resource_stock() -> None:
     assert surface.snapshot().population == 2
     assert surface.snapshot().available_resources == pytest.approx(0.0)
     assert (
-        parent.living_body_state.energy_reserve
-        + child.living_body_state.energy_reserve
+        parent.living_body_state.energy_reserve + child.living_body_state.energy_reserve
         == pytest.approx(before)
     )
 
@@ -248,12 +252,21 @@ def test_birth_uses_parent_energy_not_shared_habitat_resource_stock() -> None:
 def test_runtime_death_releases_birth_authority_once() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import PhysiologyController
-    from symbiont.core.runtime import OrganismRuntime, OrganismDeadError
+    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
+
     authority = HabitatBirthAuthority(habitat_id="h", capacity=1)
-    metabolism = MetabolicLedger(replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")})
-    runtime = OrganismRuntime(organism_id="parent", birth_authority=authority, metabolism=metabolism,
-                              bootstrap_semantic_senses=False, discover_senses=False)
+    metabolism = MetabolicLedger(
+        replenishment={
+            kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
+        }
+    )
+    runtime = OrganismRuntime(
+        organism_id="parent",
+        birth_authority=authority,
+        metabolism=metabolism,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
     metabolism.charge("maintenance", 4.0)
     result = runtime.tick()
     assert result.physiology is not None and result.physiology.state.value == "dead"
@@ -269,17 +282,24 @@ def test_runtime_death_releases_birth_authority_once() -> None:
 def test_runtime_rest_request_is_checkpointed_without_free_replenishment() -> None:
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.runtime import OrganismRuntime
+
     metabolism = MetabolicLedger(
-        replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+        replenishment={
+            kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
+        }
     )
-    runtime = OrganismRuntime(metabolism=metabolism, explicit_metabolism=True,
-                              bootstrap_semantic_senses=False, discover_senses=False)
+    runtime = OrganismRuntime(
+        metabolism=metabolism,
+        explicit_metabolism=True,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
     for kind in ("observation", "cognition", "persistence", "maintenance"):
         metabolism.charge(kind, 0.85)
     runtime.request_rest()
-    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(),
-                                                bootstrap_semantic_senses=False,
-                                                discover_senses=False)
+    restored = OrganismRuntime.from_checkpoint(
+        runtime.checkpoint(), bootstrap_semantic_senses=False, discover_senses=False
+    )
     assert restored.resting_requested
     before = restored.metabolism.snapshot().reserve["maintenance"]
     result = restored.tick()
@@ -289,10 +309,9 @@ def test_runtime_rest_request_is_checkpointed_without_free_replenishment() -> No
     assert not restored.resting_requested
 
 
-
 def test_runtime_homeostasis_and_viability_share_one_living_body_state() -> None:
-    from symbiont.core.physiology import LivingBodyState, PhysiologyController
     from symbiont.core.homeostasis import HomeostaticController
+    from symbiont.core.physiology import LivingBodyState, PhysiologyController
     from symbiont.core.runtime import OrganismRuntime
 
     state = LivingBodyState(structural_integrity=0.75)
@@ -350,11 +369,13 @@ def test_living_body_death_is_shared_and_irreversible() -> None:
 
     assert state.vital_state is VitalState.DEAD
     assert state.death_tick == 7
-    assert controller.advance(
-        snap(ResourcePressure.NORMAL),
-        tick=8,
-    ).state is VitalState.DEAD
-
+    assert (
+        controller.advance(
+            snap(ResourcePressure.NORMAL),
+            tick=8,
+        ).state
+        is VitalState.DEAD
+    )
 
 
 def test_runtime_metabolism_uses_same_living_body_state() -> None:
@@ -370,12 +391,8 @@ def test_runtime_metabolism_uses_same_living_body_state() -> None:
 
     runtime.metabolism.charge("maintenance", 0.2)
 
-    assert runtime.living_body_state.metabolic_reserve["maintenance"] == pytest.approx(
-        before - 0.2
-    )
-    assert runtime.metabolism.snapshot().reserve["maintenance"] == pytest.approx(
-        before - 0.2
-    )
+    assert runtime.living_body_state.metabolic_reserve["maintenance"] == pytest.approx(before - 0.2)
+    assert runtime.metabolism.snapshot().reserve["maintenance"] == pytest.approx(before - 0.2)
 
 
 def test_runtime_checkpoint_has_one_authoritative_metabolic_reserve() -> None:
@@ -398,11 +415,7 @@ def test_runtime_checkpoint_has_one_authoritative_metabolic_reserve() -> None:
     )
 
     assert restored.metabolism.body_state is restored.living_body_state
-    assert (
-        restored.living_body_state.metabolic_reserve
-        == restored.metabolism.snapshot().reserve
-    )
-
+    assert restored.living_body_state.metabolic_reserve == restored.metabolism.snapshot().reserve
 
 
 def test_runtime_repairs_damage_constitutively_during_tick() -> None:
@@ -411,8 +424,7 @@ def test_runtime_repairs_damage_constitutively_during_tick() -> None:
 
     metabolism = MetabolicLedger(
         replenishment={
-            kind: 0.0
-            for kind in ("observation", "cognition", "persistence", "maintenance")
+            kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
         }
     )
     runtime = OrganismRuntime(
@@ -431,8 +443,8 @@ def test_runtime_repairs_damage_constitutively_during_tick() -> None:
 
 
 def test_dead_runtime_cannot_gain_physical_energy() -> None:
-    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
     from symbiont.core.physiology import LivingBodyState, VitalState
+    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
 
     state = LivingBodyState(
         energy_reserve=0.0,

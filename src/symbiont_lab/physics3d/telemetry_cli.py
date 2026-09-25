@@ -1,9 +1,10 @@
 """CLI entrypoints for telemetry conversion and benchmarking."""
+
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 from .telemetry_tools import (
@@ -57,9 +58,7 @@ def benchmark_main(argv: list[str] | None = None) -> int:
 
 
 def convert_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Convert Physics3D telemetry to lossless v4.1"
-    )
+    parser = argparse.ArgumentParser(description="Convert Physics3D telemetry to lossless v4.1")
     parser.add_argument("source", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--run-id", default=None)

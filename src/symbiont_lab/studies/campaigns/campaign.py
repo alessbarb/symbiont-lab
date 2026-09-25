@@ -83,9 +83,7 @@ def analyze_campaign(lineage: list[StudyRecord]) -> CampaignAssessment:
     same_parameter = all(signature[0] == latest_parameter for signature in signatures)
 
     spans = [abs(variant - baseline) for _, baseline, variant in signatures]
-    nonincreasing_span = all(
-        later <= earlier + 1e-12 for earlier, later in zip(spans, spans[1:])
-    )
+    nonincreasing_span = all(later <= earlier + 1e-12 for earlier, later in zip(spans, spans[1:]))
     weak_tail = [
         str(record.interpretation.get("summary", "")).startswith("No strong paired effect")
         for record in chronological[-3:]
@@ -127,12 +125,7 @@ def analyze_campaign(lineage: list[StudyRecord]) -> CampaignAssessment:
                 "condition again; use the observer follow-up or close this line."
             )
 
-    if (
-        status == "continue"
-        and len(weak_tail) == 3
-        and all(weak_tail)
-        and same_parameter
-    ):
+    if status == "continue" and len(weak_tail) == 3 and all(weak_tail) and same_parameter:
         status = "no_robust_effect"
         summary = (
             f"Three consecutive {latest_parameter} studies show no strong paired effect. "

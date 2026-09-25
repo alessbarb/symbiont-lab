@@ -4,7 +4,6 @@ Legacy sequence/chunk representations stay inside ``sensorimotor`` for
 checkpoint migration and controller seeding; new code should depend on these
 contracts.
 """
-from .binding import CompetenceExecutionBinding, CompetenceExecutionBindingRegistry
 
 from .action import (
     ActionEvaluation,
@@ -14,6 +13,7 @@ from .action import (
     MotorCommand,
 )
 from .arbitration import ActionArbitrator, ArbitrationDecision
+from .binding import CompetenceExecutionBinding, CompetenceExecutionBindingRegistry
 from .commitment import ActionCommitment, CommitmentStatus
 from .competence import (
     CompetenceCandidate,
@@ -31,23 +31,23 @@ from .evidence import (
     SensorimotorTransition,
 )
 from .exploration import ExplorationPolicy, ExplorationSignals
-from .proposer import ActuatorEvidenceModel
 from .model import (
     AgencyEstimate,
     AgencyModel,
+    CompetenceEffectModel,
     ControllabilityEstimate,
     ControllabilityModel,
-    CompetenceEffectModel,
     EffectPrediction,
 )
+from .proposer import ActuatorEvidenceModel
+from .sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
+from .state import SensorimotorV2Snapshot
 from .surface import (
     ActuatorChannel,
     ActuatorConstitution,
     ActuatorSurface,
     derive_actuator_constitution,
 )
-from .state import SensorimotorV2Snapshot
-from .sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from .types import Actuation, MotorIntent
 
 __all__ = [

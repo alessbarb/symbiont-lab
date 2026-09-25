@@ -11,6 +11,7 @@ where model_confidence_normalized = confidence_class / 7.
 
 No environmental or evaluator metrics feed into this computation.
 """
+
 from __future__ import annotations
 
 import hashlib

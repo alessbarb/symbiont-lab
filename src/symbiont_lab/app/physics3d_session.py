@@ -1,10 +1,11 @@
 """Supervised application service for the canonical Physics3D embodiment."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 import threading
 import traceback
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Callable
 
 from symbiont_lab.app.physics3d_runs import Physics3DLaunchSpec
@@ -123,6 +124,7 @@ class Physics3DSession:
                 runner_kwargs.update(launch.runner_kwargs())
 
             if self._runner is None:
+
                 def _startup(stage: str) -> None:
                     with self._lock:
                         self._startup_phase = stage
@@ -131,6 +133,7 @@ class Physics3DSession:
                     with self._lock:
                         if self._state != Physics3DSessionState.STOPPING:
                             self._state = Physics3DSessionState.RUNNING
+
                 runner_kwargs["ready_callback"] = _ready
                 runner_kwargs["startup_callback"] = _startup
             else:

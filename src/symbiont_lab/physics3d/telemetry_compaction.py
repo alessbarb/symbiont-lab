@@ -1,12 +1,13 @@
 """Lossless JSON-tree compaction primitives for Physics3D telemetry v4."""
+
 from __future__ import annotations
 
-from copy import deepcopy
 import hashlib
 import json
 import os
-from pathlib import Path
 import tempfile
+from copy import deepcopy
+from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 
@@ -54,9 +55,7 @@ def _exact_equal(left: Any, right: Any) -> bool:
             return False
         return all(_exact_equal(left[key], right[key]) for key in left)
     if isinstance(left, (list, tuple)):
-        return len(left) == len(right) and all(
-            _exact_equal(a, b) for a, b in zip(left, right)
-        )
+        return len(left) == len(right) and all(_exact_equal(a, b) for a, b in zip(left, right))
     if isinstance(left, float):
         return canonical_json_bytes(left) == canonical_json_bytes(right)
     return left == right
@@ -107,9 +106,7 @@ class ObjectStore:
         payload = json.loads(target.read_text(encoding="utf-8"))
         actual = payload_sha256(payload)
         if actual != digest:
-            raise ValueError(
-                f"telemetry object hash mismatch: {digest} != {actual}"
-            )
+            raise ValueError(f"telemetry object hash mismatch: {digest} != {actual}")
         return payload
 
     def verify(self, digest: str) -> bool:
@@ -139,9 +136,7 @@ class CompactionPolicy:
         if minimum_reference_bytes < 1:
             raise ValueError("minimum_reference_bytes must be >= 1")
         self.reference_paths = frozenset(
-            reference_paths
-            if reference_paths is not None
-            else self.DEFAULT_REFERENCE_PATHS
+            reference_paths if reference_paths is not None else self.DEFAULT_REFERENCE_PATHS
         )
         self.minimum_reference_bytes = int(minimum_reference_bytes)
 
@@ -176,16 +171,11 @@ class StateDiffer:
         current: Any,
         operations: list[dict[str, Any]],
     ) -> None:
-        if (
-            self.object_store is not None
-            and self.policy.should_reference(path, current)
-        ):
+        if self.object_store is not None and self.policy.should_reference(path, current):
             digest, _created = self.object_store.put(current)
             operations.append({"op": "ref", "path": path, "sha256": digest})
         else:
-            operations.append(
-                {"op": "set", "path": path, "value": deepcopy(current)}
-            )
+            operations.append({"op": "set", "path": path, "value": deepcopy(current)})
 
     def _diff(
         self,
@@ -197,10 +187,7 @@ class StateDiffer:
         if _exact_equal(previous, current):
             return
 
-        if (
-            self.object_store is not None
-            and self.policy.should_reference(path, current)
-        ):
+        if self.object_store is not None and self.policy.should_reference(path, current):
             self._replacement(path, current, operations)
             return
 
@@ -208,9 +195,7 @@ class StateDiffer:
             previous_keys = set(previous)
             current_keys = set(current)
             for key in sorted(previous_keys - current_keys, key=str):
-                operations.append(
-                    {"op": "remove", "path": join_pointer(path, str(key))}
-                )
+                operations.append({"op": "remove", "path": join_pointer(path, str(key))})
             for key in sorted(current_keys - previous_keys, key=str):
                 child_path = join_pointer(path, str(key))
                 self._replacement(child_path, current[key], operations)
@@ -274,9 +259,7 @@ class StatePatcher:
                 try:
                     index = int(segment)
                 except ValueError as exc:
-                    raise ValueError(
-                        f"list path segment is not an index: {segment!r}"
-                    ) from exc
+                    raise ValueError(f"list path segment is not an index: {segment!r}") from exc
                 parent = parent[index]
             elif isinstance(parent, dict):
                 parent = parent[segment]
@@ -292,9 +275,7 @@ class StatePatcher:
             try:
                 index = int(leaf)
             except ValueError as exc:
-                raise ValueError(
-                    f"list path segment is not an index: {leaf!r}"
-                ) from exc
+                raise ValueError(f"list path segment is not an index: {leaf!r}") from exc
             if index < 0 or index >= len(parent):
                 raise IndexError(f"telemetry list patch index out of range: {index}")
             parent[index] = deepcopy(value)
@@ -312,9 +293,7 @@ class StatePatcher:
             try:
                 index = int(leaf)
             except ValueError as exc:
-                raise ValueError(
-                    f"list path segment is not an index: {leaf!r}"
-                ) from exc
+                raise ValueError(f"list path segment is not an index: {leaf!r}") from exc
             del parent[index]
         elif isinstance(parent, dict):
             if leaf not in parent:

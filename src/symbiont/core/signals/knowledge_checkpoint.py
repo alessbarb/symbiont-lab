@@ -1,4 +1,5 @@
 """Atomic validation boundary for the private signal-knowledge block."""
+
 from __future__ import annotations
 
 import json
@@ -12,9 +13,17 @@ def validate_checkpoint(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("signal knowledge checkpoint must be an object")
     allowed = {
-        "schema_version", "last_tick", "profiles", "history", "pair_history",
-        "pair_predictors", "pending_features", "epoch_stats", "candidate_pairs",
-        "events", "event_overflowed",
+        "schema_version",
+        "last_tick",
+        "profiles",
+        "history",
+        "pair_history",
+        "pair_predictors",
+        "pending_features",
+        "epoch_stats",
+        "candidate_pairs",
+        "events",
+        "event_overflowed",
     }
     if set(payload) - allowed:
         raise ValueError("unknown signal knowledge checkpoint fields")

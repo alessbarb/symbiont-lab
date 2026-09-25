@@ -3,9 +3,11 @@
 Verifies the Phase P0 technical gate from docs/design/symbiont-world-v3.md §39:
 "forced failure at every phase -> exact state restoration (failed_tick(state_n) == state_n)"
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch
+
 import pytest
 
 from symbiont_lab.world.deferred import DeferredEffect
@@ -56,7 +58,9 @@ def test_failed_tick_restores_exact_state_phase_environment():
     pop.run(5)
     pre = _capture_world_full_state(pop)
 
-    with patch.object(pop.environment, "propagate_fields", side_effect=RuntimeError("simulated env failure")):
+    with patch.object(
+        pop.environment, "propagate_fields", side_effect=RuntimeError("simulated env failure")
+    ):
         with pytest.raises(RuntimeError, match="simulated env failure"):
             pop.run_tick()
 
@@ -95,7 +99,9 @@ def test_failed_tick_restores_exact_state_phase_action_execution():
     pop.run(5)
     pre = _capture_world_full_state(pop)
 
-    with patch("symbiont_lab.world.population._act", side_effect=RuntimeError("action execution failed")):
+    with patch(
+        "symbiont_lab.world.population._act", side_effect=RuntimeError("action execution failed")
+    ):
         with pytest.raises(RuntimeError, match="action execution failed"):
             pop.run_tick()
 
@@ -109,7 +115,9 @@ def test_failed_tick_restores_exact_state_phase_hazard_resolution():
     pop.run(5)
     pre = _capture_world_full_state(pop)
 
-    with patch.object(pop.environment, "hazard_exposures_at", side_effect=RuntimeError("hazard engine failure")):
+    with patch.object(
+        pop.environment, "hazard_exposures_at", side_effect=RuntimeError("hazard engine failure")
+    ):
         with pytest.raises(RuntimeError, match="hazard engine failure"):
             pop.run_tick()
 
@@ -144,7 +152,9 @@ def test_determinism_preserved_after_aborted_tick():
     pop_perturbed.run(5)
 
     # Induce failure in perturbed at tick 6
-    with patch.object(pop_perturbed.environment, "propagate_fields", side_effect=RuntimeError("transient error")):
+    with patch.object(
+        pop_perturbed.environment, "propagate_fields", side_effect=RuntimeError("transient error")
+    ):
         with pytest.raises(RuntimeError):
             pop_perturbed.run_tick()
 
@@ -156,7 +166,9 @@ def test_determinism_preserved_after_aborted_tick():
     for c_rec, p_rec in zip(clean_records, perturbed_records):
         assert c_rec.tick == p_rec.tick
         for oid in pop_clean.organism_ids:
-            assert c_rec.per_organism[oid].action.action_id == p_rec.per_organism[oid].action.action_id
+            assert (
+                c_rec.per_organism[oid].action.action_id == p_rec.per_organism[oid].action.action_id
+            )
             assert c_rec.per_organism[oid].hazard_hits == p_rec.per_organism[oid].hazard_hits
             assert c_rec.per_organism[oid].alive == p_rec.per_organism[oid].alive
 
@@ -189,7 +201,9 @@ def test_rollback_preserves_internal_rig_reference_graph():
     pop = _make_pop(seed=303, count=2)
     pop.run(2)
 
-    with patch.object(pop.environment, "hazard_exposures_at", side_effect=RuntimeError("force rollback")):
+    with patch.object(
+        pop.environment, "hazard_exposures_at", side_effect=RuntimeError("force rollback")
+    ):
         with pytest.raises(RuntimeError, match="force rollback"):
             pop.run_tick()
 
@@ -209,7 +223,8 @@ def test_multiple_deferred_damage_events_same_tick_have_unique_ids():
 
     pop.run_tick()
     events = [
-        event for event in pop.journal.replay()
+        event
+        for event in pop.journal.replay()
         if event.kind == "PHYSIOLOGICAL_DAMAGE"
         and event.actor == organism_id
         and event.payload.get("source") == "deferred_effect"
@@ -236,7 +251,9 @@ def test_experimental_clean_rollback_restores_individual_state():
     pre_hist_len = len(pop._rigs["org-0"].individual.history)
     pre_energy = pop._rigs["org-0"].individual.body.physiology.energy_reserve
 
-    with patch.object(pop.environment, "hazard_exposures_at", side_effect=RuntimeError("simulated clean fault")):
+    with patch.object(
+        pop.environment, "hazard_exposures_at", side_effect=RuntimeError("simulated clean fault")
+    ):
         with pytest.raises(RuntimeError, match="simulated clean fault"):
             pop.run_tick()
 

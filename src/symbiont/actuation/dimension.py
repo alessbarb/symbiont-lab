@@ -6,6 +6,7 @@ any embodiment-specific binding. Identity is opaque and derived only from
 the backing slot; no physical, joint or effector semantics are accepted
 here.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

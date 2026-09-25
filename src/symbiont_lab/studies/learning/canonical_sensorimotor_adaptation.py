@@ -6,6 +6,7 @@ same checkpoint: one intact and one with that actuator's physical health set
 to zero.  The evaluator observes whether the learner's opaque model changes
 and whether new, non-damaged temporal chunks appear without a reward or task.
 """
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -16,11 +17,12 @@ from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
 from .canonical_sensorimotor_counterfactual import _find_replay_checkpoint, _state_digest
 
-
 _SENSORY_DIVERGENCE_THRESHOLD = 1e-4
 
 
-def _primitive_signature(checkpoint: Mapping[str, Any]) -> dict[str, tuple[tuple[tuple[str, int], ...], ...]]:
+def _primitive_signature(
+    checkpoint: Mapping[str, Any],
+) -> dict[str, tuple[tuple[tuple[str, int], ...], ...]]:
     raw = checkpoint.get("actuation", {}).get("sensorimotor", {}).get("primitives", [])
     return {
         str(item["primitive_id"]): tuple(
@@ -160,36 +162,46 @@ def run_sensorimotor_adaptation_trial(
         (len(pattern) for sequence in initial_model.values() for pattern in sequence),
         default=0,
     )
-    intact_sensory, intact_actions, intact_checkpoint, _intact_replays, intact_source_digest = _rollout(
-        seed=seed,
-        checkpoint=checkpoint,
-        physical_state=physical_state,
-        target_actuator_id=target_actuator_id,
-        horizon_ticks=horizon_ticks,
-        damage=False,
+    intact_sensory, intact_actions, intact_checkpoint, _intact_replays, intact_source_digest = (
+        _rollout(
+            seed=seed,
+            checkpoint=checkpoint,
+            physical_state=physical_state,
+            target_actuator_id=target_actuator_id,
+            horizon_ticks=horizon_ticks,
+            damage=False,
+        )
     )
-    damaged_sensory, damaged_actions, damaged_checkpoint, damaged_replays, damaged_source_digest = _rollout(
-        seed=seed,
-        checkpoint=checkpoint,
-        physical_state=physical_state,
-        target_actuator_id=target_actuator_id,
-        horizon_ticks=horizon_ticks,
-        damage=True,
+    damaged_sensory, damaged_actions, damaged_checkpoint, damaged_replays, damaged_source_digest = (
+        _rollout(
+            seed=seed,
+            checkpoint=checkpoint,
+            physical_state=physical_state,
+            target_actuator_id=target_actuator_id,
+            horizon_ticks=horizon_ticks,
+            damage=True,
+        )
     )
     intact_model = _primitive_signature(intact_checkpoint)
     damaged_model = _primitive_signature(damaged_checkpoint)
     novel_damaged = set(damaged_model) - set(initial_model)
     replayed_novel_damaged = set(damaged_replays) & novel_damaged
     known_replayed_damaged = set(damaged_replays) & set(initial_model)
-    divergence = [_mapping_distance(left, right) for left, right in zip(intact_sensory, damaged_sensory)]
+    divergence = [
+        _mapping_distance(left, right) for left, right in zip(intact_sensory, damaged_sensory)
+    ]
     return AdaptationTrial(
         seed=int(seed),
         checkpoint_tick=checkpoint_tick,
         primitive_id=primitive_id,
         target_actuator_id=target_actuator_id,
         horizon_ticks=min(len(intact_sensory), len(damaged_sensory)),
-        target_delivered_intact=sum(_target_delivered(action, target_actuator_id) for action in intact_actions),
-        target_delivered_damaged=sum(_target_delivered(action, target_actuator_id) for action in damaged_actions),
+        target_delivered_intact=sum(
+            _target_delivered(action, target_actuator_id) for action in intact_actions
+        ),
+        target_delivered_damaged=sum(
+            _target_delivered(action, target_actuator_id) for action in damaged_actions
+        ),
         mean_sensory_divergence=sum(divergence) / max(1, len(divergence)),
         initial_model_size=len(initial_model),
         max_primitive_channels=max_primitive_channels,
@@ -214,7 +226,9 @@ def run_sensorimotor_adaptation_study(
         warmup_ticks = int(steps)
     normalized = tuple(int(seed) for seed in seeds)
     trials = tuple(
-        run_sensorimotor_adaptation_trial(seed, warmup_ticks=warmup_ticks, horizon_ticks=horizon_ticks)
+        run_sensorimotor_adaptation_trial(
+            seed, warmup_ticks=warmup_ticks, horizon_ticks=horizon_ticks
+        )
         for seed in normalized
     )
     return AdaptationStudy(normalized, int(warmup_ticks), int(horizon_ticks), trials)

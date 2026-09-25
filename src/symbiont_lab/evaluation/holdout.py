@@ -13,6 +13,7 @@ this helper. Other, already-CLOSED historical studies remain on their
 original ad hoc seed handling; converting them is out of scope here (see the
 roadmap in ``research/audits/current/2026-09-refutation-response-protocol-v1.md``).
 """
+
 from __future__ import annotations
 
 import json
@@ -88,8 +89,11 @@ class SeedLedger:
         if not isinstance(payload, dict):
             raise ValueError("invalid seed ledger payload")
         for study_id, seeds in payload.items():
-            if (not isinstance(study_id, str) or not isinstance(seeds, list)
-                    or any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds)):
+            if (
+                not isinstance(study_id, str)
+                or not isinstance(seeds, list)
+                or any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds)
+            ):
                 raise ValueError("invalid seed ledger entry")
         return payload
 

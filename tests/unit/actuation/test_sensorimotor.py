@@ -4,9 +4,9 @@ import hashlib
 
 import pytest
 
-from symbiont.actuation.competence import CompetenceMaturity
 import symbiont.actuation.sensorimotor as sensorimotor_module
-from symbiont.actuation.sensorimotor import MotorPrimitive, CompetenceDevelopmentEngine
+from symbiont.actuation.competence import CompetenceMaturity
+from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine, MotorPrimitive
 
 
 def _ids(count: int = 8) -> tuple[str, ...]:
@@ -57,10 +57,7 @@ def test_spontaneous_motor_bout_spans_multiple_independent_evidence_blocks():
     for tick in range(24):
         intents = learner.motor_intents(tick)
         if tick in {7, 15, 23}:
-            samples[tick] = {
-                intent.actuator_id
-                for intent in intents
-            }
+            samples[tick] = {intent.actuator_id for intent in intents}
 
     assert samples[7]
     assert samples[7] == samples[15] == samples[23]
@@ -83,10 +80,7 @@ def test_autonomous_babbling_can_recur_across_independent_evidence_blocks():
             discovery_eligible=True,
         )
         intents = learner.motor_intents(tick)
-        previous_vector = {
-            intent.actuator_id: intent.activation
-            for intent in intents
-        }
+        previous_vector = {intent.actuator_id: intent.activation for intent in intents}
         drive = sum(previous_vector.values())
         state = {
             "sense.a": state["sense.a"] + drive * 0.01,
@@ -114,9 +108,7 @@ def test_multi_horizon_statistics_are_recorded_independently():
             motor_vector=previous_vector,
         )
         intents = learner.motor_intents(tick)
-        previous_vector = {
-            intent.actuator_id: intent.activation for intent in intents
-        }
+        previous_vector = {intent.actuator_id: intent.activation for intent in intents}
         # Deterministic body response to the current pattern.
         drive = sum(previous_vector.values()) / max(1, len(previous_vector))
         state = {
@@ -333,10 +325,7 @@ def test_reproducible_temporal_sequence_can_mature_motor_competence():
     assert learner.primitives
     assert learner.cognitive_primitives
     lifecycle_items = learner.checkpoint()["primitive_stats"]
-    promoted = [
-        item for item in lifecycle_items
-        if item["materialized_tick"] is not None
-    ]
+    promoted = [item for item in lifecycle_items if item["materialized_tick"] is not None]
     assert promoted
     assert all(item["first_sample_tick"] <= item["materialized_tick"] for item in promoted)
     competent = [item for item in promoted if item["competence_tick"] is not None]
@@ -360,9 +349,7 @@ def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
             motor_vector=previous_vector,
         )
         intents = learner.motor_intents(tick)
-        previous_vector = {
-            intent.actuator_id: intent.activation for intent in intents
-        }
+        previous_vector = {intent.actuator_id: intent.activation for intent in intents}
         state["sense.a"] += sum(previous_vector.values()) * 0.001
 
     restored = CompetenceDevelopmentEngine.restore(
@@ -376,10 +363,7 @@ def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
     assert tuple(item.maturity for item in restored.cognitive_primitives) == tuple(
         item.maturity for item in learner.cognitive_primitives
     )
-    assert all(
-        item.competence_evidence.support >= 2
-        for item in restored.cognitive_primitives
-    )
+    assert all(item.competence_evidence.support >= 2 for item in restored.cognitive_primitives)
 
 
 def test_cognitive_primitive_replays_only_learned_motor_pattern():
@@ -397,14 +381,11 @@ def test_cognitive_primitive_replays_only_learned_motor_pattern():
 
     assert intents
     assert {intent.actuator_id for intent in intents} == {
-        actuator_id
-        for actuator_id, level in primitive.sequence[0]
-        if level > 0
+        actuator_id for actuator_id, level in primitive.sequence[0] if level > 0
     }
     assert len(primitive.sequence) == 4
     assert len(set(primitive.sequence)) > 1
     assert learner.primitive_intents("primitive.not-learned") == ()
-
 
 
 def test_cognitive_primitive_execution_preserves_full_temporal_duration():
@@ -422,26 +403,18 @@ def test_cognitive_primitive_execution_preserves_full_temporal_duration():
     for tick in range(primitive.duration_ticks):
         intents = learner.motor_intents(10_000 + tick)
         outputs.append(
-            tuple(
-                (intent.actuator_id, round(intent.activation, 6))
-                for intent in intents
-            )
+            tuple((intent.actuator_id, round(intent.activation, 6)) for intent in intents)
         )
         assert learner.last_output_source == "primitive"
         assert learner.last_output_primitive_id == primitive.primitive_id
 
     expected = [
-        tuple(
-            (actuator_id, round(level / 7.0, 6))
-            for actuator_id, level in pattern
-            if level > 0
-        )
+        tuple((actuator_id, round(level / 7.0, 6)) for actuator_id, level in pattern if level > 0)
         for pattern in primitive.sequence
     ]
     assert outputs == expected
     assert len(set(outputs)) > 1
     assert learner.active_primitive_id is None
-
 
 
 def test_inconsistent_repetition_retracts_false_motor_primitive():
@@ -480,7 +453,6 @@ def test_inconsistent_repetition_retracts_false_motor_primitive():
     assert learner.cognitive_primitives == ()
 
 
-
 def test_exploration_can_discover_temporal_chunk_across_synergy_boundary():
     learner = CompetenceDevelopmentEngine(
         _ids(8),
@@ -491,10 +463,7 @@ def test_exploration_can_discover_temporal_chunk_across_synergy_boundary():
     state = {"sense.a": 0.0, "sense.b": 0.0}
     for tick in range(96):
         intents = learner.motor_intents(tick)
-        vector = {
-            intent.actuator_id: intent.activation
-            for intent in intents
-        }
+        vector = {intent.actuator_id: intent.activation for intent in intents}
         learner.observe(
             tick=tick,
             body_state=state,
@@ -503,8 +472,7 @@ def test_exploration_can_discover_temporal_chunk_across_synergy_boundary():
         )
         weighted = sum(
             (index + 1) * value
-            for index, (_actuator_id, value)
-            in enumerate(sorted(vector.items()))
+            for index, (_actuator_id, value) in enumerate(sorted(vector.items()))
         )
         state = {
             "sense.a": state["sense.a"] + weighted * 0.002,
@@ -522,13 +490,10 @@ def test_exploration_can_discover_temporal_chunk_across_synergy_boundary():
     checkpoint = learner.checkpoint()
     assert checkpoint["primitive_stats"]
     assert any(
-        len({
-            tuple((item[0], item[1]) for item in pattern)
-            for pattern in candidate["sequence"]
-        }) > 1
+        len({tuple((item[0], item[1]) for item in pattern) for pattern in candidate["sequence"]})
+        > 1
         for candidate in checkpoint["primitive_stats"]
     )
-
 
 
 def test_passive_drift_is_subtracted_from_motor_controllability():
@@ -581,7 +546,6 @@ def test_passive_drift_is_subtracted_from_motor_controllability():
     )
 
     assert learner.primitives == ()
-
 
 
 @pytest.mark.parametrize(
@@ -706,10 +670,7 @@ def test_default_exploration_prefers_low_dimensional_coordination_without_forbid
         organism_id="org-variable-cardinality",
     )
 
-    sizes = [
-        len(learner.motor_intents(epoch * 8))
-        for epoch in range(512)
-    ]
+    sizes = [len(learner.motor_intents(epoch * 8)) for epoch in range(512)]
 
     assert min(sizes) >= 1
     assert max(sizes) <= 62
@@ -731,10 +692,7 @@ def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
 
     for index in range(12):
         actuator_id = f"actuator.{index}"
-        sequence = tuple(
-            ((actuator_id, 5),)
-            for _ in range(4)
-        )
+        sequence = tuple(((actuator_id, 5),) for _ in range(4))
         primitive = MotorPrimitive(
             primitive_id=f"primitive.test.{index}",
             embodiment_fingerprint=learner.embodiment_fingerprint,
@@ -748,7 +706,6 @@ def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
         learner._primitives[primitive.primitive_id] = primitive
 
     assert len(learner.cognitive_primitives) == 12
-
 
 
 def test_noncontiguous_temporal_window_is_ignored_without_error():
@@ -778,7 +735,6 @@ def test_noncontiguous_temporal_window_is_ignored_without_error():
     )
 
     assert learner.snapshot().passive_baseline_samples == 0
-
 
 
 def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
@@ -837,7 +793,6 @@ def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
     assert learner.primitives[0] is replacement
 
 
-
 def test_observe_precomputes_the_exact_canonical_motor_pattern():
     learner = CompetenceDevelopmentEngine(("b", "a"), organism_id="frame-pattern")
     vector = {"b": 0.51, "a": 0.09}
@@ -858,9 +813,7 @@ def test_primitive_id_cache_preserves_sha256_identity_and_reuses_result():
         (("a", 3),),
         (("a", 4),),
     )
-    expected = "primitive." + hashlib.sha256(
-        repr(sequence).encode("utf-8")
-    ).hexdigest()[:16]
+    expected = "primitive." + hashlib.sha256(repr(sequence).encode("utf-8")).hexdigest()[:16]
 
     first = learner._primitive_id_for_sequence(sequence)
     second = learner._primitive_id_for_sequence(sequence)
@@ -978,11 +931,8 @@ def test_bounded_primitive_pool_preserves_proven_competence():
     learner._enforce_primitive_bound()
 
     assert len(learner.primitives) == sensorimotor_module._MAX_PRIMITIVES
-    assert competence.primitive_id in {
-        primitive.primitive_id for primitive in learner.primitives
-    }
+    assert competence.primitive_id in {primitive.primitive_id for primitive in learner.primitives}
     assert competence.primitive_id in learner.available_cognitive_primitive_ids()
-
 
 
 def test_primitive_episode_provenance_is_ephemeral_and_independent():
@@ -1013,7 +963,6 @@ def test_primitive_episode_provenance_is_ephemeral_and_independent():
     assert learner.last_primitive_episodes == ()
 
 
-
 def test_historical_primitive_requires_fresh_evidence_before_cognitive_reuse():
     learner = CompetenceDevelopmentEngine(
         _ids(4),
@@ -1028,18 +977,20 @@ def test_historical_primitive_requires_fresh_evidence_before_cognitive_reuse():
         (("actuator.3", 5),),
     )
 
-    added = learner.register_historical_primitive_candidates([
-        {
-            "primitive_id": historical_id,
-            "embodiment_fingerprint": learner.embodiment_fingerprint,
-            "sequence": [
-                [["actuator.0", 5]],
-                [["actuator.1", 5]],
-                [["actuator.2", 5]],
-                [["actuator.3", 5]],
-            ],
-        }
-    ])
+    added = learner.register_historical_primitive_candidates(
+        [
+            {
+                "primitive_id": historical_id,
+                "embodiment_fingerprint": learner.embodiment_fingerprint,
+                "sequence": [
+                    [["actuator.0", 5]],
+                    [["actuator.1", 5]],
+                    [["actuator.2", 5]],
+                    [["actuator.3", 5]],
+                ],
+            }
+        ]
+    )
 
     assert added == 1
     assert learner.historical_primitive_candidate_ids == (historical_id,)
@@ -1082,7 +1033,6 @@ def test_sensorimotor_pre_v9_checkpoint_is_not_reinterpreted_as_current_evidence
             actuator_ids=_ids(4),
             organism_id="org-pre-v9",
         )
-
 
 
 def test_exclusive_motor_groups_never_babble_antagonistic_channels_together():
@@ -1194,7 +1144,6 @@ def test_exclusive_group_validation_rejects_overlap_and_unknown_ids():
         )
 
 
-
 def test_exclusive_motor_groups_arbitrate_mixed_requests_before_evidence():
     from symbiont.actuation.types import MotorIntent
 
@@ -1235,16 +1184,18 @@ def test_restore_rejects_v9_primitive_that_violates_exclusive_motor_unit():
         [[ids[0], 5]],
         [[ids[0], 5]],
     ]
-    payload["primitive_stats"] = [{
-        "sequence": sequence,
-        "stat": {"count": 2, "mean": 0.1, "m2": 0.0},
-        "first_sample_tick": 4,
-        "last_sample_tick": 16,
-        "materialized_tick": 16,
-        "competence_tick": 16,
-        "last_evidence_blocks": [0, 2],
-        "signals": {},
-    }]
+    payload["primitive_stats"] = [
+        {
+            "sequence": sequence,
+            "stat": {"count": 2, "mean": 0.1, "m2": 0.0},
+            "first_sample_tick": 4,
+            "last_sample_tick": 16,
+            "materialized_tick": 16,
+            "competence_tick": 16,
+            "last_evidence_blocks": [0, 2],
+            "signals": {},
+        }
+    ]
 
     with pytest.raises(ValueError, match="exclusive actuator groups"):
         CompetenceDevelopmentEngine.restore(
@@ -1252,7 +1203,6 @@ def test_restore_rejects_v9_primitive_that_violates_exclusive_motor_unit():
             actuator_ids=ids,
             organism_id="org-invalid-exclusive-restore",
         )
-
 
 
 def test_restore_rejects_v9_horizon_evidence_that_violates_exclusive_motor_unit():
@@ -1263,11 +1213,13 @@ def test_restore_rejects_v9_horizon_evidence_that_violates_exclusive_motor_unit(
         exclusive_actuator_groups=((ids[0], ids[1]),),
     )
     payload = learner.checkpoint()
-    payload["horizon_stats"] = [{
-        "horizon": 1,
-        "pattern": [[ids[0], 5], [ids[1], 4]],
-        "stat": {"count": 2, "mean": 0.1, "m2": 0.0},
-    }]
+    payload["horizon_stats"] = [
+        {
+            "horizon": 1,
+            "pattern": [[ids[0], 5], [ids[1], 4]],
+            "stat": {"count": 2, "mean": 0.1, "m2": 0.0},
+        }
+    ]
 
     with pytest.raises(ValueError, match="horizon evidence violates"):
         CompetenceDevelopmentEngine.restore(
@@ -1275,7 +1227,6 @@ def test_restore_rejects_v9_horizon_evidence_that_violates_exclusive_motor_unit(
             actuator_ids=ids,
             organism_id="org-invalid-horizon-restore",
         )
-
 
 
 def test_restore_rejects_v9_checkpoint_missing_motor_unit_contract():

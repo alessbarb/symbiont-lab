@@ -1,6 +1,7 @@
 from symbiont.core.collective import CollectiveMemory
 from symbiont.core.curiosity import CuriosityPlanner
 from symbiont.core.reasoning import ReasoningEngine
+
 from symbiont.simulation import run_simulation
 
 
@@ -23,7 +24,9 @@ def test_curiosity_planner_ranks_shadow_only_counterfactuals():
     assert probes
     assert all(0 <= probe.expected_information_gain <= 1 for probe in probes)
     assert all(0 <= probe.utility <= 1 for probe in probes)
-    assert list(probes) == sorted(probes, key=lambda probe: (-probe.utility, probe.feature, probe.counterfactual_fingerprint))
+    assert list(probes) == sorted(
+        probes, key=lambda probe: (-probe.utility, probe.feature, probe.counterfactual_fingerprint)
+    )
     assert all("shadow-only" in probe.question for probe in probes)
 
 

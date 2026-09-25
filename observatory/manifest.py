@@ -7,14 +7,14 @@ into an atomically published manifest.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
 import tempfile
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -202,9 +202,7 @@ def verify_capture_manifest(
         actual_topo = _file_sha256(topo_p)
         expected_topo = data.get("topology_sha256")
         if expected_topo and actual_topo != expected_topo:
-            errors.append(
-                f"Topology SHA256 mismatch: expected {expected_topo}, got {actual_topo}"
-            )
+            errors.append(f"Topology SHA256 mismatch: expected {expected_topo}, got {actual_topo}")
     elif data.get("topology_sha256") is not None:
         errors.append(f"Referenced topology file not found: {data['topology_file']}")
 

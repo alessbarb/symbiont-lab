@@ -6,75 +6,131 @@ from symbiont.simulation import run_simulation
 from symbiont_lab.studies.attention.causal import run_causal_attention_budget
 from symbiont_lab.studies.attention.replicated import run_causal_budget_study
 from symbiont_lab.studies.attention.retrospective import run_attention_budget
+from symbiont_lab.studies.continuity.recurrent_restoration import run_recurrent_restoration_study
+from symbiont_lab.studies.embodiment.causal_revision_sequence import (
+    run_causal_revision_sequence_study,
+)
+from symbiont_lab.studies.embodiment.heredity_leakage_challenge import (
+    run_heredity_leakage_challenge_study,
+)
+from symbiont_lab.studies.embodiment.hidden_common_cause import run_hidden_common_cause_study
+from symbiont_lab.studies.embodiment.label_invariance import run_label_invariance_study
+from symbiont_lab.studies.embodiment.somatic_correlation_trap import (
+    run_somatic_correlation_trap_study,
+)
+from symbiont_lab.studies.embodiment.temporal_causality_challenge import (
+    run_temporal_causality_challenge_study,
+)
+from symbiont_lab.studies.embodiment.tool_body_distinction import run_tool_body_distinction_study
+from symbiont_lab.studies.embodiment.yoked_external_causation import (
+    run_yoked_external_causation_study,
+)
 from symbiont_lab.studies.evidence.causal_budget import run_replicated_causal_evidence_study
 from symbiont_lab.studies.evidence.noise_sweep import run_evidence_noise_sweep
 from symbiont_lab.studies.evidence.replicated import run_replicated_evidence_study
 from symbiont_lab.studies.evidence.second_look import run_second_look_study
-from symbiont_lab.studies.continuity.recurrent_restoration import run_recurrent_restoration_study
 from symbiont_lab.studies.heritage.ecological_shift import run_ecological_shift_study
 from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_study
 from symbiont_lab.studies.heritage.replicated import run_replicated_heritage_stress_study
 from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
-from symbiont_lab.studies.learning.predictive_utility import run_predictive_utility_study
-from symbiont_lab.studies.learning.episodic_memory_utility import run_episodic_memory_utility_study
-from symbiont_lab.studies.learning.continuous_temporal_challenge import run_continuous_temporal_challenge
-from symbiont_lab.studies.learning.continuous_temporal_controls import run_continuous_temporal_controls
-from symbiont_lab.studies.learning.cognitive_ecology_embodiment import run_cognitive_ecology_embodiment_study
-from symbiont_lab.studies.learning.embodied_behavioral_ablation import run_embodied_behavioral_ablation
-from symbiont_lab.studies.learning.canonical_sensorimotor_agency import run_sensorimotor_agency_study
-from symbiont_lab.studies.learning.canonical_sensorimotor_counterfactual import run_counterfactual_replay_study
-from symbiont_lab.studies.learning.canonical_sensorimotor_adaptation import run_sensorimotor_adaptation_study
-from symbiont_lab.studies.learning.structural_producer_fairness import run_structural_producer_fairness_study
-from symbiont_lab.studies.learning.private_model_utility import run_private_model_utility_study
-from symbiont_lab.studies.learning.private_model_controls import run_private_model_controls_study
-from symbiont_lab.studies.learning.temporal_private_model_controls import run_temporal_private_model_controls_study
-from symbiont_lab.studies.learning.private_model_regime_shift import run_private_model_symmetric_regime_study
-from symbiont_lab.studies.learning.private_model_adaptation import run_private_model_adaptation_study
-from symbiont_lab.studies.learning.adaptive_replay_matched_control import run_adaptive_replay_matched_control_study
-from symbiont_lab.studies.learning.replay_pressure_curve import run_replay_pressure_curve_study
-from symbiont_lab.studies.learning.replay_efficiency import run_replay_efficiency_study
-from symbiont_lab.studies.learning.internal_learning_progress import run_internal_learning_progress_study
-from symbiont_lab.studies.learning.autonomous_replay_stopping import run_autonomous_replay_stopping_study
-from symbiont_lab.studies.learning.structured_causal_experience import run_structured_causal_experience_study
-from symbiont_lab.studies.learning.structured_causal_generalization import run_structured_causal_generalization_study
-from symbiont_lab.studies.learning.cultural_foundation import run_cultural_foundation_study
-from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
-from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonomous_cultural_agency_study
-from symbiont_lab.studies.learning.emergent_symbol_grounding import run_emergent_symbol_grounding_study
-from symbiont_lab.studies.learning.independent_symbol_grounding import run_independent_symbol_grounding_study
-from symbiont_lab.studies.learning.predictive_discovery import run_predictive_discovery_study
+from symbiont_lab.studies.learning.adaptive_replay_matched_control import (
+    run_adaptive_replay_matched_control_study,
+)
+from symbiont_lab.studies.learning.autonomous_cultural_agency import (
+    run_autonomous_cultural_agency_study,
+)
+from symbiont_lab.studies.learning.autonomous_replay_stopping import (
+    run_autonomous_replay_stopping_study,
+)
+from symbiont_lab.studies.learning.canonical_sensorimotor_adaptation import (
+    run_sensorimotor_adaptation_study,
+)
+from symbiont_lab.studies.learning.canonical_sensorimotor_agency import (
+    run_sensorimotor_agency_study,
+)
+from symbiont_lab.studies.learning.canonical_sensorimotor_counterfactual import (
+    run_counterfactual_replay_study,
+)
+from symbiont_lab.studies.learning.cognitive_ecology_embodiment import (
+    run_cognitive_ecology_embodiment_study,
+)
 from symbiont_lab.studies.learning.cognitive_graph_causal_composition import (
     run_cognitive_graph_causal_composition_study,
 )
-from symbiont_lab.studies.embodiment.yoked_external_causation import run_yoked_external_causation_study
-from symbiont_lab.studies.embodiment.somatic_correlation_trap import run_somatic_correlation_trap_study
-from symbiont_lab.studies.embodiment.causal_revision_sequence import run_causal_revision_sequence_study
-from symbiont_lab.studies.embodiment.temporal_causality_challenge import run_temporal_causality_challenge_study
-from symbiont_lab.studies.embodiment.tool_body_distinction import run_tool_body_distinction_study
-from symbiont_lab.studies.embodiment.hidden_common_cause import run_hidden_common_cause_study
-from symbiont_lab.studies.embodiment.label_invariance import run_label_invariance_study
-from symbiont_lab.studies.embodiment.heredity_leakage_challenge import run_heredity_leakage_challenge_study
-from symbiont_lab.studies.learning.emergent_structured_communication import run_emergent_structured_communication_study
-from symbiont_lab.studies.learning.structured_communication_characterization import run_structured_communication_characterization
-from symbiont_lab.studies.observability.population_communication import run_population_communication_study
-from symbiont_lab.studies.longitudinal_population_ecology import run_longitudinal_population_ecology_study
-from symbiont_lab.studies.world.genesis_viability import run_genesis_viability_characterization
+from symbiont_lab.studies.learning.continuous_temporal_challenge import (
+    run_continuous_temporal_challenge,
+)
+from symbiont_lab.studies.learning.continuous_temporal_controls import (
+    run_continuous_temporal_controls,
+)
+from symbiont_lab.studies.learning.cultural_foundation import run_cultural_foundation_study
+from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
+from symbiont_lab.studies.learning.embodied_behavioral_ablation import (
+    run_embodied_behavioral_ablation,
+)
+from symbiont_lab.studies.learning.emergent_structured_communication import (
+    run_emergent_structured_communication_study,
+)
+from symbiont_lab.studies.learning.emergent_symbol_grounding import (
+    run_emergent_symbol_grounding_study,
+)
+from symbiont_lab.studies.learning.episodic_memory_utility import run_episodic_memory_utility_study
+from symbiont_lab.studies.learning.independent_symbol_grounding import (
+    run_independent_symbol_grounding_study,
+)
+from symbiont_lab.studies.learning.internal_learning_progress import (
+    run_internal_learning_progress_study,
+)
+from symbiont_lab.studies.learning.predictive_discovery import run_predictive_discovery_study
+from symbiont_lab.studies.learning.predictive_utility import run_predictive_utility_study
+from symbiont_lab.studies.learning.private_model_adaptation import (
+    run_private_model_adaptation_study,
+)
+from symbiont_lab.studies.learning.private_model_controls import run_private_model_controls_study
+from symbiont_lab.studies.learning.private_model_regime_shift import (
+    run_private_model_symmetric_regime_study,
+)
+from symbiont_lab.studies.learning.private_model_utility import run_private_model_utility_study
+from symbiont_lab.studies.learning.replay_efficiency import run_replay_efficiency_study
+from symbiont_lab.studies.learning.replay_pressure_curve import run_replay_pressure_curve_study
+from symbiont_lab.studies.learning.structural_producer_fairness import (
+    run_structural_producer_fairness_study,
+)
+from symbiont_lab.studies.learning.structured_causal_experience import (
+    run_structured_causal_experience_study,
+)
+from symbiont_lab.studies.learning.structured_causal_generalization import (
+    run_structured_causal_generalization_study,
+)
+from symbiont_lab.studies.learning.structured_communication_characterization import (
+    run_structured_communication_characterization,
+)
+from symbiont_lab.studies.learning.temporal_private_model_controls import (
+    run_temporal_private_model_controls_study,
+)
+from symbiont_lab.studies.longitudinal_population_ecology import (
+    run_longitudinal_population_ecology_study,
+)
+from symbiont_lab.studies.observability.population_communication import (
+    run_population_communication_study,
+)
 from symbiont_lab.studies.perception.autonomous_selection import (
     run_autonomous_sensory_selection_study,
-    run_sensory_regime_reversal_study,
-    run_sensory_null_selection_study,
     run_experience_conditioned_phenotype_study,
+    run_sensory_null_selection_study,
+    run_sensory_regime_reversal_study,
 )
 from symbiont_lab.studies.perception.sensory_specialisation import (
-    run_identity_equivalence_study,
     run_adaptive_delta_discovery_study,
-    run_temporal_scale_specialisation_study,
-    run_modality_specialisation_study,
     run_duplication_divergence_study,
-    run_sensory_ablation_study,
+    run_identity_equivalence_study,
+    run_modality_specialisation_study,
     run_multisource_specialisation_study,
     run_same_world_phenotype_divergence_study,
+    run_sensory_ablation_study,
+    run_temporal_scale_specialisation_study,
 )
+from symbiont_lab.studies.world.genesis_viability import run_genesis_viability_characterization
 
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
@@ -82,6 +138,7 @@ def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
     if not args and "base_spec" not in kwargs:
         raise ValueError("campaign.comparative requires base_spec")
     from symbiont_lab.studies.campaigns.comparative import run_comparative_study as implementation
+
     return implementation(*args, **kwargs)
 
 

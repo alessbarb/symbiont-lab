@@ -4,6 +4,7 @@ No real fields/resources exist yet (deferred to W2's Genesis ground truth).
 This only exercises ObservableSource -> WorldObservation end to end with a
 single synthetic, opaque signal: local occupancy density around a body.
 """
+
 from __future__ import annotations
 
 from hashlib import sha256

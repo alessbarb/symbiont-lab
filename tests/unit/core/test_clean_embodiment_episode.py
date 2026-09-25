@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import pytest
+from symbiont.core.body import create_standard_body
+from symbiont.core.individual import create_individual
 
 from symbiont.actuation.competence import CompetenceEvidence, MotorCompetence
-from symbiont.core.body import create_standard_body
 from symbiont.core.embodiment import EmbodimentState
-from symbiont.core.individual import create_individual
 
 
 def test_clean_individual_session_and_episode_share_identity() -> None:
@@ -130,7 +130,6 @@ def test_suspended_clean_episode_cannot_execute_physics_or_cognition() -> None:
     assert ind.embodiment_tick == embodiment_tick
 
 
-
 def test_clean_transplant_keeps_general_competence_but_drops_execution_authority() -> None:
     ind = create_individual(
         "sym.transfer",
@@ -179,14 +178,8 @@ def test_clean_transplant_keeps_general_competence_but_drops_execution_authority
     retained = ind.symbiont.competence_library.get("competence.transfer")
     assert retained is competence
     assert retained.effect_id is None
-    assert ind.symbiont.competence_execution_bindings.get(
-        "competence.transfer"
-    ) is None
-    assert (
-        ind.embodiment.execution_bindings
-        is ind.symbiont.competence_execution_bindings
-    )
-
+    assert ind.symbiont.competence_execution_bindings.get("competence.transfer") is None
+    assert ind.embodiment.execution_bindings is ind.symbiont.competence_execution_bindings
 
 
 def test_clean_return_to_same_body_gets_same_body_hypothesis_prior() -> None:
@@ -215,10 +208,7 @@ def test_clean_return_to_same_body_gets_same_body_hypothesis_prior() -> None:
     assert ind.body_id == "body.return.a"
     assert ind.embodiment.prior.relation == "same-body"
     assert ind.embodiment.prior.source_body_id == "body.return.a"
-    assert (
-        ind.embodiment.prior.source_embodiment_id
-        == original_episode_id
-    )
+    assert ind.embodiment.prior.source_embodiment_id == original_episode_id
     assert ind.embodiment.prior.checkpoint()["authority"] == "hypothesis_only"
     assert ind.symbiont.body_schema.boundary_confidence == 0.0
     assert ind.symbiont.competence_execution_bindings.items == ()

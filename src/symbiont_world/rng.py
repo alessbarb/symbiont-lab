@@ -6,10 +6,11 @@ docs/design/symbiont-world-v1.md §2: symbiont_world imports nothing.
 Independent namespacing keeps world randomness from perturbing the
 existing same-seed reproducibility of synthetic experiments (§3, inv. 2).
 """
+
 from __future__ import annotations
 
-from hashlib import sha256
 import random
+from hashlib import sha256
 
 
 def derive_world_seed(seed: int, namespace: str) -> int:

@@ -1,4 +1,5 @@
 """Compare the recurrent shadow challenger with a transparent linear control."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -49,7 +50,9 @@ class _LinearNlms:
     def predict(self) -> list[float]:
         if self._last is None:
             raise RuntimeError("observe must precede predict")
-        return [sum(weight * value for weight, value in zip(row, self._last)) for row in self._weights]
+        return [
+            sum(weight * value for weight, value in zip(row, self._last)) for row in self._weights
+        ]
 
     def learn(self, target: list[float]) -> None:
         prediction = self.predict()
@@ -62,17 +65,27 @@ class _LinearNlms:
 
 
 def _gain(
-    *, observations: list[list[float]], actions: list[list[float]], condition: str,
-    seed: int, reservoir: bool, reservoir_size: int,
+    *,
+    observations: list[list[float]],
+    actions: list[list[float]],
+    condition: str,
+    seed: int,
+    reservoir: bool,
+    reservoir_size: int,
 ) -> float:
     conditioned = _condition_actions(actions, condition=condition, seed=seed + 31_337)
     input_dim = len(observations[0]) + len(conditioned[0])
     model = (
         SparseEchoStateRegressor(
-            input_dim=input_dim, output_dim=len(observations[0]),
-            reservoir_size=reservoir_size, connectivity=0.15,
-            spectral_scale=0.85, leak_rate=0.35, learning_rate=0.2,
-            seed=seed, mechanism_id=f"embodied-comparison-{condition}",
+            input_dim=input_dim,
+            output_dim=len(observations[0]),
+            reservoir_size=reservoir_size,
+            connectivity=0.15,
+            spectral_scale=0.85,
+            leak_rate=0.35,
+            learning_rate=0.2,
+            seed=seed,
+            mechanism_id=f"embodied-comparison-{condition}",
         )
         if reservoir
         else _LinearNlms(input_dim, len(observations[0]))
@@ -95,7 +108,10 @@ def _gain(
 
 def run_embodied_model_comparison(
     seeds: Iterable[int] = (101, 127, 149),
-    *, ticks: int = 320, physics_substeps_per_tick: int = 2, reservoir_size: int = 32,
+    *,
+    ticks: int = 320,
+    physics_substeps_per_tick: int = 2,
+    reservoir_size: int = 32,
 ) -> EmbodiedModelComparisonStudy:
     seed_list = tuple(seeds)
     if not seed_list:
@@ -109,12 +125,20 @@ def run_embodied_model_comparison(
             ModelComparisonCondition(
                 condition=condition,
                 reservoir_gain=_gain(
-                    observations=observations, actions=actions, condition=condition,
-                    seed=seed, reservoir=True, reservoir_size=reservoir_size,
+                    observations=observations,
+                    actions=actions,
+                    condition=condition,
+                    seed=seed,
+                    reservoir=True,
+                    reservoir_size=reservoir_size,
                 ),
                 linear_gain=_gain(
-                    observations=observations, actions=actions, condition=condition,
-                    seed=seed, reservoir=False, reservoir_size=reservoir_size,
+                    observations=observations,
+                    actions=actions,
+                    condition=condition,
+                    seed=seed,
+                    reservoir=False,
+                    reservoir_size=reservoir_size,
                 ),
                 reservoir_minus_linear=0.0,
             )
@@ -122,20 +146,30 @@ def run_embodied_model_comparison(
         )
         conditions = tuple(
             ModelComparisonCondition(
-                item.condition, item.reservoir_gain, item.linear_gain,
+                item.condition,
+                item.reservoir_gain,
+                item.linear_gain,
                 item.reservoir_gain - item.linear_gain,
             )
             for item in conditions
         )
         causal = next(item for item in conditions if item.condition == "causal")
-        results.append(ModelComparisonSeedResult(
-            seed=seed, conditions=conditions,
-            recurrent_beats_linear_causally=causal.reservoir_gain > causal.linear_gain,
-        ))
+        results.append(
+            ModelComparisonSeedResult(
+                seed=seed,
+                conditions=conditions,
+                recurrent_beats_linear_causally=causal.reservoir_gain > causal.linear_gain,
+            )
+        )
     return EmbodiedModelComparisonStudy(
-        seeds=seed_list, ticks=ticks, physics_substeps_per_tick=physics_substeps_per_tick,
-        reservoir_size=reservoir_size, per_seed=tuple(results),
-        recurrent_beats_linear_all_seeds=all(item.recurrent_beats_linear_causally for item in results),
+        seeds=seed_list,
+        ticks=ticks,
+        physics_substeps_per_tick=physics_substeps_per_tick,
+        reservoir_size=reservoir_size,
+        per_seed=tuple(results),
+        recurrent_beats_linear_all_seeds=all(
+            item.recurrent_beats_linear_causally for item in results
+        ),
     )
 
 

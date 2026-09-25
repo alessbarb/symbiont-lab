@@ -53,7 +53,9 @@ def test_policy_checkpoint_replays_and_silence_is_allowed() -> None:
 
 
 def test_new_runtime_starts_without_acquired_symbols() -> None:
-    child = ModeledOrganismRuntime(organism_id="child", bootstrap_semantic_senses=False, symbol_policy_seed=7)
+    child = ModeledOrganismRuntime(
+        organism_id="child", bootstrap_semantic_senses=False, symbol_policy_seed=7
+    )
     assert child.symbol_grounding_ledger.exposures == ()
     assert child.symbol_grounding_ledger.associations == ()
     assert child.symbol_policy.organism_id == "child"
@@ -63,7 +65,9 @@ def test_choose_is_unaffected_by_reinforce() -> None:
     """Existing choose() must stay a pure seeded hash; reinforce() only affects choose_adaptive()."""
     policy = SymbolPolicy("organism", seed=101)
     before = policy.choose(local_context_token="context.0", neighbor_ids=("receiver",), tick=0)
-    policy.reinforce(local_context_token="context.0", symbol_id=default_symbol_space()[0], success=True, tick=1)
+    policy.reinforce(
+        local_context_token="context.0", symbol_id=default_symbol_space()[0], success=True, tick=1
+    )
     after = policy.choose(local_context_token="context.0", neighbor_ids=("receiver",), tick=0)
     assert before.selected_symbol_id == after.selected_symbol_id
     assert before.selected_action == after.selected_action
@@ -73,7 +77,9 @@ def test_choose_adaptive_matches_choose_before_any_reinforcement() -> None:
     policy = SymbolPolicy("organism", seed=101)
     plain = policy.choose(local_context_token="context.0", neighbor_ids=("receiver",), tick=0)
     adaptive_policy = SymbolPolicy("organism", seed=101)
-    adaptive = adaptive_policy.choose_adaptive(local_context_token="context.0", neighbor_ids=("receiver",), tick=0)
+    adaptive = adaptive_policy.choose_adaptive(
+        local_context_token="context.0", neighbor_ids=("receiver",), tick=0
+    )
     assert plain.selected_symbol_id == adaptive.selected_symbol_id
     assert plain.selected_action == adaptive.selected_action
 
@@ -86,8 +92,12 @@ def test_reinforce_biases_choose_adaptive_toward_rewarded_symbol() -> None:
     for tick in range(1, 40):
         policy.reinforce(local_context_token="context.0", symbol_id=target, success=True, tick=tick)
         for decoy in other[:3]:
-            policy.reinforce(local_context_token="context.0", symbol_id=decoy, success=False, tick=tick)
-    decision = policy.choose_adaptive(local_context_token="context.0", neighbor_ids=("receiver",), tick=1000)
+            policy.reinforce(
+                local_context_token="context.0", symbol_id=decoy, success=False, tick=tick
+            )
+    decision = policy.choose_adaptive(
+        local_context_token="context.0", neighbor_ids=("receiver",), tick=1000
+    )
     assert decision.selected_action is SymbolAction.EMIT
     assert decision.selected_symbol_id == target
 
@@ -103,8 +113,12 @@ def test_emission_bias_eviction_is_bounded() -> None:
 
 def test_symbol_policy_checkpoint_v2_roundtrip_preserves_bias() -> None:
     policy = SymbolPolicy("organism", seed=5)
-    policy.reinforce(local_context_token="context.0", symbol_id=default_symbol_space()[0], success=True, tick=1)
-    policy.reinforce(local_context_token="context.0", symbol_id=default_symbol_space()[1], success=False, tick=2)
+    policy.reinforce(
+        local_context_token="context.0", symbol_id=default_symbol_space()[0], success=True, tick=1
+    )
+    policy.reinforce(
+        local_context_token="context.0", symbol_id=default_symbol_space()[1], success=False, tick=2
+    )
     checkpoint = policy.checkpoint()
     assert checkpoint["schema_version"] == 2
     restored = SymbolPolicy.restore(checkpoint, organism_id="organism")
@@ -134,28 +148,52 @@ def test_symbol_policy_rejects_unknown_schema_version() -> None:
 
 def test_symbol_reinforcement_signal_validates_fields() -> None:
     signal = SymbolReinforcementSignal(
-        symbol_id=default_symbol_space()[0], context_token="context.0", outcome_token="outcome.0",
-        sender_id="a", receiver_id="b", tick=1, success=True,
+        symbol_id=default_symbol_space()[0],
+        context_token="context.0",
+        outcome_token="outcome.0",
+        sender_id="a",
+        receiver_id="b",
+        tick=1,
+        success=True,
     )
     assert signal.success is True
     with pytest.raises(ValueError):
         SymbolReinforcementSignal(
-            symbol_id=default_symbol_space()[0], context_token="context.0", outcome_token="outcome.0",
-            sender_id="a", receiver_id="b", tick=-1, success=True,
+            symbol_id=default_symbol_space()[0],
+            context_token="context.0",
+            outcome_token="outcome.0",
+            sender_id="a",
+            receiver_id="b",
+            tick=-1,
+            success=True,
         )
 
 
 def test_report_symbol_reinforcement_updates_sender_policy() -> None:
-    sender = ModeledOrganismRuntime(organism_id="sender", bootstrap_semantic_senses=False, symbol_policy_seed=11)
+    sender = ModeledOrganismRuntime(
+        organism_id="sender", bootstrap_semantic_senses=False, symbol_policy_seed=11
+    )
     symbol = sender.symbol_policy.symbol_space[0]
     signal = SymbolReinforcementSignal(
-        symbol_id=symbol, context_token="context.0", outcome_token="outcome.0",
-        sender_id="sender", receiver_id="receiver", tick=1, success=True,
+        symbol_id=symbol,
+        context_token="context.0",
+        outcome_token="outcome.0",
+        sender_id="sender",
+        receiver_id="receiver",
+        tick=1,
+        success=True,
     )
     sender.report_symbol_reinforcement(signal)
     assert sender.symbol_policy._emission_bias[("context.0", symbol)] == (1, 0)
     with pytest.raises(ValueError):
-        sender.report_symbol_reinforcement(SymbolReinforcementSignal(
-            symbol_id=symbol, context_token="context.0", outcome_token="outcome.0",
-            sender_id="not-sender", receiver_id="receiver", tick=1, success=True,
-        ))
+        sender.report_symbol_reinforcement(
+            SymbolReinforcementSignal(
+                symbol_id=symbol,
+                context_token="context.0",
+                outcome_token="outcome.0",
+                sender_id="not-sender",
+                receiver_id="receiver",
+                tick=1,
+                success=True,
+            )
+        )

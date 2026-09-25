@@ -1,5 +1,4 @@
 import pytest
-
 from symbiont.core.agent import Agent
 from symbiont.core.beliefs import BeliefModel
 from symbiont.core.collective import CollectiveMemory

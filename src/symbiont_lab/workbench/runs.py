@@ -1,9 +1,10 @@
 """Application-layer state and launch orchestration for the Symbiont Lab workbench."""
+
 from __future__ import annotations
 
+import time
 from collections import deque
 from threading import Lock, Thread
-import time
 from typing import Any
 
 from symbiont.simulation import SimulationSnapshot, run_simulation
@@ -13,8 +14,6 @@ from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
 from symbiont_lab.studies.campaigns.campaign import analyze_campaign
 from symbiont_lab.studies.campaigns.comparative import StudyResult, run_comparative_study
 from symbiont_lab.studies.campaigns.interpretation import StudyInterpretation, interpret_study
-
-
 
 
 class RunCoordinator:
@@ -59,7 +58,9 @@ class ExperimentRunState:
         self.records: list[ExperimentRecord] = archive.recent(20) if archive else []
 
     def start(self, spec: ExperimentSpec | dict[str, Any]) -> bool:
-        normalized = spec if isinstance(spec, ExperimentSpec) else spec_from_payload(spec, self.spec)
+        normalized = (
+            spec if isinstance(spec, ExperimentSpec) else spec_from_payload(spec, self.spec)
+        )
         with self._lock:
             if self.running:
                 return False

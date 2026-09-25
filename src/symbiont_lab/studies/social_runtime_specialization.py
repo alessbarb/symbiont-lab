@@ -1,10 +1,12 @@
 """Evaluator-only bounded niche differentiation study for Milestone K."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
+
 from symbiont.core.social import SocialHabitat
 
 
@@ -39,8 +41,12 @@ def run_social_runtime_specialization_study(*, ticks: int = 12) -> SocialRuntime
     habitat.admit("member-a")
     habitat.admit("member-b")
     runtimes = [
-        OrganismRuntime(organism_id="member-a", social_habitat=habitat, social_exchange_quantum=0.5),
-        OrganismRuntime(organism_id="member-b", social_habitat=habitat, social_exchange_quantum=0.5),
+        OrganismRuntime(
+            organism_id="member-a", social_habitat=habitat, social_exchange_quantum=0.5
+        ),
+        OrganismRuntime(
+            organism_id="member-b", social_habitat=habitat, social_exchange_quantum=0.5
+        ),
     ]
     sequences: dict[str, list[str]] = {runtime.organism_id: [] for runtime in runtimes}
     post_sequences: dict[str, list[str]] = {runtime.organism_id: [] for runtime in runtimes}
@@ -54,10 +60,14 @@ def run_social_runtime_specialization_study(*, ticks: int = 12) -> SocialRuntime
             checkpoints = [runtime.checkpoint() for runtime in runtimes]
             replay_payloads = (checkpoints[0], checkpoints[1])
             replay_habitat_payload = habitat.checkpoint()
-            restored = [OrganismRuntime.from_checkpoint(payload, social_habitat=habitat)
-                        for payload in checkpoints]
-            replay_equal = all(left.social_resource_ledger.evidence == right.social_resource_ledger.evidence
-                               for left, right in zip(runtimes, restored))
+            restored = [
+                OrganismRuntime.from_checkpoint(payload, social_habitat=habitat)
+                for payload in checkpoints
+            ]
+            replay_equal = all(
+                left.social_resource_ledger.evidence == right.social_resource_ledger.evidence
+                for left, right in zip(runtimes, restored)
+            )
         for runtime in runtimes:
             outcome = runtime.autonomous_social_step()
             if outcome is not None and outcome.granted > 0.0:
@@ -76,7 +86,9 @@ def run_social_runtime_specialization_study(*, ticks: int = 12) -> SocialRuntime
         OrganismRuntime.from_checkpoint(payload, social_habitat=replay_habitat)
         for payload in replay_payloads
     ]
-    replay_sequences: dict[str, list[str]] = {runtime.organism_id: [] for runtime in replay_runtimes}
+    replay_sequences: dict[str, list[str]] = {
+        runtime.organism_id: [] for runtime in replay_runtimes
+    }
     for _ in range(replay_start, ticks):
         for runtime in replay_runtimes:
             outcome = runtime.autonomous_social_step()

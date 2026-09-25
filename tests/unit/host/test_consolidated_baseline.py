@@ -30,7 +30,9 @@ def test_constant_signal_gets_the_constant_scale_sentinel():
 
 def test_high_mean_low_variance_signal_does_not_saturate_center():
     moderate = consolidate_baseline(CapabilityBaseline(count=20, mean=1000.0, variance=25.0))
-    extreme = consolidate_baseline(CapabilityBaseline(count=20, mean=1_000_000_000.0, variance=25.0))
+    extreme = consolidate_baseline(
+        CapabilityBaseline(count=20, mean=1_000_000_000.0, variance=25.0)
+    )
     assert moderate.center_class != extreme.center_class
 
 

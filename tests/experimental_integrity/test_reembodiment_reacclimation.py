@@ -50,10 +50,7 @@ def _checkpoint(
                 ],
             },
             "causal_evidence": {
-                "evidence": [
-                    {"evidence_id": f"e.{index}"}
-                    for index in range(tick)
-                ],
+                "evidence": [{"evidence_id": f"e.{index}"} for index in range(tick)],
             },
         },
         "actuation": {

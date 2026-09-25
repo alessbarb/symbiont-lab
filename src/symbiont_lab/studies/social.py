@@ -1,9 +1,11 @@
 """Evaluator-only emergence scenarios for Milestone K."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
 from symbiont.core.interactions import EcologicalResourcePool
+
 from symbiont.core.social import RelationValence, SocialHabitat
 
 
@@ -35,9 +37,15 @@ def run_social_study(*, resource: float = 1.0, request: float = 0.8) -> SocialSt
     habitat.release("b")
     checkpoint = habitat.checkpoint()
     restored = SocialHabitat.from_checkpoint(checkpoint)
-    return SocialStudy(exchange.granted, tuple(item.granted for item in competition),
-                       positive, negative, habitat.members, restored.members,
-                       restored.engine.pool.snapshot()["food"])
+    return SocialStudy(
+        exchange.granted,
+        tuple(item.granted for item in competition),
+        positive,
+        negative,
+        habitat.members,
+        restored.members,
+        restored.engine.pool.snapshot()["food"],
+    )
 
 
 __all__ = ["SocialStudy", "run_social_study"]

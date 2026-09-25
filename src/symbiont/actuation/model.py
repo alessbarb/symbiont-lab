@@ -1,4 +1,5 @@
 """Predictive, controllability and agency views over canonical causal evidence."""
+
 from __future__ import annotations
 
 import hashlib
@@ -71,9 +72,9 @@ class CompetenceEffectModel:
         )
         total = sum(counter.values())
         confidence = support / max(1, total)
-        material = (
-            f"{competence_id}|{context_id or '*'}|{effect_id}|{support}|{total}"
-        ).encode("utf-8")
+        material = (f"{competence_id}|{context_id or '*'}|{effect_id}|{support}|{total}").encode(
+            "utf-8"
+        )
         return EffectPrediction(
             prediction_id="prediction." + hashlib.sha256(material).hexdigest()[:24],
             competence_id=competence_id,
@@ -120,11 +121,7 @@ class ControllabilityModel:
         )
         reliability = action_hits / action_n if action_n else 0.0
         counterfactual_rate = (other_hits / other_n) if other_n else None
-        advantage = (
-            reliability - counterfactual_rate
-            if counterfactual_rate is not None
-            else None
-        )
+        advantage = reliability - counterfactual_rate if counterfactual_rate is not None else None
         if action_n == 0:
             confidence = 0.0
         elif other_n == 0:
@@ -237,12 +234,7 @@ class AgencyModel:
             0.0,
             min(
                 1.0,
-                support_factor
-                * (
-                    0.45 * temporal
-                    + 0.35 * specificity
-                    + 0.20 * predictive
-                ),
+                support_factor * (0.45 * temporal + 0.35 * specificity + 0.20 * predictive),
             ),
         )
         estimate = AgencyEstimate(
@@ -302,4 +294,3 @@ class AgencyModel:
                 key=lambda item: (item.effect_id, item.competence_id, item.context_id or ""),
             )
         )
-

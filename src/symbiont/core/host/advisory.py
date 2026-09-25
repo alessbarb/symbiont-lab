@@ -9,7 +9,16 @@ from ...host.checkpoint import load_checkpoint_file, save_checkpoint_atomic
 from ...host.drift import DriftKind
 from ..orchestration.runtime import RuntimeTickResult
 
-_BANNED_WORDS = ("threat", "malicious", "attack", "infected", "malware", "virus", "hack", "compromise")
+_BANNED_WORDS = (
+    "threat",
+    "malicious",
+    "attack",
+    "infected",
+    "malware",
+    "virus",
+    "hack",
+    "compromise",
+)
 
 
 class AdvisoryConsentRequiredError(RuntimeError):
@@ -55,7 +64,9 @@ def _join_clauses(clauses: list[str]) -> str:
     return ", ".join(clauses[:-1]) + f" and {clauses[-1]}"
 
 
-def _evaluate_signals(result: RuntimeTickResult, *, uncertainty_threshold: float) -> tuple[DefensiveAdvisory, ...]:
+def _evaluate_signals(
+    result: RuntimeTickResult, *, uncertainty_threshold: float
+) -> tuple[DefensiveAdvisory, ...]:
     narrative_by_capability = {entry.capability_id: entry for entry in result.narrative}
     advisories: list[DefensiveAdvisory] = []
 
@@ -63,11 +74,19 @@ def _evaluate_signals(result: RuntimeTickResult, *, uncertainty_threshold: float
         if observation.kind != DriftKind.REGIME_SHIFT:
             continue
 
-        signals = [AdvisorySignal(kind="persistent_deviation", detail=f"{capability_id} confirmed a regime shift")]
+        signals = [
+            AdvisorySignal(
+                kind="persistent_deviation", detail=f"{capability_id} confirmed a regime shift"
+            )
+        ]
         clauses = ["a persistent deviation"]
 
         entry = narrative_by_capability.get(capability_id)
-        if entry is not None and entry.uncertainty != float("inf") and entry.uncertainty > uncertainty_threshold:
+        if (
+            entry is not None
+            and entry.uncertainty != float("inf")
+            and entry.uncertainty > uncertainty_threshold
+        ):
             signals.append(
                 AdvisorySignal(
                     kind="unusual_activity",
@@ -88,9 +107,16 @@ def _evaluate_signals(result: RuntimeTickResult, *, uncertainty_threshold: float
         if len(signals) < 2:
             continue  # persistent deviation alone never fires an advisory
 
-        summary = f"{capability_id} merits human review because it combines {_join_clauses(clauses)}."
+        summary = (
+            f"{capability_id} merits human review because it combines {_join_clauses(clauses)}."
+        )
         advisories.append(
-            DefensiveAdvisory(tick=result.tick, capability_id=capability_id, signals=tuple(signals), summary=summary)
+            DefensiveAdvisory(
+                tick=result.tick,
+                capability_id=capability_id,
+                signals=tuple(signals),
+                summary=summary,
+            )
         )
 
     return tuple(advisories)
@@ -147,7 +173,10 @@ class DefensiveAdvisor:
             )
 
         now = self._clock()
-        if self._last_advisory_at is not None and (now - self._last_advisory_at) < self._min_seconds_between_advisories:
+        if (
+            self._last_advisory_at is not None
+            and (now - self._last_advisory_at) < self._min_seconds_between_advisories
+        ):
             return ()
 
         advisories = _evaluate_signals(result, uncertainty_threshold=self._uncertainty_threshold)

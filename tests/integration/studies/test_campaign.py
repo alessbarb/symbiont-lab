@@ -66,8 +66,12 @@ def test_campaign_repeated_low_confidence_condition_requests_more_evidence():
 def test_campaign_stops_escalating_after_three_weak_non_discriminating_studies():
     weak = "No strong paired effect is established yet; treat the current result as exploratory."
     root = _record("root", parent=None, baseline=0.0, variant=0.05, confidence=0.3, summary=weak)
-    middle = _record("middle", parent="root", baseline=0.0, variant=0.10, confidence=0.3, summary=weak)
-    latest = _record("latest", parent="middle", baseline=0.0, variant=0.15, confidence=0.3, summary=weak)
+    middle = _record(
+        "middle", parent="root", baseline=0.0, variant=0.10, confidence=0.3, summary=weak
+    )
+    latest = _record(
+        "latest", parent="middle", baseline=0.0, variant=0.15, confidence=0.3, summary=weak
+    )
 
     assessment = analyze_campaign([latest, middle, root])
 

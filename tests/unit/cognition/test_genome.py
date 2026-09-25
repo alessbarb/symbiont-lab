@@ -4,10 +4,13 @@ import copy
 
 import pytest
 
-from symbiont.genetics.genome import GenomeCodec, GenomeError
-from symbiont.genetics.genome import parse_kernel_compatibility, satisfies_kernel_compatibility
 from symbiont.cognition.limits import KernelLimits
-
+from symbiont.genetics.genome import (
+    GenomeCodec,
+    GenomeError,
+    parse_kernel_compatibility,
+    satisfies_kernel_compatibility,
+)
 
 VALID_PAYLOAD = {
     "schema_version": 2,
@@ -23,7 +26,12 @@ VALID_PAYLOAD = {
     "plasticity": {
         "learning_rate": {"baseline": 0.02, "min": 0.001, "max": 0.08, "adaptation_rate": 0.002},
         "eligibility_decay": 0.92,
-        "structural_plasticity": {"baseline": 0.5, "min": 0.05, "max": 1.0, "adaptation_rate": 0.01},
+        "structural_plasticity": {
+            "baseline": 0.5,
+            "min": 0.05,
+            "max": 1.0,
+            "adaptation_rate": 0.01,
+        },
     },
     "regulation": {
         "uncertainty_gain": 0.5,
@@ -95,12 +103,15 @@ def test_load_rejects_malformed_genome_id(bad_id):
         load(payload)
 
 
-@pytest.mark.parametrize("field,value", [
-    ("soft_node_budget", 0),
-    ("soft_edge_budget", 0),
-    ("sense_node_budget", 0),
-    ("consolidation_interval_ticks", 0),
-])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("soft_node_budget", 0),
+        ("soft_edge_budget", 0),
+        ("sense_node_budget", 0),
+        ("consolidation_interval_ticks", 0),
+    ],
+)
 def test_load_rejects_invalid_development_fields(field, value):
     payload = copy.deepcopy(VALID_PAYLOAD)
     payload["development"][field] = value

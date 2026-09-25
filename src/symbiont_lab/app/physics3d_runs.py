@@ -1,24 +1,23 @@
 """Persistent run/organism/body catalog for the Physics3D workbench."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import json
-from pathlib import Path
 import shutil
 import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from symbiont_lab.physics3d.bodies import BodyRegistry, DEFAULT_BODY_REGISTRY
+from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyRegistry
 from symbiont_lab.physics3d.engine import (
-    DEFAULT_BODY_FILE,
-    LEGACY_BODY_FILE,
     DEFAULT_STATE_DIR,
     DEFAULT_SYMBIONT_FILE,
+    LEGACY_BODY_FILE,
 )
 from symbiont_lab.physics3d.persistence import read_symbiont_bundle_runtime
 from symbiont_lab.physics3d.reembodiment import lifecycle_summary
-
 
 DEFAULT_LAB_STATE_ROOT = DEFAULT_STATE_DIR.parent
 
@@ -131,21 +130,13 @@ class Physics3DRunStore:
         registry = payload.get("private_model_registry", {})
         genome = payload.get("genome", {})
         living_body = payload.get("living_body", {})
-        vital_state = (
-            living_body.get("vital_state")
-            if isinstance(living_body, dict)
-            else None
-        )
+        vital_state = living_body.get("vital_state") if isinstance(living_body, dict) else None
         lifecycle = lifecycle_summary(payload)
         current = lifecycle.get("current", {})
         summaries = payload.get("embodiment_epoch_summaries")
         summaries = summaries if isinstance(summaries, list) else []
         archive = payload.get("embodiment_archive")
-        memories = (
-            archive.get("body_memories")
-            if isinstance(archive, dict)
-            else []
-        )
+        memories = archive.get("body_memories") if isinstance(archive, dict) else []
         memories = memories if isinstance(memories, list) else []
         known_contracts = {
             str(item.get("contract_fingerprint"))
@@ -171,9 +162,7 @@ class Physics3DRunStore:
             "genome_id": genome.get("genome_id") if isinstance(genome, dict) else None,
             "vital_state": vital_state,
             "body_age_ticks": (
-                int(living_body.get("age_ticks") or 0)
-                if isinstance(living_body, dict)
-                else 0
+                int(living_body.get("age_ticks") or 0) if isinstance(living_body, dict) else 0
             ),
             "body_senescence": (
                 float(living_body.get("senescence") or 0.0)
@@ -187,11 +176,7 @@ class Physics3DRunStore:
             "embodiment_epoch": lifecycle.get("epoch", 1),
             "embodiment_history_count": lifecycle.get("history_count", 0),
             "body_id": current.get("body_id") if isinstance(current, dict) else None,
-            "embodiment_id": (
-                current.get("embodiment_id")
-                if isinstance(current, dict)
-                else None
-            ),
+            "embodiment_id": (current.get("embodiment_id") if isinstance(current, dict) else None),
             "body_kind": current.get("body_kind") if isinstance(current, dict) else None,
             "receptor_count": current.get("receptor_count") if isinstance(current, dict) else None,
             "effector_count": current.get("effector_count") if isinstance(current, dict) else None,
@@ -218,15 +203,20 @@ class Physics3DRunStore:
 
         if self._include_legacy_default and DEFAULT_SYMBIONT_FILE.is_file():
             summary = self._bundle_summary(DEFAULT_SYMBIONT_FILE)
-            items.append({
-                **summary,
-                "ref": "legacy-default",
-                "legacy": True,
-                "bundle_available": True,
-                "body_kind": "anthropomorphic-v4",
-                "last_body_ref": "legacy-default" if LEGACY_BODY_FILE.is_file() else None,
-            })
-        items.sort(key=lambda item: str(item.get("updated_at") or item.get("created_at") or ""), reverse=True)
+            items.append(
+                {
+                    **summary,
+                    "ref": "legacy-default",
+                    "legacy": True,
+                    "bundle_available": True,
+                    "body_kind": "anthropomorphic-v4",
+                    "last_body_ref": "legacy-default" if LEGACY_BODY_FILE.is_file() else None,
+                }
+            )
+        items.sort(
+            key=lambda item: str(item.get("updated_at") or item.get("created_at") or ""),
+            reverse=True,
+        )
         return items
 
     def runs(self, limit: int = 20) -> list[dict[str, Any]]:
@@ -257,15 +247,18 @@ class Physics3DRunStore:
             body_destination = body_dir / "body.json"
             if not body_destination.exists():
                 shutil.copy2(LEGACY_BODY_FILE, body_destination)
-            _write_json(body_dir / "metadata.json", {
-                "ref": last_body_ref,
-                "body_kind": "anthropomorphic-v4",
-                "created_at": _now(),
-                "updated_at": _now(),
-                "migrated_from": str(LEGACY_BODY_FILE),
-                "organism_ref": ref,
-                "checkpoint_available": True,
-            })
+            _write_json(
+                body_dir / "metadata.json",
+                {
+                    "ref": last_body_ref,
+                    "body_kind": "anthropomorphic-v4",
+                    "created_at": _now(),
+                    "updated_at": _now(),
+                    "migrated_from": str(LEGACY_BODY_FILE),
+                    "organism_ref": ref,
+                    "checkpoint_available": True,
+                },
+            )
         descriptor = self.body_registry.get("anthropomorphic-v6")
         metadata = {
             **summary,
@@ -314,9 +307,7 @@ class Physics3DRunStore:
             previous_kind = str(summary.get("body_kind") or metadata.get("body_kind") or body_kind)
             if body_mode == "resume":
                 if summary.get("vital_state") == "dead":
-                    raise ValueError(
-                        "previous body is dead; select a fresh body for re-embodiment"
-                    )
+                    raise ValueError("previous body is dead; select a fresh body for re-embodiment")
                 if previous_kind != body_kind:
                     raise ValueError("resume requires the same body kind")
 
@@ -348,10 +339,10 @@ class Physics3DRunStore:
         if organism_mode == "existing":
             meta = self._organism_metadata(organism_ref)
             previous_kind = meta.get("body_kind")
-            same_contract = (
-                meta.get("receptor_count") in (None, descriptor.receptor_count)
-                and meta.get("effector_count") in (None, descriptor.effector_count)
-            )
+            same_contract = meta.get("receptor_count") in (
+                None,
+                descriptor.receptor_count,
+            ) and meta.get("effector_count") in (None, descriptor.effector_count)
             compatibility = "same-contract" if same_contract else "reembodiment"
 
         launch = Physics3DLaunchSpec(
@@ -387,27 +378,29 @@ class Physics3DRunStore:
         manifest["status"] = "running"
         _write_json(path, manifest)
 
-    def finalize(self, launch: Physics3DLaunchSpec, *, status: str, error: str | None = None) -> None:
+    def finalize(
+        self, launch: Physics3DLaunchSpec, *, status: str, error: str | None = None
+    ) -> None:
         descriptor = self.body_registry.get(launch.body_kind)
         run_manifest_path = self.runs_dir / launch.run_id / "manifest.json"
         manifest = _read_json(run_manifest_path)
         summary = self._bundle_summary(launch.symbiont_file)
-        manifest.update({
-            "status": status,
-            "ended_at": _now(),
-            "error": error,
-            "end_tick": summary.get("tick"),
-            "organism_id": summary.get("organism_id"),
-        })
+        manifest.update(
+            {
+                "status": status,
+                "ended_at": _now(),
+                "error": error,
+                "end_tick": summary.get("tick"),
+                "organism_id": summary.get("organism_id"),
+            }
+        )
         _write_json(run_manifest_path, manifest)
 
         organism_meta_path = self.organisms_dir / launch.organism_ref / "metadata.json"
         existing = _read_json(organism_meta_path)
         body_checkpoint_available = launch.body_file.is_file()
         persisted_body_kind = (
-            summary.get("body_kind")
-            or existing.get("body_kind")
-            or launch.body_kind
+            summary.get("body_kind") or existing.get("body_kind") or launch.body_kind
         )
         persisted_receptors = (
             summary.get("receptor_count")
@@ -427,9 +420,7 @@ class Physics3DRunStore:
             "updated_at": _now(),
             "body_kind": persisted_body_kind,
             "last_body_ref": (
-                launch.body_ref
-                if body_checkpoint_available
-                else existing.get("last_body_ref")
+                launch.body_ref if body_checkpoint_available else existing.get("last_body_ref")
             ),
             "last_run_id": launch.run_id,
             "receptor_count": persisted_receptors,
@@ -447,9 +438,7 @@ class Physics3DRunStore:
             "organism_ref": launch.organism_ref,
             "checkpoint_available": body_checkpoint_available,
             "vital_state": summary.get("vital_state"),
-            "resumable": bool(
-                body_checkpoint_available and summary.get("vital_state") != "dead"
-            ),
+            "resumable": bool(body_checkpoint_available and summary.get("vital_state") != "dead"),
         }
         body_meta.setdefault("created_at", manifest.get("started_at") or _now())
         _write_json(body_meta_path, body_meta)

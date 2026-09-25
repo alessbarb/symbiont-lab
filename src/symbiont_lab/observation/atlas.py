@@ -8,6 +8,7 @@ among several, not the definition of the Atlas. This module never touches
 `symbiont` objects directly and never fabricates a relation the snapshot
 does not evidence.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -62,9 +63,7 @@ def _topology_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
             continue
         node_id = str(item["id"])
         metadata = {
-            key: item[key]
-            for key in ("predictsNodeId", "bias", "tau")
-            if item.get(key) is not None
+            key: item[key] for key in ("predictsNodeId", "bias", "tau") if item.get(key) is not None
         }
         if isinstance(activation_values, Mapping) and node_id in activation_values:
             metadata["activation"] = activation_values[node_id]
@@ -93,16 +92,26 @@ def _topology_edges(snapshot: Mapping[str, Any]) -> list[AtlasEdge]:
             continue
         metadata = {
             key: item[key]
-            for key in ("weight", "plasticity", "delayTicks", "support", "ageTicks", "stableTicks", "lastUseTick")
+            for key in (
+                "weight",
+                "plasticity",
+                "delayTicks",
+                "support",
+                "ageTicks",
+                "stableTicks",
+                "lastUseTick",
+            )
             if item.get(key) is not None
         }
-        edges.append(AtlasEdge(
-            id=f"edge.topology.{source_id}.{target_id}",
-            source_id=str(source_id),
-            target_id=str(target_id),
-            kind=str(item.get("kind", "associated_with")),
-            metadata=metadata,
-        ))
+        edges.append(
+            AtlasEdge(
+                id=f"edge.topology.{source_id}.{target_id}",
+                source_id=str(source_id),
+                target_id=str(target_id),
+                kind=str(item.get("kind", "associated_with")),
+                metadata=metadata,
+            )
+        )
     return edges
 
 
@@ -151,8 +160,14 @@ def _motor_competence_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
         metadata = {
             key: item[key]
             for key in (
-                "controller_id", "effect_id", "maturity", "support", "failures",
-                "reproducibility", "controllability", "directional_consistency",
+                "controller_id",
+                "effect_id",
+                "maturity",
+                "support",
+                "failures",
+                "reproducibility",
+                "controllability",
+                "directional_consistency",
                 "parent_competence_ids",
             )
             if item.get(key) is not None
@@ -189,10 +204,18 @@ def _action_dimension_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
             continue
         metadata = {
             key: item[key]
-            for key in ("availability", "controllability", "confidence", "usage_count", "embodiment_bound")
+            for key in (
+                "availability",
+                "controllability",
+                "confidence",
+                "usage_count",
+                "embodiment_bound",
+            )
             if item.get(key) is not None
         }
-        nodes.append(AtlasNode(id=str(item["dimension_id"]), kind="action_dimension", metadata=metadata))
+        nodes.append(
+            AtlasNode(id=str(item["dimension_id"]), kind="action_dimension", metadata=metadata)
+        )
     return nodes
 
 
@@ -215,7 +238,13 @@ def _embodiment_binding_nodes_and_edges(
         node_id = f"binding.{competence_id}"
         metadata = {
             key: item[key]
-            for key in ("surface_fingerprint", "effect_id", "reliability", "controllability", "last_evidence_tick")
+            for key in (
+                "surface_fingerprint",
+                "effect_id",
+                "reliability",
+                "controllability",
+                "last_evidence_tick",
+            )
             if item.get(key) is not None
         }
         nodes.append(AtlasNode(id=node_id, kind="embodiment_binding", metadata=metadata))
@@ -225,13 +254,15 @@ def _embodiment_binding_nodes_and_edges(
                 evidence["confidence"] = item["reliability"]
             if item.get("last_evidence_tick") is not None:
                 evidence["last_tick"] = item["last_evidence_tick"]
-            edges.append(AtlasEdge(
-                id=f"edge.bound_to.{node_id}",
-                source_id=node_id,
-                target_id=competence_id,
-                kind="bound_to",
-                metadata={"evidence": evidence},
-            ))
+            edges.append(
+                AtlasEdge(
+                    id=f"edge.bound_to.{node_id}",
+                    source_id=node_id,
+                    target_id=competence_id,
+                    kind="bound_to",
+                    metadata={"evidence": evidence},
+                )
+            )
     return nodes, edges
 
 
@@ -255,17 +286,21 @@ def _competence_effect_edges(
             evidence["observations"] = item["support"]
         if item.get("reproducibility") is not None:
             evidence["confidence"] = item["reproducibility"]
-        edges.append(AtlasEdge(
-            id=f"edge.produces.{competence_id}.{effect_id}",
-            source_id=str(competence_id),
-            target_id=str(effect_id),
-            kind="produces",
-            metadata={"evidence": evidence},
-        ))
+        edges.append(
+            AtlasEdge(
+                id=f"edge.produces.{competence_id}.{effect_id}",
+                source_id=str(competence_id),
+                target_id=str(effect_id),
+                kind="produces",
+                metadata={"evidence": evidence},
+            )
+        )
     return edges
 
 
-def _controller_nodes_and_edges(snapshot: Mapping[str, Any]) -> tuple[list[AtlasNode], list[AtlasEdge]]:
+def _controller_nodes_and_edges(
+    snapshot: Mapping[str, Any],
+) -> tuple[list[AtlasNode], list[AtlasEdge]]:
     """Spec Sec 12: controller is distinct from competence.
 
     Source (symbiont.actuation.controller) has no live controller registry --
@@ -300,16 +335,20 @@ def _controller_nodes_and_edges(snapshot: Mapping[str, Any]) -> tuple[list[Atlas
             metadata["strategy_ref"] = strategy_refs[controller_id]
         nodes.append(AtlasNode(id=controller_id, kind="controller", metadata=metadata))
         for competence_id in competence_ids:
-            edges.append(AtlasEdge(
-                id=f"edge.requires.{competence_id}.{controller_id}",
-                source_id=competence_id,
-                target_id=controller_id,
-                kind="requires",
-            ))
+            edges.append(
+                AtlasEdge(
+                    id=f"edge.requires.{competence_id}.{controller_id}",
+                    source_id=competence_id,
+                    target_id=controller_id,
+                    kind="requires",
+                )
+            )
     return nodes, edges
 
 
-def _body_schema_nodes_and_edges(snapshot: Mapping[str, Any]) -> tuple[list[AtlasNode], list[AtlasEdge]]:
+def _body_schema_nodes_and_edges(
+    snapshot: Mapping[str, Any],
+) -> tuple[list[AtlasNode], list[AtlasEdge]]:
     """Spec Sec 17: cognitive body-model parts/dependencies, not anatomy.
 
     Source is BodySchemaEngine.export_representation() -- already bounded,
@@ -328,9 +367,14 @@ def _body_schema_nodes_and_edges(snapshot: Mapping[str, Any]) -> tuple[list[Atla
         metadata = {
             key: part[key]
             for key in (
-                "kind", "existence_confidence_class", "confidence_class",
-                "health_class", "activity_class", "cost_class",
-                "maturity_class", "recency_class",
+                "kind",
+                "existence_confidence_class",
+                "confidence_class",
+                "health_class",
+                "activity_class",
+                "cost_class",
+                "maturity_class",
+                "recency_class",
             )
             if part.get(key) is not None
         }
@@ -353,13 +397,15 @@ def _body_schema_nodes_and_edges(snapshot: Mapping[str, Any]) -> tuple[list[Atla
             if dependency.get(key) is not None:
                 evidence[key] = dependency[key]
         metadata = {"evidence": evidence}
-        edges.append(AtlasEdge(
-            id=f"edge.body_schema.{dependency.get('relation', 'depends_on')}.{source_id}.{target_id}",
-            source_id=source_id,
-            target_id=target_id,
-            kind=str(dependency.get("relation", "correlates")),
-            metadata=metadata,
-        ))
+        edges.append(
+            AtlasEdge(
+                id=f"edge.body_schema.{dependency.get('relation', 'depends_on')}.{source_id}.{target_id}",
+                source_id=source_id,
+                target_id=target_id,
+                kind=str(dependency.get("relation", "correlates")),
+                metadata=metadata,
+            )
+        )
     return nodes, edges
 
 
@@ -367,7 +413,11 @@ def _motor_capability_metrics(snapshot: Mapping[str, Any]) -> Mapping[str, Any]:
     items = snapshot.get("motor_competences")
     if not isinstance(items, (list, tuple)):
         return {"supported": False, "known": None, "bound": None}
-    known_ids = {str(item["competence_id"]) for item in items if isinstance(item, Mapping) and item.get("competence_id") is not None}
+    known_ids = {
+        str(item["competence_id"])
+        for item in items
+        if isinstance(item, Mapping) and item.get("competence_id") is not None
+    }
     embodiment = snapshot.get("embodiment")
     bound_ids: set[str] = set()
     if isinstance(embodiment, Mapping) and isinstance(embodiment.get("bindings"), (list, tuple)):
@@ -400,6 +450,7 @@ def _knowledge_coverage_metrics(nodes: list[AtlasNode]) -> Mapping[str, Any]:
     """Spec Sec 60/62: separate per-domain counts, never a single fake
     'knowledge %'. Only the Symbiont-owned side (this snapshot's domain) --
     Body/Embodiment effector counts belong to a different owner's data."""
+
     def count(kind: str) -> int:
         return sum(1 for node in nodes if node.kind == kind)
 
@@ -432,7 +483,9 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
     known_competence_ids = {node.id for node in competence_nodes}
     known_effect_ids = {node.id for node in effect_nodes}
 
-    binding_nodes, binding_edges = _embodiment_binding_nodes_and_edges(snapshot, known_competence_ids)
+    binding_nodes, binding_edges = _embodiment_binding_nodes_and_edges(
+        snapshot, known_competence_ids
+    )
     nodes.extend(binding_nodes)
     edges.extend(binding_edges)
     edges.extend(_competence_effect_edges(snapshot, known_effect_ids))
@@ -501,7 +554,11 @@ def _edge_strength(edge: AtlasEdge) -> float | None:
     metadata = edge.metadata
     if "weight" in metadata:
         value = metadata["weight"]
-    elif "evidence" in metadata and isinstance(metadata["evidence"], Mapping) and "confidence" in metadata["evidence"]:
+    elif (
+        "evidence" in metadata
+        and isinstance(metadata["evidence"], Mapping)
+        and "confidence" in metadata["evidence"]
+    ):
         value = metadata["evidence"]["confidence"]
     elif "support" in metadata:
         value = metadata["support"]
@@ -510,7 +567,9 @@ def _edge_strength(edge: AtlasEdge) -> float | None:
     return value if isinstance(value, (int, float)) else None
 
 
-def diff_cognitive_atlas(before: CognitiveAtlasSnapshot, after: CognitiveAtlasSnapshot) -> CognitiveAtlasDiff:
+def diff_cognitive_atlas(
+    before: CognitiveAtlasSnapshot, after: CognitiveAtlasSnapshot
+) -> CognitiveAtlasDiff:
     """Compare two Atlas snapshots. Pure function; never touches Symbiont state.
 
     Spec Sec 49/50: this is the re-embodiment comparison -- how much learned
@@ -526,9 +585,7 @@ def diff_cognitive_atlas(before: CognitiveAtlasSnapshot, after: CognitiveAtlasSn
     after_competence_ids = {node.id for node in after.nodes if node.kind == "motor_competence"}
     before_binding_ids = {node.id for node in before.nodes if node.kind == "embodiment_binding"}
     after_binding_ids = {node.id for node in after.nodes if node.kind == "embodiment_binding"}
-    after_bound_competence_ids = {
-        edge.target_id for edge in after.edges if edge.kind == "bound_to"
-    }
+    after_bound_competence_ids = {edge.target_id for edge in after.edges if edge.kind == "bound_to"}
 
     preserved_competences = before_competence_ids & after_competence_ids
     immediately_usable = preserved_competences & after_bound_competence_ids
@@ -577,7 +634,10 @@ def diff_cognitive_atlas(before: CognitiveAtlasSnapshot, after: CognitiveAtlasSn
         if before_node.metadata != after_node.metadata:
             nodes_updated.append(node_id)
         after_activation = after_node.metadata.get("activation")
-        if isinstance(after_activation, (int, float)) and before_node.metadata.get("activation") != after_activation:
+        if (
+            isinstance(after_activation, (int, float))
+            and before_node.metadata.get("activation") != after_activation
+        ):
             activity_updates[node_id] = after_activation
 
     return CognitiveAtlasDiff(

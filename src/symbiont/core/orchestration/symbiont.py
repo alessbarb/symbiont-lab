@@ -4,6 +4,7 @@ The reduced Symbiont used by clean embodiment studies intentionally reuses the
 same canonical sensorimotor inference components as OrganismRuntime.  It is not
 an alternate BodySchema/agency architecture.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -33,9 +34,9 @@ from ...genetics.expression import (
 )
 from ...genetics.genome import Genome
 from ...genetics.germline import GermlineState
+from ..domains.action import ActionDomain
 from ..embodiment.body_schema import BodySchemaEngine
 from ..embodiment.dynamics import SensorimotorDynamicsModel
-from ..domains.action import ActionDomain
 from .continuity import SymbiontContinuityModel
 
 
@@ -112,18 +113,14 @@ class Symbiont:
 
     def _reset_embodiment_state(self) -> None:
         """Discard current-Body factual authority without touching Symbiont history."""
-        self.sensorimotor_model = SensorimotorDynamicsModel(
-            learning_rate=self.learning_rate
-        )
+        self.sensorimotor_model = SensorimotorDynamicsModel(learning_rate=self.learning_rate)
         self.effect_space = EffectSpace()
         self.causal_evidence = CausalEvidenceLedger()
         self.competence_effect_model = CompetenceEffectModel()
         self.controllability_model = ControllabilityModel()
         self.agency_model = AgencyModel()
         self.body_schema = BodySchemaEngine()
-        self.competence_execution_bindings = (
-            CompetenceExecutionBindingRegistry()
-        )
+        self.competence_execution_bindings = CompetenceExecutionBindingRegistry()
         self._current_surface_fingerprint: str | None = None
         for competence in self.competence_library.items:
             competence.effect_id = None
@@ -150,10 +147,7 @@ class Symbiont:
         self.action_domain.agency_model = self.agency_model
 
     def _configure_action_surface(self) -> None:
-        if (
-            self._current_surface_fingerprint is None
-            or not self.current_output_channels
-        ):
+        if self._current_surface_fingerprint is None or not self.current_output_channels:
             self.action_domain.enabled = False
             self.action_domain.surface = None
             return
@@ -183,9 +177,7 @@ class Symbiont:
         """Attach the opaque legal motor surface for the current embodiment."""
         if not isinstance(surface_fingerprint, str) or not surface_fingerprint:
             raise ValueError("surface_fingerprint must be non-empty")
-        if embodiment_id is not None and (
-            not isinstance(embodiment_id, str) or not embodiment_id
-        ):
+        if embodiment_id is not None and (not isinstance(embodiment_id, str) or not embodiment_id):
             raise ValueError("embodiment_id must be non-empty when provided")
         self._current_surface_fingerprint = surface_fingerprint
         self.action_domain.embodiment_id = embodiment_id
@@ -258,10 +250,7 @@ class Symbiont:
                 if current is None or candidate[1] > current[1]:
                     by_output[output] = candidate
         return tuple(
-            sorted(
-                (output, input_id)
-                for output, (input_id, _confidence) in by_output.items()
-            )
+            sorted((output, input_id) for output, (input_id, _confidence) in by_output.items())
         )
 
     def agency_snapshot(self) -> tuple[tuple[str, str, float], ...]:
@@ -278,9 +267,9 @@ class Symbiont:
 
     @staticmethod
     def _signal_ref(channel: str) -> str:
-        digest = hashlib.sha256(
-            f"reduced-symbiont-signal:{channel}".encode("utf-8")
-        ).hexdigest()[:24]
+        digest = hashlib.sha256(f"reduced-symbiont-signal:{channel}".encode("utf-8")).hexdigest()[
+            :24
+        ]
         return f"signal.{digest}"
 
     @staticmethod
@@ -292,18 +281,14 @@ class Symbiont:
         activations: Mapping[str, float],
     ) -> str | None:
         active = tuple(
-            sorted(
-                channel
-                for channel, value in activations.items()
-                if abs(float(value)) > 0.05
-            )
+            sorted(channel for channel, value in activations.items() if abs(float(value)) > 0.05)
         )
         if not active:
             return None
         material = "|".join(active)
-        digest = hashlib.sha256(
-            f"reduced-symbiont-action:{material}".encode("utf-8")
-        ).hexdigest()[:24]
+        digest = hashlib.sha256(f"reduced-symbiont-action:{material}".encode("utf-8")).hexdigest()[
+            :24
+        ]
         competence_id = f"competence.{digest}"
         self._competence_outputs[competence_id] = active
         return competence_id
@@ -312,9 +297,7 @@ class Symbiont:
         values = [
             estimate.confidence
             for estimate in self.agency_model.estimates
-            if output in self._competence_outputs.get(
-                estimate.competence_id, ()
-            )
+            if output in self._competence_outputs.get(estimate.competence_id, ())
         ]
         return max(values, default=0.0)
 
@@ -352,9 +335,7 @@ class Symbiont:
             motor_command_ref=command.command_id,
             actuation_ref=f"actuation.{command.command_id}",
             prediction_ref=(
-                f"prediction.reduced.{self.total_ticks - 1}"
-                if self.last_inputs
-                else None
+                f"prediction.reduced.{self.total_ticks - 1}" if self.last_inputs else None
             ),
             state_after_ref=self._state_ref(self.total_ticks, "after"),
             observed_effect_id=(effect.effect_id if effect is not None else None),
@@ -412,14 +393,12 @@ class Symbiont:
                 competence.effect_id = effect.effect_id
                 competence.evidence.effect_evidence_refs = tuple(
                     dict.fromkeys(
-                        competence.evidence.effect_evidence_refs
-                        + (evidence.evidence_id,)
+                        competence.evidence.effect_evidence_refs + (evidence.evidence_id,)
                     )
                 )
                 competence.evidence.controllability_evidence_refs = tuple(
                     dict.fromkeys(
-                        competence.evidence.controllability_evidence_refs
-                        + (evidence.evidence_id,)
+                        competence.evidence.controllability_evidence_refs + (evidence.evidence_id,)
                     )
                 )
                 competence.evidence.support = max(
@@ -482,9 +461,7 @@ class Symbiont:
 
     def step(self, opaque_inputs: Mapping[str, float]) -> dict[str, float]:
         self.total_ticks += 1
-        current_inputs = {
-            str(key): float(value) for key, value in opaque_inputs.items()
-        }
+        current_inputs = {str(key): float(value) for key, value in opaque_inputs.items()}
         deltas = {
             channel: value - self.last_inputs.get(channel, value)
             for channel, value in current_inputs.items()
@@ -495,9 +472,7 @@ class Symbiont:
             tick=self.total_ticks,
         )
         prediction_error = (
-            sum(item.error for item in residuals) / len(residuals)
-            if residuals
-            else 0.0
+            sum(item.error for item in residuals) / len(residuals) if residuals else 0.0
         )
         self._last_prediction_error = prediction_error
 
@@ -511,13 +486,9 @@ class Symbiont:
             prediction_error=prediction_error,
         )
 
-        confidence_values = tuple(
-            estimate.confidence for estimate in self.agency_model.estimates
-        )
+        confidence_values = tuple(estimate.confidence for estimate in self.agency_model.estimates)
         mean_confidence = (
-            sum(confidence_values) / len(confidence_values)
-            if confidence_values
-            else 0.0
+            sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
         )
 
         # Tick t evidence changes expression for t+1. This reduced runtime
@@ -528,9 +499,7 @@ class Symbiont:
                 uncertainty=max(bounded_error, 1.0 - mean_confidence),
                 novelty=bounded_error,
                 prediction_error=bounded_error,
-                controllability_loss=max(
-                    0.0, min(1.0, 1.0 - mean_confidence)
-                ),
+                controllability_loss=max(0.0, min(1.0, 1.0 - mean_confidence)),
                 embodiment_mismatch=max(
                     bounded_error,
                     self.body_schema.boundary_disruption_score,
@@ -542,9 +511,7 @@ class Symbiont:
                 self.gene_expression_state,
                 signals,
             )
-            self.learning_rate = (
-                self.gene_expression_state.effective_learning_rate
-            )
+            self.learning_rate = self.gene_expression_state.effective_learning_rate
             self.exploration_rate = self.gene_expression_state.exploration_drive
             self.sensorimotor_model.learning_rate = self.learning_rate
             self.expressed_loci = {
@@ -567,9 +534,7 @@ class Symbiont:
                     level = self._rng.uniform(0.05, 1.0)
                 else:
                     previous = self.last_activations.get(output, 0.5)
-                    noise = self._rng.gauss(
-                        0.0, max(0.001, self.exploration_rate)
-                    )
+                    noise = self._rng.gauss(0.0, max(0.001, self.exploration_rate))
                     level = max(0.0, min(1.0, previous + noise))
             next_activations[output] = level
 
@@ -606,10 +571,7 @@ class Symbiont:
                 evaluation=ActionEvaluation(
                     epistemic_relevance=max(0.0, min(1.0, self.exploration_rate)),
                     effect_confidence=max(
-                        (
-                            self._agency_confidence_for_output(output)
-                            for output in next_activations
-                        ),
+                        (self._agency_confidence_for_output(output) for output in next_activations),
                         default=0.0,
                     ),
                     uncertainty=max(0.0, min(1.0, 1.0 - mean_confidence)),
@@ -632,8 +594,7 @@ class Symbiont:
             )
             actuations = self.action_domain.execute_command(command)
             delivered_activations = {
-                actuation.actuator_id: float(actuation.delivered)
-                for actuation in actuations
+                actuation.actuator_id: float(actuation.delivered) for actuation in actuations
             }
 
         self.last_inputs = current_inputs

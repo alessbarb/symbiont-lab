@@ -1,9 +1,9 @@
 """Attention allocation studies: retrospective budgets, causal attention, and replication."""
 
 from .causal import (
+    STRATEGIES,
     CausalBudgetAnalysis,
     CausalSelection,
-    STRATEGIES,
     run_causal_attention_budget,
 )
 from .replicated import (

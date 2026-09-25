@@ -3,7 +3,9 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from symbiont_lab.studies.learning.independent_symbol_grounding import run_independent_symbol_grounding_study
+from symbiont_lab.studies.learning.independent_symbol_grounding import (
+    run_independent_symbol_grounding_study,
+)
 
 SOURCE = Path("src/symbiont_lab/studies/learning/independent_symbol_grounding.py")
 
@@ -40,10 +42,16 @@ def test_preregistered_result_is_the_honestly_reported_negative_finding() -> Non
 def test_no_shared_symbol_policy_seed_between_emitters() -> None:
     source = SOURCE.read_text()
     tree = ast.parse(source)
-    calls = {node.func.attr for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)}
+    calls = {
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
     assert "choose_symbol" not in calls
     # emitter_b must always derive its seed via _independent_seed, never reuse `seed` directly.
     assert "seed_b = _independent_seed(seed)" in source
     assert "symbol_policy_seed=seed_b" in source
-    emitter_b_line = next(line for line in source.splitlines() if "emitter_b = ModeledOrganismRuntime" in line)
+    emitter_b_line = next(
+        line for line in source.splitlines() if "emitter_b = ModeledOrganismRuntime" in line
+    )
     assert "symbol_policy_seed=seed_b" in emitter_b_line

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
 import os
-from pathlib import Path
 import tempfile
+from dataclasses import dataclass
+from pathlib import Path
 
 from symbiont.modeling.authority import ArchitectureId, ModelArtifactManifest, ModelObjective
 
@@ -35,7 +35,11 @@ class FileArtifactStore:
         self._root.mkdir(parents=True, exist_ok=True)
 
     def _paths(self, model_id: str) -> tuple[Path, Path]:
-        if not isinstance(model_id, str) or len(model_id) != 64 or any(c not in "0123456789abcdef" for c in model_id):
+        if (
+            not isinstance(model_id, str)
+            or len(model_id) != 64
+            or any(c not in "0123456789abcdef" for c in model_id)
+        ):
             raise ValueError("model_id must be a sha256 digest")
         return self._root / f"{model_id}.json", self._root / f"{model_id}.pt"
 
@@ -86,8 +90,13 @@ class FileArtifactStore:
         if not isinstance(raw, dict):
             raise ValueError("artifact manifest must be an object")
         string_keys = (
-            "model_id", "organism_id", "corpus_hash", "tokenizer_hash",
-            "architecture_id", "objective", "weights_hash",
+            "model_id",
+            "organism_id",
+            "corpus_hash",
+            "tokenizer_hash",
+            "architecture_id",
+            "objective",
+            "weights_hash",
         )
         if any(not isinstance(raw.get(key), str) for key in string_keys):
             raise ValueError("artifact manifest contains invalid string fields")
@@ -95,10 +104,16 @@ class FileArtifactStore:
         if parent is not None and not isinstance(parent, str):
             raise ValueError("artifact parent_model_id must be a string or null")
         int_keys = (
-            "schema_version", "parameter_count", "context_window", "seed",
-            "artifact_bytes", "created_tick_class",
+            "schema_version",
+            "parameter_count",
+            "context_window",
+            "seed",
+            "artifact_bytes",
+            "created_tick_class",
         )
-        if any(isinstance(raw.get(key), bool) or not isinstance(raw.get(key), int) for key in int_keys):
+        if any(
+            isinstance(raw.get(key), bool) or not isinstance(raw.get(key), int) for key in int_keys
+        ):
             raise ValueError("artifact manifest contains invalid integer fields")
         manifest = ModelArtifactManifest(
             schema_version=raw["schema_version"],

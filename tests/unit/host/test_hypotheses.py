@@ -30,7 +30,9 @@ def test_tracker_retires_a_sustained_contradiction_and_does_not_revive_it():
 @pytest.mark.parametrize("correlation", [float("nan"), float("inf"), -1.1, 1.1, True])
 def test_tracker_rejects_invalid_correlation(correlation):
     with pytest.raises(ValueError):
-        HypothesisTracker().observe(("a", "b"), correlation=correlation, samples=3, min_samples=3, tick=0)
+        HypothesisTracker().observe(
+            ("a", "b"), correlation=correlation, samples=3, min_samples=3, tick=0
+        )
 
 
 @pytest.mark.parametrize("source_ids", [("a",), ("a", "a"), ("", "b"), ("a", 3)])
@@ -91,7 +93,6 @@ def test_hypothesis_from_payload_rejects_contradiction_streak_for_non_contradict
     }
     with pytest.raises(ValueError):
         SignalHypothesis.from_payload(payload)
-
 
 
 def test_tracker_len_reports_population_without_materialized_sort():

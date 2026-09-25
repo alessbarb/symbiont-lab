@@ -1,15 +1,20 @@
 from pathlib import Path
+
 from symbiont_lab.app.discovery import discover_experiments
 from symbiont_lab.app.models import RunKind, RunStatus
+
 
 def test_desktop_run_model_is_explicit():
     assert RunKind.EXPERIMENT.value == "experiment"
     assert RunKind.PHYSICS3D.value == "physics3d"
     assert RunStatus.RUNNING.value == "running"
 
+
 def test_discover_experiments_reads_declarative_catalog(tmp_path: Path):
-    exp=tmp_path/"learning"/"demo"; exp.mkdir(parents=True)
-    (exp/"experiment.toml").write_text("""schema_version = 1
+    exp = tmp_path / "learning" / "demo"
+    exp.mkdir(parents=True)
+    (exp / "experiment.toml").write_text(
+        """schema_version = 1
 [experiment]
 id = "demo"
 title = "Demo experiment"
@@ -21,12 +26,14 @@ success_criteria = "demo criteria"
 hosts = 4
 steps = 12
 seed = 7
-""",encoding="utf-8")
-    entries=discover_experiments(tmp_path)
-    assert len(entries)==1
-    assert entries[0].category=="learning"
-    assert entries[0].experiment_id=="demo"
-    assert entries[0].steps==12
+""",
+        encoding="utf-8",
+    )
+    entries = discover_experiments(tmp_path)
+    assert len(entries) == 1
+    assert entries[0].category == "learning"
+    assert entries[0].experiment_id == "demo"
+    assert entries[0].steps == 12
 
 
 def test_physics3d_monitor_facade_reexports_private_contract():
@@ -50,6 +57,7 @@ def test_physics3d_cli_uses_application_owned_monitor():
 
 def test_application_owned_monitor_has_no_broken_relative_physics_imports():
     import inspect
+
     from symbiont_lab.app import physics3d_monitor
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
@@ -61,6 +69,7 @@ def test_application_owned_monitor_has_no_broken_relative_physics_imports():
 
 def test_physics3d_runtime_accepts_embedded_viewer_bridge():
     import inspect
+
     from symbiont_lab.physics3d.cli import run
 
     assert "viewer_bridge" in inspect.signature(run).parameters
@@ -75,6 +84,7 @@ def test_embedded_viewer_api_is_exposed():
 
 def test_workbench_has_physics_focus_mode():
     import inspect
+
     from symbiont_lab.app.main_window import SymbiontLabWindow
 
     source = inspect.getsource(SymbiontLabWindow._set_physics_focus)
@@ -85,6 +95,7 @@ def test_workbench_has_physics_focus_mode():
 
 def test_embedded_viewer_renders_to_actual_viewport_size():
     import inspect
+
     from symbiont_lab.app import physics3d_monitor
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
@@ -95,6 +106,7 @@ def test_embedded_viewer_renders_to_actual_viewport_size():
 
 def test_mission_control_uses_resizable_internal_panes():
     import inspect
+
     from symbiont_lab.app import physics3d_monitor
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
@@ -107,6 +119,7 @@ def test_mission_control_uses_resizable_internal_panes():
 
 def test_modern_workbench_shell_has_persistent_navigation_rail():
     import inspect
+
     from symbiont_lab.app.main_window import SymbiontLabWindow
 
     source = inspect.getsource(SymbiontLabWindow._build_body)
@@ -118,6 +131,7 @@ def test_modern_workbench_shell_has_persistent_navigation_rail():
 
 def test_embedded_monitor_does_not_repeat_mission_control_branding():
     import inspect
+
     from symbiont_lab.app import physics3d_monitor
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
@@ -126,6 +140,7 @@ def test_embedded_monitor_does_not_repeat_mission_control_branding():
 
 def test_workspace_navigation_replaces_visible_notebook_tabs():
     import inspect
+
     from symbiont_lab.app.main_window import SymbiontLabWindow
 
     style_source = inspect.getsource(SymbiontLabWindow._configure_style)
@@ -137,6 +152,7 @@ def test_workspace_navigation_replaces_visible_notebook_tabs():
 
 def test_viewer_supports_contextual_3d_selection():
     import inspect
+
     from symbiont_lab.app import physics3d_monitor
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
@@ -148,6 +164,7 @@ def test_viewer_supports_contextual_3d_selection():
 
 def test_timeline_can_inspect_historical_ticks_without_mutating_runtime():
     import inspect
+
     from symbiont_lab.app import physics3d_monitor
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
@@ -159,6 +176,7 @@ def test_timeline_can_inspect_historical_ticks_without_mutating_runtime():
 
 def test_timeline_historical_inspection_can_return_to_live():
     import inspect
+
     from symbiont_lab.app import physics3d_monitor
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
@@ -170,6 +188,7 @@ def test_timeline_historical_inspection_can_return_to_live():
 
 def test_cognition_deep_dive_has_human_facing_knowledge_summary():
     import inspect
+
     from symbiont_lab.app import physics3d_monitor
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
@@ -183,6 +202,7 @@ def test_cognition_deep_dive_has_human_facing_knowledge_summary():
 
 def test_physics3d_cli_is_only_an_adapter_over_the_engine():
     import inspect
+
     from symbiont_lab.app import physics3d_session, run_controller
     from symbiont_lab.physics3d import cli, engine
 

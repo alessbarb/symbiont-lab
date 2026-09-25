@@ -4,16 +4,16 @@ The evaluator changes exactly one locus per pair.  Both conditions use the
 same Symbiont id, RNG seed, opaque motor surface and deterministic body law.
 No target action or evaluator feedback enters the organism.
 """
+
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, replace
 from importlib import resources
-import json
 
 from symbiont.core.orchestration.symbiont import Symbiont
 from symbiont.genetics.genome import Genome, GenomeCodec, flatten_genes
 from symbiont.genetics.germline import GermlineState
-
 
 WORLD_LAW_ID = "opaque-linear-body-v1"
 
@@ -35,9 +35,7 @@ class GenomeCausalCondition:
     def as_dict(self) -> dict[str, object]:
         payload = asdict(self)
         payload["activation_trace"] = list(self.activation_trace)
-        payload["prediction_error_trace"] = list(
-            self.prediction_error_trace
-        )
+        payload["prediction_error_trace"] = list(self.prediction_error_trace)
         return payload
 
 
@@ -51,23 +49,16 @@ class GenomeCausalPair:
     @property
     def phenotype_diverged(self) -> bool:
         return (
-            self.low.initial_learning_rate
-            != self.high.initial_learning_rate
-            or self.low.initial_exploration_rate
-            != self.high.initial_exploration_rate
+            self.low.initial_learning_rate != self.high.initial_learning_rate
+            or self.low.initial_exploration_rate != self.high.initial_exploration_rate
         )
 
     @property
     def trajectory_diverged(self) -> bool:
         return (
             self.low.activation_trace != self.high.activation_trace
-            or self.low.prediction_error_trace
-            != self.high.prediction_error_trace
-            or abs(
-                self.low.final_relation_weight
-                - self.high.final_relation_weight
-            )
-            > 1e-12
+            or self.low.prediction_error_trace != self.high.prediction_error_trace
+            or abs(self.low.final_relation_weight - self.high.final_relation_weight) > 1e-12
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -124,11 +115,7 @@ def _differing_loci(left: Genome, right: Genome) -> tuple[str, ...]:
     left_values = flatten_genes(left)
     right_values = flatten_genes(right)
     return tuple(
-        sorted(
-            locus
-            for locus in left_values
-            if left_values[locus] != right_values[locus]
-        )
+        sorted(locus for locus in left_values if left_values[locus] != right_values[locus])
     )
 
 
@@ -199,9 +186,7 @@ def _run_condition(
         activations = symbiont.step({"input.0": body_signal})
         activation = float(activations.get("out.0", 0.0))
         activation_trace.append(activation)
-        prediction_error_trace.append(
-            float(symbiont.last_prediction_error)
-        )
+        prediction_error_trace.append(float(symbiont.last_prediction_error))
         # Deterministic opaque body law shared by both paired conditions.
         body_signal = max(
             0.0,
@@ -222,9 +207,7 @@ def _run_condition(
             "out.0",
             "input.0",
         ),
-        active_ticks=sum(
-            abs(value) > 1e-9 for value in activation_trace
-        ),
+        active_ticks=sum(abs(value) > 1e-9 for value in activation_trace),
     )
 
 

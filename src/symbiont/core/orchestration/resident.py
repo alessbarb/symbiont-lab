@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
-from pathlib import Path
 import secrets
 import threading
-import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
-from ..social.capsule import CapsuleKeyPair, create_capsule
-from .governor import GovernedOrganism
 from ..host.local_habitat import LocalHabitat
-from .runtime import OrganismRuntime, RuntimeTickResult
+from ..social.capsule import CapsuleKeyPair, create_capsule
 from ..social.trust import observe_capsule_trust
-
+from .governor import GovernedOrganism
+from .runtime import OrganismRuntime, RuntimeTickResult
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +82,10 @@ class ResidentOrganism:
                     self._social_and_reproductive_step(ticks)
                     if self.on_checkpoint is not None:
                         self.on_checkpoint()
-                if getattr(result, "physiology", None) is not None and result.physiology.state.value == "dead":
+                if (
+                    getattr(result, "physiology", None) is not None
+                    and result.physiology.state.value == "dead"
+                ):
                     break
                 if self.config.max_ticks is not None and ticks >= self.config.max_ticks:
                     break
@@ -153,6 +154,7 @@ class ResidentOrganism:
                 child_suffix = secrets.token_hex(3)
                 child_id = f"{self.runtime.organism_id}-child-{child_suffix}"
                 from ...cognition.graph import load_base_graph
+
                 child_runtime = OrganismRuntime(
                     genome=self.runtime._genome,
                     kernel_limits=self.runtime._kernel_limits,

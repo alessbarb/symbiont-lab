@@ -22,13 +22,19 @@ def test_shift_preserves_context_action_surface_and_permuted_outcome_multiset():
     pre = _history(organism_id="o", seed=101, ticks=128, shifted=False)
     post = _history(organism_id="o", seed=101, ticks=128, shifted=True)
 
-    assert tuple(record.context_tokens for record in pre) == tuple(record.context_tokens for record in post)
-    assert tuple(record.action_token for record in pre) == tuple(record.action_token for record in post)
+    assert tuple(record.context_tokens for record in pre) == tuple(
+        record.context_tokens for record in post
+    )
+    assert tuple(record.action_token for record in pre) == tuple(
+        record.action_token for record in post
+    )
 
     pre_outcomes = [int(record.outcome_tokens[0].split(".")[-1]) for record in pre]
     post_outcomes = [int(record.outcome_tokens[0].split(".")[-1]) for record in post]
     assert post_outcomes == [_OUTCOME_PERMUTATION[value] for value in pre_outcomes]
-    assert sorted(pre_outcomes) == sorted(_OUTCOME_PERMUTATION.index(value) for value in post_outcomes)
+    assert sorted(pre_outcomes) == sorted(
+        _OUTCOME_PERMUTATION.index(value) for value in post_outcomes
+    )
 
 
 def test_shift_is_non_identity_bijection():

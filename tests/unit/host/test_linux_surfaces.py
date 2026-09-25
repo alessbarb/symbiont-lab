@@ -24,10 +24,14 @@ def test_row_identity_survives_reordering():
     with _provider_over(table), patch.object(Path, "is_file", lambda self: self == table):
         with patch.object(Path, "read_text", return_value="8 0 sda 100 0\n8 16 sdb 900 0\n"):
             before_caps = provider.discover()
-            before = {reading.capability_id: reading.value for reading in provider.sample(before_caps)}
+            before = {
+                reading.capability_id: reading.value for reading in provider.sample(before_caps)
+            }
         with patch.object(Path, "read_text", return_value="8 16 sdb 900 0\n8 0 sda 100 0\n"):
             after_caps = provider.discover()
-            after = {reading.capability_id: reading.value for reading in provider.sample(after_caps)}
+            after = {
+                reading.capability_id: reading.value for reading in provider.sample(after_caps)
+            }
 
     sda_id = provider._opaque_id("table:/proc/diskstats:sda:2")
     sdb_id = provider._opaque_id("table:/proc/diskstats:sdb:2")
@@ -63,7 +67,11 @@ def test_duplicate_row_labels_in_one_read_are_not_registered():
 
     # Only the first "sda" row is registered; a second row claiming the same
     # label is never silently merged with or overwritten by the first.
-    sda_ids = [c.capability_id for c in caps if c.capability_id == provider._opaque_id("table:/proc/diskstats:sda:2")]
+    sda_ids = [
+        c.capability_id
+        for c in caps
+        if c.capability_id == provider._opaque_id("table:/proc/diskstats:sda:2")
+    ]
     assert len(sda_ids) == 1
 
 
@@ -91,9 +99,11 @@ def test_entropy_surface_discovery_and_sampling():
     def mock_is_file(self):
         return self == entropy_path
 
-    with patch.multiple(LinuxSurfaceProvider, _TABLE_FILES=(), _SYS_PATTERNS=()), \
-         patch.object(Path, "is_file", mock_is_file), \
-         patch.object(Path, "read_text", return_value="256\n"):
+    with (
+        patch.multiple(LinuxSurfaceProvider, _TABLE_FILES=(), _SYS_PATTERNS=()),
+        patch.object(Path, "is_file", mock_is_file),
+        patch.object(Path, "read_text", return_value="256\n"),
+    ):
         caps = provider.discover()
         entropy_id = provider._opaque_id("proc-entropy")
         assert any(c.capability_id == entropy_id for c in caps)
@@ -123,10 +133,12 @@ def test_hardware_sysfs_cpu_and_gpu_patterns():
             return "350\n"
         return ""
 
-    with patch.multiple(LinuxSurfaceProvider, _TABLE_FILES=()), \
-         patch.object(Path, "is_file", mock_is_file), \
-         patch.object(Path, "glob", mock_glob), \
-         patch.object(Path, "read_text", mock_read_text):
+    with (
+        patch.multiple(LinuxSurfaceProvider, _TABLE_FILES=()),
+        patch.object(Path, "is_file", mock_is_file),
+        patch.object(Path, "glob", mock_glob),
+        patch.object(Path, "read_text", mock_read_text),
+    ):
         caps = provider.discover()
         cpu_id = provider._opaque_id(f"sys-scalar:{cpu_path.as_posix()}")
         gpu_id = provider._opaque_id(f"sys-scalar:{gpu_path.as_posix()}")
@@ -138,14 +150,13 @@ def test_hardware_sysfs_cpu_and_gpu_patterns():
         assert readings[gpu_id].value == 350.0
 
 
-
 def test_observer_descriptor_is_safe_and_omits_path_and_device_identity():
     provider = LinuxSurfaceProvider()
     table = Path("/proc/diskstats")
 
     with _provider_over(table), patch.object(Path, "is_file", lambda self: self == table):
         with patch.object(Path, "read_text", return_value="8 0 sda 100 0\n"):
-            caps = provider.discover()
+            provider.discover()
 
     capability_id = provider._opaque_id("table:/proc/diskstats:sda:2")
     descriptor = provider.observer_descriptor(capability_id)

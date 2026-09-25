@@ -73,9 +73,7 @@ def test_interpretation_distinguishes_benefit_and_harm():
 
 
 def test_strong_effect_suggests_midpoint_follow_up():
-    interpretation = interpret_study(
-        _study_with_deltas({"attention_precision": -0.04})
-    )
+    interpretation = interpret_study(_study_with_deltas({"attention_precision": -0.04}))
     follow = interpretation.follow_up
 
     assert follow.parameter == "poison_fraction"
@@ -85,9 +83,7 @@ def test_strong_effect_suggests_midpoint_follow_up():
 
 
 def test_undefined_metric_is_not_interpreted_as_zero():
-    interpretation = interpret_study(
-        _study_with_deltas({"classification_recall": None})
-    )
+    interpretation = interpret_study(_study_with_deltas({"classification_recall": None}))
     by_metric = {finding.metric: finding for finding in interpretation.findings}
 
     finding = by_metric["classification_recall"]

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 import hashlib
 import json
 import math
+from dataclasses import dataclass
+from enum import Enum
 
 
 class ArchitectureId(str, Enum):
@@ -68,14 +68,21 @@ class TrainingRequest:
         ):
             if not isinstance(value, str) or not value or len(value) > maximum:
                 raise ValueError(f"{name} must be a non-empty bounded string")
-        for name, value in (("corpus_hash", self.corpus_hash), ("tokenizer_hash", self.tokenizer_hash)):
+        for name, value in (
+            ("corpus_hash", self.corpus_hash),
+            ("tokenizer_hash", self.tokenizer_hash),
+        ):
             if len(value) != 64 or any(char not in "0123456789abcdef" for char in value):
                 raise ValueError(f"{name} must be a lowercase sha256 digest")
         if not isinstance(self.architecture_id, ArchitectureId):
             raise ValueError("architecture_id must be an ArchitectureId")
         if not isinstance(self.objective, ModelObjective):
             raise ValueError("objective must be a ModelObjective")
-        if isinstance(self.seed, bool) or not isinstance(self.seed, int) or not 0 <= self.seed <= 2**63 - 1:
+        if (
+            isinstance(self.seed, bool)
+            or not isinstance(self.seed, int)
+            or not 0 <= self.seed <= 2**63 - 1
+        ):
             raise ValueError("seed must be a non-negative 63-bit integer")
         for name, value in (
             ("context_window", self.context_window),
@@ -93,7 +100,9 @@ class TrainingRequest:
         if self.requested_epochs < 1 or self.requested_steps < 1:
             raise ValueError("training epochs and steps must be positive")
         if self.parent_model_id is not None and (
-            not isinstance(self.parent_model_id, str) or not self.parent_model_id or len(self.parent_model_id) > 128
+            not isinstance(self.parent_model_id, str)
+            or not self.parent_model_id
+            or len(self.parent_model_id) > 128
         ):
             raise ValueError("parent_model_id must be a bounded non-empty string when present")
         if self.adaptation_reason is not None and (
@@ -199,12 +208,22 @@ class ModelArtifactManifest:
     def __post_init__(self) -> None:
         if isinstance(self.schema_version, bool) or self.schema_version != 1:
             raise ValueError("unsupported model artifact schema")
-        if not isinstance(self.model_id, str) or len(self.model_id) != 64 or any(c not in "0123456789abcdef" for c in self.model_id):
+        if (
+            not isinstance(self.model_id, str)
+            or len(self.model_id) != 64
+            or any(c not in "0123456789abcdef" for c in self.model_id)
+        ):
             raise ValueError("model_id must be a lowercase sha256 digest")
-        if not isinstance(self.organism_id, str) or not self.organism_id or len(self.organism_id) > 128:
+        if (
+            not isinstance(self.organism_id, str)
+            or not self.organism_id
+            or len(self.organism_id) > 128
+        ):
             raise ValueError("organism_id must be a bounded non-empty string")
         if self.parent_model_id is not None and (
-            not isinstance(self.parent_model_id, str) or not self.parent_model_id or len(self.parent_model_id) > 128
+            not isinstance(self.parent_model_id, str)
+            or not self.parent_model_id
+            or len(self.parent_model_id) > 128
         ):
             raise ValueError("parent_model_id must be bounded when present")
         for name, digest in (
@@ -212,22 +231,49 @@ class ModelArtifactManifest:
             ("tokenizer_hash", self.tokenizer_hash),
             ("weights_hash", self.weights_hash),
         ):
-            if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            if (
+                not isinstance(digest, str)
+                or len(digest) != 64
+                or any(c not in "0123456789abcdef" for c in digest)
+            ):
                 raise ValueError(f"{name} must be a lowercase sha256 digest")
-        if not isinstance(self.architecture_id, ArchitectureId) or not isinstance(self.objective, ModelObjective):
+        if not isinstance(self.architecture_id, ArchitectureId) or not isinstance(
+            self.objective, ModelObjective
+        ):
             raise ValueError("invalid artifact architecture or objective")
-        if isinstance(self.parameter_count, bool) or not isinstance(self.parameter_count, int) or not 1 <= self.parameter_count <= 128_000_000:
+        if (
+            isinstance(self.parameter_count, bool)
+            or not isinstance(self.parameter_count, int)
+            or not 1 <= self.parameter_count <= 128_000_000
+        ):
             raise ValueError("parameter_count outside supported bounds")
-        if isinstance(self.context_window, bool) or not isinstance(self.context_window, int) or not 8 <= self.context_window <= 2048:
+        if (
+            isinstance(self.context_window, bool)
+            or not isinstance(self.context_window, int)
+            or not 8 <= self.context_window <= 2048
+        ):
             raise ValueError("context_window outside supported bounds")
-        if isinstance(self.seed, bool) or not isinstance(self.seed, int) or not 0 <= self.seed <= 2**63 - 1:
+        if (
+            isinstance(self.seed, bool)
+            or not isinstance(self.seed, int)
+            or not 0 <= self.seed <= 2**63 - 1
+        ):
             raise ValueError("seed must be a non-negative 63-bit integer")
-        if isinstance(self.artifact_bytes, bool) or not isinstance(self.artifact_bytes, int) or not 1 <= self.artifact_bytes <= 4 * 1024 * 1024 * 1024:
+        if (
+            isinstance(self.artifact_bytes, bool)
+            or not isinstance(self.artifact_bytes, int)
+            or not 1 <= self.artifact_bytes <= 4 * 1024 * 1024 * 1024
+        ):
             raise ValueError("artifact_bytes outside supported bounds")
-        if isinstance(self.created_tick_class, bool) or not isinstance(self.created_tick_class, int) or self.created_tick_class < 0:
+        if (
+            isinstance(self.created_tick_class, bool)
+            or not isinstance(self.created_tick_class, int)
+            or self.created_tick_class < 0
+        ):
             raise ValueError("created_tick_class must be non-negative")
         if self.ancestor_model_id is not None and (
-            not isinstance(self.ancestor_model_id, str) or len(self.ancestor_model_id) != 64
+            not isinstance(self.ancestor_model_id, str)
+            or len(self.ancestor_model_id) != 64
             or any(c not in "0123456789abcdef" for c in self.ancestor_model_id)
         ):
             raise ValueError("ancestor_model_id must be a sha256 digest or null")
@@ -238,19 +284,31 @@ class ModelArtifactManifest:
         ):
             raise ValueError("generation outside serialization safety bounds")
         if self.adaptation_reason is not None and (
-            not isinstance(self.adaptation_reason, str) or not self.adaptation_reason or len(self.adaptation_reason) > 256
+            not isinstance(self.adaptation_reason, str)
+            or not self.adaptation_reason
+            or len(self.adaptation_reason) > 256
         ):
             raise ValueError("adaptation_reason must be bounded when present")
         ceilings = (
             (self.authorized_parameter_ceiling, 1_000, 128_000_000, "authorized_parameter_ceiling"),
             (self.authorized_epoch_ceiling, 1, 4096, "authorized_epoch_ceiling"),
             (self.authorized_step_ceiling, 1, 10_000_000, "authorized_step_ceiling"),
-            (self.authorized_artifact_byte_ceiling, 1_024, 4 * 1024 * 1024 * 1024, "authorized_artifact_byte_ceiling"),
+            (
+                self.authorized_artifact_byte_ceiling,
+                1_024,
+                4 * 1024 * 1024 * 1024,
+                "authorized_artifact_byte_ceiling",
+            ),
         )
         for value, low, high, name in ceilings:
-            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high):
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high
+            ):
                 raise ValueError(f"{name} outside supported bounds")
-        for name, value in (("adaptation_cost_epochs", self.adaptation_cost_epochs), ("adaptation_cost_steps", self.adaptation_cost_steps)):
+        for name, value in (
+            ("adaptation_cost_epochs", self.adaptation_cost_epochs),
+            ("adaptation_cost_steps", self.adaptation_cost_steps),
+        ):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"{name} must be non-negative")
         if not isinstance(self.autonomous_stopping, bool):
@@ -276,9 +334,11 @@ class ModelArtifactManifest:
             self.resolved_feedforward_dim,
         )
         if any(value is not None for value in resolved_shape):
-            if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in resolved_shape):
+            if any(
+                isinstance(value, bool) or not isinstance(value, int) or value < 1
+                for value in resolved_shape
+            ):
                 raise ValueError("resolved architecture shape must contain positive integers")
-
 
     @classmethod
     def build(
@@ -314,13 +374,23 @@ class ModelArtifactManifest:
             weights_hash=weights_hash,
             artifact_bytes=artifact_bytes,
             created_tick_class=request.created_tick_class,
-            ancestor_model_id=(parent.ancestor_model_id or parent.model_id) if parent is not None else None,
+            ancestor_model_id=(parent.ancestor_model_id or parent.model_id)
+            if parent is not None
+            else None,
             generation=(parent.generation + 1) if parent is not None else 0,
             adaptation_reason=request.adaptation_reason,
-            authorized_parameter_ceiling=authorization.parameter_ceiling if authorization is not None else None,
-            authorized_epoch_ceiling=authorization.epoch_ceiling if authorization is not None else None,
-            authorized_step_ceiling=authorization.step_ceiling if authorization is not None else None,
-            authorized_artifact_byte_ceiling=authorization.artifact_byte_ceiling if authorization is not None else None,
+            authorized_parameter_ceiling=authorization.parameter_ceiling
+            if authorization is not None
+            else None,
+            authorized_epoch_ceiling=authorization.epoch_ceiling
+            if authorization is not None
+            else None,
+            authorized_step_ceiling=authorization.step_ceiling
+            if authorization is not None
+            else None,
+            authorized_artifact_byte_ceiling=authorization.artifact_byte_ceiling
+            if authorization is not None
+            else None,
             adaptation_cost_epochs=adaptation_cost_epochs,
             adaptation_cost_steps=adaptation_cost_steps,
             autonomous_stopping=request.autonomous_stopping,
@@ -347,7 +417,11 @@ class ModelTrainingAuthority:
     def authorize(self, request: TrainingRequest, *, corpus_records: int) -> TrainingAuthorization:
         if not isinstance(request, TrainingRequest):
             raise ValueError("request must be a TrainingRequest")
-        if isinstance(corpus_records, bool) or not isinstance(corpus_records, int) or corpus_records < 3:
+        if (
+            isinstance(corpus_records, bool)
+            or not isinstance(corpus_records, int)
+            or corpus_records < 3
+        ):
             raise ValueError("corpus_records must be at least 3")
         if corpus_records > self._budget.max_examples:
             raise ValueError("training corpus exceeds authority example ceiling")

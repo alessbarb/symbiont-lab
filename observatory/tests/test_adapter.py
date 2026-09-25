@@ -39,12 +39,29 @@ def _minimal_genome_payload():
 class AdapterTests(unittest.TestCase):
     def result(self):
         dissent = Obj(capability_id="compute.logical_cpu")
-        narrative = Obj(capability_id="compute.logical_cpu", summary="Still learning this host.", uncertainty=3.0, evidence_gathered=2, dissent=dissent, contested=True)
-        return Obj(tick=7, percepts=(Obj(name="system_load", quality=Obj(value="nominal")),), allocations=(Obj(name="compute.logical_cpu"),), investigated_capability="compute.logical_cpu", drift_observations={"system_load": Obj(kind=Obj(value="regime_shift"))}, dissent=dissent, narrative=(narrative,))
+        narrative = Obj(
+            capability_id="compute.logical_cpu",
+            summary="Still learning this host.",
+            uncertainty=3.0,
+            evidence_gathered=2,
+            dissent=dissent,
+            contested=True,
+        )
+        return Obj(
+            tick=7,
+            percepts=(Obj(name="system_load", quality=Obj(value="nominal")),),
+            allocations=(Obj(name="compute.logical_cpu"),),
+            investigated_capability="compute.logical_cpu",
+            drift_observations={"system_load": Obj(kind=Obj(value="regime_shift"))},
+            dissent=dissent,
+            narrative=(narrative,),
+        )
 
     def test_projects_only_bounded_abstract_state(self):
         acclimation = Obj(known_capabilities=("cpu", "disk"), acclimated_capabilities=("cpu",))
-        snapshot = project_tick(self.result(), acclimation=acclimation, display_id="A-17", ticks_remaining=4)
+        snapshot = project_tick(
+            self.result(), acclimation=acclimation, display_id="A-17", ticks_remaining=4
+        )
         self.assertEqual(snapshot["schema_version"], 1)
         self.assertEqual(snapshot["organism"]["state"], "reflecting")
         self.assertEqual(snapshot["organism"]["acclimation"], 0.5)
@@ -52,13 +69,26 @@ class AdapterTests(unittest.TestCase):
         self.assertNotIn("value", snapshot["organism"]["percepts"][0])
         self.assertTrue(all(len(event["id"]) <= 64 for event in snapshot["organism"]["events"]))
         self.assertTrue(all(len(item) <= 200 for item in snapshot["organism"]["memory"]))
+
         def keys(value):
             if isinstance(value, dict):
                 return set(value).union(*(keys(item) for item in value.values()))
             if isinstance(value, list):
                 return set().union(*(keys(item) for item in value)) if value else set()
             return set()
-        self.assertTrue({"hostname", "username", "timestamp", "source", "provider_id", "raw_value", "threat", "command"}.isdisjoint(keys(snapshot)))
+
+        self.assertTrue(
+            {
+                "hostname",
+                "username",
+                "timestamp",
+                "source",
+                "provider_id",
+                "raw_value",
+                "threat",
+                "command",
+            }.isdisjoint(keys(snapshot))
+        )
 
     def test_envelope_matches_browser_contract(self):
         wrapped = envelope(project_tick(self.result()))
@@ -78,7 +108,9 @@ class AdapterTests(unittest.TestCase):
         order = ["zero", "trace", "low", "medium", "high", "extreme"]
         errors = [0.0, 0.02, 0.2, 0.6, 1.5, 5.0]
         classes = [loss_class(huber_loss(error)) for error in errors]
-        self.assertEqual([order.index(item) for item in classes], sorted(order.index(item) for item in classes))
+        self.assertEqual(
+            [order.index(item) for item in classes], sorted(order.index(item) for item in classes)
+        )
 
     def test_project_tick_without_genome_keeps_v1_shape(self):
         snapshot = project_tick(self.result())
@@ -86,17 +118,22 @@ class AdapterTests(unittest.TestCase):
         self.assertNotIn("cognition", snapshot["organism"])
 
     def test_projects_cultural_lineage_passively_without_payloads(self):
-        snapshot = project_tick(self.result(), cultural_observations={
-            "claim_count": 2,
-            "unique_roots": 1,
-            "independent_roots": 1,
-            "transmission_depth": 3,
-            "mutation_depth": 1,
-            "confirmed_locally": 1,
-            "contradicted_locally": 1,
-            "freshness": ({"claim_id": "claim.a", "value": 0.5},),
-            "claim_lineage": ({"claim_id": "claim.a", "source": "A", "parents": (), "roots": ("e.a",)},),
-        })
+        snapshot = project_tick(
+            self.result(),
+            cultural_observations={
+                "claim_count": 2,
+                "unique_roots": 1,
+                "independent_roots": 1,
+                "transmission_depth": 3,
+                "mutation_depth": 1,
+                "confirmed_locally": 1,
+                "contradicted_locally": 1,
+                "freshness": ({"claim_id": "claim.a", "value": 0.5},),
+                "claim_lineage": (
+                    {"claim_id": "claim.a", "source": "A", "parents": (), "roots": ("e.a",)},
+                ),
+            },
+        )
         cultural = snapshot["organism"]["cultural_claims"]
         self.assertEqual(cultural["independent_roots"], 1)
         self.assertEqual(cultural["lineage"][0]["roots"], ["e.a"])
@@ -105,11 +142,18 @@ class AdapterTests(unittest.TestCase):
 
     def test_projects_local_action_without_result_payload(self):
         result = self.result()
-        result.action_result = Obj(action_id="repair", executed=True, result={"raw": "must not escape"}, reason=None)
+        result.action_result = Obj(
+            action_id="repair", executed=True, result={"raw": "must not escape"}, reason=None
+        )
         snapshot = project_tick(result)
-        self.assertEqual(snapshot["organism"]["action"], {
-            "action_id": "repair", "executed": True, "reason": None,
-        })
+        self.assertEqual(
+            snapshot["organism"]["action"],
+            {
+                "action_id": "repair",
+                "executed": True,
+                "reason": None,
+            },
+        )
         self.assertEqual(snapshot["organism"]["events"][-1]["type"], "action")
         self.assertNotIn("raw", json.dumps(snapshot))
 
@@ -117,26 +161,41 @@ class AdapterTests(unittest.TestCase):
         result = self.result()
         result.runtime_events = ("development", "resource_acquisition", "death")
         snapshot = project_tick(result)
-        lifecycle = [item for item in snapshot["organism"]["events"] if item["type"] == "life_history"]
-        self.assertEqual([item["label"] for item in lifecycle],
-                         ["Development", "Resource acquisition", "Death"])
+        lifecycle = [
+            item for item in snapshot["organism"]["events"] if item["type"] == "life_history"
+        ]
+        self.assertEqual(
+            [item["label"] for item in lifecycle], ["Development", "Resource acquisition", "Death"]
+        )
 
     def test_projects_checkpointable_rest_request_without_raw_resources(self):
         result = self.result()
         result.physiology = Obj(state=Obj(value="dormant"), transitions=3, death_tick=None)
         snapshot = project_tick(result, resting_requested=True)
-        self.assertEqual(snapshot["organism"]["physiology"], {
-            "state": "dormant", "transitions": 3, "death_tick": None,
-            "resting_requested": True,
-        })
+        self.assertEqual(
+            snapshot["organism"]["physiology"],
+            {
+                "state": "dormant",
+                "transitions": 3,
+                "death_tick": None,
+                "resting_requested": True,
+            },
+        )
 
     def test_projects_derived_development_state(self):
         result = self.result()
         result.development = Obj(
-            phase=Obj(value="declining"), tick=7, stress_ticks=3,
-            recovery_events=2, repair_events=1, excretion_events=4,
-            maintenance_burden=0.35, senescence_index=0.2,
-            action_attempts=9, sensory_count=5, topology_health="stable",
+            phase=Obj(value="declining"),
+            tick=7,
+            stress_ticks=3,
+            recovery_events=2,
+            repair_events=1,
+            excretion_events=4,
+            maintenance_burden=0.35,
+            senescence_index=0.2,
+            action_attempts=9,
+            sensory_count=5,
+            topology_health="stable",
         )
         development = project_tick(result)["organism"]["development"]
         self.assertEqual(development["phase"], "declining")
@@ -152,26 +211,42 @@ class AdapterTests(unittest.TestCase):
         self.assertGreater(attention["entropy"], 0.0)
 
     def test_signal_knowledge_always_emits_valid_v3_body_schema(self):
-        snapshot = project_tick(self.result(), signal_knowledge=({"signal_id": "signal." + "a" * 64},))
+        snapshot = project_tick(
+            self.result(), signal_knowledge=({"signal_id": "signal." + "a" * 64},)
+        )
         self.assertEqual(snapshot["schema_version"], 3)
         self.assertEqual(snapshot["organism"]["body_schema"]["state"], "undeveloped")
 
     def test_project_tick_with_cognition_emits_v2_cognition_state(self):
+        from symbiont.core.cognition_bridge import CognitiveBridgeResult
+
         from symbiont.cognition.genome import GenomeCodec
         from symbiont.cognition.learning import PredictionError
         from symbiont.cognition.structure import Mutation
-        from symbiont.core.cognition_bridge import CognitiveBridgeResult
 
         genome = GenomeCodec().load(_minimal_genome_payload())
         cognition = CognitiveBridgeResult(
             tick=7,
             activations={"concept_a": 0.4},
             readouts={"readout_pressure": 0.4},
-            prediction_errors=(PredictionError(predictor_id="predictor_a", target_id="concept_a", error=0.02, loss=0.0002),),
+            prediction_errors=(
+                PredictionError(
+                    predictor_id="predictor_a", target_id="concept_a", error=0.02, loss=0.0002
+                ),
+            ),
             structural_mutations_applied=1,
             frozen=False,
             topology_revision=1,
-            mutations=(Mutation(kind="add_edge", payload={"source_id": "sense_a", "target_id": "concept_a", "kind": "excitatory"}),),
+            mutations=(
+                Mutation(
+                    kind="add_edge",
+                    payload={
+                        "source_id": "sense_a",
+                        "target_id": "concept_a",
+                        "kind": "excitatory",
+                    },
+                ),
+            ),
         )
         result = self.result()
         result.cognition = cognition
@@ -182,26 +257,48 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(cognition_block["activation_classes"]["concept_a"], 6)
         self.assertEqual(cognition_block["readouts"]["readout_pressure"], 0.4)
         self.assertEqual(cognition_block["prediction_errors"]["predictor_a"], "trace")
-        self.assertEqual(cognition_block["mutations"], [{"kind": "add_edge", "edge_id": "sense_a->concept_a"}])
-        self.assertEqual(cognition_block["safety_state"], {"consecutive_failures": 0, "frozen": False})
+        self.assertEqual(
+            cognition_block["mutations"], [{"kind": "add_edge", "edge_id": "sense_a->concept_a"}]
+        )
+        self.assertEqual(
+            cognition_block["safety_state"], {"consecutive_failures": 0, "frozen": False}
+        )
 
     def test_cognition_projection_exposes_bounded_structural_metrics(self):
+        from symbiont.core.cognition_bridge import CognitiveBridgeResult
+
         from symbiont.cognition.genome import GenomeCodec
         from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
         from symbiont.cognition.limits import KernelLimits
         from symbiont.cognition.types import EdgeKind, NodeKind
-        from symbiont.core.cognition_bridge import CognitiveBridgeResult
 
         genome = GenomeCodec().load(_minimal_genome_payload())
         graph = CognitiveGraph(
-            nodes=(PlasticNode(node_id="sense", kind=NodeKind.SENSE), PlasticNode(node_id="readout", kind=NodeKind.READOUT)),
-            edges=(PlasticEdge(source_id="sense", target_id="readout", kind=EdgeKind.EXCITATORY, weight=0.2, plasticity=0.1, delay_ticks=0),),
+            nodes=(
+                PlasticNode(node_id="sense", kind=NodeKind.SENSE),
+                PlasticNode(node_id="readout", kind=NodeKind.READOUT),
+            ),
+            edges=(
+                PlasticEdge(
+                    source_id="sense",
+                    target_id="readout",
+                    kind=EdgeKind.EXCITATORY,
+                    weight=0.2,
+                    plasticity=0.1,
+                    delay_ticks=0,
+                ),
+            ),
             kernel_limits=KernelLimits(),
         )
         result = self.result()
         result.cognition = CognitiveBridgeResult(
-            tick=7, activations={}, readouts={}, prediction_errors=(),
-            structural_mutations_applied=0, frozen=False, topology_revision=0,
+            tick=7,
+            activations={},
+            readouts={},
+            prediction_errors=(),
+            structural_mutations_applied=0,
+            frozen=False,
+            topology_revision=0,
         )
         baseline = CognitiveGraph(
             nodes=(PlasticNode(node_id="sense", kind=NodeKind.SENSE),),
@@ -209,7 +306,10 @@ class AdapterTests(unittest.TestCase):
             kernel_limits=KernelLimits(),
         )
         cognition = project_tick(
-            result, genome=genome, graph=graph, relation_churn=0.4,
+            result,
+            genome=genome,
+            graph=graph,
+            relation_churn=0.4,
             developmental_baseline=baseline,
         )["organism"]["cognition"]
         self.assertGreater(cognition["structural_pressure"], 0.0)
@@ -219,13 +319,19 @@ class AdapterTests(unittest.TestCase):
         self.assertNotIn("weight", cognition)
 
     def test_project_tick_propagates_live_consecutive_failures(self):
-        from symbiont.cognition.genome import GenomeCodec
         from symbiont.core.cognition_bridge import CognitiveBridgeResult
+
+        from symbiont.cognition.genome import GenomeCodec
 
         genome = GenomeCodec().load(_minimal_genome_payload())
         cognition = CognitiveBridgeResult(
-            tick=7, activations={}, readouts={}, prediction_errors=(),
-            structural_mutations_applied=0, frozen=True, topology_revision=0,
+            tick=7,
+            activations={},
+            readouts={},
+            prediction_errors=(),
+            structural_mutations_applied=0,
+            frozen=True,
+            topology_revision=0,
             consecutive_failures=2,
         )
         result = self.result()
@@ -237,20 +343,39 @@ class AdapterTests(unittest.TestCase):
         )
 
     def test_project_tick_reports_edge_deltas_only_for_changed_edges(self):
+        from symbiont.core.cognition_bridge import CognitiveBridgeResult
+
         from symbiont.cognition.genome import GenomeCodec
         from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
         from symbiont.cognition.limits import KernelLimits
         from symbiont.cognition.types import EdgeKind, NodeKind
-        from symbiont.core.cognition_bridge import CognitiveBridgeResult
 
         genome = GenomeCodec().load(_minimal_genome_payload())
         limits = KernelLimits()
-        nodes = (PlasticNode(node_id="sense_a", kind=NodeKind.SENSE), PlasticNode(node_id="concept_a", kind=NodeKind.CONCEPT))
-        edges = (PlasticEdge(source_id="sense_a", target_id="concept_a", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0, eligibility=0.1),)
+        nodes = (
+            PlasticNode(node_id="sense_a", kind=NodeKind.SENSE),
+            PlasticNode(node_id="concept_a", kind=NodeKind.CONCEPT),
+        )
+        edges = (
+            PlasticEdge(
+                source_id="sense_a",
+                target_id="concept_a",
+                kind=EdgeKind.EXCITATORY,
+                weight=0.5,
+                plasticity=0.5,
+                delay_ticks=0,
+                eligibility=0.1,
+            ),
+        )
         graph = CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=limits)
         cognition = CognitiveBridgeResult(
-            tick=1, activations={}, readouts={}, prediction_errors=(),
-            structural_mutations_applied=0, frozen=False, topology_revision=0,
+            tick=1,
+            activations={},
+            readouts={},
+            prediction_errors=(),
+            structural_mutations_applied=0,
+            frozen=False,
+            topology_revision=0,
         )
         previous_edge_classes: dict[str, tuple[int, int]] = {}
 
@@ -259,14 +384,29 @@ class AdapterTests(unittest.TestCase):
             result.cognition = cognition
             return result
 
-        first = project_tick(result_with_cognition(), genome=genome, graph=graph, previous_edge_classes=previous_edge_classes)
+        first = project_tick(
+            result_with_cognition(),
+            genome=genome,
+            graph=graph,
+            previous_edge_classes=previous_edge_classes,
+        )
         self.assertEqual(len(first["organism"]["cognition"]["edge_deltas"]), 1)
 
-        second = project_tick(result_with_cognition(), genome=genome, graph=graph, previous_edge_classes=previous_edge_classes)
+        second = project_tick(
+            result_with_cognition(),
+            genome=genome,
+            graph=graph,
+            previous_edge_classes=previous_edge_classes,
+        )
         self.assertEqual(second["organism"]["cognition"]["edge_deltas"], [])
 
         graph.edges[0].weight = 1.9
-        third = project_tick(result_with_cognition(), genome=genome, graph=graph, previous_edge_classes=previous_edge_classes)
+        third = project_tick(
+            result_with_cognition(),
+            genome=genome,
+            graph=graph,
+            previous_edge_classes=previous_edge_classes,
+        )
         deltas = third["organism"]["cognition"]["edge_deltas"]
         self.assertEqual(len(deltas), 1)
         self.assertEqual(deltas[0]["source_id"], "sense_a")
@@ -280,15 +420,30 @@ class AdapterTests(unittest.TestCase):
 
         genome = GenomeCodec().load(_minimal_genome_payload())
         limits = KernelLimits()
-        nodes = (PlasticNode(node_id="sense_a", kind=NodeKind.SENSE), PlasticNode(node_id="concept_a", kind=NodeKind.CONCEPT))
-        edges = (PlasticEdge(source_id="sense_a", target_id="concept_a", kind=EdgeKind.EXCITATORY, weight=1.7, plasticity=0.5, delay_ticks=0),)
+        nodes = (
+            PlasticNode(node_id="sense_a", kind=NodeKind.SENSE),
+            PlasticNode(node_id="concept_a", kind=NodeKind.CONCEPT),
+        )
+        edges = (
+            PlasticEdge(
+                source_id="sense_a",
+                target_id="concept_a",
+                kind=EdgeKind.EXCITATORY,
+                weight=1.7,
+                plasticity=0.5,
+                delay_ticks=0,
+            ),
+        )
         graph = CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=limits)
 
         topology = project_topology(graph, genome=genome, kernel_version="0.59.3")
         self.assertEqual(topology["genome_id"], genome.genome_id)
         self.assertEqual(topology["kernel_version"], "0.59.3")
         self.assertNotIn("weight", topology["edges"][0])
-        self.assertEqual(topology["edges"][0], {"source_id": "sense_a", "target_id": "concept_a", "kind": "excitatory"})
+        self.assertEqual(
+            topology["edges"][0],
+            {"source_id": "sense_a", "target_id": "concept_a", "kind": "excitatory"},
+        )
 
     def test_replay_is_atomic_and_bounded(self):
         snapshot = project_tick(self.result())

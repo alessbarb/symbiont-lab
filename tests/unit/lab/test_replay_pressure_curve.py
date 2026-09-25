@@ -6,7 +6,9 @@ from symbiont_lab.studies.learning import replay_pressure_curve as study
 
 
 def test_replay_pressure_curve_registered():
-    assert get_protocol("learning.replay-pressure-curve").__name__ == "run_replay_pressure_curve_study"
+    assert (
+        get_protocol("learning.replay-pressure-curve").__name__ == "run_replay_pressure_curve_study"
+    )
 
 
 def test_replay_pressure_budget_mapping_is_bounded_and_monotone():
@@ -41,6 +43,8 @@ def test_pressure_requests_keep_everything_except_replay_budget():
     assert low.architecture_id is high.architecture_id is plan.request.architecture_id
     assert low.objective is high.objective is plan.request.objective
     assert low.context_window == high.context_window == plan.request.context_window
-    assert low.requested_parameters == high.requested_parameters == plan.request.requested_parameters
+    assert (
+        low.requested_parameters == high.requested_parameters == plan.request.requested_parameters
+    )
     assert low.requested_epochs < high.requested_epochs
     assert low.requested_steps < high.requested_steps

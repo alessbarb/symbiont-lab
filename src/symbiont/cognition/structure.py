@@ -21,7 +21,9 @@ class Mutation:
 
 
 class StructuralPlasticity:
-    def __init__(self, *, min_candidate_support: int, tentative_lifetime_ticks: int, cooldown_ticks: int) -> None:
+    def __init__(
+        self, *, min_candidate_support: int, tentative_lifetime_ticks: int, cooldown_ticks: int
+    ) -> None:
         if min_candidate_support < 1:
             raise ValueError("min_candidate_support must be at least 1")
         if tentative_lifetime_ticks < 1:
@@ -208,7 +210,9 @@ class StructuralPlasticity:
 
         existing_pairs = {(edge.source_id, edge.target_id) for edge in graph.edges}
         node_ids = {node.node_id for node in graph.nodes}
-        tentative_count = sum(1 for edge in graph.edges if edge.support < self._min_candidate_support)
+        tentative_count = sum(
+            1 for edge in graph.edges if edge.support < self._min_candidate_support
+        )
         mutations: list[Mutation] = []
 
         candidate_counts = dict(self._coactivation_counts)
@@ -228,7 +232,10 @@ class StructuralPlasticity:
                 continue
             if tentative_count + len(mutations) >= kernel_limits.max_tentative_edges:
                 continue
-            if self._cooldown_until.get(source_id, -1) >= tick or self._cooldown_until.get(target_id, -1) >= tick:
+            if (
+                self._cooldown_until.get(source_id, -1) >= tick
+                or self._cooldown_until.get(target_id, -1) >= tick
+            ):
                 continue
 
             mutation = Mutation(
@@ -282,7 +289,9 @@ def _node_from_payload(payload: Mapping[str, object]) -> PlasticNode:
     )
 
 
-def validate_mutation(mutation: Mutation, graph: CognitiveGraph, kernel_limits: KernelLimits) -> ValidationResult:
+def validate_mutation(
+    mutation: Mutation, graph: CognitiveGraph, kernel_limits: KernelLimits
+) -> ValidationResult:
     """Validate a mutation against the same invariants as CognitiveGraph.
 
     Validation materializes a candidate graph instead of duplicating only a
@@ -302,7 +311,9 @@ def validate_mutation(mutation: Mutation, graph: CognitiveGraph, kernel_limits: 
 
         if mutation.kind == "add_node":
             node = _node_from_payload(mutation.payload)
-            source_ids = tuple(str(source_id) for source_id in mutation.payload.get("source_ids", ()))
+            source_ids = tuple(
+                str(source_id) for source_id in mutation.payload.get("source_ids", ())
+            )
             new_edges = tuple(
                 PlasticEdge(
                     source_id=source_id,
@@ -344,11 +355,17 @@ def validate_mutation(mutation: Mutation, graph: CognitiveGraph, kernel_limits: 
     except (GraphError, KeyError, TypeError, ValueError) as exc:
         return ValidationResult(accepted=False, reason=str(exc))
 
-    return ValidationResult(accepted=False, reason=f"unsupported mutation kind {mutation.kind!r} in this version")
+    return ValidationResult(
+        accepted=False, reason=f"unsupported mutation kind {mutation.kind!r} in this version"
+    )
 
 
 def apply_mutations(
-    graph: CognitiveGraph, mutations: tuple[Mutation, ...], kernel_limits: KernelLimits, *, frozen: bool = False
+    graph: CognitiveGraph,
+    mutations: tuple[Mutation, ...],
+    kernel_limits: KernelLimits,
+    *,
+    frozen: bool = False,
 ) -> CognitiveGraph:
     """Apply a structural batch atomically.
 
@@ -368,7 +385,9 @@ def apply_mutations(
     edges = list(graph.edges)
 
     for mutation in mutations:
-        candidate_graph = CognitiveGraph(nodes=tuple(nodes), edges=tuple(edges), kernel_limits=kernel_limits)
+        candidate_graph = CognitiveGraph(
+            nodes=tuple(nodes), edges=tuple(edges), kernel_limits=kernel_limits
+        )
         result = validate_mutation(mutation, candidate_graph, kernel_limits)
         if not result.accepted:
             return graph

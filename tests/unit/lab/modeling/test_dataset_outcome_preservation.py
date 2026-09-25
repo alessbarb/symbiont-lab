@@ -32,8 +32,11 @@ def test_bounded_encoding_preserves_observable_outcomes_after_long_context():
     assert encoded.train.outcome_predictions > 0
     assert encoded.validation.outcome_predictions > 0
     assert encoded.test.outcome_predictions > 0
-    assert all(len(sequence) <= 33 for sequence in (
-        *encoded.train.sequences,
-        *encoded.validation.sequences,
-        *encoded.test.sequences,
-    ))
+    assert all(
+        len(sequence) <= 33
+        for sequence in (
+            *encoded.train.sequences,
+            *encoded.validation.sequences,
+            *encoded.test.sequences,
+        )
+    )

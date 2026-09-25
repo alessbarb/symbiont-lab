@@ -1,4 +1,5 @@
 """Separate genetic, epigenetic and cultural inheritance channels (v0.69)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -69,12 +70,16 @@ class InheritanceChannels:
         self.cultural: list[CulturalArtifact] = []
 
     def add_epigenetic(self, prior: EpigeneticPrior) -> bool:
-        if len(self.epigenetic) >= self.max_epigenetic: return False
-        self.epigenetic.append(prior); return True
+        if len(self.epigenetic) >= self.max_epigenetic:
+            return False
+        self.epigenetic.append(prior)
+        return True
 
     def add_cultural(self, artifact: CulturalArtifact) -> bool:
-        if len(self.cultural) >= self.max_cultural: return False
-        self.cultural.append(artifact); return True
+        if len(self.cultural) >= self.max_cultural:
+            return False
+        self.cultural.append(artifact)
+        return True
 
 
 __all__ = ["CulturalArtifact", "EpigeneticPrior", "InheritanceChannels", "mutate_genome"]

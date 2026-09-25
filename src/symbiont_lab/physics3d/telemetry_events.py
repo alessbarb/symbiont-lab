@@ -1,8 +1,9 @@
 """Exact event-stream codec for telemetry v4.1."""
+
 from __future__ import annotations
 
-from copy import deepcopy
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping, TextIO
 
@@ -16,8 +17,7 @@ def _exact_equal(left: Any, right: Any) -> bool:
 
 def _is_prefix(prefix: list[Any], value: list[Any]) -> bool:
     return len(prefix) <= len(value) and all(
-        _exact_equal(left, right)
-        for left, right in zip(prefix, value)
+        _exact_equal(left, right) for left, right in zip(prefix, value)
     )
 
 
@@ -70,7 +70,7 @@ class EventStreamWriter:
 
         previous = self._previous_cumulative[channel]
         if _is_prefix(previous, current):
-            appended = current[len(previous):]
+            appended = current[len(previous) :]
             if appended:
                 record = {
                     "t": int(tick),
@@ -113,10 +113,7 @@ class EventStreamReader:
 
     def begin_tick(self) -> None:
         for rule in EVENT_RULES:
-            if (
-                rule.temporal_class is TemporalClass.EVENT_EPHEMERAL
-                and rule.channel in self.values
-            ):
+            if rule.temporal_class is TemporalClass.EVENT_EPHEMERAL and rule.channel in self.values:
                 self.values[rule.channel] = []
 
     def apply(self, record: Mapping[str, Any]) -> None:

@@ -4,6 +4,7 @@ Encapsulates the conditions under which deliberation is permitted to proceed.
 All checks are structural/capacity-based — no environmental or evaluator
 metrics appear here.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

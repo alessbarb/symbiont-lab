@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 WEB = REPO_ROOT / "src" / "symbiont_lab" / "workbench" / "web"
 VIEWER = WEB / "views" / "body" / "viewer.js"

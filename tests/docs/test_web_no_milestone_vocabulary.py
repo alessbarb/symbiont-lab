@@ -25,14 +25,18 @@ def _strip_allowed_mentions(text: str) -> str:
 def test_no_chapter_uses_milestone_vocabulary():
     offenders: list[str] = []
     for chapter in CHAPTERS:
-        text = (REPO_ROOT / "docs" / "explanation" / "concepts" / chapter).read_text(encoding="utf-8")
+        text = (REPO_ROOT / "docs" / "explanation" / "concepts" / chapter).read_text(
+            encoding="utf-8"
+        )
         if "milestone" in _strip_allowed_mentions(text).lower():
             offenders.append(chapter)
     assert not offenders, f"project-management vocabulary found in: {offenders}"
 
 
 def test_fuentes_claim_ids_avoid_milestone_vocabulary():
-    text = (REPO_ROOT / "docs" / "explanation" / "concepts" / "SOURCES.md").read_text(encoding="utf-8")
+    text = (REPO_ROOT / "docs" / "explanation" / "concepts" / "SOURCES.md").read_text(
+        encoding="utf-8"
+    )
     stripped = _strip_allowed_mentions(text)
     # Claim IDs are the one part of SOURCES.md that is our own naming choice
     # (unlike Source cells, which legitimately cite real canonical filenames)

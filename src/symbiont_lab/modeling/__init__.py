@@ -2,14 +2,18 @@
 
 from .architectures import ArchitectureSpec, architecture_spec, build_model, count_parameters
 from .artifacts import FileArtifactStore, ModelArtifact
-from .baselines import BaselineMetrics, evaluate_frequency_baseline, evaluate_persistence_baseline, evaluate_uniform_baseline
-from .dataset import EncodedCorpus, EncodedSplit, encode_corpus
+from .baselines import (
+    BaselineMetrics,
+    evaluate_frequency_baseline,
+    evaluate_persistence_baseline,
+    evaluate_uniform_baseline,
+)
 from .context_tree import DecayedVariableOrderMarkov
-from .reservoir import SparseEchoStateRegressor
-from .temporal_evaluation import DiscreteTemporalMetrics, evaluate_vomm_challenger
+from .dataset import EncodedCorpus, EncodedSplit, encode_corpus
 from .evaluation import CandidateEvaluation, PromotionDecision, PromotionPolicy, evaluate_candidate
 from .factory import FactoryResult, PrivateModelFactory
 from .gateway import ArtifactInferenceGateway
+from .reservoir import SparseEchoStateRegressor
 from .study import (
     CrossIndividualResult,
     ModelFamilyResult,
@@ -20,6 +24,7 @@ from .study import (
     remap_encoded_corpus,
     run_model_family_study,
 )
+from .temporal_evaluation import DiscreteTemporalMetrics, evaluate_vomm_challenger
 from .trainer import TrainingConfig, TrainingResult, adapt_private_model, train_private_model
 
 __all__ = [

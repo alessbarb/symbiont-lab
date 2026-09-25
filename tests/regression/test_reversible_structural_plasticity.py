@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
+
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
 
 
 def _fast_germinal(
@@ -117,7 +118,12 @@ def _legacy_worker3_payload(*, limits: KernelLimits, genome) -> dict[str, object
     )
     payload = source.export_checkpoint()
     payload["topology_revision"] = 29
-    for field in ("concept_lineage", "sense_last_seen_tick", "orphan_since_tick", "recovery_pending"):
+    for field in (
+        "concept_lineage",
+        "sense_last_seen_tick",
+        "orphan_since_tick",
+        "recovery_pending",
+    ):
         payload.pop(field, None)
     return payload
 
@@ -167,7 +173,10 @@ def test_repeated_turnover_without_concepts_never_exhausts_sense_budget() -> Non
 
     tick = 0
     for generation in range(50):
-        names = {f"g{generation:02d}_sense_{index}": float(generation * 10 + index + 1) for index in range(6)}
+        names = {
+            f"g{generation:02d}_sense_{index}": float(generation * 10 + index + 1)
+            for index in range(6)
+        }
         for _ in range(6):
             tick += 1
             bridge.tick(names, tick=tick)

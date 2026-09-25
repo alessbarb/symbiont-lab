@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from symbiont.core.advisory import (
     _BANNED_WORDS,
     AdvisoryConsentRequiredError,
@@ -13,6 +12,7 @@ from symbiont.core.advisory import (
 from symbiont.core.evidence import DissentRecord
 from symbiont.core.narrative import NarrativeEntry
 from symbiont.core.runtime import RuntimeTickResult
+
 from symbiont.host.drift import DriftKind, DriftObservation
 
 
@@ -50,7 +50,9 @@ def _result(
     )
 
 
-_DISSENT = DissentRecord(capability_id="cpu", prior_mean=1.0, prior_stdev=0.1, evidence_mean=9.0, z_score=80.0)
+_DISSENT = DissentRecord(
+    capability_id="cpu", prior_mean=1.0, prior_stdev=0.1, evidence_mean=9.0, z_score=80.0
+)
 
 
 # --- rule composition ---
@@ -95,7 +97,9 @@ def test_non_regime_shift_drift_never_fires():
 
 
 def test_dissent_on_a_different_capability_does_not_corroborate():
-    other_dissent = DissentRecord(capability_id="disk", prior_mean=1.0, prior_stdev=0.1, evidence_mean=9.0, z_score=80.0)
+    other_dissent = DissentRecord(
+        capability_id="disk", prior_mean=1.0, prior_stdev=0.1, evidence_mean=9.0, z_score=80.0
+    )
     result = _result(uncertainty=0.1, investigated="disk", dissent=other_dissent)
     assert _evaluate_signals(result, uncertainty_threshold=1.0) == ()
 
@@ -208,8 +212,12 @@ def test_no_advisory_does_not_reset_rate_limit_clock():
     advisor.evaluate(_result(uncertainty=5.0, investigated=None, dissent=None))
 
     clock.now = 1.0
-    quiet_result = _result(drift_kind=DriftKind.NONE, uncertainty=0.1, investigated=None, dissent=None)
-    advisor.evaluate(quiet_result)  # no advisory conditions met; must not touch the rate-limit clock
+    quiet_result = _result(
+        drift_kind=DriftKind.NONE, uncertainty=0.1, investigated=None, dissent=None
+    )
+    advisor.evaluate(
+        quiet_result
+    )  # no advisory conditions met; must not touch the rate-limit clock
 
     clock.now = 5.0
     still_limited = advisor.evaluate(_result(uncertainty=5.0, investigated=None, dissent=None))

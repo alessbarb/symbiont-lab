@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from ..social.collective import CollectiveMemory
 from ..foundation.model import FEATURES
+from ..social.collective import CollectiveMemory
 from .reasoning import Hypothesis
 
 
@@ -40,7 +40,9 @@ class CuriosityPlanner:
         candidates: list[CuriosityProbe] = []
         for hypothesis in hypotheses:
             candidates.extend(self._probes_for(hypothesis, collective))
-        candidates.sort(key=lambda probe: (-probe.utility, probe.feature, probe.counterfactual_fingerprint))
+        candidates.sort(
+            key=lambda probe: (-probe.utility, probe.feature, probe.counterfactual_fingerprint)
+        )
         return tuple(candidates[: max(0, limit)])
 
     def _probes_for(
@@ -64,9 +66,7 @@ class CuriosityPlanner:
                 known_neighbor = counterfactual in collective.patterns
 
                 discrimination = (
-                    abs(base_probability - neighbor_probability)
-                    if known_neighbor
-                    else 0.25
+                    abs(base_probability - neighbor_probability) if known_neighbor else 0.25
                 )
                 evidence_gap = 1.0 - neighbor_certainty if known_neighbor else 1.0
                 uncertainty = 1.0 - base_certainty

@@ -60,12 +60,18 @@ def _summarize(
     elif uncertainty == float("inf"):
         belief_clause = f"{capability_id} is familiar but its uncertainty could not be computed"
     else:
-        belief_clause = f"{capability_id} is familiar, with a relative uncertainty of {uncertainty:.3f}"
+        belief_clause = (
+            f"{capability_id} is familiar, with a relative uncertainty of {uncertainty:.3f}"
+        )
 
-    attention_clause = "it received attention this tick" if attended else "it did not receive attention this tick"
+    attention_clause = (
+        "it received attention this tick" if attended else "it did not receive attention this tick"
+    )
 
     evidence_clause = (
-        f", {evidence_gathered} new reading(s) were gathered as evidence" if evidence_gathered > 0 else ""
+        f", {evidence_gathered} new reading(s) were gathered as evidence"
+        if evidence_gathered > 0
+        else ""
     )
     dissent_clause = (
         f" and that evidence (mean {dissent.evidence_mean:.3f}) contested its prior belief "

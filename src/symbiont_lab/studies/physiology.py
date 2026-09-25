@@ -1,11 +1,12 @@
 """Deterministic, evaluator-only studies for Milestone I viability semantics."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
-from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.homeostasis import HomeostaticController
+from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import LivingBodyState, PhysiologyController, VitalState
 from symbiont.core.runtime import OrganismRuntime
 
@@ -106,24 +107,37 @@ def run_physiology_study(
         if tick < len(schedule):
             ledger.intake("maintenance", schedule[tick])
         ledger.advance(retained_units=maintenance_cost)
-        snapshot = controller.advance(ledger.snapshot(), tick=tick,
-                                     resting=tick < len(resting_schedule) and resting_schedule[tick])
+        snapshot = controller.advance(
+            ledger.snapshot(),
+            tick=tick,
+            resting=tick < len(resting_schedule) and resting_schedule[tick],
+        )
         states.append(snapshot.state.value)
         if snapshot.state is VitalState.DEAD:
             break
     snapshot = ledger.snapshot()
     physiology = controller.snapshot()
-    return PhysiologyStudy(len(states), tuple(states), physiology.transitions,
-                           physiology.death_tick, snapshot.reserve["maintenance"],
-                           sum(state == VitalState.DORMANT.value for state in states))
+    return PhysiologyStudy(
+        len(states),
+        tuple(states),
+        physiology.transitions,
+        physiology.death_tick,
+        snapshot.reserve["maintenance"],
+        sum(state == VitalState.DORMANT.value for state in states),
+    )
 
 
 def run_runtime_replay_study(*, warmup_ticks: int = 2, replay_ticks: int = 2) -> bool:
     """Verify runtime physiology/metabolism continuity across a checkpoint."""
     if warmup_ticks < 1 or replay_ticks < 1:
         raise ValueError("tick counts must be positive")
-    runtime = OrganismRuntime(bootstrap_semantic_senses=False, discover_senses=False,
-                              investigate_ticks=0, min_samples=1, explicit_metabolism=True)
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        investigate_ticks=0,
+        min_samples=1,
+        explicit_metabolism=True,
+    )
     runtime.run(warmup_ticks)
     restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), min_samples=1)
     left = [result.physiology for result in runtime.run(replay_ticks)]
@@ -133,10 +147,7 @@ def run_runtime_replay_study(*, warmup_ticks: int = 2, replay_ticks: int = 2) ->
 
 def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
     """Exercise explicit intake, constitutive repair, rest and checkpoint continuity."""
-    kinds = {
-        kind: 0.0
-        for kind in ("observation", "cognition", "persistence", "maintenance")
-    }
+    kinds = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     body_state = LivingBodyState(
         energy_reserve=1.0,
         max_energy=1.0,
@@ -174,10 +185,7 @@ def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
         discover_senses=False,
         investigate_ticks=0,
     )
-    rest_equal = (
-        restored.resting_requested
-        and restored.checkpoint()["resting_requested"] is True
-    )
+    rest_equal = restored.resting_requested and restored.checkpoint()["resting_requested"] is True
     restored.resume_activity()
     return RuntimeRecoveryStudy(
         repaired=repaired,
@@ -209,7 +217,9 @@ def run_sustained_recovery_study(
     if deficit_cost * deficit_ticks >= 1.0:
         raise ValueError("deficit schedule must remain recoverable")
 
-    zero_replenishment = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+    zero_replenishment = {
+        kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
+    }
 
     body_state = LivingBodyState(energy_reserve=1.0, max_energy=1.0)
     ledger = MetabolicLedger(
@@ -248,8 +258,11 @@ def run_sustained_recovery_study(
     recovered_states, recovered_reserve = recover(ledger, controller, supply=recovery_intake)
     recovered = VitalState.ACTIVE in recovered_states
     recovery_tick = next(
-        (deficit_ticks + index + 1 for index, state in enumerate(recovered_states)
-         if state is VitalState.ACTIVE),
+        (
+            deficit_ticks + index + 1
+            for index, state in enumerate(recovered_states)
+            if state is VitalState.ACTIVE
+        ),
         None,
     )
 
@@ -274,7 +287,9 @@ def run_sustained_recovery_study(
         checkpoint[1],
         body_state=replay_state,
     )
-    replay_states, replay_reserve = recover(replay_ledger, replay_controller, supply=recovery_intake)
+    replay_states, replay_reserve = recover(
+        replay_ledger, replay_controller, supply=recovery_intake
+    )
     checkpoint_replay_equal = (
         replay_states == recovered_states
         and replay_reserve == recovered_reserve
@@ -298,13 +313,8 @@ def run_sustained_repair_study(
 ) -> SustainedRepairStudy:
     """Verify constitutive repair is resource-bounded and replayable."""
     if cycles < 2 or not 0.0 < requested_per_cycle <= 1.0:
-        raise ValueError(
-            "cycles must be at least 2 and requested_per_cycle must be in (0, 1]"
-        )
-    zero = {
-        kind: 0.0
-        for kind in ("observation", "cognition", "persistence", "maintenance")
-    }
+        raise ValueError("cycles must be at least 2 and requested_per_cycle must be in (0, 1]")
+    zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
 
     def build() -> OrganismRuntime:
         state = LivingBodyState(
@@ -377,7 +387,13 @@ def run_sustained_repair_study(
 
 
 __all__ = [
-    "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy", "SustainedRepairStudy",
-    "run_physiology_study", "run_runtime_replay_study", "run_runtime_recovery_study",
-    "run_sustained_recovery_study", "run_sustained_repair_study",
+    "PhysiologyStudy",
+    "RuntimeRecoveryStudy",
+    "SustainedRecoveryStudy",
+    "SustainedRepairStudy",
+    "run_physiology_study",
+    "run_runtime_replay_study",
+    "run_runtime_recovery_study",
+    "run_sustained_recovery_study",
+    "run_sustained_repair_study",
 ]

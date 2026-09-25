@@ -4,11 +4,14 @@ same *shape* of result deterministically. It does not assert a scientific
 conclusion -- H0 was not rejected for either gate (see audit.md) and this
 test must not silently start asserting the opposite as behavior drifts.
 """
+
 import importlib.util
 import sys
 from pathlib import Path
 
-_MODULE_PATH = Path(__file__).resolve().parents[4] / "experiments" / "world" / "genesis-v1" / "run_w01_w02.py"
+_MODULE_PATH = (
+    Path(__file__).resolve().parents[4] / "experiments" / "world" / "genesis-v1" / "run_w01_w02.py"
+)
 _spec = importlib.util.spec_from_file_location("run_w01_w02", _MODULE_PATH)
 run_w01_w02 = importlib.util.module_from_spec(_spec)
 sys.modules.setdefault("run_w01_w02", run_w01_w02)

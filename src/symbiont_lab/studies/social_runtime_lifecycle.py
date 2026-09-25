@@ -1,16 +1,18 @@
 """Evaluator-only social restart, lineage and death-boundary study."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont import __version__ as symbiont_version
-from symbiont.cognition.birth import load_base_genome
-from symbiont.cognition.limits import KernelLimits
 from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import PhysiologyController
 from symbiont.core.runtime import OrganismRuntime
+
+from symbiont import __version__ as symbiont_version
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.social import SocialHabitat
 
 
@@ -84,7 +86,8 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
         resumed_after_restore=resumed_after_restore,
         child_generation=child.generation,
         child_traceable_to_parent=child_record["parent_ids"] == ["parent"],
-        parent_released_after_death="parent" not in social.members and "parent" not in authority.live_ids,
+        parent_released_after_death="parent" not in social.members
+        and "parent" not in authority.live_ids,
         child_remains_live=child.organism_id in authority.live_ids,
     )
 

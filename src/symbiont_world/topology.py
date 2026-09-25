@@ -3,13 +3,19 @@
 Reflecting/impermeable boundary, not toroidal: a move that would cross the
 edge fails rather than wrapping. One organism per cell, at most.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 # Axial hex coordinates, pointy-top, six directions clockwise from east.
 _DIRECTIONS: tuple[tuple[int, int], ...] = (
-    (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1),
+    (1, 0),
+    (1, -1),
+    (0, -1),
+    (-1, 0),
+    (-1, 1),
+    (0, 1),
 )
 
 
@@ -51,7 +57,6 @@ class BodyPlacement:
     @property
     def body_id(self) -> str:
         return self.organism_id
-
 
 
 class HexTopology:
@@ -120,4 +125,3 @@ class OccupancyGrid:
         if not isinstance(other, OccupancyGrid):
             return NotImplemented
         return self._by_cell == other._by_cell and self._by_organism == other._by_organism
-

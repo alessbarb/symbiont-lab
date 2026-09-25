@@ -45,7 +45,14 @@ def build_history_summary(journal_dir: Path | str, *, run_id: str) -> dict[str, 
             state = snapshot.get("organism", {}).get("state")
             if isinstance(state, str):
                 states[state] += 1
-        files.append({"name": path.name, "sha256": digest, "entries": lines, "compressed": path.suffix == ".gz"})
+        files.append(
+            {
+                "name": path.name,
+                "sha256": digest,
+                "entries": lines,
+                "compressed": path.suffix == ".gz",
+            }
+        )
     return {
         "summary_version": 1,
         "run_id": run_id,

@@ -1,13 +1,13 @@
 from __future__ import annotations
-from .hypotheses import HypothesisTracker
 
+import heapq
+import math
 from dataclasses import dataclass, field
 from hashlib import sha256
-import math
 from itertools import combinations
-import heapq
 from typing import Any, Iterable
 
+from .hypotheses import HypothesisTracker
 from .readings import ReadingQuality, SensorReading
 
 
@@ -63,7 +63,9 @@ class SenseState:
         scale = abs(self.mean) + math.sqrt(max(0.0, self.variance)) + 1e-12
         variability = min(1.0, math.sqrt(max(0.0, self.variance)) / scale)
         motion = min(1.0, self.delta_ewma / scale)
-        return self.availability * (_UTILITY_VARIABILITY_WEIGHT * variability + _UTILITY_MOTION_WEIGHT * motion)
+        return self.availability * (
+            _UTILITY_VARIABILITY_WEIGHT * variability + _UTILITY_MOTION_WEIGHT * motion
+        )
 
     @property
     def sampling_interest(self) -> float:
@@ -84,7 +86,9 @@ class SenseState:
             return
         if self.last_value is not None:
             delta = abs(value - self.last_value)
-            self.delta_ewma = delta if self.available_samples == 1 else (0.2 * delta + 0.8 * self.delta_ewma)
+            self.delta_ewma = (
+                delta if self.available_samples == 1 else (0.2 * delta + 0.8 * self.delta_ewma)
+            )
         self.last_value = value
         self.available_samples += 1
         delta = value - self.mean
@@ -113,7 +117,9 @@ class SenseState:
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "SenseState":
         samples = _require_nonneg_int(payload.get("samples", 0), "samples")
-        available_samples = _require_nonneg_int(payload.get("available_samples", 0), "available_samples")
+        available_samples = _require_nonneg_int(
+            payload.get("available_samples", 0), "available_samples"
+        )
         mean = _require_finite(payload.get("mean", 0.0), "mean")
         m2 = _require_finite(payload.get("m2", 0.0), "m2")
         if m2 < 0.0:
@@ -134,7 +140,9 @@ class SenseState:
         if "last_value" in payload:
             raw_last = payload["last_value"]
             state.last_value = None if raw_last is None else _require_finite(raw_last, "last_value")
-        state.last_seen_tick = _require_nonneg_int(payload.get("last_seen_tick", 0), "last_seen_tick")
+        state.last_seen_tick = _require_nonneg_int(
+            payload.get("last_seen_tick", 0), "last_seen_tick"
+        )
         if state.available_samples > state.samples:
             raise ValueError("available_samples cannot exceed samples")
         return state
@@ -206,7 +214,13 @@ class PairAccumulator:
     def from_payload(cls, payload: dict[str, Any]) -> "PairAccumulator":
         count = _require_nonneg_int(payload.get("count", 0), "count")
         legacy_keys = {"sum_x", "sum_y", "sum_xx", "sum_yy", "sum_xy"}
-        if legacy_keys.issubset(payload) and not {"mean_x", "mean_y", "m2_x", "m2_y", "c_xy"}.issubset(payload):
+        if legacy_keys.issubset(payload) and not {
+            "mean_x",
+            "mean_y",
+            "m2_x",
+            "m2_y",
+            "c_xy",
+        }.issubset(payload):
             sum_x = _require_finite(payload["sum_x"], "sum_x")
             sum_y = _require_finite(payload["sum_y"], "sum_y")
             sum_xx = _require_finite(payload["sum_xx"], "sum_xx")
@@ -295,7 +309,6 @@ class SamplingPlan:
     @property
     def requested_ids(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys((*self.active, *self.probing)))
-
 
 
 # Historical AdaptiveSenseModel threshold.
@@ -514,7 +527,9 @@ class AdaptiveSenseModel:
             self._remember_capability(reading.capability_id)
             state = self._states.get(reading.capability_id)
             if state is None:
-                if len(self._states) >= self._max_candidates and not self._evict_state_for(reading.capability_id):
+                if len(self._states) >= self._max_candidates and not self._evict_state_for(
+                    reading.capability_id
+                ):
                     continue
                 state = SenseState(
                     capability_id=reading.capability_id,
@@ -547,7 +562,9 @@ class AdaptiveSenseModel:
             if second in self._previous_values:
                 relation.b_to_a.observe(self._previous_values[second], current_values[first])
 
-        self._previous_values = {capability_id: current_values[capability_id] for capability_id in chosen_ids}
+        self._previous_values = {
+            capability_id: current_values[capability_id] for capability_id in chosen_ids
+        }
         for relation in self._relations.values():
             self._hypotheses.observe(
                 (relation.capability_a, relation.capability_b),
@@ -573,7 +590,9 @@ class AdaptiveSenseModel:
         return False
 
     def active_states(self) -> tuple[SenseState, ...]:
-        established = [state for state in self._states.values() if state.available_samples >= self._min_samples]
+        established = [
+            state for state in self._states.values() if state.available_samples >= self._min_samples
+        ]
         ranked = sorted(established, key=lambda state: (-state.utility, state.percept_name))
         selected: list[SenseState] = []
         redundant: list[SenseState] = []
@@ -618,7 +637,9 @@ class AdaptiveSenseModel:
         the restart-stable distinction between "known but statistics omitted"
         and genuinely unknown.
         """
-        available = tuple(sorted(set(available_ids), key=self._sampling_order))[: self._max_candidates]
+        available = tuple(sorted(set(available_ids), key=self._sampling_order))[
+            : self._max_candidates
+        ]
         available_set = set(available)
         active = tuple(
             state.capability_id
@@ -723,7 +744,9 @@ class AdaptiveSenseModel:
             "probe_cursor": self._probe_cursor,
             "known_capability_fingerprints": list(self._known_capability_fingerprints),
             "states": [
-                state.to_payload() for state in self.states if state.available_samples >= self._min_samples
+                state.to_payload()
+                for state in self.states
+                if state.available_samples >= self._min_samples
             ],
             "relations": [
                 relation.to_payload(min_samples=self._min_relation_samples)
@@ -781,7 +804,9 @@ class AdaptiveSenseModel:
                 or len(fingerprint) != 64
                 or any(character not in "0123456789abcdef" for character in fingerprint)
             ):
-                raise ValueError("known capability fingerprint must be a 64-character lowercase hex digest")
+                raise ValueError(
+                    "known capability fingerprint must be a 64-character lowercase hex digest"
+                )
             model._known_capability_fingerprints[fingerprint] = None
 
         for item in payload.get("states", [])[: model._max_candidates]:
@@ -790,7 +815,10 @@ class AdaptiveSenseModel:
             model._remember_capability(state.capability_id)
         for item in payload.get("relations", [])[: model._max_relations]:
             relation = SensoryRelation.from_payload(item)
-            if relation.capability_a not in model._states or relation.capability_b not in model._states:
+            if (
+                relation.capability_a not in model._states
+                or relation.capability_b not in model._states
+            ):
                 continue
             key = _canonical_pair(relation.capability_a, relation.capability_b)
             model._relations[key] = relation
@@ -816,7 +844,9 @@ class AdaptiveSenseModel:
                         or len(fingerprint) != 64
                         or any(character not in "0123456789abcdef" for character in fingerprint)
                     ):
-                        raise ValueError("replay known capability fingerprint must be a 64-character lowercase hex digest")
+                        raise ValueError(
+                            "replay known capability fingerprint must be a 64-character lowercase hex digest"
+                        )
                     model._known_capability_fingerprints[fingerprint] = None
             if "probe_cursor" in replay:
                 model._probe_cursor = _require_nonneg_int(replay["probe_cursor"], "probe_cursor")
