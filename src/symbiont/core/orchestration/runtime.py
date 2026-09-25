@@ -120,6 +120,7 @@ from ..domains.physiology import PhysiologyDomain, PhysiologyServices
 from ..domains.perception import PerceptionDomain, PerceptionServices
 from ..domains.cognition import CognitionDomain, CognitionServices
 from ..domains.epistemic import EpistemicDomain, EpistemicServices
+from ..domains.lifecycle import LifecycleDomain, LifecycleEventState
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -394,11 +395,7 @@ class OrganismRuntime:
         self._auto_promote_predictors = bool(auto_promote_predictors)
         self._birth_authority = birth_authority
         self._developmental_tracker = developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
-        self._last_runtime_vital_state: str | None = None
-        self._last_runtime_development_phase: str | None = None
-        self._first_sense_emitted = False
-        self._first_concept_emitted = False
-        self._first_prediction_emitted = False
+        self._lifecycle_domain = LifecycleDomain()
         self._generation = generation
         self._last_checkpoint_hash: str | None = None
         self._social_exchange_quantum = float(social_exchange_quantum)
@@ -982,6 +979,46 @@ class OrganismRuntime:
     @_last_reactive_state.setter
     def _last_reactive_state(self, value):
         self._action_domain.last_reactive_state = value
+
+    @property
+    def _last_runtime_vital_state(self):
+        return self._lifecycle_domain.state.last_vital_state
+
+    @_last_runtime_vital_state.setter
+    def _last_runtime_vital_state(self, value):
+        self._lifecycle_domain.state.last_vital_state = value
+
+    @property
+    def _last_runtime_development_phase(self):
+        return self._lifecycle_domain.state.last_development_phase
+
+    @_last_runtime_development_phase.setter
+    def _last_runtime_development_phase(self, value):
+        self._lifecycle_domain.state.last_development_phase = value
+
+    @property
+    def _first_sense_emitted(self):
+        return self._lifecycle_domain.state.first_sense_emitted
+
+    @_first_sense_emitted.setter
+    def _first_sense_emitted(self, value):
+        self._lifecycle_domain.state.first_sense_emitted = bool(value)
+
+    @property
+    def _first_concept_emitted(self):
+        return self._lifecycle_domain.state.first_concept_emitted
+
+    @_first_concept_emitted.setter
+    def _first_concept_emitted(self, value):
+        self._lifecycle_domain.state.first_concept_emitted = bool(value)
+
+    @property
+    def _first_prediction_emitted(self):
+        return self._lifecycle_domain.state.first_prediction_emitted
+
+    @_first_prediction_emitted.setter
+    def _first_prediction_emitted(self, value):
+        self._lifecycle_domain.state.first_prediction_emitted = bool(value)
 
     @property
     def gene_expression_state(self) -> GeneExpressionState | None:
@@ -2405,84 +2442,27 @@ class OrganismRuntime:
                 tick=self._tick_count,
             )
 
-        if self._interoception_provider is not None:
-            tick_latency = time.monotonic() - tick_start
-            surprise = 0.0
-            if cognition_result is not None and getattr(cognition_result, "prediction_errors", None):
-                errors = cognition_result.prediction_errors
-                surprise = min(1.0, sum(abs(e.error) for e in errors) / len(errors)) if errors else 0.0
-            metabolic_ratio = self._living_body_state.energy_reserve / max(
-                1e-9,
-                self._living_body_state.max_energy,
-            )
-            pressure_value = metabolism_snapshot.pressure.value
-            pressure_ratio = {
-                "normal": 0.0,
-                "elevated": 0.33,
-                "severe": 0.66,
-                "unrecoverable": 1.0,
-            }.get(pressure_value, 1.0)
-            self._interoception_provider.update_metrics(
-                tick_latency=tick_latency,
-                epistemic_surprise=surprise,
-                metabolic_reserve=max(0.0, min(1.0, metabolic_ratio)),
-                integrity=self._homeostasis.integrity,
-                metabolic_pressure=pressure_ratio,
-                repair_pressure=1.0 - self._homeostasis.integrity,
-                waste_pressure=min(1.0, len(self._degradation.items) / 64.0),
-            )
-        runtime_events: list[str] = []
-        if homeostatic_snapshot.action.value != "maintain":
-            # Evaluator-facing evidence only; this kernel intervention does
-            # not enter cognition or alter the organism's decision.
-            runtime_events.append("homeostatic_rescue")
-        current_state = physiology_snapshot.state.value
-        current_phase = development_snapshot.phase.value
-        if current_phase != self._last_runtime_development_phase:
-            runtime_events.append("development")
-        if current_state in {"stressed", "agonizing", "dormant"}:
-            runtime_events.append("stress")
-        if self._last_runtime_vital_state in {"stressed", "agonizing", "dormant"} and current_state == "active":
-            runtime_events.append("recovery")
-        if current_state == "active":
-            runtime_events.append("regulation")
-        if cognition_result is not None:
-            runtime_events.append("learning")
-        if not self._first_sense_emitted and percepts:
-            runtime_events.append("first_sense")
-            self._first_sense_emitted = True
-        if (not self._first_concept_emitted and cognition_result is not None
-                and getattr(cognition_result, "readouts", ())):
-            runtime_events.append("first_concept")
-            self._first_concept_emitted = True
-        knowledge_has_prediction = any(
-            claim.get("kind") == "lead_prediction"
-            for profile in knowledge_view
-            for claim in profile.get("claims", ())
+        self._lifecycle_domain.update_interoception_metrics(
+            provider=self._interoception_provider,
+            tick_start=tick_start,
+            cognition_result=cognition_result,
+            living_body_state=self._living_body_state,
+            homeostasis=self._homeostasis,
+            degradation=self._degradation,
+            metabolism_snapshot=metabolism_snapshot,
         )
-        if (not self._first_prediction_emitted and (
-                (cognition_result is not None and getattr(cognition_result, "prediction_errors", ()))
-                or knowledge_has_prediction)):
-            runtime_events.append("first_prediction")
-            self._first_prediction_emitted = True
-        if any(getattr(item, "kind", None) and
-               getattr(item.kind, "value", item.kind) == "regime_shift"
-               for item in drift_observations.values()):
-            runtime_events.append("regime_shift")
-        if current_phase == "terminal" and self._last_runtime_development_phase != "terminal":
-            runtime_events.append("terminal")
-        if action_result is not None and action_result.executed:
-            # Canonical core names no action kind here (High E): the raw,
-            # opaque action_id is already a passive Observatory display
-            # field via RuntimeTickResult.action_result. Re-deriving a
-            # semantic category (rest/interaction/reproduction/...) from it
-            # would be reconstructing the removed typed action vocabulary
-            # inside cognition-adjacent core code.
-            runtime_events.append("action_executed")
-        if current_state == "dead":
-            runtime_events.extend(("death", "resource_release"))
-        self._last_runtime_vital_state = current_state
-        self._last_runtime_development_phase = current_phase
+        runtime_events = self._lifecycle_domain.events(
+            homeostatic_snapshot=homeostatic_snapshot,
+            physiology_snapshot=physiology_snapshot,
+            development_snapshot=development_snapshot,
+            cognition_result=cognition_result,
+            percepts=percepts,
+            knowledge_view=knowledge_view,
+            drift_observations=drift_observations,
+            action_executed=bool(
+                action_result is not None and action_result.executed
+            ),
+        )
 
         # Evidence from tick t regulates the operating phenotype for t+1.
         self._update_gene_expression(
@@ -2536,7 +2516,7 @@ class OrganismRuntime:
             action_result=action_result,
             development=development_snapshot,
             sensory_phenotype=sensory_phenotype_view,
-            runtime_events=tuple(dict.fromkeys(runtime_events)),
+            runtime_events=runtime_events,
             motor_intent=self._last_motor_intent,
             actuation=self._last_actuation,
             motor_intents=self._last_motor_intents,
