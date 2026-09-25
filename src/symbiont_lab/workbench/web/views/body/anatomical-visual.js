@@ -107,6 +107,13 @@ export function createAnatomicalSegment(segName, seg, bodyKind) {
     const abdomen = scaledSphere(material, width * 0.78, height * 0.48, depth * 0.82, 24);
     abdomen.position.y = -height * 0.22;
     mesh.add(abdomen);
+
+    // Shoulder masses bridge the visual gap to the physical shoulder origins.
+    for (const side of [-1, 1]) {
+      const shoulder = scaledSphere(material, width * 0.30, height * 0.24, depth * 0.62, 20);
+      shoulder.position.set(side * width * 0.48, height * 0.24, 0);
+      mesh.add(shoulder);
+    }
   } else if (segName === 'pelvis') {
     mesh = scaledSphere(material, width * 1.02, height * 0.88, depth, 30);
   } else if (segName === 'head') {
@@ -114,6 +121,23 @@ export function createAnatomicalSegment(segName, seg, bodyKind) {
     const jaw = scaledSphere(material, width * 0.74, height * 0.42, depth * 0.78, 24);
     jaw.position.y = -height * 0.26;
     mesh.add(jaw);
+
+    // Subtle observer-only landmarks make head orientation readable without
+    // adding facial animation or any state that does not exist in Physics3D.
+    const nose = scaledSphere(material, width * 0.14, height * 0.16, depth * 0.20, 14);
+    nose.position.set(0, height * 0.02, -depth * 0.48);
+    mesh.add(nose);
+    for (const side of [-1, 1]) {
+      const ear = scaledSphere(material, width * 0.11, height * 0.20, depth * 0.10, 14);
+      ear.position.set(side * width * 0.48, height * 0.02, 0);
+      mesh.add(ear);
+    }
+    const neck = new THREE.Mesh(
+      new THREE.CylinderGeometry(width * 0.22, width * 0.25, height * 0.34, 18, 2),
+      material,
+    );
+    neck.position.y = -height * 0.58;
+    mesh.add(neck);
   } else if (segName.includes('upper_arm')) {
     mesh = taperedLimb(material, width, depth, height, 0.76);
     addJointCap(mesh, material, height * 0.48, width * 0.92, width * 0.72, depth * 0.92);
