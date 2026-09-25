@@ -630,7 +630,7 @@ def prepare_fresh_embodiment_checkpoint(
                     last_embodiment_id=existing.last_embodiment_id,
                     body_schema_prior=existing.body_schema_prior,
                     dynamics_prior=existing.dynamics_prior,
-                    embodied_competence_priors=existing.embodied_competence_priors,
+                    execution_binding_priors=existing.execution_binding_priors,
                     historical_causal_state=existing.historical_causal_state,
                     historical_motor_candidates=current_candidates,
                     motor_cognitive_surface=(
