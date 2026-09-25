@@ -43,6 +43,11 @@ class PhysiologyStepResult:
 class PhysiologyDomain:
     """Advance constitutive organism physiology without action semantics."""
 
+    @staticmethod
+    def advance_body_age(living_body_state: LivingBodyState) -> None:
+        """Advance body age only; Symbiont time remains a separate clock."""
+        living_body_state.advance_age()
+
     def advance(
         self,
         *,

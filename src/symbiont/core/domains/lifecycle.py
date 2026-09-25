@@ -18,6 +18,13 @@ class LifecycleEventState:
     first_prediction_emitted: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class LifecycleReleaseResult:
+    habitat_released: bool
+    birth_authority_released: bool
+    social_habitat_released: bool
+
+
 class LifecycleDomain:
     """Own lifecycle-event chronology; never selects or executes actions."""
 
@@ -107,6 +114,101 @@ class LifecycleDomain:
         self.state.last_vital_state = current_state
         self.state.last_development_phase = current_phase
         return tuple(dict.fromkeys(events))
+
+    @staticmethod
+    def release_on_death(
+        *,
+        organism_id: str,
+        physiology_snapshot: Any,
+        habitat: Any | None,
+        habitat_released: bool,
+        resource_habitats: dict[str, Any],
+        birth_authority: Any | None,
+        birth_authority_released: bool,
+        social_habitat: Any | None,
+        social_habitat_released: bool,
+    ) -> LifecycleReleaseResult:
+        """Release external leases exactly when the body reaches death."""
+        if physiology_snapshot.state.value != "dead":
+            return LifecycleReleaseResult(
+                habitat_released=habitat_released,
+                birth_authority_released=birth_authority_released,
+                social_habitat_released=social_habitat_released,
+            )
+
+        next_habitat_released = habitat_released
+        if habitat is not None and not habitat_released:
+            habitat.release(organism_id)
+            next_habitat_released = True
+
+        for resource in resource_habitats.values():
+            resource.release(organism_id)
+
+        next_birth_released = birth_authority_released
+        if birth_authority is not None and not birth_authority_released:
+            birth_authority.death(organism_id)
+            next_birth_released = True
+
+        next_social_released = social_habitat_released
+        if social_habitat is not None and not social_habitat_released:
+            social_habitat.release(organism_id)
+            next_social_released = True
+
+        return LifecycleReleaseResult(
+            habitat_released=next_habitat_released,
+            birth_authority_released=next_birth_released,
+            social_habitat_released=next_social_released,
+        )
+
+    @staticmethod
+    def record_journal(
+        journal: list[dict[str, Any]],
+        *,
+        tick: int,
+        physiology_snapshot: Any,
+        metabolism_snapshot: Any,
+        resting_for_tick: bool,
+        allocations: tuple[Any, ...],
+        investigated_capability: str | None,
+        drift_observations: dict[str, DriftObservation],
+        dissent: Any | None,
+        assimilation_count: int,
+        narrative: tuple[Any, ...],
+        max_entries: int = 50,
+    ) -> None:
+        entry = {
+            "tick": int(tick),
+            "vital_state": physiology_snapshot.state.value,
+            "pressure": metabolism_snapshot.pressure.value,
+            "reserve": {
+                key: round(value, 4)
+                for key, value in metabolism_snapshot.reserve.items()
+            },
+            "resting": bool(
+                resting_for_tick
+                or physiology_snapshot.state.value == "dormant"
+            ),
+            "attended": [allocation.name for allocation in allocations],
+            "investigated": investigated_capability,
+            "regime_shifts": [
+                name
+                for name, observation in drift_observations.items()
+                if getattr(observation, "kind", None)
+                and observation.kind.value == "regime_shift"
+            ],
+            "dissent": (
+                dissent.capability_id if dissent is not None else None
+            ),
+            "assimilated_count": int(assimilation_count),
+            "narrative": [
+                entry.summary
+                for entry in narrative
+                if entry.attended
+            ][:3],
+        }
+        journal.append(entry)
+        if len(journal) > max_entries:
+            del journal[:-max_entries]
 
     @staticmethod
     def update_interoception_metrics(

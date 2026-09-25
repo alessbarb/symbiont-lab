@@ -2351,18 +2351,20 @@ class OrganismRuntime:
         self._resting_requested = physiology_step.resting_requested
         resting_for_tick = physiology_step.resting_for_tick
         self._resolve_homeostatic_action_credit(tick=context.symbiont_tick)
-        if physiology_snapshot.state.value == "dead":
-            if self._habitat is not None and not self._habitat_released:
-                self._habitat.release(self._organism_id)
-                self._habitat_released = True
-            for resource in self._resource_habitats.values():
-                resource.release(self._organism_id)
-            if self._birth_authority is not None and not self._birth_authority_released:
-                self._birth_authority.death(self._organism_id)
-                self._birth_authority_released = True
-            if self._social_habitat is not None and not self._social_habitat_released:
-                self._social_habitat.release(self._organism_id)
-                self._social_habitat_released = True
+        release = self._lifecycle_domain.release_on_death(
+            organism_id=self._organism_id,
+            physiology_snapshot=physiology_snapshot,
+            habitat=self._habitat,
+            habitat_released=self._habitat_released,
+            resource_habitats=self._resource_habitats,
+            birth_authority=self._birth_authority,
+            birth_authority_released=self._birth_authority_released,
+            social_habitat=self._social_habitat,
+            social_habitat_released=self._social_habitat_released,
+        )
+        self._habitat_released = release.habitat_released
+        self._birth_authority_released = release.birth_authority_released
+        self._social_habitat_released = release.social_habitat_released
         self._lifecycle_domain.update_interoception_metrics(
             provider=self._interoception_provider,
             tick_start=tick_start,
@@ -2392,24 +2394,21 @@ class OrganismRuntime:
             metabolic_pressure=metabolism_snapshot.pressure.value,
         )
 
-        self._tick_count += 1
-        self._living_body_state.advance_age()
-        journal_entry = {
-            "tick": self._tick_count,
-            "vital_state": physiology_snapshot.state.value if physiology_snapshot else "active",
-            "pressure": metabolism_snapshot.pressure.value if metabolism_snapshot else "normal",
-            "reserve": {k: round(v, 4) for k, v in metabolism_snapshot.reserve.items()} if metabolism_snapshot else {},
-            "resting": bool(resting_for_tick or (physiology_snapshot is not None and physiology_snapshot.state.value == "dormant")),
-            "attended": [a.name for a in allocations],
-            "investigated": investigated_capability,
-            "regime_shifts": [name for name, obs in drift_observations.items() if getattr(obs, "kind", None) and obs.kind.value == "regime_shift"],
-            "dissent": dissent.capability_id if dissent is not None else None,
-            "assimilated_count": len(assimilation),
-            "narrative": [entry.summary for entry in narrative if entry.attended][:3],
-        }
-        self._narrative_journal.append(journal_entry)
-        if len(self._narrative_journal) > 50:
-            self._narrative_journal = self._narrative_journal[-50:]
+        self._tick_count = context.symbiont_tick
+        self._physiology_domain.advance_body_age(self._living_body_state)
+        self._lifecycle_domain.record_journal(
+            self._narrative_journal,
+            tick=self._tick_count,
+            physiology_snapshot=physiology_snapshot,
+            metabolism_snapshot=metabolism_snapshot,
+            resting_for_tick=resting_for_tick,
+            allocations=allocations,
+            investigated_capability=investigated_capability,
+            drift_observations=drift_observations,
+            dissent=dissent,
+            assimilation_count=len(assimilation),
+            narrative=narrative,
+        )
         self._decay_epigenetic_priors()
         return RuntimeTickResult(
             tick=self._tick_count,
