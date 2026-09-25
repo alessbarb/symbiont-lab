@@ -6,6 +6,7 @@ import hashlib
 import uuid
 import math
 import time
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
