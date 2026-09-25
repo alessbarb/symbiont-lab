@@ -13,6 +13,9 @@ class SettlingResult:
     residual_linear_speed_m_s: float
     residual_angular_speed_rad_s: float
     residual_joint_speed_rad_s: float
+    residual_joint_reported_speed_rad_s: float = 0.0
+    peak_joint_index: int | None = None
+    peak_joint_name: str | None = None
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -45,6 +48,23 @@ def settle_passive_body(
     last_linear = 0.0
     last_angular = 0.0
     last_joint = 0.0
+    last_reported_joint = 0.0
+    peak_joint_index: int | None = None
+    peak_joint_name: str | None = None
+
+    parameters = pybullet_module.getPhysicsEngineParameters(
+        physicsClientId=client_id,
+    )
+    time_step = float(parameters.get("fixedTimeStep", 1.0 / 240.0))
+    if not math.isfinite(time_step) or time_step <= 0.0:
+        raise RuntimeError("Physics3D settling requires a finite positive time step")
+
+    initial_states = pybullet_module.getJointStates(
+        body.body_id,
+        body.motor_joint_indices,
+        physicsClientId=client_id,
+    )
+    previous_positions = tuple(float(state[0]) for state in initial_states)
 
     for step in range(1, max_steps + 1):
         body.prepare_physics_substep()
@@ -65,10 +85,35 @@ def settle_passive_body(
             body.motor_joint_indices,
             physicsClientId=client_id,
         )
-        last_joint = max(
-            (abs(float(state[1])) for state in states),
-            default=0.0,
+        positions = tuple(float(state[0]) for state in states)
+        reported_speeds = tuple(abs(float(state[1])) for state in states)
+        observed_speeds = tuple(
+            abs(position - previous) / time_step
+            for position, previous in zip(positions, previous_positions)
         )
+        previous_positions = positions
+
+        last_joint = max(observed_speeds, default=0.0)
+        last_reported_joint = max(reported_speeds, default=0.0)
+        if reported_speeds:
+            peak_ordinal = max(
+                range(len(reported_speeds)),
+                key=reported_speeds.__getitem__,
+            )
+            peak_joint_index = int(body.motor_joint_indices[peak_ordinal])
+            try:
+                raw_name = pybullet_module.getJointInfo(
+                    body.body_id,
+                    peak_joint_index,
+                    physicsClientId=client_id,
+                )[1]
+                peak_joint_name = (
+                    raw_name.decode("utf-8")
+                    if isinstance(raw_name, bytes)
+                    else str(raw_name)
+                )
+            except Exception:
+                peak_joint_name = None
 
         if (
             last_linear <= linear_threshold
@@ -85,6 +130,9 @@ def settle_passive_body(
                     residual_linear_speed_m_s=last_linear,
                     residual_angular_speed_rad_s=last_angular,
                     residual_joint_speed_rad_s=last_joint,
+                    residual_joint_reported_speed_rad_s=last_reported_joint,
+                    peak_joint_index=peak_joint_index,
+                    peak_joint_name=peak_joint_name,
                 )
         else:
             stable = 0
@@ -97,6 +145,9 @@ def settle_passive_body(
         residual_linear_speed_m_s=last_linear,
         residual_angular_speed_rad_s=last_angular,
         residual_joint_speed_rad_s=last_joint,
+        residual_joint_reported_speed_rad_s=last_reported_joint,
+        peak_joint_index=peak_joint_index,
+        peak_joint_name=peak_joint_name,
     )
 
 
