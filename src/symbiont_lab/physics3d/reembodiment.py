@@ -5,7 +5,11 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from symbiont.core.embodiment import BodySpecificMemory, EmbodimentArchive, archive_episode_checkpoint
+from symbiont.core.embodiment import (
+    BodySpecificMemory,
+    EmbodimentArchive,
+    archive_episode_checkpoint,
+)
 
 from .longitudinal import (
     CONTRACT_FINGERPRINT_SCHEMA_VERSION,
@@ -112,7 +116,10 @@ def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
 
 def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
     episode = payload.get("embodiment_episode")
-    if isinstance(episode, Mapping) and episode.get("schema_version") == 2:
+    if (
+        isinstance(episode, Mapping)
+        and int(episode.get("schema_version") or 0) in {2, 3}
+    ):
         contract = episode.get("contract")
         contract = contract if isinstance(contract, Mapping) else {}
         return {
