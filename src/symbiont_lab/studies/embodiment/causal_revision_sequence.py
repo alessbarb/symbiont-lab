@@ -124,21 +124,12 @@ def _stabilize_body(body: Body) -> None:
 
 
 def _tick_error(ind: Individual) -> float:
-    errors = ind.symbiont.sensorimotor_model.prediction_errors
-    if not errors:
-        return 0.0
-    return sum(float(v) for v in errors.values()) / len(errors)
+    return float(ind.symbiont.last_prediction_error)
 
 
 def _mapping_signature(ind: Individual) -> tuple[tuple[str, str], ...]:
-    """Observer-side summary of strongest learned out->in differential effect."""
-    by_out: dict[str, tuple[str, float]] = {}
-    for (out_ch, in_ch), rec in ind.symbiont.agency_model.contingency.items():
-        effect = float(rec.differential_effect)
-        current = by_out.get(out_ch)
-        if current is None or effect > current[1]:
-            by_out[out_ch] = (in_ch, effect)
-    return tuple(sorted((out_ch, in_ch) for out_ch, (in_ch, _) in by_out.items()))
+    """Observer-side projection of current opaque action->input mapping."""
+    return ind.symbiont.inferred_mapping_signature()
 
 
 def _feedback(
@@ -189,7 +180,7 @@ def _run_phase(
     errors: list[float] = []
     confidences: list[float] = []
     disruptions = 0
-    revisions_before = ind.symbiont.body_schema.revision_count
+    revisions_before = ind.symbiont.body_schema_revision_count
     first_revision_latency: int | None = None
     mapping_before = _mapping_signature(ind)
 
@@ -203,8 +194,8 @@ def _run_phase(
         }
         err = _tick_error(ind)
         errors.append(err)
-        confidences.append(float(ind.symbiont.body_schema.overall_confidence))
-        disruptions += int(ind.symbiont.body_schema.disruption_detected)
+        confidences.append(float(ind.symbiont.body_schema_confidence))
+        disruptions += int(ind.symbiont.body_schema_disrupted)
 
         if (
             first_revision_latency is None
