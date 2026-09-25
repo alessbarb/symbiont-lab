@@ -221,39 +221,6 @@ class PredictorLifecycle:
                 last_evaluated_tick=tick,
             )
 
-    def decay_retiring_edge(
-        self,
-        edge,
-        *,
-        tick: int,
-        structural_wait: int,
-        tentative_lifetime_ticks: int,
-    ) -> None:
-        retiring_id = None
-        if edge.source_id in self.retirement:
-            retiring_id = edge.source_id
-        elif edge.target_id in self.retirement:
-            retiring_id = edge.target_id
-        if retiring_id is None:
-            return
-
-        retirement = self.retirement[retiring_id]
-        age = max(0, tick - retirement.entered_tick)
-        grace = tentative_lifetime_ticks // 4
-        if age < grace:
-            return
-
-        wait_grace = max(1, tentative_lifetime_ticks)
-        if structural_wait >= 2 * wait_grace:
-            decay = 0.90
-        elif structural_wait >= wait_grace:
-            decay = 0.95
-        else:
-            decay = 0.99
-        edge.weight *= decay
-        if abs(edge.weight) < 1e-12:
-            edge.weight = 0.0
-
     def propose_promotion(
         self,
         source_id: str,
