@@ -2122,12 +2122,10 @@ class OrganismRuntime:
                 gene_expression_state=self._gene_expression_state,
                 choose_acquired_competence=self._choose_acquired_competence,
                 schedule_homeostatic_action_credit=(
-                    (
                     lambda **kwargs: self._regulation_domain.schedule_homeostatic_action_credit(
                         cognitive_bridge=self._cognitive_bridge,
                         **kwargs,
                     )
-                )
                 ),
             ),
         )
