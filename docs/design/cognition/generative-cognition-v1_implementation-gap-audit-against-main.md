@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `6431bf68`
+**Audited commit:** `bd490d8f`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -95,7 +95,7 @@ built by composing several mature existing components.
 | GC-1 | Endogenous agenda | **IMPLEMENTED — bounded agenda and scheduler substrate** |
 | GC-2 | Generative model adapters | **IMPLEMENTED — thin adapters; runtime integration pending** |
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded rollout substrate; integration and scientific utility pending** |
-| GC-4 | Branching | **PARTIAL — bounded sibling branch substrate; pruning/equivalence/merge pending** |
+| GC-4 | Branching | **PARTIAL — bounded branching with equivalence pruning; merge and richer pruning pending** |
 | GC-5 | Counterfactual cognition | **PARTIAL — bounded generic rollout substrate; concrete adapters and utility pending** |
 | GC-6 | Replay | **IMPLEMENTED — provenance-preserving materialization; concrete memory wiring pending** |
 | GC-7 | Recombination | **PARTIAL — compatibility-gated fragment composition; novelty/equivalence evidence pending** |
@@ -986,7 +986,7 @@ Relevant:
 
 ## Current code
 
-A bounded `BranchEngine` now creates sibling generated states from one parent using deterministic model ordering and the workspace branch budget. Prospective Agency still evaluates multiple candidate actions independently, but that remains:
+A bounded `BranchEngine` now creates sibling generated states from one parent using deterministic model ordering, identity-free internal equivalence pruning and the workspace branch budget. Prospective Agency still evaluates multiple candidate actions independently, but that remains:
 
 ```text
 parallel one-step candidate evaluation
@@ -1017,8 +1017,7 @@ BranchEngine
 Still required:
 
 ```text
-branch pruning
-state equivalence
+uncertainty/contradiction/information-gain pruning
 branch merge
 ```
 
@@ -1079,7 +1078,7 @@ GC-E2 ultimately measures whether branching adds planning utility.
 ## Status
 
 ```text
-PARTIAL — bounded sibling branch substrate only
+PARTIAL — bounded branching and equivalence pruning
 ```
 
 ---
