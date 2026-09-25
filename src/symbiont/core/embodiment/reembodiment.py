@@ -1,18 +1,9 @@
 """Core re-embodiment semantics independent of any simulator."""
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from .contract import EmbodimentContract
 from .episode import EmbodimentEndReason, EmbodimentEpisode
-from .memory import BodySpecificMemory, EmbodimentArchive
-
-
-@dataclass(frozen=True, slots=True)
-class ReembodimentPrior:
-    relation: str
-    body_memory: BodySpecificMemory | None
-    same_contract_memories: tuple[BodySpecificMemory, ...]
+from .memory import EmbodimentArchive, EmbodimentPrior
 
 
 def select_prior(
@@ -20,19 +11,10 @@ def select_prior(
     *,
     body_id: str,
     contract_fingerprint: str,
-) -> ReembodimentPrior:
-    exact = archive.for_body(body_id)
-    same_contract = archive.for_contract(contract_fingerprint)
-    if exact is not None:
-        relation = "same-body"
-    elif same_contract:
-        relation = "same-contract"
-    else:
-        relation = "novel"
-    return ReembodimentPrior(
-        relation=relation,
-        body_memory=exact,
-        same_contract_memories=same_contract,
+) -> EmbodimentPrior:
+    return archive.prior_for(
+        body_id=body_id,
+        contract_fingerprint=contract_fingerprint,
     )
 
 
@@ -44,7 +26,7 @@ def begin_reembodiment(
     symbiont_tick: int,
     contract: EmbodimentContract,
     archive: EmbodimentArchive,
-) -> tuple[EmbodimentEpisode, ReembodimentPrior]:
+) -> tuple[EmbodimentEpisode, EmbodimentPrior]:
     prior = select_prior(
         archive,
         body_id=body_id,
@@ -58,6 +40,7 @@ def begin_reembodiment(
         epoch=epoch,
         start_symbiont_tick=symbiont_tick,
         contract=contract,
+        prior=prior,
     )
     return episode, prior
 
@@ -69,7 +52,7 @@ def replace_body(
     new_body_id: str,
     new_contract: EmbodimentContract,
     archive: EmbodimentArchive,
-) -> tuple[EmbodimentEpisode, ReembodimentPrior]:
+) -> tuple[EmbodimentEpisode, EmbodimentPrior]:
     current.close(
         symbiont_tick=symbiont_tick,
         reason=EmbodimentEndReason.BODY_REPLACED,
@@ -85,7 +68,6 @@ def replace_body(
 
 
 __all__ = [
-    "ReembodimentPrior",
     "begin_reembodiment",
     "replace_body",
     "select_prior",
