@@ -11,6 +11,7 @@ class CommitmentStatus(StrEnum):
     INTERRUPTED = "interrupted"
     FAILED = "failed"
     INCOMPATIBLE = "incompatible"
+    INVALIDATED = "invalidated"
 
 
 @dataclass(slots=True)
@@ -21,7 +22,8 @@ class ActionCommitment:
     competence_id: str | None
     started_tick: int
     controller_id: str
-    surface_fingerprint: str | None = None
+    surface_fingerprint: str
+    embodiment_id: str | None = None
     interruptibility: float = 1.0
     minimum_duration: int = 0
     maximum_duration: int | None = None
@@ -32,6 +34,8 @@ class ActionCommitment:
     def __post_init__(self) -> None:
         if not self.commitment_id or not self.proposal_id or not self.controller_id:
             raise ValueError("commitment identifiers must not be empty")
+        if not self.surface_fingerprint:
+            raise ValueError("commitment requires a surface fingerprint")
         if self.started_tick < 0 or self.minimum_duration < 0:
             raise ValueError("commitment ticks must be non-negative")
         if self.maximum_duration is not None and self.maximum_duration < self.minimum_duration:
@@ -43,12 +47,21 @@ class ActionCommitment:
     def active(self) -> bool:
         return self.status is CommitmentStatus.ACTIVE
 
-    def compatible_with(self, fingerprint: str | None) -> bool:
-        return (
-            self.surface_fingerprint is None
-            or fingerprint is None
-            or self.surface_fingerprint == fingerprint
-        )
+    def compatible_with(
+        self,
+        fingerprint: str | None,
+        *,
+        embodiment_id: str | None = None,
+    ) -> bool:
+        if fingerprint is None or fingerprint != self.surface_fingerprint:
+            return False
+        if (
+            self.embodiment_id is not None
+            and embodiment_id is not None
+            and self.embodiment_id != embodiment_id
+        ):
+            return False
+        return True
 
     def terminate(self, *, tick: int, status: CommitmentStatus, reason: str) -> None:
         if status is CommitmentStatus.ACTIVE:
@@ -70,6 +83,7 @@ class ActionCommitment:
             "started_tick": self.started_tick,
             "controller_id": self.controller_id,
             "surface_fingerprint": self.surface_fingerprint,
+            "embodiment_id": self.embodiment_id,
             "interruptibility": self.interruptibility,
             "minimum_duration": self.minimum_duration,
             "maximum_duration": self.maximum_duration,
@@ -80,6 +94,9 @@ class ActionCommitment:
 
     @classmethod
     def restore(cls, payload: dict[str, object]) -> "ActionCommitment":
+        fingerprint = payload.get("surface_fingerprint")
+        if not isinstance(fingerprint, str) or not fingerprint:
+            raise ValueError("legacy commitment without surface fingerprint is not executable")
         obj = cls(
             commitment_id=str(payload["commitment_id"]),
             proposal_id=str(payload["proposal_id"]),
@@ -87,7 +104,8 @@ class ActionCommitment:
             competence_id=payload.get("competence_id") if isinstance(payload.get("competence_id"), str) else None,
             started_tick=int(payload["started_tick"]),
             controller_id=str(payload["controller_id"]),
-            surface_fingerprint=payload.get("surface_fingerprint") if isinstance(payload.get("surface_fingerprint"), str) else None,
+            surface_fingerprint=fingerprint,
+            embodiment_id=payload.get("embodiment_id") if isinstance(payload.get("embodiment_id"), str) else None,
             interruptibility=float(payload.get("interruptibility", 1.0)),
             minimum_duration=int(payload.get("minimum_duration", 0)),
             maximum_duration=int(payload["maximum_duration"]) if payload.get("maximum_duration") is not None else None,

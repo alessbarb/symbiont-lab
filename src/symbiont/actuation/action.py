@@ -1,8 +1,9 @@
 """Sensorimotor v2 action contracts.
 
-High-level action selection is separated from low-level motor control.  A
+High-level action selection is separated from low-level motor control. A
 proposal is organism-owned intent; a MotorCommand is one controller correction
-made under an existing ActionCommitment.
+made under exactly one existing ActionCommitment and exactly one actuator
+surface.
 """
 from __future__ import annotations
 
@@ -94,14 +95,24 @@ class ActionProposal:
 class MotorCommand:
     """One low-level correction under an already selected commitment."""
 
+    command_id: str
     commitment_id: str
     controller_id: str
     competence_id: str | None
+    surface_fingerprint: str
     channels: tuple[tuple[str, float], ...]
+    issued_at_tick: int
+    embodiment_id: str | None = None
 
     def __post_init__(self) -> None:
+        if not self.command_id:
+            raise ValueError("command_id must not be empty")
         if not self.commitment_id or not self.controller_id:
             raise ValueError("motor command provenance must not be empty")
+        if not self.surface_fingerprint:
+            raise ValueError("motor command requires a surface fingerprint")
+        if self.issued_at_tick < 0:
+            raise ValueError("issued_at_tick must be non-negative")
         seen: set[str] = set()
         normalized: list[tuple[str, float]] = []
         for actuator_id, activation in self.channels:
@@ -115,14 +126,22 @@ class MotorCommand:
     def from_mapping(
         cls,
         *,
+        command_id: str,
         commitment_id: str,
         controller_id: str,
         competence_id: str | None,
+        surface_fingerprint: str,
         channels: Mapping[str, float],
+        issued_at_tick: int,
+        embodiment_id: str | None = None,
     ) -> "MotorCommand":
         return cls(
+            command_id=command_id,
             commitment_id=commitment_id,
             controller_id=controller_id,
             competence_id=competence_id,
-            channels=tuple(sorted((str(key), float(value)) for key, value in channels.items())),
+            surface_fingerprint=surface_fingerprint,
+            channels=tuple(sorted((str(k), float(v)) for k, v in channels.items())),
+            issued_at_tick=issued_at_tick,
+            embodiment_id=embodiment_id,
         )
