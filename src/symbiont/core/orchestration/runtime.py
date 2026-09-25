@@ -3810,11 +3810,7 @@ class OrganismRuntime:
                 "enabled": True,
                 "constitution": constitution_payload,
                 "proposer": export_actuation_state(self._actuator_proposer),
-                "selection_threshold": (
-                    self._action_domain.selection_threshold
-                    if self._motor_intent_selector is not None
-                    else 0.1
-                ),
+                "selection_threshold": self._action_domain.selection_threshold,
                 "pending_motor_observation": pending_motor,
                 "pending_proprioception": dict(sorted(self._pending_proprioception.items())),
                 "sensorimotor": (
@@ -3828,7 +3824,7 @@ class OrganismRuntime:
                     if self._active_action_commitment is not None
                     else None
                 ),
-                "sensorimotor_v2": self._action_domain.checkpoint_v2(),,
+                "sensorimotor_v2": self._action_domain.checkpoint_v2(),
             }
         else:
             payload["actuation"] = {"enabled": False}
