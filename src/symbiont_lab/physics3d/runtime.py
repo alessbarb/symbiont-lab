@@ -700,6 +700,12 @@ class PyBulletEmbodimentRuntime:
             else:
                 logical_body_id = f"body.{secrets.token_hex(12)}"
                 migration_embodiment_id = None
+            prior = self._embodiment_archive.prior_for(
+                body_id=logical_body_id,
+                contract_fingerprint=(
+                    self._core_embodiment_contract.contract_fingerprint
+                ),
+            )
             self._embodiment_episode = EmbodimentEpisode.begin(
                 symbiont_id=self.organism_id,
                 body_id=logical_body_id,
@@ -707,6 +713,7 @@ class PyBulletEmbodimentRuntime:
                 start_symbiont_tick=episode_started_tick,
                 contract=self._core_embodiment_contract,
                 embodiment_id=migration_embodiment_id,
+                prior=prior,
             )
             # Canonical inference services are shared, never duplicated.
             self._embodiment_episode.body_schema = self.organism.body_schema
