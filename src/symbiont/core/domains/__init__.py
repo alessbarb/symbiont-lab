@@ -4,6 +4,7 @@ from .action import (
     ActionCognitionProjection,
     ActionDomain,
     ActionServices,
+    ActionStepResult,
     ActionTrace,
 )
 from .cognition import CognitionDomain, CognitionServices, CognitionStepResult
@@ -36,6 +37,7 @@ __all__ = [
     "ActionCognitionProjection",
     "ActionDomain",
     "ActionServices",
+    "ActionStepResult",
     "ActionTrace",
     "CognitionDomain",
     "CognitionServices",
