@@ -1383,39 +1383,22 @@ class CognitiveBridge:
         )
 
     def _nodes_with_path_to_targets(
-        self, target_ids: Collection[str], graph: CognitiveGraph | None = None
+        self,
+        target_ids: Collection[str],
+        graph: CognitiveGraph | None = None,
     ) -> set[str]:
-        active_graph = self._graph if graph is None else graph
-        node_ids = {node.node_id for node in active_graph.nodes}
-        targets = set(target_ids) & node_ids
-        if not targets:
-            return set()
-        reverse_adj: dict[str, set[str]] = {}
-        for edge in active_graph.edges:
-            reverse_adj.setdefault(edge.target_id, set()).add(edge.source_id)
-        reachable = set(targets)
-        frontier = list(targets)
-        while frontier:
-            target = frontier.pop()
-            for source in reverse_adj.get(target, ()):
-                if source not in reachable:
-                    reachable.add(source)
-                    frontier.append(source)
-        return reachable
+        return self._lifecycle.nodes_with_path_to_targets(
+            target_ids,
+            graph=self._graph if graph is None else graph,
+        )
 
-    def _nodes_with_path_to_core_readout(self, graph: CognitiveGraph | None = None) -> set[str]:
-        active_graph = self._graph if graph is None else graph
-        core_readouts = [
-            node.node_id
-            for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
-            and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
-        ]
-        if _CORE_READOUT_ID in core_readouts:
-            targets = (_CORE_READOUT_ID,)
-        else:
-            targets = tuple(core_readouts)
-        return self._nodes_with_path_to_targets(targets, active_graph)
+    def _nodes_with_path_to_core_readout(
+        self,
+        graph: CognitiveGraph | None = None,
+    ) -> set[str]:
+        return self._lifecycle.nodes_with_path_to_core_readout(
+            graph=self._graph if graph is None else graph,
+        )
 
     def _nodes_with_path_to_motor_readout(
         self, actuator_id: str, graph: CognitiveGraph | None = None
@@ -1455,62 +1438,12 @@ class CognitiveBridge:
         mutation_slots: int,
         graph: CognitiveGraph | None = None,
     ) -> tuple[tuple[Mutation, ...], dict[str, object] | None]:
-        """Repair a stranded concept without creating replacement nodes.
-
-        New concepts are admitted exclusively through structural contention.
-        """
-        active_graph = self._graph if graph is None else graph
-        if not self._develop_senses or mutation_slots < 1:
-            return (), None
-
-        core_readouts = sorted(
-            node.node_id
-            for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT
-            and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
-            and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
-        )
-        if _CORE_READOUT_ID in core_readouts:
-            core_readouts = [_CORE_READOUT_ID]
-        if not core_readouts:
-            return (), None
-
-        unrouted_ids = self._update_unrouted_tracking(tick, graph=active_graph)
-        stranded = [
-            node_id
-            for node_id in sorted(unrouted_ids)
-            if node_id in self._lifecycle.concept_last_active_tick
-        ]
-        if not stranded:
-            return (), None
-
-        concept_id = stranded[0]
-        readout_id = core_readouts[0]
-        if any(
-            edge.source_id == concept_id and edge.target_id == readout_id
-            for edge in active_graph.edges
-        ):
-            return (), None
-
-        mutation = Mutation(
-            kind="add_edge",
-            payload={
-                "source_id": concept_id,
-                "target_id": readout_id,
-                "kind": EdgeKind.EXCITATORY,
-                "weight": _TENTATIVE_WEIGHT,
-                "plasticity": 0.25,
-                "delay_ticks": 1,
-            },
-        )
-        candidate_graph = apply_mutations(
-            active_graph, (mutation,), self._kernel_limits, frozen=False
-        )
-        if candidate_graph is active_graph:
-            return (), None
-        return (
-            (mutation,),
-            {"tick": tick, "concept_id": concept_id, "reason": "stranded_route_repair"},
+        return self._lifecycle.propose_recycling(
+            graph=self._graph if graph is None else graph,
+            tick=tick,
+            mutation_slots=mutation_slots,
+            develop_senses=self._develop_senses,
+            kernel_limits=self._kernel_limits,
         )
 
     def _orphan_latent_ids(self, graph: CognitiveGraph | None = None) -> set[str]:
