@@ -20,6 +20,7 @@ from ...actuation.arbitration import ActionArbitrator
 from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.checkpoint import export_actuation_state
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
+from ...actuation.controller import ControllerFrame
 from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
 from ...actuation.composition import CompositionEngine
 from ...actuation.effects import EffectSpace
@@ -78,6 +79,13 @@ class ActionTrace:
     proposal_id: str
     commitment_id: str
     command_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ActionCognitionProjection:
+    active_motor_actuator_ids: tuple[str, ...]
+    motor_effect_actuator_ids: tuple[str, ...]
+    active_competence_ids: tuple[str, ...]
 
 
 class ActionDomain:
@@ -280,6 +288,27 @@ class ActionDomain:
             del self._trace_by_command[next(iter(self._trace_by_command))]
         return command
 
+    def issue_controller_frame(
+        self,
+        frame: ControllerFrame,
+        *,
+        context: TickContext,
+    ) -> MotorCommand:
+        commitment = self.active_commitment
+        if commitment is None or not commitment.active:
+            raise RuntimeError("controller frame has no active commitment")
+        if frame.controller_id != commitment.controller_id:
+            raise RuntimeError("controller frame belongs to another commitment controller")
+        if frame.competence_id != commitment.competence_id:
+            raise RuntimeError("controller frame competence does not match commitment")
+        channels = dict(frame.channels)
+        if len(channels) != len(frame.channels):
+            raise RuntimeError("controller frame contains duplicate actuator channels")
+        return self.issue_command(
+            channels,
+            tick=context.symbiont_tick,
+        )
+
     def execute_command(self, command: MotorCommand) -> tuple[Actuation, ...]:
         commitment = self.active_commitment
         if commitment is None or command.commitment_id != commitment.commitment_id:
@@ -372,6 +401,40 @@ class ActionDomain:
                 promoted.append(actuator_id)
         self.pending_motor_observation = ()
         return tuple(dict.fromkeys(promoted))
+
+    def prepare_cognition(
+        self,
+        percepts: tuple[Percept, ...],
+        *,
+        context: TickContext,
+        sensory_system: SensorySystem,
+    ) -> ActionCognitionProjection:
+        newly_confirmed = self.complete_pending_motor_observation(
+            percepts,
+            tick=context.symbiont_tick,
+            sensory_system=sensory_system,
+        )
+        established = (
+            self._actuator_evidence.active_repertoire
+            if self._actuator_evidence is not None
+            else ()
+        )
+        motor_effect_actuator_ids = tuple(
+            sorted(set((*newly_confirmed, *established)))
+        )
+        active_competence_ids = (
+            tuple(
+                primitive.primitive_id
+                for primitive in self._competence_development.cognitive_primitives
+            )
+            if self._competence_development is not None
+            else ()
+        )
+        return ActionCognitionProjection(
+            active_motor_actuator_ids=tuple(established),
+            motor_effect_actuator_ids=motor_effect_actuator_ids,
+            active_competence_ids=active_competence_ids,
+        )
 
     def _flatten_competence_controller(
         self,
