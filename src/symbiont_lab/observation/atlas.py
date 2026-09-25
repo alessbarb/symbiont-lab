@@ -106,14 +106,48 @@ def _topology_edges(snapshot: Mapping[str, Any]) -> list[AtlasEdge]:
     return edges
 
 
+_MATURE_MATURITY = frozenset({"established", "robust"})
+
+
+def _bindings_by_competence(snapshot: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    embodiment = snapshot.get("embodiment")
+    if not isinstance(embodiment, Mapping):
+        return {}
+    items = embodiment.get("bindings")
+    if not isinstance(items, (list, tuple)):
+        return {}
+    result: dict[str, Mapping[str, Any]] = {}
+    for item in items:
+        if isinstance(item, Mapping) and item.get("competence_id") is not None:
+            result[str(item["competence_id"])] = item
+    return result
+
+
+def _competence_state(item: Mapping[str, Any], binding: Mapping[str, Any] | None) -> str:
+    """Spec Sec 35: functional state, derived only from real fields (no
+    fabricated 'available'/'inactive' -- nothing in source distinguishes
+    those from 'unbound' today)."""
+    if binding is None:
+        return "unbound"
+    maturity = item.get("maturity")
+    if maturity not in _MATURE_MATURITY:
+        return "calibrating"
+    reliability = binding.get("reliability")
+    if isinstance(reliability, (int, float)) and reliability >= 0.5:
+        return "usable"
+    return "degraded"
+
+
 def _motor_competence_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
     items = snapshot.get("motor_competences")
     if not isinstance(items, (list, tuple)):
         return []
+    bindings = _bindings_by_competence(snapshot)
     nodes: list[AtlasNode] = []
     for item in items:
         if not isinstance(item, Mapping) or item.get("competence_id") is None:
             continue
+        competence_id = str(item["competence_id"])
         metadata = {
             key: item[key]
             for key in (
@@ -123,7 +157,8 @@ def _motor_competence_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
             )
             if item.get(key) is not None
         }
-        nodes.append(AtlasNode(id=str(item["competence_id"]), kind="motor_competence", metadata=metadata))
+        metadata["state"] = _competence_state(item, bindings.get(competence_id))
+        nodes.append(AtlasNode(id=competence_id, kind="motor_competence", metadata=metadata))
     return nodes
 
 
@@ -213,6 +248,104 @@ def _competence_effect_edges(
     return edges
 
 
+def _controller_nodes_and_edges(snapshot: Mapping[str, Any]) -> tuple[list[AtlasNode], list[AtlasEdge]]:
+    """Spec Sec 12: controller is distinct from competence.
+
+    Source (symbiont.actuation.controller) has no live controller registry --
+    only an opaque `controller_id`/`controller_strategy_ref` threaded through
+    each competence. Materialize only what that honestly supports: identity
+    and which competences require it. No strategy classification is
+    fabricated beyond the ref the organism itself recorded.
+    """
+    items = snapshot.get("motor_competences")
+    if not isinstance(items, (list, tuple)):
+        return [], []
+    strategy_refs: dict[str, str] = {}
+    requiring_competences: dict[str, list[str]] = {}
+    for item in items:
+        if not isinstance(item, Mapping):
+            continue
+        controller_id = item.get("controller_id")
+        competence_id = item.get("competence_id")
+        if controller_id is None or competence_id is None:
+            continue
+        controller_id = str(controller_id)
+        requiring_competences.setdefault(controller_id, []).append(str(competence_id))
+        strategy_ref = item.get("controller_strategy_ref")
+        if strategy_ref is not None and controller_id not in strategy_refs:
+            strategy_refs[controller_id] = strategy_ref
+
+    nodes: list[AtlasNode] = []
+    edges: list[AtlasEdge] = []
+    for controller_id, competence_ids in sorted(requiring_competences.items()):
+        metadata: dict[str, Any] = {"competence_count": len(competence_ids)}
+        if controller_id in strategy_refs:
+            metadata["strategy_ref"] = strategy_refs[controller_id]
+        nodes.append(AtlasNode(id=controller_id, kind="controller", metadata=metadata))
+        for competence_id in competence_ids:
+            edges.append(AtlasEdge(
+                id=f"edge.requires.{competence_id}.{controller_id}",
+                source_id=competence_id,
+                target_id=controller_id,
+                kind="requires",
+            ))
+    return nodes, edges
+
+
+def _body_schema_nodes_and_edges(snapshot: Mapping[str, Any]) -> tuple[list[AtlasNode], list[AtlasEdge]]:
+    """Spec Sec 17: cognitive body-model parts/dependencies, not anatomy.
+
+    Source is BodySchemaEngine.export_representation() -- already bounded,
+    already confidence-classed, already free of anatomical names for the
+    'sense' parts. Projected as-is; nothing inferred here.
+    """
+    body_schema = snapshot.get("body_schema")
+    if not isinstance(body_schema, Mapping):
+        return [], []
+    nodes: list[AtlasNode] = []
+    part_ids: set[str] = set()
+    for part in body_schema.get("parts", ()) or ():
+        if not isinstance(part, Mapping) or part.get("part_id") is None:
+            continue
+        part_id = str(part["part_id"])
+        metadata = {
+            key: part[key]
+            for key in (
+                "kind", "existence_confidence_class", "confidence_class",
+                "health_class", "activity_class", "cost_class",
+                "maturity_class", "recency_class",
+            )
+            if part.get(key) is not None
+        }
+        nodes.append(AtlasNode(id=part_id, kind="body_schema", metadata=metadata))
+        part_ids.add(part_id)
+
+    edges: list[AtlasEdge] = []
+    for dependency in body_schema.get("dependencies", ()) or ():
+        if not isinstance(dependency, Mapping):
+            continue
+        source_id = dependency.get("source_id")
+        target_id = dependency.get("target_id")
+        if source_id is None or target_id is None:
+            continue
+        source_id, target_id = str(source_id), str(target_id)
+        if source_id not in part_ids or target_id not in part_ids:
+            continue
+        evidence: dict[str, Any] = {"source": "body_schema_dependency_evidence"}
+        for key in ("confidence_class", "support_class"):
+            if dependency.get(key) is not None:
+                evidence[key] = dependency[key]
+        metadata = {"evidence": evidence}
+        edges.append(AtlasEdge(
+            id=f"edge.body_schema.{dependency.get('relation', 'depends_on')}.{source_id}.{target_id}",
+            source_id=source_id,
+            target_id=target_id,
+            kind=str(dependency.get("relation", "correlates")),
+            metadata=metadata,
+        ))
+    return nodes, edges
+
+
 def _motor_capability_metrics(snapshot: Mapping[str, Any]) -> Mapping[str, Any]:
     items = snapshot.get("motor_competences")
     if not isinstance(items, (list, tuple)):
@@ -270,6 +403,14 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
     edges.extend(binding_edges)
     edges.extend(_competence_effect_edges(snapshot, known_effect_ids))
 
+    controller_nodes, controller_edges = _controller_nodes_and_edges(snapshot)
+    nodes.extend(controller_nodes)
+    edges.extend(controller_edges)
+
+    body_schema_nodes, body_schema_edges = _body_schema_nodes_and_edges(snapshot)
+    nodes.extend(body_schema_nodes)
+    edges.extend(body_schema_edges)
+
     tick = snapshot.get("tick")
     try:
         tick = int(tick) if tick is not None else None
@@ -294,11 +435,27 @@ class CognitiveAtlasDiff:
     nodes_removed: tuple[str, ...]
     edges_added: tuple[str, ...]
     edges_removed: tuple[str, ...]
+    edges_strengthened: tuple[str, ...]
+    edges_weakened: tuple[str, ...]
     metrics: Mapping[str, Any]
 
 
 def _ratio(numerator: int, denominator: int) -> float | None:
     return numerator / denominator if denominator else None
+
+
+def _edge_strength(edge: AtlasEdge) -> float | None:
+    """Best available real numeric proxy for edge strength, in priority order."""
+    metadata = edge.metadata
+    if "weight" in metadata:
+        value = metadata["weight"]
+    elif "evidence" in metadata and isinstance(metadata["evidence"], Mapping) and "confidence" in metadata["evidence"]:
+        value = metadata["evidence"]["confidence"]
+    elif "support" in metadata:
+        value = metadata["support"]
+    else:
+        return None
+    return value if isinstance(value, (int, float)) else None
 
 
 def diff_cognitive_atlas(before: CognitiveAtlasSnapshot, after: CognitiveAtlasSnapshot) -> CognitiveAtlasDiff:
@@ -344,10 +501,26 @@ def diff_cognitive_atlas(before: CognitiveAtlasSnapshot, after: CognitiveAtlasSn
         },
     }
 
+    before_edges_by_id = {edge.id: edge for edge in before.edges}
+    after_edges_by_id = {edge.id: edge for edge in after.edges}
+    strengthened: list[str] = []
+    weakened: list[str] = []
+    for edge_id in before_edge_ids & after_edge_ids:
+        before_strength = _edge_strength(before_edges_by_id[edge_id])
+        after_strength = _edge_strength(after_edges_by_id[edge_id])
+        if before_strength is None or after_strength is None:
+            continue
+        if after_strength > before_strength:
+            strengthened.append(edge_id)
+        elif after_strength < before_strength:
+            weakened.append(edge_id)
+
     return CognitiveAtlasDiff(
         nodes_added=tuple(sorted(after_node_ids - before_node_ids)),
         nodes_removed=tuple(sorted(before_node_ids - after_node_ids)),
         edges_added=tuple(sorted(after_edge_ids - before_edge_ids)),
         edges_removed=tuple(sorted(before_edge_ids - after_edge_ids)),
+        edges_strengthened=tuple(sorted(strengthened)),
+        edges_weakened=tuple(sorted(weakened)),
         metrics=metrics,
     )

@@ -215,6 +215,7 @@ export function createCognitionController({
         competences: source.motor_competences ?? snap.motor_competences ?? [],
         effects: source.effects ?? snap.effects ?? [],
         bindings: (source.embodiment ?? snap.embodiment)?.bindings ?? [],
+        bodySchema: source.body_schema ?? snap.body_schema ?? null,
         showEmbodiment: graph.showEmbodiment,
       },
     );
@@ -238,6 +239,8 @@ export function createCognitionController({
       motor_competence: '#ff8fd8',
       effect: '#ffb37a',
       embodiment_binding: '#8f9bb3',
+      controller: '#c9a0ff',
+      body_schema: '#6fd6c4',
     };
     const baseRadiusMap = {
       sense: 5.2,
@@ -250,6 +253,8 @@ export function createCognitionController({
       motor_competence: 8.4,
       effect: 6.0,
       embodiment_binding: 5.5,
+      controller: 7.0,
+      body_schema: 5.8,
     };
   
     const rawNodes = completeTopology.nodes.map(n => {
@@ -2257,6 +2262,7 @@ export function createCognitionController({
         competences: source.motor_competences ?? snap.motor_competences ?? [],
         effects: source.effects ?? snap.effects ?? [],
         bindings: (source.embodiment ?? snap.embodiment)?.bindings ?? [],
+        bodySchema: source.body_schema ?? snap.body_schema ?? null,
         showEmbodiment: graph.showEmbodiment,
       },
     );

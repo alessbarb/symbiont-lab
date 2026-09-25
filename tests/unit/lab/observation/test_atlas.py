@@ -196,3 +196,153 @@ def test_diff_cognitive_atlas_handles_no_prior_competences():
     diff = diff_cognitive_atlas(empty, atlas)
 
     assert diff.metrics["knowledge_preserved"] == {"count": 0, "ratio": None}
+
+
+def test_build_cognitive_atlas_materializes_controllers_distinct_from_competences():
+    atlas = build_cognitive_atlas(_snapshot())
+
+    kinds = {node.id: node.kind for node in atlas.nodes}
+    assert kinds["controller.2"] == "controller"
+    assert kinds["controller.9"] == "controller"
+    # controller is its own node, never folded into the competence node
+    assert kinds["controller.2"] != kinds["competence.7"]
+
+    controller_2 = next(node for node in atlas.nodes if node.id == "controller.2")
+    assert controller_2.metadata["competence_count"] == 1
+
+    edge_kinds = {(edge.source_id, edge.target_id): edge.kind for edge in atlas.edges}
+    assert edge_kinds[("competence.7", "controller.2")] == "requires"
+    assert edge_kinds[("competence.8", "controller.9")] == "requires"
+
+
+def test_build_cognitive_atlas_controllers_absent_without_competences():
+    atlas = build_cognitive_atlas({"tick": 1})
+
+    assert not any(node.kind == "controller" for node in atlas.nodes)
+
+
+def test_build_cognitive_atlas_derives_competence_state_from_real_fields():
+    atlas = build_cognitive_atlas(_snapshot())
+
+    states = {node.id: node.metadata["state"] for node in atlas.nodes if node.kind == "motor_competence"}
+    # established maturity + reliability 0.6 (>=0.5) with a binding -> usable
+    assert states["competence.7"] == "usable"
+    # candidate maturity, no binding at all -> unbound
+    assert states["competence.8"] == "unbound"
+
+
+def test_build_cognitive_atlas_competence_state_calibrating_and_degraded():
+    snapshot = _snapshot()
+    # established but bound with low reliability -> degraded, not usable
+    snapshot["embodiment"]["bindings"][0]["reliability"] = 0.2
+    degraded_atlas = build_cognitive_atlas(snapshot)
+    degraded_states = {node.id: node.metadata["state"] for node in degraded_atlas.nodes if node.kind == "motor_competence"}
+    assert degraded_states["competence.7"] == "degraded"
+
+    snapshot2 = _snapshot()
+    # bound but still candidate maturity -> calibrating, not usable
+    snapshot2["motor_competences"][0]["maturity"] = "emerging"
+    calibrating_atlas = build_cognitive_atlas(snapshot2)
+    calibrating_states = {node.id: node.metadata["state"] for node in calibrating_atlas.nodes if node.kind == "motor_competence"}
+    assert calibrating_states["competence.7"] == "calibrating"
+
+
+def _body_schema_snapshot():
+    return {
+        "tick": 1,
+        "body_schema": {
+            "schema_version": 1,
+            "state": "developing",
+            "parts": [
+                {
+                    "part_id": "part.sense.aaaa",
+                    "kind": "sense",
+                    "existence_confidence_class": 3,
+                    "health_class": 2,
+                    "confidence_class": 2,
+                    "cost_class": 1,
+                    "maturity_class": 1,
+                    "recency_class": "recent",
+                },
+                {
+                    "part_id": "part.region.bbbb",
+                    "kind": "cognitive_region",
+                    "existence_confidence_class": 2,
+                    "confidence_class": 1,
+                    "activity_class": 1,
+                    "maturity_class": 0,
+                    "recency_class": "stale",
+                },
+            ],
+            "dependencies": [
+                {
+                    "source_id": "part.sense.aaaa",
+                    "target_id": "part.region.bbbb",
+                    "relation": "co_acts_with",
+                    "confidence_class": 2,
+                    "support_class": 1,
+                },
+            ],
+            "global_state": {},
+        },
+    }
+
+
+def test_build_cognitive_atlas_materializes_body_schema_parts_not_anatomy():
+    atlas = build_cognitive_atlas(_body_schema_snapshot())
+
+    kinds = {node.id: node.kind for node in atlas.nodes}
+    assert kinds["part.sense.aaaa"] == "body_schema"
+    assert kinds["part.region.bbbb"] == "body_schema"
+    # no anatomical/physical name leaked into the cognitive node id
+    for node_id in kinds:
+        assert "hip" not in node_id and "knee" not in node_id and "joint" not in node_id
+
+    edges = {(edge.source_id, edge.target_id): edge for edge in atlas.edges}
+    edge = edges[("part.sense.aaaa", "part.region.bbbb")]
+    assert edge.kind == "co_acts_with"
+    assert edge.metadata["evidence"]["source"] == "body_schema_dependency_evidence"
+    assert edge.metadata["evidence"]["confidence_class"] == 2
+
+
+def test_build_cognitive_atlas_body_schema_absent_when_no_data():
+    atlas = build_cognitive_atlas({"tick": 1})
+
+    assert not any(node.kind == "body_schema" for node in atlas.nodes)
+
+
+def test_build_cognitive_atlas_body_schema_drops_dependency_to_unknown_part():
+    snapshot = _body_schema_snapshot()
+    snapshot["body_schema"]["dependencies"].append(
+        {"source_id": "part.sense.aaaa", "target_id": "part.sense.unknown", "relation": "precedes"}
+    )
+
+    atlas = build_cognitive_atlas(snapshot)
+
+    edge_targets = {edge.target_id for edge in atlas.edges}
+    assert "part.sense.unknown" not in edge_targets
+
+
+def test_diff_cognitive_atlas_detects_strengthened_and_weakened_edges():
+    before_snapshot = _snapshot()
+    before_snapshot["motor_competences"][0]["reproducibility"] = 0.5
+    before = build_cognitive_atlas(before_snapshot)
+
+    after_snapshot = _snapshot()
+    after_snapshot["topology"]["edges"][0]["weight"] = 0.9  # up from 0.4
+    after_snapshot["motor_competences"][0]["reproducibility"] = 0.2  # down from 0.5
+    after = build_cognitive_atlas(after_snapshot)
+
+    diff = diff_cognitive_atlas(before, after)
+
+    assert "edge.topology.predictor.1.concept.1" in diff.edges_strengthened
+    assert "edge.produces.competence.7.effect.3" in diff.edges_weakened
+
+
+def test_diff_cognitive_atlas_no_strength_change_when_not_comparable():
+    atlas = build_cognitive_atlas(_snapshot())
+
+    diff = diff_cognitive_atlas(atlas, atlas)
+
+    assert diff.edges_strengthened == ()
+    assert diff.edges_weakened == ()

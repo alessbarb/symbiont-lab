@@ -169,6 +169,7 @@ export function augmentLearnedGraph(
   }
 
   const knownCompetenceIds = new Set();
+  const knownControllerIds = new Set();
   for (const competence of competences) {
     const competenceId = String(competence?.competence_id ?? '');
     if (!competenceId || ids.has(competenceId)) continue;
@@ -185,6 +186,23 @@ export function augmentLearnedGraph(
     const effectId = String(competence?.effect_id ?? '');
     if (effectId && knownEffectIds.has(effectId)) {
       edges.push({ sourceId: competenceId, targetId: effectId, kind: 'produces', learnedLayer: 'motor' });
+    }
+    // Controller is distinct from competence (spec Sec 12): only the
+    // opaque id/strategy ref the organism itself recorded, no fabricated
+    // strategy classification.
+    const controllerId = String(competence?.controller_id ?? '');
+    if (controllerId) {
+      if (!ids.has(controllerId)) {
+        nodes.push({
+          id: controllerId,
+          kind: 'controller',
+          learnedLayer: 'motor',
+          strategyRef: competence.controller_strategy_ref ?? null,
+        });
+        ids.add(controllerId);
+        knownControllerIds.add(controllerId);
+      }
+      edges.push({ sourceId: competenceId, targetId: controllerId, kind: 'requires', learnedLayer: 'motor' });
     }
   }
 
@@ -210,6 +228,38 @@ export function augmentLearnedGraph(
     }
   }
 
+  // Body schema (spec Sec 17): cognitive body-model knowledge, not anatomy.
+  // Always shown in Relational -- it is organism-owned knowledge, not a
+  // physical actuator, so it does not wait behind Show embodiment.
+  const bodySchemaParts = Array.isArray(motorKnowledge?.bodySchema?.parts) ? motorKnowledge.bodySchema.parts : [];
+  const bodySchemaDependencies = Array.isArray(motorKnowledge?.bodySchema?.dependencies) ? motorKnowledge.bodySchema.dependencies : [];
+  const knownBodySchemaIds = new Set();
+  for (const part of bodySchemaParts) {
+    const partId = String(part?.part_id ?? '');
+    if (!partId || ids.has(partId)) continue;
+    nodes.push({
+      id: partId,
+      kind: 'body_schema',
+      learnedLayer: 'body_schema',
+      subkind: part.kind ?? null,
+      confidenceClass: part.confidence_class ?? null,
+      maturityClass: part.maturity_class ?? null,
+    });
+    ids.add(partId);
+    knownBodySchemaIds.add(partId);
+  }
+  for (const dependency of bodySchemaDependencies) {
+    const sourceId = String(dependency?.source_id ?? '');
+    const targetId = String(dependency?.target_id ?? '');
+    if (!knownBodySchemaIds.has(sourceId) || !knownBodySchemaIds.has(targetId)) continue;
+    edges.push({
+      sourceId,
+      targetId,
+      kind: dependency.relation ?? 'correlates',
+      learnedLayer: 'body_schema',
+    });
+  }
+
   return {
     nodes,
     edges,
@@ -222,6 +272,8 @@ export function augmentLearnedGraph(
       cognitiveMotorLinks: edges.filter(edge => edge.kind === 'invokes').length,
       motorCompetences: knownCompetenceIds.size,
       embodimentBindings: nodes.filter(node => node.kind === 'embodiment_binding').length,
+      controllers: knownControllerIds.size,
+      bodySchemaParts: knownBodySchemaIds.size,
     },
   };
 }

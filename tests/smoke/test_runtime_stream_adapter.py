@@ -1298,6 +1298,18 @@ def test_mind_atlas_has_independent_show_embodiment_toggle() -> None:
     assert "motor_competence" in asset
 
 
+def test_mind_atlas_graphs_controller_and_body_schema_as_distinct_kinds() -> None:
+    learning = (WEB_ROOT / "views" / "mind" / "learning-graph.js").read_text(encoding="utf-8")
+
+    assert "kind: 'controller'" in learning
+    assert "kind: 'body_schema'" in learning
+    # controller is a distinct node reached via its own edge, never folded
+    # into the competence node it belongs to.
+    assert "controller_id" in learning
+    assert "controller_strategy_ref" in learning
+    assert "bodySchemaParts" in learning
+
+
 def test_cognitive_observatory_synthesizes_current_evidence_without_intent_claims() -> None:
     asset = _mind_sources()
     observatory = (WEB_ROOT / "views" / "mind" / "cognitive-observatory.js").read_text(encoding="utf-8")
