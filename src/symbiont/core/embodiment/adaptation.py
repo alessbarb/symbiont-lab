@@ -60,6 +60,7 @@ class EmbodimentAdaptation:
         *,
         tick: int,
         residuals: Iterable[PredictionResidual] = (),
+        prediction_error: float | None = None,
         schema_confidence: float | None = None,
         causal_confidence: float | None = None,
         controllability_confidence: float | None = None,
@@ -71,7 +72,14 @@ class EmbodimentAdaptation:
             raise ValueError("tick must be non-negative")
         self.adaptation_ticks += 1
         errors = [max(0.0, float(item.error)) for item in residuals]
-        current = sum(errors) / len(errors) if errors else self.prediction_error_recent
+        if prediction_error is not None:
+            current = max(0.0, float(prediction_error))
+        else:
+            current = (
+                sum(errors) / len(errors)
+                if errors
+                else self.prediction_error_recent
+            )
         if self.adaptation_ticks == 1:
             self.prediction_error_recent = current
             self.prediction_error_baseline = current

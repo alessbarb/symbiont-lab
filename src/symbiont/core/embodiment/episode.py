@@ -201,6 +201,106 @@ class EmbodimentEpisode:
             "embodied_competences": self.embodied_competences.checkpoint(),
         }
 
+    @classmethod
+    def restore(
+        cls,
+        payload: Mapping[str, object],
+        *,
+        contract: EmbodimentContract,
+        body_schema: BodySchemaEngine,
+        causal_evidence: CausalEvidenceLedger,
+        effect_model: CompetenceEffectModel,
+        controllability_model: ControllabilityModel,
+        agency_model: AgencyModel,
+        current_tick: int,
+    ) -> "EmbodimentEpisode":
+        """Restore one episode while reattaching canonical runtime services.
+
+        BodySchema and causal inference are not duplicated here: the restored
+        organism runtime remains their factual owner and the episode references
+        those exact instances.
+        """
+        if payload.get("schema_version") != 2:
+            raise ValueError("unsupported embodiment episode checkpoint")
+        raw_contract = payload.get("contract")
+        if not isinstance(raw_contract, Mapping):
+            raise ValueError("embodiment episode contract is missing")
+        persisted_fp = raw_contract.get("contract_fingerprint")
+        if persisted_fp != contract.contract_fingerprint:
+            raise ValueError(
+                "embodiment episode contract does not match attached physical interface"
+            )
+        embodiment_id = str(payload.get("embodiment_id") or "")
+        symbiont_id = str(payload.get("symbiont_id") or "")
+        body_id = str(payload.get("body_id") or "")
+        embodied = EmbodiedCompetenceLibrary.restore(
+            payload.get("embodied_competences")
+            if isinstance(payload.get("embodied_competences"), Mapping)
+            else None,
+            embodiment_id=embodiment_id,
+        )
+        obj = cls(
+            embodiment_id=embodiment_id,
+            symbiont_id=symbiont_id,
+            body_id=body_id,
+            epoch=int(payload.get("epoch") or 0),
+            start_symbiont_tick=int(payload.get("start_symbiont_tick") or 0),
+            contract=contract,
+            state=EmbodimentState(str(payload.get("state") or "active")),
+            end_symbiont_tick=(
+                int(payload["end_symbiont_tick"])
+                if payload.get("end_symbiont_tick") is not None
+                else None
+            ),
+            embodiment_tick=int(payload.get("embodiment_tick") or 0),
+            end_reason=(
+                EmbodimentEndReason(str(payload["end_reason"]))
+                if payload.get("end_reason") is not None
+                else None
+            ),
+            body_schema=body_schema,
+            dynamics_model=SensorimotorDynamicsModel.restore(
+                payload.get("dynamics_model")
+                if isinstance(payload.get("dynamics_model"), Mapping)
+                else None
+            ),
+            causal_evidence=causal_evidence,
+            effect_model=effect_model,
+            controllability_model=controllability_model,
+            agency_model=agency_model,
+            adaptation=EmbodimentAdaptation.restore(
+                payload.get("adaptation")
+                if isinstance(payload.get("adaptation"), Mapping)
+                else None
+            ),
+            reachability=ReachabilityModel.restore(
+                payload.get("reachability")
+                if isinstance(payload.get("reachability"), Mapping)
+                else None
+            ),
+            embodied_competences=embodied,
+        )
+        raw_history = payload.get("contract_history", [])
+        if not isinstance(raw_history, list):
+            raise ValueError("invalid embodiment contract history")
+        for item in raw_history:
+            if not isinstance(item, Mapping):
+                raise ValueError("invalid embodiment contract transition")
+            transition = ContractTransition(
+                tick=int(item["tick"]),
+                previous_fingerprint=str(item["previous_fingerprint"]),
+                new_fingerprint=str(item["new_fingerprint"]),
+                reason=str(item["reason"]),
+            )
+            if transition.tick < 0 or transition.tick > obj.embodiment_tick:
+                raise ValueError("embodiment contract transition tick is invalid")
+            obj.contract_history.append(transition)
+        if obj.state is EmbodimentState.CLOSED and obj.end_symbiont_tick is None:
+            raise ValueError("closed embodiment is missing end tick")
+        if obj.end_symbiont_tick is not None and obj.end_symbiont_tick > current_tick:
+            raise ValueError("embodiment end tick is in the future")
+        return obj
+
 
 __all__ = [
     "ContractTransition",
