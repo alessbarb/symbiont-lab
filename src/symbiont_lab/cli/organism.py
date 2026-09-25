@@ -152,7 +152,8 @@ def _running_version() -> tuple[int, int, int]:
     from symbiont import __version__ as symbiont_version
 
     parts = (symbiont_version.split(".") + ["0", "0"])[:3]
-    return tuple(int(part) for part in parts)
+    major, minor, patch = parts
+    return int(major), int(minor), int(patch)
 
 
 def _load_genome_file(path: str, *, kernel_limits: KernelLimits) -> Genome:

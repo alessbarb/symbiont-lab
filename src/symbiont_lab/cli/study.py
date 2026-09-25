@@ -119,12 +119,12 @@ def run_study_command(args: argparse.Namespace) -> int:
         print(f"Executing study protocol '{args.protocol}' with parameters {kwargs}...")
         result = protocol_fn(**kwargs)
         print("Study completed successfully.")
-        if isinstance(result, tuple) and len(result) == 2 and hasattr(result[0], "as_dict"):
-            raw = result[0].as_dict()
-        elif hasattr(result, "as_dict"):
-            raw = result.as_dict()
+        if isinstance(result, tuple) and len(result) == 2:
+            as_dict = getattr(result[0], "as_dict", None)
+            raw = as_dict() if callable(as_dict) else result
         else:
-            raw = result
+            as_dict = getattr(result, "as_dict", None)
+            raw = as_dict() if callable(as_dict) else result
         print(json.dumps(raw, indent=2, sort_keys=True, default=str))
         return 0
     elif args.study_action == "show":

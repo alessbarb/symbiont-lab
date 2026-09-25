@@ -135,7 +135,8 @@ class IntegratedHabitatRuntime:
     @staticmethod
     def _genome():
         parts = (symbiont_version.split(".") + ["0", "0"])[:3]
-        running_version = tuple(int(part) for part in parts)
+        major, minor, patch = parts
+        running_version = int(major), int(minor), int(patch)
         return load_base_genome(
             kernel_limits=KernelLimits(),
             running_version=running_version,
