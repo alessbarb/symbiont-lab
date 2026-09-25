@@ -22,6 +22,7 @@ from .episode import new_episode
 from .epistemic import EpistemicBoundaryError, EpistemicFirewall
 from .model import GeneratedProposal, GenerativeContext, GenerativeModel
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, dumps, loads, restore
+from .recombination import ExperienceRecombiner, RecombinationFragment
 from .registry import GenerativeModelRegistry
 from .replay import ReplayEngine, ReplayFragment
 from .rollout import RolloutEngine, RolloutResult
@@ -72,6 +73,8 @@ __all__ = [
     "GenerativeTermination",
     "GenerativeTransition",
     "GenerativeWorkspace",
+    "ExperienceRecombiner",
+    "RecombinationFragment",
     "PrivateSLMGenerativeAdapter",
     "ScheduleDecision",
     "SensorimotorDynamicsGenerativeAdapter",
