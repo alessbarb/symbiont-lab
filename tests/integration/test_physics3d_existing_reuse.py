@@ -37,6 +37,9 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
     assert first["embodiment_lifecycle"]["epoch"] == 1
     assert first["living_body"]["age_ticks"] == 1
     assert first["living_body"]["senescence"] == 0.0
+    first_embodiment_id = str(first["embodiment_episode"]["embodiment_id"])
+    first_body_id = str(first["embodiment_episode"]["body_id"])
+    assert first["embodiment_episode"]["schema_version"] == 3
 
     assert run(
         headless=True,
@@ -59,6 +62,13 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
     assert second["living_body"]["age_ticks"] == 1
     assert second["living_body"]["senescence"] == 0.0
     assert second["embodiment_lifecycle"]["current"]["known_contract_memory"] is True
+    assert second["embodiment_lifecycle"]["current"]["contract_relation"] == "known-contract"
     assert len(second["embodiment_epoch_summaries"]) == 1
     assert second["embodiment_epoch_summaries"][0]["duration_body_ticks"] == 1
-    assert len(second["embodiment_memory"]["contracts"]) == 1
+
+    assert "embodiment_memory" not in second
+    assert second["embodiment_episode"]["schema_version"] == 3
+    assert second["embodiment_episode"]["embodiment_id"] != first_embodiment_id
+    assert second["embodiment_episode"]["body_id"] != first_body_id
+    memories = second["embodiment_archive"]["body_memories"]
+    assert any(item["body_id"] == first_body_id for item in memories)
