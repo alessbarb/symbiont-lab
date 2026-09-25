@@ -94,10 +94,7 @@ from ...actuation.checkpoint import export_actuation_state, restore_actuation_st
 from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
-from ...actuation.proposer import ActuatorProposer
 from ...actuation.candidate import ActuatorCandidateState
-from ...actuation.selector import MotorIntentSelector
-from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
 from ...actuation.action import (
     ActionEvaluation,
@@ -118,10 +115,8 @@ from ...actuation.model import AgencyModel, CompetenceEffectModel, Controllabili
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.composition import CompositionEngine
 from ...actuation.state import SensorimotorV2Snapshot
-from ...actuation.sensorimotor import (
-    SensorimotorLearner,
-    SensorimotorSnapshot,
-)
+from ...actuation.sensorimotor import SensorimotorSnapshot
+from ..domains.action import ActionDomain
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -292,10 +287,10 @@ class OrganismRuntime:
         developmental_tracker: DevelopmentalTracker | None = None,
         actuation_enabled: bool = False,
         actuator_constitution: ActuatorConstitution | None = None,
-        actuator_proposer: ActuatorProposer | None = None,
-        motor_intent_selector: MotorIntentSelector | None = None,
-        actuator_system: ActuatorSystem | None = None,
-        sensorimotor_learner: SensorimotorLearner | None = None,
+        actuator_proposer: object | None = None,
+        motor_intent_selector: object | None = None,
+        actuator_system: object | None = None,
+        sensorimotor_learner: object | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -577,7 +572,6 @@ class OrganismRuntime:
         self._physiology = PhysiologyController(body_state=self._living_body_state)
         self._innate_reactivity = InnateReactivity()
         self._reactive_memory = ReactiveMemory()
-        self._action_arbitrator = ActionArbitrator()
         # One-tick causal trace only. A restart deliberately breaks this trace;
         # established reactive associations are checkpointed separately.
         self._pending_reactive_credit: tuple[str, str, float] | None = None
@@ -671,59 +665,12 @@ class OrganismRuntime:
                 self._cognitive_bridge.set_expression_state(self._gene_expression_state)
             self._cognitive_bridge.bind_contention_identity(self._organism_id)
         self._actuation_enabled = bool(actuation_enabled)
-        self._actuator_constitution: ActuatorConstitution | None = None
-        self._actuator_proposer: ActuatorProposer | None = None
-        self._motor_intent_selector: MotorIntentSelector | None = None
-        self._actuator_system: ActuatorSystem | None = None
-        self._sensorimotor_learner: SensorimotorLearner | None = None
-        self._last_motor_intent: MotorIntent | None = None
-        self._last_actuation: Actuation | None = None
-        self._last_motor_intents: tuple[MotorIntent, ...] = ()
-        self._last_actuations: tuple[Actuation, ...] = ()
-        self._last_action_source = "none"
-        self._last_executed_primitive_id: str | None = None
-        self._last_action_proposal: ActionProposal | None = None
-        self._active_action_commitment: ActionCommitment | None = None
-        self._last_motor_command: MotorCommand | None = None
-        self._effect_space = EffectSpace()
-        self._causal_evidence = CausalEvidenceLedger()
-        self._competence_library = CompetenceLibrary()
-        self._competence_execution_bindings = CompetenceExecutionBindingRegistry()
-        self._sensorimotor_model = CompetenceEffectModel()
-        self._controllability_model = ControllabilityModel()
-        self._agency_model = AgencyModel()
-        self._exploration_policy = ExplorationPolicy()
-        self._exploration_strength_memory: dict[str, float] = {}
-        self._active_exploration_preference: tuple[str, ...] = ()
-        self._last_exploration_signals: dict[str, ExplorationSignals] = {}
-        self._composition_engine = CompositionEngine()
-        self._composition_predecessor_id: str | None = None
-        self._active_composition_children: tuple[str, ...] = ()
-        self._active_composition_index = 0
-        self._effect_by_commitment: dict[str, str] = {}
-        self._pending_sensorimotor_transition: dict[str, Any] | None = None
-        self._last_sensorimotor_transition: SensorimotorTransition | None = None
-        self._pending_motor_observation: tuple[
-            tuple[str, float, dict[str, float] | None], ...
-        ] = ()
-        self._pending_proprioception: dict[str, float] = {}
-        # Ephemeral delayed-credit traces. They are intentionally not
-        # checkpointed: a restart breaks the causal continuity needed to assign
-        # a later physiological outcome to a pre-restart action.
-        self._pending_homeostatic_action_credit: list[
-            tuple[int, str, str, tuple[str, ...], float, float]
-        ] = []
-        if self._actuation_enabled:
-            if actuator_constitution is None:
-                raise ValueError(
-                    "actuation_enabled requires an explicit body-owned actuator_constitution"
-                )
-            self._actuator_constitution = actuator_constitution
+        if self._actuation_enabled and actuator_constitution is None:
+            raise ValueError(
+                "actuation_enabled requires an explicit body-owned actuator_constitution"
+            )
+        if self._actuation_enabled and actuator_constitution is not None:
             if not self._living_body_state.structure_states:
-                # A body with actuation but no per-structure tracking yet —
-                # either freshly created, or restored from a pre-L5.5.1
-                # checkpoint — gets one BodyStructureState per actuator slot,
-                # uniform at the current aggregate integrity.
                 self._living_body_state.structure_states = {
                     slot.slot_id: BodyStructureState(
                         structure_id=slot.slot_id,
@@ -731,25 +678,245 @@ class OrganismRuntime:
                     )
                     for slot in actuator_constitution.slots
                 }
-            self._actuator_proposer = (
-                actuator_proposer
-                if actuator_proposer is not None
-                else ActuatorProposer(actuator_constitution, organism_id=self._organism_id)
-            )
-            self._motor_intent_selector = motor_intent_selector or MotorIntentSelector()
-            self._actuator_system = actuator_system or ActuatorSystem()
-            self._sensorimotor_learner = (
-                sensorimotor_learner
-                if sensorimotor_learner is not None
-                else SensorimotorLearner(
-                    actuator_constitution.actuator_ids,
-                    organism_id=self._organism_id,
-                    max_concurrent=None,
-                    embodiment_fingerprint=actuator_constitution.contract_fingerprint,
-                )
-            )
+        selection_threshold = float(
+            getattr(motor_intent_selector, "selection_threshold", 0.1)
+        )
+        self._action_domain = ActionDomain(
+            organism_id=self._organism_id,
+            enabled=self._actuation_enabled,
+            surface=actuator_constitution,
+            selection_threshold=selection_threshold,
+            legacy_proposer=actuator_proposer,
+            legacy_learner=sensorimotor_learner,
+            actuator_system=actuator_system,
+        )
+        self._pending_homeostatic_action_credit: list[
+            tuple[int, str, str, tuple[str, ...], float, float]
+        ] = []
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
+
+    # Compatibility views expose the single ActionDomain state; they do not
+    # create a second authority.
+    @property
+    def _actuator_constitution(self):
+        return self._action_domain.surface
+
+    @property
+    def _actuator_proposer(self):
+        return self._action_domain.legacy_proposer
+
+    @property
+    def _sensorimotor_learner(self):
+        return self._action_domain.legacy_learner
+
+    @property
+    def _active_action_commitment(self):
+        return self._action_domain.active_commitment
+
+    @_active_action_commitment.setter
+    def _active_action_commitment(self, value):
+        self._action_domain.active_commitment = value
+
+    @property
+    def _last_action_proposal(self):
+        return self._action_domain.last_proposal
+
+    @_last_action_proposal.setter
+    def _last_action_proposal(self, value):
+        self._action_domain.last_proposal = value
+
+    @property
+    def _last_action_source(self):
+        return self._action_domain.last_action_source
+
+    @_last_action_source.setter
+    def _last_action_source(self, value):
+        self._action_domain.last_action_source = value
+
+    @property
+    def _last_motor_command(self):
+        return self._action_domain.last_motor_command
+
+    @_last_motor_command.setter
+    def _last_motor_command(self, value):
+        self._action_domain.last_motor_command = value
+
+    @property
+    def _last_motor_intents(self):
+        return self._action_domain.last_motor_intents
+
+    @_last_motor_intents.setter
+    def _last_motor_intents(self, value):
+        self._action_domain.last_motor_intents = tuple(value)
+
+    @property
+    def _last_actuations(self):
+        return self._action_domain.last_actuations
+
+    @_last_actuations.setter
+    def _last_actuations(self, value):
+        self._action_domain.last_actuations = tuple(value)
+
+    @property
+    def _last_executed_primitive_id(self):
+        return self._action_domain.last_executed_controller_seed_id
+
+    @_last_executed_primitive_id.setter
+    def _last_executed_primitive_id(self, value):
+        self._action_domain.last_executed_controller_seed_id = value
+
+    @property
+    def _effect_space(self):
+        return self._action_domain.effect_space
+
+    @_effect_space.setter
+    def _effect_space(self, value):
+        self._action_domain.effect_space = value
+
+    @property
+    def _causal_evidence(self):
+        return self._action_domain.causal_evidence
+
+    @_causal_evidence.setter
+    def _causal_evidence(self, value):
+        self._action_domain.causal_evidence = value
+
+    @property
+    def _competence_library(self):
+        return self._action_domain.competence_library
+
+    @_competence_library.setter
+    def _competence_library(self, value):
+        self._action_domain.competence_library = value
+
+    @property
+    def _competence_execution_bindings(self):
+        return self._action_domain.execution_bindings
+
+    @_competence_execution_bindings.setter
+    def _competence_execution_bindings(self, value):
+        self._action_domain.execution_bindings = value
+
+    @property
+    def _sensorimotor_model(self):
+        return self._action_domain.effect_model
+
+    @_sensorimotor_model.setter
+    def _sensorimotor_model(self, value):
+        self._action_domain.effect_model = value
+
+    @property
+    def _controllability_model(self):
+        return self._action_domain.controllability_model
+
+    @_controllability_model.setter
+    def _controllability_model(self, value):
+        self._action_domain.controllability_model = value
+
+    @property
+    def _agency_model(self):
+        return self._action_domain.agency_model
+
+    @_agency_model.setter
+    def _agency_model(self, value):
+        self._action_domain.agency_model = value
+
+    @property
+    def _exploration_policy(self):
+        return self._action_domain.exploration_policy
+
+    @property
+    def _exploration_strength_memory(self):
+        return self._action_domain.exploration_strength_memory
+
+    @_exploration_strength_memory.setter
+    def _exploration_strength_memory(self, value):
+        self._action_domain.exploration_strength_memory = dict(value)
+
+    @property
+    def _active_exploration_preference(self):
+        return self._action_domain.active_exploration_preference
+
+    @_active_exploration_preference.setter
+    def _active_exploration_preference(self, value):
+        self._action_domain.active_exploration_preference = tuple(value)
+
+    @property
+    def _last_exploration_signals(self):
+        return self._action_domain.last_exploration_signals
+
+    @_last_exploration_signals.setter
+    def _last_exploration_signals(self, value):
+        self._action_domain.last_exploration_signals = dict(value)
+
+    @property
+    def _composition_engine(self):
+        return self._action_domain.composition_engine
+
+    @_composition_engine.setter
+    def _composition_engine(self, value):
+        self._action_domain.composition_engine = value
+
+    @property
+    def _composition_predecessor_id(self):
+        return self._action_domain.composition_predecessor_id
+
+    @_composition_predecessor_id.setter
+    def _composition_predecessor_id(self, value):
+        self._action_domain.composition_predecessor_id = value
+
+    @property
+    def _active_composition_children(self):
+        return self._action_domain.active_composition_children
+
+    @_active_composition_children.setter
+    def _active_composition_children(self, value):
+        self._action_domain.active_composition_children = tuple(value)
+
+    @property
+    def _active_composition_index(self):
+        return self._action_domain.active_composition_index
+
+    @_active_composition_index.setter
+    def _active_composition_index(self, value):
+        self._action_domain.active_composition_index = int(value)
+
+    @property
+    def _effect_by_commitment(self):
+        return self._action_domain.effect_by_commitment
+
+    @property
+    def _pending_sensorimotor_transition(self):
+        return self._action_domain.pending_transition
+
+    @_pending_sensorimotor_transition.setter
+    def _pending_sensorimotor_transition(self, value):
+        self._action_domain.pending_transition = value
+
+    @property
+    def _last_sensorimotor_transition(self):
+        return self._action_domain.last_transition
+
+    @_last_sensorimotor_transition.setter
+    def _last_sensorimotor_transition(self, value):
+        self._action_domain.last_transition = value
+
+    @property
+    def _pending_motor_observation(self):
+        return self._action_domain.pending_motor_observation
+
+    @_pending_motor_observation.setter
+    def _pending_motor_observation(self, value):
+        self._action_domain.pending_motor_observation = tuple(value)
+
+    @property
+    def _pending_proprioception(self):
+        return self._action_domain.pending_proprioception
+
+    @_pending_proprioception.setter
+    def _pending_proprioception(self, value):
+        self._action_domain.pending_proprioception = dict(value)
 
     @property
     def gene_expression_state(self) -> GeneExpressionState | None:
@@ -920,57 +1087,10 @@ class OrganismRuntime:
         )
 
     def _sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
-        if not self._actuation_enabled:
-            return None
-        legacy_snapshot = (
-            self._sensorimotor_learner.snapshot()
-            if self._sensorimotor_learner is not None
-            else None
-        )
-        progress_values = [
-            max(0.0, float(item.learning_progress))
-            for item in self._last_exploration_signals.values()
-        ]
-        active = self._active_action_commitment
-        return SensorimotorV2Snapshot(
-            effect_count=len(self._effect_space.effects),
-            causal_evidence_count=len(self._causal_evidence.evidence),
-            competence_count=len(self._competence_library.items),
-            established_competence_count=sum(
-                1 for item in self._competence_library.items if self._competence_is_executable(item)
-            ),
-            competence_candidate_count=(
-                legacy_snapshot.competence_candidates
-                if legacy_snapshot is not None
-                else 0
-            ),
-            controllability_estimate_count=len(
-                self._controllability_model.estimates
-            ),
-            predictive_context_count=self._sensorimotor_model.context_count,
-            agency_estimate_count=len(self._agency_model.estimates),
-            composition_evidence_count=len(self._composition_engine.evidence),
-            established_composition_count=len(self._composition_engine.established),
+        return self._action_domain.snapshot(
             body_schema_sensorimotor_relations=(
                 self._body_schema.sensorimotor_dependency_evidence_count
-            ),
-            active_commitment_id=(
-                active.commitment_id
-                if active is not None and active.active
-                else None
-            ),
-            active_competence_id=(
-                active.competence_id
-                if active is not None and active.active
-                else None
-            ),
-            action_source=self._last_action_source,
-            exploration_preference=self._active_exploration_preference,
-            mean_learning_progress=(
-                sum(progress_values) / len(progress_values)
-                if progress_values
-                else 0.0
-            ),
+            )
         )
 
     @property
@@ -1687,7 +1807,7 @@ class OrganismRuntime:
                     isinstance(raw, (int, float))
                     and not isinstance(raw, bool)
                     and math.isfinite(float(raw))
-                    and float(raw) >= self._motor_intent_selector.selection_threshold
+                    and float(raw) >= self._action_domain.selection_threshold
                 ):
                     strength = max(0.0, min(1.0, float(raw)))
                     proposal_id = "proposal." + hashlib.sha256(
@@ -1756,7 +1876,7 @@ class OrganismRuntime:
                 )
             )
 
-        decision = self._action_arbitrator.choose(
+        decision = self._action_domain.arbitrator.choose(
             proposals=tuple(proposals),
             current=self._active_action_commitment,
             tick=tick,
@@ -1779,28 +1899,19 @@ class OrganismRuntime:
                 if selected.competence_id is not None
                 else "controller.sensorimotor-exploration"
             )
-            commitment_id = "commitment." + hashlib.sha256(
-                f"{selected.proposal_id}:{tick}".encode("utf-8")
-            ).hexdigest()[:24]
             self._last_action_proposal = selected
             self._active_exploration_preference = (
                 ranked_exploration
                 if selected.source is ActionSource.EXPLORATION
                 else ()
             )
-            self._active_action_commitment = ActionCommitment(
-                commitment_id=commitment_id,
-                proposal_id=selected.proposal_id,
-                effect_target_id=selected.effect_target_id,
-                competence_id=selected.competence_id,
-                started_tick=tick,
+            self._active_action_commitment = self._action_domain.commit(
+                selected,
+                tick=tick,
                 controller_id=controller_id,
-                surface_fingerprint=(
-                    self._actuator_constitution.contract_fingerprint
-                    if self._actuator_constitution is not None
-                    else None
+                maximum_duration=(
+                    8 if selected.source is ActionSource.EXPLORATION else None
                 ),
-                maximum_duration=(8 if selected.source is ActionSource.EXPLORATION else None),
             )
 
             if selected.competence_id is not None:
@@ -1892,26 +2003,19 @@ class OrganismRuntime:
         # they are not new deliberative actions.
         if self._active_action_commitment is None or not self._active_action_commitment.active:
             raise RuntimeError("motor output has no active organism-owned commitment")
-        self._last_motor_command = MotorCommand(
-            commitment_id=self._active_action_commitment.commitment_id,
-            controller_id=self._active_action_commitment.controller_id,
-            competence_id=self._active_action_commitment.competence_id,
-            channels=tuple(
-                (intent.actuator_id, float(intent.activation))
+        self._last_motor_command = self._action_domain.issue_command(
+            {
+                intent.actuator_id: float(intent.activation)
                 for intent in intents
-            ),
+            },
+            tick=tick,
         )
 
-        actuations: list[Actuation] = []
         proprioception: dict[str, float] = {}
-        if self._actuator_constitution is None:
-            raise RuntimeError("actuation enabled without actuator surface")
-        for intent in intents:
-            actuation = self._actuator_system.execute(
-                intent,
-                self._actuator_constitution,
-            )
-            actuations.append(actuation)
+        actuations = list(
+            self._action_domain.execute_command(self._last_motor_command)
+        )
+        for actuation in actuations:
             aid = actuation.actuator_id
             proprioception.update({
                 f"motor.requested_activation.{aid}": actuation.requested,
@@ -2088,7 +2192,7 @@ class OrganismRuntime:
             "epigenetic_decay": self._epigenetic_decay,
             "actuation_enabled": self._actuation_enabled,
             "motor_selection_threshold": (
-                self._motor_intent_selector.selection_threshold
+                self._action_domain.selection_threshold
                 if self._motor_intent_selector is not None
                 else None
             ),
@@ -2581,13 +2685,7 @@ class OrganismRuntime:
                 interoception_enabled=self._interoception_enabled,
                 interoception_mode=self._interoception_mode,
                 actuation_enabled=self._actuation_enabled,
-                motor_intent_selector=(
-                    MotorIntentSelector(
-                        selection_threshold=self._motor_intent_selector.selection_threshold
-                    )
-                    if self._actuation_enabled and self._motor_intent_selector is not None
-                    else None
-                ),
+                motor_intent_selector=None,
             )
         except Exception:
             self._birth_authority.death(record.organism_id)
@@ -3713,7 +3811,7 @@ class OrganismRuntime:
                 "constitution": constitution_payload,
                 "proposer": export_actuation_state(self._actuator_proposer),
                 "selection_threshold": (
-                    self._motor_intent_selector.selection_threshold
+                    self._action_domain.selection_threshold
                     if self._motor_intent_selector is not None
                     else 0.1
                 ),
@@ -3730,49 +3828,7 @@ class OrganismRuntime:
                     if self._active_action_commitment is not None
                     else None
                 ),
-                "sensorimotor_v2": {
-                    "schema_version": 2,
-                    "surface_binding": {
-                        "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
-                        "known_channel_ids": list(self._actuator_constitution.actuator_ids),
-                    },
-                    "effect_space": self._effect_space.checkpoint(),
-                    "causal_evidence": self._causal_evidence.checkpoint(),
-                    "exploration": {
-                        "strength_memory": dict(
-                            sorted(self._exploration_strength_memory.items())
-                        ),
-                        "active_preference": list(
-                            self._active_exploration_preference
-                        ),
-                    },
-                    "competences": [
-                        {
-                            "competence_id": item.competence_id,
-                            "controller_id": item.controller_id,
-                            "effect_id": item.effect_id,
-                            "controller_strategy_ref": item.controller_strategy_ref,
-                            "parent_competence_ids": list(
-                                item.parent_competence_ids
-                            ),
-                            "support": item.evidence.support,
-                            "failures": item.evidence.failures,
-                            "reproducibility": item.evidence.reproducibility,
-                            "controllability": item.evidence.controllability,
-                            "directional_consistency": item.evidence.directional_consistency,
-                        }
-                        for item in self._competence_library.items
-                    ],
-                    "execution_bindings": self._competence_execution_bindings.checkpoint(),
-                    "composition": {
-                        "engine": self._composition_engine.checkpoint(),
-                        "predecessor_id": self._composition_predecessor_id,
-                        "active_children": list(
-                            self._active_composition_children
-                        ),
-                        "active_index": self._active_composition_index,
-                    },
-                },
+                "sensorimotor_v2": self._action_domain.checkpoint_v2(),,
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -4087,12 +4143,18 @@ class OrganismRuntime:
                     )
                 except (KeyError, TypeError, ValueError) as exc:
                     raise CheckpointError(f"invalid actuator proposer checkpoint: {exc}") from exc
-                try:
-                    motor_intent_selector = MotorIntentSelector(
-                        selection_threshold=raw_actuation.get("selection_threshold", 0.1)
-                    )
-                except ValueError as exc:
-                    raise CheckpointError(f"invalid motor selector checkpoint: {exc}") from exc
+                raw_selection_threshold = raw_actuation.get("selection_threshold", 0.1)
+                if (
+                    isinstance(raw_selection_threshold, bool)
+                    or not isinstance(raw_selection_threshold, (int, float))
+                    or not 0.0 <= float(raw_selection_threshold) <= 1.0
+                ):
+                    raise CheckpointError("invalid motor selection threshold")
+                motor_intent_selector = type(
+                    "_LegacySelectionThreshold",
+                    (),
+                    {"selection_threshold": float(raw_selection_threshold)},
+                )()
                 raw_sensorimotor = raw_actuation.get("sensorimotor")
                 if raw_sensorimotor is not None:
                     if not isinstance(raw_sensorimotor, dict):
@@ -4353,7 +4415,7 @@ class OrganismRuntime:
             if isinstance(raw_v2, dict):
                 try:
                     v2_schema = int(raw_v2.get("schema_version") or 0)
-                    if v2_schema not in {1, 2}:
+                    if v2_schema not in {1, 2, 3}:
                         raise ValueError(
                             "unsupported sensorimotor v2 checkpoint schema"
                         )

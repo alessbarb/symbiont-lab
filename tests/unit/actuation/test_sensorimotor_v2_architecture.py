@@ -54,18 +54,25 @@ def test_feedback_commands_inherit_one_commitment():
         competence_id="competence.1",
         started_tick=1,
         controller_id="controller.1",
+        surface_fingerprint="surface.test",
     )
     first = MotorCommand.from_mapping(
+        command_id="command.1",
         commitment_id=commitment.commitment_id,
         controller_id=commitment.controller_id,
         competence_id=commitment.competence_id,
+        surface_fingerprint=commitment.surface_fingerprint,
         channels={"actuator.a": 0.2},
+        issued_at_tick=1,
     )
     second = MotorCommand.from_mapping(
+        command_id="command.2",
         commitment_id=commitment.commitment_id,
         controller_id=commitment.controller_id,
         competence_id=commitment.competence_id,
+        surface_fingerprint=commitment.surface_fingerprint,
         channels={"actuator.a": 0.4},
+        issued_at_tick=2,
     )
     assert first.commitment_id == second.commitment_id == "commitment.1"
 
