@@ -59,6 +59,20 @@ export class BodyViewer {
     this.segmentMeshes = {};
     this.jointMarkers = {};
     this.jointActivity = new Map();
+    this.displayedJointAngles = new Map();
+    this.articulationDiagnostic = false;
+    this.articulationDiagnosticPose = new Map([
+      ['left_elbow_pitch', -Math.PI / 2],
+      ['right_elbow_pitch', -Math.PI / 3],
+      ['left_knee_pitch', Math.PI / 2.4],
+      ['right_knee_pitch', Math.PI / 3],
+      ['left_hip_pitch', -Math.PI / 7],
+      ['right_hip_pitch', Math.PI / 9],
+      ['left_shoulder_roll', -Math.PI / 5],
+      ['right_shoulder_roll', Math.PI / 5],
+      ['neck_pitch', Math.PI / 10],
+      ['trunk_pitch', Math.PI / 12],
+    ]);
     this.comMarker = null;
     this.comProjectionLine = null;
     this.comProjectionPositions = null;
@@ -428,9 +442,11 @@ export class BodyViewer {
     this.jointMarkers = {};
     this.jointObjs = {};
     this.jointActivity.clear();
+    this.displayedJointAngles.clear();
     this.previousJointPositions.clear();
     this.targetJointAngles.clear();
     this.targetLinkTransforms.clear();
+    this.displayedJointAngles.clear();
     this.poseFrames.length = 0;
     this.hasAuthoritativeLinkPoses = false;
     this.presentationStarted = false;
@@ -921,6 +937,24 @@ export class BodyViewer {
     this.baseNode.position.lerpVectors(from.basePosition, to.basePosition, alpha);
     this.baseNode.quaternion.slerpQuaternions(from.baseQuaternion, to.baseQuaternion, alpha);
 
+    // Keep the exact interpolated joint angles available to the inspector even
+    // when authoritative link transforms own the visual pose.
+    for (const jdef of this.bodyModel.joints) {
+      const a = from.jointAngles.get(jdef.name);
+      const b = to.jointAngles.get(jdef.name);
+      const angle = a === undefined
+        ? b
+        : b === undefined
+          ? a
+          : THREE.MathUtils.lerp(a, b, alpha);
+      if (Number.isFinite(angle)) this.displayedJointAngles.set(jdef.name, angle);
+    }
+
+    if (this.articulationDiagnostic) {
+      this.applyArticulationDiagnosticPose();
+      return;
+    }
+
     if (from.authoritativeLinks && to.authoritativeLinks) {
       for (const jdef of this.bodyModel.joints) {
         const node = this.linkObjs[jdef.child];
@@ -946,6 +980,7 @@ export class BodyViewer {
       const b = to.jointAngles.get(jdef.name);
       const targetAngle = a === undefined ? b : b === undefined ? a : THREE.MathUtils.lerp(a, b, alpha);
       if (targetAngle === undefined) continue;
+      this.displayedJointAngles.set(jdef.name, targetAngle);
 
       const node = this.jointObjs[jdef.name];
       if (!node) continue;
@@ -955,6 +990,57 @@ export class BodyViewer {
         case 'Z': node.rotation.z = -targetAngle; break;
       }
     }
+  }
+
+  setArticulationDiagnostic(enabled) {
+    this.articulationDiagnostic = Boolean(enabled);
+    if (!this.articulationDiagnostic && this.poseFrames.length > 0) {
+      const latest = this.poseFrames[this.poseFrames.length - 1];
+      this.applyPresentationPose(latest, latest, 0);
+    }
+    this.workspace?.requestRender();
+  }
+
+  applyArticulationDiagnosticPose() {
+    // Visual-only pose check. It never writes to Physics3D, the organism, or
+    // telemetry. Start from the canonical hierarchy so every visible bend is
+    // attributable to one declared joint.
+    for (const jdef of this.bodyModel.joints) {
+      const node = this.jointObjs[jdef.name];
+      if (!node) continue;
+      node.quaternion.identity();
+      const angle = this.articulationDiagnosticPose.get(jdef.name) ?? 0;
+      this.displayedJointAngles.set(jdef.name, angle);
+      switch (dominantAxis(jdef.axisVector ?? jdef.axis)) {
+        case 'Y': node.rotation.y = angle; break;
+        case 'X': node.rotation.x = angle; break;
+        case 'Z': node.rotation.z = -angle; break;
+      }
+    }
+  }
+
+  jointAngleDegrees(name) {
+    const value = this.displayedJointAngles.get(name);
+    return Number.isFinite(value) ? THREE.MathUtils.radToDeg(value) : null;
+  }
+
+  jointFlexionSummary(thresholdDeg = 10) {
+    const joints = [];
+    for (const jdef of this.bodyModel.joints) {
+      const degrees = this.jointAngleDegrees(jdef.name);
+      if (!Number.isFinite(degrees)) continue;
+      joints.push({
+        name: jdef.name,
+        degrees,
+        magnitude: Math.abs(degrees),
+      });
+    }
+    joints.sort((a, b) => b.magnitude - a.magnitude);
+    return {
+      flexed: joints.filter((joint) => joint.magnitude >= thresholdDeg).length,
+      max: joints[0] ?? null,
+      joints,
+    };
   }
 
   updatePresentationDebug(latestSourceTimeMs = null) {
@@ -1420,10 +1506,14 @@ export class BodyViewer {
       const activity = this.jointActivity.get(name) ?? 0;
       const decayed = activity * 0.92;
       this.jointActivity.set(name, decayed);
+      const angleDeg = Math.abs(this.jointAngleDegrees(name) ?? 0);
+      const flexion = THREE.MathUtils.clamp(angleDeg / 90, 0, 1);
       marker.visible = true;
-      marker.material.opacity = Math.min(0.92, 0.16 + decayed * 0.72);
-      marker.material.color.setHex(decayed > 0.08 ? 0x50fa9a : 0x9fd9ff);
-      marker.scale.setScalar(0.82 + decayed * 0.72);
+      marker.material.opacity = Math.min(0.94, 0.16 + Math.max(decayed * 0.70, flexion * 0.48));
+      marker.material.color.setHex(
+        flexion > 0.35 ? 0xffc857 : decayed > 0.08 ? 0x50fa9a : 0x9fd9ff,
+      );
+      marker.scale.setScalar(0.82 + Math.max(decayed * 0.68, flexion * 0.50));
     }
     for (const [segmentName, jointNames] of Object.entries(this.bodyModel.segmentActivityJoints)) {
       const mesh = this.segmentMeshes[segmentName];
