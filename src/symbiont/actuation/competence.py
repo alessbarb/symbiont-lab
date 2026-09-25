@@ -1,7 +1,7 @@
 """Evidence-derived motor competence abstractions."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 
 
@@ -65,37 +65,12 @@ class MotorCompetence:
     controller_id: str
     effect_id: str | None
     evidence: CompetenceEvidence
-    surface_binding: str | None = None
     parent_competence_ids: tuple[str, ...] = ()
     controller_strategy_ref: str | None = None
 
     @property
     def maturity(self) -> CompetenceMaturity:
         return self.evidence.maturity
-
-    @property
-    def executable(self) -> bool:
-        return self.surface_binding is not None and self.maturity in {
-            CompetenceMaturity.ESTABLISHED,
-            CompetenceMaturity.ROBUST,
-        }
-
-    def bind_from_evidence(
-        self,
-        *,
-        surface_fingerprint: str,
-        effect_id: str | None,
-        evidence_refs: tuple[str, ...],
-    ) -> None:
-        """Rebind only from new organism-owned evidence, never from fingerprint alone."""
-        if not evidence_refs:
-            raise ValueError("competence rebinding requires organism-owned evidence")
-        self.surface_binding = surface_fingerprint
-        self.effect_id = effect_id
-        self.evidence.controllability_evidence_refs = tuple(
-            dict.fromkeys(self.evidence.controllability_evidence_refs + evidence_refs)
-        )
-
 
 class CompetenceLibrary:
     def __init__(self, *, max_competences: int = 512) -> None:
@@ -118,27 +93,16 @@ class CompetenceLibrary:
     def get(self, competence_id: str) -> MotorCompetence | None:
         return self._items.get(competence_id)
 
-    def for_effect(self, effect_id: str, *, surface_fingerprint: str | None = None) -> tuple[MotorCompetence, ...]:
+    def for_effect(self, effect_id: str) -> tuple[MotorCompetence, ...]:
         result = [
             item
             for item in self._items.values()
             if item.effect_id == effect_id
-            and (
-                surface_fingerprint is None
-                or item.surface_binding is None
-                or item.surface_binding == surface_fingerprint
-            )
         ]
-        return tuple(sorted(result, key=lambda item: (-item.evidence.support, item.competence_id)))
-
-    def invalidate_execution_binding(self, surface_fingerprint: str) -> tuple[str, ...]:
-        """Report incompatibility without changing learned evidence/confidence."""
         return tuple(
             sorted(
-                item.competence_id
-                for item in self._items.values()
-                if item.surface_binding is not None
-                and item.surface_binding != surface_fingerprint
+                result,
+                key=lambda item: (-item.evidence.support, item.competence_id),
             )
         )
 

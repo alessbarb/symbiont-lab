@@ -1,3 +1,4 @@
+from .binding import CompetenceExecutionBinding, CompetenceExecutionBindingRegistry
 """Public Sensorimotor v2 action API.
 
 Legacy sequence/chunk representations stay inside ``sensorimotor`` for
@@ -48,6 +49,8 @@ from .system import ActuatorSystem
 from .types import Actuation, MotorIntent
 
 __all__ = [
+    "CompetenceExecutionBinding",
+    "CompetenceExecutionBindingRegistry",
     "ActionArbitrator",
     "ActionCommitment",
     "ActionEvaluation",
