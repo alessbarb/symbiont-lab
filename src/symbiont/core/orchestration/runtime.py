@@ -2370,6 +2370,27 @@ class OrganismRuntime:
                 "constitution": constitution_payload,
                 "action_domain": self._action_domain.checkpoint_state(),
             }
+        elif self._actuator_constitution is not None:
+            # A disabled runtime may still carry the body-owned actuator
+            # surface.  It is causal input to phenotype regulation even when
+            # no motor command can be emitted, so checkpoint it as well.
+            payload["actuation"] = {
+                "enabled": False,
+                "constitution": {
+                    "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
+                    "slots": [
+                        {
+                            "slot_id": slot.slot_id,
+                            "actuator_id": slot.actuator_id,
+                            "command_min": slot.command_min,
+                            "command_max": slot.command_max,
+                            "neutral": slot.neutral,
+                            "available": slot.available,
+                        }
+                        for slot in self._actuator_constitution.slots
+                    ],
+                },
+            }
         else:
             payload["actuation"] = {"enabled": False}
         payload["memory"] = self._memory_consolidator.export_checkpoint()
@@ -2815,6 +2836,32 @@ class OrganismRuntime:
                     ):
                         raise CheckpointError("invalid pending proprioception")
                     pending_proprioception[key] = float(value)
+            elif isinstance(raw_actuation.get("constitution"), dict):
+                # Preserve a disabled runtime's body surface.  The surface is
+                # not executable in this mode, but its actuator count remains
+                # causal to developmental regulation.
+                raw_constitution = raw_actuation["constitution"]
+                raw_slots = raw_constitution.get("slots")
+                if not isinstance(raw_slots, list):
+                    raise CheckpointError("actuator constitution slots must be a list")
+                try:
+                    channels = tuple(
+                        ActuatorChannel(
+                            slot_id=str(item["slot_id"]),
+                            actuator_id=str(item["actuator_id"]),
+                            command_min=float(item.get("command_min", 0.0)),
+                            command_max=float(item.get("command_max", 1.0)),
+                            neutral=float(item.get("neutral", 0.0)),
+                            available=bool(item.get("available", True)),
+                        )
+                        for item in raw_slots
+                    )
+                    actuator_constitution = ActuatorSurface(
+                        channels=channels,
+                        contract_fingerprint=str(raw_constitution["contract_fingerprint"]),
+                    )
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise CheckpointError("invalid disabled actuator constitution") from exc
         resolved_physiology_config = kwargs.get("physiology_config")
         if resolved_physiology_config is None:
             if "physiology" in effective:

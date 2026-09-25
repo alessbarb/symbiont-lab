@@ -404,6 +404,23 @@ class SignalKnowledgeEngine:
             "schema_version": 1,
             "last_tick": self._last_tick,
             "profiles": profiles,
+            "history": {key: list(values) for key, values in self._history.items()},
+            "pair_history": {
+                "|".join(pair): [list(row) for row in values]
+                for pair, values in self._pair_history.items()
+            },
+            "pair_predictors": {
+                "|".join(pair): predictor.checkpoint()
+                for pair, predictor in self._pair_predictors.items()
+            },
+            "pending_features": {
+                "|".join(pair): [tick, list(features)]
+                for pair, (tick, features) in self._pending_features.items()
+            },
+            "epoch_stats": {key: list(values) for key, values in self._epoch_stats.items()},
+            "candidate_pairs": [list(pair) for pair in sorted(self._candidate_pairs)],
+            "events": [asdict(event) for event in self._events],
+            "event_overflowed": self._event_overflowed,
         }
 
     @classmethod
@@ -459,6 +476,54 @@ class SignalKnowledgeEngine:
                 c.last_tested_tick = tested
                 if c.status not in _STATUSES or any(isinstance(v, bool) or not isinstance(v, int) or v < 0 for v in (c.evidence_count, c.validation_opportunities, c.successful_epochs, c.failed_epochs, c.revision)) or c.evidence_count > c.validation_opportunities:
                     raise ValueError("invalid claim state")
+        raw_history = payload.get("history", {})
+        if not isinstance(raw_history, dict):
+            raise ValueError("invalid signal history")
+        for signal_id, values in raw_history.items():
+            if signal_id not in engine._profiles or not isinstance(values, list):
+                raise ValueError("invalid signal history entry")
+            engine._history[signal_id].extend(
+                (int(tick), float(value)) for tick, value in values
+            )
+        raw_pairs = payload.get("pair_history", {})
+        if not isinstance(raw_pairs, dict):
+            raise ValueError("invalid pair history")
+        for key, values in raw_pairs.items():
+            pair = tuple(key.split("|"))
+            if len(pair) != 2 or not isinstance(values, list):
+                raise ValueError("invalid pair history entry")
+            engine._pair_history[pair] = deque(
+                (int(tick), float(a), float(b)) for tick, a, b in values
+            )
+        raw_predictors = payload.get("pair_predictors", {})
+        if not isinstance(raw_predictors, dict):
+            raise ValueError("invalid pair predictors")
+        for key, value in raw_predictors.items():
+            pair = tuple(key.split("|"))
+            if len(pair) != 2 or not isinstance(value, dict):
+                raise ValueError("invalid pair predictor entry")
+            engine._pair_predictors[pair] = RidgePredictor.from_checkpoint(value)
+        raw_pending = payload.get("pending_features", {})
+        if not isinstance(raw_pending, dict):
+            raise ValueError("invalid pending features")
+        for key, value in raw_pending.items():
+            pair = tuple(key.split("|"))
+            if len(pair) != 2 or not isinstance(value, list) or len(value) != 2:
+                raise ValueError("invalid pending feature entry")
+            engine._pending_features[pair] = (int(value[0]), tuple(float(x) for x in value[1]))
+        raw_epochs = payload.get("epoch_stats", {})
+        if not isinstance(raw_epochs, dict):
+            raise ValueError("invalid epoch stats")
+        engine._epoch_stats = {str(key): [int(value) for value in values] for key, values in raw_epochs.items()}
+        raw_candidates = payload.get("candidate_pairs", [])
+        if not isinstance(raw_candidates, list):
+            raise ValueError("invalid candidate pairs")
+        engine._candidate_pairs = {tuple(str(value) for value in pair) for pair in raw_candidates}
+        raw_events = payload.get("events", [])
+        if not isinstance(raw_events, list):
+            raise ValueError("invalid knowledge events")
+        engine._events.extend(KnowledgeEvent(**event) for event in raw_events)
+        engine._event_overflowed = bool(payload.get("event_overflowed", False))
         return engine
 
 

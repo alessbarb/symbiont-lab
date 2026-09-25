@@ -1411,6 +1411,23 @@ class CompetenceDevelopmentEngine:
             "use_counts": dict(self._use_counts),
             "exploration_epoch": self._exploration_epoch,
             "exploration_ids": list(self._exploration_ids),
+            "frame_history": [
+                {
+                    "tick": frame.tick,
+                    "body_state": dict(frame.body_state),
+                    "motor_vector": dict(frame.motor_vector),
+                    "discovery_eligible": frame.discovery_eligible,
+                    "execution_primitive_id": frame.execution_primitive_id,
+                }
+                for frame in self._frames
+            ],
+            "episode_end_ticks": [
+                {
+                    "sequence": _sequence_payload(sequence),
+                    "tick": tick,
+                }
+                for sequence, tick in sorted(self._last_episode_end_tick.items())
+            ],
             "horizon_stats": [
                 {
                     "horizon": horizon,
@@ -1569,10 +1586,10 @@ class CompetenceDevelopmentEngine:
         if isinstance(raw_exploration_ids, list):
             restored_ids = tuple(str(value) for value in raw_exploration_ids)
             if all(value in allowed for value in restored_ids):
-                # Re-derive the next concurrent set from the current opaque
-                # motor-unit constitution.  The smoothed scalar levels are
-                # durable, but an in-flight selection is not causal evidence.
-                learner._exploration_ids = ()
+                # The selected opaque channels are part of the controller's
+                # next-step state.  Dropping them on restore changes the
+                # motor trajectory even when every learned statistic matches.
+                learner._exploration_ids = restored_ids
 
         raw_horizon_stats = payload.get("horizon_stats", [])
         if isinstance(raw_horizon_stats, list):
@@ -1807,10 +1824,52 @@ class CompetenceDevelopmentEngine:
                 raise ValueError("invalid sensorimotor replay source")
             learner._replay_source = "cognition"
 
-        # Frame history and episode boundaries are deliberately cold-started:
-        # raw body-state baselines are not checkpointed.
-        learner._frames.clear()
-        learner._last_episode_end_tick.clear()
+        raw_frames = payload.get("frame_history", [])
+        if not isinstance(raw_frames, list) or len(raw_frames) > learner._frames.maxlen:
+            raise ValueError("invalid sensorimotor frame history")
+        for item in raw_frames:
+            if not isinstance(item, Mapping):
+                raise ValueError("invalid sensorimotor frame")
+            raw_body = item.get("body_state", {})
+            raw_motor = item.get("motor_vector", {})
+            if not isinstance(raw_body, Mapping) or not isinstance(raw_motor, Mapping):
+                raise ValueError("invalid sensorimotor frame state")
+            body_state = {
+                str(key): _require_finite(value, field=f"sensorimotor body state {key}")
+                for key, value in raw_body.items()
+            }
+            motor_vector = {
+                str(key): _finite_unit(
+                    _require_finite(value, field=f"sensorimotor motor vector {key}")
+                )
+                for key, value in raw_motor.items()
+            }
+            if any(key not in allowed for key in motor_vector):
+                raise ValueError("sensorimotor frame references unknown actuator")
+            execution_id = item.get("execution_primitive_id")
+            if execution_id is not None and not isinstance(execution_id, str):
+                raise ValueError("invalid sensorimotor frame primitive id")
+            learner._frames.append(
+                _Frame(
+                    tick=_require_int(item.get("tick"), field="sensorimotor frame tick"),
+                    body_state=body_state,
+                    motor_vector=motor_vector,
+                    motor_pattern=_pattern_key(motor_vector),
+                    discovery_eligible=bool(item.get("discovery_eligible", True)),
+                    execution_primitive_id=execution_id,
+                )
+            )
+
+        raw_episode_ticks = payload.get("episode_end_ticks", [])
+        if not isinstance(raw_episode_ticks, list):
+            raise ValueError("invalid sensorimotor episode end ticks")
+        for item in raw_episode_ticks:
+            if not isinstance(item, Mapping):
+                raise ValueError("invalid sensorimotor episode end entry")
+            sequence = _restore_sequence(item.get("sequence"), allowed_ids=allowed)
+            learner._last_episode_end_tick[sequence] = _require_int(
+                item.get("tick"), field="sensorimotor episode end tick"
+            )
         return learner
 
     @property

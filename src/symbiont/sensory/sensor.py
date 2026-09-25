@@ -37,7 +37,7 @@ class SensorState:
     transduction_cost: float = 0.001
     parent_sensor_ids: tuple[str, ...] = ()
     structural_revision: int = 0
-    # Transient state is deliberately not checkpointed.
+    # These values are causal temporal state and are checkpointed explicitly.
     previous_input: float | None = None
     integrator: float = 0.0
     last_output: float | None = None
@@ -140,7 +140,7 @@ class SensorState:
         self.utility = (1.0 - alpha) * self.utility + alpha * contribution
 
     def checkpoint(self) -> dict[str, Any]:
-        """Durable phenotype without raw/transient signal state."""
+        """Durable phenotype plus bounded causal transduction state."""
         return {
             "sensor_id": self.sensor_id,
             "modality_id": self.modality_id,
@@ -161,6 +161,12 @@ class SensorState:
             "transduction_cost": self.transduction_cost,
             "parent_sensor_ids": list(self.parent_sensor_ids),
             "structural_revision": self.structural_revision,
+            "previous_input": self.previous_input,
+            "integrator": self.integrator,
+            "last_output": self.last_output,
+            "previous_output": self.previous_output,
+            "cold_start_pending": self.cold_start_pending,
+            "cold_start_observed": self.cold_start_observed,
             "output_abs_ewma": self.output_abs_ewma,
             "output_delta_ewma": self.output_delta_ewma,
             "output_observations": self.output_observations,
@@ -198,10 +204,14 @@ class SensorState:
             transduction_cost=payload.get("transduction_cost", 0.001),
             parent_sensor_ids=tuple(parents),
             structural_revision=payload.get("structural_revision", 0),
+            previous_input=payload.get("previous_input"),
+            integrator=payload.get("integrator", 0.0),
+            last_output=payload.get("last_output"),
+            previous_output=payload.get("previous_output"),
             output_abs_ewma=payload.get("output_abs_ewma", 0.0),
             output_delta_ewma=payload.get("output_delta_ewma", 0.0),
             output_observations=payload.get("output_observations", 0),
             utility_observations=payload.get("utility_observations", 0),
-            cold_start_pending=TransductionKind(payload.get("transduction", "identity"))
-                in (TransductionKind.DIFFERENCE, TransductionKind.INTEGRATE),
+            cold_start_pending=payload.get("cold_start_pending", False),
+            cold_start_observed=payload.get("cold_start_observed", False),
         )

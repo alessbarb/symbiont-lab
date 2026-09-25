@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from math import sqrt
-from typing import Iterable
+from typing import Any, Iterable
 
 from .readings import SensorReading
 
@@ -171,6 +171,57 @@ class HostAcclimation:
         if capability_id not in self._stats and len(self._stats) >= self._max_capabilities:
             return
         self._stats[capability_id] = RunningStats.from_baseline(baseline)
+
+    def replay_state(self) -> dict[str, Any]:
+        """Return bounded running state needed for deterministic continuation."""
+        return {
+            "tick": self._tick,
+            "stats": {
+                capability_id: {
+                    "count": stats.count,
+                    "mean": stats.mean,
+                    "m2": stats._m2,
+                }
+                for capability_id, stats in self._stats.items()
+            },
+            "last_seen": dict(self._last_seen),
+        }
+
+    def restore_replay_state(self, payload: dict[str, Any]) -> None:
+        """Restore the exact bounded accumulator state used by eviction."""
+        tick = payload.get("tick", 0)
+        stats_payload = payload.get("stats", {})
+        last_seen = payload.get("last_seen", {})
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+            raise ValueError("acclimation replay tick must be a non-negative int")
+        if not isinstance(stats_payload, dict) or not isinstance(last_seen, dict):
+            raise ValueError("acclimation replay state is invalid")
+        if len(stats_payload) > self._max_capabilities:
+            raise ValueError("acclimation replay exceeds capability bound")
+        restored: dict[str, RunningStats] = {}
+        for capability_id, entry in stats_payload.items():
+            if not isinstance(capability_id, str) or not isinstance(entry, dict):
+                raise ValueError("acclimation replay entry is invalid")
+            count = entry.get("count", 0)
+            mean = float(entry.get("mean", 0.0))
+            m2 = float(entry.get("m2", 0.0))
+            if (
+                isinstance(count, bool) or not isinstance(count, int) or count < 0
+                or not math.isfinite(mean) or not math.isfinite(m2) or m2 < 0.0
+            ):
+                raise ValueError("acclimation replay numeric state is invalid")
+            restored[capability_id] = RunningStats(count=count, mean=mean, _m2=m2)
+        if any(
+            not isinstance(key, str)
+            or isinstance(value, bool)
+            or not isinstance(value, int)
+            or value < 0
+            for key, value in last_seen.items()
+        ):
+            raise ValueError("acclimation replay last_seen is invalid")
+        self._tick = tick
+        self._stats = restored
+        self._last_seen = {key: int(value) for key, value in last_seen.items() if key in restored}
 
     @property
     def known_capabilities(self) -> tuple[str, ...]:

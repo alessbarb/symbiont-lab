@@ -113,16 +113,14 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
     assert pop_a.journal.snapshot() == pop_b.journal.snapshot()
 
     # Organism runtime deterministic internal state equivalence.
-    # NOTE: host statistical baselines (acclimation/rhythms/drift) undergo privacy-preserving
-    # lossy quantization into discrete classes upon checkpoint export (symbiont design §14),
-    # so continuous accumulation vs quantized-seed accumulation are compared on all exact keys.
+    # Public projections for these domains are intentionally coarse or include
+    # append-only presentation history. Their bounded causal replay blocks are
+    # compared by the dedicated first-tick contract below.
     lossy_baseline_keys = {
         "acclimation", "rhythms", "drift", "sensory_development",
         "sensory_system", "signal_knowledge", "narrative_journal",
-        # NOTE: Motor discovery may hold one in-flight t->t+1 percept comparison
-        # at checkpoint time. Raw percept baselines are intentionally not
-        # persisted; the probe phase is preserved but that incomplete sample
-        # cold-starts on restore.
+        # Motor discovery and its bounded frame history are checked by the
+        # dedicated sensorimotor replay assertions.
         "actuation",
     }
     
@@ -170,6 +168,35 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
         db1[oid].pop("checkpoint_lineage", None)
         db2[oid].pop("checkpoint_lineage", None)
     assert db1 == db2
+
+
+def test_checkpoint_replay_matches_the_first_causal_tick(tmp_path: Path):
+    """The first tick after restore must not be a hidden replay cold start."""
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "first_tick_replay")
+    pop_a = _make_pop(seed=777, count=1)
+    pop_a.run(5)
+    storage.save_checkpoint(
+        pop_a,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    pop_b = storage.restore(
+        ground_truth=pop_a.ground_truth,
+        expected_constitution=smoke.constitution,
+    )
+
+    record_a = pop_a.run(1)[0]
+    record_b = pop_b.run(1)[0]
+    assert record_a == record_b
+    assert pop_a.state.snapshot() == pop_b.state.snapshot()
+    assert pop_a.environment.snapshot() == pop_b.environment.snapshot()
+
+    state_a = pop_a._rigs["org-0"].runtime.checkpoint()
+    state_b = pop_b._rigs["org-0"].runtime.checkpoint()
+    state_a.pop("checkpoint_lineage", None)
+    state_b.pop("checkpoint_lineage", None)
+    assert state_a == state_b
 
 
 

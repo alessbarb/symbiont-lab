@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from math import isfinite, sqrt
+from typing import Any
 
 
 class DriftKind(StrEnum):
@@ -197,6 +198,54 @@ class DriftAwareBaseline:
         self._creep_streak = 0
         self._creep_direction = 0
         self._creep_stdev = sqrt(variance)
+
+    def replay_state(self) -> dict[str, Any]:
+        """Return the bounded causal state required for deterministic replay.
+
+        The ordinary checkpoint projection intentionally restores only a
+        coarse descriptive baseline.  That is insufficient when a pending
+        drift streak or fast mean contributes to the next decision.  This
+        separate state is used by deterministic checkpoints and is bounded by
+        ``regime_run`` rather than retaining an unbounded telemetry history.
+        """
+        return {
+            "count": self._count,
+            "mean": self._mean,
+            "variance": self._variance,
+            "deviation_streak": self._deviation_streak,
+            "streak_direction": self._streak_direction,
+            "buffer": list(self._buffer),
+            "fast_mean": self._fast_mean,
+            "creep_streak": self._creep_streak,
+            "creep_direction": self._creep_direction,
+            "creep_stdev": self._creep_stdev,
+        }
+
+    def restore_replay_state(self, payload: dict[str, Any]) -> None:
+        """Restore bounded internal state used by the next observation."""
+        count = payload.get("count")
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise ValueError("drift replay count must be a non-negative int")
+        values = ("mean", "variance", "fast_mean", "creep_stdev")
+        numbers = {key: float(payload.get(key, 0.0)) for key in values}
+        if any(not isfinite(value) or (key in ("variance", "creep_stdev") and value < 0.0)
+               for key, value in numbers.items()):
+            raise ValueError("drift replay numeric state is invalid")
+        buffer = payload.get("buffer", [])
+        if not isinstance(buffer, list) or len(buffer) > self._regime_run:
+            raise ValueError("drift replay buffer is invalid")
+        if any(not isfinite(float(value)) for value in buffer):
+            raise ValueError("drift replay buffer contains a non-finite value")
+        self._count = count
+        self._mean = numbers["mean"]
+        self._variance = numbers["variance"]
+        self._deviation_streak = int(payload.get("deviation_streak", 0))
+        self._streak_direction = int(payload.get("streak_direction", 0))
+        self._buffer = [float(value) for value in buffer]
+        self._fast_mean = numbers["fast_mean"]
+        self._creep_streak = int(payload.get("creep_streak", 0))
+        self._creep_direction = int(payload.get("creep_direction", 0))
+        self._creep_stdev = numbers["creep_stdev"]
 
     def observe(self, value: float) -> DriftObservation:
         if not self.is_established:

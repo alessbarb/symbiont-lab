@@ -11,7 +11,12 @@ def validate_checkpoint(payload: Any) -> dict[str, Any]:
     """Validate and copy a knowledge checkpoint without mutating its source."""
     if not isinstance(payload, dict):
         raise ValueError("signal knowledge checkpoint must be an object")
-    if set(payload) - {"schema_version", "last_tick", "profiles"}:
+    allowed = {
+        "schema_version", "last_tick", "profiles", "history", "pair_history",
+        "pair_predictors", "pending_features", "epoch_stats", "candidate_pairs",
+        "events", "event_overflowed",
+    }
+    if set(payload) - allowed:
         raise ValueError("unknown signal knowledge checkpoint fields")
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     if len(encoded) > MAX_KNOWLEDGE_CHECKPOINT_BYTES:

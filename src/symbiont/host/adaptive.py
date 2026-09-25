@@ -103,6 +103,13 @@ class SenseState:
             "delta_ewma": self.delta_ewma,
         }
 
+    def replay_payload(self) -> dict[str, Any]:
+        """Include transient state needed by the next observation only."""
+        payload = self.to_payload()
+        payload["last_value"] = self.last_value
+        payload["last_seen_tick"] = self.last_seen_tick
+        return payload
+
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "SenseState":
         samples = _require_nonneg_int(payload.get("samples", 0), "samples")
@@ -124,6 +131,10 @@ class SenseState:
             last_value=None,
             delta_ewma=delta_ewma,
         )
+        if "last_value" in payload:
+            raw_last = payload["last_value"]
+            state.last_value = None if raw_last is None else _require_finite(raw_last, "last_value")
+        state.last_seen_tick = _require_nonneg_int(payload.get("last_seen_tick", 0), "last_seen_tick")
         if state.available_samples > state.samples:
             raise ValueError("available_samples cannot exceed samples")
         return state
@@ -691,13 +702,15 @@ class AdaptiveSenseModel:
     def export(self) -> dict[str, Any]:
         """Serialize established descriptive state plus opaque recognition.
 
-        Under-sampled aggregates remain withheld because with one sample the
-        mean is the reading itself. ``known_capability_fingerprints`` stores
-        only bounded one-way recognition tokens, never sample counts, means,
-        deltas or latest values, so restart continuity does not weaken that
-        privacy gate.
+        Under-sampled aggregates remain withheld from the public projection
+        because with one sample the mean is the reading itself.
+        ``known_capability_fingerprints`` is also a bounded one-way
+        recognition projection. The separate ``replay_state`` block retains
+        bounded latest-value history and accumulators when those values affect
+        deterministic continuation; it is a causal persistence contract, not
+        part of the public telemetry projection.
         """
-        return {
+        payload = {
             "min_samples": self._min_samples,
             "active_limit": self._active_limit,
             "max_candidates": self._max_candidates,
@@ -720,6 +733,27 @@ class AdaptiveSenseModel:
             ],
             "hypotheses": self._hypotheses.export(),
         }
+        payload["replay_state"] = {
+            "tick": self._tick,
+            "previous_values": dict(self._previous_values),
+            "known_capability_fingerprints": list(self._known_capability_fingerprints),
+            "probe_cursor": self._probe_cursor,
+            "states": [state.replay_payload() for state in self.states],
+            "relations": [
+                {
+                    "capability_a": relation.capability_a,
+                    "capability_b": relation.capability_b,
+                    "synchronous": relation.synchronous.to_payload(),
+                    "a_to_b": relation.a_to_b.to_payload(),
+                    "b_to_a": relation.b_to_a.to_payload(),
+                    "last_seen_tick": relation.last_seen_tick,
+                }
+                for _, relation in sorted(self._relations.items())
+            ],
+            "evicted_percept_names": list(self._evicted_percept_names),
+            "relation_changes": self._relation_changes,
+        }
+        return payload
 
     @classmethod
     def restore(cls, payload: dict[str, Any] | None) -> "AdaptiveSenseModel":
@@ -761,4 +795,48 @@ class AdaptiveSenseModel:
             key = _canonical_pair(relation.capability_a, relation.capability_b)
             model._relations[key] = relation
         model._hypotheses = HypothesisTracker.restore(payload.get("hypotheses"))
+        replay = payload.get("replay_state")
+        if isinstance(replay, dict):
+            model._tick = _require_nonneg_int(replay.get("tick", 0), "tick")
+            raw_previous = replay.get("previous_values", {})
+            if not isinstance(raw_previous, dict):
+                raise ValueError("previous_values must be an object")
+            model._previous_values = {
+                str(key): _require_finite(value, "previous_values value")
+                for key, value in raw_previous.items()
+            }
+            raw_replay_fingerprints = replay.get("known_capability_fingerprints")
+            if raw_replay_fingerprints is not None:
+                if not isinstance(raw_replay_fingerprints, list):
+                    raise ValueError("replay known_capability_fingerprints must be a list")
+                model._known_capability_fingerprints.clear()
+                for fingerprint in raw_replay_fingerprints[-model._max_candidates :]:
+                    if (
+                        not isinstance(fingerprint, str)
+                        or len(fingerprint) != 64
+                        or any(character not in "0123456789abcdef" for character in fingerprint)
+                    ):
+                        raise ValueError("replay known capability fingerprint must be a 64-character lowercase hex digest")
+                    model._known_capability_fingerprints[fingerprint] = None
+            if "probe_cursor" in replay:
+                model._probe_cursor = _require_nonneg_int(replay["probe_cursor"], "probe_cursor")
+            model._states = {}
+            for item in replay.get("states", [])[: model._max_candidates]:
+                state = SenseState.from_payload(item)
+                model._states[state.capability_id] = state
+            model._relations = {}
+            for item in replay.get("relations", [])[: model._max_relations]:
+                relation = SensoryRelation.from_payload(item)
+                relation.last_seen_tick = _require_nonneg_int(
+                    item.get("last_seen_tick", 0), "last_seen_tick"
+                )
+                key = _canonical_pair(relation.capability_a, relation.capability_b)
+                model._relations[key] = relation
+            raw_evicted = replay.get("evicted_percept_names", [])
+            if not isinstance(raw_evicted, list):
+                raise ValueError("evicted_percept_names must be a list")
+            model._evicted_percept_names = [str(value) for value in raw_evicted]
+            model._relation_changes = _require_nonneg_int(
+                replay.get("relation_changes", 0), "relation_changes"
+            )
         return model

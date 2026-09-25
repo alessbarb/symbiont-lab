@@ -100,6 +100,28 @@ class RidgePredictor:
     def count(self) -> int:
         return len(self._rows)
 
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "history_limit": self._rows.maxlen,
+            "regularization": self.regularization,
+            "rows": [[list(features), target] for features, target in self._rows],
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: dict[str, object]) -> "RidgePredictor":
+        predictor = cls(
+            history_limit=int(payload.get("history_limit", 64)),
+            regularization=float(payload.get("regularization", 1e-6)),
+        )
+        rows = payload.get("rows", [])
+        if not isinstance(rows, list):
+            raise ValueError("predictor rows must be a list")
+        for row in rows:
+            if not isinstance(row, list) or len(row) != 2 or not isinstance(row[0], list):
+                raise ValueError("invalid predictor row")
+            predictor.observe(tuple(float(value) for value in row[0]), float(row[1]))
+        return predictor
+
 
 def absolute_loss(prediction: float | None, target: float | None) -> float | None:
     if prediction is None or target is None:

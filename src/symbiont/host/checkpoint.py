@@ -64,22 +64,17 @@ def export_checkpoint(
     drift_baselines: dict[str, DriftAwareBaseline] | None = None,
     saved_at_tick: int | None = None,
 ) -> dict[str, Any]:
-    """Serialize only safe, abstract descriptive state — never raw readings,
-    timestamps or capability details (roadmap v0.37, extended v0.46).
+    """Serialize public descriptive projections and bounded replay state.
 
-    Every field written here is already part of what v0.33/v0.35/v0.36
-    commit to exposing publicly: count/mean/variance. A single checkpoint
-    on its own cannot reconstruct a specific past reading, so exporting and
-    later importing one is explicit, user-triggered model persistence, not
-    a telemetry log. This is *not* an unconditional non-reconstruction
-    guarantee, though: two checkpoints of an already-established aggregate
-    taken one sample apart can still be differenced to solve algebraically
-    for that one new reading (see
-    :meth:`~symbiont.host.adaptive.AdaptiveSenseModel.export`'s docstring,
-    roadmap safety finding B01) — no mechanism here defends against that
-    yet. ``saved_at_tick`` (v0.46) is an organism-relative tick counter,
-    not a timestamp or calendar date — the same privacy discipline v0.35's
-    ``TimeBucket`` already holds to.
+    Public projections remain coarse and omit raw telemetry. Replay blocks are
+    a separate causal contract: they retain bounded accumulators and histories
+    required to continue deterministically after restore. They are therefore
+    not a telemetry log or an unconditional non-reconstruction guarantee.
+
+    ``saved_at_tick`` is an organism-relative tick counter, not a timestamp or
+    calendar date. Exact replay state is intentionally explicit so callers can
+    distinguish deterministic continuation from the privacy-reducing public
+    snapshot.
     """
     payload: dict[str, Any] = {"schema_version": CHECKPOINT_SCHEMA_VERSION}
 
@@ -92,6 +87,7 @@ def export_checkpoint(
             for capability_id in acclimation.acclimated_capabilities
             if (baseline := acclimation.baseline(capability_id)) is not None
         }
+        payload["acclimation_replay"] = acclimation.replay_state()
 
     if rhythm_model is not None:
         payload["rhythms"] = [
@@ -103,12 +99,21 @@ def export_checkpoint(
             for percept_name, time_bucket in rhythm_model.learned_contexts
             if (baseline := rhythm_model.baseline(percept_name, time_bucket)) is not None
         ]
+        payload["rhythms_replay"] = rhythm_model.replay_state()
 
     if drift_baselines is not None:
         payload["drift"] = {
             name: _seed_payload(consolidate_baseline(baseline))
             for name, baseline in drift_baselines.items()
             if baseline.is_established
+        }
+        # The public projection above is intentionally coarse.  Preserve the
+        # bounded state that can affect the very next observation separately;
+        # otherwise restoring during a pending drift streak changes novelty,
+        # regulation, and therefore the future trajectory.
+        payload["drift_replay"] = {
+            name: baseline.replay_state()
+            for name, baseline in drift_baselines.items()
         }
 
     return payload
@@ -430,6 +435,11 @@ def import_checkpoint(
         acclimation = acclimation if acclimation is not None else HostAcclimation()
         for capability_id, stats in payload.get("acclimation", {}).items():
             acclimation.restore(capability_id, _baseline_from_stats_entry(stats))
+        raw_acclimation_replay = payload.get("acclimation_replay")
+        if raw_acclimation_replay is not None:
+            if not isinstance(raw_acclimation_replay, dict):
+                raise CheckpointError("acclimation_replay must be an object")
+            acclimation.restore_replay_state(raw_acclimation_replay)
 
         rhythm_model = rhythm_model if rhythm_model is not None else RhythmModel()
         for entry in payload.get("rhythms", []):
@@ -438,6 +448,11 @@ def import_checkpoint(
                 TimeBucket(entry["time_bucket"]),
                 _baseline_from_stats_entry(entry),
             )
+        raw_rhythms_replay = payload.get("rhythms_replay")
+        if raw_rhythms_replay is not None:
+            if not isinstance(raw_rhythms_replay, dict):
+                raise CheckpointError("rhythms_replay must be an object")
+            rhythm_model.restore_replay_state(raw_rhythms_replay)
 
         drift_baselines: dict[str, DriftAwareBaseline] = {}
         for name, stats in payload.get("drift", {}).items():
@@ -445,6 +460,18 @@ def import_checkpoint(
             baseline = DriftAwareBaseline()
             baseline.restore(count=seeded.count, mean=seeded.mean, variance=seeded.variance)
             drift_baselines[name] = baseline
+        raw_replay = payload.get("drift_replay", {})
+        if raw_replay is not None:
+            if not isinstance(raw_replay, dict):
+                raise CheckpointError("drift_replay must be an object")
+            for name, replay_state in raw_replay.items():
+                if not isinstance(name, str) or not isinstance(replay_state, dict):
+                    raise CheckpointError("malformed drift replay state")
+                baseline = drift_baselines.get(name)
+                if baseline is None:
+                    baseline = DriftAwareBaseline()
+                    drift_baselines[name] = baseline
+                baseline.restore_replay_state(replay_state)
     except (KeyError, TypeError, ValueError) as exc:
         raise CheckpointError(f"malformed checkpoint payload: {exc}") from exc
 

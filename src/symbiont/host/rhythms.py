@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Iterable
+import math
+from typing import Any, Iterable
 
 from .acclimation import CapabilityBaseline, RunningStats
 from .percepts import Percept
@@ -106,6 +107,46 @@ class RhythmModel:
         if key not in self._stats and len(self._stats) >= self._max_contexts:
             return
         self._stats[key] = RunningStats.from_baseline(baseline)
+
+    def replay_state(self) -> dict[str, Any]:
+        """Return bounded running state needed for deterministic continuation."""
+        return {
+            "stats": [
+                {
+                    "percept_name": key.percept_name,
+                    "time_bucket": key.time_bucket.value,
+                    "count": stats.count,
+                    "mean": stats.mean,
+                    "m2": stats._m2,
+                }
+                for key, stats in self._stats.items()
+            ]
+        }
+
+    def restore_replay_state(self, payload: dict[str, Any]) -> None:
+        """Restore the exact bounded per-context accumulators."""
+        entries = payload.get("stats", [])
+        if not isinstance(entries, list) or len(entries) > self._max_contexts:
+            raise ValueError("rhythm replay state exceeds context bound")
+        restored: dict[_ContextKey, RunningStats] = {}
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise ValueError("rhythm replay entry is invalid")
+            try:
+                key = _ContextKey(str(entry["percept_name"]), TimeBucket(entry["time_bucket"]))
+                count = entry["count"]
+                mean = float(entry["mean"])
+                m2 = float(entry["m2"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("rhythm replay entry is invalid") from exc
+            if (
+                isinstance(count, bool) or not isinstance(count, int) or count < 0
+                or not all(map(lambda value: math.isfinite(value), (mean, m2)))
+                or m2 < 0.0
+            ):
+                raise ValueError("rhythm replay numeric state is invalid")
+            restored[key] = RunningStats(count=count, mean=mean, _m2=m2)
+        self._stats = restored
 
     def is_learned(self, percept_name: str, time_bucket: TimeBucket) -> bool:
         stats = self._stats.get(_ContextKey(percept_name, time_bucket))
