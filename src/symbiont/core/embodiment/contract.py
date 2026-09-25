@@ -14,7 +14,7 @@ from typing import Sequence
 from ...actuation.surface import ActuatorSurface
 
 
-_CONTRACT_SCHEMA = "symbiont-embodiment-contract-v2"
+_CONTRACT_SCHEMA = "symbiont-embodiment-contract-v3"
 _PERCEPTUAL_SURFACE_SCHEMA = "symbiont-perceptual-surface-v1"
 
 
@@ -164,7 +164,7 @@ class EmbodimentContract:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "contract_fingerprint": self.contract_fingerprint,
             "perceptual_surface": {
                 "surface_fingerprint": self.perceptual_surface.surface_fingerprint,
