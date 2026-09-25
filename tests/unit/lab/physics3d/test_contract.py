@@ -624,8 +624,10 @@ def test_physics3d_newborns_use_mode_free_sensorimotor_constitution():
     assert "motor_exploration_mode" not in runtime_source
     assert '"genome_symbiont_physics3d_v9"' not in runtime_source
     assert "missing canonical genome identity" in runtime_source
-    assert "exclusive_actuator_groups=exclusive_groups" in runtime_source
+    assert "exclusive_actuator_groups=canonical_exclusive_groups" in runtime_source
     assert "physics3d_actuator_surface(" in runtime_source
+    assert 'physical_contract=f"count:{len(self.apparatus.effector_ids)}"' in runtime_source
+    assert 'f"{contract.body_kind}' not in runtime_source
 
     # The physical directional-pair mapping belongs to the apparatus adapter,
     # not to the runtime constructor or the genome.
