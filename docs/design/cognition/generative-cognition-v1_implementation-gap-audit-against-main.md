@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `d8bb94f0`
+**Audited commit:** `93ecc582`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -100,7 +100,7 @@ built by composing several mature existing components.
 | GC-6 | Replay | **IMPLEMENTED — provenance-preserving materialization; concrete memory wiring pending** |
 | GC-7 | Recombination | **PARTIAL — compatibility-gated fragment composition; novelty/equivalence evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **PARTIAL — lifecycle/reconciliation/calibration substrate; runtime evidence pending** |
-| GC-9 | Epistemic agency | **PARTIAL — pragmatic agency exists** |
+| GC-9 | Epistemic agency | **PARTIAL — comparison signal substrate; agency integration pending** |
 | GC-10 | Generative consolidation | **PARTIAL — structural substrate exists** |
 | GC-11 | Offline cognition | **MISSING** |
 | GC-12 | Observatory / Atlas | **PARTIAL — observer substrate excellent** |
@@ -1728,12 +1728,12 @@ with true hypothesis discrimination.
 ## Status
 
 ```text
-PARTIAL
+PARTIAL — comparison signal substrate only
 ```
 
-Pragmatic prospective agency exists.
-
-Epistemic agency does not.
+Pragmatic prospective agency exists and a bounded epistemic comparison signal
+now exists. Agency integration, hypothesis-discrimination experiments and
+execution-boundary regression coverage remain open.
 
 ---
 
