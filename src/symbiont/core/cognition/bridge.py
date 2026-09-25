@@ -24,7 +24,7 @@ from .plasticity_state import PlasticityEngine
 from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
 from .sense_concept_lifecycle import ConceptLineage, SenseConceptLifecycle
 from .structural_candidates import StructuralCandidate, StructuralContention
-from .structural_planner import AdaptiveStructuralBudgets, StructuralPlan
+from .structural_planner import AdaptiveStructuralBudgets, StructuralPlanner
 from .bridge_checkpoint import (
     export_bridge_state,
     restore_bridge_state,
@@ -169,6 +169,11 @@ class CognitiveBridge:
             soft_edge_budget=genome.development.soft_edge_budget,
             sense_node_budget=genome.development.sense_node_budget,
             sensitivity=genome.development.capacity_growth_sensitivity,
+        )
+        self._planner = StructuralPlanner(
+            kernel_limits=kernel_limits,
+            structural_plasticity=self._structural_plasticity,
+            budgets=self._budgets,
         )
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._recovery_pending = False
@@ -482,58 +487,16 @@ class CognitiveBridge:
         active_motor_ids: Collection[str],
         active_primitive_ids: Collection[str],
     ) -> bool:
-        existing_ids = {node.node_id for node in graph.nodes}
-        if any(
-            mutation.kind == "add_node"
-            and str(mutation.payload.get("node_id", "")) in existing_ids
-            for mutation in candidate.mutations
-        ):
-            return False
-        if candidate.family == "motor_readout":
-            return candidate.candidate_id.removeprefix("motor:") in set(active_motor_ids)
-        if candidate.family == "primitive_readout":
-            return candidate.candidate_id.removeprefix("primitive:") in set(active_primitive_ids)
-        if candidate.family == "predictor":
-            add_edge = next(
-                (
-                    mutation
-                    for mutation in candidate.mutations
-                    if mutation.kind == "add_edge"
-                ),
-                None,
-            )
-            add_node = next(
-                (
-                    mutation
-                    for mutation in candidate.mutations
-                    if mutation.kind == "add_node"
-                ),
-                None,
-            )
-            if add_edge is None or add_node is None:
-                return False
-            source_id = str(add_edge.payload.get("source_id", ""))
-            target_id = str(add_node.payload.get("predicts_node_id", ""))
-            shadow = self._predictors.shadows.get((source_id, target_id))
-            # Shadow promotion is itself the evidence gate for this producer.
-            # Requiring the target to be mature here makes promotion of a
-            # validated predictor impossible for normal, newly-created
-            # representations: the target's maturity would depend on the
-            # predictor that is still waiting to be admitted.
-            return bool(shadow is not None and shadow.promotable)
-        if candidate.family == "concept":
-            add_nodes = [m for m in candidate.mutations if m.kind == "add_node"]
-            if not add_nodes:
-                return False
-            raw_sources = add_nodes[0].payload.get("source_ids", ())
-            if not isinstance(raw_sources, (list, tuple, set)):
-                return False
-            source_ids = tuple(sorted(str(value) for value in raw_sources))
-            return (
-                len(source_ids) >= 2
-                and not self._concept_signature_exists(source_ids[:2], graph=graph)
-            )
-        return True
+        return self._planner.valid_candidate(
+            candidate,
+            graph=graph,
+            active_motor_ids=active_motor_ids,
+            active_primitive_ids=active_primitive_ids,
+            predictors=self._predictors,
+            lifecycle=self._lifecycle,
+            live_graph=self._graph,
+            topology_revision=self._topology_revision,
+        )
 
     def _prune_invalid_structural_proposals(
         self,
@@ -542,15 +505,16 @@ class CognitiveBridge:
         active_motor_ids: Collection[str],
         active_primitive_ids: Collection[str],
     ) -> None:
-        """Let producer-local evidence withdraw stale proposals before scheduling."""
-        for candidate_id, candidate in list(self._contention.candidates.items()):
-            if not self._valid_candidate(
-                candidate,
-                graph=graph,
-                active_motor_ids=active_motor_ids,
-                active_primitive_ids=active_primitive_ids,
-            ):
-                self._contention.candidates.pop(candidate_id, None)
+        self._planner.prune_invalid_candidates(
+            graph=graph,
+            live_graph=self._graph,
+            contention=self._contention,
+            predictors=self._predictors,
+            lifecycle=self._lifecycle,
+            topology_revision=self._topology_revision,
+            active_motor_ids=active_motor_ids,
+            active_primitive_ids=active_primitive_ids,
+        )
 
     @staticmethod
     def _motor_readout_id(actuator_id: str) -> str:
@@ -573,24 +537,11 @@ class CognitiveBridge:
         return node_id[len(_PRIMITIVE_READOUT_PREFIX):]
 
     def _oldest_blocked_structural_wait(self, *, tick: int) -> int:
-        """Age of the oldest node-producing proposal blocked by node capacity.
-
-        This is intentionally semantic-free: motor, primitive, predictor and
-        concept producers all create the same generic structural demand.  It is
-        used only to adapt the *rate* at which already-negative predictive
-        structure yields scarce capacity; it never ranks candidate meanings.
-        """
-        if len(self._graph.nodes) < self._soft_node_limit:
-            return 0
-        blocked = [
-            candidate
-            for candidate in self._contention.candidates.values()
-            if candidate.required_nodes > 0
-        ]
-        if not blocked:
-            return 0
-        oldest = min(candidate.eligible_tick for candidate in blocked)
-        return max(0, int(tick) - int(oldest))
+        return self._planner.oldest_blocked_wait(
+            graph=self._graph,
+            contention=self._contention,
+            tick=tick,
+        )
 
     def _update_predictor_retirement_state(self, *, tick: int) -> None:
         self._predictors.update_retirement(
@@ -621,50 +572,14 @@ class CognitiveBridge:
         max_mutations: int,
         graph: CognitiveGraph | None = None,
     ) -> tuple[Mutation, ...]:
-        """Bound retirement latency under sustained structural starvation.
-
-        Normal retirement remains reversible soft decay.  Only after a
-        predictor has spent a full structural lifetime quarantined *and* some
-        node-producing proposal has waited for two lifetimes do we retire one
-        incident edge per consolidation.  The rule is generic, deterministic
-        and bounded; it never inspects the waiting producer's semantic family.
-        """
-        if max_mutations <= 0:
-            return ()
-        lifetime = max(1, self._genome.structure.tentative_lifetime_ticks)
-        if self._oldest_blocked_structural_wait(tick=tick) < 2 * lifetime:
-            return ()
-        active_graph = self._graph if graph is None else graph
-        for predictor_id in sorted(self._predictors.retirement):
-            retirement = self._predictors.retirement[predictor_id]
-            if tick - retirement.entered_tick < lifetime:
-                continue
-            incident = sorted(
-                (
-                    edge
-                    for edge in active_graph.edges
-                    if edge.source_id == predictor_id or edge.target_id == predictor_id
-                ),
-                key=lambda edge: (
-                    edge.source_id,
-                    edge.target_id,
-                    edge.kind.value,
-                ),
-            )
-            if not incident:
-                continue
-            edge = incident[0]
-            return (
-                Mutation(
-                    kind="remove_edge",
-                    payload={
-                        "source_id": edge.source_id,
-                        "target_id": edge.target_id,
-                        "kind": edge.kind.value,
-                    },
-                ),
-            )
-        return ()
+        return self._planner.retirement_edge_gc(
+            graph=self._graph if graph is None else graph,
+            predictors=self._predictors,
+            contention=self._contention,
+            tick=tick,
+            max_mutations=max_mutations,
+            lifetime_ticks=self._genome.structure.tentative_lifetime_ticks,
+        )
 
     def _retirement_node_gc_mutations(
         self,
@@ -672,28 +587,10 @@ class CognitiveBridge:
         max_mutations: int,
         graph: CognitiveGraph | None = None,
     ) -> tuple[Mutation, ...]:
-        """Remove fully detached quarantined predictors one node at a time."""
-        if max_mutations <= 0:
-            return ()
-        active_graph = self._graph if graph is None else graph
-        incident_ids = {
-            node_id
-            for edge in active_graph.edges
-            for node_id in (edge.source_id, edge.target_id)
-        }
-        candidates = sorted(
-            predictor_id
-            for predictor_id in self._predictors.retirement
-            if predictor_id not in incident_ids
-            and any(
-                node.node_id == predictor_id and node.kind is NodeKind.PREDICTOR
-                for node in active_graph.nodes
-            )
-        )
-        if not candidates:
-            return ()
-        return (
-            Mutation(kind="remove_node", payload={"node_id": candidates[0]}),
+        return self._planner.retirement_node_gc(
+            graph=self._graph if graph is None else graph,
+            predictors=self._predictors,
+            max_mutations=max_mutations,
         )
 
     def _stale_concept_reclamation_mutations(
