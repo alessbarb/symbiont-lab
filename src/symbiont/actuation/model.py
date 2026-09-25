@@ -303,9 +303,3 @@ class AgencyModel:
             )
         )
 
-
-# Historical import name retained as a strict alias during checkpoint/API migration.
-# There is one implementation only: low-level body dynamics live separately in
-# core.embodiment.dynamics.SensorimotorDynamicsModel.
-SensorimotorModel = CompetenceEffectModel
-
