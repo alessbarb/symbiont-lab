@@ -116,6 +116,7 @@ from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from ..domains.action import ActionDomain, ActionServices
+from ..domains.physiology import PhysiologyDomain, PhysiologyServices
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -716,6 +717,7 @@ class OrganismRuntime:
         self._pending_homeostatic_action_credit: list[
             tuple[int, str, str, tuple[str, ...], float, float]
         ] = []
+        self._physiology_domain = PhysiologyDomain()
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
@@ -2745,61 +2747,42 @@ class OrganismRuntime:
         # (``_charge_metabolism`` above) regardless of ``_explicit_metabolism``.
 
         retained_units = float(len(self._drift_baselines)) * 0.001
-        if self._cognitive_bridge is not None and self._cognitive_bridge.graph is not None:
-            retained_units += float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
+        if (
+            self._cognitive_bridge is not None
+            and self._cognitive_bridge.graph is not None
+        ):
+            retained_units += (
+                float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
+            )
         embodied_work = self._pending_embodied_work
-        retained_units += embodied_work
         self._pending_embodied_work = 0.0
-        metabolism_snapshot = self._metabolism.advance(retained_units=retained_units)
-        repaired_amount = self._homeostasis.constitutive_step(
-            self._metabolism,
+        physiology_step = self._physiology_domain.advance(
+            services=PhysiologyServices(
+                metabolism=self._metabolism,
+                homeostasis=self._homeostasis,
+                ontogeny=self._ontogeny,
+                physiology=self._physiology,
+                developmental_tracker=self._developmental_tracker,
+                living_body_state=self._living_body_state,
+                degradation=self._degradation,
+                sensory_system=self._sensory_system,
+                adaptive_senses=self._adaptive_senses,
+                cognitive_bridge=self._cognitive_bridge,
+            ),
+            retained_memory_units=retained_units,
             embodied_work=embodied_work,
-            resting=self._resting_requested,
-        )
-        ontogeny_snapshot = self._ontogeny.constitutive_step(
-            self._metabolism,
-            resting=self._resting_requested,
-        )
-        metabolism_snapshot = self._metabolism.finalize_cycle(metabolism_snapshot)
-        homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
-        if metabolism_snapshot.pressure.value in ("severe", "unrecoverable"):
-            self._resting_requested = True
-        elif (metabolism_snapshot.pressure.value == "normal" and self._resting_requested
-              and (action_result is None or action_result.action_id != "rest")):
-            self._resting_requested = False
-        resting_for_tick = self._resting_requested
-        physiology_snapshot = self._physiology.advance(
-            metabolism_snapshot, tick=self._living_body_state.age_ticks,
-            resting=resting_for_tick or homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"),
-        )
-        self._resolve_homeostatic_action_credit(tick=self._tick_count + 1)
-        topology = getattr(self._cognitive_bridge, "topology_health", None)
-        topology_health = (
-            getattr(topology, "value", str(topology))
-            if topology is not None else ("developing" if self._cognitive_bridge is not None else "germinal")
-        )
-        development_snapshot = self._developmental_tracker.observe(
-            state=physiology_snapshot.state.value,
-            integrity=self._homeostasis.integrity,
-            topology_health=topology_health,
-            sensory_count=(
-                len(self._sensory_system.sensors)
-                if self._sensory_system.plasticity_enabled
-                else len(self._adaptive_senses.developed_percept_names())
-            ),
-            # Local action-selection experience is not part of canonical
-            # cognition; this runtime supplies no such count any more.
-            action_attempts=0,
-            maintenance_ratio=min(
-                1.0,
-                metabolism_snapshot.spent["maintenance"]
-                / max(0.000001, metabolism_snapshot.capacity["maintenance"]),
-            ),
-            retained_items=len(self._degradation.items),
+            resting_requested=self._resting_requested,
             degradation_excreted=degradation_excreted,
-            repaired=repaired_amount > 0.0,
-            plasticity_enabled=homeostatic_snapshot.plasticity_enabled,
         )
+        metabolism_snapshot = physiology_step.metabolism
+        homeostatic_snapshot = physiology_step.homeostasis
+        physiology_snapshot = physiology_step.physiology
+        ontogeny_snapshot = physiology_step.ontogeny
+        development_snapshot = physiology_step.development
+        repaired_amount = physiology_step.repaired_amount
+        self._resting_requested = physiology_step.resting_requested
+        resting_for_tick = physiology_step.resting_for_tick
+        self._resolve_homeostatic_action_credit(tick=self._tick_count + 1)
         if physiology_snapshot.state.value == "dead":
             if self._habitat is not None and not self._habitat_released:
                 self._habitat.release(self._organism_id)
