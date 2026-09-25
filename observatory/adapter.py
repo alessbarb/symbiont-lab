@@ -880,6 +880,12 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
             adaptation_raw.get("prediction_error_recent", 0.0)
         ),
         "prediction_shock": bounded_ratio(adaptation_raw.get("prediction_shock", 0.0)),
+        "peak_prediction_shock": bounded_ratio(
+            adaptation_raw.get(
+                "peak_prediction_shock",
+                adaptation_raw.get("prediction_shock", 0.0),
+            )
+        ),
         "schema_uncertainty": bounded_ratio(adaptation_raw.get("schema_uncertainty", 1.0)),
         "causal_confidence": bounded_ratio(adaptation_raw.get("causal_confidence", 0.0)),
         "controllability_confidence": bounded_ratio(
