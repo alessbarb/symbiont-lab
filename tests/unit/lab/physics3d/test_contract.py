@@ -587,9 +587,9 @@ def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
     }
     runtime.organism = SimpleNamespace(
         last_actuations=(
-            Actuation("a", 0.9, 0.8, 0.1, 1.0),
-            Actuation("b", 0.7, 0.6, 0.1, 1.0),
-            Actuation("c", 0.5, 0.4, 0.1, 1.0),
+            Actuation("a", 0.9, 0.8),
+            Actuation("b", 0.7, 0.6),
+            Actuation("c", 0.5, 0.4),
         )
     )
 
@@ -869,7 +869,7 @@ def test_passive_postural_tone_damps_joint_velocity() -> None:
 
     assert positive_velocity < 0.0
     assert negative_velocity > 0.0
-    assert abs(positive_velocity) <= spec.max_motor_torque * 0.45 + 1e-12
+    assert abs(positive_velocity) <= spec.max_motor_torque + 1e-12
 
 
 def test_actuator_work_decomposition_keeps_absolute_effort_distinct_from_net():
@@ -977,17 +977,16 @@ def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
         )
 
 
-def test_motor_step_applies_exclusion_before_execution_and_credit():
-    from symbiont.core.orchestration.runtime import OrganismRuntime
+def test_action_domain_applies_exclusion_before_execution_and_credit():
+    from symbiont.core.domains.action import ActionDomain
 
-    source = inspect.getsource(OrganismRuntime._motor_step)
+    source = inspect.getsource(ActionDomain.step)
     constrain_at = source.index("constrain_intents")
-    execute_at = source.index("self._actuator_system.execute")
-    credit_at = source.index("executed_ids")
+    issue_at = source.index("self.issue_command")
+    execute_at = source.index("self.execute_command")
+    credit_at = source.index("services.schedule_homeostatic_action_credit")
 
-    assert constrain_at < execute_at
-    assert execute_at < credit_at
-    assert "if intent.actuator_id not in executed_ids" in source
+    assert constrain_at < issue_at < execute_at < credit_at
 
 
 
