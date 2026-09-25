@@ -650,4 +650,18 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     if details:
         snapshot["details"] = details
 
+    # Canonical Cognitive Atlas v2 projection. This is observer-derived and
+    # additive to the existing Mind snapshot contract; consumers that do not
+    # know about it continue to use topology/sensorimotor fields unchanged.
+    from .atlas import cognitive_atlas_payload
+
+    snapshot["atlas"] = cognitive_atlas_payload(snapshot)
+    provenance = snapshot.setdefault(
+        "provenance",
+        {"organismFacts": [], "observerDerived": []},
+    )
+    observer_fields = provenance.setdefault("observerDerived", [])
+    if "atlas" not in observer_fields:
+        observer_fields.append("atlas")
+
     return snapshot
