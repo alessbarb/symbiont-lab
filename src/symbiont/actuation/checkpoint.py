@@ -4,7 +4,7 @@ from typing import Any
 
 from .candidate import ActuatorCandidateState
 from .constitution import ActuatorConstitution
-from .evidence_model import ActuatorEvidenceModel
+from .proposer import ActuatorEvidenceModel
 
 
 def export_actuation_state(evidence_model: ActuatorEvidenceModel) -> dict[str, Any]:
