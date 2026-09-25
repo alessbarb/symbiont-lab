@@ -15,6 +15,7 @@ from .agenda import (
     GenerativeTarget,
     TargetStatus,
 )
+from .branch import BranchEngine
 from .budget import GenerativeBudget
 from .episode import new_episode
 from .epistemic import EpistemicBoundaryError, EpistemicFirewall
@@ -37,6 +38,7 @@ from .workspace import BudgetExceeded, GenerativeWorkspace
 
 __all__ = [
     "BudgetExceeded",
+    "BranchEngine",
     "AgendaCandidate",
     "AgendaContaminationError",
     "AgendaProgress",
