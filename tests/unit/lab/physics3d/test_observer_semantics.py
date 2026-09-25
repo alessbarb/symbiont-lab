@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from symbiont_lab.physics3d.bodies import ANTHROPOMORPHIC_V5
+from symbiont_lab.physics3d.bodies import ANTHROPOMORPHIC_V6
 from symbiont_lab.physics3d.observer_semantics import (
     motor_semantics,
     receptor_ground_truth,
@@ -10,8 +10,8 @@ from symbiont_lab.physics3d.observer_semantics import (
 
 def test_physics3d_receptor_ground_truth_is_complete_and_external() -> None:
     truth = receptor_ground_truth(
-        joint_specs=ANTHROPOMORPHIC_V5.observer_joint_specs,
-        contact_region_names=ANTHROPOMORPHIC_V5.observer_contact_region_names,
+        joint_specs=ANTHROPOMORPHIC_V6.observer_joint_specs,
+        contact_region_names=ANTHROPOMORPHIC_V6.observer_contact_region_names,
         interoceptive_source_ordinals=(0, 1, 2, 3))
 
     assert len(truth) == 107
@@ -27,8 +27,8 @@ def test_physics3d_receptor_ground_truth_is_complete_and_external() -> None:
 
 def test_interoceptive_ground_truth_follows_hidden_apparatus_permutation() -> None:
     truth = receptor_ground_truth(
-        joint_specs=ANTHROPOMORPHIC_V5.observer_joint_specs,
-        contact_region_names=ANTHROPOMORPHIC_V5.observer_contact_region_names,
+        joint_specs=ANTHROPOMORPHIC_V6.observer_joint_specs,
+        contact_region_names=ANTHROPOMORPHIC_V6.observer_contact_region_names,
         interoceptive_source_ordinals=(3, 1, 0, 2))
 
     assert truth["rec.103"]["label"] == "fatigue"
@@ -49,8 +49,8 @@ def test_sensory_semantics_preserves_self_label_and_separates_observer_truth() -
 
     semantics = sensory_semantics(
         sensors,
-        joint_specs=ANTHROPOMORPHIC_V5.observer_joint_specs,
-        contact_region_names=ANTHROPOMORPHIC_V5.observer_contact_region_names,
+        joint_specs=ANTHROPOMORPHIC_V6.observer_joint_specs,
+        contact_region_names=ANTHROPOMORPHIC_V6.observer_contact_region_names,
         interoceptive_source_ordinals=(0, 1, 2, 3),
     )
 
@@ -79,7 +79,7 @@ def test_motor_semantics_maps_opaque_actuators_to_observer_physics() -> None:
             "actuator.b": "eff.1",
             "actuator.c": "eff.44",
         },
-        joint_specs=ANTHROPOMORPHIC_V5.observer_joint_specs,
+        joint_specs=ANTHROPOMORPHIC_V6.observer_joint_specs,
     )
 
     assert semantics["actuator.a"]["observer_summary"] == "trunk yaw positive drive"
