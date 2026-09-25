@@ -413,9 +413,11 @@ class PyBulletEmbodimentRuntime:
 
         canonical_actuator_surface = physics3d_actuator_surface(
             self.apparatus.effector_ids,
-            physical_contract=(
-                f"{contract.body_kind}:{contract.receptor_count}:{contract.effector_count}"
-            ),
+            physical_contract=f"count:{len(self.apparatus.effector_ids)}",
+        )
+        canonical_exclusive_groups = actuator_exclusion_groups(
+            canonical_actuator_surface,
+            self.apparatus,
         )
         self._core_embodiment_contract = EmbodimentContract(
             perceptual_surface=PerceptualSurface.from_count(
@@ -429,6 +431,7 @@ class PyBulletEmbodimentRuntime:
                 ),
                 command_hold_ticks=1,
             ),
+            exclusive_actuator_groups=canonical_exclusive_groups,
         )
 
         def _fresh_organism(subject_id: str) -> PrivateModelOrganismRuntime:
@@ -450,10 +453,7 @@ class PyBulletEmbodimentRuntime:
                 raise RuntimeError(
                     "Physics3D motor constitution does not match physical effector surface"
                 )
-            exclusive_groups = actuator_exclusion_groups(
-                actuator_constitution,
-                self.apparatus,
-            )
+            exclusive_groups = canonical_exclusive_groups
 
             return PrivateModelOrganismRuntime(
                 organism_id=subject_id,
