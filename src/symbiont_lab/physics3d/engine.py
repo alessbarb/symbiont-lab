@@ -458,6 +458,11 @@ def run(
     )
 
     _startup("ready")
+    if checkpoint_observer is not None:
+        checkpoint_observer(
+            runtime.tick_count,
+            runtime.checkpoint(),
+        )
     if ready_callback is not None:
         ready_callback()
 
