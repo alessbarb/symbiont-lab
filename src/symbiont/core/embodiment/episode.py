@@ -14,6 +14,7 @@ from .adaptation import EmbodimentAdaptation
 from .body_schema import BodySchemaEngine
 from .contract import EmbodimentContract
 from .dynamics import SensorimotorDynamicsModel
+from .memory import EmbodimentPrior
 from .reachability import ReachabilityModel
 
 
@@ -71,6 +72,7 @@ class EmbodimentEpisode:
     adaptation: EmbodimentAdaptation = field(default_factory=EmbodimentAdaptation)
     reachability: ReachabilityModel = field(default_factory=ReachabilityModel)
     execution_bindings: CompetenceExecutionBindingRegistry | None = None
+    prior: EmbodimentPrior = field(default_factory=EmbodimentPrior.novel)
     contract_history: list[ContractTransition] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -91,6 +93,7 @@ class EmbodimentEpisode:
         start_symbiont_tick: int,
         contract: EmbodimentContract,
         embodiment_id: str | None = None,
+        prior: EmbodimentPrior | None = None,
     ) -> "EmbodimentEpisode":
         if embodiment_id is None:
             material = (
@@ -107,6 +110,7 @@ class EmbodimentEpisode:
             epoch=epoch,
             start_symbiont_tick=start_symbiont_tick,
             contract=contract,
+            prior=prior if prior is not None else EmbodimentPrior.novel(),
         )
 
     @property
@@ -184,6 +188,7 @@ class EmbodimentEpisode:
             "embodiment_tick": self.embodiment_tick,
             "end_reason": self.end_reason.value if self.end_reason is not None else None,
             "contract": self.contract.checkpoint(),
+            "prior": self.prior.checkpoint(),
             "contract_history": [
                 {
                     "tick": item.tick,
@@ -294,6 +299,11 @@ class EmbodimentEpisode:
                 else None
             ),
             execution_bindings=execution_bindings,
+            prior=EmbodimentPrior.restore(
+                payload.get("prior")
+                if isinstance(payload.get("prior"), Mapping)
+                else None
+            ),
         )
         raw_history = payload.get("contract_history", [])
         if (
