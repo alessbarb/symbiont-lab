@@ -448,6 +448,240 @@ class SenseConceptLifecycle:
         return candidate_id, tuple(mutations)
 
     @staticmethod
+    def orphan_latent_ids(
+        *,
+        graph: CognitiveGraph,
+    ) -> set[str]:
+        incident = {node.node_id: 0 for node in graph.nodes}
+        for edge in graph.edges:
+            incident[edge.source_id] = incident.get(edge.source_id, 0) + 1
+            incident[edge.target_id] = incident.get(edge.target_id, 0) + 1
+        return {
+            node.node_id
+            for node in graph.nodes
+            if (
+                node.kind
+                in (
+                    NodeKind.CONCEPT,
+                    NodeKind.STATE,
+                    NodeKind.GATE,
+                    NodeKind.READOUT,
+                )
+                and incident.get(node.node_id, 0) == 0
+            )
+        }
+
+    def orphan_node_mutations(
+        self,
+        *,
+        graph: CognitiveGraph,
+        tick: int,
+        max_mutations: int,
+        protected_node_ids: Collection[str],
+        grace_ticks: int,
+        develop_senses: bool,
+    ) -> tuple[Mutation, ...]:
+        if not develop_senses or max_mutations <= 0:
+            return ()
+        protected = {
+            str(node_id)
+            for node_id in protected_node_ids
+            if str(node_id)
+        }
+        orphan_ids = self.orphan_latent_ids(graph=graph) - protected
+        for node in graph.nodes:
+            if (
+                node.kind
+                in (
+                    NodeKind.CONCEPT,
+                    NodeKind.STATE,
+                    NodeKind.GATE,
+                    NodeKind.READOUT,
+                )
+                and node.node_id not in orphan_ids
+            ):
+                self.orphan_since_tick.pop(node.node_id, None)
+
+        grace = max(1, int(grace_ticks))
+        mutations: list[Mutation] = []
+        for node_id in sorted(orphan_ids):
+            since = self.orphan_since_tick.setdefault(node_id, tick)
+            if tick - since < grace:
+                continue
+            mutations.append(
+                Mutation(kind="remove_node", payload={"node_id": node_id})
+            )
+            if len(mutations) >= max_mutations:
+                break
+        return tuple(mutations)
+
+    def sense_eviction_mutations(
+        self,
+        *,
+        graph: CognitiveGraph,
+        tick: int,
+        max_mutations: int,
+        sense_node_limit: int,
+        retention_ticks: int,
+        develop_senses: bool,
+    ) -> tuple[Mutation, ...]:
+        if not develop_senses or max_mutations <= 0:
+            return ()
+        senses = [
+            node for node in graph.nodes if node.kind is NodeKind.SENSE
+        ]
+        if not senses:
+            return ()
+        incident_ids = {
+            node_id
+            for edge in graph.edges
+            for node_id in (edge.source_id, edge.target_id)
+        }
+        over_budget = max(0, len(senses) - sense_node_limit)
+        retention = max(1, int(retention_ticks))
+        candidates: list[tuple[bool, int, str]] = []
+        for node in senses:
+            if node.node_id in incident_ids:
+                continue
+            last_seen = self.sense_last_seen_tick.get(node.node_id, 0)
+            stale = tick - last_seen >= retention
+            candidates.append((stale, last_seen, node.node_id))
+
+        candidates.sort(key=lambda item: (not item[0], item[1], item[2]))
+        mutations: list[Mutation] = []
+        needed_over_budget = over_budget
+        for stale, _, node_id in candidates:
+            if not stale and needed_over_budget <= 0:
+                continue
+            mutations.append(
+                Mutation(kind="remove_node", payload={"node_id": node_id})
+            )
+            if needed_over_budget > 0:
+                needed_over_budget -= 1
+            if len(mutations) >= max_mutations:
+                break
+        return tuple(mutations)
+
+    @staticmethod
+    def has_sense_to_readout_path(
+        *,
+        graph: CognitiveGraph,
+        minimum_support: int,
+        established_only: bool = False,
+    ) -> bool:
+        senses = {
+            node.node_id
+            for node in graph.nodes
+            if node.kind is NodeKind.SENSE
+        }
+        readouts = {
+            node.node_id
+            for node in graph.nodes
+            if (
+                node.kind is NodeKind.READOUT
+                and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+                and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
+            )
+        }
+        if _CORE_READOUT_ID in readouts:
+            readouts = {_CORE_READOUT_ID}
+        if not senses or not readouts:
+            return False
+
+        adjacency: dict[str, set[str]] = {}
+        for edge in graph.edges:
+            if established_only and edge.support < minimum_support:
+                continue
+            adjacency.setdefault(edge.source_id, set()).add(edge.target_id)
+        frontier = list(senses)
+        visited = set(senses)
+        while frontier:
+            source_id = frontier.pop()
+            for target_id in adjacency.get(source_id, ()):
+                if target_id in readouts:
+                    return True
+                if target_id not in visited:
+                    visited.add(target_id)
+                    frontier.append(target_id)
+        return False
+
+    def stale_concept_reclamation_mutations(
+        self,
+        *,
+        graph: CognitiveGraph,
+        tick: int,
+        max_mutations: int,
+        protected_node_ids: Collection[str],
+        grace_ticks: int,
+        develop_senses: bool,
+    ) -> tuple[Mutation, ...]:
+        if max_mutations <= 0 or not develop_senses:
+            return ()
+        protected = set(protected_node_ids)
+        routed = self.nodes_with_path_to_core_readout(graph=graph)
+        unrouted = self.update_unrouted(
+            graph=graph,
+            routed_ids=routed,
+            tick=tick,
+        )
+        grace = max(1, int(grace_ticks))
+
+        candidates: list[tuple[int, int, str, tuple[Mutation, ...]]] = []
+        for node_id in sorted(unrouted):
+            if node_id in protected:
+                continue
+            lineage = self.lineage.get(node_id)
+            born_tick = lineage.born_tick if lineage is not None else 0
+            if tick - born_tick < grace:
+                continue
+            unrouted_since = self.unrouted_since_tick.get(node_id, tick)
+            if tick - unrouted_since < grace:
+                continue
+            last_active = self.concept_last_active_tick.get(
+                node_id,
+                born_tick,
+            )
+            if tick - last_active < grace:
+                continue
+
+            incident = [
+                edge
+                for edge in graph.edges
+                if edge.source_id == node_id or edge.target_id == node_id
+            ]
+            mutations = tuple(
+                Mutation(
+                    kind="remove_edge",
+                    payload={
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "kind": edge.kind.value,
+                    },
+                )
+                for edge in incident
+            ) + (
+                Mutation(
+                    kind="remove_node",
+                    payload={"node_id": node_id},
+                ),
+            )
+            if len(mutations) > max_mutations:
+                continue
+            candidates.append(
+                (
+                    -(tick - unrouted_since),
+                    last_active,
+                    node_id,
+                    mutations,
+                )
+            )
+
+        if not candidates:
+            return ()
+        candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+        return candidates[0][3]
+
+    @staticmethod
     def nodes_with_path_to_targets(
         target_ids: Collection[str],
         *,
