@@ -613,7 +613,7 @@ def restore_bridge_state(
     )
 
     raw_next_idx = payload.get("next_concept_index")
-    if isinstance(raw_next_idx, int) and not isinstance(raw_next_idx, bool) and raw_next_idx > 0:
+    if isinstance(raw_next_idx, int) and raw_next_idx > 0:
         lifecycle.next_concept_index = raw_next_idx
     else:
         lifecycle.next_concept_index = (
