@@ -1179,16 +1179,14 @@ class OrganismRuntime:
             for episode in self._action_domain.competence_development.last_primitive_episodes
         )
 
-    def _sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
+
+    @property
+    def sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
         return self._action_domain.snapshot(
             body_schema_sensorimotor_relations=(
                 self._body_schema.sensorimotor_dependency_evidence_count
             )
         )
-
-    @property
-    def sensorimotor_v2_snapshot(self) -> SensorimotorV2Snapshot | None:
-        return self._sensorimotor_v2_snapshot()
     @property
     def motor_competences(self) -> tuple[MotorCompetence, ...]:
         """Canonical learned competence view used outside the legacy learner."""
@@ -1228,17 +1226,6 @@ class OrganismRuntime:
             sensory_system=self._sensory_system,
         )
 
-    def _complete_pending_motor_observation(
-        self,
-        percepts: tuple[Percept, ...],
-        *,
-        tick: int,
-    ) -> tuple[str, ...]:
-        return self._action_domain.complete_pending_motor_observation(
-            percepts,
-            tick=tick,
-            sensory_system=self._sensory_system,
-        )
 
     def _schedule_homeostatic_action_credit(
         self,
@@ -2374,7 +2361,7 @@ class OrganismRuntime:
             action_commitment=self._active_action_commitment,
             motor_command=self._last_motor_command,
             sensorimotor_transition=self._last_sensorimotor_transition,
-            sensorimotor_v2=self._sensorimotor_v2_snapshot(),
+            sensorimotor_v2=self.sensorimotor_v2_snapshot,
             gene_expression=(
                 self._gene_expression_state.as_dict()
                 if self._gene_expression_state is not None
