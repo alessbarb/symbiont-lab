@@ -567,6 +567,35 @@ def _edge_strength(edge: AtlasEdge) -> float | None:
     return value if isinstance(value, (int, float)) else None
 
 
+def cognitive_atlas_payload(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    """Build the canonical UI payload for Cognitive Atlas v2.
+
+    The payload is additive to the existing Mind snapshot contract. Metadata is
+    flattened onto nodes/edges so the browser renders the same canonical model
+    without re-deriving organism knowledge.
+    """
+    atlas = build_cognitive_atlas(snapshot)
+    return {
+        "schema_version": atlas.schema_version,
+        "tick": atlas.tick,
+        "nodes": [
+            {"id": node.id, "kind": node.kind, **dict(node.metadata)}
+            for node in atlas.nodes
+        ],
+        "edges": [
+            {
+                "id": edge.id,
+                "sourceId": edge.source_id,
+                "targetId": edge.target_id,
+                "kind": edge.kind,
+                **dict(edge.metadata),
+            }
+            for edge in atlas.edges
+        ],
+        "metrics": dict(atlas.metrics),
+    }
+
+
 def diff_cognitive_atlas(
     before: CognitiveAtlasSnapshot, after: CognitiveAtlasSnapshot
 ) -> CognitiveAtlasDiff:
