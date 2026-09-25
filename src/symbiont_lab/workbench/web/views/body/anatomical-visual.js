@@ -34,10 +34,37 @@ function scaledSphere(material, sx, sy, sz, segments = 28) {
 
 function taperedLimb(material, width, depth, height, taper = 0.82) {
   const radius = Math.max(0.025, (width + depth) * 0.25);
-  return new THREE.Mesh(
-    new THREE.CylinderGeometry(radius * taper, radius, height, 20, 3, false),
+  const group = new THREE.Group();
+
+  // Keep a narrow anatomical waist close to the joint. A uniform cylinder
+  // makes a bent limb read as one rigid rod, especially at small angles.
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * taper, radius * 0.92, height * 0.86, 24, 4, false),
     material,
   );
+  group.add(shaft);
+
+  const proximal = scaledSphere(
+    material,
+    radius * 1.76,
+    height * 0.17,
+    radius * 1.58,
+    20,
+  );
+  proximal.position.y = height * 0.34;
+  group.add(proximal);
+
+  const distal = scaledSphere(
+    material,
+    radius * 1.34,
+    height * 0.12,
+    radius * 1.28,
+    18,
+  );
+  distal.position.y = -height * 0.39;
+  group.add(distal);
+
+  return group;
 }
 
 function addJointCap(parent, material, y, radiusX, radiusY, radiusZ) {
@@ -139,21 +166,30 @@ export function createAnatomicalSegment(segName, seg, bodyKind) {
     neck.position.y = -height * 0.58;
     mesh.add(neck);
   } else if (segName.includes('upper_arm')) {
-    mesh = taperedLimb(material, width, depth, height, 0.76);
-    addJointCap(mesh, material, height * 0.48, width * 0.92, width * 0.72, depth * 0.92);
-    addJointCap(mesh, material, -height * 0.49, width * 0.72, width * 0.56, depth * 0.72);
+    mesh = taperedLimb(material, width, depth, height, 0.70);
+    const deltoid = scaledSphere(material, width * 0.78, height * 0.24, depth * 0.76, 22);
+    deltoid.position.y = height * 0.33;
+    mesh.add(deltoid);
+    addJointCap(mesh, material, -height * 0.47, width * 0.56, width * 0.42, depth * 0.56);
   } else if (segName.includes('forearm')) {
-    mesh = taperedLimb(material, width, depth, height, 0.68);
-    addJointCap(mesh, material, height * 0.49, width * 0.80, width * 0.58, depth * 0.80);
+    mesh = taperedLimb(material, width, depth, height, 0.58);
+    const forearmMass = scaledSphere(material, width * 0.62, height * 0.34, depth * 0.60, 20);
+    forearmMass.position.y = height * 0.12;
+    mesh.add(forearmMass);
+    addJointCap(mesh, material, height * 0.46, width * 0.58, width * 0.40, depth * 0.58);
   } else if (segName.includes('thigh')) {
-    mesh = taperedLimb(material, width, depth, height, 0.72);
-    addJointCap(mesh, material, height * 0.48, width * 0.96, width * 0.68, depth * 0.96);
-    addJointCap(mesh, material, -height * 0.49, width * 0.70, width * 0.48, depth * 0.70);
+    mesh = taperedLimb(material, width, depth, height, 0.66);
+    const quadriceps = scaledSphere(material, width * 0.78, height * 0.44, depth * 0.72, 24);
+    quadriceps.position.set(0, height * 0.05, -depth * 0.08);
+    mesh.add(quadriceps);
+    addJointCap(mesh, material, height * 0.45, width * 0.72, width * 0.54, depth * 0.72);
+    addJointCap(mesh, material, -height * 0.47, width * 0.54, width * 0.38, depth * 0.56);
   } else if (segName.includes('shin')) {
-    mesh = taperedLimb(material, width, depth, height, 0.62);
-    const calf = scaledSphere(material, width * 0.70, height * 0.48, depth * 0.70, 22);
-    calf.position.y = height * 0.06;
+    mesh = taperedLimb(material, width, depth, height, 0.52);
+    const calf = scaledSphere(material, width * 0.68, height * 0.44, depth * 0.76, 22);
+    calf.position.set(0, height * 0.08, depth * 0.09);
     mesh.add(calf);
+    addJointCap(mesh, material, height * 0.46, width * 0.54, width * 0.38, depth * 0.56);
   } else if (segName.includes('hand')) {
     mesh = scaledSphere(material, width * 0.90, height * 0.76, depth * 0.74, 22);
     addHandDetails(mesh, material, width, depth, height, segName.startsWith('left') ? 'left' : 'right');
