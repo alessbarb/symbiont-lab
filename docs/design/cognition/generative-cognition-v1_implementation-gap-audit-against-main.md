@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `713ea0fa`
+**Audited commit:** `36413cba`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -421,7 +421,8 @@ The generative substrate now exposes:
 ```text
 `GenerativeAgenda`, `GenerativeTarget`, `AgendaCandidate` and `AgendaSource`
 now exist in `src/symbiont/cognition/generative/agenda.py`, including bounded
-checkpoint/restore of target lifecycle state.
+checkpoint/restore of target lifecycle state. `GenerativeScheduler` likewise
+persists deterministic quotas and per-tick mode usage.
 ```
 
 There are, however, useful patterns elsewhere.
@@ -2026,6 +2027,13 @@ The deterministic scheduler substrate is implemented in:
 
 ```text
 scheduler.py
+```
+
+The scheduler also supports deterministic checkpoint/restore of mode quotas
+and per-tick usage.
+
+```text
+execution.py
 ```
 
 `GenerativeExecutionCoordinator` now connects one agenda target, a scheduler
