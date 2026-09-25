@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `a2f43721`
+**Audited commit:** `713ea0fa`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -420,7 +420,8 @@ The generative substrate now exposes:
 
 ```text
 `GenerativeAgenda`, `GenerativeTarget`, `AgendaCandidate` and `AgendaSource`
-now exist in `src/symbiont/cognition/generative/agenda.py`.
+now exist in `src/symbiont/cognition/generative/agenda.py`, including bounded
+checkpoint/restore of target lifecycle state.
 ```
 
 There are, however, useful patterns elsewhere.
@@ -460,9 +461,9 @@ GenerativeAgenda should follow the same direction.
 
 ---
 
-## Remaining
+## Implemented substrate
 
-Implement:
+Implemented in:
 
 ```text
 agenda.py
@@ -564,13 +565,8 @@ candidate
 
 ## Agenda contamination
 
-No current generic protection exists because no agenda exists.
-
-Implement separate invariant:
-
-```text
-agenda_contamination_count
-```
+The agenda exposes a separate `agenda_contamination_count` and rejects
+external targets through `reject_external_target()`.
 
 Reject any candidate sourced from:
 
