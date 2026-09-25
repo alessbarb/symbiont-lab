@@ -239,9 +239,14 @@ class CognitiveBridgeCompatibility:
         )
 
     def _retirement_edge_decay(self, edge, *, tick: int) -> None:
-        self._predictors.decay_retiring_edge(
+        self._plasticity.decay_retiring_edge(
             edge,
             tick=tick,
+            retiring_predictors={
+                predictor_id: retirement.entered_tick
+                for predictor_id, retirement
+                in self._predictors.retirement.items()
+            },
             structural_wait=self._oldest_blocked_structural_wait(tick=tick),
             tentative_lifetime_ticks=(
                 self._genome.structure.tentative_lifetime_ticks
