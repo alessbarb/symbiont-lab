@@ -91,7 +91,7 @@ from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
-from ..domains.action import ActionDomain, ActionServices
+from ..domains.action import ActionDomain, ActionServices, ActionStepResult
 from ..domains.context import TickContext
 from ..domains.physiology import (
     PhysiologyDomain,
@@ -141,23 +141,8 @@ def _state_hash_of(checkpoint_payload: dict[str, Any]) -> str:
     )
 
 
-@dataclass(frozen=True, slots=True)
-class ActionExecutionResult:
-    """Result of one explicit organism-local effector call.
-
-    Generic and semantic-free: it names no action kind and computes no
-    utility. ``result`` is intentionally opaque; callers own its shape.
-    Retained on :class:`RuntimeTickResult` as a passive reporting surface
-    for the Observatory and lab modeling adapters, even though canonical
-    cognition no longer runs a typed action-selection step that populates it.
-    """
-
-    action_id: str
-    executed: bool
-    result: object | None = None
-    reason: str | None = None
-
-
+# Backward-compatible public name; canonical ownership lives in ActionDomain.
+ActionExecutionResult = ActionStepResult
 @dataclass(slots=True, frozen=True)
 class RuntimeTickResult:
     tick: int
@@ -1235,7 +1220,7 @@ class OrganismRuntime:
             )
         elif tick is not None and int(tick) != context.symbiont_tick:
             raise ValueError("motor step tick contradicts TickContext")
-        self._action_domain.step(
+        action_result = self._action_domain.step(
             cognition,
             percepts,
             context=context,
@@ -2141,14 +2126,6 @@ class OrganismRuntime:
             perception=perception,
             investigate_ticks=self._investigate_ticks,
         )
-        # The action decision consumes the current tick's bounded perception
-        # and cognition.  ``action_result`` remains ``None`` here: canonical
-        # cognition does not run a typed local action-selection step, and
-        # this runtime tick performs no such step on its own.  The field is
-        # kept on the tick result only as a passive, semantic-free reporting
-        # surface: existing lab adapters and the Observatory read it when
-        # present without requiring this runtime to ever populate it.
-
         embodiment_step = self._embodiment_domain.observe(
             services=EmbodimentServices(
                 body_schema=self._body_schema,
