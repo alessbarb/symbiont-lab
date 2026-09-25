@@ -86,17 +86,14 @@ body {
 
 .rail-brand {
   margin-bottom: 20px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  line-height: 1;
-  text-align: center;
-  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.brand-s { color: var(--text); }
-.brand-l { 
-  color: var(--mint); 
-  text-shadow: 0 0 12px rgba(80,217,164,0.4);
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  display: block;
 }
 
 .rail-item {
