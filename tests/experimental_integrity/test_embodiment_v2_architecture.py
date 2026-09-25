@@ -60,7 +60,7 @@ def test_motor_competence_has_no_execution_surface_authority() -> None:
 
 
 def test_retired_agency_stack_is_not_imported_by_production_symbiont() -> None:
-    root = Path(__file__).resolve().parents[3]
+    root = Path(__file__).resolve().parents[2]
     production = (
         root
         / "src"
