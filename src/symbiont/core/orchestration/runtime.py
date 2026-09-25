@@ -1224,6 +1224,15 @@ class OrganismRuntime:
             controller_strategy_ref=derived.controller_seed_ref,
         )
         self._competence_library.add(competence)
+        self._competence_execution_bindings.bind_from_evidence(
+            competence_id=competence.competence_id,
+            surface_fingerprint=self._actuator_constitution.contract_fingerprint,
+            effect_id=evidence.effect_id,
+            evidence_refs=(evidence_ref,),
+            reliability=evidence.reproducibility,
+            controllability=evidence.reproducibility,
+            tick=max(0, int(getattr(evidence, "last_tick", 0) or 0)),
+        )
         return competence
 
     def _record_competence_completion(
@@ -1465,24 +1474,29 @@ class OrganismRuntime:
                 )
                 competence = self._competence_library.get(transition.competence_id)
                 if competence is not None:
-                    current_surface = (
-                        self._actuator_constitution.contract_fingerprint
-                        if self._actuator_constitution is not None
-                        else None
-                    )
-                    if current_surface is not None:
-                        competence.bind_from_evidence(
-                            surface_fingerprint=current_surface,
-                            effect_id=observed_effect.effect_id,
-                            evidence_refs=(causal.evidence_id,),
-                        )
-                    self._controllability_model.update_from_ledger(
+                    current_surface = self._current_surface_fingerprint()
+                    control_estimate = self._controllability_model.update_from_ledger(
                         self._causal_evidence,
                         effect_id=observed_effect.effect_id,
                         competence_id=transition.competence_id,
                         context_id=transition.context_ref,
                         tick=tick,
                     )
+                    if competence.effect_id is None:
+                        competence.effect_id = observed_effect.effect_id
+                    if current_surface is not None:
+                        self._competence_execution_bindings.bind_from_evidence(
+                            competence_id=transition.competence_id,
+                            surface_fingerprint=current_surface,
+                            effect_id=observed_effect.effect_id,
+                            evidence_refs=(causal.evidence_id,),
+                            reliability=control_estimate.reliability,
+                            controllability=max(
+                                control_estimate.confidence,
+                                competence.evidence.controllability,
+                            ),
+                            tick=tick,
+                        )
                     self._agency_model.update_from_ledger(
                         self._causal_evidence,
                         effect_id=observed_effect.effect_id,
