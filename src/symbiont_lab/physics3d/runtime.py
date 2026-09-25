@@ -411,6 +411,26 @@ class PyBulletEmbodimentRuntime:
             effector_count=self.body_descriptor.effector_count,
         )
 
+        canonical_actuator_surface = physics3d_actuator_surface(
+            self.apparatus.effector_ids,
+            physical_contract=(
+                f"{contract.body_kind}:{contract.receptor_count}:{contract.effector_count}"
+            ),
+        )
+        self._core_embodiment_contract = CoreEmbodimentContract(
+            perceptual_surface=PerceptualSurface.from_count(
+                len(reading_provider.receptor_ids),
+                fingerprint_material=f"count:{len(reading_provider.receptor_ids)}",
+            ),
+            actuator_surface=canonical_actuator_surface,
+            timing=TimingContract(
+                tick_hz=1.0 / (
+                    self.time_step * self.physics_substeps_per_tick
+                ),
+                command_hold_ticks=1,
+            ),
+        )
+
         def _fresh_organism(subject_id: str) -> PrivateModelOrganismRuntime:
             genome, graph, resolved_limits = physics3d_cognition(
                 kernel_limits=kernel_limits,
@@ -424,12 +444,7 @@ class PyBulletEmbodimentRuntime:
                 energy_reserve=physical_energy_capacity,
                 max_energy=physical_energy_capacity,
             )
-            actuator_constitution = physics3d_actuator_surface(
-                self.apparatus.effector_ids,
-                physical_contract=(
-                    f"{contract.body_kind}:{contract.receptor_count}:{contract.effector_count}"
-                ),
-            )
+            actuator_constitution = canonical_actuator_surface
             actuator_ids = actuator_constitution.actuator_ids
             if len(actuator_ids) != len(self.apparatus.effector_ids):
                 raise RuntimeError(
@@ -517,6 +532,9 @@ class PyBulletEmbodimentRuntime:
                     runtime_checkpoint,
                     fresh_template,
                     contract=contract,
+                    canonical_contract_fingerprint=(
+                        self._core_embodiment_contract.contract_fingerprint
+                    ),
                 )
 
             raw_lifecycle = restored_payload.get("embodiment_lifecycle")
@@ -624,20 +642,14 @@ class PyBulletEmbodimentRuntime:
                 "the attached physical apparatus"
             )
 
-        # Embodiment v2: Physics3D supplies one opaque physical interface, but
-        # the persistent episode and its identity are core domain state.
-        perceptual_surface = PerceptualSurface.from_count(
-            len(self._reading_provider.receptor_ids),
-            fingerprint_material=f"count:{len(self._reading_provider.receptor_ids)}",
-        )
-        self._core_embodiment_contract = CoreEmbodimentContract(
-            perceptual_surface=perceptual_surface,
-            actuator_surface=constitution,
-            timing=TimingContract(
-                tick_hz=1.0 / (self.time_step * self.physics_substeps_per_tick),
-                command_hold_ticks=1,
-            ),
-        )
+        # The same canonical contract was constructed before restore/re-embodiment.
+        if (
+            constitution.contract_fingerprint
+            != self._core_embodiment_contract.actuator_surface.contract_fingerprint
+        ):
+            raise RuntimeError(
+                "restored actuator constitution contradicts canonical embodiment contract"
+            )
         raw_episode = (
             restored_payload.get("embodiment_episode")
             if runtime_checkpoint is not None
