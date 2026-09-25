@@ -904,7 +904,9 @@ class PyBulletEmbodimentRuntime:
                 f"steps={result.steps}, "
                 f"linear={result.residual_linear_speed_m_s:.6f}m/s, "
                 f"angular={result.residual_angular_speed_rad_s:.6f}rad/s, "
-                f"joint={result.residual_joint_speed_rad_s:.6f}rad/s"
+                f"joint_effective={result.residual_joint_speed_rad_s:.6f}rad/s, "
+                f"joint_reported={result.residual_joint_reported_speed_rad_s:.6f}rad/s, "
+                f"peak_joint={result.peak_joint_name or result.peak_joint_index}"
             )
         return result.steps
 
