@@ -266,7 +266,7 @@ class Physics3DRunStore:
                 "organism_ref": ref,
                 "checkpoint_available": True,
             })
-        descriptor = self.body_registry.get("anthropomorphic-v5")
+        descriptor = self.body_registry.get("anthropomorphic-v6")
         metadata = {
             **summary,
             "ref": ref,
@@ -282,7 +282,7 @@ class Physics3DRunStore:
         return ref
 
     def prepare(self, payload: dict[str, Any]) -> Physics3DLaunchSpec:
-        body_kind = str(payload.get("body_kind") or "anthropomorphic-v5")
+        body_kind = str(payload.get("body_kind") or "anthropomorphic-v6")
         descriptor = self.body_registry.get(body_kind)
         organism = payload.get("organism", {})
         body = payload.get("body", {})
