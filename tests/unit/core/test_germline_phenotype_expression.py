@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from symbiont.core.germline import (
@@ -11,14 +13,28 @@ from symbiont.core.germline import (
     create_standard_genome,
 )
 from symbiont.core.symbiont import Symbiont
+from symbiont.genetics.germline import EpigeneticProtocol
 
 
 def _genome_with(genome_id: str, **overrides: float | int) -> SymbiontGenome:
     base = create_standard_genome(genome_id)
-    return SymbiontGenome(
-        genome_id=genome_id,
-        loci_values={**dict(base.loci_values), **overrides},
-        specs=base.specs,
+    learning_value = float(overrides.get("learning_rate", base.plasticity.learning_rate.baseline))
+    learning = replace(
+        base.plasticity.learning_rate,
+        baseline=learning_value,
+        maximum=max(base.plasticity.learning_rate.maximum, learning_value + 0.20),
+    )
+    sensorimotor = replace(
+        base.sensorimotor,
+        spontaneous_activity_baseline=float(
+            overrides.get("exploration_rate", base.sensorimotor.spontaneous_activity_baseline)
+        ),
+    )
+    return replace(
+        base,
+        genome_id=f"genome_{genome_id}",
+        plasticity=replace(base.plasticity, learning_rate=learning),
+        sensorimotor=sensorimotor,
     )
 
 
@@ -46,21 +62,23 @@ def test_genome_learning_rate_is_actual_sensorimotor_phenotype():
 
 
 def test_epigenetic_mark_modulates_actual_cognitive_phenotype():
-    genome = _genome_with("epi-parent", learning_rate=0.20)
-    germline = create_germline_state(genome)
-    assert germline.add_mark(
-        EpigeneticMark(
-            locus="learning_rate",
-            delta=0.10,
-            strength=0.5,
-            generations_left=3,
-        )
+    genome = _genome_with("epi-parent", learning_rate=0.10)
+    germline = GermlineState.from_genome(
+        genome,
+        inherited_marks=(
+            EpigeneticMark(
+                locus="plasticity.learning_rate.baseline",
+                delta=0.10,
+                strength=0.5,
+                generations_left=3,
+            ),
+        ),
     )
 
     sym = Symbiont("sym-epi", genome=genome, germline=germline)
 
-    assert sym.learning_rate == pytest.approx(0.25)
-    assert sym.sensorimotor_model.learning_rate == pytest.approx(0.25)
+    assert sym.learning_rate == pytest.approx(0.15)
+    assert sym.sensorimotor_model.learning_rate == pytest.approx(0.15)
 
 
 def test_genome_is_authoritative_over_constructor_fallback_when_present():
@@ -110,6 +128,7 @@ def test_exploration_locus_changes_operational_trajectory_under_same_seed():
 
     for sym in (low, high):
         sym.register_output_channels(("out.0",))
+        sym.attach_execution_surface("surface:test")
 
     low_trace = [low.step({})["out.0"] for _ in range(20)]
     high_trace = [high.step({})["out.0"] for _ in range(20)]
@@ -120,18 +139,18 @@ def test_exploration_locus_changes_operational_trajectory_under_same_seed():
 def test_inherited_epigenetic_predisposition_changes_phenotype_without_learned_state():
     parent_genome = _genome_with(
         "parent-expression",
-        learning_rate=0.20,
-        acquired_transmission_rate=1.0,
-        epigenetic_decay=0.20,
+        learning_rate=0.10,
     )
-    parent_germline = create_germline_state(parent_genome)
-    assert parent_germline.add_mark(
-        EpigeneticMark(
-            locus="learning_rate",
-            delta=0.10,
-            strength=1.0,
-            generations_left=3,
-        )
+    parent_germline = GermlineState.from_genome(
+        parent_genome,
+        inherited_marks=(
+            EpigeneticMark(
+                locus="plasticity.learning_rate.baseline",
+                delta=0.10,
+                strength=1.0,
+                generations_left=3,
+            ),
+        ),
     )
 
     package = create_offspring_package(
@@ -139,10 +158,11 @@ def test_inherited_epigenetic_predisposition_changes_phenotype_without_learned_s
         parent_germline=parent_germline,
         seed=123,
         generation=1,
+        epigenetic_protocol=EpigeneticProtocol(enabled=True, decay=0.20),
     )
-    child_germline = create_germline_state(
+    child_germline = GermlineState.from_genome(
         package.genome,
-        epigenetic_marks=package.epigenetic_marks,
+        inherited_marks=package.epigenetic_marks,
     )
     child = Symbiont(
         "child-expression",
@@ -152,11 +172,10 @@ def test_inherited_epigenetic_predisposition_changes_phenotype_without_learned_s
     )
 
     transmitted = {mark.locus: mark for mark in package.epigenetic_marks}
-    assert "learning_rate" in transmitted
-    expected = child_germline.effective_expression(
-        "learning_rate",
-        float(package.genome.get("learning_rate")),
-        spec=package.genome.specs["learning_rate"],
+    assert "plasticity.learning_rate.baseline" in transmitted
+    expected = child_germline.effective_value(
+        package.genome,
+        "plasticity.learning_rate.baseline",
     )
     assert child.learning_rate == pytest.approx(expected)
 
