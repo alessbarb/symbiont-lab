@@ -17,7 +17,7 @@ from ...cognition.structure import (
     StructuralPlasticity,
     apply_mutations,
 )
-from ...cognition.types import WEIGHT_RANGE, EdgeKind, NodeKind
+from ...cognition.types import NodeKind
 from .plasticity_state import PlasticityEngine
 from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
 from .sense_concept_lifecycle import ConceptLineage, SenseConceptLifecycle
