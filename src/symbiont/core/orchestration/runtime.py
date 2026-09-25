@@ -1199,6 +1199,14 @@ class OrganismRuntime:
         return self._sensorimotor_learner.exclusive_actuator_groups
 
     @property
+    def available_motor_competence_ids(self) -> tuple[str, ...]:
+        """Opaque ids of currently evidence-supported motor competences."""
+        engine = self._action_domain.competence_development
+        if engine is None:
+            return ()
+        return engine.available_cognitive_primitive_ids()
+
+    @property
     def sensorimotor_competence_candidates(self) -> tuple[dict[str, object], ...]:
         """Passive candidate view; legacy sequence objects never cross this boundary."""
         if self._sensorimotor_learner is None:

@@ -145,10 +145,9 @@ def _disable_counterfactual(runtime: PyBulletEmbodimentRuntime) -> None:
 
 
 def _shuffle_private_model_action_identity(runtime: PyBulletEmbodimentRuntime) -> bool:
-    learner = getattr(runtime.organism, "_sensorimotor_learner", None)
-    if learner is None:
-        return False
-    action_ids = tuple(sorted(learner.available_cognitive_primitive_ids()))
+    action_ids = tuple(
+        sorted(runtime.organism.available_motor_competence_ids)
+    )
     if len(action_ids) < 2:
         return False
 
@@ -419,11 +418,8 @@ def run_prospective_embodied_trial(
                         tick.oldest_structural_wait_ticks,
                     )
 
-                    learner = getattr(runtime.organism, "_sensorimotor_learner", None)
                     current_cognitive_ids = (
-                        learner.available_cognitive_primitive_ids()
-                        if learner is not None
-                        else ()
+                        runtime.organism.available_motor_competence_ids
                     )
                     bridge = getattr(runtime.organism, "_cognitive_bridge", None)
                     current_readout_ids = ()
