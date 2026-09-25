@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from symbiont_lab.observation.atlas import build_cognitive_atlas
+from symbiont_lab.observation.atlas import build_cognitive_atlas, diff_cognitive_atlas
 
 
 def _snapshot():
@@ -104,3 +104,70 @@ def test_build_cognitive_atlas_never_mutates_input_snapshot():
 def test_build_cognitive_atlas_rejects_non_mapping():
     with pytest.raises(TypeError):
         build_cognitive_atlas([])
+
+
+def _reembodiment_snapshots():
+    before = build_cognitive_atlas(_snapshot())
+
+    after_raw = {
+        "tick": 200,
+        "motor_competences": [
+            {"competence_id": "competence.7", "effect_id": "effect.3", "maturity": "established", "support": 12},
+            {"competence_id": "competence.8", "effect_id": None, "maturity": "candidate", "support": 1},
+            {"competence_id": "competence.9", "effect_id": "effect.3", "maturity": "candidate", "support": 2},
+        ],
+        "effects": [
+            {"effect_id": "effect.3", "feature_refs": ["signal.1"], "support": 14, "confidence": 0.8},
+        ],
+        "embodiment": {
+            # competence.7's binding did not survive the body swap; a fresh
+            # one was discovered for the newly-emerged competence.9.
+            "bindings": [
+                {
+                    "competence_id": "competence.9",
+                    "surface_fingerprint": "crawler:v1",
+                    "effect_id": "effect.3",
+                    "reliability": 0.4,
+                    "controllability": 0.3,
+                    "last_evidence_tick": 199,
+                },
+            ],
+        },
+    }
+    after = build_cognitive_atlas(after_raw)
+    return before, after
+
+
+def test_diff_cognitive_atlas_reembodiment_preserves_knowledge_but_not_bindings():
+    before, after = _reembodiment_snapshots()
+
+    diff = diff_cognitive_atlas(before, after)
+
+    assert "competence.9" in diff.nodes_added
+    assert "binding.competence.7" in diff.nodes_removed
+
+    assert diff.metrics["knowledge_preserved"] == {"count": 2, "ratio": 1.0}
+    assert diff.metrics["embodiment_mappings_preserved"] == {"count": 0, "ratio": 0.0}
+    assert diff.metrics["competences_immediately_usable"] == {"count": 0, "ratio": 0.0}
+    assert diff.metrics["competences_requiring_remapping"] == {"count": 2, "ratio": 1.0}
+
+
+def test_diff_cognitive_atlas_identical_snapshots_report_no_changes():
+    atlas = build_cognitive_atlas(_snapshot())
+
+    diff = diff_cognitive_atlas(atlas, atlas)
+
+    assert diff.nodes_added == ()
+    assert diff.nodes_removed == ()
+    assert diff.edges_added == ()
+    assert diff.edges_removed == ()
+    assert diff.metrics["knowledge_preserved"]["ratio"] == 1.0
+
+
+def test_diff_cognitive_atlas_handles_no_prior_competences():
+    empty = build_cognitive_atlas({"tick": 0})
+    atlas = build_cognitive_atlas(_snapshot())
+
+    diff = diff_cognitive_atlas(empty, atlas)
+
+    assert diff.metrics["knowledge_preserved"] == {"count": 0, "ratio": None}

@@ -249,3 +249,68 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
         edges=tuple(edges),
         metrics={"motor_capability": _motor_capability_metrics(snapshot)},
     )
+
+
+@dataclass(frozen=True, slots=True)
+class CognitiveAtlasDiff:
+    nodes_added: tuple[str, ...]
+    nodes_removed: tuple[str, ...]
+    edges_added: tuple[str, ...]
+    edges_removed: tuple[str, ...]
+    metrics: Mapping[str, Any]
+
+
+def _ratio(numerator: int, denominator: int) -> float | None:
+    return numerator / denominator if denominator else None
+
+
+def diff_cognitive_atlas(before: CognitiveAtlasSnapshot, after: CognitiveAtlasSnapshot) -> CognitiveAtlasDiff:
+    """Compare two Atlas snapshots. Pure function; never touches Symbiont state.
+
+    Spec Sec 49/50: this is the re-embodiment comparison -- how much learned
+    motor knowledge survives a body change versus how much embodiment
+    binding has to be rediscovered.
+    """
+    before_node_ids = {node.id for node in before.nodes}
+    after_node_ids = {node.id for node in after.nodes}
+    before_edge_ids = {edge.id for edge in before.edges}
+    after_edge_ids = {edge.id for edge in after.edges}
+
+    before_competence_ids = {node.id for node in before.nodes if node.kind == "motor_competence"}
+    after_competence_ids = {node.id for node in after.nodes if node.kind == "motor_competence"}
+    before_binding_ids = {node.id for node in before.nodes if node.kind == "embodiment_binding"}
+    after_binding_ids = {node.id for node in after.nodes if node.kind == "embodiment_binding"}
+    after_bound_competence_ids = {
+        edge.target_id for edge in after.edges if edge.kind == "bound_to"
+    }
+
+    preserved_competences = before_competence_ids & after_competence_ids
+    immediately_usable = preserved_competences & after_bound_competence_ids
+    requiring_remapping = preserved_competences - after_bound_competence_ids
+
+    metrics = {
+        "knowledge_preserved": {
+            "count": len(preserved_competences),
+            "ratio": _ratio(len(preserved_competences), len(before_competence_ids)),
+        },
+        "embodiment_mappings_preserved": {
+            "count": len(before_binding_ids & after_binding_ids),
+            "ratio": _ratio(len(before_binding_ids & after_binding_ids), len(before_binding_ids)),
+        },
+        "competences_immediately_usable": {
+            "count": len(immediately_usable),
+            "ratio": _ratio(len(immediately_usable), len(before_competence_ids)),
+        },
+        "competences_requiring_remapping": {
+            "count": len(requiring_remapping),
+            "ratio": _ratio(len(requiring_remapping), len(before_competence_ids)),
+        },
+    }
+
+    return CognitiveAtlasDiff(
+        nodes_added=tuple(sorted(after_node_ids - before_node_ids)),
+        nodes_removed=tuple(sorted(before_node_ids - after_node_ids)),
+        edges_added=tuple(sorted(after_edge_ids - before_edge_ids)),
+        edges_removed=tuple(sorted(before_edge_ids - after_edge_ids)),
+        metrics=metrics,
+    )
