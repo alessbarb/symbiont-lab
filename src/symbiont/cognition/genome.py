@@ -6,14 +6,11 @@ v2 codec validates them.
 """
 from __future__ import annotations
 
-from typing import Mapping
-
 from symbiont.genetics.genome import (
     AdaptiveGeneRange,
     DevelopmentGenes,
     EvolvabilityGenes,
     Genome,
-    GenomeCodec as _GenomeV2Codec,
     GenomeError,
     MotorGenes,
     MutationPolicyGenes,
@@ -29,16 +26,7 @@ from symbiont.genetics.genome import (
     parse_kernel_compatibility,
     satisfies_kernel_compatibility,
 )
-from symbiont.genetics.migration import migrate_v1_payload
-
-
-class GenomeCodec(_GenomeV2Codec):
-    """Single v2 codec with an explicit read-only migration entry for v1."""
-
-    def load(self, payload: Mapping[str, object]) -> Genome:
-        if payload.get("schema_version") == 1:
-            payload = migrate_v1_payload(payload)
-        return super().load(payload)
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 
 
 __all__ = [
