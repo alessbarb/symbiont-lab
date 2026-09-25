@@ -20,7 +20,7 @@ import pytest
 
 from symbiont.core.body import Body, create_standard_body
 from symbiont.core.embodiment import implant
-from symbiont.core.agency import AgencyModel, InferredBodySchema, InferredSelfModel
+from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema, InferredSelfModel
 from symbiont.core.symbiont import Symbiont
 from symbiont.core.germline import (
     EpigeneticMark,
@@ -271,7 +271,7 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
     place; this test only proves nothing organism-shaped leaks out through
     the result.)
     """
-    from symbiont.core.agency import AgencyModel, InferredBodySchema
+    from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema
     from symbiont.core.body import Body
     from symbiont.core.embodiment import EmbodimentSession
     from symbiont.core.individual import Individual
