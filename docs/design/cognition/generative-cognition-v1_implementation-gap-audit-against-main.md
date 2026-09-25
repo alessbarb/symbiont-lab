@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `f4642013`
+**Audited commit:** `3bf9555b`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -99,7 +99,7 @@ built by composing several mature existing components.
 | GC-5 | Counterfactual cognition | **PARTIAL — bounded generic rollout substrate; concrete adapters and utility pending** |
 | GC-6 | Replay | **IMPLEMENTED — provenance-preserving materialization; concrete memory wiring pending** |
 | GC-7 | Recombination | **PARTIAL — compatibility-gated fragment composition; novelty/equivalence evidence pending** |
-| GC-8 | Hypothesis + reconciliation | **PARTIAL** |
+| GC-8 | Hypothesis + reconciliation | **PARTIAL — generic lifecycle/reconciliation substrate; calibration and runtime evidence pending** |
 | GC-9 | Epistemic agency | **PARTIAL — pragmatic agency exists** |
 | GC-10 | Generative consolidation | **PARTIAL — structural substrate exists** |
 | GC-11 | Offline cognition | **MISSING** |
@@ -1593,12 +1593,12 @@ GC-E6 — Depth Calibration
 ## Status
 
 ```text
-PARTIAL
+PARTIAL — bounded lifecycle and reconciliation substrate
 ```
 
-The narrow prediction-validation pattern exists.
-
-The generic hypothesis system does not.
+The narrow prediction-validation pattern still exists, and the generic
+hypothesis lifecycle now exists behind an explicit reconciler. Calibration,
+durable persistence, runtime integration and GC-E6/GC-E7 evidence remain open.
 
 ---
 
