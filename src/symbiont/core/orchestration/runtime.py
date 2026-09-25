@@ -107,7 +107,11 @@ from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from ..domains.action import ActionDomain, ActionServices
 from ..domains.context import TickContext
-from ..domains.physiology import PhysiologyDomain, PhysiologyServices
+from ..domains.physiology import (
+    PhysiologyDomain,
+    PhysiologyPreflightServices,
+    PhysiologyServices,
+)
 from ..domains.perception import PerceptionDomain, PerceptionServices
 from ..domains.cognition import CognitionDomain, CognitionServices
 from ..domains.epistemic import EpistemicDomain, EpistemicServices
@@ -2105,34 +2109,22 @@ class OrganismRuntime:
                 )
         tick_start = time.monotonic()
         action_result: ActionExecutionResult | None = None
-        if self._interoception_provider is not None:
-            # Environmental damage and external depletion may occur between
-            # ticks.  Refresh body channels before the local decision so the
-            # organism can learn from the current state rather than a stale
-            # end-of-previous-tick sample.
-            current_metabolism = self._metabolism.snapshot()
-            current_pressure = current_metabolism.pressure.value
-            current_pressure_ratio = {
-                "normal": 0.0, "elevated": 0.33,
-                "severe": 0.66, "unrecoverable": 1.0,
-            }.get(current_pressure, 1.0)
-            current_ratio = self._living_body_state.energy_reserve / max(
-                self._living_body_state.max_energy,
-                1e-12,
+        self._reacclimation_remaining = (
+            self._embodiment_domain.advance_reacclimation(
+                self._reacclimation_remaining
             )
-            self._interoception_provider.update_physiological_state(
-                metabolic_reserve=max(0.0, min(1.0, current_ratio)),
-                integrity=self._homeostasis.integrity,
-                metabolic_pressure=current_pressure_ratio,
-                repair_pressure=1.0 - self._homeostasis.integrity,
-                waste_pressure=min(1.0, len(self._degradation.items) / 64.0),
+        )
+        physiology_preflight = self._physiology_domain.preflight(
+            services=PhysiologyPreflightServices(
+                metabolism=self._metabolism,
+                homeostasis=self._homeostasis,
+                living_body_state=self._living_body_state,
+                degradation=self._degradation,
+                interoception_provider=self._interoception_provider,
             )
-        if self._reacclimation_remaining > 0:
-            self._reacclimation_remaining -= 1
-        degradation_excreted = self._degradation.age_tick()
-        # Gate learning before any cognitive mutation. The end-of-tick
-        # physiology report is descriptive; this preflight is authoritative.
-        plasticity_gate = self._homeostasis.regulate(self._metabolism.pressure()).plasticity_enabled
+        )
+        degradation_excreted = physiology_preflight.degradation_excreted
+        plasticity_gate = physiology_preflight.plasticity_enabled
 
         perception = self._perception_domain.step(
             services=PerceptionServices(
