@@ -9,7 +9,7 @@ import time
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from ...host.acclimation import HostAcclimation
 from ...host.adaptive import AdaptiveSenseModel, SamplingPlan
@@ -693,10 +693,6 @@ class OrganismRuntime:
     @property
     def _actuator_constitution(self):
         return self._action_domain.surface
-
-    @property
-
-    @property
 
     @property
     def _active_action_commitment(self):
