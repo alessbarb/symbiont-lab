@@ -8,9 +8,10 @@ def test_runtime_delegates_regulation_and_delayed_credit() -> None:
     runtime = (
         root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
     ).read_text(encoding="utf-8")
-    assert "self._regulation_domain.update_gene_expression(" in runtime
+    assert "self._development_domain.update_gene_expression(" in runtime
     assert "self._regulation_domain.schedule_homeostatic_action_credit(" in runtime
     assert "self._regulation_domain.resolve_homeostatic_action_credit(" in runtime
+    assert "self._regulation_domain.update_gene_expression(" not in runtime
 
 
 def test_regulation_domain_does_not_execute_motor_commands() -> None:
