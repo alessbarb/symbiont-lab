@@ -15,6 +15,7 @@ from .epistemic import EpistemicBoundaryError, EpistemicFirewall
 from .model import GeneratedProposal, GenerativeContext, GenerativeModel
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, dumps, loads, restore
 from .registry import GenerativeModelRegistry
+from .scheduler import GenerativeScheduler, ScheduleDecision
 from .types import (
     EpistemicOrigin,
     GeneratedFeature,
@@ -46,12 +47,14 @@ __all__ = [
     "GenerativeContext",
     "GenerativeModel",
     "GenerativeModelRegistry",
+    "GenerativeScheduler",
     "GenerativeOperation",
     "GenerativeState",
     "GenerativeTarget",
     "GenerativeTermination",
     "GenerativeTransition",
     "GenerativeWorkspace",
+    "ScheduleDecision",
     "TargetStatus",
     "dumps",
     "loads",
