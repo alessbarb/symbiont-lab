@@ -146,10 +146,11 @@ def _learning_assay(
     condition: str,
     ticks: int = 80,
 ) -> tuple[float, float, float]:
-    """Return initial target weight, final abs prediction error, final weight.
+    """Return initial relation weight, final prediction error, final weight.
 
-    This is an evaluator-side generic sensorimotor task. No condition name is
-    passed into the child. Only opaque channel topology/numerics differ.
+    This observer-side assay exercises the canonical low-level dynamics model
+    through its opaque interface. No body semantics or inherited mapping is
+    supplied.
     """
     model = child.sensorimotor_model
 
@@ -168,27 +169,33 @@ def _learning_assay(
     else:
         raise ValueError(f"unknown condition {condition}")
 
-    initial = float(model.weights.get((out_ch, target_ch), 0.0))
+    initial = model.relation_weight(out_ch, target_ch)
     final_error = 0.0
 
     for tick in range(ticks):
         act = 0.0 if tick % 4 == 0 else 0.65
         actual = sign * 0.45 * act
-
         in_channels = (target_ch,) + tuple(extra_inputs)
-        model.predict_deltas({out_ch: act}, in_channels)
+        model.predict({out_ch: act}, in_channels)
 
         deltas = {target_ch: actual}
         for index, decoy in enumerate(extra_inputs):
             deltas[decoy] = ((tick + index * 3) % 9 - 4) * 0.005
 
-        errors = model.update(deltas, {out_ch: act})
-        final_error = float(errors.get(target_ch, 0.0))
+        residuals = model.observe(deltas, tick=tick + 1)
+        final_error = next(
+            (
+                float(item.error)
+                for item in residuals
+                if item.percept_id == target_ch
+            ),
+            0.0,
+        )
 
     return (
         initial,
         abs(final_error),
-        float(model.weights.get((out_ch, target_ch), 0.0)),
+        model.relation_weight(out_ch, target_ch),
     )
 
 
@@ -272,28 +279,16 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         germline=germline,
     )
 
-    # Deliberately create concrete parent lifetime state. None may cross birth.
+    # Deliberately create concrete parent lifetime state through the real
+    # canonical Symbiont path. None of it may cross birth.
+    parent.register_output_channels(("out.parent_specific",))
     for tick in range(80):
-        act = 0.8 if tick % 3 else 0.0
-        parent.perceptual_structure.observe({
-            "in.parent_specific": (tick % 11) / 10.0,
-            "in.body_specific": (tick % 7) / 6.0,
-        })
-        parent.agency_model.record_step(
-            {"out.parent_specific": act},
-            {"in.parent_specific": 0.4 * act, "in.body_specific": 0.2 * act},
-        )
-        parent.sensorimotor_model.predict_deltas(
-            {"out.parent_specific": act},
-            ("in.parent_specific", "in.body_specific"),
-        )
-        parent.sensorimotor_model.update(
-            {"in.parent_specific": 0.4 * act, "in.body_specific": 0.2 * act},
-            {"out.parent_specific": act},
-        )
-        parent.body_schema.update_from_agency(
-            parent.agency_model,
-            parent.perceptual_structure,
+        previous_act = parent.last_activations.get("out.parent_specific", 0.0)
+        parent.step(
+            {
+                "in.parent_specific": 0.4 * previous_act + (tick % 5) * 0.001,
+                "in.body_specific": 0.2 * previous_act + (tick % 7) * 0.001,
+            }
         )
 
     package = create_offspring_package(
@@ -322,24 +317,22 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         and not hasattr(package, "memories")
     )
     sm_empty = (
-        child.sensorimotor_model.weights == {}
-        and child.sensorimotor_model.last_predictions == {}
-        and child.sensorimotor_model.prediction_errors == {}
+        child.sensorimotor_model.relation_count == 0
+        and child.causal_evidence.evidence == ()
     )
     agency_empty = (
-        child.agency_model.contingency == {}
-        and child.agency_model.controllability == {}
-        and child.agency_model.agency_confidence == {}
+        child.agency_model.estimates == ()
+        and child.controllability_model.estimates == ()
     )
     schema_empty = (
-        child.body_schema.internal_channels == set()
-        and child.body_schema.self_caused_channels == set()
-        and child.body_schema.somatic_correlated_channels == set()
-        and child.body_schema.regions == []
+        child.body_schema.self_caused_channels == ()
+        and child.body_schema.somatic_correlated_channels == ()
+        and child.body_schema.external_channels == ()
+        and child.body_schema.boundary_confidence == 0.0
     )
     perceptual_empty = (
-        child.perceptual_structure.channel_stats == {}
-        and child.perceptual_structure.cross_cov == {}
+        child.effect_space.effects == ()
+        and child.competence_effect_model.context_count == 0
     )
 
     transmitted = {m.locus: m for m in package.epigenetic_marks}
