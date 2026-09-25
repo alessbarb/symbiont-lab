@@ -3685,7 +3685,7 @@ class OrganismRuntime:
                     else None
                 ),
                 "sensorimotor_v2": {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "surface_binding": {
                         "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
                         "known_channel_ids": list(self._actuator_constitution.actuator_ids),
@@ -3705,7 +3705,6 @@ class OrganismRuntime:
                             "competence_id": item.competence_id,
                             "controller_id": item.controller_id,
                             "effect_id": item.effect_id,
-                            "surface_binding": item.surface_binding,
                             "controller_strategy_ref": item.controller_strategy_ref,
                             "parent_competence_ids": list(
                                 item.parent_competence_ids
@@ -3718,6 +3717,7 @@ class OrganismRuntime:
                         }
                         for item in self._competence_library.items
                     ],
+                    "execution_bindings": self._competence_execution_bindings.checkpoint(),
                     "composition": {
                         "engine": self._composition_engine.checkpoint(),
                         "predecessor_id": self._composition_predecessor_id,
