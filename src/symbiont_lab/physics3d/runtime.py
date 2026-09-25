@@ -681,6 +681,7 @@ class PyBulletEmbodimentRuntime:
                 controllability_model=self.organism.controllability_model,
                 agency_model=self.organism.agency_model,
                 execution_bindings=self.organism.competence_execution_bindings,
+                allow_contract_schema_migration=True,
                 current_tick=self.tick_count,
             )
             if self._embodiment_episode.state is EmbodimentState.SUSPENDED:
