@@ -104,7 +104,6 @@ from ...actuation.action import (
     MotorCommand,
 )
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
-from ...actuation.effects import EffectSpace
 from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
 from ...actuation.evidence import (
     CausalEvidenceLedger,
@@ -113,7 +112,6 @@ from ...actuation.evidence import (
 )
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
-from ...actuation.composition import CompositionEngine
 from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from ..domains.action import ActionDomain, ActionServices
@@ -3627,253 +3625,16 @@ class OrganismRuntime:
             raw_v2 = raw_actuation.get("sensorimotor_v2")
             if isinstance(raw_v2, dict):
                 try:
-                    v2_schema = int(raw_v2.get("schema_version") or 0)
-                    if v2_schema not in {1, 2, 3}:
-                        raise ValueError(
-                            "unsupported sensorimotor v2 checkpoint schema"
-                        )
-                    if v2_schema == 3:
-                        raw_surface_binding = raw_v2.get("surface_binding")
-                        if isinstance(raw_surface_binding, dict):
-                            raw_embodiment_id = raw_surface_binding.get(
-                                "embodiment_id"
-                            )
-                            if raw_embodiment_id is not None:
-                                if (
-                                    not isinstance(raw_embodiment_id, str)
-                                    or not raw_embodiment_id
-                                ):
-                                    raise ValueError(
-                                        "invalid action-domain embodiment id"
-                                    )
-                                runtime._action_domain.embodiment_id = (
-                                    raw_embodiment_id
-                                )
-                    raw_effects = raw_v2.get("effect_space")
-                    raw_evidence = raw_v2.get("causal_evidence")
-                    if isinstance(raw_effects, dict):
-                        runtime._effect_space = EffectSpace.restore(raw_effects)
-                    if isinstance(raw_evidence, dict):
-                        runtime._causal_evidence = CausalEvidenceLedger.restore(raw_evidence)
-                        runtime._body_schema.rebuild_sensorimotor_view(
-                            runtime._causal_evidence.evidence
-                        )
-                        runtime._sensorimotor_model.rebuild(
-                            runtime._causal_evidence
-                        )
-                        runtime._controllability_model.rebuild(
-                            runtime._causal_evidence
-                        )
-                        runtime._agency_model.rebuild(
-                            runtime._causal_evidence
-                        )
-                    raw_exploration = raw_v2.get("exploration")
-                    if isinstance(raw_exploration, dict):
-                        raw_strength = raw_exploration.get("strength_memory", {})
-                        if isinstance(raw_strength, dict):
-                            runtime._exploration_strength_memory = {
-                                str(key): max(0.0, min(1.0, float(value)))
-                                for key, value in raw_strength.items()
-                                if str(key) in set(
-                                    runtime._actuator_constitution.actuator_ids
-                                    if runtime._actuator_constitution is not None
-                                    else ()
-                                )
-                            }
-                        raw_preference = raw_exploration.get(
-                            "active_preference",
-                            [],
-                        )
-                        if isinstance(raw_preference, list):
-                            known = set(
-                                runtime._actuator_constitution.actuator_ids
-                                if runtime._actuator_constitution is not None
-                                else ()
-                            )
-                            runtime._active_exploration_preference = tuple(
-                                str(value)
-                                for value in raw_preference
-                                if str(value) in known
-                            )
-                    raw_competences = raw_v2.get("competences", [])
-                    if isinstance(raw_competences, list):
-                        restored_library = CompetenceLibrary()
-                        for item in raw_competences:
-                            if not isinstance(item, dict):
-                                raise ValueError("invalid competence checkpoint item")
-                            competence_id = item.get("competence_id")
-                            controller_id = item.get("controller_id")
-                            if not isinstance(competence_id, str) or not isinstance(controller_id, str):
-                                raise ValueError("invalid competence checkpoint identifiers")
-                            restored_library.add(
-                                MotorCompetence(
-                                    competence_id=competence_id,
-                                    controller_id=controller_id,
-                                    effect_id=(
-                                        str(item["effect_id"])
-                                        if item.get("effect_id") is not None
-                                        else None
-                                    ),
-                                    evidence=CompetenceEvidence(
-                                        controller_seed_ref=str(
-                                            item.get("controller_strategy_ref")
-                                            or competence_id
-                                        ),
-                                        support=int(item.get("support", 0)),
-                                        failures=int(item.get("failures", 0)),
-                                        reproducibility=float(item.get("reproducibility", 0.0)),
-                                        controllability=float(item.get("controllability", 0.0)),
-                                        directional_consistency=float(
-                                            item.get("directional_consistency", 0.0)
-                                        ),
-                                    ),
-                                    controller_strategy_ref=(
-                                        str(item["controller_strategy_ref"])
-                                        if item.get("controller_strategy_ref") is not None
-                                        else None
-                                    ),
-                                    parent_competence_ids=tuple(
-                                        str(value)
-                                        for value in item.get(
-                                            "parent_competence_ids",
-                                            [],
-                                        )
-                                    ),
-                                )
-                            )
-                        runtime._competence_library = restored_library
-                        if v2_schema == 2:
-                            raw_bindings = raw_v2.get("execution_bindings")
-                            binding_payload = (
-                                deepcopy(raw_bindings)
-                                if isinstance(raw_bindings, dict)
-                                else None
-                            )
-                            if (
-                                binding_payload is not None
-                                and fingerprint_migration is not None
-                            ):
-                                old_fp, new_fp = fingerprint_migration
-                                raw_items = binding_payload.get("items")
-                                if isinstance(raw_items, list):
-                                    for item in raw_items:
-                                        if (
-                                            isinstance(item, dict)
-                                            and item.get("surface_fingerprint")
-                                            == old_fp
-                                        ):
-                                            item["surface_fingerprint"] = new_fp
-                            runtime._competence_execution_bindings = (
-                                CompetenceExecutionBindingRegistry.restore(
-                                    binding_payload
-                                )
-                            )
-                        else:
-                            migrated = CompetenceExecutionBindingRegistry()
-                            for legacy_item in raw_competences:
-                                if not isinstance(legacy_item, dict):
-                                    continue
-                                competence_id = str(
-                                    legacy_item.get("competence_id") or ""
-                                )
-                                surface = legacy_item.get("surface_binding")
-                                if (
-                                    isinstance(surface, str)
-                                    and fingerprint_migration is not None
-                                    and surface == fingerprint_migration[0]
-                                ):
-                                    surface = fingerprint_migration[1]
-                                effect_id = legacy_item.get("effect_id")
-                                matching = tuple(
-                                    evidence
-                                    for evidence in runtime._causal_evidence.evidence
-                                    if evidence.competence_id == competence_id
-                                    and evidence.effect_id == effect_id
-                                )
-                                refs = tuple(
-                                    evidence.evidence_id
-                                    for evidence in matching
-                                )
-                                if (
-                                    competence_id
-                                    and isinstance(surface, str)
-                                    and surface
-                                    and isinstance(effect_id, str)
-                                    and effect_id
-                                    and refs
-                                ):
-                                    competence = restored_library.get(competence_id)
-                                    migrated.bind_from_evidence(
-                                        competence_id=competence_id,
-                                        surface_fingerprint=surface,
-                                        effect_id=effect_id,
-                                        evidence_refs=refs,
-                                        reliability=(
-                                            competence.evidence.reproducibility
-                                            if competence is not None
-                                            else 0.0
-                                        ),
-                                        controllability=(
-                                            competence.evidence.controllability
-                                            if competence is not None
-                                            else 0.0
-                                        ),
-                                        tick=max(
-                                            (
-                                                evidence.observation_tick
-                                                for evidence in matching
-                                            ),
-                                            default=0,
-                                        ),
-                                    )
-                            runtime._competence_execution_bindings = migrated
-                    raw_composition = raw_v2.get("composition")
-                    if isinstance(raw_composition, dict):
-                        raw_engine = raw_composition.get("engine")
-                        if isinstance(raw_engine, dict):
-                            runtime._composition_engine = CompositionEngine.restore(
-                                raw_engine
-                            )
-                        predecessor = raw_composition.get("predecessor_id")
-                        runtime._composition_predecessor_id = (
-                            str(predecessor)
-                            if predecessor is not None
-                            else None
-                        )
-                        children = raw_composition.get("active_children", [])
-                        if isinstance(children, list):
-                            runtime._active_composition_children = tuple(
-                                str(value) for value in children
-                            )
-                        runtime._active_composition_index = int(
-                            raw_composition.get("active_index", 0)
-                        )
-                        known_competences = {
-                            item.competence_id
-                            for item in runtime._competence_library.items
-                        }
-                        if (
-                            runtime._active_action_commitment is None
-                            or not runtime._active_action_commitment.active
-                            or not runtime._active_composition_children
-                            or any(
-                                child not in known_competences
-                                for child in runtime._active_composition_children
-                            )
-                            or runtime._active_composition_index < 0
-                            or runtime._active_composition_index
-                            >= len(runtime._active_composition_children)
-                        ):
-                            runtime._active_composition_children = ()
-                            runtime._active_composition_index = 0
-                        if (
-                            runtime._composition_predecessor_id is not None
-                            and runtime._composition_predecessor_id
-                            not in known_competences
-                        ):
-                            runtime._composition_predecessor_id = None
+                    runtime._action_domain.restore_v2(
+                        raw_v2,
+                        body_schema=runtime._body_schema,
+                        fingerprint_migration=fingerprint_migration,
+                    )
                 except (TypeError, ValueError, KeyError) as exc:
-                    raise CheckpointError(f"invalid sensorimotor v2 checkpoint: {exc}") from exc
+                    raise CheckpointError(
+                        f"invalid sensorimotor v2 checkpoint: {exc}"
+                    ) from exc
+
         raw_reactivity = normalized.get("innate_reactivity")
         if raw_reactivity is not None:
             if (

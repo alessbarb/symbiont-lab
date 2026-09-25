@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from copy import deepcopy
 from dataclasses import dataclass
 from collections.abc import Callable
 from typing import Any, Mapping
@@ -1273,6 +1274,245 @@ class ActionDomain:
             exploration_preference=self.active_exploration_preference,
             mean_learning_progress=sum(progress) / len(progress) if progress else 0.0,
         )
+
+    def restore_v2(
+        self,
+        payload: Mapping[str, object],
+        *,
+        body_schema: BodySchemaEngine,
+        fingerprint_migration: tuple[str, str] | None = None,
+    ) -> None:
+        """Restore canonical Sensorimotor v2 state into this domain.
+
+        Schema 1 is migrated from competence-local surface bindings. Schemas 2
+        and 3 restore the explicit execution-binding registry. Schema 3 also
+        carries current Embodiment identity. All body-specific authority is
+        validated against the currently attached actuator surface.
+        """
+        schema = int(payload.get("schema_version") or 0)
+        if schema not in {1, 2, 3}:
+            raise ValueError("unsupported sensorimotor v2 checkpoint schema")
+
+        if schema == 3:
+            raw_surface_binding = payload.get("surface_binding")
+            if not isinstance(raw_surface_binding, Mapping):
+                raise ValueError("sensorimotor v3 surface binding is missing")
+            stored_fingerprint = raw_surface_binding.get("contract_fingerprint")
+            if (
+                isinstance(stored_fingerprint, str)
+                and fingerprint_migration is not None
+                and stored_fingerprint == fingerprint_migration[0]
+            ):
+                stored_fingerprint = fingerprint_migration[1]
+            if (
+                self.surface is not None
+                and stored_fingerprint != self.surface.contract_fingerprint
+            ):
+                raise ValueError(
+                    "sensorimotor v3 state belongs to another actuator surface"
+                )
+            raw_embodiment_id = raw_surface_binding.get("embodiment_id")
+            if raw_embodiment_id is not None:
+                if not isinstance(raw_embodiment_id, str) or not raw_embodiment_id:
+                    raise ValueError("invalid action-domain embodiment id")
+                self.embodiment_id = raw_embodiment_id
+
+        raw_effects = payload.get("effect_space")
+        raw_evidence = payload.get("causal_evidence")
+        if isinstance(raw_effects, Mapping):
+            self.effect_space = EffectSpace.restore(raw_effects)
+        if isinstance(raw_evidence, Mapping):
+            self.causal_evidence = CausalEvidenceLedger.restore(raw_evidence)
+            body_schema.rebuild_sensorimotor_view(self.causal_evidence.evidence)
+            self.effect_model.rebuild(self.causal_evidence)
+            self.controllability_model.rebuild(self.causal_evidence)
+            self.agency_model.rebuild(self.causal_evidence)
+
+        known_channels = set(
+            self.surface.actuator_ids if self.surface is not None else ()
+        )
+        raw_exploration = payload.get("exploration")
+        if isinstance(raw_exploration, Mapping):
+            raw_strength = raw_exploration.get("strength_memory", {})
+            if isinstance(raw_strength, Mapping):
+                self.exploration_strength_memory = {
+                    str(key): max(0.0, min(1.0, float(value)))
+                    for key, value in raw_strength.items()
+                    if str(key) in known_channels
+                }
+            raw_preference = raw_exploration.get("active_preference", [])
+            if isinstance(raw_preference, list):
+                self.active_exploration_preference = tuple(
+                    str(value)
+                    for value in raw_preference
+                    if str(value) in known_channels
+                )
+
+        raw_competences = payload.get("competences", [])
+        if not isinstance(raw_competences, list):
+            raise ValueError("invalid competence checkpoint collection")
+        restored_library = CompetenceLibrary()
+        for item in raw_competences:
+            if not isinstance(item, Mapping):
+                raise ValueError("invalid competence checkpoint item")
+            competence_id = item.get("competence_id")
+            controller_id = item.get("controller_id")
+            if not isinstance(competence_id, str) or not isinstance(
+                controller_id, str
+            ):
+                raise ValueError("invalid competence checkpoint identifiers")
+            restored_library.add(
+                MotorCompetence(
+                    competence_id=competence_id,
+                    controller_id=controller_id,
+                    effect_id=(
+                        str(item["effect_id"])
+                        if item.get("effect_id") is not None
+                        else None
+                    ),
+                    evidence=CompetenceEvidence(
+                        controller_seed_ref=str(
+                            item.get("controller_strategy_ref") or competence_id
+                        ),
+                        support=int(item.get("support", 0)),
+                        failures=int(item.get("failures", 0)),
+                        reproducibility=float(
+                            item.get("reproducibility", 0.0)
+                        ),
+                        controllability=float(
+                            item.get("controllability", 0.0)
+                        ),
+                        directional_consistency=float(
+                            item.get("directional_consistency", 0.0)
+                        ),
+                    ),
+                    controller_strategy_ref=(
+                        str(item["controller_strategy_ref"])
+                        if item.get("controller_strategy_ref") is not None
+                        else None
+                    ),
+                    parent_competence_ids=tuple(
+                        str(value)
+                        for value in item.get("parent_competence_ids", [])
+                    ),
+                )
+            )
+        self.competence_library = restored_library
+
+        if schema in {2, 3}:
+            raw_bindings = payload.get("execution_bindings")
+            binding_payload = (
+                deepcopy(raw_bindings)
+                if isinstance(raw_bindings, Mapping)
+                else None
+            )
+            if binding_payload is not None and fingerprint_migration is not None:
+                old_fp, new_fp = fingerprint_migration
+                raw_items = binding_payload.get("items")
+                if isinstance(raw_items, list):
+                    for item in raw_items:
+                        if (
+                            isinstance(item, dict)
+                            and item.get("surface_fingerprint") == old_fp
+                        ):
+                            item["surface_fingerprint"] = new_fp
+            self.execution_bindings = (
+                CompetenceExecutionBindingRegistry.restore(binding_payload)
+            )
+        else:
+            migrated = CompetenceExecutionBindingRegistry()
+            for legacy_item in raw_competences:
+                if not isinstance(legacy_item, Mapping):
+                    continue
+                competence_id = str(legacy_item.get("competence_id") or "")
+                surface = legacy_item.get("surface_binding")
+                if (
+                    isinstance(surface, str)
+                    and fingerprint_migration is not None
+                    and surface == fingerprint_migration[0]
+                ):
+                    surface = fingerprint_migration[1]
+                effect_id = legacy_item.get("effect_id")
+                matching = tuple(
+                    evidence
+                    for evidence in self.causal_evidence.evidence
+                    if evidence.competence_id == competence_id
+                    and evidence.effect_id == effect_id
+                )
+                refs = tuple(evidence.evidence_id for evidence in matching)
+                if (
+                    competence_id
+                    and isinstance(surface, str)
+                    and surface
+                    and isinstance(effect_id, str)
+                    and effect_id
+                    and refs
+                ):
+                    competence = restored_library.get(competence_id)
+                    migrated.bind_from_evidence(
+                        competence_id=competence_id,
+                        surface_fingerprint=surface,
+                        effect_id=effect_id,
+                        evidence_refs=refs,
+                        reliability=(
+                            competence.evidence.reproducibility
+                            if competence is not None
+                            else 0.0
+                        ),
+                        controllability=(
+                            competence.evidence.controllability
+                            if competence is not None
+                            else 0.0
+                        ),
+                        tick=max(
+                            (
+                                evidence.observation_tick
+                                for evidence in matching
+                            ),
+                            default=0,
+                        ),
+                    )
+            self.execution_bindings = migrated
+
+        raw_composition = payload.get("composition")
+        if isinstance(raw_composition, Mapping):
+            raw_engine = raw_composition.get("engine")
+            if isinstance(raw_engine, Mapping):
+                self.composition_engine = CompositionEngine.restore(raw_engine)
+            predecessor = raw_composition.get("predecessor_id")
+            self.composition_predecessor_id = (
+                str(predecessor) if predecessor is not None else None
+            )
+            children = raw_composition.get("active_children", [])
+            if isinstance(children, list):
+                self.active_composition_children = tuple(
+                    str(value) for value in children
+                )
+            self.active_composition_index = int(
+                raw_composition.get("active_index", 0)
+            )
+
+        known_competences = {
+            item.competence_id for item in self.competence_library.items
+        }
+        if (
+            self.active_commitment is None
+            or not self.active_commitment.active
+            or not self.active_composition_children
+            or any(
+                child not in known_competences
+                for child in self.active_composition_children
+            )
+            or self.active_composition_index < 0
+            or self.active_composition_index >= len(self.active_composition_children)
+        ):
+            self.active_composition_children = ()
+            self.active_composition_index = 0
+        if (
+            self.composition_predecessor_id is not None
+            and self.composition_predecessor_id not in known_competences
+        ):
+            self.composition_predecessor_id = None
 
     def checkpoint_v2(self) -> dict[str, object]:
         if self.surface is None:
