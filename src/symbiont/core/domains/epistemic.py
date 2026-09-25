@@ -3,24 +3,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...host.acclimation import HostAcclimation
-from ...host.drift import DriftObservation
-from ...host.lifecycle import LifecycleSnapshot
 from ...host.readings import ReadingProvider
 from ...host.second_look import SecondLookSession
 from ...host.readings import HostSampler
-from ..cognition.attention import AttentionAllocation
 from ..cognition.evidence import DissentRecord, EvidenceRevisionLedger
 from ..cognition.host_self_model import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
 from ..foundation.narrative import NarrativeEntry, narrate_host
 from .context import TickContext
+from .perception import PerceptionStepResult
 
 
 @dataclass(frozen=True, slots=True)
 class EpistemicServices:
     self_model: SelfModel
     evidence_ledger: EvidenceRevisionLedger
-    acclimation: HostAcclimation
+    acclimation: object
     reading_providers: tuple[ReadingProvider, ...]
 
 
@@ -42,11 +39,7 @@ class EpistemicDomain:
         *,
         services: EpistemicServices,
         context: TickContext,
-        snapshot: LifecycleSnapshot,
-        drift_observations: dict[str, DriftObservation],
-        capability_by_percept_name: dict[str, str],
-        selected_ids: set[str],
-        allocations: tuple[AttentionAllocation, ...],
+        perception: PerceptionStepResult,
         investigate_ticks: int,
     ) -> EpistemicStepResult:
         investigated_capability: str | None = None
@@ -57,38 +50,48 @@ class EpistemicDomain:
 
         if investigate_ticks > 0:
             investigation_candidates: list[str] = []
-            for percept_name, observation in drift_observations.items():
+            for (
+                percept_name,
+                observation,
+            ) in perception.drift_observations.items():
                 if observation.kind.value == "regime_shift":
-                    capability_id = capability_by_percept_name.get(
-                        percept_name
+                    capability_id = (
+                        perception.capability_by_percept_name.get(
+                            percept_name
+                        )
                     )
                     if (
                         capability_id
-                        and capability_id in selected_ids
-                        and snapshot.manifest.supports(capability_id)
+                        and capability_id in perception.selected_ids
+                        and perception.snapshot.manifest.supports(
+                            capability_id
+                        )
                     ):
                         investigation_candidates.append(capability_id)
-            for allocation in allocations:
+            for allocation in perception.allocations:
                 if allocation.name not in investigation_candidates:
                     investigation_candidates.append(allocation.name)
 
             for candidate in investigation_candidates:
                 if (
-                    candidate not in selected_ids
-                    or not snapshot.manifest.supports(candidate)
+                    candidate not in perception.selected_ids
+                    or not perception.snapshot.manifest.supports(candidate)
                 ):
                     continue
                 if (
                     services.self_model.is_established(candidate)
                     and services.self_model.health(
                         candidate,
-                        current_tick=max(0, context.symbiont_tick - 1),
+                        current_tick=max(
+                            0,
+                            context.symbiont_tick - 1,
+                        ),
                     )
                     < LOW_HEALTH_INVESTIGATION_THRESHOLD
                 ):
                     continue
                 session = SecondLookSession(
-                    manifest=snapshot.manifest,
+                    manifest=perception.snapshot.manifest,
                     capability_id=candidate,
                     max_ticks=investigate_ticks,
                     sampler=HostSampler(services.reading_providers),
@@ -100,7 +103,10 @@ class EpistemicDomain:
                 for outcome in result.outcomes:
                     services.self_model.observe(
                         outcome=outcome,
-                        tick=max(0, context.symbiont_tick - 1),
+                        tick=max(
+                            0,
+                            context.symbiont_tick - 1,
+                        ),
                     )
                 revision = services.evidence_ledger.revise(
                     acclimation=services.acclimation,
@@ -114,7 +120,7 @@ class EpistemicDomain:
 
         narrative = narrate_host(
             services.acclimation,
-            allocations=allocations,
+            allocations=perception.allocations,
             evidence_counts=evidence_counts,
             dissent_by_capability=dissent_by_capability,
         )
