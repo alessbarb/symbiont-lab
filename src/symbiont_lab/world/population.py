@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from symbiont.core.physiology import VitalState
-
+from symbiont.core.embodiment.physiology import VitalState
 from symbiont_world.contracts import ReceivedEmission, WorldObservation
 from symbiont_world.events import EventJournal, WorldEvent
 from symbiont_world.genesis import GroundTruth, WorldEnvironment

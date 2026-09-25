@@ -6,9 +6,10 @@ from dataclasses import asdict, dataclass
 from typing import Iterable
 
 from symbiont.core.homeostasis import HomeostaticController
-from symbiont.core.metabolism import MetabolicLedger
-from symbiont.core.physiology import LivingBodyState, PhysiologyController, VitalState
 from symbiont.core.runtime import OrganismRuntime
+
+from symbiont.core.embodiment.metabolism import MetabolicLedger
+from symbiont.core.embodiment.physiology import LivingBodyState, PhysiologyController, VitalState
 
 
 @dataclass(frozen=True, slots=True)

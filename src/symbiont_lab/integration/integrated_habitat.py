@@ -15,13 +15,12 @@ from typing import Any
 
 from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
-from symbiont.core.metabolism import MetabolicLedger
-from symbiont.core.physiology import PhysiologyController
 
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.embodiment.physiology import LivingBodyState
+from symbiont.core.embodiment.metabolism import MetabolicLedger
+from symbiont.core.embodiment.physiology import LivingBodyState, PhysiologyController
 from symbiont.core.social import SocialHabitat
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -208,7 +207,7 @@ class IntegratedHabitatRuntime:
         )
 
     def _remove_dead(self) -> tuple[str, ...]:
-        from symbiont.core.physiology import VitalState
+        from symbiont.core.embodiment.physiology import VitalState
 
         dead = tuple(
             sorted(
@@ -250,7 +249,7 @@ class IntegratedHabitatRuntime:
         current = tuple(sorted(self.population.values(), key=lambda item: item.organism_id))
         self._reset_sequence_window()
         for runtime in current:
-            from symbiont.core.physiology import VitalState
+            from symbiont.core.embodiment.physiology import VitalState
 
             if runtime._physiology.state is not VitalState.DEAD:
                 runtime.tick()
@@ -259,7 +258,7 @@ class IntegratedHabitatRuntime:
         self._death_probe()
         current = tuple(sorted(self.population.values(), key=lambda item: item.organism_id))
         for runtime in current:
-            from symbiont.core.physiology import VitalState
+            from symbiont.core.embodiment.physiology import VitalState
 
             if runtime._physiology.state is VitalState.DEAD:
                 continue

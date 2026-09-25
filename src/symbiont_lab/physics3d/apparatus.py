@@ -10,12 +10,11 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
-from symbiont.core.physiology import LivingBodyState
-
 from symbiont import __version__ as symbiont_version
 from symbiont.actuation.surface import ActuatorConstitution, derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.physiology import LivingBodyState
 from symbiont.host.contracts import (
     AccessMode,
     Capability,

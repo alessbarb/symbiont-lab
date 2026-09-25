@@ -16,14 +16,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from symbiont.core.ecology import SharedHabitat
-from symbiont.core.metabolism import MetabolicLedger
-from symbiont.core.physiology import PhysiologyController, VitalState
 
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.actuation.types import Actuation
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.metabolism import MetabolicLedger
+from symbiont.core.embodiment.physiology import PhysiologyController, VitalState
 from symbiont.genetics.genome import Genome
 from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope
 from symbiont.host.discovery import HostDiscovery

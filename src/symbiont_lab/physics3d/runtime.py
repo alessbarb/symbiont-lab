@@ -17,9 +17,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping
 
-from symbiont.core.metabolism import MetabolicLedger
-from symbiont.core.physiology import LivingBodyState, VitalState
-
 from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
@@ -34,6 +31,8 @@ from symbiont.core.embodiment import (
     TimingContract,
     archive_episode_checkpoint,
 )
+from symbiont.core.embodiment.metabolism import MetabolicLedger
+from symbiont.core.embodiment.physiology import LivingBodyState, VitalState
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime

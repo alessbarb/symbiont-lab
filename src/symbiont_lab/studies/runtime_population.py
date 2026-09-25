@@ -5,12 +5,12 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from symbiont.core.birth_authority import HabitatBirthAuthority
-from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.runtime import OrganismRuntime
 
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.metabolism import MetabolicLedger
 
 
 @dataclass(frozen=True, slots=True)
