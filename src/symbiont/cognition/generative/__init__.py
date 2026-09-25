@@ -17,6 +17,7 @@ from .agenda import (
 )
 from .branch import BranchEngine
 from .budget import GenerativeBudget
+from .calibration import CalibrationBucket, PredictionCalibration
 from .counterfactual import CounterfactualEngine
 from .episode import new_episode
 from .epistemic import EpistemicBoundaryError, EpistemicFirewall
@@ -50,6 +51,8 @@ __all__ = [
     "AgendaSource",
     "CompetenceEffectGenerativeAdapter",
     "CounterfactualEngine",
+    "CalibrationBucket",
+    "PredictionCalibration",
     "EpistemicBoundaryError",
     "EpistemicFirewall",
     "EpistemicOrigin",
