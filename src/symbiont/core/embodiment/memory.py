@@ -248,6 +248,12 @@ class EmbodimentArchive:
         for entry in raw_memories:
             if not isinstance(entry, Mapping):
                 raise ValueError("invalid body-specific memory")
+            raw_candidates = entry.get("historical_motor_candidates", [])
+            raw_private_ids = entry.get("private_model_ids", [])
+            if not isinstance(raw_candidates, list):
+                raise ValueError("invalid historical motor candidates")
+            if not isinstance(raw_private_ids, list):
+                raise ValueError("invalid private model ids")
             obj._body_memories.append(
                 BodySpecificMemory(
                     body_id=str(entry["body_id"]),
@@ -266,7 +272,7 @@ class EmbodimentArchive:
                     ),
                     historical_motor_candidates=tuple(
                         deepcopy(dict(item))
-                        for item in entry.get("historical_motor_candidates", [])
+                        for item in raw_candidates
                         if isinstance(item, Mapping)
                     ),
                     motor_cognitive_surface=deepcopy(
@@ -274,7 +280,7 @@ class EmbodimentArchive:
                     ),
                     private_model_ids=tuple(
                         str(value)
-                        for value in entry.get("private_model_ids", [])
+                        for value in raw_private_ids
                     ),
                 )
             )
