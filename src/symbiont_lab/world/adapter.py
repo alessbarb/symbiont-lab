@@ -16,7 +16,8 @@ from typing import Any
 
 import random
 
-from symbiont.cognition.genome import Genome, GenomeCodec
+from symbiont.genetics.genome import Genome
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 from symbiont.cognition.birth import load_base_genome
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.actuation.surface import derive_actuator_constitution
