@@ -26,6 +26,12 @@ symbiont-telemetry-convert = "symbiont_lab.physics3d.telemetry_cli:convert_main"
 
 [tool.pytest.ini_options]
 norecursedirs = ["backups", ".claude"]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = [
+  "experiment_contract: mechanical contract for an experiment protocol or runner",
+  "slow: test intentionally exercises a longer or more expensive path",
+]
 
 [tool.setuptools.packages.find]
 where = ["src", "."]

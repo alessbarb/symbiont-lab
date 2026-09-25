@@ -31,4 +31,30 @@ def competence_candidates(
     )
 
 
-__all__ = ["competence_candidates"]
+def primitive_candidates(
+    primitives: Collection[object],
+    readouts: Mapping[str, float],
+    *,
+    max_candidates: int = _MAX_CANDIDATES,
+) -> tuple[ProspectiveCandidate, ...]:
+    """Return admitted learned primitives in deterministic identifier order.
+
+    Primitive objects deliberately use a small structural interface here.  The
+    agency layer only needs an identifier and the competence/admission flag;
+    it must not rank candidates by the readout value.
+    """
+    if isinstance(max_candidates, bool) or not isinstance(max_candidates, int):
+        raise ValueError("max_candidates must be an integer")
+    limit = min(max(0, max_candidates), _MAX_CANDIDATES)
+    eligible = sorted(
+        primitive.primitive_id
+        for primitive in primitives
+        if primitive.is_competence and primitive.primitive_id in readouts
+    )
+    return tuple(
+        ProspectiveCandidate(action_id=primitive_id, family="primitive")
+        for primitive_id in eligible[:limit]
+    )
+
+
+__all__ = ["competence_candidates", "primitive_candidates"]

@@ -218,7 +218,6 @@ _legacy_module_paths = {
     "individual": "orchestration.individual",
     "epistemic": "foundation.epistemic",
     "limits": "foundation.limits",
-    "regulation": "foundation.regulation",
     "fingerprint": "foundation.fingerprint",
     "weight_stability": "foundation.weight_stability",
     "cognition_bridge": "cognition.bridge",
