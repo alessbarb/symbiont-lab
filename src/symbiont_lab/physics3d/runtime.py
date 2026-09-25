@@ -672,6 +672,51 @@ class PyBulletEmbodimentRuntime:
             and not self._reembodied
             and physical_state is not None
         ):
+            raw_episode_contract = raw_episode.get("contract")
+            if not isinstance(raw_episode_contract, Mapping):
+                raise RuntimeError(
+                    "persisted embodiment episode is missing its contract"
+                )
+            raw_perceptual_surface = raw_episode_contract.get(
+                "perceptual_surface"
+            )
+            if not isinstance(raw_perceptual_surface, Mapping):
+                raise RuntimeError(
+                    "persisted embodiment contract is missing perceptual surface"
+                )
+            raw_perceptual_channels = raw_perceptual_surface.get("channels")
+            if (
+                not isinstance(raw_perceptual_channels, list)
+                or len(raw_perceptual_channels)
+                != len(
+                    self._core_embodiment_contract.perceptual_surface.channels
+                )
+            ):
+                raise RuntimeError(
+                    "persisted perceptual surface contradicts attached physical interface"
+                )
+            # Opaque ids/slots are deterministic by ordinal; availability is
+            # contractual and must also match before preserving episode identity.
+            expected_percepts = (
+                self._core_embodiment_contract.perceptual_surface.channels
+            )
+            for index, raw_channel in enumerate(raw_perceptual_channels):
+                if not isinstance(raw_channel, Mapping):
+                    raise RuntimeError(
+                        "invalid persisted perceptual channel"
+                    )
+                expected = expected_percepts[index]
+                if (
+                    str(raw_channel.get("slot_id") or "") != expected.slot_id
+                    or str(raw_channel.get("percept_id") or "")
+                    != expected.percept_id
+                    or bool(raw_channel.get("available", True))
+                    != expected.available
+                ):
+                    raise RuntimeError(
+                        "persisted perceptual channel contradicts attached physical interface"
+                    )
+
             self._embodiment_episode = EmbodimentEpisode.restore(
                 raw_episode,
                 contract=self._core_embodiment_contract,
