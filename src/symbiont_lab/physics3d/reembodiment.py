@@ -5,6 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from symbiont.actuation.surface import ActuatorSurface
 from symbiont.core.embodiment import (
     BodySpecificMemory,
     EmbodimentArchive,
@@ -474,6 +475,34 @@ def migrate_legacy_memory_store(
     return archive
 
 
+def _legacy_equivalent_contract_fingerprint(
+    fresh: Mapping[str, Any],
+    descriptor: PhysicsEmbodimentDescriptor,
+) -> str:
+    """Reconstruct the pre-v3 contract identity for one equivalent interface."""
+    legacy_surface = ActuatorSurface.from_count(
+        descriptor.effector_count,
+        fingerprint_material=(
+            f"{descriptor.body_kind}:"
+            f"{descriptor.receptor_count}:"
+            f"{descriptor.effector_count}"
+        ),
+    )
+    translated = deepcopy(dict(fresh))
+    actuation = translated.get("actuation")
+    if isinstance(actuation, dict):
+        constitution = actuation.get("constitution")
+        if isinstance(constitution, dict):
+            constitution["contract_fingerprint"] = (
+                legacy_surface.contract_fingerprint
+            )
+    return contract_fingerprint(
+        translated,
+        receptor_count=descriptor.receptor_count,
+        effector_count=descriptor.effector_count,
+    )
+
+
 def prepare_fresh_embodiment_checkpoint(
     previous: Mapping[str, Any],
     fresh: Mapping[str, Any],
@@ -591,6 +620,10 @@ def prepare_fresh_embodiment_checkpoint(
             effector_count=contract.effector_count,
         )
         new_fingerprint_schema = CONTRACT_FINGERPRINT_SCHEMA_VERSION
+    legacy_new_fingerprint = _legacy_equivalent_contract_fingerprint(
+        fresh,
+        contract,
+    )
     historical_bridge, historical_motor_surface = _detach_body_specific_cognition(previous)
     active_model_id = _active_private_model_id(previous)
     metrics = current.get("metrics") if isinstance(current.get("metrics"), Mapping) else {}
@@ -649,10 +682,18 @@ def prepare_fresh_embodiment_checkpoint(
         # One-way migration for pre-v2 checkpoints. Their historical store had
         # no physical Body identity, so migrated entries are contract-level
         # priors only and can never be mistaken for same-Body memory.
+        migrated_previous_contract = (
+            new_fingerprint
+            if (
+                canonical_contract_fingerprint is not None
+                and previous_fingerprint == legacy_new_fingerprint
+            )
+            else previous_fingerprint
+        )
         archive.remember_body(
             BodySpecificMemory(
                 body_id=f"legacy-body.{previous_fingerprint[:24]}",
-                contract_fingerprint=previous_fingerprint,
+                contract_fingerprint=migrated_previous_contract,
                 last_embodiment_id=f"legacy-embodiment.{epoch}",
                 body_schema_prior=(
                     deepcopy(dict(previous["body_schema"]))
@@ -676,7 +717,7 @@ def prepare_fresh_embodiment_checkpoint(
             previous.get("embodiment_memory")
             if isinstance(previous.get("embodiment_memory"), Mapping)
             else None,
-            new_fingerprint,
+            legacy_new_fingerprint,
         )
         if isinstance(legacy_known, Mapping):
             archive.remember_body(
