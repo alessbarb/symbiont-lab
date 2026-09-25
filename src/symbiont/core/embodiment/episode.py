@@ -224,10 +224,19 @@ class EmbodimentEpisode:
         if not isinstance(raw_contract, Mapping):
             raise ValueError("embodiment episode contract is missing")
         persisted_fp = raw_contract.get("contract_fingerprint")
+        contract_schema = int(raw_contract.get("schema_version") or 0)
+        contract_migrated = False
         if persisted_fp != contract.contract_fingerprint:
-            raise ValueError(
-                "embodiment episode contract does not match attached physical interface"
-            )
+            if contract_schema == 2:
+                # Embodiment v2 -> v3 changed only canonical interface identity
+                # representation. The adapter must separately prove exact
+                # channel equivalence before calling restore with the v3
+                # contract. Preserve episode identity and record the migration.
+                contract_migrated = True
+            else:
+                raise ValueError(
+                    "embodiment episode contract does not match attached physical interface"
+                )
         embodiment_id = str(payload.get("embodiment_id") or "")
         symbiont_id = str(payload.get("symbiont_id") or "")
         body_id = str(payload.get("body_id") or "")
@@ -297,6 +306,15 @@ class EmbodimentEpisode:
             if transition.tick < 0 or transition.tick > obj.embodiment_tick:
                 raise ValueError("embodiment contract transition tick is invalid")
             obj.contract_history.append(transition)
+        if contract_migrated:
+            obj.contract_history.append(
+                ContractTransition(
+                    tick=obj.embodiment_tick,
+                    previous_fingerprint=str(persisted_fp or ""),
+                    new_fingerprint=contract.contract_fingerprint,
+                    reason="contract_schema_v2_to_v3",
+                )
+            )
         if obj.state is EmbodimentState.CLOSED and obj.end_symbiont_tick is None:
             raise ValueError("closed embodiment is missing end tick")
         if obj.end_symbiont_tick is not None and obj.end_symbiont_tick > current_tick:
