@@ -12,6 +12,7 @@ export function cartographicGraph(
   edges,
   selectedNodeId = null,
   viewMode = 'full',
+  showPhysicalLayer = false,
 ) {
   void selectedNodeId;
 
@@ -25,7 +26,7 @@ export function cartographicGraph(
   }
 
   const visibleNodes = nodes
-    .filter(node => node.kind !== 'actuator')
+    .filter(node => showPhysicalLayer || node.kind !== 'actuator')
     .map(node => ({
       ...node,
       collapsedMotorDegree: collapsedMotorDegree.get(node.id) ?? 0,
@@ -34,6 +35,7 @@ export function cartographicGraph(
 
   const visibleEdges = edges.filter(edge => {
     if (!keep.has(edge.sourceId) || !keep.has(edge.targetId)) return false;
+    if (showPhysicalLayer) return true;
     return edge.kind !== 'motor_component' && edge.kind !== 'causal_effect';
   });
 
@@ -41,8 +43,8 @@ export function cartographicGraph(
     nodes: visibleNodes,
     edges: visibleEdges,
     hidden: {
-      actuators: nodes.filter(node => node.kind === 'actuator').length,
-      motorEdges: edges.filter(edge =>
+      actuators: showPhysicalLayer ? 0 : nodes.filter(node => node.kind === 'actuator').length,
+      motorEdges: showPhysicalLayer ? 0 : edges.filter(edge =>
         edge.kind === 'causal_effect' || edge.kind === 'motor_component'
       ).length,
     },
