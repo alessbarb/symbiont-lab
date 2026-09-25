@@ -32,7 +32,7 @@ def run_replay(telemetry_file: Path) -> int:
         frame_queue=None,
         command_queue=None,
         replay_records=records,
-        replay_file=path,
+        replay_file=str(path),
     )
     return 0
 

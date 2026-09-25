@@ -539,7 +539,7 @@ class ArticulatedPhysics:
             self.body_id, physicsClientId=self.client_id
         )
         states = cast(
-            Sequence[Sequence[object]],
+            Sequence[Sequence[float]],
             self.p.getJointStates(
                 self.body_id,
                 self.motor_joint_indices,
