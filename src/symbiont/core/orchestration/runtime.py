@@ -97,6 +97,7 @@ from ...actuation.constitution import ActuatorConstitution
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
 from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.types import Actuation, MotorIntent
+from ...actuation.system import ActuatorSystem
 from ...actuation.action import MotorCommand
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.competence import CompetenceLibrary, MotorCompetence
@@ -283,11 +284,9 @@ class OrganismRuntime:
         actuation_enabled: bool = False,
         actuator_constitution: ActuatorConstitution | None = None,
         actuator_evidence: ActuatorEvidenceModel | None = None,
-        actuator_proposer: object | None = None,
-        motor_intent_selector: object | None = None,
-        actuator_system: object | None = None,
+        motor_selection_threshold: float = 0.1,
+        actuator_system: ActuatorSystem | None = None,
         competence_development: CompetenceDevelopmentEngine | None = None,
-        sensorimotor_learner: object | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -669,33 +668,13 @@ class OrganismRuntime:
                     )
                     for slot in actuator_constitution.slots
                 }
-        selection_threshold = float(
-            getattr(motor_intent_selector, "selection_threshold", 0.1)
-        )
-        if competence_development is not None and sensorimotor_learner is not None:
-            raise ValueError(
-                "pass competence_development or legacy sensorimotor_learner, not both"
-            )
-        if sensorimotor_learner is not None:
-            if (
-                actuator_constitution is None
-                or not hasattr(sensorimotor_learner, "checkpoint")
-            ):
-                raise ValueError("invalid legacy sensorimotor learner migration")
-            competence_development = CompetenceDevelopmentEngine.restore(
-                sensorimotor_learner.checkpoint(),
-                actuator_ids=actuator_constitution.actuator_ids,
-                organism_id=self._organism_id,
-                embodiment_fingerprint=actuator_constitution.contract_fingerprint,
-            )
-        if actuator_evidence is not None and actuator_proposer is not None:
-            raise ValueError(
-                "pass actuator_evidence or legacy actuator_proposer, not both"
-            )
-        if actuator_evidence is None and actuator_proposer is not None:
-            if not isinstance(actuator_proposer, ActuatorEvidenceModel):
-                raise ValueError("invalid legacy actuator proposer migration")
-            actuator_evidence = actuator_proposer
+        if (
+            isinstance(motor_selection_threshold, bool)
+            or not isinstance(motor_selection_threshold, (int, float))
+            or not 0.0 <= float(motor_selection_threshold) <= 1.0
+        ):
+            raise ValueError("motor_selection_threshold must be within [0, 1]")
+        selection_threshold = float(motor_selection_threshold)
         self._action_domain = ActionDomain(
             organism_id=self._organism_id,
             enabled=self._actuation_enabled,
@@ -1900,7 +1879,7 @@ class OrganismRuntime:
                 interoception_enabled=self._interoception_enabled,
                 interoception_mode=self._interoception_mode,
                 actuation_enabled=self._actuation_enabled,
-                motor_intent_selector=None,
+                motor_selection_threshold=self._action_domain.selection_threshold,
             )
         except Exception:
             self._birth_authority.death(record.organism_id)
@@ -2790,7 +2769,7 @@ class OrganismRuntime:
         actuation_enabled = False
         actuator_constitution = None
         actuator_proposer = None
-        motor_intent_selector = None
+        motor_selection_threshold = 0.1
         sensorimotor_learner = None
         pending_motor_observation = ()
         pending_proprioception: dict[str, float] = {}
@@ -2926,11 +2905,7 @@ class OrganismRuntime:
                     or not 0.0 <= float(raw_selection_threshold) <= 1.0
                 ):
                     raise CheckpointError("invalid motor selection threshold")
-                motor_intent_selector = type(
-                    "_LegacySelectionThreshold",
-                    (),
-                    {"selection_threshold": float(raw_selection_threshold)},
-                )()
+                motor_selection_threshold = float(raw_selection_threshold)
                 if raw_sensorimotor is not None:
                     if not isinstance(raw_sensorimotor, dict):
                         raise CheckpointError("invalid canonical sensorimotor state")
@@ -3103,11 +3078,9 @@ class OrganismRuntime:
         constructor_kwargs.pop("actuation_enabled", None)
         constructor_kwargs.pop("actuator_constitution", None)
         constructor_kwargs.pop("actuator_evidence", None)
-        constructor_kwargs.pop("actuator_proposer", None)
-        constructor_kwargs.pop("motor_intent_selector", None)
+        constructor_kwargs.pop("motor_selection_threshold", None)
         constructor_kwargs.pop("actuator_system", None)
         constructor_kwargs.pop("competence_development", None)
-        constructor_kwargs.pop("sensorimotor_learner", None)
         effective = normalized.get("effective_config", {})
         for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses",
                      "interoception_enabled", "interoception_mode", "conflict_z", "min_samples"):
@@ -3163,7 +3136,7 @@ class OrganismRuntime:
             actuation_enabled=actuation_enabled,
             actuator_constitution=actuator_constitution,
             actuator_evidence=actuator_proposer,
-            motor_intent_selector=motor_intent_selector,
+            motor_selection_threshold=motor_selection_threshold,
             competence_development=sensorimotor_learner,
         )
         runtime._pending_motor_observation = pending_motor_observation
