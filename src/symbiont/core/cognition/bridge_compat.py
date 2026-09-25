@@ -131,6 +131,30 @@ class CognitiveBridgeCompatibility:
         self._lifecycle.next_concept_index = value
 
     @property
+    def _node_born_tick(self) -> dict[str, int]:
+        return self._representations.born_tick
+
+    @_node_born_tick.setter
+    def _node_born_tick(self, value: dict[str, int]) -> None:
+        self._representations.born_tick = value
+
+    @property
+    def _node_observation_count(self) -> dict[str, int]:
+        return self._representations.observation_count
+
+    @_node_observation_count.setter
+    def _node_observation_count(self, value: dict[str, int]) -> None:
+        self._representations.observation_count = value
+
+    @property
+    def _node_active_count(self) -> dict[str, int]:
+        return self._representations.active_count
+
+    @_node_active_count.setter
+    def _node_active_count(self, value: dict[str, int]) -> None:
+        self._representations.active_count = value
+
+    @property
     def _adaptive_node_budget(self) -> int:
         return self._budgets.node_budget
 
