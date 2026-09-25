@@ -195,8 +195,28 @@ def apply_legacy_heritable_payload(
         plasticity=plasticity,
     )
 
+class GenomeMigrationCodec(GenomeCodec):
+    """Read historical Genome payloads through the genetics migration boundary.
+
+    New v2 payloads are delegated directly to the canonical GenomeCodec.
+    Historical v1 payloads are converted to v2 before validation, so no v1
+    Genome object ever enters a live runtime.
+    """
+
+    def load(self, payload: Mapping[str, object]) -> Genome:
+        normalized: Mapping[str, object] = payload
+        if payload.get("schema_version") == 1:
+            normalized = migrate_v1_payload(payload)
+        return super().load(normalized)
+
+
 def migrate_v1_genome(payload: Mapping[str, object]) -> Genome:
-    return GenomeCodec().load(migrate_v1_payload(payload))
+    return GenomeMigrationCodec().load(payload)
 
 
-__all__ = ["apply_legacy_heritable_payload", "migrate_v1_genome", "migrate_v1_payload"]
+__all__ = [
+    "GenomeMigrationCodec",
+    "apply_legacy_heritable_payload",
+    "migrate_v1_genome",
+    "migrate_v1_payload",
+]
