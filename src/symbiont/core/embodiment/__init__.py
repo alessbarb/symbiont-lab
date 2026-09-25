@@ -23,10 +23,9 @@ from .dynamics import (
     SensorimotorDynamicsModel,
 )
 from .history import EmbodimentEpisodeSummary
-from .memory import BodySpecificMemory, EmbodimentArchive, archive_episode_checkpoint
+from .memory import BodySpecificMemory, EmbodimentArchive, EmbodimentPrior, archive_episode_checkpoint
 from .reachability import ReachabilityModel, ReachabilityRelation
 from .reembodiment import (
-    ReembodimentPrior,
     begin_reembodiment,
     replace_body,
     select_prior,
@@ -38,6 +37,7 @@ __all__ = [
     "ContractTransition",
     "EmbodimentAdaptation",
     "EmbodimentArchive",
+    "EmbodimentPrior",
     "EmbodimentContract",
     "EmbodimentEndReason",
     "EmbodimentEpisode",
@@ -51,7 +51,6 @@ __all__ = [
     "PredictionResidual",
     "ReachabilityModel",
     "ReachabilityRelation",
-    "ReembodimentPrior",
     "SensorimotorDynamicsModel",
     "TimingContract",
     "archive_episode_checkpoint",
