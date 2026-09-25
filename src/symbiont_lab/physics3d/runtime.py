@@ -1868,6 +1868,16 @@ class PyBulletEmbodimentRuntime:
                     self._core_embodiment_contract.contract_fingerprint
                 ),
                 "state": self._embodiment_episode.state.value,
+                "prior": {
+                    "relation": self._embodiment_episode.prior.relation,
+                    "authority": "hypothesis_only",
+                    "source_body_id": (
+                        self._embodiment_episode.prior.source_body_id
+                    ),
+                    "source_embodiment_id": (
+                        self._embodiment_episode.prior.source_embodiment_id
+                    ),
+                },
                 "adaptation": self._telemetry_value(
                     self._embodiment_episode.adaptation.snapshot()
                 ),
