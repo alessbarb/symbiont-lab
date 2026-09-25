@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from symbiont.cognition.genome import GenomeCodec
+from symbiont.genetics.migration import GenomeMigrationCodec
 from symbiont.cognition.limits import KernelLimits
 from symbiont_lab.evolution.mutation import mutate_soft_budget
 
@@ -34,9 +35,11 @@ _PAYLOAD = {
 
 
 def test_lowering_soft_node_budget_clamps_sense_node_budget() -> None:
-    genome = GenomeCodec().load(_PAYLOAD)
+    # Historical v1 fixtures enter the active Genome v2 contract only through
+    # the explicit migration boundary.
+    genome = GenomeMigrationCodec().load(_PAYLOAD)
     mutated = mutate_soft_budget(genome, field="soft_node_budget", delta=-48)
 
     assert mutated.development.soft_node_budget == 16
     assert mutated.development.sense_node_budget == 16
-    GenomeCodec().validate(mutated, KernelLimits(), running_version=(0, 55, 0))
+    GenomeCodec().validate(mutated, KernelLimits(), running_version=(0, 80, 16))

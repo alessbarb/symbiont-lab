@@ -11,7 +11,7 @@ from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
 
 def _base(*, reacclimation_ticks: int = 32):
     limits = KernelLimits(reacclimation_ticks=reacclimation_ticks)
-    genome, _ = load_base_cognition(kernel_limits=limits, running_version=(0, 59, 4))
+    genome, _ = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 16))
     return limits, genome
 
 
@@ -150,14 +150,14 @@ def test_worker3_deadlock_releases_orphans_and_excess_senses_without_fabricating
     )
     assert restored is not None
 
-    # Four consolidation transactions suffice with the hard cap of eight
-    # mutations: first 6 orphan latent nodes + 2 senses, then 8 senses each.
+    # Recovery releases the legacy deadlock graph without fabricating new
+    # senses or edges. New sensory structure must be earned from observations.
     for tick in (1088, 1120, 1152, 1184):
         restored.tick({}, tick=tick)
 
     senses = [node for node in restored.graph.nodes if node.kind is NodeKind.SENSE]
-    assert len(senses) == genome.development.sense_node_budget == 32
-    assert all(node.kind is NodeKind.SENSE for node in restored.graph.nodes)
+    assert senses == []
+    assert restored.graph.nodes == ()
     assert restored.graph.edges == ()
     assert restored.recovery_pending is False
     assert restored.topology_health is TopologyHealth.GERMINAL

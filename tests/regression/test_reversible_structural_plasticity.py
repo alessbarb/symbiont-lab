@@ -12,25 +12,28 @@ from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
 def _fast_germinal(
     *,
     sense_budget: int = 8,
-    retention_ticks: int = 16,
     lifetime_ticks: int = 8,
     minimum_support: int = 2,
     grow_threshold: float = 0.0,
 ) -> tuple[KernelLimits, object, CognitiveBridge]:
     limits = KernelLimits(reacclimation_ticks=1)
-    genome, graph = load_base_cognition(kernel_limits=limits, running_version=(0, 59, 4))
+    genome, graph = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 16))
     genome = replace(
         genome,
         development=replace(
             genome.development,
             consolidation_interval_ticks=2,
             sense_node_budget=sense_budget,
-            sense_retention_ticks=retention_ticks,
         ),
         structure=replace(
             genome.structure,
             minimum_support=minimum_support,
-            grow_threshold=grow_threshold,
+            growth_threshold=replace(
+                genome.structure.growth_threshold,
+                baseline=grow_threshold,
+                minimum=0.0,
+                maximum=1.0,
+            ),
             tentative_lifetime_ticks=lifetime_ticks,
         ),
     )
@@ -78,7 +81,6 @@ def test_germinal_graph_remains_viable_for_2000_ticks_across_checkpoint_restart(
 def test_sensory_turnover_reclaims_stale_disconnected_senses_and_admits_new_ones() -> None:
     _, _, bridge = _fast_germinal(
         sense_budget=4,
-        retention_ticks=3,
         lifetime_ticks=4,
         grow_threshold=1.0,  # normalized SENSE activation cannot reach 1.0
     )
@@ -91,7 +93,7 @@ def test_sensory_turnover_reclaims_stale_disconnected_senses_and_admits_new_ones
 
     # Admission is initially full. Once the old leases cross retention, the
     # maintenance pass removes them; the following tick can admit the new set.
-    for tick in range(5, 10):
+    for tick in range(5, 262):
         bridge.tick(new, tick=tick)
 
     sense_ids = {node.node_id for node in bridge.graph.nodes if node.kind is NodeKind.SENSE}
@@ -122,10 +124,9 @@ def _legacy_worker3_payload(*, limits: KernelLimits, genome) -> dict[str, object
 
 def test_exact_worker3_fixture_recovers_then_learns_a_new_connected_topology() -> None:
     limits = KernelLimits(reacclimation_ticks=1)
-    genome, _ = load_base_cognition(kernel_limits=limits, running_version=(0, 59, 4))
+    genome, _ = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 16))
     genome = replace(
         genome,
-        development=replace(genome.development, sense_retention_ticks=10_000),
         structure=replace(genome.structure, minimum_support=4),
     )
     bridge = CognitiveBridge.restore(
@@ -139,7 +140,7 @@ def test_exact_worker3_fixture_recovers_then_learns_a_new_connected_topology() -
     for tick in (1088, 1120, 1152, 1184):
         bridge.tick({}, tick=tick)
     assert bridge.topology_health is TopologyHealth.GERMINAL
-    assert len(bridge.graph.nodes) == genome.development.sense_node_budget
+    assert bridge.graph.nodes == ()
     assert bridge.graph.edges == ()
 
     # The recovery never guesses the lost worker-3 wiring. New structure is
@@ -160,13 +161,12 @@ def test_exact_worker3_fixture_recovers_then_learns_a_new_connected_topology() -
 def test_repeated_turnover_without_concepts_never_exhausts_sense_budget() -> None:
     _, _, bridge = _fast_germinal(
         sense_budget=6,
-        retention_ticks=4,
         lifetime_ticks=4,
         grow_threshold=1.0,
     )
 
     tick = 0
-    for generation in range(40):
+    for generation in range(50):
         names = {f"g{generation:02d}_sense_{index}": float(generation * 10 + index + 1) for index in range(6)}
         for _ in range(6):
             tick += 1

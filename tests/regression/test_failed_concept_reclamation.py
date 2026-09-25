@@ -10,14 +10,18 @@ from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
 
 def test_failed_concept_bundle_is_pruned_then_garbage_collected() -> None:
     limits = KernelLimits(reacclimation_ticks=1)
-    genome, graph = load_base_cognition(kernel_limits=limits, running_version=(0, 59, 4))
+    genome, graph = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 16))
     genome = replace(
         genome,
         development=replace(genome.development, consolidation_interval_ticks=2),
         structure=replace(
             genome.structure,
             minimum_support=2,
-            grow_threshold=0.0,
+            growth_threshold=replace(
+                genome.structure.growth_threshold,
+                baseline=0.0,
+                minimum=0.0,
+            ),
             tentative_lifetime_ticks=4,
         ),
     )

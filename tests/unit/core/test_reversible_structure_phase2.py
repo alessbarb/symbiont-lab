@@ -76,7 +76,7 @@ def test_generic_edge_candidate_pool_still_accepts_legal_sense_to_concept_pair()
 
 def test_edge_support_tracks_transmission_without_requiring_active_target() -> None:
     limits = KernelLimits()
-    genome, _ = load_base_cognition(kernel_limits=limits, running_version=(0, 59, 4))
+    genome, _ = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 16))
     edge = PlasticEdge(
         source_id="sense_a",
         target_id="concept_a",
@@ -109,14 +109,18 @@ def test_edge_support_tracks_transmission_without_requiring_active_target() -> N
 
 def test_first_germinal_bundle_survives_beyond_tentative_lifetime() -> None:
     limits = KernelLimits()
-    genome, graph = load_base_cognition(kernel_limits=limits, running_version=(0, 59, 4))
+    genome, graph = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 16))
     genome = replace(
         genome,
         development=replace(genome.development, consolidation_interval_ticks=2),
         structure=replace(
             genome.structure,
             minimum_support=2,
-            grow_threshold=0.0,
+            growth_threshold=replace(
+                genome.structure.growth_threshold,
+                baseline=0.0,
+                minimum=0.0,
+            ),
             tentative_lifetime_ticks=4,
         ),
     )

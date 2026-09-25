@@ -9,21 +9,24 @@ from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition_bridge import CognitiveBridge
 
 
-def _genome(*, interval: int = 1, lifetime: int = 2, sense_budget: int = 32, retention: int = 256):
+def _genome(*, interval: int = 1, lifetime: int = 2, sense_budget: int = 32):
     limits = KernelLimits()
-    genome, _ = load_base_cognition(kernel_limits=limits, running_version=(0, 59, 4))
+    genome, _ = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 16))
     genome = replace(
         genome,
         development=replace(
             genome.development,
             consolidation_interval_ticks=interval,
             sense_node_budget=sense_budget,
-            sense_retention_ticks=retention,
         ),
         structure=replace(
             genome.structure,
             minimum_support=2,
-            grow_threshold=0.0,
+            growth_threshold=replace(
+                genome.structure.growth_threshold,
+                baseline=0.0,
+                minimum=0.0,
+            ),
             tentative_lifetime_ticks=lifetime,
         ),
     )
@@ -38,7 +41,7 @@ def test_sense_budget_reserves_total_node_capacity_for_latent_cognition() -> Non
     bridge.tick({f"sense_{index}": float(index + 1) for index in range(12)}, tick=1)
 
     senses = [node for node in bridge.graph.nodes if node.kind is NodeKind.SENSE]
-    assert len(senses) == 4
+    assert len(senses) == 2
     assert len(bridge.graph.nodes) < genome.development.soft_node_budget
 
 
@@ -157,7 +160,7 @@ def test_orphan_concept_and_readout_are_collected_after_grace_period() -> None:
 
 
 def test_stale_disconnected_sense_is_evicted_but_connected_sense_is_preserved() -> None:
-    limits, genome = _genome(interval=1, lifetime=8, sense_budget=3, retention=2)
+    limits, genome = _genome(interval=1, lifetime=8, sense_budget=3)
     edge = PlasticEdge(
         source_id="sense_connected",
         target_id="concept_live",
@@ -184,6 +187,7 @@ def test_stale_disconnected_sense_is_evicted_but_connected_sense_is_preserved() 
 
     bridge.tick({}, tick=1)
     bridge.tick({}, tick=2)
+    bridge.tick({}, tick=258)
 
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "sense_connected" in node_ids
@@ -192,7 +196,7 @@ def test_stale_disconnected_sense_is_evicted_but_connected_sense_is_preserved() 
 
 
 def test_owner_authored_graph_does_not_enter_automatic_gc_or_eviction() -> None:
-    limits, genome = _genome(interval=1, lifetime=1, sense_budget=1, retention=1)
+    limits, genome = _genome(interval=1, lifetime=1, sense_budget=1)
     graph = CognitiveGraph(
         nodes=(
             PlasticNode("owner_sense_a", NodeKind.SENSE),
@@ -299,7 +303,7 @@ def test_developmental_node_budget_expands_when_supported_structure_is_blocked()
         genome,
         development=replace(
             genome.development,
-            soft_node_budget=3,
+            soft_node_budget=8,
             soft_edge_budget=8,
         ),
         structure=replace(genome.structure, minimum_support=2),
@@ -309,6 +313,7 @@ def test_developmental_node_budget_expands_when_supported_structure_is_blocked()
             PlasticNode("sense_alpha", NodeKind.SENSE),
             PlasticNode("sense_beta", NodeKind.SENSE),
             PlasticNode("readout_core", NodeKind.READOUT),
+            PlasticNode("latent_state", NodeKind.STATE),
         ),
         edges=(),
         kernel_limits=limits,
@@ -319,7 +324,7 @@ def test_developmental_node_budget_expands_when_supported_structure_is_blocked()
         kernel_limits=limits,
         develop_senses=True,
     )
-    assert bridge._soft_node_limit == 3
+    assert bridge._soft_node_limit == 4
 
     bridge.observe_retrospective_support(
         ("sense_alpha", "sense_beta"),
@@ -327,7 +332,7 @@ def test_developmental_node_budget_expands_when_supported_structure_is_blocked()
     )
     result = bridge.tick({}, tick=1)
 
-    assert result.node_budget > 3
+    assert result.node_budget > 4
     assert result.node_budget <= limits.max_nodes
     assert any(
         node.kind is NodeKind.CONCEPT
@@ -371,6 +376,6 @@ def test_legacy_checkpoint_without_adaptive_budgets_restores_birth_budget() -> N
     )
 
     assert restored is not None
-    assert restored._soft_node_limit == 48
-    assert restored._soft_edge_limit == 192
-    assert restored._sense_node_limit == 24
+    assert restored._soft_node_limit == 12
+    assert restored._soft_edge_limit == 48
+    assert restored._sense_node_limit == 6
