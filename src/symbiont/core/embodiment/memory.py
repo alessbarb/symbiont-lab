@@ -38,6 +38,116 @@ class BodySpecificMemory:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class EmbodimentPrior:
+    """Historical hypothesis package; never current execution authority."""
+
+    relation: str
+    source_body_id: str | None = None
+    source_embodiment_id: str | None = None
+    contract_fingerprint: str | None = None
+    body_schema_prior: dict[str, object] | None = None
+    dynamics_prior: dict[str, object] | None = None
+    execution_binding_priors: dict[str, object] | None = None
+    historical_motor_candidates: tuple[dict[str, object], ...] = ()
+    private_model_ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.relation not in {"novel", "same-contract", "same-body"}:
+            raise ValueError("invalid embodiment prior relation")
+
+    @classmethod
+    def novel(cls) -> "EmbodimentPrior":
+        return cls(relation="novel")
+
+    @classmethod
+    def from_memory(
+        cls,
+        relation: str,
+        memory: BodySpecificMemory,
+    ) -> "EmbodimentPrior":
+        return cls(
+            relation=relation,
+            source_body_id=memory.body_id,
+            source_embodiment_id=memory.last_embodiment_id,
+            contract_fingerprint=memory.contract_fingerprint,
+            body_schema_prior=deepcopy(memory.body_schema_prior),
+            dynamics_prior=deepcopy(memory.dynamics_prior),
+            execution_binding_priors=deepcopy(
+                memory.execution_binding_priors
+            ),
+            historical_motor_candidates=tuple(
+                deepcopy(item) for item in memory.historical_motor_candidates
+            ),
+            private_model_ids=tuple(memory.private_model_ids),
+        )
+
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "relation": self.relation,
+            "authority": "hypothesis_only",
+            "source_body_id": self.source_body_id,
+            "source_embodiment_id": self.source_embodiment_id,
+            "contract_fingerprint": self.contract_fingerprint,
+            "body_schema_prior": deepcopy(self.body_schema_prior),
+            "dynamics_prior": deepcopy(self.dynamics_prior),
+            "execution_binding_priors": deepcopy(
+                self.execution_binding_priors
+            ),
+            "historical_motor_candidates": [
+                deepcopy(item) for item in self.historical_motor_candidates
+            ],
+            "private_model_ids": list(self.private_model_ids),
+        }
+
+    @classmethod
+    def restore(
+        cls,
+        payload: Mapping[str, object] | None,
+    ) -> "EmbodimentPrior":
+        if payload is None:
+            return cls.novel()
+        if payload.get("authority") not in {None, "hypothesis_only"}:
+            raise ValueError("embodiment prior cannot carry authority")
+        candidates = payload.get("historical_motor_candidates", [])
+        if not isinstance(candidates, list):
+            raise ValueError("invalid embodiment historical candidates")
+        private_ids = payload.get("private_model_ids", [])
+        if not isinstance(private_ids, list):
+            raise ValueError("invalid embodiment prior model ids")
+        return cls(
+            relation=str(payload.get("relation") or "novel"),
+            source_body_id=(
+                str(payload["source_body_id"])
+                if payload.get("source_body_id") is not None
+                else None
+            ),
+            source_embodiment_id=(
+                str(payload["source_embodiment_id"])
+                if payload.get("source_embodiment_id") is not None
+                else None
+            ),
+            contract_fingerprint=(
+                str(payload["contract_fingerprint"])
+                if payload.get("contract_fingerprint") is not None
+                else None
+            ),
+            body_schema_prior=deepcopy(
+                payload.get("body_schema_prior")
+            ),
+            dynamics_prior=deepcopy(payload.get("dynamics_prior")),
+            execution_binding_priors=deepcopy(
+                payload.get("execution_binding_priors")
+            ),
+            historical_motor_candidates=tuple(
+                deepcopy(dict(item))
+                for item in candidates
+                if isinstance(item, Mapping)
+            ),
+            private_model_ids=tuple(str(value) for value in private_ids),
+        )
+
+
 class EmbodimentArchive:
     """Bounded history indexed independently by embodiment, body and contract."""
 
@@ -84,6 +194,23 @@ class EmbodimentArchive:
             for item in reversed(self._body_memories)
             if item.contract_fingerprint == contract_fingerprint
         )
+
+    def prior_for(
+        self,
+        *,
+        body_id: str,
+        contract_fingerprint: str,
+    ) -> EmbodimentPrior:
+        exact = self.for_body(body_id)
+        if exact is not None:
+            return EmbodimentPrior.from_memory("same-body", exact)
+        compatible = self.for_contract(contract_fingerprint)
+        if compatible:
+            return EmbodimentPrior.from_memory(
+                "same-contract",
+                compatible[0],
+            )
+        return EmbodimentPrior.novel()
 
     @property
     def summaries(self) -> tuple[EmbodimentEpisodeSummary, ...]:
@@ -339,5 +466,6 @@ def archive_episode_checkpoint(
 __all__ = [
     "BodySpecificMemory",
     "EmbodimentArchive",
+    "EmbodimentPrior",
     "archive_episode_checkpoint",
 ]
