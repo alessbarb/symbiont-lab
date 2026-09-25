@@ -15,6 +15,7 @@ import {
 import { BodyWorkspace } from './workspace.js';
 import { mountBodyCameraControls } from './camera-controls.js';
 import { BODY_PRESENTATION } from './presentation-config.js';
+import { createAnatomicalSegment, createTechnicalJointMarker } from './anatomical-visual.js';
 
 
 function el(tag, cls, styles = {}) {
@@ -334,7 +335,7 @@ export class BodyViewer {
     // Directional light with dynamic shadow target
     this.dirLight = new THREE.DirectionalLight(0xf2f7ff, 1.05);
     this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.set(512, 512);
+    this.dirLight.shadow.mapSize.set(1024, 1024);
     this.dirLight.shadow.camera.near = 0.5;
     this.dirLight.shadow.camera.far = 20;
     this.dirLight.shadow.camera.left = this.dirLight.shadow.camera.bottom = -3;
@@ -344,9 +345,13 @@ export class BodyViewer {
     const hemi = new THREE.HemisphereLight(0x9bc7e8, 0x465363, 0.78);
     this.scene.add(hemi);
 
-    const fill = new THREE.DirectionalLight(0x8db6d8, 0.38);
+    const fill = new THREE.DirectionalLight(0x8db6d8, 0.34);
     fill.position.set(-3, 2.5, -2);
     this.scene.add(fill);
+
+    const rim = new THREE.DirectionalLight(0xb8d8ef, 0.42);
+    rim.position.set(1.5, 2.4, -3.5);
+    this.scene.add(rim);
 
     const gridHelper = new THREE.GridHelper(100, 200, 0x35495b, 0x22313d);
     gridHelper.material.transparent = true;
@@ -451,21 +456,8 @@ export class BodyViewer {
       const linkNode = this.linkObjs[segName];
       if (!linkNode) continue;
 
-      const [w, d, h] = seg.wdh;
       const [tx, ty, tz] = pbPos(...seg.offset);
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const mat = new THREE.MeshStandardMaterial({
-        color: SEGMENT_COLORS[segName] ?? 0x60758a,
-        roughness: 0.62,
-        metalness: 0.06,
-        emissive: 0x000000,
-        emissiveIntensity: 0,
-      });
-
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.name = `${segName}_mesh`;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      const mesh = createAnatomicalSegment(segName, seg, model.bodyKind);
       mesh.position.set(tx, ty, tz);
       linkNode.add(mesh);
       this.segmentMeshes[segName] = mesh;
@@ -484,16 +476,8 @@ export class BodyViewer {
       this.targetJointAngles.set(jdef.name, 0);
       this.jointActivity.set(jdef.name, 0);
 
-      const markerGeo = new THREE.SphereGeometry(0.026, 10, 8);
-      const markerMat = new THREE.MeshBasicMaterial({
-        color: 0x50fa9a,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-      });
-      const marker = new THREE.Mesh(markerGeo, markerMat);
-      marker.name = `${jdef.name}_activity_marker`;
-      marker.visible = false;
+      const marker = createTechnicalJointMarker(jdef.name);
+      marker.visible = true;
       childNode.add(marker);
       this.jointMarkers[jdef.name] = marker;
     }
@@ -1321,9 +1305,10 @@ export class BodyViewer {
       const activity = this.jointActivity.get(name) ?? 0;
       const decayed = activity * 0.92;
       this.jointActivity.set(name, decayed);
-      marker.visible = decayed > 0.08;
-      marker.material.opacity = Math.min(0.9, 0.12 + decayed * 0.78);
-      marker.scale.setScalar(0.75 + decayed * 0.9);
+      marker.visible = true;
+      marker.material.opacity = Math.min(0.92, 0.16 + decayed * 0.72);
+      marker.material.color.setHex(decayed > 0.08 ? 0x50fa9a : 0x9fd9ff);
+      marker.scale.setScalar(0.82 + decayed * 0.72);
     }
     for (const [segmentName, jointNames] of Object.entries(this.bodyModel.segmentActivityJoints)) {
       const mesh = this.segmentMeshes[segmentName];
