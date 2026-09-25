@@ -1,12 +1,8 @@
 """Memory consolidation domain."""
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 
-from ...host.drift import DriftObservation
-from ..cognition.attention import AttentionAllocation
-from ..cognition.bridge import CognitiveBridgeResult
 from ..cognition.consolidation import (
     ConsolidationSignal,
     MemoryConsolidator,
@@ -15,7 +11,9 @@ from ..cognition.consolidation import (
     surprise_from_loss,
 )
 from ..cognition.host_self_model import SelfModel
+from .cognition import CognitionStepResult
 from .context import TickContext
+from .perception import PerceptionStepResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,39 +30,41 @@ class MemoryDomain:
         *,
         services: MemoryServices,
         context: TickContext,
-        cognition: CognitiveBridgeResult | None,
-        drift_observations: Mapping[str, DriftObservation],
-        percept_names: Mapping[str, str],
-        allocations: tuple[AttentionAllocation, ...],
-        availability_by_capability: Mapping[str, float],
+        perception: PerceptionStepResult,
+        cognition: CognitionStepResult,
         reacclimation_remaining: int,
     ) -> None:
         if reacclimation_remaining > 0:
             return
 
         attended_capability_ids = {
-            allocation.name for allocation in allocations
+            allocation.name for allocation in perception.allocations
         }
         capability_by_percept_name = {
             name: capability_id
-            for capability_id, name in percept_names.items()
+            for capability_id, name in perception.percept_names.items()
         }
         prediction_loss_by_node: dict[str, float] = {}
-        if cognition is not None:
-            for error in cognition.prediction_errors:
+        if cognition.cognition is not None:
+            for error in cognition.cognition.prediction_errors:
                 prediction_loss_by_node[error.target_id] = error.loss
 
-        for percept_name, observation in drift_observations.items():
+        for percept_name, observation in perception.drift_observations.items():
             capability_id = capability_by_percept_name.get(percept_name)
             novelty = novelty_from_drift_kind(observation.kind)
             surprise = surprise_from_loss(
                 prediction_loss_by_node.get(percept_name)
             )
             attention = (
-                1.0 if capability_id in attended_capability_ids else 0.0
+                1.0
+                if capability_id in attended_capability_ids
+                else 0.0
             )
             availability = (
-                availability_by_capability.get(capability_id, 1.0)
+                perception.availability_by_capability.get(
+                    capability_id,
+                    1.0,
+                )
                 if capability_id
                 else 1.0
             )
@@ -92,3 +92,14 @@ class MemoryDomain:
                 ),
                 tick=context.symbiont_tick,
             )
+
+    @staticmethod
+    def retained_units(
+        *,
+        drift_baseline_count: int,
+        cognitive_node_count: int,
+    ) -> float:
+        return (
+            max(0, int(drift_baseline_count)) * 0.001
+            + max(0, int(cognitive_node_count)) * 0.0005
+        )
