@@ -419,6 +419,53 @@ def _carry_sensorimotor_v2_knowledge(
     result["pending_proprioception"] = {}
     return result
 
+def migrate_legacy_memory_store(
+    archive: EmbodimentArchive,
+    store: Mapping[str, Any] | None,
+) -> EmbodimentArchive:
+    """One-way import of pre-v2 contract memory into the canonical archive."""
+    if not isinstance(store, Mapping) or int(store.get("schema_version") or 0) != 1:
+        return archive
+    contracts = store.get("contracts")
+    if not isinstance(contracts, list):
+        return archive
+    for index, entry in enumerate(contracts[-8:]):
+        if not isinstance(entry, Mapping):
+            continue
+        fingerprint = str(entry.get("contract_fingerprint") or "")
+        if not fingerprint:
+            continue
+        archive.remember_body(
+            BodySpecificMemory(
+                body_id=f"legacy-body.{fingerprint[:20]}.{index}",
+                contract_fingerprint=fingerprint,
+                last_embodiment_id=(
+                    f"legacy-embodiment.{int(entry.get('last_seen_epoch') or 0)}"
+                ),
+                body_schema_prior=(
+                    deepcopy(dict(entry["body_schema"]))
+                    if isinstance(entry.get("body_schema"), Mapping)
+                    else None
+                ),
+                historical_motor_candidates=tuple(
+                    deepcopy(dict(item))
+                    for item in entry.get("historical_primitives", [])
+                    if isinstance(item, Mapping)
+                ),
+                motor_cognitive_surface=(
+                    deepcopy(dict(entry["motor_cognitive_surface"]))
+                    if isinstance(entry.get("motor_cognitive_surface"), Mapping)
+                    else None
+                ),
+                private_model_ids=tuple(
+                    str(value)
+                    for value in entry.get("private_model_ids", [])
+                ),
+            )
+        )
+    return archive
+
+
 def prepare_fresh_embodiment_checkpoint(
     previous: Mapping[str, Any],
     fresh: Mapping[str, Any],
@@ -815,6 +862,7 @@ def update_lifecycle_for_checkpoint(
 __all__ = [
     "EmbodimentContract",
     "lifecycle_summary",
+    "migrate_legacy_memory_store",
     "migrate_temporal_domains",
     "prepare_fresh_embodiment_checkpoint",
     "update_lifecycle_for_checkpoint",
