@@ -2822,7 +2822,7 @@ class OrganismRuntime:
             competence_development=competence_development,
         )
         runtime._pending_motor_observation = pending_motor_observation
-        runtime._pending_proprioception = pending_proprioception
+        runtime._action_domain.pending_proprioception = pending_proprioception
         if isinstance(raw_actuation, dict):
             raw_action_domain = raw_actuation.get("action_domain")
             if isinstance(raw_action_domain, dict):
@@ -2833,8 +2833,8 @@ class OrganismRuntime:
                 raw_commitment = raw_actuation.get("action_commitment")
             if isinstance(raw_commitment, dict):
                 current_surface = (
-                    runtime._actuator_constitution.contract_fingerprint
-                    if runtime._actuator_constitution is not None
+                    runtime._action_domain.surface.contract_fingerprint
+                    if runtime._action_domain.surface is not None
                     else None
                 )
                 restored_commitment = ActionCommitment.restore(
