@@ -2901,7 +2901,8 @@ class OrganismRuntime:
                     raw_selection_threshold = raw_actuation.get(
                         "selection_threshold", 0.1
                     )
-                        raw_pending = raw_actuation.get(
+                    raw_sensorimotor = raw_actuation.get("sensorimotor")
+                    raw_pending = raw_actuation.get(
                         "pending_motor_observation"
                     )
                     raw_proprio = raw_actuation.get(
@@ -2930,7 +2931,6 @@ class OrganismRuntime:
                     (),
                     {"selection_threshold": float(raw_selection_threshold)},
                 )()
-                raw_sensorimotor = raw_actuation.get("sensorimotor")
                 if raw_sensorimotor is not None:
                     if not isinstance(raw_sensorimotor, dict):
                         raise CheckpointError("invalid canonical sensorimotor state")
