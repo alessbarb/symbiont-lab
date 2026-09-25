@@ -92,8 +92,7 @@ class DevelopmentDomain:
         )
         frozen = bool(
             cognitive_bridge is not None
-            and getattr(cognitive_bridge, "_safety_state", None) is not None
-            and cognitive_bridge._safety_state.frozen  # noqa: SLF001
+            and cognitive_bridge.safety_state.frozen
         )
         updated = expression_regulator.update(
             genome,
