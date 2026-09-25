@@ -147,11 +147,17 @@ def _embodiment_binding_nodes_and_edges(
         }
         nodes.append(AtlasNode(id=node_id, kind="embodiment_binding", metadata=metadata))
         if competence_id in known_competence_ids:
+            evidence: dict[str, Any] = {"source": "embodiment_execution_binding"}
+            if item.get("reliability") is not None:
+                evidence["confidence"] = item["reliability"]
+            if item.get("last_evidence_tick") is not None:
+                evidence["last_tick"] = item["last_evidence_tick"]
             edges.append(AtlasEdge(
                 id=f"edge.bound_to.{node_id}",
                 source_id=node_id,
                 target_id=competence_id,
                 kind="bound_to",
+                metadata={"evidence": evidence},
             ))
     return nodes, edges
 
@@ -171,11 +177,17 @@ def _competence_effect_edges(
         effect_id = item.get("effect_id")
         if competence_id is None or effect_id is None or str(effect_id) not in known_effect_ids:
             continue
+        evidence: dict[str, Any] = {"source": "sensorimotor_model"}
+        if item.get("support") is not None:
+            evidence["observations"] = item["support"]
+        if item.get("reproducibility") is not None:
+            evidence["confidence"] = item["reproducibility"]
         edges.append(AtlasEdge(
             id=f"edge.produces.{competence_id}.{effect_id}",
             source_id=str(competence_id),
             target_id=str(effect_id),
             kind="produces",
+            metadata={"evidence": evidence},
         ))
     return edges
 

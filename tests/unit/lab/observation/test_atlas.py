@@ -69,6 +69,14 @@ def test_build_cognitive_atlas_classifies_every_domain():
     # competence.8 has no resolved effect -> no fabricated produces edge
     assert ("competence.8", None) not in edge_kinds
 
+    edges_by_id = {(edge.source_id, edge.target_id): edge for edge in atlas.edges}
+    produces_evidence = edges_by_id[("competence.7", "effect.3")].metadata["evidence"]
+    assert produces_evidence["source"] == "sensorimotor_model"
+    assert produces_evidence["observations"] == 12
+    bound_evidence = edges_by_id[("binding.competence.7", "competence.7")].metadata["evidence"]
+    assert bound_evidence["source"] == "embodiment_execution_binding"
+    assert bound_evidence["last_tick"] == 76
+
 
 def test_build_cognitive_atlas_motor_capability_metric_is_known_vs_bound():
     atlas = build_cognitive_atlas(_snapshot())
