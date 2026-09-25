@@ -534,6 +534,7 @@ class PyBulletEmbodimentRuntime:
                 min_samples=1,
                 auto_promote_predictors=True,
                 actuation_enabled=True,
+                actuator_constitution=actuator_constitution,
                 sensorimotor_learner=SensorimotorLearner(
                     actuator_ids,
                     organism_id=subject_id,
