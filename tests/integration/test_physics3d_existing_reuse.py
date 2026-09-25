@@ -151,3 +151,57 @@ def test_existing_symbiont_resume_same_body_preserves_embodiment_identity(
     assert second["embodiment_lifecycle"]["history"] == first[
         "embodiment_lifecycle"
     ]["history"]
+
+
+
+def test_legacy_physical_checkpoint_adopts_episode_body_identity(
+    tmp_path: Path,
+) -> None:
+    symbiont_file = tmp_path / "organism-legacy-body-id.symbiont"
+    body_file = tmp_path / "body-legacy-id.json"
+    telemetry_first = tmp_path / "telemetry-legacy-id-first"
+    telemetry_second = tmp_path / "telemetry-legacy-id-second"
+
+    assert run(
+        headless=True,
+        ticks=1,
+        show_monitor=False,
+        enable_slm=False,
+        new_symbiont=True,
+        fresh_body=True,
+        symbiont_file=symbiont_file,
+        body_file=body_file,
+        telemetry_file=telemetry_first,
+    ) == 0
+    first = read_symbiont_bundle_runtime(symbiont_file)
+    canonical_body_id = str(first["embodiment_episode"]["body_id"])
+
+    legacy_body = load_body_state_file(body_file)
+    assert legacy_body.pop("body_id") == canonical_body_id
+    body_file.write_text(
+        __import__("json").dumps(
+            legacy_body,
+            sort_keys=True,
+            indent=2,
+            allow_nan=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert run(
+        headless=True,
+        ticks=1,
+        show_monitor=False,
+        enable_slm=False,
+        new_symbiont=False,
+        fresh_body=False,
+        symbiont_file=symbiont_file,
+        body_file=body_file,
+        telemetry_file=telemetry_second,
+    ) == 0
+
+    migrated_body = load_body_state_file(body_file)
+    second = read_symbiont_bundle_runtime(symbiont_file)
+    assert migrated_body["body_id"] == canonical_body_id
+    assert second["embodiment_episode"]["body_id"] == canonical_body_id
