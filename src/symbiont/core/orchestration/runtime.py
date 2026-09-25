@@ -690,14 +690,6 @@ class OrganismRuntime:
         self._action_domain.active_commitment = value
 
     @property
-    def _last_action_proposal(self):
-        return self._action_domain.last_proposal
-
-    @_last_action_proposal.setter
-    def _last_action_proposal(self, value):
-        self._action_domain.last_proposal = value
-
-    @property
     def _last_action_source(self):
         return self._action_domain.last_action_source
 
@@ -810,76 +802,12 @@ class OrganismRuntime:
         self._action_domain.agency_model = value
 
     @property
-    def _exploration_policy(self):
-        return self._action_domain.exploration_policy
-
-    @property
-    def _exploration_strength_memory(self):
-        return self._action_domain.exploration_strength_memory
-
-    @_exploration_strength_memory.setter
-    def _exploration_strength_memory(self, value):
-        self._action_domain.exploration_strength_memory = dict(value)
-
-    @property
-    def _active_exploration_preference(self):
-        return self._action_domain.active_exploration_preference
-
-    @_active_exploration_preference.setter
-    def _active_exploration_preference(self, value):
-        self._action_domain.active_exploration_preference = tuple(value)
-
-    @property
-    def _last_exploration_signals(self):
-        return self._action_domain.last_exploration_signals
-
-    @_last_exploration_signals.setter
-    def _last_exploration_signals(self, value):
-        self._action_domain.last_exploration_signals = dict(value)
-
-    @property
     def _composition_engine(self):
         return self._action_domain.composition_engine
 
     @_composition_engine.setter
     def _composition_engine(self, value):
         self._action_domain.composition_engine = value
-
-    @property
-    def _composition_predecessor_id(self):
-        return self._action_domain.composition_predecessor_id
-
-    @_composition_predecessor_id.setter
-    def _composition_predecessor_id(self, value):
-        self._action_domain.composition_predecessor_id = value
-
-    @property
-    def _active_composition_children(self):
-        return self._action_domain.active_composition_children
-
-    @_active_composition_children.setter
-    def _active_composition_children(self, value):
-        self._action_domain.active_composition_children = tuple(value)
-
-    @property
-    def _active_composition_index(self):
-        return self._action_domain.active_composition_index
-
-    @_active_composition_index.setter
-    def _active_composition_index(self, value):
-        self._action_domain.active_composition_index = int(value)
-
-    @property
-    def _effect_by_commitment(self):
-        return self._action_domain.effect_by_commitment
-
-    @property
-    def _pending_sensorimotor_transition(self):
-        return self._action_domain.pending_transition
-
-    @_pending_sensorimotor_transition.setter
-    def _pending_sensorimotor_transition(self, value):
-        self._action_domain.pending_transition = value
 
     @property
     def _last_sensorimotor_transition(self):
@@ -904,22 +832,6 @@ class OrganismRuntime:
     @_pending_proprioception.setter
     def _pending_proprioception(self, value):
         self._action_domain.pending_proprioception = dict(value)
-
-    @property
-    def _pending_reactive_credit(self):
-        return self._action_domain.pending_reactive_credit
-
-    @_pending_reactive_credit.setter
-    def _pending_reactive_credit(self, value):
-        self._action_domain.pending_reactive_credit = value
-
-    @property
-    def _last_reactive_state(self):
-        return self._action_domain.last_reactive_state
-
-    @_last_reactive_state.setter
-    def _last_reactive_state(self, value):
-        self._action_domain.last_reactive_state = value
 
     @property
     def _pending_homeostatic_action_credit(self):
