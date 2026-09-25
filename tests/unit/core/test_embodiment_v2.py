@@ -317,3 +317,57 @@ def test_episode_contract_mismatch_fails_closed_without_verified_migration() -> 
             execution_bindings=CompetenceExecutionBindingRegistry(),
             current_tick=0,
         )
+
+
+
+def test_contract_identity_depends_on_interface_not_body_name() -> None:
+    percepts_a = PerceptualSurface.from_count(4, fingerprint_material="count:4")
+    percepts_b = PerceptualSurface.from_count(4, fingerprint_material="count:4")
+    actuators_a = ActuatorSurface.from_count(4, fingerprint_material="count:4")
+    actuators_b = ActuatorSurface.from_count(4, fingerprint_material="count:4")
+    groups = (
+        (actuators_a.actuator_ids[0], actuators_a.actuator_ids[1]),
+        (actuators_a.actuator_ids[2], actuators_a.actuator_ids[3]),
+    )
+
+    humanoid_named_elsewhere = EmbodimentContract(
+        perceptual_surface=percepts_a,
+        actuator_surface=actuators_a,
+        timing=TimingContract(tick_hz=24.0),
+        exclusive_actuator_groups=groups,
+    )
+    crawler_named_elsewhere = EmbodimentContract(
+        perceptual_surface=percepts_b,
+        actuator_surface=actuators_b,
+        timing=TimingContract(tick_hz=24.0),
+        exclusive_actuator_groups=groups,
+    )
+
+    assert (
+        humanoid_named_elsewhere.contract_fingerprint
+        == crawler_named_elsewhere.contract_fingerprint
+    )
+    assert humanoid_named_elsewhere.checkpoint()["schema_version"] == 3
+
+
+def test_contract_identity_changes_when_legal_motor_constraints_change() -> None:
+    percepts = PerceptualSurface.from_count(4)
+    actuators = ActuatorSurface.from_count(4)
+    first = EmbodimentContract(
+        perceptual_surface=percepts,
+        actuator_surface=actuators,
+        exclusive_actuator_groups=(
+            (actuators.actuator_ids[0], actuators.actuator_ids[1]),
+            (actuators.actuator_ids[2], actuators.actuator_ids[3]),
+        ),
+    )
+    second = EmbodimentContract(
+        perceptual_surface=percepts,
+        actuator_surface=actuators,
+        exclusive_actuator_groups=(
+            (actuators.actuator_ids[0], actuators.actuator_ids[2]),
+            (actuators.actuator_ids[1], actuators.actuator_ids[3]),
+        ),
+    )
+
+    assert first.contract_fingerprint != second.contract_fingerprint
