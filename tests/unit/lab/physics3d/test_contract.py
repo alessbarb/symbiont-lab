@@ -72,7 +72,9 @@ def test_v3_body_is_generated_as_hard_limited_urdf():
         assert spec.upper - mechanical_upper <= MECHANICAL_LIMIT_GUARD + 1e-12
         assert float(limit.attrib["effort"]) == pytest.approx(spec.max_motor_torque)
         assert float(limit.attrib["velocity"]) == pytest.approx(spec.max_velocity)
-        assert float(dynamics.attrib["damping"]) == pytest.approx(spec.passive_damping)
+        # Humanoid passive damping is body-owned and applied explicitly
+        # under TORQUE_CONTROL; URDF damping remains zero to avoid duplication.
+        assert float(dynamics.attrib["damping"]) == pytest.approx(0.0)
 
 
 def test_mechanical_guard_band_never_expands_anatomical_range():
@@ -846,6 +848,28 @@ def test_passive_postural_tone_is_body_owned_and_bounded():
         assert abs(displaced) <= (
             spec.max_motor_torque * PASSIVE_TONE_TORQUE_CAP_FRACTION + 1e-12
         )
+
+
+def test_passive_postural_tone_damps_joint_velocity() -> None:
+    from symbiont_lab.physics3d.humanoid import _passive_postural_tone
+
+    spec = next(item for item in JOINT_SPECS if item.name == "left_forearm_roll")
+    rest = 0.0
+
+    positive_velocity = _passive_postural_tone(
+        spec,
+        position=rest,
+        velocity=5.0,
+    )
+    negative_velocity = _passive_postural_tone(
+        spec,
+        position=rest,
+        velocity=-5.0,
+    )
+
+    assert positive_velocity < 0.0
+    assert negative_velocity > 0.0
+    assert abs(positive_velocity) <= spec.max_motor_torque * 0.45 + 1e-12
 
 
 def test_actuator_work_decomposition_keeps_absolute_effort_distinct_from_net():
