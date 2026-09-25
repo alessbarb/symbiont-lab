@@ -16,6 +16,10 @@ class SettlingResult:
     residual_joint_reported_speed_rad_s: float = 0.0
     peak_joint_index: int | None = None
     peak_joint_name: str | None = None
+    peak_joint_position_rad: float | None = None
+    peak_joint_reported_velocity_rad_s: float | None = None
+    peak_joint_applied_torque_nm: float | None = None
+    peak_joint_contact_count: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -51,6 +55,10 @@ def settle_passive_body(
     last_reported_joint = 0.0
     peak_joint_index: int | None = None
     peak_joint_name: str | None = None
+    peak_joint_position_rad: float | None = None
+    peak_joint_reported_velocity_rad_s: float | None = None
+    peak_joint_applied_torque_nm: float | None = None
+    peak_joint_contact_count = 0
 
     if hasattr(pybullet_module, "getPhysicsEngineParameters"):
         parameters = pybullet_module.getPhysicsEngineParameters(
@@ -104,12 +112,17 @@ def settle_passive_body(
                 key=reported_speeds.__getitem__,
             )
             peak_joint_index = int(body.motor_joint_indices[peak_ordinal])
+            peak_joint_position_rad = positions[peak_ordinal]
+            peak_joint_reported_velocity_rad_s = float(
+                states[peak_ordinal][1]
+            )
             try:
-                raw_name = pybullet_module.getJointInfo(
+                info = pybullet_module.getJointInfo(
                     body.body_id,
                     peak_joint_index,
                     physicsClientId=client_id,
-                )[1]
+                )
+                raw_name = info[1]
                 peak_joint_name = (
                     raw_name.decode("utf-8")
                     if isinstance(raw_name, bytes)
@@ -117,6 +130,39 @@ def settle_passive_body(
                 )
             except Exception:
                 peak_joint_name = None
+
+            try:
+                joint_state = states[peak_ordinal]
+                reaction = joint_state[2] if len(joint_state) > 2 else None
+                peak_joint_applied_torque_nm = (
+                    float(joint_state[3])
+                    if len(joint_state) > 3
+                    and isinstance(joint_state[3], (int, float))
+                    else None
+                )
+            except Exception:
+                peak_joint_applied_torque_nm = None
+
+            peak_joint_contact_count = 0
+            if hasattr(pybullet_module, "getContactPoints"):
+                try:
+                    contacts = pybullet_module.getContactPoints(
+                        bodyA=body.body_id,
+                        physicsClientId=client_id,
+                    )
+                    peak_joint_contact_count = sum(
+                        1
+                        for item in contacts
+                        if (
+                            len(item) > 4
+                            and (
+                                int(item[3]) == peak_joint_index
+                                or int(item[4]) == peak_joint_index
+                            )
+                        )
+                    )
+                except Exception:
+                    peak_joint_contact_count = 0
 
         if (
             last_linear <= linear_threshold
@@ -136,6 +182,10 @@ def settle_passive_body(
                     residual_joint_reported_speed_rad_s=last_reported_joint,
                     peak_joint_index=peak_joint_index,
                     peak_joint_name=peak_joint_name,
+                    peak_joint_position_rad=peak_joint_position_rad,
+                    peak_joint_reported_velocity_rad_s=peak_joint_reported_velocity_rad_s,
+                    peak_joint_applied_torque_nm=peak_joint_applied_torque_nm,
+                    peak_joint_contact_count=peak_joint_contact_count,
                 )
         else:
             stable = 0
@@ -151,6 +201,10 @@ def settle_passive_body(
         residual_joint_reported_speed_rad_s=last_reported_joint,
         peak_joint_index=peak_joint_index,
         peak_joint_name=peak_joint_name,
+        peak_joint_position_rad=peak_joint_position_rad,
+        peak_joint_reported_velocity_rad_s=peak_joint_reported_velocity_rad_s,
+        peak_joint_applied_torque_nm=peak_joint_applied_torque_nm,
+        peak_joint_contact_count=peak_joint_contact_count,
     )
 
 
