@@ -17,7 +17,6 @@ from .episode import (
     EmbodimentState,
 )
 from .adaptation import AdaptationSnapshot, EmbodimentAdaptation
-from .competence import EmbodiedCompetence, EmbodiedCompetenceLibrary
 from .dynamics import (
     EvidenceProvenance,
     PredictionResidual,
@@ -37,8 +36,6 @@ __all__ = [
     "AdaptationSnapshot",
     "BodySpecificMemory",
     "ContractTransition",
-    "EmbodiedCompetence",
-    "EmbodiedCompetenceLibrary",
     "EmbodimentAdaptation",
     "EmbodimentArchive",
     "EmbodimentContract",
