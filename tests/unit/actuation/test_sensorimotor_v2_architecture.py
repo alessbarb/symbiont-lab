@@ -25,7 +25,7 @@ from symbiont.actuation.evidence import (
     CausalEvidenceLedger,
     SensorimotorTransition,
 )
-from symbiont.actuation.model import AgencyModel, ControllabilityModel, SensorimotorModel
+from symbiont.actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from symbiont.actuation.surface import derive_actuator_constitution
 
 
@@ -203,7 +203,7 @@ def test_runtime_has_no_motor_mode_or_posthoc_origin_classifier():
 
 def test_forward_model_predicts_from_shared_causal_evidence():
     ledger = CausalEvidenceLedger()
-    model = SensorimotorModel()
+    model = CompetenceEffectModel()
     for index in range(3):
         transition = SensorimotorTransition(
             transition_id=f"transition.forward.{index}",
