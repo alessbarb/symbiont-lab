@@ -12,7 +12,12 @@ from .competence import CompetenceEvidence, CompetenceMaturity
 
 _HORIZONS = (1, 4, 16, 64)
 _PRIMITIVE_TICKS = 4
-_EXPLORATION_EPOCH_TICKS = 8
+# Evidence independence and spontaneous motor persistence are distinct clocks.
+# An evidence block must be short enough to reject overlapping samples, while a
+# motor bout must span several blocks so naturally recurring coordination can
+# actually be observed independently.
+_EVIDENCE_BLOCK_TICKS = 8
+_EXPLORATION_BOUT_TICKS = 24
 # Safety ceilings. Similar motor chunks are already folded into recurring
 # sequence families by _matched_primitive_sequence; these bounds should not
 # become the organism's effective motor-development ceiling.
@@ -708,7 +713,7 @@ class CompetenceDevelopmentEngine:
         return int.from_bytes(digest[:8], "big") / float((1 << 64) - 1)
 
     def _target_for(self, actuator_id: str, tick: int) -> float:
-        raw = self._hash_unit(actuator_id, tick // _EXPLORATION_EPOCH_TICKS)
+        raw = self._hash_unit(actuator_id, tick // _EXPLORATION_BOUT_TICKS)
         return 0.15 + 0.70 * raw
 
     def _exploration_cardinality(self, epoch: int) -> int:
@@ -738,7 +743,7 @@ class CompetenceDevelopmentEngine:
         *,
         preferred_actuator_ids: tuple[str, ...] = (),
     ) -> dict[str, float]:
-        epoch = tick // _EXPLORATION_EPOCH_TICKS
+        epoch = tick // _EXPLORATION_BOUT_TICKS
         valid_preference = tuple(
             actuator_id
             for actuator_id in preferred_actuator_ids
@@ -989,7 +994,7 @@ class CompetenceDevelopmentEngine:
             return None
         if evidence_blocks is None:
             evidence_blocks = frozenset(
-                tick // _EXPLORATION_EPOCH_TICKS
+                tick // _EVIDENCE_BLOCK_TICKS
                 for tick in range(end_tick - _PRIMITIVE_TICKS, end_tick)
             )
         previous_blocks = self._primitive_last_evidence_blocks.get(sequence)
@@ -1255,7 +1260,7 @@ class CompetenceDevelopmentEngine:
                 end_tick=frame.tick,
                 may_create=False,
                 evidence_blocks=frozenset(
-                    action_frame.tick // _EXPLORATION_EPOCH_TICKS
+                    action_frame.tick // _EVIDENCE_BLOCK_TICKS
                     for action_frame in action_frames
                 ),
                 source="primitive",
@@ -1288,7 +1293,7 @@ class CompetenceDevelopmentEngine:
             end_tick=frame.tick,
             may_create=may_create,
             evidence_blocks=frozenset(
-                action_frame.tick // _EXPLORATION_EPOCH_TICKS
+                action_frame.tick // _EVIDENCE_BLOCK_TICKS
                 for action_frame in action_frames
             ),
             source="natural",
