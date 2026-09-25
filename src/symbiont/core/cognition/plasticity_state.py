@@ -6,6 +6,7 @@ from ...cognition.checkpoint import quantize_weight
 from ...cognition.graph import CognitiveGraph
 from ...cognition.learning import apply_oja_update, update_eligibility
 from ...cognition.structure import advance_edge_age
+from ...cognition.types import WEIGHT_RANGE, EdgeKind
 from ..foundation.weight_stability import EdgeKey, WeightStabilityTracker
 
 _EDGE_USAGE_THRESHOLD = 1e-3
@@ -67,6 +68,40 @@ class PlasticityEngine:
         edge.weight *= decay
         if abs(edge.weight) < 1e-12:
             edge.weight = 0.0
+
+    def apply_homeostatic_value(
+        self,
+        graph: CognitiveGraph,
+        *,
+        concept_ids: Collection[str],
+        readout_id: str,
+        value: float,
+        tick: int,
+    ) -> bool:
+        """Modulate already materialized concept→action relations by value."""
+        concept_set = set(concept_ids)
+        changed = False
+        learning_rate = 0.20
+        for edge in graph.edges:
+            if (
+                edge.source_id not in concept_set
+                or edge.target_id != readout_id
+                or edge.kind is not EdgeKind.EXCITATORY
+            ):
+                continue
+            before = edge.weight
+            edge.weight = max(
+                WEIGHT_RANGE[0],
+                min(
+                    WEIGHT_RANGE[1],
+                    float(edge.weight) + learning_rate * value,
+                ),
+            )
+            edge.last_use_tick = max(edge.last_use_tick, int(tick))
+            if value > 0.0:
+                edge.support += 1
+            changed = changed or abs(edge.weight - before) > 1e-12
+        return changed
 
     def apply_learning(
         self,
