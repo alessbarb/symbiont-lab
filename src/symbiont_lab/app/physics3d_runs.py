@@ -186,6 +186,12 @@ class Physics3DRunStore:
             "symbiont_state": lifecycle.get("state", "dormant"),
             "embodiment_epoch": lifecycle.get("epoch", 1),
             "embodiment_history_count": lifecycle.get("history_count", 0),
+            "body_id": current.get("body_id") if isinstance(current, dict) else None,
+            "embodiment_id": (
+                current.get("embodiment_id")
+                if isinstance(current, dict)
+                else None
+            ),
             "body_kind": current.get("body_kind") if isinstance(current, dict) else None,
             "receptor_count": current.get("receptor_count") if isinstance(current, dict) else None,
             "effector_count": current.get("effector_count") if isinstance(current, dict) else None,
