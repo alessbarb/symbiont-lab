@@ -2230,16 +2230,7 @@ class OrganismRuntime:
         )
 
         # Evidence from tick t regulates the operating phenotype for t+1.
-        actuator_count = (
-            len(self._actuator_constitution.actuator_ids)
-            if self._actuator_constitution is not None
-            else 0
-        )
-        active_actuator_count = (
-            len(self._action_domain.actuator_evidence.active_repertoire)
-            if self._action_domain.actuator_evidence is not None
-            else 0
-        )
+        action_development = self._action_domain.development_projection()
         self._gene_expression_state = (
             self._development_domain.update_gene_expression(
                 genome=self._genome,
@@ -2249,8 +2240,10 @@ class OrganismRuntime:
                 cognition=cognition_result,
                 drift_observations=drift_observations,
                 metabolic_pressure=metabolism_snapshot.pressure.value,
-                actuator_count=actuator_count,
-                active_actuator_count=active_actuator_count,
+                actuator_count=action_development.actuator_count,
+                active_actuator_count=(
+                    action_development.active_actuator_count
+                ),
             )
         )
 
