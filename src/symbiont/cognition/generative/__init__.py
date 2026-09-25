@@ -20,9 +20,11 @@ from .budget import GenerativeBudget
 from .counterfactual import CounterfactualEngine
 from .episode import new_episode
 from .epistemic import EpistemicBoundaryError, EpistemicFirewall
+from .hypothesis import GenerativeHypothesis, HypothesisStatus
 from .model import GeneratedProposal, GenerativeContext, GenerativeModel
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, dumps, loads, restore
 from .recombination import ExperienceRecombiner, RecombinationFragment
+from .reconciliation import GenerativeReconciler
 from .registry import GenerativeModelRegistry
 from .replay import ReplayEngine, ReplayFragment
 from .rollout import RolloutEngine, RolloutResult
@@ -62,6 +64,8 @@ __all__ = [
     "GenerativeContext",
     "GenerativeModel",
     "GenerativeModelRegistry",
+    "GenerativeHypothesis",
+    "GenerativeReconciler",
     "RolloutEngine",
     "RolloutResult",
     "ReplayEngine",
@@ -73,6 +77,7 @@ __all__ = [
     "GenerativeTermination",
     "GenerativeTransition",
     "GenerativeWorkspace",
+    "HypothesisStatus",
     "ExperienceRecombiner",
     "RecombinationFragment",
     "PrivateSLMGenerativeAdapter",
