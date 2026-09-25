@@ -25,7 +25,7 @@ from .plasticity_state import PlasticityEngine
 from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
 from .sense_concept_lifecycle import ConceptLineage, SenseConceptLifecycle
 from .structural_candidates import StructuralCandidate, StructuralContention
-from .structural_planner import StructuralPlan
+from .structural_planner import AdaptiveStructuralBudgets, StructuralPlan
 from .bridge_checkpoint import (
     export_bridge_state,
     restore_bridge_state,
@@ -196,37 +196,13 @@ class CognitiveBridge:
             identity=genome.genome_id,
         )
         self._topology_revision = 0
-        node_ceiling = min(
-            self._kernel_limits.max_nodes,
-            self._genome.development.soft_node_budget,
-        )
-        edge_ceiling = min(
-            self._kernel_limits.max_edges,
-            self._genome.development.soft_edge_budget,
-        )
-        sense_ceiling = min(
-            node_ceiling,
-            self._genome.development.sense_node_budget,
-        )
-        # Genetic capacity is a developmental ceiling, not capacity granted at
-        # birth. Germinal cognition starts with a bounded fraction and earns
-        # further capacity only under structural demand.
-        self._adaptive_node_budget = max(
-            len(graph.nodes),
-            min(node_ceiling, max(4, math.ceil(node_ceiling * 0.25))),
-        )
-        self._adaptive_edge_budget = max(
-            len(graph.edges),
-            min(edge_ceiling, max(8, math.ceil(edge_ceiling * 0.25))),
-        )
-        sense_count = sum(1 for node in graph.nodes if node.kind is NodeKind.SENSE)
-        self._adaptive_sense_budget = max(
-            sense_count,
-            min(
-                self._adaptive_node_budget,
-                sense_ceiling,
-                max(2, math.ceil(sense_ceiling * 0.25)),
-            ),
+        self._budgets = AdaptiveStructuralBudgets.from_graph(
+            graph,
+            kernel_limits=kernel_limits,
+            soft_node_budget=genome.development.soft_node_budget,
+            soft_edge_budget=genome.development.soft_edge_budget,
+            sense_node_budget=genome.development.sense_node_budget,
+            sensitivity=genome.development.capacity_growth_sensitivity,
         )
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._recovery_pending = False
@@ -1029,16 +1005,40 @@ class CognitiveBridge:
 
         return changed
     @property
+    def _adaptive_node_budget(self) -> int:
+        return self._budgets.node_budget
+
+    @_adaptive_node_budget.setter
+    def _adaptive_node_budget(self, value: int) -> None:
+        self._budgets.node_budget = int(value)
+
+    @property
+    def _adaptive_edge_budget(self) -> int:
+        return self._budgets.edge_budget
+
+    @_adaptive_edge_budget.setter
+    def _adaptive_edge_budget(self, value: int) -> None:
+        self._budgets.edge_budget = int(value)
+
+    @property
+    def _adaptive_sense_budget(self) -> int:
+        return self._budgets.sense_budget
+
+    @_adaptive_sense_budget.setter
+    def _adaptive_sense_budget(self, value: int) -> None:
+        self._budgets.sense_budget = int(value)
+
+    @property
     def _soft_node_limit(self) -> int:
-        return self._adaptive_node_budget
+        return self._budgets.node_budget
 
     @property
     def _sense_node_limit(self) -> int:
-        return min(self._adaptive_sense_budget, self._adaptive_node_budget)
+        return self._budgets.sense_limit
 
     @property
     def _soft_edge_limit(self) -> int:
-        return self._adaptive_edge_budget
+        return self._budgets.edge_budget
 
     def _expand_resource_budgets(
         self,
@@ -1047,49 +1047,11 @@ class CognitiveBridge:
         need_edges: bool = False,
         need_senses: bool = False,
     ) -> bool:
-        """Develop capacity toward inherited ceilings under structural demand."""
-        sensitivity = max(
-            0.0,
-            min(1.0, self._genome.development.capacity_growth_sensitivity),
+        return self._budgets.expand(
+            need_nodes=need_nodes,
+            need_edges=need_edges,
+            need_senses=need_senses,
         )
-        if sensitivity <= 0.0:
-            return False
-
-        node_ceiling = min(
-            self._kernel_limits.max_nodes,
-            self._genome.development.soft_node_budget,
-        )
-        edge_ceiling = min(
-            self._kernel_limits.max_edges,
-            self._genome.development.soft_edge_budget,
-        )
-        sense_ceiling = min(
-            node_ceiling,
-            self._genome.development.sense_node_budget,
-        )
-
-        def grow(current: int, ceiling: int) -> int:
-            if current >= ceiling:
-                return current
-            remaining = ceiling - current
-            step = max(1, math.ceil(remaining * sensitivity * 0.25))
-            return min(ceiling, current + step)
-
-        changed = False
-        if need_nodes:
-            updated = grow(self._adaptive_node_budget, node_ceiling)
-            changed = changed or updated != self._adaptive_node_budget
-            self._adaptive_node_budget = updated
-        if need_edges:
-            updated = grow(self._adaptive_edge_budget, edge_ceiling)
-            changed = changed or updated != self._adaptive_edge_budget
-            self._adaptive_edge_budget = updated
-        if need_senses:
-            effective_ceiling = min(sense_ceiling, self._adaptive_node_budget)
-            updated = grow(self._adaptive_sense_budget, effective_ceiling)
-            changed = changed or updated != self._adaptive_sense_budget
-            self._adaptive_sense_budget = updated
-        return changed
 
     def _admit_senses(self, sense_values: Mapping[str, float], *, tick: int) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
