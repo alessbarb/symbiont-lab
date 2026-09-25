@@ -900,6 +900,28 @@ class PyBulletEmbodimentRuntime:
             ),
         )
 
+        transition = getattr(result, "sensorimotor_transition", None)
+        if (
+            transition is not None
+            and transition.competence_id is not None
+            and transition.observed_effect_id is not None
+        ):
+            control = self.organism.controllability_model.estimate(
+                transition.observed_effect_id,
+                transition.competence_id,
+                transition.context_ref,
+            )
+            self._embodiment_episode.reachability.observe(
+                transition.observed_effect_id,
+                transition.competence_id,
+                tick=self.embodiment_tick,
+                success=bool(
+                    control is not None
+                    and control.confidence >= 0.20
+                    and control.reliability >= 0.50
+                ),
+            )
+
     def physics_connected(self) -> bool:
         if self.client_id < 0:
             return False
