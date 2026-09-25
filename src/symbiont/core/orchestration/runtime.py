@@ -115,7 +115,7 @@ from ...actuation.model import AgencyModel, CompetenceEffectModel, Controllabili
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.composition import CompositionEngine
 from ...actuation.state import SensorimotorV2Snapshot
-from ...actuation.sensorimotor import SensorimotorSnapshot
+from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from ..domains.action import ActionDomain, ActionServices
 
 
@@ -290,6 +290,7 @@ class OrganismRuntime:
         actuator_proposer: object | None = None,
         motor_intent_selector: object | None = None,
         actuator_system: object | None = None,
+        competence_development: CompetenceDevelopmentEngine | None = None,
         sensorimotor_learner: object | None = None,
     ) -> None:
         if attention_budget <= 0.0:
@@ -679,13 +680,29 @@ class OrganismRuntime:
         selection_threshold = float(
             getattr(motor_intent_selector, "selection_threshold", 0.1)
         )
+        if competence_development is not None and sensorimotor_learner is not None:
+            raise ValueError(
+                "pass competence_development or legacy sensorimotor_learner, not both"
+            )
+        if sensorimotor_learner is not None:
+            if (
+                actuator_constitution is None
+                or not hasattr(sensorimotor_learner, "checkpoint")
+            ):
+                raise ValueError("invalid legacy sensorimotor learner migration")
+            competence_development = CompetenceDevelopmentEngine.restore(
+                sensorimotor_learner.checkpoint(),
+                actuator_ids=actuator_constitution.actuator_ids,
+                organism_id=self._organism_id,
+                embodiment_fingerprint=actuator_constitution.contract_fingerprint,
+            )
         self._action_domain = ActionDomain(
             organism_id=self._organism_id,
             enabled=self._actuation_enabled,
             surface=actuator_constitution,
             selection_threshold=selection_threshold,
             legacy_proposer=actuator_proposer,
-            legacy_learner=sensorimotor_learner,
+            competence_development=competence_development,
             actuator_system=actuator_system,
         )
         self._pending_homeostatic_action_credit: list[
@@ -706,7 +723,8 @@ class OrganismRuntime:
 
     @property
     def _sensorimotor_learner(self):
-        return self._action_domain.legacy_learner
+        """Legacy private alias for the canonical competence engine."""
+        return self._action_domain.competence_development
 
     @property
     def _active_action_commitment(self):
@@ -1058,6 +1076,10 @@ class OrganismRuntime:
         if self._actuator_proposer is None:
             return ()
         return self._actuator_proposer.active_repertoire
+
+    @property
+    def competence_development(self) -> CompetenceDevelopmentEngine | None:
+        return self._action_domain.competence_development
 
     @property
     def sensorimotor_snapshot(self) -> SensorimotorSnapshot | None:
@@ -3320,7 +3342,7 @@ class OrganismRuntime:
                                     ):
                                         item["embodiment_fingerprint"] = new_fp
                     try:
-                        sensorimotor_learner = SensorimotorLearner.restore(
+                        sensorimotor_learner = CompetenceDevelopmentEngine.restore(
                             raw_sensorimotor_restore,
                             actuator_ids=actuator_constitution.actuator_ids,
                             organism_id=str(normalized.get("organism_id") or ""),
@@ -3474,6 +3496,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("actuator_proposer", None)
         constructor_kwargs.pop("motor_intent_selector", None)
         constructor_kwargs.pop("actuator_system", None)
+        constructor_kwargs.pop("competence_development", None)
         constructor_kwargs.pop("sensorimotor_learner", None)
         effective = normalized.get("effective_config", {})
         for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses",
@@ -3531,7 +3554,7 @@ class OrganismRuntime:
             actuator_constitution=actuator_constitution,
             actuator_proposer=actuator_proposer,
             motor_intent_selector=motor_intent_selector,
-            sensorimotor_learner=sensorimotor_learner,
+            competence_development=sensorimotor_learner,
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception

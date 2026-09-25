@@ -351,8 +351,12 @@ class _Frame:
     execution_primitive_id: str | None
 
 
-class SensorimotorLearner:
-    """Learn body dynamics and reusable actions without anatomy semantics.
+class CompetenceDevelopmentEngine:
+    """Develop reusable motor competencies from organism-owned experience.
+
+    This engine owns candidate statistics, temporal controller seeds and
+    recurrence evidence.  It never authorizes physical action: ActionDomain
+    is the sole owner of commitments and MotorCommands.
 
     Development begins with deterministic organism-owned correlated motor
     exploration. Four consecutive actually-delivered motor vectors form a
@@ -1472,7 +1476,7 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         organism_id: str,
         embodiment_fingerprint: str | None = None,
-    ) -> "SensorimotorLearner":
+    ) -> "CompetenceDevelopmentEngine":
         # WARN(fail-closed): v9 changes both the physical motor-unit contract
         # and the statistics used to decide recurrence/controllability.  Older
         # learned evidence cannot be reinterpreted without rewriting causal
@@ -1863,7 +1867,18 @@ class SensorimotorLearner:
         )
 
 
+class SensorimotorLearner(CompetenceDevelopmentEngine):
+    """Legacy import/checkpoint migration surface.
+
+    Production runtime code must instantiate CompetenceDevelopmentEngine.
+    This subclass intentionally adds no authority or behavior; inherited
+    restore() materializes the historical schema for callers that have not yet
+    migrated their import.
+    """
+
+
 __all__ = [
+    "CompetenceDevelopmentEngine",
     "MotorPattern",
     "MotorPrimitive",
     "MotorSequence",

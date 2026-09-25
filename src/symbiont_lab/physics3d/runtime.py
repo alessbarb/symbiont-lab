@@ -19,7 +19,7 @@ from typing import Mapping, Any
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import LivingBodyState, VitalState
 from symbiont.cognition.limits import KernelLimits
-from symbiont.actuation.sensorimotor import SensorimotorLearner
+from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine
 from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -535,7 +535,7 @@ class PyBulletEmbodimentRuntime:
                 auto_promote_predictors=True,
                 actuation_enabled=True,
                 actuator_constitution=actuator_constitution,
-                sensorimotor_learner=SensorimotorLearner(
+                competence_development=CompetenceDevelopmentEngine(
                     actuator_ids,
                     organism_id=subject_id,
                     max_concurrent=None,

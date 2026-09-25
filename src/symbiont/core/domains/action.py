@@ -29,7 +29,7 @@ from ...actuation.evidence import (
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from ...actuation.proposer import ActuatorProposer
-from ...actuation.sensorimotor import SensorimotorLearner
+from ...actuation.sensorimotor import CompetenceDevelopmentEngine
 from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.surface import ActuatorSurface
 from ...actuation.system import ActuatorSystem
@@ -88,7 +88,7 @@ class ActionDomain:
         surface: ActuatorSurface | None,
         selection_threshold: float = 0.1,
         legacy_proposer: ActuatorProposer | None = None,
-        legacy_learner: SensorimotorLearner | None = None,
+        competence_development: CompetenceDevelopmentEngine | None = None,
         actuator_system: ActuatorSystem | None = None,
         embodiment_id: str | None = None,
     ) -> None:
@@ -107,8 +107,8 @@ class ActionDomain:
             ActuatorProposer(surface, organism_id=organism_id)
             if self.enabled and surface is not None else None
         )
-        self._legacy_learner = legacy_learner or (
-            SensorimotorLearner(
+        self._competence_development = competence_development or (
+            CompetenceDevelopmentEngine(
                 surface.actuator_ids,
                 organism_id=organism_id,
                 max_concurrent=None,
@@ -161,8 +161,8 @@ class ActionDomain:
         return self._legacy_proposer
 
     @property
-    def legacy_learner(self) -> SensorimotorLearner | None:
-        return self._legacy_learner
+    def competence_development(self) -> CompetenceDevelopmentEngine | None:
+        return self._competence_development
 
     @property
     def current_surface_fingerprint(self) -> str | None:
@@ -393,7 +393,7 @@ class ActionDomain:
         return tuple(flattened)
 
     def _activate_competence_controller(self, competence_id: str) -> bool:
-        if self._legacy_learner is None:
+        if self._competence_development is None:
             return False
         leaves = self._flatten_competence_controller(competence_id)
         if not leaves:
@@ -401,7 +401,7 @@ class ActionDomain:
         first_leaf = leaves[0]
         self.active_composition_children = leaves if len(leaves) > 1 else ()
         self.active_composition_index = 0
-        return self._legacy_learner.activate_primitive(first_leaf)
+        return self._competence_development.activate_primitive(first_leaf)
 
     def _materialize_composition(
         self,
@@ -489,8 +489,8 @@ class ActionDomain:
             commitment is None
             or not commitment.active
             or commitment.competence_id is None
-            or self._legacy_learner is None
-            or self._legacy_learner.active_primitive_id is not None
+            or self._competence_development is None
+            or self._competence_development.active_primitive_id is not None
         ):
             return
         if (
@@ -502,7 +502,7 @@ class ActionDomain:
             child_id = self.active_composition_children[
                 self.active_composition_index
             ]
-            if self._legacy_learner.activate_primitive(child_id):
+            if self._competence_development.activate_primitive(child_id):
                 return
             commitment.terminate(
                 tick=tick,
@@ -578,9 +578,9 @@ class ActionDomain:
         binding is fabricated: that remains unresolved until EffectSpace
         correspondence is learned.
         """
-        if self._legacy_learner is None or self.surface is None:
+        if self._competence_development is None or self.surface is None:
             return
-        for primitive in self._legacy_learner.primitives:
+        for primitive in self._competence_development.primitives:
             if not primitive.established:
                 continue
             existing = self.competence_library.get(primitive.primitive_id)
@@ -794,9 +794,9 @@ class ActionDomain:
         if (
             cognition is not None
             and services.cognitive_bridge is not None
-            and self._legacy_learner is not None
+            and self._competence_development is not None
         ):
-            for primitive_id in self._legacy_learner.last_natural_competence_ids:
+            for primitive_id in self._competence_development.last_natural_competence_ids:
                 services.cognitive_bridge.observe_primitive_execution(
                     primitive_id,
                     concept_ids=active_concepts,
@@ -811,7 +811,7 @@ class ActionDomain:
         if (
             not self.enabled
             or self._legacy_proposer is None
-            or self._legacy_learner is None
+            or self._competence_development is None
             or self.surface is None
         ):
             return
@@ -821,7 +821,7 @@ class ActionDomain:
         pending: list[tuple[str, float, dict[str, float] | None]] = []
         primitive_selected_now = False
 
-        if self._legacy_learner is None:
+        if self._competence_development is None:
             raise RuntimeError("actuation requires sensorimotor learner")
 
         # Advance an internal composed controller or close one completed
@@ -991,7 +991,7 @@ class ActionDomain:
                     status=CommitmentStatus.INTERRUPTED,
                     reason=decision.reason,
                 )
-                self._legacy_learner.interrupt_active_competence()
+                self._competence_development.interrupt_active_competence()
                 self.active_composition_children = ()
                 self.active_composition_index = 0
 
@@ -1018,9 +1018,9 @@ class ActionDomain:
             if selected.competence_id is not None:
                 if self._activate_competence_controller(selected.competence_id):
                     primitive_selected_now = True
-                    intents = self._legacy_learner.motor_intents(tick)
+                    intents = self._competence_development.motor_intents(tick)
                     self.last_executed_controller_seed_id = (
-                        self._legacy_learner.last_output_primitive_id
+                        self._competence_development.last_output_primitive_id
                     )
                 else:
                     self.active_commitment.terminate(
@@ -1030,7 +1030,7 @@ class ActionDomain:
                     )
                     intents = ()
             else:
-                intents = self._legacy_learner.motor_intents(
+                intents = self._competence_development.motor_intents(
                     tick,
                     exploration_preference=self.active_exploration_preference,
                 )
@@ -1042,13 +1042,13 @@ class ActionDomain:
             if self.last_proposal is not None:
                 source_value = self.last_proposal.source.value
             if self.active_commitment.competence_id is not None:
-                if self._legacy_learner.active_primitive_id is not None:
-                    intents = self._legacy_learner.motor_intents(tick)
+                if self._competence_development.active_primitive_id is not None:
+                    intents = self._competence_development.motor_intents(tick)
                     self.last_executed_controller_seed_id = (
-                        self._legacy_learner.last_output_primitive_id
+                        self._competence_development.last_output_primitive_id
                     )
             else:
-                intents = self._legacy_learner.motor_intents(
+                intents = self._competence_development.motor_intents(
                     tick,
                     exploration_preference=self.active_exploration_preference,
                 )
@@ -1064,8 +1064,8 @@ class ActionDomain:
                 )
             )
 
-        if self._legacy_learner is not None and intents:
-            intents = self._legacy_learner.constrain_intents(intents)
+        if self._competence_development is not None and intents:
+            intents = self._competence_development.constrain_intents(intents)
             surviving_ids = {intent.actuator_id for intent in intents}
             pending = [item for item in pending if item[0] in surviving_ids]
 
@@ -1090,8 +1090,8 @@ class ActionDomain:
         self.pending_motor_observation = tuple(pending)
         if not intents:
             self.pending_proprioception = {}
-            if self._legacy_learner is not None:
-                self._legacy_learner.observe(
+            if self._competence_development is not None:
+                self._competence_development.observe(
                     tick=tick,
                     body_state=sensorimotor_body_state,
                     motor_vector={},
@@ -1189,10 +1189,10 @@ class ActionDomain:
             and self.last_executed_controller_seed_id is not None
             and cognition is not None
             and services.cognitive_bridge is not None
-            and self._legacy_learner is not None
+            and self._competence_development is not None
             and any(
                 primitive.primitive_id == self.last_executed_controller_seed_id
-                for primitive in self._legacy_learner.cognitive_primitives
+                for primitive in self._competence_development.cognitive_primitives
             )
         ):
             services.cognitive_bridge.observe_primitive_execution(
@@ -1207,8 +1207,8 @@ class ActionDomain:
                 baseline_error=homeostatic_baseline,
                 tick=tick,
             )
-        if self._legacy_learner is not None:
-            self._legacy_learner.observe(
+        if self._competence_development is not None:
+            self._competence_development.observe(
                 tick=tick,
                 body_state=sensorimotor_body_state,
                 motor_vector={
@@ -1224,7 +1224,7 @@ class ActionDomain:
             # learned bodily competence into cognition. No scheduler asks for
             # this movement: it must have just occurred in ordinary behavior.
             if cognition is not None and services.cognitive_bridge is not None:
-                for primitive_id in self._legacy_learner.last_natural_competence_ids:
+                for primitive_id in self._competence_development.last_natural_competence_ids:
                     services.cognitive_bridge.observe_primitive_execution(
                         primitive_id,
                         concept_ids=active_concepts,
@@ -1246,7 +1246,7 @@ class ActionDomain:
     ) -> SensorimotorV2Snapshot | None:
         if not self.enabled:
             return None
-        legacy = self._legacy_learner.snapshot() if self._legacy_learner is not None else None
+        legacy = self._competence_development.snapshot() if self._competence_development is not None else None
         progress = [
             max(0.0, float(item.learning_progress))
             for item in self.last_exploration_signals.values()

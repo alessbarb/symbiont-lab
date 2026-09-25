@@ -1,4 +1,4 @@
-""Public Sensorimotor v2 action API.
+"""Public Sensorimotor v2 action API.
 
 Legacy sequence/chunk representations stay inside ``sensorimotor`` for
 checkpoint migration and controller seeding; new code should depend on these
@@ -44,6 +44,7 @@ from .surface import (
     derive_actuator_constitution,
 )
 from .state import SensorimotorV2Snapshot
+from .sensorimotor import CompetenceDevelopmentEngine, SensorimotorLearner, SensorimotorSnapshot
 from .system import ActuatorSystem
 from .types import Actuation, MotorIntent
 
@@ -68,6 +69,7 @@ __all__ = [
     "CausalEvidenceLedger",
     "CommitmentStatus",
     "CompetenceCandidate",
+    "CompetenceDevelopmentEngine",
     "CompetenceEvidence",
     "CompetenceLibrary",
     "CompetenceMaturity",
@@ -85,6 +87,8 @@ __all__ = [
     "MotorCompetence",
     "MotorIntent",
     "PredictionError",
+    "SensorimotorLearner",
+    "SensorimotorSnapshot",
     "SensorimotorTransition",
     "SensorimotorV2Snapshot",
     "SequentialCompositionEvidence",
