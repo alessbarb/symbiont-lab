@@ -11,6 +11,7 @@ from ...cognition.types import NodeKind
 _MAX_SHADOW_PREDICTIONS = 16384
 _MAX_LIVE_SHADOW_FACTOR = 8
 _MAX_PRELIMINARY_SHADOW_FACTOR = 16
+_ACTIVITY_THRESHOLD = 0.1
 
 
 @dataclass(slots=True)
@@ -250,6 +251,76 @@ class PredictorLifecycle:
         edge.weight *= decay
         if abs(edge.weight) < 1e-12:
             edge.weight = 0.0
+
+    def observe_shadows(
+        self,
+        *,
+        previous_frame: Mapping[str, float],
+        activations: Mapping[str, float],
+        node_kinds: Mapping[str, NodeKind],
+        topology_revision: int,
+        max_nodes: int,
+    ) -> None:
+        """Update bounded lag-1 shadow hypotheses from one cognitive frame."""
+        preliminary_min = 1
+        live_limit = self.live_shadow_limit(max_nodes)
+        if len(self.shadows) >= live_limit:
+            self.prune_shadows(
+                node_kinds=node_kinds,
+                topology_revision=topology_revision,
+                max_nodes=max_nodes,
+            )
+
+        for source_id, source_value in previous_frame.items():
+            if node_kinds.get(source_id) is not NodeKind.SENSE:
+                continue
+            for target_id, target_value in activations.items():
+                if source_id == target_id or target_id not in previous_frame:
+                    continue
+                target_previous = previous_frame[target_id]
+                key = (source_id, target_id)
+                predictor = self.shadows.get(key)
+                if predictor is not None:
+                    previous_status = predictor.status
+                    predictor.observe(
+                        source_value,
+                        target_value,
+                        target_previous,
+                    )
+                    if (
+                        previous_status != "retired"
+                        and predictor.status == "retired"
+                    ):
+                        self.mark_shadow_dirty()
+                    continue
+
+                if abs(source_value) < _ACTIVITY_THRESHOLD:
+                    continue
+                support = self.preliminary_support.get(key, 0) + 1
+                self.preliminary_support[key] = support
+                if support < preliminary_min:
+                    continue
+                if len(self.shadows) >= live_limit:
+                    continue
+                predictor = ShadowPrediction(source_id, target_id)
+                self.shadows[key] = predictor
+                self.invalidate_shadow_cache()
+                self.preliminary_support.pop(key, None)
+                predictor.observe(
+                    source_value,
+                    target_value,
+                    target_previous,
+                )
+
+        self.prune_preliminary(
+            node_kinds=node_kinds,
+            max_nodes=max_nodes,
+        )
+        self.prune_shadows(
+            node_kinds=node_kinds,
+            topology_revision=topology_revision,
+            max_nodes=max_nodes,
+        )
 
     def prune_preliminary(
         self,
