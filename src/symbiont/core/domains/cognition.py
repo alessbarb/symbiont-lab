@@ -26,6 +26,7 @@ class CognitionServices:
 class CognitionStepResult:
     cognition: CognitiveBridgeResult | None
     cognitive_self_observation: dict[str, Any] | None
+    retained_node_count: int
 
 
 class CognitionDomain:
@@ -171,4 +172,9 @@ class CognitionDomain:
         return CognitionStepResult(
             cognition=result,
             cognitive_self_observation=cognitive_self_observation,
+            retained_node_count=(
+                len(bridge.graph.nodes)
+                if bridge is not None and bridge.graph is not None
+                else 0
+            ),
         )
