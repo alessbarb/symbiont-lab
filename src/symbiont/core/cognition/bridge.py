@@ -20,7 +20,12 @@ from ...cognition.structure import (
 from ...cognition.types import NodeKind
 from .plasticity_state import PlasticityEngine
 from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
-from .sense_concept_lifecycle import ConceptLineage, SenseConceptLifecycle
+from .sense_concept_lifecycle import (
+    ConceptLineage,
+    RepresentationMaturity,
+    RepresentationTracker,
+    SenseConceptLifecycle,
+)
 from .structural_candidates import StructuralCandidate, StructuralContention
 from .structural_planner import AdaptiveStructuralBudgets, StructuralPlanner
 from .bridge_checkpoint import export_bridge_state, restore_bridge_state
@@ -39,15 +44,6 @@ class TopologyHealth(StrEnum):
     ADAPTIVE = "adaptive"
     DEGENERATE = "degenerate"
     RECOVERING = "recovering"
-
-
-class RepresentationMaturity(StrEnum):
-    NASCENT = "nascent"
-    PROVISIONAL = "provisional"
-    MATURE = "mature"
-    STABLE = "stable"
-    WEAKENING = "weakening"
-    RETIRING = "retiring"
 
 
 @dataclass(slots=True, frozen=True)
@@ -132,17 +128,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         self._normalizers: dict[str, SensoryNormalizer] = {}
         self._previous_frame: dict[str, float] = {}
         self._lifecycle = SenseConceptLifecycle()
-        # Structural birth time is generic provenance, not semantic knowledge.
-        # It gives internal representations a developmental integration window.
-        self._node_born_tick: dict[str, int] = {
-            node.node_id: 0 for node in graph.nodes
-        }
-        self._node_observation_count: dict[str, int] = {
-            node.node_id: 0 for node in graph.nodes
-        }
-        self._node_active_count: dict[str, int] = {
-            node.node_id: 0 for node in graph.nodes
-        }
+        self._representations = RepresentationTracker(graph)
         self._tick = 0
         self._predictors = PredictorLifecycle()
         self._contention = StructuralContention(
@@ -259,61 +245,18 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         *,
         graph: CognitiveGraph | None = None,
     ) -> RepresentationMaturity:
-        """Derive maturity from generic developmental evidence.
-
-        SENSE inputs are environmentally established. Internal representations
-        must survive time, be repeatedly observable, become active often enough,
-        and acquire at least one supported incident relation. Predictors retain
-        their stronger predictive-gain requirement.
-        """
-        active_graph = self._graph if graph is None else graph
-        node = active_graph.node_by_id(node_id)
-        if node is None:
-            return RepresentationMaturity.NASCENT
-        if node.kind is NodeKind.SENSE:
-            return RepresentationMaturity.STABLE
-
-        if node.kind is NodeKind.PREDICTOR and node_id in self._predictors.retirement:
-            return RepresentationMaturity.RETIRING
-
-        orphan_since = self._lifecycle.orphan_since_tick.get(node_id)
-        if orphan_since is not None:
-            orphan_age = max(0, self._tick - orphan_since)
-            grace = max(1, self._genome.structure.tentative_lifetime_ticks)
-            if orphan_age >= max(1, grace // 2):
-                return RepresentationMaturity.RETIRING
-            return RepresentationMaturity.WEAKENING
-
-        born_tick = self._node_born_tick.get(node_id, 0)
-        age = max(0, self._tick - born_tick)
-        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
-        observations = self._node_observation_count.get(node_id, 0)
-        active = self._node_active_count.get(node_id, 0)
-        minimum_support = max(2, self._genome.structure.minimum_support)
-
-        if age < grace or observations < minimum_support:
-            return RepresentationMaturity.NASCENT
-
-        incident = active_graph.incident_edges(node_id)
-        integrated = any(edge.support >= minimum_support for edge in incident)
-        if active < minimum_support or not integrated:
-            return RepresentationMaturity.PROVISIONAL
-
-        if node.kind is NodeKind.PREDICTOR:
-            utility = self._predictors.utility.get(node_id)
-            if not (
-                utility is not None
-                and utility.samples >= max(8, minimum_support)
-                and utility.predictive_gain > 0.0
-                and utility.recent_gain > 0.0
-            ):
-                return RepresentationMaturity.PROVISIONAL
-
-        stable_age = 2 * grace
-        stable_activity = 2 * minimum_support
-        if age >= stable_age and active >= stable_activity:
-            return RepresentationMaturity.STABLE
-        return RepresentationMaturity.MATURE
+        return self._representations.maturity(
+            node_id,
+            graph=self._graph if graph is None else graph,
+            tick=self._tick,
+            orphan_since_tick=self._lifecycle.orphan_since_tick,
+            retiring_predictor_ids=self._predictors.retirement,
+            predictor_utility=self._predictors.utility,
+            tentative_lifetime_ticks=(
+                self._genome.structure.tentative_lifetime_ticks
+            ),
+            minimum_support=self._genome.structure.minimum_support,
+        )
 
     def _representation_mature_enough_as_target(
         self,
@@ -1027,9 +970,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                     continue
                 node_id = str(mutation.payload.get("node_id", ""))
                 if node_id:
-                    self._node_born_tick.setdefault(node_id, max(0, int(tick)))
-                    self._node_observation_count.setdefault(node_id, 0)
-                    self._node_active_count.setdefault(node_id, 0)
+                    self._representations.note_birth(node_id, tick=tick)
                 if kind is NodeKind.CONCEPT:
                     raw_sources = mutation.payload.get("source_ids", ())
                     if isinstance(raw_sources, (list, tuple, set)):
@@ -1054,9 +995,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                 self._normalizers.pop(node_id, None)
                 self._predictors.utility.pop(node_id, None)
                 self._predictors.retirement.pop(node_id, None)
-                self._node_born_tick.pop(node_id, None)
-                self._node_observation_count.pop(node_id, None)
-                self._node_active_count.pop(node_id, None)
+                self._representations.remove(node_id)
                 dead_prediction_keys = [k for k in self._predictors.shadows if k[0] == node_id or k[1] == node_id]
                 for k in dead_prediction_keys:
                     del self._predictors.shadows[k]
@@ -1082,24 +1021,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         self._lifecycle.orphan_since_tick = {key: value for key, value in self._lifecycle.orphan_since_tick.items() if key in latent_ids}
         self._lifecycle.unrouted_since_tick = {key: value for key, value in self._lifecycle.unrouted_since_tick.items() if key in concept_ids}
         self._normalizers = {key: value for key, value in self._normalizers.items() if key in sense_ids}
-        self._node_born_tick = {
-            key: value for key, value in self._node_born_tick.items() if key in node_ids
-        }
-        for node_id in node_ids:
-            self._node_born_tick.setdefault(node_id, 0)
-        self._node_observation_count = {
-            key: value
-            for key, value in self._node_observation_count.items()
-            if key in node_ids
-        }
-        self._node_active_count = {
-            key: value
-            for key, value in self._node_active_count.items()
-            if key in node_ids
-        }
-        for node_id in node_ids:
-            self._node_observation_count.setdefault(node_id, 0)
-            self._node_active_count.setdefault(node_id, 0)
+        self._representations.reconcile(self._graph)
         self._lifecycle.concept_support = {
             pair: count
             for pair, count in self._lifecycle.concept_support.items()
@@ -1327,14 +1249,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             )
 
             node_kinds, existing_relation_pairs = self._topology_cache()
-            for node_id, value in frame.activations.items():
-                self._node_observation_count[node_id] = (
-                    self._node_observation_count.get(node_id, 0) + 1
-                )
-                if abs(value) >= _ACTIVITY_THRESHOLD:
-                    self._node_active_count[node_id] = (
-                        self._node_active_count.get(node_id, 0) + 1
-                    )
+            self._representations.observe(frame.activations)
             action_context_concepts = set(
                 self._salient_concept_ids(frame.activations)
             )
