@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Collection
+from typing import TYPE_CHECKING, Collection
 
 from ...cognition.graph import CognitiveGraph
 from ...cognition.learning import ShadowPrediction
 from ...cognition.limits import KernelLimits
 from ...cognition.structure import Mutation
+from ...cognition.types import NodeKind
 from .bridge_checkpoint import (
     restore_concept_lineage,
     restore_nonnegative_tick_map,
@@ -18,6 +19,15 @@ from .predictors import PredictorRetirement, PredictorUtility
 from .sense_concept_lifecycle import ConceptLineage
 from .structural_candidates import StructuralCandidate
 
+if TYPE_CHECKING:
+    from ...cognition.metaplasticity import SafetyState
+    from ...genetics.genome import Genome
+    from .plasticity_state import PlasticityEngine
+    from .predictors import PredictorLifecycle
+    from .sense_concept_lifecycle import RepresentationTracker, SenseConceptLifecycle
+    from .structural_candidates import StructuralContention
+    from .structural_planner import AdaptiveStructuralBudgets, StructuralPlanner
+
 
 class CognitiveBridgeCompatibility:
     """Private compatibility surface retained for repository tests/studies.
@@ -26,6 +36,30 @@ class CognitiveBridgeCompatibility:
     deliberately owns no state; every member delegates to CognitiveBridge's
     collaborators.
     """
+
+    # These declarations describe the concrete host supplied by CognitiveBridge
+    # without making this compatibility mixin responsible for initializing it.
+    # Keeping the contract here lets Pyright check the delegated legacy surface
+    # while preserving the runtime ownership boundary.
+    if TYPE_CHECKING:
+        _budgets: AdaptiveStructuralBudgets
+        _contention: StructuralContention
+        _develop_senses: bool
+        _genome: Genome
+        _graph: CognitiveGraph
+        _kernel_limits: KernelLimits
+        _lifecycle: SenseConceptLifecycle
+        _plasticity: PlasticityEngine
+        _planner: StructuralPlanner
+        _predictors: PredictorLifecycle
+        _representations: RepresentationTracker
+        _safety_state: SafetyState
+        _tick: int
+        _topology_revision: int
+
+        def _oldest_blocked_structural_wait(self, *, tick: int) -> int: ...
+
+        def _topology_cache(self) -> tuple[dict[str, NodeKind], set[tuple[str, str]]]: ...
 
     @property
     def _structural_candidates(self) -> dict[str, StructuralCandidate]:
