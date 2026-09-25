@@ -214,7 +214,6 @@ _legacy_module_paths = {
     "ontogeny": "embodiment.ontogeny",
     "body": "embodiment.body",
     "body_schema": "embodiment.body_schema",
-    "agency": "embodiment.agency",
     "symbiont": "orchestration.symbiont",
     "individual": "orchestration.individual",
     "epistemic": "foundation.epistemic",
