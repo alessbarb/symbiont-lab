@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `d633cab3`
+**Audited commit:** `18d9537f`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -93,8 +93,8 @@ built by composing several mature existing components.
 |---|---|---|
 | GC-0 | Epistemic foundation | **IMPLEMENTED — bounded foundation** |
 | GC-1 | Endogenous agenda | **IMPLEMENTED — bounded agenda and scheduler substrate** |
-| GC-2 | Generative model adapters | **PARTIAL — protocol/registry; adapters missing** |
-| GC-3 | Multi-step rollout | **MISSING** |
+| GC-2 | Generative model adapters | **IMPLEMENTED — thin adapters; runtime integration pending** |
+| GC-3 | Multi-step rollout | **IMPLEMENTED — bounded rollout substrate; integration and scientific utility pending** |
 | GC-4 | Branching | **MISSING** |
 | GC-5 | Counterfactual cognition | **PARTIAL — one-step only** |
 | GC-6 | Replay | **PARTIAL — memory substrate exists** |
@@ -801,8 +801,10 @@ GC-E1 begins once GC-3 exists.
 PARTIAL — protocol and registry implemented
 ```
 
-The common protocol and deterministic registry exist. Thin adapters for the
-existing private, sensorimotor, competence-effect and episodic models do not.
+The common protocol, deterministic registry, and thin callback adapters for the
+private, sensorimotor, competence-effect and episodic model owners exist in
+`generative/model.py`, `registry.py` and `adapters.py`. Runtime wiring and
+equivalence tests against every concrete owner remain open.
 
 ---
 
@@ -819,7 +821,7 @@ Relevant:
 
 ## Current code
 
-Current Prospective Agency is fundamentally one-step:
+The existing Prospective Agency remains fundamentally one-step, while the new generative substrate now provides a bounded rollout path:
 
 ```text
 candidate
@@ -837,15 +839,13 @@ predicted_outcome
 confidence_class
 ```
 
-No generated next state exists.
-
-No state is recursively fed back through a model.
+The generative rollout engine now creates bounded generated next states and recursively feeds them back through the registry. It remains a substrate; no production runtime path or scientific utility result is claimed yet.
 
 ---
 
-## Missing
+## Implemented substrate
 
-Implement:
+Implemented in:
 
 ```text
 rollout.py
@@ -855,6 +855,7 @@ with:
 
 ```text
 RolloutEngine
+RolloutResult
 ```
 
 The engine must support:
@@ -966,10 +967,10 @@ at multiple horizons.
 ## Status
 
 ```text
-MISSING
+IMPLEMENTED — bounded substrate only
 ```
 
-This is the central functional jump from current Prospective Agency.
+The engine enforces workspace depth, state, transition and model-query bounds, deterministic proposal selection, and monotonic uncertainty propagation. Focused unit coverage exists for multi-step composition. Runtime wiring, budget-exhaustion/model-unavailable cases, determinism coverage, and GC-E1 scientific evidence remain open.
 
 ---
 
