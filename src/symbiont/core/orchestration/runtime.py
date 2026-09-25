@@ -2183,37 +2183,10 @@ class OrganismRuntime:
         if perception.pending_proprioception_consumed:
             self._pending_proprioception = {}
 
-        newly_confirmed_motor_effect_ids = (
-            self._complete_pending_motor_observation(
-                percepts,
-                tick=context.symbiont_tick,
-            )
-        )
-        established_motor_effect_ids = (
-            self._action_domain.actuator_evidence.active_repertoire
-            if self._action_domain.actuator_evidence is not None
-            else ()
-        )
-        motor_effect_actuator_ids = tuple(
-            sorted(
-                set(
-                    (
-                        *newly_confirmed_motor_effect_ids,
-                        *established_motor_effect_ids,
-                    )
-                )
-            )
-        )
-        cognitive_primitives = (
-            self._action_domain.competence_development.cognitive_primitives
-            if self._action_domain.competence_development is not None
-            else ()
-        )
-
-        active_motor_actuator_ids = (
-            self._action_domain.actuator_evidence.active_repertoire
-            if self._action_domain.actuator_evidence is not None
-            else ()
+        action_projection = self._action_domain.prepare_cognition(
+            percepts,
+            context=context,
+            sensory_system=self._sensory_system,
         )
         cognition_step = self._cognition_domain.step(
             services=CognitionServices(
@@ -2232,12 +2205,9 @@ class OrganismRuntime:
             perceptual_allocations=perceptual_allocations,
             availability_by_capability=availability_by_capability,
             drift_observations=drift_observations,
-            active_motor_actuator_ids=active_motor_actuator_ids,
-            motor_effect_actuator_ids=motor_effect_actuator_ids,
-            active_competence_ids=tuple(
-                primitive.primitive_id
-                for primitive in cognitive_primitives
-            ),
+            active_motor_actuator_ids=action_projection.active_motor_actuator_ids,
+            motor_effect_actuator_ids=action_projection.motor_effect_actuator_ids,
+            active_competence_ids=action_projection.active_competence_ids,
             plasticity_enabled=plasticity_gate,
             auto_promote_predictors=self._auto_promote_predictors,
             reacclimation_remaining=self._reacclimation_remaining,
@@ -2261,18 +2231,7 @@ class OrganismRuntime:
             reacclimation_remaining=self._reacclimation_remaining,
         )
 
-        current_signal_references = {
-            **{
-                name: self._signal_identity.signal_id(capability_id)
-                for capability_id, name in percept_names.items()
-            },
-            **{
-                percept.name: self._signal_identity.signal_id(sensor.source_ids[0])
-                for percept in percepts
-                if (sensor := sensor_by_cognitive_name.get(percept.name)) is not None
-                and len(sensor.source_ids) == 1
-            },
-        }
+        current_signal_references = perception.signal_references
 
         self._motor_step(
             cognition_result,
