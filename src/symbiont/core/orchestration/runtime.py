@@ -97,22 +97,11 @@ from ...actuation.constitution import ActuatorConstitution
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
 from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.types import Actuation, MotorIntent
-from ...actuation.action import (
-    ActionEvaluation,
-    ActionJustification,
-    ActionProposal,
-    ActionSource,
-    MotorCommand,
-)
+from ...actuation.action import MotorCommand
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
-from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
-from ...actuation.evidence import (
-    CausalEvidenceLedger,
-    PredictionError,
-    SensorimotorTransition,
-)
+from ...actuation.competence import CompetenceLibrary, MotorCompetence
+from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
-from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from ..domains.action import ActionDomain, ActionServices
@@ -121,7 +110,7 @@ from ..domains.physiology import PhysiologyDomain, PhysiologyServices
 from ..domains.perception import PerceptionDomain, PerceptionServices
 from ..domains.cognition import CognitionDomain, CognitionServices
 from ..domains.epistemic import EpistemicDomain, EpistemicServices
-from ..domains.lifecycle import LifecycleDomain, LifecycleEventState
+from ..domains.lifecycle import LifecycleDomain
 from ..domains.regulation import RegulationDomain, RegulationServices
 
 
