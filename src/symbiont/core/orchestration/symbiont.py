@@ -70,7 +70,7 @@ class Symbiont:
             gene_expression_state
             if gene_expression_state is not None
             else (
-                GeneExpressionState.from_genome(genome)
+                GeneExpressionState.from_genome(genome, germline=germline)
                 if genome is not None
                 else None
             )
@@ -197,7 +197,10 @@ class Symbiont:
                 "phenotype birth expression cannot be refreshed after lifetime execution begins"
             )
         if self.genome is not None:
-            self.gene_expression_state = GeneExpressionState.from_genome(self.genome)
+            self.gene_expression_state = GeneExpressionState.from_genome(
+                self.genome,
+                germline=self.germline,
+            )
             self.learning_rate = self.gene_expression_state.effective_learning_rate
             self.exploration_rate = self.gene_expression_state.exploration_drive
             self.sensorimotor_model.learning_rate = self.learning_rate
