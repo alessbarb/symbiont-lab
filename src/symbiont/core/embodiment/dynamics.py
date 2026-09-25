@@ -133,6 +133,10 @@ class SensorimotorDynamicsModel:
     def relation_count(self) -> int:
         return len(self._weights)
 
+    def relation_weight(self, actuator_id: str, percept_id: str) -> float:
+        """Read one learned opaque relation for observer/testing purposes."""
+        return float(self._weights.get((str(actuator_id), str(percept_id)), 0.0))
+
     def checkpoint(self) -> dict[str, object]:
         return {
             "schema_version": self.SCHEMA_VERSION,
