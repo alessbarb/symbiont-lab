@@ -678,24 +678,12 @@ class OrganismRuntime:
     # Compatibility views expose the single ActionDomain state; they do not
     # create a second authority.
     @property
-    def _actuator_constitution(self):
-        return self._action_domain.surface
-
-    @property
     def _active_action_commitment(self):
         return self._action_domain.active_commitment
 
     @_active_action_commitment.setter
     def _active_action_commitment(self, value):
         self._action_domain.active_commitment = value
-
-    @property
-    def _last_action_source(self):
-        return self._action_domain.last_action_source
-
-    @_last_action_source.setter
-    def _last_action_source(self, value):
-        self._action_domain.last_action_source = value
 
     @property
     def _last_motor_command(self):
@@ -706,36 +694,12 @@ class OrganismRuntime:
         self._action_domain.last_motor_command = value
 
     @property
-    def _last_motor_intent(self):
-        return self._action_domain.last_motor_intent
-
-    @_last_motor_intent.setter
-    def _last_motor_intent(self, value):
-        self._action_domain.last_motor_intent = value
-
-    @property
     def _last_actuation(self):
         return self._action_domain.last_actuation
 
     @_last_actuation.setter
     def _last_actuation(self, value):
         self._action_domain.last_actuation = value
-
-    @property
-    def _last_motor_intents(self):
-        return self._action_domain.last_motor_intents
-
-    @_last_motor_intents.setter
-    def _last_motor_intents(self, value):
-        self._action_domain.last_motor_intents = tuple(value)
-
-    @property
-    def _last_actuations(self):
-        return self._action_domain.last_actuations
-
-    @_last_actuations.setter
-    def _last_actuations(self, value):
-        self._action_domain.last_actuations = tuple(value)
 
     @property
     def _last_executed_primitive_id(self):
@@ -746,62 +710,6 @@ class OrganismRuntime:
         self._action_domain.last_executed_controller_seed_id = value
 
     @property
-    def _effect_space(self):
-        return self._action_domain.effect_space
-
-    @_effect_space.setter
-    def _effect_space(self, value):
-        self._action_domain.effect_space = value
-
-    @property
-    def _causal_evidence(self):
-        return self._action_domain.causal_evidence
-
-    @_causal_evidence.setter
-    def _causal_evidence(self, value):
-        self._action_domain.causal_evidence = value
-
-    @property
-    def _competence_library(self):
-        return self._action_domain.competence_library
-
-    @_competence_library.setter
-    def _competence_library(self, value):
-        self._action_domain.competence_library = value
-
-    @property
-    def _competence_execution_bindings(self):
-        return self._action_domain.execution_bindings
-
-    @_competence_execution_bindings.setter
-    def _competence_execution_bindings(self, value):
-        self._action_domain.execution_bindings = value
-
-    @property
-    def _sensorimotor_model(self):
-        return self._action_domain.effect_model
-
-    @_sensorimotor_model.setter
-    def _sensorimotor_model(self, value):
-        self._action_domain.effect_model = value
-
-    @property
-    def _controllability_model(self):
-        return self._action_domain.controllability_model
-
-    @_controllability_model.setter
-    def _controllability_model(self, value):
-        self._action_domain.controllability_model = value
-
-    @property
-    def _agency_model(self):
-        return self._action_domain.agency_model
-
-    @_agency_model.setter
-    def _agency_model(self, value):
-        self._action_domain.agency_model = value
-
-    @property
     def _composition_engine(self):
         return self._action_domain.composition_engine
 
@@ -810,28 +718,12 @@ class OrganismRuntime:
         self._action_domain.composition_engine = value
 
     @property
-    def _last_sensorimotor_transition(self):
-        return self._action_domain.last_transition
-
-    @_last_sensorimotor_transition.setter
-    def _last_sensorimotor_transition(self, value):
-        self._action_domain.last_transition = value
-
-    @property
     def _pending_motor_observation(self):
         return self._action_domain.pending_motor_observation
 
     @_pending_motor_observation.setter
     def _pending_motor_observation(self, value):
         self._action_domain.pending_motor_observation = tuple(value)
-
-    @property
-    def _pending_proprioception(self):
-        return self._action_domain.pending_proprioception
-
-    @_pending_proprioception.setter
-    def _pending_proprioception(self, value):
-        self._action_domain.pending_proprioception = dict(value)
 
     @property
     def _pending_homeostatic_action_credit(self):
@@ -950,7 +842,7 @@ class OrganismRuntime:
 
     @property
     def last_motor_intent(self) -> MotorIntent | None:
-        return self._last_motor_intent
+        return self._action_domain.last_motor_intent
 
     @property
     def last_actuation(self) -> Actuation | None:
@@ -958,15 +850,15 @@ class OrganismRuntime:
 
     @property
     def last_motor_intents(self) -> tuple[MotorIntent, ...]:
-        return self._last_motor_intents
+        return self._action_domain.last_motor_intents
 
     @property
     def last_actuations(self) -> tuple[Actuation, ...]:
-        return self._last_actuations
+        return self._action_domain.last_actuations
 
     @property
     def actuator_constitution(self) -> ActuatorConstitution | None:
-        return self._actuator_constitution
+        return self._action_domain.surface
 
     @property
     def actuator_evidence_model(self) -> ActuatorEvidenceModel | None:
@@ -1058,11 +950,11 @@ class OrganismRuntime:
     @property
     def motor_competences(self) -> tuple[MotorCompetence, ...]:
         """Canonical learned competence view used outside the legacy learner."""
-        return self._competence_library.items
+        return self._action_domain.competence_library.items
 
     @property
     def effect_representations(self):
-        return self._effect_space.effects
+        return self._action_domain.effect_space.effects
 
     @property
     def action_dimensions(self):
@@ -1070,7 +962,7 @@ class OrganismRuntime:
 
     @property
     def causal_evidence(self):
-        return self._causal_evidence.evidence
+        return self._action_domain.causal_evidence.evidence
 
     @property
     def actuator_causal_states(self) -> tuple[ActuatorCandidateState, ...]:
@@ -1165,7 +1057,7 @@ class OrganismRuntime:
     @property
     def last_action_source(self) -> str:
         """Passive provenance of the current organism-owned action commitment."""
-        return self._last_action_source
+        return self._action_domain.last_action_source
 
     @property
     def narrative_journal(self) -> tuple[dict[str, Any], ...]:
@@ -1308,38 +1200,38 @@ class OrganismRuntime:
     @property
     def sensorimotor_effect_model(self) -> CompetenceEffectModel:
         """Current embodiment's abstract competence -> effect model."""
-        return self._sensorimotor_model
+        return self._action_domain.effect_model
 
     @property
     def causal_evidence_ledger(self) -> CausalEvidenceLedger:
         """Current embodiment factual sensorimotor evidence ledger."""
-        return self._causal_evidence
+        return self._action_domain.causal_evidence
 
     @property
     def controllability_model(self) -> ControllabilityModel:
-        return self._controllability_model
+        return self._action_domain.controllability_model
 
     @property
     def agency_model(self) -> AgencyModel:
-        return self._agency_model
+        return self._action_domain.agency_model
 
     @property
     def competence_library(self) -> CompetenceLibrary:
-        return self._competence_library
+        return self._action_domain.competence_library
     
     @property
     def competence_execution_bindings(self) -> CompetenceExecutionBindingRegistry:
-        return self._competence_execution_bindings
+        return self._action_domain.execution_bindings
 
     def _current_surface_fingerprint(self) -> str | None:
         return (
-            self._actuator_constitution.contract_fingerprint
-            if self._actuator_constitution is not None
+            self._action_domain.surface.contract_fingerprint
+            if self._action_domain.surface is not None
             else None
         )
 
     def _competence_is_executable(self, competence: MotorCompetence) -> bool:
-        return self._competence_execution_bindings.is_executable(
+        return self._action_domain.execution_bindings.is_executable(
             competence,
             surface_fingerprint=self._current_surface_fingerprint(),
         )
@@ -1966,7 +1858,7 @@ class OrganismRuntime:
             attention_budget=self._attention_budget,
             sampling_selector=self._sampling_selector,
             pending_proprioception=(
-                self._pending_proprioception
+                self._action_domain.pending_proprioception
                 if self._actuation_enabled
                 else {}
             ),
@@ -1975,7 +1867,7 @@ class OrganismRuntime:
         drift_observations = perception.drift_observations
         allocations = perception.allocations
         if perception.pending_proprioception_consumed:
-            self._pending_proprioception = {}
+            self._action_domain.pending_proprioception = {}
 
         action_projection = self._action_domain.prepare_cognition(
             percepts,
@@ -2205,13 +2097,13 @@ class OrganismRuntime:
             development=development_snapshot,
             sensory_phenotype=sensory_phenotype_view,
             runtime_events=runtime_events,
-            motor_intent=self._last_motor_intent,
+            motor_intent=self._action_domain.last_motor_intent,
             actuation=self._last_actuation,
-            motor_intents=self._last_motor_intents,
-            actuations=self._last_actuations,
+            motor_intents=self._action_domain.last_motor_intents,
+            actuations=self._action_domain.last_actuations,
             action_commitment=self._active_action_commitment,
             motor_command=self._last_motor_command,
-            sensorimotor_transition=self._last_sensorimotor_transition,
+            sensorimotor_transition=self._action_domain.last_transition,
             sensorimotor_v2=self.sensorimotor_v2_snapshot,
             gene_expression=(
                 self._gene_expression_state.as_dict()
@@ -2257,13 +2149,13 @@ class OrganismRuntime:
             else None
         )
         if self._actuation_enabled:
-            if self._actuator_constitution is None:
+            if self._action_domain.surface is None:
                 raise CheckpointError(
                     "actuation enabled without actuator constitution"
                 )
             constitution_payload = {
                 "contract_fingerprint": (
-                    self._actuator_constitution.contract_fingerprint
+                    self._action_domain.surface.contract_fingerprint
                 ),
                 "slots": [
                     {
@@ -2274,7 +2166,7 @@ class OrganismRuntime:
                         "neutral": slot.neutral,
                         "available": slot.available,
                     }
-                    for slot in self._actuator_constitution.slots
+                    for slot in self._action_domain.surface.slots
                 ],
             }
             payload["actuation"] = {
@@ -2282,14 +2174,14 @@ class OrganismRuntime:
                 "constitution": constitution_payload,
                 "action_domain": self._action_domain.checkpoint_state(),
             }
-        elif self._actuator_constitution is not None:
+        elif self._action_domain.surface is not None:
             # A disabled runtime may still carry the body-owned actuator
             # surface.  It is causal input to phenotype regulation even when
             # no motor command can be emitted, so checkpoint it as well.
             payload["actuation"] = {
                 "enabled": False,
                 "constitution": {
-                    "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
+                    "contract_fingerprint": self._action_domain.surface.contract_fingerprint,
                     "slots": [
                         {
                             "slot_id": slot.slot_id,
@@ -2299,7 +2191,7 @@ class OrganismRuntime:
                             "neutral": slot.neutral,
                             "available": slot.available,
                         }
-                        for slot in self._actuator_constitution.slots
+                        for slot in self._action_domain.surface.slots
                     ],
                 },
             }
