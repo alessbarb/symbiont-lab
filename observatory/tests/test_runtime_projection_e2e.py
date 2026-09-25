@@ -117,9 +117,17 @@ def test_embodiment_projection_is_bounded_passive_and_schema_valid():
         "embodiment_tick": 41,
         "contract_fingerprint": "a" * 64,
         "state": "active",
+        "prior": {
+            "relation": "same-contract",
+            "authority": "hypothesis_only",
+            "source_body_id": "body.previous",
+            "source_embodiment_id": "embodiment.previous",
+            "private": "must not escape",
+        },
         "adaptation": {
             "prediction_error_recent": 0.125,
             "prediction_shock": 0.25,
+            "peak_prediction_shock": 0.75,
             "schema_uncertainty": 0.30,
             "causal_confidence": 0.60,
             "controllability_confidence": 0.55,
@@ -159,6 +167,13 @@ def test_embodiment_projection_is_bounded_passive_and_schema_valid():
         "binding_count": 4,
         "executable_count": 2,
     }
+    assert projected["prior"] == {
+        "relation": "same-contract",
+        "authority": "hypothesis_only",
+        "source_body_id": "body.previous",
+        "source_embodiment_id": "embodiment.previous",
+    }
+    assert projected["adaptation"]["peak_prediction_shock"] == 0.75
     assert snapshot["organism"]["body_schema"]["state"] == "undeveloped"
     serialized = json.dumps(projected)
     assert "joint_names" not in serialized
