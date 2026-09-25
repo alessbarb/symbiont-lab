@@ -39,6 +39,7 @@ from ...cognition.structure import (
 from ...cognition.types import WEIGHT_RANGE, EdgeKind, NodeKind
 from .plasticity_state import PlasticityEngine
 from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
+from .sense_concept_lifecycle import ConceptLineage, SenseConceptLifecycle
 from .structural_candidates import StructuralCandidate, StructuralContention
 
 _ACTIVITY_THRESHOLD = 0.1
@@ -69,13 +70,6 @@ class RepresentationMaturity(StrEnum):
     STABLE = "stable"
     WEAKENING = "weakening"
     RETIRING = "retiring"
-
-
-@dataclass(slots=True, frozen=True)
-class ConceptLineage:
-    concept_id: str
-    parent_ids: tuple[str, ...]
-    born_tick: int
 
 
 @dataclass(slots=True)
@@ -192,13 +186,7 @@ class CognitiveBridge:
         self._safety_state = safety_state if safety_state is not None else SafetyState()
         self._normalizers: dict[str, SensoryNormalizer] = {}
         self._previous_frame: dict[str, float] = {}
-        self._concept_support: dict[tuple[str, str], int] = {}
-        self._retrospective_concept_support: dict[tuple[str, str], int] = {}
-        self._concept_lineage: dict[str, ConceptLineage] = {}
-        self._sense_last_seen_tick: dict[str, int] = {}
-        self._orphan_since_tick: dict[str, int] = {}
-        self._unrouted_since_tick: dict[str, int] = {}
-        self._concept_last_active_tick: dict[str, int] = {}
+        self._lifecycle = SenseConceptLifecycle()
         # Structural birth time is generic provenance, not semantic knowledge.
         # It gives internal representations a developmental integration window.
         self._node_born_tick: dict[str, int] = {
@@ -216,7 +204,6 @@ class CognitiveBridge:
             kernel_limits=kernel_limits,
             identity=genome.genome_id,
         )
-        self._next_concept_index: int = 1
         self._topology_revision = 0
         node_ceiling = min(
             self._kernel_limits.max_nodes,
@@ -322,15 +309,15 @@ class CognitiveBridge:
 
     @property
     def concept_lineage(self) -> tuple[ConceptLineage, ...]:
-        return tuple(self._concept_lineage[key] for key in sorted(self._concept_lineage))
+        return self._lifecycle.concept_lineage
 
     @property
     def unrouted_since_tick(self) -> dict[str, int]:
-        return dict(self._unrouted_since_tick)
+        return dict(self._lifecycle.unrouted_since_tick)
 
     @property
     def next_concept_index(self) -> int:
-        return self._next_concept_index
+        return self._lifecycle.next_concept_index
 
     @property
     def topology_health(self) -> TopologyHealth:
@@ -442,7 +429,7 @@ class CognitiveBridge:
         if node.kind is NodeKind.PREDICTOR and node_id in self._predictors.retirement:
             return RepresentationMaturity.RETIRING
 
-        orphan_since = self._orphan_since_tick.get(node_id)
+        orphan_since = self._lifecycle.orphan_since_tick.get(node_id)
         if orphan_since is not None:
             orphan_age = max(0, self._tick - orphan_since)
             grace = max(1, self._genome.structure.tentative_lifetime_ticks)
@@ -733,14 +720,14 @@ class CognitiveBridge:
         for node_id in sorted(unrouted):
             if node_id in protected:
                 continue
-            lineage = self._concept_lineage.get(node_id)
+            lineage = self._lifecycle.lineage.get(node_id)
             born_tick = lineage.born_tick if lineage is not None else 0
             if self._tick - born_tick < grace:
                 continue
-            unrouted_since = self._unrouted_since_tick.get(node_id, self._tick)
+            unrouted_since = self._lifecycle.unrouted_since_tick.get(node_id, self._tick)
             if self._tick - unrouted_since < grace:
                 continue
-            last_active = self._concept_last_active_tick.get(node_id, born_tick)
+            last_active = self._lifecycle.concept_last_active_tick.get(node_id, born_tick)
             if self._tick - last_active < grace:
                 continue
 
@@ -1104,7 +1091,7 @@ class CognitiveBridge:
         existing_ids = {node.node_id for node in self._graph.nodes}
         existing_senses = {node.node_id for node in self._graph.nodes if node.kind is NodeKind.SENSE}
         for sense_id in set(sense_values) & existing_senses:
-            self._sense_last_seen_tick[sense_id] = tick
+            self._lifecycle.sense_last_seen_tick[sense_id] = tick
 
         candidates = sorted(set(sense_values) - existing_ids)
         if not candidates:
@@ -1134,26 +1121,14 @@ class CognitiveBridge:
                 continue
             admitted += 1
             sense_count += 1
-            self._sense_last_seen_tick[sense_id] = tick
+            self._lifecycle.sense_last_seen_tick[sense_id] = tick
 
         if admitted:
             self._graph = graph
             self._topology_revision += 1
 
     def _consume_concept_support(self, parent_ids: Collection[str]) -> None:
-        """Forget candidate evidence represented by a committed concept.
-
-        Candidate support is only a pre-birth hypothesis signal. Once a
-        concept exists, retaining that evidence would let a later failed and
-        garbage-collected concept respawn from historical support instead of
-        earning a new birth from fresh observations.
-        """
-        parents = sorted(set(parent_ids))
-        for index, source_id in enumerate(parents):
-            for target_id in parents[index + 1 :]:
-                key = (source_id, target_id)
-                self._concept_support.pop(key, None)
-                self._retrospective_concept_support.pop(key, None)
+        self._lifecycle.consume_concept_support(parent_ids)
 
     def _invalidate_shadow_predictions_cache(self) -> None:
         self._predictors.invalidate_shadow_cache()
@@ -1290,8 +1265,8 @@ class CognitiveBridge:
     @property
     def stranded_concepts(self) -> tuple[str, ...]:
         """Concepts receiving activation but lacking a path to a readout."""
-        unrouted = set(self._unrouted_since_tick)
-        return tuple(sorted(node_id for node_id in unrouted if node_id in self._concept_last_active_tick))
+        unrouted = set(self._lifecycle.unrouted_since_tick)
+        return tuple(sorted(node_id for node_id in unrouted if node_id in self._lifecycle.concept_last_active_tick))
 
     def _salient_concept_ids(
         self,
@@ -1392,12 +1367,12 @@ class CognitiveBridge:
             for target_id in eligible[index + 1 :]:
                 key = (source_id, target_id)
                 if self._concept_signature_exists(key):
-                    self._concept_support.pop(key, None)
-                    self._retrospective_concept_support.pop(key, None)
+                    self._lifecycle.concept_support.pop(key, None)
+                    self._lifecycle.retrospective_support.pop(key, None)
                     continue
-                previous = self._retrospective_concept_support.get(key, 0)
+                previous = self._lifecycle.retrospective_support.get(key, 0)
                 updated = max(previous, support_epochs)
-                self._retrospective_concept_support[key] = updated
+                self._lifecycle.retrospective_support[key] = updated
                 gained += max(0, updated - previous)
         return gained
 
@@ -1406,7 +1381,7 @@ class CognitiveBridge:
             return
         kinds, _ = self._topology_cache()
         for node_id in self._salient_concept_ids(activations):
-            self._concept_last_active_tick[node_id] = self._tick
+            self._lifecycle.concept_last_active_tick[node_id] = self._tick
         threshold = max(_ACTIVITY_THRESHOLD, self._expression_state.effective_growth_threshold)
         active_senses = sorted(
             node_id
@@ -1417,10 +1392,10 @@ class CognitiveBridge:
             for target_id in active_senses[index + 1 :]:
                 key = (source_id, target_id)
                 if self._concept_signature_exists(key):
-                    self._concept_support.pop(key, None)
-                    self._retrospective_concept_support.pop(key, None)
+                    self._lifecycle.concept_support.pop(key, None)
+                    self._lifecycle.retrospective_support.pop(key, None)
                     continue
-                self._concept_support[key] = self._concept_support.get(key, 0) + 1
+                self._lifecycle.concept_support[key] = self._lifecycle.concept_support.get(key, 0) + 1
 
     def _concept_signature_exists(
         self, source_ids: tuple[str, str], *, graph: CognitiveGraph | None = None
@@ -1430,9 +1405,9 @@ class CognitiveBridge:
             if (
                 self._cached_concept_sig_rev != self._topology_revision
                 or self._cached_concept_sig_graph is not self._graph
-                or self._cached_concept_sig_lineage_len != len(self._concept_lineage)
+                or self._cached_concept_sig_lineage_len != len(self._lifecycle.lineage)
             ):
-                sigs = [set(lineage.parent_ids) for lineage in self._concept_lineage.values()]
+                sigs = [set(lineage.parent_ids) for lineage in self._lifecycle.lineage.values()]
                 concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
                 incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
                 for edge in active_graph.edges:
@@ -1449,10 +1424,10 @@ class CognitiveBridge:
                 self._cached_concept_signature_pairs = signature_pairs
                 self._cached_concept_sig_graph = self._graph
                 self._cached_concept_sig_rev = self._topology_revision
-                self._cached_concept_sig_lineage_len = len(self._concept_lineage)
+                self._cached_concept_sig_lineage_len = len(self._lifecycle.lineage)
             signatures = self._cached_concept_signatures
         else:
-            signatures = [set(lineage.parent_ids) for lineage in self._concept_lineage.values()]
+            signatures = [set(lineage.parent_ids) for lineage in self._lifecycle.lineage.values()]
             concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
             incoming = {concept_id: set() for concept_id in concept_ids}
             for edge in active_graph.edges:
@@ -1469,35 +1444,24 @@ class CognitiveBridge:
         pair = set(source_ids)
         return any(pair.issubset(sources) for sources in signatures)
 
-    def _extract_max_concept_index(self, graph: CognitiveGraph | None = None) -> int:
-        active_graph = self._graph if graph is None else graph
-        max_idx = 0
-        all_ids = {node.node_id for node in active_graph.nodes} | set(self._concept_lineage.keys())
-        for nid in all_ids:
-            if nid.startswith("concept_"):
-                try:
-                    val = int(nid.split("_", 1)[1], 16)
-                    if val > max_idx:
-                        max_idx = val
-                except ValueError:
-                    pass
-        return max_idx
+    def _extract_max_concept_index(
+        self,
+        graph: CognitiveGraph | None = None,
+    ) -> int:
+        return self._lifecycle.extract_max_concept_index(
+            self._graph if graph is None else graph
+        )
 
-    def _new_node_id(self, prefix: str, *, graph: CognitiveGraph | None = None) -> str:
-        active_graph = self._graph if graph is None else graph
-        existing = {node.node_id for node in active_graph.nodes} | set(self._concept_lineage.keys())
-        if prefix == "concept":
-            while True:
-                candidate = f"concept_{self._next_concept_index:016x}"
-                self._next_concept_index += 1
-                if candidate not in existing:
-                    return candidate
-        index = 1
-        while True:
-            candidate = f"{prefix}_{index:016x}"
-            if candidate not in existing:
-                return candidate
-            index += 1
+    def _new_node_id(
+        self,
+        prefix: str,
+        *,
+        graph: CognitiveGraph | None = None,
+    ) -> str:
+        return self._lifecycle.new_node_id(
+            prefix,
+            graph=self._graph if graph is None else graph,
+        )
 
     def _register_germinal_concept_candidate(
         self,
@@ -1519,22 +1483,22 @@ class CognitiveBridge:
         if concept_count + pending_concepts >= self._kernel_limits.max_concepts:
             return
 
-        support_pairs = set(self._concept_support) | set(
-            self._retrospective_concept_support
+        support_pairs = set(self._lifecycle.concept_support) | set(
+            self._lifecycle.retrospective_support
         )
         eligible = sorted(
             (
                 (
                     max(
-                        self._concept_support.get(pair, 0),
-                        self._retrospective_concept_support.get(pair, 0),
+                        self._lifecycle.concept_support.get(pair, 0),
+                        self._lifecycle.retrospective_support.get(pair, 0),
                     ),
                     pair,
                 )
                 for pair in support_pairs
                 if max(
-                    self._concept_support.get(pair, 0),
-                    self._retrospective_concept_support.get(pair, 0),
+                    self._lifecycle.concept_support.get(pair, 0),
+                    self._lifecycle.retrospective_support.get(pair, 0),
                 ) >= self._genome.structure.minimum_support
                 and not self._concept_signature_exists(pair, graph=active_graph)
             ),
@@ -1669,17 +1633,19 @@ class CognitiveBridge:
         """Legacy alias: historically "readout" meant readout_core."""
         return self._nodes_with_path_to_core_readout(graph)
 
-    def _update_unrouted_tracking(self, tick: int, *, graph: CognitiveGraph | None = None) -> set[str]:
+    def _update_unrouted_tracking(
+        self,
+        tick: int,
+        *,
+        graph: CognitiveGraph | None = None,
+    ) -> set[str]:
         active_graph = self._graph if graph is None else graph
         routed = self._nodes_with_path_to_core_readout(active_graph)
-        concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
-        unrouted = concept_ids - routed
-        for node_id in concept_ids:
-            if node_id in unrouted:
-                self._unrouted_since_tick.setdefault(node_id, tick)
-            else:
-                self._unrouted_since_tick.pop(node_id, None)
-        return unrouted
+        return self._lifecycle.update_unrouted(
+            graph=active_graph,
+            routed_ids=routed,
+            tick=tick,
+        )
 
     def _propose_concept_recycling_mutations(
         self,
@@ -1712,7 +1678,7 @@ class CognitiveBridge:
         stranded = [
             node_id
             for node_id in sorted(unrouted_ids)
-            if node_id in self._concept_last_active_tick
+            if node_id in self._lifecycle.concept_last_active_tick
         ]
         if not stranded:
             return (), None
@@ -1789,12 +1755,12 @@ class CognitiveBridge:
                 )
                 and node.node_id not in orphan_ids
             ):
-                self._orphan_since_tick.pop(node.node_id, None)
+                self._lifecycle.orphan_since_tick.pop(node.node_id, None)
 
         grace = max(1, self._genome.structure.tentative_lifetime_ticks)
         mutations: list[Mutation] = []
         for node_id in sorted(orphan_ids):
-            since = self._orphan_since_tick.setdefault(node_id, tick)
+            since = self._lifecycle.orphan_since_tick.setdefault(node_id, tick)
             if tick - since < grace:
                 continue
             mutations.append(Mutation(kind="remove_node", payload={"node_id": node_id}))
@@ -1822,7 +1788,7 @@ class CognitiveBridge:
         for node in senses:
             if node.node_id in incident_ids:
                 continue
-            last_seen = self._sense_last_seen_tick.get(node.node_id, 0)
+            last_seen = self._lifecycle.sense_last_seen_tick.get(node.node_id, 0)
             stale = tick - last_seen >= retention
             candidates.append((stale, last_seen, node.node_id))
 
@@ -1914,7 +1880,7 @@ class CognitiveBridge:
         self._recovery_pending = True
         if prime_legacy_deadlock and self._hard_deadlock_signature():
             for node_id in self._orphan_latent_ids():
-                self._orphan_since_tick.setdefault(node_id, 0)
+                self._lifecycle.orphan_since_tick.setdefault(node_id, 0)
 
     def _refresh_recovery_state(self) -> None:
         if not self._recovery_pending:
@@ -1953,7 +1919,7 @@ class CognitiveBridge:
                     if isinstance(raw_sources, (list, tuple, set)):
                         parent_ids = tuple(sorted(str(value) for value in raw_sources))
                         if parent_ids:
-                            self._concept_lineage[node_id] = ConceptLineage(node_id, parent_ids, tick)
+                            self._lifecycle.lineage[node_id] = ConceptLineage(node_id, parent_ids, tick)
                             self._consume_concept_support(parent_ids)
             elif mutation.kind == "add_edge":
                 source_id = str(mutation.payload.get("source_id", ""))
@@ -1965,10 +1931,10 @@ class CognitiveBridge:
                     )
             elif mutation.kind == "remove_node":
                 node_id = str(mutation.payload.get("node_id", ""))
-                self._concept_lineage.pop(node_id, None)
-                self._sense_last_seen_tick.pop(node_id, None)
-                self._orphan_since_tick.pop(node_id, None)
-                self._unrouted_since_tick.pop(node_id, None)
+                self._lifecycle.lineage.pop(node_id, None)
+                self._lifecycle.sense_last_seen_tick.pop(node_id, None)
+                self._lifecycle.orphan_since_tick.pop(node_id, None)
+                self._lifecycle.unrouted_since_tick.pop(node_id, None)
                 self._normalizers.pop(node_id, None)
                 self._predictors.utility.pop(node_id, None)
                 self._predictors.retirement.pop(node_id, None)
@@ -1995,10 +1961,10 @@ class CognitiveBridge:
                 NodeKind.READOUT,
             )
         }
-        self._sense_last_seen_tick = {key: value for key, value in self._sense_last_seen_tick.items() if key in sense_ids}
-        self._concept_lineage = {key: value for key, value in self._concept_lineage.items() if key in concept_ids}
-        self._orphan_since_tick = {key: value for key, value in self._orphan_since_tick.items() if key in latent_ids}
-        self._unrouted_since_tick = {key: value for key, value in self._unrouted_since_tick.items() if key in concept_ids}
+        self._lifecycle.sense_last_seen_tick = {key: value for key, value in self._lifecycle.sense_last_seen_tick.items() if key in sense_ids}
+        self._lifecycle.lineage = {key: value for key, value in self._lifecycle.lineage.items() if key in concept_ids}
+        self._lifecycle.orphan_since_tick = {key: value for key, value in self._lifecycle.orphan_since_tick.items() if key in latent_ids}
+        self._lifecycle.unrouted_since_tick = {key: value for key, value in self._lifecycle.unrouted_since_tick.items() if key in concept_ids}
         self._normalizers = {key: value for key, value in self._normalizers.items() if key in sense_ids}
         self._node_born_tick = {
             key: value for key, value in self._node_born_tick.items() if key in node_ids
@@ -2018,9 +1984,9 @@ class CognitiveBridge:
         for node_id in node_ids:
             self._node_observation_count.setdefault(node_id, 0)
             self._node_active_count.setdefault(node_id, 0)
-        self._concept_support = {
+        self._lifecycle.concept_support = {
             pair: count
-            for pair, count in self._concept_support.items()
+            for pair, count in self._lifecycle.concept_support.items()
             if pair[0] in sense_ids and pair[1] in sense_ids
         }
         self._structural_plasticity.reconcile(node_ids)
@@ -2057,14 +2023,14 @@ class CognitiveBridge:
                 {"concept_id": x.concept_id, "parent_ids": list(x.parent_ids), "born_tick": x.born_tick}
                 for x in self.concept_lineage
             ],
-            "sense_last_seen_tick": dict(sorted(self._sense_last_seen_tick.items())),
-            "orphan_since_tick": dict(sorted(self._orphan_since_tick.items())),
-            "unrouted_since_tick": dict(sorted(self._unrouted_since_tick.items())),
-            "concept_last_active_tick": dict(sorted(self._concept_last_active_tick.items())),
+            "sense_last_seen_tick": dict(sorted(self._lifecycle.sense_last_seen_tick.items())),
+            "orphan_since_tick": dict(sorted(self._lifecycle.orphan_since_tick.items())),
+            "unrouted_since_tick": dict(sorted(self._lifecycle.unrouted_since_tick.items())),
+            "concept_last_active_tick": dict(sorted(self._lifecycle.concept_last_active_tick.items())),
             "node_born_tick": dict(sorted(self._node_born_tick.items())),
             "node_observation_count": dict(sorted(self._node_observation_count.items())),
             "node_active_count": dict(sorted(self._node_active_count.items())),
-            "next_concept_index": self._next_concept_index,
+            "next_concept_index": self._lifecycle.next_concept_index,
             "recovery_pending": self._recovery_pending,
             "shadow_predictions": [
                 {"source_id": item.source_id, "target_id": item.target_id,
@@ -2453,7 +2419,7 @@ class CognitiveBridge:
         raw_normalizers = payload.get("sensory_normalizers")
         normalizers_payload = raw_normalizers if isinstance(raw_normalizers, dict) else None
         bridge._normalizers = restore_sensory_normalizers(normalizers_payload)
-        bridge._concept_lineage = cls._restore_concept_lineage(
+        bridge._lifecycle.lineage = cls._restore_concept_lineage(
             payload.get("concept_lineage"), graph=graph, kernel_limits=kernel_limits
         )
         sense_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.SENSE}
@@ -2467,17 +2433,17 @@ class CognitiveBridge:
                 NodeKind.READOUT,
             )
         }
-        bridge._sense_last_seen_tick = cls._restore_nonnegative_tick_map(
+        bridge._lifecycle.sense_last_seen_tick = cls._restore_nonnegative_tick_map(
             payload.get("sense_last_seen_tick"), allowed_ids=sense_ids, field="sense_last_seen_tick"
         )
-        bridge._orphan_since_tick = cls._restore_nonnegative_tick_map(
+        bridge._lifecycle.orphan_since_tick = cls._restore_nonnegative_tick_map(
             payload.get("orphan_since_tick"), allowed_ids=latent_ids, field="orphan_since_tick"
         )
         concept_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT}
-        bridge._unrouted_since_tick = cls._restore_nonnegative_tick_map(
+        bridge._lifecycle.unrouted_since_tick = cls._restore_nonnegative_tick_map(
             payload.get("unrouted_since_tick"), allowed_ids=concept_ids, field="unrouted_since_tick"
         )
-        bridge._concept_last_active_tick = cls._restore_nonnegative_tick_map(
+        bridge._lifecycle.concept_last_active_tick = cls._restore_nonnegative_tick_map(
             payload.get("concept_last_active_tick"), allowed_ids=concept_ids, field="concept_last_active_tick"
         )
         bridge._node_born_tick = {
@@ -2513,9 +2479,9 @@ class CognitiveBridge:
         )
         raw_next_idx = payload.get("next_concept_index")
         if isinstance(raw_next_idx, int) and raw_next_idx > 0:
-            bridge._next_concept_index = raw_next_idx
+            bridge._lifecycle.next_concept_index = raw_next_idx
         else:
-            bridge._next_concept_index = bridge._extract_max_concept_index(graph=graph) + 1
+            bridge._lifecycle.next_concept_index = bridge._extract_max_concept_index(graph=graph) + 1
         raw_recovery = payload.get("recovery_pending", False)
         if not isinstance(raw_recovery, bool):
             raise GraphError("recovery_pending must be a boolean")
