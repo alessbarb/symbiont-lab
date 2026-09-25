@@ -380,7 +380,7 @@ def _carry_sensorimotor_v2_knowledge(
     previous: Mapping[str, Any],
     fresh_actuation: dict[str, Any],
 ) -> dict[str, Any]:
-    """Retain organism knowledge while resetting current-body execution state."""
+    """Carry transferable competence knowledge, never old-body factual authority."""
     previous_actuation = previous.get("actuation")
     if not isinstance(previous_actuation, Mapping):
         return fresh_actuation
@@ -389,33 +389,37 @@ def _carry_sensorimotor_v2_knowledge(
         return fresh_actuation
 
     result = deepcopy(fresh_actuation)
-    fresh_v2 = result.get("sensorimotor_v2")
-    retained = deepcopy(dict(prior_v2))
+    fresh_v2_raw = result.get("sensorimotor_v2")
+    if not isinstance(fresh_v2_raw, Mapping):
+        return result
+    fresh_v2 = deepcopy(dict(fresh_v2_raw))
 
-    # The current surface binding belongs to the fresh body contract. Learned
-    # competence bindings inside retained["competences"] remain untouched and
-    # therefore stay non-executable until new evidence rebinds them.
-    if isinstance(fresh_v2, Mapping):
-        fresh_binding = fresh_v2.get("surface_binding")
-        if isinstance(fresh_binding, Mapping):
-            retained["surface_binding"] = deepcopy(dict(fresh_binding))
+    # The fresh template owns the current surface, empty EffectSpace, empty
+    # causal ledger, empty execution bindings, exploration state and
+    # composition evidence. None of those can cross a Body boundary.
+    prior_competences = prior_v2.get("competences", [])
+    transferable: list[dict[str, Any]] = []
+    if isinstance(prior_competences, list):
+        for item in prior_competences:
+            if not isinstance(item, Mapping):
+                continue
+            candidate = deepcopy(dict(item))
+            candidate.pop("surface_binding", None)
+            # Effect IDs are grounded in the old body's opaque perceptual
+            # changes. Preserve strategy/evidence maturity, not old grounding.
+            candidate["effect_id"] = None
+            transferable.append(candidate)
 
-    # Current exploration/controller traces are body-local execution state,
-    # not abstract organism knowledge.
-    retained["exploration"] = {
-        "strength_memory": {},
-        "active_preference": [],
+    fresh_v2["schema_version"] = 2
+    fresh_v2["competences"] = transferable
+    # Explicitly insist on fresh-body authority even if a malformed template
+    # somehow carried these fields.
+    fresh_v2["execution_bindings"] = {
+        "schema_version": 1,
+        "capacity": 512,
+        "items": [],
     }
-    raw_composition = retained.get("composition")
-    if isinstance(raw_composition, Mapping):
-        composition = deepcopy(dict(raw_composition))
-        composition["predecessor_id"] = None
-        composition["active_children"] = []
-        composition["active_index"] = 0
-        composition["effect_by_commitment"] = {}
-        retained["composition"] = composition
-
-    result["sensorimotor_v2"] = retained
+    result["sensorimotor_v2"] = fresh_v2
     result["action_commitment"] = None
     result["last_executed_primitive_id"] = None
     result["pending_motor_observation"] = []
