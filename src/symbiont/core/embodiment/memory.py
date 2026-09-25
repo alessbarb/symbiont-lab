@@ -17,6 +17,9 @@ class BodySpecificMemory:
     dynamics_prior: dict[str, object] | None = None
     embodied_competence_priors: dict[str, object] | None = None
     historical_causal_state: dict[str, object] | None = None
+    historical_motor_candidates: tuple[dict[str, object], ...] = ()
+    motor_cognitive_surface: dict[str, object] | None = None
+    private_model_ids: tuple[str, ...] = ()
 
     def checkpoint(self) -> dict[str, object]:
         return {
@@ -27,6 +30,11 @@ class BodySpecificMemory:
             "dynamics_prior": deepcopy(self.dynamics_prior),
             "embodied_competence_priors": deepcopy(self.embodied_competence_priors),
             "historical_causal_state": deepcopy(self.historical_causal_state),
+            "historical_motor_candidates": [
+                deepcopy(item) for item in self.historical_motor_candidates
+            ],
+            "motor_cognitive_surface": deepcopy(self.motor_cognitive_surface),
+            "private_model_ids": list(self.private_model_ids),
         }
 
 
@@ -124,6 +132,18 @@ class EmbodimentArchive:
                     ),
                     historical_causal_state=deepcopy(
                         entry.get("historical_causal_state")
+                    ),
+                    historical_motor_candidates=tuple(
+                        deepcopy(dict(item))
+                        for item in entry.get("historical_motor_candidates", [])
+                        if isinstance(item, Mapping)
+                    ),
+                    motor_cognitive_surface=deepcopy(
+                        entry.get("motor_cognitive_surface")
+                    ),
+                    private_model_ids=tuple(
+                        str(value)
+                        for value in entry.get("private_model_ids", [])
                     ),
                 )
             )
