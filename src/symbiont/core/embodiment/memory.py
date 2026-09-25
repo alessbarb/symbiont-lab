@@ -305,7 +305,12 @@ def archive_episode_checkpoint(
         final_prediction_error=float(
             adaptation.get("prediction_error_recent", 0.0)
         ),
-        peak_prediction_shock=float(adaptation.get("prediction_shock", 0.0)),
+        peak_prediction_shock=float(
+            adaptation.get(
+                "peak_prediction_shock",
+                adaptation.get("prediction_shock", 0.0),
+            )
+        ),
         initial_controllability_confidence=0.0,
         final_controllability_confidence=float(
             adaptation.get("controllability_confidence", 0.0)
