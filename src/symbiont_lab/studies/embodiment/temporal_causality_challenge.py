@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass
 import random
 from typing import Sequence
 
-from symbiont.core.agency import AgencyModel
+from symbiont.core.embodiment.agency import AgencyModel
 
 # Component-level falsification specimen marker (see §62 of
 # docs/design/herencia-evolutiva-multidimensional.md). This module
