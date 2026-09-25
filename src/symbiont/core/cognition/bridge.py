@@ -12,7 +12,6 @@ from ...cognition.checkpoint import (
     export_graph_checkpoint,
     export_safety_state,
     export_sensory_normalizers,
-    quantize_weight,
     restore_graph_checkpoint,
     restore_safety_state,
     restore_sensory_normalizers,
@@ -39,7 +38,7 @@ from ...cognition.structure import (
     evaluate_edge_lifecycle,
 )
 from ...cognition.types import WEIGHT_RANGE, EdgeKind, NodeKind
-from ..foundation.weight_stability import EdgeKey, WeightStabilityTracker
+from .plasticity_state import PlasticityEngine
 
 _ACTIVITY_THRESHOLD = 0.1
 _EDGE_USAGE_THRESHOLD = 1e-3
@@ -327,9 +326,8 @@ class CognitiveBridge:
         )
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._recovery_pending = False
-        self._weight_tracker = WeightStabilityTracker(kernel_limits=kernel_limits)
-        self._tracked_edge_keys: set[tuple[str, str, str]] = set()
-        self._seed_new_edges()
+        self._plasticity = PlasticityEngine(kernel_limits=kernel_limits)
+        self._plasticity.seed_new_edges(self._graph)
         self._reacclimation_remaining = 0
         self._cached_topology_revision = -1
         self._cached_graph: CognitiveGraph | None = None
@@ -1369,16 +1367,6 @@ class CognitiveBridge:
             changed = changed or updated != self._adaptive_sense_budget
             self._adaptive_sense_budget = updated
         return changed
-
-    def _seed_new_edges(self) -> None:
-        current_keys = {(edge.source_id, edge.target_id, edge.kind.value) for edge in self._graph.edges}
-        self._weight_tracker.reconcile(current_keys)
-        for edge in self._graph.edges:
-            key = (edge.source_id, edge.target_id, edge.kind.value)
-            if key in self._tracked_edge_keys:
-                continue
-            self._weight_tracker.seed(key, quantize_weight(edge.weight))
-        self._tracked_edge_keys = current_keys
 
     def _admit_senses(self, sense_values: Mapping[str, float], *, tick: int) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
@@ -2436,12 +2424,7 @@ class CognitiveBridge:
         }
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
-        return {
-            (edge.source_id, edge.target_id, edge.kind.value): self._weight_tracker.durable_class(
-                (edge.source_id, edge.target_id, edge.kind.value)
-            )
-            for edge in self._graph.edges
-        }
+        return self._plasticity.weight_class_overrides(self._graph)
 
     @staticmethod
     def _restore_nonnegative_tick_map(
@@ -3051,17 +3034,13 @@ class CognitiveBridge:
                 transmitted = edge.weight * source_value
                 advance_edge_age(edge, tick=tick, used=abs(transmitted) >= _EDGE_USAGE_THRESHOLD)
 
-            edges_by_target: dict[str, list] = {}
-            for edge in self._graph.edges:
-                key = (edge.source_id, edge.target_id, edge.kind.value)
-                self._weight_tracker.observe(key, quantize_weight(edge.weight), tick=tick)
-                edges_by_target.setdefault(edge.target_id, []).append(edge)
-            for target_edges in edges_by_target.values():
-                keys: list[EdgeKey] = [(edge.source_id, edge.target_id, edge.kind.value) for edge in target_edges]
-                live_weights: dict[EdgeKey, float] = {key: float(edge.weight) for key, edge in zip(keys, target_edges)}
-                self._weight_tracker.consolidate_node(
-                    keys, live_weights, max_incoming_norm=self._kernel_limits.max_incoming_consolidated_weight_norm
-                )
+            self._plasticity.observe_and_consolidate(
+                self._graph,
+                tick=tick,
+                max_incoming_norm=(
+                    self._kernel_limits.max_incoming_consolidated_weight_norm
+                ),
+            )
 
             node_kinds, existing_relation_pairs = self._topology_cache()
             for node_id, value in frame.activations.items():
@@ -3442,7 +3421,7 @@ class CognitiveBridge:
                 if candidate is not self._graph:
                     self._graph = candidate
                     self._record_applied_metadata(all_mutations, tick=tick)
-                    self._seed_new_edges()
+                    self._plasticity.seed_new_edges(self._graph)
                     self._reconcile_node_metadata()
                     structural_mutations_applied = len(all_mutations)
                     applied_mutations = all_mutations
