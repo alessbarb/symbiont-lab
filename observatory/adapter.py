@@ -846,6 +846,17 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
             return 0
         return max(0, min(maximum, number))
 
+    def nonnegative_number(value: Any) -> float:
+        if isinstance(value, bool):
+            return 0.0
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return 0.0
+        if not math.isfinite(number) or number < 0.0:
+            return 0.0
+        return round(number, 6)
+
     embodiment_id = _text(payload.get("embodiment_id", ""), 128)
     body_id = _text(payload.get("body_id", ""), 128)
     contract_fingerprint = _text(payload.get("contract_fingerprint", ""), 128)
@@ -865,8 +876,8 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
     bindings_raw = bindings_raw if isinstance(bindings_raw, Mapping) else {}
 
     adaptation = {
-        "prediction_error_recent": max(
-            0.0, float(adaptation_raw.get("prediction_error_recent", 0.0) or 0.0)
+        "prediction_error_recent": nonnegative_number(
+            adaptation_raw.get("prediction_error_recent", 0.0)
         ),
         "prediction_shock": bounded_ratio(adaptation_raw.get("prediction_shock", 0.0)),
         "schema_uncertainty": bounded_ratio(adaptation_raw.get("schema_uncertainty", 1.0)),
@@ -885,9 +896,6 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
             else None
         ),
     }
-    if not math.isfinite(adaptation["prediction_error_recent"]):
-        adaptation["prediction_error_recent"] = 0.0
-
     return {
         "embodiment_id": embodiment_id,
         "body_id": body_id,
@@ -898,9 +906,8 @@ def _embodiment_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | Non
         "adaptation": adaptation,
         "dynamics": {
             "relation_count": bounded_count(dynamics_raw.get("relation_count", 0)),
-            "mean_prediction_error": max(
-                0.0,
-                float(dynamics_raw.get("mean_prediction_error", 0.0) or 0.0),
+            "mean_prediction_error": nonnegative_number(
+                dynamics_raw.get("mean_prediction_error", 0.0)
             ),
         },
         "execution": {
