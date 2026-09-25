@@ -117,6 +117,7 @@ from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
 from ..domains.action import ActionDomain, ActionServices
 from ..domains.physiology import PhysiologyDomain, PhysiologyServices
+from ..domains.perception import PerceptionDomain, PerceptionServices
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -718,6 +719,7 @@ class OrganismRuntime:
             tuple[int, str, str, tuple[str, ...], float, float]
         ] = []
         self._physiology_domain = PhysiologyDomain()
+        self._perception_domain = PerceptionDomain()
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
@@ -2155,366 +2157,80 @@ class OrganismRuntime:
         # physiology report is descriptive; this preflight is authoritative.
         plasticity_gate = self._homeostasis.regulate(self._metabolism.pressure()).plasticity_enabled
 
-        snapshot = self._lifecycle.tick(
-            sampling_selector=self._sampling_selector if self._discover_senses else None
+        perception = self._perception_domain.step(
+            services=PerceptionServices(
+                lifecycle=self._lifecycle,
+                adaptive_senses=self._adaptive_senses,
+                self_model=self._self_model,
+                signal_identity=self._signal_identity,
+                signal_knowledge=self._signal_knowledge,
+                sensory_system=self._sensory_system,
+                acclimation=self._acclimation,
+                rhythm_model=self._rhythm_model,
+                drift_baselines=self._drift_baselines,
+                assimilator=self._assimilator,
+                resource_habitats=self._resource_habitats,
+                interoception_provider=self._interoception_provider,
+                reading_providers=self._reading_providers,
+                charge_metabolism=self._charge_metabolism,
+            ),
+            tick=self._tick_count + 1,
+            discover_senses=self._discover_senses,
+            bootstrap_semantic_senses=self._bootstrap_semantic_senses,
+            attention_budget=self._attention_budget,
+            sampling_selector=self._sampling_selector,
+            pending_proprioception=(
+                self._pending_proprioception
+                if self._actuation_enabled
+                else {}
+            ),
         )
-        # Explicitly attached finite habitats are bounded organism surfaces,
-        # not host discovery.  Expose only their current aggregate quantity as
-        # an opaque signal so a germinal runtime can have a real first sense
-        # without receiving a semantic resource name or apparatus profile.
-        resource_readings = tuple(
-            SensorReading(
-                capability_id=f"habitat_surface.{resource_id}",
-                source="shared_habitat",
-                value=resource.snapshot().available_resources,
-                unit=Unit.COUNT,
-                monotonic_timestamp_ns=time.monotonic_ns(),
-                quality=ReadingQuality.NOMINAL,
-                privacy_class=ReadingPrivacyClass.AGGREGATE,
-            )
-            for resource_id, resource in sorted(self._resource_habitats.items())
-        )
-        raw_organism_readings = (*snapshot.readings, *resource_readings)
-        if self._interoception_provider is not None:
-            # Keep computational host measurements in the apparatus snapshot,
-            # but do not spend organism attention or plasticity on RSS and
-            # scheduler timing.  The physiological channels remain a real
-            # sense and are still sampled through the same provider boundary.
-            from ...host.providers.interoception import InteroceptionProvider
-            raw_organism_readings = tuple(
-                reading for reading in raw_organism_readings
-                if reading.source != "interoception"
-                or InteroceptionProvider.organism_facing(reading.capability_id)
-            )
-        organism_readings = tuple(
-            self._interoception_provider.normalize_for_organism(reading)
-            if self._interoception_provider is not None
-            else reading
-            for reading in raw_organism_readings
-        )
-        readings_by_capability = {reading.capability_id: reading for reading in organism_readings}
-        observations = []
-        for capability in snapshot.manifest.available:
-            reading = readings_by_capability.get(capability.capability_id)
-            observations.append(SignalObservation(
-                signal_id=self._signal_identity.signal_id(capability.capability_id),
-                available=True,
-                selected=capability.capability_id in snapshot.sampled_capability_ids,
-                value=None if reading is None else reading.value,
-                quality="unavailable" if reading is None else reading.quality.value,
-            ))
-        for reading in resource_readings:
-            observations.append(SignalObservation(
-                signal_id=self._signal_identity.signal_id(reading.capability_id),
-                available=True,
-                selected=True,
-                value=reading.value,
-                quality=reading.quality.value,
-            ))
-        # Runtime ticks are the authoritative monotonic clock; test/fixture
-        # lifecycles may reuse a snapshot tick while the organism continues.
-        relation_percept_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
-        name_to_capability = {name: capability for capability, name in relation_percept_names.items()}
-        def opaque_sense_id(value: str) -> str:
-            # Adaptive relations are expressed in percept names, while the
-            # knowledge engine is keyed only by canonical capability-derived
-            # opaque IDs. Convert explicitly at this boundary.
-            capability = name_to_capability.get(value, value)
-            return self._signal_identity.signal_id(capability)
-        candidate_pairs = tuple(
-            (opaque_sense_id(relation.sense_a), opaque_sense_id(relation.sense_b))
-            for relation in self._adaptive_senses.strongest_relations(limit=64)
-            if relation.sense_a != relation.sense_b
-        )
-        resource_signal_ids = tuple(
-            self._signal_identity.signal_id(reading.capability_id)
-            for reading in resource_readings
-        )
-        candidate_pairs += tuple(
-            (left, right)
-            for index, left in enumerate(resource_signal_ids)
-            for right in resource_signal_ids[index + 1:]
-        )[:64 - len(candidate_pairs)]
-        # Only explicit acquisition attempts become endogenous binary targets.
-        # Provider identity is used here solely to remove the trivial case in
-        # which source and outcome are one shared acquisition group; it never
-        # crosses the opaque engine boundary.
-        attempted = {}
-        for outcome in snapshot.sampling_outcomes:
-            if outcome.capability_id not in readings_by_capability and outcome.kind.value in {"missing", "unavailable", "provider_failed"}:
-                favorable = False
-            elif outcome.kind.value == "succeeded" and outcome.quality is not None and outcome.quality.value == "nominal":
-                favorable = True
-            elif outcome.kind.value in {"succeeded", "missing", "unavailable", "provider_failed"}:
-                favorable = False
-            else:
-                continue
-            attempted[outcome.capability_id] = (outcome.provider_id, favorable)
-        outcomes = tuple(
-            (self._signal_identity.signal_id(capability_id), favorable)
-            for capability_id, (provider_id, favorable) in attempted.items()
-            if not any(
-                provider_id == other_provider and capability_id != other_id
-                for other_id, (other_provider, _) in attempted.items()
-            )
-        )
-        self._signal_knowledge.observe(
-            SignalObservationBatch(self._tick_count + 1, tuple(observations)),
-            candidate_pairs=candidate_pairs,
-            outcomes=outcomes,
-        )
-        # Signal knowledge issues bounded one-step predictions from local
-        # opaque histories.  This is a genuine runtime milestone even when
-        # the structural cognitive graph has not yet produced a prediction
-        # error of its own; the Observatory may observe the resulting event,
-        # but it must not infer it from evaluator state.
-        knowledge_view = self._signal_knowledge.view()
-        interoceptive_reading_count = sum(
-            reading.source == "interoception" for reading in snapshot.readings
-        )
-        external_reading_count = max(0, len(snapshot.readings) - interoceptive_reading_count)
-        # Bounded internal channels are a body surface, not a full host
-        # observation.  They still consume resources, but their aggregate
-        # processing cost is lower than external discovery work.
-        observation_cost = (
-            min(0.02, external_reading_count * 0.01)
-            + interoceptive_reading_count * 0.002
-        )
-        self._charge_metabolism("observation", observation_cost)
-        sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
-
-        self._adaptive_senses.observe(organism_readings)
-        for outcome in snapshot.sampling_outcomes:
-            self._self_model.observe(outcome=outcome, tick=self._tick_count)
-        for evicted_name in self._adaptive_senses.drain_evicted_percept_names():
-            self._drift_baselines.pop(evicted_name, None)
-
-        active_learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
-        developed_names = self._adaptive_senses.developed_percept_names() if self._discover_senses else {}
-        semantic_names = (
-            DEFAULT_PERCEPT_NAMES
-            if self._bootstrap_semantic_senses and not self._sensory_system.plasticity_enabled
-            else {}
-        )
-        opaque_source_names = (
-            {
-                reading.capability_id: self._signal_identity.signal_id(reading.capability_id)
-                for reading in organism_readings
-            }
-            if self._sensory_system.plasticity_enabled
-            else {}
-        )
-        habitat_names = {
-            capability_id: self._signal_identity.signal_id(capability_id)
-            for resource_id in self._resource_habitats
-            for capability_id in (f"habitat_surface.{resource_id}",)
-        }
-        # Interoceptive readings are an explicit runtime surface, not host
-        # discovery.  Keep their capability names out of cognition by
-        # projecting them to the same opaque identity namespace used by the
-        # endogenous signal learner.  This also makes the interoception
-        # ablation causal: with the provider absent these channels simply do
-        # not enter the local cognitive input.
-        interoceptive_names = {
-            reading.capability_id: self._signal_identity.signal_id(reading.capability_id)
-            for reading in organism_readings
-            if reading.source == "interoception"
-        }
-
-        selected_names: dict[str, str] = dict(semantic_names)
-        selected_names.update(opaque_source_names)
-        selected_names.update(active_learned_names)
-        selected_names.update(habitat_names)
-        selected_names.update(interoceptive_names)
-        percept_names = {
-            capability_id: developed_names.get(capability_id, selected_name)
-            for capability_id, selected_name in selected_names.items()
-        }
-        capability_by_percept_name = {name: capability_id for capability_id, name in percept_names.items()}
-        cognitive_aliases = {
-            capability_id: semantic_name
-            for capability_id, semantic_name in semantic_names.items()
-            if percept_names.get(capability_id) not in (None, semantic_name)
-        }
-
-        selected_ids = set(percept_names)
-        cognitive_readings = tuple(
-            reading for reading in organism_readings if reading.capability_id in selected_ids
-        )
-        if self._actuation_enabled and self._pending_proprioception:
-            now = time.monotonic_ns()
-            proprio_names = {
-                capability_id: self._signal_identity.signal_id(capability_id)
-                for capability_id in self._pending_proprioception
-            }
-            proprio_readings = tuple(
-                SensorReading(
-                    capability_id=capability_id,
-                    source="actuation",
-                    value=value,
-                    unit=Unit.RATIO,
-                    monotonic_timestamp_ns=now,
-                    quality=ReadingQuality.NOMINAL,
-                    privacy_class=ReadingPrivacyClass.AGGREGATE,
-                )
-                for capability_id, value in sorted(self._pending_proprioception.items())
-            )
-            percept_names.update(proprio_names)
-            cognitive_readings = (*cognitive_readings, *proprio_readings)
+        snapshot = perception.snapshot
+        resource_readings = perception.resource_readings
+        organism_readings = perception.organism_readings
+        knowledge_view = perception.knowledge_view
+        sampling_plan = perception.sampling_plan
+        percept_names = perception.percept_names
+        capability_by_percept_name = perception.capability_by_percept_name
+        cognitive_aliases = perception.cognitive_aliases
+        selected_ids = set(perception.selected_ids)
+        cognitive_readings = perception.cognitive_readings
+        percepts = perception.percepts
+        sensor_by_cognitive_name = perception.sensor_by_cognitive_name
+        drift_observations = perception.drift_observations
+        assimilation = list(perception.assimilation)
+        allocations = perception.allocations
+        perceptual_allocations = perception.perceptual_allocations
+        availability_by_capability = perception.availability_by_capability
+        if perception.pending_proprioception_consumed:
             self._pending_proprioception = {}
 
-        percepts = self._sensory_system.transduce(
-            cognitive_readings,
-            percept_names=percept_names,
-            tick=self._tick_count + 1,
+        newly_confirmed_motor_effect_ids = (
+            self._complete_pending_motor_observation(
+                percepts,
+                tick=self._tick_count + 1,
+            )
         )
-        newly_confirmed_motor_effect_ids = self._complete_pending_motor_observation(
-            percepts, tick=self._tick_count + 1
-        )
-        # Once an actuator's controllability is established, that bodily fact
-        # remains available while cognition learns *when* to use it.  Requiring
-        # a fresh actuation to supply every association sample would deadlock:
-        # an isolated motor readout cannot actuate until it first gains an
-        # incoming edge, but the edge itself may require minimum_support > 1.
         established_motor_effect_ids = (
             self._actuator_proposer.active_repertoire
             if self._actuator_proposer is not None
             else ()
         )
-        motor_effect_actuator_ids = tuple(sorted(set(
-            (*newly_confirmed_motor_effect_ids, *established_motor_effect_ids)
-        )))
+        motor_effect_actuator_ids = tuple(
+            sorted(
+                set(
+                    (
+                        *newly_confirmed_motor_effect_ids,
+                        *established_motor_effect_ids,
+                    )
+                )
+            )
+        )
         cognitive_primitives = (
             self._sensorimotor_learner.cognitive_primitives
             if self._sensorimotor_learner is not None
             else ()
         )
-        # transduce() may create identity receptors for sources encountered on
-        # this very tick; build the lookup only after that developmental step.
-        sensor_by_cognitive_name = {
-            sensor.cognitive_name: sensor for sensor in self._sensory_system.sensors
-        }
-        acquisition_costs: dict[str, float] = {}
-        for outcome in snapshot.sampling_outcomes:
-            acquisition_costs[outcome.capability_id] = (
-                acquisition_costs.get(outcome.capability_id, 0.0)
-                + outcome.attributed_elapsed_s
-            )
-        self._sensory_system.update_acquisition_costs(acquisition_costs)
-        self._acclimation.observe(cognitive_readings)
-        self._rhythm_model.observe(percepts, time_bucket=current_time_bucket())
-        # Source genealogy stays in SensorState, outside Percept/cognition.
-        for percept in percepts:
-            sensor = sensor_by_cognitive_name.get(percept.name)
-            if (
-                percept.name not in capability_by_percept_name
-                and sensor is not None
-                and len(sensor.source_ids) == 1
-            ):
-                capability_by_percept_name[percept.name] = sensor.source_ids[0]
-
-        drift_observations: dict[str, DriftObservation] = {}
-        for percept in percepts:
-            if percept.value is None:
-                continue
-            baseline = self._drift_baselines.get(percept.name)
-            if baseline is None:
-                baseline = DriftAwareBaseline()
-                self._drift_baselines[percept.name] = baseline
-            drift_observations[percept.name] = baseline.observe(percept.value)
-
-        assimilation: list[AssimilationDecision] = []
-        for observation in drift_observations.values():
-            decision = self._assimilator.evaluate(
-                novelty=novelty_from_drift_kind(observation.kind),
-                surprise=0.0,
-                attention=0.0,
-                reliability=1.0,
-                cost=0.0,
-            )
-            assimilation.append(decision)
-            self._charge_metabolism("persistence", 0.005 if decision.action.value == "incorporate" else 0.001)
-
-        currently_available_ids = {
-            capability.capability_id for capability in snapshot.manifest.available
-        }
-        eligible_ids = selected_ids & currently_available_ids
-        self._self_model.reconcile(eligible_ids)
-        rank_costs = {
-            capability_id: self._self_model.relative_cost(
-                capability_id, reference_ids=eligible_ids
-            )
-            for capability_id in eligible_ids
-        }
-        allocations = attend_to_host(
-            self._acclimation,
-            budget=self._attention_budget,
-            eligible_capability_ids=eligible_ids,
-            rank_costs=rank_costs,
-        )
-
-        # Source acquisition and perceptual attention are separate decisions.
-        # NOTE(legacy): Legacy mode retains the historical capability allocation exactly.
-        # Adaptive mode allocates cognition among the percepts produced by
-        # already-acquired sources; it cannot cause a new host read.
-        perceptual_allocations: tuple[AttentionAllocation, ...] = ()
-        if self._sensory_system.plasticity_enabled:
-            allocated_sources = {
-                allocation.name for allocation in allocations
-            } | {reading.capability_id for reading in resource_readings}
-            available_percepts = {percept.name for percept in percepts if percept.value is not None}
-            perceptual_candidates: list[AttentionCandidate] = []
-            for sensor in self._sensory_system.sensors:
-                if sensor.cognitive_name not in available_percepts:
-                    continue
-                if not allocated_sources.intersection(sensor.source_ids):
-                    continue
-                # Young receptors receive an epistemic exploration bonus.
-                developmental_uncertainty = 1.0 / (1.0 + max(0, sensor.age_ticks) / 8.0)
-                uncertainty = max(1.0 - sensor.confidence, developmental_uncertainty)
-                # Before enough evidence exists, all receptors compete on
-                # exploration/uncertainty. Once evaluated, demonstrated utility
-                # lowers ranking cost and therefore earns cognitive attention.
-                utility_factor = (
-                    1.0 + 4.0 * sensor.utility
-                    if sensor.utility_observations >= 8
-                    else 1.0
-                )
-                perceptual_candidates.append(AttentionCandidate(
-                    name=sensor.cognitive_name,
-                    uncertainty=uncertainty,
-                    cost=1.0,
-                    rank_cost=max(
-                        0.10,
-                        (1.0 + sensor.transduction_cost * 10.0) / utility_factor,
-                    ),
-                    observations=sensor.utility_observations,
-                ))
-            if perceptual_candidates:
-                # Preserve the number of cognitive slots made available by
-                # source attention while allowing competing receptors over the
-                # same source to occupy those slots.
-                perceptual_allocations = AttentionBudget(
-                    budget=max(1.0, float(len(allocations)))
-                ).allocate(perceptual_candidates)
-        interoceptive_capability_ids = {
-            capability.capability_id
-            for capability in snapshot.manifest.available
-            if capability.source == "interoception"
-        }
-        interoceptive_allocations = sum(
-            allocation.name in interoceptive_capability_ids
-            for allocation in allocations
-        )
-        self._charge_metabolism(
-            "cognition",
-            (len(allocations) - interoceptive_allocations) * 0.02
-            + interoceptive_allocations * 0.005,
-        )
-
-        availability_by_capability = {
-            state.capability_id: state.availability for state in self._adaptive_senses.states
-        }
 
         cognition_result: CognitiveBridgeResult | None = None
         cognitive_self_observation: dict[str, Any] | None = None
