@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 import random
 from typing import Iterable, Sequence
 
-from symbiont.cognition.genome import GenomeCodec
+from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticEdge, PlasticNode
 from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition_bridge import CognitiveBridge
