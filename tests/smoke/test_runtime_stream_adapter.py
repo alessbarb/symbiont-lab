@@ -1748,3 +1748,73 @@ def test_new_nodes_and_relations_animate_without_mutating_layout_truth() -> None
     assert "animatedBY" in asset
     assert "drawPresentationGhostNodes" in asset
     assert "drawPresentationGhostEdges" in asset
+
+
+def test_mind_snapshot_publishes_canonical_atlas_v2() -> None:
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 42,
+            "action_dimensions": [
+                {
+                    "dimension_id": "action.dimension.aaaa",
+                    "availability": True,
+                    "controllability": 0.7,
+                    "confidence": 0.8,
+                    "usage_count": 3,
+                    "embodiment_bound": True,
+                }
+            ],
+        }
+    )
+
+    atlas = snapshot["atlas"]
+    assert atlas["schema_version"] == 2
+    assert atlas["tick"] == 42
+    assert any(
+        node["id"] == "action.dimension.aaaa"
+        and node["kind"] == "action_dimension"
+        for node in atlas["nodes"]
+    )
+    assert "atlas" in snapshot["provenance"]["observerDerived"]
+
+
+def test_live_atlas_prefers_canonical_projection_and_preserves_motor_metadata() -> None:
+    controller = (WEB_ROOT / "views" / "mind" / "cognition-controller.js").read_text(
+        encoding="utf-8"
+    )
+    snapshot = (WEB_ROOT / "views" / "mind" / "snapshot.js").read_text(encoding="utf-8")
+
+    assert "snap.atlas = source.atlas ?? null" in snapshot
+    assert "source.atlas?.schema_version === 2" in controller
+    assert "const topology = canonicalAtlas" in controller
+    assert "...n," in controller
+    assert "motorCompetences: rawNodes.filter(node => node.kind === 'motor_competence')" in controller
+
+
+def test_atlas_meso_lod_keeps_first_class_motor_and_body_knowledge_visible() -> None:
+    lod = (WEB_ROOT / "views" / "mind" / "cognitive-lod.js").read_text(encoding="utf-8")
+
+    for kind in (
+        "motor_competence",
+        "effect",
+        "controller",
+        "body_schema",
+        "action_dimension",
+        "embodiment_binding",
+    ):
+        assert f"'{kind}'" in lod
+    assert "firstClassKinds.has(node.kind)" in lod
+
+
+def test_physicalized_atlas_exposes_physical_motor_layer_without_leaking_into_relational() -> None:
+    cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(
+        encoding="utf-8"
+    )
+    controller = (WEB_ROOT / "views" / "mind" / "cognition-controller.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "showPhysicalLayer = false" in cartography
+    assert "['actuator', 'embodiment_binding'].includes(node.kind)" in cartography
+    assert "if (showPhysicalLayer) return true" in cartography
+    assert "graph.showEmbodiment," in controller
