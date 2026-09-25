@@ -89,6 +89,12 @@ class ActionCognitionProjection:
 
 
 @dataclass(frozen=True, slots=True)
+class ActionDevelopmentProjection:
+    actuator_count: int
+    active_actuator_count: int
+
+
+@dataclass(frozen=True, slots=True)
 class ActionStepResult:
     """Passive report that a committed command crossed the body boundary."""
 
@@ -411,6 +417,20 @@ class ActionDomain:
                 promoted.append(actuator_id)
         self.pending_motor_observation = ()
         return tuple(dict.fromkeys(promoted))
+
+    def development_projection(self) -> ActionDevelopmentProjection:
+        return ActionDevelopmentProjection(
+            actuator_count=(
+                len(self.surface.actuator_ids)
+                if self.surface is not None
+                else 0
+            ),
+            active_actuator_count=(
+                len(self._actuator_evidence.active_repertoire)
+                if self._actuator_evidence is not None
+                else 0
+            ),
+        )
 
     def prepare_cognition(
         self,
