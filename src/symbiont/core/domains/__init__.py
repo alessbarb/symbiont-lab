@@ -7,5 +7,6 @@ from .perception import PerceptionDomain, PerceptionServices, PerceptionStepResu
 from .cognition import CognitionDomain, CognitionServices, CognitionStepResult
 from .epistemic import EpistemicDomain, EpistemicServices, EpistemicStepResult
 from .lifecycle import LifecycleDomain, LifecycleEventState
+from .regulation import RegulationDomain, RegulationServices
 
-__all__ = ["ActionDomain", "ActionTrace", "TickContext", "PhysiologyDomain", "PhysiologyServices", "PhysiologyStepResult", "PerceptionDomain", "PerceptionServices", "PerceptionStepResult", "CognitionDomain", "CognitionServices", "CognitionStepResult", "EpistemicDomain", "EpistemicServices", "EpistemicStepResult", "LifecycleDomain", "LifecycleEventState"]
+__all__ = ["ActionDomain", "ActionTrace", "TickContext", "PhysiologyDomain", "PhysiologyServices", "PhysiologyStepResult", "PerceptionDomain", "PerceptionServices", "PerceptionStepResult", "CognitionDomain", "CognitionServices", "CognitionStepResult", "EpistemicDomain", "EpistemicServices", "EpistemicStepResult", "LifecycleDomain", "LifecycleEventState", "RegulationDomain", "RegulationServices"]

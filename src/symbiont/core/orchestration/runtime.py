@@ -121,6 +121,7 @@ from ..domains.perception import PerceptionDomain, PerceptionServices
 from ..domains.cognition import CognitionDomain, CognitionServices
 from ..domains.epistemic import EpistemicDomain, EpistemicServices
 from ..domains.lifecycle import LifecycleDomain, LifecycleEventState
+from ..domains.regulation import RegulationDomain, RegulationServices
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -714,9 +715,7 @@ class OrganismRuntime:
             competence_development=competence_development,
             actuator_system=actuator_system,
         )
-        self._pending_homeostatic_action_credit: list[
-            tuple[int, str, str, tuple[str, ...], float, float]
-        ] = []
+        self._regulation_domain = RegulationDomain()
         self._physiology_domain = PhysiologyDomain()
         self._perception_domain = PerceptionDomain()
         self._cognition_domain = CognitionDomain()
@@ -981,6 +980,14 @@ class OrganismRuntime:
         self._action_domain.last_reactive_state = value
 
     @property
+    def _pending_homeostatic_action_credit(self):
+        return self._regulation_domain.pending_homeostatic_action_credit
+
+    @_pending_homeostatic_action_credit.setter
+    def _pending_homeostatic_action_credit(self, value):
+        self._regulation_domain.pending_homeostatic_action_credit = list(value)
+
+    @property
     def _last_runtime_vital_state(self):
         return self._lifecycle_domain.state.last_vital_state
 
@@ -1031,22 +1038,6 @@ class OrganismRuntime:
         drift_observations: dict[str, DriftObservation],
         metabolic_pressure: str,
     ) -> None:
-        """Regulate the next tick from organism-owned evidence only."""
-        if self._genome is None or self._gene_expression_state is None:
-            return
-
-        losses = (
-            [float(error.loss) for error in cognition.prediction_errors]
-            if cognition is not None
-            else []
-        )
-        prediction_error = max(0.0, min(1.0, sum(losses) / len(losses))) if losses else 0.0
-        novelty_values = [
-            novelty_from_drift_kind(observation.kind)
-            for observation in drift_observations.values()
-        ]
-        novelty = max(novelty_values, default=0.0)
-
         actuator_count = (
             len(self._actuator_constitution.actuator_ids)
             if self._actuator_constitution is not None
@@ -1057,44 +1048,20 @@ class OrganismRuntime:
             if self._actuator_proposer is not None
             else 0
         )
-        controllability_loss = (
-            max(0.0, min(1.0, 1.0 - active_count / actuator_count))
-            if actuator_count
-            else 0.0
+        self._gene_expression_state = (
+            self._regulation_domain.update_gene_expression(
+                genome=self._genome,
+                expression_state=self._gene_expression_state,
+                expression_regulator=self._expression_regulator,
+                cognitive_bridge=self._cognitive_bridge,
+                cognition=cognition,
+                drift_observations=drift_observations,
+                metabolic_pressure=metabolic_pressure,
+                actuator_count=actuator_count,
+                active_actuator_count=active_count,
+            )
         )
 
-        # No explicit "new body" flag enters regulation. Mismatch is inferred
-        # from failed predictions and loss of controllability.
-        embodiment_mismatch = max(prediction_error, controllability_loss)
-        uncertainty = max(prediction_error, 0.5 * controllability_loss)
-        pressure_ratio = {
-            "normal": 0.0,
-            "elevated": 0.33,
-            "severe": 0.66,
-            "unrecoverable": 1.0,
-        }.get(str(metabolic_pressure), 0.0)
-
-        signals = RegulatorySignals(
-            uncertainty=uncertainty,
-            novelty=max(0.0, min(1.0, novelty)),
-            prediction_error=prediction_error,
-            controllability_loss=controllability_loss,
-            embodiment_mismatch=embodiment_mismatch,
-            resource_pressure=pressure_ratio,
-        )
-        frozen = bool(
-            self._cognitive_bridge is not None
-            and getattr(self._cognitive_bridge, "_safety_state", None) is not None
-            and self._cognitive_bridge._safety_state.frozen  # noqa: SLF001
-        )
-        self._gene_expression_state = self._expression_regulator.update(
-            self._genome,
-            self._gene_expression_state,
-            signals,
-            frozen=frozen,
-        )
-        if self._cognitive_bridge is not None:
-            self._cognitive_bridge.set_expression_state(self._gene_expression_state)
 
     @property
     def reacclimation_remaining(self) -> int:
@@ -1319,59 +1286,26 @@ class OrganismRuntime:
         baseline_error: float,
         tick: int,
     ) -> None:
-        if self._cognitive_bridge is None or not concept_ids:
-            return
-        # Multiple horizons let a costly action receive credit for a later
-        # physiological recovery without handing cognition an environmental
-        # target. Long delays are discounted but remain learnable.
-        for horizon, discount in ((4, 1.0), (16, 0.85), (64, 0.65), (256, 0.40)):
-            self._pending_homeostatic_action_credit.append(
-                (
-                    int(tick) + horizon,
-                    family,
-                    str(action_id),
-                    tuple(sorted(set(concept_ids))),
-                    float(baseline_error),
-                    float(discount),
-                )
-            )
-        # Hard bound: retain the nearest due traces if motor activity is dense.
-        if len(self._pending_homeostatic_action_credit) > 4096:
-            self._pending_homeostatic_action_credit.sort(key=lambda item: item[0])
-            self._pending_homeostatic_action_credit = (
-                self._pending_homeostatic_action_credit[:4096]
-            )
+        self._regulation_domain.schedule_homeostatic_action_credit(
+            cognitive_bridge=self._cognitive_bridge,
+            family=family,
+            action_id=action_id,
+            concept_ids=concept_ids,
+            baseline_error=baseline_error,
+            tick=tick,
+        )
+
 
     def _resolve_homeostatic_action_credit(self, *, tick: int) -> None:
-        if not self._pending_homeostatic_action_credit:
-            return
-        if not self._living_body_state.alive:
-            self._pending_homeostatic_action_credit.clear()
-            return
-        current_error = self._homeostasis.deviation()
-        remaining: list[tuple[int, str, str, tuple[str, ...], float, float]] = []
-        for due_tick, family, action_id, concept_ids, baseline_error, discount in (
-            self._pending_homeostatic_action_credit
-        ):
-            if due_tick > tick:
-                remaining.append(
-                    (due_tick, family, action_id, concept_ids, baseline_error, discount)
-                )
-                continue
-            if self._cognitive_bridge is None:
-                continue
-            intrinsic_value = max(
-                -1.0,
-                min(1.0, (baseline_error - current_error) * discount),
-            )
-            self._cognitive_bridge.observe_homeostatic_action_outcome(
-                family=family,
-                action_id=action_id,
-                concept_ids=concept_ids,
-                value=intrinsic_value,
-                tick=tick,
-            )
-        self._pending_homeostatic_action_credit = remaining
+        self._regulation_domain.resolve_homeostatic_action_credit(
+            services=RegulationServices(
+                cognitive_bridge=self._cognitive_bridge,
+                homeostasis=self._homeostasis,
+                living_body_state=self._living_body_state,
+            ),
+            tick=tick,
+        )
+
 
     def _choose_acquired_competence(
         self,
