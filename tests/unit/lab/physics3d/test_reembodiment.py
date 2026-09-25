@@ -724,3 +724,132 @@ def test_legacy_known_contract_memory_maps_to_canonical_v3_identity() -> None:
         item["private_model_ids"] == ["model.return"]
         for item in canonical_memories
     )
+
+
+def test_canonical_action_domain_reembodiment_preserves_knowledge_not_authority() -> None:
+    previous = _checkpoint(vital_state="active")
+    fresh = _fresh(slots=40)
+
+    previous_actuation = previous["actuation"]
+    prior_sensorimotor = previous_actuation.pop("sensorimotor")
+    prior_evidence = previous_actuation.pop("proposer")
+    previous_actuation["action_domain"] = {
+        "schema_version": 1,
+        "selection_threshold": 0.1,
+        "actuator_evidence": prior_evidence,
+        "competence_development": prior_sensorimotor,
+        "pending_motor_observation": [],
+        "pending_proprioception": {},
+        "last_executed_controller_seed_id": "primitive.old",
+        "active_commitment": {
+            "commitment_id": "commitment.old",
+        },
+        "sensorimotor_v2": {
+            "schema_version": 3,
+            "surface_binding": {
+                "contract_fingerprint": "surface.old",
+                "known_channel_ids": ["actuator.a"],
+                "embodiment_id": "embodiment.old",
+            },
+            "effect_space": {"schema_version": 1, "support": []},
+            "causal_evidence": {"schema_version": 2, "evidence": []},
+            "exploration": {
+                "strength_memory": {"actuator.a": 0.8},
+                "active_preference": ["actuator.a"],
+            },
+            "competences": [{
+                "competence_id": "competence.old",
+                "controller_id": "controller.old",
+                "effect_id": "effect.old",
+                "controller_strategy_ref": "seed.old",
+                "parent_competence_ids": [],
+                "support": 8,
+                "failures": 0,
+                "reproducibility": 0.9,
+                "controllability": 0.7,
+                "directional_consistency": 0.9,
+            }],
+            "execution_bindings": {
+                "schema_version": 1,
+                "capacity": 512,
+                "items": [{"competence_id": "competence.old"}],
+            },
+            "composition": {
+                "engine": {
+                    "schema_version": 1,
+                    "max_relations": 512,
+                    "sequential": [],
+                },
+                "predecessor_id": "competence.old",
+                "active_children": ["competence.old"],
+                "active_index": 0,
+            },
+        },
+    }
+    previous_actuation.pop("pending_motor_observation", None)
+    previous_actuation.pop("pending_proprioception", None)
+
+    fresh_actuation = fresh["actuation"]
+    fresh_sensorimotor = fresh_actuation.pop("sensorimotor")
+    fresh_evidence = fresh_actuation.pop("proposer")
+    fresh_actuation["action_domain"] = {
+        "schema_version": 1,
+        "selection_threshold": 0.1,
+        "actuator_evidence": fresh_evidence,
+        "competence_development": fresh_sensorimotor,
+        "pending_motor_observation": [],
+        "pending_proprioception": {},
+        "last_executed_controller_seed_id": None,
+        "active_commitment": None,
+        "sensorimotor_v2": {
+            "schema_version": 3,
+            "surface_binding": {
+                "contract_fingerprint": "surface.new",
+                "known_channel_ids": ["actuator.new"],
+                "embodiment_id": None,
+            },
+            "effect_space": {"schema_version": 1, "support": []},
+            "causal_evidence": {"schema_version": 2, "evidence": []},
+            "exploration": {"strength_memory": {}, "active_preference": []},
+            "competences": [],
+            "execution_bindings": {
+                "schema_version": 1,
+                "capacity": 512,
+                "items": [],
+            },
+            "composition": {
+                "engine": {
+                    "schema_version": 1,
+                    "max_relations": 512,
+                    "sequential": [],
+                },
+                "predecessor_id": None,
+                "active_children": [],
+                "active_index": 0,
+            },
+        },
+    }
+    fresh_actuation.pop("pending_motor_observation", None)
+    fresh_actuation.pop("pending_proprioception", None)
+
+    transformed = prepare_fresh_embodiment_checkpoint(
+        previous,
+        fresh,
+        contract=PhysicsEmbodimentDescriptor("compact-v1", 84, 40),
+    )
+    action_domain = transformed["actuation"]["action_domain"]
+    v2 = action_domain["sensorimotor_v2"]
+
+    assert action_domain["active_commitment"] is None
+    assert action_domain["last_executed_controller_seed_id"] is None
+    assert action_domain["pending_motor_observation"] == []
+    assert action_domain["pending_proprioception"] == {}
+    assert v2["schema_version"] == 3
+    assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
+    assert v2["competences"][0]["competence_id"] == "competence.old"
+    assert v2["competences"][0]["effect_id"] is None
+    assert v2["competences"][0]["support"] == 8
+    assert v2["execution_bindings"]["items"] == []
+    assert v2["exploration"] == {"strength_memory": {}, "active_preference": []}
+    assert v2["composition"]["predecessor_id"] is None
+    assert v2["composition"]["active_children"] == []
