@@ -143,6 +143,8 @@ def _state_hash_of(checkpoint_payload: dict[str, Any]) -> str:
 
 # Backward-compatible public name; canonical ownership lives in ActionDomain.
 ActionExecutionResult = ActionStepResult
+
+
 @dataclass(slots=True, frozen=True)
 class RuntimeTickResult:
     tick: int
@@ -2008,7 +2010,6 @@ class OrganismRuntime:
                 "tick context belongs to another action EmbodimentEpisode"
             )
         tick_start = time.monotonic()
-        action_result: ActionExecutionResult | None = None
         self._reacclimation_remaining = (
             self._embodiment_domain.advance_reacclimation(
                 self._reacclimation_remaining
