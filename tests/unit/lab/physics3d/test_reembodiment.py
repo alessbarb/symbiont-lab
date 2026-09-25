@@ -324,7 +324,7 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
 
     fresh = _fresh(slots=40)
     fresh["actuation"]["sensorimotor_v2"] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "surface_binding": {
             "contract_fingerprint": "surface.new",
             "known_channel_ids": ["actuator.new"],
@@ -333,6 +333,11 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
         "causal_evidence": {"schema_version": 2, "evidence": []},
         "exploration": {"strength_memory": {}, "active_preference": []},
         "competences": [],
+        "execution_bindings": {
+            "schema_version": 1,
+            "capacity": 512,
+            "items": [],
+        },
         "composition": {
             "engine": {
                 "schema_version": 1,
@@ -352,15 +357,17 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
         contract=EmbodimentContract("compact-v1", 84, 40),
     )
     v2 = transformed["actuation"]["sensorimotor_v2"]
+    assert v2["schema_version"] == 2
     assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
-    assert v2["competences"][0]["surface_binding"] == "surface.old"
+    assert "surface_binding" not in v2["competences"][0]
+    assert v2["competences"][0]["effect_id"] is None
     assert v2["competences"][0]["support"] == 8
-    assert v2["effect_space"] == previous["actuation"]["sensorimotor_v2"]["effect_space"]
-    assert v2["causal_evidence"] == previous["actuation"]["sensorimotor_v2"]["causal_evidence"]
+    assert v2["effect_space"] == fresh["actuation"]["sensorimotor_v2"]["effect_space"]
+    assert v2["causal_evidence"] == fresh["actuation"]["sensorimotor_v2"]["causal_evidence"]
+    assert v2["execution_bindings"]["items"] == []
     assert v2["exploration"] == {"strength_memory": {}, "active_preference": []}
     assert v2["composition"]["predecessor_id"] is None
     assert v2["composition"]["active_children"] == []
-    assert v2["composition"]["effect_by_commitment"] == {}
     assert transformed["actuation"]["action_commitment"] is None
 
 def test_stopping_marks_symbiont_dormant_without_changing_body_death_state() -> None:
