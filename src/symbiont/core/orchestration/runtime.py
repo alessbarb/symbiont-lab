@@ -2862,6 +2862,10 @@ class OrganismRuntime:
                     raw_sensorimotor = raw_action_domain.get(
                         "competence_development"
                     )
+                    if not isinstance(raw_sensorimotor, dict):
+                        raise CheckpointError(
+                            "canonical action domain is missing competence_development"
+                        )
                     raw_pending = raw_action_domain.get(
                         "pending_motor_observation"
                     )

@@ -161,7 +161,7 @@ def test_exploration_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
 
     payload = runtime.checkpoint()
     assert "exploration_mode" not in payload["actuation"]
-    assert isinstance(payload["actuation"]["sensorimotor"], dict)
+    assert isinstance(payload["actuation"]["action_domain"]["competence_development"], dict)
 
     restored = OrganismRuntime.from_checkpoint(
         payload,
@@ -201,12 +201,12 @@ def test_exploration_restore_rejects_missing_sensorimotor_checkpoint():
 
     runtime = _runtime()
     payload = runtime.checkpoint()
-    assert isinstance(payload["actuation"]["sensorimotor"], dict)
-    del payload["actuation"]["sensorimotor"]
+    assert isinstance(payload["actuation"]["action_domain"]["competence_development"], dict)
+    del payload["actuation"]["action_domain"]["competence_development"]
 
     with pytest.raises(
         CheckpointError,
-        match="missing canonical sensorimotor state",
+        match="missing competence_development",
     ):
         OrganismRuntime.from_checkpoint(
             payload,
