@@ -32,3 +32,38 @@ def test_plasticity_engine_preserves_construction_weight_class_until_consolidate
 
     overrides = engine.weight_class_overrides(graph)
     assert overrides[("sense_a", "readout_core", EdgeKind.EXCITATORY.value)] == quantize_weight(0.5)
+
+
+
+def test_plasticity_engine_applies_homeostatic_value_to_existing_action_relation() -> None:
+    limits = KernelLimits()
+    edge = PlasticEdge(
+        source_id="concept_a",
+        target_id="readout_motor:hip",
+        kind=EdgeKind.EXCITATORY,
+        weight=0.5,
+        plasticity=0.5,
+        delay_ticks=1,
+    )
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode("concept_a", NodeKind.CONCEPT),
+            PlasticNode("readout_motor:hip", NodeKind.READOUT),
+        ),
+        edges=(edge,),
+        kernel_limits=limits,
+    )
+    engine = PlasticityEngine(kernel_limits=limits)
+
+    changed = engine.apply_homeostatic_value(
+        graph,
+        concept_ids={"concept_a"},
+        readout_id="readout_motor:hip",
+        value=0.5,
+        tick=7,
+    )
+
+    assert changed is True
+    assert edge.weight == 0.6
+    assert edge.last_use_tick == 7
+    assert edge.support == 1
