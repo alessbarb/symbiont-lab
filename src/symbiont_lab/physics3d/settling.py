@@ -20,6 +20,7 @@ class SettlingResult:
     peak_joint_reported_velocity_rad_s: float | None = None
     peak_joint_applied_torque_nm: float | None = None
     peak_joint_contact_count: int = 0
+    peak_joint_contacts: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -59,6 +60,7 @@ def settle_passive_body(
     peak_joint_reported_velocity_rad_s: float | None = None
     peak_joint_applied_torque_nm: float | None = None
     peak_joint_contact_count = 0
+    peak_joint_contacts: tuple[str, ...] = ()
 
     if hasattr(pybullet_module, "getPhysicsEngineParameters"):
         parameters = pybullet_module.getPhysicsEngineParameters(
@@ -144,25 +146,55 @@ def settle_passive_body(
                 peak_joint_applied_torque_nm = None
 
             peak_joint_contact_count = 0
+            peak_joint_contacts = ()
             if hasattr(pybullet_module, "getContactPoints"):
                 try:
                     contacts = pybullet_module.getContactPoints(
                         bodyA=body.body_id,
                         physicsClientId=client_id,
                     )
-                    peak_joint_contact_count = sum(
-                        1
-                        for item in contacts
+                    contact_descriptions: list[str] = []
+                    for item in contacts:
+                        if len(item) <= 4:
+                            continue
+                        link_a = int(item[3])
+                        link_b = int(item[4])
                         if (
-                            len(item) > 4
-                            and (
-                                int(item[3]) == peak_joint_index
-                                or int(item[4]) == peak_joint_index
-                            )
+                            link_a != peak_joint_index
+                            and link_b != peak_joint_index
+                        ):
+                            continue
+                        body_a = int(item[1])
+                        body_b = int(item[2])
+                        other_body = (
+                            body_b if body_a == body.body_id else body_a
                         )
-                    )
+                        other_link = (
+                            link_b if link_a == peak_joint_index else link_a
+                        )
+                        other_name = str(other_link)
+                        if other_body == body.body_id and other_link >= 0:
+                            try:
+                                raw_other = pybullet_module.getJointInfo(
+                                    body.body_id,
+                                    other_link,
+                                    physicsClientId=client_id,
+                                )[12]
+                                other_name = (
+                                    raw_other.decode("utf-8")
+                                    if isinstance(raw_other, bytes)
+                                    else str(raw_other)
+                                )
+                            except Exception:
+                                pass
+                        contact_descriptions.append(
+                            f"body={other_body},link={other_name}"
+                        )
+                    peak_joint_contact_count = len(contact_descriptions)
+                    peak_joint_contacts = tuple(sorted(contact_descriptions))
                 except Exception:
                     peak_joint_contact_count = 0
+                    peak_joint_contacts = ()
 
         if (
             last_linear <= linear_threshold
@@ -186,6 +218,7 @@ def settle_passive_body(
                     peak_joint_reported_velocity_rad_s=peak_joint_reported_velocity_rad_s,
                     peak_joint_applied_torque_nm=peak_joint_applied_torque_nm,
                     peak_joint_contact_count=peak_joint_contact_count,
+                    peak_joint_contacts=peak_joint_contacts,
                 )
         else:
             stable = 0
@@ -205,6 +238,7 @@ def settle_passive_body(
         peak_joint_reported_velocity_rad_s=peak_joint_reported_velocity_rad_s,
         peak_joint_applied_torque_nm=peak_joint_applied_torque_nm,
         peak_joint_contact_count=peak_joint_contact_count,
+        peak_joint_contacts=peak_joint_contacts,
     )
 
 
