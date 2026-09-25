@@ -7,7 +7,10 @@ import pytest
 pybullet = pytest.importorskip("pybullet")
 
 from symbiont_lab.physics3d.engine import run
-from symbiont_lab.physics3d.persistence import read_symbiont_bundle_runtime
+from symbiont_lab.physics3d.persistence import (
+    load_body_state_file,
+    read_symbiont_bundle_runtime,
+)
 
 
 def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -> None:
@@ -39,6 +42,8 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
     assert first["living_body"]["senescence"] == 0.0
     first_embodiment_id = str(first["embodiment_episode"]["embodiment_id"])
     first_body_id = str(first["embodiment_episode"]["body_id"])
+    first_physical = load_body_state_file(first_body)
+    assert first_physical["body_id"] == first_body_id
     assert first["embodiment_episode"]["schema_version"] == 3
     assert first["embodiment_episode"]["contract"]["schema_version"] == 3
     assert (
@@ -80,6 +85,10 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
     )
     assert second["embodiment_episode"]["embodiment_id"] != first_embodiment_id
     assert second["embodiment_episode"]["body_id"] != first_body_id
+    second_body_id = str(second["embodiment_episode"]["body_id"])
+    second_physical = load_body_state_file(second_body)
+    assert second_physical["body_id"] == second_body_id
+    assert second_physical["body_id"] != first_physical["body_id"]
     assert second["embodiment_episode"]["prior"]["relation"] == "same-contract"
     assert second["embodiment_episode"]["prior"]["authority"] == "hypothesis_only"
     assert second["embodiment_episode"]["prior"]["source_body_id"] == first_body_id
@@ -112,6 +121,8 @@ def test_existing_symbiont_resume_same_body_preserves_embodiment_identity(
     first_episode = first["embodiment_episode"]
     first_embodiment_id = str(first_episode["embodiment_id"])
     first_body_id = str(first_episode["body_id"])
+    first_physical = load_body_state_file(body_file)
+    assert first_physical["body_id"] == first_body_id
     first_epoch = int(first_episode["epoch"])
     first_embodiment_tick = int(first_episode["embodiment_tick"])
 
@@ -132,6 +143,8 @@ def test_existing_symbiont_resume_same_body_preserves_embodiment_identity(
     assert int(second["saved_at_tick"]) == first_tick + 1
     assert str(second_episode["embodiment_id"]) == first_embodiment_id
     assert str(second_episode["body_id"]) == first_body_id
+    second_physical = load_body_state_file(body_file)
+    assert second_physical["body_id"] == first_body_id
     assert int(second_episode["epoch"]) == first_epoch
     assert int(second_episode["embodiment_tick"]) == first_embodiment_tick + 1
     assert second_episode["contract"]["schema_version"] == 3
