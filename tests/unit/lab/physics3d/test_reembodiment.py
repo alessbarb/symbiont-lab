@@ -178,6 +178,25 @@ def _fresh(*, slots: int = 62) -> dict:
     }
 
 
+def test_canonical_contract_fingerprint_drives_archive_and_lifecycle() -> None:
+    previous = _checkpoint(vital_state="active")
+    fresh = _fresh()
+    canonical = "canonical.contract.v3"
+    transformed = prepare_fresh_embodiment_checkpoint(
+        previous,
+        fresh,
+        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
+        canonical_contract_fingerprint=canonical,
+    )
+
+    current = transformed["embodiment_lifecycle"]["current"]
+    assert current["contract_fingerprint"] == canonical
+    assert current["contract_fingerprint_schema_version"] == 3
+    memories = transformed["embodiment_archive"]["body_memories"]
+    # The archived current legacy body keeps its historical legacy contract;
+    # the new active lifecycle is already on the canonical v3 contract.
+    assert all(item["contract_fingerprint"] for item in memories)
+
 def test_legacy_embodiment_memory_migrates_one_way_into_core_archive() -> None:
     legacy = {
         "schema_version": 1,
