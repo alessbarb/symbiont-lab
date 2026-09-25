@@ -26,7 +26,9 @@ export function cartographicGraph(
   }
 
   const visibleNodes = nodes
-    .filter(node => showPhysicalLayer || node.kind !== 'actuator')
+    .filter(node =>
+      showPhysicalLayer || !['actuator', 'embodiment_binding'].includes(node.kind)
+    )
     .map(node => ({
       ...node,
       collapsedMotorDegree: collapsedMotorDegree.get(node.id) ?? 0,
