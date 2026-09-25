@@ -18,8 +18,8 @@ class EffectPrediction:
     support: int
 
 
-class SensorimotorModel:
-    """Bounded symbolic forward model reconstructed from causal evidence."""
+class CompetenceEffectModel:
+    """Bounded abstract forward model: competence/context -> learned effect."""
 
     def __init__(self, *, max_contexts: int = 512) -> None:
         if max_contexts < 1:
@@ -302,3 +302,10 @@ class AgencyModel:
                 key=lambda item: (item.effect_id, item.competence_id, item.context_id or ""),
             )
         )
+
+
+# Historical import name retained as a strict alias during checkpoint/API migration.
+# There is one implementation only: low-level body dynamics live separately in
+# core.embodiment.dynamics.SensorimotorDynamicsModel.
+SensorimotorModel = CompetenceEffectModel
+

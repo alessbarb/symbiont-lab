@@ -112,7 +112,7 @@ from ...actuation.evidence import (
     PredictionError,
     SensorimotorTransition,
 )
-from ...actuation.model import AgencyModel, ControllabilityModel, SensorimotorModel
+from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.composition import CompositionEngine
 from ...actuation.state import SensorimotorV2Snapshot
@@ -686,7 +686,7 @@ class OrganismRuntime:
         self._effect_space = EffectSpace()
         self._causal_evidence = CausalEvidenceLedger()
         self._competence_library = CompetenceLibrary()
-        self._sensorimotor_model = SensorimotorModel()
+        self._sensorimotor_model = CompetenceEffectModel()
         self._controllability_model = ControllabilityModel()
         self._agency_model = AgencyModel()
         self._exploration_policy = ExplorationPolicy()
@@ -2145,6 +2145,28 @@ class OrganismRuntime:
     @property
     def body_schema(self) -> BodySchemaEngine:
         return self._body_schema
+
+    @property
+    def sensorimotor_effect_model(self) -> CompetenceEffectModel:
+        """Current embodiment's abstract competence -> effect model."""
+        return self._sensorimotor_model
+
+    @property
+    def causal_evidence_ledger(self) -> CausalEvidenceLedger:
+        """Current embodiment factual sensorimotor evidence ledger."""
+        return self._causal_evidence
+
+    @property
+    def controllability_model(self) -> ControllabilityModel:
+        return self._controllability_model
+
+    @property
+    def agency_model(self) -> AgencyModel:
+        return self._agency_model
+
+    @property
+    def competence_library(self) -> CompetenceLibrary:
+        return self._competence_library
 
     @property
     def evidence_ledger(self) -> EvidenceRevisionLedger:

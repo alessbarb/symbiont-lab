@@ -8,7 +8,7 @@ import uuid
 from typing import Mapping
 
 from ...actuation.evidence import CausalEvidenceLedger
-from ...actuation.model import AgencyModel, ControllabilityModel, SensorimotorModel
+from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
 from .adaptation import EmbodimentAdaptation
 from .body_schema import BodySchemaEngine
 from .competence import EmbodiedCompetenceLibrary
@@ -60,7 +60,7 @@ class EmbodimentEpisode:
         default_factory=SensorimotorDynamicsModel
     )
     causal_evidence: CausalEvidenceLedger = field(default_factory=CausalEvidenceLedger)
-    effect_model: SensorimotorModel = field(default_factory=SensorimotorModel)
+    effect_model: CompetenceEffectModel = field(default_factory=CompetenceEffectModel)
     controllability_model: ControllabilityModel = field(
         default_factory=ControllabilityModel
     )
