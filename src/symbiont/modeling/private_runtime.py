@@ -5,6 +5,7 @@ import hashlib
 import math
 
 from ..cognition.types import NodeKind
+from ..core.domains.context import TickContext
 from ..core.orchestration.runtime import RuntimeTickResult
 from .episodic import EpisodicProjection
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
@@ -723,8 +724,12 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             )
         self._pending_outcome_value_credit = remaining
 
-    def tick(self) -> RuntimeTickResult:
-        result = super().tick()
+    def tick(
+        self,
+        *,
+        context: TickContext | None = None,
+    ) -> RuntimeTickResult:
+        result = super().tick(context=context)
         # Resolve outcome-value credit traces at due ticks (L8).
         # This must happen on every tick regardless of _capture_private_experience
         # because prospective decisions may have been made before the flag was set.
