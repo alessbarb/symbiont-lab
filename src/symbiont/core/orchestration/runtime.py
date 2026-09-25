@@ -115,6 +115,7 @@ from ..domains.lifecycle import LifecycleDomain
 from ..domains.regulation import RegulationDomain, RegulationServices
 from ..domains.embodiment import EmbodimentDomain, EmbodimentServices
 from ..domains.development import DevelopmentDomain
+from ..domains.memory import MemoryDomain, MemoryServices
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -691,6 +692,7 @@ class OrganismRuntime:
         self._physiology_domain = PhysiologyDomain()
         self._perception_domain = PerceptionDomain()
         self._cognition_domain = CognitionDomain()
+        self._memory_domain = MemoryDomain()
         self._epistemic_domain = EpistemicDomain()
         self._embodiment_domain = EmbodimentDomain()
         self._pending_embodied_work = 0.0
@@ -2218,7 +2220,6 @@ class OrganismRuntime:
                 cognitive_bridge=self._cognitive_bridge,
                 sensory_system=self._sensory_system,
                 self_model=self._self_model,
-                memory_consolidator=self._memory_consolidator,
                 charge_metabolism=self._charge_metabolism,
             ),
             tick=context.symbiont_tick,
@@ -2246,6 +2247,20 @@ class OrganismRuntime:
         cognition_result = cognition_step.cognition
         cognitive_self_observation = (
             cognition_step.cognitive_self_observation
+        )
+        self._memory_domain.observe(
+            services=MemoryServices(
+                consolidator=self._memory_consolidator,
+                self_model=self._self_model,
+            ),
+            tick=context.symbiont_tick,
+            cognition=cognition_result,
+            drift_observations=drift_observations,
+            percept_names=percept_names,
+            allocations=allocations,
+            availability_by_capability=availability_by_capability,
+            reacclimation_remaining=self._reacclimation_remaining,
+            current_tick=self._tick_count,
         )
 
         current_signal_references = {
