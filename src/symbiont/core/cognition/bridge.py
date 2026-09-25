@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import math
 from dataclasses import dataclass
 from enum import StrEnum
@@ -61,39 +60,6 @@ class RepresentationMaturity(StrEnum):
     STABLE = "stable"
     WEAKENING = "weakening"
     RETIRING = "retiring"
-
-
-@dataclass(slots=True)
-class StructuralCandidate:
-    candidate_id: str
-    family: str
-    producer_id: str
-    eligible_tick: int
-    mutations: tuple[Mutation, ...]
-    # NOTE(legacy): Legacy checkpoint field retained for one-way compatibility only.
-    # Producer-level fair scheduling no longer accumulates access debt.
-    contention_losses: int = 0
-
-    @property
-    def required_nodes(self) -> int:
-        return sum(1 for mutation in self.mutations if mutation.kind == "add_node")
-
-    @property
-    def required_edges(self) -> int:
-        return sum(1 for mutation in self.mutations if mutation.kind == "add_edge")
-
-    def checkpoint(self) -> dict[str, object]:
-        return {
-            "candidate_id": self.candidate_id,
-            "family": self.family,
-            "producer_id": self.producer_id,
-            "eligible_tick": self.eligible_tick,
-            "contention_losses": 0,
-            "mutations": [
-                {"kind": mutation.kind, "payload": dict(mutation.payload)}
-                for mutation in self.mutations
-            ],
-        }
 
 
 @dataclass(slots=True, frozen=True)
