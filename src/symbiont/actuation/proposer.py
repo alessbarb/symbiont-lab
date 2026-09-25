@@ -5,8 +5,12 @@ from .constitution import ActuatorConstitution
 from .types import ActuatorId
 
 
-class ActuatorProposer:
-    """Tracks an organism's fixed motor body's learned causal evidence (spec §4).
+class ActuatorEvidenceModel:
+    """Track naturally observed actuator/effect evidence.
+
+    This model never proposes or authorizes an action.  It only summarizes
+    evidence about opaque channels already present on the current actuator
+    surface; ActionDomain owns exploration and every physical commitment.
 
     Only ``constitution.actuator_ids`` are ever considered — this never
     invents an actuator_id that isn't already part of the body. Promotion to
@@ -71,3 +75,10 @@ class ActuatorProposer:
         state.probing_state = "active"
         state.natural_promotion_samples = int(min_samples)
         return True
+
+
+class ActuatorProposer(ActuatorEvidenceModel):
+    """Legacy import name for checkpoint/test compatibility only."""
+
+
+__all__ = ["ActuatorEvidenceModel", "ActuatorProposer"]

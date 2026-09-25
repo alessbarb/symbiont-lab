@@ -31,6 +31,7 @@ from .evidence import (
     SensorimotorTransition,
 )
 from .exploration import ExplorationPolicy, ExplorationSignals
+from .proposer import ActuatorEvidenceModel, ActuatorProposer
 from .model import (
     AgencyEstimate,
     AgencyModel,
@@ -64,6 +65,8 @@ __all__ = [
     "Actuation",
     "ActuatorChannel",
     "ActuatorConstitution",
+    "ActuatorEvidenceModel",
+    "ActuatorProposer",
     "ActuatorSurface",
     "ActuatorSystem",
     "ArbitrationDecision",

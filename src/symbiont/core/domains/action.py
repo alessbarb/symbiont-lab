@@ -29,7 +29,7 @@ from ...actuation.evidence import (
 )
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
-from ...actuation.proposer import ActuatorProposer
+from ...actuation.proposer import ActuatorEvidenceModel
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine
 from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.surface import ActuatorSurface
@@ -88,7 +88,7 @@ class ActionDomain:
         enabled: bool,
         surface: ActuatorSurface | None,
         selection_threshold: float = 0.1,
-        legacy_proposer: ActuatorProposer | None = None,
+        actuator_evidence: ActuatorEvidenceModel | None = None,
         competence_development: CompetenceDevelopmentEngine | None = None,
         actuator_system: ActuatorSystem | None = None,
         embodiment_id: str | None = None,
@@ -104,8 +104,8 @@ class ActionDomain:
         self.surface = surface
         self.embodiment_id = embodiment_id
         self.selection_threshold = float(selection_threshold)
-        self._legacy_proposer = legacy_proposer or (
-            ActuatorProposer(surface, organism_id=organism_id)
+        self._actuator_evidence = actuator_evidence or (
+            ActuatorEvidenceModel(surface, organism_id=organism_id)
             if self.enabled and surface is not None else None
         )
         self._competence_development = competence_development or (
@@ -158,8 +158,8 @@ class ActionDomain:
         self._trace_by_command: dict[str, ActionTrace] = {}
 
     @property
-    def legacy_proposer(self) -> ActuatorProposer | None:
-        return self._legacy_proposer
+    def actuator_evidence(self) -> ActuatorEvidenceModel | None:
+        return self._actuator_evidence
 
     @property
     def competence_development(self) -> CompetenceDevelopmentEngine | None:
@@ -171,7 +171,7 @@ class ActionDomain:
 
     @property
     def active_repertoire(self) -> tuple[str, ...]:
-        return self._legacy_proposer.active_repertoire if self._legacy_proposer is not None else ()
+        return self._actuator_evidence.active_repertoire if self._actuator_evidence is not None else ()
 
     def competence_is_executable(self, competence: MotorCompetence) -> bool:
         return self.execution_bindings.is_executable(
@@ -351,22 +351,22 @@ class ActionDomain:
         self, percepts: tuple[Percept, ...], *, tick: int, sensory_system: SensorySystem
     ) -> tuple[str, ...]:
         pending = self.pending_motor_observation
-        if not pending or self._legacy_proposer is None:
+        if not pending or self._actuator_evidence is None:
             return ()
         after = self.motor_percept_snapshot(percepts, sensory_system=sensory_system)
         promoted: list[str] = []
         for actuator_id, activation, before in pending:
             if before is not None:
                 for percept_id in sorted(set(before) & set(after)):
-                    self._legacy_proposer.record_effect(
+                    self._actuator_evidence.record_effect(
                         actuator_id,
                         percept_id,
                         activation=activation,
                         delta_percept=after[percept_id] - before[percept_id],
                         tick=tick,
                     )
-                self._legacy_proposer.consider_natural_evidence(actuator_id)
-            if actuator_id in self._legacy_proposer.active_repertoire:
+                self._actuator_evidence.consider_natural_evidence(actuator_id)
+            if actuator_id in self._actuator_evidence.active_repertoire:
                 promoted.append(actuator_id)
         self.pending_motor_observation = ()
         return tuple(dict.fromkeys(promoted))
@@ -536,7 +536,7 @@ class ActionDomain:
         services: ActionServices,
     ) -> tuple[str, ...]:
         """Choose an opaque local opportunity from organism-owned evidence only."""
-        if self._legacy_proposer is None:
+        if self._actuator_evidence is None:
             self.last_exploration_signals = {}
             return ()
         opportunities: list[tuple[str, ExplorationSignals]] = []
@@ -546,7 +546,7 @@ class ActionDomain:
             min(1.0, 1.0 - float(services.homeostasis.activity_scale)),
         )
         risk = max(0.0, min(1.0, float(reactive_state.withdrawal)))
-        for state in self._legacy_proposer.states:
+        for state in self._actuator_evidence.states:
             activations = max(0, int(state.activations))
             strength = max(0.0, min(1.0, float(state.effect_strength)))
             previous = self.exploration_strength_memory.get(
@@ -811,7 +811,7 @@ class ActionDomain:
         self.last_executed_controller_seed_id = None
         if (
             not self.enabled
-            or self._legacy_proposer is None
+            or self._actuator_evidence is None
             or self._competence_development is None
             or self.surface is None
         ):

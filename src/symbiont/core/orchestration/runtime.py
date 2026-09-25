@@ -91,6 +91,7 @@ from ...genetics.mutation import mutate_genome
 from ..embodiment.development import DevelopmentalSnapshot, DevelopmentalTracker
 from ...cognition.birth import load_base_graph
 from ...actuation.checkpoint import export_actuation_state, restore_actuation_state
+from ...actuation.proposer import ActuatorEvidenceModel
 from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
@@ -285,6 +286,7 @@ class OrganismRuntime:
         developmental_tracker: DevelopmentalTracker | None = None,
         actuation_enabled: bool = False,
         actuator_constitution: ActuatorConstitution | None = None,
+        actuator_evidence: ActuatorEvidenceModel | None = None,
         actuator_proposer: object | None = None,
         motor_intent_selector: object | None = None,
         actuator_system: object | None = None,
@@ -694,12 +696,20 @@ class OrganismRuntime:
                 organism_id=self._organism_id,
                 embodiment_fingerprint=actuator_constitution.contract_fingerprint,
             )
+        if actuator_evidence is not None and actuator_proposer is not None:
+            raise ValueError(
+                "pass actuator_evidence or legacy actuator_proposer, not both"
+            )
+        if actuator_evidence is None and actuator_proposer is not None:
+            if not isinstance(actuator_proposer, ActuatorEvidenceModel):
+                raise ValueError("invalid legacy actuator proposer migration")
+            actuator_evidence = actuator_proposer
         self._action_domain = ActionDomain(
             organism_id=self._organism_id,
             enabled=self._actuation_enabled,
             surface=actuator_constitution,
             selection_threshold=selection_threshold,
-            legacy_proposer=actuator_proposer,
+            actuator_evidence=actuator_evidence,
             competence_development=competence_development,
             actuator_system=actuator_system,
         )
@@ -717,7 +727,8 @@ class OrganismRuntime:
 
     @property
     def _actuator_proposer(self):
-        return self._action_domain.legacy_proposer
+        """Legacy private alias for the canonical actuator evidence model."""
+        return self._action_domain.actuator_evidence
 
     @property
     def _sensorimotor_learner(self):
@@ -1113,6 +1124,10 @@ class OrganismRuntime:
     @property
     def actuator_constitution(self) -> ActuatorConstitution | None:
         return self._actuator_constitution
+
+    @property
+    def actuator_evidence_model(self) -> ActuatorEvidenceModel | None:
+        return self._action_domain.actuator_evidence
 
     @property
     def active_motor_repertoire(self) -> tuple[str, ...]:
@@ -3536,6 +3551,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("sensory_plasticity", None)
         constructor_kwargs.pop("actuation_enabled", None)
         constructor_kwargs.pop("actuator_constitution", None)
+        constructor_kwargs.pop("actuator_evidence", None)
         constructor_kwargs.pop("actuator_proposer", None)
         constructor_kwargs.pop("motor_intent_selector", None)
         constructor_kwargs.pop("actuator_system", None)
@@ -3595,7 +3611,7 @@ class OrganismRuntime:
             developmental_tracker=developmental_tracker,
             actuation_enabled=actuation_enabled,
             actuator_constitution=actuator_constitution,
-            actuator_proposer=actuator_proposer,
+            actuator_evidence=actuator_proposer,
             motor_intent_selector=motor_intent_selector,
             competence_development=sensorimotor_learner,
         )

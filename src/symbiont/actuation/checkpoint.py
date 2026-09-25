@@ -4,10 +4,10 @@ from typing import Any
 
 from .candidate import ActuatorCandidateState
 from .constitution import ActuatorConstitution
-from .proposer import ActuatorProposer
+from .evidence_model import ActuatorEvidenceModel
 
 
-def export_actuation_state(proposer: ActuatorProposer) -> dict[str, Any]:
+def export_actuation_state(evidence_model: ActuatorEvidenceModel) -> dict[str, Any]:
     """Serialize established motor-discovery state (spec §11).
 
     Every candidate's full state round-trips unconditionally — this is the
@@ -18,7 +18,7 @@ def export_actuation_state(proposer: ActuatorProposer) -> dict[str, Any]:
     count.
     """
     return {
-        "candidates": {state.actuator_id: state.to_payload() for state in proposer.states},
+        "candidates": {state.actuator_id: state.to_payload() for state in evidence_model.states},
     }
 
 
@@ -28,8 +28,8 @@ def restore_actuation_state(
     *,
     organism_id: str,
     effect_threshold: float = 0.5,
-) -> ActuatorProposer:
-    """Rebuild an ActuatorProposer from a checkpoint payload.
+) -> ActuatorEvidenceModel:
+    """Rebuild an ActuatorEvidenceModel from a checkpoint payload.
 
     ``payload["candidates"]`` must contain EXACTLY one entry per
     ``constitution.actuator_ids`` — no more, no fewer (spec §15/P0.2).
@@ -42,7 +42,7 @@ def restore_actuation_state(
     dict key it is stored under, so a payload cannot smuggle candidate B's
     state in under key A (both being otherwise-known ids).
 
-    ``effect_threshold`` is proposer *configuration*, not discovered state,
+    ``effect_threshold`` is evidence_model *configuration*, not discovered state,
     and is not part of this payload — the caller supplies construct-
     equivalent config out of band (e.g. from ActuatorConstitution/genome-
     derived defaults). Only discovered candidate state round-trips via the
@@ -71,7 +71,7 @@ def restore_actuation_state(
             f"missing={sorted(missing)} unknown={sorted(unknown)}"
         )
 
-    proposer = ActuatorProposer(
+    evidence_model = ActuatorEvidenceModel(
         constitution,
         organism_id=organism_id,
         effect_threshold=effect_threshold,
@@ -121,6 +121,6 @@ def restore_actuation_state(
                     f"effect_strength={state.effect_strength}, "
                     f"effect_threshold={effect_threshold})"
                 )
-        proposer._states[actuator_id] = state  # noqa: SLF001
+        evidence_model._states[actuator_id] = state  # noqa: SLF001
 
-    return proposer
+    return evidence_model
