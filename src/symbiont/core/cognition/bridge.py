@@ -1802,210 +1802,56 @@ class CognitiveBridge:
         structural_mutations_applied = 0
         applied_mutations: tuple[Mutation, ...] = ()
         recycling_events: tuple[dict[str, object], ...] = ()
-        interval = max(1, self._genome.development.consolidation_interval_ticks)
-        if not frozen and self._reacclimation_remaining <= 0 and tick % interval == 0:
-            mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-            plan = StructuralPlan.begin(
-                self._graph,
-                kernel_limits=self._kernel_limits,
+        interval = max(
+            1,
+            self._genome.development.consolidation_interval_ticks,
+        )
+        if (
+            not frozen
+            and self._reacclimation_remaining <= 0
+            and tick % interval == 0
+        ):
+            planning = self._planner.plan_consolidation(
+                graph=self._graph,
+                tick=tick,
                 frozen=frozen,
-                mutation_cap=mutation_cap,
-            )
-
-            retirement_gc = self._retirement_node_gc_mutations(
-                max_mutations=min(1, plan.remaining),
-                graph=plan.graph,
-            )
-            if retirement_gc and not plan.stage(retirement_gc):
-                retirement_gc = ()
-
-            retirement_edge_gc = self._retirement_edge_gc_mutations(
-                tick=tick,
-                max_mutations=min(1, plan.remaining),
-                graph=plan.graph,
-            )
-            if retirement_edge_gc and not plan.stage(retirement_edge_gc):
-                retirement_edge_gc = ()
-
-            prune_candidates = tuple(
-                Mutation(
-                    kind="remove_edge",
-                    payload={
-                        "source_id": edge.source_id,
-                        "target_id": edge.target_id,
-                        "kind": edge.kind,
-                    },
-                )
-                for edge in plan.graph.edges
-                if evaluate_edge_lifecycle(
-                    edge,
-                    current_tick=tick,
-                    prune_threshold=self._expression_state.effective_pruning_threshold,
-                    minimum_support=self._genome.structure.minimum_support,
-                    quarantine_window_ticks=(
-                        self._genome.structure.tentative_lifetime_ticks
-                    ),
-                    tentative_lifetime_ticks=(
-                        self._genome.structure.tentative_lifetime_ticks
-                    ),
-                )
-                is EdgeLifecycleState.REMOVED
-            )
-            prune_mutations = prune_candidates[: plan.remaining]
-            if prune_mutations and not plan.stage(prune_mutations):
-                prune_mutations = ()
-
-            protected_action_readouts = {
-                *(
-                    self._motor_readout_id(str(actuator_id))
-                    for actuator_id in active_motor_actuator_ids
-                    if str(actuator_id)
-                ),
-                *(
-                    self._primitive_readout_id(str(primitive_id))
-                    for primitive_id in active_primitive_ids
-                    if str(primitive_id)
-                ),
-            }
-            orphan_mutations = self._orphan_node_mutations(
-                tick=tick,
-                max_mutations=plan.remaining,
-                graph=plan.graph,
-                protected_node_ids=protected_action_readouts,
-            )
-            if orphan_mutations and not plan.stage(orphan_mutations):
-                orphan_mutations = ()
-
-            sense_evictions = self._sense_eviction_mutations(
-                tick=tick,
-                max_mutations=plan.remaining,
-                graph=plan.graph,
-            )
-            if sense_evictions and not plan.stage(sense_evictions):
-                sense_evictions = ()
-
-            # Producer proposals are registered from the live graph, while
-            # validity and capacity are evaluated against the sequential
-            # planning graph after maintenance.
-            self._register_germinal_concept_candidate(tick=tick, graph=self._graph)
-            self._prune_invalid_structural_proposals(
-                graph=plan.graph,
+                predictors=self._predictors,
+                lifecycle=self._lifecycle,
+                contention=self._contention,
+                develop_senses=self._develop_senses,
+                topology_revision=self._topology_revision,
                 active_motor_ids=active_motor_actuator_ids,
                 active_primitive_ids=active_primitive_ids,
-            )
-
-            frozen_candidate_ids = tuple(sorted(self._contention.candidates))
-            self._contention.consolidation_generation += 1
-
-            self._update_unrouted_tracking(tick, graph=plan.graph)
-            repair_mutations, event = self._propose_concept_recycling_mutations(
-                tick=tick,
-                mutation_slots=plan.remaining,
-                graph=plan.graph,
-            )
-            if repair_mutations:
-                if plan.stage(repair_mutations):
-                    recycling_events = (event,) if event is not None else ()
-                else:
-                    repair_mutations = ()
-
-            pending_node_demand = any(
-                candidate.required_nodes > 0
-                for candidate in self._contention.candidates.values()
-            )
-            pending_edge_demand = any(
-                candidate.required_edges > 0
-                for candidate in self._contention.candidates.values()
-            ) or bool(self._predictors.shadows)
-            self._expand_resource_budgets(
-                need_nodes=(
-                    pending_node_demand
-                    and len(plan.graph.nodes) >= self._soft_node_limit
+                pruning_threshold=(
+                    self._expression_state.effective_pruning_threshold
                 ),
-                need_edges=(
-                    pending_edge_demand
-                    and len(plan.graph.edges) >= self._soft_edge_limit
+                minimum_support=self._genome.structure.minimum_support,
+                lifetime_ticks=(
+                    self._genome.structure.tentative_lifetime_ticks
                 ),
+                sense_retention_ticks=(
+                    self._genome.development.sense_retention_ticks
+                ),
+                max_concepts=self._kernel_limits.max_concepts,
             )
-            edge_slots = max(0, self._soft_edge_limit - len(plan.graph.edges))
-            node_slots = max(0, self._soft_node_limit - len(plan.graph.nodes))
-
-            # Freeze the round exactly as before: candidates registered after
-            # this point wait until the next consolidation.
-            original_registry = self._contention.candidates
-            self._contention.candidates = {
-                candidate_id: original_registry[candidate_id]
-                for candidate_id in frozen_candidate_ids
-                if candidate_id in original_registry
-            }
-            (
-                contention_winner_id,
-                admission_mutations,
-                contention_loser_ids,
-            ) = self._contention.select(
-                graph=plan.graph,
-                mutation_slots=plan.remaining,
-                node_slots=node_slots,
-                edge_slots=edge_slots,
-                frozen=frozen,
-            )
-            frozen_registry_after = self._contention.candidates
-            self._contention.candidates = {
-                **{
-                    candidate_id: candidate
-                    for candidate_id, candidate in original_registry.items()
-                    if candidate_id not in frozen_candidate_ids
-                },
-                **frozen_registry_after,
-            }
-
-            if admission_mutations:
-                # select() already validates this batch. Preserve the old
-                # fallback semantics if an unexpected second validation fails:
-                # consume the slots and let the final atomic commit reject the
-                # complete transaction.
-                if not plan.stage(admission_mutations):
-                    plan.append_unvalidated(admission_mutations)
-
-            edge_slots = max(
-                0,
-                self._soft_edge_limit - len(plan.graph.edges),
-            )
-            proposed = self._structural_plasticity.propose(
-                plan.graph,
-                kernel_limits=self._kernel_limits,
-                tick=tick,
-                max_mutations=min(plan.remaining, edge_slots),
-            )
-            proposed = tuple(
-                mutation
-                for mutation in proposed
-                if not (
-                    mutation.kind == "add_edge"
-                    and (
-                        str(mutation.payload.get("source_id", ""))
-                        in self._predictors.retirement
-                        or str(mutation.payload.get("target_id", ""))
-                        in self._predictors.retirement
+            recycling_events = planning.recycling_events
+            if planning.mutations:
+                if planning.candidate_graph is not self._graph:
+                    self._graph = planning.candidate_graph
+                    self._record_applied_metadata(
+                        planning.mutations,
+                        tick=tick,
                     )
-                )
-            )
-            plan.append_unvalidated(proposed)
-
-            all_mutations = plan.ordered_mutations()
-            if all_mutations:
-                candidate = plan.commit_candidate()
-                if candidate is not self._graph:
-                    self._graph = candidate
-                    self._record_applied_metadata(all_mutations, tick=tick)
                     self._plasticity.seed_new_edges(self._graph)
                     self._reconcile_node_metadata()
-                    structural_mutations_applied = len(all_mutations)
-                    applied_mutations = all_mutations
+                    structural_mutations_applied = len(
+                        planning.mutations
+                    )
+                    applied_mutations = planning.mutations
                     self._topology_revision += 1
                     self._contention.commit(
-                        winner_id=contention_winner_id,
-                        loser_ids=contention_loser_ids,
+                        winner_id=planning.winner_id,
+                        loser_ids=planning.loser_ids,
                     )
             else:
                 self._reconcile_node_metadata()
