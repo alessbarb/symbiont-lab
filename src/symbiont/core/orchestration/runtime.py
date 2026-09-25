@@ -1051,6 +1051,51 @@ class OrganismRuntime:
     def actuation_enabled(self) -> bool:
         return self._actuation_enabled
 
+    def bind_action_embodiment(
+        self,
+        embodiment_id: str,
+        *,
+        new_episode: bool,
+    ) -> None:
+        """Bind physical action authority to one canonical EmbodimentEpisode.
+
+        Restoring the same episode preserves already revalidated current-body
+        bindings.  Beginning a genuinely new episode invalidates every active
+        commitment and withdraws all previous execution bindings.
+        """
+        if not isinstance(embodiment_id, str) or not embodiment_id:
+            raise ValueError("embodiment_id must be non-empty")
+        if not self._actuation_enabled:
+            return
+        surface = self._action_domain.surface
+        if surface is None:
+            raise RuntimeError("cannot bind embodiment without actuator surface")
+
+        if new_episode:
+            self._action_domain.begin_embodiment(
+                surface=surface,
+                embodiment_id=embodiment_id,
+                tick=self._tick_count,
+            )
+            return
+
+        current = self._action_domain.embodiment_id
+        if current is not None and current != embodiment_id:
+            raise RuntimeError(
+                "restored action authority belongs to another embodiment"
+            )
+        self._action_domain.embodiment_id = embodiment_id
+        commitment = self._action_domain.active_commitment
+        if (
+            commitment is not None
+            and commitment.active
+            and commitment.embodiment_id is None
+        ):
+            # Explicit migration of a pre-Embodiment-id commitment.  This is
+            # only legal when the surrounding physical episode itself was
+            # restored rather than replaced.
+            commitment.embodiment_id = embodiment_id
+
     @property
     def last_motor_intent(self) -> MotorIntent | None:
         return self._last_motor_intent

@@ -713,6 +713,11 @@ class PyBulletEmbodimentRuntime:
             if runtime_checkpoint is not None
             else None
         )
+        restored_same_episode = bool(
+            isinstance(raw_episode, Mapping)
+            and not self._reembodied
+            and physical_state is not None
+        )
         current_lifecycle = (
             self._embodiment_lifecycle.get("current")
             if isinstance(self._embodiment_lifecycle, Mapping)
@@ -724,11 +729,7 @@ class PyBulletEmbodimentRuntime:
             if isinstance(current_lifecycle, Mapping)
             else self.tick_count
         )
-        if (
-            isinstance(raw_episode, Mapping)
-            and not self._reembodied
-            and physical_state is not None
-        ):
+        if restored_same_episode:
             if str(raw_episode.get("body_id") or "") != self._physical_body_id:
                 raise RuntimeError(
                     "persisted Embodiment body identity contradicts physical Body checkpoint"
@@ -842,6 +843,14 @@ class PyBulletEmbodimentRuntime:
             self._embodiment_episode.execution_bindings = (
                 self.organism.competence_execution_bindings
             )
+
+        self.organism.bind_action_embodiment(
+            self._embodiment_episode.embodiment_id,
+            new_episode=not restored_same_episode,
+        )
+        self._embodiment_episode.execution_bindings = (
+            self.organism.competence_execution_bindings
+        )
 
         self._previous_embodiment_percepts: dict[str, float] = {}
         percept_ids = self._core_embodiment_contract.perceptual_surface.percept_ids
