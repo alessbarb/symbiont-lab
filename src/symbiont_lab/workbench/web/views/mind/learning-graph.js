@@ -28,6 +28,7 @@ export function augmentLearnedGraph(
   sensorimotor,
   observerSemantics,
   prospectiveAgency = null,
+  motorKnowledge = null,
 ) {
   const baseNodes = (topology?.nodes ?? []).map(node => ({ ...node }));
   const baseEdges = (topology?.edges ?? []).map(edge => ({ ...edge }));
@@ -153,6 +154,62 @@ export function augmentLearnedGraph(
     }
   }
 
+  const competences = Array.isArray(motorKnowledge?.competences) ? motorKnowledge.competences : [];
+  const effects = Array.isArray(motorKnowledge?.effects) ? motorKnowledge.effects : [];
+  const bindings = Array.isArray(motorKnowledge?.bindings) ? motorKnowledge.bindings : [];
+  const showEmbodiment = Boolean(motorKnowledge?.showEmbodiment);
+
+  const knownEffectIds = new Set();
+  for (const effect of effects) {
+    const effectId = String(effect?.effect_id ?? '');
+    if (!effectId || ids.has(effectId)) continue;
+    nodes.push({ id: effectId, kind: 'effect', learnedLayer: 'motor', support: finite(effect.support, 0), confidence: finite(effect.confidence, 0) });
+    ids.add(effectId);
+    knownEffectIds.add(effectId);
+  }
+
+  const knownCompetenceIds = new Set();
+  for (const competence of competences) {
+    const competenceId = String(competence?.competence_id ?? '');
+    if (!competenceId || ids.has(competenceId)) continue;
+    nodes.push({
+      id: competenceId,
+      kind: 'motor_competence',
+      learnedLayer: 'motor',
+      maturity: competence.maturity ?? null,
+      support: finite(competence.support, 0),
+      controllability: finite(competence.controllability, 0),
+    });
+    ids.add(competenceId);
+    knownCompetenceIds.add(competenceId);
+    const effectId = String(competence?.effect_id ?? '');
+    if (effectId && knownEffectIds.has(effectId)) {
+      edges.push({ sourceId: competenceId, targetId: effectId, kind: 'produces', learnedLayer: 'motor' });
+    }
+  }
+
+  if (showEmbodiment) {
+    for (const binding of bindings) {
+      const competenceId = String(binding?.competence_id ?? '');
+      if (!competenceId) continue;
+      const bindingId = `binding.${competenceId}`;
+      if (!ids.has(bindingId)) {
+        nodes.push({
+          id: bindingId,
+          kind: 'embodiment_binding',
+          learnedLayer: 'embodiment',
+          surfaceFingerprint: binding.surface_fingerprint ?? null,
+          reliability: finite(binding.reliability, 0),
+          controllability: finite(binding.controllability, 0),
+        });
+        ids.add(bindingId);
+      }
+      if (knownCompetenceIds.has(competenceId)) {
+        edges.push({ sourceId: bindingId, targetId: competenceId, kind: 'bound_to', learnedLayer: 'embodiment' });
+      }
+    }
+  }
+
   return {
     nodes,
     edges,
@@ -163,6 +220,8 @@ export function augmentLearnedGraph(
       actuators: nodes.filter(node => node.kind === 'actuator').length,
       causalEffects: edges.filter(edge => edge.kind === 'causal_effect').length,
       cognitiveMotorLinks: edges.filter(edge => edge.kind === 'invokes').length,
+      motorCompetences: knownCompetenceIds.size,
+      embodimentBindings: nodes.filter(node => node.kind === 'embodiment_binding').length,
     },
   };
 }

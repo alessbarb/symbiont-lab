@@ -182,6 +182,9 @@ export const graph = {
   velocity3d: new Map(),
   projected3d: new Map(),
   nextSectorId: 1,
+  // Relational (cognitive-only) vs Physicalized (adds embodiment_binding
+  // boundary nodes). Independent of the unrelated 3D layout `threeDMode`.
+  showEmbodiment: false,
 };
 
 
@@ -235,6 +238,7 @@ export function resetMindDataState() {
   graph.focusedSectorId = null;
   graph.atlasMode = 'structure';
   graph.viewMode = 'full';
+  graph.showEmbodiment = false;
   graph.dimension = '2d';
   graph.threeDMode = 'relational';
   graph.camera3d = { yaw: -0.55, pitch: 0.34, distance: 900 };

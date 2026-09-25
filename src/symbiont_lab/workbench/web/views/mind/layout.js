@@ -12,9 +12,11 @@ export function buildMindLayout(root, {
   graphDimension = '2d',
   graph3DMode = 'relational',
   graphAtlasMode = 'structure',
+  showEmbodiment = false,
   onTabChange = () => {},
   on3DModeChange = () => {},
   onAtlasModeChange = () => {},
+  onShowEmbodimentChange = () => {},
   onReturnLive = () => {},
 } = {}) {
   root.replaceChildren();
@@ -218,6 +220,23 @@ export function buildMindLayout(root, {
     viewModeGroup.appendChild(button);
   }
   cognitionModeControls.appendChild(viewModeGroup);
+
+  // Independent of the 2D/3D layout mode above: adds embodiment_binding
+  // boundary nodes (organism knowledge <-> current body) to the Atlas.
+  const embodimentGroup = el('div', 'mind-cognition-embodiment-group');
+  const embodimentBtn = makeControlBtn(
+    'Show embodiment',
+    'Reveal embodiment_binding nodes: current-body boundary for learned motor competences',
+    showEmbodiment,
+  );
+  embodimentBtn.id = 'mind-cognition-show-embodiment';
+  embodimentBtn.addEventListener('click', () => {
+    const next = !embodimentBtn.classList.contains('active');
+    embodimentBtn.classList.toggle('active', next);
+    onShowEmbodimentChange(next);
+  });
+  embodimentGroup.appendChild(embodimentBtn);
+  cognitionModeControls.appendChild(embodimentGroup);
 
   const atlasModeGroup = el('div', 'mind-atlas-mode-group');
   for (const mode of ATLAS_MODES) {

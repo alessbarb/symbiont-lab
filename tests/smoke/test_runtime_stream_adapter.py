@@ -1287,6 +1287,17 @@ def test_multiscale_atlas_does_not_make_hidden_nodes_clickable() -> None:
     assert "visibleIds.has(id)" in asset
 
 
+def test_mind_atlas_has_independent_show_embodiment_toggle() -> None:
+    asset = _mind_sources()
+
+    assert "showEmbodiment" in asset
+    assert "onShowEmbodimentChange" in asset
+    assert "setShowEmbodiment" in asset
+    assert "embodiment_binding" in asset
+    # motor_competence must reach the Atlas graph, not only the metric panel.
+    assert "motor_competence" in asset
+
+
 def test_cognitive_observatory_synthesizes_current_evidence_without_intent_claims() -> None:
     asset = _mind_sources()
     observatory = (WEB_ROOT / "views" / "mind" / "cognitive-observatory.js").read_text(encoding="utf-8")

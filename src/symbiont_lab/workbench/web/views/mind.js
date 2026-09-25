@@ -342,9 +342,11 @@ export function mount(root, appState = null) {
     graphDimension: _graph.dimension,
     graph3DMode: _graph.threeDMode,
     graphAtlasMode: _graph.atlasMode,
+    showEmbodiment: _graph.showEmbodiment,
     onTabChange: switchTab,
     on3DModeChange: (mode) => cognition.set3DMode(mode),
     onAtlasModeChange: (mode) => cognition.setAtlasMode(mode),
+    onShowEmbodimentChange: (show) => cognition.setShowEmbodiment(show),
     onReturnLive: () => cognition.returnLive(),
   });
 

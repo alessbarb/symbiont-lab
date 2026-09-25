@@ -211,6 +211,12 @@ export function createCognitionController({
       source.sensorimotor ?? snap.sensorimotor,
       source.observerSemantics ?? snap.observerSemantics,
       source.prospectiveAgency ?? null,
+      {
+        competences: source.motor_competences ?? snap.motor_competences ?? [],
+        effects: source.effects ?? snap.effects ?? [],
+        bindings: (source.embodiment ?? snap.embodiment)?.bindings ?? [],
+        showEmbodiment: graph.showEmbodiment,
+      },
     );
     const cartography = cartographicGraph(
       learned.nodes,
@@ -229,6 +235,9 @@ export function createCognitionController({
       gate: '#e09f3e',
       concept: PAL.violet,
       motor_primitive: '#ff8fd8',
+      motor_competence: '#ff8fd8',
+      effect: '#ffb37a',
+      embodiment_binding: '#8f9bb3',
     };
     const baseRadiusMap = {
       sense: 5.2,
@@ -238,6 +247,9 @@ export function createCognitionController({
       gate: 6.8,
       concept: 6.4,
       motor_primitive: 8.4,
+      motor_competence: 8.4,
+      effect: 6.0,
+      embodiment_binding: 5.5,
     };
   
     const rawNodes = completeTopology.nodes.map(n => {
@@ -1544,7 +1556,7 @@ export function createCognitionController({
         projected.radius * (isHovered || isSelected ? 1.28 : 1) * nodeAnim.scale,
       );
       ctx.beginPath();
-      if (node.kind === 'motor_primitive') {
+      if (node.kind === 'motor_primitive' || node.kind === 'motor_competence') {
         ctx.moveTo(projected.x, projected.y - radius);
         ctx.lineTo(projected.x + radius, projected.y);
         ctx.lineTo(projected.x, projected.y + radius);
@@ -1566,7 +1578,15 @@ export function createCognitionController({
       ctx.globalAlpha = baseNodeAlpha * nodeAnim.opacity;
       ctx.shadowColor = node.color;
       ctx.shadowBlur = isSelected ? 18 : pathNode ? 11 : activityGlow * 9;
-      ctx.fill();
+      if (node.kind === 'embodiment_binding') {
+        // Embodiment layer draws hollow: cognitive knowledge stays solid, the
+        // boundary to the current body does not.
+        ctx.strokeStyle = node.color;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      } else {
+        ctx.fill();
+      }
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
 
@@ -2233,6 +2253,12 @@ export function createCognitionController({
       source.sensorimotor ?? snap.sensorimotor,
       source.observerSemantics ?? snap.observerSemantics,
       source.prospectiveAgency ?? null,
+      {
+        competences: source.motor_competences ?? snap.motor_competences ?? [],
+        effects: source.effects ?? snap.effects ?? [],
+        bindings: (source.embodiment ?? snap.embodiment)?.bindings ?? [],
+        showEmbodiment: graph.showEmbodiment,
+      },
     );
     const nodes = learned.nodes;
     const topologyEdges = learned.edges;
@@ -2320,6 +2346,13 @@ export function createCognitionController({
     inspector.render();
   }
 
+  function setShowEmbodiment(show) {
+    graph.showEmbodiment = Boolean(show);
+    const canvas = document.getElementById('mind-cognition-canvas');
+    if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    inspector.render();
+  }
+
   function setAtlasMode(mode) {
     if (!ATLAS_MODES.some(item => item.id === mode)) return;
     if (mode === 'diff' && !graph.diffBaselineSnapshot) {
@@ -2394,6 +2427,7 @@ export function createCognitionController({
     setDimension,
     set3DMode,
     setViewMode,
+    setShowEmbodiment,
     setAtlasMode,
     start: startCognitionGraph,
     stop,
