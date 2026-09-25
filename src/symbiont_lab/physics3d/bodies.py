@@ -106,7 +106,7 @@ class BodyRegistry:
         return tuple(self._descriptors[key] for key in sorted(self._descriptors))
 
 
-ANTHROPOMORPHIC_V5 = BodyDescriptor(
+ANTHROPOMORPHIC_V6 = BodyDescriptor(
     body_kind=BODY_KIND,
     display_name="Anthropomorphic",
     version=BODY_STATE_SCHEMA_VERSION,
@@ -170,14 +170,14 @@ ASYMMETRIC_V1 = BodyDescriptor(
 )
 
 DEFAULT_BODY_REGISTRY = BodyRegistry((
-    ANTHROPOMORPHIC_V5,
+    ANTHROPOMORPHIC_V6,
     CRAWLER_V1,
     ASYMMETRIC_V1,
 ))
 
 
 __all__ = [
-    "ANTHROPOMORPHIC_V5",
+    "ANTHROPOMORPHIC_V6",
     "CRAWLER_V1",
     "ASYMMETRIC_V1",
     "BodyDescriptor",
