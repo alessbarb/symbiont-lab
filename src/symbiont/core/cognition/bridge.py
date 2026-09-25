@@ -2447,25 +2447,24 @@ class CognitiveBridge:
             raise GraphError("recovery_pending must be a boolean")
         bridge._recovery_pending = raw_recovery
         shadow_limit = min(_MAX_SHADOW_PREDICTIONS, kernel_limits.max_nodes * kernel_limits.max_nodes)
-        bridge._shadow_predictions = cls._restore_shadow_predictions(
+        bridge._predictors.shadows = cls._restore_shadow_predictions(
             payload.get("shadow_predictions"), max_predictions=shadow_limit
         )
         bridge._invalidate_shadow_predictions_cache()
-        bridge._shadow_prune_dirty = True
-        bridge._shadow_prune_topology_revision = -1
+        bridge._predictors.mark_shadow_dirty()
         predictor_ids = {
             node.node_id for node in graph.nodes
             if node.kind is NodeKind.PREDICTOR
         }
-        bridge._predictor_utility = cls._restore_predictor_utility(
+        bridge._predictors.utility = cls._restore_predictor_utility(
             payload.get("predictor_utility"),
             allowed_predictor_ids=predictor_ids,
         )
-        bridge._predictor_retirement = cls._restore_predictor_retirement(
+        bridge._predictors.retirement = cls._restore_predictor_retirement(
             payload.get("predictor_retirement"),
             allowed_predictor_ids=predictor_ids,
         )
-        bridge._structural_candidates = cls._restore_structural_candidates(
+        bridge._contention.candidates = cls._restore_structural_candidates(
             payload.get("structural_candidates"),
             kernel_limits=kernel_limits,
         )
@@ -2476,7 +2475,7 @@ class CognitiveBridge:
             or raw_generation < 0
         ):
             raise GraphError("consolidation_generation must be non-negative")
-        bridge._consolidation_generation = raw_generation
+        bridge._contention.consolidation_generation = raw_generation
         raw_last_producer = payload.get("last_consolidated_producer_id")
         if raw_last_producer is not None and (
             not isinstance(raw_last_producer, str)
@@ -2484,7 +2483,7 @@ class CognitiveBridge:
             or len(raw_last_producer) > 256
         ):
             raise GraphError("last_consolidated_producer_id must be a bounded string")
-        bridge._last_consolidated_producer_id = raw_last_producer
+        bridge._contention.last_consolidated_producer_id = raw_last_producer
         bridge._prune_shadow_predictions()
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
