@@ -847,6 +847,8 @@ class PyBulletEmbodimentRuntime:
 
         self.organism.bind_action_embodiment(
             self._embodiment_episode.embodiment_id,
+            body_id=self._embodiment_episode.body_id,
+            embodiment_tick=self._embodiment_episode.embodiment_tick,
             new_episode=not restored_same_episode,
         )
         self._embodiment_episode.execution_bindings = (
