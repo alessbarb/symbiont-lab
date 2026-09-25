@@ -52,9 +52,12 @@ def settle_passive_body(
     peak_joint_index: int | None = None
     peak_joint_name: str | None = None
 
-    parameters = pybullet_module.getPhysicsEngineParameters(
-        physicsClientId=client_id,
-    )
+    if hasattr(pybullet_module, "getPhysicsEngineParameters"):
+        parameters = pybullet_module.getPhysicsEngineParameters(
+            physicsClientId=client_id,
+        )
+    else:
+        parameters = {}
     time_step = float(parameters.get("fixedTimeStep", 1.0 / 240.0))
     if not math.isfinite(time_step) or time_step <= 0.0:
         raise RuntimeError("Physics3D settling requires a finite positive time step")
