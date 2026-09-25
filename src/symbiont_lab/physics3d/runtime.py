@@ -663,6 +663,7 @@ class PyBulletEmbodimentRuntime:
                 effect_model=self.organism.sensorimotor_effect_model,
                 controllability_model=self.organism.controllability_model,
                 agency_model=self.organism.agency_model,
+                execution_bindings=self.organism.competence_execution_bindings,
                 current_tick=self.tick_count,
             )
             if self._embodiment_episode.state is EmbodimentState.SUSPENDED:
@@ -701,6 +702,9 @@ class PyBulletEmbodimentRuntime:
                 self.organism.controllability_model
             )
             self._embodiment_episode.agency_model = self.organism.agency_model
+            self._embodiment_episode.execution_bindings = (
+                self.organism.competence_execution_bindings
+            )
 
         self._previous_embodiment_percepts: dict[str, float] = {}
         percept_ids = self._core_embodiment_contract.perceptual_surface.percept_ids
@@ -846,29 +850,17 @@ class PyBulletEmbodimentRuntime:
             if self.organism.actuator_constitution is not None
             else None
         )
-        candidate_count = 0
-        revalidated_count = 0
         bindings = self.organism.competence_execution_bindings
-        for competence in self.organism.competence_library.items:
-            candidate_count += 1
-            embodied = self._embodiment_episode.embodied_competences.candidate(
-                competence.competence_id
+        competences = self.organism.competence_library.items
+        candidate_count = len(competences)
+        revalidated_count = sum(
+            1
+            for competence in competences
+            if bindings.is_executable(
+                competence,
+                surface_fingerprint=current_surface,
             )
-            binding = bindings.get(competence.competence_id)
-            if (
-                current_surface is not None
-                and binding is not None
-                and binding.surface_fingerprint == current_surface
-            ):
-                embodied.revalidate(
-                    surface_fingerprint=current_surface,
-                    controller_realization_ref=competence.controller_id,
-                    evidence_refs=binding.evidence_refs,
-                    reliability=binding.reliability,
-                    controllability=binding.controllability,
-                    prediction_error=dynamics.mean_prediction_error,
-                )
-                revalidated_count += 1
+        )
 
         transition_error = getattr(
             getattr(result, "sensorimotor_transition", None),
@@ -1869,9 +1861,18 @@ class PyBulletEmbodimentRuntime:
                     ),
                 },
                 "embodied_competences": {
-                    "count": len(self._embodiment_episode.embodied_competences.items),
+                    "count": len(
+                        self._embodiment_episode.execution_bindings.items
+                    ),
                     "executable": int(
-                        self._embodiment_episode.embodied_competences.executable_count
+                        sum(
+                            1
+                            for competence in self.organism.competence_library.items
+                            if self._embodiment_episode.execution_bindings.is_executable(
+                                competence,
+                                surface_fingerprint=current_surface,
+                            )
+                        )
                     ),
                 },
             },
