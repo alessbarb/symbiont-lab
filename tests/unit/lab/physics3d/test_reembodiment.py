@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from symbiont_lab.physics3d.longitudinal import contract_fingerprint
 from symbiont_lab.physics3d.reembodiment import (
-    EmbodimentContract,
+    PhysicsEmbodimentDescriptor,
     lifecycle_summary,
     migrate_legacy_memory_store,
     migrate_temporal_domains,
@@ -185,7 +185,7 @@ def test_canonical_contract_fingerprint_drives_archive_and_lifecycle() -> None:
     transformed = prepare_fresh_embodiment_checkpoint(
         previous,
         fresh,
-        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
         canonical_contract_fingerprint=canonical,
     )
 
@@ -235,7 +235,7 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
     transformed = prepare_fresh_embodiment_checkpoint(
         previous,
         _fresh(),
-        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
     )
 
     assert transformed["organism_id"] == "symbiont:persistent"
@@ -291,7 +291,7 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
     transformed = prepare_fresh_embodiment_checkpoint(
         previous,
         _fresh(slots=40),
-        contract=EmbodimentContract("compact-v1", 84, 40),
+        contract=PhysicsEmbodimentDescriptor("compact-v1", 84, 40),
     )
 
     assert transformed["organism_id"] == previous["organism_id"]
@@ -408,7 +408,7 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
     transformed = prepare_fresh_embodiment_checkpoint(
         previous,
         fresh,
-        contract=EmbodimentContract("compact-v1", 84, 40),
+        contract=PhysicsEmbodimentDescriptor("compact-v1", 84, 40),
     )
     v2 = transformed["actuation"]["sensorimotor_v2"]
     assert v2["schema_version"] == 2
@@ -428,7 +428,7 @@ def test_stopping_marks_symbiont_dormant_without_changing_body_death_state() -> 
     payload = deepcopy(_checkpoint(vital_state="active"))
     updated = update_lifecycle_for_checkpoint(
         payload,
-        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
         state="dormant",
     )
     assert updated["living_body"]["vital_state"] == "active"
@@ -441,7 +441,7 @@ def test_known_contract_return_recovers_hypotheses_without_restoring_authority()
     crawler = prepare_fresh_embodiment_checkpoint(
         humanoid,
         _fresh(slots=40),
-        contract=EmbodimentContract("crawler-v1", 84, 40),
+        contract=PhysicsEmbodimentDescriptor("crawler-v1", 84, 40),
     )
     crawler["saved_at_tick"] = 80
     crawler["living_body"]["age_ticks"] = 39
@@ -450,7 +450,7 @@ def test_known_contract_return_recovers_hypotheses_without_restoring_authority()
     returned = prepare_fresh_embodiment_checkpoint(
         crawler,
         _fresh(slots=62),
-        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
     )
 
     current = returned["embodiment_lifecycle"]["current"]
@@ -541,7 +541,7 @@ def test_dead_checkpoint_closes_epoch_summary_and_archives_memory() -> None:
 
     updated = update_lifecycle_for_checkpoint(
         payload,
-        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
         state="dormant",
         metrics={
             "absorbed_material_total": 12.0,
@@ -642,7 +642,7 @@ def test_lifecycle_recomputes_pre_v2_contract_fingerprint() -> None:
 
     updated = update_lifecycle_for_checkpoint(
         payload,
-        contract=EmbodimentContract("anthropomorphic-v5", 107, 62),
+        contract=PhysicsEmbodimentDescriptor("anthropomorphic-v5", 107, 62),
         state="active",
     )
     current = updated["embodiment_lifecycle"]["current"]
