@@ -11,7 +11,7 @@ from symbiont_lab.physics3d.bodies import BodyDescriptor, BodyRegistry, DEFAULT_
 def test_run_store_prepares_new_organism_and_fresh_body(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
     launch = store.prepare({
-        "body_kind": "anthropomorphic-v5",
+        "body_kind": "anthropomorphic-v6",
         "organism": {"mode": "new"},
         "body": {"mode": "fresh"},
     })
@@ -31,7 +31,7 @@ def test_new_organism_cannot_resume_body(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
     with pytest.raises(ValueError, match="cannot resume"):
         store.prepare({
-            "body_kind": "anthropomorphic-v5",
+            "body_kind": "anthropomorphic-v6",
             "organism": {"mode": "new"},
             "body": {"mode": "resume"},
         })
@@ -40,7 +40,7 @@ def test_new_organism_cannot_resume_body(tmp_path) -> None:
 def test_run_store_catalogs_managed_runs(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
     launch = store.prepare({
-        "body_kind": "anthropomorphic-v5",
+        "body_kind": "anthropomorphic-v6",
         "organism": {"mode": "new"},
         "body": {"mode": "fresh"},
     })
@@ -48,7 +48,7 @@ def test_run_store_catalogs_managed_runs(tmp_path) -> None:
     runs = store.runs()
     assert runs[0]["run_id"] == launch.run_id
     assert runs[0]["status"] == "running"
-    assert store.bodies()[0]["body_kind"] == "anthropomorphic-v5"
+    assert store.bodies()[0]["body_kind"] == "anthropomorphic-v6"
 
 
 def test_injected_run_store_does_not_import_global_legacy_subject(tmp_path) -> None:
@@ -97,7 +97,7 @@ def test_dead_body_leaves_symbiont_runnable_for_fresh_reembodiment(tmp_path) -> 
     assert item["vital_state"] == "dead"
 
     launch = store.prepare({
-        "body_kind": "anthropomorphic-v5",
+        "body_kind": "anthropomorphic-v6",
         "organism": {"mode": "existing", "ref": "org-dead"},
         "body": {"mode": "fresh"},
     })
@@ -105,7 +105,7 @@ def test_dead_body_leaves_symbiont_runnable_for_fresh_reembodiment(tmp_path) -> 
 
     with pytest.raises(ValueError, match="previous body is dead"):
         store.prepare({
-            "body_kind": "anthropomorphic-v5",
+            "body_kind": "anthropomorphic-v6",
             "organism": {"mode": "existing", "ref": "org-dead"},
             "body": {"mode": "resume"},
         })
