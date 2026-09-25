@@ -19,6 +19,7 @@ from .branch import BranchEngine
 from .budget import GenerativeBudget
 from .calibration import CalibrationBucket, PredictionCalibration
 from .consolidation import (
+    GenerativeCandidateProjection,
     GenerativeConsolidationSignal,
     GenerativeConsolidator,
     GenerativeUseTracker,
@@ -59,6 +60,7 @@ __all__ = [
     "CounterfactualEngine",
     "GenerativeConsolidationSignal",
     "GenerativeConsolidator",
+    "GenerativeCandidateProjection",
     "GenerativeUseTracker",
     "CalibrationBucket",
     "PredictionCalibration",
