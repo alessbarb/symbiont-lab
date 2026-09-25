@@ -819,10 +819,11 @@ class PyBulletEmbodimentRuntime:
             for item in self.organism.last_actuations
         }
         dynamics = self._embodiment_episode.dynamics_model
+        # The residual at t evaluates the prediction emitted at t-1.
+        # Do not update that causal relation with the command chosen at t.
         residuals = dynamics.observe(
             deltas,
             tick=self.embodiment_tick,
-            activations=activations,
         )
         if current:
             dynamics.predict(
