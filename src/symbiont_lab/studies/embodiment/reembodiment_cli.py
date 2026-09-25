@@ -17,9 +17,9 @@ from symbiont_lab.studies.embodiment.reembodiment_reacclimation import (
 
 
 _BODY_ALIASES = {
-    "humanoid": "anthropomorphic-v5",
-    "anthropomorphic": "anthropomorphic-v5",
-    "anthropomorphic-v5": "anthropomorphic-v5",
+    "humanoid": "anthropomorphic-v6",
+    "anthropomorphic": "anthropomorphic-v6",
+    "anthropomorphic-v6": "anthropomorphic-v6",
     "crawler": "crawler-v1",
     "crawler-v1": "crawler-v1",
     "asymmetric": "asymmetric-v1",
