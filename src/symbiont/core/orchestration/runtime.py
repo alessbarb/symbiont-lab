@@ -4256,7 +4256,8 @@ class OrganismRuntime:
             raw_v2 = raw_actuation.get("sensorimotor_v2")
             if isinstance(raw_v2, dict):
                 try:
-                    if raw_v2.get("schema_version") != 1:
+                    v2_schema = int(raw_v2.get("schema_version") or 0)
+                    if v2_schema not in {1, 2}:
                         raise ValueError(
                             "unsupported sensorimotor v2 checkpoint schema"
                         )
@@ -4338,11 +4339,6 @@ class OrganismRuntime:
                                             item.get("directional_consistency", 0.0)
                                         ),
                                     ),
-                                    surface_binding=(
-                                        str(item["surface_binding"])
-                                        if item.get("surface_binding") is not None
-                                        else None
-                                    ),
                                     controller_strategy_ref=(
                                         str(item["controller_strategy_ref"])
                                         if item.get("controller_strategy_ref") is not None
@@ -4358,6 +4354,68 @@ class OrganismRuntime:
                                 )
                             )
                         runtime._competence_library = restored_library
+                        if v2_schema == 2:
+                            raw_bindings = raw_v2.get("execution_bindings")
+                            runtime._competence_execution_bindings = (
+                                CompetenceExecutionBindingRegistry.restore(
+                                    raw_bindings
+                                    if isinstance(raw_bindings, dict)
+                                    else None
+                                )
+                            )
+                        else:
+                            migrated = CompetenceExecutionBindingRegistry()
+                            for legacy_item in raw_competences:
+                                if not isinstance(legacy_item, dict):
+                                    continue
+                                competence_id = str(
+                                    legacy_item.get("competence_id") or ""
+                                )
+                                surface = legacy_item.get("surface_binding")
+                                effect_id = legacy_item.get("effect_id")
+                                matching = tuple(
+                                    evidence
+                                    for evidence in runtime._causal_evidence.evidence
+                                    if evidence.competence_id == competence_id
+                                    and evidence.effect_id == effect_id
+                                )
+                                refs = tuple(
+                                    evidence.evidence_id
+                                    for evidence in matching
+                                )
+                                if (
+                                    competence_id
+                                    and isinstance(surface, str)
+                                    and surface
+                                    and isinstance(effect_id, str)
+                                    and effect_id
+                                    and refs
+                                ):
+                                    competence = restored_library.get(competence_id)
+                                    migrated.bind_from_evidence(
+                                        competence_id=competence_id,
+                                        surface_fingerprint=surface,
+                                        effect_id=effect_id,
+                                        evidence_refs=refs,
+                                        reliability=(
+                                            competence.evidence.reproducibility
+                                            if competence is not None
+                                            else 0.0
+                                        ),
+                                        controllability=(
+                                            competence.evidence.controllability
+                                            if competence is not None
+                                            else 0.0
+                                        ),
+                                        tick=max(
+                                            (
+                                                evidence.observation_tick
+                                                for evidence in matching
+                                            ),
+                                            default=0,
+                                        ),
+                                    )
+                            runtime._competence_execution_bindings = migrated
                     raw_composition = raw_v2.get("composition")
                     if isinstance(raw_composition, dict):
                         raw_engine = raw_composition.get("engine")
