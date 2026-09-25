@@ -36,7 +36,6 @@ from .model import (
     ControllabilityModel,
     CompetenceEffectModel,
     EffectPrediction,
-    SensorimotorModel,
 )
 from .surface import (
     ActuatorChannel,
@@ -86,7 +85,6 @@ __all__ = [
     "MotorCompetence",
     "MotorIntent",
     "PredictionError",
-    "SensorimotorModel",
     "SensorimotorTransition",
     "SensorimotorV2Snapshot",
     "SequentialCompositionEvidence",
