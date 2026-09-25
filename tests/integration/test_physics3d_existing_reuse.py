@@ -40,6 +40,10 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
     first_embodiment_id = str(first["embodiment_episode"]["embodiment_id"])
     first_body_id = str(first["embodiment_episode"]["body_id"])
     assert first["embodiment_episode"]["schema_version"] == 3
+    assert (
+        first["embodiment_lifecycle"]["current"]["contract_fingerprint"]
+        == first["embodiment_episode"]["contract"]["contract_fingerprint"]
+    )
 
     assert run(
         headless=True,
@@ -68,6 +72,10 @@ def test_existing_symbiont_reuse_advances_tick_with_fresh_body(tmp_path: Path) -
 
     assert "embodiment_memory" not in second
     assert second["embodiment_episode"]["schema_version"] == 3
+    assert (
+        second["embodiment_lifecycle"]["current"]["contract_fingerprint"]
+        == second["embodiment_episode"]["contract"]["contract_fingerprint"]
+    )
     assert second["embodiment_episode"]["embodiment_id"] != first_embodiment_id
     assert second["embodiment_episode"]["body_id"] != first_body_id
     memories = second["embodiment_archive"]["body_memories"]
