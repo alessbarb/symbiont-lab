@@ -98,12 +98,16 @@ class Individual:
         body: Body,
         epoch: int,
     ) -> EmbodimentEpisode:
+        contract = self._contract_for(session)
+        self.symbiont.attach_execution_surface(
+            contract.actuator_surface.contract_fingerprint
+        )
         episode = EmbodimentEpisode.begin(
             symbiont_id=self.symbiont.symbiont_id,
             body_id=body.body_id,
             epoch=epoch,
             start_symbiont_tick=self._current_tick,
-            contract=self._contract_for(session),
+            contract=contract,
             embodiment_id=session.embodiment_id,
         )
         # One source of truth: Episode references the exact inference services
@@ -114,6 +118,9 @@ class Individual:
         episode.effect_model = self.symbiont.competence_effect_model
         episode.controllability_model = self.symbiont.controllability_model
         episode.agency_model = self.symbiont.agency_model
+        episode.execution_bindings = (
+            self.symbiont.competence_execution_bindings
+        )
         return episode
 
     def _archive_current_episode(
@@ -188,6 +195,18 @@ class Individual:
             item.confidence
             for item in self.symbiont.controllability_model.estimates
         )
+        current_surface = (
+            self.embodiment.contract.actuator_surface.contract_fingerprint
+        )
+        general_competences = self.symbiont.competence_library.items
+        revalidated = sum(
+            1
+            for competence in general_competences
+            if self.symbiont.competence_execution_bindings.is_executable(
+                competence,
+                surface_fingerprint=current_surface,
+            )
+        )
         self.embodiment.adaptation.observe(
             tick=self.embodiment_tick,
             prediction_error=self.symbiont.last_prediction_error,
@@ -200,6 +219,8 @@ class Individual:
                 sum(controllability_values) / len(controllability_values)
                 if controllability_values else 0.0
             ),
+            revalidated_competences=revalidated,
+            candidate_competences=len(general_competences),
             schema_revised=self.symbiont.body_schema_disrupted,
         )
 
