@@ -203,6 +203,25 @@ class Individual:
             schema_revised=self.symbiont.body_schema_disrupted,
         )
 
+        if self.symbiont.causal_evidence.evidence:
+            latest = self.symbiont.causal_evidence.evidence[-1]
+            if latest.competence_id is not None and latest.effect_id is not None:
+                control = self.symbiont.controllability_model.estimate(
+                    latest.effect_id,
+                    latest.competence_id,
+                    None,
+                )
+                self.embodiment.reachability.observe(
+                    latest.effect_id,
+                    latest.competence_id,
+                    tick=self.embodiment_tick,
+                    success=bool(
+                        control is not None
+                        and control.confidence >= 0.20
+                        and control.reliability >= 0.50
+                    ),
+                )
+
         if not self.body.is_viable:
             self.session.sever(self._current_tick)
             self._archive_current_episode(reason=EmbodimentEndReason.BODY_DEATH)
