@@ -878,26 +878,45 @@ def test_passive_postural_tone_is_body_owned_and_bounded():
         )
 
 
-def test_passive_postural_tone_damps_joint_velocity() -> None:
-    from symbiont_lab.physics3d.humanoid import _passive_postural_tone
+def test_passive_tone_is_elastic_and_damping_is_separate() -> None:
+    from symbiont_lab.physics3d.humanoid import (
+        _neutral_rest_position,
+        _passive_damping_force,
+        _passive_postural_tone,
+    )
 
-    spec = next(item for item in JOINT_SPECS if item.name == "left_forearm_roll")
-    rest = 0.0
+    spec = next(
+        item for item in JOINT_SPECS
+        if item.name == "left_forearm_roll"
+    )
+    rest = _neutral_rest_position(spec)
 
-    positive_velocity = _passive_postural_tone(
+    assert _passive_postural_tone(
         spec,
         position=rest,
         velocity=5.0,
-    )
-    negative_velocity = _passive_postural_tone(
+    ) == pytest.approx(0.0)
+    assert _passive_damping_force(
         spec,
-        position=rest,
-        velocity=-5.0,
-    )
+        velocity=0.0,
+    ) == pytest.approx(0.0)
+    assert _passive_damping_force(
+        spec,
+        velocity=5.0,
+    ) > 0.0
 
-    assert positive_velocity < 0.0
-    assert negative_velocity > 0.0
-    assert abs(positive_velocity) <= spec.max_motor_torque + 1e-12
+
+def test_physics_substep_installs_damping_before_active_torque() -> None:
+    import inspect
+    from symbiont_lab.physics3d.humanoid import HumanoidPhysics
+
+    source = inspect.getsource(HumanoidPhysics.prepare_physics_substep)
+    velocity_at = source.index("self.p.VELOCITY_CONTROL")
+    torque_at = source.index("self.p.TORQUE_CONTROL")
+
+    assert velocity_at < torque_at
+    assert "targetVelocity=0.0" in source
+    assert "_passive_damping_force(" in source
 
 
 def test_actuator_work_decomposition_keeps_absolute_effort_distinct_from_net():
