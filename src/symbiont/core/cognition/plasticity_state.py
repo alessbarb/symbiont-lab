@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from typing import Collection, Mapping
+
 from ...cognition.checkpoint import quantize_weight
 from ...cognition.graph import CognitiveGraph
+from ...cognition.learning import apply_oja_update, update_eligibility
+from ...cognition.structure import advance_edge_age
 from ..foundation.weight_stability import EdgeKey, WeightStabilityTracker
+
+_EDGE_USAGE_THRESHOLD = 1e-3
+_ELIGIBILITY_THRESHOLD = 1e-6
 
 
 class PlasticityEngine:
@@ -29,6 +36,113 @@ class PlasticityEngine:
                 continue
             self._weight_tracker.seed(key, quantize_weight(edge.weight))
         self._tracked_edge_keys = current_keys
+
+    @staticmethod
+    def _decay_retiring_edge(
+        edge,
+        *,
+        tick: int,
+        retiring_predictors: Mapping[str, int],
+        structural_wait: int,
+        tentative_lifetime_ticks: int,
+    ) -> None:
+        retiring_id = None
+        if edge.source_id in retiring_predictors:
+            retiring_id = edge.source_id
+        elif edge.target_id in retiring_predictors:
+            retiring_id = edge.target_id
+        if retiring_id is None:
+            return
+        age = max(0, tick - retiring_predictors[retiring_id])
+        grace = tentative_lifetime_ticks // 4
+        if age < grace:
+            return
+        wait_grace = max(1, tentative_lifetime_ticks)
+        if structural_wait >= 2 * wait_grace:
+            decay = 0.90
+        elif structural_wait >= wait_grace:
+            decay = 0.95
+        else:
+            decay = 0.99
+        edge.weight *= decay
+        if abs(edge.weight) < 1e-12:
+            edge.weight = 0.0
+
+    def apply_learning(
+        self,
+        graph: CognitiveGraph,
+        *,
+        sense_inputs: Mapping[str, float],
+        previous_frame: Mapping[str, float],
+        activations: Mapping[str, float],
+        learning_nodes: Collection[str],
+        retiring_predictors: Mapping[str, int],
+        tick: int,
+        eligibility_decay: float,
+        learning_rate: float,
+        tick_modulation: float,
+        structural_plasticity_factor: float,
+        tentative_lifetime_ticks: int,
+        structural_wait: int,
+        max_incoming_norm: float,
+    ) -> None:
+        learning_node_ids = set(learning_nodes)
+        for edge in graph.edges:
+            source_value = (
+                sense_inputs.get(edge.source_id, 0.0)
+                if edge.delay_ticks == 0
+                else previous_frame.get(edge.source_id, 0.0)
+            )
+            target_current = activations.get(edge.target_id, 0.0)
+            update_eligibility(
+                edge,
+                source_previous=source_value,
+                target_current=target_current,
+                decay=eligibility_decay,
+            )
+            retiring_edge = (
+                edge.source_id in retiring_predictors
+                or edge.target_id in retiring_predictors
+            )
+            eligible = (
+                not retiring_edge
+                and edge.source_id in learning_node_ids
+                and edge.target_id in learning_node_ids
+                and abs(edge.eligibility) >= _ELIGIBILITY_THRESHOLD
+            )
+            apply_oja_update(
+                edge,
+                source_activation=source_value,
+                target_activation=target_current,
+                learning_rate=learning_rate,
+                modulation=(
+                    tick_modulation
+                    * edge.plasticity
+                    * structural_plasticity_factor
+                ),
+                eligible=eligible,
+                frozen=False,
+            )
+            if retiring_edge:
+                self._decay_retiring_edge(
+                    edge,
+                    tick=tick,
+                    retiring_predictors=retiring_predictors,
+                    structural_wait=structural_wait,
+                    tentative_lifetime_ticks=tentative_lifetime_ticks,
+                )
+            transmitted = edge.weight * source_value
+            advance_edge_age(
+                edge,
+                tick=tick,
+                used=abs(transmitted) >= _EDGE_USAGE_THRESHOLD,
+            )
+
+        self.observe_and_consolidate(
+            graph,
+            tick=tick,
+            max_incoming_norm=max_incoming_norm,
+        )
 
     def observe_and_consolidate(
         self,
