@@ -1180,9 +1180,10 @@ class OrganismRuntime:
         leaves = self._flatten_competence_controller(competence_id)
         if not leaves:
             return False
+        first_leaf = leaves[0]
         self._active_composition_children = leaves if len(leaves) > 1 else ()
         self._active_composition_index = 0
-        return self._sensorimotor_learner.activate_primitive(leaves[0])
+        return self._sensorimotor_learner.activate_primitive(first_leaf)
 
     def _materialize_composition(
         self,
@@ -2097,12 +2098,6 @@ class OrganismRuntime:
             config["epigenetic_priors"] = [
                 {"key": prior.key, "value": prior.value} for prior in self._epigenetic_priors
             ]
-        if self._heritable_genome is not None:
-            config["heritable_genome"] = {
-                "genome_id": self._heritable_genome.genome_id,
-                "identity": self._heritable_genome.identity,
-                "loci": [[key, value] for key, value in self._heritable_genome.loci],
-            }
         if self._genome is not None:
             config["genome"] = {
                 "genome_id": self._genome.genome_id,
@@ -2215,7 +2210,24 @@ class OrganismRuntime:
     @property
     def competence_library(self) -> CompetenceLibrary:
         return self._competence_library
-\n    @property\n    def competence_execution_bindings(self) -> CompetenceExecutionBindingRegistry:\n        return self._competence_execution_bindings\n\n    def _current_surface_fingerprint(self) -> str | None:\n        return (\n            self._actuator_constitution.contract_fingerprint\n            if self._actuator_constitution is not None\n            else None\n        )\n\n    def _competence_is_executable(self, competence: MotorCompetence) -> bool:\n        return self._competence_execution_bindings.is_executable(\n            competence,\n            surface_fingerprint=self._current_surface_fingerprint(),\n        )\n
+    
+    @property
+    def competence_execution_bindings(self) -> CompetenceExecutionBindingRegistry:
+        return self._competence_execution_bindings
+
+    def _current_surface_fingerprint(self) -> str | None:
+        return (
+            self._actuator_constitution.contract_fingerprint
+            if self._actuator_constitution is not None
+            else None
+        )
+
+    def _competence_is_executable(self, competence: MotorCompetence) -> bool:
+        return self._competence_execution_bindings.is_executable(
+            competence,
+            surface_fingerprint=self._current_surface_fingerprint(),
+        )
+    
     @property
     def evidence_ledger(self) -> EvidenceRevisionLedger:
         return self._evidence_ledger
@@ -3802,9 +3814,10 @@ class OrganismRuntime:
 
         from ... import __version__ as _symbiont_version
 
+        genome_data = payload.get("genome")
         payload["constitution_fingerprint"] = {
             "schema_version": 1,
-            "genome_hash": _canonical_hash(payload["genome"]),
+            "genome_hash": _canonical_hash(cast(dict[str, Any], genome_data)) if genome_data is not None else None,
         }
         payload["runtime_provenance"] = {
             "software_version": _symbiont_version,
