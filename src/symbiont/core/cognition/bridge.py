@@ -841,30 +841,13 @@ class CognitiveBridge:
                 tick=tick,
             )
 
-        changed = False
-        learning_rate = 0.20
-        for edge in self._graph.edges:
-            if (
-                edge.source_id not in concept_set
-                or edge.target_id != readout_id
-                or edge.kind is not EdgeKind.EXCITATORY
-            ):
-                continue
-            before = edge.weight
-            edge.weight = max(
-                WEIGHT_RANGE[0],
-                min(
-                    WEIGHT_RANGE[1],
-                    float(edge.weight) + learning_rate * value,
-                ),
-            )
-            edge.last_use_tick = max(edge.last_use_tick, int(tick))
-            if value > 0.0:
-                edge.support += 1
-            changed = changed or abs(edge.weight - before) > 1e-12
-
-        return changed
-    @property
+        return self._plasticity.apply_homeostatic_value(
+            self._graph,
+            concept_ids=concept_set,
+            readout_id=readout_id,
+            value=value,
+            tick=tick,
+        )    @property
     def _adaptive_node_budget(self) -> int:
         return self._budgets.node_budget
 
