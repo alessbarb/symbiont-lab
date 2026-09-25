@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from .action import MotorCommand
 from .surface import ActuatorSurface
-from .types import Actuation, MotorIntent
+from .types import Actuation
 
 
 class ActuatorSystem:
@@ -27,16 +27,3 @@ class ActuatorSystem:
                 )
             )
         return tuple(delivered)
-
-    def execute(
-        self,
-        intent: MotorIntent,
-        surface: ActuatorSurface,
-    ) -> Actuation:
-        """Legacy migration/test helper; not an organism action authority."""
-        delivered = surface.validate(intent.actuator_id, intent.activation)
-        return Actuation(
-            actuator_id=intent.actuator_id,
-            requested=intent.activation,
-            delivered=delivered,
-        )

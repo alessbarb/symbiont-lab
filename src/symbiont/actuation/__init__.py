@@ -48,7 +48,6 @@ from .surface import (
 )
 from .state import SensorimotorV2Snapshot
 from .sensorimotor import CompetenceDevelopmentEngine, SensorimotorSnapshot
-from .system import ActuatorSystem
 from .types import Actuation, MotorIntent
 
 __all__ = [
@@ -67,7 +66,6 @@ __all__ = [
     "ActuatorConstitution",
     "ActuatorEvidenceModel",
     "ActuatorSurface",
-    "ActuatorSystem",
     "ArbitrationDecision",
     "CausalEvidence",
     "CausalEvidenceLedger",
