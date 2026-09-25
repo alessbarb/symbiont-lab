@@ -46,13 +46,13 @@ def test_physics3d_contract_uses_only_opaque_port_ids():
     )
 
 
-def test_v3_body_is_generated_as_hard_limited_urdf():
+def test_v6_body_is_generated_as_hard_limited_urdf():
     import xml.etree.ElementTree as ET
 
     root = ET.fromstring(build_anthropomorphic_urdf())
     joints = root.findall("joint")
 
-    assert root.attrib["name"] == "symbiont_anthropomorphic_v5"
+    assert root.attrib["name"] == "symbiont_anthropomorphic_v6"
     assert len(joints) == MOTOR_DOF
     assert [joint.attrib["name"] for joint in joints] == [
         spec.name for spec in JOINT_SPECS
@@ -75,6 +75,34 @@ def test_v3_body_is_generated_as_hard_limited_urdf():
         # Humanoid passive damping is body-owned and applied explicitly
         # under TORQUE_CONTROL; URDF damping remains zero to avoid duplication.
         assert float(dynamics.attrib["damping"]) == pytest.approx(0.0)
+
+
+def test_v6_long_limbs_use_axially_symmetric_collision_geometry():
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(build_anthropomorphic_urdf())
+    links = {
+        link.attrib["name"]: link
+        for link in root.findall("link")
+    }
+
+    for name in (
+        "left_upper_arm",
+        "left_forearm",
+        "right_upper_arm",
+        "right_forearm",
+        "left_thigh",
+        "left_shin",
+        "right_thigh",
+        "right_shin",
+    ):
+        collision = links[name].find("collision/geometry/cylinder")
+        assert collision is not None
+        assert float(collision.attrib["radius"]) > 0.0
+        assert float(collision.attrib["length"]) > 0.0
+
+    assert links["torso"].find("collision/geometry/box") is not None
+    assert links["pelvis"].find("collision/geometry/box") is not None
 
 
 def test_mechanical_guard_band_never_expands_anatomical_range():
