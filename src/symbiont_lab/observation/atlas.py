@@ -470,11 +470,26 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
 class CognitiveAtlasDiff:
     nodes_added: tuple[str, ...]
     nodes_removed: tuple[str, ...]
+    nodes_updated: tuple[str, ...]
     edges_added: tuple[str, ...]
     edges_removed: tuple[str, ...]
     edges_strengthened: tuple[str, ...]
     edges_weakened: tuple[str, ...]
+    activity_updates: Mapping[str, float]
     metrics: Mapping[str, Any]
+
+    def to_delta_payload(self) -> dict[str, Any]:
+        """Spec Sec 82: AtlasDelta wire shape. Pure serialization -- this
+        does not itself decide how or whether a transport sends it."""
+        return {
+            "nodes_added": list(self.nodes_added),
+            "nodes_removed": list(self.nodes_removed),
+            "nodes_updated": list(self.nodes_updated),
+            "edges_added": list(self.edges_added),
+            "edges_removed": list(self.edges_removed),
+            "edges_updated": sorted(set(self.edges_strengthened) | set(self.edges_weakened)),
+            "activity_updates": dict(self.activity_updates),
+        }
 
 
 def _ratio(numerator: int, denominator: int) -> float | None:
@@ -552,12 +567,27 @@ def diff_cognitive_atlas(before: CognitiveAtlasSnapshot, after: CognitiveAtlasSn
         elif after_strength < before_strength:
             weakened.append(edge_id)
 
+    before_nodes_by_id = {node.id: node for node in before.nodes}
+    after_nodes_by_id = {node.id: node for node in after.nodes}
+    nodes_updated: list[str] = []
+    activity_updates: dict[str, float] = {}
+    for node_id in before_node_ids & after_node_ids:
+        before_node = before_nodes_by_id[node_id]
+        after_node = after_nodes_by_id[node_id]
+        if before_node.metadata != after_node.metadata:
+            nodes_updated.append(node_id)
+        after_activation = after_node.metadata.get("activation")
+        if isinstance(after_activation, (int, float)) and before_node.metadata.get("activation") != after_activation:
+            activity_updates[node_id] = after_activation
+
     return CognitiveAtlasDiff(
         nodes_added=tuple(sorted(after_node_ids - before_node_ids)),
         nodes_removed=tuple(sorted(before_node_ids - after_node_ids)),
+        nodes_updated=tuple(sorted(nodes_updated)),
         edges_added=tuple(sorted(after_edge_ids - before_edge_ids)),
         edges_removed=tuple(sorted(before_edge_ids - after_edge_ids)),
         edges_strengthened=tuple(sorted(strengthened)),
         edges_weakened=tuple(sorted(weakened)),
+        activity_updates=activity_updates,
         metrics=metrics,
     )

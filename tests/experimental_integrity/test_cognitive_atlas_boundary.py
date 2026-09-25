@@ -105,6 +105,44 @@ def test_build_cognitive_atlas_large_snapshot_stays_fast():
     assert elapsed_ms < 500, f"build_cognitive_atlas took {elapsed_ms:.1f}ms for {node_count} nodes"
 
 
+def test_diff_cognitive_atlas_incremental_delta_meets_5ms_budget():
+    """Sec 80's actual target: incremental delta processing between two
+    consecutive-tick snapshots at real organism scale (largest live graph
+    observed in this codebase's own telemetry is low hundreds of nodes;
+    200 here is a comfortable upper bound with headroom)."""
+    import time
+
+    node_count = 200
+    base_nodes = [{"id": f"concept.{i}", "kind": "concept"} for i in range(node_count)]
+    base_edges = [
+        {"sourceId": f"concept.{i}", "targetId": f"concept.{i + 1}", "kind": "associated_with", "weight": 0.5}
+        for i in range(node_count - 1)
+    ]
+    before = build_cognitive_atlas({
+        "tick": 100,
+        "topology": {"nodes": base_nodes, "edges": base_edges},
+    })
+
+    # A realistic single-tick change: a handful of new nodes/edges plus
+    # activation churn on existing ones, not a full graph rebuild.
+    next_nodes = base_nodes + [{"id": f"concept.{node_count + i}", "kind": "concept"} for i in range(5)]
+    next_edges = base_edges + [
+        {"sourceId": f"concept.{node_count - 1}", "targetId": f"concept.{node_count}", "kind": "associated_with", "weight": 0.6}
+    ]
+    after_snapshot = {
+        "tick": 101,
+        "topology": {"nodes": next_nodes, "edges": next_edges},
+        "observer_analysis": {"activationValues": {f"concept.{i}": 0.5 for i in range(20)}},
+    }
+
+    started = time.perf_counter()
+    after = build_cognitive_atlas(after_snapshot)
+    diff_cognitive_atlas(before, after)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+
+    assert elapsed_ms < 5, f"incremental delta took {elapsed_ms:.2f}ms for a {node_count}-node organism"
+
+
 def test_diff_cognitive_atlas_isolation_between_snapshots():
     """Sec 73/78: diffing two Atlas snapshots must never mutate either one --
     verified byte-equivalent (field-for-field) before/after."""

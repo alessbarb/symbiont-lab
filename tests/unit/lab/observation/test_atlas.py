@@ -394,3 +394,50 @@ def test_build_cognitive_atlas_knowledge_coverage_reports_separate_domain_counts
     assert coverage["predictors"] == 1
     # never a single fabricated "knowledge %" -- always per-domain counts
     assert "knowledge_percent" not in coverage
+
+
+def test_diff_cognitive_atlas_reports_updated_nodes_and_activity():
+    snapshot = _snapshot()
+    snapshot["observer_analysis"] = {"activationValues": {"concept.1": 0.2}}
+    before = build_cognitive_atlas(snapshot)
+
+    after_snapshot = _snapshot()
+    after_snapshot["observer_analysis"] = {"activationValues": {"concept.1": 0.9}}
+    after_snapshot["motor_competences"][1]["maturity"] = "established"  # competence.8 changes
+    after = build_cognitive_atlas(after_snapshot)
+
+    diff = diff_cognitive_atlas(before, after)
+
+    assert "competence.8" in diff.nodes_updated
+    assert "concept.1" in diff.nodes_updated
+    assert diff.activity_updates["concept.1"] == 0.9
+    # an unchanged node must not appear
+    assert "effect.3" not in diff.activity_updates
+
+
+def test_diff_cognitive_atlas_to_delta_payload_matches_spec_wire_shape():
+    before = build_cognitive_atlas(_snapshot())
+    after_snapshot = _snapshot()
+    after_snapshot["motor_competences"].append(
+        {"competence_id": "competence.99", "effect_id": None, "maturity": "candidate"}
+    )
+    after = build_cognitive_atlas(after_snapshot)
+
+    payload = diff_cognitive_atlas(before, after).to_delta_payload()
+
+    assert set(payload.keys()) == {
+        "nodes_added", "nodes_removed", "nodes_updated",
+        "edges_added", "edges_removed", "edges_updated",
+        "activity_updates",
+    }
+    assert "competence.99" in payload["nodes_added"]
+    assert isinstance(payload["activity_updates"], dict)
+
+
+def test_diff_cognitive_atlas_no_updates_when_nothing_changed():
+    atlas = build_cognitive_atlas(_snapshot())
+
+    diff = diff_cognitive_atlas(atlas, atlas)
+
+    assert diff.nodes_updated == ()
+    assert diff.activity_updates == {}
