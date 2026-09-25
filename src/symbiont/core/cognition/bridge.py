@@ -1411,115 +1411,29 @@ class CognitiveBridge:
         graph: CognitiveGraph | None = None,
     ) -> None:
         active_graph = self._graph if graph is None else graph
-        if not self._develop_senses:
-            return
-        concept_count = sum(
-            1 for node in active_graph.nodes if node.kind is NodeKind.CONCEPT
-        )
         pending_concepts = sum(
             1
             for candidate in self._contention.candidates.values()
             if candidate.family == "concept"
         )
-        if concept_count + pending_concepts >= self._kernel_limits.max_concepts:
-            return
-
-        support_pairs = set(self._lifecycle.concept_support) | set(
-            self._lifecycle.retrospective_support
+        proposal = self._lifecycle.propose_germinal_concept_candidate(
+            graph=active_graph,
+            live_graph=self._graph,
+            topology_revision=self._topology_revision,
+            pending_concepts=pending_concepts,
+            existing_candidate_ids=self._contention.candidates,
+            max_concepts=self._kernel_limits.max_concepts,
+            minimum_support=self._genome.structure.minimum_support,
+            develop_senses=self._develop_senses,
         )
-        eligible = sorted(
-            (
-                (
-                    max(
-                        self._lifecycle.concept_support.get(pair, 0),
-                        self._lifecycle.retrospective_support.get(pair, 0),
-                    ),
-                    pair,
-                )
-                for pair in support_pairs
-                if max(
-                    self._lifecycle.concept_support.get(pair, 0),
-                    self._lifecycle.retrospective_support.get(pair, 0),
-                ) >= self._genome.structure.minimum_support
-                and not self._concept_signature_exists(pair, graph=active_graph)
-            ),
-            key=lambda item: (-item[0], item[1]),
-        )
-        if not eligible:
+        if proposal is None:
             return
-
-        _, source_ids = eligible[0]
-        if any(
-            (node := active_graph.node_by_id(source_id)) is None or node.kind is not NodeKind.SENSE
-            for source_id in source_ids
-        ):
-            return
-
-        signature = "|".join(source_ids)
-        candidate_id = f"concept:{signature}"
-        if candidate_id in self._contention.candidates:
-            return
-
-        core_readouts = sorted(
-            node.node_id
-            for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT
-            and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
-            and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
-        )
-        if _CORE_READOUT_ID in core_readouts:
-            core_readouts = [_CORE_READOUT_ID]
-
-        concept_id = self._new_node_id("concept", graph=active_graph)
-        mutations: list[Mutation] = [
-            Mutation(
-                kind="add_node",
-                payload={
-                    "node_id": concept_id,
-                    "kind": NodeKind.CONCEPT,
-                    "source_ids": source_ids,
-                },
-            )
-        ]
-
-        if core_readouts:
-            readout_id = core_readouts[0]
-        else:
-            # A germinal concept and its first usable output form one minimal
-            # functional unit. Admit them atomically so neither half can be
-            # orphaned while waiting for another producer turn.
-            existing_ids = {node.node_id for node in active_graph.nodes}
-            if _CORE_READOUT_ID in existing_ids:
-                return
-            readout_id = _CORE_READOUT_ID
-            mutations.append(
-                Mutation(
-                    kind="add_node",
-                    payload={
-                        "node_id": readout_id,
-                        "kind": NodeKind.READOUT,
-                    },
-                )
-            )
-
-        mutations.append(
-            Mutation(
-                kind="add_edge",
-                payload={
-                    "source_id": concept_id,
-                    "target_id": readout_id,
-                    "kind": EdgeKind.EXCITATORY,
-                    "weight": _TENTATIVE_WEIGHT,
-                    "plasticity": 0.5,
-                    "delay_ticks": 1,
-                },
-            )
-        )
+        candidate_id, mutations = proposal
         self._contention.register(
             candidate_id=candidate_id,
             family="concept",
             eligible_tick=tick,
-            mutations=tuple(mutations),
+            mutations=mutations,
         )
 
     def _nodes_with_path_to_targets(
