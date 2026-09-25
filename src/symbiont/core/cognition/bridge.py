@@ -23,7 +23,6 @@ from ...cognition.learning import (
     ShadowPrediction,
     apply_oja_update,
     compute_prediction_errors,
-    huber_loss,
     update_eligibility,
 )
 from ...cognition.limits import KernelLimits
@@ -39,6 +38,7 @@ from ...cognition.structure import (
 )
 from ...cognition.types import WEIGHT_RANGE, EdgeKind, NodeKind
 from .plasticity_state import PlasticityEngine
+from .predictors import PredictorLifecycle, PredictorRetirement, PredictorUtility
 from .structural_candidates import StructuralCandidate, StructuralContention
 
 _ACTIVITY_THRESHOLD = 0.1
@@ -76,75 +76,6 @@ class ConceptLineage:
     concept_id: str
     parent_ids: tuple[str, ...]
     born_tick: int
-
-
-@dataclass(slots=True)
-class _PredictorUtility:
-    """Bounded evidence that a materialized predictor beats persistence."""
-
-    samples: int = 0
-    model_loss: float = 0.0
-    persistence_loss: float = 0.0
-    recent_gain: float = 0.0
-    negative_streak: int = 0
-    positive_streak: int = 0
-
-    def observe(self, *, model_loss: float, persistence_loss: float) -> None:
-        if not math.isfinite(model_loss) or not math.isfinite(persistence_loss):
-            return
-        model = max(0.0, float(model_loss))
-        persistence = max(0.0, float(persistence_loss))
-        sample_gain = persistence - model
-        self.samples += 1
-        self.model_loss += model
-        self.persistence_loss += persistence
-        alpha = 0.125
-        self.recent_gain = (
-            sample_gain
-            if self.samples == 1
-            else (1.0 - alpha) * self.recent_gain + alpha * sample_gain
-        )
-        epsilon = 1e-4
-        if self.recent_gain < -epsilon:
-            self.negative_streak += 1
-            self.positive_streak = 0
-        elif self.recent_gain > epsilon:
-            self.positive_streak += 1
-            self.negative_streak = 0
-        else:
-            self.negative_streak = max(0, self.negative_streak - 1)
-            self.positive_streak = max(0, self.positive_streak - 1)
-
-    @property
-    def predictive_gain(self) -> float:
-        if self.samples <= 0:
-            return 0.0
-        return (self.persistence_loss - self.model_loss) / self.samples
-
-    def checkpoint(self, predictor_id: str) -> dict[str, object]:
-        return {
-            "predictor_id": predictor_id,
-            "samples": self.samples,
-            "model_loss": self.model_loss,
-            "persistence_loss": self.persistence_loss,
-            "recent_gain": self.recent_gain,
-            "negative_streak": self.negative_streak,
-            "positive_streak": self.positive_streak,
-        }
-
-
-@dataclass(slots=True)
-class _PredictorRetirement:
-    predictor_id: str
-    entered_tick: int
-    last_evaluated_tick: int
-
-    def checkpoint(self) -> dict[str, object]:
-        return {
-            "predictor_id": self.predictor_id,
-            "entered_tick": self.entered_tick,
-            "last_evaluated_tick": self.last_evaluated_tick,
-        }
 
 
 @dataclass(slots=True)
@@ -280,13 +211,7 @@ class CognitiveBridge:
             node.node_id: 0 for node in graph.nodes
         }
         self._tick = 0
-        self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
-        self._shadow_predictions_cache: tuple[ShadowPrediction, ...] | None = None
-        self._shadow_prune_dirty = True
-        self._shadow_prune_topology_revision = -1
-        self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
-        self._predictor_utility: dict[str, _PredictorUtility] = {}
-        self._predictor_retirement: dict[str, _PredictorRetirement] = {}
+        self._predictors = PredictorLifecycle()
         self._contention = StructuralContention(
             kernel_limits=kernel_limits,
             identity=genome.genome_id,
@@ -440,7 +365,7 @@ class CognitiveBridge:
         if node.kind is NodeKind.SENSE:
             return RepresentationMaturity.STABLE
 
-        if node.kind is NodeKind.PREDICTOR and node_id in self._predictor_retirement:
+        if node.kind is NodeKind.PREDICTOR and node_id in self._predictors.retirement:
             return RepresentationMaturity.RETIRING
 
         orphan_since = self._orphan_since_tick.get(node_id)
@@ -467,7 +392,7 @@ class CognitiveBridge:
             return RepresentationMaturity.PROVISIONAL
 
         if node.kind is NodeKind.PREDICTOR:
-            utility = self._predictor_utility.get(node_id)
+            utility = self._predictors.utility.get(node_id)
             if not (
                 utility is not None
                 and utility.samples >= max(8, minimum_support)
@@ -533,7 +458,7 @@ class CognitiveBridge:
                 return False
             source_id = str(add_edge.payload.get("source_id", ""))
             target_id = str(add_node.payload.get("predicts_node_id", ""))
-            shadow = self._shadow_predictions.get((source_id, target_id))
+            shadow = self._predictors.shadows.get((source_id, target_id))
             # Shadow promotion is itself the evidence gate for this producer.
             # Requiring the target to be mature here makes promotion of a
             # validated predictor impossible for normal, newly-created
@@ -612,121 +537,26 @@ class CognitiveBridge:
         return max(0, int(tick) - int(oldest))
 
     def _update_predictor_retirement_state(self, *, tick: int) -> None:
-        """Enter/leave predictor quarantine using hysteretic internal evidence."""
-        predictor_ids = {
-            node.node_id for node in self._graph.nodes
-            if node.kind is NodeKind.PREDICTOR
-        }
-        capacity_pressure = len(self._graph.nodes) >= self._soft_node_limit
-        minimum_samples = max(8, self._genome.structure.minimum_support)
-        enter_streak = max(4, self._genome.structure.minimum_support // 2)
-        leave_streak = max(4, self._genome.structure.minimum_support // 2)
-        structural_wait = self._oldest_blocked_structural_wait(tick=tick)
-        wait_grace = max(1, self._genome.structure.tentative_lifetime_ticks)
-        aged_structural_demand = structural_wait >= wait_grace
-
-        if not capacity_pressure:
-            # Retirement is pressure-driven, not a global judgment that weak
-            # predictors should disappear. Soft-pruned edges remain able to
-            # recover through normal plasticity after quarantine is cancelled.
-            self._predictor_retirement.clear()
-            return
-
-        for predictor_id in tuple(self._predictor_retirement):
-            if predictor_id not in predictor_ids:
-                self._predictor_retirement.pop(predictor_id, None)
-
-        # Incremental GC principle: at most one predictor retires at a time.
-        # First give the current candidate a chance to recover.
-        if self._predictor_retirement:
-            predictor_id = next(iter(sorted(self._predictor_retirement)))
-            utility = self._predictor_utility.get(predictor_id)
-            retirement = self._predictor_retirement[predictor_id]
-            retirement.last_evaluated_tick = tick
-            if (
-                utility is not None
-                and utility.recent_gain > 0.0
-                and utility.positive_streak >= leave_streak
-            ):
-                self._predictor_retirement.pop(predictor_id, None)
-            else:
-                return
-
-        candidates: list[tuple[float, float, int, str]] = []
-        for predictor_id in sorted(predictor_ids):
-            utility = self._predictor_utility.get(predictor_id)
-            if utility is None or utility.samples < minimum_samples:
-                continue
-
-            # Under ordinary pressure require sustained negative cumulative
-            # evidence.  If a real node-producing proposal has been blocked for
-            # a full structural lifetime, recent negative evidence is enough to
-            # start *reversible* quarantine.  This prevents an old, currently
-            # harmful predictor from indefinitely monopolising the final slot
-            # while preserving useful predictors and all semantic neutrality.
-            required_negative_streak = 1 if aged_structural_demand else enter_streak
-            if utility.recent_gain >= -1e-4:
-                continue
-            if utility.negative_streak < required_negative_streak:
-                continue
-            if utility.predictive_gain > 0.0 and not aged_structural_demand:
-                continue
-
-            candidates.append(
-                (
-                    utility.recent_gain,
-                    utility.predictive_gain,
-                    -utility.negative_streak,
-                    predictor_id,
-                )
-            )
-        if candidates:
-            _, _, _, predictor_id = min(candidates)
-            self._predictor_retirement[predictor_id] = _PredictorRetirement(
-                predictor_id=predictor_id,
-                entered_tick=tick,
-                last_evaluated_tick=tick,
-            )
+        self._predictors.update_retirement(
+            graph=self._graph,
+            tick=tick,
+            soft_node_limit=self._soft_node_limit,
+            structural_wait=self._oldest_blocked_structural_wait(tick=tick),
+            minimum_support=self._genome.structure.minimum_support,
+            tentative_lifetime_ticks=(
+                self._genome.structure.tentative_lifetime_ticks
+            ),
+        )
 
     def _retirement_edge_decay(self, edge, *, tick: int) -> None:
-        """Soft-prune quarantined predictor edges without immediate deletion.
-
-        Decay is reversible: if the predictor regains positive recent utility,
-        quarantine is cancelled and normal Oja plasticity resumes. The rate is
-        bounded and independent of task/world semantics.
-        """
-        retiring_id = None
-        if edge.source_id in self._predictor_retirement:
-            retiring_id = edge.source_id
-        elif edge.target_id in self._predictor_retirement:
-            retiring_id = edge.target_id
-        if retiring_id is None:
-            return
-
-        retirement = self._predictor_retirement[retiring_id]
-        age = max(0, tick - retirement.entered_tick)
-        # A one-tick structural lifetime intentionally has no extra decay
-        # grace: quarantine itself is already the reversible protection. For
-        # longer lifetimes retain the bounded quarter-window integration grace.
-        grace = self._genome.structure.tentative_lifetime_ticks // 4
-        if age < grace:
-            return
-
-        # Keep retirement reversible, but do not let an already-negative
-        # predictor hold scarce capacity for hundreds of additional ticks while
-        # validated structural work is waiting.  Queue age is generic resource
-        # pressure, not a task/motor signal.
-        structural_wait = self._oldest_blocked_structural_wait(tick=tick)
-        wait_grace = max(1, self._genome.structure.tentative_lifetime_ticks)
-        if structural_wait >= 2 * wait_grace:
-            decay = 0.90
-        elif structural_wait >= wait_grace:
-            decay = 0.95
-        else:
-            decay = 0.99
-        edge.weight *= decay
-        if abs(edge.weight) < 1e-12:
-            edge.weight = 0.0
+        self._predictors.decay_retiring_edge(
+            edge,
+            tick=tick,
+            structural_wait=self._oldest_blocked_structural_wait(tick=tick),
+            tentative_lifetime_ticks=(
+                self._genome.structure.tentative_lifetime_ticks
+            ),
+        )
 
     def _retirement_edge_gc_mutations(
         self,
@@ -749,8 +579,8 @@ class CognitiveBridge:
         if self._oldest_blocked_structural_wait(tick=tick) < 2 * lifetime:
             return ()
         active_graph = self._graph if graph is None else graph
-        for predictor_id in sorted(self._predictor_retirement):
-            retirement = self._predictor_retirement[predictor_id]
+        for predictor_id in sorted(self._predictors.retirement):
+            retirement = self._predictors.retirement[predictor_id]
             if tick - retirement.entered_tick < lifetime:
                 continue
             incident = sorted(
@@ -797,7 +627,7 @@ class CognitiveBridge:
         }
         candidates = sorted(
             predictor_id
-            for predictor_id in self._predictor_retirement
+            for predictor_id in self._predictors.retirement
             if predictor_id not in incident_ids
             and any(
                 node.node_id == predictor_id and node.kind is NodeKind.PREDICTOR
@@ -1252,93 +1082,36 @@ class CognitiveBridge:
                 self._retrospective_concept_support.pop(key, None)
 
     def _invalidate_shadow_predictions_cache(self) -> None:
-        self._shadow_predictions_cache = None
+        self._predictors.invalidate_shadow_cache()
 
     @property
     def shadow_predictions(self) -> tuple[ShadowPrediction, ...]:
-        if self._shadow_predictions_cache is None:
-            self._shadow_predictions_cache = tuple(
-                sorted(
-                    self._shadow_predictions.values(),
-                    key=lambda item: (item.source_id, item.target_id),
-                )
-            )
-        return self._shadow_predictions_cache
+        return self._predictors.shadow_predictions
 
     @property
     def _live_shadow_limit(self) -> int:
-        return min(
-            _MAX_SHADOW_PREDICTIONS,
-            max(32, self._kernel_limits.max_nodes * _MAX_LIVE_SHADOW_FACTOR),
-        )
+        return self._predictors.live_shadow_limit(self._kernel_limits.max_nodes)
 
     @property
     def _preliminary_shadow_limit(self) -> int:
-        return min(
-            _MAX_SHADOW_PREDICTIONS,
-            max(64, self._kernel_limits.max_nodes * _MAX_PRELIMINARY_SHADOW_FACTOR),
+        return self._predictors.preliminary_shadow_limit(
+            self._kernel_limits.max_nodes
         )
 
     def _prune_preliminary_shadow_support(self) -> None:
         node_kinds, _ = self._topology_cache()
-        live_ids = set(node_kinds)
-        self._shadow_preliminary_support = {
-            key: support
-            for key, support in self._shadow_preliminary_support.items()
-            if node_kinds.get(key[0]) is NodeKind.SENSE and key[1] in live_ids
-        }
-        if len(self._shadow_preliminary_support) <= self._preliminary_shadow_limit:
-            return
-        retained = sorted(
-            self._shadow_preliminary_support.items(),
-            key=lambda item: (-item[1], item[0]),
-        )[: self._preliminary_shadow_limit]
-        self._shadow_preliminary_support = dict(retained)
+        self._predictors.prune_preliminary(
+            node_kinds=node_kinds,
+            max_nodes=self._kernel_limits.max_nodes,
+        )
 
     def _prune_shadow_predictions(self) -> None:
-        """Retain only live, materializable bounded predictive hypotheses.
-
-        A full scan is only required when candidate validity may have changed:
-        topology changed, a live candidate retired, or the bounded pool is
-        over capacity. Evidence updates that preserve candidate membership do
-        not require rebuilding the same retained dictionary every tick.
-        """
-        topology_changed = (
-            self._shadow_prune_topology_revision != self._topology_revision
-        )
-        over_limit = len(self._shadow_predictions) > self._live_shadow_limit
-        if not self._shadow_prune_dirty and not topology_changed and not over_limit:
-            return
-
         node_kinds, _ = self._topology_cache()
-        live_ids = set(node_kinds)
-        retained_predictions = {
-            key: candidate
-            for key, candidate in self._shadow_predictions.items()
-            if (
-                candidate.status != "retired"
-                and node_kinds.get(candidate.source_id) is NodeKind.SENSE
-                and candidate.target_id in live_ids
-            )
-        }
-        if len(retained_predictions) != len(self._shadow_predictions):
-            self._shadow_predictions = retained_predictions
-            self._invalidate_shadow_predictions_cache()
-        if len(self._shadow_predictions) > self._live_shadow_limit:
-            ranked = sorted(
-                self._shadow_predictions.items(),
-                key=lambda item: (
-                    item[1].status != "supported",
-                    -item[1].predictive_gain,
-                    -item[1].samples,
-                    item[0],
-                ),
-            )
-            self._shadow_predictions = dict(ranked[: self._live_shadow_limit])
-            self._invalidate_shadow_predictions_cache()
-
-        self._shadow_prune_dirty = False
-        self._shadow_prune_topology_revision = self._topology_revision
+        self._predictors.prune_shadows(
+            node_kinds=node_kinds,
+            topology_revision=self._topology_revision,
+            max_nodes=self._kernel_limits.max_nodes,
+        )
 
     def promote_shadow_prediction(self, source_id: str, target_id: str, *, tick: int) -> bool:
         """Register one validated lag-1 predictor for structural contention.
@@ -1348,13 +1121,13 @@ class CognitiveBridge:
         cognitive capacity; only the consolidation arbiter may execute its
         add-node/add-edge transaction.
         """
-        shadow = self._shadow_predictions.get((source_id, target_id))
+        shadow = self._predictors.shadows.get((source_id, target_id))
         if shadow is None or not shadow.promotable or not self._develop_senses:
             return False
         source_node = self._graph.node_by_id(source_id)
         if source_node is None or source_node.kind is not NodeKind.SENSE:
             return False
-        if self._graph.node_by_id(target_id) is None or target_id in self._predictor_retirement:
+        if self._graph.node_by_id(target_id) is None or target_id in self._predictors.retirement:
             return False
         if any(
             node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id
@@ -1418,7 +1191,7 @@ class CognitiveBridge:
         ranked = sorted(
             (
                 candidate
-                for candidate in self._shadow_predictions.values()
+                for candidate in self._predictors.shadows.values()
                 if candidate.promotable
             ),
             key=lambda candidate: (
@@ -2123,14 +1896,14 @@ class CognitiveBridge:
                 self._orphan_since_tick.pop(node_id, None)
                 self._unrouted_since_tick.pop(node_id, None)
                 self._normalizers.pop(node_id, None)
-                self._predictor_utility.pop(node_id, None)
-                self._predictor_retirement.pop(node_id, None)
+                self._predictors.utility.pop(node_id, None)
+                self._predictors.retirement.pop(node_id, None)
                 self._node_born_tick.pop(node_id, None)
                 self._node_observation_count.pop(node_id, None)
                 self._node_active_count.pop(node_id, None)
-                dead_prediction_keys = [k for k in self._shadow_predictions if k[0] == node_id or k[1] == node_id]
+                dead_prediction_keys = [k for k in self._predictors.shadows if k[0] == node_id or k[1] == node_id]
                 for k in dead_prediction_keys:
-                    del self._shadow_predictions[k]
+                    del self._predictors.shadows[k]
                 if dead_prediction_keys:
                     self._invalidate_shadow_predictions_cache()
 
@@ -2177,23 +1950,23 @@ class CognitiveBridge:
             if pair[0] in sense_ids and pair[1] in sense_ids
         }
         self._structural_plasticity.reconcile(node_ids)
-        self._shadow_predictions = {
+        self._predictors.shadows = {
             key: value
-            for key, value in self._shadow_predictions.items()
+            for key, value in self._predictors.shadows.items()
             if key[0] in node_ids and key[1] in node_ids
         }
         predictor_ids = {
             node.node_id for node in self._graph.nodes
             if node.kind is NodeKind.PREDICTOR
         }
-        self._predictor_utility = {
+        self._predictors.utility = {
             key: value
-            for key, value in self._predictor_utility.items()
+            for key, value in self._predictors.utility.items()
             if key in predictor_ids
         }
-        self._predictor_retirement = {
+        self._predictors.retirement = {
             key: value
-            for key, value in self._predictor_retirement.items()
+            for key, value in self._predictors.retirement.items()
             if key in predictor_ids
         }
 
@@ -2228,12 +2001,12 @@ class CognitiveBridge:
             "predictor_utility": [
                 utility.checkpoint(predictor_id)
                 for predictor_id, utility
-                in sorted(self._predictor_utility.items())
+                in sorted(self._predictors.utility.items())
             ],
             "predictor_retirement": [
                 retirement.checkpoint()
                 for _, retirement
-                in sorted(self._predictor_retirement.items())
+                in sorted(self._predictors.retirement.items())
             ],
             "structural_candidates": [
                 candidate.checkpoint()
@@ -2309,13 +2082,13 @@ class CognitiveBridge:
         payload: object,
         *,
         allowed_predictor_ids: Collection[str],
-    ) -> dict[str, _PredictorUtility]:
+    ) -> dict[str, PredictorUtility]:
         if payload is None:
             return {}
         allowed = set(allowed_predictor_ids)
         if not isinstance(payload, list):
             raise GraphError("predictor_utility must be a bounded list")
-        restored: dict[str, _PredictorUtility] = {}
+        restored: dict[str, PredictorUtility] = {}
         for entry in payload:
             if not isinstance(entry, Mapping):
                 raise GraphError("predictor_utility entries must be objects")
@@ -2355,7 +2128,7 @@ class CognitiveBridge:
                 for value in (negative_streak, positive_streak)
             ):
                 raise GraphError("predictor utility streak out of bounds")
-            restored[predictor_id] = _PredictorUtility(
+            restored[predictor_id] = PredictorUtility(
                 samples=samples,
                 model_loss=float(model_loss),
                 persistence_loss=float(persistence_loss),
@@ -2371,13 +2144,13 @@ class CognitiveBridge:
         payload: object,
         *,
         allowed_predictor_ids: Collection[str],
-    ) -> dict[str, _PredictorRetirement]:
+    ) -> dict[str, PredictorRetirement]:
         if payload is None:
             return {}
         allowed = set(allowed_predictor_ids)
         if not isinstance(payload, list) or len(payload) > 1:
             raise GraphError("predictor_retirement must contain at most one candidate")
-        restored: dict[str, _PredictorRetirement] = {}
+        restored: dict[str, PredictorRetirement] = {}
         for entry in payload:
             if not isinstance(entry, Mapping):
                 raise GraphError("predictor_retirement entries must be objects")
@@ -2393,7 +2166,7 @@ class CognitiveBridge:
                 for value in (entered_tick, last_evaluated_tick)
             ):
                 raise GraphError("predictor retirement ticks must be non-negative")
-            restored[predictor_id] = _PredictorRetirement(
+            restored[predictor_id] = PredictorRetirement(
                 predictor_id=predictor_id,
                 entered_tick=entered_tick,
                 last_evaluated_tick=last_evaluated_tick,
@@ -2803,19 +2576,11 @@ class CognitiveBridge:
             current=frame.activations,
             previous=self._previous_frame,
         )
-        for error in prediction_errors:
-            target_previous = self._previous_frame.get(error.target_id)
-            target_current = frame.activations.get(error.target_id)
-            if target_previous is None or target_current is None:
-                continue
-            utility = self._predictor_utility.setdefault(
-                error.predictor_id,
-                _PredictorUtility(),
-            )
-            utility.observe(
-                model_loss=error.loss,
-                persistence_loss=huber_loss(target_current - target_previous),
-            )
+        self._predictors.record_prediction_errors(
+            prediction_errors,
+            previous=self._previous_frame,
+            current=frame.activations,
+        )
 
         self._update_predictor_retirement_state(tick=tick)
 
@@ -2837,8 +2602,8 @@ class CognitiveBridge:
                     decay=self._genome.plasticity.eligibility_decay,
                 )
                 retiring_edge = (
-                    edge.source_id in self._predictor_retirement
-                    or edge.target_id in self._predictor_retirement
+                    edge.source_id in self._predictors.retirement
+                    or edge.target_id in self._predictors.retirement
                 )
                 eligible = (
                     not retiring_edge
@@ -2889,7 +2654,7 @@ class CognitiveBridge:
                 node_id
                 for node_id in active_nodes
                 if (
-                    node_id not in self._predictor_retirement
+                    node_id not in self._predictors.retirement
                     and self._representation_mature_enough_as_target(node_id)
                 )
             ]
@@ -2942,7 +2707,7 @@ class CognitiveBridge:
                 # concept-growth support threshold loses the first part of a
                 # valid time series and makes checkpoint replay path-dependent.
                 preliminary_min = 1
-                if len(self._shadow_predictions) >= self._live_shadow_limit:
+                if len(self._predictors.shadows) >= self._live_shadow_limit:
                     self._prune_shadow_predictions()
                 for source_id, source_value in self._previous_frame.items():
                     if node_kinds.get(source_id) is not NodeKind.SENSE:
@@ -2952,7 +2717,7 @@ class CognitiveBridge:
                             continue
                         target_previous = self._previous_frame[target_id]
                         key = (source_id, target_id)
-                        predictor = self._shadow_predictions.get(key)
+                        predictor = self._predictors.shadows.get(key)
                         if predictor is not None:
                             # Once admitted, evaluate the hypothesis on every
                             # compatible tick. Preliminary selection must not
@@ -2967,21 +2732,21 @@ class CognitiveBridge:
                                 previous_status != "retired"
                                 and predictor.status == "retired"
                             ):
-                                self._shadow_prune_dirty = True
+                                self._predictors.mark_shadow_dirty()
                             continue
 
                         if abs(source_value) < _ACTIVITY_THRESHOLD:
                             continue
-                        support = self._shadow_preliminary_support.get(key, 0) + 1
-                        self._shadow_preliminary_support[key] = support
+                        support = self._predictors.preliminary_support.get(key, 0) + 1
+                        self._predictors.preliminary_support[key] = support
                         if support < preliminary_min:
                             continue
-                        if len(self._shadow_predictions) >= self._live_shadow_limit:
+                        if len(self._predictors.shadows) >= self._live_shadow_limit:
                             continue
                         predictor = ShadowPrediction(source_id, target_id)
-                        self._shadow_predictions[key] = predictor
+                        self._predictors.shadows[key] = predictor
                         self._invalidate_shadow_predictions_cache()
-                        self._shadow_preliminary_support.pop(key, None)
+                        self._predictors.preliminary_support.pop(key, None)
                         predictor.observe(source_value, target_value, target_previous)
                 self._prune_preliminary_shadow_support()
                 self._prune_shadow_predictions()
@@ -3161,7 +2926,7 @@ class CognitiveBridge:
             pending_edge_demand = any(
                 candidate.required_edges > 0
                 for candidate in self._contention.candidates.values()
-            ) or bool(self._shadow_predictions)
+            ) or bool(self._predictors.shadows)
             self._expand_resource_budgets(
                 need_nodes=(
                     pending_node_demand
@@ -3228,9 +2993,9 @@ class CognitiveBridge:
                     mutation.kind == "add_edge"
                     and (
                         str(mutation.payload.get("source_id", ""))
-                        in self._predictor_retirement
+                        in self._predictors.retirement
                         or str(mutation.payload.get("target_id", ""))
-                        in self._predictor_retirement
+                        in self._predictors.retirement
                     )
                 )
             )
@@ -3300,7 +3065,7 @@ class CognitiveBridge:
             recovering=self._recovery_pending,
             recycling_events=recycling_events,
             stranded_concepts=self.stranded_concepts,
-            predictive_gain=max((item.predictive_gain for item in self._shadow_predictions.values()), default=0.0),
+            predictive_gain=max((item.predictive_gain for item in self._predictors.shadows.values()), default=0.0),
             motor_readouts={
                 actuator_id: value
                 for node_id, value in frame.readouts.items()
@@ -3320,13 +3085,13 @@ class CognitiveBridge:
                 for node_id in self._salient_concept_ids(frame.activations)
                 if node_id in live_node_ids and node_id in concept_node_ids
             ),
-            retiring_predictors=tuple(sorted(self._predictor_retirement)),
+            retiring_predictors=tuple(sorted(self._predictors.retirement)),
             retirement_edges=sum(
                 1
                 for edge in self._graph.edges
                 if (
-                    edge.source_id in self._predictor_retirement
-                    or edge.target_id in self._predictor_retirement
+                    edge.source_id in self._predictors.retirement
+                    or edge.target_id in self._predictors.retirement
                 )
             ),
             structural_candidates=len(self._contention.candidates),
