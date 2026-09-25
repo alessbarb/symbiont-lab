@@ -254,22 +254,13 @@ export class BodyWorkspace {
   selectSegment(name) {
     this.clearSegmentHighlight();
     this.selectedSegment = name;
-    const mesh = this.viewer.segmentMeshes?.[name];
-    if (mesh?.material?.emissive) {
-      mesh.userData.bodyOriginalEmissive = mesh.material.emissive.getHex();
-      mesh.material.emissive.setHex(0x135f72);
-      mesh.material.emissiveIntensity = .72;
-    }
+    this.viewer.setSegmentInspectorHighlight?.(name, true);
     this.renderAnatomy();
   }
 
   clearSegmentHighlight() {
     if (!this.selectedSegment) return;
-    const mesh = this.viewer.segmentMeshes?.[this.selectedSegment];
-    if (mesh?.material?.emissive) {
-      mesh.material.emissive.setHex(mesh.userData.bodyOriginalEmissive ?? 0x000000);
-      mesh.material.emissiveIntensity = 1;
-    }
+    this.viewer.setSegmentInspectorHighlight?.(this.selectedSegment, false);
     this.selectedSegment = null;
   }
 
