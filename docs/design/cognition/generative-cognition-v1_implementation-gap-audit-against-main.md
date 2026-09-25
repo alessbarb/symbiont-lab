@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `bd490d8f`
+**Audited commit:** `a2f43721`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -49,7 +49,8 @@ Cognitive Atlas v2
 passive observer projection
 ```
 
-What does **not** yet exist after the foundation, agenda, and registry increments:
+What remains incomplete after the foundation, agenda, registry and bounded
+generative increments:
 
 ```text
 multi-step rollout
@@ -69,8 +70,6 @@ generic reconciliation
 EpistemicValue
 
 GenerativeConsolidationSignal
-
-ONLINE / IDLE / OFFLINE generative modes
 
 generative Atlas projection
 ```
@@ -102,7 +101,7 @@ built by composing several mature existing components.
 | GC-8 | Hypothesis + reconciliation | **PARTIAL — lifecycle/reconciliation/calibration substrate; runtime evidence pending** |
 | GC-9 | Epistemic agency | **PARTIAL — comparison signal substrate; agency integration pending** |
 | GC-10 | Generative consolidation | **PARTIAL — contention projection boundary implemented; runtime planner integration pending** |
-| GC-11 | Offline cognition | **PARTIAL — deterministic scheduler gate; execution/runtime integration pending** |
+| GC-11 | Offline cognition | **PARTIAL — synchronous bounded coordinator; runtime integration and offline evidence pending** |
 | GC-12 | Observatory / Atlas | **PARTIAL — observer substrate excellent** |
 
 The critical path is therefore approximately:
@@ -417,7 +416,7 @@ Relevant:
 
 ## Current code
 
-There is no:
+The generative substrate now exposes:
 
 ```text
 `GenerativeAgenda`, `GenerativeTarget`, `AgendaCandidate` and `AgendaSource`
@@ -2033,9 +2032,13 @@ The deterministic scheduler substrate is implemented in:
 scheduler.py
 ```
 
-Remaining work is a synchronous execution coordinator that connects agenda
-targets, scheduler decisions and bounded workspace episodes. Do not introduce
-threads or let offline cognition mutate the world.
+`GenerativeExecutionCoordinator` now connects one agenda target, a scheduler
+decision and a bounded workspace pass synchronously. Its callback receives only
+an opaque agenda candidate and must return `AgendaProgress`; the coordinator
+does not invoke a world, motor, factual-memory or evaluator operation. Closed
+workspaces, absent targets and exhausted quotas/budgets are denied before the
+callback runs. Do not introduce threads or let offline cognition mutate the
+world.
 
 ---
 
@@ -2067,6 +2070,8 @@ Generative cognition naturally fits beneath it.
 ```text
 test_scheduler.py
 
+test_generative_execution.py
+
 test_online_budget.py
 
 test_idle_mode.py
@@ -2097,11 +2102,12 @@ with identical factual experience.
 ## Status
 
 ```text
-PARTIAL — scheduler substrate only
+PARTIAL — bounded scheduler/coordinator substrate
 ```
 
-Mode-specific execution, replay/consolidation integration and the
-no-world-mutation offline regression suite remain open.
+Runtime-owned target execution, replay/consolidation integration, explicit
+mode-specific integration and the no-world-mutation offline regression suite
+remain open.
 
 ---
 
