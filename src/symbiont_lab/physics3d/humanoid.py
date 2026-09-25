@@ -906,6 +906,33 @@ class HumanoidPhysics:
             if total_mass > 0.0
             else [float(value) for value in base_position]
         )
+        name_by_link_index = {
+            int(index): str(name) for name, index in self._link_index_by_name.items()
+        }
+        contact_details = []
+        for item in contacts:
+            if len(item) <= 9:
+                continue
+            try:
+                link_index = int(item[3])
+                position = [float(value) for value in item[5]]
+                normal = [float(value) for value in item[7]]
+                normal_force = max(0.0, float(item[9]))
+                other_body_id = int(item[2])
+            except (TypeError, ValueError, IndexError):
+                continue
+            if len(position) != 3 or len(normal) != 3:
+                continue
+            contact_details.append(
+                {
+                    "link_index": link_index,
+                    "link_name": name_by_link_index.get(link_index, f"link_{link_index}"),
+                    "position": position,
+                    "normal": normal,
+                    "normal_force": normal_force,
+                    "other_body_id": other_body_id,
+                }
+            )
         return {
             "schema_version": BODY_STATE_SCHEMA_VERSION,
             "body_kind": BODY_KIND,
@@ -918,6 +945,7 @@ class HumanoidPhysics:
             "joints": joints,
             "links": links,
             "contact_links": active_links,
+            "contacts": contact_details,
             "contact_count": len(contacts),
         }
 
