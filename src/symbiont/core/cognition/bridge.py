@@ -43,6 +43,8 @@ from .sense_concept_lifecycle import ConceptLineage, SenseConceptLifecycle
 from .structural_candidates import StructuralCandidate, StructuralContention
 from .structural_planner import StructuralPlan
 from .bridge_checkpoint import (
+    export_bridge_state,
+    restore_bridge_state,
     restore_concept_lineage,
     restore_nonnegative_tick_map,
     restore_predictor_retirement,
@@ -2088,55 +2090,25 @@ class CognitiveBridge:
 
     def export_checkpoint(self) -> dict[str, object]:
         self._reconcile_node_metadata()
-        return {
-            "graph": export_graph_checkpoint(self._graph, weight_class_overrides=self._weight_class_overrides()),
-            "safety_state": export_safety_state(self._safety_state),
-            "sensory_normalizers": export_sensory_normalizers(self._normalizers),
-            "topology_revision": self._topology_revision,
-            "tick": self._tick,
-            "develop_senses": self._develop_senses,
-            "concept_lineage": [
-                {"concept_id": x.concept_id, "parent_ids": list(x.parent_ids), "born_tick": x.born_tick}
-                for x in self.concept_lineage
-            ],
-            "sense_last_seen_tick": dict(sorted(self._lifecycle.sense_last_seen_tick.items())),
-            "orphan_since_tick": dict(sorted(self._lifecycle.orphan_since_tick.items())),
-            "unrouted_since_tick": dict(sorted(self._lifecycle.unrouted_since_tick.items())),
-            "concept_last_active_tick": dict(sorted(self._lifecycle.concept_last_active_tick.items())),
-            "node_born_tick": dict(sorted(self._node_born_tick.items())),
-            "node_observation_count": dict(sorted(self._node_observation_count.items())),
-            "node_active_count": dict(sorted(self._node_active_count.items())),
-            "next_concept_index": self._lifecycle.next_concept_index,
-            "recovery_pending": self._recovery_pending,
-            "shadow_predictions": [
-                {"source_id": item.source_id, "target_id": item.target_id,
-                 "samples": item.samples, "model_loss": item.model_loss,
-                 "persistence_loss": item.persistence_loss, "status": item.status}
-                for item in self.shadow_predictions
-            ],
-            "predictor_utility": [
-                utility.checkpoint(predictor_id)
-                for predictor_id, utility
-                in sorted(self._predictors.utility.items())
-            ],
-            "predictor_retirement": [
-                retirement.checkpoint()
-                for _, retirement
-                in sorted(self._predictors.retirement.items())
-            ],
-            "structural_candidates": [
-                candidate.checkpoint()
-                for _, candidate
-                in sorted(self._contention.candidates.items())
-            ],
-            "consolidation_generation": self._contention.consolidation_generation,
-            "last_consolidated_producer_id": self._contention.last_consolidated_producer_id,
-            "adaptive_resource_budgets": {
-                "nodes": self._adaptive_node_budget,
-                "edges": self._adaptive_edge_budget,
-                "senses": self._adaptive_sense_budget,
-            },
-        }
+        return export_bridge_state(
+            graph=self._graph,
+            safety_state=self._safety_state,
+            normalizers=self._normalizers,
+            plasticity=self._plasticity,
+            predictors=self._predictors,
+            lifecycle=self._lifecycle,
+            contention=self._contention,
+            topology_revision=self._topology_revision,
+            tick=self._tick,
+            develop_senses=self._develop_senses,
+            node_born_tick=self._node_born_tick,
+            node_observation_count=self._node_observation_count,
+            node_active_count=self._node_active_count,
+            recovery_pending=self._recovery_pending,
+            adaptive_node_budget=self._adaptive_node_budget,
+            adaptive_edge_budget=self._adaptive_edge_budget,
+            adaptive_sense_budget=self._adaptive_sense_budget,
+        )
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
         return self._plasticity.weight_class_overrides(self._graph)
@@ -2214,187 +2186,57 @@ class CognitiveBridge:
 
     @classmethod
     def restore(
-        cls, payload: dict[str, object] | None, *, genome: Genome, kernel_limits: KernelLimits
+        cls,
+        payload: dict[str, object] | None,
+        *,
+        genome: Genome,
+        kernel_limits: KernelLimits,
     ) -> "CognitiveBridge | None":
-        if payload is None:
+        state = restore_bridge_state(
+            payload,
+            genome=genome,
+            kernel_limits=kernel_limits,
+        )
+        if state is None:
             return None
-        raw_graph = payload.get("graph")
-        graph_payload = raw_graph if isinstance(raw_graph, dict) else None
-        graph = restore_graph_checkpoint(graph_payload, kernel_limits=kernel_limits)
-        if graph is None:
-            return None
-        raw_safety = payload.get("safety_state")
-        safety_payload = raw_safety if isinstance(raw_safety, dict) else None
-        safety_state = restore_safety_state(safety_payload)
+
         structural_plasticity = StructuralPlasticity(
             min_candidate_support=genome.structure.minimum_support,
-            tentative_lifetime_ticks=genome.structure.tentative_lifetime_ticks,
+            tentative_lifetime_ticks=(
+                genome.structure.tentative_lifetime_ticks
+            ),
             cooldown_ticks=genome.structure.tentative_lifetime_ticks,
         )
-        raw_develop_senses = payload.get("develop_senses")
-        if raw_develop_senses is None:
-            develop_senses = not graph.nodes
-        elif not isinstance(raw_develop_senses, bool):
-            raise GraphError("develop_senses must be a boolean")
-        else:
-            develop_senses = raw_develop_senses
         bridge = cls(
-            graph=graph,
+            graph=state.graph,
             genome=genome,
             kernel_limits=kernel_limits,
             structural_plasticity=structural_plasticity,
-            safety_state=safety_state,
-            develop_senses=develop_senses,
+            safety_state=state.safety_state,
+            develop_senses=state.develop_senses,
         )
-        raw_budgets = payload.get("adaptive_resource_budgets")
-        if raw_budgets is not None:
-            if not isinstance(raw_budgets, Mapping):
-                raise GraphError("adaptive_resource_budgets must be an object")
-            for field, ceiling in (
-                ("nodes", kernel_limits.max_nodes),
-                ("edges", kernel_limits.max_edges),
-                ("senses", kernel_limits.max_nodes),
-            ):
-                value = raw_budgets.get(field)
-                if (
-                    isinstance(value, bool)
-                    or not isinstance(value, int)
-                    or value <= 0
-                    or value > ceiling
-                ):
-                    raise GraphError(f"invalid adaptive {field} budget")
-            bridge._adaptive_node_budget = max(
-                len(graph.nodes),
-                int(raw_budgets["nodes"]),
-            )
-            bridge._adaptive_edge_budget = max(
-                len(graph.edges),
-                int(raw_budgets["edges"]),
-            )
-            sense_count = sum(
-                1 for node in graph.nodes if node.kind is NodeKind.SENSE
-            )
-            bridge._adaptive_sense_budget = min(
+        if state.adaptive_resource_budgets is not None:
+            (
                 bridge._adaptive_node_budget,
-                max(sense_count, int(raw_budgets["senses"])),
-            )
-        raw_tick = payload.get("tick", 0)
-        if isinstance(raw_tick, bool) or not isinstance(raw_tick, int) or raw_tick < 0:
-            raise GraphError("tick must be a non-negative integer")
-        bridge._tick = raw_tick
-        raw_normalizers = payload.get("sensory_normalizers")
-        normalizers_payload = raw_normalizers if isinstance(raw_normalizers, dict) else None
-        bridge._normalizers = restore_sensory_normalizers(normalizers_payload)
-        bridge._lifecycle.lineage = cls._restore_concept_lineage(
-            payload.get("concept_lineage"), graph=graph, kernel_limits=kernel_limits
-        )
-        sense_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.SENSE}
-        latent_ids = {
-            node.node_id
-            for node in graph.nodes
-            if node.kind in (
-                NodeKind.CONCEPT,
-                NodeKind.STATE,
-                NodeKind.GATE,
-                NodeKind.READOUT,
-            )
-        }
-        bridge._lifecycle.sense_last_seen_tick = cls._restore_nonnegative_tick_map(
-            payload.get("sense_last_seen_tick"), allowed_ids=sense_ids, field="sense_last_seen_tick"
-        )
-        bridge._lifecycle.orphan_since_tick = cls._restore_nonnegative_tick_map(
-            payload.get("orphan_since_tick"), allowed_ids=latent_ids, field="orphan_since_tick"
-        )
-        concept_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT}
-        bridge._lifecycle.unrouted_since_tick = cls._restore_nonnegative_tick_map(
-            payload.get("unrouted_since_tick"), allowed_ids=concept_ids, field="unrouted_since_tick"
-        )
-        bridge._lifecycle.concept_last_active_tick = cls._restore_nonnegative_tick_map(
-            payload.get("concept_last_active_tick"), allowed_ids=concept_ids, field="concept_last_active_tick"
-        )
-        bridge._node_born_tick = {
-            node.node_id: 0 for node in graph.nodes
-        }
-        all_node_ids = {node.node_id for node in graph.nodes}
-        bridge._node_born_tick.update(
-            cls._restore_nonnegative_tick_map(
-                payload.get("node_born_tick"),
-                allowed_ids=all_node_ids,
-                field="node_born_tick",
-            )
-        )
-        bridge._node_observation_count = {
-            node.node_id: 0 for node in graph.nodes
-        }
-        bridge._node_observation_count.update(
-            cls._restore_nonnegative_tick_map(
-                payload.get("node_observation_count"),
-                allowed_ids=all_node_ids,
-                field="node_observation_count",
-            )
-        )
-        bridge._node_active_count = {
-            node.node_id: 0 for node in graph.nodes
-        }
-        bridge._node_active_count.update(
-            cls._restore_nonnegative_tick_map(
-                payload.get("node_active_count"),
-                allowed_ids=all_node_ids,
-                field="node_active_count",
-            )
-        )
-        raw_next_idx = payload.get("next_concept_index")
-        if isinstance(raw_next_idx, int) and raw_next_idx > 0:
-            bridge._lifecycle.next_concept_index = raw_next_idx
-        else:
-            bridge._lifecycle.next_concept_index = bridge._extract_max_concept_index(graph=graph) + 1
-        raw_recovery = payload.get("recovery_pending", False)
-        if not isinstance(raw_recovery, bool):
-            raise GraphError("recovery_pending must be a boolean")
-        bridge._recovery_pending = raw_recovery
-        shadow_limit = min(_MAX_SHADOW_PREDICTIONS, kernel_limits.max_nodes * kernel_limits.max_nodes)
-        bridge._predictors.shadows = cls._restore_shadow_predictions(
-            payload.get("shadow_predictions"), max_predictions=shadow_limit
-        )
-        bridge._invalidate_shadow_predictions_cache()
-        bridge._predictors.mark_shadow_dirty()
-        predictor_ids = {
-            node.node_id for node in graph.nodes
-            if node.kind is NodeKind.PREDICTOR
-        }
-        bridge._predictors.utility = cls._restore_predictor_utility(
-            payload.get("predictor_utility"),
-            allowed_predictor_ids=predictor_ids,
-        )
-        bridge._predictors.retirement = cls._restore_predictor_retirement(
-            payload.get("predictor_retirement"),
-            allowed_predictor_ids=predictor_ids,
-        )
-        bridge._contention.candidates = cls._restore_structural_candidates(
-            payload.get("structural_candidates"),
-            kernel_limits=kernel_limits,
-        )
-        raw_generation = payload.get("consolidation_generation", 0)
-        if (
-            isinstance(raw_generation, bool)
-            or not isinstance(raw_generation, int)
-            or raw_generation < 0
-        ):
-            raise GraphError("consolidation_generation must be non-negative")
-        bridge._contention.consolidation_generation = raw_generation
-        raw_last_producer = payload.get("last_consolidated_producer_id")
-        if raw_last_producer is not None and (
-            not isinstance(raw_last_producer, str)
-            or not raw_last_producer
-            or len(raw_last_producer) > 256
-        ):
-            raise GraphError("last_consolidated_producer_id must be a bounded string")
-        bridge._contention.last_consolidated_producer_id = raw_last_producer
+                bridge._adaptive_edge_budget,
+                bridge._adaptive_sense_budget,
+            ) = state.adaptive_resource_budgets
+
+        bridge._tick = state.tick
+        bridge._normalizers = state.normalizers
+        bridge._lifecycle = state.lifecycle
+        bridge._predictors = state.predictors
+        bridge._contention = state.contention
+        bridge._node_born_tick = state.node_born_tick
+        bridge._node_observation_count = state.node_observation_count
+        bridge._node_active_count = state.node_active_count
+        bridge._recovery_pending = state.recovery_pending
+
+        # Preserve historical restore ordering: shadow pruning runs against the
+        # bridge's initial topology revision, then the persisted revision is
+        # installed.
         bridge._prune_shadow_predictions()
-        raw_revision = payload.get("topology_revision", 0)
-        if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
-            raise GraphError("topology_revision must be a non-negative integer")
-        bridge._topology_revision = raw_revision
+        bridge._topology_revision = state.topology_revision
         bridge._reacclimation_remaining = kernel_limits.reacclimation_ticks
         bridge._reconcile_node_metadata()
         bridge._enter_recovery_if_needed(prime_legacy_deadlock=True)
