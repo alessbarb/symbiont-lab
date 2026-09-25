@@ -2493,46 +2493,28 @@ class CognitiveBridge:
         learning_nodes = self._learning_nodes(attended_sense_ids)
         tick_modulation = self._tick_modulation(attended_sense_ids, sense_modulation)
         if not frozen and plasticity_enabled:
-            for edge in self._graph.edges:
-                source_value = (
-                    sense_inputs.get(edge.source_id, 0.0)
-                    if edge.delay_ticks == 0
-                    else self._previous_frame.get(edge.source_id, 0.0)
-                )
-                target_current = frame.activations.get(edge.target_id, 0.0)
-                update_eligibility(
-                    edge,
-                    source_previous=source_value,
-                    target_current=target_current,
-                    decay=self._genome.plasticity.eligibility_decay,
-                )
-                retiring_edge = (
-                    edge.source_id in self._predictors.retirement
-                    or edge.target_id in self._predictors.retirement
-                )
-                eligible = (
-                    not retiring_edge
-                    and edge.source_id in learning_nodes
-                    and edge.target_id in learning_nodes
-                    and abs(edge.eligibility) >= _ELIGIBILITY_THRESHOLD
-                )
-                apply_oja_update(
-                    edge,
-                    source_activation=source_value,
-                    target_activation=target_current,
-                    learning_rate=self._expression_state.effective_learning_rate,
-                    modulation=(tick_modulation * edge.plasticity * self._expression_state.effective_structural_plasticity),
-                    eligible=eligible,
-                    frozen=frozen,
-                )
-                if retiring_edge:
-                    self._retirement_edge_decay(edge, tick=tick)
-                transmitted = edge.weight * source_value
-                advance_edge_age(edge, tick=tick, used=abs(transmitted) >= _EDGE_USAGE_THRESHOLD)
-
-            self._plasticity.observe_and_consolidate(
+            self._plasticity.apply_learning(
                 self._graph,
+                sense_inputs=sense_inputs,
+                previous_frame=self._previous_frame,
+                activations=frame.activations,
+                learning_nodes=learning_nodes,
+                retiring_predictors={
+                    predictor_id: retirement.entered_tick
+                    for predictor_id, retirement
+                    in self._predictors.retirement.items()
+                },
                 tick=tick,
+                eligibility_decay=self._genome.plasticity.eligibility_decay,
+                learning_rate=self._expression_state.effective_learning_rate,
+                tick_modulation=tick_modulation,
+                structural_plasticity_factor=(
+                    self._expression_state.effective_structural_plasticity
+                ),
+                tentative_lifetime_ticks=(
+                    self._genome.structure.tentative_lifetime_ticks
+                ),
+                structural_wait=self._oldest_blocked_structural_wait(tick=tick),
                 max_incoming_norm=(
                     self._kernel_limits.max_incoming_consolidated_weight_norm
                 ),
