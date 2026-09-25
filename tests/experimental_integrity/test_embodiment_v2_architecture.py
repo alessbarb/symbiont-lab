@@ -90,3 +90,18 @@ def test_core_public_api_does_not_export_retired_body_schema() -> None:
     assert core.SensorimotorDynamicsModel is SensorimotorDynamicsModel
     assert not hasattr(core, "InferredBodySchema")
     assert not hasattr(core, "PerceptualStructure")
+
+
+
+def test_physics3d_run_catalog_reads_canonical_archive_not_legacy_memory() -> None:
+    root = Path(__file__).resolve().parents[2]
+    source = (
+        root
+        / "src"
+        / "symbiont_lab"
+        / "app"
+        / "physics3d_runs.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'payload.get("embodiment_archive")' in source
+    assert 'payload.get("embodiment_memory")' not in source
