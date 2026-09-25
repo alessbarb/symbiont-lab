@@ -530,7 +530,9 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             readout_id=readout_id,
             value=value,
             tick=tick,
-        )    @property
+        )
+
+    @property
     def _soft_node_limit(self) -> int:
         return self._budgets.node_budget
 
