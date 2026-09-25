@@ -67,3 +67,26 @@ def test_plasticity_engine_applies_homeostatic_value_to_existing_action_relation
     assert edge.weight == 0.6
     assert edge.last_use_tick == 7
     assert edge.support == 1
+
+
+
+def test_plasticity_engine_decay_retiring_edge_preserves_reversible_schedule() -> None:
+    edge = PlasticEdge(
+        source_id="predictor_a",
+        target_id="readout_core",
+        kind=EdgeKind.PREDICTIVE,
+        weight=1.0,
+        plasticity=0.5,
+        delay_ticks=0,
+    )
+    engine = PlasticityEngine(kernel_limits=KernelLimits())
+
+    engine.decay_retiring_edge(
+        edge,
+        tick=8,
+        retiring_predictors={"predictor_a": 0},
+        structural_wait=0,
+        tentative_lifetime_ticks=4,
+    )
+
+    assert edge.weight == 0.99
