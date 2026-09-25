@@ -62,7 +62,7 @@ class KernelVariant:
             reacclimation_ticks=self.reacclimation_ticks,
         )
 
-    def as_dict(self) -> dict[str, int]:
+    def as_dict(self) -> dict[str, int | float]:
         return {
             "max_nodes": self.max_nodes,
             "max_edges": self.max_edges,

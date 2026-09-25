@@ -3,6 +3,12 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 
 
+def _numeric(value: object, *, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be numeric")
+    return float(value)
+
+
 def pareto_frontier(
     rows: Iterable[Mapping[str, object]],
     *,
@@ -14,15 +20,16 @@ def pareto_frontier(
     frontier: list[dict[str, object]] = []
     for candidate in values:
         dominated = any(
-            float(other[benefit]) >= float(candidate[benefit])
-            and float(other[cost]) <= float(candidate[cost])
+            _numeric(other[benefit], field=benefit) >= _numeric(candidate[benefit], field=benefit)
+            and _numeric(other[cost], field=cost) <= _numeric(candidate[cost], field=cost)
             and (
-                float(other[benefit]) > float(candidate[benefit])
-                or float(other[cost]) < float(candidate[cost])
+                _numeric(other[benefit], field=benefit)
+                > _numeric(candidate[benefit], field=benefit)
+                or _numeric(other[cost], field=cost) < _numeric(candidate[cost], field=cost)
             )
             for other in values
             if other is not candidate
         )
         if not dominated:
             frontier.append(candidate)
-    return sorted(frontier, key=lambda row: float(row["max_nodes"]))
+    return sorted(frontier, key=lambda row: _numeric(row["max_nodes"], field="max_nodes"))

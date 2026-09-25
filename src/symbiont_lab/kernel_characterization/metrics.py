@@ -4,6 +4,12 @@ import statistics
 from collections.abc import Iterable, Mapping
 
 
+def _numeric(value: object, *, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be numeric")
+    return float(value)
+
+
 def summarize(records: Iterable[Mapping[str, object]]) -> dict[str, object]:
     rows = list(records)
     numeric = (
@@ -38,7 +44,11 @@ def summarize(records: Iterable[Mapping[str, object]]) -> dict[str, object]:
         "failures": sum(bool(row.get("failure")) for row in rows),
     }
     for name in numeric:
-        values = [float(row[name]) for row in rows if not row.get("failure") and name in row]
+        values = [
+            _numeric(row[name], field=name)
+            for row in rows
+            if not row.get("failure") and name in row
+        ]
         if values:
             result[name] = {
                 "mean": statistics.fmean(values),
