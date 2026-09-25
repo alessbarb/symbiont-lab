@@ -18,6 +18,7 @@ from ...actuation.action import (
 )
 from ...actuation.arbitration import ActionArbitrator
 from ...actuation.binding import CompetenceExecutionBindingRegistry
+from ...actuation.checkpoint import export_actuation_state
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
 from ...actuation.composition import CompositionEngine
@@ -1522,6 +1523,55 @@ class ActionDomain:
             and self.composition_predecessor_id not in known_competences
         ):
             self.composition_predecessor_id = None
+
+    def checkpoint_state(self) -> dict[str, object]:
+        """Serialize the complete canonical action domain.
+
+        Raw percept baselines are intentionally not persisted.  They are
+        embodiment-local observations and are re-established after restore.
+        """
+        if self.enabled and (
+            self.surface is None
+            or self._actuator_evidence is None
+            or self._competence_development is None
+        ):
+            raise RuntimeError(
+                "enabled action domain is missing canonical motor state"
+            )
+        return {
+            "schema_version": 1,
+            "selection_threshold": self.selection_threshold,
+            "actuator_evidence": (
+                export_actuation_state(self._actuator_evidence)
+                if self._actuator_evidence is not None
+                else None
+            ),
+            "competence_development": (
+                self._competence_development.checkpoint()
+                if self._competence_development is not None
+                else None
+            ),
+            "pending_motor_observation": [
+                {
+                    "actuator_id": actuator_id,
+                    "activation": activation,
+                }
+                for actuator_id, activation, _baseline
+                in self.pending_motor_observation
+            ],
+            "pending_proprioception": dict(
+                sorted(self.pending_proprioception.items())
+            ),
+            "last_executed_controller_seed_id": (
+                self.last_executed_controller_seed_id
+            ),
+            "active_commitment": (
+                self.active_commitment.checkpoint()
+                if self.active_commitment is not None
+                else None
+            ),
+            "sensorimotor_v2": self.checkpoint_v2(),
+        }
 
     def checkpoint_v2(self) -> dict[str, object]:
         if self.surface is None:

@@ -2539,10 +2539,14 @@ class OrganismRuntime:
             else None
         )
         if self._actuation_enabled:
-            if self._actuator_constitution is None or self._actuator_proposer is None:
-                raise CheckpointError("actuation enabled without motor constitution/proposer")
+            if self._actuator_constitution is None:
+                raise CheckpointError(
+                    "actuation enabled without actuator constitution"
+                )
             constitution_payload = {
-                "contract_fingerprint": self._actuator_constitution.contract_fingerprint,
+                "contract_fingerprint": (
+                    self._actuator_constitution.contract_fingerprint
+                ),
                 "slots": [
                     {
                         "slot_id": slot.slot_id,
@@ -2555,33 +2559,10 @@ class OrganismRuntime:
                     for slot in self._actuator_constitution.slots
                 ],
             }
-            pending_motor = [
-                {
-                    "actuator_id": actuator_id,
-                    "activation": activation,
-                }
-                for actuator_id, activation, _baseline
-                in self._pending_motor_observation
-            ]
             payload["actuation"] = {
                 "enabled": True,
                 "constitution": constitution_payload,
-                "proposer": export_actuation_state(self._actuator_proposer),
-                "selection_threshold": self._action_domain.selection_threshold,
-                "pending_motor_observation": pending_motor,
-                "pending_proprioception": dict(sorted(self._pending_proprioception.items())),
-                "sensorimotor": (
-                    self._sensorimotor_learner.checkpoint()
-                    if self._sensorimotor_learner is not None
-                    else None
-                ),
-                "last_executed_primitive_id": self._last_executed_primitive_id,
-                "action_commitment": (
-                    self._active_action_commitment.checkpoint()
-                    if self._active_action_commitment is not None
-                    else None
-                ),
-                "sensorimotor_v2": self._action_domain.checkpoint_v2(),
+                "action_domain": self._action_domain.checkpoint_state(),
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -2888,15 +2869,56 @@ class OrganismRuntime:
                         )
                 else:
                     actuator_constitution = restored_constitution
+                raw_action_domain = raw_actuation.get(
+                    "action_domain"
+                )
+                if raw_action_domain is not None:
+                    if (
+                        not isinstance(raw_action_domain, dict)
+                        or raw_action_domain.get("schema_version") != 1
+                    ):
+                        raise CheckpointError(
+                            "invalid canonical action_domain checkpoint"
+                        )
+                    raw_evidence_state = raw_action_domain.get(
+                        "actuator_evidence"
+                    )
+                    raw_selection_threshold = raw_action_domain.get(
+                        "selection_threshold", 0.1
+                    )
+                    raw_sensorimotor = raw_action_domain.get(
+                        "competence_development"
+                    )
+                    raw_pending = raw_action_domain.get(
+                        "pending_motor_observation"
+                    )
+                    raw_proprio = raw_action_domain.get(
+                        "pending_proprioception", {}
+                    )
+                else:
+                    # Migration-only path for pre-ActionDomain checkpoints.
+                    raw_evidence_state = raw_actuation.get("proposer")
+                    raw_selection_threshold = raw_actuation.get(
+                        "selection_threshold", 0.1
+                    )
+                        raw_pending = raw_actuation.get(
+                        "pending_motor_observation"
+                    )
+                    raw_proprio = raw_actuation.get(
+                        "pending_proprioception", {}
+                    )
+                if not isinstance(raw_evidence_state, dict):
+                    raise CheckpointError(
+                        "action domain actuator evidence is missing"
+                    )
                 try:
                     actuator_proposer = restore_actuation_state(
-                        raw_actuation["proposer"],
+                        raw_evidence_state,
                         actuator_constitution,
                         organism_id=str(normalized.get("organism_id") or ""),
                     )
                 except (KeyError, TypeError, ValueError) as exc:
                     raise CheckpointError(f"invalid actuator proposer checkpoint: {exc}") from exc
-                raw_selection_threshold = raw_actuation.get("selection_threshold", 0.1)
                 if (
                     isinstance(raw_selection_threshold, bool)
                     or not isinstance(raw_selection_threshold, (int, float))
@@ -2941,7 +2963,6 @@ class OrganismRuntime:
                         raise CheckpointError(
                             f"invalid sensorimotor checkpoint: {exc}"
                         ) from exc
-                raw_pending = raw_actuation.get("pending_motor_observation")
                 if raw_pending is not None:
                     if isinstance(raw_pending, dict):
                         raw_pending_items = [raw_pending]
@@ -2972,7 +2993,6 @@ class OrganismRuntime:
                             (str(actuator_id), float(activation), None)
                         )
                     pending_motor_observation = tuple(restored_pending)
-                raw_proprio = raw_actuation.get("pending_proprioception", {})
                 max_proprioception = 3 * len(actuator_constitution.actuator_ids)
                 if (
                     not isinstance(raw_proprio, dict)
@@ -3149,7 +3169,13 @@ class OrganismRuntime:
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception
         if isinstance(raw_actuation, dict):
-            raw_commitment = raw_actuation.get("action_commitment")
+            raw_action_domain = raw_actuation.get("action_domain")
+            if isinstance(raw_action_domain, dict):
+                raw_commitment = raw_action_domain.get(
+                    "active_commitment"
+                )
+            else:
+                raw_commitment = raw_actuation.get("action_commitment")
             if isinstance(raw_commitment, dict):
                 current_surface = (
                     runtime._actuator_constitution.contract_fingerprint
@@ -3169,7 +3195,11 @@ class OrganismRuntime:
                         reason="surface_contract_changed",
                     )
                     runtime._active_action_commitment = restored_commitment
-            raw_v2 = raw_actuation.get("sensorimotor_v2")
+            raw_v2 = (
+                raw_action_domain.get("sensorimotor_v2")
+                if isinstance(raw_action_domain, dict)
+                else raw_actuation.get("sensorimotor_v2")
+            )
             if isinstance(raw_v2, dict):
                 try:
                     runtime._action_domain.restore_v2(
@@ -3200,11 +3230,17 @@ class OrganismRuntime:
                 raise CheckpointError(
                     f"invalid innate reactivity checkpoint: {exc}"
                 ) from exc
-        raw_last_primitive = (
-            raw_actuation.get("last_executed_primitive_id")
-            if isinstance(raw_actuation, dict)
-            else None
-        )
+        raw_last_primitive = None
+        if isinstance(raw_actuation, dict):
+            raw_action_domain = raw_actuation.get("action_domain")
+            if isinstance(raw_action_domain, dict):
+                raw_last_primitive = raw_action_domain.get(
+                    "last_executed_controller_seed_id"
+                )
+            else:
+                raw_last_primitive = raw_actuation.get(
+                    "last_executed_primitive_id"
+                )
         if raw_last_primitive is not None and not isinstance(raw_last_primitive, str):
             raise CheckpointError("invalid last executed primitive id")
         runtime._last_executed_primitive_id = raw_last_primitive
