@@ -109,8 +109,8 @@ class Individual:
             opaque_activations=dict(opaque_activations),
             physical_consequences=consequences,
             body_viable=self.body.is_viable,
-            schema_confidence=self.symbiont.body_schema.overall_confidence,
-            disruption_detected=self.symbiont.body_schema.disruption_detected,
+            schema_confidence=self.symbiont.body_schema.boundary_confidence,
+            disruption_detected=(self.symbiont.body_schema.boundary_disruption_score >= 0.5),
         )
         self.history.append(record)
         return record
@@ -132,6 +132,7 @@ class Individual:
         )
         self.body = new_body
         self.session = new_session
+        self.symbiont.begin_new_embodiment()
         self.symbiont.register_output_channels(list(new_session.output_bindings.keys()))
         return new_session
 
