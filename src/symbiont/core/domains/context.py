@@ -17,5 +17,15 @@ class TickContext:
             raise ValueError("symbiont_id must not be empty")
         if self.symbiont_tick < 0:
             raise ValueError("symbiont_tick must be non-negative")
+        if self.embodiment_id is not None and not self.embodiment_id:
+            raise ValueError("embodiment_id must be non-empty when provided")
+        if self.body_id is not None and not self.body_id:
+            raise ValueError("body_id must be non-empty when provided")
         if self.embodiment_tick is not None and self.embodiment_tick < 0:
             raise ValueError("embodiment_tick must be non-negative")
+        if self.embodiment_id is None and (
+            self.body_id is not None or self.embodiment_tick is not None
+        ):
+            raise ValueError(
+                "body_id/embodiment_tick require an embodiment_id"
+            )
