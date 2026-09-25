@@ -5,7 +5,7 @@ import hashlib
 import pytest
 
 import symbiont.actuation.sensorimotor as sensorimotor_module
-from symbiont.actuation.sensorimotor import MotorPrimitive, SensorimotorLearner
+from symbiont.actuation.sensorimotor import MotorPrimitive, CompetenceDevelopmentEngine
 
 
 def _ids(count: int = 8) -> tuple[str, ...]:
@@ -13,7 +13,7 @@ def _ids(count: int = 8) -> tuple[str, ...]:
 
 
 def test_exploration_covers_all_actuators_without_single_channel_monopoly():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(),
         organism_id="org-babble",
         max_concurrent=4,
@@ -30,7 +30,7 @@ def test_exploration_covers_all_actuators_without_single_channel_monopoly():
 
 
 def test_exploration_holds_channel_set_within_short_epoch():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(),
         organism_id="org-hold",
         max_concurrent=4,
@@ -46,7 +46,7 @@ def test_exploration_holds_channel_set_within_short_epoch():
 
 
 def test_multi_horizon_statistics_are_recorded_independently():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-horizons",
         max_concurrent=4,
@@ -81,7 +81,7 @@ def test_multi_horizon_statistics_are_recorded_independently():
 
 
 def _teach_repeated_sequence(
-    learner: SensorimotorLearner,
+    learner: CompetenceDevelopmentEngine,
     *,
     episodes: int = 2,
 ) -> None:
@@ -131,7 +131,7 @@ def _teach_repeated_sequence(
 
 
 def test_single_episode_remains_candidate_until_independent_recurrence():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-single-episode-candidate",
         max_concurrent=4,
@@ -164,7 +164,7 @@ def test_single_episode_remains_candidate_until_independent_recurrence():
 
 
 def test_adjacent_windows_from_same_exploration_block_do_not_count_as_recurrence():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-same-evidence-block",
         max_concurrent=4,
@@ -198,7 +198,7 @@ def test_adjacent_windows_from_same_exploration_block_do_not_count_as_recurrence
 
 
 def test_same_sequence_in_disjoint_exploration_block_counts_as_recurrence():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-independent-evidence-block",
         max_concurrent=4,
@@ -232,7 +232,7 @@ def test_same_sequence_in_disjoint_exploration_block_counts_as_recurrence():
 
 
 def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-primitive",
         max_concurrent=4,
@@ -258,7 +258,7 @@ def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
 
 
 def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(6),
         organism_id="org-restore",
         max_concurrent=4,
@@ -278,7 +278,7 @@ def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
         }
         state["sense.a"] += sum(previous_vector.values()) * 0.001
 
-    restored = SensorimotorLearner.restore(
+    restored = CompetenceDevelopmentEngine.restore(
         learner.checkpoint(),
         actuator_ids=_ids(6),
         organism_id="org-restore",
@@ -289,7 +289,7 @@ def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
 
 
 def test_cognitive_primitive_replays_only_learned_motor_pattern():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-cognitive-primitive",
         max_concurrent=4,
@@ -314,7 +314,7 @@ def test_cognitive_primitive_replays_only_learned_motor_pattern():
 
 
 def test_cognitive_primitive_execution_preserves_full_temporal_duration():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-atomic-primitive",
         max_concurrent=4,
@@ -351,7 +351,7 @@ def test_cognitive_primitive_execution_preserves_full_temporal_duration():
 
 
 def test_inconsistent_repetition_retracts_false_motor_primitive():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-falsify-primitive",
         max_concurrent=4,
@@ -388,7 +388,7 @@ def test_inconsistent_repetition_retracts_false_motor_primitive():
 
 
 def test_exploration_can_discover_temporal_chunk_across_synergy_boundary():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(8),
         organism_id="org-cross-synergy",
         max_concurrent=4,
@@ -438,7 +438,7 @@ def test_exploration_can_discover_temporal_chunk_across_synergy_boundary():
 
 
 def test_passive_drift_is_subtracted_from_motor_controllability():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-passive-baseline",
         max_concurrent=4,
@@ -502,7 +502,7 @@ def test_passive_drift_is_subtracted_from_motor_controllability():
     ),
 )
 def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-strict-restore",
         max_concurrent=4,
@@ -514,7 +514,7 @@ def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
     mutator(payload)
 
     with pytest.raises(ValueError):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=_ids(4),
             organism_id="org-strict-restore",
@@ -530,7 +530,7 @@ def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
     ),
 )
 def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mutator):
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-lifecycle-restore",
         max_concurrent=4,
@@ -540,7 +540,7 @@ def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mu
     lifecycle_mutator(payload["primitive_stats"][0])
 
     with pytest.raises(ValueError):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=_ids(4),
             organism_id="org-lifecycle-restore",
@@ -556,12 +556,12 @@ def test_restore_rejects_every_pre_v9_schema_outright(legacy_schema):
     constitution.  Reinterpreting that learned history would be scientifically
     dishonest, so restoration fails closed.
     """
-    learner = SensorimotorLearner(_ids(4), organism_id="org-legacy-schema")
+    learner = CompetenceDevelopmentEngine(_ids(4), organism_id="org-legacy-schema")
     payload = learner.checkpoint()
     payload["schema_version"] = legacy_schema
 
     with pytest.raises(ValueError):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=_ids(4),
             organism_id="org-legacy-schema",
@@ -572,7 +572,7 @@ def test_restore_rejects_in_flight_verification_replay_instead_of_relabeling_it(
     """An action the removed scheduler forced must never resurface as
     cognition-originated after restore — that would rewrite the organism's
     own causal history (not merely legacy debt)."""
-    learner = SensorimotorLearner(_ids(4), organism_id="org-verification-reject")
+    learner = CompetenceDevelopmentEngine(_ids(4), organism_id="org-verification-reject")
     _teach_repeated_sequence(learner, episodes=2)
     primitive = learner.cognitive_primitives[0]
     assert learner.activate_primitive(primitive.primitive_id)
@@ -582,7 +582,7 @@ def test_restore_rejects_in_flight_verification_replay_instead_of_relabeling_it(
     payload["replay_source"] = "verification"
 
     with pytest.raises(ValueError):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=_ids(4),
             organism_id="org-verification-reject",
@@ -590,7 +590,7 @@ def test_restore_rejects_in_flight_verification_replay_instead_of_relabeling_it(
 
 
 def test_restore_rejects_in_flight_replay_with_missing_or_unknown_source():
-    learner = SensorimotorLearner(_ids(4), organism_id="org-missing-source")
+    learner = CompetenceDevelopmentEngine(_ids(4), organism_id="org-missing-source")
     _teach_repeated_sequence(learner, episodes=2)
     primitive = learner.cognitive_primitives[0]
     assert learner.activate_primitive(primitive.primitive_id)
@@ -599,7 +599,7 @@ def test_restore_rejects_in_flight_replay_with_missing_or_unknown_source():
     del payload["replay_source"]
 
     with pytest.raises(ValueError):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=_ids(4),
             organism_id="org-missing-source",
@@ -607,7 +607,7 @@ def test_restore_rejects_in_flight_replay_with_missing_or_unknown_source():
 
 
 def test_default_exploration_prefers_low_dimensional_coordination_without_forbidding_broad_patterns():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(62),
         organism_id="org-variable-cardinality",
     )
@@ -628,7 +628,7 @@ def test_default_exploration_prefers_low_dimensional_coordination_without_forbid
 
 
 def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(12),
         organism_id="org-many-competences",
     )
@@ -658,7 +658,7 @@ def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
 
 
 def test_noncontiguous_temporal_window_is_ignored_without_error():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-noncontiguous-window",
         max_concurrent=4,
@@ -688,7 +688,7 @@ def test_noncontiguous_temporal_window_is_ignored_without_error():
 
 
 def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         ("a", "b"),
         organism_id="cache-test",
     )
@@ -745,7 +745,7 @@ def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
 
 
 def test_observe_precomputes_the_exact_canonical_motor_pattern():
-    learner = SensorimotorLearner(("b", "a"), organism_id="frame-pattern")
+    learner = CompetenceDevelopmentEngine(("b", "a"), organism_id="frame-pattern")
     vector = {"b": 0.51, "a": 0.09}
     learner.observe(tick=1, body_state={"x": 0.0}, motor_vector=vector)
 
@@ -757,7 +757,7 @@ def test_observe_precomputes_the_exact_canonical_motor_pattern():
 
 
 def test_primitive_id_cache_preserves_sha256_identity_and_reuses_result():
-    learner = SensorimotorLearner(("a",), organism_id="primitive-id-cache")
+    learner = CompetenceDevelopmentEngine(("a",), organism_id="primitive-id-cache")
     sequence = (
         (("a", 1),),
         (("a", 2),),
@@ -777,7 +777,7 @@ def test_primitive_id_cache_preserves_sha256_identity_and_reuses_result():
 
 
 def test_natural_recurrence_surfaces_competence_without_forced_replay():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-natural-competence",
         max_concurrent=4,
@@ -794,7 +794,7 @@ def test_natural_recurrence_surfaces_competence_without_forced_replay():
 
 
 def test_similar_natural_chunks_count_as_recurrence_not_new_skill():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         ("a", "b"),
         organism_id="approx-recurrence",
     )
@@ -835,7 +835,7 @@ def test_similar_natural_chunks_count_as_recurrence_not_new_skill():
 
 
 def test_bounded_primitive_pool_preserves_proven_competence():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-retain-competence",
         max_concurrent=4,
@@ -886,7 +886,7 @@ def test_bounded_primitive_pool_preserves_proven_competence():
 
 
 def test_primitive_episode_provenance_is_ephemeral_and_independent():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-episode-provenance",
         max_concurrent=4,
@@ -915,7 +915,7 @@ def test_primitive_episode_provenance_is_ephemeral_and_independent():
 
 
 def test_historical_primitive_requires_fresh_evidence_before_cognitive_reuse():
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         _ids(4),
         organism_id="org-historical-revalidation",
         max_concurrent=4,
@@ -971,13 +971,13 @@ def test_historical_primitive_requires_fresh_evidence_before_cognitive_reuse():
 
 
 def test_sensorimotor_pre_v9_checkpoint_is_not_reinterpreted_as_current_evidence():
-    learner = SensorimotorLearner(_ids(4), organism_id="org-pre-v9")
+    learner = CompetenceDevelopmentEngine(_ids(4), organism_id="org-pre-v9")
     payload = learner.checkpoint()
     payload["schema_version"] = 7
     payload.pop("historical_candidates")
 
     with pytest.raises(ValueError, match="schema_version must be 9 or 10"):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=_ids(4),
             organism_id="org-pre-v9",
@@ -988,7 +988,7 @@ def test_sensorimotor_pre_v9_checkpoint_is_not_reinterpreted_as_current_evidence
 def test_exclusive_motor_groups_never_babble_antagonistic_channels_together():
     ids = _ids(8)
     groups = tuple((ids[index], ids[index + 1]) for index in range(0, 8, 2))
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         ids,
         organism_id="org-exclusive-units",
         exclusive_actuator_groups=groups,
@@ -1007,7 +1007,7 @@ def test_exclusive_motor_groups_never_babble_antagonistic_channels_together():
     assert checkpoint["schema_version"] == 10
     assert checkpoint["exclusive_actuator_groups"] == [list(group) for group in groups]
 
-    restored = SensorimotorLearner.restore(
+    restored = CompetenceDevelopmentEngine.restore(
         checkpoint,
         actuator_ids=ids,
         organism_id="org-exclusive-units",
@@ -1017,7 +1017,7 @@ def test_exclusive_motor_groups_never_babble_antagonistic_channels_together():
 
 def test_v9_checkpoint_migrates_onto_validated_current_body_scope():
     ids = _ids(4)
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         ids,
         organism_id="org-v9-migrate",
         embodiment_fingerprint="body-a",
@@ -1026,7 +1026,7 @@ def test_v9_checkpoint_migrates_onto_validated_current_body_scope():
     payload["schema_version"] = 9
     payload.pop("embodiment_fingerprint", None)
 
-    restored = SensorimotorLearner.restore(
+    restored = CompetenceDevelopmentEngine.restore(
         payload,
         actuator_ids=ids,
         organism_id="org-v9-migrate",
@@ -1038,7 +1038,7 @@ def test_v9_checkpoint_migrates_onto_validated_current_body_scope():
 
 def test_v10_checkpoint_rejects_different_body_scope():
     ids = _ids(4)
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         ids,
         organism_id="org-v10-scope",
         embodiment_fingerprint="body-a",
@@ -1046,7 +1046,7 @@ def test_v10_checkpoint_rejects_different_body_scope():
     payload = learner.checkpoint()
 
     with pytest.raises(ValueError, match="embodiment scope mismatch"):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=ids,
             organism_id="org-v10-scope",
@@ -1060,7 +1060,7 @@ def test_sequence_distance_does_not_let_dense_support_dilute_channel_changes():
     left = (common,) * 4
     right = ((common + added),) * 4
 
-    distance = SensorimotorLearner._sequence_distance(left, right)
+    distance = CompetenceDevelopmentEngine._sequence_distance(left, right)
 
     assert distance >= 0.20
     assert distance > 0.10
@@ -1072,8 +1072,8 @@ def test_body_delta_does_not_reward_global_motion_over_strong_local_effect():
     local["s0"] = 1.0
     global_small = {key: 0.02 for key in before}
 
-    local_effect = SensorimotorLearner._body_delta(before, local)
-    global_effect = SensorimotorLearner._body_delta(before, global_small)
+    local_effect = CompetenceDevelopmentEngine._body_delta(before, local)
+    global_effect = CompetenceDevelopmentEngine._body_delta(before, global_small)
 
     assert local_effect > global_effect
 
@@ -1081,13 +1081,13 @@ def test_body_delta_does_not_reward_global_motion_over_strong_local_effect():
 def test_exclusive_group_validation_rejects_overlap_and_unknown_ids():
     ids = _ids(4)
     with pytest.raises(ValueError, match="must not overlap"):
-        SensorimotorLearner(
+        CompetenceDevelopmentEngine(
             ids,
             organism_id="overlap",
             exclusive_actuator_groups=((ids[0], ids[1]), (ids[1], ids[2])),
         )
     with pytest.raises(ValueError, match="unknown actuator"):
-        SensorimotorLearner(
+        CompetenceDevelopmentEngine(
             ids,
             organism_id="unknown",
             exclusive_actuator_groups=((ids[0], "missing"),),
@@ -1099,7 +1099,7 @@ def test_exclusive_motor_groups_arbitrate_mixed_requests_before_evidence():
     from symbiont.actuation.types import MotorIntent
 
     ids = _ids(4)
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         ids,
         organism_id="org-mixed-exclusion",
         exclusive_actuator_groups=((ids[0], ids[1]), (ids[2], ids[3])),
@@ -1121,7 +1121,7 @@ def test_exclusive_motor_groups_arbitrate_mixed_requests_before_evidence():
 
 def test_restore_rejects_v9_primitive_that_violates_exclusive_motor_unit():
     ids = _ids(4)
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         ids,
         organism_id="org-invalid-exclusive-restore",
         exclusive_actuator_groups=((ids[0], ids[1]),),
@@ -1147,7 +1147,7 @@ def test_restore_rejects_v9_primitive_that_violates_exclusive_motor_unit():
     }]
 
     with pytest.raises(ValueError, match="exclusive actuator groups"):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=ids,
             organism_id="org-invalid-exclusive-restore",
@@ -1157,7 +1157,7 @@ def test_restore_rejects_v9_primitive_that_violates_exclusive_motor_unit():
 
 def test_restore_rejects_v9_horizon_evidence_that_violates_exclusive_motor_unit():
     ids = _ids(4)
-    learner = SensorimotorLearner(
+    learner = CompetenceDevelopmentEngine(
         ids,
         organism_id="org-invalid-horizon-restore",
         exclusive_actuator_groups=((ids[0], ids[1]),),
@@ -1170,7 +1170,7 @@ def test_restore_rejects_v9_horizon_evidence_that_violates_exclusive_motor_unit(
     }]
 
     with pytest.raises(ValueError, match="horizon evidence violates"):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=ids,
             organism_id="org-invalid-horizon-restore",
@@ -1180,12 +1180,12 @@ def test_restore_rejects_v9_horizon_evidence_that_violates_exclusive_motor_unit(
 
 def test_restore_rejects_v9_checkpoint_missing_motor_unit_contract():
     ids = _ids(4)
-    learner = SensorimotorLearner(ids, organism_id="org-v9-missing-groups")
+    learner = CompetenceDevelopmentEngine(ids, organism_id="org-v9-missing-groups")
     payload = learner.checkpoint()
     payload.pop("exclusive_actuator_groups")
 
     with pytest.raises(ValueError, match="missing exclusive actuator groups"):
-        SensorimotorLearner.restore(
+        CompetenceDevelopmentEngine.restore(
             payload,
             actuator_ids=ids,
             organism_id="org-v9-missing-groups",
