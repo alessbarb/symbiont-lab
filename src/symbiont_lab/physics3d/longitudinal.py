@@ -87,7 +87,7 @@ def contract_fingerprint(
     return _canonical_hash(material)
 
 
-def _historical_primitives(
+def historical_motor_candidates(
     payload: Mapping[str, Any],
     *,
     contract_fingerprint_value: str,
@@ -148,7 +148,7 @@ def archive_contract_memory(
         "contract_fingerprint": str(contract_fingerprint_value),
         "last_seen_epoch": int(epoch),
         "body_schema": deepcopy(checkpoint.get("body_schema")),
-        "historical_primitives": _historical_primitives(
+        "historical_primitives": historical_motor_candidates(
             checkpoint,
             contract_fingerprint_value=contract_fingerprint_value,
         ),
@@ -380,6 +380,7 @@ __all__ = [
     "archive_contract_memory",
     "build_epoch_summary",
     "contract_fingerprint",
+    "historical_motor_candidates",
     "inject_memory_candidates",
     "memory_for_contract",
 ]
