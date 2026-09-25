@@ -561,6 +561,7 @@ class PyBulletEmbodimentRuntime:
             )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
                 restored_payload,
+                actuator_constitution_override=canonical_actuator_surface,
                 host_lifecycle=host_lifecycle,
                 host_reading_providers=(reading_provider,),
                 bootstrap_semantic_senses=False,
