@@ -1720,7 +1720,7 @@ OutcomeValueLedger
 abstention
 ```
 
-However, it currently evaluates primarily:
+The current path evaluates primarily:
 
 ```text
 predicted outcome
@@ -1728,22 +1728,26 @@ predicted outcome
 historically learned endogenous value
 ```
 
-There is no generic:
+The repository now also contains a bounded generic:
 
 ```text
 EpistemicValue
 ```
 
-and no hypothesis-discrimination component.
+The modeled private runtime supplies this signal through
+`epistemic_value_provider`, and the policy treats it only as a tie-breaker;
+it cannot override higher pragmatic utility. The remaining gap is not
+exposing a raw signal, but connecting it to a real hypothesis-discrimination
+task and proving causal utility.
 
 ---
 
 ## Missing
 
-Implement:
+The remaining implementation work is:
 
 ```text
-EpistemicValue
+matched hypothesis-discrimination integration
 ```
 
 derived from:
@@ -1756,7 +1760,8 @@ hypothesis discrimination
 model disagreement
 ```
 
-Then expose it to Agency.
+The existing `EpistemicValue` estimator and Agency provider path should be
+retained. Do not allow Generative Cognition itself to choose motor actions.
 
 Do not allow Generative Cognition itself to choose motor actions.
 
@@ -1805,12 +1810,17 @@ with true hypothesis discrimination.
 ## Status
 
 ```text
-PARTIAL — comparison signal substrate only
+IMPLEMENTED/PARTIAL — comparison signal and Agency wiring exist; utility
+evidence and hypothesis-discrimination task remain open
 ```
 
-Pragmatic prospective agency exists and a bounded epistemic comparison signal
-now exists. Agency integration, hypothesis-discrimination experiments and
-execution-boundary regression coverage remain open.
+`PrivateModelOrganismRuntime._choose_acquired_competence()` passes
+`ResidentGenerativeCognition.epistemic_value_for()` into
+`ProspectiveAgency.deliberate()`. The policy uses the resulting comparison
+score only when pragmatic utility is exactly tied. This preserves the
+execution boundary, but does not yet demonstrate GC-E3: no matched task has
+shown that the signal identifies a discriminating observation or improves a
+downstream decision.
 
 ---
 
