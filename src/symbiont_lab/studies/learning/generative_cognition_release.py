@@ -162,13 +162,10 @@ def _run_gc_e5(*, episodes: int) -> FactualContaminationGate:
             model_ids=(_FalsePredictionModel.model_id,),
         )
 
-    contradicted = sum(
-        1 for hypothesis in resident.hypotheses.values() if hypothesis.status.value == "contradicted"
-    )
     return FactualContaminationGate(
         generated_episodes=episodes,
         reconciliations=resident.reconciliation_count,
-        contradicted_hypotheses=contradicted,
+        contradicted_hypotheses=resident.contradicted_hypothesis_count,
         factual_contamination_count=resident.factual_contamination_count,
         all_generated_origins_non_observed=all_non_observed,
     )

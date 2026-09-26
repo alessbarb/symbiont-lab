@@ -45,7 +45,6 @@ def test_external_target_is_release_blocking_contamination():
     assert agenda.agenda_contamination_count == 1
 
 
-
 def test_recurring_resolved_target_reopens_without_duplicate_agenda_entry():
     agenda = GenerativeAgenda()
     agenda.add_target(target())
@@ -96,3 +95,13 @@ def test_materially_changed_recurring_signal_can_reactivate_suppressed_target():
     refreshed = agenda.targets[0]
     assert refreshed.status is TargetStatus.ELIGIBLE
     assert refreshed.no_progress_count == 0
+
+
+def test_terminal_targets_release_capacity_for_new_unresolved_demand():
+    agenda = GenerativeAgenda(max_targets=1)
+    agenda.add_target(target("resolved"))
+    agenda.resolve("resolved")
+
+    agenda.add_target(target("new"))
+
+    assert [item.target_id for item in agenda.targets] == ["new"]

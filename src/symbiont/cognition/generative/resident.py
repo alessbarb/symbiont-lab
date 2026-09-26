@@ -25,14 +25,15 @@ from .budget import GenerativeBudget
 from .calibration import PredictionCalibration
 from .consolidation import GenerativeConsolidator, GenerativeUseTracker
 from .episode import new_episode
-from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
 from .epistemic_value import EpistemicValue, EpistemicValueEstimator
+from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
 from .hypothesis import GenerativeHypothesis, HypothesisStatus
 from .model import GenerativeContext, GenerativeModel
-from .registry import GenerativeModelRegistry
+from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION
+from .persistence import restore as restore_workspace
 from .reconciliation import GenerativeReconciler
+from .registry import GenerativeModelRegistry
 from .replay import ReplayEngine, ReplayFragment
-from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, restore as restore_workspace
 from .rollout import RolloutEngine, RolloutResult
 from .scheduler import GenerativeScheduler
 from .types import (
@@ -135,13 +136,12 @@ class ResidentGenerativeCognition:
         self._hypothesis_target: dict[str, str] = {}
         self._hypothesis_outcomes: dict[str, tuple[str, ...]] = {}
         self._hypothesis_representations: dict[str, tuple[str, ...]] = {}
-        self._hypothesis_calibration: dict[
-            str, tuple[str, GenerativeOperation, int, float]
-        ] = {}
+        self._hypothesis_calibration: dict[str, tuple[str, GenerativeOperation, int, float]] = {}
         self.reconciler = GenerativeReconciler()
         self.calibration = PredictionCalibration()
         self.consolidator = GenerativeConsolidator()
         self.reconciliation_count = 0
+        self.contradicted_hypothesis_count = 0
         self.factual_contamination_count = 0
 
     def register_model(self, model: GenerativeModel) -> None:
@@ -156,9 +156,7 @@ class ResidentGenerativeCognition:
             "agenda": self.agenda.checkpoint(),
             "scheduler": self.scheduler.checkpoint(),
             "workspace": (
-                self.last_workspace.checkpoint()
-                if self.last_workspace is not None
-                else None
+                self.last_workspace.checkpoint() if self.last_workspace is not None else None
             ),
             "hypotheses": [
                 {
@@ -179,9 +177,13 @@ class ResidentGenerativeCognition:
                     "calibration": (
                         {
                             "model_id": self._hypothesis_calibration[hypothesis.hypothesis_id][0],
-                            "operation": self._hypothesis_calibration[hypothesis.hypothesis_id][1].value,
+                            "operation": self._hypothesis_calibration[hypothesis.hypothesis_id][
+                                1
+                            ].value,
                             "depth": self._hypothesis_calibration[hypothesis.hypothesis_id][2],
-                            "uncertainty": self._hypothesis_calibration[hypothesis.hypothesis_id][3],
+                            "uncertainty": self._hypothesis_calibration[hypothesis.hypothesis_id][
+                                3
+                            ],
                         }
                         if hypothesis.hypothesis_id in self._hypothesis_calibration
                         else None
@@ -194,6 +196,7 @@ class ResidentGenerativeCognition:
             "calibration": self.calibration.checkpoint(),
             "generative_use": self.consolidator.tracker.checkpoint(),
             "reconciliation_count": self.reconciliation_count,
+            "contradicted_hypothesis_count": self.contradicted_hypothesis_count,
             "factual_contamination_count": self.factual_contamination_count,
         }
 
@@ -253,14 +256,17 @@ class ResidentGenerativeCognition:
                 )
             )
             raw_reconciliations = payload.get("reconciliation_count", 0)
+            raw_contradicted = payload.get("contradicted_hypothesis_count", 0)
             raw_contamination = payload.get("factual_contamination_count", 0)
             for name, value in (
                 ("reconciliation_count", raw_reconciliations),
+                ("contradicted_hypothesis_count", raw_contradicted),
                 ("factual_contamination_count", raw_contamination),
             ):
                 if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                     raise ValueError(f"invalid {name}")
             resident.reconciliation_count = raw_reconciliations
+            resident.contradicted_hypothesis_count = raw_contradicted
             resident.factual_contamination_count = raw_contamination
 
             raw_hypotheses = payload.get("hypotheses", [])
@@ -274,7 +280,9 @@ class ResidentGenerativeCognition:
                     source_episode_ids=tuple(item.get("source_episode_ids", ())),
                     source_model_ids=tuple(item.get("source_model_ids", ())),
                     uncertainty=item["uncertainty"],
-                    status=HypothesisStatus(item.get("status", HypothesisStatus.HYPOTHESIZED.value)),
+                    status=HypothesisStatus(
+                        item.get("status", HypothesisStatus.HYPOTHESIZED.value)
+                    ),
                     factual_support_refs=tuple(item.get("factual_support_refs", ())),
                     factual_conflict_refs=tuple(item.get("factual_conflict_refs", ())),
                 )
@@ -450,12 +458,7 @@ class ResidentGenerativeCognition:
                             ),
                             model_disagreement=(
                                 1.0
-                                if len(
-                                    {
-                                        item.predicted_outcomes
-                                        for item in result.transitions
-                                    }
-                                ) > 1
+                                if len({item.predicted_outcomes for item in result.transitions}) > 1
                                 else 0.0
                             ),
                             tick=tick,
@@ -505,7 +508,8 @@ class ResidentGenerativeCognition:
                 for hypothesis_id, hypothesis in self.hypotheses.items()
                 if self._hypothesis_target.get(hypothesis_id) == target_id
                 and hypothesis.source_model_ids == transition.model_ids
-                and hypothesis.status in {
+                and hypothesis.status
+                in {
                     HypothesisStatus.HYPOTHESIZED,
                     HypothesisStatus.PREDICTED,
                 }
@@ -515,7 +519,25 @@ class ResidentGenerativeCognition:
         if active is not None:
             return active
         if len(self.hypotheses) >= 128:
-            return None
+            terminal = [
+                hypothesis
+                for hypothesis in self.hypotheses.values()
+                if hypothesis.status
+                in {
+                    HypothesisStatus.SUPPORTED,
+                    HypothesisStatus.CONTRADICTED,
+                    HypothesisStatus.RETIRED,
+                }
+            ]
+            if terminal:
+                victim = min(terminal, key=lambda item: item.hypothesis_id)
+                self.hypotheses.pop(victim.hypothesis_id, None)
+                self._hypothesis_target.pop(victim.hypothesis_id, None)
+                self._hypothesis_outcomes.pop(victim.hypothesis_id, None)
+                self._hypothesis_representations.pop(victim.hypothesis_id, None)
+                self._hypothesis_calibration.pop(victim.hypothesis_id, None)
+            else:
+                return None
         digest = hashlib.sha256(
             f"{self.organism_id}|{target_id}|{episode_id}|{transition.model_ids}".encode("utf-8")
         ).hexdigest()[:24]
@@ -565,7 +587,8 @@ class ResidentGenerativeCognition:
         for hypothesis_id, hypothesis in tuple(self.hypotheses.items()):
             if (
                 self._hypothesis_target.get(hypothesis_id) != target_id
-                or hypothesis.status not in {
+                or hypothesis.status
+                not in {
                     HypothesisStatus.HYPOTHESIZED,
                     HypothesisStatus.PREDICTED,
                 }
@@ -582,9 +605,9 @@ class ResidentGenerativeCognition:
                 evidence_ref=evidence_refs[0],
                 supported=supported,
             )
-            for representation_ref in self._hypothesis_representations.get(
-                hypothesis_id, ()
-            ):
+            if not supported:
+                self.contradicted_hypothesis_count += 1
+            for representation_ref in self._hypothesis_representations.get(hypothesis_id, ()):
                 self.consolidator.tracker.note_factual_sources(
                     representation_ref=representation_ref,
                     source_refs=evidence_refs,
@@ -619,7 +642,6 @@ class ResidentGenerativeCognition:
                 generative_demand=self.consolidator.demand_for_age(age),
             )
         return signals
-
 
     def materialize_replay(
         self,
@@ -661,7 +683,9 @@ class ResidentGenerativeCognition:
                 confidence=1.0,
                 source_model_id=None,
             )
-            for token in tuple(dict.fromkeys((*context_tokens, *action_tokens, *outcome_tokens)))[:32]
+            for token in tuple(dict.fromkeys((*context_tokens, *action_tokens, *outcome_tokens)))[
+                :32
+            ]
             if isinstance(token, str) and token
         )
         state = ReplayEngine(workspace=workspace).materialize(
@@ -717,7 +741,8 @@ class ResidentGenerativeCognition:
             expected_hypothesis_discrimination=0.0,
             model_disagreement=(
                 1.0
-                if target.source in {
+                if target.source
+                in {
                     AgendaSource.MODEL_DISAGREEMENT,
                     AgendaSource.RECURRING_CONFLICT,
                 }

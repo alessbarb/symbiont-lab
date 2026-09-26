@@ -200,8 +200,22 @@ class GenerativeAgenda:
         if target.target_id in self._targets:
             raise ValueError("duplicate agenda target")
         if len(self._targets) >= self.max_targets:
+            self._reclaim_terminal_target()
+        if len(self._targets) >= self.max_targets:
             raise ValueError("maximum agenda targets reached")
         self._targets[target.target_id] = target
+
+    def _reclaim_terminal_target(self) -> None:
+        """Free bounded capacity without discarding unresolved demand."""
+        terminal = [
+            target
+            for target in self._targets.values()
+            if target.status in {TargetStatus.RESOLVED, TargetStatus.RETIRED}
+        ]
+        if not terminal:
+            return
+        victim = min(terminal, key=lambda target: (target.created_tick, target.target_id))
+        del self._targets[victim.target_id]
 
     def observe_target(self, target: GenerativeTarget) -> None:
         """Insert or refresh an organism-owned unresolved target.
@@ -273,15 +287,12 @@ class GenerativeAgenda:
     ) -> tuple[AgendaCandidate, ...]:
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0 or limit < 0:
             raise ValueError("tick and limit must be non-negative integers")
-        if sources is not None and not all(
-            isinstance(source, AgendaSource) for source in sources
-        ):
+        if sources is not None and not all(isinstance(source, AgendaSource) for source in sources):
             raise ValueError("sources must contain only AgendaSource values")
         candidates = [
             self._candidate(target, tick)
             for target in self._targets.values()
-            if self._eligible(target, tick)
-            and (sources is None or target.source in sources)
+            if self._eligible(target, tick) and (sources is None or target.source in sources)
         ]
         candidates.sort(key=lambda item: (-item.priority, item.target.target_id))
         selected = candidates[:limit]
