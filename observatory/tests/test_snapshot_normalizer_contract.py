@@ -51,3 +51,12 @@ class SnapshotNormalizerContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_bounded_cognition_preserves_separate_generative_projection():
+    source = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+    assert "function boundedGenerative" in source
+    assert "generative: boundedGenerative(cognition.generative)" in source
+    assert "factualContaminationCount" in source
+    assert "agendaContaminationCount" in source
+    assert "hypotheses" in source
