@@ -127,6 +127,7 @@ class ResidentGenerativeCognition:
             scheduler=self.scheduler,
         )
         self.generative_tick = 0
+        self.last_symbiont_tick = 0
         self.last_workspace: GenerativeWorkspace | None = None
         self.last_execution: GenerativeExecutionResult | None = None
         self.last_rollout: RolloutResult | None = None
@@ -151,6 +152,7 @@ class ResidentGenerativeCognition:
         return {
             "schema_version": GENERATIVE_COGNITION_SCHEMA_VERSION,
             "generative_tick": self.generative_tick,
+            "last_symbiont_tick": self.last_symbiont_tick,
             "agenda": self.agenda.checkpoint(),
             "scheduler": self.scheduler.checkpoint(),
             "workspace": (
@@ -223,6 +225,14 @@ class ResidentGenerativeCognition:
                 registry=registry,
             )
             resident.generative_tick = tick
+            last_symbiont_tick = payload.get("last_symbiont_tick", 0)
+            if (
+                isinstance(last_symbiont_tick, bool)
+                or not isinstance(last_symbiont_tick, int)
+                or last_symbiont_tick < 0
+            ):
+                raise ValueError("invalid last_symbiont_tick")
+            resident.last_symbiont_tick = last_symbiont_tick
             raw_workspace = payload.get("workspace")
             if raw_workspace is not None:
                 resident.last_workspace = restore_workspace(
@@ -307,6 +317,8 @@ class ResidentGenerativeCognition:
             raise ValueError("prospective_candidate_ids must be a tuple")
         if not isinstance(mode, GenerativeMode):
             raise ValueError("mode must be a GenerativeMode")
+
+        self.last_symbiont_tick = max(self.last_symbiont_tick, tick)
 
         self._ingest_prediction_errors(cognition, tick=tick)
         self._ingest_prospective_candidates(prospective_candidate_ids, tick=tick)
@@ -446,6 +458,7 @@ class ResidentGenerativeCognition:
                                 ) > 1
                                 else 0.0
                             ),
+                            tick=tick,
                         )
             hypothesis_changed = bool(hypotheses_by_state)
             return AgendaProgress(
@@ -592,19 +605,20 @@ class ResidentGenerativeCognition:
         return reconciled
 
     def consolidation_signals(self) -> dict[str, object]:
-        """Return bounded durable non-factual cognitive-use signals.
-
-        Signals are derived from the bounded persistent tracker rather than
-        only the most recent workspace, so source-diverse cognitive demand can
-        survive ordinary tick changes and checkpoint restoration.
-        """
-        return {
-            ref: self.consolidator.signal(
-                representation_ref=ref,
-                generative_demand=0.5,
+        """Return durable, recency-weighted non-factual cognitive-use signals."""
+        signals: dict[str, object] = {}
+        for ref in self.consolidator.tracker.representation_refs[:64]:
+            last_use = self.consolidator.tracker.last_use_tick(ref)
+            age = (
+                self.last_symbiont_tick
+                if last_use is None
+                else max(0, self.last_symbiont_tick - last_use)
             )
-            for ref in self.consolidator.tracker.representation_refs[:64]
-        }
+            signals[ref] = self.consolidator.signal(
+                representation_ref=ref,
+                generative_demand=self.consolidator.demand_for_age(age),
+            )
+        return signals
 
 
     def materialize_replay(
@@ -628,6 +642,7 @@ class ResidentGenerativeCognition:
             raise ValueError("tick must be a non-negative integer")
         if not isinstance(context_tokens, tuple):
             raise ValueError("context_tokens must be a tuple")
+        self.last_symbiont_tick = max(self.last_symbiont_tick, tick)
         episode_id = f"generative.replay.{tick}.{self.generative_tick}"
         root_state_id = f"{episode_id}.root"
         episode = new_episode(
@@ -672,6 +687,7 @@ class ResidentGenerativeCognition:
                 episode_id=episode_id,
                 state_id=state.state_id,
                 source_refs=(source_episode_id,),
+                tick=tick,
             )
         self.generative_tick += 1
         return self.snapshot(mode=GenerativeMode.OFFLINE)
