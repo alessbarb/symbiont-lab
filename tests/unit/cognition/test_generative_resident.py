@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from symbiont.cognition.generative import (
+    AgendaSource,
     CompetenceEffectGenerativeAdapter,
     GeneratedFeature,
     GeneratedProposal,
@@ -13,6 +14,7 @@ from symbiont.cognition.generative import (
     GenerativeOperation,
     GenerativeResidentSnapshot,
     GenerativeState,
+    GenerativeTarget,
     RecombinationFragment,
     ResidentGenerativeCognition,
 )
@@ -61,6 +63,31 @@ class _Model:
         )
 
 
+class _CounterfactualModel:
+    model_id = "model.counterfactual"
+
+    def supports(self, operation: GenerativeOperation, state: GenerativeState) -> bool:
+        return operation is GenerativeOperation.COUNTERFACTUAL
+
+    def generate(
+        self,
+        *,
+        state: GenerativeState,
+        operation: GenerativeOperation,
+        context: GenerativeContext,
+    ) -> tuple[GeneratedProposal, ...]:
+        return (
+            GeneratedProposal(
+                features=(GeneratedFeature("outcome.counterfactual", None, 0.7, self.model_id),),
+                predicted_outcomes=("outcome.counterfactual",),
+                uncertainty=0.4,
+                coherence=0.8,
+                model_id=self.model_id,
+                support_refs=context.references,
+            ),
+        )
+
+
 def test_prediction_error_enters_endogenous_agenda_but_waits_for_compatible_model() -> None:
     resident = ResidentGenerativeCognition(organism_id="organism.test")
     resident.register_model(_Model())
@@ -85,6 +112,31 @@ def test_prediction_error_enters_endogenous_agenda_but_waits_for_compatible_mode
     assert target.no_progress_count == 0
     assert resident.last_workspace is not None
     assert len(resident.last_workspace.states) == 1
+
+
+def test_recurring_conflict_routes_to_counterfactual_without_factual_authority() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    resident.register_model(_CounterfactualModel())
+    resident.agenda.add_target(
+        GenerativeTarget(
+            target_id="target.recurring-conflict",
+            source=AgendaSource.RECURRING_CONFLICT,
+            source_refs=("internal.conflict",),
+            created_tick=1,
+            uncertainty=0.8,
+            persistence=0.5,
+            recurrence=2,
+            estimated_resolvability=0.7,
+        )
+    )
+
+    snapshot = resident.step(tick=1, cognition=None, mode=GenerativeMode.IDLE)
+
+    assert snapshot.target_id == "target.recurring-conflict"
+    assert snapshot.transition_count == 2
+    assert snapshot.transitions[0].operation == GenerativeOperation.COUNTERFACTUAL.value
+    assert snapshot.states[-1].origin == "counterfactual"
+    assert snapshot.factual_contamination_count == 0
 
 
 def test_idle_mode_routes_prediction_error_to_a_compatible_model() -> None:
