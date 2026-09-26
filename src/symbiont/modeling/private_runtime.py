@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ..agency.types import CounterfactualPrediction
 from ..cognition.generative import PrivateSLMGenerativeAdapter
@@ -786,6 +786,30 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 )
                 self._validate_active_model_on_episode(episode)
             self._pending_private_frame = current
+
+        if (
+            self._resting_requested
+            and self._pending_private_frame is not None
+            and self._living_body_state.alive
+        ):
+            projection = self._pending_private_frame.episodic_projection
+            replay_candidates = self.cognitive_replay(
+                projection.context_tokens,
+                action_token=projection.action_token,
+                k=1,
+            )
+            if replay_candidates:
+                replay = replay_candidates[0]
+                replay_snapshot = self.generative_cognition.materialize_replay(
+                    tick=result.tick,
+                    source_episode_id=replay.episode_id,
+                    context_tokens=replay.context_tokens,
+                    action_tokens=replay.action_tokens,
+                    outcome_tokens=replay.outcome_tokens,
+                    uncertainty=max(0.0, min(1.0, 1.0 - replay.similarity)),
+                    coherence=max(0.0, min(1.0, replay.similarity)),
+                )
+                result = replace(result, generative=replay_snapshot)
         return result
 
     def checkpoint(self) -> dict[str, object]:
