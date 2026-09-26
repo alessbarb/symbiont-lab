@@ -32,6 +32,7 @@ registered depth-calibration run: 20260926T224036Z-learning-generative-cognition
 registered replay-utility run: 20260926T224742Z-learning-generative-cognition-replay-utility-9237323-72d8
 registered consolidation-gates run: 20260926T225157Z-learning-generative-cognition-consolidation-gates-44874d6-bf28
 registered planning-utility run: 20260926T230309Z-learning-generative-cognition-planning-utility-1d3d64d-7fb5
+registered counterfactual-utility run: 20260926T230359Z-learning-generative-cognition-counterfactual-utility-c8fb3cf-471d
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
@@ -1344,9 +1345,10 @@ tests/unit/cognition/test_generative_resident.py
 test_recurring_conflict_routes_to_counterfactual_without_factual_authority
 ```
 
-This closes the runtime wiring gap for that agenda source only. It does not
-constitute GC-E3 utility evidence: no matched external task, predictive score,
-or ablation has been added.
+This closes the runtime wiring gap for that agenda source only. The registered
+matched mechanism gate now provides bounded hypothesis-discrimination utility;
+external correctness, embodied information gathering and ablations remain
+open.
 
 ---
 
@@ -1950,17 +1952,18 @@ with true hypothesis discrimination.
 ## Status
 
 ```text
-IMPLEMENTED/PARTIAL — comparison signal and Agency wiring exist; utility
-evidence and hypothesis-discrimination task remain open
+IMPLEMENTED/PARTIAL — comparison signal and Agency wiring exist; the
+registered bounded hypothesis-discrimination mechanism gate passes, while
+external utility and ablations remain open
 ```
 
 `PrivateModelOrganismRuntime._choose_acquired_competence()` passes
 `ResidentGenerativeCognition.epistemic_value_for()` into
 `ProspectiveAgency.deliberate()`. The policy uses the resulting comparison
 score only when pragmatic utility is exactly tied. This preserves the
-execution boundary, but does not yet demonstrate GC-E3: no matched task has
-shown that the signal identifies a discriminating observation or improves a
-downstream decision.
+execution boundary. The registered matched task now shows that the signal
+identifies the internally discriminating probe and improves selection over the
+control; external correctness and ablation evidence remain open.
 
 The resident now computes the hypothesis-discrimination component from
 pairwise disagreement among active organism-owned forecast tuples. The score

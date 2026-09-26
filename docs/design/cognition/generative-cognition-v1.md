@@ -3127,6 +3127,24 @@ both explain current evidence.
 
 Test whether generative cognition can identify an observation capable of discriminating them.
 
+The registered matched mechanism gate is:
+
+```text
+learning.generative-cognition-counterfactual-utility
+run: 20260926T230359Z-learning-generative-cognition-counterfactual-utility-c8fb3cf-471d
+control discriminating-probe selection: 66.7%
+treatment discriminating-probe selection: 100%
+mean discrimination gain: 1.0
+factual contamination: 0
+```
+
+The treatment and control receive the same opaque probes, pragmatic ledger and
+counterfactual predictions. Only the treatment receives the bounded
+hypothesis-discrimination signal through `EpistemicValue`, and that signal
+cannot override pragmatic utility. This closes the mechanism-level assay, not
+external hypothesis testing, embodied information gathering, or general
+counterfactual utility.
+
 ---
 
 # 116. GC-E4 — Recombination
