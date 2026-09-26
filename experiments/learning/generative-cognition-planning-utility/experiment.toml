@@ -1,0 +1,23 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-planning-utility"
+title = "Generative Cognition Planning Utility"
+protocol = "learning.generative-cognition-planning-utility"
+protocol_version = 1
+hypothesis = """
+With identical factual experience and action opportunities, bounded two-step
+prospection will select the opaque safe action more often than one-step
+prospection when immediate predictions are ambiguous.
+"""
+success_criteria = """
+Treatment success exceeds control success, treatment success is complete,
+factual experience counts are equal, and generated origins remain non-observed.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true

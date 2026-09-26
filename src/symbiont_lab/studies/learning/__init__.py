@@ -187,6 +187,11 @@ from .generative_consolidation_gates import (
     GenerativeConsolidationGateTrial,
     run_generative_consolidation_gates_study,
 )
+from .generative_planning_utility import (
+    GenerativePlanningUtilityStudy,
+    GenerativePlanningUtilityTrial,
+    run_generative_planning_utility_study,
+)
 from .generative_replay_utility import (
     GenerativeReplayUtilityStudy,
     GenerativeReplayUtilityTrial,
@@ -200,6 +205,9 @@ __all__ += [
     "GenerativeConsolidationGateTrial",
     "GenerativeConsolidationGatesStudy",
     "run_generative_consolidation_gates_study",
+    "GenerativePlanningUtilityStudy",
+    "GenerativePlanningUtilityTrial",
+    "run_generative_planning_utility_study",
 ]
 from .generative_counterfactual_utility import (
     GenerativeCounterfactualUtilitySeedResult,
