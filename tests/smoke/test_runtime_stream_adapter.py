@@ -10,6 +10,16 @@ def _mind_sources() -> str:
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
 
+def _body_sources() -> str:
+    """Read the modular Body implementation including the passive Self-Model view."""
+    paths = [WEB_ROOT / "views" / "body.js", *sorted((WEB_ROOT / "views" / "body").glob("*.js"))]
+    return "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+
+def _self_model_source() -> str:
+    return (WEB_ROOT / "views" / "body" / "self-model.js").read_text(encoding="utf-8")
+
+
 import json
 
 from symbiont_lab.observation.bus import ObservationBus
@@ -338,6 +348,158 @@ def test_physics3d_rich_state_projects_action_dimensions() -> None:
     assert snapshot["action_dimensions"][0]["dimension_id"] == "action.dimension.aaaa"
     assert snapshot["action_dimensions"][0]["usage_count"] == 5
     assert "action_dimensions" in snapshot["provenance"]["organismFacts"]
+
+
+def test_physics3d_rich_state_projects_self_model_agency_evidence() -> None:
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 43,
+            "agency_estimates": [
+                {
+                    "effect_id": "effect.3",
+                    "competence_id": "competence.7",
+                    "context_id": "context.2",
+                    "confidence": 0.8,
+                    "temporal_contingency": 0.9,
+                    "causal_specificity": 0.7,
+                    "prediction_match": 1.0,
+                    "support": 9,
+                    "last_updated_tick": 42,
+                },
+            ],
+            "controllability_estimates": [
+                {
+                    "effect_id": "effect.3",
+                    "competence_id": "competence.7",
+                    "context_id": "context.2",
+                    "confidence": 0.6,
+                    "reliability": 0.8,
+                    "counterfactual_rate": 0.2,
+                    "causal_advantage": 0.6,
+                    "action_support": 10,
+                    "counterfactual_support": 8,
+                    "last_updated_tick": 42,
+                },
+            ],
+            "body_schema_boundary": {
+                "self_caused_channels": ["signal.1"],
+                "somatic_correlated_channels": ["signal.2"],
+                "external_channels": ["signal.3"],
+                "confidence": 0.66,
+                "revision_count": 4,
+                "disruption_score": 0.1,
+            },
+            "executive_state": {
+                "active_commitment_id": "commitment.1",
+                "competence_id": "competence.7",
+                "action_source": "prospection",
+            },
+        }
+    )
+
+    assert snapshot["agency_estimates"][0]["confidence"] == 0.8
+    assert snapshot["controllability_estimates"][0]["causal_advantage"] == 0.6
+    assert snapshot["body_schema_boundary"]["self_caused_channels"] == ["signal.1"]
+    assert snapshot["body_schema_boundary"]["confidence"] == 0.66
+    assert snapshot["executive_state"]["active_commitment_id"] == "commitment.1"
+    assert snapshot["executive_state"]["action_source"] == "prospection"
+    facts = snapshot["provenance"]["organismFacts"]
+    assert "agency_estimates" in facts
+    assert "controllability_estimates" in facts
+    assert "body_schema_boundary" in facts
+    assert "executive_state" in facts
+
+
+def test_physics3d_rich_state_projects_embodiment_continuity_context() -> None:
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 44,
+            "embodiment": {
+                "embodiment_id": "embodiment.7",
+                "body_id": "body.4",
+                "epoch": 3,
+                "embodiment_tick": 211,
+                "contract_fingerprint": "contract.abc",
+                "state": "active",
+                "prior": {
+                    "relation": "known_body",
+                    "authority": "hypothesis_only",
+                    "source_body_id": "body.4",
+                },
+                "adaptation": {"schema_uncertainty": 0.25},
+                "embodied_competences": {"count": 4, "executable": 3},
+                "bindings": [
+                    {
+                        "competence_id": "competence.7",
+                        "surface_fingerprint": "surface.1",
+                        "effect_id": "effect.3",
+                        "reliability": 0.8,
+                        "controllability": 0.7,
+                        "last_evidence_tick": 43,
+                    },
+                ],
+            },
+        }
+    )
+
+    embodiment = snapshot["embodiment"]
+    assert embodiment["embodiment_id"] == "embodiment.7"
+    assert embodiment["body_id"] == "body.4"
+    assert embodiment["epoch"] == 3
+    assert embodiment["embodiment_tick"] == 211
+    assert embodiment["state"] == "active"
+    assert embodiment["prior"]["authority"] == "hypothesis_only"
+    assert embodiment["embodied_competences"]["executable"] == 3
+    assert embodiment["bindings"][0]["competence_id"] == "competence.7"
+
+
+def test_body_self_model_workspace_is_passive_and_first_class() -> None:
+    body = _body_sources()
+    self_model = _self_model_source()
+
+    assert "SelfModelWorkspace" in body
+    assert "['self-model', 'Self-Model']" in body
+    assert "case 'mind_snapshot'" in body
+    for label in (
+        "Overview",
+        "Body Schema",
+        "Agency",
+        "Capabilities",
+        "Affordances",
+        "Embodiment",
+        "History",
+    ):
+        assert label in self_model
+
+    assert "never fed back" in self_model
+    assert "do not authorize action" in self_model
+    assert "ActionIntent will appear here when" in self_model
+    assert "snapshot?.self_model" in self_model
+    assert "snapshot?.body_schema" in self_model
+    assert "snapshot?.agency_estimates" in self_model
+    assert "snapshot?.controllability_estimates" in self_model
+
+
+def test_body_self_model_does_not_invent_anatomical_or_executive_semantics() -> None:
+    self_model = _self_model_source()
+
+    for forbidden in ("left_leg", "right_leg", "walk", "balance", "step_goal"):
+        assert forbidden not in self_model
+
+    assert "active_commitment_id" in self_model
+    assert "ActionIntent will appear here when" in self_model
+    assert "fetch(" not in self_model
+    assert "WebSocket" not in self_model
+    assert "EventSource" not in self_model
+
+
+def test_body_affordances_respect_canonical_executability_when_available() -> None:
+    self_model = _self_model_source()
+
+    assert "snapshot?.sensorimotor?.v2?.competences" in self_model
+    assert "Boolean(item.executable)" in self_model
+    assert "hasCanonicalExecutability" in self_model
+    assert "!executableByCompetence.get" in self_model
 
 
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
