@@ -4485,7 +4485,7 @@ scientific closure.
 | GC-0 epistemic foundation | generated states, origins and factual firewall | generated origin and contamination tests | adversarial contamination campaign |
 | GC-1 endogenous agenda | organism-owned selection and suppression | productive/stagnant agenda gate | stability under longer workloads |
 | GC-2 model adapters | private model registration and bounded generation | adapter and provenance tests | calibrated model comparison |
-| GC-3 rollout | bounded multi-step trajectory construction | budget, depth and determinism tests | GC-E1 predictive utility |
+| GC-3 rollout | bounded multi-step trajectory construction | budget, depth and determinism tests | GC-E1 matched predictive utility, calibration and external generalisation |
 | GC-4 branching | explicit model disagreement without factual authority | branch provenance tests | branch-selection and merge utility |
 | GC-5 counterfactual | counterfactual origin and agency boundary | counterfactual mechanism gate | GC-E3 matched external utility and ablations |
 | GC-6 replay | offline replay without a new factual experience | replay provenance and ledger-count tests | GC-E8 replay utility |
