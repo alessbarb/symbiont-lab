@@ -781,11 +781,16 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         graph: CognitiveGraph | None = None,
         protected_node_ids: Collection[str] = (),
     ) -> tuple[Mutation, ...]:
+        protected = {
+            str(node_id)
+            for node_id in protected_node_ids
+            if str(node_id)
+        } | self._generative_protected_node_ids
         return self._lifecycle.orphan_node_mutations(
             graph=self._graph if graph is None else graph,
             tick=tick,
             max_mutations=max_mutations,
-            protected_node_ids=protected_node_ids,
+            protected_node_ids=protected,
             grace_ticks=self._genome.structure.tentative_lifetime_ticks,
             develop_senses=self._develop_senses,
         )
