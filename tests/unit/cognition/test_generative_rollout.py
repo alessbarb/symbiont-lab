@@ -6,6 +6,7 @@ from symbiont.cognition.generative import (
     EpistemicOrigin,
     GeneratedFeature,
     GeneratedProposal,
+    GenerativeBudget,
     GenerativeContext,
     GenerativeMode,
     GenerativeModelRegistry,
@@ -61,3 +62,63 @@ def test_rollout_composes_multiple_steps_and_preserves_uncertainty():
     assert len(result.states) == len(result.transitions) == 2
     assert result.states[-1].uncertainty >= result.states[0].uncertainty
     assert result.states[-1].origin is EpistemicOrigin.INFERRED
+
+
+def _workspace(*, budget=None):
+    episode = new_episode(
+        episode_id="e0",
+        organism_id="o0",
+        root_state_id="s0",
+        mode=GenerativeMode.ONLINE,
+        symbiont_tick=0,
+        generative_tick=0,
+    )
+    workspace = GenerativeWorkspace(episode=episode, budget=budget)
+    workspace.add_state(
+        GenerativeState(
+            "s0", "e0", EpistemicOrigin.INFERRED, None, 0, (), (), (), (), (), (), 0.4, 1.0, 0
+        )
+    )
+    return workspace
+
+
+def test_rollout_reports_budget_exhaustion_without_partial_state() -> None:
+    workspace = _workspace(budget=GenerativeBudget(max_model_queries=0))
+    registry = GenerativeModelRegistry()
+    registry.register(Model())
+
+    result = RolloutEngine(registry=registry, workspace=workspace).rollout(
+        root_state_id="s0", context=GenerativeContext(), max_depth=1
+    )
+
+    assert result.termination.value == "budget_exhausted"
+    assert result.states == ()
+    assert workspace.states[0].state_id == "s0"
+
+
+def test_rollout_reports_model_unavailable_without_partial_state() -> None:
+    workspace = _workspace()
+    result = RolloutEngine(registry=GenerativeModelRegistry(), workspace=workspace).rollout(
+        root_state_id="s0", context=GenerativeContext(), max_depth=1
+    )
+
+    assert result.termination.value == "model_unavailable"
+    assert result.states == ()
+    assert result.transitions == ()
+
+
+def test_rollout_is_deterministic_for_identical_workspace_and_model() -> None:
+    first = RolloutEngine(registry=_registry(), workspace=_workspace()).rollout(
+        root_state_id="s0", context=GenerativeContext(), max_depth=2
+    )
+    second = RolloutEngine(registry=_registry(), workspace=_workspace()).rollout(
+        root_state_id="s0", context=GenerativeContext(), max_depth=2
+    )
+
+    assert first == second
+
+
+def _registry() -> GenerativeModelRegistry:
+    registry = GenerativeModelRegistry()
+    registry.register(Model())
+    return registry
