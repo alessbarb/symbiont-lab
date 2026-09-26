@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `72720583` (validation snapshot: 2026-09-26)
+**Audited commit:** `3ebe340c` (validation snapshot: 2026-09-27)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -29,6 +29,21 @@ registered run: 20260926T214454Z-learning-generative-cognition-release-gates-402
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
 ```
+
+Since that validation snapshot, the repository also contains a registered
+GC-E4 construction/provenance gate:
+
+```text
+learning.generative-cognition-recombination-construction
+construction rate: 100%
+provenance preservation: 100%
+incompatible-pair rejection: 100%
+factual contamination: 0
+```
+
+This gate deliberately measures only bounded construction, provenance and
+compatibility rejection. It does not provide external correctness, planning
+utility or general-intelligence evidence.
 
 The bounded-history fix behind this evidence is intentionally non-destructive:
 terminal agenda targets and terminal hypotheses may be evicted to preserve
@@ -146,7 +161,7 @@ built by composing several mature existing components.
 | GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
 | GC-5 | Counterfactual cognition | **IMPLEMENTED/PARTIAL — runtime route and matched mechanism gate pass; broader utility remains open** |
 | GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
-| GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge now materializes compatible multi-episode fragments; autonomous scheduling and utility evidence pending** |
+| GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge and registered construction/provenance gate pass; autonomous scheduling and utility evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired — separate factual evidence domains and calibration** |
 | GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
 | GC-10 | Generative consolidation | **IMPLEMENTED — bounded use tracking, independent factual source diversity, durable checkpoint state, recency decay and non-factual structural-retention protection; quantitative benefit studies pending** |
@@ -1551,7 +1566,8 @@ never A+D
 ```text
 IMPLEMENTED/PARTIAL
 
-bounded resident materialization and provenance guard are implemented;
+bounded resident materialization and provenance guard are implemented; the
+registered construction/provenance gate passes across seeds 101, 127 and 149;
 autonomous source selection and GC-E4 utility evidence remain open
 ```
 
