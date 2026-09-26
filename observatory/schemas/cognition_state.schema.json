@@ -182,12 +182,30 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "nascent": {"type": "integer", "minimum": 0},
-        "provisional": {"type": "integer", "minimum": 0},
-        "mature": {"type": "integer", "minimum": 0},
-        "stable": {"type": "integer", "minimum": 0},
-        "weakening": {"type": "integer", "minimum": 0},
-        "retiring": {"type": "integer", "minimum": 0}
+        "nascent": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "provisional": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mature": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "weakening": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retiring": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "max_contention_losses": {
@@ -212,6 +230,253 @@
       "type": "number",
       "minimum": 0,
       "maximum": 1
+    },
+    "generative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "target_id",
+        "episode_id",
+        "state_count",
+        "transition_count",
+        "branch_count",
+        "max_depth",
+        "model_queries",
+        "termination",
+        "agenda_candidate_count",
+        "agenda_contamination_count",
+        "factual_contamination_count",
+        "hypothesis_count",
+        "reconciliation_count",
+        "consolidation_signal_count",
+        "states",
+        "transitions",
+        "hypotheses"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "online",
+            "idle",
+            "offline"
+          ]
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "episode_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "state_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "transition_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "branch_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "max_depth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "model_queries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "termination": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 32
+        },
+        "agenda_candidate_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "agenda_contamination_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "factual_contamination_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hypothesis_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "reconciliation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "consolidation_signal_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "states": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state_id",
+              "parent_state_id",
+              "origin",
+              "depth",
+              "model_ids",
+              "uncertainty",
+              "coherence"
+            ],
+            "properties": {
+              "state_id": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "parent_state_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 128
+              },
+              "origin": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "depth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 64
+              },
+              "model_ids": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              },
+              "uncertainty": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "coherence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "transitions": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "transition_id",
+              "source_state_id",
+              "target_state_id",
+              "operation",
+              "model_ids"
+            ],
+            "properties": {
+              "transition_id": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "source_state_id": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "target_state_id": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "operation": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "model_ids": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              }
+            }
+          }
+        },
+        "hypotheses": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "hypothesis_id",
+              "target_id",
+              "status",
+              "model_ids",
+              "uncertainty"
+            ],
+            "properties": {
+              "hypothesis_id": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "target_id": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "status": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "model_ids": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              },
+              "uncertainty": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
