@@ -187,6 +187,11 @@ from .generative_counterfactual_utility import (
     GenerativeCounterfactualUtilityStudy,
     run_generative_counterfactual_utility_study,
 )
+from .generative_model_correction import (
+    GenerativeModelCorrectionStudy,
+    GenerativeModelCorrectionTrial,
+    run_generative_model_correction_study,
+)
 from .generative_predictive_utility import (
     GenerativePredictiveUtilityStudy,
     GenerativePredictiveUtilityTrial,
@@ -213,4 +218,7 @@ __all__ += [
     "GenerativePredictiveUtilityStudy",
     "GenerativePredictiveUtilityTrial",
     "run_generative_predictive_utility_study",
+    "GenerativeModelCorrectionStudy",
+    "GenerativeModelCorrectionTrial",
+    "run_generative_model_correction_study",
 ]
