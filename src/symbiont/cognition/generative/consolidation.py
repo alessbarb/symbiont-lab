@@ -129,6 +129,28 @@ class GenerativeUseTracker:
             self._disagreement_count.get(representation_ref, 0) + 1,
         )
 
+    def note_factual_sources(
+        self,
+        *,
+        representation_ref: str,
+        source_refs: tuple[str, ...],
+    ) -> None:
+        """Attach independently observed provenance after reconciliation.
+
+        This does not increment activation or factual observation counts.  It
+        only records which factual sources have later supported/contradicted a
+        representation that was already used generatively.
+        """
+        bounded_identifier(representation_ref, name="representation_ref")
+        if not isinstance(source_refs, tuple):
+            raise ValueError("source_refs must be a tuple")
+        sources = self._sources.setdefault(representation_ref, set())
+        for source_ref in source_refs:
+            bounded_identifier(source_ref, name="source_ref")
+            if len(sources) >= self.MAX_SOURCES_PER_REPRESENTATION:
+                break
+            sources.add(source_ref)
+
     def signal(
         self, *, representation_ref: str, generative_demand: float
     ) -> GenerativeConsolidationSignal:
