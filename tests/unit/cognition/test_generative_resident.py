@@ -210,3 +210,55 @@ def test_resident_marks_matching_action_hypothesis_contradicted_by_factual_outco
     assert reconciled == 1
     assert hypothesis.status.value == "contradicted"
     assert hypothesis.factual_conflict_refs == ("evidence.observed",)
+
+
+
+class _BranchingModel:
+    def __init__(self, model_id: str, outcome: str) -> None:
+        self.model_id = model_id
+        self.outcome = outcome
+
+    def supports(self, operation: GenerativeOperation, state: GenerativeState) -> bool:
+        return operation in {GenerativeOperation.PREDICT, GenerativeOperation.BRANCH}
+
+    def generate(
+        self,
+        *,
+        state: GenerativeState,
+        operation: GenerativeOperation,
+        context: GenerativeContext,
+    ) -> tuple[GeneratedProposal, ...]:
+        return (
+            GeneratedProposal(
+                features=(GeneratedFeature(self.outcome, None, 0.7, self.model_id),),
+                predicted_outcomes=(self.outcome,),
+                uncertainty=0.3,
+                coherence=0.9,
+                model_id=self.model_id,
+                support_refs=context.references,
+            ),
+        )
+
+
+def test_resident_preserves_model_disagreement_as_separate_branches_and_hypotheses() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    resident.register_model(_BranchingModel("model.a", "outcome.a"))
+    resident.register_model(_BranchingModel("model.b", "outcome.b"))
+
+    snapshot = resident.step(
+        tick=2,
+        cognition=None,
+        prospective_candidate_ids=("competence.a",),
+        mode=GenerativeMode.ONLINE,
+    )
+
+    assert snapshot.transition_count == 2
+    assert snapshot.hypothesis_count == 2
+    assert resident.last_workspace is not None
+    assert {
+        state.source_model_ids for state in resident.last_workspace.states if state.depth == 1
+    } == {("model.a",), ("model.b",)}
+    assert {
+        tuple(resident._hypothesis_outcomes[hypothesis_id])
+        for hypothesis_id in resident.hypotheses
+    } == {("outcome.a",), ("outcome.b",)}
