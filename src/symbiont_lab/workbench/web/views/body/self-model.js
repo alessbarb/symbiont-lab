@@ -456,15 +456,58 @@ export class SelfModelWorkspace {
     return `<div class="self-bar"><span>${escapeHtml(label)}</span><div><i style="width:${width}%"></i></div><strong>${width}%</strong></div>`;
   }
 
+  selectedRecord() {
+    const id = this.selectedId;
+    if (!id) return null;
+    const sources = [
+      ['body part', this.snapshot?.body_schema?.parts, 'part_id'],
+      ['action dimension', this.snapshot?.action_dimensions, 'dimension_id'],
+      ['motor competence', this.snapshot?.motor_competences, 'competence_id'],
+      ['effect', this.snapshot?.effects, 'effect_id'],
+      ['agency relation', this.snapshot?.agency_estimates, 'competence_id'],
+      ['controllability relation', this.snapshot?.controllability_estimates, 'competence_id'],
+      ['embodiment binding', this.snapshot?.embodiment?.bindings, 'competence_id'],
+    ];
+    for (const [kind, items, key] of sources) {
+      if (!Array.isArray(items)) continue;
+      const item = items.find((candidate) => String(candidate?.[key]) === id);
+      if (item) return { kind, item };
+    }
+    const currentAffordance = affordances(this.snapshot).find((item) => item.competence_id === id);
+    if (currentAffordance) return { kind: 'current affordance', item: currentAffordance };
+    return null;
+  }
+
+  selectedInspector() {
+    if (!this.selectedId) return '';
+    const selected = this.selectedRecord();
+    if (!selected) {
+      return `<div class="body-section"><div class="body-section-title">Selection</div>
+        ${row('ID',shortId(this.selectedId,34))}
+        <div class="body-inspector-sub">No additional canonical record is available for this projected node.</div></div>`;
+    }
+    const entries = Object.entries(selected.item ?? {})
+      .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
+      .slice(0, 12)
+      .map(([key, value]) => row(key.replaceAll('_',' '), typeof value === 'number' ? String(Number(value.toFixed?.(4) ?? value)) : String(value)))
+      .join('');
+    const arrays = Object.entries(selected.item ?? {})
+      .filter(([, value]) => Array.isArray(value) && value.length)
+      .slice(0, 4)
+      .map(([key, value]) => `<div class="self-selected-array"><span>${escapeHtml(key.replaceAll('_',' '))}</span>${value.slice(0,8).map((x)=>`<code>${escapeHtml(shortId(x,28))}</code>`).join('')}</div>`)
+      .join('');
+    return `<div class="body-section"><div class="body-section-title">Selection · ${escapeHtml(selected.kind)}</div>
+      ${row('ID',shortId(this.selectedId,34))}
+      ${entries}
+      ${arrays}
+      <div class="body-inspector-sub">Read-only organism evidence. Selection and observer labels never feed back into Symbiont.</div>
+    </div>`;
+  }
+
   renderInspector() {
     const s = selfSummary(this.snapshot);
     const executive = this.snapshot?.executive_state ?? {};
-    let selected = '';
-    if (this.selectedId) {
-      selected = `<div class="body-section"><div class="body-section-title">Selection</div>
-        ${row('ID',shortId(this.selectedId,34))}
-        <div class="body-inspector-sub">Selected relation is read-only observer context. No label or selection feeds back into Symbiont.</div></div>`;
-    }
+    const selected = this.selectedInspector();
     return `<div class="body-inspector-head">
       <div class="body-inspector-kicker">SELF-MODEL</div>
       <div class="body-inspector-title">Learned model of self</div>
