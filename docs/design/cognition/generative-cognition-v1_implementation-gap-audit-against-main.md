@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `bf243661` (validation snapshot: 2026-09-27)
+**Audited commit:** `31be3a8f` (validation snapshot: 2026-09-27)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -11,7 +11,7 @@
 
 # 1. Executive conclusion
 
-## Validation update — 2026-09-26
+## Validation update — 2026-09-27
 
 Since the original audit, the following implementation and validation work is
 now evidenced on `main`:
@@ -26,6 +26,7 @@ GC-E5 at 10,000: 10,000 reconciliations, 10,000 contradictions,
 reproducibility: five identical SHA-256 outputs at 128 episodes
 registered release run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
 registered recombination run: 20260926T221733Z-learning-generative-cognition-recombination-construction-e82c84e-66b5
+registered predictive utility run: 20260926T222525Z-learning-generative-cognition-predictive-utility-31be3a8-9d8b
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
@@ -66,10 +67,12 @@ capacity, while unresolved demand, factual provenance and aggregate
 contradiction counts remain durable.
 
 The evidence closes a long-horizon release-gate and determinism failure found
-during this audit. It does **not** close the utility battery GC-E1/E2/E3/E4,
-GC-E6/E7/E8/GC-E11/GC-E12, nor does it establish a cognitive advantage over a
-matched no-GC control. The default-suite collection errors remain a separate
-repository health issue and are not counted as Generative Cognition evidence.
+during this audit and adds a synthetic GC-E1 mechanism result. It does **not**
+close external-world utility for GC-E1, nor the remaining utility battery
+GC-E2/E3/E4/GC-E6/E7/E8/GC-E11/GC-E12, and it does not establish a cognitive
+advantage over a matched no-GC control. The default-suite collection errors
+remain a separate repository health issue and are not counted as Generative
+Cognition evidence.
 
 Generative Cognition v1 is now:
 
