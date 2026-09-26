@@ -17,7 +17,8 @@ Since the original audit, the following implementation and validation work is
 now evidenced on `main`:
 
 ```text
-focused GC contract suite: 27 passed, 4 deselected
+focused GC contract suite: 30 passed, 4 deselected
+GC-E3 matched mechanism gate: passed across seeds 101, 127 and 149
 release-gate experiment: passed
 GC-E5 scale: 16, 64, 256, 1024 and 10,000 episodes passed
 GC-E5 at 10,000: 10,000 reconciliations, 10,000 contradictions,
@@ -143,7 +144,7 @@ built by composing several mature existing components.
 | GC-2 | Generative model adapters | **IMPLEMENTED + runtime-wired — CompetenceEffectModel and Private SLM** |
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; scientific utility pending** |
 | GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
-| GC-5 | Counterfactual cognition | **PARTIAL — recurring-conflict runtime route is covered; generic utility and equivalence remain open** |
+| GC-5 | Counterfactual cognition | **IMPLEMENTED/PARTIAL — runtime route and matched mechanism gate pass; broader utility remains open** |
 | GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
 | GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge now materializes compatible multi-episode fragments; autonomous scheduling and utility evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired — separate factual evidence domains and calibration** |
@@ -167,7 +168,7 @@ GC-E13 agenda × consolidation
 
         ↓
 
-GC-E1/E2/E3/E4/E6/E7/E8/E11/E12
+GC-E1/E2/E3 broader utility/E4/E6/E7/E8/E11/E12
 
         ↓
 
@@ -1267,10 +1268,18 @@ GC-E3 — Counterfactual Utility
 ## Status
 
 ```text
-PARTIAL — bounded generic substrate only
+IMPLEMENTED/PARTIAL — bounded runtime and matched mechanism gate; broader
+counterfactual utility remains open
 ```
 
-One-step motor counterfactual cognition is already real, and a generic bounded counterfactual rollout path now exists. Concrete state/model/relation adapters, runtime routing, equivalence tests and GC-E3 utility evidence remain open.
+One-step motor counterfactual cognition is already real, and a generic bounded
+counterfactual rollout path now exists. The resident route, checkpoint
+coverage and a registered matched mechanism gate now pass. The gate compares a
+Generative Cognition treatment with a no-provider control under equal
+pragmatic value: treatment selection of an internally discriminating probe is
+100% across seeds, versus 66.7% for the deterministic control, with zero
+factual contamination. This is still not a general GC-E3 utility result:
+broader tasks, external correctness and ablations remain open.
 
 ---
 
