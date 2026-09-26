@@ -664,6 +664,7 @@ class StructuralPlanner:
         topology_revision: int,
         active_motor_ids: Collection[str],
         active_primitive_ids: Collection[str],
+        generative_protected_node_ids: Collection[str] = (),
         pruning_threshold: float,
         minimum_support: int,
         lifetime_ticks: int,
@@ -733,11 +734,17 @@ class StructuralPlanner:
                 if str(primitive_id)
             ),
         }
+        protected_generative_nodes = {
+            str(node_id)
+            for node_id in generative_protected_node_ids
+            if str(node_id) and graph.node_by_id(str(node_id)) is not None
+        }
+        protected_node_ids = protected_action_readouts | protected_generative_nodes
         orphan_mutations = lifecycle.orphan_node_mutations(
             graph=plan.graph,
             tick=tick,
             max_mutations=plan.remaining,
-            protected_node_ids=protected_action_readouts,
+            protected_node_ids=protected_node_ids,
             grace_ticks=lifetime_ticks,
             develop_senses=develop_senses,
         )
