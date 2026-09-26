@@ -768,6 +768,17 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                         episode.outcome_tokens
                     ),
                 )
+                if (
+                    episode.action_token is not None
+                    and episode.action_token.startswith("action.")
+                    and episode.evidence_refs
+                ):
+                    self.generative_cognition.note_factual_outcome(
+                        action_id=episode.action_token.removeprefix("action."),
+                        outcome_tokens=episode.outcome_tokens,
+                        evidence_refs=episode.evidence_refs,
+                        model_ids=("private-slm",),
+                    )
                 self._schedule_observed_outcome_value_credit(
                     episode,
                     baseline_deviation=previous.homeostatic_deviation,
