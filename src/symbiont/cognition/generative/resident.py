@@ -652,7 +652,7 @@ class ResidentGenerativeCognition:
         state = ReplayEngine(workspace=workspace).materialize(
             ReplayFragment(
                 source_episode_id=source_episode_id,
-                source_state_id=f"episode.{source_episode_id}",
+                source_state_id=source_episode_id,
                 features=features,
                 uncertainty=uncertainty,
                 coherence=coherence,
