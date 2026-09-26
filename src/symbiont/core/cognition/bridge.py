@@ -150,6 +150,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         )
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._recovery_pending = False
+        self._generative_protected_node_ids: set[str] = set()
         self._plasticity = PlasticityEngine(kernel_limits=kernel_limits)
         self._plasticity.seed_new_edges(self._graph)
         self._reacclimation_remaining = 0
@@ -234,6 +235,22 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         # _classify_topology_health always returns a value; keep the explicit
         # fallback defensive for type checkers and malformed test doubles.
         return self._cached_topology_health or TopologyHealth.GERMINAL
+
+    def set_generative_retention_protection(
+        self,
+        node_ids: Collection[str],
+    ) -> None:
+        """Replace non-factual structural-retention demand for the next tick.
+
+        The ids must already exist in the graph. This channel never increments
+        observation/support counters and never creates mutations.
+        """
+        live = {node.node_id for node in self._graph.nodes}
+        self._generative_protected_node_ids = {
+            str(node_id)
+            for node_id in node_ids
+            if str(node_id) in live
+        }
 
     def bind_contention_identity(self, identity: str) -> None:
         self._contention.bind_identity(identity)
@@ -1251,6 +1268,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
                 topology_revision=self._topology_revision,
                 active_motor_ids=active_motor_actuator_ids,
                 active_primitive_ids=active_primitive_ids,
+                generative_protected_node_ids=self._generative_protected_node_ids,
                 pruning_threshold=(self._expression_state.effective_pruning_threshold),
                 minimum_support=self._genome.structure.minimum_support,
                 lifetime_ticks=(self._genome.structure.tentative_lifetime_ticks),
