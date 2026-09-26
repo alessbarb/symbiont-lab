@@ -29,6 +29,7 @@ registered recombination run: 20260926T221733Z-learning-generative-cognition-rec
 registered predictive utility run: 20260926T222525Z-learning-generative-cognition-predictive-utility-31be3a8-9d8b
 registered model-correction run: 20260926T223453Z-learning-generative-cognition-model-correction-ec2b656-df8a
 registered depth-calibration run: 20260926T224036Z-learning-generative-cognition-depth-calibration-bda7c57-b9d8
+registered replay-utility run: 20260926T224742Z-learning-generative-cognition-replay-utility-9237323-72d8
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
@@ -94,6 +95,23 @@ generated origins non-observed: true
 This is a bounded opaque-sequence ordering result, not a universal calibration
 curve. External calibration across environments and model families remains
 open.
+
+It now also contains a registered GC-E8 replay-utility mechanism gate:
+
+```text
+online-only accuracy: 0%
+replay accuracy: 100%
+replay improves prediction: true
+source provenance preserved: true
+factual episode count unchanged: true
+factual contamination: 0
+agenda contamination: 0
+```
+
+This is a matched opaque-task result using one factual episodic source and the
+same bounded model. It closes the missing mechanism-level replay-utility
+evidence, but not external-task utility, long-horizon offline scheduling, or
+the full replay-plus-recombination comparison.
 
 The bounded-history fix behind this evidence is intentionally non-destructive:
 terminal agenda targets and terminal hypotheses may be evicted to preserve
@@ -168,11 +186,11 @@ GC-E3 counterfactual utility in competing-hypothesis tasks
 
 GC-E4 recombination utility
 
-GC-E6 depth calibration
+GC-E6 external calibration across environments and model families
 
-GC-E7 model correction under changed factual dynamics
+GC-E7 model correction under changed external-world dynamics
 
-GC-E8 replay utility beyond provenance/integration
+GC-E8 replay utility on external tasks and replay-plus-recombination
 
 GC-E11 quantitative structural benefit of generative consolidation
 
@@ -212,7 +230,7 @@ built by composing several mature existing components.
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; synthetic GC-E1 mechanism gate passes, external scientific utility remains open** |
 | GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
 | GC-5 | Counterfactual cognition | **IMPLEMENTED/PARTIAL — runtime route and matched mechanism gate pass; broader utility remains open** |
-| GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
+| GC-6 | Replay | **IMPLEMENTED + registered bounded GC-E8 mechanism gate — factual episodic provenance preserved; replay improves the matched opaque prediction without duplicating factual experience; external-task utility remains open** |
 | GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge and registered construction/provenance gate pass; autonomous scheduling and utility evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired + checkpointed — separate factual evidence domains, calibration and registered GC-E6/GC-E7 mechanism gates; external changed-dynamics evidence remains open** |
 | GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
@@ -1482,12 +1500,14 @@ GC-E8 — Replay Utility
 ## Status
 
 ```text
-IMPLEMENTED — bounded materialization only
+IMPLEMENTED + registered bounded GC-E8 mechanism gate
 ```
 
-Memory and replay data are largely ready. The generative instantiation now
-exists behind an explicit projection boundary; concrete episodic-memory wiring,
-replay equivalence and GC-E8 utility evidence remain open.
+The generative instantiation exists behind an explicit projection boundary,
+and the registered assay demonstrates matched replay utility while preserving
+source identity and factual episode count. External-task replay utility,
+long-horizon offline scheduling and replay-plus-recombination equivalence
+remain open.
 
 ---
 
@@ -2493,7 +2513,7 @@ Generative data does not yet exist.
 | **GC-3** | §§51–55 | one-step prediction only | RolloutEngine | depth/budget/uncertainty/determinism | **GC-E1** |
 | **GC-4** | §§56–58 | independent one-step candidates | branch tree, pruning, equivalence | branch bounds + merge | **GC-E2** |
 | **GC-5** | §61 | `CounterfactualPrediction`, `predict_competence_outcome()` | generic multi-state counterfactual | provenance + intervention | **GC-E3** |
-| **GC-6** | §§59–60 | `EpisodicExperienceMemory`, `EpisodicProjection` | replay → GenerativeEpisode | no factual duplication | **GC-E8** |
+| **GC-6** | §§59–60 | `EpisodicExperienceMemory`, `EpisodicProjection` | replay → GenerativeEpisode | no factual duplication plus matched replay utility | **GC-E8 mechanism gate; external-task utility remains open** |
 | **GC-7** | §§62–64 | episodic fragments available | recombination engine | compatibility + novelty | **GC-E4** |
 | **GC-8** | §§65–72 | PREDICTED/SUPPORTED/CONTRADICTED validation | durable hypotheses + generic reconciliation + calibration | lifecycle + later reality | **GC-E6/E7** |
 | **GC-9** | §§67–69 | `ProspectiveAgency`, `OutcomeValueLedger` | EpistemicValue + discrimination integration | authority boundary | **GC-E3** |

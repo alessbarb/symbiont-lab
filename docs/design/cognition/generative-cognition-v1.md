@@ -3233,6 +3233,26 @@ online + replay + recombination
 
 with identical factual experience.
 
+The current registered mechanism gate is:
+
+```text
+learning.generative-cognition-replay-utility
+run: 20260926T224742Z-learning-generative-cognition-replay-utility-9237323-72d8
+online-only accuracy: 0%
+replay accuracy: 100%
+replay improves prediction: true
+source provenance preserved: true
+factual episode count unchanged: true
+factual contamination: 0
+agenda contamination: 0
+```
+
+This is a matched opaque-task result using one factual episodic source and the
+same bounded model. It verifies that the resident replay projection can be
+useful without becoming a new factual episode. It does not yet establish
+replay utility across external tasks, long-horizon offline scheduling, or the
+full replay-plus-recombination condition.
+
 ---
 
 # 121. GC-E9 — Re-embodiment transfer
@@ -4521,7 +4541,7 @@ scientific closure.
 | GC-3 rollout | bounded multi-step trajectory construction | budget, depth and determinism tests plus registered GC-E6 calibration mechanism gate | GC-E1 matched predictive utility, external calibration and external generalisation |
 | GC-4 branching | explicit model disagreement without factual authority | branch provenance tests | branch-selection and merge utility |
 | GC-5 counterfactual | counterfactual origin and agency boundary | counterfactual mechanism gate | GC-E3 matched external utility and ablations |
-| GC-6 replay | offline replay without a new factual experience | replay provenance and ledger-count tests | GC-E8 replay utility |
+| GC-6 replay | offline replay without a new factual experience | replay provenance, ledger-count and registered GC-E8 mechanism tests | GC-E8 external-task utility and replay-plus-recombination |
 | GC-7 recombination | compatibility-gated multi-episode imagined state | source provenance, rejection and contamination tests | GC-E4 external utility and autonomous source scheduling |
 | GC-8 reconciliation | later observation can correct a hypothesis | contradiction, factual-authority, checkpointed-calibration and registered GC-E6/GC-E7 mechanism tests | external calibration and changed-dynamics GC-E7 correction |
 | GC-9 epistemic agency | comparison signal cannot override pragmatic value | equal-value and higher-pragmatic-value tests | task-level information-seeking benefit |
