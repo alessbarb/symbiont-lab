@@ -3162,6 +3162,22 @@ at multiple rollout depths.
 
 Deep imagination must not acquire unjustified certainty.
 
+The current registered mechanism gate is:
+
+```text
+learning.generative-cognition-depth-calibration
+run: 20260926T224036Z-learning-generative-cognition-depth-calibration-bda7c57-b9d8
+depths: 1, 2, 4
+uncertainty increases with depth: true
+observed error increases with depth: true
+paired comparisons: true
+factual contamination: 0
+```
+
+This is a bounded opaque-sequence ordering result, not a universal calibration
+curve. Calibration across external environments and model families remains a
+scientific requirement.
+
 ---
 
 # 119. GC-E7 — Model correction
@@ -4502,12 +4518,12 @@ scientific closure.
 | GC-0 epistemic foundation | generated states, origins and factual firewall | generated origin and contamination tests | adversarial contamination campaign |
 | GC-1 endogenous agenda | organism-owned selection and suppression | productive/stagnant agenda gate | stability under longer workloads |
 | GC-2 model adapters | private model registration and bounded generation | adapter and provenance tests | calibrated model comparison |
-| GC-3 rollout | bounded multi-step trajectory construction | budget, depth and determinism tests | GC-E1 matched predictive utility, calibration and external generalisation |
+| GC-3 rollout | bounded multi-step trajectory construction | budget, depth and determinism tests plus registered GC-E6 calibration mechanism gate | GC-E1 matched predictive utility, external calibration and external generalisation |
 | GC-4 branching | explicit model disagreement without factual authority | branch provenance tests | branch-selection and merge utility |
 | GC-5 counterfactual | counterfactual origin and agency boundary | counterfactual mechanism gate | GC-E3 matched external utility and ablations |
 | GC-6 replay | offline replay without a new factual experience | replay provenance and ledger-count tests | GC-E8 replay utility |
 | GC-7 recombination | compatibility-gated multi-episode imagined state | source provenance, rejection and contamination tests | GC-E4 external utility and autonomous source scheduling |
-| GC-8 reconciliation | later observation can correct a hypothesis | contradiction, factual-authority, checkpointed-calibration and registered GC-E7 mechanism tests | GC-E6 depth calibration and external changed-dynamics GC-E7 correction |
+| GC-8 reconciliation | later observation can correct a hypothesis | contradiction, factual-authority, checkpointed-calibration and registered GC-E6/GC-E7 mechanism tests | external calibration and changed-dynamics GC-E7 correction |
 | GC-9 epistemic agency | comparison signal cannot override pragmatic value | equal-value and higher-pragmatic-value tests | task-level information-seeking benefit |
 | GC-10 consolidation | recurrence, diversity and decay remain distinct | consolidation and retirement tests | GC-E11 benefit and GC-E12 adversarial contamination |
 | GC-11 offline cognition | bounded IDLE/OFFLINE execution with no world mutation | mode and no-authority tests | long-horizon offline utility |

@@ -28,6 +28,7 @@ registered release run: 20260926T214454Z-learning-generative-cognition-release-g
 registered recombination run: 20260926T221733Z-learning-generative-cognition-recombination-construction-e82c84e-66b5
 registered predictive utility run: 20260926T222525Z-learning-generative-cognition-predictive-utility-31be3a8-9d8b
 registered model-correction run: 20260926T223453Z-learning-generative-cognition-model-correction-ec2b656-df8a
+registered depth-calibration run: 20260926T224036Z-learning-generative-cognition-depth-calibration-bda7c57-b9d8
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
@@ -78,6 +79,21 @@ The gate uses an explicit factual-learning hook on a deliberately opaque model
 adapter. It demonstrates the resident reconciliation boundary and a changed
 subsequent prediction, but it does not yet demonstrate learning from changed
 external-world dynamics in a matched embodied environment.
+
+It now also contains a registered GC-E6 depth-calibration mechanism gate:
+
+```text
+depths: 1, 2, 4
+uncertainty increases with depth: true
+observed error increases with depth: true
+comparisons paired: true
+factual contamination: 0
+generated origins non-observed: true
+```
+
+This is a bounded opaque-sequence ordering result, not a universal calibration
+curve. External calibration across environments and model families remains
+open.
 
 The bounded-history fix behind this evidence is intentionally non-destructive:
 terminal agenda targets and terminal hypotheses may be evicted to preserve
@@ -198,7 +214,7 @@ built by composing several mature existing components.
 | GC-5 | Counterfactual cognition | **IMPLEMENTED/PARTIAL — runtime route and matched mechanism gate pass; broader utility remains open** |
 | GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
 | GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge and registered construction/provenance gate pass; autonomous scheduling and utility evidence pending** |
-| GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired + checkpointed — separate factual evidence domains, calibration and registered GC-E7 mechanism gate; external changed-dynamics evidence remains open** |
+| GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired + checkpointed — separate factual evidence domains, calibration and registered GC-E6/GC-E7 mechanism gates; external changed-dynamics evidence remains open** |
 | GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
 | GC-10 | Generative consolidation | **IMPLEMENTED — bounded use tracking, independent factual source diversity, durable checkpoint state, recency decay and non-factual structural-retention protection; quantitative benefit studies pending** |
 | GC-11 | Offline cognition | **IMPLEMENTED/PARTIAL — ONLINE/IDLE/OFFLINE resident execution, mode-aware endogenous routing and episodic replay; richer autonomous scheduling and no-world-mutation coverage pending** |
@@ -1738,9 +1754,11 @@ The narrow prediction-validation pattern still exists, and the generic
 hypothesis lifecycle, explicit reconciliation boundary and bounded calibration
 statistics now exist. Runtime reconciliation records calibration comparisons,
 and a resident checkpoint test preserves the resulting calibration bucket.
-The registered GC-E7 mechanism gate now exercises contradiction followed by an
-explicit factual-learning hook and a corrected generated prediction. External
-changed-dynamics and depth-calibration evidence remain open.
+The registered GC-E6 depth gate now exercises paired calibration comparisons
+across depths 1, 2 and 4, while the GC-E7 mechanism gate exercises
+contradiction followed by an explicit factual-learning hook and a corrected
+generated prediction. External calibration across environments and
+changed-dynamics evidence remain open.
 
 ---
 
