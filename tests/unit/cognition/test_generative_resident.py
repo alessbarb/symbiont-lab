@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import pytest
+
 from symbiont.cognition.generative import (
     CompetenceEffectGenerativeAdapter,
     GeneratedFeature,
@@ -11,6 +13,7 @@ from symbiont.cognition.generative import (
     GenerativeOperation,
     GenerativeResidentSnapshot,
     GenerativeState,
+    RecombinationFragment,
     ResidentGenerativeCognition,
 )
 
@@ -332,3 +335,70 @@ def test_replaying_same_factual_episode_does_not_manufacture_source_diversity() 
     assert signal.independent_episode_count == 3
     assert signal.source_diversity == 1
     assert not resident.consolidator.is_mature(signal)
+
+
+def test_recombination_materializes_two_compatible_sources_as_imagined() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    left = RecombinationFragment(
+        source_episode_id="episode.left",
+        source_state_id="state.left",
+        features=(GeneratedFeature("feature.left", None, 0.9),),
+        compatibility_keys=("context.shared",),
+        uncertainty=0.2,
+        coherence=0.9,
+    )
+    right = RecombinationFragment(
+        source_episode_id="episode.right",
+        source_state_id="state.right",
+        features=(GeneratedFeature("feature.right", None, 0.8),),
+        compatibility_keys=("context.shared",),
+        uncertainty=0.3,
+        coherence=0.7,
+    )
+
+    snapshot = resident.materialize_recombination(tick=11, left=left, right=right)
+
+    assert snapshot.mode is GenerativeMode.OFFLINE
+    assert snapshot.state_count == 1
+    assert snapshot.transition_count == 0
+    assert snapshot.factual_contamination_count == 0
+    assert resident.last_workspace is not None
+    assert resident.last_workspace.episode.source_episode_ids == (
+        "episode.left",
+        "episode.right",
+    )
+    state = resident.last_workspace.states[0]
+    assert state.origin.value == "imagined"
+    assert state.source_episode_ids == ("episode.left", "episode.right")
+    assert state.relation_refs == ("context.shared",)
+    assert (
+        resident.consolidator.signal(
+            representation_ref="feature.left", generative_demand=0.5
+        ).source_diversity
+        == 0
+    )
+
+
+def test_recombination_rejects_incompatible_fragments_without_workspace() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    left = RecombinationFragment(
+        source_episode_id="episode.left",
+        source_state_id="state.left",
+        features=(GeneratedFeature("feature.left", None, 0.9),),
+        compatibility_keys=("context.left",),
+        uncertainty=0.2,
+        coherence=0.9,
+    )
+    right = RecombinationFragment(
+        source_episode_id="episode.right",
+        source_state_id="state.right",
+        features=(GeneratedFeature("feature.right", None, 0.8),),
+        compatibility_keys=("context.right",),
+        uncertainty=0.3,
+        coherence=0.7,
+    )
+
+    with pytest.raises(ValueError, match="no organism-owned compatibility relation"):
+        resident.materialize_recombination(tick=11, left=left, right=right)
+
+    assert resident.last_workspace is None

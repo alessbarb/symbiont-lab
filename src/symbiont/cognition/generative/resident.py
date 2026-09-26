@@ -31,6 +31,7 @@ from .hypothesis import GenerativeHypothesis, HypothesisStatus
 from .model import GenerativeContext, GenerativeModel
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION
 from .persistence import restore as restore_workspace
+from .recombination import ExperienceRecombiner, RecombinationFragment
 from .reconciliation import GenerativeReconciler
 from .registry import GenerativeModelRegistry
 from .replay import ReplayEngine, ReplayFragment
@@ -718,6 +719,59 @@ class ResidentGenerativeCognition:
                 episode_id=episode_id,
                 state_id=state.state_id,
                 source_refs=(source_episode_id,),
+                tick=tick,
+            )
+        self.generative_tick += 1
+        return self.snapshot(mode=GenerativeMode.OFFLINE)
+
+    def materialize_recombination(
+        self,
+        *,
+        tick: int,
+        left: RecombinationFragment,
+        right: RecombinationFragment,
+    ) -> GenerativeResidentSnapshot:
+        """Create one bounded imagined state from two compatible fragments.
+
+        Recombination is deliberately explicit in v1: callers provide the
+        organism-owned fragments, the compatibility gate is enforced by
+        :class:`ExperienceRecombiner`, and the result remains ``IMAGINED``.
+        No factual record, observation count, or action authority is touched.
+        """
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+            raise ValueError("tick must be a non-negative integer")
+        if not isinstance(left, RecombinationFragment) or not isinstance(
+            right, RecombinationFragment
+        ):
+            raise ValueError("recombination requires two RecombinationFragment values")
+        self.last_symbiont_tick = max(self.last_symbiont_tick, tick)
+        episode_id = f"generative.recombine.{tick}.{self.generative_tick}"
+        root_state_id = f"{episode_id}.root"
+        source_episode_ids = tuple(dict.fromkeys((left.source_episode_id, right.source_episode_id)))
+        episode = new_episode(
+            episode_id=episode_id,
+            organism_id=self.organism_id,
+            root_state_id=root_state_id,
+            mode=GenerativeMode.OFFLINE,
+            symbiont_tick=tick,
+            generative_tick=self.generative_tick,
+            source_episode_ids=source_episode_ids,
+        )
+        workspace = GenerativeWorkspace(episode=episode, budget=self.budget)
+        state = ExperienceRecombiner(workspace=workspace).combine(left, right)
+        episode.termination_reason = GenerativeTermination.COMPLETED
+        self.last_workspace = workspace
+        self.last_rollout = RolloutResult(
+            states=(state,),
+            transitions=(),
+            termination=GenerativeTermination.COMPLETED,
+        )
+        self.last_execution = None
+        for feature in state.features:
+            self.consolidator.tracker.record(
+                representation_ref=feature.token,
+                episode_id=episode_id,
+                state_id=state.state_id,
                 tick=tick,
             )
         self.generative_tick += 1
