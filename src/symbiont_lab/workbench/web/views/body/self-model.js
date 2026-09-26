@@ -20,6 +20,12 @@ function ratio(value) {
   return Math.max(0, Math.min(1, n));
 }
 
+function mean(values) {
+  const xs = values.map((value) => finite(value)).filter((value) => value !== null);
+  if (!xs.length) return 0;
+  return xs.reduce((total, value) => total + value, 0) / xs.length;
+}
+
 function pct(value) {
   const n = finite(value);
   return n === null ? '—' : `${(ratio(n) * 100).toFixed(0)}%`;
@@ -148,11 +154,18 @@ function affordances(snapshot) {
   const bindingByCompetence = new Map(bindings.map((b) => [String(b.competence_id), b]));
   const controls = Array.isArray(snapshot?.controllability_estimates) ? snapshot.controllability_estimates : [];
   const controlByPair = new Map(controls.map((c) => [`${c.competence_id}|${c.effect_id}`, c]));
+  const runtimeCompetences = Array.isArray(snapshot?.sensorimotor?.v2?.competences)
+    ? snapshot.sensorimotor.v2.competences : [];
+  const executableByCompetence = new Map(
+    runtimeCompetences.map((item) => [String(item.competence_id), Boolean(item.executable)])
+  );
   const result = [];
   for (const c of comps) {
     if (!c.effect_id) continue;
     const binding = bindingByCompetence.get(String(c.competence_id));
     if (!binding) continue;
+    const hasCanonicalExecutability = executableByCompetence.has(String(c.competence_id));
+    if (hasCanonicalExecutability && !executableByCompetence.get(String(c.competence_id))) continue;
     const control = controlByPair.get(`${c.competence_id}|${c.effect_id}`);
     result.push({
       competence_id:String(c.competence_id),
@@ -189,8 +202,12 @@ function selfSummary(snapshot) {
     competences:comps.length,
     effects:effects.length,
     agencies:agencies.length,
+    agencyMean:ratio(mean(agencies.map((x) => x.confidence))),
+    capabilityMean:ratio(mean(comps.map((x) => x.controllability ?? x.reproducibility))),
     bindings:bindings.length,
+    bindingMean:ratio(mean(bindings.map((x) => x.controllability ?? x.reliability))),
     affordances:aff.length,
+    affordanceMean:ratio(mean(aff.map((x) => (x.controllability + x.reliability) / 2))),
   };
 }
 
@@ -274,10 +291,10 @@ export class SelfModelWorkspace {
     const s = selfSummary(this.snapshot);
     const nodes = [
       {id:'self.body',label:'Body schema',group:'sense',confidence:s.boundaryConfidence},
-      {id:'self.agency',label:'Agency',group:'agency',confidence:s.agencies ? .72 : 0},
-      {id:'self.capability',label:'Capabilities',group:'competence',confidence:s.competences ? .72 : 0},
-      {id:'self.affordance',label:'Affordances',group:'effect',confidence:s.affordances ? .68 : 0},
-      {id:'self.embodiment',label:'Embodiment',group:'dimension',confidence:s.bindings ? .68 : .25},
+      {id:'self.agency',label:'Agency',group:'agency',confidence:s.agencyMean},
+      {id:'self.capability',label:'Capabilities',group:'competence',confidence:s.capabilityMean},
+      {id:'self.affordance',label:'Affordances',group:'effect',confidence:s.affordanceMean},
+      {id:'self.embodiment',label:'Embodiment',group:'dimension',confidence:s.bindingMean},
     ];
     const edges = [
       {source:'self.body',target:'self.agency',strength:.6},
@@ -297,7 +314,30 @@ export class SelfModelWorkspace {
         <div class="self-stat"><span>Current affordances</span><strong>${s.affordances}</strong><small>${s.bindings} embodiment bindings</small></div>
       </div>
     </div>
+    ${this.perceptualSelfModel()}
     <div class="self-boundary-note">Self-Model is not physical ground truth. Opaque organism-owned relations are shown without anatomical labels.</div>`;
+  }
+
+  perceptualSelfModel() {
+    const entries = Object.entries(
+      this.snapshot?.self_model && typeof this.snapshot.self_model === 'object'
+        ? this.snapshot.self_model : {}
+    );
+    if (!entries.length) {
+      return '<div class="self-list-card self-perceptual"><div class="self-card-title">Perceptual apparatus self-estimates</div><div class="self-empty">No established per-sense self-estimate yet.</div></div>';
+    }
+    const rows = entries.slice(0,48).map(([senseId, state]) => {
+      const confidence = classRatio(state?.confidence_class);
+      const health = classRatio(state?.health_class);
+      const maturity = classRatio(state?.maturity_class, 8);
+      return `<div class="self-perceptual-row">
+        <code>${escapeHtml(shortId(senseId,30))}</code>
+        <div class="self-bars">${this.bar('confidence',confidence)}${this.bar('health',health)}${this.bar('maturity',maturity)}</div>
+      </div>`;
+    }).join('');
+    return `<div class="self-list-card self-perceptual"><div class="self-card-title">Perceptual apparatus self-estimates</div>
+      <div class="body-inspector-sub">Existing organism self-model of per-sense cost, health, confidence and maturity.</div>
+      <div class="self-perceptual-list">${rows}</div></div>`;
   }
 
   bodySchema() {
