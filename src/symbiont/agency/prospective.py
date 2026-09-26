@@ -75,6 +75,7 @@ class ProspectiveAgency:
         context_tokens: tuple[str, ...],
         homeostatic_deviation: float,
         predictor: Callable[[str, tuple[str, ...]], CounterfactualPrediction],
+        epistemic_value_provider: Callable[[str], float] | None = None,
         has_active_model: bool = True,
         organism_alive: bool = True,
     ) -> ProspectiveDecision:
@@ -164,6 +165,13 @@ class ProspectiveAgency:
 
             # Look up historical value for the predicted outcome
             value = self._ledger.estimate(prediction.predicted_outcome)
+            epistemic_value = 0.0
+            if epistemic_value_provider is not None:
+                try:
+                    epistemic_value = float(epistemic_value_provider(candidate.action_id))
+                except (TypeError, ValueError):
+                    epistemic_value = 0.0
+                epistemic_value = max(0.0, min(1.0, epistemic_value))
 
             evaluated.append(
                 EvaluatedCandidate(
@@ -171,6 +179,7 @@ class ProspectiveAgency:
                     prediction=prediction,
                     value=value,
                     estimated_cost=None,
+                    epistemic_value=epistemic_value,
                 )
             )
 
