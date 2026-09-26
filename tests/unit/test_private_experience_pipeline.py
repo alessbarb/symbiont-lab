@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -451,11 +452,9 @@ def test_private_runtime_resting_replays_factual_episode_without_new_experience(
         narrative=(),
     )
     runtime._pending_private_frame = runtime._capture_private_frame(frame_result)
-    runtime._pending_private_frame = runtime._pending_private_frame.__class__(
-        **{
-            **runtime._pending_private_frame.__dict__,
-            "episodic_projection": EpisodicProjection(sense_ids=("sense.replay",)),
-        }
+    runtime._pending_private_frame = replace(
+        runtime._pending_private_frame,
+        episodic_projection=EpisodicProjection(sense_ids=("sense.replay",)),
     )
 
     monkeypatch.setattr(
