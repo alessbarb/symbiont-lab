@@ -24,6 +24,7 @@ from .episode import new_episode
 from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
 from .model import GenerativeContext, GenerativeModel
 from .registry import GenerativeModelRegistry
+from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, restore as restore_workspace
 from .rollout import RolloutEngine, RolloutResult
 from .scheduler import GenerativeScheduler
 from .types import (
@@ -87,6 +88,62 @@ class ResidentGenerativeCognition:
 
     def register_model(self, model: GenerativeModel) -> None:
         self.registry.register(model)
+
+    def checkpoint(self) -> dict[str, object]:
+        """Persist durable resident GC state without persisting model owners."""
+        return {
+            "schema_version": GENERATIVE_COGNITION_SCHEMA_VERSION,
+            "generative_tick": self.generative_tick,
+            "agenda": self.agenda.checkpoint(),
+            "scheduler": self.scheduler.checkpoint(),
+            "workspace": (
+                self.last_workspace.checkpoint()
+                if self.last_workspace is not None
+                else None
+            ),
+        }
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        payload: object,
+        *,
+        organism_id: str,
+        budget: GenerativeBudget | None = None,
+        registry: GenerativeModelRegistry | None = None,
+    ) -> "ResidentGenerativeCognition":
+        if (
+            not isinstance(payload, dict)
+            or payload.get("schema_version") != GENERATIVE_COGNITION_SCHEMA_VERSION
+        ):
+            raise ValueError("invalid resident generative cognition checkpoint")
+        try:
+            agenda = GenerativeAgenda.from_checkpoint(payload["agenda"])
+            scheduler = GenerativeScheduler.from_checkpoint(payload["scheduler"])
+            tick = payload["generative_tick"]
+            if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+                raise ValueError("invalid generative_tick")
+            resident = cls(
+                organism_id=organism_id,
+                budget=budget,
+                agenda=agenda,
+                scheduler=scheduler,
+                registry=registry,
+            )
+            resident.generative_tick = tick
+            raw_workspace = payload.get("workspace")
+            if raw_workspace is not None:
+                resident.last_workspace = restore_workspace(
+                    {
+                        "schema_version": GENERATIVE_COGNITION_SCHEMA_VERSION,
+                        "workspace": raw_workspace,
+                    }
+                )
+                if resident.last_workspace.episode.organism_id != organism_id:
+                    raise ValueError("generative workspace belongs to another organism")
+            return resident
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid resident generative cognition checkpoint") from exc
 
     def step(
         self,
