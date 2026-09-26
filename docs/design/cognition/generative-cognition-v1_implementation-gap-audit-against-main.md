@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `db9dcb07` (validation snapshot: 2026-09-26)
+**Audited commit:** `5cbc0d0e` (validation snapshot: 2026-09-26)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -17,7 +17,7 @@ Since the original audit, the following implementation and validation work is
 now evidenced on `main`:
 
 ```text
-focused GC contract suite: 25 passed, 4 deselected
+focused GC contract suite: 26 passed, 4 deselected
 release-gate experiment: passed
 GC-E5 scale: 16, 64, 256, 1024 and 10,000 episodes passed
 GC-E5 at 10,000: 10,000 reconciliations, 10,000 contradictions,
