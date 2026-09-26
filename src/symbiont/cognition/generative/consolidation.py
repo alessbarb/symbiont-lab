@@ -173,6 +173,11 @@ class GenerativeUseTracker:
             source_diversity=len(self._sources.get(representation_ref, set())),
         )
 
+    @property
+    def representation_refs(self) -> tuple[str, ...]:
+        """Bounded durable representation ids with generative-use history."""
+        return tuple(sorted(self._activation_counts))
+
     def checkpoint(self) -> dict[str, object]:
         return {
             "representations": [
