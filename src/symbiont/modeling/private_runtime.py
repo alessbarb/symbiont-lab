@@ -5,6 +5,7 @@ import math
 from dataclasses import dataclass
 
 from ..agency.types import CounterfactualPrediction
+from ..cognition.generative import PrivateSLMGenerativeAdapter
 from ..cognition.types import NodeKind
 from ..core.cognition.bridge import CognitiveBridgeResult
 from ..core.domains.context import TickContext
@@ -74,6 +75,15 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         self._enable_prospective_agency = enable_prospective_agency
         self._pending_private_frame: _PrivateFrame | None = None
         super().__init__(**kwargs)
+        self.generative_cognition.register_model(
+            PrivateSLMGenerativeAdapter(
+                model_id="private-slm",
+                predictor=lambda competence_id, context_tokens: self.predict_competence_outcome(
+                    competence_id,
+                    context_tokens,
+                ),
+            )
+        )
         self._init_prospective_agency(
             enable_prospective_agency=enable_prospective_agency,
         )
