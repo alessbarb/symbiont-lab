@@ -44,6 +44,7 @@ from .persistence import (
 from .recombination import ExperienceRecombiner, RecombinationFragment
 from .reconciliation import GenerativeReconciler
 from .registry import GenerativeModelRegistry
+from .resident import GenerativeResidentSnapshot, ResidentGenerativeCognition
 from .replay import ReplayEngine, ReplayFragment
 from .rollout import RolloutEngine, RolloutResult
 from .scheduler import GenerativeScheduler, ScheduleDecision
@@ -96,6 +97,8 @@ __all__ = [
     "GenerativeModelRegistry",
     "GenerativeHypothesis",
     "GenerativeReconciler",
+    "GenerativeResidentSnapshot",
+    "ResidentGenerativeCognition",
     "RolloutEngine",
     "RolloutResult",
     "ReplayEngine",
