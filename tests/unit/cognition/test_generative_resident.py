@@ -269,3 +269,54 @@ def test_resident_preserves_model_disagreement_as_separate_branches_and_hypothes
         tuple(resident._hypothesis_outcomes[hypothesis_id])
         for hypothesis_id in resident.hypotheses
     } == {("outcome.a",), ("outcome.b",)}
+
+
+
+def test_materialized_replay_preserves_factual_source_without_creating_observation() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+
+    snapshot = resident.materialize_replay(
+        tick=8,
+        source_episode_id="episode.source",
+        context_tokens=("sense.a", "concept.a"),
+        action_tokens=("action.a",),
+        outcome_tokens=("effect.a",),
+        uncertainty=0.2,
+        coherence=0.9,
+    )
+
+    assert snapshot.mode is GenerativeMode.OFFLINE
+    assert snapshot.state_count == 1
+    assert snapshot.transition_count == 0
+    assert snapshot.hypothesis_count == 0
+    assert snapshot.factual_contamination_count == 0
+    assert resident.last_workspace is not None
+    state = resident.last_workspace.states[0]
+    assert state.origin.value == "replayed"
+    assert state.source_episode_ids == ("episode.source",)
+    signal = resident.consolidator.signal(
+        representation_ref="sense.a",
+        generative_demand=0.7,
+    )
+    assert signal.recurrent_activation == 1
+    assert signal.source_diversity == 1
+
+
+def test_replaying_same_factual_episode_does_not_manufacture_source_diversity() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+
+    for tick in (8, 9, 10):
+        resident.materialize_replay(
+            tick=tick,
+            source_episode_id="episode.same",
+            context_tokens=("sense.a",),
+        )
+
+    signal = resident.consolidator.signal(
+        representation_ref="sense.a",
+        generative_demand=0.7,
+    )
+    assert signal.recurrent_activation == 3
+    assert signal.independent_episode_count == 3
+    assert signal.source_diversity == 1
+    assert not resident.consolidator.is_mature(signal)
