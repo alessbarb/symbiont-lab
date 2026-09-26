@@ -592,32 +592,20 @@ class ResidentGenerativeCognition:
         return reconciled
 
     def consolidation_signals(self) -> dict[str, object]:
-        """Return bounded non-factual cognitive-use signals for observation/planning."""
-        workspace = self.last_workspace
-        if workspace is None:
-            return {}
-        refs = sorted(
-            {
-                feature.token
-                for state in workspace.states
-                for feature in state.features
-                if (
-                    feature.source_model_id is not None
-                    or state.origin in {
-                        EpistemicOrigin.REPLAYED,
-                        EpistemicOrigin.IMAGINED,
-                        EpistemicOrigin.COUNTERFACTUAL,
-                    }
-                )
-            }
-        )[:64]
+        """Return bounded durable non-factual cognitive-use signals.
+
+        Signals are derived from the bounded persistent tracker rather than
+        only the most recent workspace, so source-diverse cognitive demand can
+        survive ordinary tick changes and checkpoint restoration.
+        """
         return {
             ref: self.consolidator.signal(
                 representation_ref=ref,
                 generative_demand=0.5,
             )
-            for ref in refs
+            for ref in self.consolidator.tracker.representation_refs[:64]
         }
+
 
     def materialize_replay(
         self,
