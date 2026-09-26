@@ -24,7 +24,8 @@ def test_generative_use_tracks_cross_episode_reuse_without_factual_counts():
     assert signal.recurrent_activation == 2
     assert signal.cross_episode_reuse == 1
     assert signal.independent_episode_count == 2
-    assert signal.source_diversity == 2
+    # Model and episode diversity is not independent factual evidence.
+    assert signal.source_diversity == 0
     assert signal.hypothesis_persistence == 2
     assert signal.model_disagreement == 0.4
 
@@ -38,6 +39,10 @@ def test_mature_signal_projects_only_to_external_structural_contention():
             state_id=f"{episode_id}-s0",
             model_ids=(model_id,),
         )
+    consolidator.tracker.note_factual_sources(
+        representation_ref="r0",
+        source_refs=("observation-0", "observation-1"),
+    )
     signal = consolidator.signal(representation_ref="r0", generative_demand=0.8)
     projection = consolidator.project_candidate(
         signal=signal,
@@ -54,7 +59,6 @@ def test_mature_signal_projects_only_to_external_structural_contention():
     )
     assert calls[0]["producer_id"] == "producer.generative"
     assert calls[0]["family"] == "generative"
-
 
 
 def test_source_diversity_grows_only_from_independent_factual_reconciliation_refs():
@@ -115,7 +119,6 @@ def test_generative_use_checkpoint_round_trip_preserves_bounded_source_diversity
     assert signal.independent_episode_count == 1
     assert signal.source_diversity == 2
     assert signal.model_disagreement == 0.5
-
 
 
 def test_generative_retention_demand_decays_with_age_without_erasing_history():
