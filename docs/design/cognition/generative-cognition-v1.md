@@ -4490,7 +4490,7 @@ scientific closure.
 | GC-5 counterfactual | counterfactual origin and agency boundary | counterfactual mechanism gate | GC-E3 matched external utility and ablations |
 | GC-6 replay | offline replay without a new factual experience | replay provenance and ledger-count tests | GC-E8 replay utility |
 | GC-7 recombination | compatibility-gated multi-episode imagined state | source provenance, rejection and contamination tests | GC-E4 external utility and autonomous source scheduling |
-| GC-8 reconciliation | later observation can correct a hypothesis | contradiction and factual-authority tests | GC-E7 changed-dynamics correction |
+| GC-8 reconciliation | later observation can correct a hypothesis | contradiction, factual-authority and checkpointed-calibration tests | GC-E6 depth calibration and GC-E7 changed-dynamics correction |
 | GC-9 epistemic agency | comparison signal cannot override pragmatic value | equal-value and higher-pragmatic-value tests | task-level information-seeking benefit |
 | GC-10 consolidation | recurrence, diversity and decay remain distinct | consolidation and retirement tests | GC-E11 benefit and GC-E12 adversarial contamination |
 | GC-11 offline cognition | bounded IDLE/OFFLINE execution with no world mutation | mode and no-authority tests | long-horizon offline utility |
