@@ -46,6 +46,20 @@ This gate deliberately measures only bounded construction, provenance and
 compatibility rejection. It does not provide external correctness, planning
 utility or general-intelligence evidence.
 
+It now also contains a registered GC-E1 multi-step predictive mechanism gate:
+
+```text
+horizons: 1, 2, 4
+persistence accuracy: 0%
+one-step accuracy: 33.33%
+multi-step accuracy: 100%
+generated origins non-observed: true
+```
+
+This is a synthetic bounded-sequence result. It demonstrates the expected
+rollout composition advantage over the two declared baselines, but it does not
+establish external-world calibration, embodied planning or transfer.
+
 The bounded-history fix behind this evidence is intentionally non-destructive:
 terminal agenda targets and terminal hypotheses may be evicted to preserve
 capacity, while unresolved demand, factual provenance and aggregate
@@ -158,7 +172,7 @@ built by composing several mature existing components.
 | GC-0 | Epistemic foundation | **IMPLEMENTED + resident + checkpointed** |
 | GC-1 | Endogenous agenda | **IMPLEMENTED — resident selection, suppression, contamination guard and mode-aware routing for compatible non-prospective operators** |
 | GC-2 | Generative model adapters | **IMPLEMENTED + runtime-wired — CompetenceEffectModel and Private SLM** |
-| GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; scientific utility pending** |
+| GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; synthetic GC-E1 mechanism gate passes, external scientific utility remains open** |
 | GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
 | GC-5 | Counterfactual cognition | **IMPLEMENTED/PARTIAL — runtime route and matched mechanism gate pass; broader utility remains open** |
 | GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
@@ -1035,7 +1049,7 @@ at multiple horizons.
 IMPLEMENTED — bounded substrate only
 ```
 
-The engine enforces workspace depth, state, transition and model-query bounds, deterministic proposal selection, and monotonic uncertainty propagation. Focused unit coverage now includes multi-step composition, budget exhaustion, model unavailability and deterministic replay. The resident and Runtime v2 orchestration paths are wired and retain the bounded result; GC-E1 scientific evidence remains open.
+The engine enforces workspace depth, state, transition and model-query bounds, deterministic proposal selection, and monotonic uncertainty propagation. Focused unit coverage now includes multi-step composition, budget exhaustion, model unavailability and deterministic replay. The resident and Runtime v2 orchestration paths are wired and retain the bounded result. A registered synthetic GC-E1 mechanism gate passes at horizons 1, 2 and 4 with multi-step accuracy 100%, versus 0% persistence and 33.33% one-step accuracy, with all generated origins non-observed. External-world calibration and matched embodied utility remain open.
 
 ---
 
