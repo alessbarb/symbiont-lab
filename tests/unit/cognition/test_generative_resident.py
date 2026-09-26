@@ -151,3 +151,62 @@ def test_resident_checkpoint_round_trip_preserves_agenda_scheduler_and_workspace
     assert after.state_count == before.state_count
     assert after.transition_count == before.transition_count
     assert after.agenda_contamination_count == 0
+
+
+
+def test_resident_reconciles_hypothesis_only_with_matching_factual_model_domain() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    resident.register_model(_Model())
+    resident.step(
+        tick=1,
+        cognition=None,
+        prospective_candidate_ids=("competence.a",),
+        mode=GenerativeMode.ONLINE,
+    )
+
+    assert len(resident.hypotheses) == 1
+    hypothesis = next(iter(resident.hypotheses.values()))
+    assert hypothesis.status.value == "predicted"
+
+    ignored = resident.note_factual_outcome(
+        action_id="competence.a",
+        outcome_tokens=("outcome.test",),
+        evidence_refs=("evidence.other",),
+        model_ids=("other-model",),
+    )
+    assert ignored == 0
+    assert hypothesis.status.value == "predicted"
+
+    reconciled = resident.note_factual_outcome(
+        action_id="competence.a",
+        outcome_tokens=("outcome.test",),
+        evidence_refs=("evidence.observed",),
+        model_ids=("model.test",),
+    )
+    assert reconciled == 1
+    assert hypothesis.status.value == "supported"
+    assert hypothesis.factual_support_refs == ("evidence.observed",)
+    assert resident.reconciliation_count == 1
+
+
+def test_resident_marks_matching_action_hypothesis_contradicted_by_factual_outcome() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    resident.register_model(_Model())
+    resident.step(
+        tick=1,
+        cognition=None,
+        prospective_candidate_ids=("competence.a",),
+        mode=GenerativeMode.ONLINE,
+    )
+
+    reconciled = resident.note_factual_outcome(
+        action_id="competence.a",
+        outcome_tokens=("outcome.different",),
+        evidence_refs=("evidence.observed",),
+        model_ids=("model.test",),
+    )
+
+    hypothesis = next(iter(resident.hypotheses.values()))
+    assert reconciled == 1
+    assert hypothesis.status.value == "contradicted"
+    assert hypothesis.factual_conflict_refs == ("evidence.observed",)
