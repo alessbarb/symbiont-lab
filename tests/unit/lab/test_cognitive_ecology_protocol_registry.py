@@ -20,6 +20,7 @@ def test_cognitive_ecology_protocols_are_registered():
         "learning.generative-cognition-recombination-construction": "run_generative_recombination_construction_study",
         "learning.generative-cognition-predictive-utility": "run_generative_predictive_utility_study",
         "learning.generative-cognition-model-correction": "run_generative_model_correction_study",
+        "learning.generative-cognition-depth-calibration": "run_generative_depth_calibration_study",
     }
     for protocol, function_name in expected.items():
         assert get_protocol(protocol).__name__ == function_name
@@ -37,6 +38,7 @@ def test_cognitive_ecology_preregistrations_bind_expected_protocols():
         "generative-cognition-recombination-construction": "learning.generative-cognition-recombination-construction",
         "generative-cognition-predictive-utility": "learning.generative-cognition-predictive-utility",
         "generative-cognition-model-correction": "learning.generative-cognition-model-correction",
+        "generative-cognition-depth-calibration": "learning.generative-cognition-depth-calibration",
     }
     for directory, protocol in cases.items():
         spec = load_experiment_file(root / directory / "experiment.toml")
