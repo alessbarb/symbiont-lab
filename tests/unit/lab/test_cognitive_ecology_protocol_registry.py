@@ -32,6 +32,7 @@ def test_cognitive_ecology_preregistrations_bind_expected_protocols():
         "continuous-temporal-controls": "learning.continuous-temporal-controls",
         "embodied-behavioral-ablation": "learning.embodied-behavioral-ablation",
         "canonical-sensorimotor-adaptation": "learning.canonical-sensorimotor-adaptation",
+        "generative-cognition-recombination-construction": "learning.generative-cognition-recombination-construction",
     }
     for directory, protocol in cases.items():
         spec = load_experiment_file(root / directory / "experiment.toml")
