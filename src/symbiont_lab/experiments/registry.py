@@ -78,6 +78,9 @@ from symbiont_lab.studies.learning.episodic_memory_utility import run_episodic_m
 from symbiont_lab.studies.learning.generative_cognition_release import (
     run_generative_cognition_release_gates,
 )
+from symbiont_lab.studies.learning.generative_consolidation_gates import (
+    run_generative_consolidation_gates_study,
+)
 from symbiont_lab.studies.learning.generative_counterfactual_utility import (
     run_generative_counterfactual_utility_study,
 )
@@ -186,6 +189,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.generative-cognition-model-correction": run_generative_model_correction_study,
     "learning.generative-cognition-depth-calibration": run_generative_depth_calibration_study,
     "learning.generative-cognition-replay-utility": run_generative_replay_utility_study,
+    "learning.generative-cognition-consolidation-gates": run_generative_consolidation_gates_study,
     "learning.continuous-temporal-challenge": run_continuous_temporal_challenge,
     "learning.continuous-temporal-controls": run_continuous_temporal_controls,
     "learning.cognitive-ecology-embodiment": run_cognitive_ecology_embodiment_study,

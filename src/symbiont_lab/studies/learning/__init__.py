@@ -182,6 +182,11 @@ from .episodic_memory_utility import (
     evaluate_episodic_predictive_utility,
     run_episodic_memory_utility_study,
 )
+from .generative_consolidation_gates import (
+    GenerativeConsolidationGatesStudy,
+    GenerativeConsolidationGateTrial,
+    run_generative_consolidation_gates_study,
+)
 from .generative_replay_utility import (
     GenerativeReplayUtilityStudy,
     GenerativeReplayUtilityTrial,
@@ -192,6 +197,9 @@ __all__ += [
     "GenerativeReplayUtilityStudy",
     "GenerativeReplayUtilityTrial",
     "run_generative_replay_utility_study",
+    "GenerativeConsolidationGateTrial",
+    "GenerativeConsolidationGatesStudy",
+    "run_generative_consolidation_gates_study",
 ]
 from .generative_counterfactual_utility import (
     GenerativeCounterfactualUtilitySeedResult,

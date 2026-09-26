@@ -1,0 +1,24 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-consolidation-gates"
+title = "Generative Cognition Consolidation Gates"
+protocol = "learning.generative-cognition-consolidation-gates"
+protocol_version = 1
+hypothesis = """
+Structural admission requires both repeated generated use and independent
+factual source diversity; repeated replay from one source cannot manufacture
+consolidation.
+"""
+success_criteria = """
+The matched benefit condition submits a candidate, controls without generated
+reuse or source diversity do not, repeated single-source replay is suppressed,
+and factual contamination remains zero.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
