@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `05a95924` (validation snapshot: 2026-09-26)
+**Audited commit:** `a3af1bc6` (validation snapshot: 2026-09-26)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -1747,7 +1747,7 @@ task and proving causal utility.
 The remaining implementation work is:
 
 ```text
-matched hypothesis-discrimination integration
+matched hypothesis-discrimination task integration
 ```
 
 derived from:
@@ -1821,6 +1821,12 @@ score only when pragmatic utility is exactly tied. This preserves the
 execution boundary, but does not yet demonstrate GC-E3: no matched task has
 shown that the signal identifies a discriminating observation or improves a
 downstream decision.
+
+The resident now computes the hypothesis-discrimination component from
+pairwise disagreement among active organism-owned forecast tuples. The score
+is bounded and remains comparison-only; it never reads factual outcomes and
+never selects an action. This closes the missing signal calculation, while
+the matched-task and ablation evidence remain open.
 
 ---
 
