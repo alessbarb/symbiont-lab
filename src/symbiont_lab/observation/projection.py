@@ -489,6 +489,18 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     action_dimensions = rich_state.get("action_dimensions")
     if not isinstance(action_dimensions, (list, tuple)):
         action_dimensions = None
+    agency_estimates = rich_state.get("agency_estimates")
+    if not isinstance(agency_estimates, (list, tuple)):
+        agency_estimates = None
+    controllability_estimates = rich_state.get("controllability_estimates")
+    if not isinstance(controllability_estimates, (list, tuple)):
+        controllability_estimates = None
+    body_schema_boundary = rich_state.get("body_schema_boundary")
+    if not isinstance(body_schema_boundary, Mapping):
+        body_schema_boundary = None
+    executive_state = rich_state.get("executive_state")
+    if not isinstance(executive_state, Mapping):
+        executive_state = None
     outcome = rich_state.get("outcome")
     if not isinstance(outcome, Mapping):
         outcome = None
@@ -577,6 +589,22 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             dict(item) for item in action_dimensions if isinstance(item, Mapping)
         ]
         organism_facts.append("action_dimensions")
+    if agency_estimates is not None:
+        snapshot["agency_estimates"] = [
+            dict(item) for item in agency_estimates if isinstance(item, Mapping)
+        ]
+        organism_facts.append("agency_estimates")
+    if controllability_estimates is not None:
+        snapshot["controllability_estimates"] = [
+            dict(item) for item in controllability_estimates if isinstance(item, Mapping)
+        ]
+        organism_facts.append("controllability_estimates")
+    if body_schema_boundary is not None:
+        snapshot["body_schema_boundary"] = dict(body_schema_boundary)
+        organism_facts.append("body_schema_boundary")
+    if executive_state is not None:
+        snapshot["executive_state"] = dict(executive_state)
+        organism_facts.append("executive_state")
     if "embodiment" in snapshot and "bindings" in snapshot["embodiment"]:
         organism_facts.append("embodiment.bindings")
     if outcome is not None:
