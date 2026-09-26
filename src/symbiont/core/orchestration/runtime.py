@@ -280,6 +280,7 @@ class OrganismRuntime:
         motor_selection_threshold: float = 0.1,
         actuator_system: ActuatorSystem | None = None,
         competence_development: CompetenceDevelopmentEngine | None = None,
+        generative_cognition: ResidentGenerativeCognition | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -732,6 +733,7 @@ class OrganismRuntime:
             selection_threshold=selection_threshold,
             actuator_evidence=actuator_evidence,
             competence_development=competence_development,
+            generative_cognition=generative_cognition,
             actuator_system=actuator_system,
         )
         self._regulation_domain = RegulationDomain()
@@ -739,8 +741,15 @@ class OrganismRuntime:
         self._physiology_domain = PhysiologyDomain()
         self._perception_domain = PerceptionDomain()
         self._cognition_domain = CognitionDomain()
-        self._generative_cognition = ResidentGenerativeCognition(
-            organism_id=self._organism_id
+        if (
+            generative_cognition is not None
+            and generative_cognition.organism_id != self._organism_id
+        ):
+            raise ValueError("generative cognition belongs to another organism")
+        self._generative_cognition = (
+            generative_cognition
+            if generative_cognition is not None
+            else ResidentGenerativeCognition(organism_id=self._organism_id)
         )
         self._generative_cognition.register_model(
             CompetenceEffectGenerativeAdapter(
@@ -2283,6 +2292,7 @@ class OrganismRuntime:
         else:
             payload["actuation"] = {"enabled": False}
         payload["memory"] = self._memory_consolidator.export_checkpoint()
+        payload["generative_cognition"] = self._generative_cognition.checkpoint()
         knowledge_payload = self._signal_knowledge.checkpoint()
         knowledge_size = len(
             json.dumps(
@@ -2856,6 +2866,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("motor_selection_threshold", None)
         constructor_kwargs.pop("actuator_system", None)
         constructor_kwargs.pop("competence_development", None)
+        constructor_kwargs.pop("generative_cognition", None)
         effective = normalized.get("effective_config", {})
         for name in (
             "attention_budget",
@@ -2875,6 +2886,19 @@ class OrganismRuntime:
             constructor_kwargs["conflict_z"] = conflict_z
         constructor_kwargs.pop("explicit_metabolism", None)
         constructor_kwargs.pop("auto_promote_predictors", None)
+        raw_generative = normalized.get("generative_cognition")
+        try:
+            generative_cognition = (
+                ResidentGenerativeCognition.from_checkpoint(
+                    raw_generative,
+                    organism_id=str(normalized.get("organism_id") or ""),
+                )
+                if raw_generative is not None
+                else None
+            )
+        except ValueError as exc:
+            raise CheckpointError(f"invalid generative cognition checkpoint: {exc}") from exc
+
         runtime = cls(
             **constructor_kwargs,
             acclimation=acclimation,
