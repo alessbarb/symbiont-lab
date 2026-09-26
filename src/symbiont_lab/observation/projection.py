@@ -530,6 +530,28 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             pass
     raw_embodiment_block = rich_state.get("embodiment")
     if isinstance(raw_embodiment_block, Mapping):
+        for source_key, target_key in (
+            ("embodiment_id", "embodiment_id"),
+            ("body_id", "body_id"),
+            ("contract_fingerprint", "contract_fingerprint"),
+            ("state", "state"),
+        ):
+            if raw_embodiment_block.get(source_key) is not None:
+                embodiment[target_key] = str(raw_embodiment_block[source_key])
+        if raw_embodiment_block.get("embodiment_tick") is not None:
+            try:
+                embodiment["embodiment_tick"] = int(raw_embodiment_block["embodiment_tick"])
+            except (TypeError, ValueError):
+                pass
+        raw_prior = raw_embodiment_block.get("prior")
+        if isinstance(raw_prior, Mapping):
+            embodiment["prior"] = dict(raw_prior)
+        raw_adaptation = raw_embodiment_block.get("adaptation")
+        if isinstance(raw_adaptation, Mapping):
+            embodiment["adaptation"] = dict(raw_adaptation)
+        raw_embodied_competences = raw_embodiment_block.get("embodied_competences")
+        if isinstance(raw_embodied_competences, Mapping):
+            embodiment["embodied_competences"] = dict(raw_embodied_competences)
         raw_bindings = raw_embodiment_block.get("bindings")
         if isinstance(raw_bindings, (list, tuple)):
             embodiment["bindings"] = [
