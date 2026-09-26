@@ -2030,6 +2030,19 @@ class OrganismRuntime:
             ),
         )
 
+        transition = self._action_domain.last_transition
+        if (
+            transition is not None
+            and transition.competence_id is not None
+            and transition.observed_effect_id is not None
+        ):
+            self._generative_cognition.note_factual_outcome(
+                action_id=transition.competence_id,
+                outcome_tokens=(transition.observed_effect_id,),
+                evidence_refs=(f"causal.{transition.transition_id}",),
+                model_ids=("competence-effect",),
+            )
+
         epistemic = self._epistemic_domain.investigate(
             services=EpistemicServices(
                 self_model=self._self_model,
