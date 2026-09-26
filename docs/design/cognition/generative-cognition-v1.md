@@ -3184,6 +3184,23 @@ factual learning
 future generated prediction improves
 ```
 
+The current implementation has a registered mechanism gate for this
+sequence:
+
+```text
+learning.generative-cognition-model-correction
+run: 20260926T223453Z-learning-generative-cognition-model-correction-ec2b656-df8a
+initial contradiction rate: 100%
+corrected prediction/support rate: 100%
+factual contamination: 0
+agenda contamination: 0
+```
+
+The gate uses an explicit factual-learning hook on an opaque model adapter.
+It proves the resident reconciliation boundary and subsequent corrected
+generation only within that synthetic adapter. It is not evidence of
+external-world adaptation, embodied utility or general intelligence.
+
 ---
 
 # 120. GC-E8 — Replay utility
@@ -4490,7 +4507,7 @@ scientific closure.
 | GC-5 counterfactual | counterfactual origin and agency boundary | counterfactual mechanism gate | GC-E3 matched external utility and ablations |
 | GC-6 replay | offline replay without a new factual experience | replay provenance and ledger-count tests | GC-E8 replay utility |
 | GC-7 recombination | compatibility-gated multi-episode imagined state | source provenance, rejection and contamination tests | GC-E4 external utility and autonomous source scheduling |
-| GC-8 reconciliation | later observation can correct a hypothesis | contradiction, factual-authority and checkpointed-calibration tests | GC-E6 depth calibration and GC-E7 changed-dynamics correction |
+| GC-8 reconciliation | later observation can correct a hypothesis | contradiction, factual-authority, checkpointed-calibration and registered GC-E7 mechanism tests | GC-E6 depth calibration and external changed-dynamics GC-E7 correction |
 | GC-9 epistemic agency | comparison signal cannot override pragmatic value | equal-value and higher-pragmatic-value tests | task-level information-seeking benefit |
 | GC-10 consolidation | recurrence, diversity and decay remain distinct | consolidation and retirement tests | GC-E11 benefit and GC-E12 adversarial contamination |
 | GC-11 offline cognition | bounded IDLE/OFFLINE execution with no world mutation | mode and no-authority tests | long-horizon offline utility |

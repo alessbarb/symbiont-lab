@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `78895646` (validation snapshot: 2026-09-27)
+**Audited commit:** `1cd8e180` (validation snapshot: 2026-09-27)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -27,6 +27,7 @@ reproducibility: five identical SHA-256 outputs at 128 episodes
 registered release run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
 registered recombination run: 20260926T221733Z-learning-generative-cognition-recombination-construction-e82c84e-66b5
 registered predictive utility run: 20260926T222525Z-learning-generative-cognition-predictive-utility-31be3a8-9d8b
+registered model-correction run: 20260926T223453Z-learning-generative-cognition-model-correction-ec2b656-df8a
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
@@ -60,6 +61,23 @@ generated origins non-observed: true
 This is a synthetic bounded-sequence result. It demonstrates the expected
 rollout composition advantage over the two declared baselines, but it does not
 establish external-world calibration, embodied planning or transfer.
+
+It now also contains a registered GC-E7 model-correction mechanism gate:
+
+```text
+initial contradiction rate: 100%
+corrected prediction/support rate: 100%
+reconciliations per seed: 2
+contradictions per seed: 1
+factual contamination: 0
+agenda contamination: 0
+generated origins non-observed: true
+```
+
+The gate uses an explicit factual-learning hook on a deliberately opaque model
+adapter. It demonstrates the resident reconciliation boundary and a changed
+subsequent prediction, but it does not yet demonstrate learning from changed
+external-world dynamics in a matched embodied environment.
 
 The bounded-history fix behind this evidence is intentionally non-destructive:
 terminal agenda targets and terminal hypotheses may be evicted to preserve
@@ -180,7 +198,7 @@ built by composing several mature existing components.
 | GC-5 | Counterfactual cognition | **IMPLEMENTED/PARTIAL — runtime route and matched mechanism gate pass; broader utility remains open** |
 | GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
 | GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge and registered construction/provenance gate pass; autonomous scheduling and utility evidence pending** |
-| GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired + checkpointed — separate factual evidence domains and calibration; external correction evidence pending** |
+| GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired + checkpointed — separate factual evidence domains, calibration and registered GC-E7 mechanism gate; external changed-dynamics evidence remains open** |
 | GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
 | GC-10 | Generative consolidation | **IMPLEMENTED — bounded use tracking, independent factual source diversity, durable checkpoint state, recency decay and non-factual structural-retention protection; quantitative benefit studies pending** |
 | GC-11 | Offline cognition | **IMPLEMENTED/PARTIAL — ONLINE/IDLE/OFFLINE resident execution, mode-aware endogenous routing and episodic replay; richer autonomous scheduling and no-world-mutation coverage pending** |
@@ -1720,7 +1738,9 @@ The narrow prediction-validation pattern still exists, and the generic
 hypothesis lifecycle, explicit reconciliation boundary and bounded calibration
 statistics now exist. Runtime reconciliation records calibration comparisons,
 and a resident checkpoint test preserves the resulting calibration bucket.
-External GC-E6/GC-E7 evidence remains open.
+The registered GC-E7 mechanism gate now exercises contradiction followed by an
+explicit factual-learning hook and a corrected generated prediction. External
+changed-dynamics and depth-calibration evidence remain open.
 
 ---
 
