@@ -38,6 +38,16 @@ class EvaluatedCandidate:
     prediction: CounterfactualPrediction
     value: OutcomeValueEstimate | None
     estimated_cost: float | None  # reserved for L8.6+; unused in P0 utility
+    epistemic_value: float = 0.0  # comparison-only tiebreak signal in [0, 1]
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.epistemic_value, bool)
+            or not isinstance(self.epistemic_value, (int, float))
+            or not math.isfinite(float(self.epistemic_value))
+            or not 0.0 <= float(self.epistemic_value) <= 1.0
+        ):
+            raise ValueError("epistemic_value must be within [0, 1]")
 
 
 class ProspectivePolicy:
@@ -154,7 +164,7 @@ class ProspectivePolicy:
             )
 
         # Apply confidence gates
-        confident: list[tuple[float, str, EvaluatedCandidate]] = []
+        confident: list[tuple[float, float, str, EvaluatedCandidate]] = []
         for ec in valued:
             assert ec.value is not None  # narrowing
             model_conf_norm = ec.prediction.confidence_class / float(_CONFIDENCE_CLASS_MAX)
@@ -166,7 +176,7 @@ class ProspectivePolicy:
                 continue
             utility = self._utility(ec.value, ec.prediction.confidence_class)
             tiebreak = self._tiebreak_key(ec.candidate.action_id, tick)
-            confident.append((utility, tiebreak, ec))
+            confident.append((utility, float(ec.epistemic_value), tiebreak, ec))
 
         if not confident:
             return ProspectiveDecision(
@@ -181,10 +191,12 @@ class ProspectivePolicy:
             )
 
         # Sort by utility desc, then by deterministic tiebreak asc
-        confident.sort(key=lambda item: (-item[0], item[1]))
-        best_utility, _, best_ec = confident[0]
+        # Pragmatic utility remains authoritative. Epistemic value can only
+        # break exact utility ties; it is not added to reward/value.
+        confident.sort(key=lambda item: (-item[0], -item[1], item[2]))
+        best_utility, _, _, best_ec = confident[0]
 
-        # Check decision margin against second-best
+        # Check decision margin against second-best pragmatic utility.
         second_utility = confident[1][0] if len(confident) > 1 else -math.inf
         margin = best_utility - second_utility
 
