@@ -20,6 +20,7 @@ from .agenda import (
     GenerativeTarget,
     TargetStatus,
 )
+from .branch import BranchEngine
 from .budget import GenerativeBudget
 from .calibration import PredictionCalibration
 from .consolidation import GenerativeConsolidator
@@ -312,12 +313,32 @@ class ResidentGenerativeCognition:
                 GenerativeMode.IDLE: min(2, workspace.budget.max_depth),
                 GenerativeMode.OFFLINE: min(4, workspace.budget.max_depth),
             }[selected_mode]
-            result = RolloutEngine(registry=self.registry, workspace=workspace).rollout(
-                root_state_id=root_state_id,
-                context=context,
-                operation=GenerativeOperation.PREDICT,
-                max_depth=depth,
+            branching_models = self.registry.available(
+                operation=GenerativeOperation.BRANCH,
+                state=root,
             )
+            if len(branching_models) > 1:
+                result = BranchEngine(
+                    registry=self.registry,
+                    workspace=workspace,
+                ).branch(
+                    root_state_id=root_state_id,
+                    context=context,
+                    max_branches=min(
+                        len(branching_models),
+                        workspace.budget.max_branches,
+                    ),
+                )
+            else:
+                result = RolloutEngine(
+                    registry=self.registry,
+                    workspace=workspace,
+                ).rollout(
+                    root_state_id=root_state_id,
+                    context=context,
+                    operation=GenerativeOperation.PREDICT,
+                    max_depth=depth,
+                )
             self.last_rollout = result
             if result.states:
                 self.generative_tick = max(
@@ -342,16 +363,23 @@ class ResidentGenerativeCognition:
                         ),
                         uncertainty=transition.uncertainty_after,
                     )
-            hypothesis_changed = False
+            hypotheses_by_state: dict[str, GenerativeHypothesis] = {}
             if result.transitions:
-                hypothesis = self._ensure_hypothesis(
-                    target_id=candidate.target.target_id,
-                    episode_id=workspace.episode.episode_id,
-                    transition=result.transitions[-1],
-                    final_state=result.states[-1],
-                )
-                hypothesis_changed = hypothesis is not None
+                states_by_id = {state.state_id: state for state in result.states}
+                for transition in result.transitions:
+                    final_state = states_by_id.get(transition.target_state_id)
+                    if final_state is None:
+                        continue
+                    hypothesis = self._ensure_hypothesis(
+                        target_id=candidate.target.target_id,
+                        episode_id=workspace.episode.episode_id,
+                        transition=transition,
+                        final_state=final_state,
+                    )
+                    if hypothesis is not None:
+                        hypotheses_by_state[final_state.state_id] = hypothesis
                 for state in result.states:
+                    hypothesis = hypotheses_by_state.get(state.state_id)
                     for feature in state.features:
                         self.consolidator.tracker.record(
                             representation_ref=feature.token,
@@ -361,14 +389,27 @@ class ResidentGenerativeCognition:
                             hypothesis_ref=(
                                 hypothesis.hypothesis_id if hypothesis is not None else None
                             ),
+                            model_disagreement=(
+                                1.0
+                                if len(
+                                    {
+                                        item.predicted_outcomes
+                                        for item in result.transitions
+                                    }
+                                ) > 1
+                                else 0.0
+                            ),
                         )
+            hypothesis_changed = bool(hypotheses_by_state)
             return AgendaProgress(
                 new_branch=False,
                 uncertainty_changed=any(
                     transition.uncertainty_after != transition.uncertainty_before
                     for transition in result.transitions
                 ),
-                disagreement_changed=False,
+                disagreement_changed=(
+                    len({item.predicted_outcomes for item in result.transitions}) > 1
+                ),
                 hypothesis_changed=hypothesis_changed,
                 discriminating_consequence=bool(result.transitions),
                 reconciliation=False,
@@ -402,6 +443,7 @@ class ResidentGenerativeCognition:
                 hypothesis
                 for hypothesis_id, hypothesis in self.hypotheses.items()
                 if self._hypothesis_target.get(hypothesis_id) == target_id
+                and hypothesis.source_model_ids == transition.model_ids
                 and hypothesis.status in {
                     HypothesisStatus.HYPOTHESIZED,
                     HypothesisStatus.PREDICTED,
@@ -414,7 +456,7 @@ class ResidentGenerativeCognition:
         if len(self.hypotheses) >= 128:
             return None
         digest = hashlib.sha256(
-            f"{self.organism_id}|{target_id}|{episode_id}".encode("utf-8")
+            f"{self.organism_id}|{target_id}|{episode_id}|{transition.model_ids}".encode("utf-8")
         ).hexdigest()[:24]
         hypothesis = GenerativeHypothesis(
             hypothesis_id=f"hypothesis.{digest}",
