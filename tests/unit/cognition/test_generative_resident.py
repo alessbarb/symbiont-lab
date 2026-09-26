@@ -295,6 +295,28 @@ def test_resident_reconciles_hypothesis_only_with_matching_factual_model_domain(
     assert hypothesis.status.value == "supported"
     assert hypothesis.factual_support_refs == ("evidence.observed",)
     assert resident.reconciliation_count == 1
+    bucket = resident.calibration.bucket(
+        model_id="model.test",
+        operation=GenerativeOperation.PREDICT,
+        depth=1,
+        uncertainty=0.5,
+    )
+    assert bucket.prediction_count == 1
+    assert bucket.later_comparable_count == 1
+    assert bucket.calibration_error == 0.5
+
+    restored = ResidentGenerativeCognition.from_checkpoint(
+        resident.checkpoint(), organism_id="organism.test"
+    )
+    assert (
+        restored.calibration.bucket(
+            model_id="model.test",
+            operation=GenerativeOperation.PREDICT,
+            depth=1,
+            uncertainty=0.5,
+        )
+        == bucket
+    )
 
 
 def test_resident_marks_matching_action_hypothesis_contradicted_by_factual_outcome() -> None:
