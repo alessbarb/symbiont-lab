@@ -71,6 +71,7 @@ class GenerativeUseTracker:
         self._hypothesis_counts: dict[str, int] = {}
         self._disagreement_sum: dict[str, float] = {}
         self._disagreement_count: dict[str, int] = {}
+        self._last_use_tick: dict[str, int] = {}
 
     def record(
         self,
@@ -82,6 +83,7 @@ class GenerativeUseTracker:
         source_refs: tuple[str, ...] = (),
         hypothesis_ref: str | None = None,
         model_disagreement: float = 0.0,
+        tick: int | None = None,
     ) -> None:
         bounded_identifier(representation_ref, name="representation_ref")
         bounded_identifier(episode_id, name="episode_id")
@@ -95,6 +97,10 @@ class GenerativeUseTracker:
         if hypothesis_ref is not None:
             bounded_identifier(hypothesis_ref, name="hypothesis_ref")
         unit_interval(model_disagreement, name="model_disagreement")
+        if tick is not None and (
+            isinstance(tick, bool) or not isinstance(tick, int) or tick < 0
+        ):
+            raise ValueError("tick must be a non-negative integer or None")
 
         if (
             representation_ref not in self._activation_counts
@@ -128,6 +134,11 @@ class GenerativeUseTracker:
             1_000_000,
             self._disagreement_count.get(representation_ref, 0) + 1,
         )
+        if tick is not None:
+            self._last_use_tick[representation_ref] = max(
+                tick,
+                self._last_use_tick.get(representation_ref, tick),
+            )
 
     def note_factual_sources(
         self,
@@ -178,6 +189,10 @@ class GenerativeUseTracker:
         """Bounded durable representation ids with generative-use history."""
         return tuple(sorted(self._activation_counts))
 
+    def last_use_tick(self, representation_ref: str) -> int | None:
+        bounded_identifier(representation_ref, name="representation_ref")
+        return self._last_use_tick.get(representation_ref)
+
     def checkpoint(self) -> dict[str, object]:
         return {
             "representations": [
@@ -189,6 +204,7 @@ class GenerativeUseTracker:
                     "hypothesis_count": self._hypothesis_counts.get(representation_ref, 0),
                     "disagreement_sum": self._disagreement_sum.get(representation_ref, 0.0),
                     "disagreement_count": self._disagreement_count.get(representation_ref, 0),
+                    "last_use_tick": self._last_use_tick.get(representation_ref),
                 }
                 for representation_ref in sorted(self._activation_counts)
             ]
@@ -212,6 +228,7 @@ class GenerativeUseTracker:
             hypothesis_count = int(item.get("hypothesis_count", 0))
             disagreement_sum = float(item.get("disagreement_sum", 0.0))
             disagreement_count = int(item.get("disagreement_count", 0))
+            last_use_tick = item.get("last_use_tick")
             episode_ids = tuple(item.get("episode_ids", ()))
             source_refs = tuple(item.get("source_refs", ()))
             if (
@@ -219,6 +236,14 @@ class GenerativeUseTracker:
                 or hypothesis_count < 0
                 or disagreement_sum < 0.0
                 or disagreement_count < 0
+                or (
+                    last_use_tick is not None
+                    and (
+                        isinstance(last_use_tick, bool)
+                        or not isinstance(last_use_tick, int)
+                        or last_use_tick < 0
+                    )
+                )
                 or len(episode_ids) > cls.MAX_EPISODES_PER_REPRESENTATION
                 or len(source_refs) > cls.MAX_SOURCES_PER_REPRESENTATION
             ):
@@ -233,6 +258,8 @@ class GenerativeUseTracker:
             tracker._hypothesis_counts[representation_ref] = hypothesis_count
             tracker._disagreement_sum[representation_ref] = disagreement_sum
             tracker._disagreement_count[representation_ref] = disagreement_count
+            if last_use_tick is not None:
+                tracker._last_use_tick[representation_ref] = last_use_tick
         return tracker
 
     def _drop(self, representation_ref: str) -> None:
@@ -242,6 +269,7 @@ class GenerativeUseTracker:
         self._hypothesis_counts.pop(representation_ref, None)
         self._disagreement_sum.pop(representation_ref, None)
         self._disagreement_count.pop(representation_ref, None)
+        self._last_use_tick.pop(representation_ref, None)
 
 
 class GenerativeConsolidator:
@@ -254,6 +282,7 @@ class GenerativeConsolidator:
         minimum_cross_episode_reuse: int = 1,
         minimum_source_diversity: int = 2,
         minimum_demand: float = 0.5,
+        retention_decay_ticks: int = 32,
     ) -> None:
         self.tracker = tracker or GenerativeUseTracker()
         if (
@@ -269,9 +298,16 @@ class GenerativeConsolidator:
         ):
             raise ValueError("minimum_source_diversity must be a non-negative integer")
         unit_interval(minimum_demand, name="minimum_demand")
+        if (
+            isinstance(retention_decay_ticks, bool)
+            or not isinstance(retention_decay_ticks, int)
+            or retention_decay_ticks <= 0
+        ):
+            raise ValueError("retention_decay_ticks must be a positive integer")
         self.minimum_cross_episode_reuse = minimum_cross_episode_reuse
         self.minimum_source_diversity = minimum_source_diversity
         self.minimum_demand = minimum_demand
+        self.retention_decay_ticks = retention_decay_ticks
 
     def signal(
         self, *, representation_ref: str, generative_demand: float
@@ -279,6 +315,11 @@ class GenerativeConsolidator:
         return self.tracker.signal(
             representation_ref=representation_ref, generative_demand=generative_demand
         )
+
+    def demand_for_age(self, age_ticks: int) -> float:
+        if isinstance(age_ticks, bool) or not isinstance(age_ticks, int) or age_ticks < 0:
+            raise ValueError("age_ticks must be a non-negative integer")
+        return 1.0 / (1.0 + (age_ticks / self.retention_decay_ticks))
 
     def is_mature(self, signal: GenerativeConsolidationSignal) -> bool:
         return (
