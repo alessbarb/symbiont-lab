@@ -1035,7 +1035,7 @@ at multiple horizons.
 IMPLEMENTED — bounded substrate only
 ```
 
-The engine enforces workspace depth, state, transition and model-query bounds, deterministic proposal selection, and monotonic uncertainty propagation. Focused unit coverage now includes multi-step composition, budget exhaustion, model unavailability and deterministic replay. Runtime wiring and GC-E1 scientific evidence remain open.
+The engine enforces workspace depth, state, transition and model-query bounds, deterministic proposal selection, and monotonic uncertainty propagation. Focused unit coverage now includes multi-step composition, budget exhaustion, model unavailability and deterministic replay. The resident and Runtime v2 orchestration paths are wired and retain the bounded result; GC-E1 scientific evidence remains open.
 
 ---
 
