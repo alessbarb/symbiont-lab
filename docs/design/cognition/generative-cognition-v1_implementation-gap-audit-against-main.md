@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `4026489a` (validation snapshot: 2026-09-26)
+**Audited commit:** `199b0e60` (validation snapshot: 2026-09-26)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -25,6 +25,8 @@ GC-E5 at 10,000: 10,000 reconciliations, 10,000 contradictions,
 reproducibility: five identical SHA-256 outputs at 128 episodes
 registered run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
+integration contract block: 77 passed
+default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
 ```
 
 The bounded-history fix behind this evidence is intentionally non-destructive:
@@ -35,7 +37,8 @@ contradiction counts remain durable.
 The evidence closes a long-horizon release-gate and determinism failure found
 during this audit. It does **not** close the utility battery GC-E1/E2/E3/E4,
 GC-E6/E7/E8/GC-E11/GC-E12, nor does it establish a cognitive advantage over a
-matched no-GC control.
+matched no-GC control. The default-suite collection errors remain a separate
+repository health issue and are not counted as Generative Cognition evidence.
 
 Generative Cognition v1 is now:
 
