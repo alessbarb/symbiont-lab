@@ -182,6 +182,11 @@ from .episodic_memory_utility import (
     evaluate_episodic_predictive_utility,
     run_episodic_memory_utility_study,
 )
+from .generative_counterfactual_utility import (
+    GenerativeCounterfactualUtilitySeedResult,
+    GenerativeCounterfactualUtilityStudy,
+    run_generative_counterfactual_utility_study,
+)
 
 __all__ += [
     "EpisodicUtilityReport",
@@ -189,4 +194,7 @@ __all__ += [
     "EpisodicUtilityStudy",
     "evaluate_episodic_predictive_utility",
     "run_episodic_memory_utility_study",
+    "GenerativeCounterfactualUtilitySeedResult",
+    "GenerativeCounterfactualUtilityStudy",
+    "run_generative_counterfactual_utility_study",
 ]
