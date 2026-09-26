@@ -20,9 +20,6 @@ stagnant target selected after anti-rumination suppression, allowing another
 productive target to be selected.
 """
 
-[design]
-episodes = 16
-
 [output]
 save_trace = false
 save_summary = true
