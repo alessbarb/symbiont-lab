@@ -1,0 +1,28 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-release-gates"
+title = "Generative Cognition v1 Release Gates"
+protocol = "learning.generative-cognition-release-gates"
+protocol_version = 1
+hypothesis = """
+Generative Cognition can produce and reconcile non-factual hypotheses without
+creating factual contamination; endogenous agenda control can stop resolved or
+stagnant targets; and mature source-diverse generative consolidation cannot
+override generic anti-rumination to monopolise cognition.
+"""
+success_criteria = """
+GC-E5: factual_contamination_count == 0 and deliberately false hypotheses are
+contradicted by independent factual outcomes. GC-E10: productive targets can be
+selected/resolved while stagnant irreducible targets are suppressed without
+external topic selection. GC-E13: a mature consolidation signal does not keep a
+stagnant target selected after anti-rumination suppression, allowing another
+productive target to be selected.
+"""
+
+[design]
+episodes = 16
+
+[output]
+save_trace = false
+save_summary = true
