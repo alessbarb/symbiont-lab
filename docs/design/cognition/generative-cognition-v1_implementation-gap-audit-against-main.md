@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `199b0e60` (validation snapshot: 2026-09-26)
+**Audited commit:** `db9dcb07` (validation snapshot: 2026-09-26)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -17,7 +17,7 @@ Since the original audit, the following implementation and validation work is
 now evidenced on `main`:
 
 ```text
-focused GC contract suite: 22 passed, 4 deselected
+focused GC contract suite: 25 passed, 4 deselected
 release-gate experiment: passed
 GC-E5 scale: 16, 64, 256, 1024 and 10,000 episodes passed
 GC-E5 at 10,000: 10,000 reconciliations, 10,000 contradictions,
@@ -145,7 +145,7 @@ built by composing several mature existing components.
 | GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
 | GC-5 | Counterfactual cognition | **PARTIAL — generic engine exists; runtime path currently strongest for prospective competences** |
 | GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
-| GC-7 | Recombination | **PARTIAL — engine exists; runtime multi-episode scheduling and evidence pending** |
+| GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge now materializes compatible multi-episode fragments; autonomous scheduling and utility evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired — separate factual evidence domains and calibration** |
 | GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
 | GC-10 | Generative consolidation | **IMPLEMENTED — bounded use tracking, independent factual source diversity, durable checkpoint state, recency decay and non-factual structural-retention protection; quantitative benefit studies pending** |
@@ -1465,6 +1465,18 @@ model compatibility
 episodic overlap
 ```
 
+The resident now exposes an explicit bounded bridge:
+
+```text
+ResidentGenerativeCognition.materialize_recombination(...)
+```
+
+It creates an `OFFLINE` `IMAGINED` state, retains both source episode/state
+identities, records only generative use, and rejects fragments without a
+shared organism-owned compatibility key. It does not create an observation,
+factual source reference, or action authority. This is an explicit runtime
+path, not yet endogenous multi-episode agenda scheduling.
+
 ---
 
 ## Avoid
@@ -1513,7 +1525,10 @@ never A+D
 ## Status
 
 ```text
-MISSING
+IMPLEMENTED/PARTIAL
+
+bounded resident materialization and provenance guard are implemented;
+autonomous source selection and GC-E4 utility evidence remain open
 ```
 
 ---
