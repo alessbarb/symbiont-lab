@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from .types import bounded_identifier, unit_interval
@@ -58,6 +59,25 @@ class EpistemicValueEstimator:
             expected_hypothesis_discrimination=expected_hypothesis_discrimination,
             model_disagreement=model_disagreement,
         )
+
+    @staticmethod
+    def pairwise_discrimination(predictions: Iterable[tuple[str, ...]]) -> float:
+        """Estimate how often two internal forecasts imply different outcomes.
+
+        This is a comparison signal over organism-owned hypotheses only.  It
+        does not inspect reality, score actions, or select an observation.
+        With fewer than two forecasts there is no disagreement to resolve.
+        """
+        normalized = tuple(tuple(item) for item in predictions)
+        if len(normalized) < 2:
+            return 0.0
+        pairs = len(normalized) * (len(normalized) - 1) // 2
+        differing = sum(
+            left != right
+            for index, left in enumerate(normalized)
+            for right in normalized[index + 1 :]
+        )
+        return differing / pairs
 
 
 __all__ = ["EpistemicValue", "EpistemicValueEstimator"]

@@ -805,11 +805,25 @@ class ResidentGenerativeCognition:
             return None
         resolvability = target.estimated_resolvability or 0.0
         expected_uncertainty = target.uncertainty * (1.0 - resolvability)
+        active_outcomes = tuple(
+            self._hypothesis_outcomes.get(hypothesis_id, ())
+            for hypothesis_id, hypothesis in self.hypotheses.items()
+            if self._hypothesis_target.get(hypothesis_id) == target_id
+            and hypothesis.status in {HypothesisStatus.HYPOTHESIZED, HypothesisStatus.PREDICTED}
+        )
+        discrimination = EpistemicValueEstimator.pairwise_discrimination(active_outcomes)
+        model_ids = {
+            model_id
+            for hypothesis_id, hypothesis in self.hypotheses.items()
+            if self._hypothesis_target.get(hypothesis_id) == target_id
+            and hypothesis.status in {HypothesisStatus.HYPOTHESIZED, HypothesisStatus.PREDICTED}
+            for model_id in hypothesis.source_model_ids
+        }
         return EpistemicValueEstimator.estimate(
             candidate_ref=candidate_id,
             current_uncertainty=target.uncertainty,
             expected_uncertainty=expected_uncertainty,
-            expected_hypothesis_discrimination=0.0,
+            expected_hypothesis_discrimination=discrimination,
             model_disagreement=(
                 1.0
                 if target.source
@@ -817,6 +831,7 @@ class ResidentGenerativeCognition:
                     AgendaSource.MODEL_DISAGREEMENT,
                     AgendaSource.RECURRING_CONFLICT,
                 }
+                or len(model_ids) > 1
                 else 0.0
             ),
         )
