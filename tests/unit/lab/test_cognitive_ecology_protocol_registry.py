@@ -18,6 +18,7 @@ def test_cognitive_ecology_protocols_are_registered():
         "learning.canonical-sensorimotor-adaptation": "run_sensorimotor_adaptation_study",
         "learning.generative-cognition-counterfactual-utility": "run_generative_counterfactual_utility_study",
         "learning.generative-cognition-recombination-construction": "run_generative_recombination_construction_study",
+        "learning.generative-cognition-predictive-utility": "run_generative_predictive_utility_study",
     }
     for protocol, function_name in expected.items():
         assert get_protocol(protocol).__name__ == function_name
@@ -33,6 +34,7 @@ def test_cognitive_ecology_preregistrations_bind_expected_protocols():
         "embodied-behavioral-ablation": "learning.embodied-behavioral-ablation",
         "canonical-sensorimotor-adaptation": "learning.canonical-sensorimotor-adaptation",
         "generative-cognition-recombination-construction": "learning.generative-cognition-recombination-construction",
+        "generative-cognition-predictive-utility": "learning.generative-cognition-predictive-utility",
     }
     for directory, protocol in cases.items():
         spec = load_experiment_file(root / directory / "experiment.toml")
