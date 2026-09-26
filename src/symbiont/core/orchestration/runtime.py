@@ -30,6 +30,12 @@ from ...cognition.birth import load_base_graph
 from ...cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
 from ...cognition.graph import CognitiveGraph
 from ...cognition.learning import ShadowPrediction
+from ...cognition.generative import (
+    CompetenceEffectGenerativeAdapter,
+    GenerativeMode,
+    GenerativeResidentSnapshot,
+    ResidentGenerativeCognition,
+)
 from ...cognition.limits import KernelLimits
 from ...genetics.expression import ExpressionRegulator, GeneExpressionState
 from ...genetics.genome import Genome
@@ -165,6 +171,7 @@ class RuntimeTickResult:
     sampling_plan: SamplingPlan | None = None
     perceptual_allocations: tuple[AttentionAllocation, ...] = ()
     cognition: CognitiveBridgeResult | None = None
+    generative: GenerativeResidentSnapshot | None = None
     signal_knowledge: tuple[dict[str, Any], ...] = ()
     knowledge_events: tuple[dict[str, Any], ...] = ()
     signal_references: dict[str, str] | None = None
@@ -732,6 +739,18 @@ class OrganismRuntime:
         self._physiology_domain = PhysiologyDomain()
         self._perception_domain = PerceptionDomain()
         self._cognition_domain = CognitionDomain()
+        self._generative_cognition = ResidentGenerativeCognition(
+            organism_id=self._organism_id
+        )
+        self._generative_cognition.register_model(
+            CompetenceEffectGenerativeAdapter(
+                model_id="competence-effect",
+                predictor=lambda competence_id, context_id: self._action_domain.effect_model.predict(
+                    competence_id=competence_id,
+                    context_id=context_id,
+                ),
+            )
+        )
         self._memory_domain = MemoryDomain()
         self._epistemic_domain = EpistemicDomain()
         self._embodiment_domain = EmbodimentDomain()
@@ -1245,6 +1264,11 @@ class OrganismRuntime:
     @property
     def body_schema(self) -> BodySchemaEngine:
         return self._body_schema
+
+    @property
+    def generative_cognition(self) -> ResidentGenerativeCognition:
+        """Resident bounded generative-cognition state."""
+        return self._generative_cognition
 
     @property
     def sensorimotor_effect_model(self) -> CompetenceEffectModel:
@@ -1947,6 +1971,12 @@ class OrganismRuntime:
                 sensory_system=self._sensory_system,
                 self_model=self._self_model,
                 charge_metabolism=self._charge_metabolism,
+                generative_cognition=self._generative_cognition,
+                generative_mode=(
+                    GenerativeMode.OFFLINE
+                    if self._resting_requested
+                    else GenerativeMode.ONLINE
+                ),
             ),
             context=context,
             perception=perception,
@@ -2141,6 +2171,7 @@ class OrganismRuntime:
             sampling_plan=perception.sampling_plan,
             perceptual_allocations=perception.perceptual_allocations,
             cognition=cognition_result,
+            generative=cognition_step.generative,
             signal_knowledge=perception.knowledge_view,
             knowledge_events=self._signal_knowledge.drain_events(),
             signal_references=perception.signal_references,
