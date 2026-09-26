@@ -15,7 +15,9 @@ from .types import GeneratedFeature, GenerativeOperation, GenerativeState, bound
 
 
 def _supports(operation: GenerativeOperation, state: GenerativeState) -> bool:
-    return operation is GenerativeOperation.PREDICT and isinstance(state, GenerativeState)
+    return operation in {GenerativeOperation.PREDICT, GenerativeOperation.BRANCH} and isinstance(
+        state, GenerativeState
+    )
 
 
 @dataclass(frozen=True, slots=True)
