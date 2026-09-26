@@ -187,6 +187,11 @@ from .generative_counterfactual_utility import (
     GenerativeCounterfactualUtilityStudy,
     run_generative_counterfactual_utility_study,
 )
+from .generative_recombination_construction import (
+    GenerativeRecombinationConstructionSeedResult,
+    GenerativeRecombinationConstructionStudy,
+    run_generative_recombination_construction_study,
+)
 
 __all__ += [
     "EpisodicUtilityReport",
@@ -197,4 +202,7 @@ __all__ += [
     "GenerativeCounterfactualUtilitySeedResult",
     "GenerativeCounterfactualUtilityStudy",
     "run_generative_counterfactual_utility_study",
+    "GenerativeRecombinationConstructionSeedResult",
+    "GenerativeRecombinationConstructionStudy",
+    "run_generative_recombination_construction_study",
 ]
