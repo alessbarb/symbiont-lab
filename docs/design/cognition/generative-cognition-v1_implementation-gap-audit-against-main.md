@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `2e720fa385b78e29e61717691d371f5a57346f14`
+**Audited commit:** `4026489a` (validation snapshot: 2026-09-26)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -10,6 +10,32 @@
 ---
 
 # 1. Executive conclusion
+
+## Validation update — 2026-09-26
+
+Since the original audit, the following implementation and validation work is
+now evidenced on `main`:
+
+```text
+focused GC contract suite: 22 passed, 4 deselected
+release-gate experiment: passed
+GC-E5 scale: 16, 64, 256, 1024 and 10,000 episodes passed
+GC-E5 at 10,000: 10,000 reconciliations, 10,000 contradictions,
+                 0 factual contamination
+reproducibility: five identical SHA-256 outputs at 128 episodes
+registered run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
+10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
+```
+
+The bounded-history fix behind this evidence is intentionally non-destructive:
+terminal agenda targets and terminal hypotheses may be evicted to preserve
+capacity, while unresolved demand, factual provenance and aggregate
+contradiction counts remain durable.
+
+The evidence closes a long-horizon release-gate and determinism failure found
+during this audit. It does **not** close the utility battery GC-E1/E2/E3/E4,
+GC-E6/E7/E8/GC-E11/GC-E12, nor does it establish a cognitive advantage over a
+matched no-GC control.
 
 Generative Cognition v1 is now:
 
@@ -110,7 +136,7 @@ built by composing several mature existing components.
 | Phase | Capability | Current status |
 |---|---|---|
 | GC-0 | Epistemic foundation | **IMPLEMENTED + resident + checkpointed** |
-| GC-1 | Endogenous agenda | **IMPLEMENTED — resident selection, suppression and contamination guard; non-prospective sources still await compatible operators** |
+| GC-1 | Endogenous agenda | **IMPLEMENTED — resident selection, suppression, contamination guard and mode-aware routing for compatible non-prospective operators** |
 | GC-2 | Generative model adapters | **IMPLEMENTED + runtime-wired — CompetenceEffectModel and Private SLM** |
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; scientific utility pending** |
 | GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
@@ -120,7 +146,7 @@ built by composing several mature existing components.
 | GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired — separate factual evidence domains and calibration** |
 | GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
 | GC-10 | Generative consolidation | **IMPLEMENTED — bounded use tracking, independent factual source diversity, durable checkpoint state, recency decay and non-factual structural-retention protection; quantitative benefit studies pending** |
-| GC-11 | Offline cognition | **IMPLEMENTED/PARTIAL — ONLINE/OFFLINE resident execution and episodic replay; richer autonomous scheduling pending** |
+| GC-11 | Offline cognition | **IMPLEMENTED/PARTIAL — ONLINE/IDLE/OFFLINE resident execution, mode-aware endogenous routing and episodic replay; richer autonomous scheduling and no-world-mutation coverage pending** |
 | GC-12 | Observatory / Atlas | **IMPLEMENTED — bounded passive projection + Observatory inspector + Mind panel kept outside factual Atlas topology; optional spatial ephemeral overlay remains** |
 
 The implementation critical path has largely been traversed. The remaining
