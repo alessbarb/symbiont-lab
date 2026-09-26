@@ -154,7 +154,7 @@ contradiction counts remain durable.
 The evidence closes a long-horizon release-gate and determinism failure found
 during this audit and adds synthetic GC-E1 and GC-E2 mechanism results. It does
 **not** close external-world utility for GC-E1 or GC-E2, nor the remaining
-utility battery GC-E3/E4/GC-E6/E7/E8/GC-E11/GC-E12, and it does not establish a cognitive
+external utility battery GC-E3/E4/GC-E6/E7/E8/GC-E11/GC-E12, and it does not establish a cognitive
 advantage over a matched no-GC control. The default-suite collection errors
 remain a separate repository health issue and are not counted as Generative
 Cognition evidence.
@@ -3207,7 +3207,7 @@ Current closure boundary:
 technical substrate and provenance guards: implemented
 release gates and deterministic stress evidence: implemented
 runtime replay and explicit recombination bridge: implemented
-matched cognitive-utility battery: still open
+external matched cognitive-utility battery: still open
 ```
 
 The frozen spec survives confrontation with `main`.
