@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from ...cognition.generative import GenerativeMode, GenerativeResidentSnapshot, ResidentGenerativeCognition
 from ...sensory import SensorySystem
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
 from ..cognition.host_self_model import SelfModel
@@ -21,6 +22,8 @@ class CognitionServices:
     sensory_system: SensorySystem
     self_model: SelfModel
     charge_metabolism: Callable[[str, float], None]
+    generative_cognition: ResidentGenerativeCognition | None = None
+    generative_mode: GenerativeMode = GenerativeMode.ONLINE
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +31,7 @@ class CognitionStepResult:
     cognition: CognitiveBridgeResult | None
     cognitive_self_observation: dict[str, Any] | None
     retained_node_count: int
+    generative: GenerativeResidentSnapshot | None = None
 
 
 class CognitionDomain:
@@ -137,6 +141,15 @@ class CognitionDomain:
                     namespace_key=cognitive_self_namespace_key,
                 )
 
+        generative_snapshot: GenerativeResidentSnapshot | None = None
+        if services.generative_cognition is not None:
+            generative_snapshot = services.generative_cognition.step(
+                tick=context.symbiont_tick,
+                cognition=result,
+                prospective_candidate_ids=action_projection.active_competence_ids,
+                mode=services.generative_mode,
+            )
+
         predictive_gain_by_name: dict[str, float] = {}
         if bridge is not None:
             for candidate in getattr(bridge, "shadow_predictions", ()):
@@ -158,4 +171,5 @@ class CognitionDomain:
             retained_node_count=(
                 len(bridge.graph.nodes) if bridge is not None and bridge.graph is not None else 0
             ),
+            generative=generative_snapshot,
         )
