@@ -1,0 +1,26 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-counterfactual-utility"
+title = "Generative Cognition Counterfactual Utility"
+protocol = "learning.generative-cognition-counterfactual-utility"
+protocol_version = 1
+hypothesis = """
+When two opaque probes have equal pragmatic value, a Generative Cognition
+treatment will prefer the probe whose internal hypotheses disagree, because
+it has higher hypothesis-discrimination value, while a matched no-GC control
+receives the same factual ledger and action predictions without that signal.
+"""
+success_criteria = """
+Across seeds, treatment selects the discriminating probe, treatment has higher
+internal hypothesis-discrimination than the control, and factual
+contamination remains zero. This is a mechanism gate, not evidence of
+embodied intelligence.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
