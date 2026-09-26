@@ -8,6 +8,7 @@ scheduler state.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from typing import Mapping
 
@@ -20,11 +21,15 @@ from .agenda import (
     TargetStatus,
 )
 from .budget import GenerativeBudget
+from .calibration import PredictionCalibration
+from .consolidation import GenerativeConsolidator
 from .episode import new_episode
 from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
 from .epistemic_value import EpistemicValue, EpistemicValueEstimator
+from .hypothesis import GenerativeHypothesis, HypothesisStatus
 from .model import GenerativeContext, GenerativeModel
 from .registry import GenerativeModelRegistry
+from .reconciliation import GenerativeReconciler
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, restore as restore_workspace
 from .rollout import RolloutEngine, RolloutResult
 from .scheduler import GenerativeScheduler
@@ -53,6 +58,10 @@ class GenerativeResidentSnapshot:
     termination: GenerativeTermination | None
     agenda_candidate_count: int
     agenda_contamination_count: int
+    factual_contamination_count: int
+    hypothesis_count: int
+    reconciliation_count: int
+    consolidation_signal_count: int
 
 
 class ResidentGenerativeCognition:
@@ -86,6 +95,17 @@ class ResidentGenerativeCognition:
         self.last_workspace: GenerativeWorkspace | None = None
         self.last_execution: GenerativeExecutionResult | None = None
         self.last_rollout: RolloutResult | None = None
+        self.hypotheses: dict[str, GenerativeHypothesis] = {}
+        self._hypothesis_target: dict[str, str] = {}
+        self._hypothesis_outcomes: dict[str, tuple[str, ...]] = {}
+        self._hypothesis_calibration: dict[
+            str, tuple[str, GenerativeOperation, int, float]
+        ] = {}
+        self.reconciler = GenerativeReconciler()
+        self.calibration = PredictionCalibration()
+        self.consolidator = GenerativeConsolidator()
+        self.reconciliation_count = 0
+        self.factual_contamination_count = 0
 
     def register_model(self, model: GenerativeModel) -> None:
         self.registry.register(model)
@@ -102,6 +122,37 @@ class ResidentGenerativeCognition:
                 if self.last_workspace is not None
                 else None
             ),
+            "hypotheses": [
+                {
+                    "hypothesis_id": hypothesis.hypothesis_id,
+                    "source_episode_ids": list(hypothesis.source_episode_ids),
+                    "source_model_ids": list(hypothesis.source_model_ids),
+                    "uncertainty": hypothesis.uncertainty,
+                    "status": hypothesis.status.value,
+                    "factual_support_refs": list(hypothesis.factual_support_refs),
+                    "factual_conflict_refs": list(hypothesis.factual_conflict_refs),
+                    "target_id": self._hypothesis_target[hypothesis.hypothesis_id],
+                    "predicted_outcomes": list(
+                        self._hypothesis_outcomes.get(hypothesis.hypothesis_id, ())
+                    ),
+                    "calibration": (
+                        {
+                            "model_id": self._hypothesis_calibration[hypothesis.hypothesis_id][0],
+                            "operation": self._hypothesis_calibration[hypothesis.hypothesis_id][1].value,
+                            "depth": self._hypothesis_calibration[hypothesis.hypothesis_id][2],
+                            "uncertainty": self._hypothesis_calibration[hypothesis.hypothesis_id][3],
+                        }
+                        if hypothesis.hypothesis_id in self._hypothesis_calibration
+                        else None
+                    ),
+                }
+                for hypothesis in sorted(
+                    self.hypotheses.values(), key=lambda item: item.hypothesis_id
+                )
+            ],
+            "calibration": self.calibration.checkpoint(),
+            "reconciliation_count": self.reconciliation_count,
+            "factual_contamination_count": self.factual_contamination_count,
         }
 
     @classmethod
@@ -142,6 +193,54 @@ class ResidentGenerativeCognition:
                 )
                 if resident.last_workspace.episode.organism_id != organism_id:
                     raise ValueError("generative workspace belongs to another organism")
+
+            resident.calibration = PredictionCalibration.from_checkpoint(
+                payload.get("calibration", {"buckets": []})
+            )
+            raw_reconciliations = payload.get("reconciliation_count", 0)
+            raw_contamination = payload.get("factual_contamination_count", 0)
+            for name, value in (
+                ("reconciliation_count", raw_reconciliations),
+                ("factual_contamination_count", raw_contamination),
+            ):
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {name}")
+            resident.reconciliation_count = raw_reconciliations
+            resident.factual_contamination_count = raw_contamination
+
+            raw_hypotheses = payload.get("hypotheses", [])
+            if not isinstance(raw_hypotheses, list) or len(raw_hypotheses) > 128:
+                raise ValueError("invalid generative hypothesis collection")
+            for item in raw_hypotheses:
+                if not isinstance(item, dict):
+                    raise ValueError("invalid generative hypothesis")
+                hypothesis = GenerativeHypothesis(
+                    hypothesis_id=item["hypothesis_id"],
+                    source_episode_ids=tuple(item.get("source_episode_ids", ())),
+                    source_model_ids=tuple(item.get("source_model_ids", ())),
+                    uncertainty=item["uncertainty"],
+                    status=HypothesisStatus(item.get("status", HypothesisStatus.HYPOTHESIZED.value)),
+                    factual_support_refs=tuple(item.get("factual_support_refs", ())),
+                    factual_conflict_refs=tuple(item.get("factual_conflict_refs", ())),
+                )
+                resident.hypotheses[hypothesis.hypothesis_id] = hypothesis
+                target_id = item["target_id"]
+                if not isinstance(target_id, str) or not target_id:
+                    raise ValueError("hypothesis target_id must be non-empty")
+                resident._hypothesis_target[hypothesis.hypothesis_id] = target_id
+                resident._hypothesis_outcomes[hypothesis.hypothesis_id] = tuple(
+                    item.get("predicted_outcomes", ())
+                )
+                raw_calibration = item.get("calibration")
+                if raw_calibration is not None:
+                    if not isinstance(raw_calibration, dict):
+                        raise ValueError("invalid hypothesis calibration metadata")
+                    resident._hypothesis_calibration[hypothesis.hypothesis_id] = (
+                        str(raw_calibration["model_id"]),
+                        GenerativeOperation(raw_calibration["operation"]),
+                        int(raw_calibration["depth"]),
+                        float(raw_calibration["uncertainty"]),
+                    )
             return resident
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid resident generative cognition checkpoint") from exc
@@ -225,6 +324,44 @@ class ResidentGenerativeCognition:
                     self.generative_tick,
                     max(state.generative_tick for state in result.states),
                 )
+            for transition in result.transitions:
+                for model_id in transition.model_ids:
+                    self.calibration.record_prediction(
+                        model_id=model_id,
+                        operation=transition.operation,
+                        depth=max(
+                            0,
+                            next(
+                                (
+                                    state.depth
+                                    for state in result.states
+                                    if state.state_id == transition.target_state_id
+                                ),
+                                0,
+                            ),
+                        ),
+                        uncertainty=transition.uncertainty_after,
+                    )
+            hypothesis_changed = False
+            if result.transitions:
+                hypothesis = self._ensure_hypothesis(
+                    target_id=candidate.target.target_id,
+                    episode_id=workspace.episode.episode_id,
+                    transition=result.transitions[-1],
+                    final_state=result.states[-1],
+                )
+                hypothesis_changed = hypothesis is not None
+                for state in result.states:
+                    for feature in state.features:
+                        self.consolidator.tracker.record(
+                            representation_ref=feature.token,
+                            episode_id=workspace.episode.episode_id,
+                            state_id=state.state_id,
+                            model_ids=state.source_model_ids,
+                            hypothesis_ref=(
+                                hypothesis.hypothesis_id if hypothesis is not None else None
+                            ),
+                        )
             return AgendaProgress(
                 new_branch=False,
                 uncertainty_changed=any(
@@ -232,7 +369,7 @@ class ResidentGenerativeCognition:
                     for transition in result.transitions
                 ),
                 disagreement_changed=False,
-                hypothesis_changed=False,
+                hypothesis_changed=hypothesis_changed,
                 discriminating_consequence=bool(result.transitions),
                 reconciliation=False,
             )
@@ -251,6 +388,124 @@ class ResidentGenerativeCognition:
             episode.termination_reason = self.last_rollout.termination
 
         return self.snapshot(mode=mode)
+
+    def _ensure_hypothesis(
+        self,
+        *,
+        target_id: str,
+        episode_id: str,
+        transition,
+        final_state: GenerativeState,
+    ) -> GenerativeHypothesis | None:
+        active = next(
+            (
+                hypothesis
+                for hypothesis_id, hypothesis in self.hypotheses.items()
+                if self._hypothesis_target.get(hypothesis_id) == target_id
+                and hypothesis.status in {
+                    HypothesisStatus.HYPOTHESIZED,
+                    HypothesisStatus.PREDICTED,
+                }
+            ),
+            None,
+        )
+        if active is not None:
+            return active
+        if len(self.hypotheses) >= 128:
+            return None
+        digest = hashlib.sha256(
+            f"{self.organism_id}|{target_id}|{episode_id}".encode("utf-8")
+        ).hexdigest()[:24]
+        hypothesis = GenerativeHypothesis(
+            hypothesis_id=f"hypothesis.{digest}",
+            source_episode_ids=(episode_id,),
+            source_model_ids=transition.model_ids,
+            uncertainty=final_state.uncertainty,
+        )
+        hypothesis.mark_predicted()
+        self.hypotheses[hypothesis.hypothesis_id] = hypothesis
+        self._hypothesis_target[hypothesis.hypothesis_id] = target_id
+        self._hypothesis_outcomes[hypothesis.hypothesis_id] = transition.predicted_outcomes
+        if transition.model_ids:
+            self._hypothesis_calibration[hypothesis.hypothesis_id] = (
+                transition.model_ids[0],
+                transition.operation,
+                final_state.depth,
+                transition.uncertainty_after,
+            )
+        return hypothesis
+
+    def note_factual_outcome(
+        self,
+        *,
+        action_id: str,
+        outcome_tokens: tuple[str, ...],
+        evidence_refs: tuple[str, ...],
+    ) -> int:
+        """Reconcile only hypotheses for the action that actually occurred.
+
+        All values supplied here must originate from the canonical factual
+        experience path. Generated output is never accepted as evidence.
+        """
+        if not isinstance(action_id, str) or not action_id:
+            raise ValueError("action_id must be non-empty")
+        if not isinstance(outcome_tokens, tuple) or not isinstance(evidence_refs, tuple):
+            raise ValueError("factual outcome inputs must be tuples")
+        if not evidence_refs:
+            raise ValueError("factual reconciliation requires evidence refs")
+        target_id = f"gc.prospective.{action_id}"
+        reconciled = 0
+        for hypothesis_id, hypothesis in tuple(self.hypotheses.items()):
+            if (
+                self._hypothesis_target.get(hypothesis_id) != target_id
+                or hypothesis.status not in {
+                    HypothesisStatus.HYPOTHESIZED,
+                    HypothesisStatus.PREDICTED,
+                }
+            ):
+                continue
+            predicted = set(self._hypothesis_outcomes.get(hypothesis_id, ()))
+            supported = bool(predicted.intersection(outcome_tokens))
+            self.reconciler.reconcile(
+                hypothesis,
+                evidence_ref=evidence_refs[0],
+                supported=supported,
+            )
+            calibration = self._hypothesis_calibration.get(hypothesis_id)
+            if calibration is not None:
+                model_id, operation, depth, uncertainty = calibration
+                self.calibration.record_comparison(
+                    model_id=model_id,
+                    operation=operation,
+                    depth=depth,
+                    uncertainty=uncertainty,
+                    observed_error=0.0 if supported else 1.0,
+                )
+            self.agenda.resolve(target_id)
+            reconciled += 1
+        self.reconciliation_count += reconciled
+        return reconciled
+
+    def consolidation_signals(self) -> dict[str, object]:
+        """Return bounded non-factual cognitive-use signals for observation/planning."""
+        workspace = self.last_workspace
+        if workspace is None:
+            return {}
+        refs = sorted(
+            {
+                feature.token
+                for state in workspace.states
+                for feature in state.features
+                if feature.source_model_id is not None
+            }
+        )[:64]
+        return {
+            ref: self.consolidator.signal(
+                representation_ref=ref,
+                generative_demand=0.5,
+            )
+            for ref in refs
+        }
 
     def epistemic_value_for(self, candidate_id: str) -> EpistemicValue | None:
         """Return a comparison-only epistemic signal for one opaque competence.
@@ -304,6 +559,10 @@ class ResidentGenerativeCognition:
             termination=(episode.termination_reason if episode is not None else None),
             agenda_candidate_count=eligible,
             agenda_contamination_count=self.agenda.agenda_contamination_count,
+            factual_contamination_count=self.factual_contamination_count,
+            hypothesis_count=len(self.hypotheses),
+            reconciliation_count=self.reconciliation_count,
+            consolidation_signal_count=len(self.consolidation_signals()),
         )
 
     def _ingest_prediction_errors(self, cognition: object | None, *, tick: int) -> None:
