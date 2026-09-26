@@ -1227,10 +1227,11 @@ export class BodyViewer {
       if (!data || !data.type) return;
 
       switch (data.type) {
-        case 'body_pose': this.handleBodyPoseEvent(data);  break;
-        case 'body':      this.handleBodyEvent(data);      break;
-        case 'cognition': this.handleCognitionEvent(data); break;
-        case 'vitals':    this.handleVitalsEvent(data);    break;
+        case 'body_pose':     this.handleBodyPoseEvent(data);      break;
+        case 'body':          this.handleBodyEvent(data);          break;
+        case 'cognition':     this.handleCognitionEvent(data);     break;
+        case 'vitals':        this.handleVitalsEvent(data);        break;
+        case 'mind_snapshot': this.handleMindSnapshotEvent(data); break;
       }
     });
 
@@ -1457,6 +1458,12 @@ export class BodyViewer {
       }
       this.updateBodySummary();
     }
+  }
+
+  handleMindSnapshotEvent(data) {
+    const snapshot = data?.snapshot;
+    if (!snapshot || typeof snapshot !== 'object') return;
+    this.workspace?.updateSelfModelSnapshot(snapshot);
   }
 
   handleCognitionEvent(data) {
