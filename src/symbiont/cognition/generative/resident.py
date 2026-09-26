@@ -31,6 +31,7 @@ from .hypothesis import GenerativeHypothesis, HypothesisStatus
 from .model import GenerativeContext, GenerativeModel
 from .registry import GenerativeModelRegistry
 from .reconciliation import GenerativeReconciler
+from .replay import ReplayEngine, ReplayFragment
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, restore as restore_workspace
 from .rollout import RolloutEngine, RolloutResult
 from .scheduler import GenerativeScheduler
@@ -600,7 +601,14 @@ class ResidentGenerativeCognition:
                 feature.token
                 for state in workspace.states
                 for feature in state.features
-                if feature.source_model_id is not None
+                if (
+                    feature.source_model_id is not None
+                    or state.origin in {
+                        EpistemicOrigin.REPLAYED,
+                        EpistemicOrigin.IMAGINED,
+                        EpistemicOrigin.COUNTERFACTUAL,
+                    }
+                )
             }
         )[:64]
         return {
@@ -610,6 +618,75 @@ class ResidentGenerativeCognition:
             )
             for ref in refs
         }
+
+    def materialize_replay(
+        self,
+        *,
+        tick: int,
+        source_episode_id: str,
+        context_tokens: tuple[str, ...],
+        action_tokens: tuple[str, ...] = (),
+        outcome_tokens: tuple[str, ...] = (),
+        uncertainty: float = 0.25,
+        coherence: float = 1.0,
+    ) -> GenerativeResidentSnapshot:
+        """Materialize factual episodic provenance as non-factual replay.
+
+        The replay is a new internal episode, not a new ExperienceRecord.  Its
+        source episode id is retained so repeated replay cannot masquerade as
+        independent factual evidence.
+        """
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+            raise ValueError("tick must be a non-negative integer")
+        if not isinstance(context_tokens, tuple):
+            raise ValueError("context_tokens must be a tuple")
+        episode_id = f"generative.replay.{tick}.{self.generative_tick}"
+        root_state_id = f"{episode_id}.root"
+        episode = new_episode(
+            episode_id=episode_id,
+            organism_id=self.organism_id,
+            root_state_id=root_state_id,
+            mode=GenerativeMode.OFFLINE,
+            symbiont_tick=tick,
+            generative_tick=self.generative_tick,
+        )
+        workspace = GenerativeWorkspace(episode=episode, budget=self.budget)
+        features = tuple(
+            GeneratedFeature(
+                token=token,
+                value_class=None,
+                confidence=1.0,
+                source_model_id=None,
+            )
+            for token in tuple(dict.fromkeys((*context_tokens, *action_tokens, *outcome_tokens)))[:32]
+            if isinstance(token, str) and token
+        )
+        state = ReplayEngine(workspace=workspace).materialize(
+            ReplayFragment(
+                source_episode_id=source_episode_id,
+                source_state_id=f"episode.{source_episode_id}",
+                features=features,
+                uncertainty=uncertainty,
+                coherence=coherence,
+            )
+        )
+        episode.termination_reason = GenerativeTermination.COMPLETED
+        self.last_workspace = workspace
+        self.last_rollout = RolloutResult(
+            states=(state,),
+            transitions=(),
+            termination=GenerativeTermination.COMPLETED,
+        )
+        self.last_execution = None
+        for feature in state.features:
+            self.consolidator.tracker.record(
+                representation_ref=feature.token,
+                episode_id=episode_id,
+                state_id=state.state_id,
+                source_refs=(source_episode_id,),
+            )
+        self.generative_tick += 1
+        return self.snapshot(mode=GenerativeMode.OFFLINE)
 
     def epistemic_value_for(self, candidate_id: str) -> EpistemicValue | None:
         """Return a comparison-only epistemic signal for one opaque competence.
