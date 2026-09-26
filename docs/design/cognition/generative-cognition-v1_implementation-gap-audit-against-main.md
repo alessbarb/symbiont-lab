@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `446b29f5`
+**Audited commit:** `efd7e83061433de6c0cd0f6b4ae29457d2d6e364`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -11,12 +11,22 @@
 
 # 1. Executive conclusion
 
-Generative Cognition v1 is:
+Generative Cognition v1 is now:
 
 ```text
 architecturally specified
++
+resident in the canonical cognition tick
++
+connected to factual reconciliation,
+epistemic agency, persistence,
+offline episodic replay,
+structural-retention demand
+and passive Observatory projection
+
 but
-not yet implemented as a domain
+
+not yet scientifically closed
 ```
 
 The repository already contains strong prerequisites:
@@ -49,29 +59,29 @@ Cognitive Atlas v2
 passive observer projection
 ```
 
-What remains incomplete after the foundation, agenda, registry and bounded
-generative increments:
+The major remaining gaps are now primarily validation and a few secondary
+integration paths:
 
 ```text
-multi-step rollout
+scientific utility of multi-step rollout
 
-generic branching
+richer branch merge/pruning
 
-generic replay-as-generative-state
+runtime use of generic counterfactual operations beyond prospective competences
 
-generic counterfactual state manipulation
+runtime recombination from multiple episodic sources
 
-recombination
+full endogenous processing of prediction-error/model-disagreement agenda sources
 
-GenerativeHypothesis lifecycle
+long-horizon OFFLINE scheduling policy
 
-generic reconciliation
+scientific validation of generative consolidation
+and agenda × consolidation feedback
 
-EpistemicValue
+full Mind/Atlas spatial overlay of ephemeral generative trajectories
+(the bounded inspector/projection is already implemented)
 
-GenerativeConsolidationSignal
-
-generative Atlas projection
+GC-E1..GC-E13 reproducible experimental closure
 ```
 
 Therefore:
@@ -90,45 +100,38 @@ built by composing several mature existing components.
 
 | Phase | Capability | Current status |
 |---|---|---|
-| GC-0 | Epistemic foundation | **IMPLEMENTED — bounded foundation** |
-| GC-1 | Endogenous agenda | **IMPLEMENTED — bounded agenda and scheduler substrate** |
-| GC-2 | Generative model adapters | **IMPLEMENTED — thin adapters; runtime integration pending** |
-| GC-3 | Multi-step rollout | **IMPLEMENTED — bounded rollout substrate; integration and scientific utility pending** |
-| GC-4 | Branching | **PARTIAL — bounded branching with equivalence pruning; merge and richer pruning pending** |
-| GC-5 | Counterfactual cognition | **PARTIAL — bounded generic rollout substrate; concrete adapters and utility pending** |
-| GC-6 | Replay | **IMPLEMENTED — provenance-preserving materialization; concrete memory wiring pending** |
-| GC-7 | Recombination | **PARTIAL — compatibility-gated fragment composition; novelty/equivalence evidence pending** |
-| GC-8 | Hypothesis + reconciliation | **PARTIAL — lifecycle/reconciliation/calibration substrate; runtime evidence pending** |
-| GC-9 | Epistemic agency | **PARTIAL — comparison signal substrate; agency integration pending** |
-| GC-10 | Generative consolidation | **PARTIAL — contention projection boundary implemented; runtime planner integration pending** |
-| GC-11 | Offline cognition | **PARTIAL — synchronous bounded coordinator; runtime integration and offline evidence pending** |
-| GC-12 | Observatory / Atlas | **PARTIAL — observer substrate excellent** |
+| GC-0 | Epistemic foundation | **IMPLEMENTED + resident + checkpointed** |
+| GC-1 | Endogenous agenda | **IMPLEMENTED — resident selection, suppression and contamination guard; non-prospective sources still await compatible operators** |
+| GC-2 | Generative model adapters | **IMPLEMENTED + runtime-wired — CompetenceEffectModel and Private SLM** |
+| GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; scientific utility pending** |
+| GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
+| GC-5 | Counterfactual cognition | **PARTIAL — generic engine exists; runtime path currently strongest for prospective competences** |
+| GC-6 | Replay | **IMPLEMENTED + OFFLINE runtime wiring — factual episodic provenance preserved** |
+| GC-7 | Recombination | **PARTIAL — engine exists; runtime multi-episode scheduling and evidence pending** |
+| GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired — separate factual evidence domains and calibration** |
+| GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
+| GC-10 | Generative consolidation | **IMPLEMENTED/PARTIAL — bounded use tracking, factual source diversity and retention protection; scientific validation pending** |
+| GC-11 | Offline cognition | **IMPLEMENTED/PARTIAL — ONLINE/OFFLINE resident execution and episodic replay; richer autonomous scheduling pending** |
+| GC-12 | Observatory / Atlas | **IMPLEMENTED/PARTIAL — bounded passive projection + inspector; spatial Atlas overlay pending** |
 
-The critical path is therefore approximately:
+The implementation critical path has largely been traversed. The remaining
+critical path is:
 
 ```text
-GC-0
- ↓
-GC-1 + GC-2
- ↓
-GC-3
- ↓
-GC-4 / GC-5 / GC-6
- ↓
-GC-7
- ↓
-GC-8
- ↓
-GC-9
- ↓
-GC-10
- ↓
-GC-11
- ↓
-GC-12
+runtime hardening
+      ↓
+GC-E5 factual contamination
++
+GC-E10 endogenous agenda
++
+GC-E13 agenda × consolidation
+      ↓
+GC-E1/E2/E3/E4/E6/E7/E8/E11/E12
+      ↓
+richer offline/recombination integration
+      ↓
+GC-E14 cross-domain generality
 ```
-
-GC-1 and GC-2 can be developed largely independently after GC-0.
 
 ---
 
