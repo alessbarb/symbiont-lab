@@ -436,6 +436,114 @@ def _cognition_state(
     return state
 
 
+def _generative_cognition_state(generative: Any) -> dict[str, Any] | None:
+    """Project bounded ephemeral cognition without reclassifying it as factual."""
+    if generative is None:
+        return None
+
+    def count(name: str, maximum: int = 1_000_000) -> int:
+        try:
+            value = int(getattr(generative, name, 0))
+        except (TypeError, ValueError):
+            value = 0
+        return min(max(0, value), maximum)
+
+    def unit(value: Any, fallback: float = 0.0) -> float:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            numeric = fallback
+        if not math.isfinite(numeric):
+            numeric = fallback
+        return round(max(0.0, min(1.0, numeric)), 6)
+
+    mode = _enum_value(getattr(generative, "mode", "online")).lower()
+    if mode not in {"online", "idle", "offline"}:
+        mode = "online"
+    termination = getattr(generative, "termination", None)
+    termination_value = None if termination is None else _enum_value(termination).lower()
+
+    states = []
+    for raw in tuple(getattr(generative, "states", ()))[:64]:
+        states.append(
+            {
+                "state_id": _text(getattr(raw, "state_id", ""), 128),
+                "parent_state_id": (
+                    _text(getattr(raw, "parent_state_id", ""), 128)
+                    if getattr(raw, "parent_state_id", None) is not None
+                    else None
+                ),
+                "origin": _text(getattr(raw, "origin", "inferred"), 32),
+                "depth": max(0, int(getattr(raw, "depth", 0))),
+                "model_ids": [
+                    _text(value, 128)
+                    for value in tuple(getattr(raw, "model_ids", ()))[:8]
+                ],
+                "uncertainty": unit(getattr(raw, "uncertainty", 0.0)),
+                "coherence": unit(getattr(raw, "coherence", 0.0)),
+            }
+        )
+
+    transitions = []
+    for raw in tuple(getattr(generative, "transitions", ()))[:64]:
+        transitions.append(
+            {
+                "transition_id": _text(getattr(raw, "transition_id", ""), 128),
+                "source_state_id": _text(getattr(raw, "source_state_id", ""), 128),
+                "target_state_id": _text(getattr(raw, "target_state_id", ""), 128),
+                "operation": _text(getattr(raw, "operation", "predict"), 32),
+                "model_ids": [
+                    _text(value, 128)
+                    for value in tuple(getattr(raw, "model_ids", ()))[:8]
+                ],
+            }
+        )
+
+    hypotheses = []
+    for raw in tuple(getattr(generative, "hypotheses", ()))[:128]:
+        hypotheses.append(
+            {
+                "hypothesis_id": _text(getattr(raw, "hypothesis_id", ""), 128),
+                "target_id": _text(getattr(raw, "target_id", ""), 128),
+                "status": _text(getattr(raw, "status", "hypothesized"), 32),
+                "model_ids": [
+                    _text(value, 128)
+                    for value in tuple(getattr(raw, "model_ids", ()))[:8]
+                ],
+                "uncertainty": unit(getattr(raw, "uncertainty", 0.0)),
+            }
+        )
+
+    return {
+        "mode": mode,
+        "target_id": (
+            _text(getattr(generative, "target_id", ""), 128)
+            if getattr(generative, "target_id", None) is not None
+            else None
+        ),
+        "episode_id": (
+            _text(getattr(generative, "episode_id", ""), 128)
+            if getattr(generative, "episode_id", None) is not None
+            else None
+        ),
+        "state_count": count("state_count", 64),
+        "transition_count": count("transition_count", 64),
+        "branch_count": count("branch_count", 64),
+        "max_depth": count("max_depth", 64),
+        "model_queries": count("model_queries", 1024),
+        "termination": termination_value,
+        "agenda_candidate_count": count("agenda_candidate_count", 256),
+        "agenda_contamination_count": count("agenda_contamination_count"),
+        "factual_contamination_count": count("factual_contamination_count"),
+        "hypothesis_count": count("hypothesis_count", 128),
+        "reconciliation_count": count("reconciliation_count"),
+        "consolidation_signal_count": count("consolidation_signal_count", 256),
+        "states": states,
+        "transitions": transitions,
+        "hypotheses": hypotheses,
+    }
+
+
 def _physiology_state(
     physiology: Any, *, resting_requested: bool | None = None
 ) -> dict[str, Any] | None:
@@ -1430,6 +1538,11 @@ def project_tick(
             organism["cognition"]["developmental_divergence"] = round(
                 _developmental_divergence(graph, developmental_baseline), 6
             )
+        generative_projection = _generative_cognition_state(
+            getattr(result, "generative", None)
+        )
+        if generative_projection is not None:
+            organism["cognition"]["generative"] = generative_projection
     embodiment_projection = _embodiment_state(embodiment_state)
     if embodiment_projection is not None:
         organism["embodiment"] = embodiment_projection
