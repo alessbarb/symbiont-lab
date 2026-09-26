@@ -58,7 +58,7 @@ class _Model:
         )
 
 
-def test_resident_loop_creates_endogenous_target_and_bounded_rollout() -> None:
+def test_prediction_error_enters_endogenous_agenda_but_waits_for_compatible_model() -> None:
     resident = ResidentGenerativeCognition(organism_id="organism.test")
     resident.register_model(_Model())
 
@@ -70,24 +70,24 @@ def test_resident_loop_creates_endogenous_target_and_bounded_rollout() -> None:
 
     assert isinstance(snapshot, GenerativeResidentSnapshot)
     assert snapshot.target_id == "gc.prediction.predictor.a.sense.a"
-    assert snapshot.transition_count == 1
-    assert snapshot.max_depth == 1
-    assert snapshot.model_queries == 1
+    assert snapshot.transition_count == 0
+    assert snapshot.model_queries == 0
     assert snapshot.agenda_contamination_count == 0
     assert resident.last_workspace is not None
-    assert len(resident.last_workspace.states) == 2
+    assert len(resident.last_workspace.states) == 1
 
 
-def test_resident_loop_abstains_when_no_model_can_answer() -> None:
+def test_resident_loop_abstains_when_no_model_can_answer_prospective_target() -> None:
     resident = ResidentGenerativeCognition(organism_id="organism.test")
 
     snapshot = resident.step(
         tick=1,
-        cognition=_Cognition(),
+        cognition=None,
+        prospective_candidate_ids=("competence.a",),
         mode=GenerativeMode.ONLINE,
     )
 
-    assert snapshot.target_id == "gc.prediction.predictor.a.sense.a"
+    assert snapshot.target_id == "gc.prospective.competence.a"
     assert snapshot.transition_count == 0
     assert snapshot.model_queries == 1
     assert snapshot.termination is not None
