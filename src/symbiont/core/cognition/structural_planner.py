@@ -664,7 +664,7 @@ class StructuralPlanner:
         topology_revision: int,
         active_motor_ids: Collection[str],
         active_primitive_ids: Collection[str],
-        generative_protected_node_ids: Collection[str] = (),
+        generative_protected_node_ids: Collection[str],
         pruning_threshold: float,
         minimum_support: int,
         lifetime_ticks: int,
