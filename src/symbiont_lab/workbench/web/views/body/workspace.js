@@ -4,7 +4,7 @@ import { SelfModelWorkspace } from './self-model.js';
 /**
  * BODY research workspace.
  *
- * Observer-only presentation layer: six coordinated views over the existing
+ * Observer-only presentation layer: seven coordinated views over the existing
  * Physics3D telemetry. Nothing in this module writes back to Symbiont.
  */
 
