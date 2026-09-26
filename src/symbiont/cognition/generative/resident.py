@@ -46,6 +46,35 @@ from .workspace import GenerativeWorkspace
 
 
 @dataclass(frozen=True, slots=True)
+class GenerativeStateSnapshot:
+    state_id: str
+    parent_state_id: str | None
+    origin: str
+    depth: int
+    model_ids: tuple[str, ...]
+    uncertainty: float
+    coherence: float
+
+
+@dataclass(frozen=True, slots=True)
+class GenerativeTransitionSnapshot:
+    transition_id: str
+    source_state_id: str
+    target_state_id: str
+    operation: str
+    model_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class GenerativeHypothesisSnapshot:
+    hypothesis_id: str
+    target_id: str
+    status: str
+    model_ids: tuple[str, ...]
+    uncertainty: float
+
+
+@dataclass(frozen=True, slots=True)
 class GenerativeResidentSnapshot:
     """Bounded passive view of the most recent resident generative pass."""
 
@@ -54,6 +83,7 @@ class GenerativeResidentSnapshot:
     episode_id: str | None
     state_count: int
     transition_count: int
+    branch_count: int
     max_depth: int
     model_queries: int
     termination: GenerativeTermination | None
@@ -63,6 +93,9 @@ class GenerativeResidentSnapshot:
     hypothesis_count: int
     reconciliation_count: int
     consolidation_signal_count: int
+    states: tuple[GenerativeStateSnapshot, ...]
+    transitions: tuple[GenerativeTransitionSnapshot, ...]
+    hypotheses: tuple[GenerativeHypothesisSnapshot, ...]
 
 
 class ResidentGenerativeCognition:
@@ -601,6 +634,7 @@ class ResidentGenerativeCognition:
             episode_id=(episode.episode_id if episode is not None else None),
             state_count=(len(workspace.states) if workspace is not None else 0),
             transition_count=(len(workspace.transitions) if workspace is not None else 0),
+            branch_count=(episode.branch_count if episode is not None else 0),
             max_depth=(episode.max_depth_reached if episode is not None else 0),
             model_queries=(workspace.model_queries if workspace is not None else 0),
             termination=(episode.termination_reason if episode is not None else None),
@@ -610,6 +644,41 @@ class ResidentGenerativeCognition:
             hypothesis_count=len(self.hypotheses),
             reconciliation_count=self.reconciliation_count,
             consolidation_signal_count=len(self.consolidation_signals()),
+            states=tuple(
+                GenerativeStateSnapshot(
+                    state_id=state.state_id,
+                    parent_state_id=state.parent_state_id,
+                    origin=state.origin.value,
+                    depth=state.depth,
+                    model_ids=state.source_model_ids,
+                    uncertainty=state.uncertainty,
+                    coherence=state.coherence,
+                )
+                for state in (workspace.states if workspace is not None else ())[:64]
+            ),
+            transitions=tuple(
+                GenerativeTransitionSnapshot(
+                    transition_id=transition.transition_id,
+                    source_state_id=transition.source_state_id,
+                    target_state_id=transition.target_state_id,
+                    operation=transition.operation.value,
+                    model_ids=transition.model_ids,
+                )
+                for transition in (workspace.transitions if workspace is not None else ())[:64]
+            ),
+            hypotheses=tuple(
+                GenerativeHypothesisSnapshot(
+                    hypothesis_id=hypothesis.hypothesis_id,
+                    target_id=self._hypothesis_target.get(hypothesis.hypothesis_id, ""),
+                    status=hypothesis.status.value,
+                    model_ids=hypothesis.source_model_ids,
+                    uncertainty=hypothesis.uncertainty,
+                )
+                for hypothesis in sorted(
+                    self.hypotheses.values(),
+                    key=lambda item: item.hypothesis_id,
+                )[:128]
+            ),
         )
 
     def _ingest_prediction_errors(self, cognition: object | None, *, tick: int) -> None:
@@ -704,4 +773,10 @@ class ResidentGenerativeCognition:
         )
 
 
-__all__ = ["GenerativeResidentSnapshot", "ResidentGenerativeCognition"]
+__all__ = [
+    "GenerativeHypothesisSnapshot",
+    "GenerativeResidentSnapshot",
+    "GenerativeStateSnapshot",
+    "GenerativeTransitionSnapshot",
+    "ResidentGenerativeCognition",
+]
