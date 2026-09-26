@@ -17,7 +17,7 @@ Since the original audit, the following implementation and validation work is
 now evidenced on `main`:
 
 ```text
-focused GC contract suite: 35 passed, 4 deselected
+focused GC contract suite: 41 passed, 4 deselected
 GC-E3 matched mechanism gate: passed across seeds 101, 127 and 149
 release-gate experiment: passed
 GC-E5 scale: 16, 64, 256, 1024 and 10,000 episodes passed
