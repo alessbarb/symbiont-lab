@@ -4461,3 +4461,70 @@ GC-12
 ```
 
 against the current `main`.
+
+---
+
+# 147. Implementation handoff and evidence matrix
+
+The canonical specification defines the required behavior; it does not turn
+passing software tests into evidence of cognitive utility. Implementation work
+must therefore report three dimensions separately:
+
+```text
+contract        the boundary and invariant are implemented
+mechanism       the bounded operation is exercised in isolation
+utility         a matched task shows a benefit over a no-GC control
+```
+
+The following matrix is the handoff from this specification to the
+implementation-gap audit. A row marked `partial` must not be reported as
+scientific closure.
+
+| Domain | Required implementation boundary | Minimum contract evidence | Scientific evidence still required |
+|---|---|---|---|
+| GC-0 epistemic foundation | generated states, origins and factual firewall | generated origin and contamination tests | adversarial contamination campaign |
+| GC-1 endogenous agenda | organism-owned selection and suppression | productive/stagnant agenda gate | stability under longer workloads |
+| GC-2 model adapters | private model registration and bounded generation | adapter and provenance tests | calibrated model comparison |
+| GC-3 rollout | bounded multi-step trajectory construction | budget, depth and determinism tests | GC-E1 predictive utility |
+| GC-4 branching | explicit model disagreement without factual authority | branch provenance tests | branch-selection and merge utility |
+| GC-5 counterfactual | counterfactual origin and agency boundary | counterfactual mechanism gate | GC-E3 matched external utility and ablations |
+| GC-6 replay | offline replay without a new factual experience | replay provenance and ledger-count tests | GC-E8 replay utility |
+| GC-7 recombination | compatibility-gated multi-episode imagined state | source provenance, rejection and contamination tests | GC-E4 external utility and autonomous source scheduling |
+| GC-8 reconciliation | later observation can correct a hypothesis | contradiction and factual-authority tests | GC-E7 changed-dynamics correction |
+| GC-9 epistemic agency | comparison signal cannot override pragmatic value | equal-value and higher-pragmatic-value tests | task-level information-seeking benefit |
+| GC-10 consolidation | recurrence, diversity and decay remain distinct | consolidation and retirement tests | GC-E11 benefit and GC-E12 adversarial contamination |
+| GC-11 offline cognition | bounded IDLE/OFFLINE execution with no world mutation | mode and no-authority tests | long-horizon offline utility |
+| GC-12 projection | passive Mind/Observatory projection | boundary and snapshot contract tests | observational coherence only; never authority |
+
+Every scientific comparison must keep fixed:
+
+```text
+factual experience
+initial organism state
+environment
+action opportunities
+random seeds
+evaluator ownership of ground truth
+```
+
+The control must disable the relevant Generative Cognition mechanism rather
+than silently receiving a weaker factual history. Ablations must identify the
+mechanism responsible for any observed advantage. In particular:
+
+```text
+construction/provenance success != external correctness
+replay count != new factual experience
+recurrent activation != source diversity
+EpistemicValue != reward
+projection != cognitive authority
+```
+
+The release-blocking invariants remain the two contamination conditions:
+
+```text
+factual_contamination_count == 0
+agenda_contamination_count == 0
+```
+
+Those invariants are necessary but insufficient for the stronger claim that
+Generative Cognition improves prediction, planning, adaptation or transfer.
