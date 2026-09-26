@@ -28,14 +28,14 @@ from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
 from ...cognition.birth import load_base_graph
 from ...cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
-from ...cognition.graph import CognitiveGraph
-from ...cognition.learning import ShadowPrediction
 from ...cognition.generative import (
     CompetenceEffectGenerativeAdapter,
     GenerativeMode,
     GenerativeResidentSnapshot,
     ResidentGenerativeCognition,
 )
+from ...cognition.graph import CognitiveGraph
+from ...cognition.learning import ShadowPrediction
 from ...cognition.limits import KernelLimits
 from ...genetics.expression import ExpressionRegulator, GeneExpressionState
 from ...genetics.genome import Genome
@@ -733,7 +733,6 @@ class OrganismRuntime:
             selection_threshold=selection_threshold,
             actuator_evidence=actuator_evidence,
             competence_development=competence_development,
-            generative_cognition=generative_cognition,
             actuator_system=actuator_system,
         )
         self._regulation_domain = RegulationDomain()
@@ -754,9 +753,11 @@ class OrganismRuntime:
         self._generative_cognition.register_model(
             CompetenceEffectGenerativeAdapter(
                 model_id="competence-effect",
-                predictor=lambda competence_id, context_id: self._action_domain.effect_model.predict(
-                    competence_id=competence_id,
-                    context_id=context_id,
+                predictor=lambda competence_id, context_id: (
+                    self._action_domain.effect_model.predict(
+                        competence_id=competence_id,
+                        context_id=context_id,
+                    )
                 ),
             )
         )
@@ -1982,9 +1983,7 @@ class OrganismRuntime:
                 charge_metabolism=self._charge_metabolism,
                 generative_cognition=self._generative_cognition,
                 generative_mode=(
-                    GenerativeMode.OFFLINE
-                    if self._resting_requested
-                    else GenerativeMode.ONLINE
+                    GenerativeMode.OFFLINE if self._resting_requested else GenerativeMode.ONLINE
                 ),
             ),
             context=context,
@@ -2986,6 +2985,7 @@ class OrganismRuntime:
             actuator_evidence=actuator_evidence,
             motor_selection_threshold=motor_selection_threshold,
             competence_development=competence_development,
+            generative_cognition=generative_cognition,
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._action_domain.pending_proprioception = pending_proprioception
