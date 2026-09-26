@@ -772,21 +772,18 @@ class ResidentGenerativeCognition:
 
     def _ingest_prediction_errors(self, cognition: object | None, *, tick: int) -> None:
         errors = tuple(getattr(cognition, "prediction_errors", ()) or ())
-        known = {target.target_id for target in self.agenda.targets}
         for error in errors:
             predictor_id = str(getattr(error, "predictor_id", ""))
             target_id = str(getattr(error, "target_id", ""))
             if not predictor_id or not target_id:
                 continue
             identifier = f"gc.prediction.{predictor_id}.{target_id}"
-            if identifier in known:
-                continue
             loss = getattr(error, "loss", 0.0)
             try:
                 uncertainty = max(0.0, min(1.0, float(loss)))
             except (TypeError, ValueError):
                 uncertainty = 0.0
-            self.agenda.add_target(
+            self.agenda.observe_target(
                 GenerativeTarget(
                     target_id=identifier,
                     source=AgendaSource.PREDICTION_ERROR,
@@ -798,7 +795,6 @@ class ResidentGenerativeCognition:
                     estimated_resolvability=max(0.0, 1.0 - uncertainty),
                 )
             )
-            known.add(identifier)
 
     def _ingest_prospective_candidates(
         self,
@@ -806,14 +802,11 @@ class ResidentGenerativeCognition:
         *,
         tick: int,
     ) -> None:
-        known = {target.target_id for target in self.agenda.targets}
         for candidate_id in candidate_ids:
             if not isinstance(candidate_id, str) or not candidate_id:
                 continue
             identifier = f"gc.prospective.{candidate_id}"
-            if identifier in known:
-                continue
-            self.agenda.add_target(
+            self.agenda.observe_target(
                 GenerativeTarget(
                     target_id=identifier,
                     source=AgendaSource.PROSPECTIVE_DECISION,
@@ -825,7 +818,6 @@ class ResidentGenerativeCognition:
                     estimated_resolvability=0.5,
                 )
             )
-            known.add(identifier)
 
     @staticmethod
     def _root_uncertainty(cognition: object | None) -> float:
