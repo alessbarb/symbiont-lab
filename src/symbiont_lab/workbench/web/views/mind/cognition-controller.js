@@ -2278,12 +2278,66 @@ export function createCognitionController({
     inspector.render();
   }
 
+  function renderGenerativePanel(source) {
+    const panel = document.getElementById('mind-cognition-generative-body');
+    if (!panel) return;
+    panel.replaceChildren();
+    const generative = source?.cognition?.generative ?? null;
+    if (!generative) {
+      const empty = el('div', 'mind-inspector-empty');
+      empty.textContent = 'No active generative episode.';
+      panel.appendChild(empty);
+      return;
+    }
+    const read = (camel, snake, fallback = null) =>
+      generative?.[camel] ?? generative?.[snake] ?? fallback;
+    const rows = [
+      ['Mode', read('mode', 'mode', 'online')],
+      ['Target', read('targetId', 'target_id', '—') ?? '—'],
+      ['Episode', read('episodeId', 'episode_id', '—') ?? '—'],
+      ['States', read('stateCount', 'state_count', 0)],
+      ['Transitions', read('transitionCount', 'transition_count', 0)],
+      ['Branches', read('branchCount', 'branch_count', 0)],
+      ['Depth', read('maxDepth', 'max_depth', 0)],
+      ['Hypotheses', read('hypothesisCount', 'hypothesis_count', 0)],
+      ['Reconciled', read('reconciliationCount', 'reconciliation_count', 0)],
+      ['Factual contamination', read('factualContaminationCount', 'factual_contamination_count', 0)],
+      ['Agenda contamination', read('agendaContaminationCount', 'agenda_contamination_count', 0)],
+    ];
+    for (const [label, value] of rows) {
+      const row = el('div', 'mind-cognition-generative-row');
+      const key = el('span', 'mind-cognition-generative-key');
+      key.textContent = label;
+      const rendered = el('strong', 'mind-cognition-generative-value');
+      rendered.textContent = String(value);
+      row.append(key, rendered);
+      panel.appendChild(row);
+    }
+
+    const hypotheses = Array.isArray(generative.hypotheses) ? generative.hypotheses : [];
+    if (hypotheses.length) {
+      const title = el('div', 'mind-inspector-section-title');
+      title.textContent = 'Active hypotheses';
+      panel.appendChild(title);
+      for (const hypothesis of hypotheses.slice(0, 8)) {
+        const status = hypothesis.status ?? 'hypothesized';
+        const target = hypothesis.targetId ?? hypothesis.target_id ?? '—';
+        const uncertainty = finiteNumber(hypothesis.uncertainty, 0);
+        const row = el('div', 'mind-cognition-generative-hypothesis');
+        row.textContent = status + ' · ' + shortId(String(target), 18, 8)
+          + ' · u ' + uncertainty.toFixed(3);
+        panel.appendChild(row);
+      }
+    }
+  }
+
   function updateCognitionSummary() {
     updateTimelineControls();
     renderCognitiveLivePanels(graph);
     const panel = document.getElementById('mind-cognition-summary');
     if (!panel) return;
     const source = graph.replaySnapshot ?? snap;
+    renderGenerativePanel(source);
     const topology = source.topology ?? { nodes: [], edges: [] };
     const learned = augmentLearnedGraph(
       topology,
