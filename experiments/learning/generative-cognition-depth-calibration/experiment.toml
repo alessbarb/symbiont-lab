@@ -1,0 +1,23 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-depth-calibration"
+title = "Generative Cognition Depth Calibration"
+protocol = "learning.generative-cognition-depth-calibration"
+protocol_version = 1
+hypothesis = """
+For a bounded opaque sequence model, declared uncertainty and later observed
+prediction error will increase with rollout depth, while comparisons remain
+paired and generated states remain non-observed.
+"""
+success_criteria = """
+Depths 1, 2 and 4 produce paired calibration comparisons; uncertainty and
+observed error are ordered as declared; factual contamination remains zero.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
