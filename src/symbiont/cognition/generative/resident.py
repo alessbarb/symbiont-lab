@@ -453,6 +453,7 @@ class ResidentGenerativeCognition:
             tick=tick,
             workspace=workspace,
             run_target=run_target,
+            eligible_sources=frozenset({AgendaSource.PROSPECTIVE_DECISION}),
         )
 
         target_id = self.last_execution.target_id
