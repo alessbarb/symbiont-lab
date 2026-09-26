@@ -193,6 +193,15 @@ export function buildMindLayout(root, {
   cognitionLiveFocus.id = 'mind-cognition-live-focus';
   cognitionLiveFocus.setAttribute('aria-label', 'Current cognitive activity focus');
 
+  const cognitionGenerative = el('aside', 'mind-cognition-generative');
+  cognitionGenerative.id = 'mind-cognition-generative';
+  cognitionGenerative.setAttribute('aria-label', 'Ephemeral generative cognition');
+  const cognitionGenerativeTitle = el('strong', 'mind-cognition-generative-title');
+  cognitionGenerativeTitle.textContent = 'Generative cognition';
+  const cognitionGenerativeBody = el('div', 'mind-cognition-generative-body');
+  cognitionGenerativeBody.id = 'mind-cognition-generative-body';
+  cognitionGenerative.append(cognitionGenerativeTitle, cognitionGenerativeBody);
+
   const cognitionEventStream = el('aside', 'mind-cognition-event-stream');
   cognitionEventStream.id = 'mind-cognition-event-stream';
   cognitionEventStream.setAttribute('aria-label', 'Recent cognitive events');
@@ -311,6 +320,7 @@ export function buildMindLayout(root, {
     cognitionCanvas,
     cognitionSummary,
     cognitionLiveFocus,
+    cognitionGenerative,
     cognitionEventStream,
     cognitionModeControls,
     atlasTimeline,
