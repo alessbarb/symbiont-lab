@@ -164,3 +164,16 @@ def test_cognition_renderer_keeps_shared_graph_helpers():
     assert "function focusedSectorContext()" in controller
     assert "function currentRenderedTopology()" in controller
     assert "graphSubgraphIds" in controller
+
+
+
+def test_mind_generative_cognition_is_separate_from_atlas_topology():
+    layout = _read("views/mind/layout.js")
+    controller = _read("views/mind/cognition-controller.js")
+
+    assert "mind-cognition-generative" in layout
+    assert "mind-cognition-generative-body" in layout
+    assert "source?.cognition?.generative" in controller
+    assert "renderGenerativePanel(source)" in controller
+    assert "completeTopology.nodes.push" not in controller
+    assert "rawNodes.push" not in controller
