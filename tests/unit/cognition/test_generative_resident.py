@@ -69,10 +69,17 @@ def test_prediction_error_enters_endogenous_agenda_but_waits_for_compatible_mode
     )
 
     assert isinstance(snapshot, GenerativeResidentSnapshot)
-    assert snapshot.target_id == "gc.prediction.predictor.a.sense.a"
+    assert snapshot.target_id is None
     assert snapshot.transition_count == 0
     assert snapshot.model_queries == 0
     assert snapshot.agenda_contamination_count == 0
+    target = next(
+        item
+        for item in resident.agenda.targets
+        if item.target_id == "gc.prediction.predictor.a.sense.a"
+    )
+    assert target.selection_count == 0
+    assert target.no_progress_count == 0
     assert resident.last_workspace is not None
     assert len(resident.last_workspace.states) == 1
 
