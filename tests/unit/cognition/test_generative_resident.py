@@ -126,3 +126,28 @@ def test_resident_loop_uses_learned_competence_effect_adapter() -> None:
     assert generated.source_model_ids == ("competence-effect",)
     assert generated.features[0].token == "effect.competence.a"
     assert generated.origin.value == "inferred"
+
+
+def test_resident_checkpoint_round_trip_preserves_agenda_scheduler_and_workspace() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    resident.register_model(_Model())
+    before = resident.step(
+        tick=4,
+        cognition=_Cognition(),
+        mode=GenerativeMode.IDLE,
+    )
+
+    restored = ResidentGenerativeCognition.from_checkpoint(
+        resident.checkpoint(),
+        organism_id="organism.test",
+    )
+
+    after = restored.snapshot(mode=GenerativeMode.IDLE)
+    assert restored.generative_tick == resident.generative_tick
+    assert tuple(target.target_id for target in restored.agenda.targets) == tuple(
+        target.target_id for target in resident.agenda.targets
+    )
+    assert after.episode_id == before.episode_id
+    assert after.state_count == before.state_count
+    assert after.transition_count == before.transition_count
+    assert after.agenda_contamination_count == 0
