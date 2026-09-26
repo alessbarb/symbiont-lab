@@ -185,3 +185,98 @@ def test_policy_construction_validates_inputs():
         ProspectivePolicy(
             organism_id="x", min_model_confidence=0.5, min_value_samples=4, decision_margin=-0.1
         )
+
+
+
+def test_epistemic_value_breaks_only_exact_pragmatic_ties():
+    policy = _make_policy(decision_margin=0.0)
+    low_epistemic = EvaluatedCandidate(
+        candidate=ProspectiveCandidate(action_id="prim.low-info", family="primitive"),
+        prediction=CounterfactualPrediction(
+            action_id="prim.low-info",
+            predicted_outcome="outcome.same-a",
+            confidence_class=7,
+        ),
+        value=OutcomeValueEstimate(
+            outcome_id="outcome.same-a",
+            samples=16,
+            mean_value=0.5,
+            variance=0.01,
+            confidence=1.0,
+        ),
+        estimated_cost=None,
+        epistemic_value=0.1,
+    )
+    high_epistemic = EvaluatedCandidate(
+        candidate=ProspectiveCandidate(action_id="prim.high-info", family="primitive"),
+        prediction=CounterfactualPrediction(
+            action_id="prim.high-info",
+            predicted_outcome="outcome.same-b",
+            confidence_class=7,
+        ),
+        value=OutcomeValueEstimate(
+            outcome_id="outcome.same-b",
+            samples=16,
+            mean_value=0.5,
+            variance=0.01,
+            confidence=1.0,
+        ),
+        estimated_cost=None,
+        epistemic_value=0.9,
+    )
+
+    decision = policy.choose(
+        [low_epistemic, high_epistemic],
+        homeostatic_deviation=0.5,
+        tick=7,
+    )
+
+    assert decision.reason == "selected"
+    assert decision.candidate_id == "prim.high-info"
+
+
+def test_epistemic_value_never_overrides_higher_pragmatic_utility():
+    policy = _make_policy(decision_margin=0.0)
+    pragmatic = EvaluatedCandidate(
+        candidate=ProspectiveCandidate(action_id="prim.pragmatic", family="primitive"),
+        prediction=CounterfactualPrediction(
+            action_id="prim.pragmatic",
+            predicted_outcome="outcome.pragmatic",
+            confidence_class=7,
+        ),
+        value=OutcomeValueEstimate(
+            outcome_id="outcome.pragmatic",
+            samples=16,
+            mean_value=0.6,
+            variance=0.01,
+            confidence=1.0,
+        ),
+        estimated_cost=None,
+        epistemic_value=0.0,
+    )
+    informative = EvaluatedCandidate(
+        candidate=ProspectiveCandidate(action_id="prim.informative", family="primitive"),
+        prediction=CounterfactualPrediction(
+            action_id="prim.informative",
+            predicted_outcome="outcome.informative",
+            confidence_class=7,
+        ),
+        value=OutcomeValueEstimate(
+            outcome_id="outcome.informative",
+            samples=16,
+            mean_value=0.5,
+            variance=0.01,
+            confidence=1.0,
+        ),
+        estimated_cost=None,
+        epistemic_value=1.0,
+    )
+
+    decision = policy.choose(
+        [informative, pragmatic],
+        homeostatic_deviation=0.5,
+        tick=7,
+    )
+
+    assert decision.reason == "selected"
+    assert decision.candidate_id == "prim.pragmatic"
