@@ -219,6 +219,29 @@ class GenerativeAgenda:
         if current.source is not target.source:
             raise ValueError("agenda target source cannot change")
         merged_refs = tuple(dict.fromkeys((*current.source_refs, *target.source_refs)))[:16]
+        changed_signal = (
+            merged_refs != current.source_refs
+            or abs(target.uncertainty - current.uncertainty) >= 0.05
+            or (
+                target.estimated_resolvability is not None
+                and current.estimated_resolvability is not None
+                and abs(target.estimated_resolvability - current.estimated_resolvability) >= 0.05
+            )
+            or (
+                target.estimated_resolvability is None
+                and current.estimated_resolvability is not None
+            )
+            or (
+                target.estimated_resolvability is not None
+                and current.estimated_resolvability is None
+            )
+        )
+        if current.status is TargetStatus.SUPPRESSED and not changed_signal:
+            self._targets[target.target_id] = replace(
+                current,
+                recurrence=min(1_000_000, current.recurrence + 1),
+            )
+            return
         self._targets[target.target_id] = replace(
             current,
             source_refs=merged_refs,
@@ -228,7 +251,11 @@ class GenerativeAgenda:
             estimated_resolvability=target.estimated_resolvability,
             status=TargetStatus.ELIGIBLE,
             suppressed_until=None,
-            no_progress_count=0 if current.status is TargetStatus.RESOLVED else current.no_progress_count,
+            no_progress_count=(
+                0
+                if current.status in {TargetStatus.RESOLVED, TargetStatus.SUPPRESSED}
+                else current.no_progress_count
+            ),
         )
 
     def reject_external_target(self, value: object) -> None:
