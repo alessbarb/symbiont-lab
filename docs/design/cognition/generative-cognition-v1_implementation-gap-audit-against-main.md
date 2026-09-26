@@ -30,6 +30,7 @@ registered predictive utility run: 20260926T222525Z-learning-generative-cognitio
 registered model-correction run: 20260926T223453Z-learning-generative-cognition-model-correction-ec2b656-df8a
 registered depth-calibration run: 20260926T224036Z-learning-generative-cognition-depth-calibration-bda7c57-b9d8
 registered replay-utility run: 20260926T224742Z-learning-generative-cognition-replay-utility-9237323-72d8
+registered consolidation-gates run: 20260926T225157Z-learning-generative-cognition-consolidation-gates-44874d6-bf28
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
@@ -113,6 +114,20 @@ same bounded model. It closes the missing mechanism-level replay-utility
 evidence, but not external-task utility, long-horizon offline scheduling, or
 the full replay-plus-recombination comparison.
 
+It now also contains a registered GC-E11/GC-E12 consolidation mechanism gate:
+
+```text
+benefit condition submitted: true
+no-generated-reuse control submitted: false
+no-source-diversity control submitted: false
+repeated single-source replay suppressed: true
+factual contamination: 0
+```
+
+This verifies the structural-admission threshold and adversarial repetition
+guard. It does not yet provide the full A/B/C task-level consolidation-benefit
+study, external adaptability, or contradiction-driven longitudinal revision.
+
 The bounded-history fix behind this evidence is intentionally non-destructive:
 terminal agenda targets and terminal hypotheses may be evicted to preserve
 capacity, while unresolved demand, factual provenance and aggregate
@@ -192,9 +207,9 @@ GC-E7 model correction under changed external-world dynamics
 
 GC-E8 replay utility on external tasks and replay-plus-recombination
 
-GC-E11 quantitative structural benefit of generative consolidation
+GC-E11 full task-level quantitative benefit of generative consolidation
 
-GC-E12 adversarial false-relation consolidation
+GC-E12 longitudinal adversarial false-relation revision/removal
 
 richer runtime operators for prediction-error/model-disagreement agenda sources
 
@@ -2178,12 +2193,14 @@ GC-E13 is release-blocking.
 ## Status
 
 ```text
-PARTIAL — contention projection boundary only
+IMPLEMENTED/PARTIAL — registered structural-admission mechanism gate
 ```
 
-The separate generative producer signal and contention projection now exist.
-Runtime registration with the real structural owner, planner integration and
-GC-E11/GC-E12/GC-E13 evidence remain open.
+The separate generative producer signal and contention projection now exist,
+and the registered gate verifies use/source-diversity thresholds plus
+single-source replay suppression. Runtime registration with the real
+structural owner, planner integration, full task-level GC-E11 benefit and
+longitudinal GC-E12 revision evidence remain open.
 
 ---
 

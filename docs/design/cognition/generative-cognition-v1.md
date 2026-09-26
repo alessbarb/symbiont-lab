@@ -3373,6 +3373,24 @@ future adaptability
 
 while verifying identical factual evidence.
 
+The current registered mechanism gate is:
+
+```text
+learning.generative-cognition-consolidation-gates
+run: 20260926T225157Z-learning-generative-cognition-consolidation-gates-44874d6-bf28
+benefit condition submitted: true
+no-generated-reuse control submitted: false
+no-source-diversity control submitted: false
+repeated single-source replay suppressed: true
+factual contamination: 0
+```
+
+This verifies the structural-admission boundary: repeated generated use alone
+is insufficient, independent factual source diversity is required, and the
+candidate is delegated to structural contention rather than applied directly.
+It is not yet a full A/B/C task-level consolidation-benefit experiment or
+evidence of future external adaptability.
+
 ---
 
 # 124. GC-E12 — Consolidation contamination
@@ -3396,6 +3414,12 @@ factual truth support
 Then expose contradictory reality.
 
 The representation must remain revisable or removable.
+
+The same registered gate includes the adversarial repeated-replay condition:
+sixteen generated episodes from one factual source do not project a mature
+candidate, and factual contamination remains zero. This is a mechanism-level
+anti-contamination result; contradiction-driven revision/removal in a
+longitudinal external task remains open.
 
 ---
 
@@ -4545,7 +4569,7 @@ scientific closure.
 | GC-7 recombination | compatibility-gated multi-episode imagined state | source provenance, rejection and contamination tests | GC-E4 external utility and autonomous source scheduling |
 | GC-8 reconciliation | later observation can correct a hypothesis | contradiction, factual-authority, checkpointed-calibration and registered GC-E6/GC-E7 mechanism tests | external calibration and changed-dynamics GC-E7 correction |
 | GC-9 epistemic agency | comparison signal cannot override pragmatic value | equal-value and higher-pragmatic-value tests | task-level information-seeking benefit |
-| GC-10 consolidation | recurrence, diversity and decay remain distinct | consolidation and retirement tests | GC-E11 benefit and GC-E12 adversarial contamination |
+| GC-10 consolidation | recurrence, diversity and decay remain distinct | consolidation, retirement and registered GC-E11/GC-E12 mechanism tests | full GC-E11 task-level benefit and GC-E12 longitudinal revision |
 | GC-11 offline cognition | bounded IDLE/OFFLINE execution with no world mutation | mode and no-authority tests | long-horizon offline utility |
 | GC-12 projection | passive Mind/Observatory projection | boundary and snapshot contract tests | observational coherence only; never authority |
 
