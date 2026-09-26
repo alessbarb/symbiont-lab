@@ -9,6 +9,62 @@ function renderCognitionTopology(topology) {
   summary.textContent = `${(topology.nodes ?? []).length} nodes, ${(topology.edges ?? []).length} edges`;
 }
 
+function renderGenerativeCognition(generative) {
+  const summary = document.querySelector("#cognition-generative-summary");
+  const hypothesesEl = document.querySelector("#cognition-generative-hypotheses");
+  if (!summary || !hypothesesEl) return;
+  summary.replaceChildren();
+  hypothesesEl.replaceChildren();
+
+  if (!generative) {
+    const row = document.createElement("p");
+    row.textContent = "No active generative cognition.";
+    summary.append(row);
+    return;
+  }
+
+  const rows = [
+    ["Mode", generative.mode ?? "online"],
+    ["Target", generative.targetId ?? "—"],
+    ["Episode", generative.episodeId ?? "—"],
+    ["States", generative.stateCount ?? 0],
+    ["Transitions", generative.transitionCount ?? 0],
+    ["Branches", generative.branchCount ?? 0],
+    ["Max depth", generative.maxDepth ?? 0],
+    ["Model queries", generative.modelQueries ?? 0],
+    ["Agenda candidates", generative.agendaCandidateCount ?? 0],
+    ["Hypotheses", generative.hypothesisCount ?? 0],
+    ["Reconciliations", generative.reconciliationCount ?? 0],
+    ["Consolidation signals", generative.consolidationSignalCount ?? 0],
+    ["Factual contamination", generative.factualContaminationCount ?? 0],
+    ["Agenda contamination", generative.agendaContaminationCount ?? 0],
+  ];
+  for (const [label, value] of rows) {
+    const row = document.createElement("p");
+    row.textContent = label + ": " + value;
+    summary.append(row);
+  }
+
+  const hypotheses = Array.isArray(generative.hypotheses) ? generative.hypotheses : [];
+  if (!hypotheses.length) {
+    const row = document.createElement("p");
+    row.textContent = "No active generative hypotheses.";
+    hypothesesEl.append(row);
+    return;
+  }
+  for (const hypothesis of hypotheses.slice(0, 12)) {
+    const row = document.createElement("p");
+    const models = Array.isArray(hypothesis.modelIds) && hypothesis.modelIds.length
+      ? hypothesis.modelIds.join(", ")
+      : "no model";
+    const uncertainty = (Number(hypothesis.uncertainty ?? 0) * 100).toFixed(1);
+    row.textContent =
+      (hypothesis.status ?? "hypothesized") + " · " +
+      (hypothesis.targetId ?? "—") + " · " + models +
+      " · uncertainty " + uncertainty + "%";
+    hypothesesEl.append(row);
+  }
+}
 function renderCognitionState(cognition) {
   const readoutsEl = document.querySelector("#cognition-readouts");
   const errorsEl = document.querySelector("#cognition-prediction-errors");
@@ -22,6 +78,7 @@ function renderCognitionState(cognition) {
   errorsEl.replaceChildren();
   mutationsEl.replaceChildren();
   if (metricsEl) metricsEl.replaceChildren();
+  renderGenerativeCognition(cognition?.generative ?? null);
   if (!cognition) {
     if (state.schemaVersion === 1) {
       subtitleEl.textContent = "Structural cognition not configured";
@@ -64,4 +121,4 @@ function renderCognitionState(cognition) {
   safetyEl.textContent = `Frozen: ${cognition.safetyState.frozen}, failures: ${cognition.safetyState.consecutiveFailures}`;
 }
 
-export { renderCognitionTopology, renderCognitionState };
+export { renderCognitionTopology, renderCognitionState, renderGenerativeCognition };
