@@ -115,3 +115,53 @@ def test_generative_use_checkpoint_round_trip_preserves_bounded_source_diversity
     assert signal.independent_episode_count == 1
     assert signal.source_diversity == 2
     assert signal.model_disagreement == 0.5
+
+
+
+def test_generative_retention_demand_decays_with_age_without_erasing_history():
+    consolidator = GenerativeConsolidator(retention_decay_ticks=8)
+    for tick, episode_id, evidence_ref in (
+        (0, "e0", "evidence.0"),
+        (1, "e1", "evidence.1"),
+    ):
+        consolidator.tracker.record(
+            representation_ref="r0",
+            episode_id=episode_id,
+            state_id=f"{episode_id}.s0",
+            model_ids=("m0",),
+            tick=tick,
+        )
+        consolidator.tracker.note_factual_sources(
+            representation_ref="r0",
+            source_refs=(evidence_ref,),
+        )
+
+    fresh = consolidator.signal(
+        representation_ref="r0",
+        generative_demand=consolidator.demand_for_age(0),
+    )
+    old = consolidator.signal(
+        representation_ref="r0",
+        generative_demand=consolidator.demand_for_age(16),
+    )
+
+    assert consolidator.is_mature(fresh)
+    assert not consolidator.is_mature(old)
+    assert old.source_diversity == fresh.source_diversity == 2
+    assert old.cross_episode_reuse == fresh.cross_episode_reuse == 1
+
+
+def test_last_generative_use_tick_survives_checkpoint():
+    from symbiont.cognition.generative.consolidation import GenerativeUseTracker
+
+    tracker = GenerativeUseTracker()
+    tracker.record(
+        representation_ref="r0",
+        episode_id="e0",
+        state_id="s0",
+        tick=41,
+    )
+
+    restored = GenerativeUseTracker.from_checkpoint(tracker.checkpoint())
+
+    assert restored.last_use_tick("r0") == 41
