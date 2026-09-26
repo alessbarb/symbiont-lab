@@ -46,3 +46,15 @@ def test_snapshot_strings_are_escaped_before_html_interpolation():
     assert "escapeHtml(description)" in population
     assert "escapeHtml(shorten(ev.claimId" in signal
     assert "escapeHtml(shorten(e.sourceId))" in inspector
+
+
+
+def test_cognition_renderer_keeps_generative_state_in_separate_inspector_section():
+    source = (Path(__file__).parents[1] / "render" / "cognition.js").read_text()
+    html = (Path(__file__).parents[1] / "index.html").read_text()
+
+    assert 'id="cognition-generative"' in html
+    assert "renderGenerativeCognition" in source
+    assert "generative.factualContaminationCount" in source
+    assert "generative.agendaContaminationCount" in source
+    assert "generative.hypotheses" in source
