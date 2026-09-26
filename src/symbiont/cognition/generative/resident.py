@@ -22,6 +22,7 @@ from .agenda import (
 from .budget import GenerativeBudget
 from .episode import new_episode
 from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
+from .epistemic_value import EpistemicValue, EpistemicValueEstimator
 from .model import GenerativeContext, GenerativeModel
 from .registry import GenerativeModelRegistry
 from .persistence import GENERATIVE_COGNITION_SCHEMA_VERSION, restore as restore_workspace
@@ -244,6 +245,39 @@ class ResidentGenerativeCognition:
             episode.termination_reason = self.last_rollout.termination
 
         return self.snapshot(mode=mode)
+
+    def epistemic_value_for(self, candidate_id: str) -> EpistemicValue | None:
+        """Return a comparison-only epistemic signal for one opaque competence.
+
+        The signal is derived exclusively from the endogenous prospective
+        agenda target.  It cannot execute an action and does not alter factual
+        outcome value.
+        """
+        if not isinstance(candidate_id, str) or not candidate_id:
+            raise ValueError("candidate_id must be non-empty")
+        target_id = f"gc.prospective.{candidate_id}"
+        target = next(
+            (item for item in self.agenda.targets if item.target_id == target_id),
+            None,
+        )
+        if target is None or target.status in {TargetStatus.RESOLVED, TargetStatus.RETIRED}:
+            return None
+        resolvability = target.estimated_resolvability or 0.0
+        expected_uncertainty = target.uncertainty * (1.0 - resolvability)
+        return EpistemicValueEstimator.estimate(
+            candidate_ref=candidate_id,
+            current_uncertainty=target.uncertainty,
+            expected_uncertainty=expected_uncertainty,
+            expected_hypothesis_discrimination=0.0,
+            model_disagreement=(
+                1.0
+                if target.source in {
+                    AgendaSource.MODEL_DISAGREEMENT,
+                    AgendaSource.RECURRING_CONFLICT,
+                }
+                else 0.0
+            ),
+        )
 
     def snapshot(self, *, mode: GenerativeMode) -> GenerativeResidentSnapshot:
         workspace = self.last_workspace
