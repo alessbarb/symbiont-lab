@@ -9,6 +9,7 @@ from symbiont.actuation.types import Actuation
 from symbiont.cognition.types import NodeKind
 from symbiont.modeling import (
     EpistemicStatus,
+    EpisodicProjection,
     ExperienceRecord,
     ModeledOrganismRuntime,
     PrivateModelOrganismRuntime,
@@ -208,7 +209,7 @@ def test_private_runtime_drops_pending_transition_on_terminal_tick(monkeypatch):
     monkeypatch.setattr(
         ModeledOrganismRuntime,
         "tick",
-        lambda self: terminal,
+        lambda self, **_kwargs: terminal,
     )
 
     result = runtime.tick()
@@ -406,3 +407,68 @@ def test_private_frame_episodic_projection_uses_direct_cognitive_ids():
     assert all(
         not sense_id.startswith("signal.") for sense_id in frame.episodic_projection.sense_ids
     )
+
+
+
+def test_private_runtime_resting_replays_factual_episode_without_new_experience(monkeypatch):
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-offline-replay",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        capture_private_experience=False,
+        resting_requested=True,
+    )
+    observed = ExperienceRecord(
+        record_id="transition.replay.0",
+        organism_id=runtime.organism_id,
+        tick_class=0,
+        context_tokens=("sense.replay",),
+        action_token=None,
+        outcome_tokens=("outcome.replay",),
+        epistemic_status=EpistemicStatus.OBSERVED,
+        evidence_refs=("evidence.replay.0",),
+        confidence_class=7,
+        source_kind=SourceKind.DIRECT,
+    )
+    runtime.record_experience(
+        observed,
+        episodic_projection=EpisodicProjection(
+            sense_ids=("sense.replay",),
+        ).with_effects(observed.outcome_tokens),
+    )
+    runtime.episodic_memory.flush()
+
+    factual_count = len(runtime.experience_ledger.records)
+    frame_result = RuntimeTickResult(
+        tick=1,
+        snapshot=None,
+        percepts=(),
+        drift_observations={},
+        allocations=(),
+        investigated_capability=None,
+        evidence_gathered=0,
+        dissent=None,
+        narrative=(),
+    )
+    runtime._pending_private_frame = runtime._capture_private_frame(frame_result)
+    runtime._pending_private_frame = runtime._pending_private_frame.__class__(
+        **{
+            **runtime._pending_private_frame.__dict__,
+            "episodic_projection": EpisodicProjection(sense_ids=("sense.replay",)),
+        }
+    )
+
+    monkeypatch.setattr(
+        ModeledOrganismRuntime,
+        "tick",
+        lambda self, **_kwargs: frame_result,
+    )
+
+    result = runtime.tick()
+
+    assert result.generative is not None
+    assert result.generative.mode.value == "offline"
+    assert result.generative.states
+    assert result.generative.states[0].origin == "replayed"
+    assert len(runtime.experience_ledger.records) == factual_count
+    assert runtime.generative_cognition.factual_contamination_count == 0
