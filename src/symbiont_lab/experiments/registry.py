@@ -81,6 +81,9 @@ from symbiont_lab.studies.learning.generative_cognition_release import (
 from symbiont_lab.studies.learning.generative_counterfactual_utility import (
     run_generative_counterfactual_utility_study,
 )
+from symbiont_lab.studies.learning.generative_predictive_utility import (
+    run_generative_predictive_utility_study,
+)
 from symbiont_lab.studies.learning.generative_recombination_construction import (
     run_generative_recombination_construction_study,
 )
@@ -170,6 +173,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.generative-cognition-release-gates": run_generative_cognition_release_gates,
     "learning.generative-cognition-counterfactual-utility": run_generative_counterfactual_utility_study,
     "learning.generative-cognition-recombination-construction": run_generative_recombination_construction_study,
+    "learning.generative-cognition-predictive-utility": run_generative_predictive_utility_study,
     "learning.continuous-temporal-challenge": run_continuous_temporal_challenge,
     "learning.continuous-temporal-controls": run_continuous_temporal_controls,
     "learning.cognitive-ecology-embodiment": run_cognitive_ecology_embodiment_study,

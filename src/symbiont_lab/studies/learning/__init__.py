@@ -187,6 +187,11 @@ from .generative_counterfactual_utility import (
     GenerativeCounterfactualUtilityStudy,
     run_generative_counterfactual_utility_study,
 )
+from .generative_predictive_utility import (
+    GenerativePredictiveUtilityStudy,
+    GenerativePredictiveUtilityTrial,
+    run_generative_predictive_utility_study,
+)
 from .generative_recombination_construction import (
     GenerativeRecombinationConstructionSeedResult,
     GenerativeRecombinationConstructionStudy,
@@ -205,4 +210,7 @@ __all__ += [
     "GenerativeRecombinationConstructionSeedResult",
     "GenerativeRecombinationConstructionStudy",
     "run_generative_recombination_construction_study",
+    "GenerativePredictiveUtilityStudy",
+    "GenerativePredictiveUtilityTrial",
+    "run_generative_predictive_utility_study",
 ]
