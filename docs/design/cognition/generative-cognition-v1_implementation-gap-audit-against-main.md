@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `efd7e83061433de6c0cd0f6b4ae29457d2d6e364`
+**Audited commit:** `2e720fa385b78e29e61717691d371f5a57346f14`
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -63,25 +63,34 @@ The major remaining gaps are now primarily validation and a few secondary
 integration paths:
 
 ```text
-scientific utility of multi-step rollout
+GC-E1 multi-step predictive utility
 
-richer branch merge/pruning
+GC-E2 planning utility
 
-runtime use of generic counterfactual operations beyond prospective competences
+GC-E3 counterfactual utility in competing-hypothesis tasks
 
-runtime recombination from multiple episodic sources
+GC-E4 recombination utility
 
-full endogenous processing of prediction-error/model-disagreement agenda sources
+GC-E6 depth calibration
 
-long-horizon OFFLINE scheduling policy
+GC-E7 model correction under changed factual dynamics
 
-scientific validation of generative consolidation
-and agenda × consolidation feedback
+GC-E8 replay utility beyond provenance/integration
 
-full Mind/Atlas spatial overlay of ephemeral generative trajectories
-(the bounded inspector/projection is already implemented)
+GC-E11 quantitative structural benefit of generative consolidation
 
-GC-E1..GC-E13 reproducible experimental closure
+GC-E12 adversarial false-relation consolidation
+
+richer runtime operators for prediction-error/model-disagreement agenda sources
+
+runtime scheduling of recombination across multiple episodic sources
+
+long-horizon OFFLINE policy
+
+GC-E14 cross-domain generality
+
+optional spatial Atlas overlay of ephemeral trajectories
+(the separate Mind/Observatory generative inspector is implemented)
 ```
 
 Therefore:
@@ -106,30 +115,39 @@ built by composing several mature existing components.
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; scientific utility pending** |
 | GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
 | GC-5 | Counterfactual cognition | **PARTIAL — generic engine exists; runtime path currently strongest for prospective competences** |
-| GC-6 | Replay | **IMPLEMENTED + OFFLINE runtime wiring — factual episodic provenance preserved** |
+| GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
 | GC-7 | Recombination | **PARTIAL — engine exists; runtime multi-episode scheduling and evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired — separate factual evidence domains and calibration** |
 | GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
-| GC-10 | Generative consolidation | **IMPLEMENTED/PARTIAL — bounded use tracking, factual source diversity and retention protection; scientific validation pending** |
+| GC-10 | Generative consolidation | **IMPLEMENTED — bounded use tracking, independent factual source diversity, durable checkpoint state, recency decay and non-factual structural-retention protection; quantitative benefit studies pending** |
 | GC-11 | Offline cognition | **IMPLEMENTED/PARTIAL — ONLINE/OFFLINE resident execution and episodic replay; richer autonomous scheduling pending** |
-| GC-12 | Observatory / Atlas | **IMPLEMENTED/PARTIAL — bounded passive projection + inspector; spatial Atlas overlay pending** |
+| GC-12 | Observatory / Atlas | **IMPLEMENTED — bounded passive projection + Observatory inspector + Mind panel kept outside factual Atlas topology; optional spatial ephemeral overlay remains** |
 
 The implementation critical path has largely been traversed. The remaining
 critical path is:
 
 ```text
-runtime hardening
-      ↓
 GC-E5 factual contamination
-+
+    IMPLEMENTED AS REPRODUCIBLE RELEASE GATE
+
 GC-E10 endogenous agenda
-+
+    IMPLEMENTED AS REPRODUCIBLE RELEASE GATE
+
 GC-E13 agenda × consolidation
-      ↓
+    IMPLEMENTED AS REPRODUCIBLE RELEASE GATE
+
+        ↓
+
 GC-E1/E2/E3/E4/E6/E7/E8/E11/E12
-      ↓
-richer offline/recombination integration
-      ↓
+
+        ↓
+
+richer non-prospective agenda operators
++
+multi-source recombination scheduling
+
+        ↓
+
 GC-E14 cross-domain generality
 ```
 
