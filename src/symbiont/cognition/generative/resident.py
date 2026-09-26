@@ -198,6 +198,12 @@ class ResidentGenerativeCognition:
 
         def run_target(candidate: AgendaCandidate, selected_mode: GenerativeMode) -> AgendaProgress:
             workspace.episode.target_id = candidate.target.target_id
+            # v1 runtime adapters currently understand prospective competence
+            # queries.  Other endogenous agenda sources remain valid targets,
+            # but they must wait for a compatible model instead of being
+            # reinterpreted as competence identifiers.
+            if candidate.target.source is not AgendaSource.PROSPECTIVE_DECISION:
+                return AgendaProgress()
             context = GenerativeContext(
                 tokens=candidate.target.source_refs,
                 references=candidate.target.source_refs,
