@@ -45,6 +45,40 @@ class GenerativeHypothesis:
     def retire(self) -> None:
         self.status = HypothesisStatus.RETIRED
 
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "hypothesis_id": self.hypothesis_id,
+            "source_episode_ids": list(self.source_episode_ids),
+            "source_model_ids": list(self.source_model_ids),
+            "uncertainty": self.uncertainty,
+            "status": self.status.value,
+            "factual_support_refs": list(self.factual_support_refs),
+            "factual_conflict_refs": list(self.factual_conflict_refs),
+            "reconciliation_count": self._reconciliation_count,
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: object) -> GenerativeHypothesis:
+        if not isinstance(payload, dict):
+            raise ValueError("hypothesis checkpoint must be an object")
+        try:
+            count = payload.get("reconciliation_count", 0)
+            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                raise ValueError("reconciliation_count must be non-negative")
+            hypothesis = cls(
+                hypothesis_id=payload["hypothesis_id"],
+                source_episode_ids=tuple(payload["source_episode_ids"]),
+                source_model_ids=tuple(payload["source_model_ids"]),
+                uncertainty=payload["uncertainty"],
+                status=HypothesisStatus(payload["status"]),
+                factual_support_refs=tuple(payload.get("factual_support_refs", ())),
+                factual_conflict_refs=tuple(payload.get("factual_conflict_refs", ())),
+            )
+            hypothesis._reconciliation_count = count
+            return hypothesis
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid hypothesis checkpoint") from exc
+
     def _reconcile(self, *, evidence_ref: str, supported: bool) -> None:
         bounded_identifier(evidence_ref, name="evidence_ref")
         if self.status not in {HypothesisStatus.HYPOTHESIZED, HypothesisStatus.PREDICTED}:
