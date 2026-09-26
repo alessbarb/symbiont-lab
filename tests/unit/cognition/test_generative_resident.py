@@ -139,6 +139,37 @@ def test_recurring_conflict_routes_to_counterfactual_without_factual_authority()
     assert snapshot.factual_contamination_count == 0
 
 
+def test_counterfactual_runtime_checkpoint_preserves_operation_and_origin() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    model = _CounterfactualModel()
+    resident.register_model(model)
+    resident.agenda.add_target(
+        GenerativeTarget(
+            target_id="target.recurring-conflict",
+            source=AgendaSource.RECURRING_CONFLICT,
+            source_refs=("internal.conflict",),
+            created_tick=1,
+            uncertainty=0.8,
+            persistence=0.5,
+            recurrence=2,
+            estimated_resolvability=0.7,
+        )
+    )
+    before = resident.step(tick=1, cognition=None, mode=GenerativeMode.IDLE)
+
+    restored = ResidentGenerativeCognition.from_checkpoint(
+        resident.checkpoint(),
+        organism_id="organism.test",
+        registry=resident.registry,
+    )
+
+    assert restored.last_workspace is not None
+    assert before.transitions[0].operation == GenerativeOperation.COUNTERFACTUAL.value
+    assert restored.last_workspace.transitions[0].operation is GenerativeOperation.COUNTERFACTUAL
+    assert restored.last_workspace.states[-1].origin.value == "counterfactual"
+    assert restored.factual_contamination_count == 0
+
+
 def test_idle_mode_routes_prediction_error_to_a_compatible_model() -> None:
     resident = ResidentGenerativeCognition(organism_id="organism.test")
     resident.register_model(_Model())
