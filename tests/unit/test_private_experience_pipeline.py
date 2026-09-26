@@ -9,8 +9,8 @@ from symbiont.core.runtime import RuntimeTickResult
 from symbiont.actuation.types import Actuation
 from symbiont.cognition.types import NodeKind
 from symbiont.modeling import (
-    EpistemicStatus,
     EpisodicProjection,
+    EpistemicStatus,
     ExperienceRecord,
     ModeledOrganismRuntime,
     PrivateModelOrganismRuntime,
@@ -123,15 +123,11 @@ def test_private_runtime_captures_motor_as_context_and_next_tick_as_outcome():
         actuator_id="actuator.0123456789abcdef",
         requested=0.8,
         delivered=0.6,
-        cost=0.01,
-        health_at_execution=1.0,
     )
     b = Actuation(
         actuator_id="actuator.fedcba9876543210",
         requested=0.5,
         delivered=0.4,
-        cost=0.01,
-        health_at_execution=1.0,
     )
     acted = RuntimeTickResult(
         tick=1,
@@ -232,8 +228,6 @@ def test_private_runtime_uses_opaque_primitive_identity_as_action_token():
         actuator_id="actuator.0123456789abcdef",
         requested=0.5,
         delivered=0.4,
-        cost=0.01,
-        health_at_execution=1.0,
     )
     result = RuntimeTickResult(
         tick=1,
@@ -408,7 +402,6 @@ def test_private_frame_episodic_projection_uses_direct_cognitive_ids():
     assert all(
         not sense_id.startswith("signal.") for sense_id in frame.episodic_projection.sense_ids
     )
-
 
 
 def test_private_runtime_resting_replays_factual_episode_without_new_experience(monkeypatch):

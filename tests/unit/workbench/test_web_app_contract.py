@@ -56,7 +56,9 @@ def test_all_top_level_views_have_uniform_lifecycle_contract():
         "views/body.js",
     ):
         source = _read(relative)
-        assert "export function mount" in source, relative
+        assert "export function mount" in source or "export async function mount" in source, (
+            relative
+        )
         assert "export function update" in source, relative
         assert "export function unmount" in source, relative
 
@@ -164,7 +166,6 @@ def test_cognition_renderer_keeps_shared_graph_helpers():
     assert "function focusedSectorContext()" in controller
     assert "function currentRenderedTopology()" in controller
     assert "graphSubgraphIds" in controller
-
 
 
 def test_mind_generative_cognition_is_separate_from_atlas_topology():

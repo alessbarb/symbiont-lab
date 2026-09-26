@@ -325,11 +325,15 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 (result.actuation,) if result.actuation is not None else ()
             )
             action_source = self.last_action_source
-            executed_pid = self._last_executed_competence_id
+            if action_source == "none":
+                action_source = getattr(self, "_last_motor_origin_detail", action_source)
+            executed_pid = self._last_executed_primitive_id
             named_competence = executed_pid is not None and action_source in {
                 "competence",
                 "protection",
                 "prospection",
+                "primitive",
+                "primitive_prospective",
             }
             for actuation in sorted(actuations, key=lambda item: item.actuator_id):
                 delivered_class = max(0, min(7, round(float(actuation.delivered) * 7)))
