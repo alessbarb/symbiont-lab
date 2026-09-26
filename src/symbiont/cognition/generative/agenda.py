@@ -203,6 +203,34 @@ class GenerativeAgenda:
             raise ValueError("maximum agenda targets reached")
         self._targets[target.target_id] = target
 
+    def observe_target(self, target: GenerativeTarget) -> None:
+        """Insert or refresh an organism-owned unresolved target.
+
+        Reappearance is evidence of renewed internal demand, not a duplicate
+        agenda item. Resolved/suppressed targets may become eligible again when
+        a new organism-owned observation recreates the unresolved condition.
+        """
+        if not isinstance(target, GenerativeTarget):
+            raise ValueError("agenda accepts only GenerativeTarget values")
+        current = self._targets.get(target.target_id)
+        if current is None:
+            self.add_target(target)
+            return
+        if current.source is not target.source:
+            raise ValueError("agenda target source cannot change")
+        merged_refs = tuple(dict.fromkeys((*current.source_refs, *target.source_refs)))[:16]
+        self._targets[target.target_id] = replace(
+            current,
+            source_refs=merged_refs,
+            uncertainty=target.uncertainty,
+            persistence=max(current.persistence, target.persistence),
+            recurrence=min(1_000_000, current.recurrence + 1),
+            estimated_resolvability=target.estimated_resolvability,
+            status=TargetStatus.ELIGIBLE,
+            suppressed_until=None,
+            no_progress_count=0 if current.status is TargetStatus.RESOLVED else current.no_progress_count,
+        )
+
     def reject_external_target(self, value: object) -> None:
         self.agenda_contamination_count += 1
         raise AgendaContaminationError(
