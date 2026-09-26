@@ -441,6 +441,7 @@ class ResidentGenerativeCognition:
         action_id: str,
         outcome_tokens: tuple[str, ...],
         evidence_refs: tuple[str, ...],
+        model_ids: tuple[str, ...] | None = None,
     ) -> int:
         """Reconcile only hypotheses for the action that actually occurred.
 
@@ -462,6 +463,10 @@ class ResidentGenerativeCognition:
                     HypothesisStatus.HYPOTHESIZED,
                     HypothesisStatus.PREDICTED,
                 }
+                or (
+                    model_ids is not None
+                    and not set(hypothesis.source_model_ids).intersection(model_ids)
+                )
             ):
                 continue
             predicted = set(self._hypothesis_outcomes.get(hypothesis_id, ()))
