@@ -209,13 +209,24 @@ class GenerativeAgenda:
             "external task, evaluator, or hidden world state cannot enter agenda"
         )
 
-    def select(self, *, tick: int, limit: int = 1) -> tuple[AgendaCandidate, ...]:
+    def select(
+        self,
+        *,
+        tick: int,
+        limit: int = 1,
+        sources: frozenset[AgendaSource] | None = None,
+    ) -> tuple[AgendaCandidate, ...]:
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0 or limit < 0:
             raise ValueError("tick and limit must be non-negative integers")
+        if sources is not None and not all(
+            isinstance(source, AgendaSource) for source in sources
+        ):
+            raise ValueError("sources must contain only AgendaSource values")
         candidates = [
             self._candidate(target, tick)
             for target in self._targets.values()
             if self._eligible(target, tick)
+            and (sources is None or target.source in sources)
         ]
         candidates.sort(key=lambda item: (-item.priority, item.target.target_id))
         selected = candidates[:limit]
