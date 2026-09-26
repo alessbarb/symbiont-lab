@@ -597,6 +597,10 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             target_token="<OUTCOME>",
         )
 
+    def _generative_epistemic_value(self, action_id: str) -> float:
+        value = self.generative_cognition.epistemic_value_for(action_id)
+        return 0.0 if value is None else value.comparison_score
+
     def _choose_acquired_competence(
         self,
         *,
@@ -668,11 +672,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             context_tokens=context,
             homeostatic_deviation=homeostatic_deviation,
             predictor=_predictor,
-            epistemic_value_provider=lambda action_id: (
-                self.generative_cognition.epistemic_value_for(action_id).comparison_score
-                if self.generative_cognition.epistemic_value_for(action_id) is not None
-                else 0.0
-            ),
+            epistemic_value_provider=self._generative_epistemic_value,
             has_active_model=active is not None,
             organism_alive=self._physiology.state is not VitalState.DEAD,
         )
