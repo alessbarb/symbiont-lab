@@ -93,6 +93,9 @@ from symbiont_lab.studies.learning.generative_predictive_utility import (
 from symbiont_lab.studies.learning.generative_recombination_construction import (
     run_generative_recombination_construction_study,
 )
+from symbiont_lab.studies.learning.generative_replay_utility import (
+    run_generative_replay_utility_study,
+)
 from symbiont_lab.studies.learning.independent_symbol_grounding import (
     run_independent_symbol_grounding_study,
 )
@@ -182,6 +185,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.generative-cognition-predictive-utility": run_generative_predictive_utility_study,
     "learning.generative-cognition-model-correction": run_generative_model_correction_study,
     "learning.generative-cognition-depth-calibration": run_generative_depth_calibration_study,
+    "learning.generative-cognition-replay-utility": run_generative_replay_utility_study,
     "learning.continuous-temporal-challenge": run_continuous_temporal_challenge,
     "learning.continuous-temporal-controls": run_continuous_temporal_controls,
     "learning.cognitive-ecology-embodiment": run_cognitive_ecology_embodiment_study,

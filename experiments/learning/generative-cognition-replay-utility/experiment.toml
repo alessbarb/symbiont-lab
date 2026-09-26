@@ -1,0 +1,24 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-replay-utility"
+title = "Generative Cognition Replay Utility"
+protocol = "learning.generative-cognition-replay-utility"
+protocol_version = 1
+hypothesis = """
+With identical factual experience and the same opaque model, bounded replay
+will improve a matched prediction while retaining source provenance and not
+creating a new factual episode.
+"""
+success_criteria = """
+Replay accuracy exceeds online-only accuracy; replay roots are REPLAYED and
+retain their source episode; factual episode counts do not change; factual and
+agenda contamination remain zero.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
