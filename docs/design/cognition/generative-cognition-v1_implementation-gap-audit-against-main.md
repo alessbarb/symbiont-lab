@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `1cd8e180` (validation snapshot: 2026-09-27)
+**Audited commit:** `1d3d64df` (validation snapshot: 2026-09-27)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -31,6 +31,7 @@ registered model-correction run: 20260926T223453Z-learning-generative-cognition-
 registered depth-calibration run: 20260926T224036Z-learning-generative-cognition-depth-calibration-bda7c57-b9d8
 registered replay-utility run: 20260926T224742Z-learning-generative-cognition-replay-utility-9237323-72d8
 registered consolidation-gates run: 20260926T225157Z-learning-generative-cognition-consolidation-gates-44874d6-bf28
+registered planning-utility run: 20260926T230309Z-learning-generative-cognition-planning-utility-1d3d64d-7fb5
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
@@ -128,15 +129,31 @@ This verifies the structural-admission threshold and adversarial repetition
 guard. It does not yet provide the full A/B/C task-level consolidation-benefit
 study, external adaptability, or contradiction-driven longitudinal revision.
 
+It now also contains a registered GC-E2 planning-utility mechanism gate:
+
+```text
+control success rate: 0%
+treatment success rate: 100%
+planning gain: 1.0
+factual experience counts equal: true
+generated origins non-observed: true
+factual contamination: 0
+```
+
+This is a matched opaque-action assay using one-step versus bounded two-step
+prospection. It keeps generated terminal outcomes out of the factual ledger
+and closes only the bounded selection mechanism; embodied planning,
+external-world generalisation and independent-task utility remain open.
+
 The bounded-history fix behind this evidence is intentionally non-destructive:
 terminal agenda targets and terminal hypotheses may be evicted to preserve
 capacity, while unresolved demand, factual provenance and aggregate
 contradiction counts remain durable.
 
 The evidence closes a long-horizon release-gate and determinism failure found
-during this audit and adds a synthetic GC-E1 mechanism result. It does **not**
-close external-world utility for GC-E1, nor the remaining utility battery
-GC-E2/E3/E4/GC-E6/E7/E8/GC-E11/GC-E12, and it does not establish a cognitive
+during this audit and adds synthetic GC-E1 and GC-E2 mechanism results. It does
+**not** close external-world utility for GC-E1 or GC-E2, nor the remaining
+utility battery GC-E3/E4/GC-E6/E7/E8/GC-E11/GC-E12, and it does not establish a cognitive
 advantage over a matched no-GC control. The default-suite collection errors
 remain a separate repository health issue and are not counted as Generative
 Cognition evidence.
@@ -195,7 +212,7 @@ integration paths:
 ```text
 GC-E1 multi-step predictive utility
 
-GC-E2 planning utility
+GC-E2 embodied/external planning utility
 
 GC-E3 counterfactual utility in competing-hypothesis tasks
 
@@ -243,7 +260,7 @@ built by composing several mature existing components.
 | GC-1 | Endogenous agenda | **IMPLEMENTED — resident selection, suppression, contamination guard and mode-aware routing for compatible non-prospective operators** |
 | GC-2 | Generative model adapters | **IMPLEMENTED + runtime-wired — CompetenceEffectModel and Private SLM** |
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; synthetic GC-E1 mechanism gate passes, external scientific utility remains open** |
-| GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
+| GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; bounded GC-E2 matched planning mechanism gate passes; embodied planning and richer merge/pruning remain open** |
 | GC-5 | Counterfactual cognition | **IMPLEMENTED/PARTIAL — runtime route and matched mechanism gate pass; broader utility remains open** |
 | GC-6 | Replay | **IMPLEMENTED + registered bounded GC-E8 mechanism gate — factual episodic provenance preserved; replay improves the matched opaque prediction without duplicating factual experience; external-task utility remains open** |
 | GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge and registered construction/provenance gate pass; autonomous scheduling and utility evidence pending** |
@@ -1220,14 +1237,20 @@ test_branch_determinism.py
 
 ## Experiment
 
-GC-E2 ultimately measures whether branching adds planning utility.
+The registered bounded mechanism gate
+`learning.generative-cognition-planning-utility` compares one-step and
+two-step prospection over matched opaque actions. It passes with a planning
+gain of `1.0`, equal factual-experience counts and zero contamination. GC-E2
+still requires an external/embodied task and mechanism ablations before it
+can support a general planning-utility claim.
 
 ---
 
 ## Status
 
 ```text
-PARTIAL — bounded branching and equivalence pruning
+PARTIAL — bounded branching and equivalence pruning; matched GC-E2 mechanism
+gate passes, while external planning utility remains open
 ```
 
 ---
@@ -2528,7 +2551,7 @@ Generative data does not yet exist.
 | **GC-1** | §§29–38, 111 | autonomous-training pattern only | Agenda, targets, progress/stagnation, contamination guard | agenda autonomy + anti-rumination | **GC-E10** |
 | **GC-2** | §§46–50 | Private SLM, sensorimotor models, competence-effect model | GenerativeModel protocol + registry + adapters | adapter-equivalence | prerequisite GC-E1 |
 | **GC-3** | §§51–55 | one-step prediction only | RolloutEngine | depth/budget/uncertainty/determinism | **GC-E1** |
-| **GC-4** | §§56–58 | independent one-step candidates | branch tree, pruning, equivalence | branch bounds + merge | **GC-E2** |
+| **GC-4** | §§56–58 | independent one-step candidates | branch tree, pruning, equivalence | branch bounds + merge + bounded GC-E2 mechanism gate | **GC-E2 external/embodied utility** |
 | **GC-5** | §61 | `CounterfactualPrediction`, `predict_competence_outcome()` | generic multi-state counterfactual | provenance + intervention | **GC-E3** |
 | **GC-6** | §§59–60 | `EpisodicExperienceMemory`, `EpisodicProjection` | replay → GenerativeEpisode | no factual duplication plus matched replay utility | **GC-E8 mechanism gate; external-task utility remains open** |
 | **GC-7** | §§62–64 | episodic fragments available | recombination engine | compatibility + novelty | **GC-E4** |

@@ -3081,6 +3081,36 @@ Equal factual experience.
 
 Measure downstream factual behaviour.
 
+The bounded mechanism gate is registered as:
+
+```text
+learning.generative-cognition-planning-utility
+run: 20260926T230309Z-learning-generative-cognition-planning-utility-1d3d64d-7fb5
+```
+
+Its matched opaque-action result was:
+
+```text
+control success rate: 0%
+treatment success rate: 100%
+planning gain: 1.0
+factual experience counts equal: true
+generated origins non-observed: true
+factual contamination: 0
+```
+
+The control used one-step prospection and the treatment used a bounded
+two-step rollout. Both conditions saw the same factual value ledger and the
+same immediate prediction; only the generated terminal branch distinguished
+the safe action. The terminal generated outcome was kept out of the factual
+ledger and reached policy only as an epistemic comparison signal.
+
+This closes the mechanism-level assay, not the full scientific claim. It does
+not yet demonstrate embodied planning, external-world generalisation,
+long-horizon planning, or utility across independent environments. Those
+require matched external tasks and ablations of rollout, branching and
+epistemic comparison.
+
 ---
 
 # 115. GC-E3 — Counterfactual utility
@@ -4563,7 +4593,7 @@ scientific closure.
 | GC-1 endogenous agenda | organism-owned selection and suppression | productive/stagnant agenda gate | stability under longer workloads |
 | GC-2 model adapters | private model registration and bounded generation | adapter and provenance tests | calibrated model comparison |
 | GC-3 rollout | bounded multi-step trajectory construction | budget, depth and determinism tests plus registered GC-E6 calibration mechanism gate | GC-E1 matched predictive utility, external calibration and external generalisation |
-| GC-4 branching | explicit model disagreement without factual authority | branch provenance tests | branch-selection and merge utility |
+| GC-4 branching | explicit model disagreement without factual authority | branch provenance tests plus registered GC-E2 matched planning mechanism gate | GC-E2 embodied/external planning, branch-selection and merge utility |
 | GC-5 counterfactual | counterfactual origin and agency boundary | counterfactual mechanism gate | GC-E3 matched external utility and ablations |
 | GC-6 replay | offline replay without a new factual experience | replay provenance, ledger-count and registered GC-E8 mechanism tests | GC-E8 external-task utility and replay-plus-recombination |
 | GC-7 recombination | compatibility-gated multi-episode imagined state | source provenance, rejection and contamination tests | GC-E4 external utility and autonomous source scheduling |
