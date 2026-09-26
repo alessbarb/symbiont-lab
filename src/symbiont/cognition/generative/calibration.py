@@ -54,6 +54,74 @@ class PredictionCalibration:
         bucket[1] += 1
         bucket.append(observed_error)
 
+    def checkpoint(self) -> dict[str, object]:
+        """Persist bounded aggregate calibration, never generated trajectories."""
+        return {
+            "buckets": [
+                {
+                    "model_id": model_id,
+                    "operation": operation.value,
+                    "depth_bucket": depth_bucket,
+                    "uncertainty_bucket": uncertainty_bucket,
+                    "prediction_count": int(values[0]),
+                    "comparable_count": int(values[1]),
+                    "uncertainty_sum": float(values[2]),
+                    "errors": [float(value) for value in values[3:]],
+                }
+                for (model_id, operation, depth_bucket, uncertainty_bucket), values
+                in sorted(
+                    self._buckets.items(),
+                    key=lambda item: (
+                        item[0][0],
+                        item[0][1].value,
+                        item[0][2],
+                        item[0][3],
+                    ),
+                )
+            ]
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: object) -> "PredictionCalibration":
+        if not isinstance(payload, dict):
+            raise ValueError("calibration checkpoint must be an object")
+        raw_buckets = payload.get("buckets", [])
+        if not isinstance(raw_buckets, list) or len(raw_buckets) > 4096:
+            raise ValueError("invalid calibration bucket collection")
+        obj = cls()
+        for item in raw_buckets:
+            if not isinstance(item, dict):
+                raise ValueError("invalid calibration bucket")
+            try:
+                model_id = bounded_identifier(item["model_id"], name="model_id")
+                operation = GenerativeOperation(item["operation"])
+                depth_bucket = int(item["depth_bucket"])
+                uncertainty_bucket = int(item["uncertainty_bucket"])
+                prediction_count = int(item["prediction_count"])
+                comparable_count = int(item["comparable_count"])
+                uncertainty_sum = float(item["uncertainty_sum"])
+                errors = [float(value) for value in item.get("errors", [])]
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("invalid calibration bucket") from exc
+            if (
+                depth_bucket < 0
+                or not 0 <= uncertainty_bucket <= 9
+                or prediction_count < 0
+                or comparable_count < 0
+                or comparable_count > prediction_count
+                or len(errors) != comparable_count
+                or not 0.0 <= uncertainty_sum <= float(prediction_count)
+                or any(not 0.0 <= error <= 1.0 for error in errors)
+            ):
+                raise ValueError("invalid calibration bucket values")
+            obj._buckets[(model_id, operation, depth_bucket, uncertainty_bucket)] = [
+                float(prediction_count),
+                float(comparable_count),
+                uncertainty_sum,
+                *errors,
+            ]
+        return obj
+
     def bucket(
         self, *, model_id: str, operation: GenerativeOperation, depth: int, uncertainty: float
     ) -> CalibrationBucket:
