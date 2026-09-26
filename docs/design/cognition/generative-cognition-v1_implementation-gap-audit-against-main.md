@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `e82c84e9` (validation snapshot: 2026-09-27)
+**Audited commit:** `a602c14e` (validation snapshot: 2026-09-27)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -1035,7 +1035,7 @@ at multiple horizons.
 IMPLEMENTED — bounded substrate only
 ```
 
-The engine enforces workspace depth, state, transition and model-query bounds, deterministic proposal selection, and monotonic uncertainty propagation. Focused unit coverage exists for multi-step composition. Runtime wiring, budget-exhaustion/model-unavailable cases, determinism coverage, and GC-E1 scientific evidence remain open.
+The engine enforces workspace depth, state, transition and model-query bounds, deterministic proposal selection, and monotonic uncertainty propagation. Focused unit coverage now includes multi-step composition, budget exhaustion, model unavailability and deterministic replay. Runtime wiring and GC-E1 scientific evidence remain open.
 
 ---
 
