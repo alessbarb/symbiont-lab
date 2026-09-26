@@ -54,3 +54,64 @@ def test_mature_signal_projects_only_to_external_structural_contention():
     )
     assert calls[0]["producer_id"] == "producer.generative"
     assert calls[0]["family"] == "generative"
+
+
+
+def test_source_diversity_grows_only_from_independent_factual_reconciliation_refs():
+    consolidator = GenerativeConsolidator()
+    for episode_id in ("e0", "e1", "e2"):
+        consolidator.tracker.record(
+            representation_ref="r0",
+            episode_id=episode_id,
+            state_id=f"{episode_id}.s0",
+            model_ids=("m0",),
+        )
+
+    before = consolidator.signal(representation_ref="r0", generative_demand=0.7)
+    assert before.recurrent_activation == 3
+    assert before.independent_episode_count == 3
+    assert before.source_diversity == 0
+
+    consolidator.tracker.note_factual_sources(
+        representation_ref="r0",
+        source_refs=("evidence.1",),
+    )
+    consolidator.tracker.note_factual_sources(
+        representation_ref="r0",
+        source_refs=("evidence.1",),
+    )
+    once = consolidator.signal(representation_ref="r0", generative_demand=0.7)
+    assert once.source_diversity == 1
+
+    consolidator.tracker.note_factual_sources(
+        representation_ref="r0",
+        source_refs=("evidence.2",),
+    )
+    after = consolidator.signal(representation_ref="r0", generative_demand=0.7)
+    assert after.source_diversity == 2
+    assert consolidator.is_mature(after)
+
+
+def test_generative_use_checkpoint_round_trip_preserves_bounded_source_diversity():
+    from symbiont.cognition.generative.consolidation import GenerativeUseTracker
+
+    tracker = GenerativeUseTracker()
+    tracker.record(
+        representation_ref="r0",
+        episode_id="e0",
+        state_id="s0",
+        model_ids=("m0",),
+        model_disagreement=0.5,
+    )
+    tracker.note_factual_sources(
+        representation_ref="r0",
+        source_refs=("evidence.1", "evidence.2"),
+    )
+
+    restored = GenerativeUseTracker.from_checkpoint(tracker.checkpoint())
+    signal = restored.signal(representation_ref="r0", generative_demand=0.7)
+
+    assert signal.recurrent_activation == 1
+    assert signal.independent_episode_count == 1
+    assert signal.source_diversity == 2
+    assert signal.model_disagreement == 0.5
