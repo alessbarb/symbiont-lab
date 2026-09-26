@@ -23,7 +23,7 @@ from .agenda import (
 from .branch import BranchEngine
 from .budget import GenerativeBudget
 from .calibration import PredictionCalibration
-from .consolidation import GenerativeConsolidator
+from .consolidation import GenerativeConsolidator, GenerativeUseTracker
 from .episode import new_episode
 from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
 from .epistemic_value import EpistemicValue, EpistemicValueEstimator
@@ -132,6 +132,7 @@ class ResidentGenerativeCognition:
         self.hypotheses: dict[str, GenerativeHypothesis] = {}
         self._hypothesis_target: dict[str, str] = {}
         self._hypothesis_outcomes: dict[str, tuple[str, ...]] = {}
+        self._hypothesis_representations: dict[str, tuple[str, ...]] = {}
         self._hypothesis_calibration: dict[
             str, tuple[str, GenerativeOperation, int, float]
         ] = {}
@@ -169,6 +170,9 @@ class ResidentGenerativeCognition:
                     "predicted_outcomes": list(
                         self._hypothesis_outcomes.get(hypothesis.hypothesis_id, ())
                     ),
+                    "representation_refs": list(
+                        self._hypothesis_representations.get(hypothesis.hypothesis_id, ())
+                    ),
                     "calibration": (
                         {
                             "model_id": self._hypothesis_calibration[hypothesis.hypothesis_id][0],
@@ -185,6 +189,7 @@ class ResidentGenerativeCognition:
                 )
             ],
             "calibration": self.calibration.checkpoint(),
+            "generative_use": self.consolidator.tracker.checkpoint(),
             "reconciliation_count": self.reconciliation_count,
             "factual_contamination_count": self.factual_contamination_count,
         }
@@ -231,6 +236,11 @@ class ResidentGenerativeCognition:
             resident.calibration = PredictionCalibration.from_checkpoint(
                 payload.get("calibration", {"buckets": []})
             )
+            resident.consolidator = GenerativeConsolidator(
+                tracker=GenerativeUseTracker.from_checkpoint(
+                    payload.get("generative_use", {"representations": []})
+                )
+            )
             raw_reconciliations = payload.get("reconciliation_count", 0)
             raw_contamination = payload.get("factual_contamination_count", 0)
             for name, value in (
@@ -264,6 +274,9 @@ class ResidentGenerativeCognition:
                 resident._hypothesis_target[hypothesis.hypothesis_id] = target_id
                 resident._hypothesis_outcomes[hypothesis.hypothesis_id] = tuple(
                     item.get("predicted_outcomes", ())
+                )
+                resident._hypothesis_representations[hypothesis.hypothesis_id] = tuple(
+                    item.get("representation_refs", ())
                 )
                 raw_calibration = item.get("calibration")
                 if raw_calibration is not None:
@@ -502,6 +515,9 @@ class ResidentGenerativeCognition:
         self.hypotheses[hypothesis.hypothesis_id] = hypothesis
         self._hypothesis_target[hypothesis.hypothesis_id] = target_id
         self._hypothesis_outcomes[hypothesis.hypothesis_id] = transition.predicted_outcomes
+        self._hypothesis_representations[hypothesis.hypothesis_id] = tuple(
+            sorted({feature.token for feature in final_state.features})
+        )
         if transition.model_ids:
             self._hypothesis_calibration[hypothesis.hypothesis_id] = (
                 transition.model_ids[0],
@@ -552,6 +568,13 @@ class ResidentGenerativeCognition:
                 evidence_ref=evidence_refs[0],
                 supported=supported,
             )
+            for representation_ref in self._hypothesis_representations.get(
+                hypothesis_id, ()
+            ):
+                self.consolidator.tracker.note_factual_sources(
+                    representation_ref=representation_ref,
+                    source_refs=evidence_refs,
+                )
             calibration = self._hypothesis_calibration.get(hypothesis_id)
             if calibration is not None:
                 model_id, operation, depth, uncertainty = calibration
