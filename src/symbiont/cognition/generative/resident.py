@@ -24,6 +24,7 @@ from .branch import BranchEngine
 from .budget import GenerativeBudget
 from .calibration import PredictionCalibration
 from .consolidation import GenerativeConsolidator, GenerativeUseTracker
+from .counterfactual import CounterfactualEngine
 from .episode import new_episode
 from .epistemic_value import EpistemicValue, EpistemicValueEstimator
 from .execution import GenerativeExecutionCoordinator, GenerativeExecutionResult
@@ -399,6 +400,15 @@ class ResidentGenerativeCognition:
                         len(branching_models),
                         workspace.budget.max_branches,
                     ),
+                )
+            elif operation is GenerativeOperation.COUNTERFACTUAL:
+                result = CounterfactualEngine(
+                    registry=self.registry,
+                    workspace=workspace,
+                ).evaluate(
+                    root_state_id=root_state_id,
+                    context=context,
+                    max_depth=depth,
                 )
             else:
                 result = RolloutEngine(
