@@ -3429,6 +3429,22 @@ and:
 stop thinking
 ```
 
+The registered release gate is:
+
+```text
+learning.generative-cognition-release-gates
+run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
+productive target selected: true
+productive target resolved: true
+stagnant target suppressed: true
+alternate selected after suppression: true
+agenda contamination: 0
+```
+
+This closes the bounded selection/suppression gate. It does not establish
+long-horizon agenda stability under arbitrary workloads or prove that agenda
+selection improves an external task.
+
 ---
 
 # 123. GC-E11 — Generative consolidation
