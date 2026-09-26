@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `31be3a8f` (validation snapshot: 2026-09-27)
+**Audited commit:** `78895646` (validation snapshot: 2026-09-27)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -180,7 +180,7 @@ built by composing several mature existing components.
 | GC-5 | Counterfactual cognition | **IMPLEMENTED/PARTIAL — runtime route and matched mechanism gate pass; broader utility remains open** |
 | GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
 | GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge and registered construction/provenance gate pass; autonomous scheduling and utility evidence pending** |
-| GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired — separate factual evidence domains and calibration** |
+| GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired + checkpointed — separate factual evidence domains and calibration; external correction evidence pending** |
 | GC-9 | Epistemic agency | **IMPLEMENTED conservatively — exact pragmatic ties only; cannot override higher pragmatic utility** |
 | GC-10 | Generative consolidation | **IMPLEMENTED — bounded use tracking, independent factual source diversity, durable checkpoint state, recency decay and non-factual structural-retention protection; quantitative benefit studies pending** |
 | GC-11 | Offline cognition | **IMPLEMENTED/PARTIAL — ONLINE/IDLE/OFFLINE resident execution, mode-aware endogenous routing and episodic replay; richer autonomous scheduling and no-world-mutation coverage pending** |
@@ -1718,8 +1718,9 @@ PARTIAL — bounded lifecycle and reconciliation substrate
 
 The narrow prediction-validation pattern still exists, and the generic
 hypothesis lifecycle, explicit reconciliation boundary and bounded calibration
-statistics now exist. Durable persistence, runtime integration and GC-E6/GC-E7
-evidence remain open.
+statistics now exist. Runtime reconciliation records calibration comparisons,
+and a resident checkpoint test preserves the resulting calibration bucket.
+External GC-E6/GC-E7 evidence remains open.
 
 ---
 
