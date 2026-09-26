@@ -1748,3 +1748,49 @@
     display: none;
   }
 }
+
+
+/* Generative cognition is an ephemeral observer layer, never Atlas topology. */
+.mind-cognition-generative {
+  position: absolute;
+  right: 16px;
+  top: 94px;
+  width: min(300px, 34%);
+  max-height: 310px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(8px);
+  z-index: 4;
+}
+.mind-cognition-generative-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.mind-cognition-generative-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  font-size: 11px;
+}
+.mind-cognition-generative-key {
+  color: var(--muted);
+}
+.mind-cognition-generative-value {
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.mind-cognition-generative-hypothesis {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
