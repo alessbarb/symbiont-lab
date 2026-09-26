@@ -43,6 +43,63 @@ function normalizeSnapshot(raw) {
   return { ...raw, organism: migratedOrganism }; // v3 carries body_schema; cognition remains optional.
 }
 
+function boundedGenerative(generative) {
+  if (!generative || typeof generative !== "object") return null;
+  const unit = value => Math.min(1, Math.max(0, Number(value) || 0));
+  const ids = values => (Array.isArray(values) ? values : [])
+    .slice(0, 8).filter(value => typeof value === "string").map(value => value.slice(0, 128));
+  const states = (Array.isArray(generative.states) ? generative.states : []).slice(0, 64)
+    .filter(item => item && typeof item.state_id === "string")
+    .map(item => ({
+      stateId: item.state_id.slice(0, 128),
+      parentStateId: typeof item.parent_state_id === "string" ? item.parent_state_id.slice(0, 128) : null,
+      origin: typeof item.origin === "string" ? item.origin.slice(0, 32) : "inferred",
+      depth: Math.min(64, Math.max(0, Number.parseInt(item.depth, 10) || 0)),
+      modelIds: ids(item.model_ids),
+      uncertainty: unit(item.uncertainty),
+      coherence: unit(item.coherence),
+    }));
+  const transitions = (Array.isArray(generative.transitions) ? generative.transitions : []).slice(0, 64)
+    .filter(item => item && typeof item.transition_id === "string")
+    .map(item => ({
+      transitionId: item.transition_id.slice(0, 128),
+      sourceStateId: typeof item.source_state_id === "string" ? item.source_state_id.slice(0, 128) : "",
+      targetStateId: typeof item.target_state_id === "string" ? item.target_state_id.slice(0, 128) : "",
+      operation: typeof item.operation === "string" ? item.operation.slice(0, 32) : "predict",
+      modelIds: ids(item.model_ids),
+    }));
+  const hypotheses = (Array.isArray(generative.hypotheses) ? generative.hypotheses : []).slice(0, 128)
+    .filter(item => item && typeof item.hypothesis_id === "string")
+    .map(item => ({
+      hypothesisId: item.hypothesis_id.slice(0, 128),
+      targetId: typeof item.target_id === "string" ? item.target_id.slice(0, 128) : "",
+      status: typeof item.status === "string" ? item.status.slice(0, 32) : "hypothesized",
+      modelIds: ids(item.model_ids),
+      uncertainty: unit(item.uncertainty),
+    }));
+  const mode = ["online", "idle", "offline"].includes(generative.mode) ? generative.mode : "online";
+  return {
+    mode,
+    targetId: typeof generative.target_id === "string" ? generative.target_id.slice(0, 128) : null,
+    episodeId: typeof generative.episode_id === "string" ? generative.episode_id.slice(0, 128) : null,
+    stateCount: Math.min(64, Math.max(0, Number.parseInt(generative.state_count, 10) || 0)),
+    transitionCount: Math.min(64, Math.max(0, Number.parseInt(generative.transition_count, 10) || 0)),
+    branchCount: Math.min(64, Math.max(0, Number.parseInt(generative.branch_count, 10) || 0)),
+    maxDepth: Math.min(64, Math.max(0, Number.parseInt(generative.max_depth, 10) || 0)),
+    modelQueries: Math.min(1024, Math.max(0, Number.parseInt(generative.model_queries, 10) || 0)),
+    termination: typeof generative.termination === "string" ? generative.termination.slice(0, 32) : null,
+    agendaCandidateCount: Math.min(256, Math.max(0, Number.parseInt(generative.agenda_candidate_count, 10) || 0)),
+    agendaContaminationCount: Math.max(0, Number.parseInt(generative.agenda_contamination_count, 10) || 0),
+    factualContaminationCount: Math.max(0, Number.parseInt(generative.factual_contamination_count, 10) || 0),
+    hypothesisCount: Math.min(128, Math.max(0, Number.parseInt(generative.hypothesis_count, 10) || 0)),
+    reconciliationCount: Math.max(0, Number.parseInt(generative.reconciliation_count, 10) || 0),
+    consolidationSignalCount: Math.min(256, Math.max(0, Number.parseInt(generative.consolidation_signal_count, 10) || 0)),
+    states,
+    transitions,
+    hypotheses,
+  };
+}
+
 function boundedCognition(cognition) {
   if (!cognition || typeof cognition !== "object") return null;
   const activationClasses = {};
@@ -100,6 +157,7 @@ function boundedCognition(cognition) {
     quantizationError: Number.isFinite(Number(cognition.quantization_error)) ? Math.max(0, Number(cognition.quantization_error)) : null,
     relationChurn: Number.isFinite(Number(cognition.relation_churn)) ? Math.max(0, Math.min(1, Number(cognition.relation_churn))) : null,
     developmentalDivergence: Number.isFinite(Number(cognition.developmental_divergence)) ? Math.max(0, Math.min(1, Number(cognition.developmental_divergence))) : null,
+    generative: boundedGenerative(cognition.generative),
     safetyState: {
       consecutiveFailures: Math.max(0, Number.parseInt(safety.consecutive_failures, 10) || 0),
       frozen: safety.frozen === true,
