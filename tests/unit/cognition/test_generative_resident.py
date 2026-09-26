@@ -402,3 +402,39 @@ def test_recombination_rejects_incompatible_fragments_without_workspace() -> Non
         resident.materialize_recombination(tick=11, left=left, right=right)
 
     assert resident.last_workspace is None
+
+
+def test_recombination_checkpoint_preserves_multi_episode_provenance() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    fragment = RecombinationFragment(
+        source_episode_id="episode.left",
+        source_state_id="state.left",
+        features=(GeneratedFeature("feature.left", None, 0.9),),
+        compatibility_keys=("context.shared",),
+        uncertainty=0.2,
+        coherence=0.9,
+    )
+    other = RecombinationFragment(
+        source_episode_id="episode.right",
+        source_state_id="state.right",
+        features=(GeneratedFeature("feature.right", None, 0.8),),
+        compatibility_keys=("context.shared",),
+        uncertainty=0.3,
+        coherence=0.7,
+    )
+
+    resident.materialize_recombination(tick=11, left=fragment, right=other)
+    restored = ResidentGenerativeCognition.from_checkpoint(
+        resident.checkpoint(), organism_id="organism.test"
+    )
+
+    assert restored.last_workspace is not None
+    assert restored.last_workspace.episode.source_episode_ids == (
+        "episode.left",
+        "episode.right",
+    )
+    assert restored.last_workspace.states[0].origin.value == "imagined"
+    assert restored.last_workspace.states[0].source_state_ids == (
+        "state.left",
+        "state.right",
+    )
