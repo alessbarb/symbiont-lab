@@ -1,0 +1,24 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-predictive-utility"
+title = "Generative Cognition Multi-step Predictive Utility"
+protocol = "learning.generative-cognition-predictive-utility"
+protocol_version = 1
+hypothesis = """
+On an opaque deterministic sequence, a bounded multi-step Generative Cognition
+rollout will predict the target at horizons 1, 2 and 4 more accurately than
+persistence and a one-step rollout baselines under the same initial state.
+"""
+success_criteria = """
+Multi-step accuracy is 1.0 and exceeds both baselines, all generated states
+remain non-observed, and all rollouts complete within their declared bounds.
+This is a matched substrate mechanism gate, not evidence of broad intelligence.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
