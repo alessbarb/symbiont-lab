@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `3ebe340c` (validation snapshot: 2026-09-27)
+**Audited commit:** `e82c84e9` (validation snapshot: 2026-09-27)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -17,14 +17,15 @@ Since the original audit, the following implementation and validation work is
 now evidenced on `main`:
 
 ```text
-focused GC contract suite: 30 passed, 4 deselected
+focused GC contract suite: 35 passed, 4 deselected
 GC-E3 matched mechanism gate: passed across seeds 101, 127 and 149
 release-gate experiment: passed
 GC-E5 scale: 16, 64, 256, 1024 and 10,000 episodes passed
 GC-E5 at 10,000: 10,000 reconciliations, 10,000 contradictions,
                  0 factual contamination
 reproducibility: five identical SHA-256 outputs at 128 episodes
-registered run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
+registered release run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
+registered recombination run: 20260926T221733Z-learning-generative-cognition-recombination-construction-e82c84e-66b5
 10,000-episode stress: 7.39 s, 46,824 KiB maximum resident set size
 integration contract block: 77 passed
 default `pytest -q`: collection blocked by 4 pre-existing legacy API imports
