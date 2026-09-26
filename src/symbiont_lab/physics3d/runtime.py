@@ -2050,6 +2050,58 @@ class PyBulletEmbodimentRuntime:
                 }
                 for item in self.organism.action_dimensions
             ],
+            "agency_estimates": [
+                {
+                    "effect_id": item.effect_id,
+                    "competence_id": item.competence_id,
+                    "context_id": item.context_id,
+                    "confidence": item.confidence,
+                    "temporal_contingency": item.temporal_contingency,
+                    "causal_specificity": item.causal_specificity,
+                    "prediction_match": item.prediction_match,
+                    "support": item.support,
+                    "last_updated_tick": item.last_updated_tick,
+                }
+                for item in self.organism.agency_model.estimates
+            ],
+            "controllability_estimates": [
+                {
+                    "effect_id": item.effect_id,
+                    "competence_id": item.competence_id,
+                    "context_id": item.context_id,
+                    "confidence": item.confidence,
+                    "reliability": item.reliability,
+                    "counterfactual_rate": item.counterfactual_rate,
+                    "causal_advantage": item.causal_advantage,
+                    "action_support": item.action_support,
+                    "counterfactual_support": item.counterfactual_support,
+                    "last_updated_tick": item.last_updated_tick,
+                }
+                for item in self.organism.controllability_model.estimates
+            ],
+            "body_schema_boundary": {
+                "self_caused_channels": list(self.organism.body_schema.self_caused_channels),
+                "somatic_correlated_channels": list(
+                    self.organism.body_schema.somatic_correlated_channels
+                ),
+                "external_channels": list(self.organism.body_schema.external_channels),
+                "confidence": self.organism.body_schema.boundary_confidence,
+                "revision_count": self.organism.body_schema.boundary_revision_count,
+                "disruption_score": self.organism.body_schema.boundary_disruption_score,
+            },
+            "executive_state": {
+                "active_commitment_id": (
+                    active_commitment.commitment_id
+                    if active_commitment is not None and active_commitment.active
+                    else None
+                ),
+                "competence_id": (
+                    active_commitment.competence_id
+                    if active_commitment is not None and active_commitment.active
+                    else None
+                ),
+                "action_source": action_source,
+            },
             "outcome": {
                 "initial_resource_distance": float(self._initial_resource_distance),
                 "minimum_resource_distance": float(self._minimum_resource_distance),
