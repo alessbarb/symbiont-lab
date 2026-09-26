@@ -17,6 +17,7 @@ def test_cognitive_ecology_protocols_are_registered():
         "learning.canonical-sensorimotor-counterfactual": "run_counterfactual_replay_study",
         "learning.canonical-sensorimotor-adaptation": "run_sensorimotor_adaptation_study",
         "learning.generative-cognition-counterfactual-utility": "run_generative_counterfactual_utility_study",
+        "learning.generative-cognition-recombination-construction": "run_generative_recombination_construction_study",
     }
     for protocol, function_name in expected.items():
         assert get_protocol(protocol).__name__ == function_name
