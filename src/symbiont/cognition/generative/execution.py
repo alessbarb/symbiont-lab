@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .agenda import AgendaCandidate, AgendaProgress, GenerativeAgenda
+from .agenda import AgendaCandidate, AgendaProgress, AgendaSource, GenerativeAgenda
 from .scheduler import GenerativeScheduler, ScheduleDecision
 from .types import GenerativeMode
 from .workspace import GenerativeWorkspace
@@ -39,8 +39,9 @@ class GenerativeExecutionCoordinator:
         tick: int,
         workspace: GenerativeWorkspace,
         run_target: Callable[[AgendaCandidate, GenerativeMode], AgendaProgress],
+        eligible_sources: frozenset[AgendaSource] | None = None,
     ) -> GenerativeExecutionResult:
-        selected = self.agenda.select(tick=tick, limit=1)
+        selected = self.agenda.select(tick=tick, limit=1, sources=eligible_sources)
         candidate = selected[0] if selected else None
         remaining_queries = max(0, workspace.budget.max_model_queries - workspace.model_queries)
         decision = self.scheduler.schedule(
