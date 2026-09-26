@@ -582,3 +582,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.self-selected-array {
+  display: grid;
+  gap: 4px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(118,145,167,.09);
+}
+.self-selected-array > span {
+  color: var(--muted);
+  font: 9px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+.self-selected-array code {
+  color: var(--text);
+  font: 9px var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
