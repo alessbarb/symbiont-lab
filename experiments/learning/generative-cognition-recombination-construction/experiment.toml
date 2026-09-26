@@ -1,0 +1,26 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-recombination-construction"
+title = "Generative Cognition Recombination Construction"
+protocol = "learning.generative-cognition-recombination-construction"
+protocol_version = 1
+hypothesis = """
+The resident Generative Cognition boundary will construct a bounded imagined
+state from two organism-owned compatible fragments while preserving both
+episode and state provenance. An incompatible pair will be rejected, and the
+construction will not create factual contamination.
+"""
+success_criteria = """
+Across seeds, construction succeeds with imagined origin, combined features
+and preserved multi-episode provenance; incompatible fragments are rejected;
+the no-construction control remains empty; and factual contamination is zero.
+This is a construction/provenance gate, not evidence of external utility.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
