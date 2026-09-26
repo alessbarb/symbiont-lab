@@ -530,6 +530,11 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             pass
     raw_embodiment_block = rich_state.get("embodiment")
     if isinstance(raw_embodiment_block, Mapping):
+        if raw_embodiment_block.get("epoch") is not None and "epoch" not in embodiment:
+            try:
+                embodiment["epoch"] = int(raw_embodiment_block["epoch"])
+            except (TypeError, ValueError):
+                pass
         for source_key, target_key in (
             ("embodiment_id", "embodiment_id"),
             ("body_id", "body_id"),
