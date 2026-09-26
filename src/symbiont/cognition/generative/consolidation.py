@@ -58,13 +58,19 @@ class GenerativeCandidateProjection:
 
 
 class GenerativeUseTracker:
-    """Tracks generated use without touching factual observation counters."""
+    """Bounded generated-use aggregates kept apart from factual observations."""
+
+    MAX_REPRESENTATIONS = 256
+    MAX_EPISODES_PER_REPRESENTATION = 64
+    MAX_SOURCES_PER_REPRESENTATION = 64
 
     def __init__(self) -> None:
-        self._activations: dict[str, list[tuple[str, str]]] = {}
-        self._models: dict[str, set[str]] = {}
+        self._activation_counts: dict[str, int] = {}
+        self._episodes: dict[str, set[str]] = {}
+        self._sources: dict[str, set[str]] = {}
         self._hypothesis_counts: dict[str, int] = {}
-        self._disagreement: dict[str, list[float]] = {}
+        self._disagreement_sum: dict[str, float] = {}
+        self._disagreement_count: dict[str, int] = {}
 
     def record(
         self,
@@ -73,44 +79,142 @@ class GenerativeUseTracker:
         episode_id: str,
         state_id: str,
         model_ids: tuple[str, ...] = (),
+        source_refs: tuple[str, ...] = (),
         hypothesis_ref: str | None = None,
         model_disagreement: float = 0.0,
     ) -> None:
         bounded_identifier(representation_ref, name="representation_ref")
         bounded_identifier(episode_id, name="episode_id")
         bounded_identifier(state_id, name="state_id")
-        if not isinstance(model_ids, tuple):
-            raise ValueError("model_ids must be a tuple")
+        if not isinstance(model_ids, tuple) or not isinstance(source_refs, tuple):
+            raise ValueError("model_ids and source_refs must be tuples")
         for model_id in model_ids:
             bounded_identifier(model_id, name="model_id")
+        for source_ref in source_refs:
+            bounded_identifier(source_ref, name="source_ref")
         if hypothesis_ref is not None:
             bounded_identifier(hypothesis_ref, name="hypothesis_ref")
         unit_interval(model_disagreement, name="model_disagreement")
-        self._activations.setdefault(representation_ref, []).append((episode_id, state_id))
-        self._models.setdefault(representation_ref, set()).update(model_ids)
+
+        if (
+            representation_ref not in self._activation_counts
+            and len(self._activation_counts) >= self.MAX_REPRESENTATIONS
+        ):
+            victim = next(iter(self._activation_counts))
+            self._drop(victim)
+
+        self._activation_counts[representation_ref] = min(
+            1_000_000,
+            self._activation_counts.get(representation_ref, 0) + 1,
+        )
+        episodes = self._episodes.setdefault(representation_ref, set())
+        if len(episodes) < self.MAX_EPISODES_PER_REPRESENTATION:
+            episodes.add(episode_id)
+        sources = self._sources.setdefault(representation_ref, set())
+        for source_ref in source_refs:
+            if len(sources) >= self.MAX_SOURCES_PER_REPRESENTATION:
+                break
+            sources.add(source_ref)
         if hypothesis_ref is not None:
-            self._hypothesis_counts[representation_ref] = (
-                self._hypothesis_counts.get(representation_ref, 0) + 1
+            self._hypothesis_counts[representation_ref] = min(
+                1_000_000,
+                self._hypothesis_counts.get(representation_ref, 0) + 1,
             )
-        self._disagreement.setdefault(representation_ref, []).append(model_disagreement)
+        self._disagreement_sum[representation_ref] = min(
+            1_000_000.0,
+            self._disagreement_sum.get(representation_ref, 0.0) + model_disagreement,
+        )
+        self._disagreement_count[representation_ref] = min(
+            1_000_000,
+            self._disagreement_count.get(representation_ref, 0) + 1,
+        )
 
     def signal(
         self, *, representation_ref: str, generative_demand: float
     ) -> GenerativeConsolidationSignal:
         bounded_identifier(representation_ref, name="representation_ref")
         unit_interval(generative_demand, name="generative_demand")
-        activations = self._activations.get(representation_ref, [])
-        episodes = {episode_id for episode_id, _ in activations}
-        disagreements = self._disagreement.get(representation_ref, [])
+        count = self._activation_counts.get(representation_ref, 0)
+        episodes = self._episodes.get(representation_ref, set())
+        disagreement_count = self._disagreement_count.get(representation_ref, 0)
         return GenerativeConsolidationSignal(
-            recurrent_activation=len(activations),
+            recurrent_activation=count,
             cross_episode_reuse=max(0, len(episodes) - 1),
             hypothesis_persistence=self._hypothesis_counts.get(representation_ref, 0),
-            model_disagreement=(sum(disagreements) / len(disagreements) if disagreements else 0.0),
+            model_disagreement=(
+                self._disagreement_sum.get(representation_ref, 0.0) / disagreement_count
+                if disagreement_count
+                else 0.0
+            ),
             generative_demand=generative_demand,
             independent_episode_count=len(episodes),
-            source_diversity=len(self._models.get(representation_ref, set())),
+            source_diversity=len(self._sources.get(representation_ref, set())),
         )
+
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "representations": [
+                {
+                    "representation_ref": representation_ref,
+                    "activation_count": self._activation_counts[representation_ref],
+                    "episode_ids": sorted(self._episodes.get(representation_ref, set())),
+                    "source_refs": sorted(self._sources.get(representation_ref, set())),
+                    "hypothesis_count": self._hypothesis_counts.get(representation_ref, 0),
+                    "disagreement_sum": self._disagreement_sum.get(representation_ref, 0.0),
+                    "disagreement_count": self._disagreement_count.get(representation_ref, 0),
+                }
+                for representation_ref in sorted(self._activation_counts)
+            ]
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: object) -> "GenerativeUseTracker":
+        if not isinstance(payload, dict):
+            raise ValueError("generative-use checkpoint must be an object")
+        raw = payload.get("representations", [])
+        if not isinstance(raw, list) or len(raw) > cls.MAX_REPRESENTATIONS:
+            raise ValueError("invalid generative-use representation collection")
+        tracker = cls()
+        for item in raw:
+            if not isinstance(item, dict):
+                raise ValueError("invalid generative-use representation")
+            representation_ref = bounded_identifier(
+                item.get("representation_ref"), name="representation_ref"
+            )
+            activation_count = int(item.get("activation_count", 0))
+            hypothesis_count = int(item.get("hypothesis_count", 0))
+            disagreement_sum = float(item.get("disagreement_sum", 0.0))
+            disagreement_count = int(item.get("disagreement_count", 0))
+            episode_ids = tuple(item.get("episode_ids", ()))
+            source_refs = tuple(item.get("source_refs", ()))
+            if (
+                activation_count < 0
+                or hypothesis_count < 0
+                or disagreement_sum < 0.0
+                or disagreement_count < 0
+                or len(episode_ids) > cls.MAX_EPISODES_PER_REPRESENTATION
+                or len(source_refs) > cls.MAX_SOURCES_PER_REPRESENTATION
+            ):
+                raise ValueError("invalid generative-use aggregate")
+            tracker._activation_counts[representation_ref] = activation_count
+            tracker._episodes[representation_ref] = {
+                bounded_identifier(value, name="episode_id") for value in episode_ids
+            }
+            tracker._sources[representation_ref] = {
+                bounded_identifier(value, name="source_ref") for value in source_refs
+            }
+            tracker._hypothesis_counts[representation_ref] = hypothesis_count
+            tracker._disagreement_sum[representation_ref] = disagreement_sum
+            tracker._disagreement_count[representation_ref] = disagreement_count
+        return tracker
+
+    def _drop(self, representation_ref: str) -> None:
+        self._activation_counts.pop(representation_ref, None)
+        self._episodes.pop(representation_ref, None)
+        self._sources.pop(representation_ref, None)
+        self._hypothesis_counts.pop(representation_ref, None)
+        self._disagreement_sum.pop(representation_ref, None)
+        self._disagreement_count.pop(representation_ref, None)
 
 
 class GenerativeConsolidator:
