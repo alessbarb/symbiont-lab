@@ -668,6 +668,11 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             context_tokens=context,
             homeostatic_deviation=homeostatic_deviation,
             predictor=_predictor,
+            epistemic_value_provider=lambda action_id: (
+                self.generative_cognition.epistemic_value_for(action_id).comparison_score
+                if self.generative_cognition.epistemic_value_for(action_id) is not None
+                else 0.0
+            ),
             has_active_model=active is not None,
             organism_alive=self._physiology.state is not VitalState.DEAD,
         )
