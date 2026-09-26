@@ -1,0 +1,24 @@
+schema_version = 1
+
+[experiment]
+id = "learning.generative-cognition-model-correction"
+title = "Generative Cognition Model Correction"
+protocol = "learning.generative-cognition-model-correction"
+protocol_version = 1
+hypothesis = """
+After a factual outcome contradicts an opaque generated prediction, an
+explicitly factual-learning model adapter will produce the changed outcome on
+the next bounded generative pass.
+"""
+success_criteria = """
+Every seed must reconcile one contradicted hypothesis and one supported
+corrected hypothesis; generated origins, factual contamination and agenda
+contamination must remain safe.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
