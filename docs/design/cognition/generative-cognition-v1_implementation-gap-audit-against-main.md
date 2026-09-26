@@ -3019,6 +3019,21 @@ The implementation job is primarily to build that missing compositional layer wh
 
 # 30. Final audit result
 
+The implementation work recorded after the original gap inventory has now
+closed the bounded resident wiring for episodic replay and compatible
+recombination. The missing-layer diagram below remains useful as an
+architectural history, but it is not a claim that those components are still
+absent at the audited commit.
+
+Current closure boundary:
+
+```text
+technical substrate and provenance guards: implemented
+release gates and deterministic stress evidence: implemented
+runtime replay and explicit recombination bridge: implemented
+matched cognitive-utility battery: still open
+```
+
 The frozen spec survives confrontation with `main`.
 
 No major spec rewrite is required.
