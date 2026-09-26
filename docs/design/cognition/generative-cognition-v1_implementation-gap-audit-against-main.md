@@ -2534,7 +2534,7 @@ Generative data does not yet exist.
 | **GC-7** | §§62–64 | episodic fragments available | recombination engine | compatibility + novelty | **GC-E4** |
 | **GC-8** | §§65–72 | PREDICTED/SUPPORTED/CONTRADICTED validation | durable hypotheses + generic reconciliation + calibration | lifecycle + later reality | **GC-E6/E7** |
 | **GC-9** | §§67–69 | `ProspectiveAgency`, `OutcomeValueLedger` | EpistemicValue + discrimination integration | authority boundary | **GC-E3** |
-| **GC-10** | §§73–82 | `MemoryConsolidator`, `StructuralContention`, `StructuralPlanner` | generative-demand tracker + producer | diversity + no self-confirmation | **GC-E11/12/13** |
+| **GC-10** | §§73–82 | `MemoryConsolidator`, `StructuralContention`, `StructuralPlanner` | generative-demand tracker + producer | diversity + no self-confirmation + registered consolidation mechanism gate | **full GC-E11/12/13 task-level evidence** |
 | **GC-11** | §§40–44 | none | ONLINE/IDLE/OFFLINE Scheduler | scheduling + no-world-mutation | GC-E8 extensions |
 | **GC-12** | §§95–100 | Atlas v2 + passive Mind projection | generative projection + UI layer | passive projection | observer invariance |
 
