@@ -3058,6 +3058,22 @@ prediction error
 uncertainty calibration
 ```
 
+The registered bounded mechanism gate is:
+
+```text
+learning.generative-cognition-predictive-utility
+run: 20260926T222525Z-learning-generative-cognition-predictive-utility-31be3a8-9d8b
+horizons: 1, 2, 4
+persistence accuracy: 0%
+one-step accuracy: 33.33%
+multi-step accuracy: 100%
+generated origins non-observed: true
+```
+
+This demonstrates rollout composition on a synthetic bounded sequence. It
+does not establish external-world calibration, embodied prediction, or
+transfer across environments.
+
 ---
 
 # 114. GC-E2 — Planning utility
@@ -3167,6 +3183,21 @@ Test whether a compatible novel internal combination emerges.
 
 Construction success is separate from external correctness.
 
+The registered construction/provenance gate is:
+
+```text
+learning.generative-cognition-recombination-construction
+run: 20260926T221733Z-learning-generative-cognition-recombination-construction-e82c84e-66b5
+construction rate: 100%
+provenance preservation: 100%
+incompatible-pair rejection: 100%
+factual contamination: 0
+```
+
+This closes bounded compatible construction and provenance preservation. It
+does not establish external recombination utility, autonomous source
+scheduling, or generalisation.
+
 ---
 
 # 117. GC-E5 — Factual contamination
@@ -3193,6 +3224,20 @@ factual_contamination_count == 0
 ```
 
 Release-blocking.
+
+The registered release gate is:
+
+```text
+learning.generative-cognition-release-gates
+run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
+```
+
+The contamination and agenda gates pass, and the stress campaign remained at
+zero factual contamination for 16, 64, 256, 1,024 and 10,000 generated
+episodes. The 10,000-episode run recorded 10,000 reconciliations and 10,000
+contradictions. Repeated 128-episode executions were byte-identical across
+five hashes. This is release evidence for the firewall and determinism
+invariants, not evidence that generated predictions are externally correct.
 
 ---
 
@@ -3536,6 +3581,23 @@ conflict resolution
 ```
 
 No task-specific anti-loop rule.
+
+The registered release gate is:
+
+```text
+learning.generative-cognition-release-gates
+run: 20260926T214454Z-learning-generative-cognition-release-gates-4026489-6ccc
+gc_e13.passed: true
+mature consolidation signal: true
+stagnant target suppressed: true
+productive target selected: true
+source diversity: 3
+cross-episode reuse: 2
+agenda contamination: 0
+```
+
+This closes the bounded anti-attractor release condition. It does not prove
+long-horizon agenda stability across arbitrary workloads or environments.
 
 ---
 
