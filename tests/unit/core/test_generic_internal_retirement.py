@@ -99,3 +99,42 @@ def test_active_action_readout_is_not_reclaimed_as_orphan():
     }
     assert "readout_primitive:primitive.keep" not in removed
     assert "readout_primitive:primitive.drop" in removed
+
+
+
+def test_source_diverse_generative_retention_protects_existing_orphan_without_factual_counts():
+    limits = KernelLimits()
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode(node_id="state.keep", kind=NodeKind.STATE),
+            PlasticNode(node_id="state.drop", kind=NodeKind.STATE),
+        ),
+        edges=(),
+        kernel_limits=limits,
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=_genome(),
+        kernel_limits=limits,
+        develop_senses=True,
+    )
+    grace = bridge._genome.structure.tentative_lifetime_ticks
+    bridge._orphan_since_tick["state.keep"] = 0
+    bridge._orphan_since_tick["state.drop"] = 0
+
+    observations_before = dict(bridge._node_observation_count)
+    active_before = dict(bridge._node_active_count)
+
+    bridge.set_generative_retention_protection(("state.keep",))
+    mutations = bridge._orphan_node_mutations(
+        tick=grace + 1,
+        max_mutations=2,
+    )
+
+    removed = {
+        mutation.payload["node_id"] for mutation in mutations if mutation.kind == "remove_node"
+    }
+    assert "state.keep" not in removed
+    assert "state.drop" in removed
+    assert bridge._node_observation_count == observations_before
+    assert bridge._node_active_count == active_before
