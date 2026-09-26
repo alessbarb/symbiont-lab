@@ -41,7 +41,13 @@ class PrivateSLMGenerativeAdapter:
         if not self.supports(operation, state) or not context.tokens:
             return ()
         competence_id, model_context = context.tokens[0], context.tokens[1:]
-        result = self.predictor(competence_id, model_context)
+        try:
+            result = self.predictor(competence_id, model_context)
+        except (ValueError, RuntimeError):
+            # Model absence/readiness is a valid epistemic outcome.  The
+            # adapter abstains rather than fabricating a proposal or breaking
+            # the resident cognition tick.
+            return ()
         predicted = _required_string(result, "predicted_token")
         confidence_class = _bounded_class(result, "confidence_class")
         return (_proposal(self.model_id, predicted, confidence_class, context.references),)
