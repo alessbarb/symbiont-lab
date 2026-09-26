@@ -522,6 +522,29 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             mutations=mutations,
         )
 
+    def register_structural_candidate(
+        self,
+        *,
+        candidate_id: str,
+        family: str,
+        mutations: tuple[Mutation, ...],
+        eligible_tick: int,
+        producer_id: str | None = None,
+    ) -> bool:
+        """Submit a producer-neutral structural proposal.
+
+        Registration does not mutate the graph.  The existing contention and
+        structural-planning path remains the only authority that may admit and
+        commit the proposal.
+        """
+        return self._contention.register(
+            candidate_id=candidate_id,
+            family=family,
+            mutations=mutations,
+            eligible_tick=eligible_tick,
+            producer_id=producer_id,
+        )
+
     def nominate_shadow_prediction(self, *, tick: int) -> bool:
         producer_id = StructuralContention.producer_id_for_family("predictor")
         if any(
