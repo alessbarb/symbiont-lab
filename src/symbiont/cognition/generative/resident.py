@@ -365,16 +365,15 @@ class ResidentGenerativeCognition:
 
         def run_target(candidate: AgendaCandidate, selected_mode: GenerativeMode) -> AgendaProgress:
             workspace.episode.target_id = candidate.target.target_id
-            # v1 runtime adapters currently understand prospective competence
-            # queries.  Other endogenous agenda sources remain valid targets,
-            # but they must wait for a compatible model instead of being
-            # reinterpreted as competence identifiers.
-            if candidate.target.source is not AgendaSource.PROSPECTIVE_DECISION:
-                return AgendaProgress()
             context = GenerativeContext(
                 tokens=candidate.target.source_refs,
                 references=candidate.target.source_refs,
             )
+            operation = {
+                AgendaSource.MODEL_DISAGREEMENT: GenerativeOperation.BRANCH,
+                AgendaSource.EPISODIC_INCOMPLETENESS: GenerativeOperation.REPLAY,
+                AgendaSource.RECURRING_CONFLICT: GenerativeOperation.COUNTERFACTUAL,
+            }.get(candidate.target.source, GenerativeOperation.PREDICT)
             depth = {
                 GenerativeMode.ONLINE: 1,
                 GenerativeMode.IDLE: min(2, workspace.budget.max_depth),
@@ -384,7 +383,11 @@ class ResidentGenerativeCognition:
                 operation=GenerativeOperation.BRANCH,
                 state=root,
             )
-            if len(branching_models) > 1:
+            if operation is GenerativeOperation.BRANCH and len(branching_models) <= 1:
+                return AgendaProgress()
+            if operation is GenerativeOperation.BRANCH or (
+                operation is GenerativeOperation.PREDICT and len(branching_models) > 1
+            ):
                 result = BranchEngine(
                     registry=self.registry,
                     workspace=workspace,
@@ -403,7 +406,7 @@ class ResidentGenerativeCognition:
                 ).rollout(
                     root_state_id=root_state_id,
                     context=context,
-                    operation=GenerativeOperation.PREDICT,
+                    operation=operation,
                     max_depth=depth,
                 )
             self.last_rollout = result
@@ -483,7 +486,11 @@ class ResidentGenerativeCognition:
             tick=tick,
             workspace=workspace,
             run_target=run_target,
-            eligible_sources=frozenset({AgendaSource.PROSPECTIVE_DECISION}),
+            eligible_sources=(
+                frozenset({AgendaSource.PROSPECTIVE_DECISION})
+                if mode is GenerativeMode.ONLINE
+                else frozenset(AgendaSource)
+            ),
         )
 
         target_id = self.last_execution.target_id

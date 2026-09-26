@@ -84,6 +84,22 @@ def test_prediction_error_enters_endogenous_agenda_but_waits_for_compatible_mode
     assert len(resident.last_workspace.states) == 1
 
 
+def test_idle_mode_routes_prediction_error_to_a_compatible_model() -> None:
+    resident = ResidentGenerativeCognition(organism_id="organism.test")
+    resident.register_model(_Model())
+
+    snapshot = resident.step(
+        tick=1,
+        cognition=_Cognition(),
+        mode=GenerativeMode.IDLE,
+    )
+
+    assert snapshot.target_id == "gc.prediction.predictor.a.sense.a"
+    assert snapshot.transition_count == 2
+    assert snapshot.termination is not None
+    assert snapshot.termination.value == "completed"
+
+
 def test_resident_loop_abstains_when_no_model_can_answer_prospective_target() -> None:
     resident = ResidentGenerativeCognition(organism_id="organism.test")
 
@@ -160,7 +176,6 @@ def test_resident_checkpoint_round_trip_preserves_agenda_scheduler_and_workspace
     assert after.agenda_contamination_count == 0
 
 
-
 def test_resident_reconciles_hypothesis_only_with_matching_factual_model_domain() -> None:
     resident = ResidentGenerativeCognition(organism_id="organism.test")
     resident.register_model(_Model())
@@ -219,7 +234,6 @@ def test_resident_marks_matching_action_hypothesis_contradicted_by_factual_outco
     assert hypothesis.factual_conflict_refs == ("evidence.observed",)
 
 
-
 class _BranchingModel:
     def __init__(self, model_id: str, outcome: str) -> None:
         self.model_id = model_id
@@ -266,10 +280,8 @@ def test_resident_preserves_model_disagreement_as_separate_branches_and_hypothes
         state.source_model_ids for state in resident.last_workspace.states if state.depth == 1
     } == {("model.a",), ("model.b",)}
     assert {
-        tuple(resident._hypothesis_outcomes[hypothesis_id])
-        for hypothesis_id in resident.hypotheses
+        tuple(resident._hypothesis_outcomes[hypothesis_id]) for hypothesis_id in resident.hypotheses
     } == {("outcome.a",), ("outcome.b",)}
-
 
 
 def test_materialized_replay_preserves_factual_source_without_creating_observation() -> None:
