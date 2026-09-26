@@ -149,6 +149,15 @@ class CognitionDomain:
                 prospective_candidate_ids=action_projection.active_competence_ids,
                 mode=services.generative_mode,
             )
+            if bridge is not None:
+                signals = services.generative_cognition.consolidation_signals()
+                bridge.set_generative_retention_protection(
+                    tuple(
+                        representation_ref
+                        for representation_ref, signal in signals.items()
+                        if services.generative_cognition.consolidator.is_mature(signal)
+                    )
+                )
 
         predictive_gain_by_name: dict[str, float] = {}
         if bridge is not None:
