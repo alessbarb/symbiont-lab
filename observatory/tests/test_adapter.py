@@ -458,3 +458,100 @@ class AdapterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+def _test_generative_projection_fixture():
+    return Obj(
+        mode=Obj(value="offline"),
+        target_id="gc.prospective.competence.a",
+        episode_id="generative.7.1",
+        state_count=2,
+        transition_count=1,
+        branch_count=0,
+        max_depth=1,
+        model_queries=1,
+        termination=Obj(value="completed"),
+        agenda_candidate_count=2,
+        agenda_contamination_count=0,
+        factual_contamination_count=0,
+        hypothesis_count=1,
+        reconciliation_count=0,
+        consolidation_signal_count=1,
+        states=(
+            Obj(
+                state_id="generative.7.1.root",
+                parent_state_id=None,
+                origin="inferred",
+                depth=0,
+                model_ids=(),
+                uncertainty=0.5,
+                coherence=1.0,
+            ),
+            Obj(
+                state_id="generative.7.1.s1",
+                parent_state_id="generative.7.1.root",
+                origin="inferred",
+                depth=1,
+                model_ids=("model.test",),
+                uncertainty=0.5,
+                coherence=0.9,
+            ),
+        ),
+        transitions=(
+            Obj(
+                transition_id="generative.7.1.t0",
+                source_state_id="generative.7.1.root",
+                target_state_id="generative.7.1.s1",
+                operation="predict",
+                model_ids=("model.test",),
+            ),
+        ),
+        hypotheses=(
+            Obj(
+                hypothesis_id="hypothesis.test",
+                target_id="gc.prospective.competence.a",
+                status="predicted",
+                model_ids=("model.test",),
+                uncertainty=0.5,
+            ),
+        ),
+    )
+
+
+def test_projects_generative_cognition_as_separate_ephemeral_layer():
+    from symbiont.core.cognition_bridge import CognitiveBridgeResult
+    from symbiont.cognition.genome import GenomeCodec
+
+    genome = GenomeCodec().load(_minimal_genome_payload())
+    result = AdapterTests().result()
+    result.cognition = CognitiveBridgeResult(
+        tick=7,
+        activations={},
+        readouts={},
+        prediction_errors=(),
+        structural_mutations_applied=0,
+        frozen=False,
+        topology_revision=0,
+    )
+    result.generative = _test_generative_projection_fixture()
+
+    snapshot = project_tick(result, genome=genome)
+    generated = snapshot["organism"]["cognition"]["generative"]
+
+    assert generated["mode"] == "offline"
+    assert generated["target_id"] == "gc.prospective.competence.a"
+    assert generated["states"][1]["model_ids"] == ["model.test"]
+    assert generated["transitions"][0]["operation"] == "predict"
+    assert generated["hypotheses"][0]["status"] == "predicted"
+    assert generated["factual_contamination_count"] == 0
+    assert generated["agenda_contamination_count"] == 0
+
+    from observatory.schema_validate import validate
+
+    schema_path = Path(__file__).parents[1] / "schemas" / "snapshot.schema.json"
+    validate(
+        snapshot,
+        json.loads(schema_path.read_text(encoding="utf-8")),
+        schema_root=schema_path.parent,
+    )
