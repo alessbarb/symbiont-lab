@@ -2,7 +2,7 @@
 
 **Repository:** `alessbarb/symbiont-lab`
 **Audited branch:** `main`
-**Audited commit:** `5cbc0d0e` (validation snapshot: 2026-09-26)
+**Audited commit:** `cf40dd87` (validation snapshot: 2026-09-26)
 **Spec:** Generative Cognition v1 — frozen candidate
 **Scope:** GC-0 → GC-12
 **Purpose:** map canonical specification to existing implementation and define the exact remaining work, tests and scientific closure conditions.
@@ -17,7 +17,7 @@ Since the original audit, the following implementation and validation work is
 now evidenced on `main`:
 
 ```text
-focused GC contract suite: 26 passed, 4 deselected
+focused GC contract suite: 27 passed, 4 deselected
 release-gate experiment: passed
 GC-E5 scale: 16, 64, 256, 1024 and 10,000 episodes passed
 GC-E5 at 10,000: 10,000 reconciliations, 10,000 contradictions,
@@ -143,7 +143,7 @@ built by composing several mature existing components.
 | GC-2 | Generative model adapters | **IMPLEMENTED + runtime-wired — CompetenceEffectModel and Private SLM** |
 | GC-3 | Multi-step rollout | **IMPLEMENTED — bounded engine resident; scientific utility pending** |
 | GC-4 | Branching | **IMPLEMENTED/PARTIAL — model disagreement becomes explicit branches; richer merge/pruning pending** |
-| GC-5 | Counterfactual cognition | **PARTIAL — generic engine exists; runtime path currently strongest for prospective competences** |
+| GC-5 | Counterfactual cognition | **PARTIAL — recurring-conflict runtime route is covered; generic utility and equivalence remain open** |
 | GC-6 | Replay | **IMPLEMENTED + OFFLINE resident runtime wiring — factual episodic provenance preserved; replay never duplicates factual experience** |
 | GC-7 | Recombination | **IMPLEMENTED/PARTIAL — bounded resident bridge now materializes compatible multi-episode fragments; autonomous scheduling and utility evidence pending** |
 | GC-8 | Hypothesis + reconciliation | **IMPLEMENTED + runtime-wired — separate factual evidence domains and calibration** |
@@ -1208,6 +1208,21 @@ Implemented in:
 ```text
 counterfactual.py
 ```
+
+The resident coordinator now has an explicit endogenous route for
+`AgendaSource.RECURRING_CONFLICT`: it selects
+`GenerativeOperation.COUNTERFACTUAL` and retains the resulting states as
+counterfactual, without creating factual evidence or action authority. The
+focused regression is:
+
+```text
+tests/unit/cognition/test_generative_resident.py
+test_recurring_conflict_routes_to_counterfactual_without_factual_authority
+```
+
+This closes the runtime wiring gap for that agenda source only. It does not
+constitute GC-E3 utility evidence: no matched external task, predictive score,
+or ablation has been added.
 
 ---
 
