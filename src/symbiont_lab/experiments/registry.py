@@ -75,6 +75,9 @@ from symbiont_lab.studies.learning.emergent_symbol_grounding import (
     run_emergent_symbol_grounding_study,
 )
 from symbiont_lab.studies.learning.episodic_memory_utility import run_episodic_memory_utility_study
+from symbiont_lab.studies.learning.generative_cognition_release import (
+    run_generative_cognition_release_gates,
+)
 from symbiont_lab.studies.learning.independent_symbol_grounding import (
     run_independent_symbol_grounding_study,
 )
@@ -158,6 +161,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "campaign.comparative": run_comparative_study,
     "learning.predictive-utility": run_predictive_utility_study,
     "learning.episodic-memory-utility": run_episodic_memory_utility_study,
+    "learning.generative-cognition-release-gates": run_generative_cognition_release_gates,
     "learning.continuous-temporal-challenge": run_continuous_temporal_challenge,
     "learning.continuous-temporal-controls": run_continuous_temporal_controls,
     "learning.cognitive-ecology-embodiment": run_cognitive_ecology_embodiment_study,
