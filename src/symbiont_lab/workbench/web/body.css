@@ -559,3 +559,26 @@
   .self-two-cols { grid-template-columns: 1fr; }
   .self-history-row { grid-template-columns: 70px 90px repeat(2,1fr); }
 }
+
+.self-perceptual { margin-top: 10px; }
+.self-perceptual-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(280px,1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+.self-perceptual-row {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(118,145,167,.10);
+  border-radius: 7px;
+  background: rgba(255,255,255,.018);
+}
+.self-perceptual-row code {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text);
+  font: 9px var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
