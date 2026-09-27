@@ -6,6 +6,7 @@
  */
 import { el } from '../shared/dom.js';
 import { inspectorMetric } from './components.js';
+import { provenanceTreeRows } from './causal-provenance.js';
 import { PAL } from './config.js';
 import { graphSubgraphIds } from './graph-selection.js';
 import { observerContextForNode } from './semantics.js';
@@ -64,6 +65,16 @@ export function createCognitionInspector({
         correlation: edge.correlation,
         samples: edge.samples,
         learnedLayer: edge.learnedLayer,
+        confidence: edge.confidence,
+        reliability: edge.reliability,
+        source_kind: edge.source_kind,
+        causalAdvantage: edge.causalAdvantage,
+        causal_advantage: edge.causal_advantage,
+        counterfactualSupport: edge.counterfactualSupport,
+        counterfactual_support: edge.counterfactual_support,
+        contextCount: edge.contextCount,
+        context_count: edge.context_count,
+        last_updated_tick: edge.last_updated_tick,
       })),
     };
   }
