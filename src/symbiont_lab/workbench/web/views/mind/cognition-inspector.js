@@ -286,9 +286,17 @@ export function createCognitionInspector({
         for (const relation of direct) {
           const row = el('button', 'mind-inspector-relation-button mind-inspector-relation-compact');
           row.type = 'button';
-          row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · ${relation.edge.kind ?? 'edge'} · sup ${finiteNumber(relation.edge.support,0)}`;
-          row.title =
-            `${relation.other}\nkind ${relation.edge.kind ?? 'edge'} · weight ${finiteNumber(relation.edge.weight,0).toFixed(3)} · plasticity ${finiteNumber(relation.edge.plasticity,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · age ${finiteNumber(relation.edge.ageTicks,0)} · stable ${finiteNumber(relation.edge.stableTicks,0)} · last use t${finiteNumber(relation.edge.lastUseTick,0)}`;
+          if (relation.edge.kind === 'causal_estimate') {
+            const conf = finiteNumber(relation.edge.confidence, 0);
+            const advantage = relation.edge.causalAdvantage ?? relation.edge.causal_advantage;
+            const counterfactual = finiteNumber(relation.edge.counterfactualSupport ?? relation.edge.counterfactual_support, 0);
+            row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · causal estimate · conf ${conf.toFixed(2)} · sup ${finiteNumber(relation.edge.support,0)}`;
+            row.title = `${relation.other}\norganism-owned causal estimate · source ${relation.edge.source_kind ?? 'unknown'}\nconfidence ${conf.toFixed(3)} · reliability ${finiteNumber(relation.edge.reliability,0).toFixed(3)} · advantage ${advantage == null ? '—' : finiteNumber(advantage,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · counterfactual ${counterfactual} · contexts ${finiteNumber(relation.edge.contextCount ?? relation.edge.context_count,1)} · updated t${finiteNumber(relation.edge.last_updated_tick,0)}`;
+          } else {
+            row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · ${relation.edge.kind ?? 'edge'} · sup ${finiteNumber(relation.edge.support,0)}`;
+            row.title =
+              `${relation.other}\nkind ${relation.edge.kind ?? 'edge'} · weight ${finiteNumber(relation.edge.weight,0).toFixed(3)} · plasticity ${finiteNumber(relation.edge.plasticity,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · age ${finiteNumber(relation.edge.ageTicks,0)} · stable ${finiteNumber(relation.edge.stableTicks,0)} · last use t${finiteNumber(relation.edge.lastUseTick,0)}`;
+          }
           row.addEventListener('click', () => selectCognitiveNode(relation.other));
           relationsGroup.appendChild(row);
         }
