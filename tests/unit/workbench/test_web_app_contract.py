@@ -202,3 +202,25 @@ def test_causal_estimates_are_not_treated_as_structural_edges():
     assert "if (mode === 'structure') return structuralEdgeScore(edge);" in atlas
     assert "if (mode === 'motor')" in atlas
     assert "if (mode === 'evidence')" in atlas
+
+
+def test_atlas_layout_uses_structural_relations_and_collapses_dormant_registries():
+    semantics = _read("views/mind/relation-semantics.js")
+    sectors = _read("views/mind/functional-sectors.js")
+    model = _read("views/mind/graph-model.js")
+    lod = _read("views/mind/cognitive-lod.js")
+    controller = _read("views/mind/cognition-controller.js")
+
+    assert "'causal_estimate'" in semantics
+    assert "'affords'" in semantics
+    assert "'intends_with'" in semantics
+    assert "'anticipates'" in semantics
+    assert "if (!isStructuralAtlasEdge(edge)) continue;" in sectors
+    assert "projectedAdjacency" in model
+    assert "structuralDegree" in model
+    assert "structurallyDisconnected" in model
+    assert "finite(node.degree, 0) > 0" in lod
+    assert "Dormant registry" not in lod
+    assert "nodes.filter(node => finite(node.degree, 0) > 0)" in lod
+    assert "physicsNodes = nodes.filter" in controller
+    assert "if (!isStructuralAtlasEdge(edge)) continue;" in controller
