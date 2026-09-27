@@ -454,6 +454,37 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             motor_semantics[str(key)] = entry
         if motor_semantics:
             observer_semantics["motor"] = motor_semantics
+    raw_action_dimension_semantics = observer_semantics_source.get("action_dimensions")
+    if isinstance(raw_action_dimension_semantics, Mapping):
+        dimension_semantics: dict[str, dict[str, Any]] = {}
+        for key, value in raw_action_dimension_semantics.items():
+            if not isinstance(value, Mapping):
+                continue
+            entry: dict[str, Any] = {
+                "dimensionId": str(value.get("dimension_id") or key),
+                "mapping": str(value.get("mapping") or "unresolved"),
+            }
+            for source_key, target_key in (
+                ("channel_count", "channelCount"),
+                ("mapped_channel_count", "mappedChannelCount"),
+            ):
+                if value.get(source_key) is not None:
+                    try:
+                        entry[target_key] = int(value[source_key])
+                    except (TypeError, ValueError):
+                        pass
+            for source_key, target_key in (
+                ("actuator_ids", "actuatorIds"),
+                ("effector_ids", "effectorIds"),
+                ("observer_joints", "observerJoints"),
+                ("observer_summaries", "observerSummaries"),
+            ):
+                raw_values = value.get(source_key)
+                if isinstance(raw_values, (list, tuple)):
+                    entry[target_key] = [str(item) for item in raw_values[:32]]
+            dimension_semantics[str(key)] = entry
+        if dimension_semantics:
+            observer_semantics["actionDimensions"] = dimension_semantics
     raw_semantics_provenance = observer_semantics_source.get("provenance")
     if isinstance(raw_semantics_provenance, Mapping):
         observer_semantics["provenance"] = {
@@ -641,6 +672,8 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             observer_derived.append("observer_semantics.sensory")
         if "motor" in observer_semantics:
             observer_derived.append("observer_semantics.motor")
+        if "actionDimensions" in observer_semantics:
+            observer_derived.append("observer_semantics.actionDimensions")
 
     if organism_facts or observer_derived:
         snapshot["provenance"] = {
