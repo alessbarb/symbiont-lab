@@ -55,18 +55,18 @@ cognition scans). All new tables are bounded: estimates (8192 each, pruned by
 recency), signatures and dimensions (512), ledger (4096 interventions and 1024
 passive windows), controller-signature memo (1024), intent outcome history (32).
 
-### 1.5 Scientific evidence (registered runs, seeds 101/127/149, final code)
+### 1.5 Scientific evidence (registered runs, final code)
 
 | Study | Run | Result |
 | --- | --- | --- |
 | E6 release gate | `20260927T052139Z-learning-agency-acquisition-reuse-closure-90e86c5-92f2` | **Passed on all seeds.** Satisfied self-acquired intent at ticks 236 / 402 / 612 (competence first acquired at 230 / 88 / 607); milestones in developmental order; reused competence grounded in the organism's own exploration evidence. |
 | E1 acquisition ablation | `20260927T052144Z-learning-agency-acquisition-ablation-90e86c5-9a70` | Full: 28.7 dimensions (3.0 false positives on inert outputs), 6.3 agentic, 7.0 competences (2.0 executable). No counterfactual evidence: 0 dimensions, 0 competences. No AgencyModel: 27.7 dimensions (2.7 false positives), 0 agentic, 0 competences. |
-| E3 intent persistence (protocol v2, 4096 ticks) | `20260927T062451Z-learning-agency-intent-persistence-758d323-5c95` | Testable seeds 101/149 (127 forms no intent in either arm, flagged untestable and excluded from the summary). Persistent vs re-decide, realized/activated per seed: 23/42, 24/37 vs 5/36, 4/21. Realization 0.60 vs 0.17; satisfaction 0.53 vs 0.17; energy per realized effect 170 vs 906; controller switches per realized effect 23 vs 121. **Clear.** |
-| E2 executive bridge (protocol v2, 4096 ticks) | `20260927T061929Z-learning-agency-executive-bridge-ablation-758d323-c220` | Testable seeds 101/149. Intent vs direct proposal, realized/commitments per seed: 23/42, 24/37 vs 21/36, 14/31. Realization 0.60 vs 0.52; energy per realized effect 170 vs 240; switches per realized effect 23 vs 31; 90.5 intents per seed rejected before authority (§41). Consistent direction on both seeds, modest size. |
-| E5 intentional causal advantage (protocol v2, 4096 ticks) | `20260927T063025Z-learning-agency-intentional-causal-advantage-758d323-5043` | Testable seeds 101/149. A direct / B unreconciled / C reconciled realized per seed: A 21, 14; B 13, 10; C 23, 24. Realization 0.52 / 0.42 / 0.60; energy per realized effect 240 / 359 / 170; mean prediction error 0.870 / 0.855 / 0.832. B's satisfaction (0.84) is completion without verification by construction. **C > B clear; C > A consistent but modest.** |
-| E4 embodied intervention (4096 ticks) | `20260927T060626Z-learning-agency-embodied-causal-intervention-44061ac-12d4` | **Not condition-specific.** On ground-truth perturbed relations, perturbed twin vs matched normal twin: permuted agency drop 0.130 vs 0.146, controllability 0.102 vs 0.086; broken effector agency 0.118 vs 0.186, controllability 0.090 vs 0.092. Relations the perturbation did not touch drift as much as perturbed ones (broken effector, unperturbed: 0.102 vs 0.072). The earlier 1024-tick run (`20260927T052522Z-...b25409e-708a`) showed a small positive margin that does not survive the longer horizon. See §5. |
+| E3 intent persistence (protocol v2, 4096 ticks, 10 seeds) | `20260927T064314Z-learning-agency-intent-persistence-65fbbd9-dc83` | Testable seeds 101/149/163/179/193/227/241/257 (127 and 211 form no intent in either arm). Persistent vs re-decide realized commitments per seed: 23/5, 24/4, 10/4, 15/3, 9/6, 30/6, 13/7, 19/6 — persistent higher on **8/8** seeds. Realization 0.47 vs 0.15; satisfaction 0.39 vs 0.15; mean activated-intent duration 2.7 vs 1.0 ticks; energy per realized effect 277 vs 872; switches per realized effect 35 vs 114. **Clear.** (3-seed run `...062451Z-...758d323-5c95`: 0.60 vs 0.17.) |
+| E2 executive bridge (protocol v2, 4096 ticks, 10 seeds) | `20260927T064314Z-learning-agency-executive-bridge-ablation-65fbbd9-ff56` | Same 8 testable seeds. Intent vs direct proposal realized per seed: 23/21, 24/14, 10/7, 15/6, 9/15, 30/30, 13/13, 19/11 — intent higher on 5, equal on 2, lower on 1. Mean realized 17.9 vs 14.6; energy per realized effect 277 vs 366; switches per realized effect 35 vs 46; prediction error 0.878 vs 0.864. The per-commitment realization *rate* does not favour intents (0.47 vs 0.49): intents commit more often and realize more effects at lower cost, not at a higher hit rate. 8.0 failed commitments per seed occur only in the intent arm (reconciliation declares failures; direct proposals never do). (3-seed run `...061929Z-...758d323-c220`.) |
+| E5 intentional causal advantage (protocol v2, 4096 ticks, 10 seeds) | `20260927T073213Z-learning-agency-intentional-causal-advantage-ec947b6-4547` | Same 8 testable seeds. A direct / B unreconciled / C reconciled realized per seed: 21/13/23, 14/10/24, 7/12/10, 6/7/15, 15/12/9, 30/14/30, 13/25/13, 11/19/19. C > A on 5, = on 2, < on 1; **C > B on only 4, = on 1, < on 3.** Means: realized 14.6 / 14.0 / 17.9; realization rate 0.49 / 0.52 / 0.47; energy per realized effect 366 / 338 / 277; switches per realized effect 46 / 43 / 35; prediction error 0.864 / 0.861 / 0.878. B's satisfaction (0.83) is completion without verification by construction. The 3-seed result "C > B clear" (`...063025Z-...758d323-5043`) does **not** hold at ten seeds: C's mean advantage is yield and cost, not a per-seed or per-commitment one. |
+| E4 embodied intervention (protocol v3, 4096 ticks) | `20260927T072146Z-learning-agency-embodied-causal-intervention-83d21bf-aa75` | Relations classified by apparatus ground truth; every invalidated relation was re-tested (retested fraction 1.0). **Permuted: condition-specific.** Invalidated controllability drop 0.221 vs 0.168 in the normal twin (per seed 0.225/0.176, 0.312/0.194, 0.127/0.134), residual controllability 0.004 vs 0.058; intact relations 0.071 vs 0.066. **Broken effector: not distinguishable at this horizon.** Invalidated drop 0.106 vs 0.102 (residual 0.005 vs 0.008); intact relations drop more in the perturbed twin (0.217 vs 0.170). Over 4096 ticks the normal twin also revises its early relations almost to zero (developmental drift after onset at acquisition + 64 ticks), leaving no headroom. Lost agentic dimensions 1.0 / 0.67 vs 1.0; new dimensions 4.7 / 6.0 vs 6.0; body-schema revisions 45 / 52 vs 44; affordance turnover 1.0 vs 0.94. v2 run (`...060626Z-...44061ac-12d4`) used a diluted relation set; see §4. |
 
-Interpretation limits: three seeds (two testable for E2/E3/E5), one synthetic body family, fixed budgets. Seed 127's original organism acquires one competence that falls back to "emerging" and never forms an intent; this is organism behaviour, not a restore defect (checked against the uninterrupted run).
+Interpretation limits: one synthetic body family, fixed budgets; E1/E4/E6 on three seeds, E2/E3/E5 on ten (eight testable). Seed 127's original organism acquires one competence that falls back to "emerging" and never forms an intent; this is organism behaviour, not a restore defect (checked against the uninterrupted run).
 
 ---
 
@@ -168,21 +168,32 @@ Interpretation limits: three seeds (two testable for E2/E3/E5), one synthetic bo
 - Study metrics measured intent duration/satisfaction over all intents instead
   of activated ones; E2–E5 now aggregate only seeds where the question is
   testable (both arms form cognitive events) and record the flag per seed.
+- E4 v2 measured the dominant effect of every dimension touching a perturbed
+  output, mixing relations the perturbation invalidates with ones it leaves
+  intact, and read the pre-perturbation state from a freshly restored twin
+  whose derived affordances are always empty (turnover 1.0 in every arm).
+  Protocol v3 classifies relations by apparatus ground truth and reads the
+  source organism. A diagnostic confirmed stored estimates equal estimates
+  recomputed from the ledger (no refresh defect) and that perturbed families
+  receive 197–999 of 1023 post-onset attempts, refuting the earlier claim that
+  they were never re-tested.
 
 ## 5. Open scientific questions
 
-- **E4 is not met by v1.** Diagnosis: effect identities are whole-state
-  signatures matched by identity (`EffectMatcher` v1). A broken or permuted
-  output changes which whole-state effect follows a family, but the change is
-  indistinguishable from ordinary drift of other outputs, and after the split
-  the singleton family of the broken actuator received no further attempts, so
-  its estimates were never re-tested. An exploration variant that boosted
-  causal information gain for contradicted families was tried and did not make
-  revision condition-specific; it was reverted rather than kept as a patch.
-  Condition-specific revision needs per-output (factorized) effect identity or
-  a similarity-based `EffectMatcher`, and/or recency/change detection in the
-  ledger — each is a new modelling decision beyond this spec (owner).
-- **E2/E5:** C beats B clearly and C beats A consistently on two testable
-  seeds, with modest margins (realization 0.60 vs 0.52, energy 170 vs 240).
-  More seeds and richer bodies are needed before claiming §116's causal
-  advantage as established.
+- **E4 broken effector.** At the 1024-tick diagnostic horizon the broken twin
+  drove invalidated relations to a zero post-onset hit rate and residual
+  controllability ~0.02 while the normal twin kept 0.04–0.25; at the
+  registered 4096-tick horizon the normal twin's developmental drift erases
+  the contrast. The horizon was not changed after seeing results. Whether E4
+  should perturb a consolidated organism (longer settle) or weight recent
+  evidence is a protocol/modelling decision for the owner; note that with a
+  long settle the exploration controller drives some outputs tonically, so a
+  change-based effect space sees few consequences of them in either twin.
+- **E2/E5 (§116 not established).** Across eight testable seeds reconciled
+  intents realize more effects on average at lower energy and switching cost,
+  but not at a higher per-commitment hit rate, and against unreconciled
+  intents (B) the per-seed direction is mixed (4 better, 1 equal, 3 worse).
+  Reconciliation currently declares failures (8 per seed) that make C commit
+  more often rather than more accurately. Whether reconciliation should shape
+  the next choice more strongly (e.g. how failed intents re-enter admission)
+  is a design question beyond this implementation.
