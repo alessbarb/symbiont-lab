@@ -9,8 +9,6 @@ const KIND_BY_NODE = Object.freeze({
   action_intent: 'intent',
   motor_competence: 'competence',
   effect: 'effect',
-  action_dimension: 'dimension',
-  intervention_signature: 'intervention',
 });
 
 export function provenanceRefForNode(node) {
