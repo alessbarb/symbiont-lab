@@ -97,6 +97,19 @@ class ActionDevelopmentProjection:
 
 
 @dataclass(frozen=True, slots=True)
+class ActionObservation:
+    """Consequences observed at the start of a tick (T0-T3).
+
+    Produced before new cognition runs and consumed by the act phase of the
+    same tick.  Snapshots are ephemeral and never persisted.
+    """
+
+    tick: int
+    baseline: dict[str, float]
+    body_state: dict[str, float]
+
+
+@dataclass(frozen=True, slots=True)
 class ActionStepResult:
     """Passive report that a committed command crossed the body boundary."""
 
@@ -700,6 +713,35 @@ class ActionDomain:
         signal_references: dict[str, str] | None = None,
         services: ActionServices,
     ) -> ActionStepResult | None:
+        """Observe the previous action's consequences, then act in one call."""
+        observation = self.observe_consequences(
+            percepts,
+            context=context,
+            signal_references=signal_references,
+            services=services,
+        )
+        return self.act(
+            cognition,
+            percepts,
+            observation,
+            context=context,
+            signal_references=signal_references,
+            services=services,
+        )
+
+    def observe_consequences(
+        self,
+        percepts: tuple[Percept, ...],
+        *,
+        context: TickContext,
+        signal_references: dict[str, str] | None = None,
+        services: ActionServices,
+    ) -> ActionObservation:
+        """T0-T3: close the previous transition and settle commitment status.
+
+        Uses only percepts and organism-owned causal state; it never reads
+        cognition, so it can run before the tick's new cognition.
+        """
         if context.symbiont_id != self.organism_id:
             raise ValueError("action context belongs to another Symbiont")
         if self.embodiment_id is not None and context.embodiment_id != self.embodiment_id:
@@ -854,6 +896,37 @@ class ActionDomain:
             self.last_transition = transition
             self.pending_transition = None
 
+        if (
+            self.enabled
+            and self._actuator_evidence is not None
+            and self._competence_development is not None
+            and self.surface is not None
+        ):
+            # Advance an internal composed controller or close one completed
+            # competence so this tick's reconciliation sees its terminal status.
+            self._advance_or_complete_competence(tick=tick)
+        return ActionObservation(
+            tick=tick,
+            baseline=baseline,
+            body_state=sensorimotor_body_state,
+        )
+
+    def act(
+        self,
+        cognition: CognitiveBridgeResult | None,
+        percepts: tuple[Percept, ...],
+        observation: ActionObservation,
+        *,
+        context: TickContext,
+        signal_references: dict[str, str] | None = None,
+        services: ActionServices,
+    ) -> ActionStepResult | None:
+        """T5-T11: deliberate, arbitrate, control, execute and open the next attempt."""
+        tick = observation.tick
+        if tick != context.symbiont_tick:
+            raise ValueError("action observation belongs to another tick")
+        baseline = observation.baseline
+        sensorimotor_body_state = observation.body_state
         homeostatic_baseline = services.homeostasis.deviation()
         reactive_state = services.innate_reactivity.evaluate(
             percepts=baseline,
@@ -910,10 +983,6 @@ class ActionDomain:
 
         if self._competence_development is None:
             raise RuntimeError("actuation requires sensorimotor learner")
-
-        # Advance an internal composed controller or close one completed
-        # competence before opening deliberation again.
-        self._advance_or_complete_competence(tick=tick)
 
         self._refresh_competence_library()
         candidate_ids = tuple(
