@@ -20,7 +20,7 @@ per realized effect for A, B and C on matched twins.
 steps = 2000
 
 [design]
-seeds = [101, 127, 149]
+seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
 
 [ablation]
 horizon_ticks = 4096

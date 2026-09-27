@@ -56,12 +56,22 @@ def test_agency_protocols_are_registered():
         assert get_protocol(protocol).__name__ == function_name
 
 
+BASE_SEEDS = (101, 127, 149)
+EXECUTIVE_SEEDS = BASE_SEEDS + (163, 179, 193, 211, 227, 241, 257)
+EXECUTIVE_STUDIES = {
+    "agency-executive-bridge-ablation",
+    "agency-intent-persistence",
+    "agency-intentional-causal-advantage",
+}
+
+
 def test_agency_preregistrations_bind_expected_protocols():
     root = Path("experiments/learning")
     for directory, (protocol, _function) in PROTOCOLS.items():
         spec = load_experiment_file(root / directory / "experiment.toml")
         assert spec.protocol == protocol
-        assert tuple(spec.seeds) == (101, 127, 149)
+        expected = EXECUTIVE_SEEDS if directory in EXECUTIVE_STUDIES else BASE_SEEDS
+        assert tuple(spec.seeds) == expected
         assert (root / directory / "README.md").is_file()
 
 

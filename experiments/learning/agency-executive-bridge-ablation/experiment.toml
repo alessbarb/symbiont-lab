@@ -20,7 +20,7 @@ not testable. Report per-arm metrics and differences; no post-hoc threshold.
 steps = 2000
 
 [design]
-seeds = [101, 127, 149]
+seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
 
 [ablation]
 horizon_ticks = 4096
