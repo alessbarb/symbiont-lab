@@ -7,6 +7,7 @@
 import { el } from '../shared/dom.js';
 import { augmentLearnedGraph } from './learning-graph.js';
 import { cartographicGraph } from './cartographic-view.js';
+import { fetchCausalProvenance, provenanceRefForNode } from './causal-provenance.js';
 import {
   ATLAS_MODES,
   atlasEdgeScore,
@@ -90,6 +91,7 @@ export function createCognitionController({
   onSwitchTab = () => {},
 } = {}) {
   let rafId = null;
+  let provenanceRequestSerial = 0;
   const presentation = createCognitivePresentationAnimator();
   const inspector = createCognitionInspector({
     atlasModeMeta: () => atlasModeMeta(),
@@ -116,6 +118,57 @@ export function createCognitionController({
     inspector.render();
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    void loadSelectedCausalProvenance(graph.selectedNodeId);
+  }
+
+  async function loadSelectedCausalProvenance(nodeId) {
+    const serial = ++provenanceRequestSerial;
+    if (!nodeId) {
+      graph.causalProvenance = {
+        nodeId: null, status: 'idle', ref: null, runId: null, tree: null, error: null,
+      };
+      inspector.render();
+      return;
+    }
+
+    const node = graph.nodes.find(item => item.id === nodeId) ?? null;
+    const ref = provenanceRefForNode(node);
+    if (!ref) {
+      graph.causalProvenance = {
+        nodeId, status: 'unsupported', ref: null, runId: null, tree: null, error: null,
+      };
+      inspector.render();
+      return;
+    }
+
+    graph.causalProvenance = {
+      nodeId, status: 'loading', ref, runId: null, tree: null, error: null,
+    };
+    inspector.render();
+
+    try {
+      const result = await fetchCausalProvenance(node, { depth: 12 });
+      if (serial !== provenanceRequestSerial || graph.selectedNodeId !== nodeId) return;
+      graph.causalProvenance = {
+        nodeId,
+        status: result.payload?.tree ? 'ready' : 'absent',
+        ref: result.ref,
+        runId: result.payload?.run_id ?? null,
+        tree: result.payload?.tree ?? null,
+        error: null,
+      };
+    } catch (error) {
+      if (serial !== provenanceRequestSerial || graph.selectedNodeId !== nodeId) return;
+      graph.causalProvenance = {
+        nodeId,
+        status: 'error',
+        ref,
+        runId: null,
+        tree: null,
+        error: String(error?.message ?? error),
+      };
+    }
+    inspector.render();
   }
 
   function searchAtlas(query) {
@@ -271,6 +324,7 @@ export function createCognitionController({
       controller: '#c9a0ff',
       body_schema: '#6fd6c4',
       action_dimension: '#ffd166',
+      intervention_signature: '#f4a261',
       action_intent: '#ff5d73',
     };
     const baseRadiusMap = {
@@ -287,6 +341,7 @@ export function createCognitionController({
       controller: 7.0,
       body_schema: 5.8,
       action_dimension: 5.0,
+      intervention_signature: 5.4,
       action_intent: 9.0,
     };
   
@@ -349,13 +404,19 @@ export function createCognitionController({
     const edges = (completeTopology.edges ?? [])
       .filter(e => nodeSet.has(e.sourceId) && nodeSet.has(e.targetId))
       .map(e => ({
+        ...e,
         sourceId: e.sourceId,
         targetId: e.targetId,
         kind: e.kind ?? 'excitatory',
         weight: finiteNumber(e.weight, 0),
         plasticity: clamp01(e.plasticity),
         delayTicks: finiteNumber(e.delayTicks, 0),
-        support: finiteNumber(e.support, 0),
+        support: finiteNumber(e.support ?? e.action_support, 0),
+        confidence: clamp01(e.confidence),
+        agencyConfidence: clamp01(e.agency_confidence),
+        causalAdvantage: e.causal_advantage == null ? null : finiteNumber(e.causal_advantage, 0),
+        counterfactualSupport: finiteNumber(e.counterfactual_support, 0),
+        contextCount: finiteNumber(e.context_count, 0),
         ageTicks: finiteNumber(e.ageTicks, 0),
         stableTicks: finiteNumber(e.stableTicks, 0),
         lastUseTick: finiteNumber(e.lastUseTick, 0),
@@ -614,8 +675,9 @@ export function createCognitionController({
         let y;
   
         if (raw.isolated) {
-          // Objective unintegrated pool: disconnected nodes occupy a peripheral
-          // band instead of participating in the same force field as cognition.
+          // Degree-zero in the current projection: place it peripherally so it
+          // does not distort the relational layout. This says nothing about
+          // causal/evidential references that are outside the visible projection.
           const cols = Math.max(8, Math.floor(width / 34));
           const isolatedIndex = rawNodes.slice(0, i + 1).filter(item => item.isolated).length - 1;
           const col = isolatedIndex % cols;
@@ -864,6 +926,7 @@ export function createCognitionController({
     if (edge.kind === 'invokes') return `rgba(255,143,216,${alpha})`;
     if (edge.kind === 'motor_component') return `rgba(143,227,255,${alpha})`;
     if (edge.kind === 'causal_effect') return `rgba(113,233,186,${alpha})`;
+    if (edge.kind === 'causal_estimate') return `rgba(98,225,190,${alpha})`;
     return `rgba(80,217,255,${alpha})`;
   }
 
@@ -1549,7 +1612,7 @@ export function createCognitionController({
       const animatedBX = a.x + (b.x - a.x) * edgeAnim.progress;
       const animatedBY = a.y + (b.y - a.y) * edgeAnim.progress;
       ctx.globalAlpha *= edgeAnim.opacity;
-      ctx.setLineDash(edge.kind === 'causal_effect' ? [5,4] : []);
+      ctx.setLineDash(edge.kind === 'causal_estimate' ? [3,3] : edge.kind === 'causal_effect' ? [5,4] : []);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(animatedBX, animatedBY);
@@ -1886,7 +1949,7 @@ export function createCognitionController({
         : isConn
           ? 2.8
           : 0.55 + supportScale * 1.6 + modeScore * 1.2;
-      ctx.setLineDash(edge.kind === 'inhibitory' ? [4, 4] : edge.kind === 'gating' ? [2, 3] : edge.kind === 'causal_effect' ? [6, 3] : []);
+      ctx.setLineDash(edge.kind === 'inhibitory' ? [4, 4] : edge.kind === 'gating' ? [2, 3] : edge.kind === 'causal_estimate' ? [3, 3] : edge.kind === 'causal_effect' ? [6, 3] : []);
       ctx.stroke();
       ctx.setLineDash([]);
       // Arrowhead
