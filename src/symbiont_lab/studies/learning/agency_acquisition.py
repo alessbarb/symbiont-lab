@@ -266,7 +266,12 @@ def _matched_arms(
         warmup_limit=warmup_limit,
         settle_ticks=settle_ticks,
     )
-    result: dict[str, Any] = {"seed": seed, "acquired_at_tick": acquired_at, "arms": {}}
+    result: dict[str, Any] = {
+        "seed": seed,
+        "acquired_at_tick": acquired_at,
+        "arms": {},
+        "testable": False,
+    }
     if acquired_at is None:
         return result
     result["split_tick"] = runtime.tick_count
@@ -275,6 +280,9 @@ def _matched_arms(
         recorder = _Recorder()
         _advance(twin, twin_body, horizon_ticks, recorder)
         result["arms"][name] = asdict(recorder.metrics())
+    # A seed is testable only if some arm actually exercised a competence;
+    # otherwise the comparison has no cognitive events to compare.
+    result["testable"] = any(arm["competence_commitments"] > 0 for arm in result["arms"].values())
     return result
 
 
@@ -319,7 +327,9 @@ _SUMMARY_KEYS = (
 def _summarize(per_seed: Sequence[dict[str, Any]], arms: Iterable[str]) -> dict[str, Any]:
     summary: dict[str, dict[str, float | None]] = {}
     for arm in arms:
-        rows = [item["arms"][arm] for item in per_seed if arm in item["arms"]]
+        rows = [
+            item["arms"][arm] for item in per_seed if item.get("testable") and arm in item["arms"]
+        ]
         summary[arm] = {
             key: _mean(row[key] for row in rows if row[key] is not None) for key in _SUMMARY_KEYS
         }

@@ -97,6 +97,7 @@ def test_matched_studies_mark_unacquired_seeds_as_not_testable(tmp_path):
     _result, _manifest, run_dir = ExperimentRunner(base_dir=tmp_path / ".symbiont").run(spec)
     (row,) = json.loads((run_dir / "metrics.json").read_text())["per_seed"]
     assert row["acquired_at_tick"] is None and row["arms"] == {}
+    assert row["testable"] is False
 
 
 def test_agency_studies_are_deterministic_and_seed_validated():

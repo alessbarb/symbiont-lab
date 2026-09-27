@@ -4,7 +4,7 @@ schema_version = 1
 id = "learning.agency-intent-persistence"
 title = "E3 — Intent persistence"
 protocol = "learning.agency-intent-persistence"
-protocol_version = 1
+protocol_version = 2
 hypothesis = """
 A persistent ActionIntent yields less movement fragmentation and fewer
 commitment interruptions than re-deciding every tick.
@@ -22,7 +22,7 @@ steps = 2000
 seeds = [101, 127, 149]
 
 [ablation]
-horizon_ticks = 1024
+horizon_ticks = 4096
 
 [output]
 save_trace = false
