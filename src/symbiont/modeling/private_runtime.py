@@ -4,6 +4,9 @@ import hashlib
 import math
 from dataclasses import dataclass, replace
 
+from ..agency.affordance import ActionAffordance
+from ..agency.affordances import AffordanceResolver
+from ..agency.prospective import ProspectiveDecision
 from ..agency.types import CounterfactualPrediction
 from ..cognition.generative import PrivateSLMGenerativeAdapter
 from ..cognition.types import NodeKind
@@ -605,36 +608,71 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         value = self.generative_cognition.epistemic_value_for(action_id)
         return 0.0 if value is None else value.comparison_score
 
-    def _choose_acquired_competence(
+    def _choose_acquired_action(
         self,
         *,
         cognition: "CognitiveBridgeResult",
         percepts: "tuple[Percept, ...]",
-        candidate_ids: "tuple[str, ...]",
+        affordances: "tuple[ActionAffordance, ...]",
+        resolver: "AffordanceResolver",
+        context_ref: str,
         signal_references: "dict[str, str]",
         tick: int,
-    ) -> str | None:
-        """Override: consult ProspectiveAgency for model-based competence selection.
+    ) -> "ProspectiveDecision | None":
+        """Model-based prospective admission among afforded, represented competences.
 
-        Returns the chosen competence ID, or None to fall back to the existing
-        cognitive-readout / exploration selection.
+        Counterfactual deliberation (L8) selects among competences that are
+        both currently afforded and represented in cognition.  When it
+        abstains, the base model-free executive admission still applies; no
+        path turns a readout directly into motor authority.
         """
         self._last_prospective_decision = None
         self._last_prospective_query_count = 0
         self._last_prospective_cost = 0.0
-        if self._prospective_agency is None:
-            return None
-        if not candidate_ids:
+        decision = self._deliberate_prospectively(
+            cognition=cognition,
+            percepts=percepts,
+            affordances=affordances,
+            signal_references=signal_references,
+            tick=tick,
+        )
+        if decision is not None:
+            return decision
+        return super()._choose_acquired_action(
+            cognition=cognition,
+            percepts=percepts,
+            affordances=affordances,
+            resolver=resolver,
+            context_ref=context_ref,
+            signal_references=signal_references,
+            tick=tick,
+        )
+
+    def _deliberate_prospectively(
+        self,
+        *,
+        cognition: "CognitiveBridgeResult",
+        percepts: "tuple[Percept, ...]",
+        affordances: "tuple[ActionAffordance, ...]",
+        signal_references: "dict[str, str]",
+        tick: int,
+    ) -> "ProspectiveDecision | None":
+        if self._prospective_agency is None or not affordances:
             return None
         active = self._model_registry.active if self._private_model_bridge else None
         if active is None:
             return None
 
         # A sensorimotor competence becomes a prospective action only after
-        # its competence readout has actually entered the cognitive graph.
+        # its competence readout has actually entered the cognitive graph, and
+        # only while it is currently afforded.
         competence_readouts = cognition.readouts_for_family("primitive")
-        admitted_ids = tuple(cid for cid in candidate_ids if cid in competence_readouts)
-        if not admitted_ids:
+        afforded = {
+            affordance.competence_id: affordance
+            for affordance in affordances
+            if affordance.competence_id in competence_readouts
+        }
+        if not afforded:
             return None
 
         # Counterfactual inference stays inside the same private token language
@@ -647,7 +685,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         from ..agency import ProspectiveCandidate
 
         candidates = tuple(
-            ProspectiveCandidate(action_id=pid, family="competence") for pid in admitted_ids
+            ProspectiveCandidate(action_id=competence_id, family="competence")
+            for competence_id in sorted(afforded)
         )
 
         config = self.physiology_config
@@ -670,7 +709,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
 
         from ..core.embodiment.physiology import VitalState
 
-        decision = self._prospective_agency.deliberate(
+        outcome = self._prospective_agency.deliberate(
             tick=tick,
             candidates=candidates,
             context_tokens=context,
@@ -685,14 +724,30 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         self._last_prospective_cost = float(query_cost)
         if query_cost > 0:
             self._charge_metabolism("maintenance", query_cost)
-        self._last_prospective_decision = decision
+        self._last_prospective_decision = outcome
 
-        if decision.reason == "selected" and decision.candidate_id is not None:
-            # Predicted outcomes influence choice only. Endogenous value is
-            # learned later from independently observed real outcomes.
-            return decision.candidate_id
+        if outcome.reason != "selected" or outcome.candidate_id is None:
+            return None
+        # Predicted outcomes influence choice only. Endogenous value is
+        # learned later from independently observed real outcomes.
+        affordance = afforded[outcome.candidate_id]
+        from ..agency import AdmissionRoute, ProspectiveDecision
 
-        return None
+        epistemic = self._executive_epistemic_value(outcome.candidate_id)
+        return ProspectiveDecision(
+            competence_id=outcome.candidate_id,
+            anticipated_effect_id=affordance.anticipated_effect_id,
+            prediction_ref=affordance.prediction_ref,
+            confidence=max(0.0, min(1.0, float(outcome.model_confidence or 0.0))),
+            epistemic_relevance=0.0 if epistemic is None else max(0.0, min(1.0, epistemic)),
+            homeostatic_relevance=max(0.0, min(1.0, float(homeostatic_deviation))),
+            origin_refs=(
+                f"prospective.decision.{tick}.{outcome.candidate_id}",
+                affordance.affordance_id,
+            ),
+            admission=AdmissionRoute.PROSPECTIVE,
+            supporting_affordance_id=affordance.affordance_id,
+        )
 
     def _schedule_observed_outcome_value_credit(
         self,

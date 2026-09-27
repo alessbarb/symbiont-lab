@@ -320,11 +320,14 @@ class ResidentGenerativeCognition:
         cognition: object | None,
         prospective_candidate_ids: tuple[str, ...] = (),
         mode: GenerativeMode = GenerativeMode.ONLINE,
+        intent_outcomes: tuple[tuple[str, str, str, str | None], ...] = (),
     ) -> GenerativeResidentSnapshot:
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("tick must be a non-negative integer")
         if not isinstance(prospective_candidate_ids, tuple):
             raise ValueError("prospective_candidate_ids must be a tuple")
+        if not isinstance(intent_outcomes, tuple):
+            raise ValueError("intent_outcomes must be a tuple")
         if not isinstance(mode, GenerativeMode):
             raise ValueError("mode must be a GenerativeMode")
 
@@ -332,6 +335,7 @@ class ResidentGenerativeCognition:
 
         self._ingest_prediction_errors(cognition, tick=tick)
         self._ingest_prospective_candidates(prospective_candidate_ids, tick=tick)
+        self._ingest_intent_outcomes(intent_outcomes, tick=tick)
 
         root_uncertainty = self._root_uncertainty(cognition)
         episode_id = f"generative.{tick}.{self.generative_tick}"
@@ -787,6 +791,24 @@ class ResidentGenerativeCognition:
         self.generative_tick += 1
         return self.snapshot(mode=GenerativeMode.OFFLINE)
 
+    def anticipated_effects(self) -> tuple[tuple[str, tuple[str, ...]], ...]:
+        """Effects imagined by live hypotheses, with the hypotheses that imagine them.
+
+        A read-only projection for affordance lookup (§72-§73).  Anticipations
+        are never observations: nothing here writes EffectSpace or evidence.
+        """
+        by_effect: dict[str, list[str]] = {}
+        for hypothesis_id, hypothesis in sorted(self.hypotheses.items()):
+            if hypothesis.status not in {HypothesisStatus.HYPOTHESIZED, HypothesisStatus.PREDICTED}:
+                continue
+            for token in self._hypothesis_outcomes.get(hypothesis_id, ()):
+                if isinstance(token, str) and token.startswith("effect."):
+                    by_effect.setdefault(token, []).append(hypothesis_id)
+        return tuple(
+            (effect_id, tuple(hypothesis_ids[:8]))
+            for effect_id, hypothesis_ids in sorted(by_effect.items())
+        )
+
     def epistemic_value_for(self, candidate_id: str) -> EpistemicValue | None:
         """Return a comparison-only epistemic signal for one opaque competence.
 
@@ -940,6 +962,33 @@ class ResidentGenerativeCognition:
                     source_refs=(candidate_id,),
                     created_tick=tick,
                     uncertainty=0.5,
+                    persistence=0.5,
+                    recurrence=1,
+                    estimated_resolvability=0.5,
+                )
+            )
+
+    def _ingest_intent_outcomes(
+        self,
+        outcomes: tuple[tuple[str, str, str, str | None], ...],
+        *,
+        tick: int,
+    ) -> None:
+        """A failed or invalidated intent re-opens its competence as uncertain.
+
+        The outcome is an executive fact reconciled against the Body before
+        this cognition step; it raises reconsideration, never factual belief.
+        """
+        for _intent_id, competence_id, status, _reason in outcomes:
+            if status not in {"failed", "invalidated"} or not competence_id:
+                continue
+            self.agenda.observe_target(
+                GenerativeTarget(
+                    target_id=f"gc.prospective.{competence_id}",
+                    source=AgendaSource.PROSPECTIVE_DECISION,
+                    source_refs=(competence_id,),
+                    created_tick=tick,
+                    uncertainty=1.0,
                     persistence=0.5,
                     recurrence=1,
                     estimated_resolvability=0.5,

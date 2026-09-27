@@ -1,9 +1,9 @@
 """Sensorimotor v2 action contracts.
 
 High-level action selection is separated from low-level motor control. A
-proposal is organism-owned intent; a MotorCommand is one controller correction
-made under exactly one existing ActionCommitment and exactly one actuator
-surface.
+proposal requests motor authority (for a cognitive intent, for protection,
+regulation or exploration); a MotorCommand is one controller correction made
+under exactly one existing ActionCommitment and exactly one actuator surface.
 """
 
 from __future__ import annotations
@@ -76,10 +76,19 @@ class ActionProposal:
     competence_id: str | None
     justification: ActionJustification
     evaluation: ActionEvaluation
+    intent_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.proposal_id:
             raise ValueError("proposal_id must not be empty")
+        if self.intent_id is not None and not self.intent_id.startswith("intent."):
+            raise ValueError("intent_id must reference an organism-owned ActionIntent")
+        # §55: exploration never carries an executive intention, and an intent
+        # always concerns an acquired competence.
+        if self.source is ActionSource.EXPLORATION and self.intent_id is not None:
+            raise ValueError("exploration proposals must not carry an intent")
+        if self.intent_id is not None and self.competence_id is None:
+            raise ValueError("an intent-bearing proposal must name its competence")
         if (
             self.justification.effect_target_id is not None
             and self.effect_target_id != self.justification.effect_target_id

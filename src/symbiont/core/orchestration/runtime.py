@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from ...actuation.acquisition import AgencyAcquisition
 from ...actuation.action import MotorCommand
 from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.candidate import ActuatorCandidateState
@@ -26,6 +27,14 @@ from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
 from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
+from ...agency.affordance import ActionAffordance
+from ...agency.affordances import AffordanceResolver
+from ...agency.prospective import (
+    ExecutiveAdmissionPolicy,
+    GenerativeAnticipation,
+    ProspectiveDecision,
+    admit_afforded_action,
+)
 from ...cognition.birth import load_base_graph
 from ...cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
 from ...cognition.generative import (
@@ -74,6 +83,7 @@ from ..domains.context import TickContext
 from ..domains.development import DevelopmentDomain
 from ..domains.embodiment import EmbodimentDomain, EmbodimentServices
 from ..domains.epistemic import EpistemicDomain, EpistemicServices
+from ..domains.intention import ExecutiveMode, IntentionPolicy
 from ..domains.lifecycle import LifecycleDomain
 from ..domains.memory import MemoryDomain, MemoryServices
 from ..domains.perception import PerceptionDomain, PerceptionServices
@@ -281,6 +291,10 @@ class OrganismRuntime:
         actuator_system: ActuatorSystem | None = None,
         competence_development: CompetenceDevelopmentEngine | None = None,
         generative_cognition: ResidentGenerativeCognition | None = None,
+        agency_acquisition: AgencyAcquisition | None = None,
+        executive_mode: ExecutiveMode = ExecutiveMode.FULL,
+        intention_policy: IntentionPolicy | None = None,
+        executive_admission_policy: ExecutiveAdmissionPolicy | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -734,6 +748,12 @@ class OrganismRuntime:
             actuator_evidence=actuator_evidence,
             competence_development=competence_development,
             actuator_system=actuator_system,
+            acquisition=agency_acquisition,
+            executive_mode=executive_mode,
+            intention_policy=intention_policy,
+        )
+        self._executive_admission_policy = executive_admission_policy or ExecutiveAdmissionPolicy(
+            readout_threshold=selection_threshold
         )
         self._regulation_domain = RegulationDomain()
         self._development_domain = DevelopmentDomain()
@@ -754,7 +774,7 @@ class OrganismRuntime:
             CompetenceEffectGenerativeAdapter(
                 model_id="competence-effect",
                 predictor=lambda competence_id, context_id: (
-                    self._action_domain.effect_model.predict(
+                    self._action_domain.predict_competence_effect(
                         competence_id=competence_id,
                         context_id=context_id,
                     )
@@ -1074,22 +1094,98 @@ class OrganismRuntime:
             sensory_system=self._sensory_system,
         )
 
-    def _choose_acquired_competence(
+    def _action_services(self) -> ActionServices:
+        return ActionServices(
+            sensory_system=self._sensory_system,
+            homeostasis=self._homeostasis,
+            innate_reactivity=self._innate_reactivity,
+            reactive_memory=self._reactive_memory,
+            body_schema=self._body_schema,
+            cognitive_bridge=self._cognitive_bridge,
+            gene_expression_state=self._gene_expression_state,
+            choose_acquired_action=self._choose_acquired_action,
+            schedule_homeostatic_action_credit=(
+                lambda **kwargs: self._regulation_domain.schedule_homeostatic_action_credit(
+                    cognitive_bridge=self._cognitive_bridge,
+                    **kwargs,
+                )
+            ),
+        )
+
+    def _generative_affordances(
+        self,
+        *,
+        resolver: AffordanceResolver,
+        context_ref: str,
+    ) -> tuple[tuple[ActionAffordance, GenerativeAnticipation], ...]:
+        """§73: imagined effects -> affordances that could probably produce them.
+
+        Anticipations only select among competences the organism already
+        acquired; they never reach EffectSpace or the causal ledger.
+        """
+        pairs: list[tuple[ActionAffordance, GenerativeAnticipation]] = []
+        for effect_id, hypothesis_refs in self._generative_cognition.anticipated_effects():
+            anticipation = GenerativeAnticipation(
+                effect_id=effect_id, hypothesis_refs=hypothesis_refs
+            )
+            for affordance in resolver.for_effect(
+                effect_id=effect_id,
+                context_ref=context_ref,
+                embodiment_id=self._action_domain.embodiment_id,
+            ):
+                pairs.append((affordance, anticipation))
+        return tuple(pairs)
+
+    def _executive_epistemic_value(self, competence_id: str) -> float | None:
+        value = self._generative_cognition.epistemic_value_for(competence_id)
+        return None if value is None else value.comparison_score
+
+    def _executive_homeostatic_relevance(self, competence_id: str) -> float:
+        """Current need times learned relief of this competence in this situation."""
+        reactive = self._action_domain.last_reactive_state
+        if reactive is None:
+            return 0.0
+        relief = max(
+            (
+                association.relief_mean
+                for association in self._reactive_memory.associations()
+                if association.primitive_id == competence_id
+                and association.signature == reactive.signature
+                and association.reliable
+            ),
+            default=0.0,
+        )
+        return max(0.0, min(1.0, self._homeostasis.deviation() * max(0.0, relief) * 4.0))
+
+    def _choose_acquired_action(
         self,
         *,
         cognition: "CognitiveBridgeResult",
         percepts: "tuple[Percept, ...]",
-        candidate_ids: "tuple[str, ...]",
+        affordances: tuple[ActionAffordance, ...],
+        resolver: AffordanceResolver,
+        context_ref: str,
         signal_references: dict[str, str],
         tick: int,
-    ) -> str | None:
-        """Hook for model-based prospective competence selection.
+    ) -> ProspectiveDecision | None:
+        """Executive admission of one afforded competence (§47-§53, §73-§74).
 
-        The base runtime abstains. Model-enabled runtimes may return an opaque
-        competence id, but this hook never executes a controller or emits a
-        MotorCommand; the universal ActionArbitrator remains authoritative.
+        The base runtime has no private predictive model, so admission is the
+        model-free ProspectiveAgency gate: represented (readout or generative
+        anticipation) + afforded + epistemically or homeostatically relevant.
+        Model-enabled runtimes refine this with counterfactual deliberation.
+        The hook never executes a controller or emits a MotorCommand.
         """
-        return None
+        return admit_afforded_action(
+            affordances=affordances,
+            primitive_readouts=cognition.readouts_for_family("primitive"),
+            generative_affordances=self._generative_affordances(
+                resolver=resolver, context_ref=context_ref
+            ),
+            epistemic_value=self._executive_epistemic_value,
+            homeostatic_relevance=self._executive_homeostatic_relevance,
+            policy=self._executive_admission_policy,
+        )
 
     def _motor_step(
         self,
@@ -1115,22 +1211,7 @@ class OrganismRuntime:
             percepts,
             context=context,
             signal_references=signal_references,
-            services=ActionServices(
-                sensory_system=self._sensory_system,
-                homeostasis=self._homeostasis,
-                innate_reactivity=self._innate_reactivity,
-                reactive_memory=self._reactive_memory,
-                body_schema=self._body_schema,
-                cognitive_bridge=self._cognitive_bridge,
-                gene_expression_state=self._gene_expression_state,
-                choose_acquired_competence=self._choose_acquired_competence,
-                schedule_homeostatic_action_credit=(
-                    lambda **kwargs: self._regulation_domain.schedule_homeostatic_action_credit(
-                        cognitive_bridge=self._cognitive_bridge,
-                        **kwargs,
-                    )
-                ),
-            ),
+            services=self._action_services(),
         )
 
     @property
@@ -1970,6 +2051,30 @@ class OrganismRuntime:
         if perception.pending_proprioception_consumed:
             self._action_domain.pending_proprioception = {}
 
+        action_services = self._action_services()
+        # T1-T3: close the previous ActionAttempt, learn causally, settle the
+        # commitment and reconcile the active ActionIntent -- all before the
+        # cognition of this tick, which must already see the outcome (§76).
+        action_observation = self._action_domain.observe_consequences(
+            percepts,
+            context=context,
+            signal_references=perception.signal_references,
+            services=action_services,
+        )
+        transition = self._action_domain.last_transition
+        if (
+            transition is not None
+            and transition.competence_id is not None
+            and transition.observed_effect_id is not None
+        ):
+            # Only the Body's real consequence reconciles imagined outcomes.
+            self._generative_cognition.note_factual_outcome(
+                action_id=transition.competence_id,
+                outcome_tokens=(transition.observed_effect_id,),
+                evidence_refs=(f"causal.{transition.transition_id}",),
+                model_ids=("competence-effect",),
+            )
+
         action_projection = self._action_domain.prepare_cognition(
             percepts,
             context=context,
@@ -2006,41 +2111,16 @@ class OrganismRuntime:
             reacclimation_remaining=self._reacclimation_remaining,
         )
 
-        action_result = self._action_domain.step(
+        # T5-T11: affordances, executive deliberation, arbitration, control,
+        # execution and the next ActionAttempt.
+        action_result = self._action_domain.act(
             cognition_result,
             percepts,
+            action_observation,
             context=context,
             signal_references=perception.signal_references,
-            services=ActionServices(
-                sensory_system=self._sensory_system,
-                homeostasis=self._homeostasis,
-                innate_reactivity=self._innate_reactivity,
-                reactive_memory=self._reactive_memory,
-                body_schema=self._body_schema,
-                cognitive_bridge=self._cognitive_bridge,
-                gene_expression_state=self._gene_expression_state,
-                choose_acquired_competence=self._choose_acquired_competence,
-                schedule_homeostatic_action_credit=(
-                    lambda **kwargs: self._regulation_domain.schedule_homeostatic_action_credit(
-                        cognitive_bridge=self._cognitive_bridge,
-                        **kwargs,
-                    )
-                ),
-            ),
+            services=action_services,
         )
-
-        transition = self._action_domain.last_transition
-        if (
-            transition is not None
-            and transition.competence_id is not None
-            and transition.observed_effect_id is not None
-        ):
-            self._generative_cognition.note_factual_outcome(
-                action_id=transition.competence_id,
-                outcome_tokens=(transition.observed_effect_id,),
-                evidence_refs=(f"causal.{transition.transition_id}",),
-                model_ids=("competence-effect",),
-            )
 
         epistemic = self._epistemic_domain.investigate(
             services=EpistemicServices(
@@ -2303,6 +2383,8 @@ class OrganismRuntime:
             }
         else:
             payload["actuation"] = {"enabled": False}
+        # §82.4: only the live executive intention; terminal history is trace data.
+        payload["executive_intention"] = self._action_domain.intention.checkpoint()
         payload["memory"] = self._memory_consolidator.export_checkpoint()
         payload["generative_cognition"] = self._generative_cognition.checkpoint()
         knowledge_payload = self._signal_knowledge.checkpoint()
@@ -3028,6 +3110,14 @@ class OrganismRuntime:
                     )
                 except (TypeError, ValueError, KeyError) as exc:
                     raise CheckpointError(f"invalid sensorimotor v2 checkpoint: {exc}") from exc
+
+        raw_intention = normalized.get("executive_intention")
+        if raw_intention is not None and not isinstance(raw_intention, dict):
+            raise CheckpointError("invalid executive intention checkpoint")
+        try:
+            runtime._action_domain.restore_intention(raw_intention, tick=runtime._tick_count)
+        except (TypeError, ValueError, KeyError) as exc:
+            raise CheckpointError(f"invalid executive intention checkpoint: {exc}") from exc
 
         raw_reactivity = normalized.get("innate_reactivity")
         if raw_reactivity is not None:

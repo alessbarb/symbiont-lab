@@ -38,6 +38,7 @@ from ...actuation.model import (
     AgencyModel,
     CompetenceEffectModel,
     ControllabilityModel,
+    EffectPrediction,
 )
 from ...actuation.proposer import ActuatorEvidenceModel
 from ...actuation.sensorimotor import CompetenceDevelopmentEngine
@@ -45,6 +46,10 @@ from ...actuation.state import SensorimotorV2Snapshot
 from ...actuation.surface import ActuatorSurface
 from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
+from ...agency.affordance import ActionAffordance
+from ...agency.affordances import AffordanceResolver
+from ...agency.intention import ActionIntent, AdmissionRoute, IntentStatus
+from ...agency.prospective import ProspectiveDecision
 from ...genetics.expression import GeneExpressionState
 from ...host.percepts import Percept
 from ...sensory import SensorySystem
@@ -53,6 +58,20 @@ from ..embodiment.body_schema import BodySchemaEngine
 from ..embodiment.homeostasis import HomeostaticController
 from ..regulation import InnateReactivity, ReactiveMemory, ReactiveState
 from .context import TickContext
+from .intention import (
+    CAUSAL_BINDING_INVALIDATED,
+    EMBODIMENT_CHANGED,
+    HOMEOSTATIC_EMERGENCY,
+    NEW_MOTOR_AUTHORITY,
+    PROPOSAL_NOT_SELECTED,
+    PROTECTION_TAKES_PRIORITY,
+    RECONSIDERED,
+    SUPERSEDED_BY_OTHER_ACTION,
+    SUPERSEDED_BY_PROTECTION,
+    ExecutiveMode,
+    IntentionDomain,
+    IntentionPolicy,
+)
 
 _BODY_BOUNDARY_AGENCY = 0.35
 
@@ -80,7 +99,7 @@ class ActionServices:
     body_schema: BodySchemaEngine
     cognitive_bridge: CognitiveBridge | None
     gene_expression_state: GeneExpressionState | None
-    choose_acquired_competence: Callable[..., str | None]
+    choose_acquired_action: Callable[..., ProspectiveDecision | None]
     schedule_homeostatic_action_credit: Callable[..., None]
 
 
@@ -96,6 +115,10 @@ class ActionCognitionProjection:
     active_motor_actuator_ids: tuple[str, ...]
     motor_effect_actuator_ids: tuple[str, ...]
     active_competence_ids: tuple[str, ...]
+    # Executive state already reconciled this tick (T3), visible to T4 cognition.
+    active_intent_id: str | None = None
+    active_intent_status: str | None = None
+    intent_outcomes: tuple[tuple[str, str, str, str | None], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +166,8 @@ class ActionDomain:
         embodiment_id: str | None = None,
         acquisition: AgencyAcquisition | None = None,
         dimension_policy: ActionDimensionDiscoveryPolicy | None = None,
+        executive_mode: ExecutiveMode = ExecutiveMode.FULL,
+        intention_policy: IntentionPolicy | None = None,
     ) -> None:
         if not organism_id:
             raise ValueError("organism_id must not be empty")
@@ -187,6 +212,12 @@ class ActionDomain:
         self.competence_library = CompetenceLibrary()
         self.execution_bindings = CompetenceExecutionBindingRegistry()
         self.exploration_policy = ExplorationPolicy()
+        # Executive loop: persistent cognitive commitment to a consequence.
+        # Only E2/E3/E5 control arms change the mode; the organism default is FULL.
+        self.executive_mode = ExecutiveMode(executive_mode)
+        self.intention = IntentionDomain(organism_id=organism_id, policy=intention_policy)
+        self.last_affordances: tuple[ActionAffordance, ...] = ()
+        self.last_intent_proposal_id: str | None = None
         self.composition_engine = CompositionEngine()
 
         self.active_commitment: ActionCommitment | None = None
@@ -262,6 +293,40 @@ class ActionDomain:
             self._actuator_evidence.active_repertoire if self._actuator_evidence is not None else ()
         )
 
+    def predict_competence_effect(
+        self,
+        *,
+        competence_id: str,
+        context_id: str | None,
+    ) -> EffectPrediction | None:
+        """Forward expectation of a competence from organism-owned knowledge only.
+
+        Competence-level experience wins; a converged but never-executed
+        competence is expected to produce the EffectSpace effect its grounding
+        dimension reliably caused on this body.
+        """
+        prediction = self.effect_model.predict(competence_id=competence_id, context_id=context_id)
+        if prediction is not None:
+            return prediction
+        competence = self.competence_library.get(competence_id)
+        binding = self.execution_bindings.get(competence_id)
+        if (
+            competence is None
+            or competence.effect_id is None
+            or binding is None
+            or self.effect_space.get(competence.effect_id) is None
+        ):
+            return None
+        material = f"grounding|{competence_id}|{competence.effect_id}|{len(binding.evidence_refs)}"
+        return EffectPrediction(
+            prediction_id="prediction." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:24],
+            competence_id=competence_id,
+            context_id=context_id,
+            effect_id=competence.effect_id,
+            confidence=binding.reliability,
+            support=len(binding.evidence_refs),
+        )
+
     def competence_is_executable(self, competence: MotorCompetence) -> bool:
         return self.execution_bindings.is_executable(
             competence,
@@ -291,6 +356,10 @@ class ActionDomain:
         self.acquisition.bind_surface(
             surface.actuator_ids, surface_fingerprint=surface.contract_fingerprint
         )
+        held = self.intention.active
+        if held is not None and not held.terminal:
+            self.intention.invalidate(held.intent_id, reason=EMBODIMENT_CHANGED, tick=tick)
+        self.last_affordances = ()
         self.pending_motor_observation = ()
         self.pending_proprioception = {}
         self.execution_bindings = CompetenceExecutionBindingRegistry()
@@ -323,6 +392,7 @@ class ActionDomain:
             controller_id=controller_id,
             surface_fingerprint=self.surface.contract_fingerprint,
             embodiment_id=self.embodiment_id,
+            intent_id=proposal.intent_id,
             maximum_duration=maximum_duration,
         )
         self.last_proposal = proposal
@@ -521,10 +591,17 @@ class ActionDomain:
             if self._competence_development is not None
             else ()
         )
+        intent = self.intention.active
         return ActionCognitionProjection(
             active_motor_actuator_ids=tuple(established),
             motor_effect_actuator_ids=motor_effect_actuator_ids,
             active_competence_ids=active_competence_ids,
+            active_intent_id=intent.intent_id if intent is not None else None,
+            active_intent_status=intent.status.value if intent is not None else None,
+            intent_outcomes=tuple(
+                (outcome.intent_id, outcome.competence_id, outcome.status.value, outcome.reason)
+                for outcome in self.intention.last_outcomes
+            ),
         )
 
     def _flatten_competence_controller(
@@ -737,15 +814,18 @@ class ActionDomain:
         if self._competence_development is None or self.surface is None:
             return
         for primitive in self._competence_development.primitives:
-            if not primitive.established:
-                continue
             existing = self.competence_library.get(primitive.primitive_id)
             if existing is not None:
+                # Maturity is a projection of the controller's current
+                # evidence; a competence whose controller lost reproducibility
+                # must stop being executable rather than keep stale authority.
                 existing.evidence = replace(
                     primitive.competence_evidence,
                     effect_evidence_refs=existing.evidence.effect_evidence_refs,
                     controllability_evidence_refs=existing.evidence.controllability_evidence_refs,
                 )
+                continue
+            if not primitive.established:
                 continue
             grounding = self.acquisition.ground_competence(
                 controller_seed_ref=primitive.primitive_id,
@@ -910,6 +990,304 @@ class ActionDomain:
                 ),
             )
 
+    # -- executive loop (Agency Acquisition v1 §39-§71) ------------------------
+    def affordance_resolver(self) -> AffordanceResolver:
+        """A fresh read-only resolver over the current state (§36: never stored)."""
+        return AffordanceResolver(
+            competences=self.competence_library,
+            predict=self.predict_competence_effect,
+            controllability_model=self.controllability_model,
+            execution_bindings=self.execution_bindings,
+            effect_space=self.effect_space,
+            effect_matcher=self.acquisition.effect_matcher,
+            surface_fingerprint=self.current_surface_fingerprint,
+            embodiment_id=self.embodiment_id,
+        )
+
+    def _stop_controller(self) -> None:
+        if self._competence_development is not None:
+            self._competence_development.interrupt_active_competence()
+        self.active_composition_children = ()
+        self.active_composition_index = 0
+
+    def _reconcile_intent(self, *, tick: int) -> None:
+        """T3: did what I was trying to produce actually happen? (§64-§70)."""
+        intent = self.intention.active
+        if intent is None or intent.status is not IntentStatus.ACTIVE:
+            return
+        commitment = self.active_commitment
+        own_commitment = (
+            commitment
+            if commitment is not None
+            and commitment.commitment_id == self.intention.active_commitment_id
+            else None
+        )
+        transition = self.last_transition
+        competence = self.competence_library.get(intent.competence_id)
+        outcome = self.intention.observe_effect(
+            observed_effect_id=transition.observed_effect_id if transition is not None else None,
+            prediction_error=transition.prediction_error if transition is not None else None,
+            effect_similarity=(
+                self.acquisition.effect_matcher.match(
+                    self.effect_space,
+                    expected_effect_id=intent.anticipated_effect_id,
+                    observed_effect_id=transition.observed_effect_id,
+                )
+                if transition is not None
+                else None
+            ),
+            tick=tick,
+            commitment_id=transition.commitment_id if transition is not None else None,
+            commitment_status=(
+                own_commitment.status
+                if own_commitment is not None
+                else (CommitmentStatus.INVALIDATED if commitment is None else None)
+            ),
+            competence_executable=(
+                competence is not None and self.competence_is_executable(competence)
+            ),
+            embodiment_id=self.embodiment_id,
+        )
+        if outcome is None or own_commitment is None or not own_commitment.active:
+            return
+        # The intent owns WHAT; its commitment ends when that question is closed.
+        if outcome.status is IntentStatus.SATISFIED:
+            competence_id = own_commitment.competence_id
+            own_commitment.terminate(
+                tick=tick, status=CommitmentStatus.COMPLETED, reason="intent_satisfied"
+            )
+            self._stop_controller()
+            if competence_id is not None:
+                self._record_competence_completion(
+                    competence_id, commitment_id=own_commitment.commitment_id
+                )
+        else:
+            own_commitment.terminate(
+                tick=tick,
+                status=(
+                    CommitmentStatus.INVALIDATED
+                    if outcome.status is IntentStatus.INVALIDATED
+                    else CommitmentStatus.FAILED
+                ),
+                reason=f"intent_{outcome.reason}",
+            )
+            self._stop_controller()
+
+    def _intent_proposal(self, intent: ActionIntent, *, tick: int) -> ActionProposal:
+        affordance = next(
+            (
+                item
+                for item in self.last_affordances
+                if item.affordance_id == intent.supporting_affordance_id
+            ),
+            None,
+        )
+        source = (
+            ActionSource.COMPETENCE
+            if intent.admission is AdmissionRoute.COGNITIVE
+            else ActionSource.PROSPECTION
+        )
+        proposal_id = (
+            "proposal."
+            + hashlib.sha256(
+                f"{self.organism_id}:{tick}:intent:{intent.intent_id}".encode("utf-8")
+            ).hexdigest()[:24]
+        )
+        return ActionProposal(
+            proposal_id=proposal_id,
+            source=source,
+            effect_target_id=intent.anticipated_effect_id,
+            competence_id=intent.competence_id,
+            intent_id=intent.intent_id,
+            justification=ActionJustification(
+                effect_target_id=intent.anticipated_effect_id,
+                competence_id=intent.competence_id,
+                prediction_id=intent.prediction_ref,
+                evidence_refs=tuple(
+                    ref
+                    for ref in (*intent.origin_refs, intent.supporting_affordance_id)
+                    if ref is not None
+                ),
+            ),
+            evaluation=ActionEvaluation(
+                epistemic_relevance=intent.epistemic_relevance,
+                homeostatic_relevance=intent.homeostatic_relevance,
+                effect_confidence=intent.confidence,
+                controllability=(affordance.controllability if affordance is not None else None),
+                uncertainty=max(0.0, 1.0 - intent.confidence),
+            ),
+        )
+
+    def _executive_proposal(
+        self,
+        cognition: CognitiveBridgeResult | None,
+        percepts: tuple[Percept, ...],
+        *,
+        context_ref: str,
+        resolver: AffordanceResolver,
+        signal_references: dict[str, str],
+        services: ActionServices,
+        tick: int,
+    ) -> ActionProposal | None:
+        """T6-T7: deliberate only without a valid held intent; propose a PENDING intent."""
+        held = self.intention.active
+        if (
+            self.executive_mode is ExecutiveMode.REDECIDE_EACH_TICK
+            and held is not None
+            and held.status is IntentStatus.ACTIVE
+        ):
+            # E3 control: no persistence -- the intent and its commitment are
+            # abandoned and the decision is taken again from scratch.
+            commitment = self.active_commitment
+            self.intention.interrupt(held.intent_id, reason=RECONSIDERED, tick=tick)
+            if commitment is not None and commitment.active:
+                commitment.terminate(
+                    tick=tick, status=CommitmentStatus.INTERRUPTED, reason="intent_reconsidered"
+                )
+                self._stop_controller()
+        held = self.intention.active
+        if held is not None and not held.terminal:
+            # §71: an ACTIVE intent keeps its identity; its commitment continues.
+            return None
+        if cognition is None or not self.last_affordances:
+            return None
+        decision = services.choose_acquired_action(
+            cognition=cognition,
+            percepts=percepts,
+            affordances=self.last_affordances,
+            resolver=resolver,
+            context_ref=context_ref,
+            signal_references=signal_references,
+            tick=tick,
+        )
+        if decision is None:
+            return None
+        if decision.competence_id not in {
+            affordance.competence_id for affordance in self.last_affordances
+        }:
+            raise RuntimeError("executive decision names a competence that is not afforded")
+        intent = self.intention.form(
+            decision,
+            context_ref=context_ref,
+            embodiment_id=self.embodiment_id,
+            tick=tick,
+        )
+        proposal = self._intent_proposal(intent, tick=tick)
+        self.last_intent_proposal_id = proposal.proposal_id
+        return proposal
+
+    def _settle_intent_arbitration(
+        self,
+        selected: ActionProposal | None,
+        *,
+        intent_proposal: ActionProposal | None,
+        tick: int,
+    ) -> None:
+        """REJECTED if authority was never granted; INTERRUPTED if it was lost (§41)."""
+        held = self.intention.active
+        if held is None or held.terminal:
+            return
+        if held.status is IntentStatus.PENDING:
+            if (
+                intent_proposal is not None
+                and selected is not None
+                and selected.proposal_id == intent_proposal.proposal_id
+            ):
+                return
+            if selected is None:
+                reason = PROPOSAL_NOT_SELECTED
+            elif selected.source is ActionSource.PROTECTION:
+                reason = SUPERSEDED_BY_PROTECTION
+            else:
+                reason = SUPERSEDED_BY_OTHER_ACTION
+            self.intention.reject(held.intent_id, reason=reason, tick=tick)
+            return
+        if held.status is IntentStatus.ACTIVE and selected is not None:
+            if selected.source is ActionSource.PROTECTION:
+                reason = PROTECTION_TAKES_PRIORITY
+            elif selected.source is ActionSource.REGULATION:
+                reason = HOMEOSTATIC_EMERGENCY
+            else:
+                reason = NEW_MOTOR_AUTHORITY
+            self.intention.interrupt(held.intent_id, reason=reason, tick=tick)
+
+    def _direct_cognitive_proposals(
+        self,
+        cognition: CognitiveBridgeResult | None,
+        percepts: tuple[Percept, ...],
+        *,
+        candidate_ids: tuple[str, ...],
+        context_ref: str,
+        resolver: AffordanceResolver,
+        signal_references: dict[str, str],
+        services: ActionServices,
+        tick: int,
+    ) -> list[ActionProposal]:
+        """E2/E5 control arm A only: activation becomes a proposal with no intent."""
+        proposals: list[ActionProposal] = []
+        if cognition is None or not candidate_ids:
+            return proposals
+        decision = (
+            services.choose_acquired_action(
+                cognition=cognition,
+                percepts=percepts,
+                affordances=self.last_affordances,
+                resolver=resolver,
+                context_ref=context_ref,
+                signal_references=signal_references,
+                tick=tick,
+            )
+            if self.last_affordances
+            else None
+        )
+        if decision is not None and decision.competence_id in candidate_ids:
+            proposals.append(
+                ActionProposal(
+                    proposal_id="proposal."
+                    + hashlib.sha256(
+                        f"{self.organism_id}:{tick}:prospection:{decision.competence_id}".encode(
+                            "utf-8"
+                        )
+                    ).hexdigest()[:24],
+                    source=ActionSource.PROSPECTION,
+                    effect_target_id=None,
+                    competence_id=decision.competence_id,
+                    justification=ActionJustification(competence_id=decision.competence_id),
+                    evaluation=ActionEvaluation(
+                        effect_confidence=decision.confidence,
+                        uncertainty=max(0.0, 1.0 - decision.confidence),
+                    ),
+                )
+            )
+        primitive_readouts = cognition.readouts_for_family("primitive")
+        for primitive_id in candidate_ids:
+            raw = primitive_readouts.get(primitive_id)
+            if (
+                isinstance(raw, (int, float))
+                and not isinstance(raw, bool)
+                and math.isfinite(float(raw))
+                and float(raw) >= self.selection_threshold
+            ):
+                strength = max(0.0, min(1.0, float(raw)))
+                proposals.append(
+                    ActionProposal(
+                        proposal_id="proposal."
+                        + hashlib.sha256(
+                            f"{self.organism_id}:{tick}:competence:{primitive_id}".encode("utf-8")
+                        ).hexdigest()[:24],
+                        source=ActionSource.COMPETENCE,
+                        effect_target_id=None,
+                        competence_id=primitive_id,
+                        justification=ActionJustification(competence_id=primitive_id),
+                        evaluation=ActionEvaluation(
+                            effect_confidence=strength,
+                            controllability=strength,
+                            uncertainty=1.0 - strength,
+                        ),
+                    )
+                )
+        return proposals
+
     def step(
         self,
         cognition: CognitiveBridgeResult | None,
@@ -958,6 +1336,7 @@ class ActionDomain:
             percepts, sensory_system=services.sensory_system
         )
 
+        self.intention.begin_tick()
         # T1: close the previous ActionAttempt (or passive window) only when its
         # bodily consequence is actually observable.  A command is never
         # credited with a same-tick effect.
@@ -1002,6 +1381,8 @@ class ActionDomain:
             # Advance an internal composed controller or close one completed
             # competence so this tick's reconciliation sees its terminal status.
             self._advance_or_complete_competence(tick=tick)
+        # T3: reconcile the active intent with reality before new cognition.
+        self._reconcile_intent(tick=tick)
         return ActionObservation(
             tick=tick,
             baseline=baseline,
@@ -1087,6 +1468,14 @@ class ActionDomain:
             for competence in self.competence_library.items
             if self.competence_is_executable(competence)
         )
+        context_ref = self._context_ref(active_concepts)
+        resolver = self.affordance_resolver()
+        # T5: "given this situation, what can I probably do?" -- derived, never stored.
+        self.last_affordances = resolver.current(
+            context_ref=context_ref,
+            embodiment_id=self.embodiment_id,
+        )
+        self.last_intent_proposal_id = None
         proposals: list[ActionProposal] = []
 
         # Innate reactivity contributes urgency and a learned response candidate;
@@ -1121,76 +1510,41 @@ class ActionDomain:
                 )
             )
 
-        # Prospective agency proposes an already acquired competence.  It does
-        # not activate it; final ownership belongs to the universal arbitrator.
-        prospective_id: str | None = None
-        if cognition is not None and candidate_ids:
-            prospective_id = services.choose_acquired_competence(
-                cognition=cognition,
-                percepts=percepts,
-                candidate_ids=candidate_ids,
-                signal_references=signal_references or {},
-                tick=tick,
-            )
-        if prospective_id is not None and prospective_id in candidate_ids:
-            proposal_id = (
-                "proposal."
-                + hashlib.sha256(
-                    f"{self.organism_id}:{tick}:prospection:{prospective_id}".encode("utf-8")
-                ).hexdigest()[:24]
-            )
-            proposals.append(
-                ActionProposal(
-                    proposal_id=proposal_id,
-                    source=ActionSource.PROSPECTION,
-                    effect_target_id=None,
-                    competence_id=prospective_id,
-                    justification=ActionJustification(
-                        competence_id=prospective_id,
-                    ),
-                    evaluation=ActionEvaluation(
-                        effect_confidence=0.75,
-                        controllability=0.75,
-                        uncertainty=0.25,
-                    ),
+        # T5-T7: cognition reaches motor authority only through a persistent
+        # ActionIntent formed from an afforded, admitted competence.  Protection
+        # and exploration need no intent (§7.6).
+        intent_proposal: ActionProposal | None = None
+        if self.executive_mode is ExecutiveMode.DIRECT_PROPOSAL:
+            proposals.extend(
+                self._direct_cognitive_proposals(
+                    cognition,
+                    percepts,
+                    candidate_ids=candidate_ids,
+                    context_ref=context_ref,
+                    resolver=resolver,
+                    signal_references=signal_references or {},
+                    services=services,
+                    tick=tick,
                 )
             )
-
-        # Cognitive motor reuse is competence-level only.  The historical
-        # cognition->individual-actuator path is intentionally gone.
-        if cognition is not None and candidate_ids:
-            primitive_readouts = cognition.readouts_for_family("primitive")
-            for primitive_id in candidate_ids:
-                raw = primitive_readouts.get(primitive_id)
-                if (
-                    isinstance(raw, (int, float))
-                    and not isinstance(raw, bool)
-                    and math.isfinite(float(raw))
-                    and float(raw) >= self.selection_threshold
-                ):
-                    strength = max(0.0, min(1.0, float(raw)))
-                    proposal_id = (
-                        "proposal."
-                        + hashlib.sha256(
-                            f"{self.organism_id}:{tick}:competence:{primitive_id}".encode("utf-8")
-                        ).hexdigest()[:24]
-                    )
-                    proposals.append(
-                        ActionProposal(
-                            proposal_id=proposal_id,
-                            source=ActionSource.COMPETENCE,
-                            effect_target_id=None,
-                            competence_id=primitive_id,
-                            justification=ActionJustification(
-                                competence_id=primitive_id,
-                            ),
-                            evaluation=ActionEvaluation(
-                                effect_confidence=strength,
-                                controllability=strength,
-                                uncertainty=1.0 - strength,
-                            ),
-                        )
-                    )
+        else:
+            intent_proposal = self._executive_proposal(
+                cognition,
+                percepts,
+                context_ref=context_ref,
+                resolver=resolver,
+                signal_references=signal_references or {},
+                services=services,
+                tick=tick,
+            )
+            if intent_proposal is not None:
+                proposals.append(intent_proposal)
+            if any(
+                proposal.intent_id is None
+                for proposal in proposals
+                if proposal.source in {ActionSource.COMPETENCE, ActionSource.PROSPECTION}
+            ):
+                raise RuntimeError("cognitive motor proposals require an ActionIntent")
 
         # Exploration is permanently available, but its pressure is organism
         # owned and can become very small.  There is no developmental mode.
@@ -1247,6 +1601,12 @@ class ActionDomain:
             current=self.active_commitment,
             tick=tick,
         )
+        # T8: settle the intent against the single motor authority.
+        self._settle_intent_arbitration(
+            decision.proposal,
+            intent_proposal=intent_proposal,
+            tick=tick,
+        )
 
         selected = decision.proposal
         if selected is not None:
@@ -1275,6 +1635,13 @@ class ActionDomain:
                 controller_id=controller_id,
                 maximum_duration=(8 if selected.source is ActionSource.EXPLORATION else None),
             )
+            if selected.intent_id is not None:
+                # §59: motor authority granted -> PENDING becomes ACTIVE.
+                self.intention.activate(
+                    selected.intent_id,
+                    commitment_id=self.active_commitment.commitment_id,
+                    tick=tick,
+                )
 
             if selected.competence_id is not None:
                 if self._activate_competence_controller(selected.competence_id):
@@ -1403,7 +1770,7 @@ class ActionDomain:
 
         if self.last_motor_command is not None and self.active_commitment is not None:
             prediction = (
-                self.effect_model.predict(
+                self.predict_competence_effect(
                     competence_id=self.active_commitment.competence_id,
                     context_id=context_ref,
                 )
@@ -1742,6 +2109,24 @@ class ActionDomain:
             and self.composition_predecessor_id not in known_competences
         ):
             self.composition_predecessor_id = None
+
+    def restore_intention(self, payload: Mapping[str, Any] | None, *, tick: int) -> None:
+        """Restore the live intent; one whose commitment did not survive is invalidated."""
+        self.intention = IntentionDomain.restore(
+            payload,
+            organism_id=self.organism_id,
+            policy=self.intention.policy,
+        )
+        held = self.intention.active
+        if held is None or held.status is not IntentStatus.ACTIVE:
+            return
+        commitment = self.active_commitment
+        if (
+            commitment is None
+            or commitment.commitment_id != self.intention.active_commitment_id
+            or commitment.intent_id != held.intent_id
+        ):
+            self.intention.invalidate(held.intent_id, reason=CAUSAL_BINDING_INVALIDATED, tick=tick)
 
     def checkpoint_state(self) -> dict[str, object]:
         """Serialize the complete canonical action domain.

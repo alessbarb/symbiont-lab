@@ -6,7 +6,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from ...cognition.generative import GenerativeMode, GenerativeResidentSnapshot, ResidentGenerativeCognition
+from ...cognition.generative import (
+    GenerativeMode,
+    GenerativeResidentSnapshot,
+    ResidentGenerativeCognition,
+)
 from ...sensory import SensorySystem
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
 from ..cognition.host_self_model import SelfModel
@@ -148,6 +152,7 @@ class CognitionDomain:
                 cognition=result,
                 prospective_candidate_ids=action_projection.active_competence_ids,
                 mode=services.generative_mode,
+                intent_outcomes=action_projection.intent_outcomes,
             )
             if bridge is not None:
                 signals = services.generative_cognition.consolidation_signals()
