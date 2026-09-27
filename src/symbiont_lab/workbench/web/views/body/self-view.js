@@ -455,6 +455,11 @@ export function renderSelfViewDevelopment(history) {
   const width = 720;
   const height = 170;
   const pct = (value) => `${Math.round(ratio(value) * 100)}%`;
+  const signedPct = (value) => {
+    const n = finite(value, 0);
+    const sign = n > 0 ? '+' : '';
+    return `${sign}${Math.round(n * 100)}%`;
+  };
   return `<div class="self-development-head">
     <div><span>Development timeline</span><strong>t${first.tick} → t${latest.tick}</strong></div>
     <small>Browser-session observer history · never fed back</small>
@@ -481,8 +486,8 @@ export function renderSelfViewDevelopment(history) {
     </div>`).join('')}
   </div>
   <div class="self-view-summary">
-    <div><span>Coverage change</span><strong>${pct(latest.aggregate.coverage - first.aggregate.coverage)}</strong></div>
-    <div><span>Stability change</span><strong>${pct(latest.aggregate.stability - first.aggregate.stability)}</strong></div>
+    <div><span>Coverage change</span><strong>${signedPct(latest.aggregate.coverage - first.aggregate.coverage)}</strong></div>
+    <div><span>Stability change</span><strong>${signedPct(latest.aggregate.stability - first.aggregate.stability)}</strong></div>
     <div><span>Agency regions</span><strong>${latest.aggregate.agencyRegions}</strong></div>
     <div><span>Agentic regions</span><strong>${latest.aggregate.agenticRegions}</strong></div>
     <div><span>Frames</span><strong>${frames.length}</strong></div>
