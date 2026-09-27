@@ -1132,7 +1132,7 @@ def test_mind_cognition_uses_components_and_temporally_stable_regions() -> None:
     temporal = (WEB_ROOT / "views" / "mind" / "cognitive-temporal.js").read_text(encoding="utf-8")
 
     assert "Connected components" in asset
-    assert "UNINTEGRATED" in asset
+    assert "DEGREE-ZERO" in asset
     assert "reconcileSectorLabels" in asset
     assert "reconcileRegionLineage" in asset
     assert "region-split" in temporal

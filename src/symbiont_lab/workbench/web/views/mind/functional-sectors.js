@@ -1,3 +1,5 @@
+import { isStructuralAtlasEdge } from './relation-semantics.js';
+
 /**
  * Observer-side functional cartography for the Cognition Map.
  *
@@ -28,6 +30,7 @@ export function buildLayoutAffinities(nodes, edges) {
   const seen = new Set();
 
   for (const edge of edges) {
+    if (!isStructuralAtlasEdge(edge)) continue;
     const key = [edge.sourceId, edge.targetId].sort().join('|');
     if (seen.has(key)) continue;
     seen.add(key);
@@ -131,6 +134,7 @@ export function describeFunctionalSector(nodes) {
 export function sectorBridges(edges, sectorByNode) {
   const grouped = new Map();
   for (const edge of edges) {
+    if (!isStructuralAtlasEdge(edge)) continue;
     const a = sectorByNode.get(edge.sourceId);
     const b = sectorByNode.get(edge.targetId);
     if (!a || !b || a === b || a === 'isolated' || b === 'isolated') continue;

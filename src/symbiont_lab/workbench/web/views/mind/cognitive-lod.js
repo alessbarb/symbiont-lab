@@ -1,3 +1,5 @@
+import { isStructuralAtlasEdge } from './relation-semantics.js';
+
 /**
  * Multiscale observer projection for the Cognitive Atlas.
  *
@@ -72,8 +74,6 @@ export function atlasVisibleNodeIds(
     bottleneckIds = [],
   } = {},
 ) {
-  if (detailLevel === 'nodes') return new Set(nodes.map(node => node.id));
-
   const forced = new Set([
     selectedNodeId,
     ...pathNodeIds,
@@ -82,6 +82,16 @@ export function atlasVisibleNodeIds(
   ].filter(Boolean));
 
   if (detailLevel === 'regions') return forced;
+
+  // Node detail means "show every relationally participating node", not
+  // "materialize every dormant registry entry".  Degree-zero entries remain
+  // searchable/selectable and are then forced into the view.
+  if (detailLevel === 'nodes') {
+    return new Set([
+      ...forced,
+      ...nodes.filter(node => finite(node.degree, 0) > 0).map(node => node.id),
+    ]);
+  }
 
   const visible = new Set(forced);
   const groups = regionMembers(nodes);
@@ -95,20 +105,32 @@ export function atlasVisibleNodeIds(
     for (const node of ranked.slice(0, keep)) visible.add(node.id);
   }
 
-  const firstClassKinds = new Set([
+  const alwaysVisibleKinds = new Set([
     'readout',
     'motor_primitive',
     'motor_competence',
+    'action_intent',
+  ]);
+  const relationalKinds = new Set([
     'effect',
     'controller',
     'body_schema',
     'action_dimension',
     'intervention_signature',
-    'action_intent',
     'embodiment_binding',
   ]);
   for (const node of nodes) {
-    if (firstClassKinds.has(node.kind)) visible.add(node.id);
+    if (alwaysVisibleKinds.has(node.kind)) {
+      visible.add(node.id);
+      continue;
+    }
+    // Large registries such as EffectSpace and BodySchema can contain hundreds
+    // of real but currently unlinked entries. At meso scale, show a member only
+    // when it participates in the current projected relation set. Search,
+    // selection and node-level zoom still reveal every individual entry.
+    if (relationalKinds.has(node.kind) && finite(node.degree, 0) > 0) {
+      visible.add(node.id);
+    }
   }
   return visible;
 }
@@ -117,6 +139,7 @@ export function atlasRegionLinks(nodes, edges) {
   const nodeById = new Map(nodes.map(node => [node.id, node]));
   const grouped = new Map();
   for (const edge of edges) {
+    if (!isStructuralAtlasEdge(edge)) continue;
     const source = nodeById.get(edge.sourceId);
     const target = nodeById.get(edge.targetId);
     const a = source?.community;

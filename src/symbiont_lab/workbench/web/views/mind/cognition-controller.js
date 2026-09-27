@@ -8,6 +8,7 @@ import { el } from '../shared/dom.js';
 import { augmentLearnedGraph } from './learning-graph.js';
 import { cartographicGraph } from './cartographic-view.js';
 import { fetchCausalProvenance, provenanceRefForNode } from './causal-provenance.js';
+import { isStructuralAtlasEdge } from './relation-semantics.js';
 import {
   ATLAS_MODES,
   atlasEdgeScore,
@@ -482,7 +483,8 @@ export function createCognitionController({
       12,
     );
 
-    graph.cognitiveStructures = cognitiveStructures(enriched.nodes, enriched.edges);
+    const structuralEdges = enriched.edges.filter(isStructuralAtlasEdge);
+    graph.cognitiveStructures = cognitiveStructures(enriched.nodes, structuralEdges);
     graph.observedFlow = observedCognitiveFlow(
       enriched.nodes,
       enriched.edges,
@@ -778,7 +780,10 @@ export function createCognitionController({
   
   function stepGraphPhysics(width, height) {
     const { nodes, edges } = graph;
-    const n = nodes.length;
+    const physicsNodes = nodes.filter(node =>
+      !node.isolated || node.id === graph.selectedNodeId || node.id === graph.hoveredNode?.id
+    );
+    const n = physicsNodes.length;
     if (!n) return;
     const cx = width / 2, cy = height / 2;
     const alpha = graph.alpha;
@@ -799,9 +804,9 @@ export function createCognitionController({
   
     // Relationship-aware repulsion/attraction.
     for (let i = 0; i < n; i++) {
-      const a = nodes[i];
+      const a = physicsNodes[i];
       for (let j = i + 1; j < n; j++) {
-        const b = nodes[j];
+        const b = physicsNodes[j];
         const dx = b.x - a.x, dy = b.y - a.y;
         const distSq = dx * dx + dy * dy + 144;
         if (distSq > 490000) continue;
@@ -845,6 +850,7 @@ export function createCognitionController({
   
     // Direct graph edges are the strongest attractive force.
     for (const edge of edges) {
+      if (!isStructuralAtlasEdge(edge)) continue;
       const dx = edge.target.x - edge.source.x;
       const dy = edge.target.y - edge.source.y;
       const dist = Math.hypot(dx, dy) || 1;
@@ -883,7 +889,7 @@ export function createCognitionController({
     // Each stable sector has a persistent spatial anchor. Local graph relations
     // organise nodes inside the region; the anchor prevents sectors swapping
     // places every time topology changes.
-    for (const node of nodes) {
+    for (const node of physicsNodes) {
       if (node.pinned || node.isolated) continue;
       const center = node.community ? communityCenters.get(node.community) : null;
       if (center) {
@@ -1807,7 +1813,7 @@ export function createCognitionController({
       ctx.font = '9px -apple-system, sans-serif';
       ctx.fillStyle = 'rgba(98,120,136,.72)';
       ctx.textAlign = 'left';
-      ctx.fillText(`UNINTEGRATED · ${isolatedCount}`, 18, height / scale - 14);
+      ctx.fillText(`DEGREE-ZERO · ${isolatedCount}`, 18, height / scale - 14);
     }
   
     // Observer-derived organic territories behind the graph.
@@ -1927,6 +1933,7 @@ export function createCognitionController({
       else if (edge.kind === 'invokes') color = `rgba(255,143,216,${isConn ? .98 : dimmed ? .05 : .68})`;
       else if (edge.kind === 'motor_component') color = `rgba(143,227,255,${isConn ? .98 : dimmed ? .05 : .58})`;
       else if (edge.kind === 'causal_effect') color = `rgba(113,233,186,${isConn ? .98 : dimmed ? .05 : .62})`;
+      else if (edge.kind === 'causal_estimate') color = `rgba(98,225,190,${isConn ? .98 : dimmed ? .05 : .56})`;
       else                             color = `rgba(80,217,255,${isConn ? .95 : dimmed ? .04 : .28})`;
       const edgeAnim = presentation.edgePresentation(edge, now);
       const animatedTargetX = edge.source.x + (edge.target.x - edge.source.x) * edgeAnim.progress;
@@ -2458,7 +2465,7 @@ export function createCognitionController({
       [`${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable)`],
       [`${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links`],
       [`mode ${atlasModeMeta().label} · detail ${graph.detailLevel} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden`],
-      [`components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}`],
+      [`components ${components.count} · main ${components.main} · secondary ${components.secondary} · degree-zero ${components.isolates}`],
       [`higher-order ${graph.cognitiveStructures?.hubs?.length ?? 0} hubs · ${graph.cognitiveStructures?.bottlenecks?.length ?? 0} bottlenecks · ${graph.cognitiveStructures?.loops?.length ?? 0} loops · flow ${graph.observedFlow?.recentEdgeCount ?? 0} recent relations`],
       [`temporal ${graph.cognitiveEpisodes?.length ?? 0} episodes · ${graph.regionEventHistory?.length ?? 0} region events${graph.diffBaselineTick != null ? ` · diff baseline t${graph.diffBaselineTick}` : ''}`],
       [`Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontierClusters ?? []).length} zones / ${(graph.learningFrontier ?? []).length} nodes`],

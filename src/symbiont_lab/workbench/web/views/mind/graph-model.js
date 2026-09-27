@@ -1,3 +1,5 @@
+import { isStructuralAtlasEdge } from './relation-semantics.js';
+
 /**
  * Pure cognition-graph model helpers.
  *
@@ -51,26 +53,37 @@ export function deriveLocalCommunities(nodes, adjacency) {
 
 export function enrichGraphModel(rawNodes, edges) {
   const adjacency = new Map(rawNodes.map(node => [node.id, new Set()]));
+  const projectedAdjacency = new Map(rawNodes.map(node => [node.id, new Set()]));
   const degree = new Map(rawNodes.map(node => [node.id, 0]));
+  const structuralDegree = new Map(rawNodes.map(node => [node.id, 0]));
   const incident = new Map(rawNodes.map(node => [node.id, []]));
+  const structuralIncident = new Map(rawNodes.map(node => [node.id, []]));
 
   for (const edge of edges) {
-    adjacency.get(edge.sourceId)?.add(edge.targetId);
-    adjacency.get(edge.targetId)?.add(edge.sourceId);
+    projectedAdjacency.get(edge.sourceId)?.add(edge.targetId);
+    projectedAdjacency.get(edge.targetId)?.add(edge.sourceId);
     degree.set(edge.sourceId, (degree.get(edge.sourceId) ?? 0) + 1);
     degree.set(edge.targetId, (degree.get(edge.targetId) ?? 0) + 1);
     incident.get(edge.sourceId)?.push(edge);
     incident.get(edge.targetId)?.push(edge);
+    if (!isStructuralAtlasEdge(edge)) continue;
+    adjacency.get(edge.sourceId)?.add(edge.targetId);
+    adjacency.get(edge.targetId)?.add(edge.sourceId);
+    structuralDegree.set(edge.sourceId, (structuralDegree.get(edge.sourceId) ?? 0) + 1);
+    structuralDegree.set(edge.targetId, (structuralDegree.get(edge.targetId) ?? 0) + 1);
+    structuralIncident.get(edge.sourceId)?.push(edge);
+    structuralIncident.get(edge.targetId)?.push(edge);
   }
 
-  const maxDegree = Math.max(1, ...degree.values());
+  const maxDegree = Math.max(1, ...structuralDegree.values());
+  const structuralEdges = edges.filter(isStructuralAtlasEdge);
   const maxSupport = Math.max(
     1,
-    ...edges.map(edge => Math.max(0, finiteNumber(edge.support, 0))),
+    ...structuralEdges.map(edge => Math.max(0, finiteNumber(edge.support, 0))),
   );
   const maxStable = Math.max(
     1,
-    ...edges.map(edge => Math.max(0, finiteNumber(edge.stableTicks, 0))),
+    ...structuralEdges.map(edge => Math.max(0, finiteNumber(edge.stableTicks, 0))),
   );
   const communities = deriveLocalCommunities(rawNodes, adjacency);
 
@@ -87,7 +100,7 @@ export function enrichGraphModel(rawNodes, edges) {
     while (stack.length) {
       const current = stack.pop();
       members.push(current);
-      for (const neighbor of adjacency.get(current) ?? []) {
+      for (const neighbor of projectedAdjacency.get(current) ?? []) {
         if (unvisited.delete(neighbor)) stack.push(neighbor);
       }
     }
@@ -100,8 +113,8 @@ export function enrichGraphModel(rawNodes, edges) {
   });
 
   const nodes = rawNodes.map(node => {
-    const degreeNorm = (degree.get(node.id) ?? 0) / maxDegree;
-    const incidentEdges = incident.get(node.id) ?? [];
+    const degreeNorm = (structuralDegree.get(node.id) ?? 0) / maxDegree;
+    const incidentEdges = structuralIncident.get(node.id) ?? [];
     const supportNorm = incidentEdges.length
       ? Math.max(...incidentEdges.map(edge => Math.log1p(Math.max(0, finiteNumber(edge.support, 0))) / Math.log1p(maxSupport)))
       : 0;
@@ -128,6 +141,7 @@ export function enrichGraphModel(rawNodes, edges) {
       ...node,
       radius,
       degree: degree.get(node.id) ?? 0,
+      structuralDegree: structuralDegree.get(node.id) ?? 0,
       degreeNorm,
       structuralImportance,
       visualValue: structuralImportance,
@@ -135,6 +149,7 @@ export function enrichGraphModel(rawNodes, edges) {
       componentRank: component.rank,
       componentSize: component.size,
       isolated: component.size === 1 && (degree.get(node.id) ?? 0) === 0,
+      structurallyDisconnected: (structuralDegree.get(node.id) ?? 0) === 0,
       community: communities.get(node.id) ?? null,
     };
   });
