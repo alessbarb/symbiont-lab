@@ -10,7 +10,9 @@ Preregistered protocol for `learning.agency-intentional-causal-advantage`.
 
 Full ActionIntent with persistence and observed-effect reconciliation (C) is a
 causal improvement over direct proposals (A) and over intents without real-effect
-reconciliation (B), given the same body, state, experience and competences.
+reconciliation (B), given the same body, state, experience and competences; and
+using reconciled outcomes to modulate future admission (D, Executive Outcome
+Learning v1) improves on C.
 
 ## Design
 
@@ -25,7 +27,25 @@ developmental tick budget; `[ablation]` holds protocol parameters.
 
 Report effect realization rate, switches per successful effect, prediction
 error, failed commitments, mean intent duration, intent satisfaction and energy
-per realized effect for A, B and C on matched twins.
+per realized effect for A, B, C and D on matched twins.  C vs B answers whether
+reconciling real effects helps; D vs C answers whether using that
+reconciliation for future admission helps.
+
+Executive Outcome Learning v1 comparison (arm with outcome learning vs the
+same reconciled-intent arm without it): per testable seed, realized
+commitments higher / equal / lower, plus mean effect realization rate,
+energy per realized effect and switches per realized effect.  The result is
+recorded as better, equal or worse without a post-hoc threshold.  Each arm
+reports outcome-learning saturation (keys created/evicted, single-sample key
+fraction, mean samples per key, history hit rate); if the history hit rate
+over the horizon is below 0.10 or any key is evicted, the comparison is
+reported as not a clean test of outcome learning.
+
+Protocol v3 arms: A direct proposals, outcome learning disabled; B persistent intent, unreconciled (no
+outcome learning by construction); C reconciled intent, outcome learning
+disabled (the v2 arm C); D reconciled intent with Executive Outcome Learning v1
+(`docs/design/core/executive-outcome-learning-v1.md`). Seeds, warmup and
+horizon are unchanged from v2.
 
 ## Execution
 

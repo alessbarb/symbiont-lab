@@ -277,8 +277,20 @@ def _matched_arms(
     for name, options in arms.items():
         twin, twin_body = _twin(runtime, body, **options)
         recorder = _Recorder()
+        ledger = twin._action_domain.intention.outcome_ledger
+        at_split = ledger.metrics()
         _advance(twin, twin_body, horizon_ticks, recorder)
-        result["arms"][name] = asdict(recorder.metrics())
+        result["arms"][name] = {
+            **asdict(recorder.metrics()),
+            # Executive Outcome Learning v1 §8: saturation/fragmentation of the
+            # executive memory, so a null D-vs-C result can be told apart from
+            # a memory that never saw a matching key.
+            "outcome_learning": {
+                "enabled": twin._action_domain.intention.policy.executive_outcome_learning,
+                "at_split": at_split,
+                "at_end": ledger.metrics(),
+            },
+        }
     # A seed is testable only if some arm actually exercised a competence;
     # otherwise the comparison has no cognitive events to compare.
     result["testable"] = any(arm["competence_commitments"] > 0 for arm in result["arms"].values())
@@ -472,12 +484,19 @@ def run_executive_bridge_ablation_study(
     settle_ticks: int = 64,
     horizon_ticks: int = 1024,
 ) -> dict[str, Any]:
-    """E2: competence/readout -> proposal versus competence -> ActionIntent -> proposal."""
+    """E2 v3: direct proposal versus ActionIntent without and with outcome learning."""
     return _matched_study(
         "learning.agency-executive-bridge-ablation",
         {
-            "direct_proposal": {"executive_mode": ExecutiveMode.DIRECT_PROPOSAL},
-            "action_intent": {"executive_mode": ExecutiveMode.FULL},
+            "direct_proposal": {
+                "executive_mode": ExecutiveMode.DIRECT_PROPOSAL,
+                "intention_policy": IntentionPolicy(executive_outcome_learning=False),
+            },
+            "action_intent": {
+                "executive_mode": ExecutiveMode.FULL,
+                "intention_policy": IntentionPolicy(executive_outcome_learning=False),
+            },
+            "action_intent_outcome_learning": {"executive_mode": ExecutiveMode.FULL},
         },
         seeds=seeds,
         actuator_count=actuator_count,
@@ -518,16 +537,29 @@ def run_intentional_causal_advantage_study(
     settle_ticks: int = 64,
     horizon_ticks: int = 1024,
 ) -> dict[str, Any]:
-    """E5: direct proposal vs unreconciled intent vs full reconciled intent."""
+    """E5 v3: direct / unreconciled / reconciled / reconciled + outcome learning.
+
+    C vs B asks whether reconciling real effects helps; D vs C asks whether
+    using that reconciliation for future admission helps (EOL v1 §11).
+    """
     return _matched_study(
         "learning.agency-intentional-causal-advantage",
         {
-            "A_direct_proposal": {"executive_mode": ExecutiveMode.DIRECT_PROPOSAL},
+            "A_direct_proposal": {
+                "executive_mode": ExecutiveMode.DIRECT_PROPOSAL,
+                "intention_policy": IntentionPolicy(executive_outcome_learning=False),
+            },
             "B_unreconciled_intent": {
                 "executive_mode": ExecutiveMode.UNRECONCILED_INTENT,
-                "intention_policy": IntentionPolicy(reconcile_observed_effects=False),
+                "intention_policy": IntentionPolicy(
+                    reconcile_observed_effects=False, executive_outcome_learning=False
+                ),
             },
-            "C_reconciled_intent": {"executive_mode": ExecutiveMode.FULL},
+            "C_reconciled_intent": {
+                "executive_mode": ExecutiveMode.FULL,
+                "intention_policy": IntentionPolicy(executive_outcome_learning=False),
+            },
+            "D_reconciled_intent_outcome_learning": {"executive_mode": ExecutiveMode.FULL},
         },
         seeds=seeds,
         actuator_count=actuator_count,

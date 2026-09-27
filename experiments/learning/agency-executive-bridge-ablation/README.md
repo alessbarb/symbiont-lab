@@ -10,7 +10,8 @@ Preregistered protocol for `learning.agency-executive-bridge-ablation`.
 
 Routing learned competences through a persistent ActionIntent changes effect
 realization, action switching, prediction error and commitment failure relative
-to readout/competence -> direct proposal.
+to readout/competence -> direct proposal; letting real intent outcomes modulate
+future admission (Executive Outcome Learning v1) changes them further.
 
 ## Design
 
@@ -26,6 +27,22 @@ developmental tick budget; `[ablation]` holds protocol parameters.
 Matched twins from one acquired organism checkpoint and body state. Seeds that
 never acquire an executable competence within the warmup budget are reported as
 not testable. Report per-arm metrics and differences; no post-hoc threshold.
+
+Executive Outcome Learning v1 comparison (arm with outcome learning vs the
+same reconciled-intent arm without it): per testable seed, realized
+commitments higher / equal / lower, plus mean effect realization rate,
+energy per realized effect and switches per realized effect.  The result is
+recorded as better, equal or worse without a post-hoc threshold.  Each arm
+reports outcome-learning saturation (keys created/evicted, single-sample key
+fraction, mean samples per key, history hit rate); if the history hit rate
+over the horizon is below 0.10 or any key is evicted, the comparison is
+reported as not a clean test of outcome learning.
+
+Protocol v3 arms: `direct_proposal` (outcome learning disabled); `action_intent` (reconciled intent,
+outcome learning disabled — the v2 intent arm); `action_intent_outcome_learning`
+(reconciled intent with Executive Outcome Learning v1,
+`docs/design/core/executive-outcome-learning-v1.md`). Seeds, warmup and horizon
+are unchanged from v2.
 
 ## Execution
 
