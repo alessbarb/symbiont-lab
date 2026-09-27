@@ -37,6 +37,7 @@ const SEGMENT_LABELS = {
 };
 
 export const SELF_VIEW_MODES = [
+  ['composite', 'Composite'],
   ['knowledge', 'Knowledge'],
   ['coverage', 'Coverage'],
   ['stability', 'Stability'],
@@ -263,6 +264,13 @@ function scoreFor(entry, mode) {
   if (mode === 'coverage') return entry.coverage;
   if (mode === 'stability') return entry.stability;
   if (mode === 'agency') return entry.agency;
+  if (mode === 'composite') {
+    return ratio(
+      entry.knowledge * .45
+      + entry.stability * .30
+      + entry.agency * .25
+    );
+  }
   return entry.knowledge;
 }
 
@@ -277,11 +285,12 @@ function segmentAttrs(segment, metrics, mode, selected) {
   const score = scoreFor(metrics, mode);
   const cls = [
     'self-body-segment',
+    mode === 'composite' ? 'composite' : `focus-${mode}`,
     scoreClass(score),
     selected === segment ? 'selected' : '',
     metrics.agenticDimensions ? 'agentic' : '',
   ].filter(Boolean).join(' ');
-  return `class="${cls}" data-self-segment="${segment}" data-self-id="segment|${segment}" style="--segment-score:${score.toFixed(3)};--segment-coverage:${metrics.coverage.toFixed(3)}"`;
+  return `class="${cls}" data-self-segment="${segment}" data-self-id="segment|${segment}" style="--segment-score:${score.toFixed(3)};--segment-coverage:${metrics.coverage.toFixed(3)};--segment-quality:${metrics.quality.toFixed(3)};--segment-stability:${metrics.stability.toFixed(3)};--segment-agency:${metrics.agency.toFixed(3)}"`;
 }
 
 function skeletonSvg(segments, mode, selected) {
@@ -357,7 +366,130 @@ function segmentList(segments, mode, selected) {
     }).join('');
 }
 
-export function renderSelfView(snapshot, mode = 'knowledge', selected = null) {
+
+function aggregateSelfView(segments, snapshot, unmappedEntries = []) {
+  const values = [...segments.values()];
+  const expected = values.reduce((sum, item) => sum + item.expectedSenseCount, 0);
+  const learned = values.reduce((sum, item) => sum + item.senseCount, 0);
+  const stable = values.reduce((sum, item) => sum + item.stableSenses, 0);
+  const representedRegions = values.filter((item) => item.senseCount > 0).length;
+  const agencyRegions = values.filter((item) => item.agency > 0).length;
+  const agenticRegions = values.filter((item) => item.agenticDimensions > 0).length;
+  const dimensions = Array.isArray(snapshot?.action_dimensions) ? snapshot.action_dimensions : [];
+  const mappedDimensionIds = new Set(
+    values.flatMap((item) => item.dimensions.map((dimension) => dimension.dimension_id))
+  );
+  return {
+    expected,
+    learned,
+    stable,
+    coverage: expected ? learned / expected : 0,
+    stability: expected ? stable / expected : 0,
+    knowledge: expected
+      ? values.reduce((sum, item) => sum + item.knowledge * item.expectedSenseCount, 0) / expected
+      : 0,
+    agency: values.length ? mean(values.map((item) => item.agency)) : 0,
+    representedRegions,
+    agencyRegions,
+    agenticRegions,
+    unmappedLearned: unmappedEntries.length,
+    unmappedDimensions: Math.max(0, dimensions.length - mappedDimensionIds.size),
+  };
+}
+
+export function captureSelfViewDevelopment(snapshot) {
+  const segments = selfViewSegments(snapshot);
+  const { unmappedEntries } = selfEvidenceByReceptor(snapshot);
+  const aggregate = aggregateSelfView(segments, snapshot, unmappedEntries);
+  return {
+    tick: finite(snapshot?.tick, 0),
+    aggregate,
+    segments: [...segments.values()].map((entry) => ({
+      segment: entry.segment,
+      coverage: entry.coverage,
+      quality: entry.quality,
+      knowledge: entry.knowledge,
+      stability: entry.stability,
+      agency: entry.agency,
+      agenticDimensions: entry.agenticDimensions,
+      senseCount: entry.senseCount,
+      expectedSenseCount: entry.expectedSenseCount,
+    })),
+  };
+}
+
+function snapshotSegments(frame) {
+  const map = new Map();
+  for (const segment of CONTACT_SEGMENTS) {
+    const found = frame?.segments?.find((item) => item.segment === segment);
+    map.set(segment, {
+      ...emptySegment(segment, new Set()),
+      ...(found ?? {}),
+      label: SEGMENT_LABELS[segment] ?? segment,
+    });
+  }
+  return map;
+}
+
+function developmentPath(frames, key, width, height) {
+  if (frames.length < 2) return '';
+  const values = frames.map((frame) => ratio(frame.aggregate?.[key]));
+  return values.map((value, index) => {
+    const x = 10 + (index / Math.max(1, frames.length - 1)) * (width - 20);
+    const y = 8 + (1 - value) * (height - 16);
+    return `${index ? 'L' : 'M'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(' ');
+}
+
+export function renderSelfViewDevelopment(history) {
+  const frames = Array.isArray(history) ? history : [];
+  if (!frames.length) {
+    return '<div class="self-empty-state"><h3>No development history yet</h3><p>Development begins accumulating when this observer session receives Self-Model snapshots.</p></div>';
+  }
+  const first = frames[0];
+  const latest = frames[frames.length - 1];
+  const middle = frames[Math.floor((frames.length - 1) / 2)];
+  const samples = [first, middle, latest].filter((frame, index, all) =>
+    all.findIndex((candidate) => candidate.tick === frame.tick) === index
+  );
+  const width = 720;
+  const height = 170;
+  const pct = (value) => `${Math.round(ratio(value) * 100)}%`;
+  return `<div class="self-development-head">
+    <div><span>Development timeline</span><strong>t${first.tick} → t${latest.tick}</strong></div>
+    <small>Browser-session observer history · never fed back</small>
+  </div>
+  <div class="self-development-chart">
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Self body development over time">
+      <line x1="10" y1="${height - 8}" x2="${width - 10}" y2="${height - 8}" class="self-dev-axis"/>
+      <line x1="10" y1="8" x2="10" y2="${height - 8}" class="self-dev-axis"/>
+      <path d="${developmentPath(frames, 'coverage', width, height)}" class="self-dev-line coverage"/>
+      <path d="${developmentPath(frames, 'stability', width, height)}" class="self-dev-line stability"/>
+      <path d="${developmentPath(frames, 'agency', width, height)}" class="self-dev-line agency"/>
+    </svg>
+    <div class="self-development-legend">
+      <span class="coverage">coverage ${pct(latest.aggregate.coverage)}</span>
+      <span class="stability">stability ${pct(latest.aggregate.stability)}</span>
+      <span class="agency">agency ${pct(latest.aggregate.agency)}</span>
+    </div>
+  </div>
+  <div class="self-development-bodies">
+    ${samples.map((frame) => `<div class="self-development-body">
+      <strong>t${frame.tick}</strong>
+      ${skeletonSvg(snapshotSegments(frame), 'composite', null)}
+      <small>${frame.aggregate.representedRegions} represented regions · ${frame.aggregate.agenticRegions} agency regions</small>
+    </div>`).join('')}
+  </div>
+  <div class="self-view-summary">
+    <div><span>Coverage change</span><strong>${pct(latest.aggregate.coverage - first.aggregate.coverage)}</strong></div>
+    <div><span>Stability change</span><strong>${pct(latest.aggregate.stability - first.aggregate.stability)}</strong></div>
+    <div><span>Agency regions</span><strong>${latest.aggregate.agencyRegions}</strong></div>
+    <div><span>Agentic regions</span><strong>${latest.aggregate.agenticRegions}</strong></div>
+    <div><span>Frames</span><strong>${frames.length}</strong></div>
+  </div>`;
+}
+
+export function renderSelfView(snapshot, mode = 'composite', selected = null) {
   const segments = selfViewSegments(snapshot);
   const { evidence, unmappedEntries } = selfEvidenceByReceptor(snapshot);
   const expectedTotal = [...segments.values()].reduce((sum, item) => sum + item.expectedSenseCount, 0);
@@ -391,7 +523,7 @@ export function renderSelfView(snapshot, mode = 'knowledge', selected = null) {
     <div class="self-body-stage">
       <div class="self-body-stage-label">
         <strong>Known body</strong>
-        <small>ghost body: physical observer surface × organism-owned evidence</small>
+        <small>${mode === 'composite' ? 'composite: materialization + stability + agency halo' : `focus: ${mode}`} · observer anatomy × organism evidence</small>
       </div>
       ${skeletonSvg(segments, mode, selected)}
       <div class="self-body-epistemic">Fill is learned evidence projected onto observer anatomy. Anatomical labels never feed back; Symbiont still sees opaque channels.</div>
