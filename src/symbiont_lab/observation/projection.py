@@ -489,6 +489,9 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     action_dimensions = rich_state.get("action_dimensions")
     if not isinstance(action_dimensions, (list, tuple)):
         action_dimensions = None
+    body_schema_boundary = rich_state.get("body_schema_boundary")
+    if not isinstance(body_schema_boundary, Mapping):
+        body_schema_boundary = None
     agency_acquisition = rich_state.get("agency_acquisition")
     if not isinstance(agency_acquisition, Mapping):
         agency_acquisition = None
@@ -527,6 +530,28 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             pass
     raw_embodiment_block = rich_state.get("embodiment")
     if isinstance(raw_embodiment_block, Mapping):
+        if raw_embodiment_block.get("epoch") is not None and "epoch" not in embodiment:
+            try:
+                embodiment["epoch"] = int(raw_embodiment_block["epoch"])
+            except (TypeError, ValueError):
+                pass
+        for source_key, target_key in (
+            ("embodiment_id", "embodiment_id"),
+            ("body_id", "body_id"),
+            ("contract_fingerprint", "contract_fingerprint"),
+            ("state", "state"),
+        ):
+            if raw_embodiment_block.get(source_key) is not None:
+                embodiment[target_key] = str(raw_embodiment_block[source_key])
+        if raw_embodiment_block.get("embodiment_tick") is not None:
+            try:
+                embodiment["embodiment_tick"] = int(raw_embodiment_block["embodiment_tick"])
+            except (TypeError, ValueError):
+                pass
+        for key in ("prior", "adaptation", "embodied_competences"):
+            raw_value = raw_embodiment_block.get(key)
+            if isinstance(raw_value, Mapping):
+                embodiment[key] = dict(raw_value)
         raw_bindings = raw_embodiment_block.get("bindings")
         if isinstance(raw_bindings, (list, tuple)):
             embodiment["bindings"] = [
@@ -586,6 +611,9 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             dict(item) for item in action_dimensions if isinstance(item, Mapping)
         ]
         organism_facts.append("action_dimensions")
+    if body_schema_boundary is not None:
+        snapshot["body_schema_boundary"] = dict(body_schema_boundary)
+        organism_facts.append("body_schema_boundary")
     if agency_acquisition is not None:
         snapshot["agency_acquisition"] = dict(agency_acquisition)
         organism_facts.append("agency_acquisition")
