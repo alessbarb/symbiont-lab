@@ -13,10 +13,20 @@ import math
 from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from ...actuation.commitment import CommitmentStatus
 from ...actuation.evidence import PredictionError
+from ...agency.executive_outcome import (
+    NO_HISTORY,
+    CausalRevisionState,
+    ExecutiveKey,
+    ExecutiveModulation,
+    ExecutiveOutcomeLedger,
+    ExecutiveOutcomeSample,
+    OutcomeClass,
+    classify_outcome,
+)
 from ...agency.intention import ActionIntent, IntentStatus
 from ...agency.prospective import ProspectiveDecision
 
@@ -64,6 +74,9 @@ class IntentionPolicy:
     stagnation_ticks: int = 12
     # E5 condition B only: intents that are never reconciled with real effects.
     reconcile_observed_effects: bool = True
+    # Executive Outcome Learning v1: real outcomes modulate future admission.
+    # Disabled only as an explicit study arm (E2/E5 v3 arm C).
+    executive_outcome_learning: bool = True
 
     def __post_init__(self) -> None:
         value = float(self.satisfaction_similarity)
@@ -88,12 +101,16 @@ class IntentOutcome:
     commitment_id: str | None
     observed_effect_id: str | None
     effect_similarity: float | None
+    context_ref: str | None = None
+    progress_before_termination: float | None = None
+    mean_prediction_mismatch: float | None = None
+    binding_valid_at_start: bool = False
 
 
 class IntentionDomain:
     """Single-slot executive intention (one PENDING or ACTIVE intent at a time)."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(self, *, organism_id: str, policy: IntentionPolicy | None = None) -> None:
         if not organism_id:
@@ -118,6 +135,15 @@ class IntentionDomain:
         self.last_outcomes: tuple[IntentOutcome, ...] = ()
         self.recent_outcomes: deque[IntentOutcome] = deque(maxlen=32)
         self.last_prediction_match: float | None = None
+        # Reconciliation trace of the live intent (EOL samples).
+        self._binding_valid_at_start = False
+        self._best_similarity: float | None = None
+        self._mismatch_sum = 0.0
+        self._mismatch_count = 0
+        self.outcome_ledger = ExecutiveOutcomeLedger()
+        # Supplied by the action domain: the material causal/binding state of
+        # one (competence, effect, context) relation.  Read-only.
+        self.revision_probe: Callable[[ExecutiveKey], CausalRevisionState] | None = None
 
     # -- lifecycle ------------------------------------------------------------
     def begin_tick(self) -> None:
@@ -173,6 +199,10 @@ class IntentionDomain:
         self._progress_evidence = 0
         self._consecutive_mismatches = 0
         self.last_prediction_match = None
+        self._binding_valid_at_start = False
+        self._best_similarity = None
+        self._mismatch_sum = 0.0
+        self._mismatch_count = 0
         return intent
 
     def _held(self, intent_id: str) -> ActionIntent:
@@ -181,11 +211,24 @@ class IntentionDomain:
             raise KeyError(f"intent {intent_id} is not held")
         return intent
 
-    def activate(self, intent_id: str, *, commitment_id: str, tick: int) -> ActionIntent:
-        """The arbitrator granted motor authority to this intent's proposal (§59)."""
+    def activate(
+        self,
+        intent_id: str,
+        *,
+        commitment_id: str,
+        tick: int,
+        binding_valid: bool = False,
+    ) -> ActionIntent:
+        """The arbitrator granted motor authority to this intent's proposal (§59).
+
+        ``binding_valid`` records whether the competence was executable when
+        authority was granted; only then can a controller failure count as
+        executive evidence against it (EOL §5).
+        """
         intent = self._held(intent_id)
         intent.transition(IntentStatus.ACTIVE, tick=tick)
         self.active_commitment_id = commitment_id
+        self._binding_valid_at_start = bool(binding_valid)
         return intent
 
     def _terminate(
@@ -210,10 +253,74 @@ class IntentionDomain:
             commitment_id=self.active_commitment_id,
             observed_effect_id=observed_effect_id,
             effect_similarity=similarity,
+            context_ref=intent.context_ref,
+            progress_before_termination=self._best_similarity,
+            mean_prediction_mismatch=(
+                self._mismatch_sum / self._mismatch_count if self._mismatch_count else None
+            ),
+            binding_valid_at_start=self._binding_valid_at_start,
         )
         self.last_outcomes = (*self.last_outcomes, outcome)
         self.recent_outcomes.append(outcome)
+        self._learn_from_outcome(outcome)
         return outcome
+
+    # -- Executive Outcome Learning v1 ---------------------------------------------
+    def _learn_from_outcome(self, outcome: IntentOutcome) -> None:
+        """Real outcome -> executive evidence for its key; never causal evidence."""
+        if not self.policy.executive_outcome_learning or outcome.anticipated_effect_id is None:
+            return
+        outcome_class = classify_outcome(
+            status=outcome.status.value,
+            reason=outcome.reason,
+            binding_valid_at_start=outcome.binding_valid_at_start,
+        )
+        if outcome_class is OutcomeClass.NEUTRAL:
+            return
+        key: ExecutiveKey = (
+            outcome.competence_id,
+            outcome.anticipated_effect_id,
+            outcome.context_ref,
+        )
+        revision = None
+        if outcome_class is OutcomeClass.SUPPRESS:
+            if self.revision_probe is None:
+                # Detached from an action domain there is no causal/binding
+                # state to judge the invalidation against; a suppression that
+                # could never lift is not recorded.  ActionDomain always
+                # installs the probe.
+                return
+            revision = self.revision_probe(key)
+        self.outcome_ledger.record(
+            key,
+            ExecutiveOutcomeSample(
+                tick=outcome.tick,
+                outcome_class=outcome_class,
+                reason=outcome.reason,
+                effect_similarity=outcome.effect_similarity,
+                prediction_mismatch=outcome.mean_prediction_mismatch,
+                progress_before_failure=(
+                    outcome.progress_before_termination
+                    if outcome_class is not OutcomeClass.POSITIVE
+                    else None
+                ),
+            ),
+            revision=revision,
+        )
+
+    def admission_modulation(
+        self,
+        *,
+        competence_id: str,
+        anticipated_effect_id: str,
+        context_ref: str | None,
+    ) -> ExecutiveModulation:
+        """How this key's executive history modulates its admission (EOL §6-§7)."""
+        if not self.policy.executive_outcome_learning:
+            return NO_HISTORY
+        key: ExecutiveKey = (competence_id, anticipated_effect_id, context_ref)
+        revision = self.revision_probe(key) if self.revision_probe is not None else None
+        return self.outcome_ledger.modulation(key, revision=revision)
 
     def reject(self, intent_id: str, *, reason: str, tick: int) -> IntentOutcome:
         """PENDING -> REJECTED: motor authority was never granted (§41, §60)."""
@@ -267,7 +374,11 @@ class IntentionDomain:
         if own_observation and self.policy.reconcile_observed_effects:
             if prediction_error is not None:
                 self.last_prediction_match = max(0.0, 1.0 - float(prediction_error.magnitude))
+                self._mismatch_sum += float(prediction_error.magnitude)
+                self._mismatch_count += 1
             similarity = 0.0 if effect_similarity is None else float(effect_similarity)
+            if self._best_similarity is None or similarity > self._best_similarity:
+                self._best_similarity = similarity
             if similarity > 0.0:
                 self._progress_evidence += 1
                 self._consecutive_mismatches = 0
@@ -354,8 +465,19 @@ class IntentionDomain:
             "active_commitment_id": self.active_commitment_id if live is not None else None,
             "progress_evidence": self._progress_evidence if live is not None else 0,
             "consecutive_mismatches": self._consecutive_mismatches if live is not None else 0,
+            "reconciliation_trace": (
+                {
+                    "binding_valid_at_start": self._binding_valid_at_start,
+                    "best_similarity": self._best_similarity,
+                    "mismatch_sum": self._mismatch_sum,
+                    "mismatch_count": self._mismatch_count,
+                }
+                if live is not None
+                else None
+            ),
             "formed": self._formed,
             "counts": {status.value: count for status, count in self.counts.items()},
+            "outcome_evidence": self.outcome_ledger.checkpoint(),
         }
 
     @classmethod
@@ -369,7 +491,8 @@ class IntentionDomain:
         obj = cls(organism_id=organism_id, policy=policy)
         if payload is None:
             return obj
-        if payload.get("schema_version") != cls.SCHEMA_VERSION:
+        version = payload.get("schema_version")
+        if version not in (1, cls.SCHEMA_VERSION):
             raise ValueError("unsupported executive intention checkpoint")
         raw_active = payload.get("active")
         if raw_active is not None:
@@ -385,11 +508,20 @@ class IntentionDomain:
                 raise ValueError("an active intent must reference its commitment")
             obj._progress_evidence = int(payload.get("progress_evidence", 0))
             obj._consecutive_mismatches = int(payload.get("consecutive_mismatches", 0))
+            trace = payload.get("reconciliation_trace")
+            if isinstance(trace, Mapping):
+                obj._binding_valid_at_start = bool(trace.get("binding_valid_at_start", False))
+                best = trace.get("best_similarity")
+                obj._best_similarity = None if best is None else float(best)
+                obj._mismatch_sum = float(trace.get("mismatch_sum", 0.0))
+                obj._mismatch_count = int(trace.get("mismatch_count", 0))
         obj._formed = int(payload.get("formed", 0))
         raw_counts = payload.get("counts", {})
         if isinstance(raw_counts, Mapping):
             for status in obj.counts:
                 obj.counts[status] = int(raw_counts.get(status.value, 0))
+        # Schema 1 (Agency Acquisition v1) had no executive outcome evidence.
+        obj.outcome_ledger = ExecutiveOutcomeLedger.restore(payload.get("outcome_evidence"))
         return obj
 
 

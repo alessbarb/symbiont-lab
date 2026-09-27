@@ -1191,6 +1191,7 @@ class OrganismRuntime:
             epistemic_value=self._executive_epistemic_value,
             homeostatic_relevance=self._executive_homeostatic_relevance,
             policy=self._executive_admission_policy,
+            executive_history=self._action_domain.executive_modulation,
         )
 
     def _motor_step(

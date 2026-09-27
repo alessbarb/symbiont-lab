@@ -17,6 +17,7 @@ from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 
 from .affordance import ActionAffordance
+from .executive_outcome import ExecutiveModulation
 from .intention import AdmissionRoute
 from .policy import EvaluatedCandidate, ProspectivePolicy
 from .readiness import check_readiness
@@ -309,6 +310,7 @@ def admit_afforded_action(
     epistemic_value: Callable[[str], float | None],
     homeostatic_relevance: Callable[[str], float],
     policy: ExecutiveAdmissionPolicy,
+    executive_history: Callable[[ActionAffordance], ExecutiveModulation] | None = None,
 ) -> ProspectiveDecision | None:
     """Model-free executive admission of one currently afforded competence.
 
@@ -326,6 +328,12 @@ def admit_afforded_action(
 
     This is ProspectiveAgency's model-free admission, not another selector;
     the ActionArbitrator still decides motor authority.
+
+    ``executive_history`` (Executive Outcome Learning v1) scales each
+    candidate's relevance by its own key's bounded executive factor and
+    excludes suppressed keys.  The recorded epistemic and homeostatic
+    relevances are never altered, and no candidate depends on another's
+    history.
     """
     candidates: list[tuple[ActionAffordance, AdmissionRoute, tuple[str, ...]]] = []
     for affordance in affordances:
@@ -369,6 +377,11 @@ def admit_afforded_action(
         )
         homeostatic = max(0.0, min(1.0, float(homeostatic_relevance(affordance.competence_id))))
         relevance = max(epistemic, homeostatic)
+        if executive_history is not None:
+            modulation = executive_history(affordance)
+            if modulation.suppressed:
+                continue
+            relevance *= modulation.factor
         if relevance < policy.minimum_relevance:
             continue
         decision = ProspectiveDecision(

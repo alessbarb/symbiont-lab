@@ -36,6 +36,7 @@ from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
 from ...actuation.intervention import InterventionSignatureRegistry, opaque_channel_ref
 from ...actuation.model import (
     AgencyModel,
+    CausalSourceKind,
     CompetenceEffectModel,
     ControllabilityModel,
     EffectPrediction,
@@ -48,6 +49,7 @@ from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
 from ...agency.affordance import ActionAffordance
 from ...agency.affordances import AffordanceResolver
+from ...agency.executive_outcome import CausalRevisionState, ExecutiveKey, ExecutiveModulation
 from ...agency.intention import ActionIntent, AdmissionRoute, IntentStatus
 from ...agency.prospective import ProspectiveDecision
 from ...genetics.expression import GeneExpressionState
@@ -219,6 +221,7 @@ class ActionDomain:
         # Only E2/E3/E5 control arms change the mode; the organism default is FULL.
         self.executive_mode = ExecutiveMode(executive_mode)
         self.intention = IntentionDomain(organism_id=organism_id, policy=intention_policy)
+        self.intention.revision_probe = self.causal_revision_state
         self.last_affordances: tuple[ActionAffordance, ...] = ()
         self.last_intent_proposal_id: str | None = None
         self.composition_engine = CompositionEngine()
@@ -328,6 +331,46 @@ class ActionDomain:
             effect_id=competence.effect_id,
             confidence=binding.reliability,
             support=len(binding.evidence_refs),
+        )
+
+    def causal_revision_state(self, key: ExecutiveKey) -> CausalRevisionState:
+        """Material causal/binding state of one relation (EOL §7), read-only.
+
+        Estimate revisions advance only when the competence itself acts, so
+        activity of other competences never changes this state.
+        """
+        competence_id, effect_id, context_ref = key
+        competence = self.competence_library.get(competence_id)
+        binding = self.execution_bindings.get(competence_id)
+        control = self.acquisition.controllability_model.estimate(
+            source_kind=CausalSourceKind.COMPETENCE,
+            source_ref=competence_id,
+            effect_id=effect_id,
+            context_id=context_ref,
+        )
+        agency = self.acquisition.agency_model.estimate(
+            source_kind=CausalSourceKind.COMPETENCE,
+            source_ref=competence_id,
+            effect_id=effect_id,
+            context_id=context_ref,
+        )
+        return CausalRevisionState(
+            binding_fingerprint=(
+                f"{binding.surface_fingerprint}|{binding.effect_id}|{binding.last_evidence_tick}"
+                if binding is not None
+                else None
+            ),
+            executable=competence is not None and self.competence_is_executable(competence),
+            controllability_revision=control.last_updated_tick if control is not None else None,
+            agency_revision=agency.last_updated_tick if agency is not None else None,
+        )
+
+    def executive_modulation(self, affordance: ActionAffordance) -> ExecutiveModulation:
+        """Executive history of one afforded candidate, for admission only."""
+        return self.intention.admission_modulation(
+            competence_id=affordance.competence_id,
+            anticipated_effect_id=affordance.anticipated_effect_id,
+            context_ref=affordance.context_ref,
         )
 
     def competence_is_executable(self, competence: MotorCompetence) -> bool:
@@ -1660,10 +1703,16 @@ class ActionDomain:
             )
             if selected.intent_id is not None:
                 # §59: motor authority granted -> PENDING becomes ACTIVE.
+                granted = (
+                    self.competence_library.get(selected.competence_id)
+                    if selected.competence_id is not None
+                    else None
+                )
                 self.intention.activate(
                     selected.intent_id,
                     commitment_id=self.active_commitment.commitment_id,
                     tick=tick,
+                    binding_valid=(granted is not None and self.competence_is_executable(granted)),
                 )
 
             if selected.competence_id is not None:
@@ -2308,6 +2357,10 @@ class ActionDomain:
                 ],
                 "counts": {status.value: count for status, count in self.intention.counts.items()},
                 "prediction_match": self.intention.last_prediction_match,
+                "outcome_learning": {
+                    "enabled": self.intention.policy.executive_outcome_learning,
+                    **self.intention.outcome_ledger.metrics(),
+                },
             },
             "trace": self.action_trace(),
         }
@@ -2319,6 +2372,7 @@ class ActionDomain:
             organism_id=self.organism_id,
             policy=self.intention.policy,
         )
+        self.intention.revision_probe = self.causal_revision_state
         held = self.intention.active
         if held is None or held.status is not IntentStatus.ACTIVE:
             return
