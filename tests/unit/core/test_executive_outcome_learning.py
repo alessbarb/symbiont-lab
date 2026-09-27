@@ -322,3 +322,21 @@ def test_checkpoint_restore_is_trajectory_identical_with_executive_evidence():
         first._action_domain.causal_evidence.evidence
         == second._action_domain.causal_evidence.evidence
     )
+
+
+def test_suppression_and_its_lifting_are_traced():
+    from symbiont.provenance import ProvenanceLog
+
+    domain, probe = _domain()
+    domain.provenance = ProvenanceLog()
+    intent = _run(domain, "competence.a", "effect.a", tick=1)
+    domain.invalidate(intent.intent_id, reason=COMPETENCE_NOT_EXECUTABLE, tick=2)
+    learned = [e for e in domain.provenance.events() if e.operation == "learn"]
+    assert learned[-1].rule == "suppress" and learned[-1].parameters["suppressed"] is True
+    key = ("competence.a", "effect.a")
+    probe.states[key] = replace(probe.states[key], binding_fingerprint="surface|2")
+    domain.admission_modulation(
+        competence_id="competence.a", anticipated_effect_id="effect.a", tick=9
+    )
+    (lift,) = [e for e in domain.provenance.events() if e.operation == "lift_suppression"]
+    assert lift.tick == 9 and lift.parameters["binding_fingerprint"] == "surface|2"

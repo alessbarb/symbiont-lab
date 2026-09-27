@@ -376,19 +376,76 @@ class IntentionDomain:
             ),
             revision=revision,
         )
+        if self.provenance is not None:
+            evidence = CausalRef("executive_evidence", f"{key[0]}|{key[1]}")
+            causes = [CausalRef("intent", outcome.intent_id)]
+            if outcome.commitment_id is not None:
+                causes.append(CausalRef("commitment", outcome.commitment_id))
+            recorded = self.outcome_ledger.get(key)
+            self.provenance.emit(
+                CausalEvent(
+                    tick=int(outcome.tick),
+                    domain="outcome_learning",
+                    operation="learn",
+                    subject=evidence,
+                    caused_by=tuple(causes),
+                    produced=(evidence,),
+                    rule=outcome_class.value,
+                    parameters={
+                        "reason": outcome.reason or "",
+                        "samples": len(recorded.samples) if recorded is not None else 0,
+                        "admission_factor": (
+                            self.outcome_ledger.modulator.factor(recorded)
+                            if recorded is not None
+                            else 1.0
+                        ),
+                        "suppressed": bool(recorded is not None and recorded.suppression),
+                    },
+                )
+            )
 
     def admission_modulation(
         self,
         *,
         competence_id: str,
         anticipated_effect_id: str,
+        tick: int = -1,
     ) -> ExecutiveModulation:
-        """How this relation's executive history modulates its admission (EOL §6-§7)."""
+        """How this relation's executive history modulates its admission (EOL §6-§7).
+
+        Lifting a suppression is a state change and is traced.
+        """
         if not self.policy.executive_outcome_learning:
             return NO_HISTORY
         key: ExecutiveKey = (competence_id, anticipated_effect_id)
         revision = self.revision_probe(key) if self.revision_probe is not None else None
-        return self.outcome_ledger.modulation(key, revision=revision)
+        recorded = self.outcome_ledger.get(key)
+        was_suppressed = recorded is not None and recorded.suppression is not None
+        modulation = self.outcome_ledger.modulation(key, revision=revision)
+        if was_suppressed and not modulation.suppressed and self.provenance is not None:
+            evidence = CausalRef("executive_evidence", f"{key[0]}|{key[1]}")
+            self.provenance.emit(
+                CausalEvent(
+                    tick=int(tick),
+                    domain="outcome_learning",
+                    operation="lift_suppression",
+                    subject=evidence,
+                    caused_by=(
+                        evidence,
+                        CausalRef("competence", competence_id),
+                        CausalRef("effect", anticipated_effect_id),
+                    ),
+                    produced=(evidence,),
+                    rule="relevant_causal_or_binding_revision",
+                    parameters={
+                        "executable": bool(revision.executable) if revision else False,
+                        "binding_fingerprint": (revision.binding_fingerprint or "")
+                        if revision
+                        else "",
+                    },
+                )
+            )
+        return modulation
 
     def reject(self, intent_id: str, *, reason: str, tick: int) -> IntentOutcome:
         """PENDING -> REJECTED: motor authority was never granted (§41, §60)."""

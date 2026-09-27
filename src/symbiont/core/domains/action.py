@@ -225,6 +225,8 @@ class ActionDomain:
         self.intention.provenance = self.acquisition.provenance
         self.last_affordances: tuple[ActionAffordance, ...] = ()
         self.last_intent_proposal_id: str | None = None
+        # Tick of the executive decision in progress (provenance of admission).
+        self._decision_tick = -1
         self.composition_engine = CompositionEngine()
 
         self.active_commitment: ActionCommitment | None = None
@@ -382,6 +384,7 @@ class ActionDomain:
         return self.intention.admission_modulation(
             competence_id=affordance.competence_id,
             anticipated_effect_id=affordance.anticipated_effect_id,
+            tick=self._decision_tick,
         )
 
     def competence_is_executable(self, competence: MotorCompetence) -> bool:
@@ -1255,6 +1258,7 @@ class ActionDomain:
             return None
         if cognition is None or not self.last_affordances:
             return None
+        self._decision_tick = int(tick)
         decision = services.choose_acquired_action(
             cognition=cognition,
             percepts=percepts,

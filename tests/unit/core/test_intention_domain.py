@@ -271,7 +271,11 @@ def test_intent_lifecycle_emits_traced_events():
     domain.provenance = ProvenanceLog()
     intent = _footprint_intent(domain)
     _observe_atoms(domain, ("signal.a|+1", "signal.b|+1", "signal.c|-1"), tick=2)
-    form, satisfied = domain.provenance.events()
+    form, satisfied = [e for e in domain.provenance.events() if e.domain == "intention"]
+    (learned,) = [e for e in domain.provenance.events() if e.domain == "outcome_learning"]
+    assert learned.operation == "learn" and learned.rule == "positive"
+    assert CausalRef("intent", intent.intent_id) in learned.caused_by
+    assert learned.parameters["samples"] == 1 and learned.parameters["admission_factor"] > 1.0
     assert form.operation == "form" and CausalRef("competence", "competence.c") in form.caused_by
     assert satisfied.operation == "satisfied" and satisfied.rule == ANTICIPATED_EFFECT_OBSERVED
     assert CausalRef("commitment", "commitment.k") in satisfied.caused_by
