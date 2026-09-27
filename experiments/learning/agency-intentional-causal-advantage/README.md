@@ -47,6 +47,11 @@ disabled (the v2 arm C); D reconciled intent with Executive Outcome Learning v1
 (`docs/design/core/executive-outcome-learning-v1.md`). Seeds, warmup and
 horizon are unchanged from v2.
 
+Protocol v4 reruns the v3 arms and criteria unchanged with Executive Outcome
+Learning v1.1, whose evidence is keyed by (competence, anticipated effect)
+instead of (competence, anticipated effect, context); v3 was not a clean test
+because the context key fragmented executive memory (spec §12-§14).
+
 ## Execution
 
 ```bash

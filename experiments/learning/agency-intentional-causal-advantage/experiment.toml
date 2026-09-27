@@ -4,7 +4,7 @@ schema_version = 1
 id = "learning.agency-intentional-causal-advantage"
 title = "E5 — Intentional causal advantage"
 protocol = "learning.agency-intentional-causal-advantage"
-protocol_version = 3
+protocol_version = 4
 hypothesis = """
 Full ActionIntent with persistence and observed-effect reconciliation (C) is a
 causal improvement over direct proposals (A) and over intents without real-effect

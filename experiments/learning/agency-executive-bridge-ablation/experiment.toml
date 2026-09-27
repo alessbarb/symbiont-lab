@@ -4,7 +4,7 @@ schema_version = 1
 id = "learning.agency-executive-bridge-ablation"
 title = "E2 — Executive bridge ablation"
 protocol = "learning.agency-executive-bridge-ablation"
-protocol_version = 3
+protocol_version = 4
 hypothesis = """
 Routing learned competences through a persistent ActionIntent changes effect
 realization, action switching, prediction error and commitment failure relative
