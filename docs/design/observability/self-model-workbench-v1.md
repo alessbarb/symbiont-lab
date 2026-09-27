@@ -63,6 +63,18 @@ The anatomical labels are **observer metadata**, never organism semantics.
 Symbiont continues to receive only opaque `rec.N` / `eff.N` channels, and the
 projection has no reverse path.
 
+Coverage is distinct from quality. A region is not considered fully known
+because one mapped sense is mature: the observer compares learned localizable
+channels with the physical channels expected for that anatomical region.
+`Knowledge` combines physical coverage with learned confidence/health/maturity;
+`Stability` measures stable learned channels over the expected physical
+surface.
+
+ActionDimension anatomy is also observer-derived. A dimension may span multiple
+opaque output channels; Observatory reverses that private grounding against the
+current actuator surface and may therefore illuminate multiple physical regions.
+The organism never receives this correspondence.
+
 ### Body Schema
 
 Shows opaque organism-owned learned parts, cognitive regions, dependencies and
