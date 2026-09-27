@@ -1807,7 +1807,6 @@ class OrganismRuntime:
                 bootstrap_semantic_senses=self._bootstrap_semantic_senses,
                 sensory_system=self._sensory_system.germinal_copy(),
                 genome=child_genome,
-                heritable_genome=inherited,
                 mutation_seed=self._mutation_seed + self._generation + 1,
                 epigenetic_priors=self._epigenetic_priors,
                 epigenetic_decay=self._epigenetic_decay,
@@ -2513,9 +2512,8 @@ class OrganismRuntime:
         genome_data = payload.get("genome")
         payload["constitution_fingerprint"] = {
             "schema_version": 1,
-            "genome_hash": _canonical_hash(cast(dict[str, Any], genome_data))
-            if genome_data is not None
-            else None,
+            # A genome-less organism still has a constitution: the hash of null.
+            "genome_hash": _canonical_hash(cast(dict[str, Any], genome_data)),
         }
         payload["runtime_provenance"] = {
             "software_version": _symbiont_version,

@@ -90,7 +90,7 @@ def test_training_request_is_organism_owned_and_charged():
 
 def test_clonal_child_inherits_modeling_capacity_but_not_private_model_or_experience():
     payload = json.loads(
-        resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
+        resources.files("symbiont.genetics").joinpath("defaults/base-genome-v2.json").read_text()
     )
     genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
     authority = HabitatBirthAuthority(habitat_id="model-inheritance", capacity=2)

@@ -92,7 +92,7 @@ def _reproduction_genome():
     from symbiont.cognition.genome import GenomeCodec
 
     payload = json.loads(
-        resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
+        resources.files("symbiont.genetics").joinpath("defaults/base-genome-v2.json").read_text()
     )
     return replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
 
