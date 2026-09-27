@@ -1,4 +1,5 @@
 import { escapeHtml } from '../shared/dom.js';
+import { renderSelfView, selfViewSegmentRecord } from './self-view.js';
 
 /*
  * Passive UX projection only.
@@ -15,6 +16,7 @@ const SELF_TABS = [
 ];
 
 const SELF_LENSES = [
+  ['self-view', 'Self View'],
   ['body-schema', 'Body Schema'],
   ['embodiment', 'Embodiment'],
 ];
@@ -141,7 +143,8 @@ export class SelfModelWorkspace {
   constructor() {
     this.snapshot = {};
     this.activeTab = 'overview';
-    this.selfLens = 'body-schema';
+    this.selfLens = 'self-view';
+    this.selfViewMode = 'knowledge';
     this.agencyLens = 'acquisition';
     this.selectedId = null;
     this.events = [];
@@ -254,6 +257,12 @@ export class SelfModelWorkspace {
         this.render(overlay, panel);
       });
     });
+    overlay.querySelectorAll('[data-self-view-mode]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.selfViewMode = button.dataset.selfViewMode || 'knowledge';
+        this.render(overlay, panel);
+      });
+    });
     overlay.querySelectorAll('[data-self-id]').forEach((node) => {
       node.addEventListener('click', () => {
         this.selectedId = node.dataset.selfId;
@@ -334,7 +343,15 @@ export class SelfModelWorkspace {
   }
 
   selfView() {
-    const body = this.selfLens === 'embodiment' ? this.embodiment() : this.bodySchema();
+    let body = this.bodySchema();
+    if (this.selfLens === 'self-view') {
+      const selected = this.selectedId?.startsWith('segment|')
+        ? this.selectedId.slice('segment|'.length)
+        : null;
+      body = renderSelfView(this.snapshot, this.selfViewMode, selected);
+    } else if (this.selfLens === 'embodiment') {
+      body = this.embodiment();
+    }
     return `${this.lensNav('self', SELF_LENSES, this.selfLens)}${body}`;
   }
 
@@ -622,6 +639,9 @@ export class SelfModelWorkspace {
   selectedRecord() {
     const id = this.selectedId;
     if (!id) return null;
+    if (id.startsWith('segment|')) {
+      return selfViewSegmentRecord(this.snapshot, id.slice('segment|'.length));
+    }
     if (id.startsWith('affordance|')) {
       const affordanceId = id.slice('affordance|'.length);
       const item = affordances(this.snapshot).find((candidate) => String(candidate.affordance_id) === affordanceId);
