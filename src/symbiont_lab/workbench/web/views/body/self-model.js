@@ -1,5 +1,10 @@
 import { escapeHtml } from '../shared/dom.js';
-import { renderSelfView, selfViewSegmentRecord } from './self-view.js';
+import {
+  captureSelfViewDevelopment,
+  renderSelfView,
+  renderSelfViewDevelopment,
+  selfViewSegmentRecord,
+} from './self-view.js';
 
 /*
  * Passive UX projection only.
@@ -144,7 +149,10 @@ export class SelfModelWorkspace {
     this.snapshot = {};
     this.activeTab = 'overview';
     this.selfLens = 'self-view';
-    this.selfViewMode = 'knowledge';
+    this.selfViewMode = 'composite';
+    this.selfViewPane = 'composite';
+    this.selfViewDevelopment = [];
+    this.maxSelfViewFrames = 120;
     this.agencyLens = 'acquisition';
     this.selectedId = null;
     this.events = [];
@@ -156,6 +164,30 @@ export class SelfModelWorkspace {
     if (!snapshot || typeof snapshot !== 'object') return;
     this.snapshot = snapshot;
     this.recordEvents();
+    this.recordSelfViewDevelopment();
+  }
+
+  recordSelfViewDevelopment() {
+    const frame = captureSelfViewDevelopment(this.snapshot);
+    if (!frame?.tick) return;
+    const previous = this.selfViewDevelopment[this.selfViewDevelopment.length - 1];
+    const signature = (candidate) => [
+      Math.round((candidate?.aggregate?.coverage ?? 0) * 1000),
+      Math.round((candidate?.aggregate?.stability ?? 0) * 1000),
+      Math.round((candidate?.aggregate?.agency ?? 0) * 1000),
+      candidate?.aggregate?.representedRegions ?? 0,
+      candidate?.aggregate?.agenticRegions ?? 0,
+    ].join('|');
+    const materiallyChanged = !previous || signature(previous) !== signature(frame);
+    const cadenceReached = !previous || frame.tick - previous.tick >= 100;
+    if (!materiallyChanged && !cadenceReached) return;
+    this.selfViewDevelopment.push(frame);
+    if (this.selfViewDevelopment.length > this.maxSelfViewFrames) {
+      this.selfViewDevelopment.splice(
+        0,
+        this.selfViewDevelopment.length - this.maxSelfViewFrames
+      );
+    }
   }
 
   recordEvents() {
@@ -257,9 +289,16 @@ export class SelfModelWorkspace {
         this.render(overlay, panel);
       });
     });
+    overlay.querySelectorAll('[data-self-view-pane]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.selfViewPane = button.dataset.selfViewPane || 'composite';
+        this.selectedId = null;
+        this.render(overlay, panel);
+      });
+    });
     overlay.querySelectorAll('[data-self-view-mode]').forEach((button) => {
       button.addEventListener('click', () => {
-        this.selfViewMode = button.dataset.selfViewMode || 'knowledge';
+        this.selfViewMode = button.dataset.selfViewMode || 'composite';
         this.render(overlay, panel);
       });
     });
@@ -348,7 +387,13 @@ export class SelfModelWorkspace {
       const selected = this.selectedId?.startsWith('segment|')
         ? this.selectedId.slice('segment|'.length)
         : null;
-      body = renderSelfView(this.snapshot, this.selfViewMode, selected);
+      const paneNav = `<div class="self-view-pane-nav">
+        <button type="button" class="${this.selfViewPane === 'composite' ? 'active' : ''}" data-self-view-pane="composite">Composite</button>
+        <button type="button" class="${this.selfViewPane === 'development' ? 'active' : ''}" data-self-view-pane="development">Development</button>
+      </div>`;
+      body = this.selfViewPane === 'development'
+        ? `${paneNav}${renderSelfViewDevelopment(this.selfViewDevelopment)}`
+        : `${paneNav}${renderSelfView(this.snapshot, this.selfViewMode, selected)}`;
     } else if (this.selfLens === 'embodiment') {
       body = this.embodiment();
     }
