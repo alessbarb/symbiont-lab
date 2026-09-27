@@ -449,6 +449,58 @@ def test_body_self_model_does_not_reconstruct_affordances_or_fabricate_intent() 
     assert "EventSource" not in self_model
 
 
+def test_body_self_model_uses_progressive_disclosure_not_full_graph_dump() -> None:
+    self_model = _self_model_source()
+    body_css = (WEB_ROOT / "body.css").read_text(encoding="utf-8")
+
+    assert "const SELF_TABS" in self_model
+    assert "['overview', 'Overview']" in self_model
+    assert "['self', 'Self']" in self_model
+    assert "['agency', 'Agency']" in self_model
+    assert "['history', 'History']" in self_model
+    assert "SELF_LENSES" in self_model
+    assert "AGENCY_LENSES" in self_model
+
+    assert "regions.slice(0, 10)" in self_model
+    assert "hundreds of effects stay hidden until relevant" in self_model
+    assert "Raw per-tick changes are intentionally suppressed" in self_model
+    assert "graphSvg(" not in self_model
+    assert "bodySchemaNodes(" not in self_model
+    assert "capabilityNodes(" not in self_model
+
+    assert ".body-view-root.self-model-mode {" in body_css
+    assert "grid-template-columns: minmax(0, 1fr) 0;" in body_css
+    assert ".self-model-inspector-open" in body_css
+
+
+def test_body_self_model_empty_affordance_state_explains_blockers() -> None:
+    self_model = _self_model_source()
+
+    assert "No current affordance" in self_model
+    assert "Known competences" in self_model
+    assert "Known effects" in self_model
+    assert "Current bindings" in self_model
+    assert "Agentic dimensions" in self_model
+    assert "No competence currently satisfies the canonical affordance thresholds." in self_model
+
+
+def test_body_self_model_history_records_semantic_events_only() -> None:
+    self_model = _self_model_source()
+
+    for event in (
+        "Body schema →",
+        "Action dimension discovered",
+        "Action dimension became agentic",
+        "Motor competence established",
+        "Current affordance became available",
+        "Body boundary revised",
+        "Embodiment changed",
+    ):
+        assert event in self_model
+    assert "this.history.push" not in self_model
+    assert "maxEvents = 80" in self_model
+
+
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
     stream = ObservationBus()
     bridge = Physics3DObservationBridge(stream)
