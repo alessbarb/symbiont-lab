@@ -1,13 +1,16 @@
-from symbiont.core.collective import CollectiveMemory
 from symbiont.core.model import Observation
 
+from symbiont.core.social.ledger import SocialClaim, SocialEvidenceLedger
+from symbiont.core.social.source_evidence import SourceEvidenceOutcome
 from symbiont.simulation import EventContext
-from symbiont_lab.studies.attention.causal import (
-    _historical_threshold,
-    _online_indices,
-    _OrderStatisticHistory,
-)
+from symbiont_lab.studies.attention.causal import _online_indices
 from symbiont_lab.studies.attention.retrospective import _ScoredEvent
+from symbiont_lab.studies.common.causal_selection import (
+    OrderStatisticHistory as _OrderStatisticHistory,
+)
+from symbiont_lab.studies.common.causal_selection import (
+    historical_threshold as _historical_threshold,
+)
 from symbiont_lab.studies.evidence.noise_sweep import run_evidence_noise_sweep
 from symbiont_lab.studies.evidence.second_look import run_second_look_study
 
@@ -59,39 +62,17 @@ def test_online_order_statistics_match_reference_sorting_exactly():
 
 
 def test_identical_vote_replay_does_not_manufacture_trust_evidence():
-    collective = CollectiveMemory()
-    fingerprint = "M-H-M-H-M"
-    for index in range(5):
-        assert collective.report(
-            fingerprint,
-            threat=index < 4,
-            confidence=0.9,
-            source=f"source-{index}",
-            evidence_id="initial",
-        )
-    collective.recalibrate_sources(min_peers=4)
-
-    baseline = {
-        source: (state.score, state.evaluations)
-        for source, state in collective.source_trust.items()
-    }
-    reports = collective.patterns[fingerprint].reports
+    ledger = _ledger_with_five_sources("initial")
+    baseline = _trust(ledger)
+    samples = {source: list(state.samples) for source, state in ledger.source_states.items()}
 
     for _ in range(50):
-        assert not collective.report(
-            fingerprint,
-            True,
-            0.9,
-            "source-0",
-            evidence_id="initial",
-        )
-        collective.recalibrate_sources(min_peers=4)
+        _reconcile(ledger, "claim-0", "initial")
 
-    assert collective.patterns[fingerprint].reports == reports
-    assert {
-        source: (state.score, state.evaluations)
-        for source, state in collective.source_trust.items()
-    } == baseline
+    assert {source: list(state.samples) for source, state in ledger.source_states.items()} == (
+        samples
+    )
+    assert _trust(ledger) == baseline
 
 
 def test_second_look_exposes_exact_world_and_selection_digests():
@@ -130,3 +111,46 @@ def test_noise_sweep_accepts_only_exactly_paired_worlds_and_selections():
 
     assert result.seeds == (211, 223)
     assert result.noise_levels == (0.08, 0.30)
+
+
+def _ledger_with_five_sources(evidence_ref: str = "initial") -> SocialEvidenceLedger:
+    ledger = SocialEvidenceLedger()
+    for index in range(5):
+        claim_id = f"claim-{index}"
+        ledger.receive_claim(
+            SocialClaim(
+                claim_id=claim_id,
+                source_id=f"source-{index}",
+                root_evidence_ids=frozenset(),
+                parent_claim_ids=frozenset(),
+                payload="M-H-M-H-M",
+                received_tick=0,
+                freshness=1.0,
+            )
+        )
+        _reconcile(ledger, claim_id, evidence_ref, agree=index < 4)
+    return ledger
+
+
+def _reconcile(ledger, claim_id: str, evidence_ref: str, *, agree: bool = True) -> None:
+    ledger.record_local_reconciliation(
+        claim_id=claim_id,
+        tick=1,
+        outcome=(SourceEvidenceOutcome.AGREEMENT if agree else SourceEvidenceOutcome.CONTRADICTION),
+        compatibility=0.9,
+        quality=0.9,
+        freshness=1.0,
+        evidence_ref=evidence_ref,
+    )
+
+
+def _trust(ledger: SocialEvidenceLedger) -> dict[str, tuple]:
+    return {
+        source: (
+            state.source_reliability,
+            state.agreements,
+            state.contradictions,
+            len(state.samples),
+        )
+        for source, state in ledger.source_states.items()
+    }

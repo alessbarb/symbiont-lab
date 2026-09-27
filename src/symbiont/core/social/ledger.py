@@ -22,6 +22,8 @@ class SocialEvidenceLedger:
     claims: dict[str, SocialClaim] = field(default_factory=dict)
     source_states: dict[str, SourceEvidenceState] = field(default_factory=dict)
     reconciliations: dict[str, SourceEvidenceOutcome] = field(default_factory=dict)
+    # (source_id, evidence_ref) already counted: replayed evidence is not fresh.
+    seen_evidence: set[tuple[str, str]] = field(default_factory=set)
 
     def receive_claim(self, claim: SocialClaim) -> None:
         if claim.claim_id not in self.claims:
@@ -48,8 +50,13 @@ class SocialEvidenceLedger:
             raise ValueError(f"Unknown claim: {claim_id}")
 
         claim = self.claims[claim_id]
+        if evidence_ref is not None:
+            key = (claim.source_id, evidence_ref)
+            if key in self.seen_evidence:
+                return
+            self.seen_evidence.add(key)
         self.reconciliations[claim_id] = outcome
-        
+
         sample = SourceEvidenceSample(
             tick=tick,
             outcome=outcome,
@@ -75,7 +82,8 @@ class SocialEvidenceLedger:
     def unresolved_claims(self) -> list[SocialClaim]:
         """Return claims that have no local reconciliation yet."""
         return [
-            claim for claim_id, claim in self.claims.items()
+            claim
+            for claim_id, claim in self.claims.items()
             if self.assess_claim(claim_id) == SourceEvidenceOutcome.UNRESOLVED
         ]
 
@@ -99,6 +107,7 @@ class SocialEvidenceLedger:
                 )
         return questions
 
+
 @dataclass(slots=True, frozen=True)
 class SocialQuestion:
     claim_ref: str
@@ -108,4 +117,3 @@ class SocialQuestion:
     compatibility: float
     freshness: float
     uncertainty: float
-

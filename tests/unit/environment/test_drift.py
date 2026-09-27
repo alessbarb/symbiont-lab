@@ -1,10 +1,11 @@
 import random
 
 from symbiont.core.agent import Agent
-from symbiont.core.collective import CollectiveMemory
 from symbiont.core.model import Observation
 
-from symbiont.environment.world import apply_regime_shift, make_profiles
+from symbiont.core.social.ledger import SocialEvidenceLedger
+from symbiont.environment.regimes import apply_regime_shift
+from symbiont.environment.world import make_profiles
 from symbiont.simulation import run_simulation
 
 
@@ -21,7 +22,7 @@ def test_regime_shift_changes_only_selected_synthetic_profiles():
 
 
 def test_agent_adapts_to_sustained_low_risk_novel_regime_without_labels():
-    collective = CollectiveMemory()
+    collective = SocialEvidenceLedger()
     agent = Agent("adaptive")
     normal = Observation(0.15, 0.12, 0.08, 0.05, 0.01)
     shifted = Observation(0.22, 0.80, 0.45, 0.25, 0.04)

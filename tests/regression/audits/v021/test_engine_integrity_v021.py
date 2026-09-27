@@ -1,6 +1,7 @@
 import pytest
-from symbiont.core.collective import CollectiveMemory
 
+from symbiont.core.social.ledger import SocialClaim, SocialEvidenceLedger
+from symbiont.core.social.source_evidence import SourceEvidenceOutcome
 from symbiont.environment.rng import make_rng_streams
 from symbiont.simulation import _make_agents
 from symbiont_lab.studies.evidence.replicated import run_replicated_evidence_study
@@ -41,52 +42,27 @@ def test_poison_fraction_does_not_shift_agent_trait_draws():
 
 
 def test_recalibration_is_idempotent_without_fresh_reports():
-    collective = CollectiveMemory()
-    fingerprint = "M-H-M-H-M"
-    for index in range(5):
-        collective.report(
-            fingerprint,
-            threat=index < 4,
-            confidence=0.9,
-            source=f"source-{index}",
-        )
+    ledger = _ledger_with_five_sources()
+    first = _trust(ledger)
 
-    collective.recalibrate_sources(min_peers=4)
-    first = {
-        source: (state.score, state.evaluations)
-        for source, state in collective.source_trust.items()
+    for _ in range(50):  # reading assessments never manufactures evidence
+        for claim_id in ledger.claims:
+            ledger.claim_evidence(claim_id)
+        ledger.open_questions()
+    assert _trust(ledger) == first
+
+    # An identical report is a replay, not fresh evidence.
+    _reconcile(ledger, "claim-0", "initial")
+    assert _trust(ledger) == first
+
+    # A separately identified observation is fresh, and it evaluates only the
+    # source that supplied it rather than replaying every old peer.
+    _reconcile(ledger, "claim-0", "revision-1")
+    revised = _trust(ledger)
+    assert revised["source-0"] != first["source-0"]
+    assert {k: v for k, v in revised.items() if k != "source-0"} == {
+        k: v for k, v in first.items() if k != "source-0"
     }
-
-    for _ in range(50):
-        collective.recalibrate_sources(min_peers=4)
-
-    repeated = {
-        source: (state.score, state.evaluations)
-        for source, state in collective.source_trust.items()
-    }
-    assert repeated == first
-
-    # An identical compatibility-mode report is a replay, not fresh evidence.
-    assert not collective.report(fingerprint, True, 0.9, "source-0")
-    collective.recalibrate_sources(min_peers=4)
-    assert {
-        source: (state.score, state.evaluations)
-        for source, state in collective.source_trust.items()
-    } == first
-
-    # A separately identified observation is fresh, but it evaluates only the
-    # source that supplied the revision rather than replaying every old peer.
-    assert collective.report(
-        fingerprint,
-        True,
-        0.9,
-        "source-0",
-        evidence_id="fresh-observation",
-    )
-    collective.recalibrate_sources(min_peers=4)
-    assert collective.source_trust["source-0"].evaluations == first["source-0"][1] + 1
-    for source in ("source-1", "source-2", "source-3", "source-4"):
-        assert collective.source_trust[source].evaluations == first[source][1]
 
 
 def test_longitudinal_preserves_undefined_recall_without_threats():
@@ -157,3 +133,46 @@ def test_replicated_studies_reject_duplicate_seed_claims():
             hosts=2,
             steps=5,
         )
+
+
+def _ledger_with_five_sources(evidence_ref: str = "initial") -> SocialEvidenceLedger:
+    ledger = SocialEvidenceLedger()
+    for index in range(5):
+        claim_id = f"claim-{index}"
+        ledger.receive_claim(
+            SocialClaim(
+                claim_id=claim_id,
+                source_id=f"source-{index}",
+                root_evidence_ids=frozenset(),
+                parent_claim_ids=frozenset(),
+                payload="M-H-M-H-M",
+                received_tick=0,
+                freshness=1.0,
+            )
+        )
+        _reconcile(ledger, claim_id, evidence_ref, agree=index < 4)
+    return ledger
+
+
+def _reconcile(ledger, claim_id: str, evidence_ref: str, *, agree: bool = True) -> None:
+    ledger.record_local_reconciliation(
+        claim_id=claim_id,
+        tick=1,
+        outcome=(SourceEvidenceOutcome.AGREEMENT if agree else SourceEvidenceOutcome.CONTRADICTION),
+        compatibility=0.9,
+        quality=0.9,
+        freshness=1.0,
+        evidence_ref=evidence_ref,
+    )
+
+
+def _trust(ledger: SocialEvidenceLedger) -> dict[str, tuple]:
+    return {
+        source: (
+            state.source_reliability,
+            state.agreements,
+            state.contradictions,
+            len(state.samples),
+        )
+        for source, state in ledger.source_states.items()
+    }
