@@ -899,6 +899,7 @@ class ActionDomain:
                     {actuator_id: level / 7.0 for actuator_id, level in pattern if level > 0}
                     for pattern in primitive.sequence
                 ),
+                tick=tick,
             )
             if grounding is None:
                 continue

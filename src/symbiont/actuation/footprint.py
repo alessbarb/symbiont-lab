@@ -192,6 +192,11 @@ def footprint_entity_id(source: Iterable[str]) -> str:
     return "footprint." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:24]
 
 
+def footprint_effect_id(source: Iterable[str]) -> str:
+    """EffectSpace id of a footprint entity (same digest as its entity id)."""
+    return "effect.entity." + footprint_entity_id(source).removeprefix("footprint.")
+
+
 @dataclass(frozen=True, slots=True)
 class FootprintVersion:
     """One version of a footprint entity: its content and when it began."""
@@ -363,6 +368,11 @@ class FootprintRegistry:
             atoms=frozenset(members.keys()),
             since_tick=self._version_ticks.get(source, -1),
         )
+
+    def member_estimates(self, source: tuple[str, ...]) -> dict[str, AtomEstimate]:
+        """Current evidence of each member atom of a source's footprint."""
+        members = self._members.get(tuple(sorted(source)), {})
+        return {atom: record.estimate for atom, record in members.items()}
 
     def resolve(self, footprint: str) -> frozenset[str] | None:
         """Atoms of a content id: current membership, else its pinned snapshot."""
@@ -762,6 +772,7 @@ __all__ = [
     "TransitionKind",
     "atom_estimates",
     "estimate_ref",
+    "footprint_effect_id",
     "footprint_entity_id",
     "footprint_id",
     "pulses_from",

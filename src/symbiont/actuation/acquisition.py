@@ -21,7 +21,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Mapping
 
-from ..provenance import ProvenanceLog
+from ..provenance import CausalEvent, CausalRef, ProvenanceLog
 from .action import MotorCommand
 from .attempt import ActionAttempt, attempt_id_for_command
 from .commitment import ActionCommitment
@@ -33,7 +33,7 @@ from .dimension import (
     assess_family,
     opaque_dimension_id,
 )
-from .effects import EffectMatcher, EffectSpace, atoms_from_changes, bounded_atoms
+from .effects import EffectAtom, EffectMatcher, EffectSpace, atoms_from_changes, bounded_atoms
 from .evidence import (
     CausalEvidence,
     CausalEvidenceLedger,
@@ -42,7 +42,13 @@ from .evidence import (
     PredictionError,
     SensorimotorTransition,
 )
-from .footprint import FootprintRegistry, atom_estimates, pulses_from
+from .footprint import (
+    FootprintRegistry,
+    atom_estimates,
+    footprint_effect_id,
+    pulses_from,
+    version_ref,
+)
 from .intervention import (
     InterventionSignature,
     InterventionSignatureRegistry,
@@ -92,8 +98,8 @@ class CompetenceGrounding:
     evidence_refs: tuple[str, ...]
 
 
-def _atom_ids(changes: Mapping[str, float]) -> tuple[str, ...]:
-    return tuple(sorted({atom.effect_id for atom in atoms_from_changes(changes)}))
+_ATOM_CATALOG = 8192
+_GROUNDING_EVIDENCE = 64
 
 
 class AgencyAcquisition:
@@ -108,11 +114,16 @@ class AgencyAcquisition:
         dimension_policy: ActionDimensionDiscoveryPolicy | None = None,
         use_counterfactual_evidence: bool = True,
         use_agency_model: bool = True,
+        footprint_effects: bool = False,
     ) -> None:
         self.dimension_policy = dimension_policy or ActionDimensionDiscoveryPolicy()
         # Ablation switches exist for E1 only; the organism default is full.
         self.use_counterfactual_evidence = bool(use_counterfactual_evidence)
         self.use_agency_model = bool(use_agency_model)
+        # Factorized Effect Representation v1 §14: competences are grounded on
+        # causal footprints (entity-keyed) instead of whole-state effects.
+        self.footprint_effects = bool(footprint_effects)
+        self._atom_catalog: dict[str, EffectAtom] = {}
         self.signatures = InterventionSignatureRegistry()
         self.effect_space = EffectSpace()
         self.causal_evidence = CausalEvidenceLedger()
@@ -234,8 +245,16 @@ class AgencyAcquisition:
             state_after_ref=state_after_ref,
             observed_effect_id=observed_effect_id,
             prediction_error=prediction_error,
-            observed_effect_atoms=_atom_ids(observed_changes or {}),
+            observed_effect_atoms=self._atom_ids(observed_changes or {}),
         )
+
+    def _atom_ids(self, changes: Mapping[str, float]) -> tuple[str, ...]:
+        """Atoms of one transition; the catalog remembers each atom's feature."""
+        atoms = atoms_from_changes(changes)
+        for atom in atoms:
+            if atom.effect_id not in self._atom_catalog and len(self._atom_catalog) < _ATOM_CATALOG:
+                self._atom_catalog[atom.effect_id] = atom
+        return tuple(sorted({atom.effect_id for atom in atoms}))
 
     def _effect_atom_ids(self, effect_id: str) -> tuple[str, ...] | None:
         effect = self.effect_space.get(effect_id)
@@ -517,7 +536,7 @@ class AgencyAcquisition:
             prior_state_ref=prior_state_ref,
             resulting_state_ref=resulting_state_ref,
             effect_id=effect.effect_id if effect is not None else None,
-            effect_atoms=_atom_ids(changes),
+            effect_atoms=self._atom_ids(changes),
         )
 
     # -- footprints (Factorized Effect Representation v1 §4.2, §13.7) -----------
@@ -567,6 +586,132 @@ class AgencyAcquisition:
         ]
         estimates = atom_estimates(pulses, self.causal_evidence.passive_evidence, tick=tick)
         self.footprints.update({source: estimates.get(source, {})}, tick=tick)
+        if self.footprint_effects:
+            self._register_footprint_effect(source)
+
+    def _register_footprint_effect(self, source: tuple[str, ...]) -> None:
+        """Keep the entity's effect current; a vanished footprint keeps its last one."""
+        members = self.footprints.member_estimates(source)
+        atoms = tuple(self._atom_catalog[a] for a in sorted(members) if a in self._atom_catalog)
+        if atoms:
+            self.effect_space.register_footprint(
+                footprint_effect_id(source),
+                atoms,
+                support=max(estimate.pulses for estimate in members.values()),
+            )
+
+    def _ground_on_footprints(
+        self,
+        *,
+        controller_seed_ref: str,
+        temporal: InterventionSignature,
+        steps: tuple[InterventionSignature, ...],
+        tick: int,
+    ) -> "CompetenceGrounding | None":
+        """Ground a controller on causal footprints (Factorized Effects §14.1).
+
+        The competence's effect entity is its own channel set.  Until that set
+        has a footprint of its own (its own pulses), the prediction is the
+        union of the per-channel footprints of the channels it drives — a
+        provisional grounding that avoids the Gap A loop; its own executions
+        then confirm or revise it.
+        """
+        source = tuple(sorted({channel for step in steps for channel in step.channel_refs}))
+        if not source:
+            return None
+        if self.footprints.footprint_of(source) is not None:
+            parts, provisional = [source], False
+        else:
+            parts = [(c,) for c in source if self.footprints.footprint_of((c,)) is not None]
+            provisional = True
+        estimates = {
+            atom: estimate
+            for part in parts
+            for atom, estimate in self.footprints.member_estimates(part).items()
+        }
+        atoms = tuple(self._atom_catalog[a] for a in sorted(estimates) if a in self._atom_catalog)
+        if not atoms:
+            return None
+        effect_id = footprint_effect_id(source)
+        values = list(estimates.values())
+        support = min(estimate.pulses for estimate in values)
+        self.effect_space.register_footprint(effect_id, atoms, support=support)
+        dimension_id = opaque_dimension_id(source)
+        last_tick = max(estimate.estimated_tick for estimate in values)
+        hit_rate = sum(e.hits / e.pulses for e in values) / len(values)
+        expected = sum(e.expected_quiet_rate for e in values) / len(values)
+        contrast = sum(e.contrast for e in values) / len(values)
+        passive = max(e.passive_windows for e in values)
+        control = ControllabilityEstimate(
+            source_kind=CausalSourceKind.DIMENSION,
+            source_ref=dimension_id,
+            effect_id=effect_id,
+            context_id=None,
+            confidence=max(0.0, min(1.0, sum(e.controllability for e in values) / len(values))),
+            reliability=hit_rate,
+            counterfactual_rate=expected,
+            causal_advantage=contrast,
+            action_support=support,
+            counterfactual_support=passive,
+            last_updated_tick=last_tick,
+        )
+        agency = AgencyEstimate(
+            source_kind=CausalSourceKind.DIMENSION,
+            source_ref=dimension_id,
+            effect_id=effect_id,
+            context_id=None,
+            confidence=max(0.0, min(1.0, sum(e.agency for e in values) / len(values))),
+            temporal_contingency=hit_rate,
+            causal_specificity=max(0.0, min(1.0, contrast)),
+            prediction_match=None,
+            support=support,
+            counterfactual_support=passive,
+            last_updated_tick=last_tick,
+        )
+        evidence_refs = tuple(
+            dict.fromkeys(
+                item.evidence_id
+                for estimate in values
+                for commitment_id in estimate.pulse_commitments
+                for item in self.causal_evidence.commitment_evidence(commitment_id)
+            )
+        )[-_GROUNDING_EVIDENCE:]
+        if not evidence_refs:
+            return None
+        versions = [
+            version_ref(
+                self.footprints.version_of(part).entity_id, self.footprints.version_of(part).version
+            )
+            for part in parts
+        ]
+        competence = CausalRef("competence", controller_seed_ref)
+        self.provenance.emit(
+            CausalEvent(
+                tick=int(tick),
+                domain="competence",
+                operation="ground",
+                subject=competence,
+                caused_by=tuple(versions),
+                produced=(competence,),
+                rule="footprint_union" if provisional else "own_footprint",
+                parameters={
+                    "effect_id": effect_id,
+                    "provisional": provisional,
+                    "atoms": len(atoms),
+                    "channels": len(source),
+                    "covered_channels": len(parts) if provisional else len(source),
+                },
+            )
+        )
+        return CompetenceGrounding(
+            temporal_signature=temporal,
+            step_signature_refs=tuple(step.signature_id for step in steps),
+            dimension_id=dimension_id,
+            effect_id=effect_id,
+            controllability=control,
+            agency=agency,
+            evidence_refs=evidence_refs,
+        )
 
     # -- derived views --------------------------------------------------------
     def self_caused_features(self, *, min_confidence: float) -> set[str]:
@@ -671,6 +816,7 @@ class AgencyAcquisition:
         *,
         controller_seed_ref: str,
         patterns: tuple[Mapping[str, float], ...],
+        tick: int = -1,
     ) -> CompetenceGrounding | None:
         """Converge a recurrent motor pattern with the causal ledger (§28, §122).
 
@@ -694,6 +840,10 @@ class AgencyAcquisition:
             while len(self._pattern_signatures) > _PATTERN_CACHE:
                 self._pattern_signatures.pop(next(iter(self._pattern_signatures)))
         temporal, steps = cached
+        if self.footprint_effects:
+            return self._ground_on_footprints(
+                controller_seed_ref=controller_seed_ref, temporal=temporal, steps=steps, tick=tick
+            )
         threshold = self.dimension_policy.agentic_confidence
         best: tuple[float, float, str, str] | None = None
         for step in steps:
@@ -764,6 +914,11 @@ class AgencyAcquisition:
             # rather than re-derived from final ledger counts.
             "controllability": self.controllability_model.checkpoint(),
             "agency": self.agency_model.checkpoint(),
+            "footprint_effects": self.footprint_effects,
+            "atom_catalog": [
+                [atom_id, atom.feature_ref, atom.direction, atom.magnitude_class]
+                for atom_id, atom in sorted(self._atom_catalog.items())
+            ],
             "provenance": self.provenance.checkpoint(),
             "footprints": self.footprints.checkpoint(),
             "footprint_commitments": [
@@ -812,6 +967,14 @@ class AgencyAcquisition:
                 policy=self.dimension_policy,
             )
             # Schema 3: causal provenance frontier and footprints (none before).
+            if "footprint_effects" in acquisition:
+                self.footprint_effects = bool(acquisition["footprint_effects"])
+            self._atom_catalog = {}
+            for atom_id, feature, direction, magnitude in acquisition.get("atom_catalog", []):
+                atom = EffectAtom(str(feature), int(direction), int(magnitude))
+                if atom.effect_id != atom_id:
+                    raise ValueError("atom catalog entry does not match its identity")
+                self._atom_catalog[atom_id] = atom
             self.provenance = ProvenanceLog.restore(acquisition.get("provenance"))
             self.footprints = FootprintRegistry.restore(
                 acquisition.get("footprints"), provenance=self.provenance

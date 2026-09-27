@@ -707,6 +707,16 @@ class CompetenceDevelopmentEngine:
         cardinality = round(math.exp(unit * math.log(float(self._max_concurrent))))
         return max(1, min(self._max_concurrent, cardinality))
 
+    @property
+    def probing_share(self) -> float:
+        return self._probing_share
+
+    def set_probing_share(self, share: float) -> None:
+        """Enable/adjust causal probing (§13.1); takes effect from the next epoch."""
+        if not 0.0 <= float(share) <= 1.0:
+            raise ValueError("probing_share must be within [0, 1]")
+        self._probing_share = float(share)
+
     def is_probing_epoch(self, epoch: int) -> bool:
         """Organism-owned, deterministic choice of a probing epoch (§13.1)."""
         if self._probing_share <= 0.0:

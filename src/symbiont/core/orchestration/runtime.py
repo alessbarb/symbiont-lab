@@ -214,6 +214,10 @@ class OrganismDeadError(RuntimeError):
     """Raised when execution is requested after irreversible death."""
 
 
+# Factorized Effect Representation v1 §13.1: probing share when enabled.
+FACTORIZED_PROBING_SHARE = 0.5
+
+
 class OrganismRuntime:
     """Continuous cognitive cycle over safe local perceptions.
 
@@ -295,6 +299,7 @@ class OrganismRuntime:
         executive_mode: ExecutiveMode = ExecutiveMode.FULL,
         intention_policy: IntentionPolicy | None = None,
         executive_admission_policy: ExecutiveAdmissionPolicy | None = None,
+        factorized_effects: bool = False,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -632,7 +637,9 @@ class OrganismRuntime:
             if social_resource_ledger is not None
             else ResourceEvidenceLedger()
         )
-        self._epistemic_ledger = epistemic_ledger if epistemic_ledger is not None else SocialEvidenceLedger()
+        self._epistemic_ledger = (
+            epistemic_ledger if epistemic_ledger is not None else SocialEvidenceLedger()
+        )
         self._social_habitat_released = False
         self._habitat_released = False
         self._birth_authority_released = False
@@ -752,6 +759,14 @@ class OrganismRuntime:
             executive_mode=executive_mode,
             intention_policy=intention_policy,
         )
+        if factorized_effects:
+            # Factorized Effect Representation v1 §14: footprint-grounded
+            # competences, enabled together with causal probing.  Both are
+            # persisted, so a restored organism keeps the mode.
+            self._action_domain.acquisition.footprint_effects = True
+            engine = self._action_domain._competence_development
+            if engine is not None and engine.probing_share == 0.0:
+                engine.set_probing_share(FACTORIZED_PROBING_SHARE)
         self._executive_admission_policy = executive_admission_policy or ExecutiveAdmissionPolicy(
             readout_threshold=selection_threshold
         )

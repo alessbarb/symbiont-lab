@@ -167,6 +167,10 @@ class EffectSpace:
         self._max_effects = int(max_effects)
         self._support: dict[tuple[tuple[str, int], ...], int] = {}
         self._effects: dict[str, EffectRepresentation] = {}
+        # Factorized Effect Representation v1 §14.1: footprint effects are
+        # keyed by entity, registered explicitly and never evicted by the
+        # whole-state bound (which saturates in high-dimensional bodies).
+        self._footprints: dict[str, tuple[EffectRepresentation, tuple[EffectAtom, ...]]] = {}
 
     @staticmethod
     def signature(changes: Mapping[str, float]) -> tuple[tuple[str, int], ...]:
@@ -215,17 +219,54 @@ class EffectSpace:
             }
         return representation
 
+    def register_footprint(
+        self, effect_id: str, atoms: tuple[EffectAtom, ...], *, support: int
+    ) -> EffectRepresentation:
+        """(Re)register a footprint entity's effect with its current atoms."""
+        if not effect_id.startswith("effect.entity."):
+            raise ValueError("footprint effects are keyed by footprint entity")
+        ordered = tuple(sorted(set(atoms), key=lambda atom: atom.effect_id))
+        if not ordered or support < 1:
+            raise ValueError("a footprint effect needs atoms and support")
+        representation = EffectRepresentation(
+            effect_id=effect_id,
+            feature_refs=tuple(sorted({atom.feature_ref for atom in ordered})),
+            transition_signature=tuple(
+                sorted(
+                    (atom.feature_ref, atom.direction * atom.magnitude_class) for atom in ordered
+                )
+            ),
+            support=int(support),
+            confidence=min(1.0, support / 8.0),
+        )
+        self._footprints[effect_id] = (representation, ordered)
+        return representation
+
+    def footprint_atoms(self, effect_id: str) -> tuple[str, ...] | None:
+        """Atom effect ids of a registered footprint effect."""
+        entry = self._footprints.get(effect_id)
+        return tuple(atom.effect_id for atom in entry[1]) if entry is not None else None
+
     def get(self, effect_id: str) -> EffectRepresentation | None:
-        return self._effects.get(effect_id)
+        found = self._effects.get(effect_id)
+        if found is not None:
+            return found
+        entry = self._footprints.get(effect_id)
+        return entry[0] if entry is not None else None
 
     @property
     def effects(self) -> tuple[EffectRepresentation, ...]:
-        return tuple(sorted(self._effects.values(), key=lambda item: item.effect_id))
+        return tuple(
+            sorted(
+                (*self._effects.values(), *(entry[0] for entry in self._footprints.values())),
+                key=lambda item: item.effect_id,
+            )
+        )
 
     def target(
         self, effect_id: str, *, desired_change: float | None = None, tolerance: float | None = None
     ) -> EffectTarget:
-        if effect_id not in self._effects:
+        if self.get(effect_id) is None:
             raise KeyError("EffectTarget cannot be constructed from an external/unknown effect")
         return EffectTarget(effect_id, desired_change, tolerance)
 
@@ -236,6 +277,16 @@ class EffectSpace:
             "support": [
                 {"signature": [[key, value] for key, value in signature], "count": count}
                 for signature, count in sorted(self._support.items())
+            ],
+            "footprints": [
+                {
+                    "effect_id": effect_id,
+                    "support": representation.support,
+                    "atoms": [
+                        [atom.feature_ref, atom.direction, atom.magnitude_class] for atom in atoms
+                    ],
+                }
+                for effect_id, (representation, atoms) in sorted(self._footprints.items())
             ],
         }
 
@@ -259,5 +310,11 @@ class EffectSpace:
                 transition_signature=signature,
                 support=count,
                 confidence=min(1.0, count / 8.0),
+            )
+        for item in payload.get("footprints", []):
+            obj.register_footprint(
+                str(item["effect_id"]),
+                tuple(EffectAtom(str(f), int(d), int(m)) for f, d, m in item["atoms"]),
+                support=int(item["support"]),
             )
         return obj

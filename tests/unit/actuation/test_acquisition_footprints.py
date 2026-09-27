@@ -129,3 +129,75 @@ def test_checkpoint_continues_the_same_footprints_and_provenance():
         restored.provenance.checkpoint()["frontier"]
         == continuous.provenance.checkpoint()["frontier"]
     )
+
+
+def test_footprint_grounding_is_provisional_union_then_traced():
+    from symbiont.actuation.acquisition import AgencyAcquisition as Acquisition
+    from symbiont.actuation.footprint import footprint_effect_id
+
+    acquisition = Acquisition(footprint_effects=True)
+    acquisition.bind_surface(SURFACE.actuator_ids, surface_fingerprint=SURFACE.contract_fingerprint)
+    _develop(acquisition)
+    grounding = acquisition.ground_competence(
+        controller_seed_ref="primitive.x",
+        patterns=({A: 0.5, SURFACE.actuator_ids[1]: 0.5},),
+        tick=999,
+    )
+    assert grounding is not None
+    channels = tuple(sorted(opaque_channel_ref(a) for a in (A, SURFACE.actuator_ids[1])))
+    assert grounding.effect_id == footprint_effect_id(channels)
+    (caused,) = atoms_from_changes(CAUSED)
+    assert acquisition.effect_space.footprint_atoms(grounding.effect_id) == (caused.effect_id,)
+    assert grounding.evidence_refs
+    event = acquisition.provenance.events()[-1]
+    assert (event.domain, event.operation, event.rule) == (
+        "competence",
+        "ground",
+        "footprint_union",
+    )
+    assert event.parameters["provisional"] is True and event.parameters["covered_channels"] == 1
+    entity = footprint_entity_id((opaque_channel_ref(A),))
+    assert all(
+        ref.kind == "footprint_version" and ref.id.startswith(entity) for ref in event.caused_by
+    )
+
+
+def test_footprint_grounding_needs_a_footprint_and_whole_state_path_is_unchanged_when_off():
+    from symbiont.actuation.acquisition import AgencyAcquisition as Acquisition
+
+    fresh = Acquisition(footprint_effects=True)
+    fresh.bind_surface(SURFACE.actuator_ids, surface_fingerprint=SURFACE.contract_fingerprint)
+    assert fresh.ground_competence(controller_seed_ref="p", patterns=({A: 0.5},)) is None
+    off = fresh_acquisition()
+    _develop(off)
+    grounding = off.ground_competence(controller_seed_ref="p", patterns=({A: 0.5},))
+    assert grounding is None or not grounding.effect_id.startswith("effect.entity.")
+
+
+def test_footprint_mode_and_atom_catalog_survive_checkpoint():
+    from symbiont.actuation.acquisition import AgencyAcquisition as Acquisition
+
+    source = Acquisition(footprint_effects=True)
+    source.bind_surface(SURFACE.actuator_ids, surface_fingerprint=SURFACE.contract_fingerprint)
+    _develop(source)
+    payload = json.loads(
+        json.dumps(
+            {
+                "effect_space": source.effect_space.checkpoint(),
+                "causal_evidence": source.causal_evidence.checkpoint(),
+                "acquisition": source.checkpoint(),
+            }
+        )
+    )
+    restored = fresh_acquisition()
+    restored.restore_causal_state(
+        effect_space=payload["effect_space"],
+        causal_evidence=payload["causal_evidence"],
+        acquisition=payload["acquisition"],
+        body_schema=None,
+    )
+    assert restored.footprint_effects is True
+    args = {"controller_seed_ref": "p", "patterns": ({A: 0.5},), "tick": 5}
+    assert (
+        restored.ground_competence(**args).effect_id == source.ground_competence(**args).effect_id
+    )
