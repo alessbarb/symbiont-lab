@@ -4,8 +4,8 @@ import json
 from dataclasses import dataclass, field
 
 from ..foundation.model import Assessment, HostModel, Observation, fingerprint
-from ..social.communication import SignedMessage
-from ..social.exchange import ExchangeEnvelope
+from ..social.communication import ConsentBoundChannel, SignedMessage
+from ..social.exchange import ExchangeEnvelope, ExchangeReplayGuard
 from ..social.ledger import SocialEvidenceLedger, SourceEvidenceOutcome
 from .beliefs import BeliefModel
 from .memory import AgentMemory, Episode
@@ -24,6 +24,13 @@ class Agent:
     report_inversion: bool = False
     drift_streak: int = 0
     drift_adaptations: int = 0
+    # Emergent communication is inert until a channel is attached explicitly;
+    # the population simulation does not attach one (no preregistered protocol).
+    communication_channel: ConsentBoundChannel | None = None
+    epistemic_ledger: SocialEvidenceLedger = field(default_factory=SocialEvidenceLedger)
+    exchange_guard: ExchangeReplayGuard = field(default_factory=ExchangeReplayGuard)
+    exchange_sequence: int = 0
+    last_broadcast_reconciliations: set[str] = field(default_factory=set)
 
     def broadcast_claims(self, targets: list[str]) -> list[SignedMessage]:
         if not self.communication_channel:

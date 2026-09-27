@@ -13,7 +13,6 @@ from symbiont.environment.regimes import apply_regime_shift
 from symbiont.environment.rng import make_rng_streams
 from symbiont.environment.world import benign_event, make_profiles, pathogen_event
 
-from ..core.social.communication import ConsentBoundChannel
 from .evaluation import Evaluator
 from .events import EventContext
 from .result import SimulationResult
@@ -192,15 +191,6 @@ def _run_population(
         heterogeneity,
     )
     ledger = ledger or SocialEvidenceLedger()
-    channel = ConsentBoundChannel(habitat_id="sim_world", key=b"sim_key")
-    for a in agents:
-        a.communication_channel = channel
-        # We don't overwrite a.epistemic_ledger here unless we want them to share.
-        # Wait, if we want emergent communication, they MUST NOT share.
-        # We will stop passing the global ledger to observe() and assess().
-        for b in agents:
-            if a != b:
-                channel.authorize(a.model.host_id, b.model.host_id)
     evaluator = Evaluator()
     reasoner = ReasoningEngine()
     curiosity = CuriosityPlanner()
@@ -255,7 +245,7 @@ def _run_population(
                     )
                 )
 
-            assessment = agent.observe(step, event.observation, agent.epistemic_ledger)
+            assessment = agent.observe(step, event.observation, ledger)
             step_assessments.append(assessment)
             evaluator.record(
                 is_threat=event.is_threat,
@@ -266,19 +256,6 @@ def _run_population(
                 drift_state=drift_state,
             )
 
-        # Deliver messages
-        all_messages = []
-        for a in agents:
-            targets = [b.model.host_id for b in agents if b != a]
-            all_messages.extend(a.broadcast_claims(targets))
-
-        for a in agents:
-            for msg in all_messages:
-                if msg.recipient == a.model.host_id:
-                    a.receive_communication(msg, step)
-
-        # We keep the global ledger for the evaluator's metacognition.assess,
-        # or we can pass a combined ledger.
         meta = metacognition.assess(step_assessments, ledger)
         if on_snapshot is not None:
             on_snapshot(
