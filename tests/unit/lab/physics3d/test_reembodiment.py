@@ -415,7 +415,9 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
         contract=PhysicsEmbodimentDescriptor("compact-v1", 84, 40),
     )
     v2 = transformed["actuation"]["sensorimotor_v2"]
-    assert v2["schema_version"] == 3
+    assert v2["schema_version"] == 4
+    # Historical v1 knowledge never learned dimensions; none are fabricated.
+    assert v2["agency_acquisition"]["action_dimensions"] is None
     assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
     assert "surface_binding" not in v2["competences"][0]
     assert v2["competences"][0]["effect_id"] is None
@@ -840,7 +842,7 @@ def test_canonical_action_domain_reembodiment_preserves_knowledge_not_authority(
     assert action_domain["last_executed_controller_seed_id"] is None
     assert action_domain["pending_motor_observation"] == []
     assert action_domain["pending_proprioception"] == {}
-    assert v2["schema_version"] == 3
+    assert v2["schema_version"] == 4
     assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
     assert v2["competences"][0]["competence_id"] == "competence.old"
     assert v2["competences"][0]["effect_id"] is None
@@ -849,3 +851,55 @@ def test_canonical_action_domain_reembodiment_preserves_knowledge_not_authority(
     assert v2["exploration"] == {"strength_memory": {}, "active_preference": []}
     assert v2["composition"]["predecessor_id"] is None
     assert v2["composition"]["active_children"] == []
+
+
+def test_reembodiment_carries_learned_dimensions_as_unbound_knowledge() -> None:
+    """Agency Acquisition v1 §80-§81: dimensions stay known, never bound by fiat."""
+    from symbiont.actuation.acquisition import AgencyAcquisition
+    from symbiont.actuation.surface import derive_actuator_constitution
+    from symbiont.core.domains.action import ActionDomain
+    from symbiont.core.embodiment.body_schema import BodySchemaEngine
+    from tests.unit.actuation.acquisition_support import (
+        SURFACE,
+        A,
+        acquire_agentic_dimension,
+        fresh_acquisition,
+    )
+
+    learned = fresh_acquisition()
+    acquire_agentic_dimension(learned, channels={A: 0.5}, changes={"signal.a": 0.4})
+    assert learned.action_dimensions.items
+    old_domain = ActionDomain(
+        organism_id="organism.transplant",
+        enabled=True,
+        surface=SURFACE,
+        acquisition=learned,
+    )
+    previous = _checkpoint(vital_state="active")
+    previous["actuation"]["sensorimotor_v2"] = old_domain.checkpoint_v2()
+
+    new_surface = derive_actuator_constitution(3, physical_contract="transplant-body")
+    fresh_domain = ActionDomain(
+        organism_id="organism.transplant", enabled=True, surface=new_surface
+    )
+    fresh = _fresh(slots=40)
+    fresh["actuation"]["sensorimotor_v2"] = fresh_domain.checkpoint_v2()
+
+    transformed = prepare_fresh_embodiment_checkpoint(
+        previous,
+        fresh,
+        contract=PhysicsEmbodimentDescriptor("compact-v1", 84, 40),
+    )
+    v2 = transformed["actuation"]["sensorimotor_v2"]
+    assert v2["agency_acquisition"] == old_domain.acquisition.checkpoint()
+
+    restored = ActionDomain(
+        organism_id="organism.transplant",
+        enabled=True,
+        surface=new_surface,
+        acquisition=AgencyAcquisition(),
+    )
+    restored.restore_v2(v2, body_schema=BodySchemaEngine())
+    (dimension,) = restored.action_dimensions.items
+    assert dimension.dimension_id == learned.action_dimensions.items[0].dimension_id
+    assert dimension.availability and not dimension.embodiment_bound
