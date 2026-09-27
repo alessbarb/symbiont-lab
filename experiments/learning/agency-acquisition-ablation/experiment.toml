@@ -1,0 +1,31 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-acquisition-ablation"
+title = "E1 — Agency acquisition ablation"
+protocol = "learning.agency-acquisition-ablation"
+protocol_version = 1
+hypothesis = """
+Counterfactual (no-intervention and alternative-intervention) evidence and the
+AgencyModel are both necessary for acquiring causally specific ActionDimensions
+and grounding MotorCompetences in an opaque body with inert outputs.
+"""
+success_criteria = """
+Report, per arm and seed: ActionDimensions discovered, false-positive
+dimensions (grounded only in physically inert outputs, evaluator ground truth),
+mean causal specificity/advantage, competences acquired and reproducibility.
+Effects are reported per seed without a post-hoc pass direction.
+"""
+
+[world]
+steps = 1500
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+inert_actuator_count = 2
+
+[output]
+save_trace = false
+save_summary = true

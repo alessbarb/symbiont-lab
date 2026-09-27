@@ -1,0 +1,31 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-embodied-causal-intervention"
+title = "E4 — Embodied causal intervention"
+protocol = "learning.agency-embodied-causal-intervention"
+protocol_version = 1
+hypothesis = """
+After acquisition, permuting outputs or breaking an effector must be revealed
+by revision of controllability, agency, ActionDimensions, BodySchema and
+affordances, relative to an unperturbed control twin.
+"""
+success_criteria = """
+Report per condition (normal, permuted, broken_effector) the revision of
+believed dimension->effect relations, dominant-effect changes, lost agentic
+dimensions, new dimensions, body-schema revisions, affordance turnover and intent
+failures, contrasted with the normal twin.
+"""
+
+[world]
+steps = 2000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+horizon_ticks = 1024
+
+[output]
+save_trace = false
+save_summary = true

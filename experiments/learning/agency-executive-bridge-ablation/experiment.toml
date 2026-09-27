@@ -1,0 +1,30 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-executive-bridge-ablation"
+title = "E2 — Executive bridge ablation"
+protocol = "learning.agency-executive-bridge-ablation"
+protocol_version = 1
+hypothesis = """
+Routing learned competences through a persistent ActionIntent changes effect
+realization, action switching, prediction error and commitment failure relative
+to readout/competence -> direct proposal.
+"""
+success_criteria = """
+Matched twins from one acquired organism checkpoint and body state. Seeds that
+never acquire an executable competence within the warmup budget are reported as
+not testable. Report per-arm metrics and differences; no post-hoc threshold.
+"""
+
+[world]
+steps = 2000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+horizon_ticks = 1024
+
+[output]
+save_trace = false
+save_summary = true

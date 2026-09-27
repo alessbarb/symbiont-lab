@@ -8,9 +8,11 @@ reading boundary and emits opaque actuations through its ActionDomain.
 
 Receptors:
 
-* one driven receptor per actuator (under NORMAL, actuator ``i`` drives
-  receptor ``i``; PERMUTED rotates the mapping; BROKEN_EFFECTOR removes the
-  first actuator's physical effect);
+* one driven receptor per functional actuator (under NORMAL, actuator ``i``
+  drives receptor ``i``; PERMUTED rotates the mapping; BROKEN_EFFECTOR removes
+  the first actuator's physical effect);
+* optional inert actuators: legal outputs with no physical consequence, so a
+  dimension grounded only in them is a false-positive dimension;
 * one distractor receptor that jumps on an evaluator-seeded schedule with no
   dependence on action, so the organism meets effects that also occur
   without its intervention (counterfactual windows).
@@ -77,12 +79,18 @@ class CausalBody:
         actuator_count: int,
         seed: int,
         condition: BodyCondition = BodyCondition.NORMAL,
+        inert_actuator_count: int = 0,
     ) -> None:
         if actuator_count < 1:
             raise ValueError("a causal body needs at least one actuator")
+        if inert_actuator_count < 0:
+            raise ValueError("inert_actuator_count must be non-negative")
         self.seed = int(seed)
+        self.functional_count = int(actuator_count)
+        total = int(actuator_count) + int(inert_actuator_count)
         self.surface: ActuatorSurface = derive_actuator_constitution(
-            actuator_count, physical_contract=f"agency-acquisition-body:{actuator_count}"
+            total,
+            physical_contract=f"agency-acquisition-body:{actuator_count}:{inert_actuator_count}",
         )
         self.receptor_ids = tuple(
             _opaque_receptor_id(self.seed, index) for index in range(actuator_count + 1)
@@ -98,7 +106,9 @@ class CausalBody:
 
     def driven_receptor(self, actuator_id: str) -> str | None:
         index = self.surface.actuator_ids.index(actuator_id)
-        count = len(self.surface.actuator_ids)
+        count = self.functional_count
+        if index >= count:
+            return None  # inert output: legal, but physically inconsequential
         if self.condition is BodyCondition.BROKEN_EFFECTOR and index == 0:
             return None
         if self.condition is BodyCondition.PERMUTED:

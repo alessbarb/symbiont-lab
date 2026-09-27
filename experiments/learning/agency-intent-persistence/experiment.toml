@@ -1,0 +1,29 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-intent-persistence"
+title = "E3 — Intent persistence"
+protocol = "learning.agency-intent-persistence"
+protocol_version = 1
+hypothesis = """
+A persistent ActionIntent yields less movement fragmentation and fewer
+commitment interruptions than re-deciding every tick.
+"""
+success_criteria = """
+Matched twins; report successful effect realization, fragmentation (mean
+competence-commitment ticks, switches), interruptions, controller completion and
+energy per arm and seed.
+"""
+
+[world]
+steps = 2000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+horizon_ticks = 1024
+
+[output]
+save_trace = false
+save_summary = true

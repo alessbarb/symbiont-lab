@@ -1,0 +1,30 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-intentional-causal-advantage"
+title = "E5 — Intentional causal advantage"
+protocol = "learning.agency-intentional-causal-advantage"
+protocol_version = 1
+hypothesis = """
+Full ActionIntent with persistence and observed-effect reconciliation (C) is a
+causal improvement over direct proposals (A) and over intents without real-effect
+reconciliation (B), given the same body, state, experience and competences.
+"""
+success_criteria = """
+Report effect realization rate, switches per successful effect, prediction
+error, failed commitments, mean intent duration, intent satisfaction and energy
+per realized effect for A, B and C on matched twins.
+"""
+
+[world]
+steps = 2000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+horizon_ticks = 1024
+
+[output]
+save_trace = false
+save_summary = true
