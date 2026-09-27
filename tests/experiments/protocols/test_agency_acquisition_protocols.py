@@ -11,15 +11,22 @@ from pathlib import Path
 
 import pytest
 
+from symbiont.actuation.intervention import opaque_channel_ref
 from symbiont_lab.experiments.loader import load_experiment_file
 from symbiont_lab.experiments.registry import get_protocol
 from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.experiments.spec import spec_from_payload
 from symbiont_lab.studies.learning.agency_acquisition import (
+    _prepare_acquired,
+    _relation_classes,
     _twin,
     run_acquisition_reuse_closure_study,
 )
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
+from symbiont_lab.studies.learning.agency_acquisition_body import (
+    BodyCondition,
+    CausalBody,
+    build_subject,
+)
 
 pytestmark = pytest.mark.experiment_contract
 
@@ -139,3 +146,23 @@ def test_matched_twins_are_identical_continuations():
         first._action_domain.causal_evidence.evidence
         == second._action_domain.causal_evidence.evidence
     )
+
+
+def test_e4_relation_classes_follow_the_physical_ground_truth():
+    runtime, body, acquired_at = _prepare_acquired(
+        101, actuator_count=4, warmup_limit=600, settle_ticks=64
+    )
+    assert acquired_at is not None
+    registry = runtime._action_domain.acquisition.action_dimensions
+    broken_channel = opaque_channel_ref(body.surface.actuator_ids[0])
+
+    unchanged_lost, _ = _relation_classes(runtime, body, BodyCondition.NORMAL)
+    assert unchanged_lost == set()
+
+    invalidated, intact = _relation_classes(runtime, body, BodyCondition.BROKEN_EFFECTOR)
+    assert invalidated and intact
+    assert not invalidated & intact
+    # Only relations of dimensions driving the broken output can be invalidated.
+    assert all(broken_channel in registry.channel_refs(dim) for dim, _effect in invalidated)
+    # Classification is evaluator-only: it never changes the organism.
+    assert body.condition is BodyCondition.NORMAL

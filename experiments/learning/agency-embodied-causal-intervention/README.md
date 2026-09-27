@@ -23,10 +23,21 @@ developmental tick budget; `[ablation]` holds protocol parameters.
 
 ## Success criteria
 
-Report per condition (normal, permuted, broken_effector) the revision of
-believed dimension->effect relations, dominant-effect changes, lost agentic
-dimensions, new dimensions, body-schema revisions, affordance turnover and intent
-failures, contrasted with the normal twin.
+Believed dimension->effect relations are split by apparatus ground truth into
+those the perturbation invalidates (the effect involves a receptor the
+dimension no longer drives) and those it leaves intact. Report per perturbed
+condition the controllability and agency drop, residual controllability and
+re-tested fraction of both sets, plus lost agentic dimensions, new dimensions,
+body-schema revisions, affordance turnover and intent failures, each contrasted
+with the normal twin on the same relation sets. Revision is condition-specific
+when invalidated relations drop more in the perturbed twin than in the normal
+twin while intact relations do not.
+
+Protocol v3 replaced the v2 "dominant effect of any dimension touching a
+perturbed output" relation set, which mixed invalidated and intact relations,
+and reads the pre-perturbation state (including derived affordances, which are
+never checkpointed) from the source organism rather than a freshly restored
+twin.
 
 ## Execution
 
