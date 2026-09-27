@@ -90,6 +90,7 @@ export class BodyWorkspace {
     this.history = [];
     this.maxHistory = 220;
     this.selectedSegment = null;
+    this.root = null;
     this.nav = null;
     this.panel = null;
     this.overlay = null;
@@ -99,6 +100,7 @@ export class BodyWorkspace {
   }
 
   mount(root, canvasWrap, panel) {
+    this.root = root;
     this.nav = node('div', 'body-tabs');
     this.nav.setAttribute('role', 'tablist');
     this.nav.setAttribute('aria-label', 'Body view tabs');
@@ -141,6 +143,8 @@ export class BodyWorkspace {
       button.tabIndex = active ? 0 : -1;
     });
     this.panel?.setAttribute('aria-labelledby', `body-tab-${tab}`);
+    this.root?.classList.toggle('self-model-mode', tab === 'self-model');
+    if (tab !== 'self-model') this.root?.classList.remove('self-model-inspector-open');
     const dataView = tab === 'physiology' || tab === 'history' || tab === 'self-model';
     this.overlay?.classList.toggle('visible', dataView);
     if (tab !== 'anatomy') this.clearSegmentHighlight();
