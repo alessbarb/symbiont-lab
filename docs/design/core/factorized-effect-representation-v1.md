@@ -406,3 +406,32 @@ is **sample size per channel** — with 4-6 pulses per half, footprints are not
 yet stable. The 6000-tick Physics3D run measures how stability grows with
 pulses; if it stays low, the remedy is more repeats per probed unit, not a
 different attribution.
+
+### 13.7 Footprint membership: evidence for changing decision 2 (owner decision)
+
+Within-channel stability (a channel's footprint from the first vs second half
+of its own pulses; the run-halves metric compares different channels because
+probing visits each channel in bursts) on the E8 body, 8 repeats, 12000
+ticks, seeds 101/149, against ground truth:
+
+| Membership rule | Precision | Recall | Within-channel Jaccard |
+| --- | --- | --- | --- |
+| Decision 2: agency >= 0.35 (model formula), pulse vs quiet runs of different length | 0.62-0.69 | 0.43-0.46 | 0.19-0.23 |
+| Proposed: length-matched baseline + Wilson lower bound, margin 0.05 | 0.77-0.80 | 0.61-0.67 | 0.53-0.55 |
+
+Causes found:
+
+1. True receptors never change at rest (rate 0.00) and appear in 17-66% of
+   pulses, yet an atom at 30% gets agency 0.45·0.30 + 0.35·0.30 + 0.10 = 0.34,
+   just under 0.35, so true atoms flicker in and out.
+2. Pulses (~6 ticks) are compared with quiet runs of ~4 ticks, so drifting
+   receptors appear more often during pulses (0.25 vs 0.14) and pass as
+   caused.
+3. Magnitude classes are not the cause (removing them changes nothing).
+
+Proposed rule: an atom belongs to a source's footprint when the lower 95%
+Wilson bound of its pulse hit rate exceeds the rate expected for a quiet
+window of the same length, `1 - (1 - q)^L` (q = per-tick passive rate, L =
+mean pulse length), by a margin of 0.05, with at least 4 pulses. Hysteresis
+applies to the margin. Controllability and agency estimates keep the model
+formulas for everything else (dimensions, competences, EOL).
