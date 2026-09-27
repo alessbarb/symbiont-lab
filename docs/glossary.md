@@ -10,7 +10,7 @@ migrated_on: 2026-09-25
 last_reviewed: null
 language: en
 ---
-# Glossary of Epistemological and Experimental Terms
+## Glossary of Epistemological and Experimental Terms
 
 ## Experimental Hierarchy
 

@@ -1,73 +1,37 @@
-# Portal Canónico de Documentación de Symbiont
+# Symbiont Scientific Documentation
 
-Este portal organiza de forma sistemática la arquitectura, estado normativo, fundamentos matemáticos, diseños técnicos y evidencia experimental del monorepo **Symbiont Lab**.
+Welcome to the Symbiont Scientific Documentation.
 
-La política de versionado y ciclo de vida de releases se define en [`VERSIONING.md`](VERSIONING.md).
+This corpus is designed to reconstruct, explain, and preserve how the Symbiont organism actually works. It is written for researchers and scientists studying the system. Its purpose is to help you understand what the organism does, how it does it, and what empirical evidence supports that interpretation—all without requiring the original authors to act as an oracle.
 
----
+## The Epistemology of the Organism
 
-## 1. Estado Normativo y Orientación del Proyecto
+Symbiont is not merely a codebase; it is an experimental subject. The fundamental unit of our documentation is therefore the *phenomenon*, not the file layout. We track a perception, an action, a learning event, or a state transition from the moment it occurs down to its causal roots. 
 
-- [`roadmap.md`](roadmap.md) — **Fuente canónica del estado activo de desarrollo (north star, invariantes, hitos I/J/K vigentes).**
-- [`history/roadmap-log.md`](history/roadmap-log.md) — **Historia completa de hitos A-H y bitácora de tracking por versión.**
-- [`CHANGELOG.md`](CHANGELOG.md) — Historial consolidado de las 140 notas de release individuales y el corte `1.0.0`.
-- [`../ORGANISM.md`](../ORGANISM.md) — Registro histórico y evolutivo de las capacidades del organismo.
-- [`glossary.md`](glossary.md) — Glosario técnico y vocabulario epistémico compartido.
+Explanations begin with what happens in the world and why it matters to the organism. They descend naturally into bounded domains, tracing the causal chains and the transformations of internal state, and finally anchor themselves in the specific implementing symbols of the runtime. 
 
----
+Interpretations in these texts are strictly supported by evidence from our test suites, runtime execution traces, and experimental integrity boundaries. Discrepancies between our intended design, the code itself, and our observations are explicitly preserved rather than silently resolved. We meticulously track how physical events produce internal transformations, how the organism's state is modified, and what future consequences those modifications enable. Above all, we maintain strict architectural distinctions between the physical world, the biological body, the embodiment layer, and the endogenous cognitive reasoning of Symbiont.
 
-## 2. Arquitectura del Sistema, la Entidad `symbiont` y Vida Artificial
+## Navigating the Corpus
 
-- [`architecture.md`](architecture.md) — **Frontera epistemológica de dos paquetes** (`symbiont` como sujeto experimental vs `symbiont_lab` como aparato científico), **Tratado Técnico Integral del Organismo Symbiont** (estudio exhaustivo de los módulos de código `core`, `cognition`, `host`, `environment`, dinámica de activación en grafos recurrentes, contabilidad metabólica, homeostasis, memoria consolidada y ciclo de ejecución de ticks) y el **Modelo funcional de Vida Artificial (ALife)** con la justificación rigurosa de las analogías biológicas frente a metáforas decorativas.
-- [`adr/README.md`](adr/README.md) — **Registro de Decisiones de Arquitectura (ADRs):** Justificación formal e invariantes permanentes (ADR-0001 a ADR-0007).
-- [`safety/README.md`](safety/README.md) — **Límites de Seguridad y Consentimiento:** Contratos de telemetría de solo lectura y ciclo de vida del residente en anfitriones reales.
+The documentation follows the natural boundaries discovered within the implementation. You can navigate the highest-level causal chains and anatomies of the organism:
 
----
+- [1. Anatomy of Macro Boundaries](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/01-anatomy-macro-boundaries.md)
+- [2. Temporal Domains](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/02-temporal-domains.md)
+- [3. Anatomy of a Cognitive Tick](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/03-anatomy-cognitive-tick.md)
+- [4. Digital Physiology](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/04-digital-physiology.md)
+- [5. Endogenous Cognition](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/05-endogenous-cognition.md)
+- [6. Reproduction and Lineage](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/06-reproduction-and-lineage.md)
+- [7. Social Ecology](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/07-social-ecology.md)
+- [8. Perception and Drift](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/08-perception-and-drift.md)
+- [9. Memory Consolidation](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/09-memory-consolidation.md)
+- [10. Predictive Shadows](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/10-predictive-shadows.md)
+- [11. Cultural Transmission](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/explanation/11-cultural-transmission.md)
 
-## 3. Compendio Matemático
+For canonical terminology and definitions, consult the [Glossary](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/docs/glossary.md). 
 
-- [`math/README.md`](explanation/math/README.md) — **Compendio Matemático Formal:** Demostraciones analíticas, estabilidad de Welford, EWMA con suelo congelado, atención causal por mochila voraz 0/1, actualización bayesiana, dinámica de Oja y selección causal con Treaps.
-  - *Itinerario A:* Teoría de la decisión y seguridad bayesiana ([Caps. 01, 04, 05, 06, 07](explanation/math/README.md#rutas-pedagógicas-recomendadas)).
-  - *Itinerario B:* Procesamiento de señales y estabilidad de Welford en el anfitrión ([Caps. 02, 03, 08](explanation/math/README.md#rutas-pedagógicas-recomendadas)).
-  - *Itinerario C:* Arquitectura neuronal plástica y calibración estadística ([Caps. 09, 10](explanation/math/README.md#rutas-pedagógicas-recomendadas)).
+To explore the implementation itself, we recommend querying the conceptual graph using the `graphify` tool or exploring the root `experiments` suites.
 
----
+## Contributing to the Science
 
-## 4. Diseños Técnicos por Hito (`docs/design/`)
-
-- [`design/README.md`](design/general/README.md) — **Índice temático de especificaciones ontogenéticas:**
-  - *Hito E (Embodiment):* [`percepcion-y-embodiment.md`](design/embodiment/perception-and-embodiment.md).
-  - *Hito E2 (Plasticidad):* [`cognicion-y-plasticidad.md`](design/general/cognition-and-plasticity.md) y [`percepcion-y-embodiment.md`](design/embodiment/perception-and-embodiment.md).
-  - *Hitos F e I (Fisiología):* [`fisiologia-y-reproduccion.md`](design/general/physiology-and-reproduction.md).
-  - *Hito G (Población y Linaje):* [`fisiologia-y-reproduccion.md`](design/general/physiology-and-reproduction.md) y [`cognicion-y-plasticidad.md`](design/general/cognition-and-plasticity.md).
-  - *Hitos J y K (Predicción y Sociedad):* [`sociabilidad-y-desarrollo-predictivo.md`](design/general/sociability-and-predictive-development.md).
-
-> [!NOTE]
-> En `1.0.0` / `experimental-organism-v1`, los Hitos I (fisiología
-> integrada), J (desarrollo predictivo) y K (sociabilidad emergente), junto
-> con la cultura, comunicación y orquestación poblacional integrada, forman el
-> sustrato congelado y validado. Las generalizaciones abiertas permanecen
-> documentadas en cada especificación; `v0.80.15` y `v0.80.16` son cortes
-> históricos inmutables.
-
----
-
-## 5. Metodología Experimental e Integridad Científica
-
-- [`methodology/README.md`](methodology/README.md) — Metodología experimental y protocolos pre-registrados.
-- [`../research/protocols/`](../research/protocols/) — Protocolos formales declarados con anterioridad a la recolección de datos.
-- [`../research/studies/`](../research/studies/) — Especificaciones declarativas de estudios de replicación.
-- [`../research/audits/`](../research/audits/) — Informes de auditoría adversarial, análisis de colapsos y verificación de límites.
-- [`../docs/adr/`](../docs/adr/) — Registro histórico de decisiones metodológicas.
-
----
-
-## 6. Operación Local y Trazabilidad Histórica
-
-- **Lanzador Local de Residentes:** El script [`../scripts/run-ecosystem.sh`](../scripts/run-ecosystem.sh) orquesta la ejecución local de residentes y Observatory bajo un supervisor de ciclo de vida transparente (`--no-stdout`, persistencia en directorio de estado y selección de intérprete mediante `SYMBIONT_PYTHON`).
-
----
-
-## 7. Documentación de Publicación Web
-
-- [`web/README.md`](explanation/concepts/README.md) — **Puerta narrativa pública sobre qué es un Symbiont y qué muestra la experimentación**, sin sustituir el portal técnico. Cada capítulo cita su fuente exacta en [`web/FUENTES.md`](explanation/concepts/SOURCES.md).
+When documenting newly discovered phenomena, remember our foundational rule: explain the phenomenon before the implementation. Provide tangible evidence for any architectural or behavioral claims you introduce, preserve the causal history and the domain boundaries strictly, and never generate empty placeholder documents to satisfy a structural template. The documentation must evolve only when the system itself evolves.
