@@ -392,7 +392,20 @@ def test_physics3d_rich_state_projects_agency_and_executive_state() -> None:
     snapshot = mind_snapshot_from_rich_state(
         {
             "tick": 43,
-            "agency_acquisition": {"physical_motor_opportunities": 4, "action_attempt_count": 7},
+            "agency_acquisition": {
+                "physical_motor_opportunities": 4,
+                "action_attempt_count": 7,
+                "causal_relations": [
+                    {
+                        "source_kind": "competence",
+                        "source_ref": "competence.1",
+                        "effect_id": "effect.1",
+                        "confidence": 0.4,
+                        "action_support": 5,
+                        "counterfactual_support": 8,
+                    }
+                ],
+            },
             "affordances": [{"affordance_id": "affordance.1", "competence_id": "competence.1"}],
             "executive_intention": {"active": None, "counts": {"satisfied": 0}, "trace": None},
         }
@@ -400,6 +413,10 @@ def test_physics3d_rich_state_projects_agency_and_executive_state() -> None:
     facts = snapshot["provenance"]["organismFacts"]
     assert {"agency_acquisition", "affordances", "executive_intention"} <= set(facts)
     assert snapshot["agency_acquisition"]["action_attempt_count"] == 7
+    relation = snapshot["agency_acquisition"]["causal_relations"][0]
+    assert relation["source_ref"] == "competence.1"
+    assert relation["effect_id"] == "effect.1"
+    assert relation["counterfactual_support"] == 8
     assert snapshot["affordances"][0]["affordance_id"] == "affordance.1"
 
 
