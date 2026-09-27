@@ -205,3 +205,21 @@ Runs: `20260927T083750Z-learning-agency-intentional-causal-advantage-f5073a7-f39
 Next (owner decision): the key granularity. Measuring `context_ref`
 cardinality per competence would show whether a coarser key yields reusable
 history; changing the key is a new version with its own preregistered run.
+
+## 13. Key-granularity diagnostic (read-only, no protocol run)
+
+Default organism, 5000 ticks, every admission lookup replayed against the
+keys that already had real non-neutral outcomes, at three granularities:
+
+| Seed | Lookups | Exact `(C, E, context)` | `(C, E)` | `(C)` | Contexts per competence (median / max) |
+| --- | --- | --- | --- | --- | --- |
+| 101 | 5974 | 0.002 | 0.984 | 0.986 | 3 / 461 |
+| 227 | 1294 | 0.005 | 0.855 | 0.894 | 4 / 524 |
+| 149 | 25 | 0.000 | 0.000 | 0.920 | 3 / 3 (almost no activity) |
+
+`context_ref` hashes the surface and *all* active concepts, so a single
+competence meets hundreds of distinct contexts; dropping the context from the
+key turns an unusable memory into one that almost every admission can use.
+Candidate for EOL v1.1 (owner decision, new preregistered run): key
+`(competence, anticipated effect)`, keeping context out of v1 as §3.2
+already anticipated, and reporting the same §8 saturation metrics.
