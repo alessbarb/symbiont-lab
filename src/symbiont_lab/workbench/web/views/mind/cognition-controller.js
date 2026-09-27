@@ -675,9 +675,9 @@ export function createCognitionController({
       agency: (() => {
         const agencySource = graph.replaySnapshot ?? snap;
         return {
-          acquisition: agencySource.agency_acquisition ?? null,
+          acquisition: agencySource.agencyAcquisition ?? agencySource.agency_acquisition ?? null,
           affordances: agencySource.affordances ?? [],
-          executive: agencySource.executive_intention ?? null,
+          executive: agencySource.executiveIntention ?? agencySource.executive_intention ?? null,
         };
       })(),
     });

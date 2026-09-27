@@ -1843,3 +1843,12 @@ def test_agency_panels_render_without_a_focused_cognitive_node() -> None:
     for title in ("Agency acquisition", "Executive state", "Latest action trace"):
         assert title in live
     assert "`${agency.dimensions}/${agency.physicalOpportunities}`" not in live
+
+
+def test_mind_snapshot_state_carries_agency_and_executive_blocks() -> None:
+    snapshot_js = (WEB_ROOT / "views" / "mind" / "snapshot.js").read_text(encoding="utf-8")
+    state_js = (WEB_ROOT / "views" / "mind" / "state.js").read_text(encoding="utf-8")
+    for key in ("agency_acquisition", "affordances", "executive_intention"):
+        assert f"source.{key}" in snapshot_js
+    for field in ("agencyAcquisition", "affordances", "executiveIntention"):
+        assert f"{field}:" in state_js

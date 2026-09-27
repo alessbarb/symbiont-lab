@@ -450,6 +450,14 @@ function renderFocus(frame) {
   }
 }
 
+function shortId(value) {
+  // Opaque ids are long; keep the kind prefix and a recognizable tail.
+  const text = String(value ?? '—');
+  const dot = text.indexOf('.');
+  if (text.length <= 22 || dot < 0) return text;
+  return `${text.slice(0, dot + 4)}…${text.slice(-5)}`;
+}
+
 function traceRows(trace) {
   // Sec 86/87: reconstructed causal chain, never a narrated explanation.
   const rows = [
@@ -501,44 +509,42 @@ function renderAgency(root, agency) {
   const intent = agency.intent;
   if (intent) {
     root.append(
-      metricRow('Active intent', intent.id),
+      metricRow('Active intent', shortId(intent.id)),
       metricRow('Status', intent.status),
       metricRow('Age', `${intent.age} ticks`),
-      metricRow('Anticipated effect', intent.anticipatedEffect ?? '—'),
-      metricRow('Competence', intent.competence ?? '—'),
-      metricRow('Supporting affordance', intent.affordance ?? '—'),
+      metricRow('Anticipated effect', shortId(intent.anticipatedEffect)),
+      metricRow('Competence', shortId(intent.competence)),
+      metricRow('Supporting affordance', shortId(intent.affordance)),
       metricRow('Prediction confidence', intent.confidence.toFixed(2), intent.confidence),
       metricRow('Last progress', `${intent.lastProgressAge} ticks ago`),
-      metricRow('Current commitment', intent.commitment ?? '—'),
+      metricRow('Current commitment', shortId(intent.commitment)),
     );
   } else {
     root.append(metricRow('Active intent', 'none'));
   }
   const outcomes = agency.outcomes ?? {};
-  root.append(
-    metricRow(
-      'Intent outcomes',
-      ['satisfied', 'failed', 'rejected', 'interrupted', 'invalidated']
-        .map(status => `${status} ${finite(outcomes[status])}`)
-        .join(' · '),
-    ),
-  );
+  for (const status of ['satisfied', 'failed', 'rejected', 'interrupted', 'invalidated']) {
+    root.append(metricRow(`Intents ${status}`, String(finite(outcomes[status]))));
+  }
   if (agency.predictionMatch != null) {
     root.append(metricRow('Intent prediction match', Number(agency.predictionMatch).toFixed(2), clamp01(agency.predictionMatch)));
   }
   for (const affordance of agency.affordances) {
-    root.append(metricRow(
-      `Affordance ${affordance.competence_id ?? '?'}`,
-      `→ ${affordance.anticipated_effect_id ?? '?'} · conf ${finite(affordance.prediction_confidence).toFixed(2)} · ctrl ${finite(affordance.controllability).toFixed(2)} · exec ${finite(affordance.executability_confidence).toFixed(2)}`,
-      clamp01(affordance.executability_confidence),
-    ));
+    root.append(
+      metricRow('Affordance', `${shortId(affordance.competence_id)} → ${shortId(affordance.anticipated_effect_id)}`),
+      metricRow(
+        'conf · ctrl · exec',
+        `${finite(affordance.prediction_confidence).toFixed(2)} · ${finite(affordance.controllability).toFixed(2)} · ${finite(affordance.executability_confidence).toFixed(2)}`,
+        clamp01(affordance.executability_confidence),
+      ),
+    );
   }
   if (agency.trace) {
     const traceTitle = el('div', 'mind-live-section-title');
     traceTitle.textContent = 'Latest action trace';
     root.appendChild(traceTitle);
     for (const [label, value] of traceRows(agency.trace)) {
-      root.append(metricRow(label, String(value)));
+      root.append(metricRow(label, label === 'Match' || label === 'Result' || label === 'Source' ? String(value) : shortId(value)));
     }
   }
 }
