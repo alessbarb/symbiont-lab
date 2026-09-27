@@ -544,12 +544,36 @@ def _revision_state(runtime: OrganismRuntime) -> dict[str, Any]:
     }
 
 
-def _revision(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
-    """How much the organism revised what it believed it could cause."""
+def _perturbed_dimensions(
+    runtime: OrganismRuntime, body: CausalBody, condition: BodyCondition
+) -> set[str]:
+    """Ground truth: dimensions spanning an output whose physical effect changes."""
+    reference = copy.deepcopy(body)
+    reference.set_condition(BodyCondition.NORMAL)
+    perturbed = copy.deepcopy(body)
+    perturbed.set_condition(condition)
+    changed = {
+        opaque_channel_ref(actuator_id)
+        for actuator_id in body.surface.actuator_ids
+        if reference.driven_receptor(actuator_id) != perturbed.driven_receptor(actuator_id)
+    }
+    registry = runtime._action_domain.acquisition.action_dimensions
+    return {
+        item.dimension_id
+        for item in registry.items
+        if changed & set(registry.channel_refs(item.dimension_id))
+    }
+
+
+def _relation_drops(
+    before: dict[str, Any], after: dict[str, Any], dimensions: set[str]
+) -> dict[str, float | None]:
     believed = [
         (dimension_id, effect_id)
         for dimension_id, effect_id in before["dominant"].items()
-        if effect_id is not None and (dimension_id, effect_id) in before["control"]
+        if dimension_id in dimensions
+        and effect_id is not None
+        and (dimension_id, effect_id) in before["control"]
     ]
 
     def drop(key: str) -> float | None:
@@ -559,16 +583,37 @@ def _revision(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
             if pair in before[key]
         )
 
-    union = before["affordances"] | after["affordances"]
     return {
-        "revised_relations": len(believed),
+        "relations": float(len(believed)),
         "controllability_drop": drop("control"),
         "agency_drop": drop("agency"),
-        "dominant_effect_changes": sum(
-            1
-            for dimension_id, effect_id in before["dominant"].items()
-            if after["dominant"].get(dimension_id) != effect_id
+        "dominant_effect_changes": float(
+            sum(
+                1
+                for dimension_id, effect_id in before["dominant"].items()
+                if dimension_id in dimensions and after["dominant"].get(dimension_id) != effect_id
+            )
         ),
+    }
+
+
+def _revision(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    *,
+    perturbed: set[str],
+) -> dict[str, Any]:
+    """How much the organism revised what it believed it could cause.
+
+    Relations are split by apparatus ground truth into those the perturbation
+    physically changed and those it left intact, so condition-specific
+    revision is not diluted by unaffected knowledge.
+    """
+    known = set(before["dominant"])
+    union = before["affordances"] | after["affordances"]
+    return {
+        "perturbed": _relation_drops(before, after, perturbed & known),
+        "unperturbed": _relation_drops(before, after, known - perturbed),
         "lost_agentic_dimensions": len(before["agentic"] - after["agentic"]),
         "new_dimensions": len(set(after["dominant"]) - set(before["dominant"])),
         "body_schema_revisions": after["boundary_revisions"] - before["boundary_revisions"],
@@ -589,9 +634,14 @@ def run_embodied_causal_intervention_study(
     settle_ticks: int = 64,
     horizon_ticks: int = 1024,
 ) -> dict[str, Any]:
-    """E4: after acquisition, the body mapping is normal, permuted or broken."""
+    """E4: after acquisition, the body mapping is normal, permuted or broken.
+
+    For each perturbed condition the same ground-truth relation sets are also
+    measured in the unperturbed (normal) twin, which is the matched control.
+    """
     resolved = _seeds(seeds)
     per_seed: list[dict[str, Any]] = []
+    perturbations = (BodyCondition.PERMUTED, BodyCondition.BROKEN_EFFECTOR)
     for seed in resolved:
         runtime, body, acquired_at = _prepare_acquired(
             seed,
@@ -601,39 +651,51 @@ def run_embodied_causal_intervention_study(
         )
         row: dict[str, Any] = {"seed": seed, "acquired_at_tick": acquired_at, "conditions": {}}
         if acquired_at is not None:
+            sets = {
+                condition: _perturbed_dimensions(runtime, body, condition)
+                for condition in perturbations
+            }
+            states: dict[BodyCondition, tuple[dict[str, Any], dict[str, Any]]] = {}
             for condition in BodyCondition:
                 twin, twin_body = _twin(runtime, body)
                 twin_body.set_condition(condition)
                 before = _revision_state(twin)
                 _advance(twin, twin_body, _positive(horizon_ticks, "horizon_ticks"))
-                row["conditions"][condition.value] = _revision(before, _revision_state(twin))
+                states[condition] = (before, _revision_state(twin))
+            for condition in perturbations:
+                before, after = states[condition]
+                control_before, control_after = states[BodyCondition.NORMAL]
+                result = _revision(before, after, perturbed=sets[condition])
+                result["normal_control"] = _revision(
+                    control_before, control_after, perturbed=sets[condition]
+                )
+                row["conditions"][condition.value] = result
         per_seed.append(row)
+
+    def summary(path: tuple[str, ...]) -> dict[str, float | None]:
+        out: dict[str, float | None] = {}
+        for condition in perturbations:
+            for arm in ("perturbed", "unperturbed"):
+                for key in ("controllability_drop", "agency_drop", "dominant_effect_changes"):
+                    values = []
+                    for item in per_seed:
+                        node = item["conditions"].get(condition.value)
+                        for part in path:
+                            node = node.get(part) if isinstance(node, dict) else None
+                        value = node.get(arm, {}).get(key) if isinstance(node, dict) else None
+                        if value is not None:
+                            values.append(value)
+                    out[f"{condition.value}.{arm}.{key}"] = _mean(values)
+        return out
+
     return {
         "protocol": "learning.agency-embodied-causal-intervention",
         "seeds": list(resolved),
         "horizon_ticks": horizon_ticks,
         "per_seed": per_seed,
         "summary": {
-            condition.value: {
-                key: _mean(
-                    item["conditions"][condition.value][key]
-                    for item in per_seed
-                    if condition.value in item["conditions"]
-                    and item["conditions"][condition.value][key] is not None
-                )
-                for key in (
-                    "revised_relations",
-                    "controllability_drop",
-                    "agency_drop",
-                    "dominant_effect_changes",
-                    "lost_agentic_dimensions",
-                    "new_dimensions",
-                    "body_schema_revisions",
-                    "affordance_turnover",
-                    "intent_failures",
-                )
-            }
-            for condition in BodyCondition
+            "perturbed_twin": summary(()),
+            "normal_control_twin": summary(("normal_control",)),
         },
     }
 
