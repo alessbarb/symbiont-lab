@@ -833,6 +833,11 @@ class OrganismRuntime:
     @_active_action_commitment.setter
     def _active_action_commitment(self, value):
         self._action_domain.active_commitment = value
+        # A restored live commitment keeps being traced to its end (Causal
+        # Provenance v1: same events as the uninterrupted organism).
+        self._action_domain._traced_commitment = (
+            value if value is not None and value.active else None
+        )
 
     @property
     def _last_motor_command(self):
