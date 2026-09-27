@@ -1472,8 +1472,10 @@ export class BodyViewer {
     const details = [];
     if (data.embodiment_epoch !== undefined) details.push(`epoch ${data.embodiment_epoch}`);
     if (data.reacclimating) details.push(`reacclimating ${data.reacclimation_remaining ?? '?'}t`);
-    if (data.schema_confidence !== undefined) details.push(`schema ${data.schema_confidence.toFixed(2)}`);
-    if (data.prediction_error !== undefined) details.push(`err ${data.prediction_error.toFixed(3)}`);
+    const schemaConfidence = Number(data.schema_confidence);
+    if (Number.isFinite(schemaConfidence)) details.push(`schema ${schemaConfidence.toFixed(2)}`);
+    const predictionError = Number(data.prediction_error);
+    if (Number.isFinite(predictionError)) details.push(`err ${predictionError.toFixed(3)}`);
     if (data.slm_active !== undefined) details.push(data.slm_active ? 'model active' : 'model inactive');
     this.queueUIUpdate('cognitive_context', details.length ? details.join(' · ') : '—', 'var(--muted,#8a98a8)');
   }
