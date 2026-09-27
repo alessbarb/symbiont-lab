@@ -1,7 +1,7 @@
 """Prospective decision policy for L8 Prospective Agency.
 
 Pure decision logic. Receives pre-evaluated candidates and returns a
-ProspectiveDecision. Knows nothing about models, physiology, or motor
+DeliberationOutcome. Knows nothing about models, physiology, or motor
 execution.
 
 Utility formula (P0):
@@ -21,9 +21,9 @@ from dataclasses import dataclass
 
 from .types import (
     CounterfactualPrediction,
+    DeliberationOutcome,
     OutcomeValueEstimate,
     ProspectiveCandidate,
-    ProspectiveDecision,
 )
 
 _MIN_CONFIDENCE_CLASS = 1  # confidence_class 0 is considered no-signal
@@ -122,7 +122,7 @@ class ProspectivePolicy:
         *,
         homeostatic_deviation: float,
         tick: int,
-    ) -> ProspectiveDecision:
+    ) -> DeliberationOutcome:
         """Select the best candidate, or return a non-selecting decision.
 
         Args:
@@ -133,12 +133,12 @@ class ProspectivePolicy:
             tick: Current organism tick for deterministic tiebreaking.
 
         Returns:
-            A ProspectiveDecision with reason indicating outcome.
+            A DeliberationOutcome with reason indicating outcome.
         """
         candidate_list = list(candidates)
 
         if not candidate_list:
-            return ProspectiveDecision(
+            return DeliberationOutcome(
                 tick=tick,
                 candidate_id=None,
                 predicted_outcome=None,
@@ -152,7 +152,7 @@ class ProspectivePolicy:
         # Filter candidates with sufficient evidence
         valued = [ec for ec in candidate_list if ec.value is not None]
         if not valued:
-            return ProspectiveDecision(
+            return DeliberationOutcome(
                 tick=tick,
                 candidate_id=None,
                 predicted_outcome=None,
@@ -179,7 +179,7 @@ class ProspectivePolicy:
             confident.append((utility, float(ec.epistemic_value), tiebreak, ec))
 
         if not confident:
-            return ProspectiveDecision(
+            return DeliberationOutcome(
                 tick=tick,
                 candidate_id=None,
                 predicted_outcome=None,
@@ -201,7 +201,7 @@ class ProspectivePolicy:
         margin = best_utility - second_utility
 
         if margin < self._decision_margin:
-            return ProspectiveDecision(
+            return DeliberationOutcome(
                 tick=tick,
                 candidate_id=None,
                 predicted_outcome=None,
@@ -213,7 +213,7 @@ class ProspectivePolicy:
             )
 
         assert best_ec.value is not None  # narrowing
-        return ProspectiveDecision(
+        return DeliberationOutcome(
             tick=tick,
             candidate_id=best_ec.candidate.action_id,
             predicted_outcome=best_ec.prediction.predicted_outcome,

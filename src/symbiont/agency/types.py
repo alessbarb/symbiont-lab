@@ -1,7 +1,7 @@
 """L8 Prospective Agency — core data transfer objects.
 
 All types are immutable, slots-allocated, and contain no task-specific
-semantics. The ``reason`` field of :class:`ProspectiveDecision` is closed to
+semantics. The ``reason`` field of :class:`DeliberationOutcome` is closed to
 technical values only; no behavioural or environmental labels appear here.
 """
 
@@ -113,7 +113,7 @@ class OutcomeValueEstimate:
 
 
 @dataclass(frozen=True, slots=True)
-class ProspectiveDecision:
+class DeliberationOutcome:
     """The outcome of one deliberation cycle.
 
     Only ``selected`` decisions carry a non-None ``candidate_id``. All other
@@ -159,5 +159,5 @@ __all__ = [
     "ProspectiveCandidate",
     "CounterfactualPrediction",
     "OutcomeValueEstimate",
-    "ProspectiveDecision",
+    "DeliberationOutcome",
 ]

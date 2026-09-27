@@ -29,4 +29,16 @@ def test_passive_change_without_command_is_not_motor_causal_evidence() -> None:
     )
     individual.step({"stimulus.a": 0.2})
     individual.step({"stimulus.a": 0.8})
-    assert individual.symbiont.causal_evidence.evidence == ()
+    individual.step({"stimulus.a": 0.1})
+    ledger = individual.symbiont.causal_evidence
+    # Agency Acquisition v1 §16: bodily change without a command is retained
+    # only as a passive counterfactual window, never as motor causal evidence.
+    assert ledger.intervention_evidence == ()
+    assert ledger.passive_evidence
+    assert all(item.is_passive for item in ledger.evidence)
+    assert all(
+        item.attempt_id is None and item.commitment_id is None and item.competence_id is None
+        for item in ledger.evidence
+    )
+    assert individual.symbiont.agency_model.estimates == ()
+    assert individual.symbiont.controllability_model.estimates == ()

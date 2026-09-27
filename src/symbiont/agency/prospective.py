@@ -18,8 +18,8 @@ from .policy import EvaluatedCandidate, ProspectivePolicy
 from .readiness import check_readiness
 from .types import (
     CounterfactualPrediction,
+    DeliberationOutcome,
     ProspectiveCandidate,
-    ProspectiveDecision,
 )
 from .value import OutcomeValueLedger
 
@@ -36,7 +36,7 @@ class ProspectiveAgency:
     3. Request counterfactual predictions via caller-supplied predictor
     4. Look up outcome-value estimates from ledger
     5. Delegate to ProspectivePolicy
-    6. Return ProspectiveDecision
+    6. Return DeliberationOutcome
 
     Never executes motors. Never records experience. Never imports symbiont_lab.
     """
@@ -78,7 +78,7 @@ class ProspectiveAgency:
         epistemic_value_provider: Callable[[str], float] | None = None,
         has_active_model: bool = True,
         organism_alive: bool = True,
-    ) -> ProspectiveDecision:
+    ) -> DeliberationOutcome:
         """Run one deliberation cycle and return a decision.
 
         Args:
@@ -93,12 +93,12 @@ class ProspectiveAgency:
             organism_alive: Whether the organism's physiology is alive.
 
         Returns:
-            ProspectiveDecision describing the chosen action or the reason for
+            DeliberationOutcome describing the chosen action or the reason for
             abstention.
         """
         # --- Death gate (highest priority) ---
         if not organism_alive:
-            return ProspectiveDecision(
+            return DeliberationOutcome(
                 tick=tick,
                 candidate_id=None,
                 predicted_outcome=None,
@@ -111,7 +111,7 @@ class ProspectiveAgency:
 
         # --- Model gate ---
         if not has_active_model:
-            return ProspectiveDecision(
+            return DeliberationOutcome(
                 tick=tick,
                 candidate_id=None,
                 predicted_outcome=None,
@@ -133,10 +133,10 @@ class ProspectiveAgency:
             organism_alive=organism_alive,
         )
         if not readiness.ready:
-            # Map first failure reason to a ProspectiveDecision reason
+            # Map first failure reason to a DeliberationOutcome reason
             first_reason = readiness.reasons[0] if readiness.reasons else "no_candidates"
             reason = self._map_readiness_reason(first_reason)
-            return ProspectiveDecision(
+            return DeliberationOutcome(
                 tick=tick,
                 candidate_id=None,
                 predicted_outcome=None,
@@ -192,7 +192,7 @@ class ProspectiveAgency:
 
     @staticmethod
     def _map_readiness_reason(readiness_reason: str) -> str:
-        """Map internal readiness failure codes to ProspectiveDecision reasons."""
+        """Map internal readiness failure codes to DeliberationOutcome reasons."""
         mapping = {
             "organism_dead": "physiology_dead",
             "no_active_model": "no_active_model",

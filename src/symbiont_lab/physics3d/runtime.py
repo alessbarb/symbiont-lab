@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping
 
+from symbiont.actuation.model import CausalSourceKind
 from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
@@ -972,9 +973,10 @@ class PyBulletEmbodimentRuntime:
             and transition.observed_effect_id is not None
         ):
             control = self.organism.controllability_model.estimate(
-                transition.observed_effect_id,
-                transition.competence_id,
-                transition.context_ref,
+                source_kind=CausalSourceKind.COMPETENCE,
+                source_ref=transition.competence_id,
+                effect_id=transition.observed_effect_id,
+                context_id=transition.context_ref,
             )
             self._embodiment_episode.reachability.observe(
                 transition.observed_effect_id,

@@ -13,9 +13,9 @@ from .prospective import ProspectiveAgency
 from .readiness import AgencyReadiness, check_readiness
 from .types import (
     CounterfactualPrediction,
+    DeliberationOutcome,
     OutcomeValueEstimate,
     ProspectiveCandidate,
-    ProspectiveDecision,
 )
 from .value import MAX_OUTCOME_VALUES, OutcomeValueLedger
 
@@ -24,7 +24,7 @@ __all__ = [
     "ProspectiveCandidate",
     "CounterfactualPrediction",
     "OutcomeValueEstimate",
-    "ProspectiveDecision",
+    "DeliberationOutcome",
     # Value
     "MAX_OUTCOME_VALUES",
     "OutcomeValueLedger",

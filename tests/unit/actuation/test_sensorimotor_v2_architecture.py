@@ -25,7 +25,12 @@ from symbiont.actuation.evidence import (
     CausalEvidenceLedger,
     SensorimotorTransition,
 )
-from symbiont.actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
+from symbiont.actuation.model import (
+    AgencyModel,
+    CausalSourceKind,
+    CompetenceEffectModel,
+    ControllabilityModel,
+)
 from symbiont.actuation.surface import derive_actuator_constitution
 
 
@@ -179,6 +184,8 @@ def test_controllability_requires_advantage_over_alternative_actions():
             commitment_id=f"commitment.{index}",
             controller_id=f"controller.{competence}",
             competence_id=competence,
+            attempt_id=f"attempt.{index}",
+            intervention_signature_id=f"intervention.signature.{competence}",
             state_before_ref=f"state.before.{index}",
             motor_command_ref=f"command.{index}",
             actuation_ref=f"actuation.{index}",
@@ -190,8 +197,9 @@ def test_controllability_requires_advantage_over_alternative_actions():
 
     estimate = ControllabilityModel().update_from_ledger(
         ledger,
+        source_kind=CausalSourceKind.COMPETENCE,
+        source_ref="competence.a",
         effect_id="effect.x",
-        competence_id="competence.a",
         context_id=None,
         tick=10,
     )
@@ -222,6 +230,8 @@ def test_forward_model_predicts_from_shared_causal_evidence():
             commitment_id=f"commitment.forward.{index}",
             controller_id="controller.competence.a",
             competence_id="competence.a",
+            attempt_id=f"attempt.forward.{index}",
+            intervention_signature_id="intervention.signature.forward",
             state_before_ref=f"state.before.forward.{index}",
             motor_command_ref=f"command.forward.{index}",
             actuation_ref=f"actuation.forward.{index}",
@@ -254,6 +264,8 @@ def test_agency_is_inferred_from_same_ledger_not_a_second_evidence_store():
             commitment_id=f"commitment.agency.{index}",
             controller_id=f"controller.{competence}",
             competence_id=competence,
+            attempt_id=f"attempt.agency.{index}",
+            intervention_signature_id=f"intervention.signature.{competence}",
             state_before_ref=f"state.before.agency.{index}",
             motor_command_ref=f"command.agency.{index}",
             actuation_ref=f"actuation.agency.{index}",
@@ -265,8 +277,9 @@ def test_agency_is_inferred_from_same_ledger_not_a_second_evidence_store():
 
     agency = AgencyModel().update_from_ledger(
         ledger,
+        source_kind=CausalSourceKind.COMPETENCE,
+        source_ref="competence.a",
         effect_id="effect.agency",
-        competence_id="competence.a",
         context_id=None,
         tick=10,
         prediction_match=1.0,
