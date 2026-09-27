@@ -119,6 +119,9 @@ class ActionCognitionProjection:
     active_intent_id: str | None = None
     active_intent_status: str | None = None
     intent_outcomes: tuple[tuple[str, str, str, str | None], ...] = ()
+    # Every competence/controller structure that still exists (known or not
+    # currently usable); lets cognition retire demand about vanished ones.
+    known_competence_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -601,6 +604,19 @@ class ActionDomain:
             intent_outcomes=tuple(
                 (outcome.intent_id, outcome.competence_id, outcome.status.value, outcome.reason)
                 for outcome in self.intention.last_outcomes
+            ),
+            known_competence_ids=tuple(
+                sorted(
+                    {item.competence_id for item in self.competence_library.items}
+                    | {
+                        primitive.primitive_id
+                        for primitive in (
+                            self._competence_development.primitives
+                            if self._competence_development is not None
+                            else ()
+                        )
+                    }
+                )
             ),
         )
 

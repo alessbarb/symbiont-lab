@@ -145,6 +145,8 @@ class ResidentGenerativeCognition:
         self.reconciliation_count = 0
         self.contradicted_hypothesis_count = 0
         self.factual_contamination_count = 0
+        # Demand dropped because the bounded agenda held only live targets.
+        self.agenda_overflow_count = 0
 
     def register_model(self, model: GenerativeModel) -> None:
         self.registry.register(model)
@@ -321,6 +323,7 @@ class ResidentGenerativeCognition:
         prospective_candidate_ids: tuple[str, ...] = (),
         mode: GenerativeMode = GenerativeMode.ONLINE,
         intent_outcomes: tuple[tuple[str, str, str, str | None], ...] = (),
+        known_action_ids: tuple[str, ...] | None = None,
     ) -> GenerativeResidentSnapshot:
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("tick must be a non-negative integer")
@@ -333,6 +336,8 @@ class ResidentGenerativeCognition:
 
         self.last_symbiont_tick = max(self.last_symbiont_tick, tick)
 
+        if known_action_ids is not None:
+            self._retire_absent_sources(known_action_ids)
         self._ingest_prediction_errors(cognition, tick=tick)
         self._ingest_prospective_candidates(prospective_candidate_ids, tick=tick)
         self._ingest_intent_outcomes(intent_outcomes, tick=tick)
@@ -932,7 +937,7 @@ class ResidentGenerativeCognition:
                 uncertainty = max(0.0, min(1.0, float(loss)))
             except (TypeError, ValueError):
                 uncertainty = 0.0
-            self.agenda.observe_target(
+            self._observe_demand(
                 GenerativeTarget(
                     target_id=identifier,
                     source=AgendaSource.PREDICTION_ERROR,
@@ -955,7 +960,7 @@ class ResidentGenerativeCognition:
             if not isinstance(candidate_id, str) or not candidate_id:
                 continue
             identifier = f"gc.prospective.{candidate_id}"
-            self.agenda.observe_target(
+            self._observe_demand(
                 GenerativeTarget(
                     target_id=identifier,
                     source=AgendaSource.PROSPECTIVE_DECISION,
@@ -967,6 +972,24 @@ class ResidentGenerativeCognition:
                     estimated_resolvability=0.5,
                 )
             )
+
+    def _observe_demand(self, target: GenerativeTarget) -> None:
+        """Bounded agenda: new demand beyond capacity is dropped, never fatal."""
+        if not self.agenda.has_capacity_for(target.target_id):
+            self.agenda_overflow_count += 1
+            return
+        self.agenda.observe_target(target)
+
+    def _retire_absent_sources(self, known_action_ids: tuple[str, ...]) -> None:
+        """GC §38: retire prospective targets whose source structure no longer exists."""
+        known = set(known_action_ids)
+        for target in self.agenda.targets:
+            if (
+                target.source is AgendaSource.PROSPECTIVE_DECISION
+                and target.status not in {TargetStatus.RESOLVED, TargetStatus.RETIRED}
+                and not known.intersection(target.source_refs)
+            ):
+                self.agenda.retire(target.target_id)
 
     def _ingest_intent_outcomes(
         self,
@@ -982,7 +1005,7 @@ class ResidentGenerativeCognition:
         for _intent_id, competence_id, status, _reason in outcomes:
             if status not in {"failed", "invalidated"} or not competence_id:
                 continue
-            self.agenda.observe_target(
+            self._observe_demand(
                 GenerativeTarget(
                     target_id=f"gc.prospective.{competence_id}",
                     source=AgendaSource.PROSPECTIVE_DECISION,

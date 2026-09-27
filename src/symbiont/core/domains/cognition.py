@@ -153,6 +153,7 @@ class CognitionDomain:
                 prospective_candidate_ids=action_projection.active_competence_ids,
                 mode=services.generative_mode,
                 intent_outcomes=action_projection.intent_outcomes,
+                known_action_ids=action_projection.known_competence_ids,
             )
             if bridge is not None:
                 signals = services.generative_cognition.consolidation_signals()
