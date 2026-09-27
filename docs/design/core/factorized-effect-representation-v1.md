@@ -1,6 +1,6 @@
 # Factorized Effect Representation v1 — Draft Specification
 
-**Status:** DRAFT for owner review. Not implemented.
+**Status:** APPROVED by the owner (2026-09-27) with the §11 proposals; implementation gated on the §12 spike.
 **Depends on:** Agency Acquisition & Executive Action v1 (frozen; audit §0,
 §0.1), Executive Outcome Learning v1.1.
 **Origin:** inspection of the owner's Physics3D organism, 2026-09-27
@@ -85,7 +85,17 @@ EffectAtom(feature_ref, direction, magnitude_class)
   magnitude_class  in {1, 2, 3}   # coarse; see §10
 ```
 
-Identity `effect.atom.<hash(feature_ref, direction, magnitude_class)>`.
+with the magnitude class a fixed function of the v4 bucket
+`b = clamp(round(delta * 7), -7, 7)`:
+
+```text
+|b| in {1, 2} -> 1      |b| in {3, 4} -> 2      |b| in {5, 6, 7} -> 3
+direction = sign(b)     b = 0 -> no atom
+```
+
+so every v4 signature entry maps to exactly one atom (the migration in §8 is
+exact by construction). Identity
+`effect.atom.<hash(feature_ref, direction, magnitude_class)>`.
 The atom vocabulary is bounded by `features x 2 x 3` and recurs by
 construction. A transition yields a **set** of atoms (possibly empty).
 
@@ -99,7 +109,20 @@ footprint(source) = { atom : agency(source, atom) >= footprint_agency
                              and controllability(source, atom) > 0 }
 ```
 
-Identity `effect.footprint.<hash(sorted atom ids)>`. Footprints are what
+Identity `effect.footprint.<hash(sorted atom ids)>`.
+
+**Membership hysteresis.** An atom enters a source's footprint when its
+agency reaches `footprint_agency` and leaves only when it falls below
+`footprint_agency - footprint_hysteresis` (proposed 0.05); a footprint's
+identity changes only when its membership changes under that rule. This
+prevents an atom near the threshold from flickering the identity that
+competences, bindings, intents and EOL keys refer to.
+
+**Pinning.** A footprint referenced by a live intent, an execution binding, a
+competence or an EOL key is pinned: it cannot be evicted, and it keeps
+resolving to its atom set while referenced. A live intent additionally
+stores its expected atom set, so reconciliation never depends on registry
+state. Footprints are what
 dimensions, competences, affordances and intents refer to as "the effect".
 Passive-drift atoms have a high counterfactual rate and therefore never enter
 a footprint (principle 2), which removes mechanism 2.
@@ -200,7 +223,15 @@ form (`IntentionPolicy.satisfaction_similarity` gets a v2 default, §10).
 - **E4 re-analysis** at atom level (whether the broken output's atoms leave
   the footprint) as a secondary report.
 
-## 11. Open decisions for the owner
+**Comparability.** Removing whole-state effects (decision 4) means the v1
+identity arm of E8 and the E1-E6 regression baselines run on the last
+pre-change commit (`dad68394`) in a pinned worktree, recorded in the
+preregistration. The study recorder counts a commitment as realized when
+`EffectMatcher` similarity reaches `satisfaction_similarity` (0.75) instead of
+identity; E2/E3/E5 therefore get new protocol versions and are reported as
+new results, not as deltas against v4.
+
+## 11. Decisions (owner-approved proposals)
 
 1. Magnitude classes: 3 coarse classes (proposed) vs direction only.
 2. `footprint_agency` threshold (proposed: the existing agentic threshold).
@@ -212,3 +243,14 @@ form (`IntentionPolicy.satisfaction_similarity` gets a v2 default, §10).
    `footprint_residence_ticks` (proposed 16, 3 refreshes, 256 ticks).
 6. Order of work: this before the E4 re-exploration spec (proposed, since the
    real organism cannot engage agency at all until effects recur).
+
+## 12. Feasibility spike (before any contract change)
+
+Record raw opaque change maps per attempt and passive window on a copy of the
+owner's Physics3D organism and on the synthetic body, then compute offline —
+with the model's own formulas — atoms per transition (does the 16 cap bind?),
+per-atom counterfactual rates, per-source footprints at the agentic threshold,
+their stability across halves of the run, and the resulting estimate count
+against `MAX_ESTIMATES`. If footprints do not form or do not hold in the 3D
+body, the design returns to the owner with that evidence before
+implementation.
