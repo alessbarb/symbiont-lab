@@ -177,3 +177,31 @@ C vs B asks whether reconciling real effects helps; D vs C asks whether using
 that reconciliation for future admission helps — the EOL question. E2 v3
 compares A, C and D. Same ten seeds, horizons and metrics as v2, plus the §8
 instrumentation.
+
+## 12. Results (first runs, preregistered at `f5073a7`)
+
+Runs: `20260927T083750Z-learning-agency-intentional-causal-advantage-f5073a7-f392`
+(E5 v3), `20260927T083750Z-learning-agency-executive-bridge-ablation-f5073a7-abea`
+(E2 v3), `20260927T083750Z-learning-agency-acquisition-reuse-closure-f5073a7-5194`
+(E6 with outcome learning on by default). Ten seeds, eight testable.
+
+- **Release gate (mechanical):** all §10 tests pass; E6 still passes on all
+  seeds; full suite shows no failure outside the pre-existing baseline.
+- **D vs C:** realized commitments per seed D > C on 0, equal on 7, lower on
+  1 (seed 149: 23 vs 24). Means: realized 17.75 vs 17.88, realization rate
+  0.469 vs 0.467, energy per realized effect 278 vs 277, switches per realized
+  effect 35.3 vs 35.2. E2 v3 gives the same D vs C numbers.
+- **Not a clean test of outcome learning (preregistered rule).** History hit
+  rate over the horizon is 0.000–0.032 on every testable seed (< 0.10); no key
+  was evicted. 91–100% of keys hold a single outcome (mean 1.00–1.09 samples
+  per key): the exact `(competence, effect, context_ref)` key fragments
+  executive memory so that almost no admission meets its own history. This is
+  the limitation §3.2 declared and §8 instrumented; the null D vs C result is
+  a consequence of it, not evidence that outcome learning cannot help.
+- **A, B, C** reproduce the v2 per-seed numbers exactly (C vs B: 4 better,
+  1 equal, 3 worse), confirming the arms are deterministic and that the arm
+  semantics did not change.
+
+Next (owner decision): the key granularity. Measuring `context_ref`
+cardinality per competence would show whether a coarser key yields reusable
+history; changing the key is a new version with its own preregistered run.
