@@ -17,7 +17,7 @@ evidence and scientific evidence are reported separately.
 
 | Check | Result |
 | --- | --- |
-| Full suite incl. slow (`-m "not slow or slow"`, excluding `tests/integration/studies` and the two 90 s W03 world tests) | 2666 passed, 69 failed, 4 collection errors |
+| Full suite incl. slow (`-m "not slow or slow"`, excluding `tests/integration/studies` and the two 90 s W03 world tests) | 2672 passed, 69 failed, 4 collection errors |
 | Baseline on `main@ba84be7f`, same selection | 2562 passed, 69 failed, 4 collection errors |
 | New failures introduced | **0** (every failing node id is in the baseline list) |
 | Spec-named tests (§92–§103) present | 70 / 70 |
@@ -33,16 +33,37 @@ drift imports, etc.) and are unrelated to this spec.
 verified byte-identical against `main` with a deterministic-clock trajectory
 fingerprint (600 ticks, 4 actuators) before any semantic change.
 
-### 1.3 Scientific evidence (registered runs, seeds 101/127/149)
+### 1.3 Reproducibility
+
+Study subjects run on apparatus time (`ApparatusClock`, body timestamps), and
+every sampling path of a tick now shares the host time base. A fresh run gives
+identical trajectories across processes, twins restored from one checkpoint
+continue identically, and restore reproduces the causal estimate tables exactly.
+`tests/experiments/protocols/test_agency_acquisition_protocols.py` enforces the
+first two (E6 through a closed loop, run twice; matched twins).
+
+### 1.4 Overhead
+
+| Setting | main | branch |
+| --- | --- | --- |
+| 4-actuator synthetic body, ms/tick at 1k / 5k ticks | 3.66 / 12.13 | 3.84 / 12.34 |
+| Physics3D canonical body (62 effectors), ms/tick at 250 / 500 ticks | 112 / 343 | 114 / 352 |
+
+The growth over lifetime is pre-existing on `main` (competence development and
+cognition scans). All new tables are bounded: estimates (8192 each, pruned by
+recency), signatures and dimensions (512), ledger (4096 interventions and 1024
+passive windows), controller-signature memo (1024), intent outcome history (32).
+
+### 1.5 Scientific evidence (registered runs, seeds 101/127/149, final code)
 
 | Study | Run | Result |
 | --- | --- | --- |
-| E6 release gate | `20260927T010524Z-learning-agency-acquisition-reuse-closure-527bfcb-7b71` | **Passed on all seeds.** Self-acquired competence → satisfied intent at ticks 236 / 402 / 612 (competence first acquired at 230 / 88 / 607). Milestones in developmental order; reused competence grounded in the organism's own exploration evidence. |
-| E1 acquisition ablation | `20260927T010531Z-learning-agency-acquisition-ablation-d8e7dd3-1112` | Full: 28.0 dimensions (3.0 false positives on inert outputs), 6.0 agentic, 7.3 competences (2.3 executable). No counterfactual evidence: 0 dimensions, 0 competences. No AgencyModel: 27.7 dimensions, 0 agentic, 0 competences. Both components are causally necessary for competence acquisition. |
-| E3 intent persistence | `20260927T010845Z-learning-agency-intent-persistence-d8e7dd3-0de0` | Persistent vs re-decide: effect realization 0.72 vs 0.17; completed commitments 4.0 vs 0.67; switches per realized effect 27.8 vs 66.5; energy per realized effect 225 vs 569. |
-| E2 executive bridge | `20260927T010739Z-learning-agency-executive-bridge-ablation-d8e7dd3-d31a` | Intent vs direct proposal: realization 0.65 vs 0.56; energy per realized effect 269 vs 417; switches per realized effect 33.3 vs 49.0; mean prediction error 0.88 vs 0.83. Modest advantage, n = 3. |
-| E5 intentional causal advantage | `20260927T010948Z-learning-agency-intentional-causal-advantage-d8e7dd3-3857` | A direct / B unreconciled intent / C reconciled intent: realization 0.69 / 0.50 / 0.63; energy per realized effect 391 / 547 / 356; switches per effect 45.6 / 65.3 / 44.3. C clearly beats B; C vs A is **mixed** (better efficiency, lower raw realization). Not yet evidence of a robust intentional advantage over direct proposals. |
-| E4 embodied intervention | `20260927T011109Z-learning-agency-embodied-causal-intervention-d8e7dd3-1cbb` | Revision occurs (controllability/agency drops, dominant-effect changes, body-schema revisions, intent failures) but is **not condition-specific** within a 1024-tick horizon: permuted/broken ≈ normal control. |
+| E6 release gate | `20260927T052139Z-learning-agency-acquisition-reuse-closure-90e86c5-92f2` | **Passed on all seeds.** Satisfied self-acquired intent at ticks 236 / 402 / 612 (competence first acquired at 230 / 88 / 607); milestones in developmental order; reused competence grounded in the organism's own exploration evidence. |
+| E1 acquisition ablation | `20260927T052144Z-learning-agency-acquisition-ablation-90e86c5-9a70` | Full: 28.7 dimensions (3.0 false positives on inert outputs), 6.3 agentic, 7.0 competences (2.0 executable). No counterfactual evidence: 0 dimensions, 0 competences. No AgencyModel: 27.7 dimensions (2.7 false positives), 0 agentic, 0 competences. |
+| E3 intent persistence | `20260927T052344Z-learning-agency-intent-persistence-90e86c5-e76a` | Persistent vs re-decide: realization 0.63 vs 0.17; completed commitments 3.7 vs 0.7; switches per realized effect 44 vs 67; energy per realized effect 356 vs 569. |
+| E2 executive bridge | `20260927T052306Z-learning-agency-executive-bridge-ablation-90e86c5-a4dc` | Intent vs direct proposal: realization 0.63 vs 0.61; energy per realized effect 356 vs 391; switches per realized effect 44 vs 46; prediction error 0.89 vs 0.82. Small differences, n = 3. |
+| E5 intentional causal advantage | `20260927T052424Z-learning-agency-intentional-causal-advantage-90e86c5-6a91` | A direct / B unreconciled / C reconciled: realization 0.61 / 0.50 / 0.63; energy per realized effect 391 / 547 / 356; switches per effect 46 / 65 / 44. C beats B clearly and A marginally; not yet a robust advantage over A. |
+| E4 embodied intervention | `20260927T052522Z-learning-agency-embodied-causal-intervention-b25409e-708a` | On ground-truth perturbed relations, perturbed twin vs matched normal twin: permuted agency drop 0.074 vs 0.051, controllability 0.040 vs 0.039; broken effector agency 0.075 vs 0.067, controllability 0.048 vs 0.043. Revision is condition-specific but small within 1024 ticks. |
 
 Interpretation limits: three seeds, one synthetic body family, fixed budgets.
 
@@ -129,14 +150,25 @@ Interpretation limits: three seeds, one synthetic body family, fixed budgets.
   producing a controller-failure intent loop.
 - Estimates for consequences that stopped occurring were never revised.
 - The Physics3D transplant dropped learned dimensions (stamped schema 3).
+- Restores rebuilt path-dependent estimates from final counts (213 vs 116
+  estimates in one case); estimate tables and the body-schema sensorimotor view
+  are now persisted (agency acquisition checkpoint schema 2).
+- Wall-clock time leaked into perception and the self-model (proprioceptive
+  and habitat reading timestamps, second-look sampling cost), so runs were
+  not reproducible.
+- Generative Cognition never retired prospective targets whose source had
+  vanished (GC §38); after ~4.5k ticks the agenda filled and the organism
+  crashed. Vanished sources are now retired and overflow is dropped/counted.
+- The Observatory agency panels were hidden whenever no node was focused
+  (found by rendering a real organism snapshot in a browser).
 
 ## 5. Open scientific questions
 
-- **E4:** revision is not condition-specific within 1024 ticks. The ledger
-  weighs all retained evidence equally, so a changed body is diluted by
-  history. Recency weighting or change detection would be a new modelling
-  decision beyond this spec.
-- **E5:** reconciled intents beat unreconciled ones but are not yet clearly
-  better than direct proposals on raw realization. More seeds, longer
-  horizons and richer bodies are needed before claiming §116's causal
-  advantage.
+- **E4:** revision of perturbed relations exceeds the matched normal twin, but
+  only slightly within 1024 ticks, mostly in agency. The ledger weighs all
+  retained evidence equally; whether recency weighting or change detection is
+  needed is a new modelling decision beyond this spec and has not been tested.
+- **E2/E5:** reconciled intents beat unreconciled ones and edge out direct
+  proposals on efficiency, but the direct-proposal comparison is small at
+  n = 3. More seeds, longer horizons and richer bodies are needed before
+  claiming §116's causal advantage.
