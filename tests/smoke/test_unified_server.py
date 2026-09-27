@@ -208,3 +208,25 @@ def test_physics3d_start_validates_launch_before_spawning(tmp_path) -> None:
         )
         assert status == 400
         assert b"cannot resume" in body
+
+
+def test_provenance_query_fails_closed_without_active_run() -> None:
+    with running_server() as server:
+        status, body = request(
+            server,
+            "/api/provenance/why?kind=competence&id=competence.1&depth=8",
+        )
+        assert status == 404
+        assert b"causal provenance not found" in body
+
+
+def test_provenance_query_validates_reference_and_depth() -> None:
+    with running_server() as server:
+        status, _ = request(server, "/api/provenance/why?kind=&id=")
+        assert status == 400
+
+        status, _ = request(
+            server,
+            "/api/provenance/why?kind=competence&id=competence.1&depth=999",
+        )
+        assert status == 400
