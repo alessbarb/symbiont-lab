@@ -1385,3 +1385,171 @@
 @media (max-width: 1150px) {
   .self-view-summary { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
+
+
+/* ── Self View composite + development ───────────────────────────── */
+.self-view-pane-nav {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin: 0 0 10px;
+  border: 1px solid rgba(118,145,167,.13);
+  border-radius: 8px;
+  background: rgba(255,255,255,.015);
+}
+.self-view-pane-nav button {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 11px;
+  background: transparent;
+  color: var(--muted);
+  font: 9px var(--mono);
+  cursor: pointer;
+}
+.self-view-pane-nav button.active {
+  color: var(--cyan);
+  background: rgba(86,214,255,.08);
+}
+.self-body-segment.composite > * {
+  stroke-opacity: calc(.24 + (var(--segment-stability) * .76));
+}
+.self-body-segment.composite {
+  filter:
+    drop-shadow(
+      0 0 calc(1px + (var(--segment-agency) * 12px))
+      rgb(255 189 84 / calc(.04 + (var(--segment-agency) * .62)))
+    );
+}
+.self-body-segment.composite.agentic {
+  filter:
+    drop-shadow(
+      0 0 calc(4px + (var(--segment-agency) * 14px))
+      rgb(255 189 84 / calc(.18 + (var(--segment-agency) * .70)))
+    );
+}
+.self-body-segment.composite.strong > * {
+  fill: rgba(80,217,164,.34);
+}
+.self-body-segment.composite.medium > * {
+  fill: rgba(86,214,255,.25);
+}
+.self-body-segment.composite.weak > * {
+  fill: rgba(86,214,255,.12);
+}
+.self-body-segment.focus-agency > * {
+  fill: rgba(255,189,84,.15);
+  stroke: rgba(255,189,84,.55);
+}
+.self-development-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(118,145,167,.11);
+  border-radius: 8px;
+  background: rgba(255,255,255,.012);
+}
+.self-development-head > div {
+  display: grid;
+  gap: 3px;
+}
+.self-development-head span {
+  color: var(--muted);
+  font: 8px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.self-development-head strong {
+  font: 600 14px var(--sans);
+}
+.self-development-head small {
+  color: var(--muted);
+  font: 8px var(--mono);
+}
+.self-development-chart {
+  padding: 12px 14px 10px;
+  border: 1px solid rgba(118,145,167,.12);
+  border-radius: 10px;
+  background: rgba(11,25,37,.50);
+}
+.self-development-chart svg {
+  display: block;
+  width: 100%;
+  height: 190px;
+}
+.self-dev-axis {
+  stroke: rgba(118,145,167,.12);
+  stroke-width: 1;
+}
+.self-dev-line {
+  fill: none;
+  stroke-width: 2.2;
+  vector-effect: non-scaling-stroke;
+}
+.self-dev-line.coverage { stroke: rgba(86,214,255,.90); }
+.self-dev-line.stability { stroke: rgba(80,217,164,.86); }
+.self-dev-line.agency { stroke: rgba(255,189,84,.84); }
+.self-development-legend {
+  display: flex;
+  gap: 14px;
+  justify-content: flex-end;
+  color: var(--muted);
+  font: 8px var(--mono);
+}
+.self-development-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.self-development-legend .coverage::before { background: rgba(86,214,255,.90); }
+.self-development-legend .stability::before { background: rgba(80,217,164,.86); }
+.self-development-legend .agency::before { background: rgba(255,189,84,.84); }
+
+.self-development-bodies {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.self-development-body {
+  position: relative;
+  min-height: 310px;
+  display: grid;
+  place-items: center;
+  padding: 28px 12px 26px;
+  border: 1px solid rgba(118,145,167,.11);
+  border-radius: 9px;
+  background: rgba(11,25,37,.38);
+}
+.self-development-body > strong {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font: 600 10px var(--mono);
+}
+.self-development-body > small {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 9px;
+  color: var(--muted);
+  font: 8px var(--mono);
+  text-align: center;
+}
+.self-development-body .self-body-svg {
+  width: min(180px, 80%);
+  height: 240px;
+}
+.self-development-body .self-body-segment {
+  pointer-events: none;
+}
+@media (max-width: 1050px) {
+  .self-development-bodies {
+    grid-template-columns: 1fr;
+  }
+}
