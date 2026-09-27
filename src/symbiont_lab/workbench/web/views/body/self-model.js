@@ -203,7 +203,6 @@ function selfSummary(snapshot) {
     activeIntentId:activeIntent?.intent_id ?? null,
     intentStatus:activeIntent?.status ?? 'none',
     intentConfidence:ratio(activeIntent?.confidence),
-    intentAdmission:activeIntent?.admission ?? null,
   };
 }
 
@@ -316,7 +315,7 @@ export class SelfModelWorkspace {
       </div>
     </div>
     ${this.perceptualSelfModel()}
-    <div class="self-boundary-note">The executive layer now uses canonical ActionIntent and ActionAffordance state from Agency Acquisition & Executive Action v1. Nothing is inferred from motor activity alone.</div>`;
+    <div class="self-boundary-note">The executive layer uses canonical ActionIntent and ActionAffordance state from Agency Acquisition & Executive Action v1. Nothing is inferred from motor activity alone.</div>`;
   }
 
   perceptualSelfModel() {
@@ -413,7 +412,7 @@ export class SelfModelWorkspace {
       <div class="body-inspector-sub">${escapeHtml(shortId(a.affordance_id))} · ${escapeHtml(shortId(a.context_ref ?? 'context:*'))}</div>
     </button>`).join('');
     return `<div class="self-lens-toolbar">${chip(`${items.length} current affordances`)}${chip('canonical · derived · ephemeral')}</div>
-      <div class="self-boundary-note">These are the canonical ActionAffordance projections produced by the organism-side AffordanceResolver. They are recomputed from current competence, prediction, controllability and embodiment binding knowledge; they are never checkpointed and carry no motor authority.</div>
+      <div class="self-boundary-note">These are canonical ActionAffordance projections from the organism-side AffordanceResolver. They are recomputed from current competence, prediction, controllability and embodiment-binding knowledge; they are never checkpointed and carry no motor authority.</div>
       <div class="self-relation-grid">${cards || '<div class="self-empty">No currently executable learned affordance.</div>'}</div>`;
   }
 
@@ -509,12 +508,6 @@ export class SelfModelWorkspace {
         .find((candidate) => String(candidate.affordance_id) === affordanceId);
       if (item) return { kind: 'current ActionAffordance', item, displayId: item.affordance_id };
     }
-    if (id.startsWith('intent|')) {
-      const active = this.snapshot?.executive_intention?.active;
-      if (active && String(active.intent_id) === id.slice('intent|'.length)) {
-        return { kind: 'ActionIntent', item: active, displayId: active.intent_id };
-      }
-    }
     const sources = [
       ['body part', this.snapshot?.body_schema?.parts, 'part_id'],
       ['action dimension', this.snapshot?.action_dimensions, 'dimension_id'],
@@ -593,31 +586,6 @@ export class SelfModelWorkspace {
     ${selected}
     <div class="body-section"><div class="body-section-title">Epistemic boundary</div>
       <div class="body-inspector-sub">Physical anatomy, simulator truth and observer labels remain excluded from organism-owned self-knowledge.</div>
-    </div>`;
-  }
-}
-}
-      ${row('Learned parts',String(s.parts))}
-      ${row('Dependencies',String(s.dependencies))}
-      ${row('Boundary confidence',pct(s.boundaryConfidence))}
-      ${row('Boundary revisions',String(s.boundaryRevisions))}
-    </div>
-    <div class="body-section"><div class="body-section-title">Agency & capability</div>
-      ${row('Agentic relations',String(s.agencies))}
-      ${row('Action dimensions',String(s.dimensions))}
-      ${row('Motor competences',String(s.competences))}
-      ${row('Known effects',String(s.effects))}
-      ${row('Current affordances',String(s.affordances))}
-    </div>
-    <div class="body-section"><div class="body-section-title">Executive bridge</div>
-      ${row('Action source',String(executive.action_source ?? 'none'))}
-      ${row('Active commitment',shortId(executive.active_commitment_id))}
-      ${row('Active competence',shortId(executive.competence_id))}
-      <div class="body-inspector-sub">ActionIntent will appear here when the executive-intention domain is implemented; this view does not fabricate it from motor activity.</div>
-    </div>
-    ${selected}
-    <div class="body-section"><div class="body-section-title">Epistemic boundary</div>
-      <div class="body-inspector-sub">Physical anatomy, joint labels and simulator truth are deliberately excluded from the organism-owned Self-Model graph.</div>
     </div>`;
   }
 }
