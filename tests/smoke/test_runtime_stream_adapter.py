@@ -610,11 +610,20 @@ def test_body_self_view_development_is_bounded_observer_history() -> None:
     assert "selfViewPane = 'composite'" in self_model
     assert "data-self-view-pane=\"development\"" in self_model
     assert "maxSelfViewFrames = 120" in self_model
+    assert "selfViewDevelopmentBodyMode = 'state'" in self_model
+    assert "selfViewDevelopmentScale = 'detail'" in self_model
+    assert "data-self-dev-index" in self_model
+    assert "data-self-dev-body-mode" in self_model
+    assert "data-self-dev-scale" in self_model
     assert "Browser-session observer history · never fed back" in self_view
     assert "Development timeline" in self_view
-    assert "coverage" in self_view
-    assert "stability" in self_view
-    assert "agency" in self_view
+    assert "data-self-dev-frame" in self_view
+    assert "What changed" in self_view
+    assert "Absolute" in self_view
+    assert "Detail" in self_view
+    assert "agency regions" in self_view
+    assert "agentic regions" in self_view
+    assert "represented regions ·" not in self_view
 
 
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
