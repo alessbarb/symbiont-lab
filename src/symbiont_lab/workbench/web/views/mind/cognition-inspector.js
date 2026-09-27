@@ -392,10 +392,7 @@ export function createCognitionInspector({
       clear.type = 'button';
       clear.textContent = 'Clear selection';
       clear.addEventListener('click', () => {
-        graph.selectedNodeId = null;
-        const canvas = document.getElementById('mind-cognition-canvas');
-        if (canvas) onRebuild?.(canvas.width || 900, canvas.height || 600);
-        renderCognitionInspector();
+        selectCognitiveNode(null);
         graph.alpha = Math.max(graph.alpha, 0.08);
         onReheat?.();
       });
