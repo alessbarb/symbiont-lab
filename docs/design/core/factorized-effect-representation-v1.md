@@ -639,3 +639,60 @@ preregistered E8 arm plus the E6 gate.
 Remaining acceptance (§14.2): the Physics3D acceptance on a copy of the
 owner's organism and overhead; then, with owner confirmation, removal of the
 whole-state path with checkpoint schema 5.
+
+## 16. Chance-corrected intent reconciliation (E8 v3, owner-approved 2026-09-27)
+
+The E8 v2 diagnosis (§15) found two mechanisms that keep footprint intents
+from closing. The owner approved addressing both together, behind explicit
+`IntentionPolicy` options, off by default, preregistered before any run.
+
+### 16.1 Rule A: mismatch only on known footprint features
+
+An observed atom counts as mismatch evidence only when its feature belongs to
+some atom of a current footprint (any source). Atoms on features no footprint
+has ever claimed (e.g. receptors that drift on their own) are neither support
+nor contradiction. Option: `IntentionPolicy.mismatch_known_features_only`.
+
+### 16.2 Rule B: satisfaction against the chance expectation
+
+The fixed recall threshold (0.75 of the expected members) is replaced by a
+test symmetric with footprint membership (§13.7). For an intent expecting the
+members of a footprint, after `L` observed windows of its commitment:
+
+- informative members `M`: expected atoms with a quiet baseline (their
+  estimate has passive windows); members without one are excluded;
+- `k`: members of `M` observed at least once during the commitment;
+- chance expectation `c = mean over M of 1 - (1 - q_m)^L`, with
+  `q_m = passive_hits / passive_windows` of the member's estimate;
+- satisfied when `wilson_lower_bound(k, |M|) > c + 0.05` (z = 1.96, margin
+  as §13.7), together with the existing minimum progress evidence.
+
+If `M` is empty the intent cannot be satisfied by Rule B. Option:
+`IntentionPolicy.footprint_satisfaction_rule = "chance_corrected"`
+(default `"recall"`, the current rule).
+
+### 16.3 Preregistered E8 v3
+
+Two arms on **one commit**, the E8 body (16 actuators x 4 correlated
+receptors + 32 drifting), seeds 101,127,149,163,179,193,211,227,241,257,
+3000 ticks, factorized effects on in both:
+
+- **R**: current reconciliation (recall 0.75, all atoms count as mismatch);
+- **AB**: Rules A and B.
+
+Metrics per seed: intents terminated, satisfied, satisfied/terminated,
+terminal reasons, and **spurious satisfactions**: satisfied intents whose
+matched atoms all lie on drifting receptors (evaluator-only ground truth).
+
+Criteria, fixed now:
+
+1. **Improvement:** total satisfied AB >= 2 x total satisfied R, and
+   satisfied/terminated higher in AB for at least 7 of 10 seeds.
+2. **Safety:** spurious satisfactions in AB <= 10% of AB's satisfied
+   intents. Failing this rejects AB regardless of criterion 1.
+3. **Gate:** E6 (factorized, seeds 101/127/149) still passes 3/3 with AB.
+
+Decision rule: all three pass -> propose AB as factorized-mode
+reconciliation (owner decision). Safety fails -> AB rejected. Improvement
+fails with safety passing -> reported, not adopted. No threshold changes
+after results.
