@@ -585,6 +585,7 @@ export function createCognitionController({
       nodes: rawNodes,
       edges: rawEdges,
       adjacency,
+      projectedAdjacency,
       communities,
       components = [],
       layoutAffinities = [],
@@ -686,6 +687,13 @@ export function createCognitionController({
           const row = Math.floor(isolatedIndex / cols);
           x = 22 + col * ((width - 44) / Math.max(1, cols - 1));
           y = height - 28 - row * 20;
+        } else if (raw.fringeStructural) {
+          const componentSeed = hashStr(raw.structuralComponentKey ?? raw.id);
+          const angle = ((componentSeed % 360) / 180) * Math.PI;
+          const ringRadius = Math.min(width, height) * 0.19;
+          const localRadius = 10 + (seed % 5) * 6;
+          x = cx + Math.cos(angle) * ringRadius + Math.cos(angle + 1.4) * localRadius;
+          y = cy + Math.sin(angle) * ringRadius + Math.sin(angle + 1.4) * localRadius;
         } else {
           const sectorLabel = graph.sectorLabels.get(raw.community);
           const anchor = sectorLabel ? graph.sectorAnchors.get(sectorLabel) : null;
@@ -707,6 +715,7 @@ export function createCognitionController({
         Object.assign(node, raw);
       }
       node.neighbors = adjacency.get(raw.id) ?? new Set();
+      node.projectedNeighbors = projectedAdjacency?.get(raw.id) ?? node.neighbors;
       const sectorLabel = graph.sectorLabels.get(raw.community);
       node.sectorLabel = sectorLabel ?? null;
       node.sectorAnchor = sectorLabel ? (graph.sectorAnchors.get(sectorLabel) ?? null) : null;
@@ -714,6 +723,26 @@ export function createCognitionController({
       return node;
     });
   
+    // Satellite placement is presentation-only. Overlay-only nodes do not own
+    // structural territory, so keep them close to the relation they explain.
+    // This removes very long evidence links without promoting those links into
+    // CognitiveGraph structure.
+    for (const node of graph.nodes) {
+      if (!node.overlayOnly || node.pinned || !node.satelliteHostId) continue;
+      const host = nodeMap.get(node.satelliteHostId);
+      if (!host) continue;
+      const dist = Math.hypot(node.x - host.x, node.y - host.y);
+      if (node._satellitePlaced && dist <= 260) continue;
+      const seed = hashStr(node.id);
+      const angle = ((seed % 360) / 180) * Math.PI;
+      const radius = node.satelliteHasStructuralHost ? 46 : 58;
+      node.x = host.x + Math.cos(angle) * radius;
+      node.y = host.y + Math.sin(angle) * radius;
+      node.vx = 0;
+      node.vy = 0;
+      node._satellitePlaced = true;
+    }
+
     graph.edges = rawEdges
       .map(e => ({
         ...e,
@@ -781,7 +810,10 @@ export function createCognitionController({
   function stepGraphPhysics(width, height) {
     const { nodes, edges } = graph;
     const physicsNodes = nodes.filter(node =>
-      !node.isolated || node.id === graph.selectedNodeId || node.id === graph.hoveredNode?.id
+      !node.isolated ||
+      node.overlayOnly ||
+      node.id === graph.selectedNodeId ||
+      node.id === graph.hoveredNode?.id
     );
     const n = physicsNodes.length;
     if (!n) return;
@@ -812,7 +844,10 @@ export function createCognitionController({
         if (distSq > 490000) continue;
         const dist = Math.sqrt(distSq);
   
-        const directlyRelated = a.neighbors?.has(b.id) || b.neighbors?.has(a.id);
+        const structurallyRelated = a.neighbors?.has(b.id) || b.neighbors?.has(a.id);
+        const projectedRelated =
+          a.projectedNeighbors?.has(b.id) || b.projectedNeighbors?.has(a.id);
+        const directlyRelated = structurallyRelated || projectedRelated;
         let shared = 0;
         if (!directlyRelated && a.neighbors?.size && b.neighbors?.size) {
           const smaller = a.neighbors.size < b.neighbors.size ? a.neighbors : b.neighbors;
@@ -830,7 +865,14 @@ export function createCognitionController({
           a.community === b.community;
   
         // Unrelated nodes repel more strongly, making visual sectors emerge.
-        const repulsionScale = directlyRelated ? 0.25 : sameCommunity ? 0.62 : 1.28;
+        const overlayPair = a.overlayOnly || b.overlayOnly;
+        const repulsionScale = overlayPair
+          ? (projectedRelated ? 0.045 : 0.18)
+          : directlyRelated
+            ? 0.25
+            : sameCommunity
+              ? 0.62
+              : 1.28;
         const force = ((GRAPH_PHYSICS.repulsion * repulsionScale) / distSq) * alpha;
         const fx = (dx / dist) * force, fy = (dy / dist) * force;
         if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
@@ -838,7 +880,7 @@ export function createCognitionController({
   
         // Two nodes sharing downstream/upstream partners get a weak secondary
         // attraction. It uses graph structure only; no semantic clustering.
-        if (!directlyRelated && shared > 0) {
+        if (!directlyRelated && !overlayPair && shared > 0) {
           const desired = 95 + 18 / shared;
           const pull = (dist - desired) * 0.0065 * Math.min(3, shared) * alpha;
           const pfx = (dx / dist) * pull, pfy = (dy / dist) * pull;
@@ -870,6 +912,43 @@ export function createCognitionController({
       if (!edge.target.pinned) { edge.target.vx -= fx; edge.target.vy -= fy; }
     }
   
+    // Overlay-only edges get a local tether. The overlay endpoint moves toward
+    // its host; structural nodes receive at most a tiny reciprocal impulse so
+    // evidence follows the core without rearranging it.
+    for (const edge of edges) {
+      if (isStructuralAtlasEdge(edge)) continue;
+      const sourceOverlay = Boolean(edge.source.overlayOnly);
+      const targetOverlay = Boolean(edge.target.overlayOnly);
+      if (!sourceOverlay && !targetOverlay) continue;
+
+      const dx = edge.target.x - edge.source.x;
+      const dy = edge.target.y - edge.source.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const confidence = clamp01(edge.confidence ?? edge.evidence?.confidence ?? 0);
+      const desired = sourceOverlay && targetOverlay ? 54 : 46;
+      const spring = edge.kind === 'causal_estimate'
+        ? 0.020 + confidence * 0.010
+        : 0.016;
+      const force = (dist - desired) * spring * alpha;
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+
+      if (sourceOverlay && !edge.source.pinned) {
+        edge.source.vx += fx;
+        edge.source.vy += fy;
+      } else if (!edge.source.pinned) {
+        edge.source.vx += fx * 0.06;
+        edge.source.vy += fy * 0.06;
+      }
+      if (targetOverlay && !edge.target.pinned) {
+        edge.target.vx -= fx;
+        edge.target.vy -= fy;
+      } else if (!edge.target.pinned) {
+        edge.target.vx -= fx * 0.06;
+        edge.target.vy -= fy * 0.06;
+      }
+    }
+
     // Observer-only affinity links affect spatial organisation without being
     // rendered as organism-owned edges. This lets related motor primitives form
     // stable local regions without inventing CognitiveGraph connections.
@@ -892,20 +971,47 @@ export function createCognitionController({
     for (const node of physicsNodes) {
       if (node.pinned || node.isolated) continue;
       const center = node.community ? communityCenters.get(node.community) : null;
-      if (center) {
-        const cohesion = 0.012 * alpha;
+      if (center && !node.overlayOnly) {
+        const cohesion = (node.fringeStructural ? 0.006 : 0.012) * alpha;
         node.vx += (center.x - node.x) * cohesion;
         node.vy += (center.y - node.y) * cohesion;
       }
-      if (node.sectorAnchor) {
+
+      if (node.overlayOnly) {
+        // Overlay components without a structural host occupy a compact
+        // observer fringe around the core instead of claiming a sector.
+        if (!node.satelliteHasStructuralHost) {
+          const seed = hashStr(node.componentKey ?? node.id);
+          const angle = ((seed % 360) / 180) * Math.PI;
+          const radius = Math.min(width, height) * 0.23;
+          const targetX = cx + Math.cos(angle) * radius;
+          const targetY = cy + Math.sin(angle) * radius;
+          node.vx += (targetX - node.x) * 0.010 * alpha;
+          node.vy += (targetY - node.y) * 0.010 * alpha;
+        }
+      } else if (node.fringeStructural) {
+        // Tiny structural components stay close to the main mass but remain
+        // visibly distinct from it.
+        const seed = hashStr(node.structuralComponentKey ?? node.id);
+        const angle = ((seed % 360) / 180) * Math.PI;
+        const radius = Math.min(width, height) * 0.19;
+        const targetX = cx + Math.cos(angle) * radius;
+        const targetY = cy + Math.sin(angle) * radius;
+        node.vx += (targetX - node.x) * 0.016 * alpha;
+        node.vy += (targetY - node.y) * 0.016 * alpha;
+      } else if (node.sectorAnchor) {
         const anchorPull = 0.024 * alpha;
         node.vx += (node.sectorAnchor.x - node.x) * anchorPull;
         node.vy += (node.sectorAnchor.y - node.y) * anchorPull;
       }
   
-      // Very weak global gravity keeps the overall "brain" compact.
-      node.vx += (cx - node.x) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
-      node.vy += (cy - node.y) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
+      // Very weak global gravity keeps the structural brain compact. Overlay
+      // satellites use their tether/fringe target instead of pretending to be
+      // part of the structural core.
+      if (!node.overlayOnly) {
+        node.vx += (cx - node.x) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
+        node.vy += (cy - node.y) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
+      }
   
       const radial = Math.hypot(node.x - cx, node.y - cy);
       const maxRadius = Math.min(width, height) * 0.43;
@@ -915,8 +1021,11 @@ export function createCognitionController({
         node.vy += ((cy - node.y) / radial) * excess * 0.018 * alpha;
       }
   
-      node.vx *= GRAPH_PHYSICS.damping;
-      node.vy *= GRAPH_PHYSICS.damping;
+      const damping = node.overlayOnly
+        ? Math.min(GRAPH_PHYSICS.damping, 0.82)
+        : GRAPH_PHYSICS.damping;
+      node.vx *= damping;
+      node.vy *= damping;
       node.x += node.vx;
       node.y += node.vy;
     }
