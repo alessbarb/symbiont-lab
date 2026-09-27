@@ -421,6 +421,172 @@ def test_build_cognitive_atlas_action_dimensions_absent_when_no_data():
     assert not any(node.kind == "action_dimension" for node in atlas.nodes)
 
 
+def test_build_cognitive_atlas_projects_bounded_causal_relations():
+    snapshot = _snapshot()
+    snapshot["action_dimensions"] = [
+        {
+            "dimension_id": "action.dimension.aaaa",
+            "intervention_signature_count": 1,
+            "channel_count": 1,
+            "agentic": True,
+        }
+    ]
+    snapshot["agency_acquisition"] = {
+        "intervention_signatures": [
+            {
+                "signature_id": "intervention.signature.1",
+                "dimensionality": 1,
+                "temporal": False,
+                "attempts": 9,
+            }
+        ],
+        "causal_relations": [
+            {
+                "source_kind": "dimension",
+                "source_ref": "action.dimension.aaaa",
+                "effect_id": "effect.3",
+                "context_id": None,
+                "confidence": 0.42,
+                "reliability": 0.70,
+                "counterfactual_rate": 0.20,
+                "causal_advantage": 0.50,
+                "action_support": 12,
+                "counterfactual_support": 20,
+                "last_updated_tick": 70,
+                "agency_confidence": 0.31,
+                "temporal_contingency": 0.70,
+                "causal_specificity": 0.50,
+                "prediction_match": None,
+            },
+            {
+                "source_kind": "intervention",
+                "source_ref": "intervention.signature.1",
+                "effect_id": "effect.3",
+                "context_id": "context.a",
+                "confidence": 0.35,
+                "reliability": 0.60,
+                "counterfactual_rate": 0.25,
+                "causal_advantage": 0.35,
+                "action_support": 9,
+                "counterfactual_support": 15,
+                "last_updated_tick": 69,
+                "agency_confidence": 0.22,
+                "temporal_contingency": 0.60,
+                "causal_specificity": 0.35,
+                "prediction_match": None,
+            },
+        ],
+    }
+
+    atlas = build_cognitive_atlas(snapshot)
+
+    kinds = {node.id: node.kind for node in atlas.nodes}
+    assert kinds["intervention.signature.1"] == "intervention_signature"
+
+    edges = {
+        (edge.source_id, edge.target_id, edge.kind): edge
+        for edge in atlas.edges
+    }
+    dimension = edges[("action.dimension.aaaa", "effect.3", "causal_estimate")]
+    assert dimension.metadata["source_kind"] == "dimension"
+    assert dimension.metadata["confidence"] == 0.42
+    assert dimension.metadata["causal_advantage"] == 0.50
+    assert dimension.metadata["support"] == 12
+    assert dimension.metadata["counterfactual_support"] == 20
+    assert dimension.metadata["evidence"]["source"] == "controllability_model"
+    assert dimension.metadata["evidence"]["confidence"] == 0.42
+
+    intervention = edges[
+        ("intervention.signature.1", "effect.3", "causal_estimate")
+    ]
+    assert intervention.metadata["context_id"] == "context.a"
+    assert intervention.metadata["agency_confidence"] == 0.22
+
+
+def test_causal_relation_contexts_collapse_without_losing_strongest_evidence():
+    snapshot = _snapshot()
+    snapshot["agency_acquisition"] = {
+        "intervention_signatures": [
+            {
+                "signature_id": "intervention.signature.1",
+                "dimensionality": 1,
+                "temporal": False,
+                "attempts": 12,
+            }
+        ],
+        "causal_relations": [
+            {
+                "source_kind": "intervention",
+                "source_ref": "intervention.signature.1",
+                "effect_id": "effect.3",
+                "context_id": "context.a",
+                "confidence": 0.20,
+                "reliability": 0.40,
+                "action_support": 5,
+                "counterfactual_support": 8,
+                "last_updated_tick": 60,
+            },
+            {
+                "source_kind": "intervention",
+                "source_ref": "intervention.signature.1",
+                "effect_id": "effect.3",
+                "context_id": "context.b",
+                "confidence": 0.55,
+                "reliability": 0.80,
+                "action_support": 10,
+                "counterfactual_support": 16,
+                "last_updated_tick": 72,
+            },
+        ],
+    }
+
+    atlas = build_cognitive_atlas(snapshot)
+    causal = [
+        edge
+        for edge in atlas.edges
+        if edge.kind == "causal_estimate"
+        and edge.source_id == "intervention.signature.1"
+        and edge.target_id == "effect.3"
+    ]
+
+    assert len(causal) == 1
+    assert causal[0].metadata["context_count"] == 2
+    assert causal[0].metadata["context_id"] == "context.b"
+    assert causal[0].metadata["confidence"] == 0.55
+    assert causal[0].metadata["support"] == 10
+
+
+def test_causal_relation_projection_never_fabricates_missing_endpoints():
+    snapshot = _snapshot()
+    snapshot["agency_acquisition"] = {
+        "causal_relations": [
+            {
+                "source_kind": "dimension",
+                "source_ref": "action.dimension.unknown",
+                "effect_id": "effect.3",
+                "confidence": 1.0,
+                "action_support": 99,
+                "counterfactual_support": 99,
+            },
+            {
+                "source_kind": "competence",
+                "source_ref": "competence.7",
+                "effect_id": "effect.unknown",
+                "confidence": 1.0,
+                "action_support": 99,
+                "counterfactual_support": 99,
+            },
+        ]
+    }
+
+    atlas = build_cognitive_atlas(snapshot)
+
+    assert not any(edge.kind == "causal_estimate" for edge in atlas.edges)
+    ids = {node.id for node in atlas.nodes}
+    assert "action.dimension.unknown" not in ids
+    assert "effect.unknown" not in ids
+
+
 def test_build_cognitive_atlas_knowledge_coverage_reports_separate_domain_counts():
     snapshot = _snapshot()
     snapshot["action_dimensions"] = [
@@ -432,6 +598,7 @@ def test_build_cognitive_atlas_knowledge_coverage_reports_separate_domain_counts
 
     coverage = atlas.metrics["knowledge_coverage"]
     assert coverage["action_dimensions"] == 2
+    assert coverage["intervention_signatures"] == 0
     assert coverage["motor_competences"] == 2
     assert coverage["controllers"] == 2
     assert coverage["embodiment_bindings"] == 1
