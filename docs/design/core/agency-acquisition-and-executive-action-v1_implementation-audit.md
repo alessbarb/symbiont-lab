@@ -77,6 +77,22 @@ preregistered protocol:
    INVALIDATED suppresses until causal or binding evidence changes. E2 and E5
    are then rerun with unchanged criteria; E5 must remain able to fail.
 
+### 0.1 Physics3D organism (read-only inspection, 2026-09-27)
+
+The owner's Physics3D organism (`org-ea3e7bbbc628`, anthropomorphic-v6, 62
+effectors, 107 receptors, checkpoint tick 5120) has formed **no intent at
+all**: 5 competences, 0 execution bindings, so no affordance, no intent and no
+Executive Outcome Learning lookup. Cause: every competence has
+`effect_id = None` because whole-state effects do not recur in this body —
+the EffectSpace is saturated at its 512-signature cap with 84% of signatures
+seen once, and 1309 effectful attempts produced 832 distinct effects (most
+frequent: 43). The synthetic 4-actuator body used by E1-E6 does not show this.
+This is the v1 limitation of whole-state effect identity with identity
+matching (§33 already names `EffectMatcher.similarity` as the extension point).
+Making the executive loop engage in high-dimensional bodies needs a new
+effect-representation specification (factorized per-feature effects and/or a
+similarity matcher, and the EffectSpace bound), not a configuration change.
+
 ---
 
 ## 1. Evidence summary
