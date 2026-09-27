@@ -1,5 +1,12 @@
 import { escapeHtml } from '../shared/dom.js';
 
+/*
+ * Passive UX projection only.
+ * canonical ActionAffordance objects come from AffordanceResolver.
+ * canonical ActionIntent is never inferred from motor activity.
+ * ActionIntent says what consequence is being attempted; ActionCommitment keeps motor authority.
+ */
+
 const SELF_TABS = [
   ['overview', 'Overview'],
   ['self', 'Self'],
