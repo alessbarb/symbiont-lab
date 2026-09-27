@@ -10,6 +10,15 @@ def _mind_sources() -> str:
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
 
+def _body_sources() -> str:
+    paths = [WEB_ROOT / "views" / "body.js", *sorted((WEB_ROOT / "views" / "body").glob("*.js"))]
+    return "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+
+def _self_model_source() -> str:
+    return (WEB_ROOT / "views" / "body" / "self-model.js").read_text(encoding="utf-8")
+
+
 import json
 
 from symbiont_lab.observation.bus import ObservationBus
@@ -353,6 +362,91 @@ def test_physics3d_rich_state_projects_agency_and_executive_state() -> None:
     assert {"agency_acquisition", "affordances", "executive_intention"} <= set(facts)
     assert snapshot["agency_acquisition"]["action_attempt_count"] == 7
     assert snapshot["affordances"][0]["affordance_id"] == "affordance.1"
+
+
+def test_physics3d_rich_state_projects_self_model_boundary_and_embodiment_context() -> None:
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 44,
+            "body_schema_boundary": {
+                "self_caused_channels": ["signal.1"],
+                "somatic_correlated_channels": ["signal.2"],
+                "external_channels": ["signal.3"],
+                "confidence": 0.66,
+                "revision_count": 4,
+                "disruption_score": 0.1,
+            },
+            "embodiment": {
+                "embodiment_id": "embodiment.7",
+                "body_id": "body.4",
+                "epoch": 3,
+                "embodiment_tick": 211,
+                "contract_fingerprint": "contract.abc",
+                "state": "active",
+                "prior": {
+                    "relation": "known_body",
+                    "authority": "hypothesis_only",
+                },
+                "adaptation": {"schema_uncertainty": 0.25},
+                "embodied_competences": {"count": 4, "executable": 3},
+                "bindings": [],
+            },
+        }
+    )
+
+    assert snapshot["body_schema_boundary"]["confidence"] == 0.66
+    assert snapshot["body_schema_boundary"]["self_caused_channels"] == ["signal.1"]
+    assert "body_schema_boundary" in snapshot["provenance"]["organismFacts"]
+    embodiment = snapshot["embodiment"]
+    assert embodiment["embodiment_id"] == "embodiment.7"
+    assert embodiment["body_id"] == "body.4"
+    assert embodiment["epoch"] == 3
+    assert embodiment["embodiment_tick"] == 211
+    assert embodiment["prior"]["authority"] == "hypothesis_only"
+    assert embodiment["embodied_competences"]["executable"] == 3
+
+
+def test_body_self_model_uses_canonical_agency_v1_state() -> None:
+    body = _body_sources()
+    self_model = _self_model_source()
+
+    assert "SelfModelWorkspace" in body
+    assert "['self-model', 'Self-Model']" in body
+    assert "case 'mind_snapshot'" in body
+    for label in (
+        "Overview",
+        "Body Schema",
+        "Agency",
+        "Capabilities",
+        "Affordances",
+        "Executive",
+        "Embodiment",
+        "History",
+    ):
+        assert label in self_model
+
+    assert "snapshot?.agency_acquisition" in self_model
+    assert "snapshot?.affordances" in self_model
+    assert "snapshot?.executive_intention" in self_model
+    assert "snapshot?.body_schema_boundary" in self_model
+    assert "canonical ActionIntent" in self_model
+    assert "canonical ActionAffordance" in self_model
+
+
+def test_body_self_model_does_not_reconstruct_affordances_or_fabricate_intent() -> None:
+    self_model = _self_model_source()
+
+    assert "AffordanceResolver" in self_model
+    assert "ActionIntent says what consequence is being attempted" in self_model
+    assert "prediction match ≠ agency" not in self_model
+    assert "snapshot?.agency_estimates" not in self_model
+    assert "snapshot?.controllability_estimates" not in self_model
+    assert "ActionIntent will appear here when" not in self_model
+    for forbidden in ("left_leg", "right_leg", "walk", "balance", "step_goal"):
+        assert forbidden not in self_model
+    assert "fetch(" not in self_model
+    assert "WebSocket" not in self_model
+    assert "EventSource" not in self_model
 
 
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
