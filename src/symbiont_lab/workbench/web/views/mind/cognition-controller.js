@@ -118,6 +118,57 @@ export function createCognitionController({
     inspector.render();
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    void loadSelectedCausalProvenance(graph.selectedNodeId);
+  }
+
+  async function loadSelectedCausalProvenance(nodeId) {
+    const serial = ++provenanceRequestSerial;
+    if (!nodeId) {
+      graph.causalProvenance = {
+        nodeId: null, status: 'idle', ref: null, runId: null, tree: null, error: null,
+      };
+      inspector.render();
+      return;
+    }
+
+    const node = graph.nodes.find(item => item.id === nodeId) ?? null;
+    const ref = provenanceRefForNode(node);
+    if (!ref) {
+      graph.causalProvenance = {
+        nodeId, status: 'unsupported', ref: null, runId: null, tree: null, error: null,
+      };
+      inspector.render();
+      return;
+    }
+
+    graph.causalProvenance = {
+      nodeId, status: 'loading', ref, runId: null, tree: null, error: null,
+    };
+    inspector.render();
+
+    try {
+      const result = await fetchCausalProvenance(node, { depth: 12 });
+      if (serial !== provenanceRequestSerial || graph.selectedNodeId !== nodeId) return;
+      graph.causalProvenance = {
+        nodeId,
+        status: result.payload?.tree ? 'ready' : 'absent',
+        ref: result.ref,
+        runId: result.payload?.run_id ?? null,
+        tree: result.payload?.tree ?? null,
+        error: null,
+      };
+    } catch (error) {
+      if (serial !== provenanceRequestSerial || graph.selectedNodeId !== nodeId) return;
+      graph.causalProvenance = {
+        nodeId,
+        status: 'error',
+        ref,
+        runId: null,
+        tree: null,
+        error: String(error?.message ?? error),
+      };
+    }
+    inspector.render();
   }
 
   function searchAtlas(query) {
