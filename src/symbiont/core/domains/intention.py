@@ -29,6 +29,7 @@ from ...agency.executive_outcome import (
 )
 from ...agency.intention import ActionIntent, IntentStatus
 from ...agency.prospective import ProspectiveDecision
+from ...provenance import CausalEvent, CausalRef, ProvenanceLog
 
 # Termination reasons (§60, §68-§70). Evidence-bearing, not extra states.
 PROPOSAL_NOT_SELECTED = "proposal_not_selected"
@@ -77,11 +78,18 @@ class IntentionPolicy:
     # Executive Outcome Learning v1: real outcomes modulate future admission.
     # Disabled only as an explicit study arm (E2/E5 v3 arm C).
     executive_outcome_learning: bool = True
+    # Factorized Effect Representation v1 §14.1: a footprint-anticipated
+    # intent is satisfied when this fraction of its expected atoms has been
+    # observed across its commitment (recall, accumulated per commitment).
+    footprint_satisfaction_recall: float = 0.75
 
     def __post_init__(self) -> None:
         value = float(self.satisfaction_similarity)
         if not math.isfinite(value) or not 0.0 < value <= 1.0:
             raise ValueError("satisfaction_similarity must be within (0, 1]")
+        recall = float(self.footprint_satisfaction_recall)
+        if not math.isfinite(recall) or not 0.0 < recall <= 1.0:
+            raise ValueError("footprint_satisfaction_recall must be within (0, 1]")
         if self.minimum_progress_evidence < 1 or self.max_consecutive_mismatches < 1:
             raise ValueError("evidence thresholds must be positive")
         if self.stagnation_ticks < 1:
@@ -144,6 +152,12 @@ class IntentionDomain:
         # Supplied by the action domain: the material causal/binding state of
         # one (competence, effect) relation.  Read-only.
         self.revision_probe: Callable[[ExecutiveKey], CausalRevisionState] | None = None
+        # Footprint expectation snapshot of the live intent and the atoms
+        # observed across its commitment (Factorized Effects §14.1).
+        self._expected_atoms: tuple[str, ...] = ()
+        self._observed_atoms: set[str] = set()
+        # Organism-level causal provenance, supplied by the action domain.
+        self.provenance: ProvenanceLog | None = None
 
     # -- lifecycle ------------------------------------------------------------
     def begin_tick(self) -> None:
@@ -203,7 +217,49 @@ class IntentionDomain:
         self._best_similarity = None
         self._mismatch_sum = 0.0
         self._mismatch_count = 0
+        self._expected_atoms = ()
+        self._observed_atoms = set()
+        self._emit(
+            intent,
+            tick=tick,
+            operation="form",
+            caused_by=(
+                CausalRef("competence", intent.competence_id),
+                *(
+                    (CausalRef("effect", intent.anticipated_effect_id),)
+                    if intent.anticipated_effect_id
+                    else ()
+                ),
+            ),
+            parameters={"admission": intent.admission.value},
+        )
         return intent
+
+    def expect_atoms(self, atoms: tuple[str, ...]) -> None:
+        """Snapshot the footprint atoms the live intent is expected to produce."""
+        self._expected_atoms = tuple(sorted(set(atoms)))
+        self._observed_atoms = set()
+
+    @property
+    def expected_atoms(self) -> tuple[str, ...]:
+        return self._expected_atoms
+
+    def _emit(self, intent, *, tick, operation, caused_by, parameters, rule=None) -> None:
+        if self.provenance is None:
+            return
+        ref = CausalRef("intent", intent.intent_id)
+        self.provenance.emit(
+            CausalEvent(
+                tick=int(tick),
+                domain="intention",
+                operation=operation,
+                subject=ref,
+                caused_by=tuple(caused_by),
+                produced=(ref,),
+                rule=rule,
+                parameters=parameters,
+            )
+        )
 
     def _held(self, intent_id: str) -> ActionIntent:
         intent = self.active
@@ -262,6 +318,23 @@ class IntentionDomain:
         )
         self.last_outcomes = (*self.last_outcomes, outcome)
         self.recent_outcomes.append(outcome)
+        causes = [CausalRef("intent", intent.intent_id)]
+        if self.active_commitment_id is not None:
+            causes.append(CausalRef("commitment", self.active_commitment_id))
+        self._emit(
+            intent,
+            tick=tick,
+            operation=status.value,
+            caused_by=causes,
+            rule=reason,
+            parameters={
+                "effect_similarity": similarity if similarity is not None else -1.0,
+                "expected_atoms": len(self._expected_atoms),
+                "observed_expected_atoms": len(self._observed_atoms & set(self._expected_atoms)),
+            },
+        )
+        if self.provenance is not None:
+            self.provenance.retire((CausalRef("intent", intent.intent_id),))
         self._learn_from_outcome(outcome)
         return outcome
 
@@ -349,8 +422,14 @@ class IntentionDomain:
         commitment_status: CommitmentStatus | None,
         competence_executable: bool,
         embodiment_id: str | None,
+        observed_atoms: tuple[str, ...] = (),
     ) -> IntentOutcome | None:
         """Reconcile the ACTIVE intent with what physically happened (§64-§70).
+
+        A footprint-anticipated intent (with an expected atom snapshot) is
+        reconciled per commitment: expected atoms observed across the
+        commitment accumulate and their recall is compared with
+        ``footprint_satisfaction_recall`` (Factorized Effects §14.1).
 
         ``commitment_id`` names the commitment whose attempt produced this
         observation (None when nothing was observed for an attempt).
@@ -371,15 +450,27 @@ class IntentionDomain:
                 self.last_prediction_match = max(0.0, 1.0 - float(prediction_error.magnitude))
                 self._mismatch_sum += float(prediction_error.magnitude)
                 self._mismatch_count += 1
-            similarity = 0.0 if effect_similarity is None else float(effect_similarity)
+            if self._expected_atoms:
+                expected = set(self._expected_atoms)
+                before = len(self._observed_atoms)
+                self._observed_atoms.update(atom for atom in observed_atoms if atom in expected)
+                similarity = len(self._observed_atoms) / len(expected)
+                threshold = self.policy.footprint_satisfaction_recall
+                progressed = len(self._observed_atoms) > before
+                mismatched = not self._observed_atoms and bool(observed_atoms)
+            else:
+                similarity = 0.0 if effect_similarity is None else float(effect_similarity)
+                threshold = self.policy.satisfaction_similarity
+                progressed = similarity > 0.0
+                mismatched = observed_effect_id is not None
             if self._best_similarity is None or similarity > self._best_similarity:
                 self._best_similarity = similarity
-            if similarity > 0.0:
+            if progressed:
                 self._progress_evidence += 1
                 self._consecutive_mismatches = 0
                 intent.last_progress_tick = int(tick)
                 if (
-                    similarity >= self.policy.satisfaction_similarity
+                    similarity >= threshold
                     and self._progress_evidence >= self.policy.minimum_progress_evidence
                 ):
                     self.last_prediction_match = similarity
@@ -391,7 +482,7 @@ class IntentionDomain:
                         observed_effect_id=observed_effect_id,
                         similarity=similarity,
                     )
-            elif observed_effect_id is not None:
+            elif mismatched and not (self._expected_atoms and self._observed_atoms):
                 # A single mismatch leaves room for controller correction (§67).
                 self._consecutive_mismatches += 1
                 if self._consecutive_mismatches >= self.policy.max_consecutive_mismatches:
@@ -466,6 +557,8 @@ class IntentionDomain:
                     "best_similarity": self._best_similarity,
                     "mismatch_sum": self._mismatch_sum,
                     "mismatch_count": self._mismatch_count,
+                    "expected_atoms": list(self._expected_atoms),
+                    "observed_atoms": sorted(self._observed_atoms),
                 }
                 if live is not None
                 else None
@@ -510,6 +603,8 @@ class IntentionDomain:
                 obj._best_similarity = None if best is None else float(best)
                 obj._mismatch_sum = float(trace.get("mismatch_sum", 0.0))
                 obj._mismatch_count = int(trace.get("mismatch_count", 0))
+                obj._expected_atoms = tuple(str(a) for a in trace.get("expected_atoms", ()))
+                obj._observed_atoms = {str(a) for a in trace.get("observed_atoms", ())}
         obj._formed = int(payload.get("formed", 0))
         raw_counts = payload.get("counts", {})
         if isinstance(raw_counts, Mapping):

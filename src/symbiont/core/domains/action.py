@@ -222,6 +222,7 @@ class ActionDomain:
         self.executive_mode = ExecutiveMode(executive_mode)
         self.intention = IntentionDomain(organism_id=organism_id, policy=intention_policy)
         self.intention.revision_probe = self.causal_revision_state
+        self.intention.provenance = self.acquisition.provenance
         self.last_affordances: tuple[ActionAffordance, ...] = ()
         self.last_intent_proposal_id: str | None = None
         self.composition_engine = CompositionEngine()
@@ -374,9 +375,22 @@ class ActionDomain:
         )
 
     def competence_is_executable(self, competence: MotorCompetence) -> bool:
-        return self.execution_bindings.is_executable(
+        """Bound on this surface, mature, and its controller can actually run.
+
+        A library competence can outlive its controller seed (the development
+        engine's primitive pool is bounded); admitting it would fail the
+        controller on every attempt and loop, so it is not executable.
+        """
+        if not self.execution_bindings.is_executable(
             competence,
             surface_fingerprint=self.current_surface_fingerprint,
+        ):
+            return False
+        if self._competence_development is None:
+            return True
+        return all(
+            self._competence_development.can_activate(leaf)
+            for leaf in self._flatten_competence_controller(competence.competence_id)
         )
 
     def begin_embodiment(
@@ -1115,6 +1129,11 @@ class ActionDomain:
                 competence is not None and self.competence_is_executable(competence)
             ),
             embodiment_id=self.embodiment_id,
+            observed_atoms=(
+                self.acquisition.change_keys(transition.observed_effect_atoms)
+                if transition is not None
+                else ()
+            ),
         )
         if outcome is None or own_commitment is None or not own_commitment.active:
             return
@@ -1240,6 +1259,12 @@ class ActionDomain:
             embodiment_id=self.embodiment_id,
             tick=tick,
         )
+        if decision.anticipated_effect_id is not None:
+            # Snapshot of the footprint the intent pursues (Factorized Effects
+            # §14.1): reconciliation never depends on later registry changes.
+            expected = self.effect_space.footprint_change_keys(decision.anticipated_effect_id)
+            if expected:
+                self.intention.expect_atoms(expected)
         proposal = self._intent_proposal(intent, tick=tick)
         self.last_intent_proposal_id = proposal.proposal_id
         return proposal
@@ -2375,6 +2400,7 @@ class ActionDomain:
             policy=self.intention.policy,
         )
         self.intention.revision_probe = self.causal_revision_state
+        self.intention.provenance = self.acquisition.provenance
         held = self.intention.active
         if held is None or held.status is not IntentStatus.ACTIVE:
             return

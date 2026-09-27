@@ -213,3 +213,67 @@ def test_intention_checkpoint_keeps_only_live_intent():
     finished = IntentionDomain.restore(domain.checkpoint(), organism_id="organism.i")
     assert finished.active is None
     assert finished.counts[IntentStatus.SATISFIED] == 1
+
+
+def _footprint_intent(domain, *, tick=1):
+    intent = _active(domain, tick=tick)
+    domain.expect_atoms(("signal.a|+1", "signal.b|+1", "signal.c|-1", "signal.d|+1"))
+    return intent
+
+
+def _observe_atoms(domain, atoms, *, tick, status=CommitmentStatus.ACTIVE):
+    return domain.observe_effect(
+        observed_effect_id="effect.whole",
+        prediction_error=None,
+        effect_similarity=0.0,
+        tick=tick,
+        commitment_id="commitment.k",
+        commitment_status=status,
+        competence_executable=True,
+        embodiment_id="e1",
+        observed_atoms=atoms,
+    )
+
+
+def test_footprint_intent_is_satisfied_by_recall_accumulated_over_its_commitment():
+    domain = IntentionDomain(organism_id="organism.i")
+    _footprint_intent(domain)
+    assert _observe_atoms(domain, ("signal.a|+1", "signal.z|+1"), tick=2) is None
+    assert _observe_atoms(domain, (), tick=3) is None  # quiet tick: no mismatch
+    assert _observe_atoms(domain, ("signal.b|+1",), tick=4) is None  # recall 0.5
+    outcome = _observe_atoms(domain, ("signal.c|-1",), tick=5)  # recall 0.75
+    assert outcome is not None and outcome.status is IntentStatus.SATISFIED
+    assert outcome.effect_similarity == 0.75
+
+
+def test_footprint_intent_mismatches_only_when_nothing_expected_has_appeared():
+    domain = IntentionDomain(organism_id="organism.i")
+    _footprint_intent(domain)
+    for tick in (2, 3):
+        assert _observe_atoms(domain, ("signal.z|+1",), tick=tick) is None
+    outcome = _observe_atoms(domain, ("signal.z|+1",), tick=4)
+    assert outcome is not None and outcome.status is IntentStatus.FAILED
+
+
+def test_footprint_expectation_survives_checkpoint():
+    domain = IntentionDomain(organism_id="organism.i")
+    _footprint_intent(domain)
+    _observe_atoms(domain, ("signal.a|+1", "signal.b|+1"), tick=2)
+    restored = IntentionDomain.restore(domain.checkpoint(), organism_id="organism.i")
+    outcome = _observe_atoms(restored, ("signal.d|+1",), tick=3)
+    assert outcome is not None and outcome.status is IntentStatus.SATISFIED
+
+
+def test_intent_lifecycle_emits_traced_events():
+    from symbiont.provenance import CausalRef, ProvenanceLog
+
+    domain = IntentionDomain(organism_id="organism.i")
+    domain.provenance = ProvenanceLog()
+    intent = _footprint_intent(domain)
+    _observe_atoms(domain, ("signal.a|+1", "signal.b|+1", "signal.c|-1"), tick=2)
+    form, satisfied = domain.provenance.events()
+    assert form.operation == "form" and CausalRef("competence", "competence.c") in form.caused_by
+    assert satisfied.operation == "satisfied" and satisfied.rule == ANTICIPATED_EFFECT_OBSERVED
+    assert CausalRef("commitment", "commitment.k") in satisfied.caused_by
+    assert satisfied.parameters["observed_expected_atoms"] == 3
+    assert CausalRef("intent", intent.intent_id) not in domain.provenance.live_refs()

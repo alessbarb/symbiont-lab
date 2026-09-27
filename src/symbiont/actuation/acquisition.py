@@ -33,7 +33,14 @@ from .dimension import (
     assess_family,
     opaque_dimension_id,
 )
-from .effects import EffectAtom, EffectMatcher, EffectSpace, atoms_from_changes, bounded_atoms
+from .effects import (
+    EffectAtom,
+    EffectMatcher,
+    EffectSpace,
+    atom_change_key,
+    atoms_from_changes,
+    bounded_atoms,
+)
 from .evidence import (
     CausalEvidence,
     CausalEvidenceLedger,
@@ -255,6 +262,18 @@ class AgencyAcquisition:
             if atom.effect_id not in self._atom_catalog and len(self._atom_catalog) < _ATOM_CATALOG:
                 self._atom_catalog[atom.effect_id] = atom
         return tuple(sorted({atom.effect_id for atom in atoms}))
+
+    def change_keys(self, atom_ids: tuple[str, ...]) -> tuple[str, ...]:
+        """(feature, direction) keys of observed atoms known to the catalog."""
+        return tuple(
+            sorted(
+                {
+                    atom_change_key(self._atom_catalog[atom_id])
+                    for atom_id in atom_ids
+                    if atom_id in self._atom_catalog
+                }
+            )
+        )
 
     def _effect_atom_ids(self, effect_id: str) -> tuple[str, ...] | None:
         effect = self.effect_space.get(effect_id)

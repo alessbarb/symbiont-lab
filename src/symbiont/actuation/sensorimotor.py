@@ -663,6 +663,11 @@ class CompetenceDevelopmentEngine:
             return ()
         return primitive.intents_at(0)[: self._max_concurrent]
 
+    def can_activate(self, primitive_id: str) -> bool:
+        """Whether ``activate_primitive`` would accept this controller now."""
+        primitive = self._primitives.get(str(primitive_id))
+        return primitive is not None and primitive in self.cognitive_primitives
+
     def activate_primitive(self, primitive_id: str) -> bool:
         primitive = self._primitives.get(str(primitive_id))
         if primitive is None or primitive not in self.cognitive_primitives:

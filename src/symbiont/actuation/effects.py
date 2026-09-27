@@ -123,6 +123,11 @@ class EffectAtom:
         return cls(str(feature_ref), 1 if bucket > 0 else -1, magnitude_class(bucket))
 
 
+def atom_change_key(atom: EffectAtom) -> str:
+    """The change an atom denotes, independent of its magnitude class."""
+    return f"{atom.feature_ref}|{atom.direction:+d}"
+
+
 def atoms_from_signature(
     signature: tuple[tuple[str, int], ...],
 ) -> tuple[EffectAtom, ...]:
@@ -246,6 +251,14 @@ class EffectSpace:
         """Atom effect ids of a registered footprint effect."""
         entry = self._footprints.get(effect_id)
         return tuple(atom.effect_id for atom in entry[1]) if entry is not None else None
+
+    def footprint_change_keys(self, effect_id: str) -> tuple[str, ...] | None:
+        """(feature, direction) keys of a footprint effect: what "the intended
+        change happened" is judged on; magnitude class is detail (§14.1)."""
+        entry = self._footprints.get(effect_id)
+        if entry is None:
+            return None
+        return tuple(sorted({atom_change_key(atom) for atom in entry[1]}))
 
     def get(self, effect_id: str) -> EffectRepresentation | None:
         found = self._effects.get(effect_id)

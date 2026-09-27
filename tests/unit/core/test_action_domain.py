@@ -85,3 +85,20 @@ def test_command_requires_active_commitment() -> None:
     )
     with pytest.raises(RuntimeError, match="active organism-owned commitment"):
         domain.issue_command({surface.actuator_ids[0]: 0.5}, tick=1)
+
+
+def test_competence_whose_controller_left_the_pool_is_not_executable():
+    """Regression: a library competence outliving its controller seed was
+    admitted on every tick and failed its controller in a loop."""
+    from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
+
+    body = CausalBody(actuator_count=4, seed=127)
+    runtime = build_subject(body, organism_id="controller-pool", factorized_effects=True)
+    for _ in range(600):
+        runtime.tick()
+        body.advance(runtime.last_actuations)
+    domain = runtime._action_domain
+    engine = domain._competence_development
+    for competence in domain.competence_library.items:
+        if domain.competence_is_executable(competence):
+            assert engine.can_activate(competence.competence_id)
