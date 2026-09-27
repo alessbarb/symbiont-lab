@@ -622,8 +622,9 @@ export function createCognitionController({
         let y;
   
         if (raw.isolated) {
-          // Objective unintegrated pool: disconnected nodes occupy a peripheral
-          // band instead of participating in the same force field as cognition.
+          // Degree-zero in the current projection: place it peripherally so it
+          // does not distort the relational layout. This says nothing about
+          // causal/evidential references that are outside the visible projection.
           const cols = Math.max(8, Math.floor(width / 34));
           const isolatedIndex = rawNodes.slice(0, i + 1).filter(item => item.isolated).length - 1;
           const col = isolatedIndex % cols;
