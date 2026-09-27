@@ -77,6 +77,7 @@ from .intention import (
 )
 
 _BODY_BOUNDARY_AGENCY = 0.35
+_OBSERVATORY_CAUSAL_RELATION_LIMIT = 256
 
 
 def _canonical_hash(payload: dict[str, Any]) -> str:
@@ -2375,6 +2376,106 @@ class ActionDomain:
             "result": outcome.status.value if outcome is not None else None,
         }
 
+    def _causal_relation_observation(self) -> list[dict[str, Any]]:
+        """Bounded organism-owned causal model for passive observation.
+
+        These are learned estimates, not structural CognitiveGraph edges and not
+        historical provenance events. The bounded projection is source-balanced:
+        it keeps the strongest relation for as many learned causal sources as
+        possible before filling the remaining budget globally. This prevents a
+        few dense sources from making other real learned relations look absent.
+        """
+        enriched: list[tuple[Any, Any]] = []
+        for item in self.controllability_model.estimates:
+            agency = self.agency_model.estimate(
+                source_kind=item.source_kind,
+                source_ref=item.source_ref,
+                effect_id=item.effect_id,
+                context_id=item.context_id,
+            )
+            enriched.append((item, agency))
+
+        def rank(entry: tuple[Any, Any]) -> tuple[float, int, int, str, str, str, str]:
+            item, agency = entry
+            return (
+                -max(float(item.confidence), float(getattr(agency, "confidence", 0.0))),
+                -(int(item.action_support) + int(item.counterfactual_support)),
+                -int(item.last_updated_tick),
+                item.source_kind.value,
+                item.source_ref,
+                item.effect_id,
+                item.context_id or "",
+            )
+
+        ranked = sorted(enriched, key=rank)
+        selected: list[tuple[Any, Any]] = []
+        selected_keys: set[tuple[str, str, str, str]] = set()
+        covered_sources: set[tuple[str, str]] = set()
+
+        # Coverage pass: preserve at least the best visible relation per source
+        # when the bounded budget permits it.
+        for entry in ranked:
+            item, _agency = entry
+            source = (item.source_kind.value, item.source_ref)
+            if source in covered_sources:
+                continue
+            key = (
+                item.source_kind.value,
+                item.source_ref,
+                item.effect_id,
+                item.context_id or "",
+            )
+            selected.append(entry)
+            selected_keys.add(key)
+            covered_sources.add(source)
+            if len(selected) >= _OBSERVATORY_CAUSAL_RELATION_LIMIT:
+                break
+
+        # Evidence pass: fill the remaining budget with the globally strongest
+        # relations that were not already retained by the coverage pass.
+        if len(selected) < _OBSERVATORY_CAUSAL_RELATION_LIMIT:
+            for entry in ranked:
+                item, _agency = entry
+                key = (
+                    item.source_kind.value,
+                    item.source_ref,
+                    item.effect_id,
+                    item.context_id or "",
+                )
+                if key in selected_keys:
+                    continue
+                selected.append(entry)
+                selected_keys.add(key)
+                if len(selected) >= _OBSERVATORY_CAUSAL_RELATION_LIMIT:
+                    break
+
+        rows: list[dict[str, Any]] = []
+        for item, agency in selected:
+            rows.append(
+                {
+                    "source_kind": item.source_kind.value,
+                    "source_ref": item.source_ref,
+                    "effect_id": item.effect_id,
+                    "context_id": item.context_id,
+                    "confidence": item.confidence,
+                    "reliability": item.reliability,
+                    "counterfactual_rate": item.counterfactual_rate,
+                    "causal_advantage": item.causal_advantage,
+                    "action_support": item.action_support,
+                    "counterfactual_support": item.counterfactual_support,
+                    "last_updated_tick": item.last_updated_tick,
+                    "agency_confidence": agency.confidence if agency is not None else None,
+                    "temporal_contingency": (
+                        agency.temporal_contingency if agency is not None else None
+                    ),
+                    "causal_specificity": (
+                        agency.causal_specificity if agency is not None else None
+                    ),
+                    "prediction_match": agency.prediction_match if agency is not None else None,
+                }
+            )
+        return rows
+
     def observation_view(self, *, tick: int) -> dict[str, Any]:
         """Bounded passive projection for Observatory; never read back by cognition."""
         agentic = set(self.acquisition.agentic_dimension_ids())
@@ -2431,6 +2532,7 @@ class ActionDomain:
                 for item in self.action_dimensions.items
             ],
             "causal_relation_count": len(self.controllability_model),
+            "causal_relations": self._causal_relation_observation(),
             "causal_evidence_count": len(self.causal_evidence.intervention_evidence),
             "passive_window_count": len(self.causal_evidence.passive_evidence),
             "affordances": [
