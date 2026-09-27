@@ -1,0 +1,31 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-acquisition-reuse-closure-chance-corrected"
+title = "E6 gate for E8 v3 arm AB (chance-corrected reconciliation)"
+protocol = "learning.agency-acquisition-reuse-closure"
+protocol_version = 1
+hypothesis = """
+The E6 closure still holds with footprint intents reconciled by the
+chance-corrected rule and known-feature mismatch (§16).
+"""
+success_criteria = """
+E6 release gate unchanged (developmental order; SATISFIED intent from a
+self-acquired competence grounded in the organism's own exploration evidence;
+satisfied competence traces to its pulses) on all three seeds. Criterion 3 of
+§16.3.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+factorized_effects = true
+reconciliation = "chance_corrected"
+
+[output]
+save_trace = false
+save_summary = true

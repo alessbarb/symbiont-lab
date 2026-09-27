@@ -1,0 +1,38 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-intent-reconciliation-ab"
+title = "E8 v3 arm AB (chance-corrected, known-feature mismatch)"
+protocol = "learning.agency-high-dimensional-acquisition"
+protocol_version = 3
+hypothesis = """
+In the high-dimensional body, footprint intents close more often, without
+closing on drift, when satisfaction is tested against the chance expectation of
+the footprint's members and mismatch counts only on features footprints claim.
+"""
+success_criteria = """
+Preregistered in Factorized Effect Representation v1 §16.3 (commit c1a43963):
+(1) total satisfied AB >= 2 x total satisfied R and satisfied/terminated higher
+in AB for >= 7 of 10 seeds; (2) spurious satisfactions (all matched atoms on
+drifting receptors, evaluator-only) <= 10% of AB satisfied, else AB rejected;
+(3) E6 factorized with AB passes 3/3. No threshold changes after results.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
+
+[body]
+actuator_count = 16
+receptors_per_actuator = 4
+drifting_receptor_count = 32
+
+[ablation]
+factorized_effects = true
+reconciliation = "chance_corrected"
+
+[output]
+save_trace = false
+save_summary = true

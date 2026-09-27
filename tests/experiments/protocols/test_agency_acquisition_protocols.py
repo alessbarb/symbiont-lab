@@ -319,3 +319,48 @@ def test_high_dimensional_acquisition_study_reports_the_chain():
         "intents_satisfied",
     ):
         assert key in row
+
+
+@pytest.mark.experiment_contract
+def test_e8_v3_arms_differ_only_in_reconciliation():
+    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    r = load_experiment_file(root / "agency-intent-reconciliation-r" / "experiment.toml")
+    ab = load_experiment_file(root / "agency-intent-reconciliation-ab" / "experiment.toml")
+    gate = load_experiment_file(
+        root / "agency-acquisition-reuse-closure-chance-corrected" / "experiment.toml"
+    )
+    assert r.protocol == ab.protocol == "learning.agency-high-dimensional-acquisition"
+    assert tuple(r.seeds) == tuple(ab.seeds) == EXECUTIVE_SEEDS and r.steps == ab.steps == 3000
+    assert r.extra_params["body"] == ab.extra_params["body"]
+    assert r.extra_params["ablation"] == {"factorized_effects": True, "reconciliation": "recall"}
+    assert ab.extra_params["ablation"] == {
+        "factorized_effects": True,
+        "reconciliation": "chance_corrected",
+    }
+    assert gate.protocol == "learning.agency-acquisition-reuse-closure"
+    assert tuple(gate.seeds) == BASE_SEEDS
+    assert gate.extra_params["ablation"]["reconciliation"] == "chance_corrected"
+
+
+@pytest.mark.experiment_contract
+def test_e8_v3_reports_terminations_and_spurious_satisfactions():
+    from symbiont_lab.studies.learning.agency_acquisition import (
+        run_high_dimensional_acquisition_study,
+    )
+
+    result = run_high_dimensional_acquisition_study(
+        seeds=(101,),
+        ticks=20,
+        actuator_count=4,
+        receptors_per_actuator=2,
+        drifting_receptor_count=4,
+        factorized_effects=True,
+        reconciliation="chance_corrected",
+    )
+    (row,) = result["per_seed"]
+    assert result["reconciliation"] == "chance_corrected"
+    for key in ("satisfied_rate", "terminal_reasons", "spurious_satisfactions"):
+        assert key in row
+    assert row["unmapped_matched_atoms"] == 0
+    with pytest.raises(ValueError):
+        run_high_dimensional_acquisition_study(seeds=(101,), ticks=1, reconciliation="other")

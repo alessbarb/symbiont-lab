@@ -202,6 +202,7 @@ class ExperimentRunner:
                 seeds=spec.seeds,
                 ticks=spec.steps,
                 factorized_effects=bool(ablation.get("factorized_effects", False)),
+                reconciliation=str(ablation.get("reconciliation", "recall")),
                 **{key: int(value) for key, value in body.items()},
             )
             raw_metrics = result
@@ -211,6 +212,7 @@ class ExperimentRunner:
                 seeds=spec.seeds,
                 max_ticks=spec.steps,
                 factorized_effects=bool(ablation.get("factorized_effects", False)),
+                reconciliation=str(ablation.get("reconciliation", "recall")),
             )
             raw_metrics = result
         elif spec.protocol == "learning.embodied-behavioral-ablation":

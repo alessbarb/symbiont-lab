@@ -1064,6 +1064,63 @@ def _high_dimensional_metrics(runtime: OrganismRuntime) -> dict[str, Any]:
 _RECURRENCE_SUPPORT = 4
 
 
+_RECONCILIATIONS = ("recall", "chance_corrected")
+
+
+def _reconciliation_options(reconciliation: str) -> dict[str, Any]:
+    """Factorized Effects §16 arms: R (current recall) or AB (rules A and B)."""
+    if reconciliation not in _RECONCILIATIONS:
+        raise ValueError(f"reconciliation must be one of {_RECONCILIATIONS}")
+    if reconciliation == "recall":
+        return {}
+    return {
+        "intention_policy": IntentionPolicy(
+            footprint_satisfaction_rule="chance_corrected",
+            mismatch_known_features_only=True,
+        )
+    }
+
+
+def _intent_terminations(runtime: OrganismRuntime, body: CausalBody) -> Callable[[], dict]:
+    """Collect intent terminations and classify satisfactions against the
+    body's ground truth (evaluator-only): spurious when every matched atom
+    lies on a receptor no actuator drives."""
+    events: list[Any] = []
+    runtime.provenance.subscribe(
+        lambda event: events.append(event) if event.domain == "intention" else None
+    )
+    driven = {
+        receptor
+        for actuator_id in body.surface.actuator_ids
+        for receptor in body.driven_receptors(actuator_id)
+    }
+    identity = runtime._signal_identity
+    receptor_of = {identity.signal_id(receptor): receptor for receptor in body.receptor_ids}
+
+    def summary() -> dict[str, Any]:
+        reasons: dict[str, int] = {}
+        spurious = unmapped = 0
+        for event in events:
+            if event.operation in ("form", "learn", "lift_suppression"):
+                continue
+            key = f"{event.operation}:{event.rule}"
+            reasons[key] = reasons.get(key, 0) + 1
+            if event.operation != "satisfied":
+                continue
+            matched = [a for a in str(event.parameters.get("matched_atoms", "")).split(",") if a]
+            receptors = [receptor_of.get(atom.rsplit("|", 1)[0]) for atom in matched]
+            unmapped += sum(1 for receptor in receptors if receptor is None)
+            if matched and all(r is not None and r not in driven for r in receptors):
+                spurious += 1
+        return {
+            "terminal_reasons": dict(sorted(reasons.items())),
+            "spurious_satisfactions": spurious,
+            "unmapped_matched_atoms": unmapped,
+        }
+
+    return summary
+
+
 def run_high_dimensional_acquisition_study(
     *,
     seeds: Sequence[int] = DEFAULT_SEEDS,
@@ -1072,6 +1129,7 @@ def run_high_dimensional_acquisition_study(
     receptors_per_actuator: int = 4,
     drifting_receptor_count: int = 32,
     factorized_effects: bool = False,
+    reconciliation: str = "recall",
 ) -> dict[str, Any]:
     """E8: does the acquisition -> intent chain engage in a many-receptor body?
 
@@ -1092,19 +1150,34 @@ def run_high_dimensional_acquisition_study(
             body,
             organism_id=f"agency-high-dimensional-{seed}",
             factorized_effects=bool(factorized_effects),
+            **_reconciliation_options(reconciliation),
         )
+        terminations = _intent_terminations(runtime, body)
         _advance(runtime, body, _positive(ticks, "ticks"))
+        metrics = _high_dimensional_metrics(runtime)
+        terminated = metrics["intents_terminated"]
         per_seed.append(
             {
                 "seed": seed,
                 "receptors": len(body.receptor_ids),
-                **_high_dimensional_metrics(runtime),
+                **metrics,
+                "satisfied_rate": metrics["intents_satisfied"] / terminated if terminated else 0.0,
+                **terminations(),
             }
         )
-    keys = [key for key in per_seed[0] if key not in ("seed", "receptors")] if per_seed else []
+    keys = (
+        [
+            key
+            for key, value in per_seed[0].items()
+            if key not in ("seed", "receptors") and not isinstance(value, dict)
+        ]
+        if per_seed
+        else []
+    )
     return {
         "protocol": "learning.agency-high-dimensional-acquisition",
         "factorized_effects": bool(factorized_effects),
+        "reconciliation": reconciliation,
         "seeds": list(resolved),
         "ticks": ticks,
         "body": {
@@ -1178,11 +1251,19 @@ def _traces_to_pulses(runtime: OrganismRuntime, competence_id: str) -> bool:
 
 
 def _closure_seed(
-    seed: int, *, actuator_count: int, max_ticks: int, factorized_effects: bool = False
+    seed: int,
+    *,
+    actuator_count: int,
+    max_ticks: int,
+    factorized_effects: bool = False,
+    reconciliation: str = "recall",
 ) -> dict[str, Any]:
     body = CausalBody(actuator_count=actuator_count, seed=seed)
     runtime = build_subject(
-        body, organism_id=f"agency-e6-{seed}", factorized_effects=factorized_effects
+        body,
+        organism_id=f"agency-e6-{seed}",
+        factorized_effects=factorized_effects,
+        **_reconciliation_options(reconciliation),
     )
     domain = runtime._action_domain
     milestones: dict[str, int | None] = {name: None for name in _MILESTONES}
@@ -1237,6 +1318,7 @@ def run_acquisition_reuse_closure_study(
     actuator_count: int = 4,
     max_ticks: int = 3000,
     factorized_effects: bool = False,
+    reconciliation: str = "recall",
 ) -> dict[str, Any]:
     """E6 release gate: one organism acquires agency, then deliberately reuses it."""
     resolved = _seeds(seeds)
@@ -1246,12 +1328,14 @@ def run_acquisition_reuse_closure_study(
             actuator_count=_positive(actuator_count, "actuator_count"),
             max_ticks=_positive(max_ticks, "max_ticks"),
             factorized_effects=bool(factorized_effects),
+            reconciliation=reconciliation,
         )
         for seed in resolved
     ]
     return {
         "protocol": "learning.agency-acquisition-reuse-closure",
         "factorized_effects": bool(factorized_effects),
+        "reconciliation": reconciliation,
         "seeds": list(resolved),
         "max_ticks": max_ticks,
         "per_seed": per_seed,
