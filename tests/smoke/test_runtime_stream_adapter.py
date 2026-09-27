@@ -585,6 +585,17 @@ def test_body_self_view_has_distinct_knowledge_stability_and_agency_lenses() -> 
     assert "agency:" in self_view
 
 
+def test_body_self_view_uses_active_morphology_not_fixed_humanoid() -> None:
+    self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
+
+    assert "snapshot?.observer_semantics?.body" in self_view
+    assert "morphologySegmentNames(snapshot)" in self_view
+    assert "jointPhysicalSegment(snapshot" in self_view
+    assert "genericMorphologySvg" in self_view
+    assert "morphology.bodyKind !== 'anthropomorphic-v6'" in self_view
+    assert "bodyKind" in self_view
+
+
 def test_body_self_view_composite_encodes_multiple_self_dimensions() -> None:
     self_model = _self_model_source()
     self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
