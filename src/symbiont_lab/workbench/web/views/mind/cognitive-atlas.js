@@ -94,7 +94,7 @@ export function atlasSignals(nodes, edges, tick = 0) {
     );
     const motor = clamp01(
       (node.kind === 'motor_primitive' ? 0.82 : 0) +
-      (['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension', 'action_intent'].includes(node.kind) ? 0.82 : 0) +
+      (['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension', 'intervention_signature', 'action_intent'].includes(node.kind) ? 0.82 : 0) +
       (node.kind === 'readout' && (
         String(node.id).startsWith('readout_motor:') ||
         String(node.id).startsWith('readout_primitive:')
@@ -139,7 +139,7 @@ export function atlasEdgeScore(edge, mode, tick = 0) {
     return clamp01(clamp01(edge.plasticity) * 0.65 + instability * 0.25 + Math.min(1, support / 8) * 0.10);
   }
   if (mode === 'prediction') return edge.kind === 'predictive' ? 1 : edge.kind === 'gating' ? 0.45 : 0.08;
-  if (mode === 'motor') return ['invokes', 'produces', 'requires', 'bound_to'].includes(edge.kind) ? 1 : 0.06;
+  if (mode === 'motor') return ['invokes', 'produces', 'requires', 'bound_to', 'causal_estimate', 'affords', 'intends_with', 'anticipates'].includes(edge.kind) ? 1 : 0.06;
   if (mode === 'anatomy') return atlasEdgeScore(edge, 'structure', tick);
   if (mode === 'dynamics') return clamp01(
     atlasEdgeScore(edge, 'activity', tick) * 0.55 +
@@ -148,9 +148,20 @@ export function atlasEdgeScore(edge, mode, tick = 0) {
   );
   if (mode === 'diff') return 0;
   if (mode === 'evidence') {
-    const support = Math.min(1, Math.log1p(Math.max(0, finite(edge.support, 0))) / 8);
+    const support = Math.min(1, Math.log1p(Math.max(0, finite(edge.support ?? edge.action_support, 0))) / 8);
     const stable = Math.min(1, Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / 9);
+    const confidence = clamp01(edge.confidence ?? edge.evidence?.confidence ?? 0);
+    const counterfactual = Math.min(1, Math.log1p(Math.max(0, finite(edge.counterfactualSupport ?? edge.counterfactual_support, 0))) / 8);
+    if (edge.kind === 'causal_estimate') {
+      return clamp01(confidence * 0.46 + support * 0.29 + counterfactual * 0.25);
+    }
     return clamp01(support * 0.55 + stable * 0.45);
+  }
+  if (edge.kind === 'causal_estimate') {
+    return clamp01(
+      clamp01(edge.confidence ?? edge.evidence?.confidence ?? 0) * 0.62 +
+      Math.min(1, Math.log1p(Math.max(0, finite(edge.support ?? edge.action_support, 0))) / 8) * 0.38
+    );
   }
   return clamp01(Math.abs(finite(edge.weight, 0)) * 0.35 + Math.min(1, Math.log1p(Math.max(0, finite(edge.support, 0))) / 8) * 0.65);
 }
@@ -256,7 +267,7 @@ export function cognitivePath(startId, nodes, edges, maxDepth = 10) {
   if (!start) return null;
 
   const motorTarget = node => node?.kind === 'motor_primitive' ||
-    ['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension', 'action_intent'].includes(node?.kind) || (
+    ['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension', 'intervention_signature', 'action_intent'].includes(node?.kind) || (
       node?.kind === 'readout' && (
         String(node.id).startsWith('readout_motor:') ||
         String(node.id).startsWith('readout_primitive:')
