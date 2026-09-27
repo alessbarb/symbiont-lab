@@ -271,6 +271,7 @@ export function createCognitionController({
       controller: '#c9a0ff',
       body_schema: '#6fd6c4',
       action_dimension: '#ffd166',
+      action_intent: '#ff5d73',
     };
     const baseRadiusMap = {
       sense: 5.2,
@@ -286,6 +287,7 @@ export function createCognitionController({
       controller: 7.0,
       body_schema: 5.8,
       action_dimension: 5.0,
+      action_intent: 9.0,
     };
   
     const rawNodes = completeTopology.nodes.map(n => {
@@ -670,6 +672,14 @@ export function createCognitionController({
       activeEffectors: tel.activeEffectors,
       jointMotion: tel.jointMotion,
       regionEvents: graph.regionEvents,
+      agency: (() => {
+        const agencySource = graph.replaySnapshot ?? snap;
+        return {
+          acquisition: agencySource.agency_acquisition ?? null,
+          affordances: agencySource.affordances ?? [],
+          executive: agencySource.executive_intention ?? null,
+        };
+      })(),
     });
     recordCognitiveFrame(graph, liveFrame);
     renderCognitiveLivePanels(graph);

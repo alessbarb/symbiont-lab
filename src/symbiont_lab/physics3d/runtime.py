@@ -1843,6 +1843,7 @@ class PyBulletEmbodimentRuntime:
         prospective_reason = (
             prospective_decision.reason if prospective_decision is not None else None
         )
+        agency_observation = self.organism.agency_observation
         prospective_payload = {
             "reason": prospective_reason,
             "candidate_count": int(self.organism.last_prospective_query_count),
@@ -2040,18 +2041,26 @@ class PyBulletEmbodimentRuntime:
                 }
                 for item in self.organism.effect_representations
             ],
-            "action_dimensions": [
-                {
-                    "dimension_id": item.dimension_id,
-                    "actuator_slot_id": item.actuator_slot_id,
-                    "availability": item.availability,
-                    "controllability": item.controllability,
-                    "confidence": item.confidence,
-                    "usage_count": item.usage_count,
-                    "embodiment_bound": item.embodiment_bound,
-                }
-                for item in self.organism.action_dimensions
-            ],
+            "action_dimensions": agency_observation["action_dimensions"],
+            "agency_acquisition": {
+                key: agency_observation[key]
+                for key in (
+                    "physical_motor_opportunities",
+                    "action_attempt_count",
+                    "recent_attempts",
+                    "intervention_signatures",
+                    "intervention_signature_count",
+                    "recurring_intervention_signature_count",
+                    "causal_relation_count",
+                    "causal_evidence_count",
+                    "passive_window_count",
+                )
+            },
+            "affordances": agency_observation["affordances"],
+            "executive_intention": {
+                **agency_observation["executive"],
+                "trace": agency_observation["trace"],
+            },
             "outcome": {
                 "initial_resource_distance": float(self._initial_resource_distance),
                 "minimum_resource_distance": float(self._minimum_resource_distance),

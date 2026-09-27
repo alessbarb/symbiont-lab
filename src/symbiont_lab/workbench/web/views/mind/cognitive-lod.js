@@ -103,6 +103,7 @@ export function atlasVisibleNodeIds(
     'controller',
     'body_schema',
     'action_dimension',
+    'action_intent',
     'embodiment_binding',
   ]);
   for (const node of nodes) {

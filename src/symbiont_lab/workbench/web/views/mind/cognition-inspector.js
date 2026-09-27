@@ -193,6 +193,24 @@ export function createCognitionInspector({
         inspectorMetric(motorGroup, 'Confidence', finiteNumber(selected.confidence, 0).toFixed(3));
         inspectorMetric(motorGroup, 'Embodiment bound', selected.embodimentBound ? 'yes' : 'no', selected.embodimentBound ? PAL.mint : PAL.muted);
       }
+      if (selected.kind === 'action_dimension') {
+        const acquisitionGroup = inspectorGroup(panel, 'Acquisition', true);
+        inspectorMetric(acquisitionGroup, 'Agentic', selected.agentic ? 'yes' : 'no', selected.agentic ? PAL.mint : PAL.muted);
+        inspectorMetric(acquisitionGroup, 'Intervention families', selected.interventionSignatureCount ?? selected.intervention_signature_count ?? 0);
+        inspectorMetric(acquisitionGroup, 'Channels spanned', selected.channelCount ?? selected.channel_count ?? 0);
+        inspectorMetric(acquisitionGroup, 'Attempt support', selected.usageCount ?? selected.usage_count ?? 0);
+      }
+      if (selected.kind === 'action_intent') {
+        const executiveGroup = inspectorGroup(panel, 'Executive', true);
+        inspectorMetric(executiveGroup, 'Status', selected.status ?? 'unknown', PAL.cyan);
+        inspectorMetric(executiveGroup, 'Competence', selected.competenceId ?? selected.competence_id ?? '—');
+        inspectorMetric(executiveGroup, 'Anticipated effect', selected.anticipatedEffectId ?? selected.anticipated_effect_id ?? '—');
+        inspectorMetric(executiveGroup, 'Admission', selected.admission ?? '—');
+        inspectorMetric(executiveGroup, 'Age', `${finiteNumber(selected.age, 0)} ticks`);
+        inspectorMetric(executiveGroup, 'Last progress', `${finiteNumber(selected.lastProgressAge ?? selected.last_progress_age, 0)} ticks ago`);
+        inspectorMetric(executiveGroup, 'Confidence', finiteNumber(selected.confidence, 0).toFixed(3), PAL.mint);
+        inspectorMetric(executiveGroup, 'Commitment', selected.commitmentId ?? selected.commitment_id ?? '—');
+      }
       if (selected.kind === 'embodiment_binding') {
         const embodimentGroup = inspectorGroup(panel, 'Embodiment', true);
         inspectorMetric(embodimentGroup, 'Surface fingerprint', selected.surfaceFingerprint ?? 'unresolved', PAL.cyan);

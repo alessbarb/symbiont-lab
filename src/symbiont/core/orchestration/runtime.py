@@ -1049,8 +1049,14 @@ class OrganismRuntime:
         return self._action_domain.snapshot(
             body_schema_sensorimotor_relations=(
                 self._body_schema.sensorimotor_dependency_evidence_count
-            )
+            ),
+            tick=self._tick_count,
         )
+
+    @property
+    def agency_observation(self) -> dict[str, Any]:
+        """Passive outward view of agency acquisition and executive state."""
+        return self._action_domain.observation_view(tick=self._tick_count)
 
     @property
     def motor_competences(self) -> tuple[MotorCompetence, ...]:

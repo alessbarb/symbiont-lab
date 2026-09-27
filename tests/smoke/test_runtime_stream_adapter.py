@@ -324,7 +324,7 @@ def test_physics3d_rich_state_projects_action_dimensions() -> None:
             "action_dimensions": [
                 {
                     "dimension_id": "action.dimension.aaaa",
-                    "actuator_slot_id": "slot.0",
+                    "agentic": False,
                     "availability": True,
                     "controllability": 0.4,
                     "confidence": 0.3,
@@ -338,6 +338,21 @@ def test_physics3d_rich_state_projects_action_dimensions() -> None:
     assert snapshot["action_dimensions"][0]["dimension_id"] == "action.dimension.aaaa"
     assert snapshot["action_dimensions"][0]["usage_count"] == 5
     assert "action_dimensions" in snapshot["provenance"]["organismFacts"]
+
+
+def test_physics3d_rich_state_projects_agency_and_executive_state() -> None:
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 43,
+            "agency_acquisition": {"physical_motor_opportunities": 4, "action_attempt_count": 7},
+            "affordances": [{"affordance_id": "affordance.1", "competence_id": "competence.1"}],
+            "executive_intention": {"active": None, "counts": {"satisfied": 0}, "trace": None},
+        }
+    )
+    facts = snapshot["provenance"]["organismFacts"]
+    assert {"agency_acquisition", "affordances", "executive_intention"} <= set(facts)
+    assert snapshot["agency_acquisition"]["action_attempt_count"] == 7
+    assert snapshot["affordances"][0]["affordance_id"] == "affordance.1"
 
 
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
@@ -1771,8 +1786,7 @@ def test_mind_snapshot_publishes_canonical_atlas_v2() -> None:
     assert atlas["schema_version"] == 2
     assert atlas["tick"] == 42
     assert any(
-        node["id"] == "action.dimension.aaaa"
-        and node["kind"] == "action_dimension"
+        node["id"] == "action.dimension.aaaa" and node["kind"] == "action_dimension"
         for node in atlas["nodes"]
     )
     assert "atlas" in snapshot["provenance"]["observerDerived"]
@@ -1788,7 +1802,9 @@ def test_live_atlas_prefers_canonical_projection_and_preserves_motor_metadata() 
     assert "source.atlas?.schema_version === 2" in controller
     assert "const topology = canonicalAtlas" in controller
     assert "...n," in controller
-    assert "motorCompetences: rawNodes.filter(node => node.kind === 'motor_competence')" in controller
+    assert (
+        "motorCompetences: rawNodes.filter(node => node.kind === 'motor_competence')" in controller
+    )
 
 
 def test_atlas_meso_lod_keeps_first_class_motor_and_body_knowledge_visible() -> None:
@@ -1807,9 +1823,7 @@ def test_atlas_meso_lod_keeps_first_class_motor_and_body_knowledge_visible() -> 
 
 
 def test_physicalized_atlas_exposes_physical_motor_layer_without_leaking_into_relational() -> None:
-    cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(
-        encoding="utf-8"
-    )
+    cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
     controller = (WEB_ROOT / "views" / "mind" / "cognition-controller.js").read_text(
         encoding="utf-8"
     )

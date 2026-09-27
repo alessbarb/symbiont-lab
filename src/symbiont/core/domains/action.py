@@ -1869,9 +1869,11 @@ class ActionDomain:
         self,
         *,
         body_schema_sensorimotor_relations: int = 0,
+        tick: int = 0,
     ) -> SensorimotorV2Snapshot | None:
         if not self.enabled:
             return None
+        intent = self.intention.active if self.intention.holds_intent else None
         legacy = (
             self._competence_development.snapshot()
             if self._competence_development is not None
@@ -1905,6 +1907,27 @@ class ActionDomain:
             action_source=self.last_action_source,
             exploration_preference=self.active_exploration_preference,
             mean_learning_progress=sum(progress) / len(progress) if progress else 0.0,
+            physical_motor_opportunity_count=(
+                len(self.surface.actuator_ids) if self.surface is not None else 0
+            ),
+            action_attempt_count=self.acquisition.attempt_count,
+            intervention_signature_count=len(self.intervention_signatures.items),
+            recurring_intervention_signature_count=self.intervention_signatures.recurring_count,
+            action_dimension_count=len(self.action_dimensions.items),
+            agentic_action_dimension_count=len(self.acquisition.agentic_dimension_ids()),
+            affordance_count=len(self.last_affordances),
+            active_intent_id=intent.intent_id if intent is not None else None,
+            active_intent_status=intent.status.value if intent is not None else None,
+            active_intent_age=self.intention.age(tick) if intent is not None else None,
+            active_intent_last_progress_age=(
+                self.intention.last_progress_age(tick) if intent is not None else None
+            ),
+            intent_satisfied_count=self.intention.counts[IntentStatus.SATISFIED],
+            intent_failed_count=self.intention.counts[IntentStatus.FAILED],
+            intent_rejected_count=self.intention.counts[IntentStatus.REJECTED],
+            intent_interrupted_count=self.intention.counts[IntentStatus.INTERRUPTED],
+            intent_invalidated_count=self.intention.counts[IntentStatus.INVALIDATED],
+            intent_prediction_match=self.intention.last_prediction_match,
         )
 
     def restore_v2(
@@ -2109,6 +2132,162 @@ class ActionDomain:
             and self.composition_predecessor_id not in known_competences
         ):
             self.composition_predecessor_id = None
+
+    def action_trace(self) -> dict[str, Any] | None:
+        """Why did the body move? Causal chain of the latest observed attempt (§62-§63, §86-§87).
+
+        Reconstructed only from organism-owned records; nothing is narrated.
+        """
+        attempt = self.acquisition.last_attempt
+        if attempt is None:
+            return None
+        trace = self.trace_action(attempt.motor_command_ref)
+        held = self.intention.active
+        intent = (
+            held
+            if held is not None and self.intention.active_commitment_id == attempt.commitment_id
+            else None
+        )
+        outcome = next(
+            (
+                item
+                for item in reversed(self.intention.recent_outcomes)
+                if item.commitment_id == attempt.commitment_id
+            ),
+            None,
+        )
+        intent_id = (
+            intent.intent_id
+            if intent is not None
+            else (outcome.intent_id if outcome is not None else None)
+        )
+        transition = self.last_transition
+        observed = (
+            transition
+            if transition is not None and transition.attempt_id == attempt.attempt_id
+            else None
+        )
+        return {
+            "intent_id": intent_id,
+            "intent_status": (
+                intent.status.value
+                if intent is not None
+                else (outcome.status.value if outcome is not None else None)
+            ),
+            "origin_refs": list(intent.origin_refs) if intent is not None else [],
+            "affordance_id": intent.supporting_affordance_id if intent is not None else None,
+            "source": "cognitive_intent" if intent_id is not None else "no_intent",
+            "proposal_id": trace.proposal_id if trace is not None else None,
+            "commitment_id": attempt.commitment_id,
+            "competence_id": attempt.competence_id,
+            "command_id": attempt.motor_command_ref,
+            "attempt_id": attempt.attempt_id,
+            "intervention_signature_id": attempt.intervention_signature_id,
+            "transition_id": observed.transition_id if observed is not None else None,
+            "observed_effect_id": observed.observed_effect_id if observed is not None else None,
+            "match": outcome.effect_similarity if outcome is not None else None,
+            "result": outcome.status.value if outcome is not None else None,
+        }
+
+    def observation_view(self, *, tick: int) -> dict[str, Any]:
+        """Bounded passive projection for Observatory; never read back by cognition."""
+        agentic = set(self.acquisition.agentic_dimension_ids())
+        intent = self.intention.active if self.intention.holds_intent else None
+        signatures = sorted(
+            self.intervention_signatures.items,
+            key=lambda item: (
+                -self.intervention_signatures.attempt_support(item.signature_id),
+                item.signature_id,
+            ),
+        )[:64]
+        return {
+            "physical_motor_opportunities": (
+                len(self.surface.actuator_ids) if self.surface is not None else 0
+            ),
+            "action_attempt_count": self.acquisition.attempt_count,
+            "recent_attempts": [
+                {
+                    "attempt_id": item.attempt_id,
+                    "commitment_id": item.commitment_id,
+                    "competence_id": item.competence_id,
+                    "intervention_signature_id": item.intervention_signature_id,
+                    "motor_command_ref": item.motor_command_ref,
+                    "started_tick": item.started_tick,
+                    "completed_tick": item.completed_tick,
+                }
+                for item in list(self.acquisition.recent_attempts)[-16:]
+            ],
+            "intervention_signatures": [
+                {
+                    "signature_id": item.signature_id,
+                    "dimensionality": item.dimensionality,
+                    "temporal": item.temporal_pattern_ref is not None,
+                    "attempts": self.intervention_signatures.attempt_support(item.signature_id),
+                }
+                for item in signatures
+            ],
+            "intervention_signature_count": len(self.intervention_signatures.items),
+            "recurring_intervention_signature_count": (
+                self.intervention_signatures.recurring_count
+            ),
+            "action_dimensions": [
+                {
+                    "dimension_id": item.dimension_id,
+                    "intervention_signature_count": len(item.intervention_signature_refs),
+                    "channel_count": len(self.action_dimensions.channel_refs(item.dimension_id)),
+                    "availability": item.availability,
+                    "controllability": item.controllability,
+                    "confidence": item.confidence,
+                    "usage_count": item.usage_count,
+                    "embodiment_bound": item.embodiment_bound,
+                    "agentic": item.dimension_id in agentic,
+                }
+                for item in self.action_dimensions.items
+            ],
+            "causal_relation_count": len(self.controllability_model.estimates),
+            "causal_evidence_count": len(self.causal_evidence.intervention_evidence),
+            "passive_window_count": len(self.causal_evidence.passive_evidence),
+            "affordances": [
+                {
+                    "affordance_id": item.affordance_id,
+                    "competence_id": item.competence_id,
+                    "anticipated_effect_id": item.anticipated_effect_id,
+                    "prediction_confidence": item.prediction_confidence,
+                    "controllability": item.controllability,
+                    "executability_confidence": item.executability_confidence,
+                }
+                for item in self.last_affordances
+            ],
+            "executive": {
+                "active": (
+                    {
+                        **intent.checkpoint(),
+                        "age": self.intention.age(tick),
+                        "last_progress_age": self.intention.last_progress_age(tick),
+                        "commitment_id": self.intention.active_commitment_id,
+                    }
+                    if intent is not None
+                    else None
+                ),
+                "outcomes": [
+                    {
+                        "intent_id": item.intent_id,
+                        "competence_id": item.competence_id,
+                        "anticipated_effect_id": item.anticipated_effect_id,
+                        "status": item.status.value,
+                        "reason": item.reason,
+                        "tick": item.tick,
+                        "commitment_id": item.commitment_id,
+                        "observed_effect_id": item.observed_effect_id,
+                        "effect_similarity": item.effect_similarity,
+                    }
+                    for item in self.intention.recent_outcomes
+                ],
+                "counts": {status.value: count for status, count in self.intention.counts.items()},
+                "prediction_match": self.intention.last_prediction_match,
+            },
+            "trace": self.action_trace(),
+        }
 
     def restore_intention(self, payload: Mapping[str, Any] | None, *, tick: int) -> None:
         """Restore the live intent; one whose commitment did not survive is invalidated."""
