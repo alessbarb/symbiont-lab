@@ -347,3 +347,29 @@ fresh copy of the owner's organism (1500 ticks) and recompute §12: per-channel
 footprints, their stability across halves, passive-window count, and whether
 any dimension and competence would ground. Implementation of §4-§9 and §13
 proceeds only if footprints form and hold.
+
+### 13.4 First probing spike (2026-09-27)
+
+Probing implemented on the throwaway branch `spike/causal-probing`
+(probing share 0.5, 4 repeats, `rest 4 / pulse 6 / rest 4 / pulse 6 /
+rest 4`), recorded on a fresh copy of the owner's organism (run stopped at
+1032 transitions).
+
+- Probing does what it should: 100% of attempts drive a single channel and
+  passive windows rise from 5 to 255.
+- **Per-tick attribution still fails** (0 channel footprints): a sustained
+  pulse changes the body mostly at its onset, so each of its 6 tick-level
+  attempts hits a caused atom only ~15% of the time (e.g. 0.17 vs 0.00 at
+  rest), below the agentic threshold.
+- **Pulse-level attribution works**: taking the atoms accumulated over each
+  pulse against rest windows of the same length, both channels with at least
+  4 pulses form footprints, with atoms at 0.69 vs 0.04 and 0.57 vs 0.02.
+- Coverage is the open question: in ~1000 ticks only 2 of 62 channels got
+  4+ pulses.
+
+Design consequence: the unit of attribution for probing is the **pulse**, i.e.
+the exploration commitment — Agency v1 already keeps commitment-level evidence
+and temporal commitment families (§77-§79). Footprints are estimated from
+commitment-level atom sets against equal-length quiet windows. A longer spike
+(6000 ticks) measures per-channel coverage and footprint stability before
+implementation of §4-§9 and §13.
