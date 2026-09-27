@@ -585,6 +585,28 @@ def test_body_self_view_has_distinct_knowledge_stability_and_agency_lenses() -> 
     assert "agency:" in self_view
 
 
+def test_body_viewer_tolerates_null_prediction_error() -> None:
+    viewer = (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8")
+
+    assert "const predictionError = Number(data.prediction_error)" in viewer
+    assert "Number.isFinite(predictionError)" in viewer
+    assert "data.prediction_error.toFixed" not in viewer
+
+
+def test_body_self_view_development_survives_morphology_changes() -> None:
+    self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
+    self_model = _self_model_source()
+
+    assert "const names = new Set([...current.keys(), ...previous.keys()])" in self_view
+    assert "current.get(segment) ?? empty(segment)" in self_view
+    assert "previous.get(segment) ?? empty(segment)" in self_view
+    assert "result.morphology = current.morphology" in self_view
+    assert "previousBodyKind" in self_model
+    assert "currentBodyKind" in self_model
+    assert "previousBodyKind !== currentBodyKind" in self_model
+    assert "this.selfViewDevelopment = []" in self_model
+
+
 def test_body_self_view_uses_active_morphology_not_fixed_humanoid() -> None:
     self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
 
