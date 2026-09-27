@@ -20,6 +20,11 @@ _PRIMITIVE_TICKS = 4
 # actually be observed independently.
 _EVIDENCE_BLOCK_TICKS = 8
 _EXPLORATION_BOUT_TICKS = 24
+# Causal probing (Factorized Effect Representation v1 §13): within a probing
+# epoch one exploration unit is pulsed; every other tick emits nothing, which
+# makes it a genuine passive (no-intervention) window.
+_PROBE_PULSE_PHASES = frozenset((*range(4, 10), *range(14, 20)))
+_PROBE_REPEATS = 4
 # Safety ceilings. Similar motor chunks are already folded into recurring
 # sequence families by _matched_primitive_sequence; these bounds should not
 # become the organism's effective motor-development ceiling.
@@ -376,6 +381,7 @@ class CompetenceDevelopmentEngine:
         smoothing: float = 0.28,
         exclusive_actuator_groups: Sequence[Sequence[str]] | None = None,
         embodiment_fingerprint: str | None = None,
+        probing_share: float = 0.0,
     ) -> None:
         ids = tuple(str(value) for value in actuator_ids)
         if not ids or len(ids) != len(set(ids)):
@@ -394,6 +400,8 @@ class CompetenceDevelopmentEngine:
             raise ValueError("max_concurrent must be a positive int or None")
         if not 0.0 < float(smoothing) <= 1.0:
             raise ValueError("smoothing must be within (0, 1]")
+        if not 0.0 <= float(probing_share) <= 1.0:
+            raise ValueError("probing_share must be within [0, 1]")
 
         self._ids = ids
         self._organism_id = str(organism_id)
@@ -438,6 +446,9 @@ class CompetenceDevelopmentEngine:
         self._use_counts = {aid: 0 for aid in ids}
         self._exploration_epoch = -1
         self._exploration_ids: tuple[str, ...] = ()
+        self._probing_share = float(probing_share)
+        self._probe_unit: tuple[str, ...] | None = None
+        self._probe_remaining = 0
 
         self._frames: deque[_Frame] = deque(maxlen=max(_HORIZONS) + _PRIMITIVE_TICKS + 2)
         self._horizon_stats: dict[tuple[int, MotorPattern], _RunningStat] = {}
@@ -696,6 +707,56 @@ class CompetenceDevelopmentEngine:
         cardinality = round(math.exp(unit * math.log(float(self._max_concurrent))))
         return max(1, min(self._max_concurrent, cardinality))
 
+    def is_probing_epoch(self, epoch: int) -> bool:
+        """Organism-owned, deterministic choice of a probing epoch (§13.1)."""
+        if self._probing_share <= 0.0:
+            return False
+        digest = hashlib.sha256(
+            f"sensorimotor-probe-kind:{self._organism_id}:{epoch}".encode("utf-8")
+        ).digest()
+        return int.from_bytes(digest[:8], "big") / float((1 << 64) - 1) < self._probing_share
+
+    def _probe_vector(self, tick: int, preferred: tuple[str, ...]) -> dict[str, float]:
+        """Pulse one exploration unit; rest ticks emit no command at all."""
+        epoch = tick // _EXPLORATION_BOUT_TICKS
+        if epoch != self._exploration_epoch:
+            unit = self._probe_unit
+            if unit is None or self._probe_remaining <= 0:
+                wanted = [
+                    item for item in self._exploration_units if any(a in preferred for a in item)
+                ]
+                unit = min(
+                    wanted or self._exploration_units,
+                    key=lambda item: (
+                        min(self._use_counts[a] for a in item),
+                        -min(self._hash_unit(a, epoch) for a in item),
+                        item,
+                    ),
+                )
+                self._probe_unit = unit
+                self._probe_remaining = _PROBE_REPEATS
+            self._probe_remaining -= 1
+            actuator_id = min(
+                unit,
+                key=lambda value: (
+                    self._use_counts[value],
+                    -self._hash_unit(value, epoch),
+                    value,
+                ),
+            )
+            self._exploration_ids = (actuator_id,)
+            self._exploration_epoch = epoch
+            for item in self._ids:
+                self._levels[item] = 0.0
+        actuator_id = self._exploration_ids[0]
+        if tick % _EXPLORATION_BOUT_TICKS in _PROBE_PULSE_PHASES:
+            level = self._target_for(actuator_id, tick)
+            self._levels[actuator_id] = level
+            self._use_counts[actuator_id] += 1
+            return {actuator_id: level}
+        self._levels[actuator_id] = 0.0
+        return {}
+
     def _exploration_vector(
         self,
         tick: int,
@@ -706,6 +767,8 @@ class CompetenceDevelopmentEngine:
         valid_preference = tuple(
             actuator_id for actuator_id in preferred_actuator_ids if actuator_id in self._use_counts
         )
+        if self.is_probing_epoch(epoch):
+            return self._probe_vector(tick, valid_preference)
         preference_changed = bool(
             valid_preference and not set(valid_preference).intersection(self._exploration_ids)
         )
@@ -1279,6 +1342,9 @@ class CompetenceDevelopmentEngine:
             "use_counts": dict(self._use_counts),
             "exploration_epoch": self._exploration_epoch,
             "exploration_ids": list(self._exploration_ids),
+            "probing_share": self._probing_share,
+            "probe_unit": list(self._probe_unit) if self._probe_unit is not None else None,
+            "probe_remaining": self._probe_remaining,
             "frame_history": [
                 {
                     "tick": frame.tick,
@@ -1447,6 +1513,24 @@ class CompetenceDevelopmentEngine:
                 # next-step state.  Dropping them on restore changes the
                 # motor trajectory even when every learned statistic matches.
                 learner._exploration_ids = restored_ids
+        # Causal probing state (absent before probing existed: probing off).
+        raw_share = payload.get("probing_share", 0.0)
+        if isinstance(raw_share, bool) or not isinstance(raw_share, (int, float)):
+            raise ValueError("invalid probing share")
+        if not 0.0 <= float(raw_share) <= 1.0:
+            raise ValueError("invalid probing share")
+        learner._probing_share = float(raw_share)
+        raw_unit = payload.get("probe_unit")
+        if isinstance(raw_unit, list) and tuple(str(v) for v in raw_unit) in set(
+            learner._exploration_units
+        ):
+            learner._probe_unit = tuple(str(v) for v in raw_unit)
+            learner._probe_remaining = _require_int(
+                payload.get("probe_remaining", 0),
+                field="probe_remaining",
+                minimum=0,
+                maximum=_PROBE_REPEATS,
+            )
 
         raw_horizon_stats = payload.get("horizon_stats", [])
         if isinstance(raw_horizon_stats, list):

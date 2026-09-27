@@ -313,8 +313,9 @@ passive windows almost never occur.
 ### 13.1 Probing bouts
 
 Exploration epochs are of two kinds, chosen deterministically per epoch by an
-organism-owned hash at a **probing share** (proposed 0.5, scaled by the
-existing exploration drive; no developmental mode):
+organism-owned hash at a **probing share** (proposed 0.5; no developmental
+mode). The existing exploration drive already decides how often exploration
+wins arbitration; probing only changes what exploration emits when it does:
 
 - **coordination epochs** — the current behaviour, unchanged, so recurrent
   multi-channel synergies still arise;
@@ -373,3 +374,10 @@ and temporal commitment families (§77-§79). Footprints are estimated from
 commitment-level atom sets against equal-length quiet windows. A longer spike
 (6000 ticks) measures per-channel coverage and footprint stability before
 implementation of §4-§9 and §13.
+
+### 13.5 Probing in main (off by default)
+
+`CompetenceDevelopmentEngine(probing_share=...)` implements §13.1 in `main`
+with `probing_share = 0.0` by default, so organisms and studies are unchanged
+until attribution (§4-§9) lands. Probe state (share, unit, remaining repeats)
+is checkpointed; older checkpoints restore with probing off.
