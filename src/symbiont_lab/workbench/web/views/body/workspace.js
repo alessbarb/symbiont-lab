@@ -1,9 +1,10 @@
 import { escapeHtml } from '../shared/dom.js';
+import { SelfModelWorkspace } from './self-model.js';
 
 /**
  * BODY research workspace.
  *
- * Observer-only presentation layer: six coordinated views over the existing
+ * Observer-only presentation layer: seven coordinated views over the existing
  * Physics3D telemetry. Nothing in this module writes back to Symbiont.
  */
 
@@ -14,6 +15,7 @@ const TABS = [
   ['physiology', 'Physiology'],
   ['interaction', 'Interaction'],
   ['history', 'History'],
+  ['self-model', 'Self-Model'],
 ];
 
 const METRIC_LABELS = {
@@ -93,6 +95,7 @@ export class BodyWorkspace {
     this.overlay = null;
     this.overlayContent = null;
     this.renderQueued = false;
+    this.selfModel = new SelfModelWorkspace();
   }
 
   mount(root, canvasWrap, panel) {
@@ -138,7 +141,7 @@ export class BodyWorkspace {
       button.tabIndex = active ? 0 : -1;
     });
     this.panel?.setAttribute('aria-labelledby', `body-tab-${tab}`);
-    const dataView = tab === 'physiology' || tab === 'history';
+    const dataView = tab === 'physiology' || tab === 'history' || tab === 'self-model';
     this.overlay?.classList.toggle('visible', dataView);
     if (tab !== 'anatomy') this.clearSegmentHighlight();
     this.viewer.setObserverMode?.(tab);
@@ -185,6 +188,12 @@ export class BodyWorkspace {
 
   m(id, fallback = '—') { return this.metrics.get(id) ?? fallback; }
 
+  updateSelfModelSnapshot(snapshot) {
+    this.selfModel.update(snapshot);
+    if (this.activeTab === 'self-model') this.requestRender();
+  }
+
+
   render() {
     if (!this.panel) return;
     if (this.activeTab === 'overview') this.renderOverview();
@@ -193,6 +202,7 @@ export class BodyWorkspace {
     else if (this.activeTab === 'interaction') this.renderInteraction();
     else if (this.activeTab === 'physiology') this.renderPhysiology();
     else if (this.activeTab === 'history') this.renderHistory();
+    else if (this.activeTab === 'self-model') this.renderSelfModel();
   }
 
   head(kicker, title, sub) {
@@ -347,6 +357,11 @@ export class BodyWorkspace {
       `<div class="body-section"><div class="body-row"><span>Captured frames</span><strong>${this.history.length}</strong></div><div class="body-row"><span>Episodes</span><strong>${episodes.length}</strong></div></div>`;
   }
 
+  renderSelfModel() {
+    if (!this.overlayContent || !this.panel) return;
+    this.selfModel.render(this.overlayContent, this.panel);
+  }
+
   dispose() {
     this.clearSegmentHighlight();
     this.nav?.remove();
@@ -356,5 +371,6 @@ export class BodyWorkspace {
     this.overlayContent = null;
     this.panel = null;
     this.history = [];
+    this.selfModel = new SelfModelWorkspace();
   }
 }
