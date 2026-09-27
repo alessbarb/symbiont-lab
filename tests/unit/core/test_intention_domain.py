@@ -15,6 +15,7 @@ from symbiont.core.domains.intention import (
     PROTECTION_TAKES_PRIORITY,
     REPEATED_HIGH_MISMATCH,
     IntentionDomain,
+    IntentionPolicy,
 )
 from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
@@ -261,6 +262,80 @@ def test_footprint_expectation_survives_checkpoint():
     _observe_atoms(domain, ("signal.a|+1", "signal.b|+1"), tick=2)
     restored = IntentionDomain.restore(domain.checkpoint(), organism_id="organism.i")
     outcome = _observe_atoms(restored, ("signal.d|+1",), tick=3)
+    assert outcome is not None and outcome.status is IntentStatus.SATISFIED
+
+
+_AB = IntentionPolicy(
+    footprint_satisfaction_rule="chance_corrected", mismatch_known_features_only=True
+)
+
+
+def _chance_intent(atoms, rates, *, policy=_AB):
+    domain = IntentionDomain(organism_id="organism.i", policy=policy)
+    _active(domain)
+    domain.expect_atoms(atoms, rates)
+    return domain
+
+
+def test_chance_corrected_satisfies_a_rare_member_but_not_a_common_one():
+    rare = _chance_intent(("signal.a|+1",), {"signal.a|+1": 0.01})
+    outcome = _observe_atoms(rare, ("signal.a|+1",), tick=2)
+    assert outcome is not None and outcome.status is IntentStatus.SATISFIED
+
+    # Quiet produces this change 30% of windows: one sighting is not evidence.
+    common = _chance_intent(("signal.a|+1",), {"signal.a|+1": 0.3})
+    assert _observe_atoms(common, ("signal.a|+1",), tick=2) is None
+
+
+def test_chance_corrected_closes_partial_footprints_that_recall_cannot():
+    atoms = ("signal.a|+1", "signal.b|+1", "signal.c|-1", "signal.d|+1")
+    rates = dict.fromkeys(atoms, 0.01)
+    domain = _chance_intent(atoms, rates)
+    assert _observe_atoms(domain, ("signal.a|+1",), tick=2) is None  # 1/4: LB below chance
+    outcome = _observe_atoms(domain, ("signal.b|+1",), tick=3)  # 2/4 vs ~2% by chance
+    assert outcome is not None and outcome.status is IntentStatus.SATISFIED
+
+    recall = _chance_intent(atoms, rates, policy=IntentionPolicy())
+    _observe_atoms(recall, ("signal.a|+1",), tick=2)
+    assert _observe_atoms(recall, ("signal.b|+1",), tick=3) is None  # recall 0.5 < 0.75
+
+
+def test_chance_corrected_needs_a_quiet_baseline():
+    domain = _chance_intent(("signal.a|+1",), {})
+    assert _observe_atoms(domain, ("signal.a|+1",), tick=2) is None
+
+
+def test_mismatch_ignores_features_no_footprint_claims():
+    known = frozenset({"signal.a"})
+
+    def observe(domain, tick):
+        return domain.observe_effect(
+            observed_effect_id="effect.whole",
+            prediction_error=None,
+            effect_similarity=0.0,
+            tick=tick,
+            commitment_id="commitment.k",
+            commitment_status=CommitmentStatus.ACTIVE,
+            competence_executable=True,
+            embodiment_id="e1",
+            observed_atoms=("drift.x|+1",),
+            known_features=known,
+        )
+
+    ab = _chance_intent(("signal.a|+1",), {"signal.a|+1": 0.01})
+    assert all(observe(ab, tick) is None for tick in range(2, 8))  # drift is not evidence
+
+    plain = _chance_intent(("signal.a|+1",), {"signal.a|+1": 0.01}, policy=IntentionPolicy())
+    outcomes = [observe(plain, tick) for tick in range(2, 5)]
+    assert outcomes[-1] is not None and outcomes[-1].status is IntentStatus.FAILED
+
+
+def test_chance_state_survives_checkpoint():
+    atoms = ("signal.a|+1", "signal.b|+1", "signal.c|-1", "signal.d|+1")
+    domain = _chance_intent(atoms, dict.fromkeys(atoms, 0.01))
+    _observe_atoms(domain, ("signal.a|+1",), tick=2)
+    restored = IntentionDomain.restore(domain.checkpoint(), organism_id="organism.i", policy=_AB)
+    outcome = _observe_atoms(restored, ("signal.b|+1",), tick=3)
     assert outcome is not None and outcome.status is IntentStatus.SATISFIED
 
 

@@ -277,6 +277,33 @@ class AgencyAcquisition:
             )
         )
 
+    def footprint_quiet_rates(self, effect_id: str) -> dict[str, float]:
+        """Per-window quiet rate of each expected change key of a footprint
+        effect (§16.2). Keys whose members have no quiet baseline are absent;
+        several atoms on one key keep the highest (most conservative) rate."""
+        source = self._footprint_effect_sources.get(effect_id)
+        if source is None:
+            return {}
+        _, _, estimates, _ = self._footprint_union(source)
+        rates: dict[str, float] = {}
+        for atom_id, estimate in estimates.items():
+            atom = self._atom_catalog.get(atom_id)
+            if atom is None or estimate.passive_windows <= 0:
+                continue
+            key = atom_change_key(atom)
+            rate = estimate.passive_hits / estimate.passive_windows
+            rates[key] = max(rate, rates.get(key, 0.0))
+        return rates
+
+    def known_footprint_features(self) -> frozenset[str]:
+        """Features any current footprint claims (§16.1)."""
+        return frozenset(
+            self._atom_catalog[atom_id].feature_ref
+            for members in self.footprints.footprints.values()
+            for atom_id in members
+            if atom_id in self._atom_catalog
+        )
+
     def _effect_atom_ids(self, effect_id: str) -> tuple[str, ...] | None:
         effect = self.effect_space.get(effect_id)
         if effect is None:

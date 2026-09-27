@@ -1211,6 +1211,11 @@ class ActionDomain:
                 if transition is not None
                 else ()
             ),
+            known_features=(
+                self.acquisition.known_footprint_features()
+                if self.intention.policy.mismatch_known_features_only
+                else None
+            ),
         )
         if outcome is None or own_commitment is None or not own_commitment.active:
             return
@@ -1342,7 +1347,10 @@ class ActionDomain:
             # §14.1): reconciliation never depends on later registry changes.
             expected = self.effect_space.footprint_change_keys(decision.anticipated_effect_id)
             if expected:
-                self.intention.expect_atoms(expected)
+                self.intention.expect_atoms(
+                    expected,
+                    self.acquisition.footprint_quiet_rates(decision.anticipated_effect_id),
+                )
         proposal = self._intent_proposal(intent, tick=tick)
         self.last_intent_proposal_id = proposal.proposal_id
         return proposal

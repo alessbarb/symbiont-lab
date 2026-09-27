@@ -17,6 +17,7 @@ from typing import Any, Callable, Mapping
 
 from ...actuation.commitment import CommitmentStatus
 from ...actuation.evidence import PredictionError
+from ...actuation.footprint import wilson_lower_bound
 from ...agency.executive_outcome import (
     NO_HISTORY,
     CausalRevisionState,
@@ -82,6 +83,12 @@ class IntentionPolicy:
     # intent is satisfied when this fraction of its expected atoms has been
     # observed across its commitment (recall, accumulated per commitment).
     footprint_satisfaction_recall: float = 0.75
+    # §16 (E8 v3 arm AB), both off by default: satisfaction against the chance
+    # expectation of the footprint's members ("chance_corrected"), and
+    # mismatch counted only on features some footprint claims.
+    footprint_satisfaction_rule: str = "recall"
+    chance_margin: float = 0.05
+    mismatch_known_features_only: bool = False
 
     def __post_init__(self) -> None:
         value = float(self.satisfaction_similarity)
@@ -94,6 +101,8 @@ class IntentionPolicy:
             raise ValueError("evidence thresholds must be positive")
         if self.stagnation_ticks < 1:
             raise ValueError("stagnation_ticks must be positive")
+        if self.footprint_satisfaction_rule not in ("recall", "chance_corrected"):
+            raise ValueError("footprint_satisfaction_rule must be recall or chance_corrected")
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +165,9 @@ class IntentionDomain:
         # observed across its commitment (Factorized Effects §14.1).
         self._expected_atoms: tuple[str, ...] = ()
         self._observed_atoms: set[str] = set()
+        # §16.2: quiet rate per expected key and own windows observed so far.
+        self._quiet_rates: dict[str, float] = {}
+        self._observed_windows = 0
         # Organism-level causal provenance, supplied by the action domain.
         self.provenance: ProvenanceLog | None = None
 
@@ -219,6 +231,8 @@ class IntentionDomain:
         self._mismatch_count = 0
         self._expected_atoms = ()
         self._observed_atoms = set()
+        self._quiet_rates = {}
+        self._observed_windows = 0
         self._emit(
             intent,
             tick=tick,
@@ -235,10 +249,17 @@ class IntentionDomain:
         )
         return intent
 
-    def expect_atoms(self, atoms: tuple[str, ...]) -> None:
-        """Snapshot the footprint atoms the live intent is expected to produce."""
+    def expect_atoms(
+        self, atoms: tuple[str, ...], quiet_rates: Mapping[str, float] | None = None
+    ) -> None:
+        """Snapshot the footprint atoms the live intent is expected to produce,
+        with each one's quiet per-window rate when known (§16.2)."""
         self._expected_atoms = tuple(sorted(set(atoms)))
         self._observed_atoms = set()
+        self._quiet_rates = {
+            key: float(rate) for key, rate in (quiet_rates or {}).items() if key in atoms
+        }
+        self._observed_windows = 0
 
     @property
     def expected_atoms(self) -> tuple[str, ...]:
@@ -331,6 +352,7 @@ class IntentionDomain:
                 "effect_similarity": similarity if similarity is not None else -1.0,
                 "expected_atoms": len(self._expected_atoms),
                 "observed_expected_atoms": len(self._observed_atoms & set(self._expected_atoms)),
+                "matched_atoms": ",".join(sorted(self._observed_atoms & set(self._expected_atoms))),
             },
         )
         if self.provenance is not None:
@@ -468,6 +490,20 @@ class IntentionDomain:
         )
 
     # -- T3 reconciliation ------------------------------------------------------
+    def _chance_corrected(self) -> tuple[float, bool]:
+        """§16.2: informative members observed vs. what quiet would produce in
+        the same number of windows (Wilson lower bound, margin as §13.7)."""
+        informative = [key for key in self._expected_atoms if key in self._quiet_rates]
+        if not informative:
+            return 0.0, False
+        hits = sum(1 for key in informative if key in self._observed_atoms)
+        windows = self._observed_windows
+        chance = sum(1.0 - (1.0 - self._quiet_rates[key]) ** windows for key in informative) / len(
+            informative
+        )
+        bound = wilson_lower_bound(hits, len(informative))
+        return hits / len(informative), bound > chance + self.policy.chance_margin
+
     def observe_effect(
         self,
         *,
@@ -480,6 +516,7 @@ class IntentionDomain:
         competence_executable: bool,
         embodiment_id: str | None,
         observed_atoms: tuple[str, ...] = (),
+        known_features: frozenset[str] | None = None,
     ) -> IntentOutcome | None:
         """Reconcile the ACTIVE intent with what physically happened (§64-§70).
 
@@ -509,15 +546,23 @@ class IntentionDomain:
                 self._mismatch_count += 1
             if self._expected_atoms:
                 expected = set(self._expected_atoms)
+                self._observed_windows += 1
+                if self.policy.mismatch_known_features_only and known_features is not None:
+                    observed_atoms = tuple(
+                        atom for atom in observed_atoms if atom.rsplit("|", 1)[0] in known_features
+                    )
                 before = len(self._observed_atoms)
                 self._observed_atoms.update(atom for atom in observed_atoms if atom in expected)
-                similarity = len(self._observed_atoms) / len(expected)
-                threshold = self.policy.footprint_satisfaction_recall
+                if self.policy.footprint_satisfaction_rule == "chance_corrected":
+                    similarity, satisfied_now = self._chance_corrected()
+                else:
+                    similarity = len(self._observed_atoms) / len(expected)
+                    satisfied_now = similarity >= self.policy.footprint_satisfaction_recall
                 progressed = len(self._observed_atoms) > before
                 mismatched = not self._observed_atoms and bool(observed_atoms)
             else:
                 similarity = 0.0 if effect_similarity is None else float(effect_similarity)
-                threshold = self.policy.satisfaction_similarity
+                satisfied_now = similarity >= self.policy.satisfaction_similarity
                 progressed = similarity > 0.0
                 mismatched = observed_effect_id is not None
             if self._best_similarity is None or similarity > self._best_similarity:
@@ -527,7 +572,7 @@ class IntentionDomain:
                 self._consecutive_mismatches = 0
                 intent.last_progress_tick = int(tick)
                 if (
-                    similarity >= threshold
+                    satisfied_now
                     and self._progress_evidence >= self.policy.minimum_progress_evidence
                 ):
                     self.last_prediction_match = similarity
@@ -616,6 +661,8 @@ class IntentionDomain:
                     "mismatch_count": self._mismatch_count,
                     "expected_atoms": list(self._expected_atoms),
                     "observed_atoms": sorted(self._observed_atoms),
+                    "quiet_rates": dict(sorted(self._quiet_rates.items())),
+                    "observed_windows": self._observed_windows,
                 }
                 if live is not None
                 else None
@@ -662,6 +709,10 @@ class IntentionDomain:
                 obj._mismatch_count = int(trace.get("mismatch_count", 0))
                 obj._expected_atoms = tuple(str(a) for a in trace.get("expected_atoms", ()))
                 obj._observed_atoms = {str(a) for a in trace.get("observed_atoms", ())}
+                obj._quiet_rates = {
+                    str(k): float(v) for k, v in dict(trace.get("quiet_rates", {})).items()
+                }
+                obj._observed_windows = int(trace.get("observed_windows", 0))
         obj._formed = int(payload.get("formed", 0))
         raw_counts = payload.get("counts", {})
         if isinstance(raw_counts, Mapping):
