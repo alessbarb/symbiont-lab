@@ -261,6 +261,7 @@ export function selfViewSegments(snapshot) {
 }
 
 function scoreFor(entry, mode) {
+  if (mode === 'change') return ratio(Math.abs(entry.changeMagnitude ?? 0));
   if (mode === 'coverage') return entry.coverage;
   if (mode === 'stability') return entry.stability;
   if (mode === 'agency') return entry.agency;
@@ -286,6 +287,7 @@ function segmentAttrs(segment, metrics, mode, selected) {
   const cls = [
     'self-body-segment',
     mode === 'composite' ? 'composite' : `focus-${mode}`,
+    mode === 'change' && metrics.changeDirection ? `change-${metrics.changeDirection}` : '',
     scoreClass(score),
     selected === segment ? 'selected' : '',
     metrics.agenticDimensions ? 'agentic' : '',
@@ -431,66 +433,230 @@ function snapshotSegments(frame) {
   return map;
 }
 
-function developmentPath(frames, key, width, height) {
+function deltaSegments(frame, baseline) {
+  const current = snapshotSegments(frame);
+  const previous = snapshotSegments(baseline ?? frame);
+  const result = new Map();
+  for (const segment of CONTACT_SEGMENTS) {
+    const now = current.get(segment);
+    const before = previous.get(segment);
+    const deltas = {
+      coverage: finite(now.coverage, 0) - finite(before.coverage, 0),
+      knowledge: finite(now.knowledge, 0) - finite(before.knowledge, 0),
+      stability: finite(now.stability, 0) - finite(before.stability, 0),
+      agency: finite(now.agency, 0) - finite(before.agency, 0),
+    };
+    const strongest = Object.entries(deltas)
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0] ?? ['coverage', 0];
+    const magnitude = Math.max(...Object.values(deltas).map((value) => Math.abs(value)));
+    result.set(segment, {
+      ...now,
+      coverage: Math.abs(deltas.coverage),
+      knowledge: Math.abs(deltas.knowledge),
+      stability: Math.abs(deltas.stability),
+      agency: Math.abs(deltas.agency),
+      quality: magnitude,
+      changeMagnitude: magnitude,
+      changeMetric: strongest[0],
+      changeValue: strongest[1],
+      changeDirection: strongest[1] > .0005 ? 'gained' : strongest[1] < -.0005 ? 'lost' : 'unchanged',
+      deltaCoverage: deltas.coverage,
+      deltaKnowledge: deltas.knowledge,
+      deltaStability: deltas.stability,
+      deltaAgency: deltas.agency,
+    });
+  }
+  return result;
+}
+
+function developmentScale(frames, mode) {
+  if (mode !== 'detail') return { min: 0, max: 1 };
+  const values = frames.flatMap((frame) => [
+    ratio(frame.aggregate?.coverage),
+    ratio(frame.aggregate?.stability),
+    ratio(frame.aggregate?.agency),
+  ]);
+  if (!values.length) return { min: 0, max: 1 };
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const span = Math.max(.04, rawMax - rawMin);
+  const padding = Math.max(.02, span * .18);
+  return {
+    min: Math.max(0, rawMin - padding),
+    max: Math.min(1, rawMax + padding),
+  };
+}
+
+function developmentPath(frames, key, width, height, scale) {
   if (frames.length < 2) return '';
+  const span = Math.max(.0001, scale.max - scale.min);
   const values = frames.map((frame) => ratio(frame.aggregate?.[key]));
   return values.map((value, index) => {
-    const x = 10 + (index / Math.max(1, frames.length - 1)) * (width - 20);
-    const y = 8 + (1 - value) * (height - 16);
+    const x = 18 + (index / Math.max(1, frames.length - 1)) * (width - 36);
+    const normalized = ratio((value - scale.min) / span);
+    const y = 10 + (1 - normalized) * (height - 28);
     return `${index ? 'L' : 'M'} ${x.toFixed(1)} ${y.toFixed(1)}`;
   }).join(' ');
 }
 
-export function renderSelfViewDevelopment(history) {
+function developmentMilestones(frames) {
+  if (!frames.length) return [];
+  const points = [{ index: 0, title: 'session start' }];
+  for (let index = 1; index < frames.length; index += 1) {
+    const prev = frames[index - 1];
+    const frame = frames[index];
+    if (frame.aggregate.agenticRegions !== prev.aggregate.agenticRegions) {
+      points.push({ index, title: `${frame.aggregate.agenticRegions} agentic regions` });
+    } else if (frame.aggregate.representedRegions !== prev.aggregate.representedRegions) {
+      points.push({ index, title: `${frame.aggregate.representedRegions} represented regions` });
+    } else if (Math.abs(frame.aggregate.agency - prev.aggregate.agency) >= .01) {
+      points.push({ index, title: 'agency changed' });
+    }
+  }
+  const lastIndex = frames.length - 1;
+  if (!points.some((point) => point.index === lastIndex)) {
+    points.push({ index: lastIndex, title: 'current' });
+  }
+  if (points.length <= 8) return points;
+  const interior = points.slice(1, -1);
+  const stride = Math.ceil(interior.length / 6);
+  return [points[0], ...interior.filter((_, index) => index % stride === 0).slice(0, 6), points.at(-1)];
+}
+
+function deltaRows(current, baseline) {
+  const deltas = [...deltaSegments(current, baseline).values()]
+    .filter((item) => item.changeDirection !== 'unchanged')
+    .sort((a, b) => Math.abs(b.changeValue) - Math.abs(a.changeValue))
+    .slice(0, 6);
+  if (!deltas.length) {
+    return '<div class="self-development-nochange">No material regional change from the previous recorded frame.</div>';
+  }
+  const signed = (value) => {
+    const n = finite(value, 0);
+    return `${n > 0 ? '+' : ''}${Math.round(n * 100)}%`;
+  };
+  return deltas.map((item) => `<div class="self-development-delta ${item.changeDirection}">
+    <strong>${item.label}</strong>
+    <span>${item.changeMetric}</span>
+    <b>${signed(item.changeValue)}</b>
+  </div>`).join('');
+}
+
+export function renderSelfViewDevelopment(history, options = {}) {
   const frames = Array.isArray(history) ? history : [];
   if (!frames.length) {
     return '<div class="self-empty-state"><h3>No development history yet</h3><p>Development begins accumulating when this observer session receives Self-Model snapshots.</p></div>';
   }
+
+  const requestedIndex = Number(options.index);
+  const selectedIndex = Number.isInteger(requestedIndex)
+    ? Math.max(0, Math.min(frames.length - 1, requestedIndex))
+    : frames.length - 1;
+  const bodyMode = options.bodyMode === 'change' ? 'change' : 'state';
+  const scaleMode = options.scaleMode === 'absolute' ? 'absolute' : 'detail';
+  const selected = frames[selectedIndex];
+  const baseline = frames[Math.max(0, selectedIndex - 1)];
   const first = frames[0];
   const latest = frames[frames.length - 1];
-  const middle = frames[Math.floor((frames.length - 1) / 2)];
-  const samples = [first, middle, latest].filter((frame, index, all) =>
-    all.findIndex((candidate) => candidate.tick === frame.tick) === index
-  );
-  const width = 720;
-  const height = 170;
+  const scale = developmentScale(frames, scaleMode);
+  const selectedSegments = bodyMode === 'change'
+    ? deltaSegments(selected, baseline)
+    : snapshotSegments(selected);
+  const width = 820;
+  const height = 190;
   const pct = (value) => `${Math.round(ratio(value) * 100)}%`;
   const signedPct = (value) => {
     const n = finite(value, 0);
-    const sign = n > 0 ? '+' : '';
-    return `${sign}${Math.round(n * 100)}%`;
+    return `${n > 0 ? '+' : ''}${Math.round(n * 100)}%`;
   };
+  const markerX = 18 + (selectedIndex / Math.max(1, frames.length - 1)) * (width - 36);
+  const milestones = developmentMilestones(frames);
+
   return `<div class="self-development-head">
     <div><span>Development timeline</span><strong>t${first.tick} → t${latest.tick}</strong></div>
     <small>Browser-session observer history · never fed back</small>
   </div>
+
+  <div class="self-development-controls">
+    <div class="self-dev-toggle">
+      <span>Body</span>
+      <button type="button" class="${bodyMode === 'state' ? 'active' : ''}" data-self-dev-body-mode="state">State</button>
+      <button type="button" class="${bodyMode === 'change' ? 'active' : ''}" data-self-dev-body-mode="change">Change</button>
+    </div>
+    <div class="self-dev-toggle">
+      <span>Graph</span>
+      <button type="button" class="${scaleMode === 'absolute' ? 'active' : ''}" data-self-dev-scale="absolute">Absolute</button>
+      <button type="button" class="${scaleMode === 'detail' ? 'active' : ''}" data-self-dev-scale="detail">Detail</button>
+    </div>
+    <div class="self-development-selected"><span>Selected</span><strong>t${selected.tick}</strong><small>frame ${selectedIndex + 1}/${frames.length}</small></div>
+  </div>
+
   <div class="self-development-chart">
+    <div class="self-dev-scale-labels">
+      <span>${pct(scale.max)}</span>
+      <span>${pct(scale.min)}</span>
+    </div>
     <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Self body development over time">
-      <line x1="10" y1="${height - 8}" x2="${width - 10}" y2="${height - 8}" class="self-dev-axis"/>
-      <line x1="10" y1="8" x2="10" y2="${height - 8}" class="self-dev-axis"/>
-      <path d="${developmentPath(frames, 'coverage', width, height)}" class="self-dev-line coverage"/>
-      <path d="${developmentPath(frames, 'stability', width, height)}" class="self-dev-line stability"/>
-      <path d="${developmentPath(frames, 'agency', width, height)}" class="self-dev-line agency"/>
+      <line x1="18" y1="${height - 18}" x2="${width - 18}" y2="${height - 18}" class="self-dev-axis"/>
+      <line x1="18" y1="10" x2="18" y2="${height - 18}" class="self-dev-axis"/>
+      <path d="${developmentPath(frames, 'coverage', width, height, scale)}" class="self-dev-line coverage"/>
+      <path d="${developmentPath(frames, 'stability', width, height, scale)}" class="self-dev-line stability"/>
+      <path d="${developmentPath(frames, 'agency', width, height, scale)}" class="self-dev-line agency"/>
+      <line x1="${markerX.toFixed(1)}" y1="10" x2="${markerX.toFixed(1)}" y2="${height - 18}" class="self-dev-selection"/>
     </svg>
     <div class="self-development-legend">
-      <span class="coverage">coverage ${pct(latest.aggregate.coverage)}</span>
-      <span class="stability">stability ${pct(latest.aggregate.stability)}</span>
-      <span class="agency">agency ${pct(latest.aggregate.agency)}</span>
+      <span class="coverage">coverage ${pct(selected.aggregate.coverage)}</span>
+      <span class="stability">stability ${pct(selected.aggregate.stability)}</span>
+      <span class="agency">agency ${pct(selected.aggregate.agency)}</span>
     </div>
   </div>
-  <div class="self-development-bodies">
-    ${samples.map((frame) => `<div class="self-development-body">
-      <strong>t${frame.tick}</strong>
-      ${skeletonSvg(snapshotSegments(frame), 'composite', null)}
-      <small>${frame.aggregate.representedRegions} represented regions · ${frame.aggregate.agenticRegions} agency regions</small>
-    </div>`).join('')}
+
+  <div class="self-development-scrubber">
+    <input type="range" min="0" max="${frames.length - 1}" value="${selectedIndex}" step="1" data-self-dev-index aria-label="Development tick"/>
+    <div><span>t${first.tick}</span><strong>t${selected.tick}</strong><span>t${latest.tick}</span></div>
   </div>
+
+  <div class="self-development-focus">
+    <div class="self-development-main-body ${bodyMode}">
+      <div class="self-body-stage-label">
+        <strong>${bodyMode === 'change' ? 'What changed' : 'Self body state'}</strong>
+        <small>${bodyMode === 'change' ? `t${baseline.tick} → t${selected.tick}` : `observer projection at t${selected.tick}`}</small>
+      </div>
+      ${skeletonSvg(selectedSegments, bodyMode === 'change' ? 'change' : 'composite', null)}
+      <div class="self-development-body-caption">
+        <span>${selected.aggregate.representedRegions} represented regions</span>
+        <span>${selected.aggregate.agencyRegions} agency regions</span>
+        <span>${selected.aggregate.agenticRegions} agentic regions</span>
+      </div>
+    </div>
+    <div class="self-development-evidence">
+      <div class="self-section-head"><div><span>${bodyMode === 'change' ? 'Regional delta' : 'Selected state'}</span><small>${bodyMode === 'change' ? 'largest changes since previous recorded frame' : 'developmental evidence at selected tick'}</small></div></div>
+      ${bodyMode === 'change'
+        ? deltaRows(selected, baseline)
+        : `<div class="self-development-state-grid">
+            <div><span>Coverage</span><strong>${pct(selected.aggregate.coverage)}</strong><small>${selected.aggregate.learned}/${selected.aggregate.expected} physical channels</small></div>
+            <div><span>Stability</span><strong>${pct(selected.aggregate.stability)}</strong><small>${selected.aggregate.stable} stable channels</small></div>
+            <div><span>Agency</span><strong>${pct(selected.aggregate.agency)}</strong><small>${selected.aggregate.agencyRegions} regions touched</small></div>
+            <div><span>Agentic</span><strong>${selected.aggregate.agenticRegions}</strong><small>regions with agentic dimensions</small></div>
+          </div>`}
+    </div>
+  </div>
+
+  <div class="self-development-milestones">
+    <div class="self-section-head"><div><span>Observed milestones</span><small>select a meaningful frame</small></div></div>
+    <div class="self-dev-milestone-list">
+      ${milestones.map((point) => `<button type="button" class="${point.index === selectedIndex ? 'active' : ''}" data-self-dev-frame="${point.index}">
+        <strong>t${frames[point.index].tick}</strong><span>${point.title}</span>
+      </button>`).join('')}
+    </div>
+  </div>
+
   <div class="self-view-summary">
-    <div><span>Coverage change</span><strong>${signedPct(latest.aggregate.coverage - first.aggregate.coverage)}</strong></div>
-    <div><span>Stability change</span><strong>${signedPct(latest.aggregate.stability - first.aggregate.stability)}</strong></div>
-    <div><span>Agency regions</span><strong>${latest.aggregate.agencyRegions}</strong></div>
-    <div><span>Agentic regions</span><strong>${latest.aggregate.agenticRegions}</strong></div>
-    <div><span>Frames</span><strong>${frames.length}</strong></div>
+    <div><span>Coverage since attach</span><strong>${signedPct(selected.aggregate.coverage - first.aggregate.coverage)}</strong></div>
+    <div><span>Stability since attach</span><strong>${signedPct(selected.aggregate.stability - first.aggregate.stability)}</strong></div>
+    <div><span>Agency regions</span><strong>${selected.aggregate.agencyRegions}</strong></div>
+    <div><span>Agentic regions</span><strong>${selected.aggregate.agenticRegions}</strong></div>
+    <div><span>Recorded frames</span><strong>${frames.length}</strong></div>
   </div>`;
 }
 
