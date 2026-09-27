@@ -409,7 +409,7 @@ export function createCognitionInspector({
         const outside = sectorFocus.local.has(edge.source.id) ? edge.target : edge.source;
         const outsideSector = outside.community && outside.community !== 'isolated'
           ? (graph.sectorLabels.get(outside.community) ?? 'unresolved')
-          : 'unintegrated';
+          : 'no projected region';
         const item = bridgeGroups.get(outsideSector) ?? { count: 0, nodes: new Set() };
         item.count += 1;
         item.nodes.add(outside.id);
@@ -481,7 +481,7 @@ export function createCognitionInspector({
       appendInspectorLine(objective, [{ text: 'Connected components', strong: true }]);
       appendInspectorLine(
         objective,
-        [`${componentSizes.length} total · main ${componentSizes[0] ?? 0} nodes · ${isolates} isolates`],
+        [`${componentSizes.length} total · main ${componentSizes[0] ?? 0} nodes · ${isolates} degree-zero in current projection`],
       );
       panel.appendChild(objective);
     }
