@@ -5,9 +5,9 @@ from hashlib import sha256
 from statistics import mean, pstdev
 from typing import Iterable
 
-from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
 
+from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.simulation import EventContext, SimulationResult, _run_population, run_simulation
 
 
@@ -191,7 +191,7 @@ def _run_target(
         apply_heritage(collective, heritage)
         result, _ = _run_population(
             **common,
-            collective=collective,
+            ledger=collective,
         )
     return result, digest.hexdigest()
 

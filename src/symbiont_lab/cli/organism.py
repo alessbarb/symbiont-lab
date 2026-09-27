@@ -465,6 +465,10 @@ def _probe_payload(state_file: Path) -> tuple[int, dict[str, Any]]:
             )
     senses.sort(key=lambda x: (x["utility"], x["samples"]), reverse=True)
 
+    # Only historical checkpoints carry scalar source trust (retired with
+    # SourceTrustModel); current ones list no peers here.
+    source_trust = payload.get("source_trust", {}) or {}
+    direct_trust = source_trust.get("direct", {}) or {}
     peers = []
     for key_hex, rec in direct_trust.items():
         if isinstance(rec, dict):

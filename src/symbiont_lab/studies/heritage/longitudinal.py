@@ -4,9 +4,9 @@ from dataclasses import asdict, dataclass
 from statistics import mean
 from typing import Iterable
 
-from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
 
+from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.simulation import SimulationResult, _run_population, run_simulation
 
 
@@ -109,7 +109,7 @@ def _run_with_heritage(
         drift_step=drift_step,
         drift_fraction=drift_fraction,
         drift_magnitude=drift_magnitude,
-        collective=collective,
+        ledger=collective,
     )
 
 

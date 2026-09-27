@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass
 from hashlib import sha256
 from statistics import mean
 
-from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.core.heritage import (
     HeritagePattern,
     SpeciesHeritage,
@@ -13,6 +12,7 @@ from symbiont.core.heritage import (
 )
 from symbiont.core.model import fingerprint
 
+from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.simulation import EventContext, _run_population, run_simulation
 
 
@@ -208,7 +208,7 @@ def _run_condition(
         drift_step=drift_step,
         drift_fraction=drift_fraction,
         drift_magnitude=drift_magnitude,
-        collective=collective,
+        ledger=collective,
         on_event=capture,
     )
     empirical = _empirical_rates(events)
