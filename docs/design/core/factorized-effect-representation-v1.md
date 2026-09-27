@@ -606,6 +606,36 @@ Reading, without post-hoc criteria:
   not established by this study and needs a diagnosis of terminal reasons
   before any change.
 
+**E8 v2 diagnosis of unsatisfied intents** (read-only rerun of seeds 101 and
+163 on `fba9f1c5`, provenance subscribed; no code or criterion changed).
+Terminal reasons, seed 101 / 163: `repeated_high_mismatch` 105 / 96,
+`competence_exhausted_without_anticipated_consequence` 75 / 140,
+`proposal_not_selected` 52 / 26, `competence_no_longer_executable` 6 / 7,
+satisfied 5 / 0. Recall at termination (observed expected atoms / expected
+atoms), seed 101:
+
+- every satisfied intent expected **one** atom (`1/1`, 5 of 5);
+- every `repeated_high_mismatch` had observed **none** of 1-8 expected atoms,
+  mostly 3-8: three consecutive ticks in which atoms were observed but none
+  expected ends the intent, and in this body the 32 drifting receptors emit
+  unexpected atoms almost every tick, so an intent can die of drift before
+  the actuator's effect arrives;
+- `competence_exhausted` intents mostly reached 1-3 of 3-8 expected atoms: the
+  commitment produced part of the footprint but not 75% of it.
+
+Two mechanisms, both consistent with §13.7 membership rather than defects in
+it: (1) mismatch counts any observed atom, including atoms outside every
+learned footprint (drift), as evidence against the intent; (2) footprint
+members are admitted when their per-pulse hit rate is merely reliably above
+the quiet rate, so requiring 75% of all members within one commitment is
+improbable for footprints with more than one or two members. Candidate
+changes, **not adopted, for owner decision**: count as mismatch only atoms on
+features of known footprints; and replace fixed recall 0.75 by a test against
+what the footprint predicts for one commitment (e.g. observed members above
+the expected-by-chance count at the members' quiet rates, symmetric with
+§13.7). Either changes reconciliation semantics and would require a new
+preregistered E8 arm plus the E6 gate.
+
 Remaining acceptance (§14.2): the Physics3D acceptance on a copy of the
 owner's organism and overhead; then, with owner confirmation, removal of the
 whole-state path with checkpoint schema 5.
