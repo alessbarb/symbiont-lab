@@ -54,6 +54,7 @@ from ...agency.intention import ActionIntent, AdmissionRoute, IntentStatus
 from ...agency.prospective import ProspectiveDecision
 from ...genetics.expression import GeneExpressionState
 from ...host.percepts import Percept
+from ...provenance import CausalEvent, CausalRef
 from ...sensory import SensorySystem
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
 from ..embodiment.body_schema import BodySchemaEngine
@@ -227,6 +228,7 @@ class ActionDomain:
         self.last_intent_proposal_id: str | None = None
         # Tick of the executive decision in progress (provenance of admission).
         self._decision_tick = -1
+        self._traced_commitment: ActionCommitment | None = None
         self.composition_engine = CompositionEngine()
 
         self.active_commitment: ActionCommitment | None = None
@@ -469,9 +471,64 @@ class ActionDomain:
             maximum_duration=maximum_duration,
         )
         self.last_proposal = proposal
+        self._trace_commitment_end()
         self.active_commitment = commitment
         self.last_action_source = proposal.source.value
+        self._trace_commitment_start(commitment, proposal, tick=tick)
         return commitment
+
+    # -- causal provenance of execution (Causal Provenance v1) -----------------
+    def _trace_commitment_start(
+        self, commitment: ActionCommitment, proposal: ActionProposal, *, tick: int
+    ) -> None:
+        ref = CausalRef("commitment", commitment.commitment_id)
+        causes = [CausalRef("proposal_source", proposal.source.value)]
+        if proposal.intent_id is not None:
+            causes.insert(0, CausalRef("intent", proposal.intent_id))
+        if proposal.competence_id is not None:
+            causes.append(CausalRef("competence", proposal.competence_id))
+        self.acquisition.provenance.emit(
+            CausalEvent(
+                tick=int(tick),
+                domain="execution",
+                operation="commit",
+                subject=ref,
+                caused_by=tuple(causes),
+                produced=(ref,),
+                rule=proposal.source.value,
+                parameters={
+                    "controller": commitment.controller_id,
+                    "maximum_duration": commitment.maximum_duration or 0,
+                },
+            )
+        )
+        self._traced_commitment = commitment
+
+    def _trace_commitment_end(self) -> None:
+        """Emit the end of the traced commitment once, whoever terminated it."""
+        commitment = self._traced_commitment
+        if commitment is None or commitment.active:
+            return
+        ref = CausalRef("commitment", commitment.commitment_id)
+        self.acquisition.provenance.emit(
+            CausalEvent(
+                tick=int(commitment.ended_tick if commitment.ended_tick is not None else -1),
+                domain="execution",
+                operation="end",
+                subject=ref,
+                caused_by=(ref,),
+                produced=(ref,),
+                rule=commitment.status.value,
+                parameters={
+                    "reason": commitment.end_reason or "",
+                    "duration": (
+                        (commitment.ended_tick or commitment.started_tick) - commitment.started_tick
+                    ),
+                },
+            )
+        )
+        self.acquisition.provenance.retire((ref,))
+        self._traced_commitment = None
 
     def issue_command(self, channels: Mapping[str, float], *, tick: int) -> MotorCommand:
         commitment = self.active_commitment
@@ -1497,6 +1554,7 @@ class ActionDomain:
             self._advance_or_complete_competence(tick=tick)
         # T3: reconcile the active intent with reality before new cognition.
         self._reconcile_intent(tick=tick)
+        self._trace_commitment_end()
         return ActionObservation(
             tick=tick,
             baseline=baseline,
