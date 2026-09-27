@@ -126,6 +126,8 @@ class HorizonMetrics:
     completed_commitments: int
     mean_competence_commitment_ticks: float | None
     intents_formed: int
+    activated_intents: int
+    rejected_intents: int
     intent_outcomes: dict[str, int]
     intent_satisfaction_rate: float | None
     mean_intent_duration: float | None
@@ -142,6 +144,9 @@ class _Recorder:
         self.intent_durations: list[int] = []
         self.intent_outcomes: dict[str, int] = {}
         self.intents: set[str] = set()
+        # Intents that obtained motor authority; §41 keeps REJECTED separate.
+        self.activated: dict[str, int] = {}
+        self.activated_outcomes: dict[str, int] = {}
 
     def __call__(self, runtime: OrganismRuntime) -> None:
         domain = runtime._action_domain
@@ -180,13 +185,19 @@ class _Recorder:
         held = domain.intention.active
         if held is not None:
             self.intents.add(held.intent_id)
+            if held.activated_tick is not None:
+                self.activated.setdefault(held.intent_id, held.activated_tick)
         for outcome in domain.intention.last_outcomes:
             self.intents.add(outcome.intent_id)
             self.intent_outcomes[outcome.status.value] = (
                 self.intent_outcomes.get(outcome.status.value, 0) + 1
             )
-            if held is not None and held.intent_id == outcome.intent_id:
-                self.intent_durations.append(outcome.tick - held.created_tick)
+            activated_tick = self.activated.get(outcome.intent_id)
+            if activated_tick is not None:
+                self.activated_outcomes[outcome.status.value] = (
+                    self.activated_outcomes.get(outcome.status.value, 0) + 1
+                )
+                self.intent_durations.append(outcome.tick - activated_tick)
 
     def metrics(self) -> HorizonMetrics:
         competence = [item for item in self.commitments.values() if item.competence_id]
@@ -198,8 +209,8 @@ class _Recorder:
             if item.commitment.ended_tick is not None
         ]
         switches = max(0, len(self.commitments) - 1)
-        satisfied = self.intent_outcomes.get(IntentStatus.SATISFIED.value, 0)
-        terminal = sum(self.intent_outcomes.values())
+        satisfied = self.activated_outcomes.get(IntentStatus.SATISFIED.value, 0)
+        terminal = sum(self.activated_outcomes.values())
         return HorizonMetrics(
             ticks=self.ticks,
             competence_commitments=len(competence),
@@ -215,6 +226,8 @@ class _Recorder:
             completed_commitments=sum(status is CommitmentStatus.COMPLETED for status in statuses),
             mean_competence_commitment_ticks=_mean(durations),
             intents_formed=len(self.intents),
+            activated_intents=len(self.activated),
+            rejected_intents=self.intent_outcomes.get(IntentStatus.REJECTED.value, 0),
             intent_outcomes=dict(sorted(self.intent_outcomes.items())),
             intent_satisfaction_rate=satisfied / terminal if terminal else None,
             mean_intent_duration=_mean(self.intent_durations),
@@ -284,6 +297,10 @@ class MatchedStudyResult:
 
 
 _SUMMARY_KEYS = (
+    "competence_commitments",
+    "realized_commitments",
+    "activated_intents",
+    "rejected_intents",
     "effect_realization_rate",
     "action_switches",
     "switches_per_realized_effect",
