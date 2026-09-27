@@ -236,6 +236,18 @@ export function createCognitionInspector({
       }
       inspectorMetric(topologyGroup, 'Structural degree', selected.structuralDegree ?? selected.neighbors?.size ?? 0);
       inspectorMetric(topologyGroup, 'Projected relations', selected.degree ?? 0);
+      inspectorMetric(
+        topologyGroup,
+        'Layout role',
+        selected.overlayOnly
+          ? 'evidence satellite'
+          : selected.fringeStructural
+            ? 'structural fringe'
+            : 'structural core',
+      );
+      if (selected.overlayOnly && selected.satelliteHostId) {
+        inspectorMetric(topologyGroup, 'Satellite host', shortId(selected.satelliteHostId, 12, 6));
+      }
       inspectorMetric(dynamicsGroup, 'Activity', pct(selected.activationLevel ?? 0), PAL.cyan);
       inspectorMetric(topologyGroup, 'Structural importance', pct(selected.structuralImportance ?? selected.visualValue ?? 0));
       inspectorMetric(topologyGroup, 'Component', selected.isolated ? 'degree-zero in current projection' : `#${(selected.componentRank ?? 0) + 1} · ${selected.componentSize ?? 1} nodes`);
