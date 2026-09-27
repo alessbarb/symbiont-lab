@@ -568,6 +568,7 @@ def test_body_self_view_projects_opaque_evidence_onto_observer_anatomy_only() ->
 def test_body_self_view_has_distinct_knowledge_stability_and_agency_lenses() -> None:
     self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
 
+    assert "['composite', 'Composite']" in self_view
     assert "['knowledge', 'Knowledge']" in self_view
     assert "['coverage', 'Coverage']" in self_view
     assert "['stability', 'Stability']" in self_view
@@ -582,6 +583,38 @@ def test_body_self_view_has_distinct_knowledge_stability_and_agency_lenses() -> 
     assert "agenticDimensions" in self_view
     assert "knowledge:" in self_view
     assert "agency:" in self_view
+
+
+def test_body_self_view_composite_encodes_multiple_self_dimensions() -> None:
+    self_model = _self_model_source()
+    self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
+    body_css = (WEB_ROOT / "body.css").read_text(encoding="utf-8")
+
+    assert "selfViewMode = 'composite'" in self_model
+    assert "mode === 'composite'" in self_view
+    assert "--segment-coverage" in self_view
+    assert "--segment-quality" in self_view
+    assert "--segment-stability" in self_view
+    assert "--segment-agency" in self_view
+    assert ".self-body-segment.composite" in body_css
+    assert "var(--segment-stability)" in body_css
+    assert "var(--segment-agency)" in body_css
+
+
+def test_body_self_view_development_is_bounded_observer_history() -> None:
+    self_model = _self_model_source()
+    self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
+
+    assert "captureSelfViewDevelopment" in self_model
+    assert "renderSelfViewDevelopment" in self_model
+    assert "selfViewPane = 'composite'" in self_model
+    assert "data-self-view-pane=\"development\"" in self_model
+    assert "maxSelfViewFrames = 120" in self_model
+    assert "Browser-session observer history · never fed back" in self_view
+    assert "Development timeline" in self_view
+    assert "coverage" in self_view
+    assert "stability" in self_view
+    assert "agency" in self_view
 
 
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
