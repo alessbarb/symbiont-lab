@@ -166,3 +166,28 @@ def test_e4_relation_classes_follow_the_physical_ground_truth():
     assert all(broken_channel in registry.channel_refs(dim) for dim, _effect in invalidated)
     # Classification is evaluator-only: it never changes the organism.
     assert body.condition is BodyCondition.NORMAL
+
+
+def test_e5_v3_isolates_executive_outcome_learning_in_arm_d():
+    from symbiont_lab.studies.learning.agency_acquisition import (
+        run_executive_bridge_ablation_study,
+        run_intentional_causal_advantage_study,
+    )
+
+    e5 = run_intentional_causal_advantage_study(seeds=(127,), warmup_limit=400, horizon_ticks=4)
+    (row,) = e5["per_seed"]
+    enabled = {name: arm["outcome_learning"]["enabled"] for name, arm in row["arms"].items()}
+    assert enabled == {
+        "A_direct_proposal": False,
+        "B_unreconciled_intent": False,
+        "C_reconciled_intent": False,
+        "D_reconciled_intent_outcome_learning": True,
+    }
+    for arm in row["arms"].values():
+        assert set(arm["outcome_learning"]) == {"enabled", "at_split", "at_end"}
+    e2 = run_executive_bridge_ablation_study(seeds=(127,), warmup_limit=400, horizon_ticks=4)
+    assert set(e2["per_seed"][0]["arms"]) == {
+        "direct_proposal",
+        "action_intent",
+        "action_intent_outcome_learning",
+    }

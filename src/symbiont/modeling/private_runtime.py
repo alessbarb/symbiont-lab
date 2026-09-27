@@ -629,6 +629,14 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         self._last_prospective_decision = None
         self._last_prospective_query_count = 0
         self._last_prospective_cost = 0.0
+        # Executive Outcome Learning v1 §6: deliberation utility is never
+        # modulated by executive history; suppressed keys are simply not
+        # candidates.  The model-free fallback applies the full modulation.
+        affordances = tuple(
+            affordance
+            for affordance in affordances
+            if not self._action_domain.executive_modulation(affordance).suppressed
+        )
         decision = self._deliberate_prospectively(
             cognition=cognition,
             percepts=percepts,
