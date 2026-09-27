@@ -640,6 +640,29 @@ Remaining acceptance (§14.2): the Physics3D acceptance on a copy of the
 owner's organism and overhead; then, with owner confirmation, removal of the
 whole-state path with checkpoint schema 5.
 
+**Physics3D acceptance (§14.2) — NOT PASSED: protocol infeasible as written.**
+Two runs on fresh copies of `org-ea3e7bbbc628` (tick 9 246), factorized
+effects and probing on, ended at tick 11 897 (2 651 ticks, not 6 000): the
+engine stops when the body dies, and the body **starved** — physical energy
+0, maintenance accounting at its -400 floor, zero replenishment and **zero
+absorbed material**. The rerun (journal written once per event, 967 events)
+reproduced the first run exactly (Physics3D is deterministic). An exploratory
+flag-off control on the same copy (not evidence) also starved, at 2 604
+ticks with zero absorbed material, so the death is independent of factorized
+effects: this organism has not learned to reach the world's resource (see
+Cross-Domain Revision Coherence v1, F14).
+
+Within the 2 651 ticks the content criteria were observed — 22 competences
+grounded on footprints, all traced to pulse commitments; 4 satisfied intents
+(ticks 9 395-9 443), each traced through its footprint version to pulses —
+but the preregistered duration was not reached, so this is recorded as
+descriptive, not as a pass. Because the engine is deterministic, rerunning
+the same copy under an amended duration would reproduce an already-seen
+outcome and would not be a blind test; how to obtain a valid acceptance
+(different starting state, or a body/world where survival does not require
+unlearned foraging) is an owner decision. Overhead (§14.2) remains to be
+measured on an idle machine.
+
 ## 16. Chance-corrected intent reconciliation (E8 v3, owner-approved 2026-09-27)
 
 The E8 v2 diagnosis (§15) found two mechanisms that keep footprint intents
