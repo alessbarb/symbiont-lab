@@ -248,6 +248,7 @@ def run(
     ready_callback=None,
     startup_callback=None,
     checkpoint_observer=None,
+    factorized_effects: bool = False,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -344,6 +345,10 @@ def run(
         runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
     )
+    if factorized_effects:
+        # Factorized Effect Representation v1 §14.2: footprint grounding and
+        # probing on this organism (kept on in its checkpoints from now on).
+        runtime.organism.enable_factorized_effects()
     runtime_config = runtime.checkpoint().get("effective_config", {})
     telemetry_configuration = dict(runtime_config) if isinstance(runtime_config, dict) else {}
     telemetry_configuration["telemetry_physics_trace"] = bool(telemetry_physics_trace)

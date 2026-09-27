@@ -4,7 +4,7 @@ schema_version = 1
 id = "learning.agency-high-dimensional-acquisition"
 title = "E8 — High-dimensional acquisition"
 protocol = "learning.agency-high-dimensional-acquisition"
-protocol_version = 1
+protocol_version = 2
 hypothesis = """
 In a body whose outputs drive several correlated receptors and whose other
 receptors drift on their own, the acquisition -> competence -> binding ->
@@ -31,6 +31,10 @@ seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
 actuator_count = 16
 receptors_per_actuator = 4
 drifting_receptor_count = 32
+
+[ablation]
+# Arm v2 (Factorized Effect Representation v1 §14.2); arm v1 ran at 38429ca.
+factorized_effects = true
 
 [output]
 save_trace = false

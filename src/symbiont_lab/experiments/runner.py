@@ -197,9 +197,11 @@ class ExperimentRunner:
             raw_metrics = result
         elif spec.protocol == "learning.agency-high-dimensional-acquisition":
             body = spec.extra_params.get("body", {})
+            ablation = spec.extra_params.get("ablation", {})
             result = protocol_fn(
                 seeds=spec.seeds,
                 ticks=spec.steps,
+                factorized_effects=bool(ablation.get("factorized_effects", False)),
                 **{key: int(value) for key, value in body.items()},
             )
             raw_metrics = result

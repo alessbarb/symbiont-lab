@@ -788,13 +788,7 @@ class OrganismRuntime:
             intention_policy=intention_policy,
         )
         if factorized_effects:
-            # Factorized Effect Representation v1 §14: footprint-grounded
-            # competences, enabled together with causal probing.  Both are
-            # persisted, so a restored organism keeps the mode.
-            self._action_domain.acquisition.footprint_effects = True
-            engine = self._action_domain._competence_development
-            if engine is not None and engine.probing_share == 0.0:
-                engine.set_probing_share(FACTORIZED_PROBING_SHARE)
+            self.enable_factorized_effects()
         self._executive_admission_policy = executive_admission_policy or ExecutiveAdmissionPolicy(
             readout_threshold=selection_threshold
         )
@@ -1147,6 +1141,16 @@ class OrganismRuntime:
             percepts,
             sensory_system=self._sensory_system,
         )
+
+    def enable_factorized_effects(self) -> None:
+        """Factorized Effect Representation v1 §14: footprint-grounded
+        competences together with causal probing.  Both are persisted, so a
+        restored organism keeps the mode; enabling it on an existing organism
+        keeps everything it learned."""
+        self._action_domain.acquisition.footprint_effects = True
+        engine = self._action_domain._competence_development
+        if engine is not None and engine.probing_share == 0.0:
+            engine.set_probing_share(FACTORIZED_PROBING_SHARE)
 
     def _action_services(self) -> ActionServices:
         return ActionServices(

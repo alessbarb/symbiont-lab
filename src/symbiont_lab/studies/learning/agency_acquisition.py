@@ -1051,6 +1051,13 @@ def _high_dimensional_metrics(runtime: OrganismRuntime) -> dict[str, Any]:
         "intents_terminated": sum(intention.counts.values()),
         "intents_satisfied": intention.counts[IntentStatus.SATISFIED],
         "outcome_learning_history_hit_rate": ledger["history_hit_rate"],
+        "footprints": len(acquisition.footprints.footprints),
+        "footprint_competences": sum(
+            1
+            for item in competences
+            if item.effect_id is not None
+            and acquisition.effect_space.footprint_atoms(item.effect_id) is not None
+        ),
     }
 
 
@@ -1064,6 +1071,7 @@ def run_high_dimensional_acquisition_study(
     actuator_count: int = 16,
     receptors_per_actuator: int = 4,
     drifting_receptor_count: int = 32,
+    factorized_effects: bool = False,
 ) -> dict[str, Any]:
     """E8: does the acquisition -> intent chain engage in a many-receptor body?
 
@@ -1080,7 +1088,11 @@ def run_high_dimensional_acquisition_study(
             receptors_per_actuator=receptors_per_actuator,
             drifting_receptor_count=drifting_receptor_count,
         )
-        runtime = build_subject(body, organism_id=f"agency-high-dimensional-{seed}")
+        runtime = build_subject(
+            body,
+            organism_id=f"agency-high-dimensional-{seed}",
+            factorized_effects=bool(factorized_effects),
+        )
         _advance(runtime, body, _positive(ticks, "ticks"))
         per_seed.append(
             {
@@ -1092,6 +1104,7 @@ def run_high_dimensional_acquisition_study(
     keys = [key for key in per_seed[0] if key not in ("seed", "receptors")] if per_seed else []
     return {
         "protocol": "learning.agency-high-dimensional-acquisition",
+        "factorized_effects": bool(factorized_effects),
         "seeds": list(resolved),
         "ticks": ticks,
         "body": {

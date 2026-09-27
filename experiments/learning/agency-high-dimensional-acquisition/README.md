@@ -34,6 +34,10 @@ outcome-learning history hit rate, per seed and summarized. Arm v1
 representation; arm v2 on the implementation commit; same seeds and body. No
 post-hoc threshold.
 
+Protocol v2 is arm v2: `[ablation].factorized_effects = true` (footprint
+grounding with causal probing), same seeds, body and budget as the v1 run;
+it additionally reports `footprints` and `footprint_competences`.
+
 ## Execution
 
 ```bash
