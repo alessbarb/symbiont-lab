@@ -224,3 +224,22 @@ def test_atlas_layout_uses_structural_relations_and_collapses_dormant_registries
     assert "nodes.filter(node => finite(node.degree, 0) > 0)" in lod
     assert "physicsNodes = nodes.filter" in controller
     assert "if (!isStructuralAtlasEdge(edge)) continue;" in controller
+
+
+def test_atlas_overlay_satellites_stay_local_without_becoming_structure():
+    model = _read("views/mind/graph-model.js")
+    controller = _read("views/mind/cognition-controller.js")
+    inspector = _read("views/mind/cognition-inspector.js")
+
+    assert "overlayOnly" in model
+    assert "fringeStructural" in model
+    assert "satelliteHostId" in model
+    assert "satelliteHasStructuralHost" in model
+    assert "projectedAdjacency" in model
+    assert "Overlay-only edges get a local tether" in controller
+    assert "raw.fringeStructural" in controller
+    assert "node.overlayOnly" in controller
+    assert "node.fringeStructural" in controller
+    assert "0.020 + confidence * 0.010" in controller
+    assert "evidence satellite" in inspector
+    assert "structural fringe" in inspector
