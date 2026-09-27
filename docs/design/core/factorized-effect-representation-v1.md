@@ -1,6 +1,6 @@
 # Factorized Effect Representation v1 — Draft Specification
 
-**Status:** APPROVED by the owner (2026-09-27) with the §11 proposals; implementation gated on the §12 spike.
+**Status:** APPROVED with the §11 proposals, **implementation on hold**: the §12 spike shows footprints do not form stably in the Physics3D body; back to the owner.
 **Depends on:** Agency Acquisition & Executive Action v1 (frozen; audit §0,
 §0.1), Executive Outcome Learning v1.1.
 **Origin:** inspection of the owner's Physics3D organism, 2026-09-27
@@ -254,3 +254,49 @@ their stability across halves of the run, and the resulting estimate count
 against `MAX_ESTIMATES`. If footprints do not form or do not hold in the 3D
 body, the design returns to the owner with that evidence before
 implementation.
+
+### 12.1 Spike results (2026-09-27)
+
+Raw change maps recorded on a copy of `org-ea3e7bbbc628` (1500 Physics3D
+ticks: 1494 attempts, 5 passive windows) and on the synthetic body (3000
+ticks); footprints computed offline with the model's controllability and
+agency formulas at the agentic threshold 0.35. Data and scripts:
+`.symbiont/effect-spike/`.
+
+| Question | Physics3D | Synthetic |
+| --- | --- | --- |
+| Atoms per transition (median / p90 / >16) | 2 / 5 / 0% | 1 / 1 / 0% |
+| Atom vocabulary (seen >= 8 times) | 137 (67) | 11 (11) |
+| Whole-state effects (distinct / attempts) | 612 / 1494 | 87 / 2999 |
+| Sources with a non-empty footprint (per intervention family, n >= 8) | 11 / 71 | 6 / 39 |
+| Footprint stability within a family (first vs second half of its attempts, n >= 16) | Jaccard 0.07, 0 / 22 identical | — |
+| Footprints per output channel (all families pooled, n >= 16) | 0 / 62 | — |
+
+Findings:
+
+1. **Atoms recur** as designed; the 16-atom cap never binds.
+2. **Footprints do not hold.** Intervention families are explored in bouts of
+   about 24 attempts and abandoned (192 families in 1500 ticks); within a
+   family the two halves' footprints barely overlap.
+3. **Pooling by channel does not rescue it.** A typical attempt drives about
+   4 channels at once, so a feature's change is spread over all of them and
+   none reaches positive specificity against the others.
+4. **Almost no counterfactual baseline.** 5 passive windows in 1500 ticks: the
+   organism acts nearly every tick, so "what happens anyway" is estimated
+   only from other interventions.
+
+Conclusion: the effect representation is not the only bottleneck in a
+high-dimensional body. Stable causal attribution also needs exploration that
+(a) repeats an intervention enough times, (b) varies one or few channels at a
+time, and (c) leaves quiet windows. Implementing factorized effects alone
+would give recurring atoms but not stable footprints, so competences would
+still not ground. Options for the owner:
+
+- **A.** Extend this specification with an exploration component
+  (per-channel probing bouts, quiet baseline windows) and re-run the spike
+  with it before implementation.
+- **B.** Implement factorized effects now as a necessary but insufficient
+  step, measured on E8, and specify exploration separately.
+- **C.** Revisit the design (e.g. regression-style attribution of feature
+  changes to simultaneously driven channels instead of per-source
+  frequencies).
