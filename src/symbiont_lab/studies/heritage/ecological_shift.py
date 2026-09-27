@@ -5,7 +5,7 @@ from hashlib import sha256
 from statistics import mean, pstdev
 from typing import Iterable
 
-from symbiont.core.collective import CollectiveMemory
+from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
 
 from symbiont.simulation import EventContext, SimulationResult, _run_population, run_simulation
@@ -187,7 +187,7 @@ def _run_target(
     if heritage is None:
         result, _ = run_simulation(**common)
     else:
-        collective = CollectiveMemory()
+        collective = SocialEvidenceLedger()
         apply_heritage(collective, heritage)
         result, _ = _run_population(
             **common,

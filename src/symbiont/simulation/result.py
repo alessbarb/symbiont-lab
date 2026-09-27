@@ -19,12 +19,12 @@ class SimulationResult:
     classification_false_positives: int
     classification_true_negatives: int
     classification_false_negatives: int
-    collective_patterns: int
+    social_claims: int
     open_questions: int
     forgotten_episodes: int
     consolidated_episodes: int
-    mean_source_trust: float
-    low_trust_sources: int
+    mean_source_reliability: float
+    low_reliability_sources: int
     poisoned_agents: int
     trust_gap: float
     reasoning_hypotheses: int

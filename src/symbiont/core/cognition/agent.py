@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..foundation.model import Assessment, HostModel, Observation, fingerprint
-from ..social.collective import CollectiveMemory
 from .beliefs import BeliefModel
 from .memory import AgentMemory, Episode
+from ..social.ledger import SocialEvidenceLedger, SourceEvidenceOutcome
 
 
 @dataclass(slots=True)
@@ -22,11 +22,10 @@ class Agent:
     drift_streak: int = 0
     drift_adaptations: int = 0
 
-    def assess(self, obs: Observation, collective: CollectiveMemory) -> Assessment:
+    def assess(self, obs: Observation, ledger: SocialEvidenceLedger | None = None) -> Assessment:
         novelty = self.model.novelty(obs)
         fp = fingerprint(obs)
         local_threat, local_certainty = self.beliefs.belief(fp)
-        collective_threat, collective_certainty = collective.belief(fp)
 
         raw_risk = min(
             1.0,
@@ -41,9 +40,8 @@ class Agent:
         maturity = self.model.maturity
         uncertainty = min(
             1.0,
-            (1.0 - maturity) * 0.38
-            + (1.0 - collective_certainty) * 0.42
-            + (1.0 - abs(risk - 0.5) * 2.0) * 0.20,
+            (1.0 - maturity) * 0.60
+            + (1.0 - abs(risk - 0.5) * 2.0) * 0.40,
         )
         relevance = min(
             1.0,
@@ -53,10 +51,19 @@ class Agent:
             + 0.10 * obs.new_processes
             + 0.25 * obs.persistence_changes,
         )
-        information_gain = novelty * (1.0 - collective_certainty)
+
+        social_interest = 0.0
+        if ledger is not None:
+            for claim in ledger.unresolved_claims():
+                # Rough matching: if the claim payload matches the fingerprint
+                if claim.payload == fp:
+                    social_interest = 0.35
+                    break
+        
+        information_gain = novelty + social_interest
         curiosity = min(
             1.0,
-            novelty * uncertainty * information_gain * max(relevance, 0.05) * self.curiosity_scale,
+            (novelty + social_interest) * uncertainty * information_gain * max(relevance, 0.05) * self.curiosity_scale,
         )
 
         local_weight = 0.12 * local_certainty
@@ -65,9 +72,8 @@ class Agent:
             max(
                 0.0,
                 (
-                    0.72 * risk
-                    + 0.18 * novelty
-                    + 0.10 * collective_threat * collective_certainty
+                    0.80 * risk
+                    + 0.20 * novelty
                     + local_weight * local_threat
                 )
                 / (1.0 + local_weight),
@@ -86,8 +92,6 @@ class Agent:
             information_gain=information_gain,
             curiosity=curiosity,
             risk=risk,
-            collective_threat=collective_threat,
-            collective_certainty=collective_certainty,
             fingerprint=fp,
             threat_probability=combined_suspicion,
             should_investigate=should_investigate,
@@ -96,9 +100,9 @@ class Agent:
             local_certainty=local_certainty,
         )
 
-    def observe(self, step: int, obs: Observation, collective: CollectiveMemory) -> Assessment:
+    def observe(self, step: int, obs: Observation, ledger: SocialEvidenceLedger | None = None) -> Assessment:
         self.memory.forget(step)
-        assessment = self.assess(obs, collective)
+        assessment = self.assess(obs, ledger)
         self.beliefs.revise(
             fingerprint=assessment.fingerprint,
             probability=assessment.threat_probability or 0.0,
@@ -108,6 +112,7 @@ class Agent:
             ),
             step=step,
         )
+
 
         if assessment.should_investigate:
             self.investigated += 1
@@ -120,26 +125,24 @@ class Agent:
                     believed_threat=assessment.believes_threat,
                 )
             )
-            reported_threat = assessment.believes_threat
-            if self.report_inversion:
-                reported_threat = not reported_threat
-            collective.report(
-                fingerprint=assessment.fingerprint,
-                threat=reported_threat,
-                confidence=max(
-                    0.05,
-                    abs(assessment.risk - 0.5) * 2.0,
-                    assessment.collective_certainty * 0.6,
-                ),
-                source=self.agent_id,
-                evidence_id=f"step:{step}",
-            )
+            if ledger is not None:
+                outcome = SourceEvidenceOutcome.AGREEMENT if assessment.believes_threat else SourceEvidenceOutcome.CONTRADICTION
+                for claim in ledger.unresolved_claims():
+                    if claim.payload == assessment.fingerprint:
+                        ledger.record_local_reconciliation(
+                            claim_id=claim.claim_id,
+                            tick=step,
+                            outcome=outcome,
+                            compatibility=1.0 - assessment.novelty,
+                            quality=1.0 - assessment.uncertainty,
+                            freshness=1.0,
+                            evidence_ref=f"episode-{step}"
+                        )
 
         drift_candidate = (
             self.model.maturity >= 0.5
             and assessment.novelty >= 0.45
             and assessment.risk < 0.45
-            and assessment.collective_threat < 0.65
         )
         if drift_candidate:
             self.drift_streak += 1

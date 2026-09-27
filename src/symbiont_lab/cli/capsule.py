@@ -9,9 +9,7 @@ from symbiont.core.capsule import KnowledgeCapsule
 
 from symbiont.core import (
     CapsuleKeyPair,
-    SourceTrustModel,
     create_capsule,
-    observe_capsule_trust,
     verify_capsule,
 )
 from symbiont.host import (
@@ -48,16 +46,7 @@ def build_capsule_parser(parser: argparse.ArgumentParser) -> None:
         help="Verify a knowledge capsule's signature, read as JSON on stdin",
     )
 
-    ingest_cmd = sub.add_parser(
-        "ingest",
-        help="Verify a capsule (stdin) and learn per-source reliability against this host's own beliefs",
-    )
-    ingest_cmd.add_argument(
-        "--ticks",
-        type=int,
-        default=5,
-        help="Number of ticks to acclimate this host's own baseline from before comparing (1-1000, default 5)",
-    )
+
 
 
 def _load_or_create_keypair(keyfile: str | None) -> CapsuleKeyPair:
@@ -109,41 +98,4 @@ def run_capsule_command(args: argparse.Namespace) -> int:
         }
         print(json.dumps(payload, indent=2, sort_keys=True))
         return 0 if valid else 1
-    if args.capsule_action == "ingest":
-        ticks = min(max(int(args.ticks), 1), 1000)
-        try:
-            data = json.loads(sys.stdin.read())
-        except json.JSONDecodeError as exc:
-            print(f"invalid capsule JSON: {exc}", file=sys.stderr)
-            return 1
-        try:
-            capsule = KnowledgeCapsule.from_dict(data)
-        except (KeyError, ValueError) as exc:
-            print(f"malformed capsule: {exc}", file=sys.stderr)
-            return 1
-
-        acclimation, _ = acclimate_local_host(ticks=ticks)
-        model = SourceTrustModel()
-        try:
-            scores = observe_capsule_trust(model, acclimation=acclimation, capsule=capsule)
-        except ValueError as exc:
-            print(str(exc), file=sys.stderr)
-            return 1
-
-        payload = {
-            "signer_public_key": capsule.signer_public_key.hex(),
-            "agreement_scores": scores,
-            "reliability": {
-                pattern_family: {
-                    "count": snapshot.count,
-                    "mean": snapshot.mean,
-                    "variance": snapshot.variance,
-                }
-                for pattern_family in scores
-                if (snapshot := model.reliability(capsule.signer_public_key, pattern_family))
-                is not None
-            },
-        }
-        print(json.dumps(payload, indent=2, sort_keys=True))
-        return 0
     return 1

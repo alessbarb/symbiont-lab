@@ -117,6 +117,7 @@ from ..signals.identity import SignalIdentity
 from ..signals.knowledge import MAX_KNOWLEDGE_CHECKPOINT_BYTES, SignalKnowledgeEngine
 from ..signals.knowledge_checkpoint import validate_checkpoint
 from ..social.ecology import SharedHabitat
+from ..social.ledger import SocialEvidenceLedger
 from ..social.relations import (
     InteractionOutcome,
     RelationLedger,
@@ -127,7 +128,6 @@ from ..social.relations import (
     SocialPresence,
     SocialRelation,
 )
-from ..social.trust import SourceTrustModel
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -272,6 +272,7 @@ class OrganismRuntime:
         social_habitat: SocialHabitat | None = None,
         social_ledger: RelationLedger | None = None,
         social_resource_ledger: ResourceEvidenceLedger | None = None,
+        epistemic_ledger: SocialEvidenceLedger | None = None,
         explicit_metabolism: bool = False,
         auto_promote_predictors: bool = False,
         birth_authority: HabitatBirthAuthority | None = None,
@@ -280,7 +281,6 @@ class OrganismRuntime:
         social_exchange_cost: float = 0.01,
         resting_requested: bool = False,
         degradation_queue: DegradationQueue | None = None,
-        source_trust: SourceTrustModel | None = None,
         interoception_enabled: bool = True,
         interoception_mode: str | None = None,
         developmental_tracker: DevelopmentalTracker | None = None,
@@ -632,7 +632,7 @@ class OrganismRuntime:
             if social_resource_ledger is not None
             else ResourceEvidenceLedger()
         )
-        self._source_trust = source_trust if source_trust is not None else SourceTrustModel()
+        self._epistemic_ledger = epistemic_ledger if epistemic_ledger is not None else SocialEvidenceLedger()
         self._social_habitat_released = False
         self._habitat_released = False
         self._birth_authority_released = False
@@ -1939,10 +1939,6 @@ class OrganismRuntime:
             surfaces.append(self._habitat)
         return all(surface.snapshot().population < surface.capacity for surface in surfaces)
 
-    @property
-    def source_trust(self) -> SourceTrustModel:
-        return self._source_trust
-
     def request_rest(self) -> None:
         """Enter a bounded rest request; reserves are not replenished."""
         if self._physiology.state is VitalState.DEAD:
@@ -2422,7 +2418,7 @@ class OrganismRuntime:
         payload["physiology"] = self._physiology.checkpoint()
         payload["social_ledger"] = self._social_ledger.checkpoint()
         payload["social_resource_ledger"] = self._social_resource_ledger.checkpoint()
-        payload["source_trust"] = self._source_trust.export_checkpoint()
+        # payload["epistemic_ledger"] = self._epistemic_ledger.checkpoint() # TODO
         payload["generation"] = self._generation
         payload["social_exchange_quantum"] = self._social_exchange_quantum
         payload["social_exchange_cost"] = self._social_exchange_cost
@@ -2939,11 +2935,6 @@ class OrganismRuntime:
             if normalized.get("degradation")
             else DegradationQueue()
         )
-        source_trust = (
-            SourceTrustModel.from_checkpoint(normalized["source_trust"])
-            if normalized.get("source_trust")
-            else SourceTrustModel()
-        )
         developmental_tracker = (
             DevelopmentalTracker.from_checkpoint(normalized["development"])
             if normalized.get("development")
@@ -3073,7 +3064,6 @@ class OrganismRuntime:
                 )
             ),
             degradation_queue=degradation_queue,
-            source_trust=source_trust,
             developmental_tracker=developmental_tracker,
             actuation_enabled=actuation_enabled,
             actuator_constitution=actuator_constitution,

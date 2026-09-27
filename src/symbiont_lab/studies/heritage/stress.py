@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from hashlib import sha256
 from statistics import mean
 
-from symbiont.core.collective import CollectiveMemory
+from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.core.heritage import (
     HeritagePattern,
     SpeciesHeritage,
@@ -135,7 +135,7 @@ def _mae(values: list[float]) -> float | None:
 
 def _alignment(
     inherited: SpeciesHeritage,
-    collective: CollectiveMemory,
+    collective: SocialEvidenceLedger,
     empirical: dict[str, float],
 ) -> tuple[int, float | None, float | None, float | None, float | None, float | None]:
     prior_errors: list[float] = []
@@ -189,7 +189,7 @@ def _run_condition(
     drift_magnitude: float,
     heritage_limit: int,
 ) -> HeritageStressCondition:
-    collective = CollectiveMemory()
+    collective = SocialEvidenceLedger()
     apply_heritage(collective, heritage)
     events: list[EventContext] = []
     digest = sha256()

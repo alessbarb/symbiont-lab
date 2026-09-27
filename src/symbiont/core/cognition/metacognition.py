@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Iterable
 
 from ..foundation.model import Assessment
-from ..social.collective import CollectiveMemory
+from ..social.ledger import SocialEvidenceLedger
 
 
 @dataclass(slots=True, frozen=True)
@@ -16,8 +16,9 @@ class MetacognitiveState:
     mean_uncertainty: float
     mean_novelty: float
     mean_curiosity: float
-    disagreement_pressure: float
-    question_pressure: float
+    social_uncertainty_pressure: float
+    social_contradiction_pressure: float
+    unresolved_social_pressure: float
     status: str
 
     def as_dict(self) -> dict[str, object]:
@@ -34,9 +35,20 @@ class MetacognitionEngine:
     def assess(
         self,
         assessments: Iterable[Assessment],
-        collective: CollectiveMemory,
+        ledger: SocialEvidenceLedger,
     ) -> MetacognitiveState:
         items = list(assessments)
+        
+        # Calculate social pressures
+        total_claims = len(ledger.claims)
+        unresolved_claims = len(ledger.unresolved_claims())
+        unresolved_social_pressure = unresolved_claims / max(total_claims, 1)
+
+        # Very coarse approximation for these pressures
+        contradictions = sum(s.contradictions for s in ledger.source_states.values())
+        social_contradiction_pressure = min(1.0, contradictions / max(total_claims, 1))
+        social_uncertainty_pressure = min(1.0, unresolved_social_pressure + social_contradiction_pressure)
+
         if not items:
             return MetacognitiveState(
                 self_confidence=0.0,
@@ -44,27 +56,21 @@ class MetacognitionEngine:
                 mean_uncertainty=1.0,
                 mean_novelty=0.0,
                 mean_curiosity=0.0,
-                disagreement_pressure=1.0,
-                question_pressure=0.0,
+                social_uncertainty_pressure=social_uncertainty_pressure,
+                social_contradiction_pressure=social_contradiction_pressure,
+                unresolved_social_pressure=unresolved_social_pressure,
                 status="unformed",
             )
 
         mean_uncertainty = sum(a.uncertainty for a in items) / len(items)
         mean_novelty = sum(a.novelty for a in items) / len(items)
         mean_curiosity = sum(a.curiosity for a in items) / len(items)
-        disagreement_pressure = sum(
-            1.0 - abs(a.collective_threat - 0.5) * 2.0 for a in items
-        ) / len(items)
-        question_pressure = len(collective.open_questions()) / max(len(collective.patterns), 1)
-        question_pressure = min(question_pressure, 1.0)
 
         epistemic_pressure = min(
             1.0,
-            0.42 * mean_uncertainty
-            + 0.24 * mean_novelty
-            + 0.20 * disagreement_pressure
-            + 0.10 * question_pressure
-            + 0.04 * min(mean_curiosity * 8.0, 1.0),
+            0.55 * mean_uncertainty
+            + 0.35 * mean_novelty
+            + 0.10 * min(mean_curiosity * 8.0, 1.0),
         )
         self_confidence = max(0.0, min(1.0, 1.0 - epistemic_pressure))
 
@@ -72,9 +78,9 @@ class MetacognitionEngine:
             status = "uncertain"
         elif mean_novelty > 0.30:
             status = "novel"
-        elif disagreement_pressure > 0.62 and question_pressure > 0.08:
+        elif unresolved_social_pressure > 0.62:
             status = "contested"
-        elif self_confidence > 0.72 and question_pressure < 0.10:
+        elif self_confidence > 0.72 and unresolved_social_pressure < 0.10:
             status = "stable"
         else:
             status = "watchful"
@@ -85,7 +91,8 @@ class MetacognitionEngine:
             mean_uncertainty=mean_uncertainty,
             mean_novelty=mean_novelty,
             mean_curiosity=mean_curiosity,
-            disagreement_pressure=disagreement_pressure,
-            question_pressure=question_pressure,
+            social_uncertainty_pressure=social_uncertainty_pressure,
+            social_contradiction_pressure=social_contradiction_pressure,
+            unresolved_social_pressure=unresolved_social_pressure,
             status=status,
         )

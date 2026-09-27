@@ -1,0 +1,19 @@
+Concept:
+SourceEvidenceModel (replaces SourceTrust, SourceTrustModel)
+Fields:
+- compatibility_observations: int
+- compatibility_sum: float
+- quality_observations: int
+- quality_sum: float
+- independence_roots: int
+- agreements: int
+- contradictions: int
+- unresolved: int
+- freshness_latest_tick: int
+
+SocialEvidenceLedger (replaces CollectiveMemory, CollectiveRevision, PatternEvidence)
+Fields:
+- claims: dict[str, SocialClaim]
+- source_evidence: dict[str, SourceEvidenceModel]
+- roots: dict[str, set[str]]  # claim_id -> set of root evidence IDs
+

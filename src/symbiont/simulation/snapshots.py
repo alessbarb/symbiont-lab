@@ -29,12 +29,12 @@ class SimulationSnapshot:
     classification_false_positive_rate: float
     classification_miss_rate: float
     high_confidence_miss_rate: float
-    collective_patterns: int
+    social_claims: int
     open_questions: int
     forgotten_episodes: int
     consolidated_episodes: int
-    mean_source_trust: float
-    low_trust_sources: int
+    mean_source_reliability: float
+    low_reliability_sources: int
     poisoned_agents: int
     trust_gap: float
     reasoning_hypotheses: tuple[Hypothesis, ...]
@@ -45,7 +45,7 @@ class SimulationSnapshot:
     epistemic_pressure: float
     mean_uncertainty: float
     mean_novelty: float
-    disagreement_pressure: float
+    social_contradiction_pressure: float
     metacognitive_status: str
     calibration_error: float
     brier_score: float

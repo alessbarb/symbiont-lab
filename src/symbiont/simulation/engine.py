@@ -8,7 +8,7 @@ from symbiont.core.cognition.curiosity import CuriosityPlanner, CuriosityProbe
 from symbiont.core.cognition.metacognition import MetacognitionEngine, MetacognitiveState
 from symbiont.core.cognition.reasoning import Hypothesis, ReasoningEngine
 from symbiont.core.foundation.model import Assessment
-from symbiont.core.social.collective import CollectiveMemory
+from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.environment.regimes import apply_regime_shift
 from symbiont.environment.rng import make_rng_streams
 from symbiont.environment.world import benign_event, make_profiles, pathogen_event
@@ -57,14 +57,21 @@ def _make_agents(
     return agents, poisoned_ids
 
 
-def _trust_gap(collective: CollectiveMemory, poisoned_ids: set[str]) -> float:
+def _mean_reliability(ledger: SocialEvidenceLedger) -> float:
+    states = ledger.source_states.values()
+    return sum(s.source_reliability for s in states) / len(states) if states else 0.0
+
+def _low_rel_sources(ledger: SocialEvidenceLedger) -> int:
+    return sum(1 for s in ledger.source_states.values() if s.source_reliability < 0.4)
+
+def _trust_gap(ledger: SocialEvidenceLedger, poisoned_ids: set[str]) -> float:
     honest = [
-        state.score
-        for source, state in collective.source_trust.items()
+        state.source_reliability
+        for source, state in ledger.source_states.items()
         if source not in poisoned_ids
     ]
     poisoned = [
-        state.score for source, state in collective.source_trust.items() if source in poisoned_ids
+        state.source_reliability for source, state in ledger.source_states.items() if source in poisoned_ids
     ]
     if not honest or not poisoned:
         return 0.0
@@ -72,12 +79,12 @@ def _trust_gap(collective: CollectiveMemory, poisoned_ids: set[str]) -> float:
 
 
 def _cognitive_outputs(
-    collective: CollectiveMemory,
+    ledger: SocialEvidenceLedger,
     reasoner: ReasoningEngine,
     curiosity: CuriosityPlanner,
 ) -> tuple[tuple[Hypothesis, ...], tuple[CuriosityProbe, ...]]:
-    hypotheses = reasoner.analyze(collective)
-    return hypotheses, curiosity.plan(hypotheses, collective)
+    hypotheses = reasoner.analyze(ledger)
+    return hypotheses, curiosity.plan(hypotheses, ledger)
 
 
 def _rate_or_zero(value: float | None) -> float:
@@ -90,7 +97,7 @@ def _snapshot(
     total_steps: int,
     evaluator: Evaluator,
     agents: list[Agent],
-    collective: CollectiveMemory,
+    ledger: SocialEvidenceLedger,
     poisoned_ids: set[str],
     reasoner: ReasoningEngine,
     curiosity: CuriosityPlanner,
@@ -99,7 +106,7 @@ def _snapshot(
     drifted_hosts: set[int],
 ) -> SimulationSnapshot:
     investigated = sum(agent.investigated for agent in agents)
-    hypotheses, probes = _cognitive_outputs(collective, reasoner, curiosity)
+    hypotheses, probes = _cognitive_outputs(ledger, reasoner, curiosity)
     attention_recall = _rate_or_zero(evaluator.counts.attention_recall)
     attention_precision = _rate_or_zero(evaluator.counts.attention_precision)
     attention_fpr = _rate_or_zero(evaluator.counts.attention_false_positive_rate)
@@ -126,14 +133,14 @@ def _snapshot(
         classification_false_positive_rate=classification_fpr,
         classification_miss_rate=evaluator.classification_miss_rate,
         high_confidence_miss_rate=evaluator.high_confidence_miss_rate,
-        collective_patterns=len(collective.patterns),
-        open_questions=len(collective.open_questions()),
+        social_claims=len(ledger.claims),
+        open_questions=len(ledger.open_questions()),
         forgotten_episodes=sum(agent.memory.forgotten for agent in agents),
         consolidated_episodes=sum(agent.memory.consolidated for agent in agents),
-        mean_source_trust=collective.mean_source_trust,
-        low_trust_sources=collective.low_trust_sources(),
+        mean_source_reliability=_mean_reliability(ledger),
+        low_reliability_sources=_low_rel_sources(ledger),
         poisoned_agents=len(poisoned_ids),
-        trust_gap=_trust_gap(collective, poisoned_ids),
+        trust_gap=_trust_gap(ledger, poisoned_ids),
         reasoning_hypotheses=hypotheses,
         reasoning_priority=hypotheses[0].priority if hypotheses else 0.0,
         curiosity_probes=probes,
@@ -142,7 +149,7 @@ def _snapshot(
         epistemic_pressure=meta.epistemic_pressure,
         mean_uncertainty=meta.mean_uncertainty,
         mean_novelty=meta.mean_novelty,
-        disagreement_pressure=meta.disagreement_pressure,
+        social_contradiction_pressure=meta.social_contradiction_pressure,
         metacognitive_status=meta.status,
         calibration_error=evaluator.calibration_error,
         brier_score=evaluator.brier_score,
@@ -169,8 +176,8 @@ def _run_population(
     drift_magnitude: float = 0.22,
     on_snapshot: Callable[[SimulationSnapshot], None] | None = None,
     on_event: Callable[[EventContext], None] | None = None,
-    collective: CollectiveMemory | None = None,
-) -> tuple[SimulationResult, CollectiveMemory]:
+    ledger: SocialEvidenceLedger | None = None,
+) -> tuple[SimulationResult, SocialEvidenceLedger]:
     streams = make_rng_streams(seed)
     profiles = make_profiles(hosts, streams.profiles)
     agents, poisoned_ids = _make_agents(
@@ -179,12 +186,12 @@ def _run_population(
         poison_fraction,
         heterogeneity,
     )
-    collective = collective or CollectiveMemory()
+    ledger = ledger or SocialEvidenceLedger()
     evaluator = Evaluator()
     reasoner = ReasoningEngine()
     curiosity = CuriosityPlanner()
     metacognition = MetacognitionEngine()
-    meta = metacognition.assess([], collective)
+    meta = metacognition.assess([], ledger)
     resolved_drift_step = max(50, int(steps * 0.55)) if drift_step is None else max(0, drift_step)
     drifted_hosts: set[int] = set()
 
@@ -234,7 +241,7 @@ def _run_population(
                     )
                 )
 
-            assessment = agent.observe(step, event.observation, collective)
+            assessment = agent.observe(step, event.observation, ledger)
             step_assessments.append(assessment)
             evaluator.record(
                 is_threat=event.is_threat,
@@ -245,8 +252,7 @@ def _run_population(
                 drift_state=drift_state,
             )
 
-        collective.recalibrate_sources()
-        meta = metacognition.assess(step_assessments, collective)
+        meta = metacognition.assess(step_assessments, ledger)
         if on_snapshot is not None:
             on_snapshot(
                 _snapshot(
@@ -254,7 +260,7 @@ def _run_population(
                     total_steps=steps,
                     evaluator=evaluator,
                     agents=agents,
-                    collective=collective,
+                    ledger=ledger,
                     poisoned_ids=poisoned_ids,
                     reasoner=reasoner,
                     curiosity=curiosity,
@@ -265,7 +271,7 @@ def _run_population(
             )
 
     investigated = sum(agent.investigated for agent in agents)
-    hypotheses, probes = _cognitive_outputs(collective, reasoner, curiosity)
+    hypotheses, probes = _cognitive_outputs(ledger, reasoner, curiosity)
     result = SimulationResult(
         hosts=hosts,
         steps=steps,
@@ -279,14 +285,14 @@ def _run_population(
         classification_false_positives=evaluator.classification_false_positives,
         classification_true_negatives=evaluator.classification_true_negatives,
         classification_false_negatives=evaluator.classification_false_negatives,
-        collective_patterns=len(collective.patterns),
-        open_questions=len(collective.open_questions()),
+        social_claims=len(ledger.claims),
+        open_questions=len(ledger.open_questions()),
         forgotten_episodes=sum(agent.memory.forgotten for agent in agents),
         consolidated_episodes=sum(agent.memory.consolidated for agent in agents),
-        mean_source_trust=collective.mean_source_trust,
-        low_trust_sources=collective.low_trust_sources(),
+        mean_source_reliability=_mean_reliability(ledger),
+        low_reliability_sources=_low_rel_sources(ledger),
         poisoned_agents=len(poisoned_ids),
-        trust_gap=_trust_gap(collective, poisoned_ids),
+        trust_gap=_trust_gap(ledger, poisoned_ids),
         reasoning_hypotheses=len(hypotheses),
         top_reasoning_priority=hypotheses[0].priority if hypotheses else 0.0,
         curiosity_probes=len(probes),
@@ -306,7 +312,7 @@ def _run_population(
         recent_drift_false_positive_rate=evaluator.recent_drift_false_positive_rate,
         evaluation_breakdown=evaluator.breakdown(),
     )
-    return result, collective
+    return result, ledger
 
 
 def run_simulation(
@@ -321,7 +327,7 @@ def run_simulation(
     drift_magnitude: float = 0.22,
     on_snapshot: Callable[[SimulationSnapshot], None] | None = None,
     on_event: Callable[[EventContext], None] | None = None,
-) -> tuple[SimulationResult, CollectiveMemory]:
+) -> tuple[SimulationResult, SocialEvidenceLedger]:
     return _run_population(
         hosts=hosts,
         steps=steps,

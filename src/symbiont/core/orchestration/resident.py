@@ -9,7 +9,6 @@ from typing import Callable
 
 from ..host.local_habitat import LocalHabitat
 from ..social.capsule import CapsuleKeyPair, create_capsule
-from ..social.trust import observe_capsule_trust
 from .governor import GovernedOrganism
 from .runtime import OrganismRuntime, RuntimeTickResult
 
@@ -130,18 +129,7 @@ class ResidentOrganism:
         try:
             peer_capsules = self.habitat.poll_capsules(exclude_signer=self.keypair.public_bytes)
             for cap in peer_capsules:
-                # Peer trust/agreement is a social-epistemic signal only: it
-                # updates trust bookkeeping via ``observe_capsule_trust`` but
-                # must never itself manufacture metabolic reserve.
-                # ``LocalHabitat`` has no physical resource-transfer
-                # mechanism (see local_habitat.py), so there is no honest
-                # exchange to gate here; trust agreement is recorded and
-                # nothing more.
-                observe_capsule_trust(
-                    self.runtime.source_trust,
-                    acclimation=self.runtime._acclimation,
-                    capsule=cap,
-                )
+                pass
         except Exception:
             logger.exception("resident capsule ingestion failed")
 

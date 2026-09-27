@@ -94,8 +94,6 @@ class Assessment:
     information_gain: float
     curiosity: float
     risk: float
-    collective_threat: float
-    collective_certainty: float
     fingerprint: str
     should_investigate: bool
     believes_threat: bool

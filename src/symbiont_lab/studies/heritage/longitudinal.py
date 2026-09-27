@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from statistics import mean
 from typing import Iterable
 
-from symbiont.core.collective import CollectiveMemory
+from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
 
 from symbiont.simulation import SimulationResult, _run_population, run_simulation
@@ -95,9 +95,9 @@ def _run_with_heritage(
     drift_fraction: float,
     drift_magnitude: float,
     heritage: SpeciesHeritage | None,
-) -> tuple[SimulationResult, CollectiveMemory]:
+) -> tuple[SimulationResult, SocialEvidenceLedger]:
     """Run the canonical simulator with bounded inherited collective priors."""
-    collective = CollectiveMemory()
+    collective = SocialEvidenceLedger()
     apply_heritage(collective, heritage)
     return _run_population(
         hosts=hosts,

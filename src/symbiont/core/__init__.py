@@ -97,15 +97,8 @@ from .social.capsule import (
     create_capsule,
     verify_capsule,
 )
-from .social.collective import (
-    CollectiveMemory,
-    InheritedPrior,
-    OpenQuestion,
-    PatternEvidence,
-    SourceTrust,
-    SourceVote,
-)
-from .social.trust import SourceTrustModel, TrustSnapshot, agreement_score, observe_capsule_trust
+from .social.ledger import SocialClaim, SocialEvidenceLedger, SocialQuestion
+from .social.source_evidence import SourceEvidenceOutcome, SourceEvidenceSample, SourceEvidenceState
 
 _sys.modules[__name__ + ".birth_authority"] = _birth_authority
 _sys.modules[__name__ + ".heredity"] = _heredity
@@ -127,7 +120,6 @@ from .lineage.inheritance import (
     mutate_genome,
 )
 from .social.adversarial import AdversarialAssessment, AdversarialEcology
-from .social.collective_revision import RevisionResult, revise_claim
 from .social.communication import ConsentBoundChannel, SignedMessage
 from .social.ecology import HabitatSnapshot, SharedHabitat
 from .social.evidence_trust import EvidenceTrust
@@ -146,8 +138,7 @@ __all__ = [
     "AttentionCandidate",
     "CAPSULE_SCHEMA_VERSION",
     "CapsuleKeyPair",
-    "CollectiveMemory",
-    "ConsentRevokedError",
+        "ConsentRevokedError",
     "CuriosityPlanner",
     "CuriosityProbe",
     "DefensiveAdvisor",
@@ -160,16 +151,13 @@ __all__ = [
     "HeritagePattern",
     "HostModel",
     "Hypothesis",
-    "InheritedPrior",
-    "KnowledgeCapsule",
+        "KnowledgeCapsule",
     "MetacognitionEngine",
     "MetacognitiveState",
     "NarrativeEntry",
     "Observation",
-    "OpenQuestion",
-    "OrganismRuntime",
-    "PatternEvidence",
-    "RateLimitedError",
+        "OrganismRuntime",
+        "RateLimitedError",
     "ReasoningEngine",
     "ResidentConfig",
     "ResidentOrganism",
@@ -177,14 +165,9 @@ __all__ = [
     "RuntimeTickResult",
     "OrganismDeadError",
     "SemanticMemory",
-    "SourceTrust",
-    "SourceTrustModel",
-    "SourceVote",
-    "SpeciesHeritage",
+                "SpeciesHeritage",
     "TickBudgetExhaustedError",
-    "TrustSnapshot",
-    "agreement_score",
-    "append_advisories_to_log",
+            "append_advisories_to_log",
     "MetabolicLedger",
     "MetabolicSnapshot",
     "ResourcePressure",
@@ -216,9 +199,7 @@ __all__ = [
     "ExchangeReplayGuard",
     "MAX_EXCHANGE_BYTES",
     "EvidenceTrust",
-    "RevisionResult",
-    "revise_claim",
-    "ConsentBoundChannel",
+            "ConsentBoundChannel",
     "SignedMessage",
     "AdversarialAssessment",
     "AdversarialEcology",
@@ -238,8 +219,7 @@ __all__ = [
     "mean",
     "narrate_capability",
     "narrate_host",
-    "observe_capsule_trust",
-    "uncertainty_from_baseline",
+        "uncertainty_from_baseline",
     "verify_capsule",
     "SignalIdentity",
     "SignalKnowledgeEngine",
@@ -343,8 +323,7 @@ _legacy_module_paths = {
     "beliefs": "cognition.beliefs",
     "attention": "cognition.attention",
     "capsule": "social.capsule",
-    "collective": "social.collective",
-    "curiosity": "cognition.curiosity",
+        "curiosity": "cognition.curiosity",
     "governor": "orchestration.governor",
     "evidence": "cognition.evidence",
     "consolidation": "cognition.consolidation",
@@ -355,8 +334,7 @@ _legacy_module_paths = {
     "reasoning": "cognition.reasoning",
     "resident": "orchestration.resident",
     "runtime": "orchestration.runtime",
-    "trust": "social.trust",
-    "local_habitat": "host.local_habitat",
+        "local_habitat": "host.local_habitat",
     "metabolism": "embodiment.metabolism",
     "physiology": "embodiment.physiology",
     "physiology_config": "embodiment.physiology_config",
@@ -368,8 +346,7 @@ _legacy_module_paths = {
     "interactions": "social.interactions",
     "exchange": "social.exchange",
     "evidence_trust": "social.evidence_trust",
-    "collective_revision": "social.collective_revision",
-    "communication": "social.communication",
+        "communication": "social.communication",
     "adversarial": "social.adversarial",
     "development": "embodiment.development",
     "ontogeny": "embodiment.ontogeny",
