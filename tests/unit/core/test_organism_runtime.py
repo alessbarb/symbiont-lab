@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import random
+import time
 
 import pytest
 from symbiont.core.development import DevelopmentalTracker
@@ -355,7 +356,7 @@ def test_a_learned_but_currently_absent_sense_does_not_starve_a_live_one():
     )
     manifest = HostManifest(1, (Capability("live", CapabilityKind.SIGNAL, "fixture"),), ())
     snapshot = LifecycleSnapshot(1, manifest, (reading("live", 10.0),), (), (), ("live",))
-    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot)
+    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot, clock=time.perf_counter)
 
     result = runtime.tick()
 
@@ -406,7 +407,9 @@ def test_drift_baselines_stay_bounded_as_sensed_capabilities_renew():
         caps = tuple(Capability(cid, CapabilityKind.SIGNAL, "fixture") for cid in ids)
         readings = tuple(reading(cid, 1.0) for cid in ids)
         snapshot = LifecycleSnapshot(group, HostManifest(1, caps, ()), readings, (), (), ids)
-        runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot)
+        runtime._lifecycle = SimpleNamespace(
+            tick=lambda **kwargs: snapshot, clock=time.perf_counter
+        )
         for _ in range(5):
             runtime.tick()
 
@@ -529,7 +532,7 @@ def test_established_but_persistently_unhealthy_sense_is_skipped_for_second_look
         (),
         ("broken", "healthy"),
     )
-    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot)
+    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot, clock=time.perf_counter)
 
     result = runtime.tick()
 
@@ -1010,11 +1013,15 @@ def _drive_regime_shift_with_surprise(
             _is_synthetic_fake=True,
         )
 
-    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: stable_snapshot)
+    runtime._lifecycle = SimpleNamespace(
+        tick=lambda **kwargs: stable_snapshot, clock=time.perf_counter
+    )
     for _ in range(stable_ticks):
         runtime.tick()
 
-    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: extreme_snapshot)
+    runtime._lifecycle = SimpleNamespace(
+        tick=lambda **kwargs: extreme_snapshot, clock=time.perf_counter
+    )
     result = None
     for _ in range(extreme_ticks):
         result = runtime.tick()

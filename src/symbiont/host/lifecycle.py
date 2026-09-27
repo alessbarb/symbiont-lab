@@ -75,6 +75,11 @@ class HostLifecycle:
     def history(self) -> tuple[LifecycleSnapshot, ...]:
         return tuple(self._history)
 
+    @property
+    def clock(self) -> Callable[[], float]:
+        """The host sampling clock; every sampling path of one host shares it."""
+        return self._clock
+
     def fork_for_child(self) -> "HostLifecycle":
         """Copy provider configuration without acquired lifecycle state."""
         return HostLifecycle(

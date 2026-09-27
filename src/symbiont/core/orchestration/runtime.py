@@ -2134,6 +2134,7 @@ class OrganismRuntime:
                 evidence_ledger=self._evidence_ledger,
                 acclimation=self._acclimation,
                 reading_providers=self._reading_providers,
+                sampling_clock=self._lifecycle.clock,
             ),
             context=context,
             perception=perception,

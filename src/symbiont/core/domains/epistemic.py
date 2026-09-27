@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from ...host.readings import HostSampler, ReadingProvider
@@ -19,6 +21,9 @@ class EpistemicServices:
     evidence_ledger: EvidenceRevisionLedger
     acclimation: object
     reading_providers: tuple[ReadingProvider, ...]
+    # Same clock as the host lifecycle, so investigation cost attribution
+    # uses one time base with ordinary sampling.
+    sampling_clock: Callable[[], float] = time.perf_counter
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +94,7 @@ class EpistemicDomain:
                     capability_id=candidate,
                     max_ticks=investigate_ticks,
                     sampler=HostSampler(services.reading_providers),
+                    clock=services.sampling_clock,
                 )
                 result = session.run_to_completion()
                 investigated_capability = candidate

@@ -95,13 +95,20 @@ class PerceptionDomain:
         snapshot = services.lifecycle.tick(
             sampling_selector=sampling_selector if discover_senses else None
         )
+        # Readings the organism synthesizes itself this tick share the host
+        # snapshot's clock, so every percept of one tick has one coherent time
+        # base (wall time only when the host supplied no reading at all).
+        tick_timestamp_ns = max(
+            (reading.monotonic_timestamp_ns for reading in snapshot.readings),
+            default=time.monotonic_ns(),
+        )
         resource_readings = tuple(
             SensorReading(
                 capability_id=f"habitat_surface.{resource_id}",
                 source="shared_habitat",
                 value=resource.snapshot().available_resources,
                 unit=Unit.COUNT,
-                monotonic_timestamp_ns=time.monotonic_ns(),
+                monotonic_timestamp_ns=tick_timestamp_ns,
                 quality=ReadingQuality.NOMINAL,
                 privacy_class=ReadingPrivacyClass.AGGREGATE,
             )
@@ -281,7 +288,7 @@ class PerceptionDomain:
         )
         consumed_proprioception = False
         if pending_proprioception:
-            now = time.monotonic_ns()
+            now = tick_timestamp_ns
             proprio_names = {
                 capability_id: services.signal_identity.signal_id(capability_id)
                 for capability_id in pending_proprioception
