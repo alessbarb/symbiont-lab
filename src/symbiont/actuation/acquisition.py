@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from ..core.embodiment.body_schema import BodySchemaEngine
 
 _RECENT_ATTEMPTS = 64
+_PATTERN_CACHE = 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +120,10 @@ class AgencyAcquisition:
         self.attempt_count = 0
         self._surface_ids: tuple[str, ...] | None = None
         self._surface_fingerprint: str | None = None
+        self._pattern_signatures: dict[
+            tuple[str, tuple[tuple[tuple[str, float], ...], ...]],
+            tuple[InterventionSignature, tuple[InterventionSignature, ...]],
+        ] = {}
 
     # -- surface --------------------------------------------------------------
     def bind_surface(
@@ -599,9 +604,17 @@ class AgencyAcquisition:
         driven = tuple(pattern for pattern in patterns if pattern)
         if not driven:
             return None
-        temporal, steps = self.signatures.signature_for_pattern_sequence(
-            driven, controller_seed_ref=controller_seed_ref
-        )
+        key = (controller_seed_ref, tuple(tuple(sorted(item.items())) for item in driven))
+        cached = self._pattern_signatures.get(key)
+        if cached is None:
+            # Pure identities of an immutable controller seed; memoized.
+            cached = self.signatures.signature_for_pattern_sequence(
+                driven, controller_seed_ref=controller_seed_ref
+            )
+            self._pattern_signatures[key] = cached
+            while len(self._pattern_signatures) > _PATTERN_CACHE:
+                self._pattern_signatures.pop(next(iter(self._pattern_signatures)))
+        temporal, steps = cached
         threshold = self.dimension_policy.agentic_confidence
         best: tuple[float, float, str, str] | None = None
         for step in steps:

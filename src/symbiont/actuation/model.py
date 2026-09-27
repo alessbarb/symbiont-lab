@@ -180,6 +180,7 @@ class _SourceIndexed:
     def _store(self, key: _Key, estimate) -> None:
         self._estimates[key] = estimate
         self._by_source.setdefault((key[0], key[1]), set()).add(key)
+        self._by_kind.setdefault(key[0], set()).add(key)
         if len(self._estimates) > MAX_ESTIMATES + MAX_ESTIMATES // 8:
             self._prune()
 
@@ -197,8 +198,10 @@ class _SourceIndexed:
         )[:MAX_ESTIMATES]
         self._estimates = dict(retained)
         self._by_source = {}
+        self._by_kind = {}
         for key in self._estimates:
             self._by_source.setdefault((key[0], key[1]), set()).add(key)
+            self._by_kind.setdefault(key[0], set()).add(key)
 
     def checkpoint(self) -> list[dict[str, object]]:
         return [
@@ -217,6 +220,7 @@ class _SourceIndexed:
             raise ValueError("invalid or unbounded causal estimate table")
         self._estimates = {}
         self._by_source = {}
+        self._by_kind = {}
         for raw in payload:
             if not isinstance(raw, Mapping):
                 raise ValueError("invalid causal estimate")
@@ -232,6 +236,15 @@ class _SourceIndexed:
                 ),
                 estimate,
             )
+
+    def estimates_for(self, source_kind: CausalSourceKind) -> tuple:
+        keys = self._by_kind.get(source_kind, ())
+        return tuple(
+            self._estimates[key] for key in sorted(keys, key=lambda k: (k[1], k[2], k[3] or ""))
+        )
+
+    def __len__(self) -> int:
+        return len(self._estimates)
 
     @property
     def estimates(self) -> tuple:
@@ -280,6 +293,7 @@ class ControllabilityModel(_SourceIndexed):
     def __init__(self) -> None:
         self._estimates: dict[_Key, ControllabilityEstimate] = {}
         self._by_source: dict[tuple[CausalSourceKind, str], set[_Key]] = {}
+        self._by_kind: dict[CausalSourceKind, set[_Key]] = {}
 
     def update_from_ledger(
         self,
@@ -335,6 +349,7 @@ class ControllabilityModel(_SourceIndexed):
     ) -> None:
         self._estimates = {}
         self._by_source = {}
+        self._by_kind = {}
         keys = _source_keys(ledger)
         keys.update(_dimension_keys(ledger, dimensions or {}))
         for (kind, ref, effect_id, context_id), tick in sorted(
@@ -362,12 +377,10 @@ class ControllabilityModel(_SourceIndexed):
     ) -> ControllabilityEstimate | None:
         return self._estimates.get((source_kind, source_ref, effect_id, context_id))
 
-    def estimates_for(self, source_kind: CausalSourceKind) -> tuple[ControllabilityEstimate, ...]:
-        return tuple(item for item in self.estimates if item.source_kind is source_kind)
-
     def discard_source(self, source_kind: CausalSourceKind, source_ref: str) -> None:
         for key in self._by_source.pop((source_kind, source_ref), set()):
             self._estimates.pop(key, None)
+            self._by_kind.get(source_kind, set()).discard(key)
 
 
 @dataclass(frozen=True, slots=True)
@@ -402,6 +415,7 @@ class AgencyModel(_SourceIndexed):
     def __init__(self) -> None:
         self._estimates: dict[_Key, AgencyEstimate] = {}
         self._by_source: dict[tuple[CausalSourceKind, str], set[_Key]] = {}
+        self._by_kind: dict[CausalSourceKind, set[_Key]] = {}
 
     def update_from_ledger(
         self,
@@ -468,6 +482,7 @@ class AgencyModel(_SourceIndexed):
     ) -> None:
         self._estimates = {}
         self._by_source = {}
+        self._by_kind = {}
         keys = _source_keys(ledger)
         keys.update(_dimension_keys(ledger, dimensions or {}))
         for (kind, ref, effect_id, context_id), tick in sorted(
@@ -496,9 +511,7 @@ class AgencyModel(_SourceIndexed):
     ) -> AgencyEstimate | None:
         return self._estimates.get((source_kind, source_ref, effect_id, context_id))
 
-    def estimates_for(self, source_kind: CausalSourceKind) -> tuple[AgencyEstimate, ...]:
-        return tuple(item for item in self.estimates if item.source_kind is source_kind)
-
     def discard_source(self, source_kind: CausalSourceKind, source_ref: str) -> None:
         for key in self._by_source.pop((source_kind, source_ref), set()):
             self._estimates.pop(key, None)
+            self._by_kind.get(source_kind, set()).discard(key)

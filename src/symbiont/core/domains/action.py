@@ -1909,15 +1909,15 @@ class ActionDomain:
         active = self.active_commitment
         return SensorimotorV2Snapshot(
             effect_count=len(self.effect_space.effects),
-            causal_evidence_count=len(self.causal_evidence.evidence),
+            causal_evidence_count=len(self.causal_evidence),
             competence_count=len(self.competence_library.items),
             established_competence_count=sum(
                 1 for item in self.competence_library.items if self.competence_is_executable(item)
             ),
             competence_candidate_count=legacy.competence_candidates if legacy is not None else 0,
-            controllability_estimate_count=len(self.controllability_model.estimates),
+            controllability_estimate_count=len(self.controllability_model),
             predictive_context_count=self.effect_model.context_count,
-            agency_estimate_count=len(self.agency_model.estimates),
+            agency_estimate_count=len(self.agency_model),
             composition_evidence_count=len(self.composition_engine.evidence),
             established_composition_count=len(self.composition_engine.established),
             body_schema_sensorimotor_relations=int(body_schema_sensorimotor_relations),
@@ -1934,7 +1934,7 @@ class ActionDomain:
                 len(self.surface.actuator_ids) if self.surface is not None else 0
             ),
             action_attempt_count=self.acquisition.attempt_count,
-            intervention_signature_count=len(self.intervention_signatures.items),
+            intervention_signature_count=len(self.intervention_signatures),
             recurring_intervention_signature_count=self.intervention_signatures.recurring_count,
             action_dimension_count=len(self.action_dimensions.items),
             agentic_action_dimension_count=len(self.acquisition.agentic_dimension_ids()),
@@ -2249,7 +2249,7 @@ class ActionDomain:
                 }
                 for item in signatures
             ],
-            "intervention_signature_count": len(self.intervention_signatures.items),
+            "intervention_signature_count": len(self.intervention_signatures),
             "recurring_intervention_signature_count": (
                 self.intervention_signatures.recurring_count
             ),
@@ -2267,7 +2267,7 @@ class ActionDomain:
                 }
                 for item in self.action_dimensions.items
             ],
-            "causal_relation_count": len(self.controllability_model.estimates),
+            "causal_relation_count": len(self.controllability_model),
             "causal_evidence_count": len(self.causal_evidence.intervention_evidence),
             "passive_window_count": len(self.causal_evidence.passive_evidence),
             "affordances": [

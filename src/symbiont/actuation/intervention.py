@@ -115,8 +115,9 @@ class InterventionSignatureRegistry:
         # Recent command -> signature identities, used to name sequences of
         # commands that were actually issued.  Ephemeral and bounded.
         self._by_command: OrderedDict[str, str] = OrderedDict()
-        # channel set -> single-step family members (derived index).
+        # channel set -> single-step family members (derived indexes).
         self._families: dict[tuple[str, ...], set[str]] = {}
+        self._families_by_channel: dict[str, set[tuple[str, ...]]] = {}
 
     # -- identity ---------------------------------------------------------
     @staticmethod
@@ -219,7 +220,7 @@ class InterventionSignatureRegistry:
             raise ValueError("tick must be non-negative")
         self._signatures[signature.signature_id] = signature
         if signature.temporal_pattern_ref is None:
-            self._families.setdefault(signature.channel_refs, set()).add(signature.signature_id)
+            self._index_family(signature)
         stats = self._stats.get(signature.signature_id)
         if stats is None:
             stats = _SignatureStats(first_tick=int(tick), last_tick=int(tick))
@@ -264,11 +265,17 @@ class InterventionSignatureRegistry:
             return 0.0
         return sum(1 for count in stats.intensity_counts if count > 0) / _INTENSITY_BUCKETS
 
+    def _index_family(self, signature: InterventionSignature) -> None:
+        self._families.setdefault(signature.channel_refs, set()).add(signature.signature_id)
+        for ref in signature.channel_refs:
+            self._families_by_channel.setdefault(ref, set()).add(signature.channel_refs)
+
     def _rebuild_families(self) -> None:
         self._families = {}
+        self._families_by_channel = {}
         for signature in self._signatures.values():
             if signature.temporal_pattern_ref is None:
-                self._families.setdefault(signature.channel_refs, set()).add(signature.signature_id)
+                self._index_family(signature)
 
     def family(self, channel_refs: tuple[str, ...]) -> tuple[str, ...]:
         """Single-step signatures driving exactly this opaque channel set."""
@@ -276,20 +283,27 @@ class InterventionSignatureRegistry:
 
     def neighbours(self, channel_refs: tuple[str, ...]) -> tuple[str, ...]:
         """Single-step families sharing some, but not exactly, these channels."""
-        refs = set(channel_refs)
-        exact = tuple(sorted(refs))
+        exact = tuple(sorted(set(channel_refs)))
+        families = {
+            family_refs
+            for ref in exact
+            for family_refs in self._families_by_channel.get(ref, ())
+            if family_refs != exact
+        }
         return tuple(
             sorted(
                 signature_id
-                for family_refs, members in self._families.items()
-                if family_refs != exact and refs & set(family_refs)
-                for signature_id in members
+                for family_refs in families
+                for signature_id in self._families[family_refs]
             )
         )
 
     @property
     def items(self) -> tuple[InterventionSignature, ...]:
         return tuple(sorted(self._signatures.values(), key=lambda item: item.signature_id))
+
+    def __len__(self) -> int:
+        return len(self._signatures)
 
     @property
     def recurring_count(self) -> int:

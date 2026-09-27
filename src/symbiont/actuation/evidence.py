@@ -270,6 +270,9 @@ class CausalEvidenceLedger:
             )
         )
 
+    def __len__(self) -> int:
+        return len(self._interventions) + len(self._passive)
+
     @property
     def intervention_evidence(self) -> tuple[CausalEvidence, ...]:
         return tuple(self._interventions)
