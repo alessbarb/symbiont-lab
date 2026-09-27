@@ -9,6 +9,46 @@ This audit maps every section of the specification to the implementation, the
 tests that protect it and the scientific evidence produced. Mechanical test
 evidence and scientific evidence are reported separately.
 
+## 0. Status (owner review, 2026-09-27)
+
+```text
+Agency Acquisition & Executive Action v1
+ARCHITECTURE: CLOSED (frozen; merged into main at 748bb292)
+
+E6 acquisition -> reuse closure:        PASS
+E1 causal acquisition necessity:        PASS
+E3 persistent intention advantage:      PASS
+
+E4 causal revision, permuted outputs:   PASS (condition-specific)
+E4 causal revision, broken actuator:    OPEN - protocol/horizon confound
+E2 executive bridge:                    PARTIAL - higher yield / lower cost, no hit-rate advantage
+E5 reconciliation advantage (§116):     NOT ESTABLISHED
+```
+
+The entities of this spec (`ActionAttempt`, `InterventionSignature`,
+`ActionDimension`, `ActionAffordance`, `ActionIntent`) are not reopened. The
+open items continue as two separate investigations, each with its own
+preregistered protocol:
+
+1. **Causal belief revision after perturbation (E4-v4).** Change the protocol,
+   not the organism's epistemology: perturb only once a relation is causally
+   consolidated (support, controllability and agency above preregistered
+   thresholds and stable over a fixed window) while still experimentally
+   observable, and report preregistered post-perturbation horizons
+   (+128, +256, +512, +1024, +2048). Only if revision is still too slow under
+   a genuinely stable relation is recency considered, and then as recent
+   contradiction evidence kept distinct from historical support, not as
+   global forgetting.
+2. **Executive Outcome Learning v1 (E2/E5).** Real intent outcomes become
+   local, context-specific, failure-reason-aware executive evidence for
+   (competence, anticipated effect, context) that modulates future
+   *admission confidence*, never a scalar reward or a `ProspectivePolicy`
+   penalty; `ActionIntent` remains lifecycle only. Terminal/binding failures
+   suppress equivalent re-admission, mismatch/stagnation failures reduce it
+   gradually, satisfactions raise it, INTERRUPTED/REJECTED are neutral,
+   INVALIDATED suppresses until causal or binding evidence changes. E2 and E5
+   are then rerun with unchanged criteria; E5 must remain able to fail.
+
 ---
 
 ## 1. Evidence summary
