@@ -39,6 +39,7 @@ from symbiont_lab.studies.learning.adaptive_replay_matched_control import (
 from symbiont_lab.studies.learning.agency_acquisition import (
     run_acquisition_reuse_closure_study,
     run_agency_acquisition_ablation_study,
+    run_consolidated_causal_intervention_study,
     run_embodied_causal_intervention_study,
     run_executive_bridge_ablation_study,
     run_intent_persistence_study,
@@ -233,6 +234,9 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.agency-executive-bridge-ablation": run_executive_bridge_ablation_study,
     "learning.agency-intent-persistence": run_intent_persistence_study,
     "learning.agency-embodied-causal-intervention": run_embodied_causal_intervention_study,
+    "learning.agency-consolidated-causal-intervention": (
+        run_consolidated_causal_intervention_study
+    ),
     "learning.agency-intentional-causal-advantage": run_intentional_causal_advantage_study,
     "learning.agency-acquisition-reuse-closure": run_acquisition_reuse_closure_study,
     "embodiment.yoked-external-causation": run_yoked_external_causation_study,

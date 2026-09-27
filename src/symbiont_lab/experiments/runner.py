@@ -179,6 +179,22 @@ class ExperimentRunner:
                 horizon_ticks=int(ablation.get("horizon_ticks", 1024)),
             )
             raw_metrics = result
+        elif spec.protocol == "learning.agency-consolidated-causal-intervention":
+            from symbiont_lab.studies.learning.agency_acquisition import ConsolidationGate
+
+            consolidation = dict(spec.extra_params.get("consolidation", {}))
+            horizons = tuple(
+                int(h) for h in consolidation.pop("horizons", (128, 256, 512, 1024, 2048))
+            )
+            primary_horizon = int(consolidation.pop("primary_horizon", 1024))
+            result = protocol_fn(
+                seeds=spec.seeds,
+                warmup_limit=spec.steps,
+                gate=ConsolidationGate(**consolidation),
+                horizons=horizons,
+                primary_horizon=primary_horizon,
+            )
+            raw_metrics = result
         elif spec.protocol == "learning.agency-acquisition-reuse-closure":
             result = protocol_fn(seeds=spec.seeds, max_ticks=spec.steps)
             raw_metrics = result

@@ -17,10 +17,12 @@ from symbiont_lab.experiments.registry import get_protocol
 from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.experiments.spec import spec_from_payload
 from symbiont_lab.studies.learning.agency_acquisition import (
+    ConsolidationGate,
     _prepare_acquired,
     _relation_classes,
     _twin,
     run_acquisition_reuse_closure_study,
+    run_consolidated_causal_intervention_study,
 )
 from symbiont_lab.studies.learning.agency_acquisition_body import (
     BodyCondition,
@@ -47,6 +49,10 @@ PROTOCOLS = {
         "learning.agency-embodied-causal-intervention",
         "run_embodied_causal_intervention_study",
     ),
+    "agency-consolidated-causal-intervention": (
+        "learning.agency-consolidated-causal-intervention",
+        "run_consolidated_causal_intervention_study",
+    ),
     "agency-intentional-causal-advantage": (
         "learning.agency-intentional-causal-advantage",
         "run_intentional_causal_advantage_study",
@@ -66,6 +72,7 @@ def test_agency_protocols_are_registered():
 BASE_SEEDS = (101, 127, 149)
 EXECUTIVE_SEEDS = BASE_SEEDS + (163, 179, 193, 211, 227, 241, 257)
 EXECUTIVE_STUDIES = {
+    "agency-consolidated-causal-intervention",
     "agency-executive-bridge-ablation",
     "agency-intent-persistence",
     "agency-intentional-causal-advantage",
@@ -166,3 +173,38 @@ def test_e4_relation_classes_follow_the_physical_ground_truth():
     assert all(broken_channel in registry.channel_refs(dim) for dim, _effect in invalidated)
     # Classification is evaluator-only: it never changes the organism.
     assert body.condition is BodyCondition.NORMAL
+
+
+def test_consolidated_intervention_waits_for_the_gate_and_reports_every_horizon():
+    loose = ConsolidationGate(
+        min_support=1,
+        min_controllability=0.0,
+        min_agency=0.0,
+        stability_ticks=2,
+        max_wait_ticks=400,
+    )
+    result = run_consolidated_causal_intervention_study(
+        seeds=(101,), warmup_limit=600, gate=loose, horizons=(4, 8), primary_horizon=8
+    )
+    (row,) = result["per_seed"]
+    broken = row["conditions"]["broken_effector"]
+    assert broken["onset_tick"] >= row["acquired_at_tick"] + loose.stability_ticks
+    assert broken["gated_relations"] >= 1
+    assert set(broken["horizons"]) == {"4", "8"}
+    for point in broken["horizons"].values():
+        assert set(point) >= {"perturbed", "normal_control", "residual_controllability_gap"}
+    summary = result["summary"]["broken_effector"]
+    assert summary["by_horizon"]["8"]["testable_seeds"] == 1
+    assert isinstance(summary["primary_endpoint_supported"], bool)
+
+
+def test_consolidated_intervention_marks_ungated_seeds_untestable():
+    strict = ConsolidationGate(min_controllability=2.0, max_wait_ticks=8)
+    result = run_consolidated_causal_intervention_study(
+        seeds=(127,), warmup_limit=400, gate=strict, horizons=(4,), primary_horizon=4
+    )
+    assert result["per_seed"][0]["conditions"] == {}
+    assert result["summary"]["broken_effector"]["by_horizon"]["4"]["testable_seeds"] == 0
+    assert result["summary"]["broken_effector"]["primary_endpoint_supported"] is False
+    with pytest.raises(ValueError):
+        run_consolidated_causal_intervention_study(seeds=(127,), horizons=(4,), primary_horizon=8)

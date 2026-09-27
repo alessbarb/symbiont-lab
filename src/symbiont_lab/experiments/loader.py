@@ -32,6 +32,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "campaign",
         "ablation",
         "adaptation",
+        "consolidation",
         "output",
     }
     unknown = set(data) - allowed
@@ -127,6 +128,15 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         },
         "ablation": {"horizon_ticks", "inert_actuator_count"},
         "adaptation": {"horizon_ticks"},
+        "consolidation": {
+            "min_support",
+            "min_controllability",
+            "min_agency",
+            "stability_ticks",
+            "max_wait_ticks",
+            "horizons",
+            "primary_horizon",
+        },
         "output": {"save_trace", "save_summary"},
     }
     for block_name in (
@@ -136,6 +146,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "campaign",
         "ablation",
         "adaptation",
+        "consolidation",
         "output",
     ):
         if block_name in data:
