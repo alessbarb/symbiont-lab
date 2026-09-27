@@ -413,6 +413,40 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         mind_topology = {"nodes": nodes, "edges": edges}
 
     observer_semantics: dict[str, Any] = {}
+    raw_body_semantics = observer_semantics_source.get("body")
+    if isinstance(raw_body_semantics, Mapping):
+        body_semantics: dict[str, Any] = {
+            "bodyKind": str(raw_body_semantics.get("body_kind") or ""),
+            "baseLink": str(raw_body_semantics.get("base_link") or ""),
+        }
+        raw_segments = raw_body_semantics.get("segments")
+        if isinstance(raw_segments, Mapping):
+            body_semantics["segments"] = {
+                str(name): {
+                    "size": [float(v) for v in value.get("size", ())[:3]],
+                    "origin": [float(v) for v in value.get("origin", ())[:3]],
+                }
+                for name, value in raw_segments.items()
+                if isinstance(value, Mapping)
+                and isinstance(value.get("size"), (list, tuple))
+                and isinstance(value.get("origin"), (list, tuple))
+            }
+        raw_joints = raw_body_semantics.get("joints")
+        if isinstance(raw_joints, (list, tuple)):
+            body_semantics["joints"] = [
+                {
+                    "name": str(item.get("name") or ""),
+                    "parent": str(item.get("parent") or ""),
+                    "child": str(item.get("child") or ""),
+                    "origin": [float(v) for v in item.get("origin", ())[:3]],
+                }
+                for item in raw_joints
+                if isinstance(item, Mapping)
+            ]
+        raw_contacts = raw_body_semantics.get("contact_regions")
+        if isinstance(raw_contacts, (list, tuple)):
+            body_semantics["contactRegions"] = [str(item) for item in raw_contacts]
+        observer_semantics["body"] = body_semantics
     raw_sensory_semantics = observer_semantics_source.get("sensory")
     if isinstance(raw_sensory_semantics, Mapping):
         sensory_semantics: dict[str, dict[str, Any]] = {}
@@ -668,6 +702,8 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             observer_derived.append("observer_analysis.predictionErrors")
     if observer_semantics:
         snapshot["observer_semantics"] = observer_semantics
+        if "body" in observer_semantics:
+            observer_derived.append("observer_semantics.body")
         if "sensory" in observer_semantics:
             observer_derived.append("observer_semantics.sensory")
         if "motor" in observer_semantics:
