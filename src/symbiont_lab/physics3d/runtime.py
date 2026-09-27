@@ -1935,6 +1935,31 @@ class PyBulletEmbodimentRuntime:
                 },
             },
             "observer_semantics": {
+                "body": {
+                    "body_kind": self.body_descriptor.body_kind,
+                    "base_link": self.body_descriptor.observer_base_link_name,
+                    "contact_regions": list(self.body_descriptor.observer_contact_region_names),
+                    "segments": {
+                        str(name): {
+                            "size": [float(value) for value in segment.size],
+                            "origin": [float(value) for value in segment.origin],
+                        }
+                        for name, segment in (
+                            self.body_descriptor.observer_segments.items()
+                            if self.body_descriptor.observer_segments is not None
+                            else ()
+                        )
+                    },
+                    "joints": [
+                        {
+                            "name": str(topology.joint_name),
+                            "parent": str(topology.parent_link),
+                            "child": str(topology.child_link),
+                            "origin": [float(value) for value in topology.origin],
+                        }
+                        for topology in self.body_descriptor.observer_joint_topology
+                    ],
+                },
                 "sensory": sensory_semantics(
                     self.organism.sensory_system.sensors,
                     joint_specs=self.body_descriptor.observer_joint_specs,
