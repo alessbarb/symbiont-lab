@@ -44,6 +44,54 @@ export const SELF_VIEW_MODES = [
   ['agency', 'Agency'],
 ];
 
+function observerBody(snapshot) {
+  const body = snapshot?.observer_semantics?.body;
+  if (!body || typeof body !== 'object') {
+    return {
+      bodyKind: 'anthropomorphic-v6',
+      baseLink: 'pelvis',
+      segments: Object.fromEntries(CONTACT_SEGMENTS.map((name) => [name, {}])),
+      joints: JOINT_TOPOLOGY.map((joint) => ({
+        name: joint.name,
+        parent: joint.parent,
+        child: joint.child,
+        origin: joint.offset ?? [0, 0, 0],
+      })),
+      contactRegions: CONTACT_SEGMENTS,
+    };
+  }
+  return body;
+}
+
+function morphologySegmentNames(snapshot) {
+  const names = Object.keys(observerBody(snapshot).segments ?? {});
+  return names.length ? names : CONTACT_SEGMENTS;
+}
+
+function prettySegment(name) {
+  return String(name ?? '').replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function jointPhysicalSegment(snapshot, jointIndex) {
+  const body = observerBody(snapshot);
+  const joints = Array.isArray(body.joints) ? body.joints : [];
+  const segments = new Set(Object.keys(body.segments ?? {}));
+  const joint = joints[jointIndex];
+  if (!joint) return null;
+  let child = joint.child;
+  if (segments.has(child)) return child;
+  const seen = new Set();
+  while (child && !seen.has(child)) {
+    seen.add(child);
+    const next = joints.find((item) => item.parent === child);
+    if (!next) break;
+    child = next.child;
+    if (segments.has(child)) return child;
+  }
+  return segments.has(joint.parent) ? joint.parent : null;
+}
+
+
 function finite(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -81,52 +129,54 @@ function jointSegment(jointName) {
   return null;
 }
 
-function receptorSegment(receptorId) {
+function receptorSegment(snapshot, receptorId) {
   const match = /^rec\.(\d+)$/.exec(String(receptorId ?? ''));
   if (!match) return null;
   const ordinal = Number(match[1]);
+  const body = observerBody(snapshot);
+  const joints = Array.isArray(body.joints) ? body.joints : [];
 
-  if (ordinal < JOINT_TOPOLOGY.length * 2) {
-    const jointOrdinal = Math.floor(ordinal / 2);
-    const joint = JOINT_TOPOLOGY[jointOrdinal];
-    return joint ? jointSegment(joint.name) : null;
+  if (ordinal < joints.length * 2) {
+    return jointPhysicalSegment(snapshot, Math.floor(ordinal / 2));
   }
 
-  const proprioCount = JOINT_TOPOLOGY.length * 2;
-  const contactPresenceStart = proprioCount + 10;
-  const resourceOrdinal = contactPresenceStart + CONTACT_SEGMENTS.length;
+  const contactRegions = Array.isArray(body.contactRegions) ? body.contactRegions : [];
+  const contactPresenceStart = joints.length * 2 + 10;
+  const resourceOrdinal = contactPresenceStart + contactRegions.length;
   const contactLoadStart = resourceOrdinal + 1;
-
-  if (ordinal >= contactPresenceStart && ordinal < contactPresenceStart + CONTACT_SEGMENTS.length) {
-    return CONTACT_SEGMENTS[ordinal - contactPresenceStart] ?? null;
+  if (ordinal >= contactPresenceStart && ordinal < contactPresenceStart + contactRegions.length) {
+    return contactRegions[ordinal - contactPresenceStart] ?? null;
   }
-  if (ordinal >= contactLoadStart && ordinal < contactLoadStart + CONTACT_SEGMENTS.length) {
-    return CONTACT_SEGMENTS[ordinal - contactLoadStart] ?? null;
+  if (ordinal >= contactLoadStart && ordinal < contactLoadStart + contactRegions.length) {
+    return contactRegions[ordinal - contactLoadStart] ?? null;
   }
   return null;
 }
 
-function effectorSegment(effectorId) {
+function effectorSegment(snapshot, effectorId) {
   const match = /^eff\.(\d+)$/.exec(String(effectorId ?? ''));
   if (!match) return null;
-  const jointOrdinal = Math.floor(Number(match[1]) / 2);
-  const joint = JOINT_TOPOLOGY[jointOrdinal];
-  return joint ? jointSegment(joint.name) : null;
+  return jointPhysicalSegment(snapshot, Math.floor(Number(match[1]) / 2));
 }
 
-function expectedReceptorsBySegment() {
-  const result = new Map(CONTACT_SEGMENTS.map((segment) => [segment, new Set()]));
-  JOINT_TOPOLOGY.forEach((joint, index) => {
-    const segment = jointSegment(joint.name);
+function expectedReceptorsBySegment(snapshot) {
+  const names = morphologySegmentNames(snapshot);
+  const result = new Map(names.map((segment) => [segment, new Set()]));
+  const body = observerBody(snapshot);
+  const joints = Array.isArray(body.joints) ? body.joints : [];
+  joints.forEach((joint, index) => {
+    const segment = jointPhysicalSegment(snapshot, index);
     if (!segment || !result.has(segment)) return;
     result.get(segment).add(`rec.${index * 2}`);
     result.get(segment).add(`rec.${index * 2 + 1}`);
   });
 
-  const contactPresenceStart = JOINT_TOPOLOGY.length * 2 + 10;
-  const resourceOrdinal = contactPresenceStart + CONTACT_SEGMENTS.length;
+  const contactRegions = Array.isArray(body.contactRegions) ? body.contactRegions : [];
+  const contactPresenceStart = joints.length * 2 + 10;
+  const resourceOrdinal = contactPresenceStart + contactRegions.length;
   const contactLoadStart = resourceOrdinal + 1;
-  CONTACT_SEGMENTS.forEach((segment, index) => {
+  contactRegions.forEach((segment, index) => {
+    if (!result.has(segment)) return;
     result.get(segment).add(`rec.${contactPresenceStart + index}`);
     result.get(segment).add(`rec.${contactLoadStart + index}`);
   });
@@ -143,7 +193,7 @@ function sourceIdsForSelfEntry(snapshot, selfId) {
 function emptySegment(segment, expectedIds) {
   return {
     segment,
-    label: SEGMENT_LABELS[segment] ?? segment,
+    label: SEGMENT_LABELS[segment] ?? prettySegment(segment),
     expectedReceptorIds: [...expectedIds],
     expectedSenseCount: expectedIds.size,
     receptorIds: [],
@@ -172,7 +222,7 @@ function selfEvidenceByReceptor(snapshot) {
     const sourceIds = sourceIdsForSelfEntry(snapshot, selfId);
     let localized = false;
     for (const sourceId of sourceIds) {
-      if (!receptorSegment(sourceId)) continue;
+      if (!receptorSegment(snapshot, sourceId)) continue;
       localized = true;
       const previous = evidence.get(sourceId);
       const current = {
@@ -194,14 +244,16 @@ function selfEvidenceByReceptor(snapshot) {
 }
 
 export function selfViewSegments(snapshot) {
-  const expected = expectedReceptorsBySegment();
+  const expected = expectedReceptorsBySegment(snapshot);
+  const names = morphologySegmentNames(snapshot);
   const bySegment = new Map(
-    CONTACT_SEGMENTS.map((segment) => [segment, emptySegment(segment, expected.get(segment))])
+    names.map((segment) => [segment, emptySegment(segment, expected.get(segment) ?? new Set())])
   );
+  bySegment.morphology = observerBody(snapshot);
   const { evidence } = selfEvidenceByReceptor(snapshot);
 
   for (const item of evidence.values()) {
-    const segment = receptorSegment(item.sourceId);
+    const segment = receptorSegment(snapshot, item.sourceId);
     if (!segment || !bySegment.has(segment)) continue;
     const entry = bySegment.get(segment);
     entry.receptorIds.push(item.sourceId);
@@ -217,7 +269,7 @@ export function selfViewSegments(snapshot) {
   for (const dimension of dimensions) {
     const semantics = dimensionSemantics?.[dimension?.dimension_id];
     const effectorIds = Array.isArray(semantics?.effectorIds) ? semantics.effectorIds : [];
-    const touched = new Set(effectorIds.map(effectorSegment).filter(Boolean));
+    const touched = new Set(effectorIds.map((id) => effectorSegment(snapshot, id)).filter(Boolean));
     for (const segment of touched) {
       if (!bySegment.has(segment)) continue;
       const entry = bySegment.get(segment);
@@ -406,6 +458,7 @@ export function captureSelfViewDevelopment(snapshot) {
   return {
     tick: finite(snapshot?.tick, 0),
     aggregate,
+    morphology: observerBody(snapshot),
     segments: [...segments.values()].map((entry) => ({
       segment: entry.segment,
       coverage: entry.coverage,
@@ -421,15 +474,19 @@ export function captureSelfViewDevelopment(snapshot) {
 }
 
 function snapshotSegments(frame) {
+  const morphology = frame?.morphology ?? {};
+  const names = Object.keys(morphology.segments ?? {});
+  const effectiveNames = names.length ? names : CONTACT_SEGMENTS;
   const map = new Map();
-  for (const segment of CONTACT_SEGMENTS) {
+  for (const segment of effectiveNames) {
     const found = frame?.segments?.find((item) => item.segment === segment);
     map.set(segment, {
       ...emptySegment(segment, new Set()),
       ...(found ?? {}),
-      label: SEGMENT_LABELS[segment] ?? segment,
+      label: SEGMENT_LABELS[segment] ?? prettySegment(segment),
     });
   }
+  map.morphology = morphology;
   return map;
 }
 
