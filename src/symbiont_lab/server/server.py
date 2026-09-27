@@ -169,7 +169,7 @@ def make_server(
             return None
         index = ProvenanceIndex.load(ProvenanceJournal(journal_path))
         ref = CausalRef(kind, ref_id)
-        if ref not in index.lifecycle and ref not in index.ancestors(ref, depth=1):
+        if ref not in index.lifecycle:
             # A root reference can legitimately lack a producer; only return
             # such a tree when it is mentioned by some recorded event.
             mentioned = any(
