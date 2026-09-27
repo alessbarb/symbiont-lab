@@ -26,10 +26,8 @@ from symbiont.agency.intention import IntentStatus
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.domains.intention import ExecutiveMode, IntentionPolicy
 from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont.host.discovery import HostDiscovery
-from symbiont.host.lifecycle import HostLifecycle
 
-from .agency_acquisition_body import BodyCondition, CausalBody, build_subject
+from .agency_acquisition_body import BodyCondition, CausalBody, build_subject, subject_lifecycle
 
 DEFAULT_SEEDS = (101, 127, 149)
 
@@ -86,10 +84,7 @@ def _twin(
     twin_body = copy.deepcopy(body)
     twin = OrganismRuntime.from_checkpoint(
         runtime.checkpoint(),
-        host_lifecycle=HostLifecycle(
-            discovery=HostDiscovery(providers=(twin_body,)),
-            reading_providers=(twin_body,),
-        ),
+        host_lifecycle=subject_lifecycle(twin_body),
         host_reading_providers=(twin_body,),
         kernel_limits=KernelLimits(),
         bootstrap_semantic_senses=False,

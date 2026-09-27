@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import hashlib
 import random
-import time
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Iterable
@@ -98,6 +97,9 @@ class CausalBody:
         self._values = {receptor_id: _NEUTRAL for receptor_id in self.receptor_ids}
         self._rng = random.Random(f"agency-acquisition-distractor:{self.seed}")
         self.condition = BodyCondition(condition)
+        # Apparatus time: one physical step = 100 ms.  Wall-clock time would
+        # leak host timing into perception and break matched twins.
+        self._steps = 0
 
     # -- evaluator-side ground truth -----------------------------------------
     @property
@@ -130,6 +132,7 @@ class CausalBody:
 
     # -- physics ---------------------------------------------------------------
     def advance(self, actuations: Iterable[Actuation]) -> None:
+        self._steps += 1
         drive = {receptor_id: 0.0 for receptor_id in self.receptor_ids}
         for actuation in actuations:
             receptor_id = self.driven_receptor(actuation.actuator_id)
@@ -160,7 +163,7 @@ class CausalBody:
         )
 
     def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]:
-        now = time.monotonic_ns()
+        now = self._steps * 100_000_000
         return tuple(
             SensorReading(
                 capability_id=capability.capability_id,
@@ -176,6 +179,31 @@ class CausalBody:
         )
 
 
+class ApparatusClock:
+    """Deterministic sampling clock for the host boundary.
+
+    Real wall-clock sampling cost would otherwise leak into the organism's
+    self-model and make runs and matched twins irreproducible.  Every call
+    advances by one fixed quantum, so identical histories see identical costs.
+    """
+
+    def __init__(self, quantum_s: float = 1e-4) -> None:
+        self._quantum = float(quantum_s)
+        self._calls = 0
+
+    def __call__(self) -> float:
+        self._calls += 1
+        return self._calls * self._quantum
+
+
+def subject_lifecycle(body: "CausalBody") -> HostLifecycle:
+    return HostLifecycle(
+        discovery=HostDiscovery(providers=(body,)),
+        reading_providers=(body,),
+        clock=ApparatusClock(),
+    )
+
+
 def build_subject(
     body: CausalBody,
     *,
@@ -188,10 +216,7 @@ def build_subject(
     genome, graph = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 0))
     return runtime_class(
         organism_id=organism_id,
-        host_lifecycle=HostLifecycle(
-            discovery=HostDiscovery(providers=(body,)),
-            reading_providers=(body,),
-        ),
+        host_lifecycle=subject_lifecycle(body),
         host_reading_providers=(body,),
         genome=genome,
         cognitive_graph=graph,
@@ -222,8 +247,10 @@ def run_ticks(runtime: OrganismRuntime, body: CausalBody, ticks: int) -> None:
 
 __all__ = [
     "BodyCondition",
+    "ApparatusClock",
     "BodyGroundTruth",
     "CausalBody",
     "build_subject",
     "run_ticks",
+    "subject_lifecycle",
 ]
