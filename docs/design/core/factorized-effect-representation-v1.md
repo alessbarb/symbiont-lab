@@ -491,3 +491,54 @@ effects this organism has had (whole-state identity gave none). Coverage is
 still slow (25/62 channels in ~2600 ticks). The decisive test is the
 Physics3D acceptance after wiring (§10): bound competences and satisfied
 intents on a copy of the organism.
+
+(The §13.8 run covered 2623 ticks, not the 4000 requested: the engine's
+tick budget counts from the checkpoint's saved tick.)
+
+## 14. Wiring plan and preregistered acceptance (before any wiring run)
+
+### 14.1 Design decisions for wiring
+
+1. **No Gap A loop.** Footprints come from single-channel probe pulses;
+   competences come from multi-channel controller seeds. A competence is
+   grounded provisionally on the **union of the per-channel footprints** of
+   the channels its controller drives; its own commitments (pulses on its
+   channel set) then confirm or revise that prediction. Recall of the
+   predicted union on the competence's own executions is measured and
+   traced, because additivity is only an assumption in Physics3D.
+2. **Reconciliation per commitment, not per tick.** A caused atom appears
+   mostly at pulse onset (~15% per tick vs ~69% per pulse). Observed atoms are
+   accumulated over the intent's commitment and cumulative recall is compared
+   with `satisfaction_similarity` (0.75). The study recorder's "realized" rule
+   uses the same accumulation.
+3. **Keys by entity, content by snapshot.** Competence effect, affordance
+   target, intent target and the EOL key use the **footprint entity id**
+   (stable per source); each intent snapshots its expected atom set at
+   formation and pins that content while live, unpinning when it retires.
+   This changes the EOL v1.1 key from `(competence, effect id)` to
+   `(competence, footprint entity)`.
+4. **Ablations honoured.** The footprint path goes through the same
+   `use_counterfactual_evidence` / `use_agency_model` gates as the rest of
+   acquisition; the no-counterfactual arm forms no footprint (tested).
+5. **One organism-level `ProvenanceLog`** shared by all domains; grounding,
+   binding, admission, intent formation and reconciliation each emit events
+   caused by the footprint version they used plus their own inputs.
+6. **Both constructors.** Probing and footprints are wired where the engine
+   is built: canonical runtime, Physics3D runtime and reduced Symbiont.
+7. The whole-state path stays alive beside the footprint path (behind one
+   flag, enabled together with probing) until E6, E8 v2 and the Physics3D
+   acceptance pass; only then is it removed with checkpoint schema 5.
+
+### 14.2 Preregistered acceptance
+
+- **E6 release gate** on the synthetic 4-actuator body, flag on: must still
+  pass on seeds 101/127/149. If it fails, stop and return to the owner.
+- **E8 v2** (same seeds, body and budget as v1): report the §E8 metrics
+  against the v1 baseline; no threshold.
+- **Physics3D acceptance** on a fresh copy of `org-ea3e7bbbc628`, flag and
+  probing on, **6000 ticks from its saved tick**: at least **one competence
+  grounded on a footprint with an execution binding** and at least **one
+  satisfied intent**, each explainable through the provenance journal down to
+  its pulses.
+- **Overhead:** per-tick cost within +15% of current on the 5k-tick synthetic
+  run and the 62-effector Physics3D run.
