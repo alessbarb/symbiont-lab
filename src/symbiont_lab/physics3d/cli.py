@@ -133,6 +133,17 @@ def main(argv: list[str] | None = None) -> int:
         default="cpu",
         help="Private SLM training device (cpu or cuda)",
     )
+    parser.add_argument(
+        "--factorized-effects",
+        action="store_true",
+        help="footprint-grounded competences with causal probing (kept in checkpoints)",
+    )
+    parser.add_argument(
+        "--provenance-journal",
+        type=Path,
+        default=None,
+        help="append every causal provenance event to this JSONL journal",
+    )
     args = parser.parse_args(argv)
     if args.replay is not None:
         return run_replay(Path(args.replay))
@@ -154,6 +165,10 @@ def main(argv: list[str] | None = None) -> int:
         enable_slm=not args.no_slm,
         slm_train_interval=args.slm_train_interval,
         slm_device=args.slm_device,
+        factorized_effects=args.factorized_effects,
+        provenance_journal=(
+            args.provenance_journal.expanduser() if args.provenance_journal else None
+        ),
     )
 
 

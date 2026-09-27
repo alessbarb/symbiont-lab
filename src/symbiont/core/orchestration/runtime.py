@@ -70,6 +70,7 @@ from ...host.providers.stdlib import StandardLibraryProvider
 from ...host.providers.stdlib_readings import StandardLibraryReadingProvider
 from ...host.readings import ReadingProvider
 from ...host.rhythms import RhythmModel
+from ...provenance import ProvenanceLog
 from ...sensory import SensorySystem
 from ..cognition.attention import AttentionAllocation
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
@@ -1146,6 +1147,11 @@ class OrganismRuntime:
             percepts,
             sensory_system=self._sensory_system,
         )
+
+    @property
+    def provenance(self) -> ProvenanceLog:
+        """The organism's causal provenance log (read/subscribe only, §6)."""
+        return self._action_domain.acquisition.provenance
 
     def enable_factorized_effects(self) -> None:
         """Factorized Effect Representation v1 §14: footprint-grounded

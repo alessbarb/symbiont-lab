@@ -18,6 +18,7 @@ from symbiont_lab.app.physics3d_monitor import (
     UnifiedViewerProcess,
     strongest_outputs,
 )
+from symbiont_lab.observation.provenance_journal import ProvenanceJournal
 
 from .persistence import (
     load_body_state_file,
@@ -249,6 +250,7 @@ def run(
     startup_callback=None,
     checkpoint_observer=None,
     factorized_effects: bool = False,
+    provenance_journal: Path | None = None,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -349,6 +351,9 @@ def run(
         # Factorized Effect Representation v1 §14.2: footprint grounding and
         # probing on this organism (kept on in its checkpoints from now on).
         runtime.organism.enable_factorized_effects()
+    if provenance_journal is not None:
+        # Causal Provenance v1 §6: every event, once, outward only.
+        runtime.organism.provenance.subscribe(ProvenanceJournal(provenance_journal).append)
     runtime_config = runtime.checkpoint().get("effective_config", {})
     telemetry_configuration = dict(runtime_config) if isinstance(runtime_config, dict) else {}
     telemetry_configuration["telemetry_physics_trace"] = bool(telemetry_physics_trace)
@@ -719,10 +724,12 @@ def run(
                 if rich_render_due:
                     publish_rich = getattr(viewer, "publish_rich_state", None)
                     if callable(publish_rich):
-                        publish_rich({
-                            **rich_state,
-                            "world_observation": runtime.passive_world_observation(),
-                        })
+                        publish_rich(
+                            {
+                                **rich_state,
+                                "world_observation": runtime.passive_world_observation(),
+                            }
+                        )
 
             if remaining is not None:
                 remaining -= 1
