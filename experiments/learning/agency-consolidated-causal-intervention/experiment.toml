@@ -1,0 +1,42 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-consolidated-causal-intervention"
+title = "E4-v4 — Causal belief revision after perturbation of a consolidated relation"
+protocol = "learning.agency-consolidated-causal-intervention"
+protocol_version = 1
+hypothesis = """
+When a relation the organism believes it causes is causally consolidated and
+still observable, breaking or permuting the outputs that produce it makes the
+organism revise that relation's controllability below a matched normal twin
+continued from the same checkpoint.
+"""
+success_criteria = """
+Primary endpoint (broken_effector and permuted separately): residual
+controllability of the gated relations in the normal twin minus the perturbed
+twin at +1024 ticks.  Supported when the gap is positive in at least 75% of
+testable seeds and its mean is positive.  Secondary, reported without a
+threshold: the same gap at +128/+256/+512/+2048, agency of the gated
+relations, and the v3 invalidated/intact revision, dimension, body-schema,
+affordance and intent-failure measures at every horizon.  Seeds whose gate
+never opens within max_wait_ticks are untestable and reported as such.
+"""
+
+[world]
+steps = 2000
+
+[design]
+seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
+
+[consolidation]
+min_support = 16
+min_controllability = 0.10
+min_agency = 0.10
+stability_ticks = 128
+max_wait_ticks = 4096
+horizons = [128, 256, 512, 1024, 2048]
+primary_horizon = 1024
+
+[output]
+save_trace = false
+save_summary = true

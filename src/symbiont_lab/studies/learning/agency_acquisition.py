@@ -828,6 +828,186 @@ def run_embodied_causal_intervention_study(
 
 
 # ---------------------------------------------------------------------------
+# E4-v4 — Causal belief revision after perturbation of a consolidated relation
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ConsolidationGate:
+    """Preregistered entry criterion: perturb only consolidated, observable relations."""
+
+    min_support: int = 16
+    min_controllability: float = 0.10
+    min_agency: float = 0.10
+    stability_ticks: int = 128
+    max_wait_ticks: int = 4096
+
+
+def _consolidated_candidates(
+    runtime: OrganismRuntime, invalidated: set[_Relation], gate: ConsolidationGate
+) -> set[_Relation]:
+    acquisition = runtime._action_domain.acquisition
+    passing: set[_Relation] = set()
+    for dimension_id, effect_id in invalidated:
+        control = acquisition.controllability_model.estimate(
+            source_kind=CausalSourceKind.DIMENSION, source_ref=dimension_id, effect_id=effect_id
+        )
+        agency = acquisition.agency_model.estimate(
+            source_kind=CausalSourceKind.DIMENSION, source_ref=dimension_id, effect_id=effect_id
+        )
+        if (
+            control is not None
+            and agency is not None
+            and control.action_support >= gate.min_support
+            and control.confidence >= gate.min_controllability
+            and agency.confidence >= gate.min_agency
+        ):
+            passing.add((dimension_id, effect_id))
+    return passing
+
+
+def _relation_levels(runtime: OrganismRuntime, relations: set[_Relation]) -> dict[str, Any]:
+    state = _revision_state(runtime)
+    ordered = sorted(relations)
+    return {
+        "controllability": _mean(state["control"].get(r, 0.0) for r in ordered),
+        "agency": _mean(state["agency"].get(r, 0.0) for r in ordered),
+    }
+
+
+def run_consolidated_causal_intervention_study(
+    *,
+    seeds: Sequence[int] = DEFAULT_SEEDS,
+    actuator_count: int = 4,
+    warmup_limit: int = 2000,
+    gate: ConsolidationGate = ConsolidationGate(),
+    horizons: Sequence[int] = (128, 256, 512, 1024, 2048),
+    primary_horizon: int = 1024,
+) -> dict[str, Any]:
+    """E4-v4: perturb one twin only once a relation it invalidates is consolidated.
+
+    After acquisition the organism develops normally.  For each perturbed
+    condition, the apparatus waits until at least one relation that condition
+    would invalidate (ground truth) meets the preregistered consolidation gate
+    continuously for ``gate.stability_ticks``; the organism is then split into
+    a perturbed twin and a normal control twin from the same checkpoint and
+    both are observed at the preregistered horizons.  The primary endpoint is
+    the normal-minus-perturbed residual controllability of the gated relations
+    at ``primary_horizon``.  Nothing about the gate reaches the organism.
+    """
+    resolved = _seeds(seeds)
+    ordered_horizons = tuple(sorted({_positive(h, "horizon") for h in horizons}))
+    if primary_horizon not in ordered_horizons:
+        raise ValueError("primary_horizon must be one of the preregistered horizons")
+    perturbations = (BodyCondition.BROKEN_EFFECTOR, BodyCondition.PERMUTED)
+    per_seed: list[dict[str, Any]] = []
+    for seed in resolved:
+        runtime, body, acquired_at = _prepare_acquired(
+            seed,
+            actuator_count=_positive(actuator_count, "actuator_count"),
+            warmup_limit=_positive(warmup_limit, "warmup_limit"),
+            settle_ticks=0,
+        )
+        row: dict[str, Any] = {"seed": seed, "acquired_at_tick": acquired_at, "conditions": {}}
+        per_seed.append(row)
+        if acquired_at is None:
+            continue
+        pending = set(perturbations)
+        streaks: dict[BodyCondition, dict[_Relation, int]] = {c: {} for c in perturbations}
+        for _ in range(_positive(gate.max_wait_ticks, "max_wait_ticks")):
+            if not pending:
+                break
+            _advance(runtime, body, 1)
+            for condition in sorted(pending):
+                invalidated, intact = _relation_classes(runtime, body, condition)
+                passing = _consolidated_candidates(runtime, invalidated, gate)
+                streaks[condition] = {
+                    relation: streaks[condition].get(relation, 0) + 1 for relation in passing
+                }
+                gated = {
+                    relation
+                    for relation, count in streaks[condition].items()
+                    if count >= gate.stability_ticks
+                }
+                if not gated:
+                    continue
+                pending.discard(condition)
+                before = _revision_state(runtime)
+                result: dict[str, Any] = {
+                    "onset_tick": runtime.tick_count,
+                    "gated_relations": len(gated),
+                    "at_onset": _relation_levels(runtime, gated),
+                    "horizons": {},
+                }
+                twins = {}
+                for arm, arm_condition in (
+                    ("perturbed", condition),
+                    ("normal_control", BodyCondition.NORMAL),
+                ):
+                    twin, twin_body = _twin(runtime, body)
+                    twin_body.set_condition(arm_condition)
+                    twins[arm] = (twin, twin_body, _AttemptCounter())
+                elapsed = 0
+                for horizon in ordered_horizons:
+                    point: dict[str, Any] = {}
+                    for arm, (twin, twin_body, counter) in twins.items():
+                        _advance(twin, twin_body, horizon - elapsed, counter)
+                        point[arm] = {
+                            "gated": _relation_levels(twin, gated),
+                            **_revision(
+                                before,
+                                _revision_state(twin),
+                                invalidated=invalidated,
+                                intact=intact,
+                                attempts=counter.by_signature,
+                            ),
+                        }
+                    normal = point["normal_control"]["gated"]["controllability"]
+                    perturbed = point["perturbed"]["gated"]["controllability"]
+                    point["residual_controllability_gap"] = (
+                        normal - perturbed if normal is not None and perturbed is not None else None
+                    )
+                    result["horizons"][str(horizon)] = point
+                    elapsed = horizon
+                row["conditions"][condition.value] = result
+
+    def summary(condition: BodyCondition) -> dict[str, Any]:
+        rows = [
+            item["conditions"][condition.value]
+            for item in per_seed
+            if condition.value in item["conditions"]
+        ]
+        by_horizon: dict[str, Any] = {}
+        for horizon in ordered_horizons:
+            gaps = [
+                gap
+                for item in rows
+                if (gap := item["horizons"][str(horizon)]["residual_controllability_gap"])
+                is not None
+            ]
+            by_horizon[str(horizon)] = {
+                "mean_residual_controllability_gap": _mean(gaps),
+                "positive_seeds": sum(1 for gap in gaps if gap > 0),
+                "testable_seeds": len(gaps),
+            }
+        primary = by_horizon[str(primary_horizon)]
+        supported = (
+            primary["testable_seeds"] > 0
+            and primary["positive_seeds"] >= 0.75 * primary["testable_seeds"]
+            and (primary["mean_residual_controllability_gap"] or 0.0) > 0.0
+        )
+        return {"by_horizon": by_horizon, "primary_endpoint_supported": supported}
+
+    return {
+        "protocol": "learning.agency-consolidated-causal-intervention",
+        "seeds": list(resolved),
+        "gate": asdict(gate),
+        "horizons": list(ordered_horizons),
+        "primary_horizon": primary_horizon,
+        "per_seed": per_seed,
+        "summary": {condition.value: summary(condition) for condition in perturbations},
+    }
+
+
+# ---------------------------------------------------------------------------
 # E6 — Acquisition -> deliberate reuse closure: the release gate (§117-§118)
 # ---------------------------------------------------------------------------
 _MILESTONES = (
@@ -931,7 +1111,9 @@ def run_acquisition_reuse_closure_study(
 
 
 __all__ = [
+    "ConsolidationGate",
     "run_acquisition_reuse_closure_study",
+    "run_consolidated_causal_intervention_study",
     "run_agency_acquisition_ablation_study",
     "run_embodied_causal_intervention_study",
     "run_executive_bridge_ablation_study",

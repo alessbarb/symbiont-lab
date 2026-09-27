@@ -39,6 +39,18 @@ preregistered protocol:
    a genuinely stable relation is recency considered, and then as recent
    contradiction evidence kept distinct from historical support, not as
    global forgetting.
+
+   *First run* (`20260927T081259Z-learning-agency-consolidated-causal-intervention-2f2ce6a-c3c9`,
+   preregistered at `2f2ce6a5`, 10 seeds): **primary endpoint not supported,
+   and the protocol is underpowered.** The consolidation gate opened in 1/10
+   seeds for broken_effector (163) and 2/10 for permuted (163, 211); in the
+   others no invalidatable relation held support >= 16, controllability >= 0.10
+   and agency >= 0.10 for 128 consecutive ticks within 4096 ticks. Where it
+   opened, the normal-minus-perturbed residual controllability gap was 0.0 at
+   +128..+1024 (neither twin changed the gated estimate) and 0.036 / 0.042 /
+   0.0 at +2048. A single testable seed is not evidence either way; a gate the
+   organism can actually reach is a new protocol version, not a re-read of
+   this run.
 2. **Executive Outcome Learning v1 (E2/E5).** Real intent outcomes become
    local, context-specific, failure-reason-aware executive evidence for
    (competence, anticipated effect, context) that modulates future
