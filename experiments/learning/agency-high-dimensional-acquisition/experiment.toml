@@ -1,0 +1,37 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-high-dimensional-acquisition"
+title = "E8 — High-dimensional acquisition"
+protocol = "learning.agency-high-dimensional-acquisition"
+protocol_version = 1
+hypothesis = """
+In a body whose outputs drive several correlated receptors and whose other
+receptors drift on their own, the acquisition -> competence -> binding ->
+intent chain engages only if effects recur whenever the same consequence
+recurs.
+"""
+success_criteria = """
+Per seed and summarized: attempts, effectful evidence, distinct effects,
+fraction of effectful evidence whose effect recurs (support >= 4), effect
+space size, action and agentic dimensions, competences, competences with an
+effect, executable competences, execution bindings, intents terminated and
+satisfied, outcome-learning history hit rate.  Arm v1 (whole-state identity)
+runs on the last pre-change commit; arm v2 (factorized effects) on the
+implementation commit, same seeds and body.  No post-hoc threshold.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
+
+[body]
+actuator_count = 16
+receptors_per_actuator = 4
+drifting_receptor_count = 32
+
+[output]
+save_trace = false
+save_summary = true

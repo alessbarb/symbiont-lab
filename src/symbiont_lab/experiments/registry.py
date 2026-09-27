@@ -42,6 +42,7 @@ from symbiont_lab.studies.learning.agency_acquisition import (
     run_consolidated_causal_intervention_study,
     run_embodied_causal_intervention_study,
     run_executive_bridge_ablation_study,
+    run_high_dimensional_acquisition_study,
     run_intent_persistence_study,
     run_intentional_causal_advantage_study,
 )
@@ -239,6 +240,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     ),
     "learning.agency-intentional-causal-advantage": run_intentional_causal_advantage_study,
     "learning.agency-acquisition-reuse-closure": run_acquisition_reuse_closure_study,
+    "learning.agency-high-dimensional-acquisition": run_high_dimensional_acquisition_study,
     "embodiment.yoked-external-causation": run_yoked_external_causation_study,
     "embodiment.somatic-correlation-trap": run_somatic_correlation_trap_study,
     "embodiment.causal-revision-sequence": run_causal_revision_sequence_study,

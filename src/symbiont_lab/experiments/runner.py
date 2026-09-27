@@ -195,6 +195,14 @@ class ExperimentRunner:
                 primary_horizon=primary_horizon,
             )
             raw_metrics = result
+        elif spec.protocol == "learning.agency-high-dimensional-acquisition":
+            body = spec.extra_params.get("body", {})
+            result = protocol_fn(
+                seeds=spec.seeds,
+                ticks=spec.steps,
+                **{key: int(value) for key, value in body.items()},
+            )
+            raw_metrics = result
         elif spec.protocol == "learning.agency-acquisition-reuse-closure":
             result = protocol_fn(seeds=spec.seeds, max_ticks=spec.steps)
             raw_metrics = result

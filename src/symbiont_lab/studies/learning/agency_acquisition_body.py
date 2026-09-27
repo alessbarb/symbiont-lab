@@ -15,7 +15,11 @@ Receptors:
   dimension grounded only in them is a false-positive dimension;
 * one distractor receptor that jumps on an evaluator-seeded schedule with no
   dependence on action, so the organism meets effects that also occur
-  without its intervention (counterfactual windows).
+  without its intervention (counterfactual windows);
+* optionally (high-dimensional bodies, E8) several correlated receptors per
+  actuator with decreasing gain, and receptors that drift on their own like
+  posture or balance signals in a physical body.  The defaults (one receptor
+  per actuator, no drift) reproduce the original body exactly.
 
 All readings relax toward a neutral level, so a consequence exists only while
 the body is actually driven.
@@ -45,6 +49,8 @@ _NEUTRAL = 0.5
 _RELAXATION = 0.2
 _GAIN = 0.5
 _DISTRACTOR_RATE = 0.3
+_DRIFT_STEP = 0.06
+_CORRELATED_GAIN_DECAY = 0.25
 
 
 class BodyCondition(StrEnum):
@@ -79,11 +85,19 @@ class CausalBody:
         seed: int,
         condition: BodyCondition = BodyCondition.NORMAL,
         inert_actuator_count: int = 0,
+        receptors_per_actuator: int = 1,
+        drifting_receptor_count: int = 0,
     ) -> None:
         if actuator_count < 1:
             raise ValueError("a causal body needs at least one actuator")
         if inert_actuator_count < 0:
             raise ValueError("inert_actuator_count must be non-negative")
+        if not 1 <= receptors_per_actuator <= 4:
+            raise ValueError("receptors_per_actuator must be within [1, 4]")
+        if drifting_receptor_count < 0:
+            raise ValueError("drifting_receptor_count must be non-negative")
+        self.receptors_per_actuator = int(receptors_per_actuator)
+        self.drifting_count = int(drifting_receptor_count)
         self.seed = int(seed)
         self.functional_count = int(actuator_count)
         total = int(actuator_count) + int(inert_actuator_count)
@@ -91,11 +105,17 @@ class CausalBody:
             total,
             physical_contract=f"agency-acquisition-body:{actuator_count}:{inert_actuator_count}",
         )
+        # Driven receptors first, then drifting ones, then the distractor
+        # last: with the defaults the ids are exactly the original body's.
+        driven = actuator_count * self.receptors_per_actuator
         self.receptor_ids = tuple(
-            _opaque_receptor_id(self.seed, index) for index in range(actuator_count + 1)
+            _opaque_receptor_id(self.seed, index)
+            for index in range(driven + self.drifting_count + 1)
         )
+        self._drifting_ids = self.receptor_ids[driven : driven + self.drifting_count]
         self._values = {receptor_id: _NEUTRAL for receptor_id in self.receptor_ids}
         self._rng = random.Random(f"agency-acquisition-distractor:{self.seed}")
+        self._drift_rng = random.Random(f"agency-acquisition-drift:{self.seed}")
         self.condition = BodyCondition(condition)
         # Apparatus time: one physical step = 100 ms.  Wall-clock time would
         # leak host timing into perception and break matched twins.
@@ -106,16 +126,23 @@ class CausalBody:
     def distractor_receptor_id(self) -> str:
         return self.receptor_ids[-1]
 
-    def driven_receptor(self, actuator_id: str) -> str | None:
+    def driven_receptors(self, actuator_id: str) -> tuple[str, ...]:
+        """Receptors an output drives, strongest first (evaluator-only)."""
         index = self.surface.actuator_ids.index(actuator_id)
         count = self.functional_count
         if index >= count:
-            return None  # inert output: legal, but physically inconsequential
+            return ()  # inert output: legal, but physically inconsequential
         if self.condition is BodyCondition.BROKEN_EFFECTOR and index == 0:
-            return None
+            return ()
         if self.condition is BodyCondition.PERMUTED:
             index = (index + 1) % count
-        return self.receptor_ids[index]
+        k = self.receptors_per_actuator
+        return self.receptor_ids[index * k : index * k + k]
+
+    def driven_receptor(self, actuator_id: str) -> str | None:
+        """The primary (strongest) receptor an output drives."""
+        receptors = self.driven_receptors(actuator_id)
+        return receptors[0] if receptors else None
 
     def ground_truth(self) -> BodyGroundTruth:
         return BodyGroundTruth(
@@ -135,9 +162,11 @@ class CausalBody:
         self._steps += 1
         drive = {receptor_id: 0.0 for receptor_id in self.receptor_ids}
         for actuation in actuations:
-            receptor_id = self.driven_receptor(actuation.actuator_id)
-            if receptor_id is not None:
-                drive[receptor_id] += _GAIN * float(actuation.delivered)
+            for rank, receptor_id in enumerate(self.driven_receptors(actuation.actuator_id)):
+                gain = _GAIN * (1.0 - _CORRELATED_GAIN_DECAY * rank)
+                drive[receptor_id] += gain * float(actuation.delivered)
+        for receptor_id in self._drifting_ids:
+            drive[receptor_id] += self._drift_rng.gauss(0.0, _DRIFT_STEP)
         for receptor_id in self.receptor_ids[:-1]:
             value = self._values[receptor_id]
             value += drive[receptor_id] - _RELAXATION * (value - _NEUTRAL)

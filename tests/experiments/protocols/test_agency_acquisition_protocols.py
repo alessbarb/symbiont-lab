@@ -53,6 +53,10 @@ PROTOCOLS = {
         "learning.agency-consolidated-causal-intervention",
         "run_consolidated_causal_intervention_study",
     ),
+    "agency-high-dimensional-acquisition": (
+        "learning.agency-high-dimensional-acquisition",
+        "run_high_dimensional_acquisition_study",
+    ),
     "agency-intentional-causal-advantage": (
         "learning.agency-intentional-causal-advantage",
         "run_intentional_causal_advantage_study",
@@ -73,6 +77,7 @@ BASE_SEEDS = (101, 127, 149)
 EXECUTIVE_SEEDS = BASE_SEEDS + (163, 179, 193, 211, 227, 241, 257)
 CONSOLIDATED_SEEDS = EXECUTIVE_SEEDS + (271, 283, 307, 311, 331, 347, 359, 373, 389, 401)
 EXECUTIVE_STUDIES = {
+    "agency-high-dimensional-acquisition",
     "agency-consolidated-causal-intervention",
     "agency-executive-bridge-ablation",
     "agency-intent-persistence",
@@ -261,3 +266,52 @@ def test_consolidated_intervention_marks_ungated_seeds_untestable():
     assert result["summary"]["broken_effector"]["primary_endpoint_supported"] is False
     with pytest.raises(ValueError):
         run_consolidated_causal_intervention_study(seeds=(127,), horizons=(4,), primary_horizon=8)
+
+
+def test_high_dimensional_body_keeps_the_default_body_and_adds_correlation_and_drift():
+    from symbiont.actuation.types import Actuation
+
+    default = CausalBody(actuator_count=4, seed=7)
+    assert default.receptors_per_actuator == 1 and default.drifting_count == 0
+    for actuator_id in default.surface.actuator_ids:
+        assert default.driven_receptors(actuator_id) == (default.driven_receptor(actuator_id),)
+
+    body = CausalBody(actuator_count=4, seed=7, receptors_per_actuator=4, drifting_receptor_count=8)
+    assert len(body.receptor_ids) == 4 * 4 + 8 + 1
+    first = body.surface.actuator_ids[0]
+    driven = body.driven_receptors(first)
+    assert len(driven) == 4
+    body.advance((Actuation(actuator_id=first, requested=1.0, delivered=1.0),))
+    rises = [body._values[receptor] - 0.5 for receptor in driven]
+    assert rises == sorted(rises, reverse=True) and rises[-1] > 0.0
+    still = CausalBody(
+        actuator_count=4, seed=7, receptors_per_actuator=4, drifting_receptor_count=8
+    )
+    for _ in range(5):
+        still.advance(())
+    assert any(still._values[receptor] != 0.5 for receptor in still._drifting_ids)
+    still.set_condition(BodyCondition.BROKEN_EFFECTOR)
+    assert still.driven_receptors(first) == ()
+
+
+def test_high_dimensional_acquisition_study_reports_the_chain():
+    from symbiont_lab.studies.learning.agency_acquisition import (
+        run_high_dimensional_acquisition_study,
+    )
+
+    result = run_high_dimensional_acquisition_study(
+        seeds=(101,),
+        ticks=20,
+        actuator_count=4,
+        receptors_per_actuator=2,
+        drifting_receptor_count=4,
+    )
+    (row,) = result["per_seed"]
+    assert row["receptors"] == 4 * 2 + 4 + 1
+    for key in (
+        "recurring_effect_fraction",
+        "competences_with_effect",
+        "execution_bindings",
+        "intents_satisfied",
+    ):
+        assert key in row

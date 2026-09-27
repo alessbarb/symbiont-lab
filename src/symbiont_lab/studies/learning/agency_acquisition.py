@@ -1016,6 +1016,97 @@ def run_consolidated_causal_intervention_study(
 
 
 # ---------------------------------------------------------------------------
+# E8 — High-dimensional acquisition (Factorized Effect Representation v1 §10)
+# ---------------------------------------------------------------------------
+def _high_dimensional_metrics(runtime: OrganismRuntime) -> dict[str, Any]:
+    domain = runtime._action_domain
+    acquisition = domain.acquisition
+    space = acquisition.effect_space
+    evidence = acquisition.causal_evidence.intervention_evidence
+    effectful = [item.effect_id for item in evidence if item.effect_id is not None]
+    recurring = {
+        effect.effect_id for effect in space.effects if effect.support >= _RECURRENCE_SUPPORT
+    }
+    competences = domain.competence_library.items
+    intention = domain.intention
+    ledger = intention.outcome_ledger.metrics()
+    return {
+        "attempts": acquisition.attempt_count,
+        "effectful_evidence": len(effectful),
+        "distinct_effects_in_evidence": len(set(effectful)),
+        "recurring_effect_fraction": (
+            sum(1 for effect_id in effectful if effect_id in recurring) / len(effectful)
+            if effectful
+            else None
+        ),
+        "effect_space_size": len(space.effects),
+        "action_dimensions": len(acquisition.action_dimensions.items),
+        "agentic_dimensions": len(acquisition.agentic_dimension_ids()),
+        "competences": len(competences),
+        "competences_with_effect": sum(1 for item in competences if item.effect_id is not None),
+        "executable_competences": sum(
+            1 for item in competences if domain.competence_is_executable(item)
+        ),
+        "execution_bindings": len(domain.execution_bindings.items),
+        "intents_terminated": sum(intention.counts.values()),
+        "intents_satisfied": intention.counts[IntentStatus.SATISFIED],
+        "outcome_learning_history_hit_rate": ledger["history_hit_rate"],
+    }
+
+
+_RECURRENCE_SUPPORT = 4
+
+
+def run_high_dimensional_acquisition_study(
+    *,
+    seeds: Sequence[int] = DEFAULT_SEEDS,
+    ticks: int = 3000,
+    actuator_count: int = 16,
+    receptors_per_actuator: int = 4,
+    drifting_receptor_count: int = 32,
+) -> dict[str, Any]:
+    """E8: does the acquisition -> intent chain engage in a many-receptor body?
+
+    Outputs drive several correlated receptors and many receptors drift on
+    their own, as in a physical body.  Reported: effect recurrence, dimensions,
+    competences with an effect, bindings, intents formed and satisfied.
+    """
+    resolved = _seeds(seeds)
+    per_seed = []
+    for seed in resolved:
+        body = CausalBody(
+            actuator_count=_positive(actuator_count, "actuator_count"),
+            seed=seed,
+            receptors_per_actuator=receptors_per_actuator,
+            drifting_receptor_count=drifting_receptor_count,
+        )
+        runtime = build_subject(body, organism_id=f"agency-high-dimensional-{seed}")
+        _advance(runtime, body, _positive(ticks, "ticks"))
+        per_seed.append(
+            {
+                "seed": seed,
+                "receptors": len(body.receptor_ids),
+                **_high_dimensional_metrics(runtime),
+            }
+        )
+    keys = [key for key in per_seed[0] if key not in ("seed", "receptors")] if per_seed else []
+    return {
+        "protocol": "learning.agency-high-dimensional-acquisition",
+        "seeds": list(resolved),
+        "ticks": ticks,
+        "body": {
+            "actuator_count": actuator_count,
+            "receptors_per_actuator": receptors_per_actuator,
+            "drifting_receptor_count": drifting_receptor_count,
+        },
+        "per_seed": per_seed,
+        "summary": {
+            key: _mean(row[key] for row in per_seed if row[key] is not None) for key in keys
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # E6 — Acquisition -> deliberate reuse closure: the release gate (§117-§118)
 # ---------------------------------------------------------------------------
 _MILESTONES = (
@@ -1125,6 +1216,7 @@ __all__ = [
     "run_agency_acquisition_ablation_study",
     "run_embodied_causal_intervention_study",
     "run_executive_bridge_ablation_study",
+    "run_high_dimensional_acquisition_study",
     "run_intent_persistence_study",
     "run_intentional_causal_advantage_study",
 ]
