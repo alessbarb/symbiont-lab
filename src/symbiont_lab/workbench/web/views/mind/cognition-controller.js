@@ -926,6 +926,7 @@ export function createCognitionController({
     if (edge.kind === 'invokes') return `rgba(255,143,216,${alpha})`;
     if (edge.kind === 'motor_component') return `rgba(143,227,255,${alpha})`;
     if (edge.kind === 'causal_effect') return `rgba(113,233,186,${alpha})`;
+    if (edge.kind === 'causal_estimate') return `rgba(98,225,190,${alpha})`;
     return `rgba(80,217,255,${alpha})`;
   }
 
@@ -1611,7 +1612,7 @@ export function createCognitionController({
       const animatedBX = a.x + (b.x - a.x) * edgeAnim.progress;
       const animatedBY = a.y + (b.y - a.y) * edgeAnim.progress;
       ctx.globalAlpha *= edgeAnim.opacity;
-      ctx.setLineDash(edge.kind === 'causal_effect' ? [5,4] : []);
+      ctx.setLineDash(edge.kind === 'causal_estimate' ? [3,3] : edge.kind === 'causal_effect' ? [5,4] : []);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(animatedBX, animatedBY);
@@ -1948,7 +1949,7 @@ export function createCognitionController({
         : isConn
           ? 2.8
           : 0.55 + supportScale * 1.6 + modeScore * 1.2;
-      ctx.setLineDash(edge.kind === 'inhibitory' ? [4, 4] : edge.kind === 'gating' ? [2, 3] : edge.kind === 'causal_effect' ? [6, 3] : []);
+      ctx.setLineDash(edge.kind === 'inhibitory' ? [4, 4] : edge.kind === 'gating' ? [2, 3] : edge.kind === 'causal_estimate' ? [3, 3] : edge.kind === 'causal_effect' ? [6, 3] : []);
       ctx.stroke();
       ctx.setLineDash([]);
       // Arrowhead
