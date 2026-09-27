@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 
+from symbiont.actuation.intervention import opaque_channel_ref
 from symbiont_lab.physics3d.bodies import ANTHROPOMORPHIC_V6
 from symbiont_lab.physics3d.observer_semantics import (
+    action_dimension_semantics,
     motor_semantics,
     receptor_ground_truth,
     sensory_semantics,
@@ -87,3 +89,34 @@ def test_motor_semantics_maps_opaque_actuators_to_observer_physics() -> None:
     assert semantics["actuator.b"]["observer_summary"] == "trunk yaw negative drive"
     assert semantics["actuator.c"]["observer_summary"] == "left knee pitch positive drive"
     assert semantics["actuator.a"]["self_label"] == "actuator.a"
+
+
+def test_action_dimension_semantics_projects_multi_channel_grounding_observer_only() -> None:
+    actuator_to_effector = {
+        "actuator.a": "eff.0",
+        "actuator.b": "eff.1",
+        "actuator.c": "eff.44",
+    }
+    dimension = SimpleNamespace(dimension_id="action.dimension.aaaa")
+    registry = SimpleNamespace(
+        items=(dimension,),
+        channel_refs=lambda _dimension_id: (
+            opaque_channel_ref("actuator.a"),
+            opaque_channel_ref("actuator.c"),
+        ),
+    )
+
+    semantics = action_dimension_semantics(
+        registry,
+        actuator_to_effector,
+        joint_specs=ANTHROPOMORPHIC_V6.observer_joint_specs,
+    )
+
+    item = semantics["action.dimension.aaaa"]
+    assert item["channel_count"] == 2
+    assert item["mapped_channel_count"] == 2
+    assert item["mapping"] == "exact"
+    assert item["effector_ids"] == ["eff.0", "eff.44"]
+    assert item["observer_joints"] == ["left knee pitch", "trunk yaw"]
+    assert item["actuator_ids"] == ["actuator.a", "actuator.c"]
+
