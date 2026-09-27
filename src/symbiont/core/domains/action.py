@@ -337,23 +337,24 @@ class ActionDomain:
         """Material causal/binding state of one relation (EOL §7), read-only.
 
         Estimate revisions advance only when the competence itself acts, so
-        activity of other competences never changes this state.
+        activity of other competences never changes this state.  Competence
+        estimates are context-specific; the relation's revision is the latest
+        across its contexts.
         """
-        competence_id, effect_id, context_ref = key
+        competence_id, effect_id = key
         competence = self.competence_library.get(competence_id)
         binding = self.execution_bindings.get(competence_id)
-        control = self.acquisition.controllability_model.estimate(
-            source_kind=CausalSourceKind.COMPETENCE,
-            source_ref=competence_id,
-            effect_id=effect_id,
-            context_id=context_ref,
-        )
-        agency = self.acquisition.agency_model.estimate(
-            source_kind=CausalSourceKind.COMPETENCE,
-            source_ref=competence_id,
-            effect_id=effect_id,
-            context_id=context_ref,
-        )
+
+        def latest(model) -> int | None:
+            return max(
+                (
+                    estimate.last_updated_tick
+                    for estimate in model.for_source(CausalSourceKind.COMPETENCE, competence_id)
+                    if estimate.effect_id == effect_id
+                ),
+                default=None,
+            )
+
         return CausalRevisionState(
             binding_fingerprint=(
                 f"{binding.surface_fingerprint}|{binding.effect_id}|{binding.last_evidence_tick}"
@@ -361,8 +362,8 @@ class ActionDomain:
                 else None
             ),
             executable=competence is not None and self.competence_is_executable(competence),
-            controllability_revision=control.last_updated_tick if control is not None else None,
-            agency_revision=agency.last_updated_tick if agency is not None else None,
+            controllability_revision=latest(self.acquisition.controllability_model),
+            agency_revision=latest(self.acquisition.agency_model),
         )
 
     def executive_modulation(self, affordance: ActionAffordance) -> ExecutiveModulation:
@@ -370,7 +371,6 @@ class ActionDomain:
         return self.intention.admission_modulation(
             competence_id=affordance.competence_id,
             anticipated_effect_id=affordance.anticipated_effect_id,
-            context_ref=affordance.context_ref,
         )
 
     def competence_is_executable(self, competence: MotorCompetence) -> bool:

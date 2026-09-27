@@ -111,9 +111,7 @@ def _observe(domain, *, tick, similarity=0.0, effect="effect.other", status=None
 
 
 def _factor(domain, competence_id, effect_id):
-    return domain.admission_modulation(
-        competence_id=competence_id, anticipated_effect_id=effect_id, context_ref="context.x"
-    )
+    return domain.admission_modulation(competence_id=competence_id, anticipated_effect_id=effect_id)
 
 
 def test_real_satisfaction_changes_only_matching_key_admission():
@@ -122,7 +120,7 @@ def test_real_satisfaction_changes_only_matching_key_admission():
     _observe(domain, tick=2, similarity=1.0, effect="effect.a")
     assert _factor(domain, "competence.a", "effect.a").factor > 1.0
     assert not _factor(domain, "competence.b", "effect.b").had_history
-    # Same competence, other effect or context: separate keys.
+    # Same competence, other effect: separate relation.
     assert not _factor(domain, "competence.a", "effect.b").had_history
 
 
@@ -169,17 +167,17 @@ def test_invalidation_suppresses_until_relevant_revision():
     domain, probe = _domain()
     intent = _run(domain, "competence.a", "effect.a", tick=1)
     domain.invalidate(intent.intent_id, reason=COMPETENCE_NOT_EXECUTABLE, tick=2)
-    key = ("competence.a", "effect.a", "context.x")
-    assert _factor(domain, *key[:2]).suppressed
+    key = ("competence.a", "effect.a")
+    assert _factor(domain, *key).suppressed
     probe.states[key] = replace(probe.states[key], binding_fingerprint="surface|2")
-    assert not _factor(domain, *key[:2]).suppressed
+    assert not _factor(domain, *key).suppressed
 
 
 def test_unrelated_causal_revision_does_not_lift_suppression():
     domain, probe = _domain()
     intent = _run(domain, "competence.a", "effect.a", tick=1)
     domain.invalidate(intent.intent_id, reason=COMPETENCE_NOT_EXECUTABLE, tick=2)
-    other = ("competence.b", "effect.b", "context.x")
+    other = ("competence.b", "effect.b")
     probe(other)
     probe.states[other] = replace(
         probe.states[other], controllability_revision=99, executable=False
@@ -198,7 +196,6 @@ def test_admission_uses_executive_history_without_altering_recorded_relevance():
         return domain.admission_modulation(
             competence_id=affordance.competence_id,
             anticipated_effect_id=affordance.anticipated_effect_id,
-            context_ref=affordance.context_ref,
         )
 
     common = dict(
@@ -281,8 +278,7 @@ def test_executive_failure_does_not_modify_causal_models():
     intention.activate(intent.intent_id, commitment_id="commitment.eol2", tick=tick + 2)
     intention.invalidate(intent.intent_id, reason=COMPETENCE_NOT_EXECUTABLE, tick=tick + 3)
     assert (
-        intention.outcome_ledger.get((competence.competence_id, competence.effect_id, "context.x"))
-        is not None
+        intention.outcome_ledger.get((competence.competence_id, competence.effect_id)) is not None
     )
     assert causal_state() == before
 

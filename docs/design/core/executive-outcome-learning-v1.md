@@ -1,6 +1,6 @@
 # Executive Outcome Learning v1 — Specification
 
-**Status:** FROZEN (owner decisions of 2026-09-27 incorporated).
+**Status:** v1 FROZEN (owner decisions of 2026-09-27 incorporated); v1.1 key change in §14.
 **Depends on:** Agency Acquisition & Executive Action v1 (frozen; see
 `agency-acquisition-and-executive-action-v1_implementation-audit.md` §0).
 
@@ -223,3 +223,21 @@ key turns an unusable memory into one that almost every admission can use.
 Candidate for EOL v1.1 (owner decision, new preregistered run): key
 `(competence, anticipated effect)`, keeping context out of v1 as §3.2
 already anticipated, and reporting the same §8 saturation metrics.
+
+## 14. v1.1 — relation key (owner: "apply the best options", 2026-09-27)
+
+Change, and only this: the evidence key is `(competence_id,
+anticipated_effect_id)`. Context is dropped from the key, as §3.2 anticipated
+and §12-§13 measured (exact key hit rate <= 0.5%, relation key 86-98%).
+Everything else — outcome classes, confidence formula and clamp, window 16,
+256 keys, suppression semantics, no reward, separation from causal models —
+is unchanged.
+
+- **Suppression revision** for a relation is the latest `last_updated_tick`
+  of its competence-level controllability/agency estimates across contexts,
+  plus binding fingerprint and executability as before.
+- **Persistence:** ledger schema 2. A schema-1 ledger restores by folding the
+  contexts of each relation into one entry (samples merged by tick, last 16
+  kept; the most recent suppression kept; recency order preserved).
+- **Studies:** E2 v4 and E5 v4 rerun the v3 arms and criteria unchanged,
+  including the not-a-clean-test rule (history hit rate < 0.10 or evictions).

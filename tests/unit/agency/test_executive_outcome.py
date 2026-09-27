@@ -15,8 +15,8 @@ from symbiont.agency.executive_outcome import (
     classify_outcome,
 )
 
-KEY = ("competence.c", "effect.e", "context.x")
-OTHER = ("competence.d", "effect.f", "context.x")
+KEY = ("competence.c", "effect.e")
+OTHER = ("competence.d", "effect.f")
 STATE = CausalRevisionState(
     binding_fingerprint="surface|effect.e|10",
     executable=False,
@@ -132,10 +132,10 @@ def test_suppression_requires_the_state_it_is_judged_against():
 def test_ledger_is_bounded_and_reports_saturation():
     ledger = ExecutiveOutcomeLedger(max_keys=2)
     for index in range(3):
-        ledger.record((f"competence.{index}", "effect.e", None), _sample(OutcomeClass.POSITIVE))
-    ledger.record(("competence.2", "effect.e", None), _sample(OutcomeClass.POSITIVE))
-    ledger.modulation(("competence.0", "effect.e", None), revision=None)  # evicted
-    ledger.modulation(("competence.2", "effect.e", None), revision=None)
+        ledger.record((f"competence.{index}", "effect.e"), _sample(OutcomeClass.POSITIVE))
+    ledger.record(("competence.2", "effect.e"), _sample(OutcomeClass.POSITIVE))
+    ledger.modulation(("competence.0", "effect.e"), revision=None)  # evicted
+    ledger.modulation(("competence.2", "effect.e"), revision=None)
     metrics = ledger.metrics()
     assert len(ledger) == 2
     assert metrics["keys_created"] == 3 and metrics["keys_evicted"] == 1
@@ -155,3 +155,57 @@ def test_ledger_checkpoint_round_trip_is_exact():
     assert restored.checkpoint() == ledger.checkpoint()
     assert restored.modulation(OTHER, revision=STATE).suppressed
     assert ExecutiveOutcomeLedger.restore(None).checkpoint()["entries"] == []
+
+
+def test_v1_context_keys_fold_into_their_relation_on_restore():
+    """EOL v1.1: contexts of one (competence, effect) merge; recency is kept."""
+
+    def entry(context, ticks, *, suppressed_at=None):
+        return {
+            "key": ["competence.c", "effect.e", context],
+            "samples": [
+                {
+                    "tick": tick,
+                    "outcome_class": "contradicting",
+                    "reason": "stagnation",
+                    "effect_similarity": None,
+                    "prediction_mismatch": None,
+                    "progress_before_failure": None,
+                }
+                for tick in ticks
+            ],
+            "suppression": (
+                None
+                if suppressed_at is None
+                else {
+                    "invalidated_tick": suppressed_at,
+                    "reason": "surface_incompatible",
+                    "binding_fingerprint": "surface|1",
+                    "executable": False,
+                    "controllability_revision": 1,
+                    "agency_revision": 1,
+                }
+            ),
+        }
+
+    legacy = {
+        "schema_version": 1,
+        "entries": [
+            entry("context.a", range(0, 10), suppressed_at=3),
+            {**entry("context.x", [1]), "key": ["competence.d", "effect.f", "context.x"]},
+            entry("context.b", range(10, 20), suppressed_at=15),
+        ],
+        "counters": {"keys_created": 3, "keys_evicted": 0, "lookups": 7, "history_hits": 2},
+    }
+    ledger = ExecutiveOutcomeLedger.restore(legacy)
+    assert len(ledger) == 2
+    merged = ledger.get(KEY)
+    assert merged is not None
+    assert [sample.tick for sample in merged.samples] == list(range(4, 20))
+    assert merged.suppression is not None and merged.suppression.invalidated_tick == 15
+    # Recency order follows the most recently updated legacy entry.
+    assert [entry["key"] for entry in ledger.checkpoint()["entries"]] == [
+        ["competence.d", "effect.f"],
+        ["competence.c", "effect.e"],
+    ]
+    assert ledger.metrics()["lookups"] == 7

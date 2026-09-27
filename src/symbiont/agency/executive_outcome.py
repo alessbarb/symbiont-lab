@@ -1,9 +1,11 @@
-"""Executive Outcome Learning v1 (docs/design/core/executive-outcome-learning-v1.md).
+"""Executive Outcome Learning v1.1 (docs/design/core/executive-outcome-learning-v1.md).
 
-Real intent outcomes become local, context-specific executive evidence that
-modulates future *admission* of the same (competence, anticipated effect,
-context).  This is executive experience ("when I recently pursued C->E here,
-did it work?"), kept apart from physical causal belief ("can C cause E?"):
+Real intent outcomes become local executive evidence that modulates future
+*admission* of the same (competence, anticipated effect).  v1 also keyed on the
+context; that fragmented memory so that almost no admission met its own
+history (spec §12-§14), so v1.1 keys on the relation only.  This is executive
+experience ("when I recently pursued C->E, did it work?"), kept apart from
+physical causal belief ("can C cause E?"):
 nothing here writes causal evidence, controllability, agency or competence
 evidence, and nothing here is a reward.
 
@@ -23,7 +25,7 @@ from typing import Any, Mapping
 WINDOW = 16
 MAX_KEYS = 256
 
-ExecutiveKey = tuple[str, str, str | None]  # (competence_id, anticipated_effect_id, context_ref)
+ExecutiveKey = tuple[str, str]  # (competence_id, anticipated_effect_id)
 
 
 class OutcomeClass(StrEnum):
@@ -224,14 +226,23 @@ class ExecutiveAdmissionModulator:
         return max(self.min_factor, min(self.max_factor, self.confidence(evidence) / 0.5))
 
 
-def _key_ref(key: ExecutiveKey) -> list[str | None]:
-    return [key[0], key[1], key[2]]
+def _key_ref(key: ExecutiveKey) -> list[str]:
+    return [key[0], key[1]]
+
+
+def _merge_into(target: ExecutiveOutcomeEvidence, source: ExecutiveOutcomeEvidence) -> None:
+    """v1 -> v1.1: fold context-specific evidence into its (competence, effect) key."""
+    merged = sorted((*target.samples, *source.samples), key=lambda sample: sample.tick)
+    target.samples.clear()
+    target.samples.extend(merged[-WINDOW:])
+    candidates = [item for item in (target.suppression, source.suppression) if item is not None]
+    target.suppression = max(candidates, key=lambda item: item.invalidated_tick, default=None)
 
 
 class ExecutiveOutcomeLedger:
-    """Bounded executive memory keyed by (competence, anticipated effect, context)."""
+    """Bounded executive memory keyed by (competence, anticipated effect)."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(
         self,
@@ -345,19 +356,23 @@ class ExecutiveOutcomeLedger:
         ledger = cls()
         if payload is None:
             return ledger
-        if payload.get("schema_version") != cls.SCHEMA_VERSION:
+        version = payload.get("schema_version")
+        if version not in (1, cls.SCHEMA_VERSION):
             raise ValueError("unsupported executive outcome ledger checkpoint")
         entries = payload.get("entries", [])
         if not isinstance(entries, list) or len(entries) > ledger.max_keys:
             raise ValueError("invalid or unbounded executive outcome ledger")
         for raw in entries:
-            competence_id, effect_id, context_ref = raw["key"]
-            key = (
-                str(competence_id),
-                str(effect_id),
-                None if context_ref is None else str(context_ref),
-            )
-            ledger._items[key] = ExecutiveOutcomeEvidence.restore(raw)
+            # v1 keys carried a context as third element; v1.1 folds contexts
+            # of one relation together, keeping entry order as recency order.
+            key = (str(raw["key"][0]), str(raw["key"][1]))
+            evidence = ExecutiveOutcomeEvidence.restore(raw)
+            existing = ledger._items.get(key)
+            if existing is not None:
+                _merge_into(existing, evidence)
+                ledger._items.move_to_end(key)
+            else:
+                ledger._items[key] = evidence
         counters = payload.get("counters", {})
         for name in ("keys_created", "keys_evicted", "lookups", "history_hits"):
             value = int(counters.get(name, 0))

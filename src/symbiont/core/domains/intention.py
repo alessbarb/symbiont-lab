@@ -142,7 +142,7 @@ class IntentionDomain:
         self._mismatch_count = 0
         self.outcome_ledger = ExecutiveOutcomeLedger()
         # Supplied by the action domain: the material causal/binding state of
-        # one (competence, effect, context) relation.  Read-only.
+        # one (competence, effect) relation.  Read-only.
         self.revision_probe: Callable[[ExecutiveKey], CausalRevisionState] | None = None
 
     # -- lifecycle ------------------------------------------------------------
@@ -277,11 +277,7 @@ class IntentionDomain:
         )
         if outcome_class is OutcomeClass.NEUTRAL:
             return
-        key: ExecutiveKey = (
-            outcome.competence_id,
-            outcome.anticipated_effect_id,
-            outcome.context_ref,
-        )
+        key: ExecutiveKey = (outcome.competence_id, outcome.anticipated_effect_id)
         revision = None
         if outcome_class is OutcomeClass.SUPPRESS:
             if self.revision_probe is None:
@@ -313,12 +309,11 @@ class IntentionDomain:
         *,
         competence_id: str,
         anticipated_effect_id: str,
-        context_ref: str | None,
     ) -> ExecutiveModulation:
-        """How this key's executive history modulates its admission (EOL §6-§7)."""
+        """How this relation's executive history modulates its admission (EOL §6-§7)."""
         if not self.policy.executive_outcome_learning:
             return NO_HISTORY
-        key: ExecutiveKey = (competence_id, anticipated_effect_id, context_ref)
+        key: ExecutiveKey = (competence_id, anticipated_effect_id)
         revision = self.revision_probe(key) if self.revision_probe is not None else None
         return self.outcome_ledger.modulation(key, revision=revision)
 
