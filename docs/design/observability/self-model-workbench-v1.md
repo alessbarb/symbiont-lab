@@ -47,11 +47,29 @@ BodySchema -> Agency -> Capability -> Affordance -> ActionIntent -> Embodiment
 
 All displayed confidence is derived from real model evidence.
 
+### Self View
+
+Projects organism-owned self-knowledge onto the observer's anatomical body
+model. This is an Observatory-only composition:
+
+- per-sense confidence, health and maturity are mapped from opaque `rec.N`
+  ordinals to the physical joint/contact regions that produced those channels;
+- learned ActionDimensions are mapped from opaque `eff.N` ordinals to the
+  corresponding observer joint region;
+- Knowledge, Stability and Agency are shown as separate visual lenses;
+- selecting a body region opens only the evidence that maps to that region.
+
+The anatomical labels are **observer metadata**, never organism semantics.
+Symbiont continues to receive only opaque `rec.N` / `eff.N` channels, and the
+projection has no reverse path.
+
 ### Body Schema
 
 Shows opaque organism-owned learned parts, cognitive regions, dependencies and
-body-boundary evidence. It deliberately does not paint those IDs onto observer
-anatomy because no canonical organism-owned anatomical mapping exists.
+body-boundary evidence. It deliberately does not claim that a BodySchema part
+means "arm", "leg", or another anatomical concept. Self View may project related
+opaque sensorimotor evidence onto observer anatomy without changing that
+epistemic boundary.
 
 ### Agency
 
