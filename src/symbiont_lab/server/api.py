@@ -7,6 +7,7 @@ Routes:
   GET  /api/state             → JSON runs + observation source status
   GET  /api/organism          → SSE: live organism body/cognition/vitals
   GET  /api/world-scene       → materialized observer spatial snapshot
+  GET  /api/provenance/why   → JSON causal ancestry for a selected reference
   GET  /fleet                 → SSE: observatory fleet (if observatory_dir set)
   GET  /instances/<id>        → SSE: single organism journal stream
   GET  /api/instance/<id>/manifest → JSON: instance manifest
@@ -26,7 +27,7 @@ import json
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
 from symbiont_lab.observation.bus import ObservationBus
@@ -68,6 +69,7 @@ def make_handler(
     run_catalog: Callable[[], list[dict[str, Any]]] | None = None,
     physics_run_starter: Callable[[dict[str, Any]], dict[str, object]] | None = None,
     physics_run_stopper: Callable[[], bool] | None = None,
+    causal_provenance_query: Callable[[str, str, int], dict[str, Any] | None] | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     observatory_source = ObservatorySource(observatory_dir)
 
@@ -209,6 +211,35 @@ def make_handler(
 
             if path == "/api/organism":
                 self._stream_organism()
+                return
+
+            if path == "/api/provenance/why":
+                if causal_provenance_query is None:
+                    self._json(503, {"error": "causal provenance unavailable"})
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=False)
+                kind = str((query.get("kind") or [""])[0]).strip()
+                ref_id = str((query.get("id") or [""])[0]).strip()
+                try:
+                    depth = int((query.get("depth") or ["12"])[0])
+                except ValueError:
+                    self._json(400, {"error": "invalid provenance depth"})
+                    return
+                if (
+                    not kind
+                    or not ref_id
+                    or len(kind) > 64
+                    or len(ref_id) > 512
+                    or depth < 1
+                    or depth > 24
+                ):
+                    self._json(400, {"error": "invalid provenance reference"})
+                    return
+                payload = causal_provenance_query(kind, ref_id, depth)
+                if payload is None:
+                    self._json(404, {"error": "causal provenance not found"})
+                    return
+                self._json(200, payload)
                 return
 
             if path == "/api/bodies" and body_catalog is not None:
