@@ -971,20 +971,47 @@ export function createCognitionController({
     for (const node of physicsNodes) {
       if (node.pinned || node.isolated) continue;
       const center = node.community ? communityCenters.get(node.community) : null;
-      if (center) {
-        const cohesion = 0.012 * alpha;
+      if (center && !node.overlayOnly) {
+        const cohesion = (node.fringeStructural ? 0.006 : 0.012) * alpha;
         node.vx += (center.x - node.x) * cohesion;
         node.vy += (center.y - node.y) * cohesion;
       }
-      if (node.sectorAnchor) {
+
+      if (node.overlayOnly) {
+        // Overlay components without a structural host occupy a compact
+        // observer fringe around the core instead of claiming a sector.
+        if (!node.satelliteHasStructuralHost) {
+          const seed = hashStr(node.componentKey ?? node.id);
+          const angle = ((seed % 360) / 180) * Math.PI;
+          const radius = Math.min(width, height) * 0.23;
+          const targetX = cx + Math.cos(angle) * radius;
+          const targetY = cy + Math.sin(angle) * radius;
+          node.vx += (targetX - node.x) * 0.010 * alpha;
+          node.vy += (targetY - node.y) * 0.010 * alpha;
+        }
+      } else if (node.fringeStructural) {
+        // Tiny structural components stay close to the main mass but remain
+        // visibly distinct from it.
+        const seed = hashStr(node.structuralComponentKey ?? node.id);
+        const angle = ((seed % 360) / 180) * Math.PI;
+        const radius = Math.min(width, height) * 0.19;
+        const targetX = cx + Math.cos(angle) * radius;
+        const targetY = cy + Math.sin(angle) * radius;
+        node.vx += (targetX - node.x) * 0.016 * alpha;
+        node.vy += (targetY - node.y) * 0.016 * alpha;
+      } else if (node.sectorAnchor) {
         const anchorPull = 0.024 * alpha;
         node.vx += (node.sectorAnchor.x - node.x) * anchorPull;
         node.vy += (node.sectorAnchor.y - node.y) * anchorPull;
       }
   
-      // Very weak global gravity keeps the overall "brain" compact.
-      node.vx += (cx - node.x) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
-      node.vy += (cy - node.y) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
+      // Very weak global gravity keeps the structural brain compact. Overlay
+      // satellites use their tether/fringe target instead of pretending to be
+      // part of the structural core.
+      if (!node.overlayOnly) {
+        node.vx += (cx - node.x) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
+        node.vy += (cy - node.y) * (GRAPH_PHYSICS.centerGravity * 0.28) * alpha;
+      }
   
       const radial = Math.hypot(node.x - cx, node.y - cy);
       const maxRadius = Math.min(width, height) * 0.43;
@@ -994,8 +1021,11 @@ export function createCognitionController({
         node.vy += ((cy - node.y) / radial) * excess * 0.018 * alpha;
       }
   
-      node.vx *= GRAPH_PHYSICS.damping;
-      node.vy *= GRAPH_PHYSICS.damping;
+      const damping = node.overlayOnly
+        ? Math.min(GRAPH_PHYSICS.damping, 0.82)
+        : GRAPH_PHYSICS.damping;
+      node.vx *= damping;
+      node.vy *= damping;
       node.x += node.vx;
       node.y += node.vy;
     }
