@@ -313,6 +313,56 @@ export function createCognitionInspector({
         }
       }
   
+      const provenance = graph.causalProvenance;
+      if (
+        provenance?.nodeId === selected.id &&
+        provenance.status !== 'unsupported' &&
+        provenance.status !== 'idle'
+      ) {
+        const provenanceTitle = el('div', 'mind-inspector-section-title');
+        provenanceTitle.textContent = 'Causal history';
+        relationsGroup.appendChild(provenanceTitle);
+
+        if (provenance.status === 'loading') {
+          const loading = el('div', 'mind-inspector-empty');
+          loading.textContent = 'Loading durable causal ancestry…';
+          relationsGroup.appendChild(loading);
+        } else if (provenance.status === 'absent') {
+          const absent = el('div', 'mind-inspector-empty');
+          absent.textContent = 'No durable causal journal entry for this reference in the current run.';
+          relationsGroup.appendChild(absent);
+        } else if (provenance.status === 'error') {
+          const error = el('div', 'mind-inspector-empty');
+          error.textContent = `Causal history unavailable · ${provenance.error ?? 'query failed'}`;
+          relationsGroup.appendChild(error);
+        } else if (provenance.status === 'ready' && provenance.tree) {
+          for (const item of provenanceTreeRows(provenance.tree, 24)) {
+            const row = el('button', 'mind-inspector-relation-button mind-inspector-relation-compact');
+            const target = graph.nodes.find(node => node.id === item.id) ?? null;
+            row.type = 'button';
+            row.disabled = !target;
+            const event = item.event;
+            const eventText = event
+              ? ` ← ${event.domain}.${event.operation} @t${event.tick}`
+              : ' · causal root';
+            const flags = [
+              item.repeated ? 'repeated' : null,
+              item.truncated ? 'truncated' : null,
+            ].filter(Boolean);
+            row.textContent =
+              `${'↳ '.repeat(Math.min(item.depth, 6))}${item.kind}:${shortId(item.id, 10, 5)}${eventText}${flags.length ? ` · ${flags.join(', ')}` : ''}`;
+            if (event?.rule) row.title = `rule ${event.rule}`;
+            if (target) row.addEventListener('click', () => selectCognitiveNode(target.id));
+            relationsGroup.appendChild(row);
+          }
+          if (provenance.runId) {
+            const source = el('div', 'mind-inspector-evidence-note');
+            source.textContent = `Durable observer journal · run ${provenance.runId} · never fed back`;
+            relationsGroup.appendChild(source);
+          }
+        }
+      }
+
       if (graph.atlasPath?.nodeIds?.length > 1) {
         const pathTitle = el('div', 'mind-inspector-section-title');
         pathTitle.textContent = 'Cognitive pathway';
