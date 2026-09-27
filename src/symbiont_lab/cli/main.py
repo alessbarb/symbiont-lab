@@ -126,6 +126,13 @@ def main(argv: list[str] | None = None) -> None:
     )
     build_evaluate_parser(evaluate_p)
 
+    provenance_p = subparsers.add_parser(
+        "provenance", help="Query a causal provenance journal (why did this happen?)"
+    )
+    from symbiont_lab.cli.provenance import build_provenance_parser
+
+    build_provenance_parser(provenance_p)
+
     world_p = subparsers.add_parser(
         "world", help="Launch or resume persistent Symbiont World and Observatory"
     )
@@ -178,6 +185,10 @@ def main(argv: list[str] | None = None) -> None:
             server_argv.extend(["--observatory-dir", str(args.observatory_dir)])
         unified_main(server_argv)
         return
+    if args.subcommand == "provenance":
+        from symbiont_lab.cli.provenance import run_provenance_command
+
+        sys.exit(run_provenance_command(args))
     if args.subcommand == "simulate":
         sys.exit(run_simulate_command(args))
     elif args.subcommand == "world":
