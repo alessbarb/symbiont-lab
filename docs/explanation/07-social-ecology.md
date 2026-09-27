@@ -1,0 +1,20 @@
+# Social Ecology and Emergent Sociability: The Dynamics of Shared Habitats
+
+Within a shared habitat, organisms do not exist in isolation; they are continuously immersed in a complex web of ecological and social pressures. They must compete for finite metabolic resources or choose to engage in the delicate exchange of information with their peers. As an organism interacts with another, it keenly observes the outcome—whether the encounter provided support or inflicted harm—and archives this experience within its private memory. Over time, through a purely local history of these encounters, organisms independently learn to navigate trust, cooperation, and the depletion of environmental resources.
+
+This emergent sociability unfolds without the aid of global registries or network scanning. Organisms remain entirely oblivious to the wider population, perceiving peers only when they physically intersect within a co-located `SocialHabitat`. All interactions are negotiated through opaque channel tokens, ensuring that communication remains a strictly local, bounded phenomenon. To make sense of this environment, the organism maintains two primary historical ledgers: a `RelationLedger` for interpersonal social exchanges, and a `ResourceEvidenceLedger` to track the physical availability of ecological necessities.
+
+At the core of an organism's social cognition is its directional relational memory. For every encountered peer, the organism continuously updates a private `SocialRelation` profile. The valuation of any peer relies on a rigorous, three-part mathematical assessment. First, the organism determines the valence of the interaction:
+$$ \text{Valence} = \begin{cases} \text{POSITIVE} & \text{if } \text{support} - \text{harm} \ge 0.1 \\ \text{NEGATIVE} & \text{if } \text{harm} - \text{support} \ge 0.1 \\ \text{UNKNOWN} & \text{otherwise} \end{cases} $$
+
+Second, the organism applies an exponential freshness decay to its memories. A supportive peer encountered thousands of ticks ago is naturally treated with renewed caution, as trust degrades over time. This temporal fading is strictly governed by a half-life formula:
+$$ \text{freshness}(\Delta t) = e^{-\ln(2) \cdot \frac{\Delta t}{t_{1/2}}}, \quad t_{1/2} = 32.0\text{ ticks} $$
+
+Finally, these factors culminate in a local reliability score. This calculation actively penalizes historical conflict while weighting recent interactions more heavily, forming the bedrock of the organism's social trust:
+$$ \text{reliability} = \left(\frac{\text{obs}}{\text{obs} + \text{conflicts}}\right) \cdot \text{freshness} $$
+
+Parallel to social trust, organisms must rigorously evaluate their physical environment. When seeking sustenance, the organism consults its `ResourceEvidenceLedger` to calculate the viability of a resource target:
+$$ \text{score} = \text{availability} \cdot \text{freshness} - \min(0.75, 0.15 \cdot \text{consecutive\_denials}) + \frac{0.25}{1 + \text{observations}} $$
+Should a resource repeatedly deny access—perhaps because it has been depleted by competitors—the calculated score plummets. The organism, driven by the need to preserve its metabolic budget, ceases its fruitless attempts. Yet, true ecological resilience requires flexibility. To prevent permanent starvation in a dynamic environment where resources might regenerate, the organism employs bounded re-exploration. If a previously denied resource is ignored for a necessary cooling-off period of at least 8 ticks, the organism will cautiously attempt interaction once more.
+
+Crucially, the architecture of the `SocialHabitat` enforces an absolute absence of central planning. The habitat’s evaluators can never peer into an organism’s internal ledgers, nor can they mandate cooperation or conflict. Intricate social phenomena—such as reciprocal altruism, defensive isolation, and complex niche differentiation—emerge entirely organically. They are the macroscopic shadows cast by individual organisms striving desperately to maximize the mathematical reliability of their private ledgers in the ongoing pursuit of survival.
