@@ -160,3 +160,25 @@ def test_ledger_v3_roundtrip_and_v2_migration_marks_no_passive_windows():
     assert not item.is_passive
     assert item.attempt_id is None and item.intervention_signature_id is None
     assert item.competence_id == "competence.legacy"
+
+
+def test_unobserved_consequence_loses_reliability_when_source_acts():
+    """Acting revises every known consequence of the source, not only the observed one."""
+    acquisition = fresh_acquisition()
+    for tick in range(0, 16, 2):
+        rest(acquisition, tick, {})
+    for tick in range(20, 36, 2):
+        update = act(acquisition, tick, {A: 0.5}, {"signal.a": 0.4})
+    old_effect = update.evidence.effect_id
+    signature = update.evidence.intervention_signature_id
+    before = acquisition.controllability_model.estimate(
+        source_kind=CausalSourceKind.INTERVENTION, source_ref=signature, effect_id=old_effect
+    )
+    # The body changes: the same intervention now produces something else.
+    for tick in range(40, 56, 2):
+        act(acquisition, tick, {A: 0.5}, {"signal.b": 0.4})
+    after = acquisition.controllability_model.estimate(
+        source_kind=CausalSourceKind.INTERVENTION, source_ref=signature, effect_id=old_effect
+    )
+    assert after.reliability < before.reliability
+    assert after.action_support > before.action_support

@@ -238,6 +238,50 @@ class AgencyAcquisition:
         # E1 ablation: estimates see only the source's own windows.
         return CounterfactualFreeView(self.causal_evidence)
 
+    def _refresh_source(
+        self,
+        ledger: OpportunityView,
+        *,
+        source_kind: CausalSourceKind,
+        source_ref: str,
+        current: tuple[str, str | None] | None,
+        tick: int,
+        dimension_signature_refs: tuple[str, ...] | None = None,
+    ) -> None:
+        """Re-estimate every other known consequence of a source that just acted.
+
+        Acting changes the source's opportunity count for *all* effects: the
+        consequences that did not occur this time must lose reliability too,
+        otherwise stale control/agency would survive a changed body (§115).
+        """
+        for estimate in self.controllability_model.for_source(source_kind, source_ref):
+            if (estimate.effect_id, estimate.context_id) == current:
+                continue
+            self.controllability_model.update_from_ledger(
+                ledger,
+                source_kind=source_kind,
+                source_ref=source_ref,
+                effect_id=estimate.effect_id,
+                context_id=estimate.context_id,
+                tick=tick,
+                dimension_signature_refs=dimension_signature_refs,
+            )
+        if not self.use_agency_model:
+            return
+        for agency in self.agency_model.for_source(source_kind, source_ref):
+            if (agency.effect_id, agency.context_id) == current:
+                continue
+            self.agency_model.update_from_ledger(
+                ledger,
+                source_kind=source_kind,
+                source_ref=source_ref,
+                effect_id=agency.effect_id,
+                context_id=agency.context_id,
+                tick=tick,
+                prediction_match=agency.prediction_match,
+                dimension_signature_refs=dimension_signature_refs,
+            )
+
     def learn(
         self,
         transition: SensorimotorTransition,
@@ -283,6 +327,14 @@ class AgencyAcquisition:
                     ),
                 )
 
+        self._refresh_source(
+            ledger,
+            source_kind=CausalSourceKind.INTERVENTION,
+            source_ref=signature_id,
+            current=(effect_id, None) if effect_id is not None else None,
+            tick=tick,
+        )
+
         dimension = dimension_evidence = d_ctrl = d_agency = None
         signature = self.signatures.get(signature_id)
         if signature is not None and signature.temporal_pattern_ref is None:
@@ -322,6 +374,14 @@ class AgencyAcquisition:
                         ),
                         dimension_signature_refs=dimension.intervention_signature_refs,
                     )
+                self._refresh_source(
+                    ledger,
+                    source_kind=CausalSourceKind.DIMENSION,
+                    source_ref=dimension.dimension_id,
+                    current=(dominant, None),
+                    tick=tick,
+                    dimension_signature_refs=dimension.intervention_signature_refs,
+                )
                 dimension = self.action_dimensions.record_controllability(
                     dimension.dimension_id, d_ctrl.confidence
                 )
@@ -346,6 +406,15 @@ class AgencyAcquisition:
                     tick=tick,
                     prediction_match=competence_prediction_match,
                 )
+
+        if transition.competence_id is not None:
+            self._refresh_source(
+                ledger,
+                source_kind=CausalSourceKind.COMPETENCE,
+                source_ref=transition.competence_id,
+                current=(effect_id, transition.context_ref) if effect_id is not None else None,
+                tick=tick,
+            )
 
         if body_schema is not None and effect_id is not None:
             self._observe_body(
