@@ -51,7 +51,11 @@ from .apparatus import (
 )
 from .bodies import DEFAULT_BODY_REGISTRY
 from .humanoid import apply_surface_material, configure_physics_solver
-from .observer_semantics import motor_semantics, sensory_semantics
+from .observer_semantics import (
+    action_dimension_semantics,
+    motor_semantics,
+    sensory_semantics,
+)
 from .reembodiment import (
     PhysicsEmbodimentDescriptor,
     migrate_legacy_memory_store,
@@ -1940,6 +1944,11 @@ class PyBulletEmbodimentRuntime:
                     ),
                 ),
                 "motor": motor_semantics(
+                    self._actuator_to_effector,
+                    joint_specs=self.body_descriptor.observer_joint_specs,
+                ),
+                "action_dimensions": action_dimension_semantics(
+                    self.organism.action_dimensions,
                     self._actuator_to_effector,
                     joint_specs=self.body_descriptor.observer_joint_specs,
                 ),
