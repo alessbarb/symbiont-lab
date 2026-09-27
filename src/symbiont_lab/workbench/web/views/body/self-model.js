@@ -368,7 +368,7 @@ export class SelfModelWorkspace {
       .map((x)=>[`${x.competence_id}|${x.effect_id}`,x]));
     const cards = agencies.map((a) => {
       const c = controls.get(`${a.competence_id}|${a.effect_id}`) ?? {};
-      return `<button type="button" class="self-relation-card" data-self-id="${escapeHtml(String(a.competence_id))}">
+      return `<button type="button" class="self-relation-card" data-self-id="${escapeHtml(`agency|${a.competence_id}|${a.effect_id}`)}">
         <div class="self-relation-top"><strong>${escapeHtml(shortId(a.competence_id))}</strong>${chip(pct(a.confidence),confidenceClass(a.confidence))}</div>
         <div class="self-arrow">→</div><div class="self-effect">${escapeHtml(shortId(a.effect_id))}</div>
         <div class="self-bars">
@@ -396,7 +396,7 @@ export class SelfModelWorkspace {
 
   affordanceView() {
     const items = affordances(this.snapshot);
-    const cards = items.map((a) => `<button type="button" class="self-affordance-card" data-self-id="${escapeHtml(a.competence_id)}">
+    const cards = items.map((a) => `<button type="button" class="self-affordance-card" data-self-id="${escapeHtml(`affordance|${a.competence_id}|${a.effect_id}`)}">
       <div class="self-affordance-label">CURRENTLY AVAILABLE</div>
       <strong>${escapeHtml(shortId(a.competence_id))}</strong>
       <div class="self-arrow">→</div>
@@ -459,6 +459,18 @@ export class SelfModelWorkspace {
   selectedRecord() {
     const id = this.selectedId;
     if (!id) return null;
+    if (id.startsWith('agency|')) {
+      const [, competenceId, effectId] = id.split('|');
+      const item = (Array.isArray(this.snapshot?.agency_estimates) ? this.snapshot.agency_estimates : [])
+        .find((candidate) => String(candidate?.competence_id) === competenceId && String(candidate?.effect_id) === effectId);
+      if (item) return { kind: 'agency relation', item, displayId: `${competenceId} → ${effectId}` };
+    }
+    if (id.startsWith('affordance|')) {
+      const [, competenceId, effectId] = id.split('|');
+      const item = affordances(this.snapshot)
+        .find((candidate) => candidate.competence_id === competenceId && candidate.effect_id === effectId);
+      if (item) return { kind: 'current affordance', item, displayId: `${competenceId} → ${effectId}` };
+    }
     const sources = [
       ['body part', this.snapshot?.body_schema?.parts, 'part_id'],
       ['action dimension', this.snapshot?.action_dimensions, 'dimension_id'],
@@ -497,7 +509,7 @@ export class SelfModelWorkspace {
       .map(([key, value]) => `<div class="self-selected-array"><span>${escapeHtml(key.replaceAll('_',' '))}</span>${value.slice(0,8).map((x)=>`<code>${escapeHtml(shortId(x,28))}</code>`).join('')}</div>`)
       .join('');
     return `<div class="body-section"><div class="body-section-title">Selection · ${escapeHtml(selected.kind)}</div>
-      ${row('ID',shortId(this.selectedId,34))}
+      ${row('ID',shortId(selected.displayId ?? this.selectedId,34))}
       ${entries}
       ${arrays}
       <div class="body-inspector-sub">Read-only organism evidence. Selection and observer labels never feed back into Symbiont.</div>
