@@ -38,6 +38,7 @@ const SEGMENT_LABELS = {
 
 export const SELF_VIEW_MODES = [
   ['knowledge', 'Knowledge'],
+  ['coverage', 'Coverage'],
   ['stability', 'Stability'],
   ['agency', 'Agency'],
 ];
@@ -56,8 +57,9 @@ function classRatio(value, classes = 16) {
 }
 
 function mean(values) {
-  if (!values.length) return 0;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
+  const valid = values.map((value) => finite(value, null)).filter((value) => value !== null);
+  if (!valid.length) return 0;
+  return valid.reduce((sum, value) => sum + value, 0) / valid.length;
 }
 
 function jointSegment(jointName) {
@@ -83,25 +85,23 @@ function receptorSegment(receptorId) {
   if (!match) return null;
   const ordinal = Number(match[1]);
 
-  // rec.0..61: position/velocity pair for the 31 canonical motor DoFs.
-  if (ordinal < 62) {
+  if (ordinal < JOINT_TOPOLOGY.length * 2) {
     const jointOrdinal = Math.floor(ordinal / 2);
     const joint = JOINT_TOPOLOGY[jointOrdinal];
     return joint ? jointSegment(joint.name) : null;
   }
 
-  // rec.62..71 are whole-body orientation/velocity channels and are not
-  // projected onto a single observer anatomical segment.
-  // rec.72..86 are somatic contact-presence channels.
-  if (ordinal >= 72 && ordinal <= 86) {
-    return CONTACT_SEGMENTS[ordinal - 72] ?? null;
+  const proprioCount = JOINT_TOPOLOGY.length * 2;
+  const contactPresenceStart = proprioCount + 10;
+  const resourceOrdinal = contactPresenceStart + CONTACT_SEGMENTS.length;
+  const contactLoadStart = resourceOrdinal + 1;
+
+  if (ordinal >= contactPresenceStart && ordinal < contactPresenceStart + CONTACT_SEGMENTS.length) {
+    return CONTACT_SEGMENTS[ordinal - contactPresenceStart] ?? null;
   }
-  // rec.87 is ecological/external-field state.
-  // rec.88..102 are somatic contact-load channels.
-  if (ordinal >= 88 && ordinal <= 102) {
-    return CONTACT_SEGMENTS[ordinal - 88] ?? null;
+  if (ordinal >= contactLoadStart && ordinal < contactLoadStart + CONTACT_SEGMENTS.length) {
+    return CONTACT_SEGMENTS[ordinal - contactLoadStart] ?? null;
   }
-  // rec.103..106 are interoceptive and deliberately whole-body.
   return null;
 }
 
@@ -113,15 +113,45 @@ function effectorSegment(effectorId) {
   return joint ? jointSegment(joint.name) : null;
 }
 
-function emptySegment(segment) {
+function expectedReceptorsBySegment() {
+  const result = new Map(CONTACT_SEGMENTS.map((segment) => [segment, new Set()]));
+  JOINT_TOPOLOGY.forEach((joint, index) => {
+    const segment = jointSegment(joint.name);
+    if (!segment || !result.has(segment)) return;
+    result.get(segment).add(`rec.${index * 2}`);
+    result.get(segment).add(`rec.${index * 2 + 1}`);
+  });
+
+  const contactPresenceStart = JOINT_TOPOLOGY.length * 2 + 10;
+  const resourceOrdinal = contactPresenceStart + CONTACT_SEGMENTS.length;
+  const contactLoadStart = resourceOrdinal + 1;
+  CONTACT_SEGMENTS.forEach((segment, index) => {
+    result.get(segment).add(`rec.${contactPresenceStart + index}`);
+    result.get(segment).add(`rec.${contactLoadStart + index}`);
+  });
+  return result;
+}
+
+function sourceIdsForSelfEntry(snapshot, selfId) {
+  if (/^rec\.\d+$/.test(String(selfId))) return [String(selfId)];
+  const semantics = snapshot?.observer_semantics?.sensory?.[selfId];
+  const sourceIds = semantics?.sourceIds;
+  return Array.isArray(sourceIds) ? sourceIds.map(String) : [];
+}
+
+function emptySegment(segment, expectedIds) {
   return {
     segment,
     label: SEGMENT_LABELS[segment] ?? segment,
+    expectedReceptorIds: [...expectedIds],
+    expectedSenseCount: expectedIds.size,
     receptorIds: [],
     senseCount: 0,
     confidence: 0,
     health: 0,
     maturity: 0,
+    quality: 0,
+    coverage: 0,
     stableSenses: 0,
     dimensions: [],
     agenticDimensions: 0,
@@ -131,32 +161,73 @@ function emptySegment(segment) {
   };
 }
 
-export function selfViewSegments(snapshot) {
-  const bySegment = new Map(CONTACT_SEGMENTS.map((segment) => [segment, emptySegment(segment)]));
+function selfEvidenceByReceptor(snapshot) {
   const selfModel = snapshot?.self_model && typeof snapshot.self_model === 'object'
     ? snapshot.self_model : {};
+  const evidence = new Map();
+  const unmappedEntries = [];
 
-  for (const [receptorId, state] of Object.entries(selfModel)) {
-    const segment = receptorSegment(receptorId);
+  for (const [selfId, state] of Object.entries(selfModel)) {
+    const sourceIds = sourceIdsForSelfEntry(snapshot, selfId);
+    let localized = false;
+    for (const sourceId of sourceIds) {
+      if (!receptorSegment(sourceId)) continue;
+      localized = true;
+      const previous = evidence.get(sourceId);
+      const current = {
+        selfId,
+        sourceId,
+        confidence: classRatio(state?.confidence_class),
+        health: classRatio(state?.health_class),
+        maturity: classRatio(state?.maturity_class, 8),
+        stable: finite(state?.maturity_class, 0) >= 4 && finite(state?.confidence_class, 0) >= 3,
+      };
+      if (!previous || mean([current.confidence, current.health, current.maturity]) >
+        mean([previous.confidence, previous.health, previous.maturity])) {
+        evidence.set(sourceId, current);
+      }
+    }
+    if (!localized) unmappedEntries.push(selfId);
+  }
+  return { evidence, unmappedEntries };
+}
+
+export function selfViewSegments(snapshot) {
+  const expected = expectedReceptorsBySegment();
+  const bySegment = new Map(
+    CONTACT_SEGMENTS.map((segment) => [segment, emptySegment(segment, expected.get(segment))])
+  );
+  const { evidence } = selfEvidenceByReceptor(snapshot);
+
+  for (const item of evidence.values()) {
+    const segment = receptorSegment(item.sourceId);
     if (!segment || !bySegment.has(segment)) continue;
     const entry = bySegment.get(segment);
-    entry.receptorIds.push(receptorId);
+    entry.receptorIds.push(item.sourceId);
     entry.senseCount += 1;
-    entry.confidence += classRatio(state?.confidence_class);
-    entry.health += classRatio(state?.health_class);
-    entry.maturity += classRatio(state?.maturity_class, 8);
-    if (finite(state?.maturity_class, 0) >= 4 && finite(state?.confidence_class, 0) >= 3) {
-      entry.stableSenses += 1;
-    }
+    entry.confidence += item.confidence;
+    entry.health += item.health;
+    entry.maturity += item.maturity;
+    if (item.stable) entry.stableSenses += 1;
   }
 
   const dimensions = Array.isArray(snapshot?.action_dimensions) ? snapshot.action_dimensions : [];
+  const dimensionSemantics = snapshot?.observer_semantics?.actionDimensions ?? {};
   for (const dimension of dimensions) {
-    const segment = effectorSegment(dimension?.actuator_slot_id);
-    if (!segment || !bySegment.has(segment)) continue;
-    const entry = bySegment.get(segment);
-    entry.dimensions.push(dimension);
-    if (dimension?.agentic === true) entry.agenticDimensions += 1;
+    const semantics = dimensionSemantics?.[dimension?.dimension_id];
+    const effectorIds = Array.isArray(semantics?.effectorIds) ? semantics.effectorIds : [];
+    const touched = new Set(effectorIds.map(effectorSegment).filter(Boolean));
+    for (const segment of touched) {
+      if (!bySegment.has(segment)) continue;
+      const entry = bySegment.get(segment);
+      entry.dimensions.push({
+        ...dimension,
+        observer_mapping: semantics?.mapping ?? 'unresolved',
+        mapped_channel_count: finite(semantics?.mappedChannelCount, 0),
+        channel_count: finite(semantics?.channelCount, dimension?.channel_count ?? 0),
+      });
+      if (dimension?.agentic === true) entry.agenticDimensions += 1;
+    }
   }
 
   for (const entry of bySegment.values()) {
@@ -165,21 +236,31 @@ export function selfViewSegments(snapshot) {
       entry.confidence /= n;
       entry.health /= n;
       entry.maturity /= n;
-      entry.knowledge = mean([entry.confidence, entry.health, entry.maturity]);
-      entry.stability = entry.stableSenses / n;
+      entry.quality = mean([entry.confidence, entry.health, entry.maturity]);
     }
+    entry.coverage = entry.expectedSenseCount
+      ? ratio(entry.senseCount / entry.expectedSenseCount)
+      : 0;
+    entry.knowledge = entry.coverage * entry.quality;
+    entry.stability = entry.expectedSenseCount
+      ? ratio(entry.stableSenses / entry.expectedSenseCount)
+      : 0;
+
     if (entry.dimensions.length) {
-      entry.agency = mean(entry.dimensions.map((dimension) => ratio(
-        dimension?.agentic === true
-          ? Math.max(finite(dimension?.controllability, 0), finite(dimension?.confidence, 0))
-          : finite(dimension?.controllability, 0) * .6
-      )));
+      entry.agency = mean(entry.dimensions.map((dimension) => {
+        const evidenceStrength = Math.max(
+          finite(dimension?.controllability, 0),
+          finite(dimension?.confidence, 0)
+        );
+        return ratio(dimension?.agentic === true ? evidenceStrength : evidenceStrength * .55);
+      }));
     }
   }
   return bySegment;
 }
 
 function scoreFor(entry, mode) {
+  if (mode === 'coverage') return entry.coverage;
   if (mode === 'stability') return entry.stability;
   if (mode === 'agency') return entry.agency;
   return entry.knowledge;
@@ -200,7 +281,7 @@ function segmentAttrs(segment, metrics, mode, selected) {
     selected === segment ? 'selected' : '',
     metrics.agenticDimensions ? 'agentic' : '',
   ].filter(Boolean).join(' ');
-  return `class="${cls}" data-self-segment="${segment}" data-self-id="segment|${segment}" style="--segment-score:${score.toFixed(3)}"`;
+  return `class="${cls}" data-self-segment="${segment}" data-self-id="segment|${segment}" style="--segment-score:${score.toFixed(3)};--segment-coverage:${metrics.coverage.toFixed(3)}"`;
 }
 
 function skeletonSvg(segments, mode, selected) {
@@ -256,13 +337,20 @@ function skeletonSvg(segments, mode, selected) {
   </svg>`;
 }
 
+function regionStatus(entry) {
+  if (!entry.senseCount) return 'unknown';
+  if (entry.coverage >= .75 && entry.quality >= .75) return 'well represented';
+  if (entry.coverage >= .35) return 'partial';
+  return 'sparse';
+}
+
 function segmentList(segments, mode, selected) {
   return [...segments.values()]
     .sort((a, b) => scoreFor(b, mode) - scoreFor(a, mode))
     .map((entry) => {
       const score = scoreFor(entry, mode);
       return `<button type="button" class="self-body-region-row ${selected === entry.segment ? 'selected' : ''}" data-self-id="segment|${entry.segment}" data-self-segment="${entry.segment}">
-        <span>${entry.label}</span>
+        <span><b>${entry.label}</b><small>${regionStatus(entry)} · ${entry.senseCount}/${entry.expectedSenseCount}</small></span>
         <i><b style="width:${Math.round(score * 100)}%"></b></i>
         <strong>${Math.round(score * 100)}%</strong>
       </button>`;
@@ -271,8 +359,19 @@ function segmentList(segments, mode, selected) {
 
 export function renderSelfView(snapshot, mode = 'knowledge', selected = null) {
   const segments = selfViewSegments(snapshot);
-  const mappedSenses = [...segments.values()].reduce((sum, item) => sum + item.senseCount, 0);
-  const agentic = [...segments.values()].reduce((sum, item) => sum + item.agenticDimensions, 0);
+  const { evidence, unmappedEntries } = selfEvidenceByReceptor(snapshot);
+  const expectedTotal = [...segments.values()].reduce((sum, item) => sum + item.expectedSenseCount, 0);
+  const mappedSenses = evidence.size;
+  const agenticDimensions = new Set();
+  const mappedDimensions = new Set();
+  for (const entry of segments.values()) {
+    for (const dimension of entry.dimensions) {
+      mappedDimensions.add(dimension.dimension_id);
+      if (dimension.agentic === true) agenticDimensions.add(dimension.dimension_id);
+    }
+  }
+  const totalDimensions = Array.isArray(snapshot?.action_dimensions) ? snapshot.action_dimensions.length : 0;
+  const unmappedDimensions = Math.max(0, totalDimensions - mappedDimensions.size);
   const stable = [...segments.values()].reduce((sum, item) => sum + item.stableSenses, 0);
 
   return `<div class="self-view-toolbar">
@@ -283,7 +382,7 @@ export function renderSelfView(snapshot, mode = 'knowledge', selected = null) {
     </div>
     <div class="self-view-legend">
       <span><i class="unknown"></i>unknown</span>
-      <span><i class="weak"></i>weak</span>
+      <span><i class="weak"></i>sparse</span>
       <span><i class="medium"></i>developing</span>
       <span><i class="strong"></i>strong</span>
     </div>
@@ -292,21 +391,22 @@ export function renderSelfView(snapshot, mode = 'knowledge', selected = null) {
     <div class="self-body-stage">
       <div class="self-body-stage-label">
         <strong>Known body</strong>
-        <small>Observer anatomy × organism-owned evidence</small>
+        <small>ghost body: physical observer surface × organism-owned evidence</small>
       </div>
       ${skeletonSvg(segments, mode, selected)}
-      <div class="self-body-epistemic">Anatomical names and positions are observer metadata. Symbiont still sees only opaque rec.N / eff.N channels.</div>
+      <div class="self-body-epistemic">Fill is learned evidence projected onto observer anatomy. Anatomical labels never feed back; Symbiont still sees opaque channels.</div>
     </div>
     <div class="self-body-regions">
-      <div class="self-section-head"><div><span>Body regions</span><small>Click a region to inspect what is actually known there</small></div></div>
+      <div class="self-section-head"><div><span>Body regions</span><small>score · learned/expected physical channels</small></div></div>
       ${segmentList(segments, mode, selected)}
     </div>
   </div>
   <div class="self-view-summary">
-    <div><span>Mapped senses</span><strong>${mappedSenses}</strong></div>
-    <div><span>Stable senses</span><strong>${stable}</strong></div>
-    <div><span>Agentic dimensions</span><strong>${agentic}</strong></div>
-    <div><span>Projection mode</span><strong>${mode}</strong></div>
+    <div><span>Physical surface represented</span><strong>${mappedSenses} / ${expectedTotal}</strong></div>
+    <div><span>Stable channels</span><strong>${stable}</strong></div>
+    <div><span>Agentic dimensions localized</span><strong>${agenticDimensions.size}</strong></div>
+    <div><span>Unmapped learned evidence</span><strong>${unmappedEntries.length}</strong></div>
+    <div><span>Unmapped dimensions</span><strong>${unmappedDimensions}</strong></div>
   </div>`;
 }
 
@@ -318,17 +418,22 @@ export function selfViewSegmentRecord(snapshot, segment) {
     displayId: entry.label,
     item: {
       observer_region: entry.label,
-      mapped_senses: entry.senseCount,
+      physical_channels_expected: entry.expectedSenseCount,
+      learned_channels_mapped: entry.senseCount,
+      coverage: Number(entry.coverage.toFixed(4)),
+      quality: Number(entry.quality.toFixed(4)),
       knowledge: Number(entry.knowledge.toFixed(4)),
       confidence: Number(entry.confidence.toFixed(4)),
       health: Number(entry.health.toFixed(4)),
       maturity: Number(entry.maturity.toFixed(4)),
-      stable_senses: entry.stableSenses,
+      stable_channels: entry.stableSenses,
+      stability: Number(entry.stability.toFixed(4)),
       action_dimensions: entry.dimensions.length,
       agentic_dimensions: entry.agenticDimensions,
       agency: Number(entry.agency.toFixed(4)),
       epistemic_status: 'observer projection only',
       receptor_ids: entry.receptorIds,
+      expected_receptor_ids: entry.expectedReceptorIds,
       dimension_ids: entry.dimensions.map((item) => item.dimension_id),
     },
   };
