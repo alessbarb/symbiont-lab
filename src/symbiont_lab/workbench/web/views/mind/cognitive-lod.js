@@ -74,8 +74,6 @@ export function atlasVisibleNodeIds(
     bottleneckIds = [],
   } = {},
 ) {
-  if (detailLevel === 'nodes') return new Set(nodes.map(node => node.id));
-
   const forced = new Set([
     selectedNodeId,
     ...pathNodeIds,
@@ -84,6 +82,16 @@ export function atlasVisibleNodeIds(
   ].filter(Boolean));
 
   if (detailLevel === 'regions') return forced;
+
+  // Node detail means "show every relationally participating node", not
+  // "materialize every dormant registry entry".  Degree-zero entries remain
+  // searchable/selectable and are then forced into the view.
+  if (detailLevel === 'nodes') {
+    return new Set([
+      ...forced,
+      ...nodes.filter(node => finite(node.degree, 0) > 0).map(node => node.id),
+    ]);
+  }
 
   const visible = new Set(forced);
   const groups = regionMembers(nodes);
