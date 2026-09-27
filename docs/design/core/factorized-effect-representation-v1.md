@@ -567,6 +567,45 @@ intent in developmental order, and each satisfied competence traces through
 provenance down to the pulse commitments of its footprint. First satisfied
 intent at ticks 314 / 146 / 1832 (whole-state E6: 236 / 402 / 612).
 
-Remaining acceptance (§14.2): E8 v2 against the v1 baseline, the Physics3D
-acceptance on a copy of the owner's organism, and overhead; then removal of
-the whole-state path with checkpoint schema 5.
+**E8 v2 — reported, descriptive** (no threshold was preregistered). Arm v1
+(whole-state) run `20260927T142244Z-learning-agency-high-dimensional-acquisition-38429ca-add9`,
+arm v2 (factorized) run
+`20260927T190304Z-learning-agency-high-dimensional-acquisition-4353253-7294`;
+same 10 seeds, 16 actuators x 4 correlated receptors + 32 drifting receptors,
+3000 ticks. Means over seeds, v1 -> v2:
+
+| Metric | v1 | v2 |
+| --- | ---: | ---: |
+| attempts | 2996.8 | 2372.9 |
+| effectful evidence | 2202.4 | 2124.5 |
+| distinct effects in evidence | 1303.1 | 1578.6 |
+| recurring-effect fraction (support >= 4) | 0.36 | 0.18 |
+| effect space size | 512.0 | 536.3 |
+| footprints | - | 7.3 |
+| action / agentic dimensions | 21.4 / 0.1 | 4.1 / 0.1 |
+| competences (all with an effect and a binding) | 1.9 | 38.3 |
+| executable competences | 1.4 | 32.8 |
+| intents terminated | 95.3 | 188.2 |
+| intents satisfied | 1.2 | 0.8 |
+| outcome-learning history hit rate | 0.42 | 0.91 |
+
+Reading, without post-hoc criteria:
+
+- the grounding chain now engages in the high-dimensional body: every seed
+  forms footprints (4-13 of 16 actuators) and 15-52 executable,
+  footprint-grounded competences, where whole-state identity formed about two;
+- the whole-state recurring-effect fraction falls because whole-state effects
+  are no longer what grounds competences; it is not the relevant measure in
+  v2;
+- **satisfaction does not scale with grounding**: intents terminate twice as
+  often but are satisfied 8 times in 1882 (v1: 12 in 953, 10 of them in seed
+  257). Satisfied seeds shift (v2: 101, 127, 211, 257; v1: 149, 179, 257).
+  The chain reaches executable intent; what fails is closing it. Whether the
+  recall rule (0.75 over the union footprint) is too strict against drifting
+  receptors, or intents target footprints before their membership settles, is
+  not established by this study and needs a diagnosis of terminal reasons
+  before any change.
+
+Remaining acceptance (§14.2): the Physics3D acceptance on a copy of the
+owner's organism and overhead; then, with owner confirmation, removal of the
+whole-state path with checkpoint schema 5.
