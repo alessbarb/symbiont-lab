@@ -542,3 +542,31 @@ tick budget counts from the checkpoint's saved tick.)
   its pulses.
 - **Overhead:** per-tick cost within +15% of current on the 5k-tick synthetic
   run and the 62-effector Physics3D run.
+
+## 15. Wiring status and results
+
+Implemented in `main` (flag `OrganismRuntime(factorized_effects=True)`, off by
+default; enables footprint grounding and probing 0.5, both checkpointed):
+
+1. footprints maintained by `AgencyAcquisition`, refreshed per closed pulse,
+   traced (`25e715f6`);
+2. competences grounded on footprint entities, provisional union of channel
+   footprints first, protected footprint effects in the EffectSpace
+   (`e6eaaf31`);
+3. intents reconciled by recall of expected changes accumulated across the
+   commitment, compared by (feature, direction) (`f3326626`) — this also fixed
+   a v1 defect: a competence outliving its controller seed stayed executable
+   and failed its controller in a loop;
+4. footprint prediction and per-tick revision of competence effects, traced;
+   the EOL key thereby follows the footprint entity (`2d47084a`).
+
+**E6 with factorized effects — PASSED** (preregistered at `2624f37`, run
+`20260927T185900Z-learning-agency-acquisition-reuse-closure-2624f37-77ed`):
+all three seeds close with a satisfied, self-acquired, footprint-grounded
+intent in developmental order, and each satisfied competence traces through
+provenance down to the pulse commitments of its footprint. First satisfied
+intent at ticks 314 / 146 / 1832 (whole-state E6: 236 / 402 / 612).
+
+Remaining acceptance (§14.2): E8 v2 against the v1 baseline, the Physics3D
+acceptance on a copy of the owner's organism, and overhead; then removal of
+the whole-state path with checkpoint schema 5.
