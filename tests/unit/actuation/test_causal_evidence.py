@@ -6,7 +6,7 @@ import pytest
 
 from symbiont.actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from symbiont.actuation.model import CausalSourceKind
-from tests.unit.actuation.acquisition_support import A, act, fresh_acquisition, rest
+from tests.unit.actuation.acquisition_support import A, B, act, fresh_acquisition, rest
 
 
 def test_exploration_without_competence_produces_causal_evidence():
@@ -182,3 +182,52 @@ def test_unobserved_consequence_loses_reliability_when_source_acts():
     )
     assert after.reliability < before.reliability
     assert after.action_support > before.action_support
+
+
+def test_restore_preserves_path_dependent_causal_estimates_exactly():
+    """§82.2: estimates refresh only when their source acts, so they are persisted."""
+    from symbiont.actuation.acquisition import AgencyAcquisition
+
+    acquisition = fresh_acquisition()
+    for tick in range(0, 16, 2):
+        rest(acquisition, tick, {})
+    for tick in range(20, 36, 2):
+        act(acquisition, tick, {A: 0.5}, {"signal.a": 0.4})
+    for tick in range(40, 46, 2):
+        act(acquisition, tick, {A: 0.5, B: 0.5}, {"signal.b": 0.4})
+    restored = AgencyAcquisition()
+    restored.restore_causal_state(
+        effect_space=acquisition.effect_space.checkpoint(),
+        causal_evidence=acquisition.causal_evidence.checkpoint(),
+        acquisition=acquisition.checkpoint(),
+        body_schema=None,
+    )
+    assert restored.controllability_model.estimates == acquisition.controllability_model.estimates
+    assert restored.agency_model.estimates == acquisition.agency_model.estimates
+    rebuilt = AgencyAcquisition()
+    legacy = dict(acquisition.checkpoint(), schema_version=1)
+    rebuilt.restore_causal_state(
+        effect_space=acquisition.effect_space.checkpoint(),
+        causal_evidence=acquisition.causal_evidence.checkpoint(),
+        acquisition=legacy,
+        body_schema=None,
+    )
+    # Migration path only: rebuilt from final counts, hence not path-identical.
+    assert rebuilt.controllability_model.estimates
+
+
+def test_body_schema_sensorimotor_view_survives_export():
+    from symbiont.core.embodiment.body_schema import BodySchemaEngine
+
+    body = BodySchemaEngine()
+    body.observe_agentic_sensorimotor_evidence(
+        causal_source_ref="intervention.signature.x",
+        effect_id="effect.x",
+        feature_refs=("signal.a",),
+        controllability_confidence=0.5,
+        agency_confidence=0.5,
+        tick=3,
+    )
+    restored = BodySchemaEngine.restore(body.export(current_tick=4), current_tick=4)
+    assert restored.sensorimotor_dependency_evidence_count == 1
+    assert restored.agentic_feature_refs == ("signal.a",)

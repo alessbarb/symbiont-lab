@@ -1189,6 +1189,20 @@ class BodySchemaEngine:
                 "revision_count": self._boundary_revision_count,
                 "disruption_score": self._boundary_disruption_score,
             },
+            # Bounded derived counts; path-dependent (confidence-gated), so
+            # persisted rather than replayed with end-state confidences.
+            "sensorimotor_view": {
+                "support": [
+                    [source, effect, support, tick]
+                    for (source, effect), (support, tick) in sorted(
+                        self._sensorimotor_support.items()
+                    )
+                ],
+                "agentic_features": [
+                    [feature, support, tick]
+                    for feature, (support, tick) in sorted(self._agentic_features.items())
+                ],
+            },
         }
 
     @classmethod
@@ -1511,6 +1525,27 @@ class BodySchemaEngine:
                 public_dependencies=raw_dependencies,
                 current_tick=current_tick,
             )
+
+        view = payload.get("sensorimotor_view")
+        if view is not None:
+            if not isinstance(view, dict):
+                raise ValueError("body_schema sensorimotor_view must be an object")
+            support = view.get("support", [])
+            features = view.get("agentic_features", [])
+            if (
+                not isinstance(support, list)
+                or not isinstance(features, list)
+                or len(support) > 512
+                or len(features) > MAX_SENSORY_PARTS
+            ):
+                raise ValueError("invalid or unbounded body_schema sensorimotor_view")
+            for source, effect, count, tick in support:
+                model._sensorimotor_support[(str(source), str(effect))] = (
+                    min(255, max(0, int(count))),
+                    int(tick),
+                )
+            for feature, count, tick in features:
+                model._agentic_features[str(feature)] = (min(255, max(0, int(count))), int(tick))
 
         boundary = payload.get("boundary_evidence")
         if boundary is not None:

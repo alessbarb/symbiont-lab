@@ -167,15 +167,85 @@ def _dimension_keys(
     return keys
 
 
+MAX_ESTIMATES = 8192
+
+
 class _SourceIndexed:
-    """Shared per-source lookup for estimate registries."""
+    """Shared per-source lookup, bound and persistence for estimate registries."""
 
     _estimates: dict
     _by_source: dict
+    _estimate_type: type
 
     def _store(self, key: _Key, estimate) -> None:
         self._estimates[key] = estimate
         self._by_source.setdefault((key[0], key[1]), set()).add(key)
+        if len(self._estimates) > MAX_ESTIMATES + MAX_ESTIMATES // 8:
+            self._prune()
+
+    def _prune(self) -> None:
+        """Keep the most recently supported relations; bounded organism memory."""
+        retained = sorted(
+            self._estimates.items(),
+            key=lambda item: (
+                -item[1].last_updated_tick,
+                item[0][0],
+                item[0][1],
+                item[0][2],
+                item[0][3] or "",
+            ),
+        )[:MAX_ESTIMATES]
+        self._estimates = dict(retained)
+        self._by_source = {}
+        for key in self._estimates:
+            self._by_source.setdefault((key[0], key[1]), set()).add(key)
+
+    def checkpoint(self) -> list[dict[str, object]]:
+        return [
+            {
+                field: (value.value if isinstance(value, CausalSourceKind) else value)
+                for field, value in (
+                    (name, getattr(estimate, name))
+                    for name in self._estimate_type.__dataclass_fields__
+                )
+            }
+            for estimate in self.estimates
+        ]
+
+    def restore_estimates(self, payload: object) -> None:
+        if not isinstance(payload, list) or len(payload) > MAX_ESTIMATES + MAX_ESTIMATES // 8:
+            raise ValueError("invalid or unbounded causal estimate table")
+        self._estimates = {}
+        self._by_source = {}
+        for raw in payload:
+            if not isinstance(raw, Mapping):
+                raise ValueError("invalid causal estimate")
+            values = dict(raw)
+            values["source_kind"] = CausalSourceKind(str(values["source_kind"]))
+            estimate = self._estimate_type(**values)
+            self._store(
+                (
+                    estimate.source_kind,
+                    estimate.source_ref,
+                    estimate.effect_id,
+                    estimate.context_id,
+                ),
+                estimate,
+            )
+
+    @property
+    def estimates(self) -> tuple:
+        return tuple(
+            sorted(
+                self._estimates.values(),
+                key=lambda item: (
+                    item.source_kind,
+                    item.source_ref,
+                    item.effect_id,
+                    item.context_id or "",
+                ),
+            )
+        )
 
     def for_source(self, source_kind: CausalSourceKind, source_ref: str) -> tuple:
         keys = self._by_source.get((source_kind, source_ref), ())
@@ -204,6 +274,8 @@ class ControllabilityEstimate:
 
 class ControllabilityModel(_SourceIndexed):
     """Infer control only when intervention evidence beats alternatives."""
+
+    _estimate_type = ControllabilityEstimate
 
     def __init__(self) -> None:
         self._estimates: dict[_Key, ControllabilityEstimate] = {}
@@ -297,20 +369,6 @@ class ControllabilityModel(_SourceIndexed):
         for key in self._by_source.pop((source_kind, source_ref), set()):
             self._estimates.pop(key, None)
 
-    @property
-    def estimates(self) -> tuple[ControllabilityEstimate, ...]:
-        return tuple(
-            sorted(
-                self._estimates.values(),
-                key=lambda item: (
-                    item.source_kind,
-                    item.source_ref,
-                    item.effect_id,
-                    item.context_id or "",
-                ),
-            )
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class AgencyEstimate:
@@ -338,6 +396,8 @@ class AgencyModel(_SourceIndexed):
     contingency *and* positive specificity against counterfactual windows the
     estimate is zero whatever the prediction agreement.
     """
+
+    _estimate_type = AgencyEstimate
 
     def __init__(self) -> None:
         self._estimates: dict[_Key, AgencyEstimate] = {}
@@ -442,17 +502,3 @@ class AgencyModel(_SourceIndexed):
     def discard_source(self, source_kind: CausalSourceKind, source_ref: str) -> None:
         for key in self._by_source.pop((source_kind, source_ref), set()):
             self._estimates.pop(key, None)
-
-    @property
-    def estimates(self) -> tuple[AgencyEstimate, ...]:
-        return tuple(
-            sorted(
-                self._estimates.values(),
-                key=lambda item: (
-                    item.source_kind,
-                    item.source_ref,
-                    item.effect_id,
-                    item.context_id or "",
-                ),
-            )
-        )

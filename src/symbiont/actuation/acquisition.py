@@ -92,7 +92,7 @@ class CompetenceGrounding:
 class AgencyAcquisition:
     """Shared owner of attempts, signatures, causal evidence and learned dimensions."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(
         self,
@@ -667,6 +667,11 @@ class AgencyAcquisition:
             "attempt_count": self.attempt_count,
             "intervention_signatures": self.signatures.checkpoint(),
             "action_dimensions": self.action_dimensions.checkpoint(),
+            # Active causal statistics (§82.2): the estimates are path-dependent
+            # (each refreshes when its own source acts), so they are persisted
+            # rather than re-derived from final ledger counts.
+            "controllability": self.controllability_model.checkpoint(),
+            "agency": self.agency_model.checkpoint(),
         }
 
     def restore_causal_state(
@@ -681,8 +686,10 @@ class AgencyAcquisition:
             self.effect_space = EffectSpace.restore(dict(effect_space))
         if causal_evidence is not None:
             self.causal_evidence = CausalEvidenceLedger.restore(dict(causal_evidence))
+        persisted_estimates = False
         if acquisition is not None:
-            if acquisition.get("schema_version") != self.SCHEMA_VERSION:
+            version = acquisition.get("schema_version")
+            if version not in (1, self.SCHEMA_VERSION):
                 raise ValueError("unsupported agency acquisition checkpoint")
             raw_count = acquisition.get("attempt_count", 0)
             if not isinstance(raw_count, int) or raw_count < 0:
@@ -697,6 +704,12 @@ class AgencyAcquisition:
                 raw_dimensions if isinstance(raw_dimensions, Mapping) else None,
                 policy=self.dimension_policy,
             )
+            if version == self.SCHEMA_VERSION:
+                self.controllability_model = ControllabilityModel()
+                self.controllability_model.restore_estimates(acquisition.get("controllability"))
+                self.agency_model = AgencyModel()
+                self.agency_model.restore_estimates(acquisition.get("agency"))
+                persisted_estimates = True
         else:
             # Historical checkpoints (Sensorimotor v3) never learned dimensions:
             # start empty rather than regenerating them from the surface (§83).
@@ -704,7 +717,10 @@ class AgencyAcquisition:
             self.action_dimensions = ActionDimensionRegistry(policy=self.dimension_policy)
         self.pending_attempt = None
         self.bind_surface(self._surface_ids, surface_fingerprint=self._surface_fingerprint)
-        self.rebuild_views(body_schema=body_schema)
+        self.effect_model.rebuild(self.causal_evidence)
+        if not persisted_estimates:
+            # Migration only: older checkpoints lacked the estimate tables.
+            self.rebuild_views(body_schema=body_schema)
 
     def rebuild_views(self, *, body_schema: "BodySchemaEngine | None") -> None:
         members = self.action_dimensions.members
