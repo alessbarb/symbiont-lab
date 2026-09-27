@@ -271,6 +271,7 @@ export function createCognitionController({
       controller: '#c9a0ff',
       body_schema: '#6fd6c4',
       action_dimension: '#ffd166',
+      intervention_signature: '#f4a261',
       action_intent: '#ff5d73',
     };
     const baseRadiusMap = {
@@ -287,6 +288,7 @@ export function createCognitionController({
       controller: 7.0,
       body_schema: 5.8,
       action_dimension: 5.0,
+      intervention_signature: 5.4,
       action_intent: 9.0,
     };
   
@@ -349,13 +351,19 @@ export function createCognitionController({
     const edges = (completeTopology.edges ?? [])
       .filter(e => nodeSet.has(e.sourceId) && nodeSet.has(e.targetId))
       .map(e => ({
+        ...e,
         sourceId: e.sourceId,
         targetId: e.targetId,
         kind: e.kind ?? 'excitatory',
         weight: finiteNumber(e.weight, 0),
         plasticity: clamp01(e.plasticity),
         delayTicks: finiteNumber(e.delayTicks, 0),
-        support: finiteNumber(e.support, 0),
+        support: finiteNumber(e.support ?? e.action_support, 0),
+        confidence: clamp01(e.confidence),
+        agencyConfidence: clamp01(e.agency_confidence),
+        causalAdvantage: e.causal_advantage == null ? null : finiteNumber(e.causal_advantage, 0),
+        counterfactualSupport: finiteNumber(e.counterfactual_support, 0),
+        contextCount: finiteNumber(e.context_count, 0),
         ageTicks: finiteNumber(e.ageTicks, 0),
         stableTicks: finiteNumber(e.stableTicks, 0),
         lastUseTick: finiteNumber(e.lastUseTick, 0),
