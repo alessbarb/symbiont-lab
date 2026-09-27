@@ -1072,6 +1072,11 @@ class OrganismRuntime:
         return self._action_domain.action_dimensions.items
 
     @property
+    def action_dimension_registry(self):
+        """Read-only canonical registry access for passive evaluator projections."""
+        return self._action_domain.action_dimensions
+
+    @property
     def causal_evidence(self):
         return self._action_domain.causal_evidence.evidence
 
