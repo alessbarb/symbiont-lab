@@ -48,3 +48,14 @@ mechanical protocol contract.
 A synthetic stand-in for a physical body: correlation and drift are
 simplified. The Physics3D acceptance run in the specification remains the
 real-body check.
+
+## Results
+
+**Arm v1 — whole-state identity** (`20260927T142244Z-learning-agency-high-dimensional-acquisition-38429ca-add9`,
+commit `38429ca`, before any factorized code; 10 seeds, 3000 ticks):
+the EffectSpace saturates at 512 in every seed; ~1300 distinct effects in
+~2200 effectful attempts, only 36% of effectful evidence recurring (support
+>= 4); 21.4 action dimensions but 0.1 agentic; 1.9 competences, 1.9 bindings
+(0 in two seeds); 95 intents terminated but 1.2 satisfied on average (0 in
+seven seeds, 10 in seed 257). The synthetic body reproduces the Physics3D
+failure pattern in a milder form. Arm v2 runs on the implementation commit.
