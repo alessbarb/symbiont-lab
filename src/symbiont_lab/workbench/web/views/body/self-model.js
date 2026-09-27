@@ -178,6 +178,13 @@ export class SelfModelWorkspace {
     const frame = captureSelfViewDevelopment(this.snapshot);
     if (!frame?.tick) return;
     const previous = this.selfViewDevelopment[this.selfViewDevelopment.length - 1];
+    const previousBodyKind = previous?.morphology?.bodyKind ?? null;
+    const currentBodyKind = frame?.morphology?.bodyKind ?? null;
+    if (previous && previousBodyKind && currentBodyKind && previousBodyKind !== currentBodyKind) {
+      this.selfViewDevelopment = [];
+      this.selfViewDevelopmentIndex = null;
+    }
+    const compatiblePrevious = this.selfViewDevelopment[this.selfViewDevelopment.length - 1];
     const signature = (candidate) => [
       Math.round((candidate?.aggregate?.coverage ?? 0) * 1000),
       Math.round((candidate?.aggregate?.stability ?? 0) * 1000),
@@ -185,8 +192,8 @@ export class SelfModelWorkspace {
       candidate?.aggregate?.representedRegions ?? 0,
       candidate?.aggregate?.agenticRegions ?? 0,
     ].join('|');
-    const materiallyChanged = !previous || signature(previous) !== signature(frame);
-    const cadenceReached = !previous || frame.tick - previous.tick >= 100;
+    const materiallyChanged = !compatiblePrevious || signature(compatiblePrevious) !== signature(frame);
+    const cadenceReached = !compatiblePrevious || frame.tick - compatiblePrevious.tick >= 100;
     if (!materiallyChanged && !cadenceReached) return;
     this.selfViewDevelopment.push(frame);
     if (this.selfViewDevelopment.length > this.maxSelfViewFrames) {
