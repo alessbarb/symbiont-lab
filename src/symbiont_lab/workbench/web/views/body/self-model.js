@@ -2,13 +2,21 @@ import { escapeHtml } from '../shared/dom.js';
 
 const SELF_TABS = [
   ['overview', 'Overview'],
-  ['body-schema', 'Body Schema'],
+  ['self', 'Self'],
   ['agency', 'Agency'],
+  ['history', 'History'],
+];
+
+const SELF_LENSES = [
+  ['body-schema', 'Body Schema'],
+  ['embodiment', 'Embodiment'],
+];
+
+const AGENCY_LENSES = [
+  ['acquisition', 'Acquisition'],
   ['capabilities', 'Capabilities'],
   ['affordances', 'Affordances'],
   ['executive', 'Executive'],
-  ['embodiment', 'Embodiment'],
-  ['history', 'History'],
 ];
 
 function finite(value, fallback = null) {
@@ -21,37 +29,23 @@ function ratio(value) {
   return Math.max(0, Math.min(1, n));
 }
 
-function mean(values) {
-  const xs = values.map((value) => finite(value)).filter((value) => value !== null);
-  if (!xs.length) return 0;
-  return xs.reduce((total, value) => total + value, 0) / xs.length;
-}
-
 function pct(value) {
   const n = finite(value);
   return n === null ? '—' : `${(ratio(n) * 100).toFixed(0)}%`;
 }
 
-function shortId(value, max = 24) {
+function shortId(value, max = 26) {
   const text = String(value ?? '—');
   if (text.length <= max) return text;
-  return `${text.slice(0, 11)}…${text.slice(-9)}`;
+  return `${text.slice(0, 12)}…${text.slice(-9)}`;
 }
 
-function row(label, value, cls = '') {
-  return `<div class="self-row ${cls}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? '—')}</strong></div>`;
+function row(label, value) {
+  return `<div class="self-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? '—')}</strong></div>`;
 }
 
 function chip(text, tone = '') {
   return `<span class="self-chip ${tone}">${escapeHtml(text)}</span>`;
-}
-
-function confidenceClass(value) {
-  const n = ratio(value);
-  if (n >= .75) return 'strong';
-  if (n >= .45) return 'probable';
-  if (n > 0) return 'tentative';
-  return 'unknown';
 }
 
 function classRatio(value, classes = 16) {
@@ -59,361 +53,503 @@ function classRatio(value, classes = 16) {
   return Math.max(0, Math.min(1, n / Math.max(1, classes - 1)));
 }
 
-function svgEscape(value) {
-  return escapeHtml(String(value ?? '')).replaceAll("'", '&#39;');
-}
-
-function layoutNodes(nodes, width = 820, height = 420) {
-  const groups = new Map();
-  for (const node of nodes) {
-    const key = node.group ?? 'other';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(node);
-  }
-  const columns = [...groups.entries()];
-  const positioned = new Map();
-  const colGap = width / Math.max(1, columns.length);
-  columns.forEach(([group, items], ci) => {
-    const x = colGap * (ci + .5);
-    const gap = height / Math.max(1, items.length + 1);
-    items.forEach((item, i) => {
-      positioned.set(item.id, { ...item, x, y: gap * (i + 1), group });
-    });
-  });
-  return positioned;
-}
-
-function graphSvg(nodes, edges, { width = 820, height = 420, empty = 'No learned structure yet.' } = {}) {
-  if (!nodes.length) return `<div class="self-empty">${escapeHtml(empty)}</div>`;
-  const pos = layoutNodes(nodes, width, height);
-  const lines = edges.map((edge) => {
-    const a = pos.get(edge.source);
-    const b = pos.get(edge.target);
-    if (!a || !b) return '';
-    const strength = ratio(edge.strength ?? .4);
-    return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="self-graph-edge" style="--edge-opacity:${(.18 + strength * .7).toFixed(2)}"/>`;
-  }).join('');
-  const circles = [...pos.values()].map((n) => {
-    const conf = ratio(n.confidence ?? .5);
-    const r = 13 + conf * 8;
-    return `<g class="self-graph-node ${escapeHtml(n.group)}" data-self-id="${svgEscape(n.id)}">
-      <circle cx="${n.x}" cy="${n.y}" r="${r.toFixed(1)}" style="--node-confidence:${conf.toFixed(2)}"/>
-      <text x="${n.x}" y="${n.y + r + 15}" text-anchor="middle">${svgEscape(shortId(n.label ?? n.id, 20))}</text>
-    </g>`;
-  }).join('');
-  return `<svg class="self-graph" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" aria-label="Learned self-model graph">
-    <g>${lines}</g><g>${circles}</g>
-  </svg>`;
-}
-
-function bodySchemaNodes(snapshot) {
-  const schema = snapshot?.body_schema ?? {};
-  const parts = Array.isArray(schema.parts) ? schema.parts : [];
-  return parts.map((part) => ({
-    id: String(part.part_id),
-    label: String(part.part_id),
-    group: part.kind === 'cognitive_region' ? 'region' : 'sense',
-    confidence: classRatio(part.existence_confidence_class),
-    data: part,
-  }));
-}
-
-function bodySchemaEdges(snapshot) {
-  const deps = Array.isArray(snapshot?.body_schema?.dependencies)
-    ? snapshot.body_schema.dependencies : [];
-  return deps.map((dep) => ({
-    source: String(dep.source_id),
-    target: String(dep.target_id),
-    strength: classRatio(dep.confidence_class),
-    relation: dep.relation,
-  }));
-}
-
-function capabilityNodes(snapshot) {
-  const dims = Array.isArray(snapshot?.action_dimensions) ? snapshot.action_dimensions : [];
-  const comps = Array.isArray(snapshot?.motor_competences) ? snapshot.motor_competences : [];
-  const effects = Array.isArray(snapshot?.effects) ? snapshot.effects : [];
-  return [
-    ...dims.map((d) => ({ id:String(d.dimension_id), label:String(d.dimension_id), group:'dimension', confidence:ratio(d.confidence), data:d })),
-    ...comps.map((c) => ({ id:String(c.competence_id), label:String(c.competence_id), group:'competence', confidence:ratio(c.reproducibility ?? c.controllability), data:c })),
-    ...effects.map((e) => ({ id:String(e.effect_id), label:String(e.effect_id), group:'effect', confidence:ratio(e.confidence), data:e })),
-  ];
-}
-
-function capabilityEdges(snapshot) {
-  const edges = [];
-  for (const c of Array.isArray(snapshot?.motor_competences) ? snapshot.motor_competences : []) {
-    if (c.effect_id) edges.push({ source:String(c.competence_id), target:String(c.effect_id), strength:ratio(c.controllability ?? c.reproducibility) });
-  }
-  return edges;
+function average(values) {
+  const xs = values.map((value) => finite(value)).filter((value) => value !== null);
+  if (!xs.length) return 0;
+  return xs.reduce((sum, value) => sum + value, 0) / xs.length;
 }
 
 function affordances(snapshot) {
-  const items = Array.isArray(snapshot?.affordances) ? snapshot.affordances : [];
-  return items.map((item) => ({
-    ...item,
-    competence_id: String(item.competence_id ?? ''),
-    effect_id: String(item.anticipated_effect_id ?? item.effect_id ?? ''),
-    prediction_confidence: ratio(item.prediction_confidence),
-    controllability: ratio(item.controllability),
-    reliability: ratio(item.executability_confidence),
-  })).sort((a,b) => (
-    b.controllability + b.reliability + b.prediction_confidence
-  ) - (
-    a.controllability + a.reliability + a.prediction_confidence
-  ));
+  return (Array.isArray(snapshot?.affordances) ? snapshot.affordances : [])
+    .map((item) => ({
+      ...item,
+      competence_id: String(item.competence_id ?? ''),
+      effect_id: String(item.anticipated_effect_id ?? item.effect_id ?? ''),
+      prediction_confidence: ratio(item.prediction_confidence),
+      controllability: ratio(item.controllability),
+      executability_confidence: ratio(item.executability_confidence),
+    }))
+    .sort((a, b) =>
+      (b.prediction_confidence + b.controllability + b.executability_confidence)
+      - (a.prediction_confidence + a.controllability + a.executability_confidence)
+    );
 }
 
-function selfSummary(snapshot) {
+function summary(snapshot) {
   const schema = snapshot?.body_schema ?? {};
   const parts = Array.isArray(schema.parts) ? schema.parts : [];
-  const deps = Array.isArray(schema.dependencies) ? schema.dependencies : [];
-  const boundary = snapshot?.body_schema_boundary ?? {};
-  const dims = Array.isArray(snapshot?.action_dimensions) ? snapshot.action_dimensions : [];
-  const comps = Array.isArray(snapshot?.motor_competences) ? snapshot.motor_competences : [];
+  const dependencies = Array.isArray(schema.dependencies) ? schema.dependencies : [];
+  const dimensions = Array.isArray(snapshot?.action_dimensions) ? snapshot.action_dimensions : [];
+  const competences = Array.isArray(snapshot?.motor_competences) ? snapshot.motor_competences : [];
   const effects = Array.isArray(snapshot?.effects) ? snapshot.effects : [];
   const bindings = Array.isArray(snapshot?.embodiment?.bindings) ? snapshot.embodiment.bindings : [];
-  const aff = affordances(snapshot);
+  const currentAffordances = affordances(snapshot);
   const acquisition = snapshot?.agency_acquisition ?? {};
   const executive = snapshot?.executive_intention ?? {};
-  const activeIntent = executive?.active ?? null;
-  const agenticDims = dims.filter((item) => item?.agentic === true);
+  const active = executive?.active ?? null;
   return {
-    schemaState:String(schema.state ?? 'undeveloped'),
-    parts:parts.length,
-    senses:parts.filter((x) => x.kind === 'sense').length,
-    regions:parts.filter((x) => x.kind === 'cognitive_region').length,
-    dependencies:deps.length,
-    boundaryConfidence:ratio(boundary.confidence),
-    boundaryRevisions:finite(boundary.revision_count, 0),
-    dimensions:dims.length,
-    agenticDimensions:agenticDims.length,
-    attempts:finite(acquisition.action_attempt_count, 0),
-    causalRelations:finite(acquisition.causal_relation_count, 0),
-    competences:comps.length,
-    effects:effects.length,
-    agencyMean:ratio(mean(agenticDims.map((x) => x.controllability ?? x.confidence))),
-    capabilityMean:ratio(mean(comps.map((x) => x.controllability ?? x.reproducibility))),
-    bindings:bindings.length,
-    bindingMean:ratio(mean(bindings.map((x) => x.controllability ?? x.reliability))),
-    affordances:aff.length,
-    affordanceMean:ratio(mean(aff.map((x) => (
-      x.controllability + x.reliability + x.prediction_confidence
-    ) / 3))),
-    activeIntentId:activeIntent?.intent_id ?? null,
-    intentStatus:activeIntent?.status ?? 'none',
-    intentConfidence:ratio(activeIntent?.confidence),
+    schemaState: String(schema.state ?? 'undeveloped'),
+    parts: parts.length,
+    sensoryParts: parts.filter((part) => part.kind === 'sense').length,
+    regions: parts.filter((part) => part.kind === 'cognitive_region').length,
+    dependencies: dependencies.length,
+    dimensions: dimensions.length,
+    agenticDimensions: dimensions.filter((item) => item?.agentic === true).length,
+    opportunities: finite(acquisition.physical_motor_opportunities, 0),
+    attempts: finite(acquisition.action_attempt_count, 0),
+    signatures: finite(acquisition.intervention_signature_count, 0),
+    recurringSignatures: finite(acquisition.recurring_intervention_signature_count, 0),
+    causalRelations: finite(acquisition.causal_relation_count, 0),
+    causalEvidence: finite(acquisition.causal_evidence_count, 0),
+    competences: competences.length,
+    effects: effects.length,
+    affordances: currentAffordances.length,
+    bindings: bindings.length,
+    intentId: active?.intent_id ?? null,
+    intentStatus: active?.status ?? 'none',
+    embodimentId: snapshot?.embodiment?.embodiment_id ?? null,
+    boundaryConfidence: ratio(snapshot?.body_schema_boundary?.confidence),
+    boundaryRevisions: finite(snapshot?.body_schema_boundary?.revision_count, 0),
   };
+}
+
+function stage(label, value, detail, tone = '', route = '') {
+  const routeAttr = route ? ` data-self-route="${escapeHtml(route)}"` : '';
+  return `<button type="button" class="self-stage ${tone}"${routeAttr}>
+    <span>${escapeHtml(label)}</span>
+    <strong>${escapeHtml(String(value))}</strong>
+    <small>${escapeHtml(detail)}</small>
+  </button>`;
+}
+
+function funnelStep(label, value, detail, state = '') {
+  return `<div class="self-funnel-step ${state}">
+    <span>${escapeHtml(label)}</span>
+    <strong>${escapeHtml(String(value))}</strong>
+    <small>${escapeHtml(detail)}</small>
+  </div>`;
 }
 
 export class SelfModelWorkspace {
   constructor() {
     this.snapshot = {};
     this.activeTab = 'overview';
+    this.selfLens = 'body-schema';
+    this.agencyLens = 'acquisition';
     this.selectedId = null;
-    this.history = [];
-    this.maxHistory = 180;
-    this.lastSignature = '';
+    this.events = [];
+    this.maxEvents = 80;
+    this.lastSummary = null;
   }
 
   update(snapshot) {
     if (!snapshot || typeof snapshot !== 'object') return;
     this.snapshot = snapshot;
-    const tick = finite(snapshot.tick);
-    const summary = selfSummary(snapshot);
-    const signature = JSON.stringify([
-      summary.schemaState, summary.parts, summary.dependencies, summary.dimensions,
-      summary.competences, summary.effects, summary.agenticDimensions, summary.attempts,
-      summary.causalRelations, summary.bindings, summary.affordances,
-      summary.activeIntentId, summary.intentStatus, summary.boundaryRevisions,
-    ]);
-    if (tick !== null && signature !== this.lastSignature) {
-      this.history.push({ tick, ...summary });
-      if (this.history.length > this.maxHistory) this.history.shift();
-      this.lastSignature = signature;
+    this.recordEvents();
+  }
+
+  recordEvents() {
+    const tick = finite(this.snapshot?.tick);
+    if (tick === null) return;
+    const current = summary(this.snapshot);
+    const previous = this.lastSummary;
+    if (!previous) {
+      this.events.push({ tick, kind: 'observe', title: 'Self-Model observation attached', detail: current.schemaState });
+      this.lastSummary = current;
+      return;
     }
+    const push = (kind, title, detail) => {
+      const last = this.events[this.events.length - 1];
+      if (last?.tick === tick && last?.title === title && last?.detail === detail) return;
+      this.events.push({ tick, kind, title, detail });
+    };
+
+    if (current.schemaState !== previous.schemaState) {
+      push('schema', `Body schema → ${current.schemaState}`, `${current.parts} learned parts`);
+    }
+    if (current.dimensions > previous.dimensions) {
+      push('agency', 'Action dimension discovered', `${previous.dimensions} → ${current.dimensions}`);
+    }
+    if (current.agenticDimensions > previous.agenticDimensions) {
+      push('agency', 'Action dimension became agentic', `${previous.agenticDimensions} → ${current.agenticDimensions}`);
+    }
+    if (current.competences > previous.competences) {
+      push('capability', 'Motor competence established', `${previous.competences} → ${current.competences}`);
+    }
+    if (current.affordances > previous.affordances) {
+      push('affordance', 'Current affordance became available', `${previous.affordances} → ${current.affordances}`);
+    } else if (current.affordances < previous.affordances) {
+      push('affordance', 'Current affordance no longer available', `${previous.affordances} → ${current.affordances}`);
+    }
+    if (current.intentId !== previous.intentId || current.intentStatus !== previous.intentStatus) {
+      if (current.intentId) {
+        push('executive', `Intent ${current.intentStatus}`, shortId(current.intentId, 36));
+      } else if (previous.intentId) {
+        push('executive', 'Executive intention cleared', `previously ${previous.intentStatus}`);
+      }
+    }
+    if (current.boundaryRevisions > previous.boundaryRevisions) {
+      push('schema', 'Body boundary revised', `revision ${current.boundaryRevisions}`);
+    }
+    if (current.embodimentId && current.embodimentId !== previous.embodimentId) {
+      push('embodiment', 'Embodiment changed', shortId(current.embodimentId, 36));
+    }
+
+    if (this.events.length > this.maxEvents) {
+      this.events.splice(0, this.events.length - this.maxEvents);
+    }
+    this.lastSummary = current;
   }
 
   setTab(tab) {
-    if (SELF_TABS.some(([id]) => id === tab)) this.activeTab = tab;
+    if (!SELF_TABS.some(([id]) => id === tab)) return;
+    this.activeTab = tab;
+    this.selectedId = null;
+  }
+
+  setLens(group, lens) {
+    if (group === 'self' && SELF_LENSES.some(([id]) => id === lens)) this.selfLens = lens;
+    if (group === 'agency' && AGENCY_LENSES.some(([id]) => id === lens)) this.agencyLens = lens;
+    this.selectedId = null;
+  }
+
+  route(route) {
+    const [tab, lens] = String(route ?? '').split(':');
+    if (!tab) return;
+    this.setTab(tab);
+    if (lens) this.setLens(tab, lens);
   }
 
   render(overlay, panel) {
     if (!overlay || !panel) return;
+    const root = panel.closest('.body-view-root');
+    root?.classList.add('self-model-mode');
+    root?.classList.toggle('self-model-inspector-open', Boolean(this.selectedId));
+
     overlay.innerHTML = this.renderOverlay();
     panel.innerHTML = this.renderInspector();
+
     overlay.querySelectorAll('[data-self-tab]').forEach((button) => {
       button.addEventListener('click', () => {
         this.setTab(button.dataset.selfTab);
         this.render(overlay, panel);
       });
     });
+    overlay.querySelectorAll('[data-self-lens]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.setLens(button.dataset.selfLensGroup, button.dataset.selfLens);
+        this.render(overlay, panel);
+      });
+    });
+    overlay.querySelectorAll('[data-self-route]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.route(button.dataset.selfRoute);
+        this.render(overlay, panel);
+      });
+    });
     overlay.querySelectorAll('[data-self-id]').forEach((node) => {
       node.addEventListener('click', () => {
         this.selectedId = node.dataset.selfId;
-        panel.innerHTML = this.renderInspector();
+        this.render(overlay, panel);
       });
+    });
+    panel.querySelector('[data-self-clear]')?.addEventListener('click', () => {
+      this.selectedId = null;
+      this.render(overlay, panel);
     });
   }
 
   shell(body) {
-    const tabs = SELF_TABS.map(([id,label]) =>
-      `<button type="button" class="self-subtab ${this.activeTab===id?'active':''}" data-self-tab="${id}">${label}</button>`
+    const tabs = SELF_TABS.map(([id, label]) =>
+      `<button type="button" class="self-subtab ${this.activeTab === id ? 'active' : ''}" data-self-tab="${id}">${label}</button>`
     ).join('');
     return `<div class="self-model-view">
       <div class="self-model-head">
-        <div><div class="body-view-title">Self-Model</div>
-        <div class="body-view-sub">Organism-owned learned self-knowledge. Passive observer projection; never fed back.</div></div>
-        <span class="body-chip">organism knowledge · live</span>
+        <div>
+          <div class="body-view-title">Self-Model</div>
+          <div class="body-view-sub">What the organism has learned about itself — structure, agency and current executive state.</div>
+        </div>
+        <span class="body-chip">live · read only</span>
       </div>
       <div class="self-subtabs" role="tablist">${tabs}</div>
       ${body}
     </div>`;
   }
 
+  lensNav(group, items, active) {
+    return `<div class="self-lens-nav">${items.map(([id, label]) =>
+      `<button type="button" class="${active === id ? 'active' : ''}" data-self-lens-group="${group}" data-self-lens="${id}">${label}</button>`
+    ).join('')}</div>`;
+  }
+
   renderOverlay() {
-    switch (this.activeTab) {
-      case 'body-schema': return this.shell(this.bodySchema());
-      case 'agency': return this.shell(this.agency());
-      case 'capabilities': return this.shell(this.capabilities());
-      case 'affordances': return this.shell(this.affordanceView());
-      case 'executive': return this.shell(this.executive());
-      case 'embodiment': return this.shell(this.embodiment());
-      case 'history': return this.shell(this.historyView());
-      default: return this.shell(this.overview());
-    }
+    if (this.activeTab === 'self') return this.shell(this.selfView());
+    if (this.activeTab === 'agency') return this.shell(this.agencyView());
+    if (this.activeTab === 'history') return this.shell(this.historyView());
+    return this.shell(this.overview());
   }
 
   overview() {
-    const s = selfSummary(this.snapshot);
-    const nodes = [
-      {id:'self.body',label:'Body schema',group:'sense',confidence:s.boundaryConfidence},
-      {id:'self.agency',label:'Agency',group:'agency',confidence:s.agencyMean},
-      {id:'self.capability',label:'Capabilities',group:'competence',confidence:s.capabilityMean},
-      {id:'self.affordance',label:'Affordances',group:'effect',confidence:s.affordanceMean},
-      {id:'self.executive',label:'Executive',group:'agency',confidence:s.intentConfidence},
-      {id:'self.embodiment',label:'Embodiment',group:'dimension',confidence:s.bindingMean},
-    ];
-    const edges = [
-      {source:'self.body',target:'self.agency',strength:.6},
-      {source:'self.agency',target:'self.capability',strength:.7},
-      {source:'self.capability',target:'self.affordance',strength:.75},
-      {source:'self.affordance',target:'self.executive',strength:.8},
-      {source:'self.executive',target:'self.embodiment',strength:.75},
-      {source:'self.embodiment',target:'self.affordance',strength:.55},
-    ];
-    return `<div class="self-overview-grid">
-      <div class="self-hero-card">
-        <div class="self-card-title">Learned self → executive bridge</div>
-        ${graphSvg(nodes,edges,{height:330})}
-      </div>
-      <div class="self-summary-cards">
-        <div class="self-stat"><span>Body schema</span><strong>${escapeHtml(s.schemaState)}</strong><small>${s.parts} learned parts · ${s.dependencies} relations</small></div>
-        <div class="self-stat"><span>Agency acquisition</span><strong>${s.agenticDimensions}/${s.dimensions}</strong><small>${s.attempts} attempts · ${s.causalRelations} causal relations</small></div>
-        <div class="self-stat"><span>Capabilities</span><strong>${s.competences}</strong><small>${s.effects} effects · ${s.affordances} current affordances</small></div>
-        <div class="self-stat"><span>Executive</span><strong>${escapeHtml(s.intentStatus)}</strong><small>${s.activeIntentId ? shortId(s.activeIntentId) : 'no active intent'}</small></div>
+    const s = summary(this.snapshot);
+    const executiveDetail = s.intentId ? shortId(s.intentId) : 'no active intent';
+    return `<div class="self-focus">
+      <div class="self-focus-title">Current self-model</div>
+      <div class="self-pipeline">
+        ${stage('Body', s.schemaState, `${s.parts} learned parts`, '', 'self:body-schema')}
+        <div class="self-pipeline-arrow">→</div>
+        ${stage('Agency', `${s.agenticDimensions}/${s.dimensions}`, `${s.causalRelations} causal relations`, '', 'agency:acquisition')}
+        <div class="self-pipeline-arrow">→</div>
+        ${stage('Can do', s.competences, 'learned competences', '', 'agency:capabilities')}
+        <div class="self-pipeline-arrow">→</div>
+        ${stage('Can now', s.affordances, 'current affordances', s.affordances ? 'live' : '', 'agency:affordances')}
+        <div class="self-pipeline-arrow">→</div>
+        ${stage('Intent', s.intentStatus, executiveDetail, s.intentId ? 'live' : '', 'agency:executive')}
       </div>
     </div>
-    ${this.perceptualSelfModel()}
-    <div class="self-boundary-note">The executive layer uses canonical ActionIntent and ActionAffordance state from Agency Acquisition & Executive Action v1. Nothing is inferred from motor activity alone.</div>`;
+    <div class="self-overview-strip">
+      <div><span>Attempts</span><strong>${s.attempts}</strong></div>
+      <div><span>Recurring patterns</span><strong>${s.recurringSignatures}</strong></div>
+      <div><span>Known effects</span><strong>${s.effects}</strong></div>
+      <div><span>Current body bindings</span><strong>${s.bindings}</strong></div>
+    </div>
+    ${this.recentEvent()}
+    <div class="self-boundary-note compact">Overview is deliberately compressed. Open Self or Agency for evidence; select an item only when you need raw IDs and provenance.</div>`;
   }
 
-  perceptualSelfModel() {
-    const entries = Object.entries(
-      this.snapshot?.self_model && typeof this.snapshot.self_model === 'object'
-        ? this.snapshot.self_model : {}
-    );
-    if (!entries.length) {
-      return '<div class="self-list-card self-perceptual"><div class="self-card-title">Perceptual apparatus self-estimates</div><div class="self-empty">No established per-sense self-estimate yet.</div></div>';
-    }
-    const rows = entries.slice(0,48).map(([senseId, state]) => {
-      const confidence = classRatio(state?.confidence_class);
-      const health = classRatio(state?.health_class);
-      const maturity = classRatio(state?.maturity_class, 8);
-      return `<div class="self-perceptual-row">
-        <code>${escapeHtml(shortId(senseId,30))}</code>
-        <div class="self-bars">${this.bar('confidence',confidence)}${this.bar('health',health)}${this.bar('maturity',maturity)}</div>
-      </div>`;
-    }).join('');
-    return `<div class="self-list-card self-perceptual"><div class="self-card-title">Perceptual apparatus self-estimates</div>
-      <div class="body-inspector-sub">Existing organism self-model of per-sense cost, health, confidence and maturity.</div>
-      <div class="self-perceptual-list">${rows}</div></div>`;
+  recentEvent() {
+    const event = this.events[this.events.length - 1];
+    if (!event) return '';
+    return `<button type="button" class="self-recent-event" data-self-tab="history">
+      <span>Recent change</span>
+      <strong>${escapeHtml(event.title)}</strong>
+      <small>t${event.tick} · ${escapeHtml(event.detail)}</small>
+    </button>`;
+  }
+
+  selfView() {
+    const body = this.selfLens === 'embodiment' ? this.embodiment() : this.bodySchema();
+    return `${this.lensNav('self', SELF_LENSES, this.selfLens)}${body}`;
   }
 
   bodySchema() {
     const schema = this.snapshot?.body_schema ?? {};
+    const parts = Array.isArray(schema.parts) ? [...schema.parts] : [];
+    const deps = Array.isArray(schema.dependencies) ? [...schema.dependencies] : [];
     const boundary = this.snapshot?.body_schema_boundary ?? {};
-    const nodes = bodySchemaNodes(this.snapshot);
-    const edges = bodySchemaEdges(this.snapshot);
-    return `<div class="self-lens-toolbar">
-      ${chip(`state: ${schema.state ?? 'undeveloped'}`, confidenceClass(boundary.confidence))}
-      ${chip(`boundary ${pct(boundary.confidence)}`)}
-      ${chip(`${nodes.length} parts`)}
-      ${chip(`${edges.length} dependencies`)}
+    const senses = parts.filter((part) => part.kind === 'sense');
+    const regions = parts.filter((part) => part.kind === 'cognitive_region');
+    const stable = parts.filter((part) => classRatio(part.existence_confidence_class) >= .65).length;
+    const uncertain = parts.length - stable;
+
+    regions.sort((a, b) =>
+      finite(b.confidence_class, 0) - finite(a.confidence_class, 0)
+      || finite(b.maturity_class, 0) - finite(a.maturity_class, 0)
+    );
+
+    const regionCards = regions.slice(0, 10).map((region) => `<button type="button" class="self-compact-item" data-self-id="${escapeHtml(String(region.part_id))}">
+      <strong>${escapeHtml(shortId(region.part_id, 30))}</strong>
+      <span>confidence ${pct(classRatio(region.confidence_class))}</span>
+      <small>maturity ${finite(region.maturity_class, 0)} · activity ${finite(region.activity_class, 0)}</small>
+    </button>`).join('');
+
+    const relationRows = deps.slice(0, 8).map((dep) => `<div class="self-dependency">
+      <span>${escapeHtml(shortId(dep.source_id, 22))}</span>
+      <b>${escapeHtml(String(dep.relation ?? 'related'))}</b>
+      <span>${escapeHtml(shortId(dep.target_id, 22))}</span>
+    </div>`).join('');
+
+    return `<div class="self-kpi-row">
+      <div><span>Sensory parts</span><strong>${senses.length}</strong></div>
+      <div><span>Cognitive regions</span><strong>${regions.length}</strong></div>
+      <div><span>Stable parts</span><strong>${stable}</strong></div>
+      <div><span>Uncertain</span><strong>${uncertain}</strong></div>
+      <div><span>Dependencies</span><strong>${deps.length}</strong></div>
     </div>
-    <div class="self-hero-card"><div class="self-card-title">Learned functional body topology</div>
-      ${graphSvg(nodes,edges,{empty:'No BodySchema parts have emerged yet.'})}
+    <div class="self-two-cols weighted">
+      <div class="self-list-card">
+        <div class="self-section-head"><div><span>Learned regions</span><small>Top evidence only · select to inspect</small></div><strong>${regions.length}</strong></div>
+        <div class="self-compact-list">${regionCards || '<div class="self-empty">No cognitive region has emerged yet.</div>'}</div>
+        ${regions.length > 10 ? `<div class="self-more">+${regions.length - 10} regions hidden to reduce visual noise</div>` : ''}
+      </div>
+      <div class="self-list-card">
+        <div class="self-section-head"><div><span>Strongest dependencies</span><small>Raw topology stays on demand</small></div><strong>${deps.length}</strong></div>
+        <div class="self-dependency-list">${relationRows || '<div class="self-empty">No learned dependencies yet.</div>'}</div>
+      </div>
     </div>
-    <div class="self-three-cols">
-      <div class="self-list-card"><div class="self-card-title">Self-caused channels</div>${this.idList(boundary.self_caused_channels)}</div>
-      <div class="self-list-card"><div class="self-card-title">Somatic-correlated</div>${this.idList(boundary.somatic_correlated_channels)}</div>
-      <div class="self-list-card"><div class="self-card-title">External / unowned</div>${this.idList(boundary.external_channels)}</div>
+    <div class="self-three-cols compact">
+      ${this.channelSummary('Self-caused', boundary.self_caused_channels)}
+      ${this.channelSummary('Somatic-correlated', boundary.somatic_correlated_channels)}
+      ${this.channelSummary('External / unowned', boundary.external_channels)}
+    </div>
+    ${this.perceptualSummary()}
+    <div class="self-boundary-note compact">Boundary confidence: ${pct(boundary.confidence)} · ${finite(boundary.revision_count, 0)} revisions. Opaque organism IDs remain separate from observer anatomy.</div>`;
+  }
+
+  channelSummary(label, values) {
+    const items = Array.isArray(values) ? values : [];
+    return `<div class="self-mini-summary"><span>${escapeHtml(label)}</span><strong>${items.length}</strong><small>${items.length ? shortId(items[0], 28) : 'none'}</small></div>`;
+  }
+
+  perceptualSummary() {
+    const entries = Object.entries(
+      this.snapshot?.self_model && typeof this.snapshot.self_model === 'object'
+        ? this.snapshot.self_model : {}
+    );
+    if (!entries.length) return '';
+    const confidence = average(entries.map(([, state]) => classRatio(state?.confidence_class)));
+    const health = average(entries.map(([, state]) => classRatio(state?.health_class)));
+    const maturity = average(entries.map(([, state]) => classRatio(state?.maturity_class, 8)));
+    const issues = entries
+      .map(([id, state]) => ({
+        id,
+        score: Math.min(classRatio(state?.confidence_class), classRatio(state?.health_class)),
+      }))
+      .filter((item) => item.score < .8)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 5);
+
+    return `<div class="self-perception-summary">
+      <div><span>Perceptual self-model</span><strong>${entries.length} senses</strong></div>
+      <div><span>Confidence</span><strong>${pct(confidence)}</strong></div>
+      <div><span>Health</span><strong>${pct(health)}</strong></div>
+      <div><span>Maturity</span><strong>${pct(maturity)}</strong></div>
+      <div class="self-perception-issues"><span>Needs attention</span><strong>${issues.length}</strong><small>${issues.length ? issues.map((item) => shortId(item.id, 16)).join(' · ') : 'none'}</small></div>
     </div>`;
   }
 
-  agency() {
-    const acquisition = this.snapshot?.agency_acquisition ?? {};
-    const dims = Array.isArray(this.snapshot?.action_dimensions) ? [...this.snapshot.action_dimensions] : [];
-    dims.sort((a,b) => (
-      Number(Boolean(b.agentic)) - Number(Boolean(a.agentic))
-      || finite(b.controllability,0) - finite(a.controllability,0)
-      || finite(b.confidence,0) - finite(a.confidence,0)
-    ));
-    const cards = dims.map((item) => `<button type="button" class="self-relation-card" data-self-id="${escapeHtml(String(item.dimension_id))}">
-      <div class="self-relation-top">
-        <strong>${escapeHtml(shortId(item.dimension_id))}</strong>
-        ${chip(item.agentic ? 'agentic' : 'candidate', item.agentic ? 'strong' : confidenceClass(item.confidence))}
-      </div>
-      <div class="self-bars">
-        ${this.bar('controllability',item.controllability)}
-        ${this.bar('confidence',item.confidence)}
-      </div>
-      <div class="body-inspector-sub">${item.usage_count ?? 0} uses · ${item.embodiment_bound ? 'embodiment-bound' : 'not bound'}</div>
+  embodiment() {
+    const e = this.snapshot?.embodiment ?? {};
+    const bindings = Array.isArray(e.bindings) ? e.bindings : [];
+    const competenceState = e.embodied_competences ?? {};
+    const bindingCards = bindings.slice(0, 8).map((binding) => `<button type="button" class="self-compact-item" data-self-id="${escapeHtml(String(binding.competence_id))}">
+      <strong>${escapeHtml(shortId(binding.competence_id, 30))}</strong>
+      <span>effect ${escapeHtml(shortId(binding.effect_id, 24))}</span>
+      <small>reliability ${pct(binding.reliability)} · controllability ${pct(binding.controllability)}</small>
     </button>`).join('');
-    return `<div class="self-card-grid">
-      <div class="self-stat"><span>Physical opportunities</span><strong>${finite(acquisition.physical_motor_opportunities,0)}</strong><small>apparatus opportunities observed</small></div>
-      <div class="self-stat"><span>Action attempts</span><strong>${finite(acquisition.action_attempt_count,0)}</strong><small>executed intervention attempts</small></div>
-      <div class="self-stat"><span>Recurring signatures</span><strong>${finite(acquisition.recurring_intervention_signature_count,0)}</strong><small>of ${finite(acquisition.intervention_signature_count,0)} intervention signatures</small></div>
-      <div class="self-stat"><span>Causal relations</span><strong>${finite(acquisition.causal_relation_count,0)}</strong><small>${finite(acquisition.causal_evidence_count,0)} evidence records</small></div>
+
+    return `<div class="self-kpi-row">
+      <div><span>Epoch</span><strong>${escapeHtml(String(e.epoch ?? '—'))}</strong></div>
+      <div><span>State</span><strong>${escapeHtml(String(e.state ?? '—'))}</strong></div>
+      <div><span>Bindings</span><strong>${bindings.length}</strong></div>
+      <div><span>Executable</span><strong>${finite(competenceState.executable, 0)}</strong></div>
     </div>
-    <div class="self-lens-toolbar">${chip(`${dims.filter((x)=>x.agentic===true).length}/${dims.length} agentic dimensions`)}${chip('agency can precede competence')}</div>
-    <div class="self-relation-grid">${cards || '<div class="self-empty">No action dimension has emerged yet.</div>'}</div>`;
+    <div class="self-two-cols">
+      <div class="self-list-card">
+        <div class="self-section-head"><div><span>Current embodiment</span><small>Current-body context</small></div></div>
+        ${row('Embodiment', shortId(e.embodiment_id, 34))}
+        ${row('Body', shortId(e.body_id, 34))}
+        ${row('Tick', String(e.embodiment_tick ?? '—'))}
+        ${row('Prior authority', String(e.prior?.authority ?? '—'))}
+      </div>
+      <div class="self-list-card">
+        <div class="self-section-head"><div><span>Execution bindings</span><small>Only current-body bindings</small></div><strong>${bindings.length}</strong></div>
+        <div class="self-compact-list">${bindingCards || '<div class="self-empty">No current execution binding.</div>'}</div>
+      </div>
+    </div>
+    <div class="self-boundary-note compact">Durable competence knowledge does not imply executability in this body. Re-embodiment must revalidate bindings.</div>`;
+  }
+
+  agencyView() {
+    let body = this.acquisition();
+    if (this.agencyLens === 'capabilities') body = this.capabilities();
+    else if (this.agencyLens === 'affordances') body = this.affordanceView();
+    else if (this.agencyLens === 'executive') body = this.executive();
+    return `${this.lensNav('agency', AGENCY_LENSES, this.agencyLens)}${body}`;
+  }
+
+  acquisition() {
+    const s = summary(this.snapshot);
+    const dimensions = Array.isArray(this.snapshot?.action_dimensions) ? [...this.snapshot.action_dimensions] : [];
+    dimensions.sort((a, b) =>
+      Number(Boolean(b.agentic)) - Number(Boolean(a.agentic))
+      || finite(b.controllability, 0) - finite(a.controllability, 0)
+    );
+    const dimensionCards = dimensions.slice(0, 8).map((item) => `<button type="button" class="self-compact-item" data-self-id="${escapeHtml(String(item.dimension_id))}">
+      <strong>${escapeHtml(shortId(item.dimension_id, 30))}</strong>
+      <span>${item.agentic ? 'agentic' : 'candidate'} · control ${pct(item.controllability)}</span>
+      <small>${item.usage_count ?? 0} uses · confidence ${pct(item.confidence)}</small>
+    </button>`).join('');
+
+    return `<div class="self-funnel">
+      ${funnelStep('Opportunities', s.opportunities, 'physical motor surface')}
+      <div>→</div>
+      ${funnelStep('Attempts', s.attempts, 'executed interventions')}
+      <div>→</div>
+      ${funnelStep('Signatures', s.signatures, `${s.recurringSignatures} recurring`)}
+      <div>→</div>
+      ${funnelStep('Causal', s.causalRelations, `${s.causalEvidence} evidence records`)}
+      <div>→</div>
+      ${funnelStep('Dimensions', s.dimensions, `${s.agenticDimensions} agentic`, s.agenticDimensions ? 'live' : '')}
+    </div>
+    <div class="self-list-card self-dimension-panel">
+      <div class="self-section-head"><div><span>Action dimensions</span><small>Only discovered dimensions are listed</small></div><strong>${s.agenticDimensions}/${s.dimensions} agentic</strong></div>
+      <div class="self-compact-list grid">${dimensionCards || '<div class="self-empty">No action dimension has emerged yet. Attempts and causal evidence are still accumulating.</div>'}</div>
+    </div>`;
   }
 
   capabilities() {
-    const nodes = capabilityNodes(this.snapshot);
-    const edges = capabilityEdges(this.snapshot);
-    const dims = nodes.filter((x)=>x.group==='dimension').length;
-    const comps = nodes.filter((x)=>x.group==='competence').length;
-    const effects = nodes.filter((x)=>x.group==='effect').length;
-    return `<div class="self-lens-toolbar">${chip(`${dims} dimensions`)}${chip(`${comps} competences`)}${chip(`${effects} effects`)}</div>
-      <div class="self-hero-card"><div class="self-card-title">I can: learned action → consequence structure</div>
-      ${graphSvg(nodes,edges,{empty:'No learned motor capability structure yet.'})}</div>`;
+    const competences = Array.isArray(this.snapshot?.motor_competences) ? [...this.snapshot.motor_competences] : [];
+    const effects = new Map((Array.isArray(this.snapshot?.effects) ? this.snapshot.effects : []).map((effect) => [String(effect.effect_id), effect]));
+    competences.sort((a, b) =>
+      finite(b.controllability, 0) - finite(a.controllability, 0)
+      || finite(b.reproducibility, 0) - finite(a.reproducibility, 0)
+    );
+    const cards = competences.map((competence) => {
+      const effect = effects.get(String(competence.effect_id)) ?? {};
+      return `<button type="button" class="self-competence-card" data-self-id="${escapeHtml(String(competence.competence_id))}">
+        <div class="self-competence-top"><strong>${escapeHtml(shortId(competence.competence_id, 34))}</strong>${chip(String(competence.maturity ?? 'unknown'))}</div>
+        <div class="self-bars">
+          ${this.bar('controllability', competence.controllability)}
+          ${this.bar('reproducibility', competence.reproducibility)}
+          ${this.bar('effect confidence', effect.confidence)}
+        </div>
+        <div class="self-competence-effect"><span>Known effect</span><strong>${escapeHtml(shortId(competence.effect_id, 32))}</strong></div>
+      </button>`;
+    }).join('');
+
+    return `<div class="self-kpi-row">
+      <div><span>Competences</span><strong>${competences.length}</strong></div>
+      <div><span>Known effects</span><strong>${effects.size}</strong></div>
+      <div><span>Current affordances</span><strong>${affordances(this.snapshot).length}</strong></div>
+    </div>
+    <div class="self-section-head spacious"><div><span>What it knows how to do</span><small>Competence-first view; hundreds of effects stay hidden until relevant</small></div></div>
+    <div class="self-competence-grid">${cards || '<div class="self-empty">No acquired motor competence yet.</div>'}</div>`;
   }
 
   affordanceView() {
     const items = affordances(this.snapshot);
-    const cards = items.map((a) => `<button type="button" class="self-affordance-card" data-self-id="${escapeHtml(`affordance|${a.affordance_id ?? ''}`)}">
+    const s = summary(this.snapshot);
+    if (!items.length) {
+      let reason = 'No competence currently satisfies the canonical affordance thresholds.';
+      if (!s.competences) reason = 'No learned motor competence exists yet.';
+      else if (!s.effects) reason = 'No learned consequence is available for a competence.';
+      else if (!s.bindings) reason = 'Known competences have no current embodiment execution binding.';
+      return `<div class="self-empty-state">
+        <div class="self-empty-symbol">∅</div>
+        <h3>No current affordance</h3>
+        <p>${escapeHtml(reason)}</p>
+        <div class="self-blocker-grid">
+          <div><span>Known competences</span><strong>${s.competences}</strong></div>
+          <div><span>Known effects</span><strong>${s.effects}</strong></div>
+          <div><span>Current bindings</span><strong>${s.bindings}</strong></div>
+          <div><span>Agentic dimensions</span><strong>${s.agenticDimensions}</strong></div>
+        </div>
+        <small>ActionAffordance is canonical · derived · ephemeral · never motor authority.</small>
+      </div>`;
+    }
+
+    const cards = items.map((item) => `<button type="button" class="self-affordance-card" data-self-id="${escapeHtml(`affordance|${item.affordance_id}`)}">
       <div class="self-affordance-label">CAN PROBABLY DO NOW</div>
-      <strong>${escapeHtml(shortId(a.competence_id))}</strong>
-      <div class="self-arrow">→</div>
-      <span>${escapeHtml(shortId(a.effect_id))}</span>
-      <div class="self-bars">${this.bar('prediction',a.prediction_confidence)}${this.bar('control',a.controllability)}${this.bar('executability',a.reliability)}</div>
-      <div class="body-inspector-sub">${escapeHtml(shortId(a.affordance_id))} · ${escapeHtml(shortId(a.context_ref ?? 'context:*'))}</div>
+      <strong>${escapeHtml(shortId(item.competence_id, 34))}</strong>
+      <span>→ ${escapeHtml(shortId(item.effect_id, 32))}</span>
+      <div class="self-bars">
+        ${this.bar('prediction', item.prediction_confidence)}
+        ${this.bar('control', item.controllability)}
+        ${this.bar('executability', item.executability_confidence)}
+      </div>
     </button>`).join('');
-    return `<div class="self-lens-toolbar">${chip(`${items.length} current affordances`)}${chip('canonical · derived · ephemeral')}</div>
-      <div class="self-boundary-note">These are canonical ActionAffordance projections from the organism-side AffordanceResolver. They are recomputed from current competence, prediction, controllability and embodiment-binding knowledge; they are never checkpointed and carry no motor authority.</div>
-      <div class="self-relation-grid">${cards || '<div class="self-empty">No currently executable learned affordance.</div>'}</div>`;
+    return `<div class="self-section-head spacious"><div><span>Current possibilities</span><small>Only canonical ActionAffordance objects</small></div><strong>${items.length}</strong></div>
+      <div class="self-competence-grid">${cards}</div>`;
   }
 
   executive() {
@@ -421,81 +557,58 @@ export class SelfModelWorkspace {
     const active = executive?.active ?? null;
     const counts = executive?.counts ?? {};
     const trace = executive?.trace ?? null;
-    const live = active && ['pending','active'].includes(String(active.status)) ? active : null;
-    const statusCards = ['satisfied','failed','rejected','interrupted','invalidated']
-      .map((status) => `<div class="self-stat"><span>${status}</span><strong>${finite(counts[status],0)}</strong><small>completed intents</small></div>`)
-      .join('');
-    const activeCard = live ? `<div class="self-executive-chain">
-      <div class="self-chain-node"><span>INTEND</span><strong>${escapeHtml(shortId(live.intent_id))}</strong><small>${escapeHtml(String(live.status))} · age ${finite(live.age,0)}t · ${escapeHtml(String(live.admission ?? 'unknown'))}</small></div>
-      <div class="self-chain-arrow">↓</div>
-      <div class="self-chain-node"><span>AFFORDANCE</span><strong>${escapeHtml(shortId(live.supporting_affordance_id))}</strong><small>confidence ${pct(live.confidence)}</small></div>
-      <div class="self-chain-arrow">↓</div>
-      <div class="self-chain-node"><span>COMPETENCE → EFFECT</span><strong>${escapeHtml(shortId(live.competence_id))}</strong><small>${escapeHtml(shortId(live.anticipated_effect_id))}</small></div>
-      <div class="self-chain-arrow">↓</div>
-      <div class="self-chain-node"><span>ACT</span><strong>${escapeHtml(shortId(live.commitment_id))}</strong><small>last progress ${finite(live.last_progress_age,0)}t ago</small></div>
-    </div>` : '<div class="self-empty">No pending or active ActionIntent.</div>';
-    const traceRows = trace ? [
-      ['Intent',trace.intent_id],['Source',trace.source],['Affordance',trace.affordance_id],
-      ['Proposal',trace.proposal_id],['Commitment',trace.commitment_id],['Command',trace.command_id],
-      ['Attempt',trace.attempt_id],['Intervention',trace.intervention_signature_id],
-      ['Observed effect',trace.observed_effect_id],['Match',trace.match],['Result',trace.result],
-    ].filter(([,value])=>value!==null&&value!==undefined)
-      .map(([label,value])=>row(label,typeof value==='number'?String(Number(value.toFixed(3))):shortId(value,32))).join('') : '';
-    return `<div class="self-two-cols">
-      <div class="self-list-card"><div class="self-card-title">Current executive intention</div>${activeCard}</div>
-      <div class="self-list-card"><div class="self-card-title">Latest causal action trace</div>${traceRows || '<div class="self-empty">No completed action trace yet.</div>'}</div>
+
+    const chain = active ? [
+      ['AFFORDANCE', active.supporting_affordance_id, active.admission],
+      ['INTENT', active.intent_id, active.status],
+      ['COMPETENCE', active.competence_id, `effect ${shortId(active.anticipated_effect_id, 20)}`],
+      ['COMMITMENT', active.commitment_id, active.commitment_id ? 'motor authority' : 'not committed'],
+    ] : [];
+
+    const chainHtml = chain.length ? chain.map(([label, id, detail], index) =>
+      `${index ? '<div class="self-exec-arrow">→</div>' : ''}<div class="self-exec-node"><span>${escapeHtml(label)}</span><strong>${escapeHtml(shortId(id, 26))}</strong><small>${escapeHtml(String(detail ?? '—'))}</small></div>`
+    ).join('') : '<div class="self-empty">No pending or active ActionIntent.</div>';
+
+    const traceHtml = trace ? `<div class="self-trace-line">
+      ${this.traceStep('Proposal', trace.proposal_id)}
+      ${this.traceStep('Commit', trace.commitment_id)}
+      ${this.traceStep('Command', trace.command_id)}
+      ${this.traceStep('Attempt', trace.attempt_id)}
+      ${this.traceStep('Effect', trace.observed_effect_id)}
+      ${this.traceStep('Result', trace.result ?? trace.match)}
+    </div>` : '<div class="self-empty">No completed causal action trace yet.</div>';
+
+    return `<div class="self-list-card">
+      <div class="self-section-head"><div><span>Current executive chain</span><small>What → authority, never actuator detail</small></div></div>
+      <div class="self-exec-chain">${chainHtml}</div>
     </div>
-    <div class="self-card-grid self-executive-outcomes">${statusCards}</div>
-    <div class="self-boundary-note">ActionIntent says what consequence is being attempted. It never specifies actuator IDs, trajectories, controller gains or motor commands; motor authority remains with ActionCommitment and ActionDomain.</div>`;
+    <div class="self-list-card self-trace-card">
+      <div class="self-section-head"><div><span>Latest action trace</span><small>Execution evidence</small></div></div>
+      ${traceHtml}
+    </div>
+    <div class="self-outcome-strip">
+      ${['satisfied','failed','rejected','interrupted','invalidated'].map((status) =>
+        `<div><span>${status}</span><strong>${finite(counts[status], 0)}</strong></div>`
+      ).join('')}
+    </div>`;
   }
 
-  embodiment() {
-    const e = this.snapshot?.embodiment ?? {};
-    const bindings = Array.isArray(e.bindings) ? e.bindings : [];
-    const rows = bindings.map((b) => `<div class="self-binding">
-      <strong>${escapeHtml(shortId(b.competence_id))}</strong>
-      <span>${escapeHtml(shortId(b.effect_id ?? 'effect unknown'))}</span>
-      ${chip(pct(b.controllability ?? b.reliability),confidenceClass(b.controllability ?? b.reliability))}
-    </div>`).join('');
-    return `<div class="self-two-cols">
-      <div class="self-list-card"><div class="self-card-title">Current embodiment</div>
-        ${row('Embodiment',shortId(e.embodiment_id ?? e.id))}
-        ${row('Body',shortId(e.body_id))}
-        ${row('Epoch',String(e.epoch ?? '—'))}
-        ${row('State',String(e.state ?? '—'))}
-        ${row('Reacclimating',String(Boolean(e.reacclimating)))}
-        ${row('Bindings',String(bindings.length))}
-      </div>
-      <div class="self-list-card"><div class="self-card-title">Current execution bindings</div>
-        <div class="self-binding-list">${rows || '<div class="self-empty">No current competence binding.</div>'}</div>
-      </div>
-    </div>
-    <div class="self-boundary-note">Durable competence knowledge and current-body executability remain separate. A historical competence is not assumed executable after re-embodiment.</div>`;
+  traceStep(label, value) {
+    return `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(shortId(value, 24))}</strong></div>`;
   }
 
   historyView() {
-    const items = [...this.history].reverse();
-    const rows = items.map((h) => `<div class="self-history-row">
-      <span>t${h.tick}</span>
-      <strong>${escapeHtml(h.schemaState)}</strong>
-      <span>${h.agenticDimensions}/${h.dimensions} agency</span>
-      <span>${h.competences} competences</span>
-      <span>${h.affordances} affordances</span>
-      <span>${escapeHtml(h.intentStatus ?? 'none')}</span>
+    const items = [...this.events].reverse();
+    const rows = items.map((event) => `<div class="self-event ${escapeHtml(event.kind)}">
+      <span>t${event.tick}</span>
+      <div><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.detail)}</small></div>
     </div>`).join('');
-    return `<div class="self-boundary-note">Bounded observer history records changes in learned self-knowledge and canonical executive state during this attached browser session. It is not written into the organism.</div>
-      <div class="self-history-list">${rows || '<div class="self-empty">No self-model change observed yet.</div>'}</div>`;
-  }
-
-  idList(values) {
-    const items = Array.isArray(values) ? values : [];
-    return items.length
-      ? `<div class="self-id-list">${items.slice(0,32).map((x)=>`<code>${escapeHtml(shortId(x,30))}</code>`).join('')}</div>`
-      : '<div class="self-empty">none</div>';
+    return `<div class="self-section-head spacious"><div><span>Meaningful self-model changes</span><small>Raw per-tick changes are intentionally suppressed</small></div><strong>${items.length}</strong></div>
+      <div class="self-event-list">${rows || '<div class="self-empty">No meaningful self-model event observed in this browser session.</div>'}</div>`;
   }
 
   bar(label, value) {
-    const width = Math.round(ratio(value)*100);
+    const width = Math.round(ratio(value) * 100);
     return `<div class="self-bar"><span>${escapeHtml(label)}</span><div><i style="width:${width}%"></i></div><strong>${width}%</strong></div>`;
   }
 
@@ -504,88 +617,48 @@ export class SelfModelWorkspace {
     if (!id) return null;
     if (id.startsWith('affordance|')) {
       const affordanceId = id.slice('affordance|'.length);
-      const item = affordances(this.snapshot)
-        .find((candidate) => String(candidate.affordance_id) === affordanceId);
-      if (item) return { kind: 'current ActionAffordance', item, displayId: item.affordance_id };
+      const item = affordances(this.snapshot).find((candidate) => String(candidate.affordance_id) === affordanceId);
+      if (item) return { kind: 'ActionAffordance', item, displayId: item.affordance_id };
     }
     const sources = [
-      ['body part', this.snapshot?.body_schema?.parts, 'part_id'],
-      ['action dimension', this.snapshot?.action_dimensions, 'dimension_id'],
-      ['motor competence', this.snapshot?.motor_competences, 'competence_id'],
-      ['effect', this.snapshot?.effects, 'effect_id'],
-      ['embodiment binding', this.snapshot?.embodiment?.bindings, 'competence_id'],
+      ['BodySchema part', this.snapshot?.body_schema?.parts, 'part_id'],
+      ['ActionDimension', this.snapshot?.action_dimensions, 'dimension_id'],
+      ['MotorCompetence', this.snapshot?.motor_competences, 'competence_id'],
+      ['Effect', this.snapshot?.effects, 'effect_id'],
+      ['Embodiment binding', this.snapshot?.embodiment?.bindings, 'competence_id'],
     ];
     for (const [kind, items, key] of sources) {
       if (!Array.isArray(items)) continue;
       const item = items.find((candidate) => String(candidate?.[key]) === id);
-      if (item) return { kind, item };
+      if (item) return { kind, item, displayId: id };
     }
     return null;
   }
 
-  selectedInspector() {
+  renderInspector() {
     if (!this.selectedId) return '';
     const selected = this.selectedRecord();
-    if (!selected) {
-      return `<div class="body-section"><div class="body-section-title">Selection</div>
-        ${row('ID',shortId(this.selectedId,34))}
-        <div class="body-inspector-sub">No additional canonical record is available for this projected node.</div></div>`;
-    }
-    const entries = Object.entries(selected.item ?? {})
-      .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
-      .slice(0, 12)
-      .map(([key, value]) => row(key.replaceAll('_',' '), typeof value === 'number' ? String(Number(value.toFixed?.(4) ?? value)) : String(value)))
-      .join('');
-    const arrays = Object.entries(selected.item ?? {})
-      .filter(([, value]) => Array.isArray(value) && value.length)
-      .slice(0, 4)
-      .map(([key, value]) => `<div class="self-selected-array"><span>${escapeHtml(key.replaceAll('_',' '))}</span>${value.slice(0,8).map((x)=>`<code>${escapeHtml(shortId(x,28))}</code>`).join('')}</div>`)
-      .join('');
-    return `<div class="body-section"><div class="body-section-title">Selection · ${escapeHtml(selected.kind)}</div>
-      ${row('ID',shortId(selected.displayId ?? this.selectedId,34))}
-      ${entries}
-      ${arrays}
-      <div class="body-inspector-sub">Read-only organism evidence. Selection and observer labels never feed back into Symbiont.</div>
-    </div>`;
-  }
+    if (!selected) return `<button type="button" class="self-inspector-close" data-self-clear>×</button>
+      <div class="body-inspector-head"><div class="body-inspector-kicker">SELF-MODEL</div><div class="body-inspector-title">No evidence record</div></div>`;
 
-  renderInspector() {
-    const s = selfSummary(this.snapshot);
-    const executive = this.snapshot?.executive_intention ?? {};
-    const active = executive?.active ?? null;
-    const selected = this.selectedInspector();
-    return `<div class="body-inspector-head">
-      <div class="body-inspector-kicker">SELF-MODEL</div>
-      <div class="body-inspector-title">Learned model of self</div>
-      <div class="body-inspector-sub">What the organism has inferred about its own structure, agency, capabilities and current intended consequence.</div>
-    </div>
-    <div class="body-section"><div class="body-section-title">Structure</div>
-      ${row('Schema state',s.schemaState)}
-      ${row('Learned parts',String(s.parts))}
-      ${row('Dependencies',String(s.dependencies))}
-      ${row('Boundary confidence',pct(s.boundaryConfidence))}
-      ${row('Boundary revisions',String(s.boundaryRevisions))}
-    </div>
-    <div class="body-section"><div class="body-section-title">Agency & capability</div>
-      ${row('Agentic dimensions',`${s.agenticDimensions} / ${s.dimensions}`)}
-      ${row('Action attempts',String(s.attempts))}
-      ${row('Causal relations',String(s.causalRelations))}
-      ${row('Motor competences',String(s.competences))}
-      ${row('Known effects',String(s.effects))}
-      ${row('Current affordances',String(s.affordances))}
-    </div>
-    <div class="body-section"><div class="body-section-title">Executive intention</div>
-      ${row('Intent',shortId(active?.intent_id))}
-      ${row('Status',String(active?.status ?? 'none'))}
-      ${row('Competence',shortId(active?.competence_id))}
-      ${row('Anticipated effect',shortId(active?.anticipated_effect_id))}
-      ${row('Admission',String(active?.admission ?? '—'))}
-      ${row('Commitment',shortId(active?.commitment_id))}
-      <div class="body-inspector-sub">Canonical ActionIntent is persistent cognitive commitment to a consequence; ActionCommitment remains the sole motor-authority bridge.</div>
-    </div>
-    ${selected}
-    <div class="body-section"><div class="body-section-title">Epistemic boundary</div>
-      <div class="body-inspector-sub">Physical anatomy, simulator truth and observer labels remain excluded from organism-owned self-knowledge.</div>
-    </div>`;
+    const scalarRows = Object.entries(selected.item ?? {})
+      .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
+      .slice(0, 14)
+      .map(([key, value]) => row(key.replaceAll('_', ' '), typeof value === 'number' ? String(Number(value.toFixed?.(4) ?? value)) : String(value)))
+      .join('');
+
+    const listRows = Object.entries(selected.item ?? {})
+      .filter(([, value]) => Array.isArray(value) && value.length)
+      .slice(0, 3)
+      .map(([key, value]) => `<div class="self-inspector-list"><span>${escapeHtml(key.replaceAll('_', ' '))}</span>${value.slice(0, 8).map((item) => `<code>${escapeHtml(shortId(item, 30))}</code>`).join('')}</div>`)
+      .join('');
+
+    return `<button type="button" class="self-inspector-close" data-self-clear aria-label="Close inspector">×</button>
+      <div class="body-inspector-head">
+        <div class="body-inspector-kicker">${escapeHtml(selected.kind)}</div>
+        <div class="body-inspector-title">${escapeHtml(shortId(selected.displayId, 34))}</div>
+        <div class="body-inspector-sub">Raw organism-owned evidence. Observer selection never feeds back.</div>
+      </div>
+      <div class="body-section">${scalarRows}${listRows}</div>`;
   }
 }
