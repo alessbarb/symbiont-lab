@@ -192,3 +192,13 @@ def test_cognition_causal_provenance_is_observer_only_and_on_demand():
     assert "Causal history" in inspector
     assert "never fed back" in inspector
     assert "innerHTML" not in client
+
+
+def test_causal_estimates_are_not_treated_as_structural_edges():
+    atlas = _read("views/mind/cognitive-atlas.js")
+
+    assert "function structuralEdgeScore(edge)" in atlas
+    assert "edge.kind === 'causal_estimate'" in atlas
+    assert "if (mode === 'structure') return structuralEdgeScore(edge);" in atlas
+    assert "if (mode === 'motor')" in atlas
+    assert "if (mode === 'evidence')" in atlas
