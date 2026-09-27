@@ -300,3 +300,50 @@ still not ground. Options for the owner:
 - **C.** Revisit the design (e.g. regression-style attribution of feature
   changes to simultaneously driven channels instead of per-source
   frequencies).
+
+## 13. Causal probing exploration (owner option A, 2026-09-27)
+
+The spike showed that stable attribution in a high-dimensional body needs
+exploration that repeats an intervention, varies few channels at a time and
+leaves quiet windows. Current exploration (`CompetenceDevelopmentEngine`)
+drives a log-uniform number of channels per 24-tick epoch with smoothed,
+continuously emitted levels: every tick is an attempt, ramps overlap, and
+passive windows almost never occur.
+
+### 13.1 Probing bouts
+
+Exploration epochs are of two kinds, chosen deterministically per epoch by an
+organism-owned hash at a **probing share** (proposed 0.5, scaled by the
+existing exploration drive; no developmental mode):
+
+- **coordination epochs** — the current behaviour, unchanged, so recurrent
+  multi-channel synergies still arise;
+- **probing epochs** — one exploration unit (one opaque channel, or one
+  channel of a mutually exclusive group) is driven in **pulses**: within a
+  24-tick epoch, `rest 4 / pulse 6 / rest 4 / pulse 6 / rest 4`, with the pulse
+  level set directly (no smoothing) at a hash-chosen intensity. Rest ticks
+  emit no command, so they are genuine passive windows.
+
+The probed unit is chosen by causal information gain (§24-§25 of Agency v1:
+untried or unresolved channels first, ties by use count and hash) and kept for
+`probe_repeats` consecutive probing epochs (proposed 4, i.e. 8 pulses) before
+moving on.
+
+### 13.2 Invariants
+
+- No anatomical or semantic grouping: units are the existing opaque
+  exploration units (exclusive groups are respected as today).
+- Deterministic: every choice is a pure function of organism id, epoch and
+  the organism's own evidence.
+- Protection, regulation and intents keep priority exactly as today; probing
+  is only what exploration emits when it wins arbitration.
+- Bounded amplitude: pulse levels stay within the current exploration target
+  range.
+
+### 13.3 Spike before implementation
+
+Implement probing in a throwaway spike branch only, record change maps on a
+fresh copy of the owner's organism (1500 ticks) and recompute §12: per-channel
+footprints, their stability across halves, passive-window count, and whether
+any dimension and competence would ground. Implementation of §4-§9 and §13
+proceeds only if footprints form and hold.
