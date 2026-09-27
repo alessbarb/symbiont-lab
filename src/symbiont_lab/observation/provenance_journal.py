@@ -33,36 +33,13 @@ class ProvenanceJournal:
                 if line.strip():
                     yield CausalEvent.from_payload(json.loads(line))
 
-    def _producers(self) -> dict[CausalRef, CausalEvent]:
-        producers: dict[CausalRef, CausalEvent] = {}
-        for event in self.events():
-            for ref in event.produced or (event.subject,):
-                producers[ref] = event
-        return producers
-
     def explain(self, ref: CausalRef) -> CausalEvent | None:
         """The event that produced ``ref``."""
-        return self._producers().get(ref)
+        return ProvenanceIndex.load(self).producers.get(ref)
 
     def ancestors(self, ref: CausalRef, *, depth: int = 64) -> tuple[CausalRef, ...]:
         """Every ref reachable through ``caused_by``, breadth first, deduplicated."""
-        producers = self._producers()
-        seen: list[CausalRef] = []
-        frontier = [ref]
-        for _ in range(depth):
-            following: list[CausalRef] = []
-            for item in frontier:
-                event = producers.get(item)
-                if event is None:
-                    continue
-                for cause in event.caused_by:
-                    if cause not in seen and cause != ref:
-                        seen.append(cause)
-                        following.append(cause)
-            if not following:
-                break
-            frontier = following
-        return tuple(seen)
+        return ProvenanceIndex.load(self).ancestors(ref, depth=depth)
 
 
 class ProvenanceIndex:
@@ -70,10 +47,15 @@ class ProvenanceIndex:
 
     def __init__(self, events: Iterable[CausalEvent]) -> None:
         self.events: tuple[CausalEvent, ...] = tuple(events)
-        self.producers: dict[CausalRef, CausalEvent] = {}
+        # A ref's lifecycle (e.g. intent form ... satisfied) may span several
+        # events; its causes are the union over all of them.
+        self.lifecycle: dict[CausalRef, list[CausalEvent]] = {}
         for event in self.events:
             for ref in event.produced or (event.subject,):
-                self.producers[ref] = event
+                self.lifecycle.setdefault(ref, []).append(event)
+        self.producers: dict[CausalRef, CausalEvent] = {
+            ref: events[-1] for ref, events in self.lifecycle.items()
+        }
 
     @classmethod
     def load(cls, journal: "ProvenanceJournal") -> "ProvenanceIndex":
@@ -93,6 +75,15 @@ class ProvenanceIndex:
     def summary(self) -> dict[str, int]:
         counts = Counter(f"{event.domain}.{event.operation}" for event in self.events)
         return dict(sorted(counts.items()))
+
+    def causes(self, ref: CausalRef) -> tuple[CausalRef, ...]:
+        """Distinct causes of ``ref`` across its whole lifecycle, first seen first."""
+        seen: dict[CausalRef, None] = {}
+        for event in self.lifecycle.get(ref, ()):
+            for cause in event.caused_by:
+                if cause != ref:
+                    seen.setdefault(cause)
+        return tuple(seen)
 
     def why(self, ref: CausalRef, *, depth: int = 12) -> dict[str, Any]:
         """The causal tree behind ``ref`` (each ref expanded once; roots marked)."""
@@ -118,7 +109,7 @@ class ProvenanceIndex:
             if level >= depth:
                 entry["truncated"] = True
                 return entry
-            entry["causes"] = [node(cause, level + 1) for cause in event.caused_by]
+            entry["causes"] = [node(cause, level + 1) for cause in self.causes(item)]
             return entry
 
         return node(ref, 0)
@@ -133,10 +124,7 @@ class ProvenanceIndex:
         for _ in range(depth):
             following: list[CausalRef] = []
             for item in frontier:
-                event = self.producers.get(item)
-                if event is None:
-                    continue
-                for cause in event.caused_by:
+                for cause in self.causes(item):
                     if cause not in seen and cause != ref:
                         seen.append(cause)
                         following.append(cause)

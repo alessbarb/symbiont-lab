@@ -55,10 +55,40 @@ def test_index_answers_why_down_to_pulses(tmp_path):
     assert "  commitment:c1  [root]" in "\n".join(render_tree(index.why(VERSION)))
 
 
-def test_repeated_refs_are_expanded_once(tmp_path):
+def test_lifecycle_refs_explain_through_their_formation(tmp_path):
     index = ProvenanceIndex.load(_journal(tmp_path))
-    tree = index.why(INTENT)  # the satisfied intent is caused by its own formation
-    assert tree["causes"][0].get("repeated") is True
+    tree = index.why(INTENT)  # latest event is "satisfied"; causes span form..satisfied
+    assert tree["event"]["operation"] == "satisfied"
+    assert [cause["ref"] for cause in tree["causes"]] == [
+        COMPETENCE.payload(),
+        CausalRef("commitment", "c9").payload(),
+    ]
+    assert index.reaches(INTENT, "footprint_version")
+    assert PULSE in index.ancestors(INTENT)
+    assert _journal(tmp_path / "again").ancestors(INTENT) == index.ancestors(INTENT)
+
+
+def test_repeated_refs_are_expanded_once(tmp_path):
+    journal = _journal(tmp_path)
+    log = ProvenanceLog()
+    log.subscribe(journal.append)
+    binding = CausalRef("binding", "b1")  # reaches VERSION directly and via COMPETENCE
+    log.emit(
+        CausalEvent(
+            tick=9,
+            domain="action",
+            operation="bind",
+            subject=binding,
+            caused_by=(COMPETENCE, VERSION),
+            produced=(binding,),
+            rule="r",
+        )
+    )
+    tree = ProvenanceIndex.load(journal).why(binding)
+    via_competence, direct = tree["causes"]
+    assert via_competence["causes"][0]["ref"] == VERSION.payload()
+    assert "repeated" not in via_competence["causes"][0]
+    assert direct["ref"] == VERSION.payload() and direct["repeated"] is True
 
 
 def test_cli_why_and_summary(tmp_path, capsys):
