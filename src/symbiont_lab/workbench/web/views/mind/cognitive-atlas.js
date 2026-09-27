@@ -1,3 +1,5 @@
+import { isStructuralAtlasEdge } from './relation-semantics.js';
+
 /**
  * Observer-side Cognitive Atlas analytics.
  *
@@ -208,6 +210,7 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
   }
 
   for (const edge of edges) {
+    if (!isStructuralAtlasEdge(edge)) continue;
     const source = nodes.find(node => node.id === edge.sourceId);
     const target = nodes.find(node => node.id === edge.targetId);
     if (!source?.community || !target?.community || source.community === target.community) continue;
