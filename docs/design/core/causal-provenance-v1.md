@@ -1,6 +1,6 @@
 # Causal Provenance v1 — Draft Specification
 
-**Status:** DRAFT for owner review. Not implemented.
+**Status:** APPROVED to proceed (owner, 2026-09-27) with the §9 proposals as defaults. Contract implemented; adoption step 1 (footprints) done — see §10.
 **Origin:** owner requirement (2026-09-27): *every causal claim in Symbiont
 must be traceable in symbiont-lab*; review of the footprint registry
 (`factorized-effect-representation-v1.md` §13.7).
@@ -162,3 +162,26 @@ happens at step 3 using this contract, not before.
 3. Whether cognition (step 6) is in scope for v1 or a v2.
 4. Whether provenance emission can be disabled for performance studies (it
    must never change behaviour).
+
+## 10. Implementation status
+
+- `symbiont/provenance.py`: `CausalRef`, `CausalEvent` (content-addressed
+  ids, scalar-only parameters, bounded causes), `ProvenanceLog` (ring of
+  8192, frontier of live references checkpointed instead of the log,
+  outward-only subscribers).
+- `symbiont_lab/observation/provenance_journal.py`: append-only JSON-lines
+  journal with `explain` and `ancestors`; apparatus data, never read back.
+- **Step 1, footprints** (`symbiont/actuation/footprint.py`): each changed
+  atom estimate emits an `estimate` event caused by its pulse commitments and
+  passive-window range; each version change emits a `version` event caused by
+  the previous version and those estimates; pins emit a
+  `pinned_footprint_snapshot`; eviction emits an `evict` version. The
+  frontier retires superseded versions and their estimates, so it stays
+  bounded by live references.
+- Gates covered by tests: events name their causes down to pulses; the
+  frontier keeps only live references; a live pinned snapshot is explained
+  from the journal after the ring wraps; a restored organism emits the same
+  events and frontier as the uninterrupted one; emission never changes
+  behaviour.
+- Next: step 2 (acquisition evidence -> dimensions) and step 3 (competence
+  grounding on footprints), wired with this contract.

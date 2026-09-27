@@ -28,6 +28,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from typing import Any, Callable, Iterable, Mapping
 
+from ..provenance import CausalEvent, CausalRef, ProvenanceLog
 from .evidence import CausalEvidence
 from .model import agency_confidence, controllability_confidence
 
@@ -252,6 +253,21 @@ class PinnedFootprintSnapshot:
         return frozenset(record.atom for record in self.members)
 
 
+_RULE = "wilson_lower_bound_vs_length_matched_quiet_rate"
+
+
+def version_ref(entity_id: str, version: int) -> CausalRef:
+    return CausalRef("footprint_version", f"{entity_id}@v{version}")
+
+
+def estimate_ref(entity_id: str, estimate: AtomEstimate) -> CausalRef:
+    return CausalRef("atom_estimate", f"{entity_id}|{estimate.atom}|t{estimate.estimated_tick}")
+
+
+def snapshot_ref(footprint: str) -> CausalRef:
+    return CausalRef("pinned_footprint_snapshot", footprint)
+
+
 def _estimate_payload(estimate: AtomEstimate | None) -> dict[str, Any] | None:
     return asdict(estimate) if estimate is not None else None
 
@@ -299,9 +315,13 @@ class FootprintRegistry:
         exit_margin: float = 0.0,
         min_pulses: int = 4,
         max_footprints: int = 512,
+        provenance: ProvenanceLog | None = None,
     ) -> None:
         if not 0.0 <= exit_margin <= enter_margin < 1.0 or min_pulses < 1:
             raise ValueError("invalid footprint membership parameters")
+        # Causal Provenance v1: emission never changes registry behaviour.
+        self.provenance = provenance
+        self._live_estimates: dict[tuple[str, ...], tuple[CausalRef, ...]] = {}
         self.enter_margin = float(enter_margin)
         self.exit_margin = float(exit_margin)
         self.min_pulses = int(min_pulses)
@@ -388,6 +408,74 @@ class FootprintRegistry:
     def footprints(self) -> dict[tuple[str, ...], frozenset[str]]:
         return {source: frozenset(members.keys()) for source, members in self._members.items()}
 
+    # -- provenance -----------------------------------------------------------
+    def _emit_estimate(self, entity: str, estimate: AtomEstimate, tick: int) -> CausalRef:
+        ref = estimate_ref(entity, estimate)
+        if self.provenance is not None and self.provenance.causes_of(ref) is None:
+            causes = [CausalRef("commitment", item) for item in estimate.pulse_commitments]
+            if estimate.passive_tick_range is not None:
+                first, last = estimate.passive_tick_range
+                causes.append(CausalRef("passive_windows", f"t{first}-t{last}"))
+            self.provenance.emit(
+                CausalEvent(
+                    tick=int(tick),
+                    domain="footprint",
+                    operation="estimate",
+                    subject=ref,
+                    caused_by=tuple(causes),
+                    produced=(ref,),
+                    rule=_RULE,
+                    parameters={
+                        "pulses": estimate.pulses,
+                        "hits": estimate.hits,
+                        "mean_pulse_windows": estimate.mean_pulse_windows,
+                        "passive_windows": estimate.passive_windows,
+                        "passive_hits": estimate.passive_hits,
+                        "expected_quiet_rate": estimate.expected_quiet_rate,
+                        "pulse_rate_lower_bound": estimate.pulse_rate_lower_bound,
+                    },
+                )
+            )
+        return ref
+
+    def _emit_version(
+        self,
+        *,
+        source: tuple[str, ...],
+        tick: int,
+        previous_version: int,
+        estimates: list[AtomEstimate],
+        operation: str,
+        rule: str,
+        parameters: Mapping[str, Any],
+    ) -> None:
+        if self.provenance is None:
+            return
+        entity = footprint_entity_id(source)
+        new = version_ref(entity, self._versions.get(source, 0))
+        causes = [version_ref(entity, previous_version)] if previous_version > 0 else []
+        estimate_refs = tuple(self._emit_estimate(entity, estimate, tick) for estimate in estimates)
+        causes.extend(estimate_refs)
+        self.provenance.emit(
+            CausalEvent(
+                tick=int(tick),
+                domain="footprint",
+                operation=operation,
+                subject=new,
+                caused_by=tuple(causes),
+                produced=(new,),
+                rule=rule,
+                parameters=parameters,
+            )
+        )
+        # The superseded version and the estimates behind it are explained by
+        # the durable journal; the frontier keeps only what is live.
+        stale = set(self._live_estimates.get(source, ())) - set(estimate_refs)
+        if previous_version > 0:
+            stale.add(version_ref(entity, previous_version))
+        self.provenance.retire(sorted(stale))
+        self._live_estimates[source] = estimate_refs
+
     # -- updates ------------------------------------------------------------
     def update(
         self,
@@ -426,6 +514,24 @@ class FootprintRegistry:
                 self._versions[source] = self._versions.get(source, 0) + 1
                 self._version_ticks[source] = int(tick)
             version = self._versions.get(source, 0)
+            if after != before:
+                self._emit_version(
+                    source=source,
+                    tick=tick,
+                    previous_version=version - 1,
+                    estimates=[estimate for _, _, _, estimate in changes if estimate is not None],
+                    operation="version",
+                    rule=_RULE,
+                    parameters={
+                        "enter_margin": self.enter_margin,
+                        "exit_margin": self.exit_margin,
+                        "min_pulses": self.min_pulses,
+                        "content_before": before or "",
+                        "content_after": after or "",
+                        "entered": sum(1 for kind, *_ in changes if kind is TransitionKind.ENTER),
+                        "exited": sum(1 for kind, *_ in changes if kind is TransitionKind.EXIT),
+                    },
+                )
             for kind, atom, margin, estimate in changes:
                 self._log(
                     FootprintTransition(
@@ -460,6 +566,19 @@ class FootprintRegistry:
                     members=tuple(record for _, record in sorted(members.items())),
                 )
                 self._pins[footprint] = record
+                if self.provenance is not None:
+                    snapshot = snapshot_ref(footprint)
+                    self.provenance.emit(
+                        CausalEvent(
+                            tick=int(tick),
+                            domain="footprint",
+                            operation="pin",
+                            subject=snapshot,
+                            caused_by=(version_ref(record.entity_id, version),),
+                            produced=(snapshot,),
+                            parameters={"content": footprint},
+                        )
+                    )
                 self._log(
                     FootprintTransition(
                         tick=int(tick),
@@ -478,6 +597,8 @@ class FootprintRegistry:
         record = self._pins.pop(footprint, None)
         if record is None:
             return
+        if self.provenance is not None:
+            self.provenance.retire((snapshot_ref(footprint),))
         self._log(
             FootprintTransition(
                 tick=int(tick),
@@ -505,6 +626,15 @@ class FootprintRegistry:
             before = self._content(self._members.pop(source))
             self._versions[source] = self._versions.get(source, 0) + 1
             self._version_ticks[source] = int(tick)
+            self._emit_version(
+                source=source,
+                tick=tick,
+                previous_version=self._versions[source] - 1,
+                estimates=[],
+                operation="evict",
+                rule="footprint_bound",
+                parameters={"max_footprints": self.max_footprints, "content_before": before or ""},
+            )
             self._log(
                 FootprintTransition(
                     tick=int(tick),
@@ -562,6 +692,10 @@ class FootprintRegistry:
                 for t in self._transitions
             ],
             "transitions_recorded": self.transitions_recorded,
+            "live_estimates": [
+                {"source": list(source), "refs": [ref.payload() for ref in refs]}
+                for source, refs in sorted(self._live_estimates.items())
+            ],
         }
 
     @classmethod
@@ -610,6 +744,10 @@ class FootprintRegistry:
                 )
             )
         registry.transitions_recorded = int(payload.get("transitions_recorded", 0))
+        for raw in payload.get("live_estimates", []):
+            registry._live_estimates[tuple(str(v) for v in raw["source"])] = tuple(
+                CausalRef.from_payload(item) for item in raw["refs"]
+            )
         return registry
 
 
@@ -623,8 +761,11 @@ __all__ = [
     "Pulse",
     "TransitionKind",
     "atom_estimates",
+    "estimate_ref",
     "footprint_entity_id",
     "footprint_id",
     "pulses_from",
+    "snapshot_ref",
+    "version_ref",
     "wilson_lower_bound",
 ]
