@@ -185,3 +185,21 @@ happens at step 3 using this contract, not before.
   behaviour.
 - Next: step 2 (acquisition evidence -> dimensions) and step 3 (competence
   grounding on footprints), wired with this contract.
+
+### 10.1 Adoption status (2026-09-27)
+
+| Step | Domain | Events | Status |
+| --- | --- | --- | --- |
+| 1 | footprints | `estimate` (caused by pulse commitments + passive-window range), `version`, `pin`, `evict` | done |
+| 2 | acquisition | footprints refreshed per closed pulse inside `AgencyAcquisition`, which owns the organism-level `ProvenanceLog` | done |
+| 3 | competence | `ground` (caused by the footprint versions used; rule `own_footprint` / `footprint_union`), `revise_effect` | done (factorized mode) |
+| 4 | intention | `form` (caused by competence and anticipated effect), `satisfied` / `failed` / `rejected` / `interrupted` / `invalidated` (caused by intent and commitment, with recall parameters) | done |
+| 5 | outcome learning | `learn` (caused by intent and commitment; class, admission factor, suppression), `lift_suppression` | done |
+| — | admission, commitment, controller, actuation, transition | not yet emitted; the intent's commitment id links to the ledger's commitment evidence | pending |
+| 6 | cognition | not started (owner decision 3) | pending |
+
+Lab side: `ProvenanceIndex` (summary, find, why, ancestors, reaches) and
+`symbiont-lab provenance summary|find|why <journal>`. On the running
+Physics3D acceptance journal, `why competence:<id>` already reconstructs
+competence -> footprint version -> atom estimates -> pulse commitments and
+the passive-window range.
