@@ -44,6 +44,18 @@ function edgeEvidence(edge, maxima) {
   return clamp01(support * 0.45 + stable * 0.35 + weight * 0.20);
 }
 
+function structuralEdgeScore(edge) {
+  // Learned causal estimates are evidence overlays, not CognitiveGraph
+  // structure. Keep them almost invisible in structural/anatomical views while
+  // leaving them first-class in Motor/Evidence.
+  if (edge.kind === 'causal_estimate') return 0.03;
+  if (['affords', 'intends_with', 'anticipates'].includes(edge.kind)) return 0.16;
+  return clamp01(
+    Math.abs(finite(edge.weight, 0)) * 0.35 +
+    Math.min(1, Math.log1p(Math.max(0, finite(edge.support, 0))) / 8) * 0.65
+  );
+}
+
 function edgeRecency(edge, tick) {
   const lastUse = finite(edge.lastUseTick, 0);
   if (lastUse <= 0 || tick <= 0) return 0;
@@ -131,6 +143,7 @@ export function atlasModeScore(node, signals, mode = 'structure') {
 }
 
 export function atlasEdgeScore(edge, mode, tick = 0) {
+  if (mode === 'structure') return structuralEdgeScore(edge);
   if (mode === 'activity') return edgeRecency(edge, tick);
   if (mode === 'learning') {
     const stability = Math.log1p(Math.max(0, finite(edge.stableTicks, 0)));
@@ -157,13 +170,7 @@ export function atlasEdgeScore(edge, mode, tick = 0) {
     }
     return clamp01(support * 0.55 + stable * 0.45);
   }
-  if (edge.kind === 'causal_estimate') {
-    return clamp01(
-      clamp01(edge.confidence ?? edge.evidence?.confidence ?? 0) * 0.62 +
-      Math.min(1, Math.log1p(Math.max(0, finite(edge.support ?? edge.action_support, 0))) / 8) * 0.38
-    );
-  }
-  return clamp01(Math.abs(finite(edge.weight, 0)) * 0.35 + Math.min(1, Math.log1p(Math.max(0, finite(edge.support, 0))) / 8) * 0.65);
+  return structuralEdgeScore(edge);
 }
 
 export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, signals) {
