@@ -145,10 +145,16 @@ export class BodyWorkspace {
     });
     this.panel?.setAttribute('aria-labelledby', `body-tab-${tab}`);
     this.root?.classList.toggle('self-model-mode', tab === 'self-model');
+    this.root?.classList.toggle('body-world-mode', tab === 'world');
     if (tab !== 'self-model') this.root?.classList.remove('self-model-inspector-open');
     const dataView = tab === 'physiology' || tab === 'history' || tab === 'self-model';
     this.overlay?.classList.toggle('visible', dataView);
     if (tab !== 'anatomy') this.clearSegmentHighlight();
+
+    // WorldView owns observer-only spatial overlays and canvas picking. Make
+    // its lifecycle explicit so controls, hit-testing and visibility cannot
+    // leak into Anatomy, Motion, Self-Model or the other Body workspaces.
+    this.viewer.worldView?.setActive(tab === 'world');
     this.viewer.setObserverMode?.(tab);
     this.render();
   }
