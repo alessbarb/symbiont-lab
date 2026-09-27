@@ -21,6 +21,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Mapping
 
+from ..provenance import ProvenanceLog
 from .action import MotorCommand
 from .attempt import ActionAttempt, attempt_id_for_command
 from .commitment import ActionCommitment
@@ -41,6 +42,7 @@ from .evidence import (
     PredictionError,
     SensorimotorTransition,
 )
+from .footprint import FootprintRegistry, atom_estimates, pulses_from
 from .intervention import (
     InterventionSignature,
     InterventionSignatureRegistry,
@@ -97,7 +99,8 @@ def _atom_ids(changes: Mapping[str, float]) -> tuple[str, ...]:
 class AgencyAcquisition:
     """Shared owner of attempts, signatures, causal evidence and learned dimensions."""
 
-    SCHEMA_VERSION = 2
+    SCHEMA_VERSION = 3
+    FOOTPRINT_COMMITMENTS_PER_SOURCE = 256
 
     def __init__(
         self,
@@ -124,6 +127,12 @@ class AgencyAcquisition:
         self.attempt_count = 0
         # (migrated, unresolved) evidence items at the last pre-atom restore.
         self.atom_migration: tuple[int, int] | None = None
+        # Organism-level causal provenance (Causal Provenance v1), shared by
+        # every domain; footprints are its first adopter.
+        self.provenance = ProvenanceLog()
+        self.footprints = FootprintRegistry(provenance=self.provenance)
+        self._footprint_commitments: dict[tuple[str, ...], deque[str]] = {}
+        self._open_commitment: tuple[str, tuple[str, ...]] | None = None
         self._surface_ids: tuple[str, ...] | None = None
         self._surface_fingerprint: str | None = None
         self._pattern_signatures: dict[
@@ -320,6 +329,7 @@ class AgencyAcquisition:
         tick = transition.tick_end
         expected = self._signature_expectation(signature_id)
         evidence = self.causal_evidence.observe(transition)
+        self._track_pulse(transition, tick=tick)
         self.effect_model.observe(evidence)
         ledger = self._counterfactual_view()
 
@@ -509,6 +519,54 @@ class AgencyAcquisition:
             effect_id=effect.effect_id if effect is not None else None,
             effect_atoms=_atom_ids(changes),
         )
+
+    # -- footprints (Factorized Effect Representation v1 §4.2, §13.7) -----------
+    def _track_pulse(self, transition: SensorimotorTransition, *, tick: int) -> None:
+        """A new commitment closes the previous pulse: refresh that source."""
+        signature = self.signatures.get(str(transition.intervention_signature_id))
+        if signature is None:
+            return
+        source = tuple(sorted(signature.channel_refs))
+        opened = self._open_commitment
+        if opened is not None and opened[0] != transition.commitment_id:
+            self.refresh_footprint(opened[1], tick=tick)
+        commitments = self._footprint_commitments.setdefault(
+            source, deque(maxlen=self.FOOTPRINT_COMMITMENTS_PER_SOURCE)
+        )
+        if not commitments or commitments[-1] != transition.commitment_id:
+            commitments.append(transition.commitment_id)
+        self._open_commitment = (transition.commitment_id, source)
+
+    def _channels_of(self, signature_id: str) -> tuple[str, ...] | None:
+        signature = self.signatures.get(signature_id)
+        return tuple(sorted(signature.channel_refs)) if signature is not None else None
+
+    def refresh_footprint(self, source: tuple[str, ...], *, tick: int) -> None:
+        """Re-estimate one source's footprint from its retained pulses.
+
+        E1 ablations see no footprint: a footprint is a causal claim that
+        needs both the counterfactual baseline and the agency model.
+        """
+        if not (self.use_counterfactual_evidence and self.use_agency_model):
+            return
+        source = tuple(sorted(source))
+        commitments = self._footprint_commitments.get(source)
+        if not commitments:
+            return
+        evidence: list[CausalEvidence] = []
+        retained: list[str] = []
+        for commitment_id in commitments:
+            items = self.causal_evidence.commitment_evidence(commitment_id)
+            if items:
+                retained.append(commitment_id)
+                evidence.extend(items)
+        commitments.clear()
+        commitments.extend(retained)
+        pulses = [
+            pulse for pulse in pulses_from(evidence, self._channels_of) if pulse.source == source
+        ]
+        estimates = atom_estimates(pulses, self.causal_evidence.passive_evidence, tick=tick)
+        self.footprints.update({source: estimates.get(source, {})}, tick=tick)
 
     # -- derived views --------------------------------------------------------
     def self_caused_features(self, *, min_confidence: float) -> set[str]:
@@ -706,6 +764,17 @@ class AgencyAcquisition:
             # rather than re-derived from final ledger counts.
             "controllability": self.controllability_model.checkpoint(),
             "agency": self.agency_model.checkpoint(),
+            "provenance": self.provenance.checkpoint(),
+            "footprints": self.footprints.checkpoint(),
+            "footprint_commitments": [
+                {"source": list(source), "commitments": list(commitments)}
+                for source, commitments in sorted(self._footprint_commitments.items())
+            ],
+            "open_commitment": (
+                {"commitment": self._open_commitment[0], "source": list(self._open_commitment[1])}
+                if self._open_commitment is not None
+                else None
+            ),
         }
 
     def restore_causal_state(
@@ -727,7 +796,7 @@ class AgencyAcquisition:
         persisted_estimates = False
         if acquisition is not None:
             version = acquisition.get("schema_version")
-            if version not in (1, self.SCHEMA_VERSION):
+            if version not in (1, 2, self.SCHEMA_VERSION):
                 raise ValueError("unsupported agency acquisition checkpoint")
             raw_count = acquisition.get("attempt_count", 0)
             if not isinstance(raw_count, int) or raw_count < 0:
@@ -742,7 +811,25 @@ class AgencyAcquisition:
                 raw_dimensions if isinstance(raw_dimensions, Mapping) else None,
                 policy=self.dimension_policy,
             )
-            if version == self.SCHEMA_VERSION:
+            # Schema 3: causal provenance frontier and footprints (none before).
+            self.provenance = ProvenanceLog.restore(acquisition.get("provenance"))
+            self.footprints = FootprintRegistry.restore(
+                acquisition.get("footprints"), provenance=self.provenance
+            )
+            self._footprint_commitments = {
+                tuple(str(v) for v in raw["source"]): deque(
+                    (str(c) for c in raw["commitments"]),
+                    maxlen=self.FOOTPRINT_COMMITMENTS_PER_SOURCE,
+                )
+                for raw in acquisition.get("footprint_commitments", [])
+            }
+            raw_open = acquisition.get("open_commitment")
+            self._open_commitment = (
+                (str(raw_open["commitment"]), tuple(str(v) for v in raw_open["source"]))
+                if isinstance(raw_open, Mapping)
+                else None
+            )
+            if version in (2, self.SCHEMA_VERSION):
                 self.controllability_model = ControllabilityModel()
                 self.controllability_model.restore_estimates(acquisition.get("controllability"))
                 self.agency_model = AgencyModel()
