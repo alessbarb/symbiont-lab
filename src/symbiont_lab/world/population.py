@@ -630,6 +630,7 @@ class PopulationGenesisRuntime:
                 )
             )
 
+            all_emitted_messages = []
             for organism_id in self.organism_ids:
                 rig = self._rigs[organism_id]
                 was_alive = self.is_alive(organism_id)
@@ -802,7 +803,10 @@ class PopulationGenesisRuntime:
                                 )
                     action_result = _act(rig)
                 else:
-                    rig.runtime.tick()
+                    tick_res = rig.runtime.tick()
+                    if hasattr(tick_res, "messages") and tick_res.messages:
+                        for msg in tick_res.messages:
+                            all_emitted_messages.append(msg)
                     world_action = rig.actuation_adapter.translate(rig.runtime.last_actuation)
                     self._resolve_local_interaction(
                         organism_id,
@@ -1019,6 +1023,12 @@ class PopulationGenesisRuntime:
                         },
                     )
                 )
+
+        # 3.5 Deliver Emergent Structured Communication messages
+        for msg in all_emitted_messages:
+            recipient_rig = self._rigs.get(msg.recipient)
+            if recipient_rig is not None and recipient_rig.runtime is not None:
+                recipient_rig.runtime.receive_communication(msg)
 
         if not tx.committed:
             return None

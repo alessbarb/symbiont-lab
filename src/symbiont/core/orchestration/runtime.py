@@ -116,7 +116,9 @@ from ..regulation import InnateReactivity, ReactiveMemory
 from ..signals.identity import SignalIdentity
 from ..signals.knowledge import MAX_KNOWLEDGE_CHECKPOINT_BYTES, SignalKnowledgeEngine
 from ..signals.knowledge_checkpoint import validate_checkpoint
+from ..social.communication import ConsentBoundChannel, SignedMessage
 from ..social.ecology import SharedHabitat
+from ..social.exchange import ExchangeEnvelope, ExchangeReplayGuard
 from ..social.ledger import SocialEvidenceLedger
 from ..social.relations import (
     InteractionOutcome,
@@ -208,6 +210,7 @@ class RuntimeTickResult:
     sensorimotor_transition: SensorimotorTransition | None = None
     sensorimotor_v2: SensorimotorV2Snapshot | None = None
     gene_expression: dict[str, object] | None = None
+    messages: tuple[SignedMessage, ...] = ()
 
 
 class OrganismDeadError(RuntimeError):
@@ -277,6 +280,9 @@ class OrganismRuntime:
         social_ledger: RelationLedger | None = None,
         social_resource_ledger: ResourceEvidenceLedger | None = None,
         epistemic_ledger: SocialEvidenceLedger | None = None,
+        communication_channel: ConsentBoundChannel | None = None,
+        exchange_guard: ExchangeReplayGuard | None = None,
+        exchange_sequence: int = 0,
         explicit_metabolism: bool = False,
         auto_promote_predictors: bool = False,
         birth_authority: HabitatBirthAuthority | None = None,
@@ -640,6 +646,12 @@ class OrganismRuntime:
         self._epistemic_ledger = (
             epistemic_ledger if epistemic_ledger is not None else SocialEvidenceLedger()
         )
+        self._communication_channel = communication_channel
+        self._exchange_guard = (
+            exchange_guard if exchange_guard is not None else ExchangeReplayGuard()
+        )
+        self._exchange_sequence = exchange_sequence
+        self._last_broadcast_reconciliations: set[str] = set()
         self._social_habitat_released = False
         self._habitat_released = False
         self._birth_authority_released = False
@@ -2283,6 +2295,12 @@ class OrganismRuntime:
             self._epigenetic_priors,
             decay=self._epigenetic_decay,
         )
+        # Autonomous social communication
+        outbound_messages = ()
+        if self._social_habitat is not None and self._communication_channel is not None:
+            targets = [peer for peer in self._social_habitat.members if peer != self._organism_id]
+            outbound_messages = tuple(self.broadcast_claims(targets))
+
         return RuntimeTickResult(
             tick=self._tick_count,
             snapshot=perception.snapshot,
@@ -2324,6 +2342,7 @@ class OrganismRuntime:
                 if self._gene_expression_state is not None
                 else None
             ),
+            messages=outbound_messages,
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -2434,6 +2453,8 @@ class OrganismRuntime:
         payload["social_ledger"] = self._social_ledger.checkpoint()
         payload["social_resource_ledger"] = self._social_resource_ledger.checkpoint()
         # payload["epistemic_ledger"] = self._epistemic_ledger.checkpoint() # TODO
+        payload["exchange_guard"] = self._exchange_guard.checkpoint()
+        payload["exchange_sequence"] = self._exchange_sequence
         payload["generation"] = self._generation
         payload["social_exchange_quantum"] = self._social_exchange_quantum
         payload["social_exchange_cost"] = self._social_exchange_cost
@@ -2474,6 +2495,77 @@ class OrganismRuntime:
         ``checkpoint()``, it never advances ``checkpoint_lineage``.
         """
         return _state_hash_of(self._build_checkpoint_payload())
+
+    @property
+    def communication_channel(self) -> ConsentBoundChannel | None:
+        return self._communication_channel
+
+    def attach_communication_channel(self, channel: ConsentBoundChannel) -> None:
+        self._communication_channel = channel
+
+    def broadcast_claims(self, targets: list[str]) -> list[SignedMessage]:
+        """Emit internally reconciled claims to authorized peers."""
+        if not self._communication_channel:
+            return []
+
+        payload = {}
+        for claim_id, outcome in self._epistemic_ledger.reconciliations.items():
+            if claim_id in self._last_broadcast_reconciliations:
+                continue
+            claim = self._epistemic_ledger.claims.get(claim_id)
+            if not claim:
+                continue
+            data = {"payload": claim.payload, "outcome": outcome.name}
+            payload[claim_id] = json.dumps(data)
+
+        if not payload:
+            return []
+
+        self._exchange_sequence += 1
+        envelope = ExchangeEnvelope(
+            sender=self._organism_id, sequence=self._exchange_sequence, payload=payload
+        )
+
+        messages = []
+        for claim_id in payload:
+            self._last_broadcast_reconciliations.add(claim_id)
+
+        for target in targets:
+            try:
+                msg = self._communication_channel.send(envelope, target)
+                messages.append(msg)
+            except PermissionError:
+                pass
+        return messages
+
+    def receive_communication(self, message: SignedMessage) -> None:
+        """Receive and verify a message, extracting non-authoritative claims."""
+        if not self._communication_channel:
+            return
+        if not self._communication_channel.verify(message):
+            return
+
+        envelope = ExchangeEnvelope(message.sender, message.sequence, message.payload)
+        if not self._exchange_guard.accept(envelope):
+            return
+
+        for claim_id, data_str in envelope.payload.items():
+            try:
+                data = json.loads(data_str)
+                from ..social.ledger import SocialClaim
+
+                claim = SocialClaim(
+                    claim_id=claim_id,
+                    source_id=envelope.sender,
+                    root_evidence_ids=frozenset(),
+                    parent_claim_ids=frozenset(),
+                    payload=data.get("payload"),
+                    received_tick=self._tick_count,
+                    freshness=1.0,
+                )
+                self._epistemic_ledger.receive_claim(claim)
+            except Exception:
+                pass
 
     def checkpoint(self) -> dict[str, Any]:
         payload = self._build_checkpoint_payload()
@@ -2945,6 +3037,9 @@ class OrganismRuntime:
             if normalized.get("social_resource_ledger")
             else ResourceEvidenceLedger()
         )
+        exchange_guard = ExchangeReplayGuard()
+        if "exchange_guard" in normalized:
+            exchange_guard._seen = normalized["exchange_guard"]
         degradation_queue = (
             DegradationQueue.from_checkpoint(normalized["degradation"])
             if normalized.get("degradation")

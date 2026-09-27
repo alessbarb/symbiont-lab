@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 
 from ..foundation.model import Assessment, HostModel, Observation, fingerprint
+from ..social.communication import SignedMessage
+from ..social.exchange import ExchangeEnvelope
+from ..social.ledger import SocialEvidenceLedger, SourceEvidenceOutcome
 from .beliefs import BeliefModel
 from .memory import AgentMemory, Episode
-from ..social.ledger import SocialEvidenceLedger, SourceEvidenceOutcome
 
 
 @dataclass(slots=True)
@@ -21,6 +24,64 @@ class Agent:
     report_inversion: bool = False
     drift_streak: int = 0
     drift_adaptations: int = 0
+
+    def broadcast_claims(self, targets: list[str]) -> list[SignedMessage]:
+        if not self.communication_channel:
+            return []
+        payload = {}
+        for claim_id, outcome in self.epistemic_ledger.reconciliations.items():
+            if claim_id in self.last_broadcast_reconciliations:
+                continue
+            claim = self.epistemic_ledger.claims.get(claim_id)
+            if not claim:
+                continue
+            data = {"payload": claim.payload, "outcome": outcome.name}
+            payload[claim_id] = json.dumps(data)
+
+        if not payload:
+            return []
+
+        for claim_id in payload:
+            self.last_broadcast_reconciliations.add(claim_id)
+
+        self.exchange_sequence += 1
+        envelope = ExchangeEnvelope(
+            sender=self.model.host_id, sequence=self.exchange_sequence, payload=payload
+        )
+
+        messages = []
+        for target in targets:
+            try:
+                msg = self.communication_channel.send(envelope, target)
+                messages.append(msg)
+            except PermissionError:
+                pass
+        return messages
+
+    def receive_communication(self, message: SignedMessage, tick: int) -> None:
+        if not self.communication_channel or not self.communication_channel.verify(message):
+            return
+        envelope = ExchangeEnvelope(message.sender, message.sequence, message.payload)
+        if not self.exchange_guard.accept(envelope):
+            return
+
+        for claim_id, data_str in envelope.payload.items():
+            try:
+                data = json.loads(data_str)
+                from ..social.ledger import SocialClaim
+
+                claim = SocialClaim(
+                    claim_id=claim_id,
+                    source_id=envelope.sender,
+                    root_evidence_ids=frozenset(),
+                    parent_claim_ids=frozenset(),
+                    payload=data.get("payload"),
+                    received_tick=tick,
+                    freshness=1.0,
+                )
+                self.epistemic_ledger.receive_claim(claim)
+            except Exception:
+                pass
 
     def assess(self, obs: Observation, ledger: SocialEvidenceLedger | None = None) -> Assessment:
         novelty = self.model.novelty(obs)
@@ -40,8 +101,7 @@ class Agent:
         maturity = self.model.maturity
         uncertainty = min(
             1.0,
-            (1.0 - maturity) * 0.60
-            + (1.0 - abs(risk - 0.5) * 2.0) * 0.40,
+            (1.0 - maturity) * 0.60 + (1.0 - abs(risk - 0.5) * 2.0) * 0.40,
         )
         relevance = min(
             1.0,
@@ -59,11 +119,15 @@ class Agent:
                 if claim.payload == fp:
                     social_interest = 0.35
                     break
-        
+
         information_gain = novelty + social_interest
         curiosity = min(
             1.0,
-            (novelty + social_interest) * uncertainty * information_gain * max(relevance, 0.05) * self.curiosity_scale,
+            (novelty + social_interest)
+            * uncertainty
+            * information_gain
+            * max(relevance, 0.05)
+            * self.curiosity_scale,
         )
 
         local_weight = 0.12 * local_certainty
@@ -71,12 +135,7 @@ class Agent:
             1.0,
             max(
                 0.0,
-                (
-                    0.80 * risk
-                    + 0.20 * novelty
-                    + local_weight * local_threat
-                )
-                / (1.0 + local_weight),
+                (0.80 * risk + 0.20 * novelty + local_weight * local_threat) / (1.0 + local_weight),
             ),
         )
         should_investigate = self.model.maturity >= 0.5 and (
@@ -100,7 +159,9 @@ class Agent:
             local_certainty=local_certainty,
         )
 
-    def observe(self, step: int, obs: Observation, ledger: SocialEvidenceLedger | None = None) -> Assessment:
+    def observe(
+        self, step: int, obs: Observation, ledger: SocialEvidenceLedger | None = None
+    ) -> Assessment:
         self.memory.forget(step)
         assessment = self.assess(obs, ledger)
         self.beliefs.revise(
@@ -112,7 +173,6 @@ class Agent:
             ),
             step=step,
         )
-
 
         if assessment.should_investigate:
             self.investigated += 1
@@ -126,7 +186,11 @@ class Agent:
                 )
             )
             if ledger is not None:
-                outcome = SourceEvidenceOutcome.AGREEMENT if assessment.believes_threat else SourceEvidenceOutcome.CONTRADICTION
+                outcome = (
+                    SourceEvidenceOutcome.AGREEMENT
+                    if assessment.believes_threat
+                    else SourceEvidenceOutcome.CONTRADICTION
+                )
                 for claim in ledger.unresolved_claims():
                     if claim.payload == assessment.fingerprint:
                         ledger.record_local_reconciliation(
@@ -136,13 +200,11 @@ class Agent:
                             compatibility=1.0 - assessment.novelty,
                             quality=1.0 - assessment.uncertainty,
                             freshness=1.0,
-                            evidence_ref=f"episode-{step}"
+                            evidence_ref=f"episode-{step}",
                         )
 
         drift_candidate = (
-            self.model.maturity >= 0.5
-            and assessment.novelty >= 0.45
-            and assessment.risk < 0.45
+            self.model.maturity >= 0.5 and assessment.novelty >= 0.45 and assessment.risk < 0.45
         )
         if drift_candidate:
             self.drift_streak += 1

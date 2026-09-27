@@ -6,6 +6,8 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 
+from .communication import ConsentBoundChannel, SignedMessage
+
 
 class RelationValence(StrEnum):
     UNKNOWN = "unknown"
@@ -507,6 +509,9 @@ class SocialHabitat:
         self.max_members = max_members
         self._members: set[str] = set()
         self._suspended: set[tuple[str, str]] = set()
+        self.communication_channel = ConsentBoundChannel(
+            habitat_id="habitat_social_01", key=b"social_shared_key"
+        )
 
     @property
     def members(self) -> tuple[str, ...]:
@@ -523,7 +528,20 @@ class SocialHabitat:
         if len(self._members) >= self.max_members:
             return False
         self._members.add(organism_id)
+        # Authorize communication with all other members
+        for peer in self._members:
+            if peer != organism_id:
+                self.communication_channel.authorize(organism_id, peer)
+                self.communication_channel.authorize(peer, organism_id)
         return True
+
+    def exchange_messages(self, messages: list[SignedMessage]) -> dict[str, list[SignedMessage]]:
+        """Deliver verified messages to their intended recipients."""
+        inboxes = {m: [] for m in self._members}
+        for msg in messages:
+            if msg.recipient in inboxes and self.communication_channel.verify(msg):
+                inboxes[msg.recipient].append(msg)
+        return inboxes
 
     def release(self, organism_id: str) -> bool:
         if organism_id not in self._members:
