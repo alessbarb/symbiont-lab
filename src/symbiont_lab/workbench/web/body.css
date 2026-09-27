@@ -1795,3 +1795,16 @@
     min-height: 360px;
   }
 }
+
+.self-morph-edge {
+  stroke: rgba(118,145,167,.18);
+  stroke-width: 4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.self-morphology-svg .self-body-segment > rect {
+  vector-effect: non-scaling-stroke;
+}
+.self-morphology-svg .self-body-segment.selected > rect {
+  stroke-width: 7;
+}
