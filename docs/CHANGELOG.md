@@ -4,6 +4,30 @@ Consolidated from docs/releases/archive/ (140 individual release notes).
 
 ---
 
+## Unreleased — Agency Acquisition & Executive Action v1
+
+Closes the continuity from causal discovery to deliberate reuse
+(`docs/design/core/agency-acquisition-and-executive-action-v1.md`; audit in
+`..._implementation-audit.md`).
+
+- ActionAttempt and opaque InterventionSignature families; causal evidence no
+  longer requires a competence; bounded passive (no-intervention) windows.
+- Controllability and agency over interventions, learned dimensions and
+  competences; agency requires contingency, specificity and counterfactual
+  support.
+- ActionDimensions are acquired from causal evidence (never bootstrapped from
+  the actuator surface) and bound only to surfaces where they were verified.
+- Body schema learns before competence; competences converge with the causal
+  ledger; derived ActionAffordances; persistent ActionIntents with
+  reconciliation against observed effects; tick reordering so cognition sees
+  the reconciled outcome.
+- Observatory: agency acquisition, executive state and action-trace panels;
+  Atlas intent nodes and affordance overlay.
+- Studies E1–E6; release gate E6 passed on seeds 101/127/149.
+- Sensorimotor checkpoint schema 4 (+ top-level `executive_intention`).
+
+---
+
 ## Unreleased — Adaptive Sensory System (experimental)
 
 Extensión experimental post-freeze que corrige una deficiencia de sustrato:
