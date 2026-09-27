@@ -694,7 +694,13 @@ class ActionDomain:
         competence_id: str,
         *,
         commitment_id: str,
+        tick: int,
     ) -> None:
+        self.acquisition.record_commitment_pattern(
+            commitment_id=commitment_id,
+            controller_seed_ref=competence_id,
+            tick=tick,
+        )
         effect_id = self.effect_by_commitment.pop(commitment_id, None)
         predecessor = self.composition_predecessor_id
         if predecessor is not None and predecessor != competence_id:
@@ -753,6 +759,7 @@ class ActionDomain:
         self._record_competence_completion(
             completed_id,
             commitment_id=completed_commitment_id,
+            tick=tick,
         )
         self.active_composition_children = ()
         self.active_composition_index = 0
@@ -1059,7 +1066,7 @@ class ActionDomain:
             self._stop_controller()
             if competence_id is not None:
                 self._record_competence_completion(
-                    competence_id, commitment_id=own_commitment.commitment_id
+                    competence_id, commitment_id=own_commitment.commitment_id, tick=tick
                 )
         else:
             own_commitment.terminate(

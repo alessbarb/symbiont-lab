@@ -274,6 +274,19 @@ class InterventionSignatureRegistry:
         """Single-step signatures driving exactly this opaque channel set."""
         return tuple(sorted(self._families.get(tuple(sorted(set(channel_refs))), ())))
 
+    def neighbours(self, channel_refs: tuple[str, ...]) -> tuple[str, ...]:
+        """Single-step families sharing some, but not exactly, these channels."""
+        refs = set(channel_refs)
+        exact = tuple(sorted(refs))
+        return tuple(
+            sorted(
+                signature_id
+                for family_refs, members in self._families.items()
+                if family_refs != exact and refs & set(family_refs)
+                for signature_id in members
+            )
+        )
+
     @property
     def items(self) -> tuple[InterventionSignature, ...]:
         return tuple(sorted(self._signatures.values(), key=lambda item: item.signature_id))

@@ -531,12 +531,54 @@ class AgencyAcquisition:
         intensity_missing = (
             1.0 - max(self.signatures.intensity_coverage(ref) for ref in family) if family else 1.0
         )
+        compared = sum(
+            1
+            for ref in self.signatures.neighbours(channel_refs)
+            if self.causal_evidence.signature_support(ref) > 0
+        )
+        comparison_missing = 1.0 / (1.0 + compared)
         return max(
             0.0,
             min(
                 1.0,
-                max(untried, 0.5 * unresolved + 0.25 * passive_missing + 0.25 * intensity_missing),
+                max(
+                    untried,
+                    0.4 * unresolved
+                    + 0.2 * passive_missing
+                    + 0.2 * intensity_missing
+                    + 0.2 * comparison_missing,
+                ),
             ),
+        )
+
+    def record_commitment_pattern(
+        self,
+        *,
+        commitment_id: str,
+        controller_seed_ref: str,
+        tick: int,
+    ) -> InterventionSignature | None:
+        """Temporal family of a completed commitment/controller episode (§77-§79).
+
+        Names the ordered sequence of commands actually issued under the
+        commitment, so recurrent controller sequences become countable
+        intervention families without being treated as skills.
+        """
+        command_refs = tuple(
+            item.action_ref
+            for item in sorted(
+                self.causal_evidence.commitment_evidence(commitment_id),
+                key=lambda evidence: evidence.observation_tick,
+            )
+            if item.action_ref is not None
+            and self.signatures.signature_of_command(item.action_ref) is not None
+        )
+        if not command_refs:
+            return None
+        return self.signatures.signature_for_sequence(
+            command_refs=command_refs,
+            controller_seed_ref=controller_seed_ref,
+            tick=tick,
         )
 
     # -- competence convergence (Wave 4) -------------------------------------

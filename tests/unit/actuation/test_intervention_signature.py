@@ -125,3 +125,37 @@ def test_signature_registry_roundtrip_and_bound():
     assert len(registry.items) == 2
     restored = InterventionSignatureRegistry.restore(registry.checkpoint())
     assert restored.checkpoint() == registry.checkpoint()
+
+
+def test_completed_commitment_becomes_a_temporal_intervention_family():
+    from tests.unit.actuation.acquisition_support import act, fresh_acquisition
+
+    acquisition = fresh_acquisition()
+    act(acquisition, 0, {A: 0.5}, {"signal.a": 0.4})
+    temporal = acquisition.record_commitment_pattern(
+        commitment_id="commitment.0", controller_seed_ref="competence.c", tick=2
+    )
+    assert temporal is not None and temporal.temporal_pattern_ref is not None
+    assert acquisition.signatures.attempt_support(temporal.signature_id) == 1
+    assert (
+        acquisition.record_commitment_pattern(
+            commitment_id="commitment.unknown", controller_seed_ref="competence.c", tick=3
+        )
+        is None
+    )
+
+
+def test_untried_neighbour_families_raise_causal_information_gain():
+    from tests.unit.actuation.acquisition_support import act, fresh_acquisition, rest
+
+    lonely = fresh_acquisition()
+    compared = fresh_acquisition()
+    for acquisition in (lonely, compared):
+        for tick in range(0, 8, 2):
+            rest(acquisition, tick, {})
+        for tick in range(10, 26, 2):
+            act(acquisition, tick, {A: 0.5}, {"signal.a": 0.4})
+    for tick in range(30, 36, 2):
+        act(compared, tick, {A: 0.5, B: 0.5}, {"signal.ab": 0.4})
+    channel = (opaque_channel_ref(A),)
+    assert compared.causal_information_gain(channel) < lonely.causal_information_gain(channel)

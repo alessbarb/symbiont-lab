@@ -189,7 +189,7 @@ def test_runtime_intent_keeps_identity_while_its_commitment_runs():
     runtime = build_subject(body, organism_id="intent-persistence")
     domain = runtime._action_domain
     seen: dict[str, set[int]] = {}
-    for _ in range(400):
+    for _ in range(3000):
         runtime.tick()
         body.advance(runtime.last_actuations)
         held = domain.intention.active
