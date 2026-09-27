@@ -146,16 +146,14 @@ def restore_genome_checkpoint(
         genome = codec.load(genome_fields)
     else:
         genome = codec.load(genome_fields)
+        # Current-format genomes are verified strictly; only v1 material above
+        # is a tolerated historical boundary.
         if genome.genome_hash != persisted_hash:
-            import logging
-
-            logging.getLogger(__name__).warning(
+            raise GenomeError(
                 "genome checkpoint hash mismatch -- payload may be corrupted or tampered"
             )
         if persisted_genotype_hash is not None and persisted_genotype_hash != genome.genotype_hash:
-            import logging
-
-            logging.getLogger(__name__).warning(
+            raise GenomeError(
                 "genotype checkpoint hash mismatch -- payload may be corrupted or tampered"
             )
     # The 0.55-0.60 genome was the canonical format before the 0.80 kernel.

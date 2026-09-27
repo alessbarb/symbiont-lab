@@ -9,7 +9,7 @@ from symbiont.cognition.genome import GenomeCodec, GenomeError
 from symbiont.cognition.limits import KernelLimits
 from tests.unit.cognition.test_genome import VALID_PAYLOAD
 
-_RUNNING_VERSION = (0, 55, 0)
+_RUNNING_VERSION = (0, 85, 0)
 
 
 def test_none_genome_round_trips_to_none():
