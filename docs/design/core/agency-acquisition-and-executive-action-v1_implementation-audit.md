@@ -22,6 +22,7 @@ evidence and scientific evidence are reported separately.
 | New failures introduced | **0** (every failing node id is in the baseline list) |
 | Spec-named tests (§92–§103) present | 70 / 70 |
 | Fresh-organism integration closure (§104–§111) | 7 passed |
+| `tests/integration/studies` + W03 world experiments (previously excluded) | 133 passed, 12 failed on both baseline and branch; identical failure sets |
 
 The 69 failures and 4 collection errors pre-exist on `main` (docs links,
 salient-trace/checkpoint-size runtime tests, cartography smoke tests, world
@@ -60,12 +61,12 @@ passive windows), controller-signature memo (1024), intent outcome history (32).
 | --- | --- | --- |
 | E6 release gate | `20260927T052139Z-learning-agency-acquisition-reuse-closure-90e86c5-92f2` | **Passed on all seeds.** Satisfied self-acquired intent at ticks 236 / 402 / 612 (competence first acquired at 230 / 88 / 607); milestones in developmental order; reused competence grounded in the organism's own exploration evidence. |
 | E1 acquisition ablation | `20260927T052144Z-learning-agency-acquisition-ablation-90e86c5-9a70` | Full: 28.7 dimensions (3.0 false positives on inert outputs), 6.3 agentic, 7.0 competences (2.0 executable). No counterfactual evidence: 0 dimensions, 0 competences. No AgencyModel: 27.7 dimensions (2.7 false positives), 0 agentic, 0 competences. |
-| E3 intent persistence | `20260927T052344Z-learning-agency-intent-persistence-90e86c5-e76a` | Persistent vs re-decide: realization 0.63 vs 0.17; completed commitments 3.7 vs 0.7; switches per realized effect 44 vs 67; energy per realized effect 356 vs 569. |
-| E2 executive bridge | `20260927T052306Z-learning-agency-executive-bridge-ablation-90e86c5-a4dc` | Intent vs direct proposal: realization 0.63 vs 0.61; energy per realized effect 356 vs 391; switches per realized effect 44 vs 46; prediction error 0.89 vs 0.82. Small differences, n = 3. |
-| E5 intentional causal advantage | `20260927T052424Z-learning-agency-intentional-causal-advantage-90e86c5-6a91` | A direct / B unreconciled / C reconciled: realization 0.61 / 0.50 / 0.63; energy per realized effect 391 / 547 / 356; switches per effect 46 / 65 / 44. C beats B clearly and A marginally; not yet a robust advantage over A. |
+| E3 intent persistence | `20260927T053734Z-learning-agency-intent-persistence-6258b8a-8d71` | Persistent vs re-decide: realized/competence commitments per seed 2/8, 0/0, 6/6 vs 0/5, 0/0, 2/6; realization 0.63 vs 0.17; satisfaction of activated intents 0.54 vs 0.17; mean activated-intent duration 2.7 vs 1.0 ticks; energy per realized effect 356 vs 569. |
+| E2 executive bridge | `20260927T053658Z-learning-agency-executive-bridge-ablation-6258b8a-9cc9` | Intent vs direct: realized/competence commitments per seed 2/8, 0/0, 6/6 vs 5/9, 0/0, 2/3; realization 0.63 vs 0.61; energy per realized effect 356 vs 391; 17.7 intents per seed rejected before authority (§41). Small differences on few events. |
+| E5 intentional causal advantage | `20260927T053811Z-learning-agency-intentional-causal-advantage-6258b8a-5be2` | A / B / C realized/competence commitments per seed: A 5/9, 0/0, 2/3; B 2/6, 0/0, 2/3; C 2/8, 0/0, 6/6. Realization 0.61 / 0.50 / 0.63; energy per realized effect 391 / 547 / 356. B's satisfaction (0.75) is completion without verification by construction and not comparable to C's verified 0.54. C beats B; C vs A is not yet distinguishable. |
 | E4 embodied intervention | `20260927T052522Z-learning-agency-embodied-causal-intervention-b25409e-708a` | On ground-truth perturbed relations, perturbed twin vs matched normal twin: permuted agency drop 0.074 vs 0.051, controllability 0.040 vs 0.039; broken effector agency 0.075 vs 0.067, controllability 0.048 vs 0.043. Revision is condition-specific but small within 1024 ticks. |
 
-Interpretation limits: three seeds, one synthetic body family, fixed budgets.
+Interpretation limits: three seeds, one synthetic body family, fixed budgets, and very few cognitive commitments per 1024-tick horizon (seed 127 has none in E2/E3/E5, so it is not testable there). Rates rest on single-digit event counts.
 
 ---
 
@@ -108,7 +109,7 @@ Interpretation limits: three seeds, one synthetic body family, fixed budgets.
 | 80–81 | Re-embodiment | pending attempt discarded, intent invalidated, affordances cleared; dimensions known but unbound (surface-fingerprint verification); Physics3D transplant carries them | `test_reembodiment_does_not_fake_current_binding`, `test_reembodiment_carries_learned_dimensions_as_unbound_knowledge` |
 | 82–83 | Checkpoint v4, executive section, migration | sensorimotor schema 4 (`agency_acquisition`), top-level `executive_intention`; v3 and older restore with no dimensions | `test_dimension_survives_checkpoint`, `test_intention_checkpoint_keeps_only_live_intent`, legacy tests |
 | 84 | Reduced Symbiont | shares `AgencyAcquisition` through its ActionDomain | experimental-integrity embodiment tests |
-| 85–91 | Observatory, Atlas, metrics | snapshot §90 metrics; rich state → projection → Atlas (`action_intent` node, `affords` temporal overlay, agency metrics); Mind panels | atlas/projection tests |
+| 85–91 | Observatory, Atlas, metrics (panels verified in a browser with a real organism snapshot; the Atlas canvas rendering of `action_intent` / `affords` is verified only at payload and syntax level) | snapshot §90 metrics; rich state → projection → Atlas (`action_intent` node, `affords` temporal overlay, agency metrics); Mind panels | atlas/projection tests |
 | 104–111 | Integration | `tests/integration/test_agency_acquisition_closure.py` | 7 tests |
 | 112–118 | E1–E6, release gate | `symbiont_lab/studies/learning/agency_acquisition.py`, `experiments/learning/agency-*` | `tests/experiments/protocols/test_agency_acquisition_protocols.py`; registered runs above |
 
