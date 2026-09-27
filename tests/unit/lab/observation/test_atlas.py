@@ -556,6 +556,43 @@ def test_causal_relation_contexts_collapse_without_losing_strongest_evidence():
     assert causal[0].metadata["support"] == 10
 
 
+def test_competence_causal_evidence_enriches_produces_without_parallel_edge():
+    snapshot = _snapshot()
+    snapshot["agency_acquisition"] = {
+        "causal_relations": [
+            {
+                "source_kind": "competence",
+                "source_ref": "competence.7",
+                "effect_id": "effect.3",
+                "context_id": "context.a",
+                "confidence": 0.63,
+                "reliability": 0.75,
+                "causal_advantage": 0.44,
+                "action_support": 16,
+                "counterfactual_support": 20,
+                "last_updated_tick": 75,
+                "agency_confidence": 0.51,
+            }
+        ]
+    }
+
+    atlas = build_cognitive_atlas(snapshot)
+    between = [
+        edge
+        for edge in atlas.edges
+        if edge.source_id == "competence.7" and edge.target_id == "effect.3"
+    ]
+
+    assert len(between) == 1
+    edge = between[0]
+    assert edge.kind == "produces"
+    assert edge.metadata["relation_class"] == "structural_with_causal_model"
+    assert edge.metadata["confidence"] == 0.63
+    assert edge.metadata["counterfactual_support"] == 20
+    assert edge.metadata["evidence"]["causal_source"] == "controllability_model"
+    assert edge.metadata["evidence"]["causal_confidence"] == 0.63
+
+
 def test_causal_relation_projection_never_fabricates_missing_endpoints():
     snapshot = _snapshot()
     snapshot["agency_acquisition"] = {
