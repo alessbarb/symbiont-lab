@@ -53,6 +53,38 @@ class EffectTarget:
             raise ValueError("tolerance must be finite and non-negative")
 
 
+class EffectMatcher:
+    """Effect equivalence (§33).
+
+    v1 equivalence is identity: same organism-owned effect -> 1.0, otherwise
+    0.0.  All intent/feedback logic compares effects through this class so a
+    graded similarity can replace identity without touching its callers.
+    """
+
+    def similarity(
+        self,
+        expected: EffectRepresentation,
+        observed: EffectRepresentation,
+    ) -> float:
+        return 1.0 if expected.effect_id == observed.effect_id else 0.0
+
+    def match(
+        self,
+        space: "EffectSpace",
+        *,
+        expected_effect_id: str | None,
+        observed_effect_id: str | None,
+    ) -> float:
+        """Similarity of two effects known to ``space``; unknown/absent -> 0.0."""
+        if expected_effect_id is None or observed_effect_id is None:
+            return 0.0
+        expected = space.get(expected_effect_id)
+        observed = space.get(observed_effect_id)
+        if expected is None or observed is None:
+            return 0.0
+        return self.similarity(expected, observed)
+
+
 class EffectSpace:
     """Bounded registry of recurring opaque transition signatures."""
 

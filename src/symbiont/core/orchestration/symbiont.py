@@ -11,6 +11,7 @@ import hashlib
 import random
 from typing import Mapping, Sequence
 
+from ...actuation.acquisition import AgencyAcquisition
 from ...actuation.action import (
     ActionEvaluation,
     ActionJustification,
@@ -24,8 +25,14 @@ from ...actuation.competence import (
     MotorCompetence,
 )
 from ...actuation.effects import EffectSpace
-from ...actuation.evidence import CausalEvidenceLedger, PredictionError, SensorimotorTransition
-from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
+from ...actuation.evidence import CausalEvidenceLedger, PredictionError
+from ...actuation.intervention import opaque_channel_ref
+from ...actuation.model import (
+    AgencyModel,
+    CausalSourceKind,
+    CompetenceEffectModel,
+    ControllabilityModel,
+)
 from ...actuation.surface import ActuatorChannel, ActuatorSurface
 from ...genetics.expression import (
     ExpressionRegulator,
@@ -98,9 +105,8 @@ class Symbiont:
         self.historical_output_channels: set[str] = set()
         self.last_inputs: dict[str, float] = {}
         self.last_activations: dict[str, float] = {}
-        self._last_action_competence_id: str | None = None
         self._last_prediction_error: float = 0.0
-        self._competence_outputs: dict[str, tuple[str, ...]] = {}
+        self._channel_outputs: dict[str, str] = {}
         self._signal_to_input: dict[str, str] = {}
         self.competence_library = CompetenceLibrary()
         self._reset_embodiment_state()
@@ -114,42 +120,59 @@ class Symbiont:
     def _reset_embodiment_state(self) -> None:
         """Discard current-Body factual authority without touching Symbiont history."""
         self.sensorimotor_model = SensorimotorDynamicsModel(learning_rate=self.learning_rate)
-        self.effect_space = EffectSpace()
-        self.causal_evidence = CausalEvidenceLedger()
-        self.competence_effect_model = CompetenceEffectModel()
-        self.controllability_model = ControllabilityModel()
-        self.agency_model = AgencyModel()
         self.body_schema = BodySchemaEngine()
-        self.competence_execution_bindings = CompetenceExecutionBindingRegistry()
         self._current_surface_fingerprint: str | None = None
         for competence in self.competence_library.items:
             competence.effect_id = None
         self.last_inputs = {}
         self.last_activations = {}
-        self._last_action_competence_id = None
-        self._competence_outputs = {}
+        self._channel_outputs = {}
         self._signal_to_input = {}
+        # The single action authority owns the shared Agency Acquisition state
+        # (attempts, intervention families, effects, causal evidence,
+        # controllability, agency, learned dimensions) exactly as in
+        # OrganismRuntime; this reduced seed only drives it.
         self.action_domain = ActionDomain(
             organism_id=self.symbiont_id,
             enabled=False,
             surface=None,
         )
-        self._bind_action_domain_models()
-
-    def _bind_action_domain_models(self) -> None:
-        """Share canonical inference state with the single action authority."""
-        self.action_domain.effect_space = self.effect_space
-        self.action_domain.causal_evidence = self.causal_evidence
         self.action_domain.competence_library = self.competence_library
-        self.action_domain.execution_bindings = self.competence_execution_bindings
-        self.action_domain.effect_model = self.competence_effect_model
-        self.action_domain.controllability_model = self.controllability_model
-        self.action_domain.agency_model = self.agency_model
+
+    # Canonical inference state lives in the shared acquisition component.
+    @property
+    def acquisition(self) -> AgencyAcquisition:
+        return self.action_domain.acquisition
+
+    @property
+    def effect_space(self) -> EffectSpace:
+        return self.acquisition.effect_space
+
+    @property
+    def causal_evidence(self) -> CausalEvidenceLedger:
+        return self.acquisition.causal_evidence
+
+    @property
+    def competence_effect_model(self) -> CompetenceEffectModel:
+        return self.acquisition.effect_model
+
+    @property
+    def controllability_model(self) -> ControllabilityModel:
+        return self.acquisition.controllability_model
+
+    @property
+    def agency_model(self) -> AgencyModel:
+        return self.acquisition.agency_model
+
+    @property
+    def competence_execution_bindings(self) -> CompetenceExecutionBindingRegistry:
+        return self.action_domain.execution_bindings
 
     def _configure_action_surface(self) -> None:
         if self._current_surface_fingerprint is None or not self.current_output_channels:
             self.action_domain.enabled = False
             self.action_domain.surface = None
+            self.acquisition.bind_surface(None, surface_fingerprint=None)
             return
         channels = tuple(
             ActuatorChannel(
@@ -163,6 +186,10 @@ class Symbiont:
             contract_fingerprint=self._current_surface_fingerprint,
         )
         self.action_domain.enabled = True
+        self.acquisition.bind_surface(
+            tuple(sorted(self.current_output_channels)),
+            surface_fingerprint=self._current_surface_fingerprint,
+        )
 
     def begin_new_embodiment(self) -> None:
         """Withdraw all old-Body authority for a genuine Body transplant."""
@@ -204,6 +231,9 @@ class Symbiont:
 
     def register_output_channels(self, channels: Sequence[str]) -> None:
         self.current_output_channels = {str(value) for value in channels}
+        self._channel_outputs.update(
+            {opaque_channel_ref(output): output for output in self.current_output_channels}
+        )
         self.historical_output_channels.update(self.current_output_channels)
         self._configure_action_surface()
 
@@ -227,14 +257,25 @@ class Symbiont:
     def body_schema_revision_count(self) -> int:
         return self.body_schema.boundary_revision_count
 
+    def _signature_outputs(self, signature_id: str) -> tuple[str, ...]:
+        signature = self.acquisition.signatures.get(signature_id)
+        if signature is None:
+            return ()
+        return tuple(
+            sorted(
+                self._channel_outputs[ref]
+                for ref in signature.channel_refs
+                if ref in self._channel_outputs
+            )
+        )
+
     def inferred_mapping_signature(self) -> tuple[tuple[str, str], ...]:
         """Observer projection of strongest current opaque action->input mapping."""
         by_output: dict[str, tuple[str, float]] = {}
-        for estimate in self.agency_model.estimates:
+        for estimate in self.agency_model.estimates_for(CausalSourceKind.INTERVENTION):
             effect = self.effect_space.get(estimate.effect_id)
             if effect is None:
                 continue
-            outputs = self._competence_outputs.get(estimate.competence_id, ())
             inputs = tuple(
                 sorted(
                     self._signal_to_input[feature]
@@ -244,7 +285,7 @@ class Symbiont:
             )
             if not inputs:
                 continue
-            for output in outputs:
+            for output in self._signature_outputs(estimate.source_ref):
                 candidate = (inputs[0], float(estimate.confidence))
                 current = by_output.get(output)
                 if current is None or candidate[1] > current[1]:
@@ -253,11 +294,12 @@ class Symbiont:
             sorted((output, input_id) for output, (input_id, _confidence) in by_output.items())
         )
 
-    def agency_snapshot(self) -> tuple[tuple[str, str, float], ...]:
+    def agency_snapshot(self) -> tuple[tuple[str, str, str, float], ...]:
         return tuple(
             sorted(
                 (
-                    estimate.competence_id,
+                    estimate.source_kind.value,
+                    estimate.source_ref,
                     estimate.effect_id,
                     round(float(estimate.confidence), 12),
                 )
@@ -276,28 +318,17 @@ class Symbiont:
     def _state_ref(tick: int, phase: str) -> str:
         return f"state.reduced.{phase}.{tick}"
 
-    def _action_competence_id(
-        self,
-        activations: Mapping[str, float],
-    ) -> str | None:
-        active = tuple(
-            sorted(channel for channel, value in activations.items() if abs(float(value)) > 0.05)
-        )
-        if not active:
-            return None
-        material = "|".join(active)
-        digest = hashlib.sha256(f"reduced-symbiont-action:{material}".encode("utf-8")).hexdigest()[
-            :24
-        ]
-        competence_id = f"competence.{digest}"
-        self._competence_outputs[competence_id] = active
-        return competence_id
-
     def _agency_confidence_for_output(self, output: str) -> float:
+        channel_ref = opaque_channel_ref(output)
         values = [
             estimate.confidence
-            for estimate in self.agency_model.estimates
-            if output in self._competence_outputs.get(estimate.competence_id, ())
+            for estimate in self.agency_model.estimates_for(CausalSourceKind.INTERVENTION)
+            if channel_ref
+            in (
+                signature.channel_refs
+                if (signature := self.acquisition.signatures.get(estimate.source_ref)) is not None
+                else ()
+            )
         ]
         return max(values, default=0.0)
 
@@ -314,30 +345,28 @@ class Symbiont:
             signal_ref = self._signal_ref(input_id)
             self._signal_to_input[signal_ref] = input_id
             effect_changes[signal_ref] = float(delta)
-        effect = self.effect_space.observe(effect_changes)
 
-        command = self.action_domain.last_motor_command
-        if command is None:
-            # Bodily/environmental change without an organism command is not
-            # causal evidence for agency or motor competence.
+        attempt = self.acquisition.pending_attempt
+        if attempt is None:
+            # Bodily/environmental change without an organism command is a
+            # passive counterfactual window, never evidence of agency.
+            self.acquisition.observe_passive_window(
+                tick_start=self.total_ticks - 1,
+                tick_end=self.total_ticks,
+                context_ref="context.reduced",
+                prior_state_ref=self._state_ref(self.total_ticks - 1, "before"),
+                resulting_state_ref=self._state_ref(self.total_ticks, "after"),
+                changes=effect_changes,
+            )
             return
-        competence_id = command.competence_id
-        controller_id = command.controller_id
-        transition = SensorimotorTransition(
-            transition_id=f"transition.reduced.{self.total_ticks}",
-            tick_start=max(0, self.total_ticks - 1),
-            tick_end=self.total_ticks,
-            context_ref="context.reduced",
-            commitment_id=command.commitment_id,
-            controller_id=controller_id,
-            competence_id=competence_id,
+        effect = self.effect_space.observe(effect_changes)
+        transition = self.acquisition.close_attempt(
+            tick=self.total_ticks,
             state_before_ref=self._state_ref(self.total_ticks - 1, "before"),
-            motor_command_ref=command.command_id,
-            actuation_ref=f"actuation.{command.command_id}",
+            state_after_ref=self._state_ref(self.total_ticks, "after"),
             prediction_ref=(
                 f"prediction.reduced.{self.total_ticks - 1}" if self.last_inputs else None
             ),
-            state_after_ref=self._state_ref(self.total_ticks, "after"),
             observed_effect_id=(effect.effect_id if effect is not None else None),
             prediction_error=PredictionError(
                 magnitude=max(0.0, float(prediction_error)),
@@ -345,110 +374,99 @@ class Symbiont:
                 novelty=min(1.0, max(0.0, float(prediction_error))),
             ),
         )
-        evidence = self.causal_evidence.observe(transition)
-        self.competence_effect_model.observe(evidence)
+        self.acquisition.learn(transition, body_schema=self.body_schema)
+        self._converge_competence(attempt.intervention_signature_id)
 
-        if competence_id is not None and effect is not None:
-            control = self.controllability_model.update_from_ledger(
-                self.causal_evidence,
-                effect_id=effect.effect_id,
+    @staticmethod
+    def _competence_id_for_signature(signature_id: str) -> tuple[str, str]:
+        digest = hashlib.sha256(
+            f"reduced-symbiont-action:{signature_id}".encode("utf-8")
+        ).hexdigest()[:24]
+        return f"competence.{digest}", digest
+
+    def competence_for_signature(self, signature_id: str) -> str | None:
+        """The reduced competence whose controller replays this intervention family."""
+        competence_id, _digest = self._competence_id_for_signature(signature_id)
+        return competence_id if self.competence_library.get(competence_id) is not None else None
+
+    def _converge_competence(self, signature_id: str) -> None:
+        """Reduced controller = one recurrent intervention family (§28, §84).
+
+        The same canonical convergence gate as ActionDomain: a recurrent
+        pattern becomes a competence only on an agentic, controllable learned
+        dimension whose effect is an EffectSpace effect.
+        """
+        command = self.action_domain.last_motor_command
+        if (
+            command is None
+            or self._current_surface_fingerprint is None
+            or self.acquisition.signatures.attempt_support(signature_id) < 2
+        ):
+            return
+        grounding = self.acquisition.ground_competence(
+            controller_seed_ref=signature_id,
+            patterns=(dict(command.channels),),
+        )
+        if grounding is None:
+            return
+        competence_id, digest = self._competence_id_for_signature(signature_id)
+        control = grounding.controllability
+        failures = max(0, int(round(control.action_support * (1.0 - control.reliability))))
+        competence = self.competence_library.get(competence_id)
+        if competence is None:
+            competence = MotorCompetence(
                 competence_id=competence_id,
-                context_id=None,
-                tick=self.total_ticks,
-            )
-            prediction_match = 1.0 - min(1.0, max(0.0, prediction_error))
-            self.agency_model.update_from_ledger(
-                self.causal_evidence,
-                effect_id=effect.effect_id,
-                competence_id=competence_id,
-                context_id=None,
-                tick=self.total_ticks,
-                prediction_match=prediction_match,
-            )
-
-            failures = max(
-                0,
-                int(round(control.action_support * (1.0 - control.reliability))),
-            )
-            competence = self.competence_library.get(competence_id)
-            if competence is None:
-                competence = MotorCompetence(
-                    competence_id=competence_id,
-                    controller_id=controller_id,
-                    effect_id=effect.effect_id,
-                    evidence=CompetenceEvidence(
-                        controller_seed_ref=controller_id,
-                        effect_evidence_refs=(evidence.evidence_id,),
-                        controllability_evidence_refs=(evidence.evidence_id,),
-                        support=control.action_support,
-                        failures=failures,
-                        reproducibility=control.reliability,
-                        controllability=control.confidence,
-                        directional_consistency=control.reliability,
-                    ),
-                    controller_strategy_ref=controller_id,
-                )
-                self.competence_library.add(competence)
-            else:
-                competence.effect_id = effect.effect_id
-                competence.evidence.effect_evidence_refs = tuple(
-                    dict.fromkeys(
-                        competence.evidence.effect_evidence_refs + (evidence.evidence_id,)
-                    )
-                )
-                competence.evidence.controllability_evidence_refs = tuple(
-                    dict.fromkeys(
-                        competence.evidence.controllability_evidence_refs + (evidence.evidence_id,)
-                    )
-                )
-                competence.evidence.support = max(
-                    competence.evidence.support,
-                    control.action_support,
-                )
-                competence.evidence.failures = min(
-                    competence.evidence.support,
-                    max(competence.evidence.failures, failures),
-                )
-                competence.evidence.reproducibility = max(
-                    competence.evidence.reproducibility,
-                    control.reliability,
-                )
-                competence.evidence.controllability = max(
-                    competence.evidence.controllability,
-                    control.confidence,
-                )
-                competence.evidence.directional_consistency = max(
-                    competence.evidence.directional_consistency,
-                    control.reliability,
-                )
-
-            if self._current_surface_fingerprint is not None:
-                self.competence_execution_bindings.bind_from_evidence(
-                    competence_id=competence_id,
-                    surface_fingerprint=self._current_surface_fingerprint,
-                    effect_id=effect.effect_id,
-                    evidence_refs=(evidence.evidence_id,),
-                    reliability=control.reliability,
+                controller_id=f"controller.{digest}",
+                effect_id=grounding.effect_id,
+                evidence=CompetenceEvidence(
+                    controller_seed_ref=signature_id,
+                    effect_evidence_refs=(grounding.effect_id,),
+                    controllability_evidence_refs=grounding.evidence_refs,
+                    support=control.action_support,
+                    failures=failures,
+                    reproducibility=control.reliability,
                     controllability=control.confidence,
-                    tick=self.total_ticks,
-                )
+                    directional_consistency=control.reliability,
+                ),
+                controller_strategy_ref=signature_id,
+            )
+            self.competence_library.add(competence)
+        else:
+            competence.effect_id = grounding.effect_id
+            evidence = competence.evidence
+            evidence.effect_evidence_refs = tuple(
+                dict.fromkeys(evidence.effect_evidence_refs + (grounding.effect_id,))
+            )
+            evidence.controllability_evidence_refs = tuple(
+                dict.fromkeys(evidence.controllability_evidence_refs + grounding.evidence_refs)
+            )[-64:]
+            evidence.support = max(evidence.support, control.action_support)
+            evidence.failures = min(evidence.support, max(evidence.failures, failures))
+            evidence.reproducibility = max(evidence.reproducibility, control.reliability)
+            evidence.controllability = max(evidence.controllability, control.confidence)
+            evidence.directional_consistency = max(
+                evidence.directional_consistency, control.reliability
+            )
+        self.competence_execution_bindings.bind_from_evidence(
+            competence_id=competence_id,
+            surface_fingerprint=self._current_surface_fingerprint,
+            effect_id=grounding.effect_id,
+            evidence_refs=grounding.evidence_refs,
+            reliability=control.reliability,
+            controllability=control.confidence,
+            tick=self.total_ticks,
+        )
 
     def _update_body_boundary(
         self,
         current_inputs: Mapping[str, float],
         prediction_error: float,
     ) -> None:
-        self_caused: set[str] = set()
-        for estimate in self.agency_model.estimates:
-            if estimate.confidence < 0.35:
-                continue
-            effect = self.effect_space.get(estimate.effect_id)
-            if effect is None:
-                continue
-            for feature_ref in effect.feature_refs:
-                input_id = self._signal_to_input.get(feature_ref)
-                if input_id is not None:
-                    self_caused.add(input_id)
+        self_caused = {
+            self._signal_to_input[feature_ref]
+            for feature_ref in self.acquisition.self_caused_features(min_confidence=0.35)
+            if feature_ref in self._signal_to_input
+        } & set(current_inputs)
 
         self.body_schema.observe_agency_boundary(
             observed_channels=set(current_inputs),
@@ -544,13 +562,14 @@ class Symbiont:
                 tuple(sorted(current_inputs)),
             )
 
-        competence_id = self._action_competence_id(next_activations)
         delivered_activations: dict[str, float] = {}
+        driven = {key: value for key, value in next_activations.items() if value > 0.0}
         if next_activations:
             if not self.action_domain.enabled or self.action_domain.surface is None:
                 raise RuntimeError(
                     "Symbiont produced motor output without an attached ActionDomain surface"
                 )
+        if driven:
             proposal_id = (
                 "proposal.reduced."
                 + hashlib.sha256(
@@ -559,14 +578,14 @@ class Symbiont:
                     )
                 ).hexdigest()[:24]
             )
+            # §7.3: exploration never needs (nor names) a competence.
             proposal = ActionProposal(
                 proposal_id=proposal_id,
                 source=ActionSource.EXPLORATION,
                 effect_target_id=None,
-                competence_id=competence_id,
+                competence_id=None,
                 justification=ActionJustification(
                     originating_need_id="internal.sensorimotor-uncertainty",
-                    competence_id=competence_id,
                 ),
                 evaluation=ActionEvaluation(
                     epistemic_relevance=max(0.0, min(1.0, self.exploration_rate)),
@@ -577,15 +596,10 @@ class Symbiont:
                     uncertainty=max(0.0, min(1.0, 1.0 - mean_confidence)),
                 ),
             )
-            controller_id = (
-                f"controller.{competence_id.removeprefix('competence.')}"
-                if competence_id is not None
-                else "controller.reduced-exploration"
-            )
-            self.action_domain.commit(
+            commitment = self.action_domain.commit(
                 proposal,
                 tick=self.total_ticks,
-                controller_id=controller_id,
+                controller_id="controller.reduced-exploration",
                 maximum_duration=1,
             )
             command = self.action_domain.issue_command(
@@ -596,10 +610,18 @@ class Symbiont:
             delivered_activations = {
                 actuation.actuator_id: float(actuation.delivered) for actuation in actuations
             }
+            self.acquisition.open_attempt(
+                command=command,
+                commitment=commitment,
+                context_ref="context.reduced",
+                actuation_ref=f"actuation.{command.command_id}",
+                tick=self.total_ticks,
+            )
+        else:
+            delivered_activations = {output: 0.0 for output in next_activations}
 
         self.last_inputs = current_inputs
         self.last_activations = dict(delivered_activations)
-        self._last_action_competence_id = competence_id
         return delivered_activations
 
 

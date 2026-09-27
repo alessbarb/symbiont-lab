@@ -412,7 +412,20 @@ def _carry_sensorimotor_v2_knowledge(
 
     # The fresh template owns current surface identity, EffectSpace, causal
     # evidence, execution bindings, exploration and composition state.
-    fresh_v2["schema_version"] = 3
+    # Learned intervention families and ActionDimensions are organism-owned
+    # historical knowledge (Agency Acquisition v1 §80-§81): they are carried
+    # over, and remain unbound until evidence is gathered on the new surface.
+    prior_acquisition = prior_v2.get("agency_acquisition")
+    fresh_v2["schema_version"] = 4
+    if isinstance(prior_acquisition, Mapping):
+        fresh_v2["agency_acquisition"] = deepcopy(dict(prior_acquisition))
+    elif not isinstance(fresh_v2.get("agency_acquisition"), Mapping):
+        fresh_v2["agency_acquisition"] = {
+            "schema_version": 1,
+            "attempt_count": 0,
+            "intervention_signatures": None,
+            "action_dimensions": None,
+        }
     fresh_v2["competences"] = transferable
     fresh_v2["execution_bindings"] = {
         "schema_version": 1,

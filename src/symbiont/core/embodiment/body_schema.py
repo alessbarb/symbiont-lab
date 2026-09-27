@@ -202,6 +202,7 @@ class BodySchemaEngine:
         # It is deliberately not checkpointed here: the ledger is the factual
         # source of truth and restore replays it into this derived view.
         self._sensorimotor_support: dict[tuple[str, str], tuple[int, int]] = {}
+        self._agentic_features: dict[str, tuple[int, int]] = {}
         # Embodiment v2 body-boundary evidence. These are learned from opaque
         # causal/temporal relations; physical anatomy never enters this layer.
         self._self_caused_channels: set[str] = set()
@@ -324,22 +325,47 @@ class BodySchemaEngine:
         )
         self._boundary_disruption_score = disruption
 
-    def observe_sensorimotor_evidence(
+    def observe_agentic_sensorimotor_evidence(
         self,
         *,
-        competence_id: str,
+        causal_source_ref: str,
         effect_id: str,
+        feature_refs: tuple[str, ...],
+        controllability_confidence: float,
+        agency_confidence: float,
         tick: int,
     ) -> None:
-        # Derive bounded functional-body evidence from canonical causal facts.
-        # No actuator anatomy, Physics3D topology or task label is accepted.
+        """Functional-body evidence from any causal source, before any skill.
+
+        Body ownership is not motor competence (§26): an intervention family
+        or learned dimension that causes a sensed change can ground the body
+        before a MotorCompetence exists.  Evidence is admitted only when it is
+        agentic or controllable, and output-channel references (the organism's
+        own command echo) never become body ownership.
+        """
         if tick < 0:
             raise ValueError("tick must be non-negative")
-        if not isinstance(competence_id, str) or not competence_id:
-            raise ValueError("competence_id must be a non-empty string")
+        if not isinstance(causal_source_ref, str) or not causal_source_ref:
+            raise ValueError("causal_source_ref must be a non-empty string")
         if not isinstance(effect_id, str) or not effect_id.startswith("effect."):
             raise ValueError("effect_id must be organism-owned")
-        key = (competence_id, effect_id)
+        confidences = (float(controllability_confidence), float(agency_confidence))
+        if any(not math.isfinite(value) or not 0.0 <= value <= 1.0 for value in confidences):
+            raise ValueError("sensorimotor confidences must be within [0, 1]")
+        if max(confidences) <= 0.0:
+            return
+        owned = tuple(
+            sorted(
+                {
+                    str(feature)
+                    for feature in feature_refs
+                    if str(feature) and not str(feature).startswith("channel.")
+                }
+            )
+        )
+        if not owned:
+            return
+        key = (causal_source_ref, effect_id)
         support, _last = self._sensorimotor_support.get(key, (0, tick))
         self._sensorimotor_support[key] = (min(255, support + 1), tick)
         if len(self._sensorimotor_support) > 512:
@@ -348,24 +374,24 @@ class BodySchemaEngine:
                 key=lambda item: (-item[1][0], -item[1][1], item[0]),
             )[:512]
             self._sensorimotor_support = dict(retained)
+        for feature in owned:
+            feature_support, _feature_tick = self._agentic_features.get(feature, (0, tick))
+            self._agentic_features[feature] = (min(255, feature_support + 1), tick)
+        if len(self._agentic_features) > MAX_SENSORY_PARTS:
+            retained_features = sorted(
+                self._agentic_features.items(),
+                key=lambda item: (-item[1][0], -item[1][1], item[0]),
+            )[:MAX_SENSORY_PARTS]
+            self._agentic_features = dict(retained_features)
 
-    def rebuild_sensorimotor_view(self, evidence: tuple[object, ...]) -> None:
-        # Rebuild this inference after restore from the canonical ledger.
+    def reset_sensorimotor_view(self) -> None:
+        """Clear the derived view before replaying it from the canonical ledger."""
         self._sensorimotor_support = {}
-        for item in evidence:
-            competence_id = getattr(item, "competence_id", None)
-            effect_id = getattr(item, "effect_id", None)
-            tick = getattr(item, "observation_tick", None)
-            if (
-                isinstance(competence_id, str)
-                and isinstance(effect_id, str)
-                and isinstance(tick, int)
-            ):
-                self.observe_sensorimotor_evidence(
-                    competence_id=competence_id,
-                    effect_id=effect_id,
-                    tick=tick,
-                )
+        self._agentic_features = {}
+
+    @property
+    def agentic_feature_refs(self) -> tuple[str, ...]:
+        return tuple(sorted(self._agentic_features))
 
     def _enforce_sensory_bound(self) -> None:
         if len(self._parts) <= MAX_SENSORY_PARTS:
@@ -1163,6 +1189,20 @@ class BodySchemaEngine:
                 "revision_count": self._boundary_revision_count,
                 "disruption_score": self._boundary_disruption_score,
             },
+            # Bounded derived counts; path-dependent (confidence-gated), so
+            # persisted rather than replayed with end-state confidences.
+            "sensorimotor_view": {
+                "support": [
+                    [source, effect, support, tick]
+                    for (source, effect), (support, tick) in sorted(
+                        self._sensorimotor_support.items()
+                    )
+                ],
+                "agentic_features": [
+                    [feature, support, tick]
+                    for feature, (support, tick) in sorted(self._agentic_features.items())
+                ],
+            },
         }
 
     @classmethod
@@ -1485,6 +1525,27 @@ class BodySchemaEngine:
                 public_dependencies=raw_dependencies,
                 current_tick=current_tick,
             )
+
+        view = payload.get("sensorimotor_view")
+        if view is not None:
+            if not isinstance(view, dict):
+                raise ValueError("body_schema sensorimotor_view must be an object")
+            support = view.get("support", [])
+            features = view.get("agentic_features", [])
+            if (
+                not isinstance(support, list)
+                or not isinstance(features, list)
+                or len(support) > 512
+                or len(features) > MAX_SENSORY_PARTS
+            ):
+                raise ValueError("invalid or unbounded body_schema sensorimotor_view")
+            for source, effect, count, tick in support:
+                model._sensorimotor_support[(str(source), str(effect))] = (
+                    min(255, max(0, int(count))),
+                    int(tick),
+                )
+            for feature, count, tick in features:
+                model._agentic_features[str(feature)] = (min(255, max(0, int(count))), int(tick))
 
         boundary = payload.get("boundary_evidence")
         if boundary is not None:

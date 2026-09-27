@@ -12,10 +12,11 @@ def test_runtime_tick_is_domain_orchestration_not_algorithm_ownership() -> None:
     required_domain_calls = (
         "self._physiology_domain.preflight(",
         "self._perception_domain.step(",
+        "self._action_domain.observe_consequences(",
         "self._action_domain.prepare_cognition(",
         "self._cognition_domain.step(",
         "self._memory_domain.observe(",
-        "self._action_domain.step(",
+        "self._action_domain.act(",
         "self._epistemic_domain.investigate(",
         "self._embodiment_domain.observe(",
         "self._physiology_domain.advance(",
@@ -57,8 +58,29 @@ def test_runtime_surfaces_real_action_domain_execution_result() -> None:
             "\n    def run(", source.index("    def tick(")
         )
     ]
-    assert "action_result = self._action_domain.step(" in tick
+    assert "action_result = self._action_domain.act(" in tick
     assert "action_result: ActionExecutionResult | None = None" not in tick
+
+
+def test_runtime_reconciles_previous_action_before_new_cognition() -> None:
+    """Agency Acquisition v1 §76: T1-T3 precede T4 cognition; T5-T11 follow it."""
+    root = Path(__file__).resolve().parents[2]
+    source = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
+    tick = source[
+        source.index("    def tick(") : source.index(
+            "\n    def run(", source.index("    def tick(")
+        )
+    ]
+    perception = tick.index("self._perception_domain.step(")
+    observe = tick.index("self._action_domain.observe_consequences(")
+    factual = tick.index("self._generative_cognition.note_factual_outcome(")
+    projection = tick.index("self._action_domain.prepare_cognition(")
+    cognition = tick.index("self._cognition_domain.step(")
+    act = tick.index("self._action_domain.act(")
+    assert perception < observe < factual < projection < cognition < act
+    assert "self._action_domain.step(" not in tick
 
 
 def test_runtime_does_not_inspect_cognition_graph_or_action_evidence_in_tick() -> None:

@@ -393,7 +393,9 @@ def test_build_cognitive_atlas_materializes_action_dimensions():
     snapshot["action_dimensions"] = [
         {
             "dimension_id": "action.dimension.aaaa",
-            "actuator_slot_id": "slot.0",
+            "intervention_signature_count": 2,
+            "channel_count": 1,
+            "agentic": True,
             "availability": True,
             "controllability": 0.4,
             "confidence": 0.3,
@@ -409,6 +411,8 @@ def test_build_cognitive_atlas_materializes_action_dimensions():
     node = next(n for n in atlas.nodes if n.id == "action.dimension.aaaa")
     assert node.metadata["usage_count"] == 5
     assert node.metadata["embodiment_bound"] is True
+    assert node.metadata["agentic"] is True
+    assert "actuator_slot_id" not in node.metadata
 
 
 def test_build_cognitive_atlas_action_dimensions_absent_when_no_data():
@@ -420,8 +424,8 @@ def test_build_cognitive_atlas_action_dimensions_absent_when_no_data():
 def test_build_cognitive_atlas_knowledge_coverage_reports_separate_domain_counts():
     snapshot = _snapshot()
     snapshot["action_dimensions"] = [
-        {"dimension_id": "action.dimension.aaaa", "actuator_slot_id": "slot.0"},
-        {"dimension_id": "action.dimension.bbbb", "actuator_slot_id": "slot.1"},
+        {"dimension_id": "action.dimension.aaaa", "agentic": True},
+        {"dimension_id": "action.dimension.bbbb", "agentic": False},
     ]
 
     atlas = build_cognitive_atlas(snapshot)
@@ -485,3 +489,73 @@ def test_diff_cognitive_atlas_no_updates_when_nothing_changed():
 
     assert diff.nodes_updated == ()
     assert diff.activity_updates == {}
+
+
+def _executive_snapshot():
+    snapshot = _snapshot()
+    snapshot["effects"] = [{"effect_id": "effect.3", "feature_refs": ["signal.a"], "support": 4}]
+    snapshot["agency_acquisition"] = {
+        "physical_motor_opportunities": 4,
+        "action_attempt_count": 120,
+        "intervention_signature_count": 9,
+        "recurring_intervention_signature_count": 7,
+        "causal_relation_count": 18,
+    }
+    snapshot["action_dimensions"] = [{"dimension_id": "action.dimension.aaaa", "agentic": True}]
+    snapshot["affordances"] = [
+        {
+            "affordance_id": "affordance.1",
+            "competence_id": "competence.7",
+            "anticipated_effect_id": "effect.3",
+            "prediction_confidence": 0.6,
+            "controllability": 0.5,
+            "executability_confidence": 0.8,
+        }
+    ]
+    snapshot["executive_intention"] = {
+        "active": {
+            "intent_id": "intent.1",
+            "status": "active",
+            "competence_id": "competence.7",
+            "anticipated_effect_id": "effect.3",
+            "age": 2,
+        },
+        "counts": {"satisfied": 1, "failed": 0},
+        "prediction_match": 1.0,
+    }
+    return snapshot
+
+
+def test_live_action_intent_is_an_atlas_node_linked_to_competence_and_effect():
+    atlas = build_cognitive_atlas(_executive_snapshot())
+    intent = next(node for node in atlas.nodes if node.kind == "action_intent")
+    assert intent.id == "intent.1" and intent.metadata["status"] == "active"
+    kinds = {(edge.source_id, edge.target_id): edge.kind for edge in atlas.edges}
+    assert kinds[("intent.1", "competence.7")] == "intends_with"
+    assert kinds[("intent.1", "effect.3")] == "anticipates"
+
+
+def test_terminal_intents_are_not_persistent_atlas_nodes():
+    snapshot = _executive_snapshot()
+    snapshot["executive_intention"]["active"]["status"] = "satisfied"
+    atlas = build_cognitive_atlas(snapshot)
+    assert not any(node.kind == "action_intent" for node in atlas.nodes)
+
+
+def test_affordances_are_a_temporal_overlay_not_nodes():
+    atlas = build_cognitive_atlas(_executive_snapshot())
+    assert not any(node.kind == "affordance" for node in atlas.nodes)
+    (overlay,) = [edge for edge in atlas.edges if edge.kind == "affords"]
+    assert overlay.metadata["overlay"] is True and overlay.metadata["temporal"] is True
+    assert overlay.metadata["executability_confidence"] == 0.8
+
+
+def test_agency_metrics_report_development_counts():
+    metrics = build_cognitive_atlas(_executive_snapshot()).metrics["agency"]
+    assert metrics["physical_motor_opportunities"] == 4
+    assert metrics["intervention_signatures"] == 9
+    assert metrics["action_dimensions"] == 1
+    assert metrics["agentic_action_dimensions"] == 1
+    assert metrics["affordances"] == 1
+    assert metrics["active_intent_status"] == "active"
+    assert metrics["intent_outcomes"]["satisfied"] == 1

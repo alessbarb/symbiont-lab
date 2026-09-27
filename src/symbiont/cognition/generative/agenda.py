@@ -205,6 +205,17 @@ class GenerativeAgenda:
             raise ValueError("maximum agenda targets reached")
         self._targets[target.target_id] = target
 
+    def has_capacity_for(self, target_id: str) -> bool:
+        """Whether observing ``target_id`` fits the bound without losing live demand."""
+        return (
+            target_id in self._targets
+            or len(self._targets) < self.max_targets
+            or any(
+                target.status in {TargetStatus.RESOLVED, TargetStatus.RETIRED}
+                for target in self._targets.values()
+            )
+        )
+
     def _reclaim_terminal_target(self) -> None:
         """Free bounded capacity without discarding unresolved demand."""
         terminal = [

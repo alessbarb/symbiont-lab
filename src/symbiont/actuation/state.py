@@ -23,6 +23,24 @@ class SensorimotorV2Snapshot:
     action_source: str
     exploration_preference: tuple[str, ...]
     mean_learning_progress: float
+    # Agency Acquisition & Executive Action v1 §90.
+    physical_motor_opportunity_count: int = 0
+    action_attempt_count: int = 0
+    intervention_signature_count: int = 0
+    recurring_intervention_signature_count: int = 0
+    action_dimension_count: int = 0
+    agentic_action_dimension_count: int = 0
+    affordance_count: int = 0
+    active_intent_id: str | None = None
+    active_intent_status: str | None = None
+    active_intent_age: int | None = None
+    active_intent_last_progress_age: int | None = None
+    intent_satisfied_count: int = 0
+    intent_failed_count: int = 0
+    intent_rejected_count: int = 0
+    intent_interrupted_count: int = 0
+    intent_invalidated_count: int = 0
+    intent_prediction_match: float | None = None
 
     def __post_init__(self) -> None:
         counts = (
@@ -37,6 +55,18 @@ class SensorimotorV2Snapshot:
             self.composition_evidence_count,
             self.established_composition_count,
             self.body_schema_sensorimotor_relations,
+            self.physical_motor_opportunity_count,
+            self.action_attempt_count,
+            self.intervention_signature_count,
+            self.recurring_intervention_signature_count,
+            self.action_dimension_count,
+            self.agentic_action_dimension_count,
+            self.affordance_count,
+            self.intent_satisfied_count,
+            self.intent_failed_count,
+            self.intent_rejected_count,
+            self.intent_interrupted_count,
+            self.intent_invalidated_count,
         )
         if any(value < 0 for value in counts):
             raise ValueError("sensorimotor snapshot counts must be non-negative")

@@ -14,6 +14,9 @@ class ExplorationSignals:
     controllability_potential: float | None
     physiological_cost: float | None
     risk: float | None
+    # §24: how much trying this opportunity could clarify a still-uncertain
+    # causal relation.  An ordering signal only; never a reward.
+    causal_information_gain: float = 0.0
 
 
 class ExplorationPolicy:
@@ -32,6 +35,7 @@ class ExplorationPolicy:
             safety,
             affordability,
             learnable,
+            max(0.0, min(1.0, signals.causal_information_gain)),
             unknown_bonus,
             max(0.0, signals.uncertainty),
             max(0.0, signals.novelty),

@@ -140,6 +140,7 @@ export function buildCognitiveFrame({
   activeEffectors = 0,
   jointMotion = 0,
   regionEvents = [],
+  agency = null,
 } = {}) {
   const topology = snapshotTopology(nodes, edges);
   const diff = topologyDiff(previousFrame?.topology ?? null, topology);
@@ -222,6 +223,8 @@ export function buildCognitiveFrame({
       observedActionEffectRelations: edges.filter(edge => edge.kind === 'produces').length,
       bodySchemaParts: nodes.filter(node => node.kind === 'body_schema').length,
     },
+    // Agency Acquisition v1 Sec 85/133: development, not inflated counters.
+    agency: agencyFrame(agency, nodes),
     regionEvents: (regionEvents ?? []).slice(-8),
     provenance: {
       owner: 'observer',
@@ -229,6 +232,40 @@ export function buildCognitiveFrame({
       claimsIntent: false,
       projection: 'cognitive-live-frame-v1',
     },
+  };
+}
+
+function agencyFrame(agency, nodes) {
+  const acquisition = agency?.acquisition ?? {};
+  const executive = agency?.executive ?? {};
+  const active = executive?.active ?? null;
+  const live = active && (active.status === 'pending' || active.status === 'active') ? active : null;
+  const dimensions = nodes.filter(node => node.kind === 'action_dimension');
+  return {
+    physicalOpportunities: finite(acquisition.physical_motor_opportunities),
+    attempts: finite(acquisition.action_attempt_count),
+    signatures: finite(acquisition.intervention_signature_count),
+    recurringSignatures: finite(acquisition.recurring_intervention_signature_count),
+    dimensions: dimensions.length,
+    agenticDimensions: dimensions.filter(node => node.agentic === true).length,
+    effects: nodes.filter(node => node.kind === 'effect').length,
+    causalRelations: finite(acquisition.causal_relation_count),
+    competences: nodes.filter(node => node.kind === 'motor_competence').length,
+    affordances: Array.isArray(agency?.affordances) ? agency.affordances.slice(0, 8) : [],
+    intent: live ? {
+      id: live.intent_id,
+      status: live.status,
+      age: finite(live.age),
+      anticipatedEffect: live.anticipated_effect_id ?? null,
+      competence: live.competence_id ?? null,
+      affordance: live.supporting_affordance_id ?? null,
+      confidence: clamp01(live.confidence),
+      lastProgressAge: finite(live.last_progress_age),
+      commitment: live.commitment_id ?? null,
+    } : null,
+    outcomes: executive?.counts ?? {},
+    predictionMatch: executive?.prediction_match ?? null,
+    trace: executive?.trace ?? null,
   };
 }
 
@@ -329,6 +366,8 @@ function renderFocus(frame) {
     const empty = el('div', 'mind-live-empty');
     empty.textContent = 'No active cognitive focus observed in this frame.';
     root.appendChild(empty);
+    // Agency development and executive state do not depend on a focused node.
+    renderAgency(root, frame?.agency);
     return;
   }
 
@@ -391,6 +430,8 @@ function renderFocus(frame) {
     metricRow('Observed motor paths', String(coupling.motorPaths)),
   );
 
+  renderAgency(root, frame.agency);
+
   if (focus.related.length) {
     const relatedTitle = el('div', 'mind-live-section-title');
     relatedTitle.textContent = 'Top related nodes';
@@ -406,6 +447,105 @@ function renderFocus(frame) {
       related.appendChild(row);
     }
     root.appendChild(related);
+  }
+}
+
+function shortId(value) {
+  // Opaque ids are long; keep the kind prefix and a recognizable tail.
+  const text = String(value ?? '—');
+  const dot = text.indexOf('.');
+  if (text.length <= 22 || dot < 0) return text;
+  return `${text.slice(0, dot + 4)}…${text.slice(-5)}`;
+}
+
+function traceRows(trace) {
+  // Sec 86/87: reconstructed causal chain, never a narrated explanation.
+  const rows = [
+    ['Intent', trace.intent_id ?? 'none'],
+    ['Source', trace.source],
+    ['Affordance', trace.affordance_id],
+    ['Proposal', trace.proposal_id],
+    ['Commitment', trace.commitment_id],
+    ['Command', trace.command_id],
+    ['Attempt', trace.attempt_id],
+    ['Intervention', trace.intervention_signature_id],
+    ['Observed', trace.observed_effect_id],
+    ['Match', trace.match == null ? null : Number(trace.match).toFixed(2)],
+    ['Result', trace.result],
+  ];
+  return rows.filter(([, value]) => value != null);
+}
+
+function renderAgency(root, agency) {
+  if (!agency) return;
+  const acquisitionTitle = el('div', 'mind-live-section-title');
+  acquisitionTitle.textContent = 'Agency acquisition';
+  root.appendChild(acquisitionTitle);
+  root.append(
+    metricRow('Physical motor opportunities', String(agency.physicalOpportunities)),
+    metricRow('Action attempts', String(agency.attempts)),
+    metricRow(
+      'Intervention signatures',
+      `${agency.recurringSignatures} recurring / ${agency.signatures}`,
+      agency.signatures ? agency.recurringSignatures / agency.signatures : 0,
+    ),
+    // Dimensions span channel sets and synergies: a count, not a fraction of
+    // the physical opportunities (Sec 7.5, 133).
+    metricRow('Discovered action dimensions', String(agency.dimensions)),
+    metricRow(
+      'Agentic action dimensions',
+      `${agency.agenticDimensions}/${agency.dimensions}`,
+      agency.dimensions ? agency.agenticDimensions / agency.dimensions : 0,
+    ),
+    metricRow('Known effects', String(agency.effects)),
+    metricRow('Causal relations', String(agency.causalRelations)),
+    metricRow('Motor competences', String(agency.competences)),
+    metricRow('Current affordances', String(agency.affordances.length)),
+  );
+
+  const executiveTitle = el('div', 'mind-live-section-title');
+  executiveTitle.textContent = 'Executive state';
+  root.appendChild(executiveTitle);
+  const intent = agency.intent;
+  if (intent) {
+    root.append(
+      metricRow('Active intent', shortId(intent.id)),
+      metricRow('Status', intent.status),
+      metricRow('Age', `${intent.age} ticks`),
+      metricRow('Anticipated effect', shortId(intent.anticipatedEffect)),
+      metricRow('Competence', shortId(intent.competence)),
+      metricRow('Supporting affordance', shortId(intent.affordance)),
+      metricRow('Prediction confidence', intent.confidence.toFixed(2), intent.confidence),
+      metricRow('Last progress', `${intent.lastProgressAge} ticks ago`),
+      metricRow('Current commitment', shortId(intent.commitment)),
+    );
+  } else {
+    root.append(metricRow('Active intent', 'none'));
+  }
+  const outcomes = agency.outcomes ?? {};
+  for (const status of ['satisfied', 'failed', 'rejected', 'interrupted', 'invalidated']) {
+    root.append(metricRow(`Intents ${status}`, String(finite(outcomes[status]))));
+  }
+  if (agency.predictionMatch != null) {
+    root.append(metricRow('Intent prediction match', Number(agency.predictionMatch).toFixed(2), clamp01(agency.predictionMatch)));
+  }
+  for (const affordance of agency.affordances) {
+    root.append(
+      metricRow('Affordance', `${shortId(affordance.competence_id)} → ${shortId(affordance.anticipated_effect_id)}`),
+      metricRow(
+        'conf · ctrl · exec',
+        `${finite(affordance.prediction_confidence).toFixed(2)} · ${finite(affordance.controllability).toFixed(2)} · ${finite(affordance.executability_confidence).toFixed(2)}`,
+        clamp01(affordance.executability_confidence),
+      ),
+    );
+  }
+  if (agency.trace) {
+    const traceTitle = el('div', 'mind-live-section-title');
+    traceTitle.textContent = 'Latest action trace';
+    root.appendChild(traceTitle);
+    for (const [label, value] of traceRows(agency.trace)) {
+      root.append(metricRow(label, label === 'Match' || label === 'Result' || label === 'Source' ? String(value) : shortId(value)));
+    }
   }
 }
 

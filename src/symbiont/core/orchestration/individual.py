@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
+from ...actuation.model import CausalSourceKind
 from ...actuation.surface import ActuatorSurface
 from ...genetics.genome import Genome
 from ...genetics.germline import GermlineState
@@ -215,17 +216,26 @@ class Individual:
             schema_revised=self.symbiont.body_schema_disrupted,
         )
 
-        if self.symbiont.causal_evidence.evidence:
-            latest = self.symbiont.causal_evidence.evidence[-1]
-            if latest.competence_id is not None and latest.effect_id is not None:
+        latest_attempt = self.symbiont.acquisition.last_attempt
+        latest = self.symbiont.causal_evidence.intervention_evidence[-1:] or None
+        if (
+            latest is not None
+            and latest_attempt is not None
+            and latest[0].attempt_id == latest_attempt.attempt_id
+            and latest[0].effect_id is not None
+        ):
+            competence_id = self.symbiont.competence_for_signature(
+                latest_attempt.intervention_signature_id
+            )
+            if competence_id is not None:
                 control = self.symbiont.controllability_model.estimate(
-                    latest.effect_id,
-                    latest.competence_id,
-                    None,
+                    source_kind=CausalSourceKind.INTERVENTION,
+                    source_ref=latest_attempt.intervention_signature_id,
+                    effect_id=latest[0].effect_id,
                 )
                 self.embodiment.reachability.observe(
-                    latest.effect_id,
-                    latest.competence_id,
+                    latest[0].effect_id,
+                    competence_id,
                     tick=self.embodiment_tick,
                     success=bool(
                         control is not None

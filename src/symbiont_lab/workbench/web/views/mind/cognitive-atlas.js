@@ -94,7 +94,7 @@ export function atlasSignals(nodes, edges, tick = 0) {
     );
     const motor = clamp01(
       (node.kind === 'motor_primitive' ? 0.82 : 0) +
-      (['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension'].includes(node.kind) ? 0.82 : 0) +
+      (['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension', 'action_intent'].includes(node.kind) ? 0.82 : 0) +
       (node.kind === 'readout' && (
         String(node.id).startsWith('readout_motor:') ||
         String(node.id).startsWith('readout_primitive:')
@@ -256,7 +256,7 @@ export function cognitivePath(startId, nodes, edges, maxDepth = 10) {
   if (!start) return null;
 
   const motorTarget = node => node?.kind === 'motor_primitive' ||
-    ['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension'].includes(node?.kind) || (
+    ['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension', 'action_intent'].includes(node?.kind) || (
       node?.kind === 'readout' && (
         String(node.id).startsWith('readout_motor:') ||
         String(node.id).startsWith('readout_primitive:')

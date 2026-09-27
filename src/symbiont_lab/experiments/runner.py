@@ -158,6 +158,30 @@ class ExperimentRunner:
             # never let matching function defaults masquerade as provenance.
             result = protocol_fn(seeds=spec.seeds, ticks=spec.steps)
             raw_metrics = result.as_dict()
+        elif spec.protocol == "learning.agency-acquisition-ablation":
+            ablation = spec.extra_params.get("ablation", {})
+            result = protocol_fn(
+                seeds=spec.seeds,
+                ticks=spec.steps,
+                inert_actuator_count=int(ablation.get("inert_actuator_count", 2)),
+            )
+            raw_metrics = result
+        elif spec.protocol in {
+            "learning.agency-executive-bridge-ablation",
+            "learning.agency-intent-persistence",
+            "learning.agency-embodied-causal-intervention",
+            "learning.agency-intentional-causal-advantage",
+        }:
+            ablation = spec.extra_params.get("ablation", {})
+            result = protocol_fn(
+                seeds=spec.seeds,
+                warmup_limit=spec.steps,
+                horizon_ticks=int(ablation.get("horizon_ticks", 1024)),
+            )
+            raw_metrics = result
+        elif spec.protocol == "learning.agency-acquisition-reuse-closure":
+            result = protocol_fn(seeds=spec.seeds, max_ticks=spec.steps)
+            raw_metrics = result
         elif spec.protocol == "learning.embodied-behavioral-ablation":
             ablation = spec.extra_params.get("ablation", {})
             horizon_ticks = int(ablation.get("horizon_ticks", 256))

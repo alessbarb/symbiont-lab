@@ -1004,7 +1004,7 @@ def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
 def test_action_domain_applies_exclusion_before_execution_and_credit():
     from symbiont.core.domains.action import ActionDomain
 
-    source = inspect.getsource(ActionDomain.step)
+    source = inspect.getsource(ActionDomain.act)
     constrain_at = source.index("constrain_intents")
     issue_at = source.index("self.issue_command")
     execute_at = source.index("self.execute_command")

@@ -127,7 +127,8 @@ def _subject_snapshot(ind: Individual) -> tuple:
             sorted(
                 (
                     item.effect_id,
-                    item.competence_id,
+                    item.source_kind.value,
+                    item.source_ref,
                     round(float(item.confidence), 12),
                     round(float(item.reliability), 12),
                 )

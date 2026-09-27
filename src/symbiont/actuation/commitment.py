@@ -25,6 +25,7 @@ class ActionCommitment:
     controller_id: str
     surface_fingerprint: str
     embodiment_id: str | None = None
+    intent_id: str | None = None
     interruptibility: float = 1.0
     minimum_duration: int = 0
     maximum_duration: int | None = None
@@ -85,6 +86,7 @@ class ActionCommitment:
             "controller_id": self.controller_id,
             "surface_fingerprint": self.surface_fingerprint,
             "embodiment_id": self.embodiment_id,
+            "intent_id": self.intent_id,
             "interruptibility": self.interruptibility,
             "minimum_duration": self.minimum_duration,
             "maximum_duration": self.maximum_duration,
@@ -122,6 +124,9 @@ class ActionCommitment:
                 payload.get("embodiment_id")
                 if isinstance(payload.get("embodiment_id"), str)
                 else fallback_embodiment_id
+            ),
+            intent_id=(
+                str(payload["intent_id"]) if isinstance(payload.get("intent_id"), str) else None
             ),
             interruptibility=float(payload.get("interruptibility", 1.0)),
             minimum_duration=int(payload.get("minimum_duration", 0)),

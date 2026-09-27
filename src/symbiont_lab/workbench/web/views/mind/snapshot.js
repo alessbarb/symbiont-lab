@@ -32,5 +32,8 @@ export function applyMindSnapshot(raw) {
   snap.sensorimotor = source.sensorimotor ?? null;
   snap.embodiment = source.embodiment ?? null;
   snap.outcome = source.outcome ?? null;
+  snap.agencyAcquisition = source.agency_acquisition ?? source.agencyAcquisition ?? null;
+  snap.affordances = source.affordances ?? [];
+  snap.executiveIntention = source.executive_intention ?? source.executiveIntention ?? null;
   return true;
 }

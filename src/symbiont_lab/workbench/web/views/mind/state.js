@@ -100,6 +100,9 @@ export const snap = {
   sensorimotor: null,
   embodiment: null,
   outcome: null,
+  agencyAcquisition: null,
+  affordances: [],
+  executiveIntention: null,
 };
 
 export const observerUsage = {

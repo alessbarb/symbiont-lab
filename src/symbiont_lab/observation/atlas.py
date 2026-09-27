@@ -210,6 +210,9 @@ def _action_dimension_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
                 "confidence",
                 "usage_count",
                 "embodiment_bound",
+                "agentic",
+                "intervention_signature_count",
+                "channel_count",
             )
             if item.get(key) is not None
         }
@@ -217,6 +220,136 @@ def _action_dimension_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
             AtlasNode(id=str(item["dimension_id"]), kind="action_dimension", metadata=metadata)
         )
     return nodes
+
+
+def _action_intent_nodes_and_edges(
+    snapshot: Mapping[str, Any],
+    known_competence_ids: set[str],
+    known_effect_ids: set[str],
+) -> tuple[list[AtlasNode], list[AtlasEdge]]:
+    """The live ActionIntent only; terminal intents belong to trace/timeline (§88)."""
+    executive = snapshot.get("executive_intention")
+    if not isinstance(executive, Mapping):
+        return [], []
+    active = executive.get("active")
+    if not isinstance(active, Mapping) or active.get("intent_id") is None:
+        return [], []
+    if active.get("status") not in {"pending", "active"}:
+        return [], []
+    intent_id = str(active["intent_id"])
+    metadata = {
+        key: active[key]
+        for key in (
+            "status",
+            "competence_id",
+            "anticipated_effect_id",
+            "confidence",
+            "epistemic_relevance",
+            "homeostatic_relevance",
+            "supporting_affordance_id",
+            "age",
+            "last_progress_age",
+            "commitment_id",
+            "admission",
+        )
+        if active.get(key) is not None
+    }
+    edges: list[AtlasEdge] = []
+    competence_id = active.get("competence_id")
+    if competence_id in known_competence_ids:
+        edges.append(
+            AtlasEdge(
+                id=f"{intent_id}->{competence_id}",
+                source_id=intent_id,
+                target_id=str(competence_id),
+                kind="intends_with",
+                metadata={},
+            )
+        )
+    effect_id = active.get("anticipated_effect_id")
+    if effect_id in known_effect_ids:
+        edges.append(
+            AtlasEdge(
+                id=f"{intent_id}->{effect_id}",
+                source_id=intent_id,
+                target_id=str(effect_id),
+                kind="anticipates",
+                metadata={},
+            )
+        )
+    return [AtlasNode(id=intent_id, kind="action_intent", metadata=metadata)], edges
+
+
+def _affordance_overlay_edges(
+    snapshot: Mapping[str, Any],
+    known_competence_ids: set[str],
+    known_effect_ids: set[str],
+) -> list[AtlasEdge]:
+    """Current affordances as a temporal overlay, never structural knowledge (§89)."""
+    items = snapshot.get("affordances")
+    if not isinstance(items, (list, tuple)):
+        return []
+    edges: list[AtlasEdge] = []
+    for item in items:
+        if not isinstance(item, Mapping):
+            continue
+        competence_id = item.get("competence_id")
+        effect_id = item.get("anticipated_effect_id")
+        if competence_id not in known_competence_ids or effect_id not in known_effect_ids:
+            continue
+        edges.append(
+            AtlasEdge(
+                id=f"affordance:{competence_id}->{effect_id}",
+                source_id=str(competence_id),
+                target_id=str(effect_id),
+                kind="affords",
+                metadata={
+                    "overlay": True,
+                    "temporal": True,
+                    **{
+                        key: item[key]
+                        for key in (
+                            "prediction_confidence",
+                            "controllability",
+                            "executability_confidence",
+                        )
+                        if item.get(key) is not None
+                    },
+                },
+            )
+        )
+    return edges
+
+
+def _agency_metrics(snapshot: Mapping[str, Any], nodes: list[AtlasNode]) -> Mapping[str, Any]:
+    """Developmental counts (§85, §90, §133); never a single fake progress score."""
+    acquisition = snapshot.get("agency_acquisition")
+    acquisition = acquisition if isinstance(acquisition, Mapping) else {}
+    executive = snapshot.get("executive_intention")
+    executive = executive if isinstance(executive, Mapping) else {}
+    dimensions = [node for node in nodes if node.kind == "action_dimension"]
+    affordances = snapshot.get("affordances")
+    counts = executive.get("counts") if isinstance(executive.get("counts"), Mapping) else {}
+    active = executive.get("active") if isinstance(executive.get("active"), Mapping) else None
+    return {
+        "physical_motor_opportunities": acquisition.get("physical_motor_opportunities"),
+        "action_attempts": acquisition.get("action_attempt_count"),
+        "intervention_signatures": acquisition.get("intervention_signature_count"),
+        "recurring_intervention_signatures": acquisition.get(
+            "recurring_intervention_signature_count"
+        ),
+        "action_dimensions": len(dimensions),
+        "agentic_action_dimensions": sum(
+            1 for node in dimensions if node.metadata.get("agentic") is True
+        ),
+        "causal_relations": acquisition.get("causal_relation_count"),
+        "motor_competences": sum(1 for node in nodes if node.kind == "motor_competence"),
+        "affordances": len(affordances) if isinstance(affordances, (list, tuple)) else 0,
+        "active_intent_id": active.get("intent_id") if active is not None else None,
+        "active_intent_status": active.get("status") if active is not None else None,
+        "intent_outcomes": dict(counts),
+        "intent_prediction_match": executive.get("prediction_match"),
+    }
 
 
 def _embodiment_binding_nodes_and_edges(
@@ -456,6 +589,7 @@ def _knowledge_coverage_metrics(nodes: list[AtlasNode]) -> Mapping[str, Any]:
 
     return {
         "action_dimensions": count("action_dimension"),
+        "action_intents": count("action_intent"),
         "motor_competences": count("motor_competence"),
         "controllers": count("controller"),
         "embodiment_bindings": count("embodiment_binding"),
@@ -500,6 +634,13 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
 
     nodes.extend(_action_dimension_nodes(snapshot))
 
+    intent_nodes, intent_edges = _action_intent_nodes_and_edges(
+        snapshot, known_competence_ids, known_effect_ids
+    )
+    nodes.extend(intent_nodes)
+    edges.extend(intent_edges)
+    edges.extend(_affordance_overlay_edges(snapshot, known_competence_ids, known_effect_ids))
+
     tick = snapshot.get("tick")
     try:
         tick = int(tick) if tick is not None else None
@@ -515,6 +656,7 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
             "motor_capability": _motor_capability_metrics(snapshot),
             "prediction": _prediction_metrics(nodes),
             "knowledge_coverage": _knowledge_coverage_metrics(nodes),
+            "agency": _agency_metrics(snapshot, nodes),
         },
     )
 
@@ -579,8 +721,7 @@ def cognitive_atlas_payload(snapshot: Mapping[str, Any]) -> dict[str, Any]:
         "schema_version": atlas.schema_version,
         "tick": atlas.tick,
         "nodes": [
-            {"id": node.id, "kind": node.kind, **dict(node.metadata)}
-            for node in atlas.nodes
+            {"id": node.id, "kind": node.kind, **dict(node.metadata)} for node in atlas.nodes
         ],
         "edges": [
             {

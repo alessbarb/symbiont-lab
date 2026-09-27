@@ -40,7 +40,8 @@ def test_action_domain_is_only_command_authority() -> None:
     assert actuations[0].delivered == 0.4
 
 
-def test_action_domain_discovers_action_dimensions_from_surface() -> None:
+def test_surface_does_not_bootstrap_action_dimensions() -> None:
+    """A fresh organism knows 0 of its N physical motor opportunities (§17, §120)."""
     surface = derive_actuator_constitution(3, physical_contract="domain-test")
     domain = ActionDomain(
         organism_id="organism.test",
@@ -48,12 +49,9 @@ def test_action_domain_discovers_action_dimensions_from_surface() -> None:
         surface=surface,
     )
 
-    assert len(domain.action_dimensions.items) == len(surface.actuator_ids)
-    for actuator_id in surface.actuator_ids:
-        dimension_id = domain.action_dimensions.discover(actuator_id)
-        dimension = domain.action_dimensions.get(dimension_id)
-        assert dimension is not None
-        assert dimension.actuator_slot_id == actuator_id
+    assert len(surface.actuator_ids) == 3
+    assert domain.action_dimensions.items == ()
+    assert domain.intervention_signatures.items == ()
 
 
 def test_action_domain_without_surface_has_no_action_dimensions() -> None:

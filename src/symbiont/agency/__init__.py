@@ -6,25 +6,44 @@ evaluator. All types are immutable and semantically opaque.
 
 from __future__ import annotations
 
+from .affordance import ActionAffordance
+from .affordances import AffordanceResolver
 from .candidates import competence_candidates
 from .checkpoint import PROSPECTIVE_AGENCY_SCHEMA_VERSION
+from .intention import ActionIntent, AdmissionRoute, IntentStatus
 from .policy import EvaluatedCandidate, ProspectivePolicy
-from .prospective import ProspectiveAgency
+from .prospective import (
+    ExecutiveAdmissionPolicy,
+    GenerativeAnticipation,
+    ProspectiveAgency,
+    ProspectiveDecision,
+    admit_afforded_action,
+)
 from .readiness import AgencyReadiness, check_readiness
 from .types import (
     CounterfactualPrediction,
+    DeliberationOutcome,
     OutcomeValueEstimate,
     ProspectiveCandidate,
-    ProspectiveDecision,
 )
 from .value import MAX_OUTCOME_VALUES, OutcomeValueLedger
 
 __all__ = [
+    # Agency Acquisition & Executive Action v1
+    "ActionAffordance",
+    "AffordanceResolver",
+    "ActionIntent",
+    "AdmissionRoute",
+    "IntentStatus",
+    "ExecutiveAdmissionPolicy",
+    "GenerativeAnticipation",
+    "ProspectiveDecision",
+    "admit_afforded_action",
     # Types
     "ProspectiveCandidate",
     "CounterfactualPrediction",
     "OutcomeValueEstimate",
-    "ProspectiveDecision",
+    "DeliberationOutcome",
     # Value
     "MAX_OUTCOME_VALUES",
     "OutcomeValueLedger",

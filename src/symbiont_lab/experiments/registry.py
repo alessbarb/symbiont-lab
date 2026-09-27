@@ -36,6 +36,14 @@ from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
 from symbiont_lab.studies.learning.adaptive_replay_matched_control import (
     run_adaptive_replay_matched_control_study,
 )
+from symbiont_lab.studies.learning.agency_acquisition import (
+    run_acquisition_reuse_closure_study,
+    run_agency_acquisition_ablation_study,
+    run_embodied_causal_intervention_study,
+    run_executive_bridge_ablation_study,
+    run_intent_persistence_study,
+    run_intentional_causal_advantage_study,
+)
 from symbiont_lab.studies.learning.autonomous_cultural_agency import (
     run_autonomous_cultural_agency_study,
 )
@@ -221,6 +229,12 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.independent-symbol-grounding": run_independent_symbol_grounding_study,
     "learning.predictive-discovery": run_predictive_discovery_study,
     "learning.cognitive-graph-causal-composition": run_cognitive_graph_causal_composition_study,
+    "learning.agency-acquisition-ablation": run_agency_acquisition_ablation_study,
+    "learning.agency-executive-bridge-ablation": run_executive_bridge_ablation_study,
+    "learning.agency-intent-persistence": run_intent_persistence_study,
+    "learning.agency-embodied-causal-intervention": run_embodied_causal_intervention_study,
+    "learning.agency-intentional-causal-advantage": run_intentional_causal_advantage_study,
+    "learning.agency-acquisition-reuse-closure": run_acquisition_reuse_closure_study,
     "embodiment.yoked-external-causation": run_yoked_external_causation_study,
     "embodiment.somatic-correlation-trap": run_somatic_correlation_trap_study,
     "embodiment.causal-revision-sequence": run_causal_revision_sequence_study,
