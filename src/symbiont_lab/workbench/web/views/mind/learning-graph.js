@@ -1,9 +1,12 @@
 /**
  * Build the complete learned-structure view used by the Cognition Map.
  *
- * CognitiveGraph nodes/edges remain canonical. Motor primitives and learned
- * actuator/effect evidence are appended as organism-owned learning layers.
- * Observer semantics are annotations only.
+ * Canonical Atlas v2 nodes/edges remain authoritative when supplied by the
+ * server. This helper then adds only legacy sensorimotor/physical layers that
+ * are not yet represented in that contract. The fallback assembly below is
+ * retained for older snapshots without Atlas v2 and must never invent links
+ * that the source payload does not contain. Observer semantics are annotations
+ * only.
  */
 
 function finite(value, fallback = 0) {
@@ -278,9 +281,10 @@ export function augmentLearnedGraph(
     });
   }
 
-  // Action dimension (spec Sec 9): "something I can act along", not a motor
-  // name. No edge is drawn to a competence/effect -- source carries no
-  // evidenced link between a dimension and a specific competence yet.
+  // Legacy fallback only. ActionDimension means "something I can act along",
+  // not a motor name. This fallback payload does not carry the canonical
+  // causal-relation table, so no dimension/effect link is fabricated here.
+  // Atlas v2 projects organism-owned causal estimates server-side.
   const actionDimensions = Array.isArray(motorKnowledge?.actionDimensions) ? motorKnowledge.actionDimensions : [];
   const knownActionDimensionIds = new Set();
   for (const dimension of actionDimensions) {
