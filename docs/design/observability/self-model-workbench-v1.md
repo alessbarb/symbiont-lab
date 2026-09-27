@@ -75,6 +75,28 @@ opaque output channels; Observatory reverses that private grounding against the
 current actuator surface and may therefore illuminate multiple physical regions.
 The organism never receives this correspondence.
 
+#### Composite ghost body
+
+The default Self View is composite rather than a single-metric heatmap:
+
+- materialization/opacity follows physical coverage;
+- fill strength follows learned self-knowledge quality;
+- boundary strength follows stability;
+- an outer halo follows agency evidence;
+- agentic regions receive a stronger observer-only emphasis.
+
+Knowledge, Coverage, Stability and Agency remain available as focus lenses for
+diagnosis, but the composite view is the primary representation of embodied
+self-knowledge.
+
+#### Development
+
+Self View also keeps a bounded browser-session development projection. It stores
+at most 120 observer frames and samples when the aggregate self-body changes or a
+100-tick cadence is reached. Development visualizes coverage, stability and
+agency over time and shows representative ghost-body snapshots. This history is
+observer memory only, is not checkpointed into Symbiont, and has no reverse path.
+
 ### Body Schema
 
 Shows opaque organism-owned learned parts, cognitive regions, dependencies and
