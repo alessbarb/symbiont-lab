@@ -61,12 +61,12 @@ passive windows), controller-signature memo (1024), intent outcome history (32).
 | --- | --- | --- |
 | E6 release gate | `20260927T052139Z-learning-agency-acquisition-reuse-closure-90e86c5-92f2` | **Passed on all seeds.** Satisfied self-acquired intent at ticks 236 / 402 / 612 (competence first acquired at 230 / 88 / 607); milestones in developmental order; reused competence grounded in the organism's own exploration evidence. |
 | E1 acquisition ablation | `20260927T052144Z-learning-agency-acquisition-ablation-90e86c5-9a70` | Full: 28.7 dimensions (3.0 false positives on inert outputs), 6.3 agentic, 7.0 competences (2.0 executable). No counterfactual evidence: 0 dimensions, 0 competences. No AgencyModel: 27.7 dimensions (2.7 false positives), 0 agentic, 0 competences. |
-| E3 intent persistence | `20260927T053734Z-learning-agency-intent-persistence-6258b8a-8d71` | Persistent vs re-decide: realized/competence commitments per seed 2/8, 0/0, 6/6 vs 0/5, 0/0, 2/6; realization 0.63 vs 0.17; satisfaction of activated intents 0.54 vs 0.17; mean activated-intent duration 2.7 vs 1.0 ticks; energy per realized effect 356 vs 569. |
-| E2 executive bridge | `20260927T053658Z-learning-agency-executive-bridge-ablation-6258b8a-9cc9` | Intent vs direct: realized/competence commitments per seed 2/8, 0/0, 6/6 vs 5/9, 0/0, 2/3; realization 0.63 vs 0.61; energy per realized effect 356 vs 391; 17.7 intents per seed rejected before authority (§41). Small differences on few events. |
-| E5 intentional causal advantage | `20260927T053811Z-learning-agency-intentional-causal-advantage-6258b8a-5be2` | A / B / C realized/competence commitments per seed: A 5/9, 0/0, 2/3; B 2/6, 0/0, 2/3; C 2/8, 0/0, 6/6. Realization 0.61 / 0.50 / 0.63; energy per realized effect 391 / 547 / 356. B's satisfaction (0.75) is completion without verification by construction and not comparable to C's verified 0.54. C beats B; C vs A is not yet distinguishable. |
-| E4 embodied intervention | `20260927T052522Z-learning-agency-embodied-causal-intervention-b25409e-708a` | On ground-truth perturbed relations, perturbed twin vs matched normal twin: permuted agency drop 0.074 vs 0.051, controllability 0.040 vs 0.039; broken effector agency 0.075 vs 0.067, controllability 0.048 vs 0.043. Revision is condition-specific but small within 1024 ticks. |
+| E3 intent persistence (protocol v2, 4096 ticks) | `20260927T062451Z-learning-agency-intent-persistence-758d323-5c95` | Testable seeds 101/149 (127 forms no intent in either arm, flagged untestable and excluded from the summary). Persistent vs re-decide, realized/activated per seed: 23/42, 24/37 vs 5/36, 4/21. Realization 0.60 vs 0.17; satisfaction 0.53 vs 0.17; energy per realized effect 170 vs 906; controller switches per realized effect 23 vs 121. **Clear.** |
+| E2 executive bridge (protocol v2, 4096 ticks) | `20260927T061929Z-learning-agency-executive-bridge-ablation-758d323-c220` | Testable seeds 101/149. Intent vs direct proposal, realized/commitments per seed: 23/42, 24/37 vs 21/36, 14/31. Realization 0.60 vs 0.52; energy per realized effect 170 vs 240; switches per realized effect 23 vs 31; 90.5 intents per seed rejected before authority (§41). Consistent direction on both seeds, modest size. |
+| E5 intentional causal advantage (protocol v2, 4096 ticks) | `20260927T063025Z-learning-agency-intentional-causal-advantage-758d323-5043` | Testable seeds 101/149. A direct / B unreconciled / C reconciled realized per seed: A 21, 14; B 13, 10; C 23, 24. Realization 0.52 / 0.42 / 0.60; energy per realized effect 240 / 359 / 170; mean prediction error 0.870 / 0.855 / 0.832. B's satisfaction (0.84) is completion without verification by construction. **C > B clear; C > A consistent but modest.** |
+| E4 embodied intervention (4096 ticks) | `20260927T060626Z-learning-agency-embodied-causal-intervention-44061ac-12d4` | **Not condition-specific.** On ground-truth perturbed relations, perturbed twin vs matched normal twin: permuted agency drop 0.130 vs 0.146, controllability 0.102 vs 0.086; broken effector agency 0.118 vs 0.186, controllability 0.090 vs 0.092. Relations the perturbation did not touch drift as much as perturbed ones (broken effector, unperturbed: 0.102 vs 0.072). The earlier 1024-tick run (`20260927T052522Z-...b25409e-708a`) showed a small positive margin that does not survive the longer horizon. See §5. |
 
-Interpretation limits: three seeds, one synthetic body family, fixed budgets, and very few cognitive commitments per 1024-tick horizon (seed 127 has none in E2/E3/E5, so it is not testable there). Rates rest on single-digit event counts.
+Interpretation limits: three seeds (two testable for E2/E3/E5), one synthetic body family, fixed budgets. Seed 127's original organism acquires one competence that falls back to "emerging" and never forms an intent; this is organism behaviour, not a restore defect (checked against the uninterrupted run).
 
 ---
 
@@ -109,7 +109,7 @@ Interpretation limits: three seeds, one synthetic body family, fixed budgets, an
 | 80–81 | Re-embodiment | pending attempt discarded, intent invalidated, affordances cleared; dimensions known but unbound (surface-fingerprint verification); Physics3D transplant carries them | `test_reembodiment_does_not_fake_current_binding`, `test_reembodiment_carries_learned_dimensions_as_unbound_knowledge` |
 | 82–83 | Checkpoint v4, executive section, migration | sensorimotor schema 4 (`agency_acquisition`), top-level `executive_intention`; v3 and older restore with no dimensions | `test_dimension_survives_checkpoint`, `test_intention_checkpoint_keeps_only_live_intent`, legacy tests |
 | 84 | Reduced Symbiont | shares `AgencyAcquisition` through its ActionDomain | experimental-integrity embodiment tests |
-| 85–91 | Observatory, Atlas, metrics (panels verified in a browser with a real organism snapshot; the Atlas canvas rendering of `action_intent` / `affords` is verified only at payload and syntax level) | snapshot §90 metrics; rich state → projection → Atlas (`action_intent` node, `affords` temporal overlay, agency metrics); Mind panels | atlas/projection tests |
+| 85–91 | Observatory, Atlas, metrics (verified in the real Observatory app with a live organism: the Mind agency panels populate through `applyMindSnapshot`, and the Atlas canvas draws the live `action_intent` node in the region of its competence and target effect) | snapshot §90 metrics; rich state → projection → Atlas (`action_intent` node, `affords` temporal overlay, agency metrics); Mind panels | atlas/projection tests |
 | 104–111 | Integration | `tests/integration/test_agency_acquisition_closure.py` | 7 tests |
 | 112–118 | E1–E6, release gate | `symbiont_lab/studies/learning/agency_acquisition.py`, `experiments/learning/agency-*` | `tests/experiments/protocols/test_agency_acquisition_protocols.py`; registered runs above |
 
@@ -162,14 +162,27 @@ Interpretation limits: three seeds, one synthetic body family, fixed budgets, an
   crashed. Vanished sources are now retired and overflow is dropped/counted.
 - The Observatory agency panels were hidden whenever no node was focused
   (found by rendering a real organism snapshot in a browser).
+- The workbench Mind snapshot path (`applyMindSnapshot` / `state.js`) dropped
+  `agencyAcquisition`, `affordances` and `executiveIntention`, so the panels
+  stayed empty in the live app; panel rows overlapped on long ids.
+- Study metrics measured intent duration/satisfaction over all intents instead
+  of activated ones; E2–E5 now aggregate only seeds where the question is
+  testable (both arms form cognitive events) and record the flag per seed.
 
 ## 5. Open scientific questions
 
-- **E4:** revision of perturbed relations exceeds the matched normal twin, but
-  only slightly within 1024 ticks, mostly in agency. The ledger weighs all
-  retained evidence equally; whether recency weighting or change detection is
-  needed is a new modelling decision beyond this spec and has not been tested.
-- **E2/E5:** reconciled intents beat unreconciled ones and edge out direct
-  proposals on efficiency, but the direct-proposal comparison is small at
-  n = 3. More seeds, longer horizons and richer bodies are needed before
-  claiming §116's causal advantage.
+- **E4 is not met by v1.** Diagnosis: effect identities are whole-state
+  signatures matched by identity (`EffectMatcher` v1). A broken or permuted
+  output changes which whole-state effect follows a family, but the change is
+  indistinguishable from ordinary drift of other outputs, and after the split
+  the singleton family of the broken actuator received no further attempts, so
+  its estimates were never re-tested. An exploration variant that boosted
+  causal information gain for contradicted families was tried and did not make
+  revision condition-specific; it was reverted rather than kept as a patch.
+  Condition-specific revision needs per-output (factorized) effect identity or
+  a similarity-based `EffectMatcher`, and/or recency/change detection in the
+  ledger — each is a new modelling decision beyond this spec (owner).
+- **E2/E5:** C beats B clearly and C beats A consistently on two testable
+  seeds, with modest margins (realization 0.60 vs 0.52, energy 170 vs 240).
+  More seeds and richer bodies are needed before claiming §116's causal
+  advantage as established.
