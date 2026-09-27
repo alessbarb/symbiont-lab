@@ -475,3 +475,19 @@ A restored registry continues the same causal history as the uninterrupted
 one (same transitions, identities and checkpoint). The remaining link —
 evidence → footprint → dimension/competence/affordance/intent/outcome
 learning decision — is traced when footprints are wired into those consumers.
+
+### 13.8 Physics3D gate with the adopted rule (2026-09-27)
+
+Probing (share 0.5) from `main` on a copy of the owner's organism, 2623 ticks
+(11375 final), footprints through `symbiont.actuation.footprint`:
+25 of 62 channels probed, 11 with >= 4 pulses, 773 passive windows,
+**6 footprints (1-4 atoms)**, within-channel stability Jaccard **0.40** over
+the 4 channels with >= 8 pulses (E8 synthetic, where precision is ~0.8:
+0.55).
+
+Gate decision: **passed with a caveat.** Footprints form in about half of the
+sufficiently probed channels and hold moderately — the first stable causal
+effects this organism has had (whole-state identity gave none). Coverage is
+still slow (25/62 channels in ~2600 ticks). The decisive test is the
+Physics3D acceptance after wiring (§10): bound competences and satisfied
+intents on a copy of the organism.
