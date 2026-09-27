@@ -51,6 +51,22 @@ preregistered protocol:
    0.0 at +2048. A single testable seed is not evidence either way; a gate the
    organism can actually reach is a new protocol version, not a re-read of
    this run.
+
+   *Protocol v2* (`20260927T105518Z-learning-agency-consolidated-causal-intervention-95f4628-8dc6`;
+   preregistered at `67224c95`, run on `95f4628`, which also carries Executive
+   Outcome Learning v1.1; 20 seeds; gate controllability/agency >= 0.05,
+   minimum age 1024 ticks): **primary endpoint not supported, and the reason
+   is now identified.** Testable seeds rose to 7 (broken_effector) and 10
+   (permuted). The +1024 normal-minus-perturbed gap is positive in 2/7 and
+   3/10 seeds (means 0.007 / 0.008) and exactly 0 in most others: once past
+   early development the organism does not re-test many consolidated
+   relations (re-tested fraction of invalidated relations <= 0.5 in most
+   seeds, 0.0-0.14 in some), so neither twin revises them and the gap is 0 by
+   construction. Where they are re-tested (seeds 149, 163, 389) differences
+   appear but are noisy. The open question is no longer revision but
+   re-exploration of consolidated relations (whether causal information gain,
+   §24-§25, should rise for relations that have gone unverified for long) — a
+   modelling decision for its own specification, not a protocol change.
 2. **Executive Outcome Learning v1 (E2/E5).** Real intent outcomes become
    local, context-specific, failure-reason-aware executive evidence for
    (competence, anticipated effect, context) that modulates future
