@@ -381,3 +381,28 @@ implementation of §4-§9 and §13.
 with `probing_share = 0.0` by default, so organisms and studies are unchanged
 until attribution (§4-§9) lands. Probe state (share, unit, remaining repeats)
 is checkpointed; older checkpoints restore with probing off.
+
+### 13.6 Pulse attribution against ground truth (synthetic E8 body)
+
+Probing share 0.5 on the E8 body (16 outputs, 4 correlated receptors each,
+32 drifting receptors; 6000 ticks; seeds 101 and 149), footprints from pulse
+atom sets against equal-length rest windows, compared with the apparatus
+ground truth:
+
+| Seed | Channels pulsed | >= 4 pulses | With footprint | Precision | Recall | Stability (Jaccard, halves) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 101 | 16 | 5 | 5 | 0.75 | 0.50 | 0.28 (n=4) |
+| 149 | 15 | 10 | 10 | 0.62 | 0.47 | 0.18 (n=2) |
+
+Precision is the fraction of footprint atoms on receptors the channel really
+drives (chance ~4%); recall is the fraction of its 4 receptors found (the
+weakest, gain x0.25, often stays below one bucket). Dropping the magnitude
+class from atoms changes nothing. The complete 1500-tick Physics3D probing
+run agrees: all 4 channels with >= 4 pulses form footprints (16 of 62
+channels pulsed).
+
+Reading: pulse attribution finds the true causal receptors; what is missing
+is **sample size per channel** — with 4-6 pulses per half, footprints are not
+yet stable. The 6000-tick Physics3D run measures how stability grows with
+pulses; if it stays low, the remedy is more repeats per probed unit, not a
+different attribution.
