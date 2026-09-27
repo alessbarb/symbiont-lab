@@ -27,12 +27,14 @@ export class WorldView {
     this.pointer = new THREE.Vector2();
     this.abort = new AbortController();
     this.closed = false;
+    this.active = viewer.workspace?.activeTab === 'world';
     this.recovering = false;
     this.eventGeneration = 0;
     this.recoveryPending = false;
     this.toolbar = document.createElement('div');
     this.toolbar.className = 'body-world-toolbar';
     this.toolbar.setAttribute('aria-label', 'Spatial observation layers');
+    this.toolbar.hidden = !this.active;
     for (const [id, label] of LAYERS) {
       const button = document.createElement('button');
       button.textContent = label;
@@ -53,6 +55,7 @@ export class WorldView {
     this.toolbar.append(fit);
     this.legend = document.createElement('div');
     this.legend.className = 'body-world-legend';
+    this.legend.hidden = !this.active;
     this.legend.textContent = 'World unavailable · waiting for spatial evidence';
     viewer.canvasWrap.append(this.toolbar, this.legend);
     let down = null;
@@ -62,6 +65,22 @@ export class WorldView {
       down = null;
     }, { signal: this.abort.signal });
     this.recover();
+  }
+
+  setActive(active) {
+    this.active = Boolean(active);
+    this.toolbar.hidden = !this.active;
+    this.legend.hidden = !this.active;
+
+    if (!this.active) {
+      for (const { group } of this.entities.values()) group.visible = false;
+      for (const marker of this.receptors.values()) marker.visible = false;
+      this.contacts.visible = false;
+      if (this.viewer.gridHelper) this.viewer.gridHelper.visible = false;
+      return;
+    }
+
+    this.updateVisibility();
   }
 
   accept(event) {
@@ -190,14 +209,23 @@ export class WorldView {
       arrow.userData.selection = { kind: 'contact', id: contact.id };
       this.contacts.add(arrow);
     }
-    if (this.viewer.resourceObject) this.viewer.resourceObject.visible = false;
-    if (this.viewer.resourceGuide) this.viewer.resourceGuide.visible = false;
-    if (this.viewer.legacyGround) this.viewer.legacyGround.visible = false;
+    if (this.active) {
+      if (this.viewer.resourceObject) this.viewer.resourceObject.visible = false;
+      if (this.viewer.resourceGuide) this.viewer.resourceGuide.visible = false;
+      if (this.viewer.legacyGround) this.viewer.legacyGround.visible = false;
+    }
     this.updateVisibility();
     this.viewer.workspace.requestRender();
   }
 
   updateVisibility() {
+    if (!this.active) {
+      for (const { group } of this.entities.values()) group.visible = false;
+      for (const marker of this.receptors.values()) marker.visible = false;
+      this.contacts.visible = false;
+      if (this.viewer.gridHelper) this.viewer.gridHelper.visible = false;
+      return;
+    }
     for (const { group } of this.entities.values()) {
       group.visible = this.layers.physical && this.layers.truth;
       for (const child of group.children) if (child.userData.field) child.visible = this.layers.perception && !!this.state?.entities[group.userData.selection.id]?.field?.active;
@@ -234,6 +262,7 @@ export class WorldView {
   }
 
   pick(event) {
+    if (!this.active) return;
     const rect = this.viewer.canvas.getBoundingClientRect();
     this.pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
     this.ray.setFromCamera(this.pointer, this.viewer.camera);
@@ -253,6 +282,7 @@ export class WorldView {
   }
 
   update() {
+    if (!this.active) return;
     // BodyViewer refreshes these overlays on incoming poses. Reapply the epistemic
     // boundary at render time so observer-only trajectories cannot leak into View.
     const truthVisible = this.layers.truth && this.layers.physical;
