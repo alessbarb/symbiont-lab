@@ -10,6 +10,9 @@ from .competence import CompetenceEvidence, CompetenceMaturity
 from .types import MotorIntent
 
 _HORIZONS = (1, 4, 16, 64)
+# Competence-development checkpoint schemas that restore as current-body
+# evidence (v9 migratable, v10 body-scoped, v11 current).
+RESTORABLE_SCHEMA_VERSIONS = (9, 10, 11)
 _PRIMITIVE_TICKS = 4
 # Evidence independence and spontaneous motor persistence are distinct clocks.
 # An evidence block must be short enough to reject overlapping samples, while a
@@ -1365,7 +1368,7 @@ class CompetenceDevelopmentEngine:
             minimum=1,
             maximum=11,
         )
-        if schema not in (9, 10, 11):
+        if schema not in RESTORABLE_SCHEMA_VERSIONS:
             raise ValueError(
                 "unsupported sensorimotor checkpoint: schema_version must be 9, 10 or 11"
             )

@@ -1001,6 +1001,41 @@ def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
         )
 
 
+def test_engine_reads_motor_evidence_schema_from_the_action_domain():
+    """Regression: since ActionDomain owns motor state, the schema lives under
+    actuation.action_domain.competence_development; the guard rejected every
+    checkpoint written after that move."""
+    from symbiont_lab.physics3d.engine import _require_current_motor_evidence
+    from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
+
+    body = CausalBody(actuator_count=3, seed=1)
+    runtime = build_subject(body, organism_id="physics3d-guard")
+    for _ in range(3):
+        runtime.tick()
+        body.advance(runtime.last_actuations)
+    _require_current_motor_evidence(runtime.checkpoint(), fresh_body=False, new_symbiont=False)
+
+    for schema in (9, 10, 11):
+        _require_current_motor_evidence(
+            {
+                "actuation": {
+                    "action_domain": {"competence_development": {"schema_version": schema}}
+                }
+            },
+            fresh_body=False,
+            new_symbiont=False,
+        )
+    with pytest.raises(RuntimeError, match="requires migratable v9"):
+        _require_current_motor_evidence(
+            {"actuation": {"action_domain": {"competence_development": {"schema_version": 8}}}},
+            fresh_body=False,
+            new_symbiont=False,
+        )
+    _require_current_motor_evidence(
+        {"actuation": {"enabled": False}}, fresh_body=False, new_symbiont=False
+    )
+
+
 def test_action_domain_applies_exclusion_before_execution_and_credit():
     from symbiont.core.domains.action import ActionDomain
 

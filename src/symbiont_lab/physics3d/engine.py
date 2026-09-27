@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from symbiont import __version__ as symbiont_version
+from symbiont.actuation.sensorimotor import RESTORABLE_SCHEMA_VERSIONS
 from symbiont_lab.app.physics3d_monitor import (
     MonitorSnapshot,
     UnifiedViewerProcess,
@@ -147,12 +148,23 @@ def _save_checkpoint(
 
 
 def _sensorimotor_checkpoint_schema(payload: dict | None) -> int | None:
+    """Schema of the checkpointed competence-development (motor) evidence.
+
+    Since ActionDomain became the single motor state the evidence lives under
+    ``actuation.action_domain.competence_development``; older checkpoints kept
+    it under ``actuation.sensorimotor``.
+    """
     if not isinstance(payload, dict):
         return None
     actuation = payload.get("actuation")
     if not isinstance(actuation, dict):
         return None
-    sensorimotor = actuation.get("sensorimotor")
+    action_domain = actuation.get("action_domain")
+    sensorimotor = (
+        action_domain.get("competence_development")
+        if isinstance(action_domain, dict)
+        else actuation.get("sensorimotor")
+    )
     if not isinstance(sensorimotor, dict):
         return None
     value = sensorimotor.get("schema_version")
@@ -169,13 +181,16 @@ def _require_current_motor_evidence(
 ) -> None:
     if payload is None or fresh_body or new_symbiont:
         return
+    actuation = payload.get("actuation")
+    if isinstance(actuation, dict) and actuation.get("enabled") is False:
+        return  # no motor evidence to reinterpret
     schema = _sensorimotor_checkpoint_schema(payload)
-    if schema in (9, 10):
+    if schema in RESTORABLE_SCHEMA_VERSIONS:
         return
     raise RuntimeError(
         "Physics3D checkpoint carries sensorimotor evidence from an incompatible "
-        f"schema ({schema!r}); canonical motor learning requires migratable v9 "
-        "or body-scoped v10 evidence. "
+        f"schema ({schema!r}); canonical motor learning requires migratable v9, "
+        "body-scoped v10 or current v11 evidence. "
         "Use --fresh-body to re-embody the same Symbiont and revalidate "
         "body-specific knowledge, or --new-symbiont for a clean individual. "
         "The old motor evidence will not be silently reinterpreted."
