@@ -16,9 +16,10 @@ from symbiont_lab.experiments.registry import get_protocol
 from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.experiments.spec import spec_from_payload
 from symbiont_lab.studies.learning.agency_acquisition import (
+    _twin,
     run_acquisition_reuse_closure_study,
-    run_agency_acquisition_ablation_study,
 )
+from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 pytestmark = pytest.mark.experiment_contract
 
@@ -99,10 +100,31 @@ def test_matched_studies_mark_unacquired_seeds_as_not_testable(tmp_path):
 
 
 def test_agency_studies_are_deterministic_and_seed_validated():
-    first = run_agency_acquisition_ablation_study(seeds=(3,), ticks=40)
-    second = run_agency_acquisition_ablation_study(seeds=(3,), ticks=40)
+    # Long enough for the executive loop to engage and close (seed 127).
+    first = run_acquisition_reuse_closure_study(seeds=(127,), max_ticks=600)
+    second = run_acquisition_reuse_closure_study(seeds=(127,), max_ticks=600)
     assert first == second
+    assert first["per_seed"][0]["closed"] is True
     with pytest.raises(ValueError):
         run_acquisition_reuse_closure_study(seeds=(), max_ticks=10)
     with pytest.raises(ValueError):
         run_acquisition_reuse_closure_study(seeds=(1, 1), max_ticks=10)
+
+
+def test_matched_twins_are_identical_continuations():
+    body = CausalBody(actuator_count=4, seed=7)
+    runtime = build_subject(body, organism_id="twin-contract")
+    for _ in range(200):
+        runtime.tick()
+        body.advance(runtime.last_actuations)
+    first, first_body = _twin(runtime, body)
+    second, second_body = _twin(runtime, body)
+    for _ in range(200):
+        first.tick()
+        first_body.advance(first.last_actuations)
+        second.tick()
+        second_body.advance(second.last_actuations)
+    assert (
+        first._action_domain.causal_evidence.evidence
+        == second._action_domain.causal_evidence.evidence
+    )
