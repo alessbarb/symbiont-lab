@@ -241,3 +241,27 @@ is unchanged.
   kept; the most recent suppression kept; recency order preserved).
 - **Studies:** E2 v4 and E5 v4 rerun the v3 arms and criteria unchanged,
   including the not-a-clean-test rule (history hit rate < 0.10 or evictions).
+
+## 15. v1.1 results (preregistered at `95f4628d`)
+
+Runs: `20260927T105519Z-learning-agency-intentional-causal-advantage-95f4628-dd84`
+(E5 v4), `20260927T105519Z-learning-agency-executive-bridge-ablation-95f4628-1f9f`
+(E2 v4), `20260927T105519Z-learning-agency-acquisition-reuse-closure-95f4628-669e`
+(E6). Ten seeds, eight testable.
+
+- **Clean test.** History hit rate over the horizon 0.70-0.99 on every
+  testable seed (>= 0.10) and no eviction, so the preregistered rule accepts
+  the D vs C comparison.
+- **D vs C:** realized commitments per seed D > C on 2, equal on 6, lower on
+  0 (seed 179: 23 vs 15; seed 149: 25 vs 24). Means D / C: realized 19.0 /
+  17.9, effect realization rate 0.497 / 0.467, energy per realized effect
+  263 / 277, switches per realized effect 33.5 / 35.2, prediction error
+  0.866 / 0.878, failed commitments 7.5 / 8.0, intent satisfaction 0.44 /
+  0.39. E2 v4 gives identical D and C numbers.
+- **Recorded result: D better than C** — small, never worse on any seed,
+  concentrated in two seeds. Using reconciled outcomes for future admission
+  helps selection modestly; it does not by itself make C/D beat B per seed
+  (D vs B: 4 better, 1 equal, 3 worse, unchanged from C vs B), so §116's
+  per-seed advantage over unreconciled intents remains not established.
+- D's realization rate (0.497) now also exceeds direct proposals (0.487).
+- E6 release gate still passes on all seeds.
