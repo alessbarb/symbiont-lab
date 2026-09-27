@@ -10,10 +10,10 @@ export const BODY_PRESENTATION = Object.freeze({
 
   interpolation: Object.freeze({
     initialDelayMs: 120,
-    maxPoseFrames: 32,
+    maxPoseFrames: 256,
     nominalDenseHz: 24,
-    minBufferMs: 45,
-    maxBufferMs: 220,
+    minBufferMs: 120,
+    maxBufferMs: 1500,
     producerRateMin: 0.05,
     producerRateMax: 4,
     producerSampleWindow: 12,

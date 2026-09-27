@@ -98,6 +98,8 @@ def read_journal(
         try:
             if segment.suffix == ".gz":
                 previous = positions.get(segment, 0)
+                if previous == -1:
+                    continue
                 index = -1
                 with gzip.open(segment, "rt", encoding="utf-8") as handle:
                     for index, line in enumerate(handle):
@@ -106,7 +108,7 @@ def read_journal(
                         entry = parse_journal_line(line, run_id)
                         if entry:
                             entries.append(entry)
-                positions[segment] = index + 1
+                positions[segment] = -1
             else:
                 previous = positions.get(segment, 0)
                 with segment.open("rb") as handle:

@@ -171,6 +171,10 @@ export class SelfModelWorkspace {
   }
 
   recordSelfViewDevelopment() {
+    const now = performance.now();
+    if (this._lastSelfViewCompute && now - this._lastSelfViewCompute < 500) return;
+    this._lastSelfViewCompute = now;
+
     const frame = captureSelfViewDevelopment(this.snapshot);
     if (!frame?.tick) return;
     const previous = this.selfViewDevelopment[this.selfViewDevelopment.length - 1];

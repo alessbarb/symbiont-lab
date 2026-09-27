@@ -8,7 +8,7 @@ import threading
 from collections import deque
 from typing import Any
 
-_DEFAULT_QUEUE_SIZE = 64
+_DEFAULT_QUEUE_SIZE = 2048
 _DEFAULT_HISTORY_SIZE = 512
 
 
