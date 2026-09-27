@@ -407,7 +407,7 @@ yet stable. The 6000-tick Physics3D run measures how stability grows with
 pulses; if it stays low, the remedy is more repeats per probed unit, not a
 different attribution.
 
-### 13.7 Footprint membership: evidence for changing decision 2 (owner decision)
+### 13.7 Footprint membership (ADOPTED by the owner, 2026-09-27; replaces decision 2)
 
 Within-channel stability (a channel's footprint from the first vs second half
 of its own pulses; the run-halves metric compares different channels because
@@ -435,3 +435,19 @@ window of the same length, `1 - (1 - q)^L` (q = per-tick passive rate, L =
 mean pulse length), by a margin of 0.05, with at least 4 pulses. Hysteresis
 applies to the margin. Controllability and agency estimates keep the model
 formulas for everything else (dimensions, competences, EOL).
+
+**Adopted and implemented** (`symbiont/actuation/footprint.py`): enter margin
+0.05, exit margin 0.0, at least 4 pulses. Validated through the module
+itself against E8 ground truth (8 repeats, 12000 ticks): precision 0.77 /
+0.80, recall 0.67 / 0.61, within-channel Jaccard 0.55 / 0.55 (seeds 101 /
+149).
+
+**Traceability (owner requirement: every causal claim must be traceable).**
+Each footprint member keeps the estimate that justified it — pulses, hits,
+mean pulse length, passive windows and hits, expected quiet rate, Wilson
+lower bound, contrast, and the model's controllability and agency against
+the same length-matched baseline. `FootprintRegistry.explain(source)` returns
+it and the checkpoint stores it, so any effect a competence, binding, intent
+or outcome-learning key refers to can be traced back to the pulses and quiet
+windows that established it. Pulses keep their commitment id, which links
+back to the ledger's commitment evidence.

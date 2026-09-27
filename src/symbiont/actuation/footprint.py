@@ -1,35 +1,46 @@
-"""Causal footprints (Factorized Effect Representation v1 §4.2, §13.4).
+"""Causal footprints (Factorized Effect Representation v1 §4.2, §13.4, §13.7).
 
 The effect of an intervention source is the set of atoms it produces beyond
 what happens anyway.  The unit of attribution is the **pulse** — one
-exploration commitment driving a single channel set — compared with runs of
-consecutive quiet (passive) windows, because a sustained command changes the
-body mostly at its onset and tick-level attribution dilutes it (spike §13.4).
+exploration commitment driving a single channel set — because a sustained
+command changes the body mostly at its onset (spike §13.4).
 
-Estimates use the model's own controllability and agency formulas.  Footprint
-membership has hysteresis so an atom near the threshold cannot flicker the
-identity that competences, bindings, intents and outcome learning refer to,
-and referenced footprints are pinned.  Nothing here writes evidence.
+Membership (§13.7, owner decision): an atom belongs to a source's footprint
+when the lower 95% Wilson bound of its pulse hit rate exceeds the rate
+expected for a quiet window of the same length, ``1 - (1 - q) ** L`` (q: the
+atom's per-tick rate over passive windows; L: mean pulse length), by the entry
+margin, with at least ``min_pulses`` pulses.  It leaves only when the bound
+falls to the exit margin (hysteresis), so identities referred to by
+competences, bindings, intents and outcome learning do not flicker.
+
+Every decision is traceable: each member keeps the estimate that justified
+it (pulses, hits, length, passive rate, expected rate, bound, and the model's
+controllability and agency), exposed by ``explain`` and checkpointed.
+Nothing here writes evidence.
 """
 
 from __future__ import annotations
 
 import hashlib
+import math
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Callable, Iterable, Mapping
 
 from .evidence import CausalEvidence
 from .model import agency_confidence, controllability_confidence
 
-MIN_RUN = 3
+MIN_PULSE_WINDOWS = 3
+_Z95 = 1.96
 
 
 @dataclass(frozen=True, slots=True)
 class Pulse:
     source: tuple[str, ...]  # sorted opaque channel refs driven by the commitment
     atoms: frozenset[str]
+    windows: int
     end_tick: int
+    commitment_id: str
 
 
 def footprint_id(atoms: Iterable[str]) -> str:
@@ -41,7 +52,7 @@ def pulses_from(
     evidence: Iterable[CausalEvidence],
     channels_of: Callable[[str], tuple[str, ...] | None],
     *,
-    min_windows: int = MIN_RUN,
+    min_windows: int = MIN_PULSE_WINDOWS,
 ) -> tuple[Pulse, ...]:
     """One pulse per commitment whose windows all drive the same channel set."""
     by_commitment: dict[str, list[CausalEvidence]] = {}
@@ -58,121 +69,145 @@ def pulses_from(
             for item in items
             if item.intervention_signature_id is not None
         }
-        if len(sources) != 1 or None in sources:
+        if len(sources) != 1:
             continue  # coordination, not a probe of one channel set
         (source,) = sources
         if source is None:
             continue
-        atoms = frozenset(atom for item in items for atom in item.effect_atoms)
         pulses.append(
             Pulse(
                 source=tuple(sorted(source)),
-                atoms=atoms,
+                atoms=frozenset(atom for item in items for atom in item.effect_atoms),
+                windows=len(items),
                 end_tick=max(item.observation_tick for item in items),
+                commitment_id=commitment_id,
             )
         )
     return tuple(pulses)
 
 
-def quiet_runs(
-    passive: Iterable[CausalEvidence], *, min_windows: int = MIN_RUN
-) -> tuple[frozenset[str], ...]:
-    """Atom sets of runs of consecutive passive windows (the baseline)."""
-    ordered = sorted(passive, key=lambda item: item.observation_tick)
-    runs: list[list[CausalEvidence]] = []
-    for item in ordered:
-        if runs and item.observation_tick == runs[-1][-1].observation_tick + 1:
-            runs[-1].append(item)
-        else:
-            runs.append([item])
-    return tuple(
-        frozenset(atom for item in run for atom in item.effect_atoms)
-        for run in runs
-        if len(run) >= min_windows
-    )
+def wilson_lower_bound(hits: int, trials: int, z: float = _Z95) -> float:
+    if trials <= 0:
+        return 0.0
+    rate = hits / trials
+    denominator = 1.0 + z * z / trials
+    centre = rate + z * z / (2.0 * trials)
+    spread = z * math.sqrt(rate * (1.0 - rate) / trials + z * z / (4.0 * trials * trials))
+    return max(0.0, (centre - spread) / denominator)
 
 
 @dataclass(frozen=True, slots=True)
 class AtomEstimate:
+    """Why an atom is (or is not) part of a source's footprint."""
+
     atom: str
+    pulses: int
+    hits: int
+    mean_pulse_windows: float
+    passive_windows: int
+    passive_hits: int
+    expected_quiet_rate: float
+    pulse_rate_lower_bound: float
     controllability: float
     agency: float
-    pulses: int
-    quiet_runs: int
+
+    @property
+    def contrast(self) -> float:
+        return self.pulse_rate_lower_bound - self.expected_quiet_rate
 
 
 def atom_estimates(
-    pulses: Iterable[Pulse], quiet: tuple[frozenset[str], ...]
+    pulses: Iterable[Pulse], passive: Iterable[CausalEvidence]
 ) -> dict[tuple[str, ...], dict[str, AtomEstimate]]:
-    """Per source and atom: pulse hit rate against the quiet baseline."""
-    baseline = Counter(atom for run in quiet for atom in run)
+    """Per source and atom: pulse hits against a length-matched quiet baseline."""
+    quiet = [item for item in passive if item.is_passive]
+    passive_n = len(quiet)
+    passive_hits = Counter(atom for item in quiet for atom in item.effect_atoms)
     by_source: dict[tuple[str, ...], list[Pulse]] = {}
     for pulse in pulses:
         by_source.setdefault(pulse.source, []).append(pulse)
     out: dict[tuple[str, ...], dict[str, AtomEstimate]] = {}
-    other_n = len(quiet)
-    for source, items in by_source.items():
+    for source, items in sorted(by_source.items()):
         n = len(items)
+        length = sum(pulse.windows for pulse in items) / n
         hits = Counter(atom for pulse in items for atom in pulse.atoms)
-        out[source] = {
-            atom: AtomEstimate(
+        estimates = {}
+        for atom, count in sorted(hits.items()):
+            per_tick = passive_hits[atom] / passive_n if passive_n else 0.0
+            expected = 1.0 - (1.0 - per_tick) ** length
+            # The model's own confidence against the same length-matched
+            # baseline, expressed as expected hits over the passive windows.
+            quiet_equivalent = round(expected * passive_n)
+            estimates[atom] = AtomEstimate(
                 atom=atom,
-                controllability=controllability_confidence(n, count, other_n, baseline[atom]),
-                agency=agency_confidence(n, count, other_n, baseline[atom], None),
                 pulses=n,
-                quiet_runs=other_n,
+                hits=count,
+                mean_pulse_windows=length,
+                passive_windows=passive_n,
+                passive_hits=passive_hits[atom],
+                expected_quiet_rate=expected,
+                pulse_rate_lower_bound=wilson_lower_bound(count, n),
+                controllability=controllability_confidence(n, count, passive_n, quiet_equivalent),
+                agency=agency_confidence(n, count, passive_n, quiet_equivalent, None),
             )
-            for atom, count in sorted(hits.items())
-        }
+        out[source] = estimates
     return out
 
 
 class FootprintRegistry:
-    """Stable per-source footprints with membership hysteresis and pinning."""
+    """Stable, traceable per-source footprints with hysteresis and pinning."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(
         self,
         *,
-        enter: float = 0.35,
-        hysteresis: float = 0.05,
+        enter_margin: float = 0.05,
+        exit_margin: float = 0.0,
+        min_pulses: int = 4,
         max_footprints: int = 512,
     ) -> None:
-        if not 0.0 < enter <= 1.0 or not 0.0 <= hysteresis < enter:
-            raise ValueError("invalid footprint thresholds")
-        self.enter = float(enter)
-        self.exit = float(enter - hysteresis)
+        if not 0.0 <= exit_margin <= enter_margin < 1.0 or min_pulses < 1:
+            raise ValueError("invalid footprint membership parameters")
+        self.enter_margin = float(enter_margin)
+        self.exit_margin = float(exit_margin)
+        self.min_pulses = int(min_pulses)
         self.max_footprints = int(max_footprints)
-        self._members: dict[tuple[str, ...], frozenset[str]] = {}
+        self._members: dict[tuple[str, ...], dict[str, AtomEstimate]] = {}
         self._pinned: set[str] = set()
+
+    def _qualifies(self, estimate: AtomEstimate, margin: float) -> bool:
+        return estimate.pulses >= self.min_pulses and estimate.contrast > margin
 
     def footprint_of(self, source: tuple[str, ...]) -> tuple[str, frozenset[str]] | None:
         members = self._members.get(tuple(sorted(source)))
         if not members:
             return None
-        return footprint_id(members), members
+        atoms = frozenset(members)
+        return footprint_id(atoms), atoms
 
-    def update(self, estimates: dict[tuple[str, ...], dict[str, AtomEstimate]]) -> None:
-        """Enter at ``enter``; leave only below ``enter - hysteresis``."""
+    def explain(self, source: tuple[str, ...]) -> tuple[dict[str, Any], ...]:
+        """The evidence that justifies each atom of this source's footprint."""
+        members = self._members.get(tuple(sorted(source)), {})
+        return tuple(
+            {**asdict(estimate), "contrast": estimate.contrast}
+            for _, estimate in sorted(members.items())
+        )
+
+    def update(self, estimates: Mapping[tuple[str, ...], Mapping[str, AtomEstimate]]) -> None:
+        """Enter above ``enter_margin``; leave only at or below ``exit_margin``."""
         for source, per_atom in sorted(estimates.items()):
-            current = self._members.get(source, frozenset())
-            kept = {
-                atom
-                for atom in current
-                if atom in per_atom
-                and per_atom[atom].agency >= self.exit
-                and per_atom[atom].controllability > 0.0
-            }
-            added = {
-                atom
-                for atom, estimate in per_atom.items()
-                if estimate.agency >= self.enter and estimate.controllability > 0.0
-            }
-            members = frozenset(kept | added)
+            current = self._members.get(source, {})
+            members: dict[str, AtomEstimate] = {}
+            for atom, estimate in per_atom.items():
+                margin = self.exit_margin if atom in current else self.enter_margin
+                if self._qualifies(estimate, margin):
+                    members[atom] = estimate
             if members:
                 self._members[source] = members
-            elif footprint_id(current) not in self._pinned:
+            elif current and footprint_id(current) in self._pinned:
+                continue  # referenced: keeps resolving to its atom set
+            else:
                 self._members.pop(source, None)
         self._enforce_bound()
 
@@ -188,8 +223,8 @@ class FootprintRegistry:
         removable = sorted(
             (
                 source
-                for source, atoms in self._members.items()
-                if footprint_id(atoms) not in self._pinned
+                for source, members in self._members.items()
+                if footprint_id(members) not in self._pinned
             ),
             key=lambda source: (len(self._members[source]), source),
         )
@@ -198,29 +233,30 @@ class FootprintRegistry:
 
     @property
     def footprints(self) -> dict[tuple[str, ...], frozenset[str]]:
-        return dict(self._members)
+        return {source: frozenset(members) for source, members in self._members.items()}
 
     def checkpoint(self) -> dict[str, object]:
         return {
             "schema_version": self.SCHEMA_VERSION,
             "members": [
-                {"source": list(source), "atoms": sorted(atoms)}
-                for source, atoms in sorted(self._members.items())
+                {"source": list(source), "estimates": [asdict(e) for _, e in sorted(m.items())]}
+                for source, m in sorted(self._members.items())
             ],
             "pinned": sorted(self._pinned),
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, Any] | None, **options) -> "FootprintRegistry":
+    def restore(cls, payload: Mapping[str, Any] | None, **options: Any) -> "FootprintRegistry":
         registry = cls(**options)
         if payload is None:
             return registry
         if payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("unsupported footprint registry checkpoint")
         for raw in payload.get("members", []):
-            registry._members[tuple(str(v) for v in raw["source"])] = frozenset(
-                str(v) for v in raw["atoms"]
-            )
+            source = tuple(str(v) for v in raw["source"])
+            registry._members[source] = {
+                str(item["atom"]): AtomEstimate(**item) for item in raw["estimates"]
+            }
         registry._pinned = {str(v) for v in payload.get("pinned", [])}
         return registry
 
@@ -232,5 +268,5 @@ __all__ = [
     "atom_estimates",
     "footprint_id",
     "pulses_from",
-    "quiet_runs",
+    "wilson_lower_bound",
 ]
