@@ -1832,3 +1832,14 @@ def test_physicalized_atlas_exposes_physical_motor_layer_without_leaking_into_re
     assert "['actuator', 'embodiment_binding'].includes(node.kind)" in cartography
     assert "if (showPhysicalLayer) return true" in cartography
     assert "graph.showEmbodiment," in controller
+
+
+def test_agency_panels_render_without_a_focused_cognitive_node() -> None:
+    live = (WEB_ROOT / "views" / "mind" / "cognitive-live.js").read_text(encoding="utf-8")
+    empty_branch = live[
+        live.index("if (!frame?.focus) {") : live.index("const focus = frame.focus;")
+    ]
+    assert "renderAgency(root, frame?.agency);" in empty_branch
+    for title in ("Agency acquisition", "Executive state", "Latest action trace"):
+        assert title in live
+    assert "`${agency.dimensions}/${agency.physicalOpportunities}`" not in live

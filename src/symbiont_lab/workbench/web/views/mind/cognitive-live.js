@@ -366,6 +366,8 @@ function renderFocus(frame) {
     const empty = el('div', 'mind-live-empty');
     empty.textContent = 'No active cognitive focus observed in this frame.';
     root.appendChild(empty);
+    // Agency development and executive state do not depend on a focused node.
+    renderAgency(root, frame?.agency);
     return;
   }
 
@@ -479,11 +481,9 @@ function renderAgency(root, agency) {
       `${agency.recurringSignatures} recurring / ${agency.signatures}`,
       agency.signatures ? agency.recurringSignatures / agency.signatures : 0,
     ),
-    metricRow(
-      'Discovered action dimensions',
-      `${agency.dimensions}/${agency.physicalOpportunities}`,
-      agency.physicalOpportunities ? Math.min(1, agency.dimensions / agency.physicalOpportunities) : 0,
-    ),
+    // Dimensions span channel sets and synergies: a count, not a fraction of
+    // the physical opportunities (Sec 7.5, 133).
+    metricRow('Discovered action dimensions', String(agency.dimensions)),
     metricRow(
       'Agentic action dimensions',
       `${agency.agenticDimensions}/${agency.dimensions}`,
