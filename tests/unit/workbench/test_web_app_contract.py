@@ -178,3 +178,17 @@ def test_mind_generative_cognition_is_separate_from_atlas_topology():
     assert "renderGenerativePanel(source)" in controller
     assert "completeTopology.nodes.push" not in controller
     assert "rawNodes.push" not in controller
+
+
+def test_cognition_causal_provenance_is_observer_only_and_on_demand():
+    client = _read("views/mind/causal-provenance.js")
+    controller = _read("views/mind/cognition-controller.js")
+    inspector = _read("views/mind/cognition-inspector.js")
+
+    assert "/api/provenance/why?" in client
+    assert "provenanceRefForNode" in client
+    assert "fetchCausalProvenance" in controller
+    assert "loadSelectedCausalProvenance" in controller
+    assert "Causal history" in inspector
+    assert "never fed back" in inspector
+    assert "innerHTML" not in client

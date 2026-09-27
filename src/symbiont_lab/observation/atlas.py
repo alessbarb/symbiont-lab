@@ -222,6 +222,129 @@ def _action_dimension_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
     return nodes
 
 
+def _intervention_signature_nodes(snapshot: Mapping[str, Any]) -> list[AtlasNode]:
+    """Materialize learned intervention families exposed by AgencyAcquisition.
+
+    They are organism-owned causal abstractions, not physical actuators.  The
+    observer does not infer membership or semantics; it projects the bounded
+    registry view exactly as supplied by the runtime.
+    """
+    acquisition = snapshot.get("agency_acquisition")
+    if not isinstance(acquisition, Mapping):
+        return []
+    items = acquisition.get("intervention_signatures")
+    if not isinstance(items, (list, tuple)):
+        return []
+    nodes: list[AtlasNode] = []
+    for item in items:
+        if not isinstance(item, Mapping) or item.get("signature_id") is None:
+            continue
+        metadata = {
+            key: item[key]
+            for key in ("dimensionality", "temporal", "attempts")
+            if item.get(key) is not None
+        }
+        nodes.append(
+            AtlasNode(
+                id=str(item["signature_id"]),
+                kind="intervention_signature",
+                metadata=metadata,
+            )
+        )
+    return nodes
+
+
+def _causal_estimate_edges(
+    snapshot: Mapping[str, Any],
+    known_node_ids: set[str],
+    known_effect_ids: set[str],
+) -> list[AtlasEdge]:
+    """Project the organism's causal model without promoting it to provenance.
+
+    The source relation is a learned controllability/agency estimate.  Several
+    context-specific estimates between the same source and effect are collapsed
+    into one observer edge; metadata records how many contexts were present and
+    preserves the strongest real estimate.  This keeps the Atlas readable while
+    never fabricating a relation absent from organism-owned evidence.
+    """
+    acquisition = snapshot.get("agency_acquisition")
+    if not isinstance(acquisition, Mapping):
+        return []
+    items = acquisition.get("causal_relations")
+    if not isinstance(items, (list, tuple)):
+        return []
+
+    grouped: dict[tuple[str, str, str], list[Mapping[str, Any]]] = {}
+    for item in items:
+        if not isinstance(item, Mapping):
+            continue
+        source_kind = str(item.get("source_kind") or "")
+        source_ref = item.get("source_ref")
+        effect_id = item.get("effect_id")
+        if source_kind not in {"intervention", "dimension"}:
+            continue
+        if source_ref is None or effect_id is None:
+            continue
+        source_ref = str(source_ref)
+        effect_id = str(effect_id)
+        if source_ref not in known_node_ids or effect_id not in known_effect_ids:
+            continue
+        grouped.setdefault((source_kind, source_ref, effect_id), []).append(item)
+
+    edges: list[AtlasEdge] = []
+    for (source_kind, source_ref, effect_id), relations in sorted(grouped.items()):
+        strongest = max(
+            relations,
+            key=lambda item: (
+                float(item.get("confidence") or 0.0),
+                float(item.get("agency_confidence") or 0.0),
+                int(item.get("action_support") or 0) + int(item.get("counterfactual_support") or 0),
+                int(item.get("last_updated_tick") or 0),
+            ),
+        )
+        support = int(strongest.get("action_support") or 0)
+        metadata: dict[str, Any] = {
+            "source_kind": source_kind,
+            "relation_class": "causal_model",
+            "context_count": len(relations),
+            "support": support,
+            "evidence": {
+                "source": "controllability_model",
+                "observations": support,
+            },
+        }
+        for key in (
+            "context_id",
+            "confidence",
+            "reliability",
+            "counterfactual_rate",
+            "causal_advantage",
+            "action_support",
+            "counterfactual_support",
+            "last_updated_tick",
+            "agency_confidence",
+            "temporal_contingency",
+            "causal_specificity",
+            "prediction_match",
+        ):
+            if strongest.get(key) is not None:
+                metadata[key] = strongest[key]
+        if strongest.get("confidence") is not None:
+            metadata["evidence"]["confidence"] = strongest["confidence"]
+        if strongest.get("last_updated_tick") is not None:
+            metadata["evidence"]["last_tick"] = strongest["last_updated_tick"]
+        edges.append(
+            AtlasEdge(
+                id=f"edge.causal.{source_kind}.{source_ref}.{effect_id}",
+                source_id=source_ref,
+                target_id=effect_id,
+                kind="causal_estimate",
+                metadata=metadata,
+            )
+        )
+    return edges
+
+
 def _action_intent_nodes_and_edges(
     snapshot: Mapping[str, Any],
     known_competence_ids: set[str],
@@ -406,6 +529,27 @@ def _competence_effect_edges(
     items = snapshot.get("motor_competences")
     if not isinstance(items, (list, tuple)):
         return []
+
+    acquisition = snapshot.get("agency_acquisition")
+    raw_relations = (
+        acquisition.get("causal_relations")
+        if isinstance(acquisition, Mapping)
+        else None
+    )
+    competence_relations: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+    if isinstance(raw_relations, (list, tuple)):
+        for relation in raw_relations:
+            if (
+                not isinstance(relation, Mapping)
+                or relation.get("source_kind") != "competence"
+                or relation.get("source_ref") is None
+                or relation.get("effect_id") is None
+            ):
+                continue
+            competence_relations.setdefault(
+                (str(relation["source_ref"]), str(relation["effect_id"])), []
+            ).append(relation)
+
     edges: list[AtlasEdge] = []
     for item in items:
         if not isinstance(item, Mapping):
@@ -414,18 +558,59 @@ def _competence_effect_edges(
         effect_id = item.get("effect_id")
         if competence_id is None or effect_id is None or str(effect_id) not in known_effect_ids:
             continue
+        competence_id = str(competence_id)
+        effect_id = str(effect_id)
         evidence: dict[str, Any] = {"source": "sensorimotor_model"}
         if item.get("support") is not None:
             evidence["observations"] = item["support"]
         if item.get("reproducibility") is not None:
             evidence["confidence"] = item["reproducibility"]
+
+        metadata: dict[str, Any] = {"evidence": evidence}
+        relations = competence_relations.get((competence_id, effect_id), ())
+        if relations:
+            strongest = max(
+                relations,
+                key=lambda relation: (
+                    float(relation.get("confidence") or 0.0),
+                    float(relation.get("agency_confidence") or 0.0),
+                    int(relation.get("action_support") or 0)
+                    + int(relation.get("counterfactual_support") or 0),
+                    int(relation.get("last_updated_tick") or 0),
+                ),
+            )
+            metadata["relation_class"] = "structural_with_causal_model"
+            metadata["causal_context_count"] = len(relations)
+            for key in (
+                "confidence",
+                "reliability",
+                "counterfactual_rate",
+                "causal_advantage",
+                "action_support",
+                "counterfactual_support",
+                "last_updated_tick",
+                "agency_confidence",
+                "temporal_contingency",
+                "causal_specificity",
+                "prediction_match",
+            ):
+                if strongest.get(key) is not None:
+                    metadata[key] = strongest[key]
+            evidence["causal_source"] = "controllability_model"
+            if strongest.get("action_support") is not None:
+                evidence["causal_observations"] = strongest["action_support"]
+            if strongest.get("confidence") is not None:
+                evidence["causal_confidence"] = strongest["confidence"]
+            if strongest.get("last_updated_tick") is not None:
+                evidence["causal_last_tick"] = strongest["last_updated_tick"]
+
         edges.append(
             AtlasEdge(
                 id=f"edge.produces.{competence_id}.{effect_id}",
-                source_id=str(competence_id),
-                target_id=str(effect_id),
+                source_id=competence_id,
+                target_id=effect_id,
                 kind="produces",
-                metadata={"evidence": evidence},
+                metadata=metadata,
             )
         )
     return edges
@@ -589,6 +774,7 @@ def _knowledge_coverage_metrics(nodes: list[AtlasNode]) -> Mapping[str, Any]:
 
     return {
         "action_dimensions": count("action_dimension"),
+        "intervention_signatures": count("intervention_signature"),
         "action_intents": count("action_intent"),
         "motor_competences": count("motor_competence"),
         "controllers": count("controller"),
@@ -633,6 +819,10 @@ def build_cognitive_atlas(snapshot: Mapping[str, Any]) -> CognitiveAtlasSnapshot
     edges.extend(body_schema_edges)
 
     nodes.extend(_action_dimension_nodes(snapshot))
+    nodes.extend(_intervention_signature_nodes(snapshot))
+
+    known_node_ids = {node.id for node in nodes}
+    edges.extend(_causal_estimate_edges(snapshot, known_node_ids, known_effect_ids))
 
     intent_nodes, intent_edges = _action_intent_nodes_and_edges(
         snapshot, known_competence_ids, known_effect_ids

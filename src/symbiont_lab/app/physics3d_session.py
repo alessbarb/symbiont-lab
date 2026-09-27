@@ -122,6 +122,11 @@ class Physics3DSession:
             }
             if launch is not None:
                 runner_kwargs.update(launch.runner_kwargs())
+                # Managed runs keep a durable observer-only causal journal next
+                # to their telemetry. It is never read back by the organism.
+                runner_kwargs["provenance_journal"] = (
+                    launch.telemetry_file.parent / "provenance.jsonl"
+                )
 
             if self._runner is None:
 

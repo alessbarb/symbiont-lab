@@ -164,6 +164,14 @@ export const graph = {
   learningFrontierClusters: [],
   previousFrontierClusters: [],
   cognitiveSituation: null,
+  causalProvenance: {
+    nodeId: null,
+    status: 'idle',
+    ref: null,
+    runId: null,
+    tree: null,
+    error: null,
+  },
   liveFrame: null,
   liveFrameHistory: [],
   cognitiveEvents: [],
@@ -278,6 +286,14 @@ export function resetMindDataState() {
   graph.learningFrontierClusters = [];
   graph.previousFrontierClusters = [];
   graph.cognitiveSituation = null;
+  graph.causalProvenance = {
+    nodeId: null,
+    status: 'idle',
+    ref: null,
+    runId: null,
+    tree: null,
+    error: null,
+  };
   graph.liveFrame = null;
   graph.liveFrameHistory.length = 0;
   graph.cognitiveEvents.length = 0;

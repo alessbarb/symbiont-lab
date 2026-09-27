@@ -96,6 +96,7 @@ def test_physics3d_session_passes_managed_launch_to_runner(tmp_path) -> None:
     assert captured["fresh_body"] is True
     assert captured["new_symbiont"] is False
     assert captured["symbiont_file"] == launch.symbiont_file
+    assert captured["provenance_journal"] == tmp_path / "provenance.jsonl"
     snapshot = session.snapshot()
     assert snapshot.run_id == "run-test"
     assert snapshot.organism_ref == "org-test"
