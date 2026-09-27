@@ -17,7 +17,9 @@ from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.demo import DemoOrganismTelemetry
+from symbiont.provenance import CausalRef
 from symbiont_lab.observation.observatory import ObservatorySource
+from symbiont_lab.observation.provenance_journal import ProvenanceIndex, ProvenanceJournal
 from symbiont_lab.workbench import WEB_ROOT
 from symbiont_lab.workbench.runs import (
     ExperimentRunState,
@@ -154,6 +156,36 @@ def make_server(
         session.request_stop()
         return True
 
+    def causal_provenance_query(kind: str, ref_id: str, depth: int) -> dict[str, Any] | None:
+        """Read causal history for the current managed run; apparatus only."""
+        session = session_holder["physics3d"]
+        if session is None:
+            return None
+        run_id = session.snapshot().run_id
+        if not run_id:
+            return None
+        journal_path = run_store.runs_dir / run_id / "provenance.jsonl"
+        if not journal_path.is_file():
+            return None
+        index = ProvenanceIndex.load(ProvenanceJournal(journal_path))
+        ref = CausalRef(kind, ref_id)
+        if ref not in index.lifecycle:
+            # A root reference can legitimately lack a producer; only return
+            # such a tree when it is mentioned by some recorded event.
+            mentioned = any(
+                ref == event.subject
+                or ref in event.produced
+                or ref in event.caused_by
+                for event in index.events
+            )
+            if not mentioned:
+                return None
+        return {
+            "run_id": run_id,
+            "reference": ref.payload(),
+            "tree": index.why(ref, depth=depth),
+        }
+
     def source_status() -> dict[str, Any]:
         session = session_holder["physics3d"]
         return {
@@ -197,6 +229,7 @@ def make_server(
             run_catalog=run_store.runs,
             physics_run_starter=start_physics_run,
             physics_run_stopper=stop_physics_run,
+            causal_provenance_query=causal_provenance_query,
         ),
     )
     server_holder["server"] = server
