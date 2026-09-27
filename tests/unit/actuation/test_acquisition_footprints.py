@@ -15,7 +15,7 @@ from tests.unit.actuation.acquisition_support import SURFACE, A, fresh_acquisiti
 CAUSED = {"signal.a": 0.5}
 
 
-def _pulse(acquisition, tick, index, *, windows=6, onset=CAUSED):
+def _pulse(acquisition, tick, index, *, windows=6, onset=CAUSED, channel=A):
     commitment = ActionCommitment(
         commitment_id=f"commitment.p{index}",
         proposal_id=f"proposal.p{index}",
@@ -32,7 +32,7 @@ def _pulse(acquisition, tick, index, *, windows=6, onset=CAUSED):
             controller_id=commitment.controller_id,
             competence_id=None,
             surface_fingerprint=SURFACE.contract_fingerprint,
-            channels={A: 0.5},
+            channels={channel: 0.5},
             issued_at_tick=tick + step,
         )
         acquisition.open_attempt(
@@ -201,3 +201,30 @@ def test_footprint_mode_and_atom_catalog_survive_checkpoint():
     assert (
         restored.ground_competence(**args).effect_id == source.ground_competence(**args).effect_id
     )
+
+
+def test_provisional_competence_effect_is_revised_as_channel_footprints_form():
+    from symbiont.actuation.acquisition import AgencyAcquisition as Acquisition
+
+    B = SURFACE.actuator_ids[1]
+    acquisition = Acquisition(footprint_effects=True)
+    acquisition.bind_surface(SURFACE.actuator_ids, surface_fingerprint=SURFACE.contract_fingerprint)
+    tick = _develop(acquisition)
+    grounding = acquisition.ground_competence(
+        controller_seed_ref="primitive.ab", patterns=({A: 0.5, B: 0.5},), tick=tick
+    )
+    before = acquisition.effect_space.footprint_atoms(grounding.effect_id)
+    tick += 50
+    for index in range(40, 52):  # channel B now gets its own pulses and footprint
+        tick = _pulse(acquisition, tick, index, channel=B, onset={"signal.b": 0.5})
+        for _ in range(4):
+            rest(acquisition, tick, {})
+            tick += 1
+    _pulse(acquisition, tick, 99)
+    assert acquisition.revise_footprint_effect(grounding.effect_id, tick=tick) is True
+    after = acquisition.effect_space.footprint_atoms(grounding.effect_id)
+    assert set(before) < set(after)
+    event = acquisition.provenance.events()[-1]
+    assert (event.operation, event.rule) == ("revise_effect", "footprint_union")
+    assert len(event.caused_by) == 2  # both channels' footprint versions
+    assert acquisition.revise_footprint_effect(grounding.effect_id, tick=tick) is False

@@ -131,6 +131,8 @@ class AgencyAcquisition:
         # causal footprints (entity-keyed) instead of whole-state effects.
         self.footprint_effects = bool(footprint_effects)
         self._atom_catalog: dict[str, EffectAtom] = {}
+        # Competence effect entity -> the channel set it covers.
+        self._footprint_effect_sources: dict[str, tuple[str, ...]] = {}
         self.signatures = InterventionSignatureRegistry()
         self.effect_space = EffectSpace()
         self.causal_evidence = CausalEvidenceLedger()
@@ -619,6 +621,61 @@ class AgencyAcquisition:
                 support=max(estimate.pulses for estimate in members.values()),
             )
 
+    def _footprint_union(self, source: tuple[str, ...]):
+        """A channel set's own footprint, else the union of its channels' ones."""
+        if self.footprints.footprint_of(source) is not None:
+            parts, provisional = [source], False
+        else:
+            parts = [(c,) for c in source if self.footprints.footprint_of((c,)) is not None]
+            provisional = True
+        estimates = {
+            atom: estimate
+            for part in parts
+            for atom, estimate in self.footprints.member_estimates(part).items()
+        }
+        atoms = tuple(self._atom_catalog[a] for a in sorted(estimates) if a in self._atom_catalog)
+        return parts, provisional, estimates, atoms
+
+    def revise_footprint_effect(self, effect_id: str, *, tick: int) -> bool:
+        """Bring a competence's footprint effect up to the current footprints.
+
+        Returns True when its atoms changed; the revision is traced.  With no
+        current footprint at all, the last effect is kept (it may be pinned by
+        a live intent's snapshot).
+        """
+        source = self._footprint_effect_sources.get(effect_id)
+        if source is None:
+            return False
+        parts, provisional, estimates, atoms = self._footprint_union(source)
+        if not atoms:
+            return False
+        current = self.effect_space.footprint_atoms(effect_id)
+        if current is not None and tuple(sorted(a.effect_id for a in atoms)) == current:
+            return False
+        self.effect_space.register_footprint(
+            effect_id, atoms, support=min(e.pulses for e in estimates.values())
+        )
+        effect = CausalRef("effect", effect_id)
+        self.provenance.emit(
+            CausalEvent(
+                tick=int(tick),
+                domain="competence",
+                operation="revise_effect",
+                subject=effect,
+                caused_by=tuple(
+                    version_ref(
+                        self.footprints.version_of(part).entity_id,
+                        self.footprints.version_of(part).version,
+                    )
+                    for part in parts
+                ),
+                produced=(effect,),
+                rule="footprint_union" if provisional else "own_footprint",
+                parameters={"atoms": len(atoms), "provisional": provisional},
+            )
+        )
+        return True
+
     def _ground_on_footprints(
         self,
         *,
@@ -638,23 +695,14 @@ class AgencyAcquisition:
         source = tuple(sorted({channel for step in steps for channel in step.channel_refs}))
         if not source:
             return None
-        if self.footprints.footprint_of(source) is not None:
-            parts, provisional = [source], False
-        else:
-            parts = [(c,) for c in source if self.footprints.footprint_of((c,)) is not None]
-            provisional = True
-        estimates = {
-            atom: estimate
-            for part in parts
-            for atom, estimate in self.footprints.member_estimates(part).items()
-        }
-        atoms = tuple(self._atom_catalog[a] for a in sorted(estimates) if a in self._atom_catalog)
+        parts, provisional, estimates, atoms = self._footprint_union(source)
         if not atoms:
             return None
         effect_id = footprint_effect_id(source)
         values = list(estimates.values())
         support = min(estimate.pulses for estimate in values)
         self.effect_space.register_footprint(effect_id, atoms, support=support)
+        self._footprint_effect_sources[effect_id] = source
         dimension_id = opaque_dimension_id(source)
         last_tick = max(estimate.estimated_tick for estimate in values)
         hit_rate = sum(e.hits / e.pulses for e in values) / len(values)
@@ -934,6 +982,10 @@ class AgencyAcquisition:
             "controllability": self.controllability_model.checkpoint(),
             "agency": self.agency_model.checkpoint(),
             "footprint_effects": self.footprint_effects,
+            "footprint_effect_sources": [
+                {"effect_id": effect_id, "source": list(source)}
+                for effect_id, source in sorted(self._footprint_effect_sources.items())
+            ],
             "atom_catalog": [
                 [atom_id, atom.feature_ref, atom.direction, atom.magnitude_class]
                 for atom_id, atom in sorted(self._atom_catalog.items())
@@ -988,6 +1040,10 @@ class AgencyAcquisition:
             # Schema 3: causal provenance frontier and footprints (none before).
             if "footprint_effects" in acquisition:
                 self.footprint_effects = bool(acquisition["footprint_effects"])
+            self._footprint_effect_sources = {
+                str(raw["effect_id"]): tuple(str(v) for v in raw["source"])
+                for raw in acquisition.get("footprint_effect_sources", [])
+            }
             self._atom_catalog = {}
             for atom_id, feature, direction, magnitude in acquisition.get("atom_catalog", []):
                 atom = EffectAtom(str(feature), int(direction), int(magnitude))

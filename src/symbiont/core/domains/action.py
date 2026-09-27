@@ -312,10 +312,20 @@ class ActionDomain:
         competence is expected to produce the EffectSpace effect its grounding
         dimension reliably caused on this body.
         """
-        prediction = self.effect_model.predict(competence_id=competence_id, context_id=context_id)
-        if prediction is not None:
-            return prediction
         competence = self.competence_library.get(competence_id)
+        footprint_effect = (
+            competence is not None
+            and competence.effect_id is not None
+            and self.acquisition.footprint_effects
+            and self.effect_space.footprint_atoms(competence.effect_id) is not None
+        )
+        if not footprint_effect:
+            # Whole-state mode: competence-level experience wins.
+            prediction = self.effect_model.predict(
+                competence_id=competence_id, context_id=context_id
+            )
+            if prediction is not None:
+                return prediction
         binding = self.execution_bindings.get(competence_id)
         if (
             competence is None
@@ -893,6 +903,13 @@ class ActionDomain:
         """
         if self._competence_development is None or self.surface is None:
             return
+        if self.acquisition.footprint_effects:
+            # Footprint effects follow current footprints: a competence
+            # grounded on a provisional union is revised as its channels'
+            # (or its own) footprints change (Factorized Effects §14.1).
+            for competence in self.competence_library.items:
+                if competence.effect_id is not None:
+                    self.acquisition.revise_footprint_effect(competence.effect_id, tick=tick)
         for primitive in self._competence_development.primitives:
             existing = self.competence_library.get(primitive.primitive_id)
             if existing is not None:
