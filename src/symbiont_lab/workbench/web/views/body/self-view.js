@@ -592,9 +592,14 @@ function deltaSegments(frame, baseline) {
   const current = snapshotSegments(frame);
   const previous = snapshotSegments(baseline ?? frame);
   const result = new Map();
-  for (const segment of CONTACT_SEGMENTS) {
-    const now = current.get(segment);
-    const before = previous.get(segment);
+  const names = new Set([...current.keys(), ...previous.keys()]);
+  const empty = (segment) => ({
+    ...emptySegment(segment, new Set()),
+    label: SEGMENT_LABELS[segment] ?? prettySegment(segment),
+  });
+  for (const segment of names) {
+    const now = current.get(segment) ?? empty(segment);
+    const before = previous.get(segment) ?? empty(segment);
     const deltas = {
       coverage: finite(now.coverage, 0) - finite(before.coverage, 0),
       knowledge: finite(now.knowledge, 0) - finite(before.knowledge, 0),
@@ -621,6 +626,7 @@ function deltaSegments(frame, baseline) {
       deltaAgency: deltas.agency,
     });
   }
+  result.morphology = current.morphology;
   return result;
 }
 
