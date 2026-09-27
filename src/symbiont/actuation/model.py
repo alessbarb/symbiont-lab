@@ -130,6 +130,46 @@ def source_opportunities(
 _Key = tuple[CausalSourceKind, str, str, str | None]
 
 
+def controllability_confidence(
+    action_n: int, action_hits: int, other_n: int, other_hits: int
+) -> float:
+    """Intervention reliability beyond the alternative rate, times support."""
+    reliability = action_hits / action_n if action_n else 0.0
+    if action_n == 0:
+        return 0.0
+    if other_n == 0:
+        return min(0.25, action_n / 32.0)
+    advantage = reliability - other_hits / other_n
+    support = min(1.0, min(action_n, other_n) / 8.0)
+    return max(0.0, min(1.0, advantage * support))
+
+
+def agency_confidence(
+    action_n: int,
+    action_hits: int,
+    other_n: int,
+    other_hits: int,
+    prediction_match: float | None,
+) -> float:
+    """Contingency + specificity + prediction, zero without positive contrast (§23)."""
+    temporal = action_hits / action_n if action_n else 0.0
+    other_rate = other_hits / other_n if other_n else 0.0
+    specificity = max(0.0, min(1.0, temporal - other_rate))
+    if temporal <= 0.0 or specificity <= 0.0:
+        return 0.0
+    predictive = 0.5 if prediction_match is None else max(0.0, min(1.0, float(prediction_match)))
+    support_factor = min(1.0, action_n / 8.0)
+    counterfactual_factor = min(1.0, other_n / 8.0)
+    return max(
+        0.0,
+        min(
+            1.0,
+            min(support_factor, counterfactual_factor)
+            * (0.45 * temporal + 0.35 * specificity + 0.20 * predictive),
+        ),
+    )
+
+
 def _source_keys(ledger: CausalEvidenceLedger) -> dict[_Key, int]:
     """Every (kind, ref, effect, context) with evidence, and its latest tick."""
     keys: dict[_Key, int] = {}
@@ -317,13 +357,7 @@ class ControllabilityModel(_SourceIndexed):
         reliability = action_hits / action_n if action_n else 0.0
         counterfactual_rate = (other_hits / other_n) if other_n else None
         advantage = reliability - counterfactual_rate if counterfactual_rate is not None else None
-        if action_n == 0:
-            confidence = 0.0
-        elif other_n == 0:
-            confidence = min(0.25, action_n / 32.0)
-        else:
-            support = min(1.0, min(action_n, other_n) / 8.0)
-            confidence = max(0.0, min(1.0, (advantage or 0.0) * support))
+        confidence = controllability_confidence(action_n, action_hits, other_n, other_hits)
         estimate = ControllabilityEstimate(
             source_kind=source_kind,
             source_ref=source_ref,
@@ -440,23 +474,7 @@ class AgencyModel(_SourceIndexed):
         temporal = action_hits / action_n if action_n else 0.0
         other_rate = other_hits / other_n if other_n else 0.0
         specificity = max(0.0, min(1.0, temporal - other_rate))
-        support_factor = min(1.0, action_n / 8.0)
-        counterfactual_factor = min(1.0, other_n / 8.0)
-        if prediction_match is None:
-            predictive = 0.5
-        else:
-            predictive = max(0.0, min(1.0, float(prediction_match)))
-        if temporal <= 0.0 or specificity <= 0.0:
-            confidence = 0.0
-        else:
-            confidence = max(
-                0.0,
-                min(
-                    1.0,
-                    min(support_factor, counterfactual_factor)
-                    * (0.45 * temporal + 0.35 * specificity + 0.20 * predictive),
-                ),
-            )
+        confidence = agency_confidence(action_n, action_hits, other_n, other_hits, prediction_match)
         estimate = AgencyEstimate(
             source_kind=source_kind,
             source_ref=source_ref,
