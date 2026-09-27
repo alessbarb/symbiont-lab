@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
 from symbiont.core.cognition_bridge import CognitiveBridge
 
 from symbiont.cognition.birth import load_base_cognition
@@ -15,7 +16,7 @@ def _fast_bridge() -> tuple[object, CognitiveBridge]:
     limits = KernelLimits(reacclimation_ticks=1)
     genome, graph = load_base_cognition(
         kernel_limits=limits,
-        running_version=(0, 59, 4),
+        running_version=(0, 85, 0),
     )
     genome = replace(
         genome,
@@ -23,7 +24,7 @@ def _fast_bridge() -> tuple[object, CognitiveBridge]:
         structure=replace(
             genome.structure,
             minimum_support=2,
-            grow_threshold=0.0,
+            growth_threshold=replace(genome.structure.growth_threshold, baseline=0.0, minimum=0.0),
             tentative_lifetime_ticks=4,
         ),
     )
@@ -55,8 +56,12 @@ def test_committed_concept_consumes_candidate_support_and_stops_reaccumulation()
     assert _PAIR not in bridge._concept_support
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason="open src defect: a weakened, unused concept is not garbage-collected "
+    "(the test was silently disabled with an early return in 38a5007a)",
+)
 def test_failed_concept_requires_fresh_post_gc_support_before_rebirth() -> None:
-    return
     genome, bridge = _fast_bridge()
 
     for tick in range(1, 7):

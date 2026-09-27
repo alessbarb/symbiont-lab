@@ -850,28 +850,71 @@ def test_checkpoint_byte_bound_is_retained_with_real_cognition():
     from symbiont.cognition.types import EdgeKind, NodeKind
 
     genome_payload = {
-        "schema_version": 1,
-        "genome_id": "genome_bytebound00000000000000",
-        "parent_ids": [],
-        "kernel_compatibility": ">=0.55,<0.60",
+        "schema_version": 2,
+        "genome_id": "genome_v2_bytebound00000000000000",
+        "kernel_compatibility": ">=0.80,<0.90",
         "development": {
-            "initial_concepts": 4,
             "soft_node_budget": 64,
             "soft_edge_budget": 384,
+            "sense_node_budget": 32,
+            "capacity_growth_sensitivity": 0.5,
             "consolidation_interval_ticks": 4,
         },
         "plasticity": {
-            "learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08},
-            "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
+            "learning_rate": {
+                "baseline": 0.05,
+                "min": 0.001,
+                "max": 0.08,
+                "adaptation_rate": 0.002,
+            },
             "eligibility_decay": 0.9,
+            "structural_plasticity": {
+                "baseline": 0.5,
+                "min": 0.05,
+                "max": 1.0,
+                "adaptation_rate": 0.01,
+            },
+        },
+        "regulation": {
+            "uncertainty_gain": 0.5,
+            "novelty_gain": 0.4,
+            "prediction_error_gain": 0.5,
+            "controllability_loss_gain": 0.5,
+            "embodiment_mismatch_gain": 0.7,
+            "regulation_smoothing": 0.1,
+            "regulation_decay": 0.02,
+        },
+        "sensorimotor": {
+            "spontaneous_activity_baseline": 0.1,
+            "uncertainty_exploration_gain": 0.5,
+            "prediction_error_exploration_gain": 0.5,
+            "exploration_habituation": 0.01,
+            "reacclimation_sensitivity": 0.7,
         },
         "structure": {
-            "grow_threshold": 0.18,
-            "prune_threshold": 0.01,
+            "growth_threshold": {
+                "baseline": 0.18,
+                "min": 0.0,
+                "max": 0.5800000000000001,
+                "adaptation_rate": 0.01,
+            },
+            "pruning_threshold": {
+                "baseline": 0.01,
+                "min": 0.0,
+                "max": 0.21000000000000002,
+                "adaptation_rate": 0.005,
+            },
             "minimum_support": 16,
             "tentative_lifetime_ticks": 128,
         },
-        "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
+        "evolvability": {
+            "development_mutation_scale": 0.05,
+            "plasticity_mutation_scale": 0.05,
+            "regulation_mutation_scale": 0.05,
+            "sensorimotor_mutation_scale": 0.05,
+            "structure_mutation_scale": 0.05,
+            "recombination_linkage": 0.5,
+        },
     }
     limits = KernelLimits()
     genome = GenomeCodec().load(genome_payload)
@@ -909,6 +952,17 @@ def test_checkpoint_byte_bound_is_retained_with_real_cognition():
 
 
 # --- v0.59.5: MemoryConsolidator wired for salient-event detection ---
+
+
+class _TickOverride:
+    """The real bridge with only ``tick`` replaced (every other call delegates)."""
+
+    def __init__(self, bridge, tick) -> None:
+        self._bridge = bridge
+        self.tick = tick
+
+    def __getattr__(self, name):
+        return getattr(self._bridge, name)
 
 
 def _drive_regime_shift_with_surprise(
@@ -988,12 +1042,7 @@ def _drive_regime_shift_with_surprise(
             )
             return dataclasses.replace(result, prediction_errors=boosted)
 
-        runtime._cognitive_bridge = SimpleNamespace(
-            tick=boosted_tick,
-            restore=real_bridge.restore,
-            export_checkpoint=real_bridge.export_checkpoint,
-            graph=real_bridge.graph,
-        )
+        runtime._cognitive_bridge = _TickOverride(real_bridge, boosted_tick)
     else:
         fake_result = SimpleNamespace(
             prediction_errors=(
@@ -1009,6 +1058,8 @@ def _drive_regime_shift_with_surprise(
             tick=lambda *a, **k: fake_result,
             export_checkpoint=lambda: None,
             restore=lambda *a, **k: None,
+            set_generative_retention_protection=lambda *a, **k: None,
+            safety_state=SimpleNamespace(frozen=False),
             graph=None,
             _is_synthetic_fake=True,
         )
@@ -1185,28 +1236,71 @@ def test_p9_salient_trace_never_mutates_structure_by_itself():
     from symbiont.cognition.types import EdgeKind, NodeKind
 
     genome_payload = {
-        "schema_version": 1,
-        "genome_id": "genome_p9test0000000000000000000",
-        "parent_ids": [],
-        "kernel_compatibility": ">=0.55,<0.60",
+        "schema_version": 2,
+        "genome_id": "genome_v2_p9test0000000000000000000",
+        "kernel_compatibility": ">=0.80,<0.90",
         "development": {
-            "initial_concepts": 4,
             "soft_node_budget": 64,
             "soft_edge_budget": 384,
+            "sense_node_budget": 32,
+            "capacity_growth_sensitivity": 0.5,
             "consolidation_interval_ticks": 4,
         },
         "plasticity": {
-            "learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08},
-            "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
+            "learning_rate": {
+                "baseline": 0.05,
+                "min": 0.001,
+                "max": 0.08,
+                "adaptation_rate": 0.002,
+            },
             "eligibility_decay": 0.9,
+            "structural_plasticity": {
+                "baseline": 0.5,
+                "min": 0.05,
+                "max": 1.0,
+                "adaptation_rate": 0.01,
+            },
+        },
+        "regulation": {
+            "uncertainty_gain": 0.5,
+            "novelty_gain": 0.4,
+            "prediction_error_gain": 0.5,
+            "controllability_loss_gain": 0.5,
+            "embodiment_mismatch_gain": 0.7,
+            "regulation_smoothing": 0.1,
+            "regulation_decay": 0.02,
+        },
+        "sensorimotor": {
+            "spontaneous_activity_baseline": 0.1,
+            "uncertainty_exploration_gain": 0.5,
+            "prediction_error_exploration_gain": 0.5,
+            "exploration_habituation": 0.01,
+            "reacclimation_sensitivity": 0.7,
         },
         "structure": {
-            "grow_threshold": 0.18,
-            "prune_threshold": 0.01,
+            "growth_threshold": {
+                "baseline": 0.18,
+                "min": 0.0,
+                "max": 0.5800000000000001,
+                "adaptation_rate": 0.01,
+            },
+            "pruning_threshold": {
+                "baseline": 0.01,
+                "min": 0.0,
+                "max": 0.21000000000000002,
+                "adaptation_rate": 0.005,
+            },
             "minimum_support": 16,
             "tentative_lifetime_ticks": 128,
         },
-        "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
+        "evolvability": {
+            "development_mutation_scale": 0.05,
+            "plasticity_mutation_scale": 0.05,
+            "regulation_mutation_scale": 0.05,
+            "sensorimotor_mutation_scale": 0.05,
+            "structure_mutation_scale": 0.05,
+            "recombination_linkage": 0.5,
+        },
     }
     limits = KernelLimits()
     genome = GenomeCodec().load(genome_payload)
