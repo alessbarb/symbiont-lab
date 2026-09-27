@@ -585,6 +585,7 @@ export function createCognitionController({
       nodes: rawNodes,
       edges: rawEdges,
       adjacency,
+      projectedAdjacency,
       communities,
       components = [],
       layoutAffinities = [],
@@ -686,6 +687,13 @@ export function createCognitionController({
           const row = Math.floor(isolatedIndex / cols);
           x = 22 + col * ((width - 44) / Math.max(1, cols - 1));
           y = height - 28 - row * 20;
+        } else if (raw.fringeStructural) {
+          const componentSeed = hashStr(raw.structuralComponentKey ?? raw.id);
+          const angle = ((componentSeed % 360) / 180) * Math.PI;
+          const ringRadius = Math.min(width, height) * 0.19;
+          const localRadius = 10 + (seed % 5) * 6;
+          x = cx + Math.cos(angle) * ringRadius + Math.cos(angle + 1.4) * localRadius;
+          y = cy + Math.sin(angle) * ringRadius + Math.sin(angle + 1.4) * localRadius;
         } else {
           const sectorLabel = graph.sectorLabels.get(raw.community);
           const anchor = sectorLabel ? graph.sectorAnchors.get(sectorLabel) : null;
@@ -707,6 +715,7 @@ export function createCognitionController({
         Object.assign(node, raw);
       }
       node.neighbors = adjacency.get(raw.id) ?? new Set();
+      node.projectedNeighbors = projectedAdjacency?.get(raw.id) ?? node.neighbors;
       const sectorLabel = graph.sectorLabels.get(raw.community);
       node.sectorLabel = sectorLabel ?? null;
       node.sectorAnchor = sectorLabel ? (graph.sectorAnchors.get(sectorLabel) ?? null) : null;
@@ -714,6 +723,26 @@ export function createCognitionController({
       return node;
     });
   
+    // Satellite placement is presentation-only. Overlay-only nodes do not own
+    // structural territory, so keep them close to the relation they explain.
+    // This removes very long evidence links without promoting those links into
+    // CognitiveGraph structure.
+    for (const node of graph.nodes) {
+      if (!node.overlayOnly || node.pinned || !node.satelliteHostId) continue;
+      const host = nodeMap.get(node.satelliteHostId);
+      if (!host) continue;
+      const dist = Math.hypot(node.x - host.x, node.y - host.y);
+      if (node._satellitePlaced && dist <= 260) continue;
+      const seed = hashStr(node.id);
+      const angle = ((seed % 360) / 180) * Math.PI;
+      const radius = node.satelliteHasStructuralHost ? 46 : 58;
+      node.x = host.x + Math.cos(angle) * radius;
+      node.y = host.y + Math.sin(angle) * radius;
+      node.vx = 0;
+      node.vy = 0;
+      node._satellitePlaced = true;
+    }
+
     graph.edges = rawEdges
       .map(e => ({
         ...e,
