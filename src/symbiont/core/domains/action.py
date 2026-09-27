@@ -77,6 +77,7 @@ from .intention import (
 )
 
 _BODY_BOUNDARY_AGENCY = 0.35
+_OBSERVATORY_CAUSAL_RELATION_LIMIT = 256
 
 
 def _canonical_hash(payload: dict[str, Any]) -> str:
@@ -2367,6 +2368,73 @@ class ActionDomain:
             "result": outcome.status.value if outcome is not None else None,
         }
 
+    def _causal_relation_observation(self) -> list[dict[str, Any]]:
+        """Bounded organism-owned causal model for passive observation.
+
+        These are learned estimates, not structural CognitiveGraph edges and not
+        historical provenance events.  The observer receives the relation
+        identity plus the evidence fields the organism actually stores; no
+        threshold or semantic interpretation is invented here.
+        """
+        estimates = sorted(
+            self.controllability_model.estimates,
+            key=lambda item: (
+                -max(
+                    float(item.confidence),
+                    float(
+                        getattr(
+                            self.agency_model.estimate(
+                                source_kind=item.source_kind,
+                                source_ref=item.source_ref,
+                                effect_id=item.effect_id,
+                                context_id=item.context_id,
+                            ),
+                            "confidence",
+                            0.0,
+                        )
+                    ),
+                ),
+                -(int(item.action_support) + int(item.counterfactual_support)),
+                -int(item.last_updated_tick),
+                item.source_kind.value,
+                item.source_ref,
+                item.effect_id,
+                item.context_id or "",
+            ),
+        )[:_OBSERVATORY_CAUSAL_RELATION_LIMIT]
+        rows: list[dict[str, Any]] = []
+        for item in estimates:
+            agency = self.agency_model.estimate(
+                source_kind=item.source_kind,
+                source_ref=item.source_ref,
+                effect_id=item.effect_id,
+                context_id=item.context_id,
+            )
+            rows.append(
+                {
+                    "source_kind": item.source_kind.value,
+                    "source_ref": item.source_ref,
+                    "effect_id": item.effect_id,
+                    "context_id": item.context_id,
+                    "confidence": item.confidence,
+                    "reliability": item.reliability,
+                    "counterfactual_rate": item.counterfactual_rate,
+                    "causal_advantage": item.causal_advantage,
+                    "action_support": item.action_support,
+                    "counterfactual_support": item.counterfactual_support,
+                    "last_updated_tick": item.last_updated_tick,
+                    "agency_confidence": agency.confidence if agency is not None else None,
+                    "temporal_contingency": (
+                        agency.temporal_contingency if agency is not None else None
+                    ),
+                    "causal_specificity": (
+                        agency.causal_specificity if agency is not None else None
+                    ),
+                    "prediction_match": agency.prediction_match if agency is not None else None,
+                }
+            )
+        return rows
+
     def observation_view(self, *, tick: int) -> dict[str, Any]:
         """Bounded passive projection for Observatory; never read back by cognition."""
         agentic = set(self.acquisition.agentic_dimension_ids())
@@ -2423,6 +2491,7 @@ class ActionDomain:
                 for item in self.action_dimensions.items
             ],
             "causal_relation_count": len(self.controllability_model),
+            "causal_relations": self._causal_relation_observation(),
             "causal_evidence_count": len(self.causal_evidence.intervention_evidence),
             "passive_window_count": len(self.causal_evidence.passive_evidence),
             "affordances": [
