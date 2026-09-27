@@ -32,7 +32,7 @@ from .dimension import (
     assess_family,
     opaque_dimension_id,
 )
-from .effects import EffectMatcher, EffectSpace
+from .effects import EffectMatcher, EffectSpace, atoms_from_changes
 from .evidence import (
     CausalEvidence,
     CausalEvidenceLedger,
@@ -88,6 +88,10 @@ class CompetenceGrounding:
     controllability: ControllabilityEstimate
     agency: AgencyEstimate
     evidence_refs: tuple[str, ...]
+
+
+def _atom_ids(changes: Mapping[str, float]) -> tuple[str, ...]:
+    return tuple(sorted({atom.effect_id for atom in atoms_from_changes(changes)}))
 
 
 class AgencyAcquisition:
@@ -187,8 +191,13 @@ class AgencyAcquisition:
         prediction_ref: str | None,
         observed_effect_id: str | None,
         prediction_error: PredictionError | None,
+        observed_changes: Mapping[str, float] | None = None,
     ) -> SensorimotorTransition:
-        """Close the pending attempt on the first later observation."""
+        """Close the pending attempt on the first later observation.
+
+        ``observed_changes`` (opaque feature -> change) yields the
+        transition's atoms (Factorized Effect Representation v1 §5).
+        """
         attempt = self.pending_attempt
         if attempt is None:
             raise RuntimeError("no open ActionAttempt to close")
@@ -214,6 +223,7 @@ class AgencyAcquisition:
             state_after_ref=state_after_ref,
             observed_effect_id=observed_effect_id,
             prediction_error=prediction_error,
+            observed_effect_atoms=_atom_ids(observed_changes or {}),
         )
 
     def discard_pending_attempt(self) -> None:
@@ -487,6 +497,7 @@ class AgencyAcquisition:
             prior_state_ref=prior_state_ref,
             resulting_state_ref=resulting_state_ref,
             effect_id=effect.effect_id if effect is not None else None,
+            effect_atoms=_atom_ids(changes),
         )
 
     # -- derived views --------------------------------------------------------

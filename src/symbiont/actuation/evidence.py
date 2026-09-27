@@ -57,6 +57,8 @@ class SensorimotorTransition:
     observed_effect_id: str | None = None
     prediction_error: PredictionError | None = None
     physiological_delta_ref: str | None = None
+    # Factorized Effect Representation v1 §5: the transition's atoms.
+    observed_effect_atoms: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.tick_start < 0 or self.tick_end < self.tick_start:
@@ -104,8 +106,14 @@ class CausalEvidence:
     resulting_state_ref: str | None = None
     prediction_ref: str | None = None
     window_start_tick: int | None = None
+    # Factorized Effect Representation v1 §5: sorted, unique atom effect ids.
+    effect_atoms: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        if tuple(sorted(set(self.effect_atoms))) != tuple(self.effect_atoms) or any(
+            not atom.startswith("effect.atom.") for atom in self.effect_atoms
+        ):
+            raise ValueError("effect atoms must be sorted, unique atom effect ids")
         if self.observation_tick < 0:
             raise ValueError("observation_tick must be non-negative")
         if self.action_ref is None and (
@@ -132,6 +140,13 @@ _INDEXED_FIELDS = (_COMPETENCE, _SIGNATURE, _COMMITMENT, _ATTEMPT)
 Opportunities = tuple[int, int, int, int]
 
 
+def _count_atoms(counter: Counter[str], atoms: tuple[str, ...], delta: int) -> None:
+    for atom in atoms:
+        counter[atom] += delta
+        if counter[atom] <= 0:
+            del counter[atom]
+
+
 class CausalEvidenceLedger:
     """Single bounded factual source for all sensorimotor inference views.
 
@@ -140,7 +155,7 @@ class CausalEvidenceLedger:
     stay bounded as the ledger fills.
     """
 
-    SCHEMA_VERSION = 3
+    SCHEMA_VERSION = 4
 
     def __init__(self, *, capacity: int = 4096, passive_capacity: int | None = None) -> None:
         if capacity < 1:
@@ -155,6 +170,9 @@ class CausalEvidenceLedger:
         # (field, value, context|None) -> effect counter / totals
         self._source_effects: dict[tuple[str, str, str | None], Counter[str | None]] = {}
         self._global_effects: dict[str | None, Counter[str | None]] = {}
+        # Atom hits, indexed like effects (an evidence item counts once per atom).
+        self._source_atoms: dict[tuple[str, str, str | None], Counter[str]] = {}
+        self._global_atoms: dict[str | None, Counter[str]] = {}
         self._by_commitment: dict[str, list[CausalEvidence]] = {}
 
     # -- index maintenance -------------------------------------------------
@@ -172,11 +190,23 @@ class CausalEvidenceLedger:
             counter[item.effect_id] += delta
             if counter[item.effect_id] <= 0:
                 del counter[item.effect_id]
+            if item.effect_atoms:
+                _count_atoms(
+                    self._global_atoms.setdefault(context, Counter()), item.effect_atoms, delta
+                )
+                if not self._global_atoms[context]:
+                    del self._global_atoms[context]
             for field in _INDEXED_FIELDS:
                 value = getattr(item, field)
                 if value is None:
                     continue
                 key = (field, value, context)
+                if item.effect_atoms:
+                    _count_atoms(
+                        self._source_atoms.setdefault(key, Counter()), item.effect_atoms, delta
+                    )
+                    if not self._source_atoms[key]:
+                        del self._source_atoms[key]
                 source = self._source_effects.setdefault(key, Counter())
                 source[item.effect_id] += delta
                 if source[item.effect_id] <= 0:
@@ -222,6 +252,7 @@ class CausalEvidenceLedger:
                 resulting_state_ref=transition.state_after_ref,
                 prediction_ref=transition.prediction_ref,
                 window_start_tick=transition.tick_start,
+                effect_atoms=tuple(sorted(set(transition.observed_effect_atoms))),
             )
         )
 
@@ -234,6 +265,7 @@ class CausalEvidenceLedger:
         prior_state_ref: str,
         resulting_state_ref: str,
         effect_id: str | None,
+        effect_atoms: tuple[str, ...] = (),
     ) -> CausalEvidence:
         """Record bodily change observed while no motor command was issued."""
         if tick_start < 0 or tick_end <= tick_start:
@@ -256,6 +288,7 @@ class CausalEvidenceLedger:
                 prior_state_ref=prior_state_ref,
                 resulting_state_ref=resulting_state_ref,
                 window_start_tick=tick_start,
+                effect_atoms=tuple(sorted(set(effect_atoms))),
             )
         )
 
@@ -300,6 +333,38 @@ class CausalEvidenceLedger:
         total_n = sum(global_counter.values())
         total_success = global_counter.get(effect_id, 0)
         return action_n, action_success, total_n - action_n, total_success - action_success
+
+    def atom_opportunities(
+        self,
+        atom_id: str,
+        *,
+        field: str,
+        values: Iterable[str],
+        context_ref: str | None = None,
+    ) -> Opportunities:
+        """Opportunities of one atom for a source (Factorized Effects §5).
+
+        Opportunities are the source's windows exactly as for effects; a hit
+        is a window whose atom set contains ``atom_id``.
+        """
+        if field not in _INDEXED_FIELDS:
+            raise ValueError(f"unknown source field {field!r}")
+        action_n = action_hits = 0
+        for value in dict.fromkeys(values):
+            key = (field, value, context_ref)
+            counter = self._source_effects.get(key)
+            if counter:
+                action_n += sum(counter.values())
+                action_hits += self._source_atoms.get(key, Counter()).get(atom_id, 0)
+        total_n = sum(self._global_effects.get(context_ref, Counter()).values())
+        total_hits = self._global_atoms.get(context_ref, Counter()).get(atom_id, 0)
+        return action_n, action_hits, total_n - action_n, total_hits - action_hits
+
+    def source_atoms(
+        self, *, field: str, value: str, context_ref: str | None = None
+    ) -> dict[str, int]:
+        """Atoms observed after one source, with their hit counts."""
+        return dict(self._source_atoms.get((field, value, context_ref), {}))
 
     def effect_opportunities(
         self,
@@ -413,6 +478,7 @@ class CausalEvidenceLedger:
             "resulting_state_ref": item.resulting_state_ref,
             "prediction_ref": item.prediction_ref,
             "window_start_tick": item.window_start_tick,
+            "effect_atoms": list(item.effect_atoms),
         }
 
     def checkpoint(self) -> dict[str, object]:
@@ -433,7 +499,7 @@ class CausalEvidenceLedger:
         historical item carried a motor command, so none becomes passive.
         """
         version = payload.get("schema_version")
-        if version not in (1, 2, cls.SCHEMA_VERSION):
+        if version not in (1, 2, 3, cls.SCHEMA_VERSION):
             raise ValueError("unsupported causal-evidence checkpoint")
         capacity = int(payload.get("capacity", 4096))
         passive_capacity = payload.get("passive_capacity")
@@ -442,7 +508,7 @@ class CausalEvidenceLedger:
             passive_capacity=(int(passive_capacity) if isinstance(passive_capacity, int) else None),
         )
         raw_items = payload.get("evidence", [])
-        raw_passive = payload.get("passive_evidence", []) if version == cls.SCHEMA_VERSION else []
+        raw_passive = payload.get("passive_evidence", []) if version in (3, 4) else []
         if not isinstance(raw_items, list) or not isinstance(raw_passive, list):
             raise ValueError("invalid causal evidence")
         for raw, passive in ((raw_items[-obj._capacity :], False), (raw_passive, True)):
@@ -450,7 +516,9 @@ class CausalEvidenceLedger:
                 if not isinstance(item, dict):
                     raise ValueError("invalid causal evidence item")
                 normalized = dict(item)
-                if version != cls.SCHEMA_VERSION:
+                # Schema 3 and older carried no atoms; they are not reconstructed.
+                normalized["effect_atoms"] = tuple(normalized.get("effect_atoms", ()))
+                if version not in (3, cls.SCHEMA_VERSION):
                     if not normalized.get("action_ref"):
                         raise ValueError("historical causal evidence lacks its motor command")
                     normalized.setdefault("competence_id", None)
@@ -502,6 +570,19 @@ class CounterfactualFreeView:
 
     def __init__(self, ledger: CausalEvidenceLedger) -> None:
         self._ledger = ledger
+
+    def atom_opportunities(
+        self,
+        atom_id: str,
+        *,
+        field: str,
+        values: Iterable[str],
+        context_ref: str | None = None,
+    ) -> Opportunities:
+        action_n, action_hits, _, _ = self._ledger.atom_opportunities(
+            atom_id, field=field, values=values, context_ref=context_ref
+        )
+        return action_n, action_hits, 0, 0
 
     def effect_opportunities(
         self, effect_id: str, *, competence_id: str, context_ref: str | None = None

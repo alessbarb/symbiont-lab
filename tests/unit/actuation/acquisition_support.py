@@ -57,6 +57,7 @@ def act(
         prediction_ref=None,
         observed_effect_id=effect.effect_id if effect is not None else None,
         prediction_error=None,
+        observed_changes=changes,
     )
     return acquisition.learn(transition, body_schema=body_schema)
 

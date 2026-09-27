@@ -368,6 +368,7 @@ class Symbiont:
                 f"prediction.reduced.{self.total_ticks - 1}" if self.last_inputs else None
             ),
             observed_effect_id=(effect.effect_id if effect is not None else None),
+            observed_changes=effect_changes,
             prediction_error=PredictionError(
                 magnitude=max(0.0, float(prediction_error)),
                 uncertainty=min(1.0, max(0.0, float(prediction_error))),

@@ -987,6 +987,7 @@ class ActionDomain:
             ),
             observed_effect_id=observed_effect_id,
             prediction_error=prediction_error,
+            observed_changes=opaque_changes,
         )
         update = self.acquisition.learn(
             transition,
