@@ -2017,6 +2017,16 @@ class PyBulletEmbodimentRuntime:
             },
             "self_model": self.organism.self_model.export(current_tick=self.tick_count),
             "body_schema": body_schema_representation,
+            "body_schema_boundary": {
+                "self_caused_channels": list(self.organism.body_schema.self_caused_channels),
+                "somatic_correlated_channels": list(
+                    self.organism.body_schema.somatic_correlated_channels
+                ),
+                "external_channels": list(self.organism.body_schema.external_channels),
+                "confidence": self.organism.body_schema.boundary_confidence,
+                "revision_count": self.organism.body_schema.boundary_revision_count,
+                "disruption_score": self.organism.body_schema.boundary_disruption_score,
+            },
             "motor_competences": [
                 {
                     "competence_id": item.competence_id,
