@@ -1,8 +1,8 @@
 # Cross-Domain Revision Coherence v1
 
-Status: **proposed, revision 2** — conceptually approved by the owner
-(review 2026-09-28); implementation of each wave still needs its own
-approval. Baseline: `main @ c1a43963`. Origin: owner audit of
+Status: **revision 3** — conceptually approved by the owner (reviews
+2026-09-28). Wave 0 is ready for implementation once the owner confirms the
+start; later waves still need their own approval. Baseline: `main @ c1a43963`. Origin: owner audit of
 `org-5c3fb582fb17` (2026-09-27), code claims re-verified against `main`
 (§1.2).
 
@@ -14,6 +14,14 @@ retest independence and an explicit relevance formula (§4); Wave 3 split
 into 3A/3B with non-circular pool scores and lifecycle-aware pins (§5, §6);
 common passive event with two derived views (§6); ancestry eligibility and
 lineage stagnation (§8); and a behaviour-neutral Wave 0 (§2.1).
+
+Revision 3 (second owner review): `actionable_test_now` and
+`prediction_scope` (§3.1); binding status/reason invariants (§3.2); Wave 0
+observes capacity decisions only after they resolve (§2.1); the retest
+formula corrected to the stored effect semantics and its support cap scoped
+to the option (§4.2); hard-pin saturation (§5); passive event fields (§6);
+generative activation state as its own axis (§7.1); `validation_gain`
+reference (§8); a common `revision_id` (§2.2); and extended gates.
 
 ## 1. Problem
 
@@ -104,8 +112,26 @@ Wave 1.
 - Baseline run: E6, E8 (arm R) and a Physics3D copy recorded with Wave 0
   metrics before Wave 1 changes behaviour.
 
-**Gate W0:** trajectory hashes unchanged; every metric above present,
-checkpoint-stable and documented.
+**Instrumentation rule.** Wave 0 may observe an existing capacity or
+lifecycle decision only after that decision is fully resolved: the
+existing policy selects and applies its victims, and only then are they
+noted. Instrumentation must not change sort order, eviction timing, dict
+iteration, hash material, or any checkpoint content that behaviour reads;
+new metrics live in separate checkpoint sections that no decision reads.
+
+**Gate W0:** trajectory hashes byte-identical and provenance histories
+identical (by `revision_id`/event id) with Wave 0 on vs. the pre-Wave-0
+commit; every metric above present, checkpoint-stable and documented.
+
+### 2.2 Revision identity
+
+Every revision (binding status change, causal revision, suppression,
+suppression lift, embodiment change, eviction) carries a content-addressed
+`revision_id`, emitted as a Causal Provenance v1 event with `caused_by`
+evidence refs. It is an identity, not an authority: consumers (executive,
+availability, generative testability, embodiment adaptation) record which
+`revision_id` they observed. "Same causal history after restore" is checked
+by comparing revision ids, not only final states.
 
 ## 3. Wave 1 — Cross-domain competence revision (P0)
 
@@ -120,7 +146,7 @@ competence, grouped by authority:
 | causal | `predictable_now`, `controllability`, `agency`, `last_evidence_tick` |
 | physical | `binding_status`, `surface_match`, `controller_available`, `executable_now` |
 | executive | `suppressed`, `suppression_reason`, `admissible_now` |
-| epistemic | `testable_now` |
+| epistemic | `testable_now`, `actionable_test_now`, `prediction_scope` |
 | verdict | `reason` (first failing condition, closed set) |
 
 - `predictable_now = known ∧ effect representation available ∧
@@ -131,8 +157,15 @@ competence, grouped by authority:
   `competence_is_executable`, now the single definition).
 - `admissible_now = executable_now ∧ ¬suppressed`.
 - `testable_now = predictable_now ∧ executable_now` — a prediction about it
-  could be checked by acting now (independent of executive suppression,
-  which is policy, not opportunity).
+  could physically be checked by acting now (independent of suppression).
+- `actionable_test_now = testable_now ∧ admissible_now` — the organism may
+  legitimately attempt that check now. Budget aimed at real execution
+  (Wave 4) uses this, not `testable_now`.
+- `prediction_scope ∈ {CURRENT, HISTORICAL, UNCERTAIN_CURRENT}`: VALID →
+  CURRENT; STALE by `SURFACE_NOT_CURRENT`/`EMBODIMENT_NOT_CURRENT` →
+  HISTORICAL ("this happened on that body"); STALE by `EVIDENCE_AGED` or
+  `CONTROLLER_UNAVAILABLE` → UNCERTAIN_CURRENT. Consumers must not treat a
+  HISTORICAL prediction as a claim about the current body.
 
 Legitimate combination example: predictable ∧ executable ∧ ¬admissible
 ("I believe C produces E, C can run, but C is suppressed now").
@@ -151,6 +184,13 @@ subset it needs):
   cause clears.
 - `InvalidationReason`: `CAUSAL_RELATION_REVISED`, `EFFECT_SUPERSEDED`,
   `EVIDENCE_CONTRADICTED`. Only causal/binding evidence produces these.
+
+Invariants: `VALID ⇒ status_reason is None`; `STALE ⇒ status_reason ∈
+StalenessReason`; `INVALIDATED ⇒ status_reason ∈ InvalidationReason`.
+`last_confirmed_tick` and `status_changed_tick` are independent (an
+invalidation may follow the last confirmation). `previous_status` and
+`previous_revision` live only in the provenance event of the change, not in
+the persisted binding.
 
 Wave 1 implements `SURFACE_NOT_CURRENT`, `EMBODIMENT_NOT_CURRENT`,
 `CONTROLLER_UNAVAILABLE` and `CAUSAL_RELATION_REVISED`. Rebinding from new
@@ -178,7 +218,7 @@ effects; lifting stays in admission (`modulation()`).
 
 | Consumer | Wave 1 reads |
 |---|---|
-| `predict_competence_effect` (generative `competence-effect` model) | `predictable_now`; the prediction carries `executable_now`/`admissible_now`/`testable_now` as annotations |
+| `predict_competence_effect` (generative `competence-effect` model) | `predictable_now`; the prediction carries `prediction_scope`, `executable_now`, `admissible_now`, `testable_now`, `actionable_test_now` as annotations |
 | `AffordanceResolver` | `executable_now` (admission applies suppression) |
 | executive admission | `admissible_now` |
 | Physics3D adaptation `revalidated_count`, unbound/telemetry (`runtime.py:938,1733,1818,1920`), `individual.py:199` | `executable_now` |
@@ -222,7 +262,9 @@ runtime; lifecycle survives checkpoint→restore; bindings migrate.
 
 **Gate W1:** property over E6/E8 runs — never `suppressed ∧ admissible_now`
 absent a later traced revision, and never `executable_now` with a
-non-VALID binding; E6 passes in both effect modes; trajectory changes are
+non-VALID binding; predictable historical knowledge survives a
+non-current embodiment (no fix by forgetting); the same factual revision
+yields the same projection after restore; E6 passes in both effect modes; trajectory changes are
 documented against the Wave 0 baseline. Wave 1 changes defaults without an
 option because it removes contradictions rather than adding capability.
 
@@ -238,19 +280,26 @@ default.
 ### 4.2 Relevance formula (fixed before E9)
 
 From the primitive's own statistics — occurrences `n`, effect mean `m` and
-variance `v`, directional consistency `d`, and the passive baseline mean
-`m0` and variance `v0` of the same effect channel:
+variance `v`, directional consistency `d` — and the passive effect variance
+`v0`. `m` is the stored `stat.mean`: **non-negative effect strength after
+passive subtraction** (`max(0, raw_effect − passive_mean)`,
+`sensorimotor.py` `_record_primitive_episode`); direction is carried by `d`,
+so the baseline is not subtracted again:
 
 - relative uncertainty reduction of one more independent occurrence:
   `g(n) = 1 − sqrt(n / (n + 1))` (0.184 at n=2, 0.106 at n=4);
 - standard error with a floor from the organism's own passive noise:
   `se = sqrt(max(v, v0, 1e-3) / n)`;
-- causal plausibility: `p = Φ((m − m0) / se) × d`;
-- `epistemic_relevance = (g(n) / g(1)) × p`, zero when `n > 8` or
-  `epistemic_relevance < 0.05`.
+- causal plausibility: `p = Φ(m / se) × d`;
+- `epistemic_relevance = (g(n) / g(1)) × p`, zero when
+  `n > epistemic_retest_max_support` (8) or below 0.05.
 
 `g(1) = 1 − sqrt(1/2)` normalizes to [0, 1]. The constants (1e-3, 8, 0.05)
-are preregistered parameters of E9, not tuned after results.
+are preregistered E9 parameters of the `epistemic_retest` option, not
+properties of motor primitives: after drift, injury, embodiment change or a
+causal revision a well-supported primitive may become uncertain again, and a
+later version should let evidence age, revision and prediction mismatch
+restore relevance.
 
 ### 4.3 Independence
 
@@ -284,8 +333,13 @@ preregistered bound; E6 passes.
   retention bonus; INVALIDATED binding → no pin; live intent → hard pin;
   explicit experimental pin → hard pin. Hard pins count against capacity and
   are reported in `CapacityPressure`.
+- **Hard-pin saturation:** if every consolidated slot is hard-pinned, no pin
+  is evicted; a promotable candidate stays a candidate and the store records
+  `promotion_blocked_by_pinned_capacity` (in `CapacityPressure` and
+  provenance). A bounded store defines what happens when its invariants make
+  admission impossible.
 - Provenance events: `effect_created`, `effect_promoted`, `effect_evicted`,
-  `effect_reobserved`.
+  `effect_reobserved`, `promotion_blocked_by_pinned_capacity`.
 - Checkpoint schema bump; migration: all existing effects consolidated.
 
 **Gate W3A:** with the consolidated pool full, a novel reproducible effect is
@@ -302,6 +356,11 @@ PassiveObservation (one event per passive window, traced)
    └──> PassiveBaselineAccumulator  (incremental motor baseline)
 ```
 
+The event carries `observation_id`, `tick_start`, `tick_end`, `context_ref`,
+`state_before_ref`, `state_after_ref` and its effect atoms / opaque deltas;
+each view persists only its own aggregates, and the event (provenance) is
+the common causal reference.
+
 The motor learner stops detecting passivity on its own; both views consume
 the same events, so they cannot diverge, and the motor accumulator stays
 incremental and bounded. Run separately from 3A so trajectory changes can be
@@ -317,11 +376,14 @@ across checkpoint→restore; E6/E8 reruns documented against 3A.
 - `HypothesisEpistemicStatus`: `HYPOTHESIZED`, `PREDICTED`, `SUPPORTED`,
   `CONTRADICTED`, `SUPERSEDED` (what is believed).
 - `HypothesisTestability`: `TESTABLE_NOW`, `BLOCKED_BY_EMBODIMENT`,
-  `BLOCKED_BY_BINDING`, `AWAITING_NEW_EVIDENCE` (whether it can be checked),
-  derived from the Wave 1 projection (`testable_now` and its reason).
+  `BLOCKED_BY_BINDING` (whether it can be checked), derived from the Wave 1
+  projection (`testable_now` and its reason).
+- `GenerativeActivationState`: `ACTIVE`, `COOLED_PENDING_EVIDENCE` (whether
+  it deserves activation until something changes).
 
-Untestable hypotheses keep their epistemic status and receive no activation
-budget; supersession comes only from causal revision events.
+Execution-directed budget requires `actionable_test_now`; untestable or
+cooled hypotheses keep their epistemic status; supersession comes only from
+causal revision events.
 
 ### 7.2 Sterile reactivation
 
@@ -331,23 +393,26 @@ recurrence alone no longer raises consolidation. Tracker adds
 `new_evidence_since_last_use`, `new_branch_since_last_use`,
 `uncertainty_reduction`.
 
-**Gate W4:** budget stops flowing to untestable targets; sterile activations
+**Gate W4:** cooling never changes factual hypothesis status; budget stops
+flowing to non-actionable targets; sterile activations
 bounded; generative→factual reconciliation rate rises; generative output
 never enters factual evidence (existing boundary tests).
 
 ## 8. Wave 5 — Private-model genealogy (P2, parallel after Wave 0)
 
 - **Training ancestry ≠ control authority.** Only ACTIVE models control; a
-  SHADOW model may be a training parent only if **ancestry-eligible**:
-  `validation_gain > 0`, no catastrophic regression on the held-out
-  validation, and not contradicted by later evidence.
+  SHADOW model may be a training parent only if **ancestry-eligible**: its
+  validation exceeds both its parent's validation (roots: none) **and** the
+  canonical non-neural baseline of the predictive study; no catastrophic
+  regression on the held-out validation; not contradicted by later evidence.
 - Children record `parent_model_id`, `generation + 1`.
 - A new root requires a traced reason: `no-eligible-ancestor`,
   `ancestor-contradicted`, `architecture-change`, or `lineage-stagnation`
   (N generations without validation gain; N preregistered).
 - Promotion gate to ACTIVE unchanged.
 
-**Gate W5:** after repeated failed promotions the next training has
+**Gate W5:** training ancestry never grants action authority (structural
+invariant); after repeated failed promotions the next training has
 `generation > 0` or a traced root reason; no indistinguishable root chains;
 no lineage of more than N non-improving generations.
 
