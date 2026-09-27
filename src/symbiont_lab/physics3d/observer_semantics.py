@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from symbiont.actuation.intervention import opaque_channel_ref
+
 _INTEROCEPTIVE_SOURCE_LABELS = (
     "energy reserve",
     "structural integrity",
@@ -144,6 +146,56 @@ def sensory_semantics(
     return result
 
 
+
+def action_dimension_semantics(
+    action_dimensions,
+    actuator_to_effector: dict[str, str],
+    *,
+    joint_specs: tuple[object, ...],
+) -> dict[str, dict[str, object]]:
+    """Project acquired opaque action dimensions onto evaluator-only physics.
+
+    The ActionDimension remains organism-owned and opaque. This function only
+    reverses its private channel grounding in Observatory by matching hashed
+    channel refs to the current actuator surface, then attaches physical joint
+    metadata for visualization. Nothing from this mapping feeds back.
+    """
+    motor = motor_semantics(actuator_to_effector, joint_specs=joint_specs)
+    actuator_by_channel = {
+        opaque_channel_ref(str(actuator_id)): str(actuator_id)
+        for actuator_id in actuator_to_effector
+    }
+    result: dict[str, dict[str, object]] = {}
+    for item in tuple(getattr(action_dimensions, "items", ()) or ()):
+        dimension_id = str(getattr(item, "dimension_id", "") or "")
+        if not dimension_id:
+            continue
+        channel_refs = tuple(action_dimensions.channel_refs(dimension_id))
+        actuator_ids = [
+            actuator_by_channel[channel_ref]
+            for channel_ref in channel_refs
+            if channel_ref in actuator_by_channel
+        ]
+        physical = [motor[actuator_id] for actuator_id in actuator_ids if actuator_id in motor]
+        result[dimension_id] = {
+            "dimension_id": dimension_id,
+            "channel_count": len(channel_refs),
+            "mapped_channel_count": len(actuator_ids),
+            "actuator_ids": actuator_ids,
+            "effector_ids": [str(item["effector_id"]) for item in physical],
+            "observer_joints": sorted({str(item["joint"]) for item in physical}),
+            "observer_summaries": [str(item["observer_summary"]) for item in physical],
+            "mapping": (
+                "exact"
+                if channel_refs and len(actuator_ids) == len(channel_refs)
+                else "partial"
+                if actuator_ids
+                else "unresolved"
+            ),
+        }
+    return result
+
+
 def motor_semantics(
     actuator_to_effector: dict[str, str],
     *,
@@ -171,4 +223,9 @@ def motor_semantics(
     return result
 
 
-__all__ = ["motor_semantics", "receptor_ground_truth", "sensory_semantics"]
+__all__ = [
+    "action_dimension_semantics",
+    "motor_semantics",
+    "receptor_ground_truth",
+    "sensory_semantics",
+]
