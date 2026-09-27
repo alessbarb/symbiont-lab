@@ -85,6 +85,69 @@ class EffectMatcher:
         return self.similarity(expected, observed)
 
 
+# -- Factorized Effect Representation v1 §4.1: atomic effects --------------------
+MAX_ATOMS_PER_TRANSITION = 16
+
+
+def magnitude_class(bucket: int) -> int:
+    """Coarse magnitude of a v4 bucket (spec §4.1): exact, fixed mapping."""
+    size = abs(int(bucket))
+    if not 1 <= size <= 7:
+        raise ValueError("a magnitude class needs a non-zero bucket within [-7, 7]")
+    return 1 if size <= 2 else (2 if size <= 4 else 3)
+
+
+@dataclass(frozen=True, slots=True)
+class EffectAtom:
+    """One organism feature moving in one direction by a coarse amount."""
+
+    feature_ref: str
+    direction: int
+    magnitude_class: int
+
+    def __post_init__(self) -> None:
+        if not _valid_feature_ref(self.feature_ref):
+            raise ValueError("atom features must be organism-owned references")
+        if self.direction not in (-1, 1):
+            raise ValueError("atom direction must be -1 or +1")
+        if self.magnitude_class not in (1, 2, 3):
+            raise ValueError("atom magnitude class must be 1, 2 or 3")
+
+    @property
+    def effect_id(self) -> str:
+        material = f"atom|{self.feature_ref}|{self.direction}|{self.magnitude_class}"
+        return "effect.atom." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:24]
+
+    @classmethod
+    def from_bucket(cls, feature_ref: str, bucket: int) -> "EffectAtom":
+        return cls(str(feature_ref), 1 if bucket > 0 else -1, magnitude_class(bucket))
+
+
+def atoms_from_signature(
+    signature: tuple[tuple[str, int], ...],
+) -> tuple[EffectAtom, ...]:
+    """Exact decomposition of a v4 whole-state signature (spec §8)."""
+    return tuple(
+        sorted(
+            (EffectAtom.from_bucket(feature, bucket) for feature, bucket in signature if bucket),
+            key=lambda atom: atom.feature_ref,
+        )
+    )
+
+
+def atoms_from_changes(
+    changes: Mapping[str, float],
+    *,
+    limit: int = MAX_ATOMS_PER_TRANSITION,
+) -> tuple[EffectAtom, ...]:
+    """The atoms of one transition, bounded: largest magnitudes first."""
+    if limit < 1:
+        raise ValueError("limit must be positive")
+    signature = EffectSpace.signature(changes)
+    kept = sorted(signature, key=lambda item: (-abs(item[1]), item[0]))[:limit]
+    return atoms_from_signature(tuple(kept))
+
+
 class EffectSpace:
     """Bounded registry of recurring opaque transition signatures."""
 
