@@ -2372,44 +2372,77 @@ class ActionDomain:
         """Bounded organism-owned causal model for passive observation.
 
         These are learned estimates, not structural CognitiveGraph edges and not
-        historical provenance events.  The observer receives the relation
-        identity plus the evidence fields the organism actually stores; no
-        threshold or semantic interpretation is invented here.
+        historical provenance events. The bounded projection is source-balanced:
+        it keeps the strongest relation for as many learned causal sources as
+        possible before filling the remaining budget globally. This prevents a
+        few dense sources from making other real learned relations look absent.
         """
-        estimates = sorted(
-            self.controllability_model.estimates,
-            key=lambda item: (
-                -max(
-                    float(item.confidence),
-                    float(
-                        getattr(
-                            self.agency_model.estimate(
-                                source_kind=item.source_kind,
-                                source_ref=item.source_ref,
-                                effect_id=item.effect_id,
-                                context_id=item.context_id,
-                            ),
-                            "confidence",
-                            0.0,
-                        )
-                    ),
-                ),
-                -(int(item.action_support) + int(item.counterfactual_support)),
-                -int(item.last_updated_tick),
-                item.source_kind.value,
-                item.source_ref,
-                item.effect_id,
-                item.context_id or "",
-            ),
-        )[:_OBSERVATORY_CAUSAL_RELATION_LIMIT]
-        rows: list[dict[str, Any]] = []
-        for item in estimates:
+        enriched: list[tuple[Any, Any]] = []
+        for item in self.controllability_model.estimates:
             agency = self.agency_model.estimate(
                 source_kind=item.source_kind,
                 source_ref=item.source_ref,
                 effect_id=item.effect_id,
                 context_id=item.context_id,
             )
+            enriched.append((item, agency))
+
+        def rank(entry: tuple[Any, Any]) -> tuple[float, int, int, str, str, str, str]:
+            item, agency = entry
+            return (
+                -max(float(item.confidence), float(getattr(agency, "confidence", 0.0))),
+                -(int(item.action_support) + int(item.counterfactual_support)),
+                -int(item.last_updated_tick),
+                item.source_kind.value,
+                item.source_ref,
+                item.effect_id,
+                item.context_id or "",
+            )
+
+        ranked = sorted(enriched, key=rank)
+        selected: list[tuple[Any, Any]] = []
+        selected_keys: set[tuple[str, str, str, str]] = set()
+        covered_sources: set[tuple[str, str]] = set()
+
+        # Coverage pass: preserve at least the best visible relation per source
+        # when the bounded budget permits it.
+        for entry in ranked:
+            item, _agency = entry
+            source = (item.source_kind.value, item.source_ref)
+            if source in covered_sources:
+                continue
+            key = (
+                item.source_kind.value,
+                item.source_ref,
+                item.effect_id,
+                item.context_id or "",
+            )
+            selected.append(entry)
+            selected_keys.add(key)
+            covered_sources.add(source)
+            if len(selected) >= _OBSERVATORY_CAUSAL_RELATION_LIMIT:
+                break
+
+        # Evidence pass: fill the remaining budget with the globally strongest
+        # relations that were not already retained by the coverage pass.
+        if len(selected) < _OBSERVATORY_CAUSAL_RELATION_LIMIT:
+            for entry in ranked:
+                item, _agency = entry
+                key = (
+                    item.source_kind.value,
+                    item.source_ref,
+                    item.effect_id,
+                    item.context_id or "",
+                )
+                if key in selected_keys:
+                    continue
+                selected.append(entry)
+                selected_keys.add(key)
+                if len(selected) >= _OBSERVATORY_CAUSAL_RELATION_LIMIT:
+                    break
+
+        rows: list[dict[str, Any]] = []
+        for item, agency in selected:
             rows.append(
                 {
                     "source_kind": item.source_kind.value,
