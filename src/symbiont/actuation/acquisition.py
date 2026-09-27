@@ -32,7 +32,7 @@ from .dimension import (
     assess_family,
     opaque_dimension_id,
 )
-from .effects import EffectMatcher, EffectSpace, atoms_from_changes
+from .effects import EffectMatcher, EffectSpace, atoms_from_changes, bounded_atoms
 from .evidence import (
     CausalEvidence,
     CausalEvidenceLedger,
@@ -122,6 +122,8 @@ class AgencyAcquisition:
         self.last_attempt: ActionAttempt | None = None
         self.recent_attempts: deque[ActionAttempt] = deque(maxlen=_RECENT_ATTEMPTS)
         self.attempt_count = 0
+        # (migrated, unresolved) evidence items at the last pre-atom restore.
+        self.atom_migration: tuple[int, int] | None = None
         self._surface_ids: tuple[str, ...] | None = None
         self._surface_fingerprint: str | None = None
         self._pattern_signatures: dict[
@@ -224,6 +226,14 @@ class AgencyAcquisition:
             observed_effect_id=observed_effect_id,
             prediction_error=prediction_error,
             observed_effect_atoms=_atom_ids(observed_changes or {}),
+        )
+
+    def _effect_atom_ids(self, effect_id: str) -> tuple[str, ...] | None:
+        effect = self.effect_space.get(effect_id)
+        if effect is None:
+            return None
+        return tuple(
+            sorted({atom.effect_id for atom in bounded_atoms(effect.transition_signature)})
         )
 
     def discard_pending_attempt(self) -> None:
@@ -710,6 +720,10 @@ class AgencyAcquisition:
             self.effect_space = EffectSpace.restore(dict(effect_space))
         if causal_evidence is not None:
             self.causal_evidence = CausalEvidenceLedger.restore(dict(causal_evidence))
+            if causal_evidence.get("schema_version") != CausalEvidenceLedger.SCHEMA_VERSION:
+                # Factorized Effects §8: pre-atom evidence gets the exact atoms of
+                # its whole-state effect while that effect is still known.
+                self.atom_migration = self.causal_evidence.migrate_atoms(self._effect_atom_ids)
         persisted_estimates = False
         if acquisition is not None:
             version = acquisition.get("schema_version")

@@ -17,8 +17,8 @@ from __future__ import annotations
 import hashlib
 import math
 from collections import Counter
-from dataclasses import dataclass
-from typing import Iterable, Mapping, Protocol
+from dataclasses import dataclass, replace
+from typing import Callable, Iterable, Mapping, Protocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,6 +233,38 @@ class CausalEvidenceLedger:
         while len(store) > bound:
             self._index(store.pop(0), -1)
         return item
+
+    def migrate_atoms(self, resolve: Callable[[str], tuple[str, ...] | None]) -> tuple[int, int]:
+        """Give atom-less evidence the atoms of its effect (Factorized Effects §8).
+
+        ``resolve`` maps an effect id to its atom ids, or None when the effect
+        is no longer known.  Returns (migrated, unresolved) item counts.
+        Evidence without an effect, or that already has atoms, is untouched.
+        """
+        migrated = unresolved = 0
+        rebuilt: list[tuple[list[CausalEvidence], list[CausalEvidence]]] = []
+        for store in (self._interventions, self._passive):
+            items: list[CausalEvidence] = []
+            for item in store:
+                if item.effect_atoms or item.effect_id is None:
+                    items.append(item)
+                    continue
+                atoms = resolve(item.effect_id)
+                if atoms is None:
+                    unresolved += 1
+                    items.append(item)
+                    continue
+                migrated += 1
+                items.append(replace(item, effect_atoms=tuple(sorted(set(atoms)))))
+            rebuilt.append((store, items))
+        if migrated:
+            for store, items in rebuilt:
+                for item in store:
+                    self._index(item, -1)
+                store[:] = items
+                for item in store:
+                    self._index(item, +1)
+        return migrated, unresolved
 
     # -- writes -------------------------------------------------------------
     def observe(self, transition: SensorimotorTransition) -> CausalEvidence:

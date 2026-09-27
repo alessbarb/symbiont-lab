@@ -105,3 +105,66 @@ def test_evidence_rejects_unsorted_or_foreign_atoms():
         CausalEvidence(**base, effect_atoms=("effect.atom.b", "effect.atom.a"))
     with pytest.raises(ValueError):
         CausalEvidence(**base, effect_atoms=("effect.123",))
+
+
+def _strip_atoms(payload):
+    legacy = {**payload, "schema_version": 3}
+    for key in ("evidence", "passive_evidence"):
+        legacy[key] = [
+            {k: v for k, v in item.items() if k != "effect_atoms"} for item in payload[key]
+        ]
+    return legacy
+
+
+def test_pre_atom_evidence_migrates_to_the_exact_atoms_of_its_effect():
+    source = fresh_acquisition()
+    act(source, 0, {A: 0.5}, {"signal.a": 0.4, "signal.b": -0.3})
+    act(source, 2, {B: 0.5}, {"signal.c": 0.9})
+    rest(source, 4, {"signal.d": 0.5})
+    expected = {
+        item.evidence_id: item.effect_atoms
+        for item in (
+            *source.causal_evidence.intervention_evidence,
+            *source.causal_evidence.passive_evidence,
+        )
+    }
+    restored = fresh_acquisition()
+    restored.restore_causal_state(
+        effect_space=source.effect_space.checkpoint(),
+        causal_evidence=_strip_atoms(source.causal_evidence.checkpoint()),
+        acquisition=None,
+        body_schema=None,
+    )
+    ledger = restored.causal_evidence
+    got = {
+        item.evidence_id: item.effect_atoms
+        for item in (*ledger.intervention_evidence, *ledger.passive_evidence)
+    }
+    assert got == expected
+    assert restored.atom_migration == (3, 0)
+    # Incremental atom counts are rebuilt with the migrated items.
+    item = ledger.intervention_evidence[0]
+    assert (
+        ledger.atom_opportunities(
+            item.effect_atoms[0],
+            field="intervention_signature_id",
+            values=(item.intervention_signature_id,),
+        )[1]
+        == 1
+    )
+
+
+def test_evidence_whose_effect_was_evicted_is_counted_unresolved():
+    source = fresh_acquisition()
+    act(source, 0, {A: 0.5}, {"signal.a": 0.4})
+    payload = source.effect_space.checkpoint()
+    payload["support"] = []  # the effect is no longer known
+    restored = fresh_acquisition()
+    restored.restore_causal_state(
+        effect_space=payload,
+        causal_evidence=_strip_atoms(source.causal_evidence.checkpoint()),
+        acquisition=None,
+        body_schema=None,
+    )
+    assert restored.atom_migration == (0, 1)
+    assert restored.causal_evidence.intervention_evidence[0].effect_atoms == ()

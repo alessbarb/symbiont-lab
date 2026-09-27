@@ -141,9 +141,17 @@ def atoms_from_changes(
     limit: int = MAX_ATOMS_PER_TRANSITION,
 ) -> tuple[EffectAtom, ...]:
     """The atoms of one transition, bounded: largest magnitudes first."""
+    return bounded_atoms(EffectSpace.signature(changes), limit=limit)
+
+
+def bounded_atoms(
+    signature: tuple[tuple[str, int], ...],
+    *,
+    limit: int = MAX_ATOMS_PER_TRANSITION,
+) -> tuple[EffectAtom, ...]:
+    """A signature's atoms under the per-transition bound: largest changes first."""
     if limit < 1:
         raise ValueError("limit must be positive")
-    signature = EffectSpace.signature(changes)
     kept = sorted(signature, key=lambda item: (-abs(item[1]), item[0]))[:limit]
     return atoms_from_signature(tuple(kept))
 
