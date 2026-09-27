@@ -47,6 +47,23 @@ The thresholds, horizons, seeds and endpoint were fixed before the first run
 and must not be changed after seeing results; a change is a new protocol
 version with its own run.
 
+## Protocol v2 (preregistered before its first run)
+
+v1 was underpowered: its gate opened in 1-2 of 10 seeds. From the read-only
+reachability diagnostic below — normal development only, no perturbation
+outcome inspected — v2 fixes:
+
+- `min_controllability = min_agency = 0.05` (support 16 and stability 128
+  unchanged): reachable in most seeds;
+- `min_age_ticks = 1024`: relations are gated only once the organism is at
+  least 1024 ticks past acquisition, so perturbation does not land in the
+  early developmental drift that erased the E4 v3 contrast (with this age the
+  diagnostic gate opens in 5/10 broken_effector and 7/10 permuted seeds, at a
+  median onset of ~1150 / ~3000 ticks after acquisition);
+- 20 seeds (the 10 of v1 plus 10 new) to compensate for the lower opening rate.
+
+Horizons, primary endpoint and its criterion are unchanged from v1.
+
 ## Execution
 
 ```bash

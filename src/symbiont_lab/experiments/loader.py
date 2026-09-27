@@ -134,6 +134,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "min_agency",
             "stability_ticks",
             "max_wait_ticks",
+            "min_age_ticks",
             "horizons",
             "primary_horizon",
         },

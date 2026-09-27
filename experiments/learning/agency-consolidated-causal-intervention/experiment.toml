@@ -4,7 +4,7 @@ schema_version = 1
 id = "learning.agency-consolidated-causal-intervention"
 title = "E4-v4 — Causal belief revision after perturbation of a consolidated relation"
 protocol = "learning.agency-consolidated-causal-intervention"
-protocol_version = 1
+protocol_version = 2
 hypothesis = """
 When a relation the organism believes it causes is causally consolidated and
 still observable, breaking or permuting the outputs that produce it makes the
@@ -26,14 +26,15 @@ never opens within max_wait_ticks are untestable and reported as such.
 steps = 2000
 
 [design]
-seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
+seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257, 271, 283, 307, 311, 331, 347, 359, 373, 389, 401]
 
 [consolidation]
 min_support = 16
-min_controllability = 0.10
-min_agency = 0.10
+min_controllability = 0.05
+min_agency = 0.05
 stability_ticks = 128
 max_wait_ticks = 4096
+min_age_ticks = 1024
 horizons = [128, 256, 512, 1024, 2048]
 primary_horizon = 1024
 

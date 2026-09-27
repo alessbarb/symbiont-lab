@@ -71,6 +71,7 @@ def test_agency_protocols_are_registered():
 
 BASE_SEEDS = (101, 127, 149)
 EXECUTIVE_SEEDS = BASE_SEEDS + (163, 179, 193, 211, 227, 241, 257)
+CONSOLIDATED_SEEDS = EXECUTIVE_SEEDS + (271, 283, 307, 311, 331, 347, 359, 373, 389, 401)
 EXECUTIVE_STUDIES = {
     "agency-consolidated-causal-intervention",
     "agency-executive-bridge-ablation",
@@ -85,6 +86,8 @@ def test_agency_preregistrations_bind_expected_protocols():
         spec = load_experiment_file(root / directory / "experiment.toml")
         assert spec.protocol == protocol
         expected = EXECUTIVE_SEEDS if directory in EXECUTIVE_STUDIES else BASE_SEEDS
+        if directory == "agency-consolidated-causal-intervention":
+            expected = CONSOLIDATED_SEEDS
         assert tuple(spec.seeds) == expected
         assert (root / directory / "README.md").is_file()
 
@@ -221,6 +224,31 @@ def test_consolidated_intervention_waits_for_the_gate_and_reports_every_horizon(
     summary = result["summary"]["broken_effector"]
     assert summary["by_horizon"]["8"]["testable_seeds"] == 1
     assert isinstance(summary["primary_endpoint_supported"], bool)
+
+
+def test_consolidated_intervention_respects_the_minimum_developmental_age():
+    aged = ConsolidationGate(
+        min_support=1,
+        min_controllability=0.0,
+        min_agency=0.0,
+        stability_ticks=2,
+        max_wait_ticks=400,
+        min_age_ticks=50,
+    )
+    result = run_consolidated_causal_intervention_study(
+        seeds=(101,), warmup_limit=600, gate=aged, horizons=(4,), primary_horizon=4
+    )
+    (row,) = result["per_seed"]
+    onset = row["conditions"]["broken_effector"]["onset_tick"]
+    assert onset >= row["acquired_at_tick"] + aged.min_age_ticks + aged.stability_ticks
+    with pytest.raises(ValueError):
+        run_consolidated_causal_intervention_study(
+            seeds=(101,),
+            warmup_limit=600,
+            gate=ConsolidationGate(max_wait_ticks=8, min_age_ticks=8),
+            horizons=(4,),
+            primary_horizon=4,
+        )
 
 
 def test_consolidated_intervention_marks_ungated_seeds_untestable():

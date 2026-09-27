@@ -839,6 +839,10 @@ class ConsolidationGate:
     min_agency: float = 0.10
     stability_ticks: int = 128
     max_wait_ticks: int = 4096
+    # Protocol v2: relations are only gated once the organism is this many
+    # ticks past acquisition, so perturbation does not land in the early
+    # developmental drift that erased the E4 v3 contrast.
+    min_age_ticks: int = 0
 
 
 def _consolidated_candidates(
@@ -912,10 +916,14 @@ def run_consolidated_causal_intervention_study(
             continue
         pending = set(perturbations)
         streaks: dict[BodyCondition, dict[_Relation, int]] = {c: {} for c in perturbations}
+        if gate.min_age_ticks < 0 or gate.min_age_ticks >= gate.max_wait_ticks:
+            raise ValueError("min_age_ticks must be within [0, max_wait_ticks)")
         for _ in range(_positive(gate.max_wait_ticks, "max_wait_ticks")):
             if not pending:
                 break
             _advance(runtime, body, 1)
+            if runtime.tick_count - acquired_at <= gate.min_age_ticks:
+                continue
             for condition in sorted(pending):
                 invalidated, intact = _relation_classes(runtime, body, condition)
                 passing = _consolidated_candidates(runtime, invalidated, gate)
