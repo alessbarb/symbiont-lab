@@ -16,7 +16,10 @@ from symbiont_lab.physics3d.engine import (
     DEFAULT_SYMBIONT_FILE,
     LEGACY_BODY_FILE,
 )
-from symbiont_lab.physics3d.persistence import read_symbiont_bundle_runtime
+from symbiont_lab.physics3d.persistence import (
+    read_symbiont_bundle_manifest,
+    read_symbiont_bundle_runtime,
+)
 from symbiont_lab.physics3d.reembodiment import lifecycle_summary
 
 DEFAULT_LAB_STATE_ROOT = DEFAULT_STATE_DIR.parent
@@ -122,6 +125,47 @@ class Physics3DRunStore:
     def _bundle_summary(self, bundle: Path) -> dict[str, Any]:
         if not bundle.is_file():
             return {}
+        try:
+            manifest = read_symbiont_bundle_manifest(bundle)
+        except Exception:
+            manifest = {}
+
+        if manifest:
+            return {
+                "organism_id": manifest.get("organism_id"),
+                "tick": int(manifest.get("saved_at_tick") or 0),
+                "saved_at_tick": int(manifest.get("saved_at_tick") or 0),
+                "experiences": int(
+                    manifest.get("experience_count") or manifest.get("experiences") or 0
+                ),
+                "models": int(manifest.get("model_record_count") or manifest.get("models") or 0),
+                "genome_id": manifest.get("genome_id"),
+                "vital_state": manifest.get("vital_state"),
+                "body_age_ticks": (
+                    int(manifest["body_age_ticks"])
+                    if manifest.get("body_age_ticks") is not None
+                    else 0
+                ),
+                "body_senescence": float(manifest.get("body_senescence") or 0.0),
+                "embodiment_summary_count": int(manifest.get("embodiment_summary_count") or 0),
+                "known_contract_count": int(manifest.get("known_contract_count") or 0),
+                "last_epoch_summary": manifest.get("last_epoch_summary"),
+                "symbiont_state": manifest.get("symbiont_state", "dormant"),
+                "embodiment_epoch": int(manifest.get("embodiment_epoch") or 1),
+                "embodiment_history_count": int(manifest.get("embodiment_history_count") or 0),
+                "body_id": manifest.get("body_id"),
+                "embodiment_id": manifest.get("embodiment_id"),
+                "body_kind": manifest.get("body_kind"),
+                "receptor_count": manifest.get("receptor_count"),
+                "effector_count": manifest.get("effector_count"),
+                "checkpoint_id": manifest.get("checkpoint_id"),
+                "checkpoint_hash": manifest.get("checkpoint_hash"),
+                "manifest_generated_from_checkpoint_hash": manifest.get(
+                    "manifest_generated_from_checkpoint_hash"
+                ),
+                "runnable": True,
+            }
+
         try:
             payload = read_symbiont_bundle_runtime(bundle)
         except Exception:
