@@ -192,7 +192,7 @@ export function enrichGraphModel(rawNodes, edges) {
     const overlayOnly = nodeStructuralDegree === 0 && nodeDegree > 0;
     const fringeStructural = (
       nodeStructuralDegree > 0 &&
-      (nodeStructuralDegree <= 1 || structuralComponent.size <= 3)
+      structuralComponent.size <= 3
     );
     const satelliteHostId = overlayOnly ? (projectedHostFor.get(node.id) ?? null) : null;
     const satelliteHasStructuralHost = satelliteHostId
