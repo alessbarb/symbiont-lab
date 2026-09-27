@@ -2108,6 +2108,7 @@ class PyBulletEmbodimentRuntime:
                     "intervention_signature_count",
                     "recurring_intervention_signature_count",
                     "causal_relation_count",
+                    "causal_relations",
                     "causal_evidence_count",
                     "passive_window_count",
                 )
