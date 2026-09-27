@@ -1,0 +1,32 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-acquisition-reuse-closure-factorized"
+title = "E6 (factorized effects) — Acquisition to deliberate reuse closure"
+protocol = "learning.agency-acquisition-reuse-closure"
+protocol_version = 1
+hypothesis = """
+One fresh organism, never reset and never given a competence id, actuator or
+motor pattern by the Lab, first acquires agency (attempts -> signatures ->
+dimensions -> effects -> agency -> competence) and then deliberately reuses a
+competence it discovered itself to produce the anticipated real effect.
+"""
+success_criteria = """
+Release gate: for every seed the milestones occur in developmental order, an
+ActionIntent formed from an afforded, self-acquired competence is SATISFIED by
+the observed effect, and the reused competence's authority is grounded in the
+organism's own exploration evidence. The satisfied-intent trace is recorded.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+factorized_effects = true
+
+[output]
+save_trace = false
+save_summary = true

@@ -204,7 +204,12 @@ class ExperimentRunner:
             )
             raw_metrics = result
         elif spec.protocol == "learning.agency-acquisition-reuse-closure":
-            result = protocol_fn(seeds=spec.seeds, max_ticks=spec.steps)
+            ablation = spec.extra_params.get("ablation", {})
+            result = protocol_fn(
+                seeds=spec.seeds,
+                max_ticks=spec.steps,
+                factorized_effects=bool(ablation.get("factorized_effects", False)),
+            )
             raw_metrics = result
         elif spec.protocol == "learning.embodied-behavioral-ablation":
             ablation = spec.extra_params.get("ablation", {})

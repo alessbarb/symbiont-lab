@@ -65,6 +65,10 @@ PROTOCOLS = {
         "learning.agency-acquisition-reuse-closure",
         "run_acquisition_reuse_closure_study",
     ),
+    "agency-acquisition-reuse-closure-factorized": (
+        "learning.agency-acquisition-reuse-closure",
+        "run_acquisition_reuse_closure_study",
+    ),
 }
 
 

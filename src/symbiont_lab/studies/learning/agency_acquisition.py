@@ -1138,9 +1138,39 @@ def _milestone_checks(runtime: OrganismRuntime) -> dict[str, bool]:
     }
 
 
-def _closure_seed(seed: int, *, actuator_count: int, max_ticks: int) -> dict[str, Any]:
+def _traces_to_pulses(runtime: OrganismRuntime, competence_id: str) -> bool:
+    """Provenance reaches pulse commitments from the competence's grounding."""
+    events = runtime._action_domain.acquisition.provenance.events()
+    produced = {ref: event for event in events for ref in (event.produced or (event.subject,))}
+    grounding = next(
+        (
+            event
+            for event in events
+            if event.operation == "ground" and event.subject.id == competence_id
+        ),
+        None,
+    )
+    if grounding is None:
+        return False
+    frontier, seen = list(grounding.caused_by), set()
+    while frontier:
+        ref = frontier.pop()
+        if ref.kind == "commitment":
+            return True
+        if ref in seen or ref not in produced:
+            continue
+        seen.add(ref)
+        frontier.extend(produced[ref].caused_by)
+    return False
+
+
+def _closure_seed(
+    seed: int, *, actuator_count: int, max_ticks: int, factorized_effects: bool = False
+) -> dict[str, Any]:
     body = CausalBody(actuator_count=actuator_count, seed=seed)
-    runtime = build_subject(body, organism_id=f"agency-e6-{seed}")
+    runtime = build_subject(
+        body, organism_id=f"agency-e6-{seed}", factorized_effects=factorized_effects
+    )
     domain = runtime._action_domain
     milestones: dict[str, int | None] = {name: None for name in _MILESTONES}
     trace: dict[str, Any] | None = None
@@ -1179,6 +1209,12 @@ def _closure_seed(seed: int, *, actuator_count: int, max_ticks: int) -> dict[str
         "closed": closed,
         "self_acquired_competence": self_acquired,
         "trace": trace,
+        "factorized_effects": factorized_effects,
+        "traces_to_pulses": (
+            _traces_to_pulses(runtime, trace["competence_id"])
+            if factorized_effects and trace is not None
+            else None
+        ),
     }
 
 
@@ -1187,6 +1223,7 @@ def run_acquisition_reuse_closure_study(
     seeds: Sequence[int] = DEFAULT_SEEDS,
     actuator_count: int = 4,
     max_ticks: int = 3000,
+    factorized_effects: bool = False,
 ) -> dict[str, Any]:
     """E6 release gate: one organism acquires agency, then deliberately reuses it."""
     resolved = _seeds(seeds)
@@ -1195,11 +1232,13 @@ def run_acquisition_reuse_closure_study(
             seed,
             actuator_count=_positive(actuator_count, "actuator_count"),
             max_ticks=_positive(max_ticks, "max_ticks"),
+            factorized_effects=bool(factorized_effects),
         )
         for seed in resolved
     ]
     return {
         "protocol": "learning.agency-acquisition-reuse-closure",
+        "factorized_effects": bool(factorized_effects),
         "seeds": list(resolved),
         "max_ticks": max_ticks,
         "per_seed": per_seed,

@@ -127,7 +127,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "deferred_stages",
             "deferred_reason",
         },
-        "ablation": {"horizon_ticks", "inert_actuator_count"},
+        "ablation": {"horizon_ticks", "inert_actuator_count", "factorized_effects"},
         "adaptation": {"horizon_ticks"},
         "consolidation": {
             "min_support",
