@@ -501,6 +501,43 @@ def test_body_self_model_history_records_semantic_events_only() -> None:
     assert "maxEvents = 80" in self_model
 
 
+def test_body_self_view_projects_opaque_evidence_onto_observer_anatomy_only() -> None:
+    self_model = _self_model_source()
+    self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
+
+    assert "['self-view', 'Self View']" in self_model
+    assert "renderSelfView" in self_model
+    assert "selfViewSegmentRecord" in self_model
+
+    assert "Observer anatomy × organism-owned evidence" in self_view
+    assert "Symbiont still sees only opaque rec.N / eff.N channels." in self_view
+    assert "epistemic_status: 'observer projection only'" in self_view
+    assert "JOINT_TOPOLOGY" in self_view
+    assert "receptorSegment(" in self_view
+    assert "effectorSegment(" in self_view
+
+    # Observer anatomy must remain confined to the observer-side Self View.
+    for anatomical_name in (
+        "left_upper_arm",
+        "right_forearm",
+        "left_thigh",
+        "right_foot",
+    ):
+        assert anatomical_name in self_view
+
+
+def test_body_self_view_has_distinct_knowledge_stability_and_agency_lenses() -> None:
+    self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
+
+    assert "['knowledge', 'Knowledge']" in self_view
+    assert "['stability', 'Stability']" in self_view
+    assert "['agency', 'Agency']" in self_view
+    assert "stableSenses" in self_view
+    assert "agenticDimensions" in self_view
+    assert "knowledge:" in self_view
+    assert "agency:" in self_view
+
+
 def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
     stream = ObservationBus()
     bridge = Physics3DObservationBridge(stream)
