@@ -2156,3 +2156,25 @@ def test_mind_snapshot_state_carries_agency_and_executive_blocks() -> None:
         assert f"source.{key}" in snapshot_js
     for field in ("agencyAcquisition", "affordances", "executiveIntention"):
         assert f"{field}:" in state_js
+
+
+def test_body_in_world_controls_and_picking_are_isolated_to_world_tab() -> None:
+    world_view = (WEB_ROOT / "views" / "body" / "world-view.js").read_text(encoding="utf-8")
+    workspace = (WEB_ROOT / "views" / "body" / "workspace.js").read_text(encoding="utf-8")
+    body_css = (WEB_ROOT / "body.css").read_text(encoding="utf-8")
+
+    # The spatial scene has an explicit active lifecycle. Hidden controls alone
+    # are insufficient because canvas listeners and render-time visibility can
+    # otherwise force or contaminate sibling Body workspaces.
+    assert "setActive(active)" in world_view
+    assert "this.toolbar.hidden = !this.active" in world_view
+    assert "this.legend.hidden = !this.active" in world_view
+    assert "pick(event) {\n    if (!this.active) return;" in world_view
+    assert "update() {\n    if (!this.active) return;" in world_view
+
+    assert "classList.toggle('body-world-mode', tab === 'world')" in workspace
+    assert "worldView?.setActive(tab === 'world')" in workspace
+
+    assert ".body-view-root .body-world-toolbar[hidden]" in body_css
+    assert ".body-view-root:not(.body-world-mode) .body-world-toolbar" in body_css
+    assert ".body-view-root:not(.body-world-mode) .body-world-legend" in body_css
