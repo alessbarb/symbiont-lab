@@ -6,6 +6,7 @@
  */
 import { el } from '../shared/dom.js';
 import { inspectorMetric } from './components.js';
+import { provenanceTreeRows } from './causal-provenance.js';
 import { PAL } from './config.js';
 import { graphSubgraphIds } from './graph-selection.js';
 import { observerContextForNode } from './semantics.js';
@@ -64,6 +65,16 @@ export function createCognitionInspector({
         correlation: edge.correlation,
         samples: edge.samples,
         learnedLayer: edge.learnedLayer,
+        confidence: edge.confidence,
+        reliability: edge.reliability,
+        source_kind: edge.source_kind,
+        causalAdvantage: edge.causalAdvantage,
+        causal_advantage: edge.causal_advantage,
+        counterfactualSupport: edge.counterfactualSupport,
+        counterfactual_support: edge.counterfactual_support,
+        contextCount: edge.contextCount,
+        context_count: edge.context_count,
+        last_updated_tick: edge.last_updated_tick,
       })),
     };
   }
@@ -286,14 +297,72 @@ export function createCognitionInspector({
         for (const relation of direct) {
           const row = el('button', 'mind-inspector-relation-button mind-inspector-relation-compact');
           row.type = 'button';
-          row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · ${relation.edge.kind ?? 'edge'} · sup ${finiteNumber(relation.edge.support,0)}`;
-          row.title =
-            `${relation.other}\nkind ${relation.edge.kind ?? 'edge'} · weight ${finiteNumber(relation.edge.weight,0).toFixed(3)} · plasticity ${finiteNumber(relation.edge.plasticity,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · age ${finiteNumber(relation.edge.ageTicks,0)} · stable ${finiteNumber(relation.edge.stableTicks,0)} · last use t${finiteNumber(relation.edge.lastUseTick,0)}`;
+          if (relation.edge.kind === 'causal_estimate') {
+            const conf = finiteNumber(relation.edge.confidence, 0);
+            const advantage = relation.edge.causalAdvantage ?? relation.edge.causal_advantage;
+            const counterfactual = finiteNumber(relation.edge.counterfactualSupport ?? relation.edge.counterfactual_support, 0);
+            row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · causal estimate · conf ${conf.toFixed(2)} · sup ${finiteNumber(relation.edge.support,0)}`;
+            row.title = `${relation.other}\norganism-owned causal estimate · source ${relation.edge.source_kind ?? 'unknown'}\nconfidence ${conf.toFixed(3)} · reliability ${finiteNumber(relation.edge.reliability,0).toFixed(3)} · advantage ${advantage == null ? '—' : finiteNumber(advantage,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · counterfactual ${counterfactual} · contexts ${finiteNumber(relation.edge.contextCount ?? relation.edge.context_count,1)} · updated t${finiteNumber(relation.edge.last_updated_tick,0)}`;
+          } else {
+            row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · ${relation.edge.kind ?? 'edge'} · sup ${finiteNumber(relation.edge.support,0)}`;
+            row.title =
+              `${relation.other}\nkind ${relation.edge.kind ?? 'edge'} · weight ${finiteNumber(relation.edge.weight,0).toFixed(3)} · plasticity ${finiteNumber(relation.edge.plasticity,0).toFixed(3)}\nsupport ${finiteNumber(relation.edge.support,0)} · age ${finiteNumber(relation.edge.ageTicks,0)} · stable ${finiteNumber(relation.edge.stableTicks,0)} · last use t${finiteNumber(relation.edge.lastUseTick,0)}`;
+          }
           row.addEventListener('click', () => selectCognitiveNode(relation.other));
           relationsGroup.appendChild(row);
         }
       }
   
+      const provenance = graph.causalProvenance;
+      if (
+        provenance?.nodeId === selected.id &&
+        provenance.status !== 'unsupported' &&
+        provenance.status !== 'idle'
+      ) {
+        const provenanceTitle = el('div', 'mind-inspector-section-title');
+        provenanceTitle.textContent = 'Causal history';
+        relationsGroup.appendChild(provenanceTitle);
+
+        if (provenance.status === 'loading') {
+          const loading = el('div', 'mind-inspector-empty');
+          loading.textContent = 'Loading durable causal ancestry…';
+          relationsGroup.appendChild(loading);
+        } else if (provenance.status === 'absent') {
+          const absent = el('div', 'mind-inspector-empty');
+          absent.textContent = 'No durable causal journal entry for this reference in the current run.';
+          relationsGroup.appendChild(absent);
+        } else if (provenance.status === 'error') {
+          const error = el('div', 'mind-inspector-empty');
+          error.textContent = `Causal history unavailable · ${provenance.error ?? 'query failed'}`;
+          relationsGroup.appendChild(error);
+        } else if (provenance.status === 'ready' && provenance.tree) {
+          for (const item of provenanceTreeRows(provenance.tree, 24)) {
+            const row = el('button', 'mind-inspector-relation-button mind-inspector-relation-compact');
+            const target = graph.nodes.find(node => node.id === item.id) ?? null;
+            row.type = 'button';
+            row.disabled = !target;
+            const event = item.event;
+            const eventText = event
+              ? ` ← ${event.domain}.${event.operation} @t${event.tick}`
+              : ' · causal root';
+            const flags = [
+              item.repeated ? 'repeated' : null,
+              item.truncated ? 'truncated' : null,
+            ].filter(Boolean);
+            row.textContent =
+              `${'↳ '.repeat(Math.min(item.depth, 6))}${item.kind}:${shortId(item.id, 10, 5)}${eventText}${flags.length ? ` · ${flags.join(', ')}` : ''}`;
+            if (event?.rule) row.title = `rule ${event.rule}`;
+            if (target) row.addEventListener('click', () => selectCognitiveNode(target.id));
+            relationsGroup.appendChild(row);
+          }
+          if (provenance.runId) {
+            const source = el('div', 'mind-inspector-evidence-note');
+            source.textContent = `Durable observer journal · run ${provenance.runId} · never fed back`;
+            relationsGroup.appendChild(source);
+          }
+        }
+      }
+
       if (graph.atlasPath?.nodeIds?.length > 1) {
         const pathTitle = el('div', 'mind-inspector-section-title');
         pathTitle.textContent = 'Cognitive pathway';
@@ -323,10 +392,7 @@ export function createCognitionInspector({
       clear.type = 'button';
       clear.textContent = 'Clear selection';
       clear.addEventListener('click', () => {
-        graph.selectedNodeId = null;
-        const canvas = document.getElementById('mind-cognition-canvas');
-        if (canvas) onRebuild?.(canvas.width || 900, canvas.height || 600);
-        renderCognitionInspector();
+        selectCognitiveNode(null);
         graph.alpha = Math.max(graph.alpha, 0.08);
         onReheat?.();
       });
@@ -401,7 +467,7 @@ export function createCognitionInspector({
         const outside = sectorFocus.local.has(edge.source.id) ? edge.target : edge.source;
         const outsideSector = outside.community && outside.community !== 'isolated'
           ? (graph.sectorLabels.get(outside.community) ?? 'unresolved')
-          : 'unintegrated';
+          : 'no projected region';
         const item = bridgeGroups.get(outsideSector) ?? { count: 0, nodes: new Set() };
         item.count += 1;
         item.nodes.add(outside.id);
@@ -473,7 +539,7 @@ export function createCognitionInspector({
       appendInspectorLine(objective, [{ text: 'Connected components', strong: true }]);
       appendInspectorLine(
         objective,
-        [`${componentSizes.length} total · main ${componentSizes[0] ?? 0} nodes · ${isolates} isolates`],
+        [`${componentSizes.length} total · main ${componentSizes[0] ?? 0} nodes · ${isolates} degree-zero in current projection`],
       );
       panel.appendChild(objective);
     }
