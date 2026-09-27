@@ -1350,3 +1350,38 @@
   .self-body-regions { min-height: auto; }
   .self-view-summary { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
+
+.self-body-region-row > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.self-body-region-row > span b {
+  overflow: hidden;
+  color: var(--text);
+  font: 500 9px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.self-body-region-row > span small {
+  overflow: hidden;
+  color: var(--muted);
+  font: 8px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.self-view-summary {
+  grid-template-columns: repeat(5, minmax(0,1fr));
+}
+.self-body-segment {
+  --physical-outline: rgba(95,119,138,.22);
+}
+.self-body-segment > * {
+  opacity: calc(.20 + (var(--segment-coverage) * .80));
+}
+.self-body-segment.unknown > * {
+  opacity: .16;
+}
+@media (max-width: 1150px) {
+  .self-view-summary { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
