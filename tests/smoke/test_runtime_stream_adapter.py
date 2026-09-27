@@ -349,6 +349,45 @@ def test_physics3d_rich_state_projects_action_dimensions() -> None:
     assert "action_dimensions" in snapshot["provenance"]["organismFacts"]
 
 
+def test_mind_projection_keeps_action_dimension_observer_mapping_separate() -> None:
+    snapshot = mind_snapshot_from_rich_state(
+        {
+            "tick": 42,
+            "observer_semantics": {
+                "action_dimensions": {
+                    "action.dimension.aaaa": {
+                        "dimension_id": "action.dimension.aaaa",
+                        "channel_count": 2,
+                        "mapped_channel_count": 2,
+                        "actuator_ids": ["actuator.a", "actuator.b"],
+                        "effector_ids": ["eff.0", "eff.44"],
+                        "observer_joints": ["trunk yaw", "left knee pitch"],
+                        "observer_summaries": [
+                            "trunk yaw positive drive",
+                            "left knee pitch positive drive",
+                        ],
+                        "mapping": "exact",
+                    }
+                },
+                "provenance": {
+                    "owner": "observer",
+                    "source": "physics3d-apparatus",
+                    "feeds_back": False,
+                },
+            },
+        }
+    )
+
+    item = snapshot["observer_semantics"]["actionDimensions"]["action.dimension.aaaa"]
+    assert item["channelCount"] == 2
+    assert item["mappedChannelCount"] == 2
+    assert item["effectorIds"] == ["eff.0", "eff.44"]
+    assert item["observerJoints"] == ["trunk yaw", "left knee pitch"]
+    assert item["mapping"] == "exact"
+    assert "observer_semantics.actionDimensions" in snapshot["provenance"]["observerDerived"]
+    assert "observer_semantics.actionDimensions" not in snapshot["provenance"]["organismFacts"]
+
+
 def test_physics3d_rich_state_projects_agency_and_executive_state() -> None:
     snapshot = mind_snapshot_from_rich_state(
         {
@@ -530,9 +569,16 @@ def test_body_self_view_has_distinct_knowledge_stability_and_agency_lenses() -> 
     self_view = (WEB_ROOT / "views" / "body" / "self-view.js").read_text(encoding="utf-8")
 
     assert "['knowledge', 'Knowledge']" in self_view
+    assert "['coverage', 'Coverage']" in self_view
     assert "['stability', 'Stability']" in self_view
     assert "['agency', 'Agency']" in self_view
+    assert "expectedSenseCount" in self_view
+    assert "coverage" in self_view
+    assert "quality" in self_view
+    assert "entry.knowledge = entry.coverage * entry.quality" in self_view
     assert "stableSenses" in self_view
+    assert "snapshot?.observer_semantics?.actionDimensions" in self_view
+    assert "effectorIds" in self_view
     assert "agenticDimensions" in self_view
     assert "knowledge:" in self_view
     assert "agency:" in self_view
