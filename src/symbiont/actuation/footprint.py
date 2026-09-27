@@ -23,8 +23,9 @@ from __future__ import annotations
 
 import hashlib
 import math
-from collections import Counter
+from collections import Counter, deque
 from dataclasses import asdict, dataclass
+from enum import StrEnum
 from typing import Any, Callable, Iterable, Mapping
 
 from .evidence import CausalEvidence
@@ -110,6 +111,9 @@ class AtomEstimate:
     pulse_rate_lower_bound: float
     controllability: float
     agency: float
+    # Provenance: when this estimate was computed and the latest pulse behind it.
+    estimated_tick: int = -1
+    last_pulse_tick: int = -1
 
     @property
     def contrast(self) -> float:
@@ -117,7 +121,10 @@ class AtomEstimate:
 
 
 def atom_estimates(
-    pulses: Iterable[Pulse], passive: Iterable[CausalEvidence]
+    pulses: Iterable[Pulse],
+    passive: Iterable[CausalEvidence],
+    *,
+    tick: int = -1,
 ) -> dict[tuple[str, ...], dict[str, AtomEstimate]]:
     """Per source and atom: pulse hits against a length-matched quiet baseline."""
     quiet = [item for item in passive if item.is_passive]
@@ -149,15 +156,108 @@ def atom_estimates(
                 pulse_rate_lower_bound=wilson_lower_bound(count, n),
                 controllability=controllability_confidence(n, count, passive_n, quiet_equivalent),
                 agency=agency_confidence(n, count, passive_n, quiet_equivalent, None),
+                estimated_tick=int(tick),
+                last_pulse_tick=max(pulse.end_tick for pulse in items if atom in pulse.atoms),
             )
         out[source] = estimates
     return out
 
 
-class FootprintRegistry:
-    """Stable, traceable per-source footprints with hysteresis and pinning."""
+def footprint_entity_id(source: Iterable[str]) -> str:
+    """Stable identity of the footprint *entity* of one source (its versions share it)."""
+    material = "footprint-entity|" + "|".join(sorted(source))
+    return "footprint." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:24]
 
-    SCHEMA_VERSION = 2
+
+@dataclass(frozen=True, slots=True)
+class MemberRecord:
+    """One atom's membership: when it entered and the evidence behind it now."""
+
+    atom: str
+    entered_tick: int
+    estimate: AtomEstimate
+
+
+class TransitionKind(StrEnum):
+    ENTER = "enter"
+    EXIT = "exit"
+    PIN = "pin"
+    UNPIN = "unpin"
+    EVICT = "evict"
+
+
+@dataclass(frozen=True, slots=True)
+class FootprintTransition:
+    """One causal change of a footprint, with the evidence and rule that caused it."""
+
+    tick: int
+    kind: TransitionKind
+    source: tuple[str, ...]
+    entity_id: str
+    version: int  # entity version after the transition
+    footprint_before: str | None
+    footprint_after: str | None
+    atom: str | None = None
+    previous_member: bool | None = None
+    margin: float | None = None
+    estimate: AtomEstimate | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PinRecord:
+    """A referenced footprint content, frozen with the evidence it had when pinned."""
+
+    footprint: str
+    source: tuple[str, ...]
+    entity_id: str
+    version: int
+    pinned_tick: int
+    members: tuple[MemberRecord, ...]
+
+    @property
+    def atoms(self) -> frozenset[str]:
+        return frozenset(record.atom for record in self.members)
+
+
+def _estimate_payload(estimate: AtomEstimate | None) -> dict[str, Any] | None:
+    return asdict(estimate) if estimate is not None else None
+
+
+def _estimate_from(payload: Mapping[str, Any] | None) -> AtomEstimate | None:
+    return AtomEstimate(**payload) if payload is not None else None
+
+
+def _record_payload(record: MemberRecord) -> dict[str, Any]:
+    return {
+        "atom": record.atom,
+        "entered_tick": record.entered_tick,
+        "estimate": asdict(record.estimate),
+    }
+
+
+def _record_from(payload: Mapping[str, Any]) -> MemberRecord:
+    estimate = AtomEstimate(**payload["estimate"])
+    if estimate.atom != payload["atom"]:
+        raise ValueError("footprint member and its estimate disagree on the atom")
+    return MemberRecord(str(payload["atom"]), int(payload["entered_tick"]), estimate)
+
+
+class FootprintRegistry:
+    """Footprints with full causal provenance (§13.7, owner traceability requirement).
+
+    * Membership always reflects current evidence (enter/exit hysteresis).
+    * Each member keeps the tick it entered and its latest estimate.
+    * Every ENTER / EXIT / PIN / UNPIN / EVICT is recorded as a transition
+      carrying the rule, margin and estimate that caused it (bounded log).
+    * A footprint has an entity identity (per source, stable across versions)
+      and a content identity (``footprint_id`` of its atoms only).
+    * Pinning freezes a referenced content with the evidence it had when
+      pinned; ``resolve`` keeps answering for it while membership evolves, and
+      ``explain_pin`` distinguishes that snapshot from current evidence.
+    """
+
+    SCHEMA_VERSION = 3
+    TRANSITION_LOG = 4096
 
     def __init__(
         self,
@@ -173,76 +273,241 @@ class FootprintRegistry:
         self.exit_margin = float(exit_margin)
         self.min_pulses = int(min_pulses)
         self.max_footprints = int(max_footprints)
-        self._members: dict[tuple[str, ...], dict[str, AtomEstimate]] = {}
-        self._pinned: set[str] = set()
+        self._members: dict[tuple[str, ...], dict[str, MemberRecord]] = {}
+        self._versions: dict[tuple[str, ...], int] = {}
+        self._pins: dict[str, PinRecord] = {}
+        self._transitions: deque[FootprintTransition] = deque(maxlen=self.TRANSITION_LOG)
+        self.transitions_recorded = 0
 
-    def _qualifies(self, estimate: AtomEstimate, margin: float) -> bool:
-        return estimate.pulses >= self.min_pulses and estimate.contrast > margin
+    # -- identities ---------------------------------------------------------
+    @staticmethod
+    def _content(members: Mapping[str, MemberRecord]) -> str | None:
+        return footprint_id(frozenset(members.keys())) if members else None
 
+    def _log(self, transition: FootprintTransition) -> None:
+        self._transitions.append(transition)
+        self.transitions_recorded += 1
+
+    # -- queries ------------------------------------------------------------
     def footprint_of(self, source: tuple[str, ...]) -> tuple[str, frozenset[str]] | None:
         members = self._members.get(tuple(sorted(source)))
         if not members:
             return None
-        atoms = frozenset(members)
+        atoms = frozenset(members.keys())
         return footprint_id(atoms), atoms
 
+    def resolve(self, footprint: str) -> frozenset[str] | None:
+        """Atoms of a content id: current membership, else its pinned snapshot."""
+        for members in self._members.values():
+            if self._content(members) == footprint:
+                return frozenset(members.keys())
+        pin = self._pins.get(footprint)
+        return pin.atoms if pin is not None else None
+
     def explain(self, source: tuple[str, ...]) -> tuple[dict[str, Any], ...]:
-        """The evidence that justifies each atom of this source's footprint."""
+        """Current evidence for each atom of this source's footprint."""
         members = self._members.get(tuple(sorted(source)), {})
         return tuple(
-            {**asdict(estimate), "contrast": estimate.contrast}
-            for _, estimate in sorted(members.items())
+            {
+                **asdict(record.estimate),
+                "contrast": record.estimate.contrast,
+                "entered_tick": record.entered_tick,
+                "entity_id": footprint_entity_id(source),
+                "version": self._versions.get(tuple(sorted(source)), 0),
+            }
+            for _, record in sorted(members.items())
         )
 
-    def update(self, estimates: Mapping[tuple[str, ...], Mapping[str, AtomEstimate]]) -> None:
+    def explain_pin(self, footprint: str) -> dict[str, Any] | None:
+        """The frozen evidence a pinned content had when it was pinned."""
+        pin = self._pins.get(footprint)
+        if pin is None:
+            return None
+        current = self._members.get(pin.source, {})
+        return {
+            "footprint": pin.footprint,
+            "entity_id": pin.entity_id,
+            "version_at_pin": pin.version,
+            "pinned_tick": pin.pinned_tick,
+            "still_current": self._content(current) == pin.footprint,
+            "members_at_pin": [_record_payload(record) for record in pin.members],
+        }
+
+    def transitions(self) -> tuple[FootprintTransition, ...]:
+        return tuple(self._transitions)
+
+    @property
+    def footprints(self) -> dict[tuple[str, ...], frozenset[str]]:
+        return {source: frozenset(members.keys()) for source, members in self._members.items()}
+
+    # -- updates ------------------------------------------------------------
+    def update(
+        self,
+        estimates: Mapping[tuple[str, ...], Mapping[str, AtomEstimate]],
+        *,
+        tick: int,
+    ) -> None:
         """Enter above ``enter_margin``; leave only at or below ``exit_margin``."""
         for source, per_atom in sorted(estimates.items()):
+            source = tuple(sorted(source))
             current = self._members.get(source, {})
-            members: dict[str, AtomEstimate] = {}
-            for atom, estimate in per_atom.items():
-                margin = self.exit_margin if atom in current else self.enter_margin
-                if self._qualifies(estimate, margin):
-                    members[atom] = estimate
-            if members:
-                self._members[source] = members
-            elif current and footprint_id(current) in self._pinned:
-                continue  # referenced: keeps resolving to its atom set
+            before = self._content(current)
+            entity = footprint_entity_id(source)
+            updated: dict[str, MemberRecord] = {}
+            changes: list[tuple[TransitionKind, str, float, AtomEstimate | None]] = []
+            for atom, estimate in sorted(per_atom.items()):
+                previous = current.get(atom)
+                margin = self.exit_margin if previous is not None else self.enter_margin
+                qualifies = estimate.pulses >= self.min_pulses and estimate.contrast > margin
+                if qualifies:
+                    entered = previous.entered_tick if previous is not None else int(tick)
+                    updated[atom] = MemberRecord(atom, entered, estimate)
+                    if previous is None:
+                        changes.append((TransitionKind.ENTER, atom, margin, estimate))
+                elif previous is not None:
+                    changes.append((TransitionKind.EXIT, atom, margin, estimate))
+            for atom in sorted(set(current) - set(per_atom)):
+                # No longer estimated at all (its evidence left the ledger).
+                changes.append((TransitionKind.EXIT, atom, self.exit_margin, None))
+            if updated:
+                self._members[source] = updated
             else:
                 self._members.pop(source, None)
-        self._enforce_bound()
+            after = self._content(updated)
+            if after != before:
+                self._versions[source] = self._versions.get(source, 0) + 1
+            version = self._versions.get(source, 0)
+            for kind, atom, margin, estimate in changes:
+                self._log(
+                    FootprintTransition(
+                        tick=int(tick),
+                        kind=kind,
+                        source=source,
+                        entity_id=entity,
+                        version=version,
+                        footprint_before=before,
+                        footprint_after=after,
+                        atom=atom,
+                        previous_member=kind is TransitionKind.EXIT,
+                        margin=margin,
+                        estimate=estimate,
+                    )
+                )
+        self._enforce_bound(tick=tick)
 
-    def pin(self, footprint: str) -> None:
-        self._pinned.add(footprint)
+    def pin(self, footprint: str, *, tick: int) -> PinRecord:
+        """Freeze a current content because something now refers to it."""
+        if footprint in self._pins:
+            return self._pins[footprint]
+        for source, members in self._members.items():
+            if self._content(members) == footprint:
+                version = self._versions.get(source, 0)
+                record = PinRecord(
+                    footprint=footprint,
+                    source=source,
+                    entity_id=footprint_entity_id(source),
+                    version=version,
+                    pinned_tick=int(tick),
+                    members=tuple(record for _, record in sorted(members.items())),
+                )
+                self._pins[footprint] = record
+                self._log(
+                    FootprintTransition(
+                        tick=int(tick),
+                        kind=TransitionKind.PIN,
+                        source=source,
+                        entity_id=record.entity_id,
+                        version=version,
+                        footprint_before=footprint,
+                        footprint_after=footprint,
+                    )
+                )
+                return record
+        raise KeyError("only a current footprint can be pinned")
 
-    def unpin(self, footprint: str) -> None:
-        self._pinned.discard(footprint)
+    def unpin(self, footprint: str, *, tick: int) -> None:
+        record = self._pins.pop(footprint, None)
+        if record is None:
+            return
+        self._log(
+            FootprintTransition(
+                tick=int(tick),
+                kind=TransitionKind.UNPIN,
+                source=record.source,
+                entity_id=record.entity_id,
+                version=self._versions.get(record.source, 0),
+                footprint_before=footprint,
+                footprint_after=self._content(self._members.get(record.source, {})),
+            )
+        )
 
-    def _enforce_bound(self) -> None:
+    def _enforce_bound(self, *, tick: int) -> None:
         if len(self._members) <= self.max_footprints:
             return
         removable = sorted(
             (
                 source
                 for source, members in self._members.items()
-                if footprint_id(members) not in self._pinned
+                if self._content(members) not in self._pins
             ),
             key=lambda source: (len(self._members[source]), source),
         )
         for source in removable[: len(self._members) - self.max_footprints]:
-            del self._members[source]
+            before = self._content(self._members.pop(source))
+            self._versions[source] = self._versions.get(source, 0) + 1
+            self._log(
+                FootprintTransition(
+                    tick=int(tick),
+                    kind=TransitionKind.EVICT,
+                    source=source,
+                    entity_id=footprint_entity_id(source),
+                    version=self._versions[source],
+                    footprint_before=before,
+                    footprint_after=None,
+                )
+            )
 
-    @property
-    def footprints(self) -> dict[tuple[str, ...], frozenset[str]]:
-        return {source: frozenset(members) for source, members in self._members.items()}
-
+    # -- persistence --------------------------------------------------------
     def checkpoint(self) -> dict[str, object]:
         return {
             "schema_version": self.SCHEMA_VERSION,
             "members": [
-                {"source": list(source), "estimates": [asdict(e) for _, e in sorted(m.items())]}
-                for source, m in sorted(self._members.items())
+                {
+                    "source": list(source),
+                    "version": self._versions.get(source, 0),
+                    "records": [_record_payload(r) for _, r in sorted(members.items())],
+                }
+                for source, members in sorted(self._members.items())
             ],
-            "pinned": sorted(self._pinned),
+            "versions": [
+                {"source": list(source), "version": version}
+                for source, version in sorted(self._versions.items())
+            ],
+            "pins": [
+                {
+                    "footprint": pin.footprint,
+                    "source": list(pin.source),
+                    "entity_id": pin.entity_id,
+                    "version": pin.version,
+                    "pinned_tick": pin.pinned_tick,
+                    "members": [_record_payload(r) for r in pin.members],
+                }
+                for _, pin in sorted(self._pins.items())
+            ],
+            "transitions": [
+                {
+                    **{
+                        k: v
+                        for k, v in asdict(t).items()
+                        if k not in ("kind", "estimate", "source")
+                    },
+                    "kind": t.kind.value,
+                    "source": list(t.source),
+                    "estimate": _estimate_payload(t.estimate),
+                }
+                for t in self._transitions
+            ],
+            "transitions_recorded": self.transitions_recorded,
         }
 
     @classmethod
@@ -252,20 +517,56 @@ class FootprintRegistry:
             return registry
         if payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("unsupported footprint registry checkpoint")
+        for raw in payload.get("versions", []):
+            registry._versions[tuple(str(v) for v in raw["source"])] = int(raw["version"])
         for raw in payload.get("members", []):
-            source = tuple(str(v) for v in raw["source"])
-            registry._members[source] = {
-                str(item["atom"]): AtomEstimate(**item) for item in raw["estimates"]
+            records = [_record_from(item) for item in raw["records"]]
+            registry._members[tuple(str(v) for v in raw["source"])] = {
+                record.atom: record for record in records
             }
-        registry._pinned = {str(v) for v in payload.get("pinned", [])}
+        for raw in payload.get("pins", []):
+            members = tuple(_record_from(item) for item in raw["members"])
+            pin = PinRecord(
+                footprint=str(raw["footprint"]),
+                source=tuple(str(v) for v in raw["source"]),
+                entity_id=str(raw["entity_id"]),
+                version=int(raw["version"]),
+                pinned_tick=int(raw["pinned_tick"]),
+                members=members,
+            )
+            if footprint_id(pin.atoms) != pin.footprint:
+                raise ValueError("pinned footprint content does not match its identity")
+            registry._pins[pin.footprint] = pin
+        for raw in payload.get("transitions", [])[-cls.TRANSITION_LOG :]:
+            registry._transitions.append(
+                FootprintTransition(
+                    tick=int(raw["tick"]),
+                    kind=TransitionKind(raw["kind"]),
+                    source=tuple(str(v) for v in raw["source"]),
+                    entity_id=str(raw["entity_id"]),
+                    version=int(raw["version"]),
+                    footprint_before=raw.get("footprint_before"),
+                    footprint_after=raw.get("footprint_after"),
+                    atom=raw.get("atom"),
+                    previous_member=raw.get("previous_member"),
+                    margin=raw.get("margin"),
+                    estimate=_estimate_from(raw.get("estimate")),
+                )
+            )
+        registry.transitions_recorded = int(payload.get("transitions_recorded", 0))
         return registry
 
 
 __all__ = [
     "AtomEstimate",
     "FootprintRegistry",
+    "FootprintTransition",
+    "MemberRecord",
+    "PinRecord",
     "Pulse",
+    "TransitionKind",
     "atom_estimates",
+    "footprint_entity_id",
     "footprint_id",
     "pulses_from",
     "wilson_lower_bound",

@@ -451,3 +451,27 @@ it and the checkpoint stores it, so any effect a competence, binding, intent
 or outcome-learning key refers to can be traced back to the pulses and quiet
 windows that established it. Pulses keep their commitment id, which links
 back to the ledger's commitment evidence.
+
+**Causal provenance, not only causal state** (owner review, 2026-09-27).
+Keeping the evidence of the *current* members preserves state; tracing
+causality end to end also needs its history. `FootprintRegistry` (schema 3)
+therefore records:
+
+- per member: the tick it entered and its latest estimate; every estimate
+  carries `estimated_tick` and `last_pulse_tick`;
+- a bounded, checkpointed transition log — ENTER, EXIT, PIN, UNPIN, EVICT —
+  each with tick, previous membership, the margin applied, the estimate that
+  caused it, the content before/after and the entity version;
+- two identities: the **entity** (`footprint_entity_id(source)`, stable across
+  versions, so an entity's evolution can be followed) and the **content**
+  (`footprint_id(atoms)`, a function of membership only, never of evidence
+  values);
+- pins as **frozen snapshots**: membership always reflects current evidence,
+  while a pinned content keeps resolving (`resolve`) with the evidence it had
+  when pinned (`explain_pin`, including whether it is still current), so
+  stale pinned evidence is never mistaken for current evidence.
+
+A restored registry continues the same causal history as the uninterrupted
+one (same transitions, identities and checkpoint). The remaining link —
+evidence → footprint → dimension/competence/affordance/intent/outcome
+learning decision — is traced when footprints are wired into those consumers.
