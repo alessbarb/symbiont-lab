@@ -1813,7 +1813,7 @@ export function createCognitionController({
       ctx.font = '9px -apple-system, sans-serif';
       ctx.fillStyle = 'rgba(98,120,136,.72)';
       ctx.textAlign = 'left';
-      ctx.fillText(`UNINTEGRATED · ${isolatedCount}`, 18, height / scale - 14);
+      ctx.fillText(`DEGREE-ZERO · ${isolatedCount}`, 18, height / scale - 14);
     }
   
     // Observer-derived organic territories behind the graph.
@@ -2465,7 +2465,7 @@ export function createCognitionController({
       [`${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable)`],
       [`${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links`],
       [`mode ${atlasModeMeta().label} · detail ${graph.detailLevel} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden`],
-      [`components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}`],
+      [`components ${components.count} · main ${components.main} · secondary ${components.secondary} · degree-zero ${components.isolates}`],
       [`higher-order ${graph.cognitiveStructures?.hubs?.length ?? 0} hubs · ${graph.cognitiveStructures?.bottlenecks?.length ?? 0} bottlenecks · ${graph.cognitiveStructures?.loops?.length ?? 0} loops · flow ${graph.observedFlow?.recentEdgeCount ?? 0} recent relations`],
       [`temporal ${graph.cognitiveEpisodes?.length ?? 0} episodes · ${graph.regionEventHistory?.length ?? 0} region events${graph.diffBaselineTick != null ? ` · diff baseline t${graph.diffBaselineTick}` : ''}`],
       [`Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontierClusters ?? []).length} zones / ${(graph.learningFrontier ?? []).length} nodes`],
