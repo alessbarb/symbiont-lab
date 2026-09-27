@@ -7,6 +7,7 @@
 import { el } from '../shared/dom.js';
 import { augmentLearnedGraph } from './learning-graph.js';
 import { cartographicGraph } from './cartographic-view.js';
+import { fetchCausalProvenance, provenanceRefForNode } from './causal-provenance.js';
 import {
   ATLAS_MODES,
   atlasEdgeScore,
@@ -90,6 +91,7 @@ export function createCognitionController({
   onSwitchTab = () => {},
 } = {}) {
   let rafId = null;
+  let provenanceRequestSerial = 0;
   const presentation = createCognitivePresentationAnimator();
   const inspector = createCognitionInspector({
     atlasModeMeta: () => atlasModeMeta(),
