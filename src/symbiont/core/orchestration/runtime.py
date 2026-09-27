@@ -280,6 +280,7 @@ class OrganismRuntime:
         social_ledger: RelationLedger | None = None,
         social_resource_ledger: ResourceEvidenceLedger | None = None,
         epistemic_ledger: SocialEvidenceLedger | None = None,
+        cultural_heritage: list[dict[str, Any]] | None = None,
         communication_channel: ConsentBoundChannel | None = None,
         exchange_guard: ExchangeReplayGuard | None = None,
         exchange_sequence: int = 0,
@@ -652,6 +653,21 @@ class OrganismRuntime:
         )
         self._exchange_sequence = exchange_sequence
         self._last_broadcast_reconciliations: set[str] = set()
+
+        if cultural_heritage is not None:
+            from ..social.ledger import SocialClaim
+
+            for claim_data in cultural_heritage:
+                claim = SocialClaim(
+                    claim_id=claim_data["claim_id"],
+                    source_id=claim_data["source_id"],
+                    root_evidence_ids=frozenset(),
+                    parent_claim_ids=frozenset(claim_data.get("parent_claim_ids", [])),
+                    payload=claim_data["payload"],
+                    received_tick=self._tick_count,
+                    freshness=claim_data.get("freshness", 1.0),
+                )
+                self._epistemic_ledger.receive_claim(claim)
         self._social_habitat_released = False
         self._habitat_released = False
         self._birth_authority_released = False
@@ -2298,8 +2314,14 @@ class OrganismRuntime:
         # Autonomous social communication
         outbound_messages = ()
         if self._social_habitat is not None and self._communication_channel is not None:
+            # Autonomous Cultural Agency v1: Teach (broadcast) only if metabolic pressure is low
             targets = [peer for peer in self._social_habitat.members if peer != self._organism_id]
-            outbound_messages = tuple(self.broadcast_claims(targets))
+            if targets and metabolism_snapshot.pressure.value < 0.8:
+                try:
+                    self._metabolism.charge("cognition", 0.05 * len(targets))
+                    outbound_messages = tuple(self.broadcast_claims(targets))
+                except ValueError:
+                    pass
 
         return RuntimeTickResult(
             tick=self._tick_count,
@@ -2503,6 +2525,24 @@ class OrganismRuntime:
     def attach_communication_channel(self, channel: ConsentBoundChannel) -> None:
         self._communication_channel = channel
 
+    def export_cultural_heritage(self) -> list[dict[str, Any]]:
+        """Cumulative Culture v1: Pass verified hypotheses to offspring as social claims."""
+        heritage = []
+        for claim_id, outcome in self._epistemic_ledger.reconciliations.items():
+            claim = self._epistemic_ledger.claims.get(claim_id)
+            if not claim:
+                continue
+            heritage.append(
+                {
+                    "claim_id": f"{claim_id}-heritage",
+                    "source_id": self._organism_id,  # The parent is the source
+                    "parent_claim_ids": [claim_id],
+                    "payload": claim.payload,
+                    "freshness": 1.0,
+                }
+            )
+        return heritage
+
     def broadcast_claims(self, targets: list[str]) -> list[SignedMessage]:
         """Emit internally reconciled claims to authorized peers."""
         if not self._communication_channel:
@@ -2543,6 +2583,18 @@ class OrganismRuntime:
         if not self._communication_channel:
             return
         if not self._communication_channel.verify(message):
+            return
+
+        # Autonomous Cultural Agency v1: Learn (receive) costs metabolism.
+        # If starving, ignore the message.
+        if hasattr(self, "_physiology") and self._physiology.state.name == "DEAD":
+            return
+
+        try:
+            # We charge a small "cognition" cost for processing the cultural capsule.
+            if hasattr(self, "_metabolism"):
+                self._metabolism.charge("cognition", 0.02)
+        except Exception:
             return
 
         envelope = ExchangeEnvelope(message.sender, message.sequence, message.payload)

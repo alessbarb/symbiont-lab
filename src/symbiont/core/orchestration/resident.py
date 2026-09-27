@@ -143,6 +143,7 @@ class ResidentOrganism:
                 child_id = f"{self.runtime.organism_id}-child-{child_suffix}"
                 from ...cognition.graph import load_base_graph
 
+                heritage = self.runtime.export_cultural_heritage()
                 child_runtime = OrganismRuntime(
                     genome=self.runtime._genome,
                     kernel_limits=self.runtime._kernel_limits,
@@ -154,6 +155,7 @@ class ResidentOrganism:
                     organism_id=child_id,
                     generation=self.runtime._generation + 1,
                     explicit_metabolism=True,
+                    cultural_heritage=heritage,
                 )
                 embryo_payload = child_runtime.export_checkpoint()
                 self.habitat.deposit_embryo(embryo_payload, child_id)
