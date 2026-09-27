@@ -1948,7 +1948,7 @@ class PyBulletEmbodimentRuntime:
                     joint_specs=self.body_descriptor.observer_joint_specs,
                 ),
                 "action_dimensions": action_dimension_semantics(
-                    self.organism.action_dimensions,
+                    self.organism.action_dimension_registry,
                     self._actuator_to_effector,
                     joint_specs=self.body_descriptor.observer_joint_specs,
                 ),
