@@ -229,3 +229,60 @@ def test_checkpoint_keeps_each_estimate_bound_to_its_atom():
 def test_wilson_bound():
     assert wilson_lower_bound(0, 10) == 0.0
     assert 0.0 < wilson_lower_bound(5, 10) < 0.5 < wilson_lower_bound(10, 10)
+
+
+def test_estimates_carry_their_ancestry():
+    evidence = _history()
+    estimate = _estimates(evidence, tick=99)[("channel.a",)][CAUSED]
+    passive_ticks = [item.observation_tick for item in evidence if item.is_passive]
+    assert estimate.pulse_commitments == tuple(f"c{index:02d}" for index in range(12))
+    assert estimate.passive_tick_range == (min(passive_ticks), max(passive_ticks))
+    assert estimate.estimated_tick == 99
+
+
+def test_versions_name_entity_version_and_content_separately():
+    registry = FootprintRegistry()
+    source = ("channel.a",)
+    assert registry.version_of(source) is None
+    registry.update({source: {CAUSED: _estimate(0.5)}}, tick=5)
+    first = registry.version_of(source)
+    registry.update({source: {CAUSED: _estimate(0.0)}}, tick=9)
+    second = registry.version_of(source)
+    assert first.entity_id == second.entity_id == footprint_entity_id(source)
+    assert (first.version, first.since_tick, first.content_id) == (1, 5, footprint_id({CAUSED}))
+    assert (second.version, second.since_tick, second.content_id, second.atoms) == (
+        2,
+        9,
+        None,
+        frozenset(),
+    )
+
+
+def test_pinned_snapshot_survives_restore_and_later_versions_exactly():
+    import json
+
+    source = ("channel.a",)
+    registry = FootprintRegistry()
+    registry.update({source: {CAUSED: _estimate(0.5, tick=10)}}, tick=10)
+    pinned, atoms = registry.footprint_of(source)
+    registry.pin(pinned, tick=11)
+    snapshot_before = registry.explain_pin(pinned)
+
+    restored = FootprintRegistry.restore(json.loads(json.dumps(registry.checkpoint())))
+    for other in (registry, restored):
+        other.update(
+            {source: {CAUSED: _estimate(0.5, tick=20), WEAK: _estimate(0.5, atom=WEAK, tick=20)}},
+            tick=20,
+        )
+        other.update({source: {WEAK: _estimate(0.5, atom=WEAK, tick=30)}}, tick=30)
+        other.update({source: {DRIFT: _estimate(0.5, atom=DRIFT, tick=40)}}, tick=40)
+
+    for other in (registry, restored):
+        assert other.version_of(source).version == 4
+        assert other.resolve(pinned) == atoms  # the old content still resolves exactly
+        assert other.footprint_of(source)[1] == frozenset({DRIFT})  # current is independent
+        snapshot = other.explain_pin(pinned)
+        assert snapshot["still_current"] is False
+        assert snapshot["members_at_pin"] == snapshot_before["members_at_pin"]
+    assert restored.transitions() == registry.transitions()
+    assert restored.checkpoint() == registry.checkpoint()

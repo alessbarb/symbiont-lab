@@ -32,6 +32,7 @@ from .evidence import CausalEvidence
 from .model import agency_confidence, controllability_confidence
 
 MIN_PULSE_WINDOWS = 3
+MAX_ANCESTRY_PULSES = 32
 _Z95 = 1.96
 
 
@@ -114,6 +115,17 @@ class AtomEstimate:
     # Provenance: when this estimate was computed and the latest pulse behind it.
     estimated_tick: int = -1
     last_pulse_tick: int = -1
+    # Ancestry (Causal Provenance v1 rule 3): the contributing pulses by
+    # commitment id (most recent, bounded) and the passive-window tick range.
+    pulse_commitments: tuple[str, ...] = ()
+    passive_tick_range: tuple[int, int] | None = None
+
+    def __post_init__(self) -> None:
+        # Checkpoints carry lists; identity and equality use tuples.
+        object.__setattr__(self, "pulse_commitments", tuple(self.pulse_commitments))
+        if self.passive_tick_range is not None:
+            first, last = self.passive_tick_range
+            object.__setattr__(self, "passive_tick_range", (int(first), int(last)))
 
     @property
     def contrast(self) -> float:
@@ -129,6 +141,11 @@ def atom_estimates(
     """Per source and atom: pulse hits against a length-matched quiet baseline."""
     quiet = [item for item in passive if item.is_passive]
     passive_n = len(quiet)
+    passive_range = (
+        (min(item.observation_tick for item in quiet), max(item.observation_tick for item in quiet))
+        if quiet
+        else None
+    )
     passive_hits = Counter(atom for item in quiet for atom in item.effect_atoms)
     by_source: dict[tuple[str, ...], list[Pulse]] = {}
     for pulse in pulses:
@@ -158,6 +175,11 @@ def atom_estimates(
                 agency=agency_confidence(n, count, passive_n, quiet_equivalent, None),
                 estimated_tick=int(tick),
                 last_pulse_tick=max(pulse.end_tick for pulse in items if atom in pulse.atoms),
+                pulse_commitments=tuple(
+                    pulse.commitment_id
+                    for pulse in sorted(items, key=lambda item: (item.end_tick, item.commitment_id))
+                )[-MAX_ANCESTRY_PULSES:],
+                passive_tick_range=passive_range,
             )
         out[source] = estimates
     return out
@@ -167,6 +189,17 @@ def footprint_entity_id(source: Iterable[str]) -> str:
     """Stable identity of the footprint *entity* of one source (its versions share it)."""
     material = "footprint-entity|" + "|".join(sorted(source))
     return "footprint." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:24]
+
+
+@dataclass(frozen=True, slots=True)
+class FootprintVersion:
+    """One version of a footprint entity: its content and when it began."""
+
+    entity_id: str
+    version: int
+    content_id: str | None
+    atoms: frozenset[str]
+    since_tick: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,7 +237,7 @@ class FootprintTransition:
 
 
 @dataclass(frozen=True, slots=True)
-class PinRecord:
+class PinnedFootprintSnapshot:
     """A referenced footprint content, frozen with the evidence it had when pinned."""
 
     footprint: str
@@ -275,7 +308,8 @@ class FootprintRegistry:
         self.max_footprints = int(max_footprints)
         self._members: dict[tuple[str, ...], dict[str, MemberRecord]] = {}
         self._versions: dict[tuple[str, ...], int] = {}
-        self._pins: dict[str, PinRecord] = {}
+        self._version_ticks: dict[tuple[str, ...], int] = {}
+        self._pins: dict[str, PinnedFootprintSnapshot] = {}
         self._transitions: deque[FootprintTransition] = deque(maxlen=self.TRANSITION_LOG)
         self.transitions_recorded = 0
 
@@ -295,6 +329,20 @@ class FootprintRegistry:
             return None
         atoms = frozenset(members.keys())
         return footprint_id(atoms), atoms
+
+    def version_of(self, source: tuple[str, ...]) -> FootprintVersion | None:
+        """The current version of a source's footprint entity (content may be empty)."""
+        source = tuple(sorted(source))
+        if source not in self._versions:
+            return None
+        members = self._members.get(source, {})
+        return FootprintVersion(
+            entity_id=footprint_entity_id(source),
+            version=self._versions[source],
+            content_id=self._content(members),
+            atoms=frozenset(members.keys()),
+            since_tick=self._version_ticks.get(source, -1),
+        )
 
     def resolve(self, footprint: str) -> frozenset[str] | None:
         """Atoms of a content id: current membership, else its pinned snapshot."""
@@ -376,6 +424,7 @@ class FootprintRegistry:
             after = self._content(updated)
             if after != before:
                 self._versions[source] = self._versions.get(source, 0) + 1
+                self._version_ticks[source] = int(tick)
             version = self._versions.get(source, 0)
             for kind, atom, margin, estimate in changes:
                 self._log(
@@ -395,14 +444,14 @@ class FootprintRegistry:
                 )
         self._enforce_bound(tick=tick)
 
-    def pin(self, footprint: str, *, tick: int) -> PinRecord:
+    def pin(self, footprint: str, *, tick: int) -> PinnedFootprintSnapshot:
         """Freeze a current content because something now refers to it."""
         if footprint in self._pins:
             return self._pins[footprint]
         for source, members in self._members.items():
             if self._content(members) == footprint:
                 version = self._versions.get(source, 0)
-                record = PinRecord(
+                record = PinnedFootprintSnapshot(
                     footprint=footprint,
                     source=source,
                     entity_id=footprint_entity_id(source),
@@ -455,6 +504,7 @@ class FootprintRegistry:
         for source in removable[: len(self._members) - self.max_footprints]:
             before = self._content(self._members.pop(source))
             self._versions[source] = self._versions.get(source, 0) + 1
+            self._version_ticks[source] = int(tick)
             self._log(
                 FootprintTransition(
                     tick=int(tick),
@@ -480,7 +530,11 @@ class FootprintRegistry:
                 for source, members in sorted(self._members.items())
             ],
             "versions": [
-                {"source": list(source), "version": version}
+                {
+                    "source": list(source),
+                    "version": version,
+                    "since_tick": self._version_ticks.get(source, -1),
+                }
                 for source, version in sorted(self._versions.items())
             ],
             "pins": [
@@ -518,7 +572,9 @@ class FootprintRegistry:
         if payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("unsupported footprint registry checkpoint")
         for raw in payload.get("versions", []):
-            registry._versions[tuple(str(v) for v in raw["source"])] = int(raw["version"])
+            source = tuple(str(v) for v in raw["source"])
+            registry._versions[source] = int(raw["version"])
+            registry._version_ticks[source] = int(raw.get("since_tick", -1))
         for raw in payload.get("members", []):
             records = [_record_from(item) for item in raw["records"]]
             registry._members[tuple(str(v) for v in raw["source"])] = {
@@ -526,7 +582,7 @@ class FootprintRegistry:
             }
         for raw in payload.get("pins", []):
             members = tuple(_record_from(item) for item in raw["members"])
-            pin = PinRecord(
+            pin = PinnedFootprintSnapshot(
                 footprint=str(raw["footprint"]),
                 source=tuple(str(v) for v in raw["source"]),
                 entity_id=str(raw["entity_id"]),
@@ -561,8 +617,9 @@ __all__ = [
     "AtomEstimate",
     "FootprintRegistry",
     "FootprintTransition",
+    "FootprintVersion",
     "MemberRecord",
-    "PinRecord",
+    "PinnedFootprintSnapshot",
     "Pulse",
     "TransitionKind",
     "atom_estimates",
