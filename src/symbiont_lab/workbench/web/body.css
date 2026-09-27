@@ -1851,3 +1851,16 @@
 
 .body-tabs { overflow-x: auto; white-space: nowrap; }
 .body-tab { flex-shrink: 0; }
+
+
+/* In World is a Body-local workspace. Never expose its controls in sibling
+   panes or outside the mounted Body root. The hidden attribute remains the
+   authoritative JS lifecycle contract. */
+.body-view-root .body-world-toolbar[hidden],
+.body-view-root .body-world-legend[hidden] {
+  display: none !important;
+}
+.body-view-root:not(.body-world-mode) .body-world-toolbar,
+.body-view-root:not(.body-world-mode) .body-world-legend {
+  display: none;
+}
