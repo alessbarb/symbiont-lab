@@ -207,6 +207,8 @@ class PhysicsReadingProvider:
         if expected is not None and self.receptor_ids != expected:
             raise ValueError("Physics3D receptor surface does not match selected body contract")
         self.last_values: dict[str, float] = {}
+        # Observer-only union of every provider call in the current tick.
+        self.observed_tick_values: dict[str, float] = {}
         self.last_monotonic_timestamp_ns: int | None = None
 
     def sample(
@@ -225,6 +227,7 @@ class PhysicsReadingProvider:
             for receptor_id, value in sorted(values.items())
             if receptor_id in requested
         }
+        self.observed_tick_values.update(self.last_values)
         self.last_monotonic_timestamp_ns = now
         return tuple(
             SensorReading(
@@ -321,3 +324,4 @@ __all__ = [
     "physics3d_cognition",
     "physics3d_sensory_system",
 ]
+

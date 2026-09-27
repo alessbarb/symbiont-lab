@@ -12,6 +12,7 @@ import {
   fallbackBodyModel,
 } from './model.js';
 import { BodyWorkspace } from './workspace.js';
+import { WorldView } from './world-view.js';
 import { mountBodyCameraControls } from './camera-controls.js';
 import { BODY_PRESENTATION } from './presentation-config.js';
 import { createAnatomicalSegment, createTechnicalJointMarker } from './anatomical-visual.js';
@@ -164,6 +165,7 @@ export class BodyViewer {
   init() {
     this.buildDOM();
     this.buildScene();
+    this.worldView = new WorldView(this);
     this.loadBodyModels();
     this.connectSSE();
     this.animate();
@@ -408,6 +410,8 @@ export class BodyViewer {
     gridHelper.material.transparent = true;
     gridHelper.material.opacity = 0.48;
     this.scene.add(gridHelper);
+    this.gridHelper = gridHelper;
+    gridHelper.visible = false;
 
     const trajectoryGeometry = new THREE.BufferGeometry();
     const trajectoryMaterial = new THREE.LineBasicMaterial({
@@ -428,6 +432,8 @@ export class BodyViewer {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
+    this.legacyGround = ground;
+    ground.visible = false;
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.05, 50);
     this.camera.position.set(2.2, 1.7, 3.2);
@@ -1227,6 +1233,7 @@ export class BodyViewer {
       if (!data || !data.type) return;
 
       switch (data.type) {
+        case 'world_scene': this.worldView.accept(data); break;
         case 'body_pose':     this.handleBodyPoseEvent(data);      break;
         case 'body':          this.handleBodyEvent(data);          break;
         case 'cognition':     this.handleCognitionEvent(data);     break;
@@ -1380,7 +1387,7 @@ export class BodyViewer {
         this.hasAuthoritativeLinkPoses = true;
       }
     }
-    if (Array.isArray(data.resource_position) && data.resource_position.length === 3 && this.resourceObject) {
+    if (Array.isArray(data.resource_position) && data.resource_position.length === 3 && this.resourceObject && !this.worldView?.state) {
       this.resourceObject.position.set(...pbPos(...data.resource_position));
       this.resourceObject.visible = true;
       this.updateResourceGuide();
@@ -1575,6 +1582,7 @@ export class BodyViewer {
     this.controls.update();
     this.camera.updateMatrixWorld();
     this.updateResourceIndicator();
+    this.worldView?.update();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -1604,6 +1612,7 @@ export class BodyViewer {
       this.resizeObs = null;
     }
 
+    this.worldView?.dispose();
     this.workspace?.dispose();
     this.cameraControls?.dispose();
     this.cameraControls = null;

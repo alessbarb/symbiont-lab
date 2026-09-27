@@ -1121,6 +1121,16 @@ class PyBulletEmbodimentRuntime:
         """
         return dict(self._last_telemetry_state)
 
+    def passive_world_observation(self) -> dict | None:
+        """Read physical truth at observer cadence, never into cognitive telemetry."""
+        if not self._last_telemetry_state or not self.physics_connected():
+            return None
+        from .world_observation import PhysicsWorldObserver
+
+        if not hasattr(self, "_world_observer"):
+            self._world_observer = PhysicsWorldObserver()
+        return self._world_observer.capture(self)
+
     @classmethod
     def _telemetry_value(cls, value):
         t = type(value)
@@ -1484,6 +1494,7 @@ class PyBulletEmbodimentRuntime:
         )
 
         phase_started = time.perf_counter()
+        self._reading_provider.observed_tick_values.clear()
         result = self.organism.tick(
             context=TickContext(
                 symbiont_id=self.organism_id,
@@ -1932,6 +1943,7 @@ class PyBulletEmbodimentRuntime:
                 "sensory_input": {
                     "monotonic_timestamp_ns": self._reading_provider.last_monotonic_timestamp_ns,
                     "values": dict(self._reading_provider.last_values),
+                    "sampled_values": dict(self._reading_provider.observed_tick_values),
                 },
             },
             "observer_semantics": {

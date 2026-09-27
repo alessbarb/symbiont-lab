@@ -719,7 +719,10 @@ def run(
                 if rich_render_due:
                     publish_rich = getattr(viewer, "publish_rich_state", None)
                     if callable(publish_rich):
-                        publish_rich(rich_state)
+                        publish_rich({
+                            **rich_state,
+                            "world_observation": runtime.passive_world_observation(),
+                        })
 
             if remaining is not None:
                 remaining -= 1

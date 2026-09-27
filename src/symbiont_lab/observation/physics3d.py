@@ -8,6 +8,7 @@ from typing import Any, Mapping, Protocol
 
 from .contracts import ObservedFrame
 from .projection import mind_snapshot_from_rich_state, runtime_tick_events
+from .world_scene import WorldScenePublisher, project_world_scene
 
 
 def _body_descriptor_for_state(physical_state: Mapping[str, object]):
@@ -35,6 +36,7 @@ class Physics3DObservationBridge:
         self._sink = sink
         self._stop = threading.Event()
         self._pending_frames: dict[int, dict[str, Any]] = {}
+        self._world_publisher = WorldScenePublisher()
 
     def start(self) -> None:
         return None
@@ -286,6 +288,9 @@ class Physics3DObservationBridge:
     def publish_rich_state(self, rich_state: Mapping[str, Any]) -> None:
         if self._stop.is_set():
             return
+        world = project_world_scene(rich_state)
+        if world is not None:
+            self._sink.push(self._world_publisher.event(world))
         snapshot = mind_snapshot_from_rich_state(rich_state)
         tick = snapshot.get("tick")
         try:

@@ -201,6 +201,11 @@ def make_handler(
                 self._json(200, payload)
                 return
 
+            if path == "/api/world-scene":
+                scene = observation_bus.world_scene()
+                self._json(200, {"scene": scene})
+                return
+
             if path == "/api/organism":
                 self._stream_organism()
                 return

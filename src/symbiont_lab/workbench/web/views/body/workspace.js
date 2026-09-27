@@ -9,6 +9,7 @@ import { SelfModelWorkspace } from './self-model.js';
  */
 
 const TABS = [
+  ['world', 'In World'],
   ['overview', 'Overview'],
   ['anatomy', 'Anatomy'],
   ['motion', 'Motion'],
@@ -84,7 +85,7 @@ function metricCard(label, value, tone = '') {
 export class BodyWorkspace {
   constructor(viewer) {
     this.viewer = viewer;
-    this.activeTab = 'overview';
+    this.activeTab = 'world';
     this.metrics = new Map();
     this.colors = new Map();
     this.history = [];
@@ -129,7 +130,7 @@ export class BodyWorkspace {
     panel.classList.add('body-inspector');
     panel.setAttribute('role', 'tabpanel');
     panel.setAttribute('aria-labelledby', 'body-tab-overview');
-    this.setTab('overview');
+    this.setTab('world');
   }
 
 
@@ -200,7 +201,11 @@ export class BodyWorkspace {
 
   render() {
     if (!this.panel) return;
-    if (this.activeTab === 'overview') this.renderOverview();
+    if (this.activeTab === 'world') {
+      if (this.viewer.worldView) this.viewer.worldView.inspector(this.panel);
+      else this.panel.innerHTML = this.head('Body in World', 'Waiting for spatial evidence', 'World truth and acquired evidence remain separate.');
+    }
+    else if (this.activeTab === 'overview') this.renderOverview();
     else if (this.activeTab === 'anatomy') this.renderAnatomy();
     else if (this.activeTab === 'motion') this.renderMotion();
     else if (this.activeTab === 'interaction') this.renderInteraction();
@@ -378,3 +383,4 @@ export class BodyWorkspace {
     this.selfModel = new SelfModelWorkspace();
   }
 }
+

@@ -6,7 +6,10 @@ import json
 import queue
 import threading
 from collections import deque
+from copy import deepcopy
 from typing import Any
+
+from .world_scene import apply_world_event
 
 _DEFAULT_QUEUE_SIZE = 2048
 _DEFAULT_HISTORY_SIZE = 512
@@ -36,9 +39,12 @@ class ObservationBus:
         self._last_by_type: dict[str, str] = {}
         self._history: deque[tuple[int, str]] = deque(maxlen=int(history_size))
         self._sequence = 0
+        self._world_scene: dict | None = None
 
     def push(self, event: dict[str, Any]) -> int:
         with self._lock:
+            if event.get("type") == "world_scene":
+                self._world_scene = apply_world_event(self._world_scene, event)
             self._sequence += 1
             stream_id = self._sequence
             projected = dict(event)
@@ -46,7 +52,12 @@ class ObservationBus:
             data = json.dumps(projected, separators=(",", ":"), ensure_ascii=False)
             event_type = str(projected.get("type") or "")
             if event_type:
-                self._last_by_type[event_type] = data
+                if event_type == "world_scene":
+                    self._last_by_type[event_type] = json.dumps(
+                        {**self._world_scene, "_stream_id": stream_id}, separators=(",", ":")
+                    )
+                else:
+                    self._last_by_type[event_type] = data
             self._history.append((stream_id, data))
             for consumer in self._queues:
                 if consumer.full():
@@ -75,6 +86,11 @@ class ObservationBus:
                 consumer.put_nowait(data)
             self._queues.append(consumer)
         return consumer
+
+    def world_scene(self) -> dict | None:
+        """Atomic materialized scene for initial loads and dropped-delta recovery."""
+        with self._lock:
+            return deepcopy(self._world_scene)
 
     def unsubscribe(self, consumer: queue.Queue[str]) -> None:
         with self._lock:
