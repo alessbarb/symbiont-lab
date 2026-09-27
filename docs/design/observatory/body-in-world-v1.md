@@ -105,3 +105,42 @@ not known to the organism. Self colors refer to mapped signal confidence,
 not anatomical concepts acquired by Symbiont. One contextual inspector shows
 positions, contacts, source IDs, samples, percepts and self evidence with ticks.
 No reach sphere, vision cone, chair category or imagined trajectory is fabricated.
+
+## Integration and validation
+
+The integration was reconciled with main 4353253 and published on main as
+`a95b9c6`, preserving the subsequently added provenance CLI at 2278f99.
+Recent Self View morphology and dense-pose transport work remains in place.
+
+`sampled_values` is the observer union of all provider calls within one tick;
+`last_values` remains the original last-call diagnostic. Absence of the union
+in older recordings means unavailable sampling evidence, not an unsampled
+receptor. Exported zero-valued percepts still count as emitted percepts.
+
+Verification includes:
+
+- Python projection, event reconciliation, replay overflow and snapshot endpoint;
+- actual JavaScript reducer execution, including stale snapshots, duplicates,
+  gaps, removals and changes of world session;
+- real PyBullet geometry for humanoid, crawler and asymmetric bodies; addition,
+  translation and removal of a physical box, with invariant apparatus state;
+- six real organism ticks through the bridge, producing a two-entity scene,
+  contact geometry and matched aggregate sampled/percept evidence;
+- actual Three.js geometry and DOM controls using that captured state, including
+  layer visibility, inspector, object reuse, deletion and disposal.
+
+The observer-state check excludes only checkpoint_lineage: checkpoint() itself
+advances the parent hash on each call, independently of observation. All other
+organism checkpoint fields were equal across the observer read.
+
+WebGL/browser screenshot verification remains unavailable in this execution
+environment: Chromium's local socket creation is denied and the permission
+policy rejects elevated execution. DOM/Three.js tests are not a substitute for
+checking the rendered layout on the user's machine.
+
+Limitations are explicit: unsupported collision mesh/heightfield geometry is
+listed in entity metadata rather than fabricated; native physics identities are
+session-scoped and removal must be observed before a reused native ID is treated
+as a new entity. Current Physics3D does not dynamically recycle bodies between
+observations. A future dynamic entity lifecycle must provide its own generation
+IDs. No spatial learned-world model is claimed or added by this observer work.

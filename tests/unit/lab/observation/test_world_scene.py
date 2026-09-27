@@ -101,3 +101,55 @@ def test_session_change_is_full_reset_even_with_reused_native_entity_ids():
     event = pub.event(scene)
     assert event["kind"] == "snapshot"
     assert apply_world_event(first, event)["entities"] == {}
+
+
+def test_last_provider_call_cannot_establish_complete_sampling():
+    rich = rich_state()
+    rich["pre"]["sensory_input"] = {"values": {"rec.0": 0.7}}
+    evidence = project_world_scene(rich)["evidence"]["rec.0"]
+    assert evidence["sampled"] is None
+    assert evidence["sample"] is None
+
+
+def test_sampling_union_covers_multiple_calls_and_resets_between_ticks():
+    from types import SimpleNamespace
+
+    from symbiont_lab.physics3d.apparatus import PhysicsReadingProvider
+
+    apparatus = SimpleNamespace(
+        receptor_ids=("rec.0", "rec.1"), sample_receptors=lambda: {"rec.0": 0.3, "rec.1": 0.0}
+    )
+    provider = PhysicsReadingProvider(apparatus)
+    provider.sample((SimpleNamespace(capability_id="rec.0"),))
+    provider.sample((SimpleNamespace(capability_id="rec.1"),))
+    assert provider.observed_tick_values == {"rec.0": 0.3, "rec.1": 0.0}
+    assert provider.last_values == {"rec.1": 0.0}
+    provider.observed_tick_values.clear()
+    provider.sample(())
+    assert provider.observed_tick_values == {}
+
+
+def test_recovery_endpoint_returns_materialized_state_without_mutating_bus():
+    from pathlib import Path
+
+    from symbiont_lab.server.api import make_handler
+
+    bus = ObservationBus()
+    pub = WorldScenePublisher()
+    scene = project_world_scene(rich_state())
+    bus.push(pub.event(scene))
+    scene["entities"]["e"]["position"] = [9, 0, 0]
+    bus.push(pub.event(scene))
+    handler_type = make_handler(None, None, None, None, bus, None, Path("."))
+    handler = object.__new__(handler_type)
+    handler.path = "/api/world-scene"
+    responses = []
+    handler._json = lambda status, payload: responses.append((status, payload))
+    handler.do_GET()
+    assert responses[0][0] == 200
+    recovered = responses[0][1]["scene"]
+    assert recovered["kind"] == "snapshot"
+    assert recovered["revision"] == 2
+    assert recovered["entities"]["e"]["position"] == [9, 0, 0]
+    recovered["entities"].clear()
+    assert bus.world_scene()["entities"]

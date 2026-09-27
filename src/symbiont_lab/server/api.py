@@ -6,6 +6,7 @@ Routes:
   GET  /observatory/*         → static files from observatory/ package
   GET  /api/state             → JSON runs + observation source status
   GET  /api/organism          → SSE: live organism body/cognition/vitals
+  GET  /api/world-scene       → materialized observer spatial snapshot
   GET  /fleet                 → SSE: observatory fleet (if observatory_dir set)
   GET  /instances/<id>        → SSE: single organism journal stream
   GET  /api/instance/<id>/manifest → JSON: instance manifest

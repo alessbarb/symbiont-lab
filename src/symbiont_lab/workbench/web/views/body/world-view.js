@@ -70,6 +70,7 @@ export class WorldView {
     if (result.gap) { this.legend.textContent = 'Spatial update gap · recovering authoritative snapshot'; this.recover(); return; }
     if (result.state === this.state) return;
     const reset = this.state?.world_id !== result.state.world_id;
+    if (this.selected?.kind === 'contact' && this.state?.tick !== result.state.tick) this.selected = null;
     this.state = result.state;
     if (reset) {
       this.selected = null;
@@ -252,6 +253,19 @@ export class WorldView {
   }
 
   update() {
+    // BodyViewer refreshes these overlays on incoming poses. Reapply the epistemic
+    // boundary at render time so observer-only trajectories cannot leak into View.
+    const truthVisible = this.layers.truth && this.layers.physical;
+    for (const object of [this.viewer.comMarker, this.viewer.comProjectionLine, this.viewer.trajectoryLine]) {
+      if (!object) continue;
+      if (!truthVisible) {
+        if (object.visible) object.userData.worldTruthWasVisible = true;
+        object.visible = false;
+      } else if (object.userData.worldTruthWasVisible) {
+        object.visible = true; delete object.userData.worldTruthWasVisible;
+      }
+    }
+    if (this.viewer.situationEl) this.viewer.situationEl.hidden = !this.layers.truth;
     // Existing motion colors are refreshed by BodyViewer; apply optional self evidence last.
     if (!this.layers.self || !this.state) {
       if (this.selfWasVisible) {
@@ -286,7 +300,8 @@ export class WorldView {
       if (e) {
         html += '<div class="body-section"><div class="body-section-title">World truth · observer only</div>' + row('Geometry', e.shapes.map(x => x.kind).join(', ')) + row('Position · m, Z-up', vector(e.position)) + row('Orientation · XYZW', vector(e.orientation));
         if (e.field) html += row('Field support · m', e.field.radius) + row('Source active', e.field.active);
-        html += row('Contacts · post-action', s.contacts.filter(x => x.entity_id === e.id).length) + '</div>';
+        const touching = s.contacts.filter(x => x.entity_id === e.id);
+        html += row('Contacts · post-action', touching.length) + row('Touching body links', [...new Set(touching.map(x => x.link).filter(Boolean))].join(', ') || 'None in this frame') + '</div>';
         html += '<div class="body-section"><div class="body-section-title">Symbiont evidence</div>' + row('Object identity / location', 'No exported evidence') + row('Object familiarity', 'Unavailable') + row('Spatial prediction', 'Unavailable') + '<p class="body-world-note">A sensed stimulus does not establish recognition of this object. The source attribution below belongs to the observer.</p></div>';
       }
     }
@@ -294,10 +309,12 @@ export class WorldView {
       const name = this.selected.id;
       const link = this.viewer.linkObjs[name];
       const pos = link?.getWorldPosition(new THREE.Vector3());
-      html += '<div class="body-section"><div class="body-section-title">Physical anatomy · observer label</div>' + row('Displayed position · m, Y-up', pos ? vector(pos.toArray()) : null) + row('Current contacts', s.contacts.filter(x => x.link === name).length) + '<p class="body-world-note">Mapped signal knowledge below does not imply that the organism has learned this anatomical name.</p></div>';
+      html += '<div class="body-section"><div class="body-section-title">Physical anatomy · observer label</div>' + row('Displayed position · m, Y-up', pos ? vector(pos.toArray()) : null) + row('Displayed orientation · XYZW', link ? link.getWorldQuaternion(new THREE.Quaternion()).toArray().map(x => x.toFixed(3)).join(', ') : null) + row('Current contacts', s.contacts.filter(x => x.link === name).length) + '<p class="body-world-note">Mapped signal knowledge below does not imply that the organism has learned this anatomical name.</p></div>';
       const joints = this.viewer.bodyModel.segmentActivityJoints[name] ?? [];
-      const dimensions = Object.entries(this.viewer.workspace.selfModel?.snapshot?.observer_semantics?.actionDimensions ?? {}).filter(([, d]) => d.observerJoints?.some(j => joints.includes(j)));
+      const dimensions = Object.entries(this.viewer.workspace.selfModel?.snapshot?.observer_semantics?.actionDimensions ?? {}).filter(([, d]) => d.observerJoints?.some(j => joints.includes(j.replaceAll(' ', '_'))));
       if (dimensions.length) html += row('Acquired action dimensions', dimensions.map(([id]) => id).join(', '));
+      const touching = s.contacts.filter(x => x.link === name);
+      if (touching.length) html += '<div class="body-section"><div class="body-section-title">Body ↔ world · physical contacts</div>' + touching.map(c => row(c.entity_id ?? 'Self contact', `${c.normal_force.toFixed(2)} N · post-action`)).join('') + '</div>';
     }
     if (this.selected?.kind === 'contact') {
       const c = s.contacts.find(x => x.id === this.selected.id);

@@ -1848,3 +1848,6 @@
   .body-view-root:not(.self-model-mode) .body-inspector { grid-column: 1; grid-row: 3; }
   .body-view-root:not(.self-model-mode) .body-tabs { grid-column: 1; }
 }
+
+.body-tabs { overflow-x: auto; white-space: nowrap; }
+.body-tab { flex-shrink: 0; }
