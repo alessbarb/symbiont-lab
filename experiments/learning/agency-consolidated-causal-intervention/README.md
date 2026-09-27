@@ -63,3 +63,24 @@ they do not by themselves demonstrate generalization. Only if revision stays
 too slow under a genuinely consolidated relation does recency become a
 modelling question, and then as recent contradiction evidence distinct from
 historical support.
+
+## Gate reachability diagnostic (read-only, after the first run)
+
+Normal development only (no perturbation), 10 seeds, 4096 ticks after
+acquisition; each candidate gate evaluated offline on the recorded
+support/controllability/agency of the relations each condition would
+invalidate. Seeds where the gate would open (broken_effector / permuted):
+
+| support | controllability | agency | stability | broken | permuted | median wait (ticks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 16 | 0.10 | 0.10 | 128 | 1/10 | 2/10 | 314 / 221 (preregistered v1 gate) |
+| 16 | 0.05 | 0.05 | 128 | 8/10 | 8/10 | 128 / 164 |
+| 8 | 0.05 | 0.05 | 128 | 8/10 | 10/10 | 128 / 128 |
+
+The v1 gate is blocked by requiring controllability and agency >= 0.10
+together. A looser gate opens in most seeds, but at its earliest possible tick
+(median wait = stability window, ~128 ticks after acquisition), i.e. early in
+development where the E4 v3 normal twin drifted strongly. A protocol v2 should
+therefore combine reachable levels with a minimum developmental age before
+perturbation; choosing those values is an owner decision and a new
+preregistered version.
