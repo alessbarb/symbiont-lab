@@ -347,7 +347,105 @@ function segmentAttrs(segment, metrics, mode, selected) {
   return `class="${cls}" data-self-segment="${segment}" data-self-id="segment|${segment}" style="--segment-score:${score.toFixed(3)};--segment-coverage:${metrics.coverage.toFixed(3)};--segment-quality:${metrics.quality.toFixed(3)};--segment-stability:${metrics.stability.toFixed(3)};--segment-agency:${metrics.agency.toFixed(3)}"`;
 }
 
+function genericMorphologySvg(segments, mode, selected) {
+  const body = segments.morphology ?? {};
+  const rawSegments = body.segments ?? {};
+  const joints = Array.isArray(body.joints) ? body.joints : [];
+  const names = Object.keys(rawSegments);
+  if (!names.length) return '';
+
+  const positions = new Map([[String(body.baseLink || names[0]), [0, 0, 0]]]);
+  for (let pass = 0; pass < joints.length + 2; pass += 1) {
+    let changed = false;
+    for (const joint of joints) {
+      if (!positions.has(joint.parent) || positions.has(joint.child)) continue;
+      const parent = positions.get(joint.parent);
+      const origin = Array.isArray(joint.origin) ? joint.origin : [0, 0, 0];
+      positions.set(joint.child, [
+        finite(parent[0]) + finite(origin[0]),
+        finite(parent[1]) + finite(origin[1]),
+        finite(parent[2]) + finite(origin[2]),
+      ]);
+      changed = true;
+    }
+    if (!changed) break;
+  }
+
+  const crawler = String(body.bodyKind ?? '').includes('crawler');
+  const plane = crawler ? [0, 1] : [0, 2];
+  const points = names.map((name) => {
+    const base = positions.get(name) ?? [0, 0, 0];
+    const origin = rawSegments[name]?.origin ?? [0, 0, 0];
+    const world = [
+      finite(base[0]) + finite(origin[0]),
+      finite(base[1]) + finite(origin[1]),
+      finite(base[2]) + finite(origin[2]),
+    ];
+    return { name, x: world[plane[0]], y: world[plane[1]], raw: rawSegments[name] };
+  });
+
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  let minX = Math.min(...xs), maxX = Math.max(...xs);
+  let minY = Math.min(...ys), maxY = Math.max(...ys);
+  if (Math.abs(maxX - minX) < .15) { minX -= .1; maxX += .1; }
+  if (Math.abs(maxY - minY) < .15) { minY -= .1; maxY += .1; }
+  const pad = 74;
+  const width = 500;
+  const height = 640;
+  const sx = (width - pad * 2) / Math.max(.01, maxX - minX);
+  const sy = (height - pad * 2) / Math.max(.01, maxY - minY);
+  const scale = Math.min(sx, sy);
+  const project = (point) => ({
+    x: width / 2 + (point.x - (minX + maxX) / 2) * scale,
+    y: height / 2 - (point.y - (minY + maxY) / 2) * scale,
+  });
+  const projected = new Map(points.map((point) => [point.name, project(point)]));
+
+  const physical = new Set(names);
+  const parentOf = new Map(joints.map((joint) => [joint.child, joint.parent]));
+  const nearestPhysicalParent = (name) => {
+    let cursor = parentOf.get(name);
+    const seen = new Set();
+    while (cursor && !seen.has(cursor)) {
+      if (physical.has(cursor)) return cursor;
+      seen.add(cursor);
+      cursor = parentOf.get(cursor);
+    }
+    return null;
+  };
+
+  const edges = names.map((name) => {
+    const parent = nearestPhysicalParent(name);
+    if (!parent || !projected.has(parent) || !projected.has(name)) return '';
+    const a = projected.get(parent);
+    const b = projected.get(name);
+    return `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" class="self-morph-edge"/>`;
+  }).join('');
+
+  const nodes = points.map((point) => {
+    const p = projected.get(point.name);
+    const size = Array.isArray(point.raw?.size) ? point.raw.size : [.12, .12, .12];
+    const rawW = Math.max(.06, finite(size[plane[0]], .12));
+    const rawH = Math.max(.06, finite(size[plane[1]], .12));
+    const w = Math.max(18, Math.min(150, rawW * scale));
+    const h = Math.max(18, Math.min(150, rawH * scale));
+    return `<g ${segmentAttrs(point.name, segments.get(point.name), mode, selected)}>
+      <rect x="${(p.x - w / 2).toFixed(1)}" y="${(p.y - h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(16, w / 4).toFixed(1)}"/>
+    </g>`;
+  }).join('');
+
+  return `<svg class="self-body-svg self-morphology-svg" viewBox="0 0 500 640" role="img" aria-label="Observer projection of ${String(body.bodyKind || 'active body')} self knowledge">
+    <g class="self-morph-edges">${edges}</g>
+    <g class="self-morph-nodes">${nodes}</g>
+  </svg>`;
+}
+
 function skeletonSvg(segments, mode, selected) {
+  const morphology = segments.morphology;
+  if (morphology?.bodyKind && morphology.bodyKind !== 'anthropomorphic-v6') {
+    return genericMorphologySvg(segments, mode, selected);
+  }
   const a = (segment) => segmentAttrs(segment, segments.get(segment), mode, selected);
   return `<svg class="self-body-svg" viewBox="0 0 500 720" role="img" aria-label="Observer anatomical projection of learned self knowledge">
     <g ${a('head')}><circle cx="250" cy="76" r="48"/></g>
