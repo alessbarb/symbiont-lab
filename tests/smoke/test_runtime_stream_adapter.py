@@ -548,8 +548,8 @@ def test_body_self_view_projects_opaque_evidence_onto_observer_anatomy_only() ->
     assert "renderSelfView" in self_model
     assert "selfViewSegmentRecord" in self_model
 
-    assert "Observer anatomy × organism-owned evidence" in self_view
-    assert "Symbiont still sees only opaque rec.N / eff.N channels." in self_view
+    assert "observer anatomy × organism evidence" in self_view
+    assert "Symbiont still sees opaque channels." in self_view
     assert "epistemic_status: 'observer projection only'" in self_view
     assert "JOINT_TOPOLOGY" in self_view
     assert "receptorSegment(" in self_view
