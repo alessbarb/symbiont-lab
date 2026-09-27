@@ -281,7 +281,7 @@ def _causal_estimate_edges(
         source_kind = str(item.get("source_kind") or "")
         source_ref = item.get("source_ref")
         effect_id = item.get("effect_id")
-        if source_kind not in {"intervention", "dimension", "competence"}:
+        if source_kind not in {"intervention", "dimension"}:
             continue
         if source_ref is None or effect_id is None:
             continue
@@ -529,6 +529,27 @@ def _competence_effect_edges(
     items = snapshot.get("motor_competences")
     if not isinstance(items, (list, tuple)):
         return []
+
+    acquisition = snapshot.get("agency_acquisition")
+    raw_relations = (
+        acquisition.get("causal_relations")
+        if isinstance(acquisition, Mapping)
+        else None
+    )
+    competence_relations: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+    if isinstance(raw_relations, (list, tuple)):
+        for relation in raw_relations:
+            if (
+                not isinstance(relation, Mapping)
+                or relation.get("source_kind") != "competence"
+                or relation.get("source_ref") is None
+                or relation.get("effect_id") is None
+            ):
+                continue
+            competence_relations.setdefault(
+                (str(relation["source_ref"]), str(relation["effect_id"])), []
+            ).append(relation)
+
     edges: list[AtlasEdge] = []
     for item in items:
         if not isinstance(item, Mapping):
@@ -537,18 +558,59 @@ def _competence_effect_edges(
         effect_id = item.get("effect_id")
         if competence_id is None or effect_id is None or str(effect_id) not in known_effect_ids:
             continue
+        competence_id = str(competence_id)
+        effect_id = str(effect_id)
         evidence: dict[str, Any] = {"source": "sensorimotor_model"}
         if item.get("support") is not None:
             evidence["observations"] = item["support"]
         if item.get("reproducibility") is not None:
             evidence["confidence"] = item["reproducibility"]
+
+        metadata: dict[str, Any] = {"evidence": evidence}
+        relations = competence_relations.get((competence_id, effect_id), ())
+        if relations:
+            strongest = max(
+                relations,
+                key=lambda relation: (
+                    float(relation.get("confidence") or 0.0),
+                    float(relation.get("agency_confidence") or 0.0),
+                    int(relation.get("action_support") or 0)
+                    + int(relation.get("counterfactual_support") or 0),
+                    int(relation.get("last_updated_tick") or 0),
+                ),
+            )
+            metadata["relation_class"] = "structural_with_causal_model"
+            metadata["causal_context_count"] = len(relations)
+            for key in (
+                "confidence",
+                "reliability",
+                "counterfactual_rate",
+                "causal_advantage",
+                "action_support",
+                "counterfactual_support",
+                "last_updated_tick",
+                "agency_confidence",
+                "temporal_contingency",
+                "causal_specificity",
+                "prediction_match",
+            ):
+                if strongest.get(key) is not None:
+                    metadata[key] = strongest[key]
+            evidence["causal_source"] = "controllability_model"
+            if strongest.get("action_support") is not None:
+                evidence["causal_observations"] = strongest["action_support"]
+            if strongest.get("confidence") is not None:
+                evidence["causal_confidence"] = strongest["confidence"]
+            if strongest.get("last_updated_tick") is not None:
+                evidence["causal_last_tick"] = strongest["last_updated_tick"]
+
         edges.append(
             AtlasEdge(
                 id=f"edge.produces.{competence_id}.{effect_id}",
-                source_id=str(competence_id),
-                target_id=str(effect_id),
+                source_id=competence_id,
+                target_id=effect_id,
                 kind="produces",
-                metadata={"evidence": evidence},
+                metadata=metadata,
             )
         )
     return edges
