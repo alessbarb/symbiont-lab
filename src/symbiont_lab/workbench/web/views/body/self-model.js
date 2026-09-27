@@ -153,6 +153,9 @@ export class SelfModelWorkspace {
     this.selfViewPane = 'composite';
     this.selfViewDevelopment = [];
     this.maxSelfViewFrames = 120;
+    this.selfViewDevelopmentIndex = null;
+    this.selfViewDevelopmentBodyMode = 'state';
+    this.selfViewDevelopmentScale = 'detail';
     this.agencyLens = 'acquisition';
     this.selectedId = null;
     this.events = [];
@@ -302,6 +305,30 @@ export class SelfModelWorkspace {
         this.render(overlay, panel);
       });
     });
+    overlay.querySelectorAll('[data-self-dev-body-mode]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.selfViewDevelopmentBodyMode = button.dataset.selfDevBodyMode || 'state';
+        this.render(overlay, panel);
+      });
+    });
+    overlay.querySelectorAll('[data-self-dev-scale]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.selfViewDevelopmentScale = button.dataset.selfDevScale || 'detail';
+        this.render(overlay, panel);
+      });
+    });
+    overlay.querySelectorAll('[data-self-dev-frame]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.selfViewDevelopmentIndex = Number(button.dataset.selfDevFrame);
+        this.render(overlay, panel);
+      });
+    });
+    overlay.querySelectorAll('[data-self-dev-index]').forEach((input) => {
+      input.addEventListener('input', () => {
+        this.selfViewDevelopmentIndex = Number(input.value);
+        this.render(overlay, panel);
+      });
+    });
     overlay.querySelectorAll('[data-self-id]').forEach((node) => {
       node.addEventListener('click', () => {
         this.selectedId = node.dataset.selfId;
@@ -391,8 +418,15 @@ export class SelfModelWorkspace {
         <button type="button" class="${this.selfViewPane === 'composite' ? 'active' : ''}" data-self-view-pane="composite">Composite</button>
         <button type="button" class="${this.selfViewPane === 'development' ? 'active' : ''}" data-self-view-pane="development">Development</button>
       </div>`;
+      const developmentIndex = this.selfViewDevelopmentIndex === null
+        ? Math.max(0, this.selfViewDevelopment.length - 1)
+        : this.selfViewDevelopmentIndex;
       body = this.selfViewPane === 'development'
-        ? `${paneNav}${renderSelfViewDevelopment(this.selfViewDevelopment)}`
+        ? `${paneNav}${renderSelfViewDevelopment(this.selfViewDevelopment, {
+            index: developmentIndex,
+            bodyMode: this.selfViewDevelopmentBodyMode,
+            scaleMode: this.selfViewDevelopmentScale,
+          })}`
         : `${paneNav}${renderSelfView(this.snapshot, this.selfViewMode, selected)}`;
     } else if (this.selfLens === 'embodiment') {
       body = this.embodiment();
