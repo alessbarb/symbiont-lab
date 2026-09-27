@@ -179,9 +179,14 @@ class SensorState:
         alpha = 0.2 if self.utility_observations > 1 else 1.0
         self.utility = (1.0 - alpha) * self.utility + alpha * contribution
 
-    def checkpoint(self) -> dict[str, Any]:
-        """Durable phenotype plus bounded causal transduction state."""
-        return {
+    def checkpoint(self, *, include_replay: bool = False) -> dict[str, Any]:
+        """Durable phenotype; transient transduction state only for replay.
+
+        ``include_replay`` adds the raw-derived temporal state needed for exact
+        continuation.  Only deterministic (synthetic) hosts request it; a real
+        host restores with a cold start instead of persisting its readings.
+        """
+        payload = {
             "sensor_id": self.sensor_id,
             "modality_id": self.modality_id,
             "source_ids": list(self.source_ids),
@@ -201,17 +206,21 @@ class SensorState:
             "transduction_cost": self.transduction_cost,
             "parent_sensor_ids": list(self.parent_sensor_ids),
             "structural_revision": self.structural_revision,
-            "previous_input": self.previous_input,
-            "integrator": self.integrator,
-            "last_output": self.last_output,
-            "previous_output": self.previous_output,
-            "cold_start_pending": self.cold_start_pending,
-            "cold_start_observed": self.cold_start_observed,
             "output_abs_ewma": self.output_abs_ewma,
             "output_delta_ewma": self.output_delta_ewma,
             "output_observations": self.output_observations,
             "utility_observations": self.utility_observations,
         }
+        if include_replay:
+            payload.update(
+                previous_input=self.previous_input,
+                integrator=self.integrator,
+                last_output=self.last_output,
+                previous_output=self.previous_output,
+                cold_start_pending=self.cold_start_pending,
+                cold_start_observed=self.cold_start_observed,
+            )
+        return payload
 
     @classmethod
     def restore(cls, payload: dict[str, Any]) -> "SensorState":
@@ -252,6 +261,11 @@ class SensorState:
             output_delta_ewma=payload.get("output_delta_ewma", 0.0),
             output_observations=payload.get("output_observations", 0),
             utility_observations=payload.get("utility_observations", 0),
-            cold_start_pending=payload.get("cold_start_pending", False),
+            # Without replay state a temporal sensor restarts cold.
+            cold_start_pending=payload.get(
+                "cold_start_pending",
+                TransductionKind(payload.get("transduction", "identity"))
+                in (TransductionKind.DIFFERENCE, TransductionKind.INTEGRATE),
+            ),
             cold_start_observed=payload.get("cold_start_observed", False),
         )

@@ -668,14 +668,16 @@ class SensorySystem:
             },
         }
 
-    def checkpoint(self) -> dict[str, Any]:
+    def checkpoint(self, *, include_replay: bool = False) -> dict[str, Any]:
         payload = {
             "schema_version": self.SCHEMA_VERSION,
             "constitution": self.constitution(),
             "next_sensor_id": self._next_sensor_id,
             "last_tick": self._last_tick,
             "capacity_rejections": self._capacity_rejections,
-            "sensors": [sensor.checkpoint() for sensor in self.sensors],
+            "sensors": [
+                sensor.checkpoint(include_replay=include_replay) for sensor in self.sensors
+            ],
             "selection": self._selection.checkpoint(),
             "mutations": [asdict(item) | {"kind": item.kind.value} for item in self._mutations],
         }

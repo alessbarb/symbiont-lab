@@ -47,16 +47,34 @@ def test_export_omits_capabilities_below_min_samples():
     assert payload["acclimation"] == {}
 
 
-def test_acclimation_round_trips_through_checkpoint():
-    """Restoring preserves the bounded accumulators used by future ticks."""
+def test_acclimation_round_trips_as_a_coarse_prior_by_default():
+    """The default (real-host) export seeds a coarse consolidated prior, not
+    the exact aggregate (docs/design/cognicion-y-plasticidad.md §16)."""
     acclimation = HostAcclimation(min_samples=2)
     for value in [10.0, 10.2, 9.8, 10.1, 9.9, 10.0, 9.95, 10.05]:
         acclimation.observe([_reading("cpu", value)])
 
     payload = export_checkpoint(acclimation=acclimation)
+    assert "acclimation_replay" not in payload
     restored, _, _ = import_checkpoint(payload, acclimation=HostAcclimation(min_samples=2))
 
     assert restored.is_acclimated("cpu")
+    baseline = restored.baseline("cpu")
+    original = acclimation.baseline("cpu")
+    assert baseline.count != original.count
+    assert baseline.count <= 8
+    assert baseline.mean == pytest.approx(original.mean, rel=0.6)
+
+
+def test_acclimation_replay_restores_exact_accumulators():
+    """Deterministic hosts request replay state for exact continuation."""
+    acclimation = HostAcclimation(min_samples=2)
+    for value in [10.0, 10.2, 9.8, 10.1, 9.9, 10.0, 9.95, 10.05]:
+        acclimation.observe([_reading("cpu", value)])
+
+    payload = export_checkpoint(acclimation=acclimation, include_replay=True)
+    restored, _, _ = import_checkpoint(payload, acclimation=HostAcclimation(min_samples=2))
+
     baseline = restored.baseline("cpu")
     original = acclimation.baseline("cpu")
     assert baseline.count == original.count
@@ -87,21 +105,25 @@ def test_rhythms_round_trip_through_checkpoint():
     assert baseline.mean == pytest.approx(0.5, rel=0.6)
 
 
-def test_drift_baseline_round_trips_but_not_pending_buffer():
-    # Exact bounded replay state is restored; the pending observation remains
-    # outside the checkpoint contract.
+@pytest.mark.parametrize("include_replay", [False, True])
+def test_drift_baseline_round_trips(include_replay):
+    # Default export: a coarse prior without the raw pending buffer.
+    # Replay export (deterministic hosts): exact bounded state.
     baseline = DriftAwareBaseline(decay=0.2, min_samples=5, regime_run=3)
     values = [1.0, 1.05, 0.95, 1.02, 0.98, 1.01, 0.99, 1.0, 1.02, 0.98] * 2
     for v in values:
         baseline.observe(v)
 
-    payload = export_checkpoint(drift_baselines={"system_load": baseline})
+    payload = export_checkpoint(
+        drift_baselines={"system_load": baseline}, include_replay=include_replay
+    )
+    assert ("drift_replay" in payload) is include_replay
     _, _, restored = import_checkpoint(payload)
 
     restored_baseline = restored["system_load"]
     assert restored_baseline.is_established
     assert restored_baseline.mean == pytest.approx(baseline.mean, abs=0.6)
-    assert restored_baseline.count == baseline.count
+    assert (restored_baseline.count == baseline.count) is include_replay
     assert restored_baseline.observe(1.0).kind != "regime_shift"
 
 

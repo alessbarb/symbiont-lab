@@ -720,16 +720,16 @@ class AdaptiveSenseModel:
 
         return tuple(item for _, item in heapq.nsmallest(limit, views()))
 
-    def export(self) -> dict[str, Any]:
+    def export(self, *, include_replay: bool = False) -> dict[str, Any]:
         """Serialize established descriptive state plus opaque recognition.
 
         Under-sampled aggregates remain withheld from the public projection
         because with one sample the mean is the reading itself.
         ``known_capability_fingerprints`` is also a bounded one-way
-        recognition projection. The separate ``replay_state`` block retains
-        bounded latest-value history and accumulators when those values affect
-        deterministic continuation; it is a causal persistence contract, not
-        part of the public telemetry projection.
+        recognition projection. ``include_replay`` adds a ``replay_state``
+        block with latest values and under-sampled accumulators for exact
+        continuation; it is requested only for deterministic (synthetic)
+        hosts, never for the real host, where it would persist readings.
         """
         payload = {
             "min_samples": self._min_samples,
@@ -756,6 +756,8 @@ class AdaptiveSenseModel:
             ],
             "hypotheses": self._hypotheses.export(),
         }
+        if not include_replay:
+            return payload
         payload["replay_state"] = {
             "tick": self._tick,
             "previous_values": dict(self._previous_values),

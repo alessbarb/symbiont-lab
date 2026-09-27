@@ -308,6 +308,7 @@ class OrganismRuntime:
         intention_policy: IntentionPolicy | None = None,
         executive_admission_policy: ExecutiveAdmissionPolicy | None = None,
         factorized_effects: bool = False,
+        persist_replay_state: bool | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -382,6 +383,14 @@ class OrganismRuntime:
                 ),
                 reading_providers=self._reading_providers,
             )
+        # Exact-continuation (replay) state holds raw-derived values. It is
+        # checkpointed only for deterministic hosts: an injected (synthetic)
+        # lifecycle or no readings at all. The real host restarts cold.
+        self._persist_replay_state = (
+            (host_lifecycle is not None or not self._reading_providers)
+            if persist_replay_state is None
+            else bool(persist_replay_state)
+        )
         provided_min_samples: list[int] = []
         if acclimation is not None and hasattr(acclimation, "_min_samples"):
             provided_min_samples.append(int(acclimation._min_samples))
@@ -1813,6 +1822,7 @@ class OrganismRuntime:
                 kernel_limits=self._kernel_limits,
                 cognitive_graph=graph,
                 host_lifecycle=self._lifecycle.fork_for_child(),
+                persist_replay_state=self._persist_replay_state,
                 physiology_config=self._physiology_config,
                 metabolism=child_metabolism,
                 living_body_state=child_state,
@@ -2392,11 +2402,16 @@ class OrganismRuntime:
             rhythm_model=self._rhythm_model,
             drift_baselines=self._drift_baselines,
             saved_at_tick=self._tick_count,
+            include_replay=self._persist_replay_state,
         )
         payload["organism_id"] = self._organism_id
         payload["effective_config"] = self.effective_configuration()
-        payload["sensory_development"] = self._adaptive_senses.export()
-        payload["sensory_system"] = self._sensory_system.checkpoint()
+        payload["sensory_development"] = self._adaptive_senses.export(
+            include_replay=self._persist_replay_state
+        )
+        payload["sensory_system"] = self._sensory_system.checkpoint(
+            include_replay=self._persist_replay_state
+        )
         payload["self_model"] = self._self_model.export(current_tick=self._tick_count)
         payload["body_schema"] = self._body_schema.export(current_tick=self._tick_count)
         payload["evidence_ledger"] = self._evidence_ledger.export_checkpoint()

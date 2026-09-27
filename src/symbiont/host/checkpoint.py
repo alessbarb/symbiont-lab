@@ -70,13 +70,15 @@ def export_checkpoint(
     rhythm_model: RhythmModel | None = None,
     drift_baselines: dict[str, DriftAwareBaseline] | None = None,
     saved_at_tick: int | None = None,
+    include_replay: bool = False,
 ) -> dict[str, Any]:
-    """Serialize public descriptive projections and bounded replay state.
+    """Serialize public descriptive projections and, on request, replay state.
 
-    Public projections remain coarse and omit raw telemetry. Replay blocks are
-    a separate causal contract: they retain bounded accumulators and histories
-    required to continue deterministically after restore. They are therefore
-    not a telemetry log or an unconditional non-reconstruction guarantee.
+    Public projections remain coarse and omit raw telemetry. Replay blocks
+    (``include_replay``) are a separate causal contract for deterministic
+    hosts only: they retain bounded accumulators and raw-derived buffers
+    required to continue exactly after restore, so the real host never
+    requests them and restarts from the coarse projection instead.
 
     ``saved_at_tick`` is an organism-relative tick counter, not a timestamp or
     calendar date. Exact replay state is intentionally explicit so callers can
@@ -94,7 +96,8 @@ def export_checkpoint(
             for capability_id in acclimation.acclimated_capabilities
             if (baseline := acclimation.baseline(capability_id)) is not None
         }
-        payload["acclimation_replay"] = acclimation.replay_state()
+        if include_replay:
+            payload["acclimation_replay"] = acclimation.replay_state()
 
     if rhythm_model is not None:
         payload["rhythms"] = [
@@ -106,7 +109,8 @@ def export_checkpoint(
             for percept_name, time_bucket in rhythm_model.learned_contexts
             if (baseline := rhythm_model.baseline(percept_name, time_bucket)) is not None
         ]
-        payload["rhythms_replay"] = rhythm_model.replay_state()
+        if include_replay:
+            payload["rhythms_replay"] = rhythm_model.replay_state()
 
     if drift_baselines is not None:
         payload["drift"] = {
@@ -118,9 +122,10 @@ def export_checkpoint(
         # bounded state that can affect the very next observation separately;
         # otherwise restoring during a pending drift streak changes novelty,
         # regulation, and therefore the future trajectory.
-        payload["drift_replay"] = {
-            name: baseline.replay_state() for name, baseline in drift_baselines.items()
-        }
+        if include_replay:
+            payload["drift_replay"] = {
+                name: baseline.replay_state() for name, baseline in drift_baselines.items()
+            }
 
     return payload
 
