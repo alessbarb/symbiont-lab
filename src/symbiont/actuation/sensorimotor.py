@@ -874,58 +874,89 @@ class CompetenceDevelopmentEngine:
         )
 
     @staticmethod
-    def _sequence_distance(left: MotorSequence, right: MotorSequence) -> float:
-        """Density-resistant distance between opaque temporal motor chunks.
+    def _pattern_distance(left: MotorPattern, right: MotorPattern) -> float:
+        """Distance for canonical sorted patterns without temporary maps or sets."""
+        left_index = 0
+        right_index = 0
+        union_count = 0
+        support_difference = 0
+        amplitude_difference = 0
 
-        Recurrence requires both similar activation magnitude and similar
-        support (which channels participated).  Taking the maximum prevents a
-        large dense pattern from diluting a small set of added/removed channels
-        merely because many other channels happen to match.
-        """
-        if len(left) != len(right):
-            return 1.0
-        step_distances: list[float] = []
-        for left_pattern, right_pattern in zip(left, right):
-            left_map = dict(left_pattern)
-            right_map = dict(right_pattern)
-            left_ids = set(left_map)
-            right_ids = set(right_map)
-            union = left_ids | right_ids
-            if not union:
-                step_distances.append(0.0)
+        while left_index < len(left) or right_index < len(right):
+            if left_index >= len(left):
+                _, right_level = right[right_index]
+                amplitude_difference += abs(int(right_level))
+                support_difference += 1
+                union_count += 1
+                right_index += 1
+                continue
+            if right_index >= len(right):
+                _, left_level = left[left_index]
+                amplitude_difference += abs(int(left_level))
+                support_difference += 1
+                union_count += 1
+                left_index += 1
                 continue
 
-            amplitude_distance = sum(
-                abs(int(left_map.get(actuator_id, 0)) - int(right_map.get(actuator_id, 0)))
-                for actuator_id in union
-            ) / (7.0 * len(union))
-            support_distance = len(left_ids.symmetric_difference(right_ids)) / len(union)
-            step_distances.append(max(amplitude_distance, support_distance))
-        return sum(step_distances) / len(step_distances) if step_distances else 0.0
+            left_id, left_level = left[left_index]
+            right_id, right_level = right[right_index]
+            if left_id == right_id:
+                amplitude_difference += abs(int(left_level) - int(right_level))
+                union_count += 1
+                left_index += 1
+                right_index += 1
+            elif left_id < right_id:
+                amplitude_difference += abs(int(left_level))
+                support_difference += 1
+                union_count += 1
+                left_index += 1
+            else:
+                amplitude_difference += abs(int(right_level))
+                support_difference += 1
+                union_count += 1
+                right_index += 1
+
+        if union_count == 0:
+            return 0.0
+        amplitude_distance = amplitude_difference / (7.0 * union_count)
+        support_distance = support_difference / union_count
+        return max(amplitude_distance, support_distance)
+
+    @classmethod
+    def _sequence_distance(cls, left: MotorSequence, right: MotorSequence) -> float:
+        """Density-resistant distance with allocation-light linear pattern merges."""
+        if len(left) != len(right):
+            return 1.0
+        if not left:
+            return 0.0
+        total = 0.0
+        for left_pattern, right_pattern in zip(left, right):
+            total += cls._pattern_distance(left_pattern, right_pattern)
+        return total / len(left)
 
     def _matched_primitive_sequence(
         self,
         sequence: MotorSequence,
     ) -> MotorSequence:
-        """Return the closest already-observed chunk when recurrence is close.
-
-        Exact four-tick equality is too brittle for a continuously actuated
-        body: even the same emerging synergy drifts slightly as motors smooth
-        toward their targets. Matching remains local to the organism's own
-        previously observed motor chunks and introduces no anatomy or task
-        semantics.
-        """
+        """Return the canonical closest recurring motor chunk in one pass."""
         if not self._primitive_stats:
             return sequence
-        ranked = sorted(
-            (
-                (self._sequence_distance(sequence, candidate), candidate)
-                for candidate in self._primitive_stats
-            ),
-            key=lambda item: (item[0], item[1]),
-        )
-        distance, candidate = ranked[0]
-        return candidate if distance <= _SEQUENCE_MATCH_THRESHOLD else sequence
+
+        best_candidate: MotorSequence | None = None
+        best_distance = math.inf
+        for candidate in self._primitive_stats:
+            distance = self._sequence_distance(sequence, candidate)
+            if (
+                best_candidate is None
+                or distance < best_distance
+                or (distance == best_distance and candidate < best_candidate)
+            ):
+                best_distance = distance
+                best_candidate = candidate
+
+        if best_candidate is not None and best_distance <= _SEQUENCE_MATCH_THRESHOLD:
+            return best_candidate
+        return sequence
 
     @staticmethod
     def _body_delta(
