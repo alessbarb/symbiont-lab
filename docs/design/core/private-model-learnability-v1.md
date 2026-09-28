@@ -155,6 +155,19 @@ the report also shows every seed's curve and the dispersion, so a median
 cannot hide that for example 1 of 3 seeds learns and 2 do not. No
 further corpora are added after seeing C1/C2.
 
+**Reporting rules (owner, 2026-09-28, during the run; criteria unchanged).**
+The structural threshold (training loss falls < 0.05 nats from 48 to 1 536
+steps) is approved and frozen. For every corpus and seed the report keeps
+four readings separate: *optimisation* (does training loss fall?),
+*generalisation* (does held-out loss fall?), *baseline competitiveness*
+(how *G* evolves) and *shape* (still improving, flattening or reversing).
+Vocabulary and baseline differences between C1 and C2 are corpus
+properties and are not normalised; the main comparison stays *G* against
+each corpus's own best baseline. If C1 and C2 fall into different
+categories, no single diagnosis is forced: the result is reported per
+corpus (for example "budget-limited on C1 / structural on C2"), the global
+state is `mixed`, and the heterogeneity is part of the finding.
+
 **Inputs.** C1 = `org-ea3e7bbbc628` checkpoint at tick 9 246 (the owner's
 state directory); C2 = the archived final P5 runtime state at tick 11 891
 (`.symbiont/archive/p5/a/organism/runtime.json.gz`). Both corpora are
