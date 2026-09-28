@@ -29,7 +29,7 @@ from .persistence import (
     save_symbiont_bundle,
 )
 from .runtime import PhysicsServerDisconnected, PyBulletEmbodimentRuntime
-from .slm import Physics3DSlmManager
+from .private_model_training import PrivateModelTrainingService
 from .telemetry_v41 import AsyncTelemetryV41Writer
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
@@ -452,15 +452,15 @@ def run(
                 previous_signal_handlers[signum] = signal.getsignal(signum)
                 signal.signal(signum, _graceful_stop)
 
-    slm = None
+    private_model_training = None
     if enable_slm:
         _startup("attaching_model")
-        slm = Physics3DSlmManager(
+        private_model_training = PrivateModelTrainingService(
             models_dir=models_dir,
             train_interval=slm_train_interval,
             device=slm_device,
         )
-        slm.attach_existing(
+        private_model_training.attach_existing(
             runtime.organism,
             candidate_model_ids=runtime.historical_private_model_candidates,
         )
@@ -576,27 +576,27 @@ def run(
                 episodic_snapshot = getattr(runtime.organism, "episodic_memory_snapshot", None)
                 if callable(episodic_snapshot):
                     rich_state["episodic_memory"] = episodic_snapshot()
-                if slm is not None:
+                if private_model_training is not None:
                     rich_state["slm"] = {
-                        "training": bool(slm.training),
-                        "last_error": slm.last_error,
-                        "last_gate_reason": slm.last_gate_reason,
-                        "last_gate_gain": slm.last_gate_gain,
-                        "last_best_baseline": slm.last_best_baseline,
-                        "last_candidate_loss": slm.last_candidate_loss,
-                        "last_best_baseline_loss": slm.last_best_baseline_loss,
-                        "last_plan_reason": slm.last_plan_reason,
-                        "last_plan_replay_pressure": slm.last_plan_replay_pressure,
-                        "last_plan_epochs": slm.last_plan_epochs,
-                        "last_plan_steps": slm.last_plan_steps,
-                        "last_internal_validation_loss": slm.last_internal_validation_loss,
-                        "last_internal_validation_accuracy": slm.last_internal_validation_accuracy,
-                        "last_epochs_completed": slm.last_epochs_completed,
-                        "last_steps_completed": slm.last_steps_completed,
-                        "last_parameter_count": slm.last_parameter_count,
-                        "last_resolved_embedding_dim": slm.last_resolved_embedding_dim,
-                        "last_resolved_hidden_dim": slm.last_resolved_hidden_dim,
-                        "last_vocab_size": slm.last_vocab_size,
+                        "training": bool(private_model_training.training),
+                        "last_error": private_model_training.last_error,
+                        "last_gate_reason": private_model_training.last_gate_reason,
+                        "last_gate_gain": private_model_training.last_gate_gain,
+                        "last_best_baseline": private_model_training.last_best_baseline,
+                        "last_candidate_loss": private_model_training.last_candidate_loss,
+                        "last_best_baseline_loss": private_model_training.last_best_baseline_loss,
+                        "last_plan_reason": private_model_training.last_plan_reason,
+                        "last_plan_replay_pressure": private_model_training.last_plan_replay_pressure,
+                        "last_plan_epochs": private_model_training.last_plan_epochs,
+                        "last_plan_steps": private_model_training.last_plan_steps,
+                        "last_internal_validation_loss": private_model_training.last_internal_validation_loss,
+                        "last_internal_validation_accuracy": private_model_training.last_internal_validation_accuracy,
+                        "last_epochs_completed": private_model_training.last_epochs_completed,
+                        "last_steps_completed": private_model_training.last_steps_completed,
+                        "last_parameter_count": private_model_training.last_parameter_count,
+                        "last_resolved_embedding_dim": private_model_training.last_resolved_embedding_dim,
+                        "last_resolved_hidden_dim": private_model_training.last_resolved_hidden_dim,
+                        "last_vocab_size": private_model_training.last_vocab_size,
                     }
                 full_snapshot = None
                 if telemetry.needs_snapshot(record.tick):
@@ -610,12 +610,12 @@ def run(
                     full_snapshot=full_snapshot,
                 )
 
-            if slm is not None:
-                slm.maybe_schedule(runtime.organism, current_tick=record.tick)
+            if private_model_training is not None:
+                private_model_training.maybe_schedule(runtime.organism, current_tick=record.tick)
                 if slm_synchronous:
                     # P5: the simulation pauses until training, validation and
                     # the registry transition complete (wall-clock independent).
-                    slm.wait_until_idle(runtime.organism)
+                    private_model_training.wait_until_idle(runtime.organism)
 
             # The dense body_pose stream owns motion presentation. Rich
             # body/cognition/vitals snapshots follow the independent scientific
@@ -676,14 +676,14 @@ def run(
                         slm_transition_records=record.slm_transition_records,
                         slm_models=record.slm_models,
                         slm_active=record.slm_active,
-                        slm_training=bool(slm.training) if slm is not None else False,
-                        slm_error=slm.last_error if slm is not None else None,
-                        slm_gate_reason=(slm.last_gate_reason if slm is not None else None),
-                        slm_gate_gain=(slm.last_gate_gain if slm is not None else None),
-                        slm_best_baseline=(slm.last_best_baseline if slm is not None else None),
-                        slm_candidate_loss=(slm.last_candidate_loss if slm is not None else None),
+                        slm_training=bool(private_model_training.training) if slm is not None else False,
+                        slm_error=private_model_training.last_error if slm is not None else None,
+                        slm_gate_reason=(private_model_training.last_gate_reason if slm is not None else None),
+                        slm_gate_gain=(private_model_training.last_gate_gain if slm is not None else None),
+                        slm_best_baseline=(private_model_training.last_best_baseline if slm is not None else None),
+                        slm_candidate_loss=(private_model_training.last_candidate_loss if slm is not None else None),
                         slm_best_baseline_loss=(
-                            slm.last_best_baseline_loss if slm is not None else None
+                            private_model_training.last_best_baseline_loss if slm is not None else None
                         ),
                         cycle_ms=runtime_elapsed * 1000.0,
                         realtime_ratio=realtime_ratio,
@@ -863,8 +863,8 @@ def run(
         print(f"Telemetry run:  {telemetry.root}")
         if viewer is not None:
             viewer.close()
-        if slm is not None:
-            slm.close()
+        if private_model_training is not None:
+            private_model_training.close()
         telemetry.close()
         runtime.close()
         if owns_signal_handlers:
