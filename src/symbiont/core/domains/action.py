@@ -96,6 +96,10 @@ def _canonical_hash(payload: dict[str, Any]) -> str:
 
 # Revision Coherence v1 §3.9 decision 1: executions needed before judging.
 BINDING_INVALIDATION_MIN_EXECUTIONS = 4
+# Binding Degradation v1 §2 (preregistered): reference and evidence sizes, z.
+BD1_REFERENCE_EXECUTIONS = 8
+BD1_MIN_NEW_EXECUTIONS = 8
+BD1_Z = 2.576
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,9 +245,10 @@ class ActionDomain:
         # Tick of the executive decision in progress (provenance of admission).
         self._decision_tick = -1
         self._traced_commitment: ActionCommitment | None = None
-        # §3.9 decision 1, OFF by default: the approved rule failed the E6
-        # release gate (seed 149 invalidated before closing), see §3.11.
-        self.causal_binding_invalidation = False
+        # Binding invalidation mode, "off" by default. "rest": the §3.9
+        # decision-1 rule, a recorded negative result kept as a control arm
+        # (it failed E6, §3.11). "history": Binding Degradation v1 (BD-1).
+        self.binding_invalidation = "off"
         self.composition_engine = CompositionEngine()
 
         self.active_commitment: ActionCommitment | None = None
@@ -667,12 +672,16 @@ class ActionDomain:
         stays testable (a point estimate of 0 would never allow it).
         """
         competence_id = commitment.competence_id
-        if competence_id is None or not self.causal_binding_invalidation:
+        if competence_id is None or self.binding_invalidation == "off":
             return
         binding = self.execution_bindings.get(competence_id)
         if binding is None or binding.status is not BindingStatus.VALID:
             return
-        if binding.last_evidence_tick >= commitment.started_tick:
+        matched = binding.last_evidence_tick >= commitment.started_tick
+        if self.binding_invalidation == "history":
+            self._judge_binding_history(competence_id, commitment, matched=matched)
+            return
+        if matched:
             return  # confirmed during this execution
         ended = (
             commitment.ended_tick if commitment.ended_tick is not None else commitment.started_tick
@@ -693,6 +702,39 @@ class ActionDomain:
                 InvalidationReason.CAUSAL_RELATION_REVISED,
                 tick=ended,
                 cause_refs=commitments,
+            )
+
+    def _judge_binding_history(
+        self, competence_id: str, commitment: ActionCommitment, *, matched: bool
+    ) -> None:
+        """Binding Degradation v1 §2 (preregistered at e47c4042): invalidate
+        when the Wilson 99% upper bound of later executions' match rate is
+        below the Wilson 99% lower bound of the revision's reference."""
+        entry = self.execution_bindings.note_execution(
+            competence_id,
+            matched=matched,
+            commitment_id=commitment.commitment_id,
+            reference_size=BD1_REFERENCE_EXECUTIONS,
+        )
+        if entry is None or int(entry["new_n"]) < BD1_MIN_NEW_EXECUTIONS:
+            return
+        ref_n, ref_k = int(entry["ref_n"]), int(entry["ref_k"])
+        new_n, new_k = int(entry["new_n"]), int(entry["new_k"])
+        reference_lower = wilson_lower_bound(ref_k, ref_n, BD1_Z)
+        current_upper = 1.0 - wilson_lower_bound(new_n - new_k, new_n, BD1_Z)
+        if current_upper < reference_lower:
+            ended = (
+                commitment.ended_tick
+                if commitment.ended_tick is not None
+                else commitment.started_tick
+            )
+            counted = list(entry["commitments"])
+            self.execution_bindings.set_status(
+                competence_id,
+                BindingStatus.INVALIDATED,
+                InvalidationReason.EVIDENCE_CONTRADICTED,
+                tick=ended,
+                cause_refs=tuple(counted[-max(new_n, 1) :]),
             )
 
     def _effect_quiet_rate(self, effect_id: str, *, windows: float) -> float | None:
@@ -2433,6 +2475,7 @@ class ActionDomain:
                         if isinstance(item, dict) and item.get("surface_fingerprint") == old_fp:
                             item["surface_fingerprint"] = new_fp
             self.execution_bindings = CompetenceExecutionBindingRegistry.restore(binding_payload)
+            self.binding_invalidation = str(payload.get("binding_invalidation", "off"))
         else:
             migrated = CompetenceExecutionBindingRegistry()
             for legacy_item in raw_competences:
@@ -2863,6 +2906,7 @@ class ActionDomain:
                 for item in self.competence_library.items
             ],
             "execution_bindings": self.execution_bindings.checkpoint(),
+            "binding_invalidation": self.binding_invalidation,
             "composition": {
                 "engine": self.composition_engine.checkpoint(),
                 "predecessor_id": self.composition_predecessor_id,

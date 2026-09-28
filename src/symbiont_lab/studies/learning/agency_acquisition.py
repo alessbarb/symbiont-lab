@@ -1259,6 +1259,7 @@ def _closure_seed(
     factorized_effects: bool = False,
     reconciliation: str = "recall",
     membership: str = "R",
+    binding_invalidation: str = "off",
 ) -> dict[str, Any]:
     from .footprint_precision import apply_membership
 
@@ -1270,6 +1271,7 @@ def _closure_seed(
         **_reconciliation_options(reconciliation),
     )
     apply_membership(runtime, membership)
+    runtime._action_domain.binding_invalidation = binding_invalidation
     domain = runtime._action_domain
     milestones: dict[str, int | None] = {name: None for name in _MILESTONES}
     trace: dict[str, Any] | None = None
@@ -1326,6 +1328,7 @@ def run_acquisition_reuse_closure_study(
     factorized_effects: bool = False,
     reconciliation: str = "recall",
     membership: str = "R",
+    binding_invalidation: str = "off",
 ) -> dict[str, Any]:
     """E6 release gate: one organism acquires agency, then deliberately reuses it."""
     resolved = _seeds(seeds)
@@ -1337,6 +1340,7 @@ def run_acquisition_reuse_closure_study(
             factorized_effects=bool(factorized_effects),
             reconciliation=reconciliation,
             membership=membership,
+            binding_invalidation=binding_invalidation,
         )
         for seed in resolved
     ]
@@ -1345,6 +1349,7 @@ def run_acquisition_reuse_closure_study(
         "factorized_effects": bool(factorized_effects),
         "reconciliation": reconciliation,
         "membership": membership,
+        "binding_invalidation": binding_invalidation,
         "seeds": list(resolved),
         "max_ticks": max_ticks,
         "per_seed": per_seed,

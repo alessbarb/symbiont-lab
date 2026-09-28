@@ -1,0 +1,37 @@
+schema_version = 1
+
+[experiment]
+id = "learning.binding-degradation-off"
+title = "BD-1 arm OFF"
+protocol = "learning.binding-degradation"
+protocol_version = 1
+hypothesis = """
+Comparing a binding with its own confirmed performance detects real causal
+degradation (a broken effector) without falsely invalidating healthy bindings.
+"""
+success_criteria = """
+Preregistered in Binding Degradation v1 §3 (commit e47c4042): HIST
+qualifies with false invalidations <= 5% of at-risk bindings, true
+detections >= 50% of truly degraded bindings (not assessable below 5),
+spurious satisfactions no higher than OFF, and the E6 gate 3/3 with HIST.
+Criterion 1 or 4 failing rejects HIST. No parameter changes after results.
+"""
+
+[world]
+steps = 4000
+
+[design]
+seeds = [409, 419, 421, 431, 433, 439, 443, 449, 457, 461]
+
+[body]
+actuator_count = 16
+receptors_per_actuator = 4
+drifting_receptor_count = 32
+
+[ablation]
+arm = "OFF"
+break_tick = 2000
+
+[output]
+save_trace = false
+save_summary = true

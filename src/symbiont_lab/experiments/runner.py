@@ -215,6 +215,17 @@ class ExperimentRunner:
                 **{key: int(value) for key, value in body.items()},
             )
             raw_metrics = result
+        elif spec.protocol == "learning.binding-degradation":
+            body = spec.extra_params.get("body", {})
+            ablation = spec.extra_params.get("ablation", {})
+            result = protocol_fn(
+                seeds=spec.seeds,
+                ticks=spec.steps,
+                arm=str(ablation.get("arm", "HIST")),
+                break_tick=int(ablation.get("break_tick", 2000)),
+                **{key: int(value) for key, value in body.items()},
+            )
+            raw_metrics = result
         elif spec.protocol == "learning.agency-acquisition-reuse-closure":
             ablation = spec.extra_params.get("ablation", {})
             result = protocol_fn(
@@ -223,6 +234,7 @@ class ExperimentRunner:
                 factorized_effects=bool(ablation.get("factorized_effects", False)),
                 reconciliation=str(ablation.get("reconciliation", "recall")),
                 membership=str(ablation.get("membership", "R")),
+                binding_invalidation=str(ablation.get("binding_invalidation", "off")),
             )
             raw_metrics = result
         elif spec.protocol == "learning.embodied-behavioral-ablation":

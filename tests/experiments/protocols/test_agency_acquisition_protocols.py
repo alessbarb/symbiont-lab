@@ -445,3 +445,34 @@ def test_fp2_runs_on_new_seeds_disjoint_from_its_design_data():
         root / "agency-acquisition-reuse-closure-membership-bh" / "experiment.toml"
     )
     assert gate.extra_params["ablation"]["membership"] == "BH"
+
+
+@pytest.mark.experiment_contract
+def test_bd1_arms_and_runner(tmp_path):
+    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    used = set(EXECUTIVE_SEEDS) | {463, 467, 479, 487, 491, 499, 503, 509, 521, 523}
+    for arm in ("OFF", "HIST"):
+        spec = load_experiment_file(root / f"binding-degradation-{arm.lower()}" / "experiment.toml")
+        assert spec.extra_params["ablation"] == {"arm": arm, "break_tick": 2000}
+        assert spec.steps == 4000 and not set(spec.seeds) & used
+    gate = load_experiment_file(
+        root / "agency-acquisition-reuse-closure-binding-history" / "experiment.toml"
+    )
+    assert gate.extra_params["ablation"]["binding_invalidation"] == "history"
+    spec = spec_from_payload(
+        {
+            "id": "test.binding-degradation",
+            "protocol": "learning.binding-degradation",
+            "steps": 30,
+            "seeds": [7],
+            "body": {
+                "actuator_count": 4,
+                "receptors_per_actuator": 2,
+                "drifting_receptor_count": 4,
+            },
+            "ablation": {"arm": "HIST", "break_tick": 15},
+        }
+    )
+    _result, _manifest, run_dir = ExperimentRunner(base_dir=tmp_path / ".symbiont").run(spec)
+    metrics = json.loads((run_dir / "metrics.json").read_text())
+    assert metrics["protocol"] == "learning.binding-degradation" and metrics["arm"] == "HIST"

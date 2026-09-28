@@ -1,0 +1,27 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-acquisition-reuse-closure-binding-history"
+title = "E6 gate for BD-1 arm HIST"
+protocol = "learning.agency-acquisition-reuse-closure"
+protocol_version = 1
+hypothesis = """
+The E6 closure still holds with binding invalidation against its own history.
+"""
+success_criteria = """
+E6 release gate unchanged on all three seeds (BD-1 criterion 4).
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+factorized_effects = true
+binding_invalidation = "history"
+
+[output]
+save_trace = false
+save_summary = true

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import StrEnum
-from typing import Mapping
+from typing import Any, Mapping
 
 from ..capacity import CapacityPressure
 from .competence import CompetenceMaturity, MotorCompetence
@@ -106,6 +106,9 @@ class CompetenceExecutionBindingRegistry:
         # Executions since each binding's last confirmation that did not
         # confirm it (binding evidence for §3.9 decision 1).
         self._unconfirmed: dict[str, dict[str, object]] = {}
+        # Binding Degradation v1 §2: per-binding revision history (reference
+        # and later executions); cleared when a new revision starts.
+        self._history: dict[str, dict[str, Any]] = {}
 
     def bind_from_evidence(
         self,
@@ -222,6 +225,41 @@ class CompetenceExecutionBindingRegistry:
         executions = int(entry["executions"])
         return executions, int(entry["windows"]) / executions, tuple(commitments)
 
+    def note_execution(
+        self, competence_id: str, *, matched: bool, commitment_id: str, reference_size: int
+    ) -> dict[str, Any] | None:
+        """Binding Degradation v1 §2: count one execution of a VALID binding.
+
+        The first ``reference_size`` executions of the current revision form
+        the frozen reference; later ones are degradation evidence. Each
+        commitment counts once.
+        """
+        binding = self._items.get(competence_id)
+        if binding is None or binding.status is not BindingStatus.VALID:
+            return None
+        entry = self._history.get(competence_id)
+        if entry is None or entry["revision"] != binding.revision:
+            entry = {
+                "revision": binding.revision,
+                "ref_n": 0,
+                "ref_k": 0,
+                "new_n": 0,
+                "new_k": 0,
+                "commitments": [],
+            }
+            self._history[competence_id] = entry
+        counted = list(entry["commitments"])
+        if commitment_id in counted:
+            return entry
+        if int(entry["ref_n"]) < reference_size:
+            entry["ref_n"] = int(entry["ref_n"]) + 1
+            entry["ref_k"] = int(entry["ref_k"]) + int(matched)
+        else:
+            entry["new_n"] = int(entry["new_n"]) + 1
+            entry["new_k"] = int(entry["new_k"]) + int(matched)
+        entry["commitments"] = [*counted, commitment_id][-64:]
+        return entry
+
     def drain_transitions(self) -> tuple[BindingTransition, ...]:
         drained = tuple(self._transitions)
         self._transitions.clear()
@@ -281,6 +319,9 @@ class CompetenceExecutionBindingRegistry:
                 for item in self.items
             ],
             "capacity_pressure": self.pressure.checkpoint(),
+            "revision_history": {
+                competence_id: dict(entry) for competence_id, entry in sorted(self._history.items())
+            },
             "unconfirmed_executions": {
                 competence_id: dict(entry)
                 for competence_id, entry in sorted(self._unconfirmed.items())
@@ -323,6 +364,16 @@ class CompetenceExecutionBindingRegistry:
         obj.pressure = CapacityPressure.restore(
             payload.get("capacity_pressure"), capacity=obj.capacity
         )
+        for competence_id, entry in dict(payload.get("revision_history", {})).items():
+            if competence_id in obj._items:
+                obj._history[str(competence_id)] = {
+                    "revision": int(entry["revision"]),
+                    "ref_n": int(entry["ref_n"]),
+                    "ref_k": int(entry["ref_k"]),
+                    "new_n": int(entry["new_n"]),
+                    "new_k": int(entry["new_k"]),
+                    "commitments": [str(ref) for ref in entry.get("commitments", [])][-64:],
+                }
         for competence_id, entry in dict(payload.get("unconfirmed_executions", {})).items():
             if competence_id in obj._items:
                 obj._unconfirmed[str(competence_id)] = {

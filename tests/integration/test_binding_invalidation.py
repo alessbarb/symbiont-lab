@@ -25,7 +25,7 @@ def _organism():
         runtime.tick()
         body.advance(runtime.last_actuations)
     domain = runtime._action_domain
-    domain.causal_binding_invalidation = True  # off by default (§3.11)
+    domain.binding_invalidation = "rest"  # control arm, off by default (§3.11)
     binding = next(b for b in domain.execution_bindings.items if b.status is BindingStatus.VALID)
     return runtime, domain, binding
 
@@ -85,3 +85,47 @@ def test_confirmation_resets_and_counts_survive_restore():
         tick=binding.last_evidence_tick + 20_000,
     )
     assert binding.competence_id not in registry.checkpoint()["unconfirmed_executions"]
+
+
+def _history_organism():
+    runtime, domain, binding = _organism()
+    domain.binding_invalidation = "history"
+    return runtime, domain, binding
+
+
+def _run(domain, binding, index, *, matched):
+    execution = _execution(binding, index, length=6)
+    if matched:  # a confirming execution refreshes the binding during it
+        domain.execution_bindings.bind_from_evidence(
+            competence_id=binding.competence_id,
+            surface_fingerprint=binding.surface_fingerprint,
+            effect_id=binding.effect_id,
+            evidence_refs=(f"ev.{index}",),
+            reliability=binding.reliability,
+            controllability=binding.controllability,
+            tick=execution.started_tick + 1,
+        )
+    domain._judge_binding_after(execution)
+
+
+def test_history_rule_invalidates_a_binding_that_stops_matching():
+    # Binding Degradation v1 §2: reference 8/8, then 0/8 -> invalidated.
+    runtime, domain, binding = _history_organism()
+    for index in range(8):
+        _run(domain, binding, index, matched=True)
+    for index in range(8, 15):
+        _run(domain, binding, index, matched=False)
+    assert domain.execution_bindings.get(binding.competence_id).status is BindingStatus.VALID
+    _run(domain, binding, 15, matched=False)
+    invalid = domain.execution_bindings.get(binding.competence_id)
+    assert invalid.status is BindingStatus.INVALIDATED
+    assert invalid.status_reason is InvalidationReason.EVIDENCE_CONTRADICTED
+
+
+def test_history_rule_keeps_a_binding_that_performs_as_confirmed():
+    _runtime, domain, binding = _history_organism()
+    for index in range(40):
+        _run(domain, binding, index, matched=index % 2 == 0)  # 50% throughout
+    assert domain.execution_bindings.get(binding.competence_id).status is BindingStatus.VALID
+    history = domain.execution_bindings.checkpoint()["revision_history"][binding.competence_id]
+    assert history["ref_n"] == 8 and history["new_n"] == 32

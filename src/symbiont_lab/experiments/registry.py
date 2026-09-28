@@ -52,6 +52,7 @@ from symbiont_lab.studies.learning.autonomous_cultural_agency import (
 from symbiont_lab.studies.learning.autonomous_replay_stopping import (
     run_autonomous_replay_stopping_study,
 )
+from symbiont_lab.studies.learning.binding_degradation import run_binding_degradation_study
 from symbiont_lab.studies.learning.canonical_sensorimotor_adaptation import (
     run_sensorimotor_adaptation_study,
 )
@@ -243,6 +244,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.agency-acquisition-reuse-closure": run_acquisition_reuse_closure_study,
     "learning.agency-high-dimensional-acquisition": run_high_dimensional_acquisition_study,
     "learning.footprint-precision": run_footprint_precision_study,
+    "learning.binding-degradation": run_binding_degradation_study,
     "embodiment.yoked-external-causation": run_yoked_external_causation_study,
     "embodiment.somatic-correlation-trap": run_somatic_correlation_trap_study,
     "embodiment.causal-revision-sequence": run_causal_revision_sequence_study,
