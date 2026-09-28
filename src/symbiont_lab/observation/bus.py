@@ -30,8 +30,8 @@ class ObservationBus:
     """Pub-sub hub with bounded consumers and reconnect replay.
 
     Events are presentation projections, not organism state. A monotonically
-    increasing transport stream id is added at this boundary so SSE can resume
-    without altering scientific telemetry contracts.
+    increasing transport stream id is paired with serialized payload bytes at
+    this boundary so SSE can resume without mutating observer JSON contracts.
     """
 
     def __init__(
