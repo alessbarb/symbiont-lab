@@ -136,7 +136,7 @@ def materialize_clonal_bud(
 
     if parent._social_habitat is not None:
         child.join_social_habitat(parent._social_habitat)
-    if modeled and (
+    if isinstance(child, ModeledOrganismRuntime) and (
         child.model_registry.records
         or child.experience_ledger.records
         or child.experience_archive.records
