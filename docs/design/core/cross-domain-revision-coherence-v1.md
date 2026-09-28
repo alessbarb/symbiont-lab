@@ -402,6 +402,12 @@ invalidate a binding that would later have closed. The literal rule (point
 estimate) never fires for effects never seen at rest. Both show that
 "no better than rest" is the wrong comparison when rest is unobserved.
 
+**Owner decision (2026-09-28):** the rest-based rule is a recorded
+negative result, kept only as an experimental control arm and never
+promoted. Invalidation against the binding's own history is studied as an
+independent preregistered experiment (Binding Degradation v1), not as a
+Wave 1 default.
+
 Because E6 is a release gate, the rule is **off by default**
 (`ActionDomain.causal_binding_invalidation = False`); with it off,
 behaviour and provenance are identical to Wave 1. Proposal for an owner

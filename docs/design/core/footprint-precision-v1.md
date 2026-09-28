@@ -180,3 +180,44 @@ rule on by default (Revision Coherence §3.11), which changes behaviour
 within that regime, but the default regime is now rule-off, so FP-1 is
 repeated as a **replication (not blind; same criteria)** on the rule-off
 commit before any proposal.
+
+## 8. Owner decisions after FP-1 (2026-09-28)
+
+- T (H3, time-matched baseline) is discarded as a useful hypothesis and is
+  not developed further.
+- M is the relevant candidate, but 0.795 < 0.80 is a failure; the
+  threshold is not changed.
+- The FP-1 replication on the rule-off default regime (`caed967f`) is
+  completed and kept in full as **diagnostic / robustness** evidence, not
+  confirmation (FP-1 was already known).
+- Footprint membership and binding invalidation are studied separately
+  (Binding Degradation v1); no arm combines them.
+
+## 9. FP-2 — explicit multiple-comparison correction (preregistered)
+
+**Rule under test (arm BH).** For each source, at every membership
+update, each candidate atom `a` (with at least `min_pulses = 4` pulses) is
+tested for excess over rest with an exact one-sided binomial test:
+`p_a = P(X ≥ hits_a)`, `X ~ Binomial(pulses, e_a)`, where `e_a` is the
+length-matched expected quiet rate computed from the Jeffreys estimate of
+the per-window quiet rate, `(passive_hits + 0.5) / (passive_windows + 1)`
+(so an atom never seen at rest has a small, not zero, rate). The
+Benjamini–Hochberg procedure at **q = 0.05** over the source's candidate
+atoms decides membership: an atom is a member exactly when its null is
+rejected at that update. No entry/exit margins; nothing is tuned: q and
+the Jeffreys prior are standard choices fixed here.
+
+**Arms.** R (current membership), M (FP-1 M unchanged, as comparator),
+BH. Binding invalidation off (default) in all arms.
+
+**Data separation.** FP-0 and FP-1 seeds (101-257) were used to design
+FP-2 and are not used to confirm it. FP-2 runs on new seeds: 463, 467,
+479, 487, 491, 499, 503, 509, 521, 523. The E6 release gate keeps its
+standard seeds (101/127/149); it is a gate, not a confirmation of
+precision.
+
+**Criteria (as FP-1, unchanged).** An arm qualifies with pooled precision
+≥ 0.80 at tick 3 000, mean recall ≥ 0.42 and E6 3/3. Among qualifying arms
+the highest precision is proposed (ties: M, BH). If none qualifies, the
+results are reported and no membership change is proposed. Adoption as
+default is an owner decision.
