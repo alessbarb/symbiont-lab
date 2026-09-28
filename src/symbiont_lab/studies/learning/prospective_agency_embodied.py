@@ -19,7 +19,7 @@ from types import MethodType
 from typing import Any, Iterable
 
 from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
-from symbiont_lab.physics3d.slm import Physics3DSlmManager
+from symbiont_lab.physics3d.private_model_training import PrivateModelTrainingService
 
 _CONDITIONS = (
     "full",
@@ -123,7 +123,7 @@ def _value_entry_count(runtime) -> int:
 
 
 def _attach_existing_model(runtime: PyBulletEmbodimentRuntime, models_dir: Path) -> None:
-    manager = Physics3DSlmManager(
+    manager = PrivateModelTrainingService(
         models_dir=models_dir,
         train_interval=1_000_000,
         device="cpu",
@@ -347,7 +347,7 @@ def run_prospective_embodied_trial(
             organism_id=f"symbiont:prospective-embodied:{seed}",
             physics_substeps_per_tick=physics_substeps_per_tick,
         ) as runtime:
-            slm = Physics3DSlmManager(
+            private_model_training = PrivateModelTrainingService(
                 models_dir=models_dir,
                 train_interval=1,
                 device="cpu",
@@ -431,7 +431,7 @@ def run_prospective_embodied_trial(
                     final_motor_competence_ids = current_cognitive_ids
                     final_competence_readout_ids = current_readout_ids
 
-                    if tick.prospective_selected and not slm.training:
+                    if tick.prospective_selected and not private_model_training.training:
                         checkpoint = runtime.checkpoint()
                         physical_state, physical_tick = runtime.physical_checkpoint()
                         if physical_tick != runtime.tick_count:
@@ -449,17 +449,17 @@ def run_prospective_embodied_trial(
                     # If a prospective tick occurred while a worker was still
                     # running, continue development and wait for a later clean
                     # prospective event.
-                    scheduled = slm.maybe_schedule(
+                    scheduled = private_model_training.maybe_schedule(
                         runtime.organism,
                         current_tick=tick.tick,
                     )
-                    if scheduled or slm.training:
+                    if scheduled or private_model_training.training:
                         # Training is organism-authored but serviced by the lab
                         # substrate. Settle it without advancing simulated time,
                         # so CPU speed cannot change the developmental result.
-                        slm.wait_until_idle(runtime.organism)
+                        private_model_training.wait_until_idle(runtime.organism)
             finally:
-                slm.close()
+                private_model_training.close()
 
         if checkpoint is None or physical_state is None:
             return ProspectiveEmbodiedTrial(
