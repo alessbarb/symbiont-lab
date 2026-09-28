@@ -130,6 +130,9 @@ class AgencyAcquisition:
         # Factorized Effect Representation v1 §14: competences are grounded on
         # causal footprints (entity-keyed) instead of whole-state effects.
         self.footprint_effects = bool(footprint_effects)
+        # Footprint Precision v1 §6 membership options (off by default).
+        self.footprint_quiet_near: int | None = None
+        self.footprint_multiplicity = False
         self._atom_catalog: dict[str, EffectAtom] = {}
         # Competence effect entity -> the channel set it covers.
         self._footprint_effect_sources: dict[str, tuple[str, ...]] = {}
@@ -627,6 +630,13 @@ class AgencyAcquisition:
         signature = self.signatures.get(signature_id)
         return tuple(sorted(signature.channel_refs)) if signature is not None else None
 
+    def set_footprint_membership(self, *, quiet_near: int | None, multiplicity: bool) -> None:
+        """Footprint Precision v1 §6: T (time-matched quiet baseline) and M
+        (multiplicity-adjusted entry, exit margin half the entry margin)."""
+        self.footprint_quiet_near = None if quiet_near is None else int(quiet_near)
+        self.footprint_multiplicity = bool(multiplicity)
+        self.footprints.exit_margin = self.footprints.enter_margin / 2 if multiplicity else 0.0
+
     def refresh_footprint(self, source: tuple[str, ...], *, tick: int) -> None:
         """Re-estimate one source's footprint from its retained pulses.
 
@@ -651,7 +661,13 @@ class AgencyAcquisition:
         pulses = [
             pulse for pulse in pulses_from(evidence, self._channels_of) if pulse.source == source
         ]
-        estimates = atom_estimates(pulses, self.causal_evidence.passive_evidence, tick=tick)
+        estimates = atom_estimates(
+            pulses,
+            self.causal_evidence.passive_evidence,
+            tick=tick,
+            quiet_near=self.footprint_quiet_near,
+            multiplicity=self.footprint_multiplicity,
+        )
         self.footprints.update({source: estimates.get(source, {})}, tick=tick)
         if self.footprint_effects:
             self._register_footprint_effect(source)
@@ -1028,6 +1044,10 @@ class AgencyAcquisition:
             "controllability": self.controllability_model.checkpoint(),
             "agency": self.agency_model.checkpoint(),
             "footprint_effects": self.footprint_effects,
+            "footprint_membership": {
+                "quiet_near": self.footprint_quiet_near,
+                "multiplicity": self.footprint_multiplicity,
+            },
             "footprint_effect_sources": [
                 {"effect_id": effect_id, "source": list(source)}
                 for effect_id, source in sorted(self._footprint_effect_sources.items())
@@ -1099,6 +1119,11 @@ class AgencyAcquisition:
             self.provenance = ProvenanceLog.restore(acquisition.get("provenance"))
             self.footprints = FootprintRegistry.restore(
                 acquisition.get("footprints"), provenance=self.provenance
+            )
+            membership = acquisition.get("footprint_membership") or {}
+            self.set_footprint_membership(
+                quiet_near=membership.get("quiet_near"),
+                multiplicity=bool(membership.get("multiplicity", False)),
             )
             self._footprint_commitments = {
                 tuple(str(v) for v in raw["source"]): deque(

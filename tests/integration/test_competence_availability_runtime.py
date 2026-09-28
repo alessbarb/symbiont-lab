@@ -83,3 +83,27 @@ def test_surface_change_is_traced_and_projection_survives_restore():
         min_samples=1,
     )
     assert _states(twin) == _states(runtime)
+
+
+def test_footprint_membership_options_survive_restore():
+    from symbiont_lab.studies.learning.footprint_precision import apply_membership
+
+    body = CausalBody(actuator_count=4, seed=127)
+    runtime = build_subject(body, organism_id="membership-restore", factorized_effects=True)
+    apply_membership(runtime, "TM")
+    for _ in range(50):
+        runtime.tick()
+        body.advance(runtime.last_actuations)
+    twin_body = copy.deepcopy(body)
+    twin = OrganismRuntime.from_checkpoint(
+        runtime.checkpoint(),
+        host_lifecycle=subject_lifecycle(twin_body),
+        host_reading_providers=(twin_body,),
+        kernel_limits=KernelLimits(),
+        bootstrap_semantic_senses=False,
+        discover_senses=True,
+        min_samples=1,
+    )
+    acquisition = twin._action_domain.acquisition
+    assert acquisition.footprint_quiet_near == 8 and acquisition.footprint_multiplicity
+    assert acquisition.footprints.exit_margin == acquisition.footprints.enter_margin / 2

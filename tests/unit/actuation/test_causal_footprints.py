@@ -286,3 +286,29 @@ def test_pinned_snapshot_survives_restore_and_later_versions_exactly():
         assert snapshot["members_at_pin"] == snapshot_before["members_at_pin"]
     assert restored.transitions() == registry.transitions()
     assert restored.checkpoint() == registry.checkpoint()
+
+
+def test_time_matched_quiet_baseline_uses_only_windows_near_the_pulses():
+    # Footprint Precision v1 §6 arm T.
+    evidence = _history(8)
+    far = [_item(1000 + t, atoms=(DRIFT,)) for t in range(40)]  # drift far from pulses
+    active = [item for item in evidence if not item.is_passive]
+    pulses = pulses_from(active, CHANNELS.get)
+    passive = [item for item in evidence if item.is_passive] + far
+    pooled = atom_estimates(pulses, passive)[("channel.a",)][DRIFT]
+    near = atom_estimates(pulses, passive, quiet_near=8)[("channel.a",)][DRIFT]
+    assert near.passive_windows < pooled.passive_windows
+    assert near.passive_hits < pooled.passive_hits
+
+
+def test_multiplicity_widens_the_entry_bound():
+    # Footprint Precision v1 §6 arm M: Bonferroni z over the source's atoms.
+    evidence = _history(12)
+    active = [item for item in evidence if not item.is_passive]
+    pulses = pulses_from(active, CHANNELS.get)
+    passive = [item for item in evidence if item.is_passive]
+    plain = atom_estimates(pulses, passive)[("channel.a",)]
+    adjusted = atom_estimates(pulses, passive, multiplicity=True)[("channel.a",)]
+    for atom in plain:
+        assert adjusted[atom].pulse_rate_lower_bound < plain[atom].pulse_rate_lower_bound
+    assert adjusted[CAUSED].contrast > 0.05  # a real every-pulse effect still qualifies

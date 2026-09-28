@@ -26,6 +26,7 @@ import math
 from collections import Counter, deque
 from dataclasses import asdict, dataclass
 from enum import StrEnum
+from statistics import NormalDist
 from typing import Any, Callable, Iterable, Mapping
 
 from ..provenance import CausalEvent, CausalRef, ProvenanceLog
@@ -138,24 +139,48 @@ def atom_estimates(
     passive: Iterable[CausalEvidence],
     *,
     tick: int = -1,
+    quiet_near: int | None = None,
+    multiplicity: bool = False,
 ) -> dict[tuple[str, ...], dict[str, AtomEstimate]]:
-    """Per source and atom: pulse hits against a length-matched quiet baseline."""
-    quiet = [item for item in passive if item.is_passive]
-    passive_n = len(quiet)
-    passive_range = (
-        (min(item.observation_tick for item in quiet), max(item.observation_tick for item in quiet))
-        if quiet
-        else None
-    )
-    passive_hits = Counter(atom for item in quiet for atom in item.effect_atoms)
+    """Per source and atom: pulse hits against a length-matched quiet baseline.
+
+    Footprint Precision v1 §6 options (off by default): ``quiet_near`` keeps
+    only passive windows within that many ticks of the source's pulses (arm
+    T); ``multiplicity`` widens the entry bound by a Bonferroni z over the
+    source's candidate atoms (arm M).
+    """
+    all_quiet = [item for item in passive if item.is_passive]
     by_source: dict[tuple[str, ...], list[Pulse]] = {}
     for pulse in pulses:
         by_source.setdefault(pulse.source, []).append(pulse)
     out: dict[tuple[str, ...], dict[str, AtomEstimate]] = {}
     for source, items in sorted(by_source.items()):
+        if quiet_near is None:
+            quiet = all_quiet
+        else:
+            spans = [
+                (pulse.end_tick - pulse.windows + 1 - quiet_near, pulse.end_tick + quiet_near)
+                for pulse in items
+            ]
+            quiet = [
+                item
+                for item in all_quiet
+                if any(low <= item.observation_tick <= high for low, high in spans)
+            ]
+        passive_n = len(quiet)
+        passive_range = (
+            (
+                min(item.observation_tick for item in quiet),
+                max(item.observation_tick for item in quiet),
+            )
+            if quiet
+            else None
+        )
+        passive_hits = Counter(atom for item in quiet for atom in item.effect_atoms)
         n = len(items)
         length = sum(pulse.windows for pulse in items) / n
         hits = Counter(atom for pulse in items for atom in pulse.atoms)
+        z = NormalDist().inv_cdf(1.0 - 0.025 / max(1, len(hits))) if multiplicity else _Z95
         estimates = {}
         for atom, count in sorted(hits.items()):
             per_tick = passive_hits[atom] / passive_n if passive_n else 0.0
@@ -171,7 +196,7 @@ def atom_estimates(
                 passive_windows=passive_n,
                 passive_hits=passive_hits[atom],
                 expected_quiet_rate=expected,
-                pulse_rate_lower_bound=wilson_lower_bound(count, n),
+                pulse_rate_lower_bound=wilson_lower_bound(count, n, z),
                 controllability=controllability_confidence(n, count, passive_n, quiet_equivalent),
                 agency=agency_confidence(n, count, passive_n, quiet_equivalent, None),
                 estimated_tick=int(tick),
