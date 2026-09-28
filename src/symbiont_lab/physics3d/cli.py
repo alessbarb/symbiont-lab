@@ -74,13 +74,13 @@ def main(argv: list[str] | None = None) -> int:
         "--observation-hz",
         type=int,
         default=None,
-        help="rich scientific telemetry rate; default chooses an exact 10-20 Hz divisor",
+        help="rich scientific telemetry rate; default is a deterministic cadence up to 12 Hz",
     )
     parser.add_argument(
         "--render-hz",
         type=int,
         default=None,
-        help="presentation pose rate; default chooses an exact divisor up to 60 Hz",
+        help="presentation pose rate; default is up to 60 Hz with deterministic phase sampling",
     )
     parser.add_argument(
         "--work-cost-per-joule",
