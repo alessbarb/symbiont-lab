@@ -63,6 +63,7 @@ class Physics3DObservationBridge:
         physics_step: int,
         simulation_time_s: float,
         tick_simulation_span_s: float,
+        sampling_hz: float = 60.0,
     ) -> None:
         """Publish one lightweight observer-only physical pose frame."""
         if self._stop.is_set():
@@ -131,7 +132,7 @@ class Physics3DObservationBridge:
             "provenance": {
                 "owner": "observer",
                 "feeds_back": False,
-                "sampling_hz": 60,
+                "sampling_hz": float(sampling_hz),
             },
         }
         base_position = physical_state.get("base_position")
