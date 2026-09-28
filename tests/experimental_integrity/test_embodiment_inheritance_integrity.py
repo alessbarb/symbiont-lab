@@ -23,7 +23,6 @@ from symbiont.core.body import Body
 from symbiont.core.germline import (
     GermlineState,
     InheritancePackage,
-    create_offspring_package,
     create_standard_genome,
 )
 from symbiont.core.individual import create_individual
@@ -37,6 +36,7 @@ from symbiont.core.embodiment.agency import (
     InferredBodySchema,
 )
 from symbiont.core.embodiment.body_schema import BodySchemaEngine
+from symbiont_lab.evolution.reproduction import create_offspring_package
 
 
 def test_ast_body_morphology_and_names_never_enter_cognition():
@@ -355,11 +355,12 @@ def test_learned_cognition_cannot_cross_reproduction():
     """Invariant B: Learned models (BodySchema, AgencyModel, memories) cannot cross into inheritance."""
     genome_a = create_standard_genome("parent_a")
     genome_b = create_standard_genome("parent_b")
-    germline_a = GermlineState()
+    germline_a = GermlineState.from_genome(genome_a)
 
     package = create_offspring_package(
         parent_genome=genome_a,
         parent_germline=germline_a,
+        seed=42,
         second_parent_genome=genome_b,
         generation=1,
     )

@@ -200,14 +200,14 @@ def test_same_contract_without_source_hypotheses_is_not_transfer_failure() -> No
             body_id="body.a1",
             tick=0,
             contract=contract_a,
-            relation="novel",
+            prior_relation="novel",
         ),
         _checkpoint(
             embodiment_id="embodiment.a1",
             body_id="body.a1",
             tick=32,
             contract=contract_a,
-            relation="novel",
+            prior_relation="novel",
             causal=0.7,
             controllability=0.6,
         ),
@@ -218,7 +218,7 @@ def test_same_contract_without_source_hypotheses_is_not_transfer_failure() -> No
             body_id="body.b",
             tick=0,
             contract=contract_b,
-            relation="novel",
+            prior_relation="novel",
         )
     ]
     a2 = [
@@ -227,7 +227,7 @@ def test_same_contract_without_source_hypotheses_is_not_transfer_failure() -> No
             body_id="body.a2",
             tick=0,
             contract=contract_a,
-            relation="same-contract",
+            prior_relation="same-contract",
         )
     ]
 

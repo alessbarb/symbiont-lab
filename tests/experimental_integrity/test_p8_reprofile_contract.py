@@ -13,8 +13,9 @@ def test_p8_local_runner_is_the_canonical_full_reprofile_entrypoint() -> None:
     assert "--quick" in runner
     assert "report.json" in runner
     assert "report.md" in runner
-    assert "observer_off.prof" in runner
-    assert "observer_on.prof" in runner
+    assert '"observer_off"' in runner
+    assert '"observer_on"' in runner
+    assert ".prof" in runner
     assert "test_performance_optimization_gate.py" in runner
     assert '"validity": validity' in runner
     assert '"matched_end_hash"' in runner

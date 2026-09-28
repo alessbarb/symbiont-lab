@@ -122,11 +122,18 @@ def test_symbiont_never_contains_evolution_code():
     preference."""
     repo_root = Path(__file__).resolve().parents[2]
     symbiont_src = repo_root / "src" / "symbiont"
-    forbidden_names = {"mutation.py", "evolution.py", "selection.py", "lineage.py"}
+    forbidden_names = {
+        "mutation.py",
+        "evolution.py",
+        "selection.py",
+        "lineage.py",
+        "reproduction.py",
+    }
     hits = [
         str(path.relative_to(repo_root))
         for path in symbiont_src.rglob("*.py")
         if path.name in forbidden_names
+        or (path.name == "recombination.py" and "genetics" in path.parts)
     ]
     assert not hits, f"symbiont/ must never contain evolution code: {hits}"
 
@@ -218,11 +225,14 @@ def test_symbiont_contains_only_subject_modules():
         "__pycache__",
         "actuation",
         "agency",
+        "capacity.py",
         "cognition",
         "core",
         "environment",
+        "genetics",
         "host",
         "modeling",
+        "provenance.py",
         "simulation",
         "sensory",
     }
