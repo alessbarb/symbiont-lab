@@ -50,11 +50,11 @@ def _subject(seed: int = 127) -> tuple[OrganismRuntime, CausalBody]:
     return runtime, body
 
 
-def _maturity(result: RuntimeTickResult) -> tuple[tuple[str, int], ...]:
-    cognition = result.cognition
-    if cognition is None:
+def _maturity(runtime: OrganismRuntime) -> tuple[tuple[str, int], ...]:
+    bridge = runtime.cognitive_bridge
+    if bridge is None:
         return ()
-    values = getattr(cognition, "representation_maturity", {}) or {}
+    values = bridge.representation_maturity_counts()
     return tuple(sorted((str(key), int(value)) for key, value in values.items()))
 
 
@@ -68,7 +68,7 @@ def _trace(runtime: OrganismRuntime, result: RuntimeTickResult) -> GateTrace:
         provenance_events=tuple(provenance.events()),
         competence_candidates=tuple(runtime.sensorimotor_competence_candidates),
         available_competences=tuple(runtime.available_motor_competence_ids),
-        representation_maturity=_maturity(result),
+        representation_maturity=_maturity(runtime),
     )
 
 
