@@ -137,20 +137,26 @@ def main(argv: list[str] | None = None) -> int:
         help="disable the unified 3D evaluator window (uses native PyBullet GUI)",
     )
     parser.add_argument(
+        "--no-private-model-training",
         "--no-slm",
+        dest="no_slm",
         action="store_true",
-        help="disable Private SLM capture/training integration",
+        help="disable host servicing of organism-owned private-model training",
     )
     parser.add_argument(
+        "--private-model-train-interval",
         "--slm-train-interval",
+        dest="slm_train_interval",
         type=int,
         default=1,
-        help="minimum substrate service cooldown between organism-authored Private SLM requests",
+        help="minimum host-service cooldown between organism-authored private-model requests",
     )
     parser.add_argument(
+        "--private-model-device",
         "--slm-device",
+        dest="slm_device",
         default="cpu",
-        help="Private SLM training device (cpu or cuda)",
+        help="device used by the host private-model training service (cpu or cuda)",
     )
     parser.add_argument(
         "--factorized-effects",
@@ -170,14 +176,19 @@ def main(argv: list[str] | None = None) -> int:
         help="write the Wave 0 measurement snapshot (JSON) when the run ends",
     )
     parser.add_argument(
+        "--private-model-training-synchronous",
         "--slm-synchronous",
+        dest="slm_synchronous",
         action="store_true",
-        help="P5: pause the simulation until each private-model training completes",
+        help="P5: pause simulation until host servicing of each private-model request completes",
     )
     parser.add_argument(
         "--ancestry-training",
         action="store_true",
-        help="P5 arm B: train from eligible SHADOW ancestors (requires --slm-synchronous)",
+        help=(
+            "P5 arm B: train from eligible SHADOW ancestors "
+            "(requires --private-model-training-synchronous)"
+        ),
     )
     args = parser.parse_args(argv)
     if args.replay is not None:
