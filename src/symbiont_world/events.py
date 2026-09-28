@@ -61,16 +61,22 @@ class EventJournal:
     def __init__(self) -> None:
         self._events: list[WorldEvent] = []
         self._staged: list[WorldEvent] = []
+        self._first_index_by_event_id: dict[str, int] = {}
+        self._events_by_tick: dict[int, list[WorldEvent]] = {}
 
     def append(self, event: WorldEvent) -> None:
+        index = len(self._events)
         self._events.append(event)
+        self._first_index_by_event_id.setdefault(event.event_id, index)
+        self._events_by_tick.setdefault(event.tick, []).append(event)
 
     def stage(self, event: WorldEvent) -> None:
         self._staged.append(event)
 
     def commit_staged(self) -> tuple[WorldEvent, ...]:
         committed = tuple(self._staged)
-        self._events.extend(self._staged)
+        for event in committed:
+            self.append(event)
         self._staged.clear()
         return committed
 
@@ -85,6 +91,37 @@ class EventJournal:
 
     def replay(self) -> tuple[WorldEvent, ...]:
         return tuple(self._events)
+
+    def events_for_tick(self, tick: int) -> tuple[WorldEvent, ...]:
+        """Committed events for one World tick without replaying history."""
+        return tuple(self._events_by_tick.get(int(tick), ()))
+
+    def tail(self, limit: int) -> tuple[WorldEvent, ...]:
+        """Return at most the latest committed events."""
+        if limit < 0:
+            raise ValueError("tail limit must be non-negative")
+        if limit == 0:
+            return ()
+        return tuple(self._events[-limit:])
+
+    def page_after(
+        self,
+        after: str | None = None,
+        *,
+        limit: int = 256,
+    ) -> tuple[tuple[WorldEvent, ...], str | None, bool]:
+        """Return a page through append indexes, never a full-history replay."""
+        if limit < 1:
+            raise ValueError("event page limit must be positive")
+        start = 0
+        if after is not None:
+            try:
+                start = self._first_index_by_event_id[after] + 1
+            except KeyError as exc:
+                raise ValueError("unknown after event_id") from exc
+        page = tuple(self._events[start : start + limit])
+        next_after = page[-1].event_id if page else after
+        return page, next_after, start + len(page) < len(self._events)
 
     def snapshot(self) -> list[dict[str, Any]]:
         return [
