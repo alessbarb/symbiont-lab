@@ -56,6 +56,9 @@ class RidgePredictor:
         if not math.isfinite(regularization) or regularization <= 0:
             raise ValueError("regularization must be positive and finite")
         self._rows: deque[tuple[tuple[float, ...], float]] = deque(maxlen=history_limit)
+        self._prepared: deque[tuple[tuple[float, ...], tuple[float, ...]]] = deque(
+            maxlen=history_limit
+        )
         self.regularization = float(regularization)
 
     def observe(self, features: tuple[float, ...], target: float) -> None:
@@ -68,7 +71,13 @@ class RidgePredictor:
         row = tuple(float(x) for x in features)
         if self._rows and len(row) != len(self._rows[0][0]):
             raise ValueError("feature width changed")
-        self._rows.append((row, float(target)))
+        target_value = float(target)
+        z = (1.0, *row)
+        width = len(z)
+        outer = tuple(z[i] * z[j] for i in range(width) for j in range(width))
+        rhs = tuple(z[i] * target_value for i in range(width))
+        self._rows.append((row, target_value))
+        self._prepared.append((outer, rhs))
 
     def predict(self, features: tuple[float, ...]) -> float | None:
         if not self._rows or len(features) != len(self._rows[0][0]):
@@ -78,12 +87,14 @@ class RidgePredictor:
             return None
         width = len(x)
         matrix = [[0.0] * (width + 1) for _ in range(width)]
-        for row, target in self._rows:
-            z = [1.0, *row]
+        for outer, rhs in self._prepared:
+            offset = 0
             for i in range(width):
+                matrix_row = matrix[i]
                 for j in range(width):
-                    matrix[i][j] += z[i] * z[j]
-                matrix[i][-1] += z[i] * target
+                    matrix_row[j] += outer[offset]
+                    offset += 1
+                matrix_row[-1] += rhs[i]
         for i in range(1, width):
             matrix[i][i] += self.regularization
         # Gaussian elimination with pivoting; singular rows simply censor
