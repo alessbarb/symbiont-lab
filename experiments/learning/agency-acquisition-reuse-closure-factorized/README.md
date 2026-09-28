@@ -9,6 +9,18 @@ Preregistered release gate for footprint-grounded agency: the E6 protocol
 `factorized_effects = true` — competences grounded on causal footprints,
 intents reconciled by accumulated change recall, causal probing on.
 
+## Belongs here
+
+Preregistered protocol configurations, manifests, and execution parameters for this study arm.
+
+## Does not belong here
+
+No unit tests, production code, or transient run artifacts.
+
+## Criterion for creating a file
+
+Add only files required for this reproducible protocol definition or its registered gates; mechanical test contracts belong in `tests/experiments/`.
+
 ## Hypothesis
 
 One fresh organism, never reset and never given a competence id, actuator or

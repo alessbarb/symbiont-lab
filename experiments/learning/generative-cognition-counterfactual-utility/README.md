@@ -1,6 +1,8 @@
 # Generative Cognition counterfactual utility
 
-This registered assay is the first matched mechanism gate for **GC-E3**.
+## Purpose
+
+This registered assay is the first matched mechanism gate for **GC-E3** and **GC-E4**.
 
 It gives two opaque probes the same pragmatic value. Two organism-owned
 generative models disagree about the outcome of one probe and agree about the
@@ -12,11 +14,34 @@ The evaluator owns the hidden designation of the discriminating probe only for
 scoring. It is never passed to the organism. Generated states remain
 non-factual and cannot execute actions.
 
+## Hypothesis
+
+When two opaque probes have equal pragmatic value, an agent with counterfactual generative cognition will prefer the probe whose outcome discriminates between competing generative hypotheses.
+
+## Belongs here
+
+This directory contains the registered protocol metadata and the instructions
+for reproducing this bounded counterfactual-utility assay.
+
+## Does not belong here
+
+Pytest files, reusable study implementation, generated run artifacts and
+unreviewed external-world claims do not belong in this directory.
+
+## Criterion for creating a file
+
+Add a file only when it is required to define, reproduce or interpret this
+registered protocol. Put reusable code under `src/` and tests under `tests/`.
+
+## Execution
+
 Run it with:
 
 ```bash
 symbiont-lab study run learning.generative-cognition-counterfactual-utility
 ```
+
+## Limits
 
 This gate demonstrates mechanism-level matched utility, not embodied or
 general intelligence. GC-E3 still requires broader hypothesis-discrimination

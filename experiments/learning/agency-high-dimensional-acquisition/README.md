@@ -10,6 +10,18 @@ The owner's Physics3D organism never formed an intent because whole-state
 effects do not recur in a 107-receptor body (agency audit §0.1). E8
 reproduces that regime in the deterministic synthetic apparatus.
 
+## Belongs here
+
+Preregistered protocol configurations, manifests, and execution parameters for this study arm.
+
+## Does not belong here
+
+No unit tests, production code, or transient run artifacts.
+
+## Criterion for creating a file
+
+Add only files required for this reproducible protocol definition or its registered gates; mechanical test contracts belong in `tests/experiments/`.
+
 ## Hypothesis
 
 In a body whose outputs drive several correlated receptors and whose other

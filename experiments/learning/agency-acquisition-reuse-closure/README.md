@@ -6,6 +6,18 @@ Agency Acquisition & Executive Action v1 (`docs/design/core/agency-acquisition-a
 
 Preregistered protocol for `learning.agency-acquisition-reuse-closure`.
 
+## Belongs here
+
+Preregistered protocol configurations, manifests, and execution parameters for this study arm.
+
+## Does not belong here
+
+No unit tests, production code, or transient run artifacts.
+
+## Criterion for creating a file
+
+Add only files required for this reproducible protocol definition or its registered gates; mechanical test contracts belong in `tests/experiments/`.
+
 ## Hypothesis
 
 One fresh organism, never reset and never given a competence id, actuator or
