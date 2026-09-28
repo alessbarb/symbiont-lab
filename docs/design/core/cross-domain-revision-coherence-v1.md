@@ -350,6 +350,32 @@ telemetry contract is changed only through its own design, per the project
 rule on live protocol changes); likewise `reacclimation_completed` stays
 beside `reacclimation_window_completed`.
 
+### 3.10 Wave 1 result (2026-09-28, commits `6dbfc0d6`, `57f6ec8a`, `c3ece2d4`)
+
+**Gate W1 passed.**
+
+- Property: across 900 ticks of E6 in both effect modes, no competence is
+  suppressed and admissible, and nothing is executable without a
+  live-usable binding; projections are identical after restore (tests in
+  `tests/integration/test_competence_availability_runtime.py`).
+- Structural: no `is_executable` call outside the projection; only the
+  action domain revises binding status; the executive never imports
+  bindings.
+- E6 passes in both effect modes on `c3ece2d4`.
+- Trajectory against the Wave 0 baseline (`50aeab50`): **behaviour
+  identical** — actuations, causal evidence and body state match for E6
+  (both modes, with checkpoint→restore→continue) and E8; E6/E8/Physics3D
+  Wave 0 measurements match exactly. Provenance differs only by the new
+  traced binding transitions (+1 to +2 events per run). The intended
+  change (affordances require an available controller) did not alter any
+  decision in these runs because admission already rejected those
+  candidates later.
+- Observed: in E6 (seed 127, tick 600) a binding was already STALE /
+  CONTROLLER_UNAVAILABLE — the audit's "competence outlives its
+  controller", now a traced status.
+
+The three owner decisions of §3.9 remain open.
+
 ## 4. Wave 2 — Endogenous epistemic retest (P1)
 
 ### 4.1 Mechanism
