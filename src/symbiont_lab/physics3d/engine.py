@@ -531,9 +531,9 @@ def run(
                     runtime.checkpoint(),
                 )
 
-            # Drain presentation-only pose samples captured inside the 240 Hz
-            # physics integration loop. The bridge emits them as a lightweight
-            # 60 Hz observer stream; they never enter organism state.
+            # Drain presentation-only pose samples captured inside the physics
+            # integration loop at the resolved render cadence. They never enter
+            # organism state and are independent of rich observation sampling.
             pose_frames = runtime.drain_presentation_pose_frames()
             if viewer is not None:
                 publish_pose_frame = getattr(viewer, "publish_pose_frame", None)
@@ -549,6 +549,7 @@ def run(
                             physics_step=int(pose_frame["physics_step"]),
                             simulation_time_s=float(pose_frame["simulation_time_s"]),
                             tick_simulation_span_s=float(pose_frame["tick_simulation_span_s"]),
+                            sampling_hz=float(pose_frame["sampling_hz"]),
                         )
 
             rich_state: dict[str, object] = {}
@@ -595,10 +596,9 @@ def run(
             if slm is not None:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
-            # The dense 60 Hz body_pose stream above owns motion rendering.
-            # Keep body/cognition/vitals and rich snapshots at the original
-            # sparse observer cadence so presentation traffic cannot crowd out
-            # diagnostics on the SSE transport.
+            # The dense body_pose stream owns motion presentation. Rich
+            # body/cognition/vitals snapshots follow the independent scientific
+            # observation cadence.
             rich_render_due = viewer is not None and observation_due
             body_render_due = rich_render_due
 
