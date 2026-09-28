@@ -1329,7 +1329,7 @@ def test_cognition_map_uses_emergent_functional_cartography() -> None:
     assert "Motor coordination" in sectors
     assert "sectorBridges" in sectors
 
-    assert ".filter(node => node.kind !== 'actuator')" in cartography
+    assert "!['actuator', 'embodiment_binding'].includes(node.kind)" in cartography
     assert "collapsedMotorDegree" in cartography
     assert "edge.kind !== 'motor_component'" in cartography
     assert "edge.kind !== 'causal_effect'" in cartography
@@ -1393,7 +1393,7 @@ def test_cognition_3d_physicalized_mode_is_isotropic_observer_experiment() -> No
 def test_cognition_map_never_projects_physical_actuator_endpoints() -> None:
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
 
-    assert ".filter(node => node.kind !== 'actuator')" in cartography
+    assert "!['actuator', 'embodiment_binding'].includes(node.kind)" in cartography
     assert "expandedActuators" not in cartography
     assert "linkedMotorEndpoints" not in cartography
 
@@ -1536,7 +1536,7 @@ def test_cognition_3d_keeps_actuators_hidden() -> None:
     assert "expandMotorSubstrate: graph.dimension === '3d'" not in asset
     assert "complete learned motor substrate expanded" not in asset
     assert "□ actuator" not in asset
-    assert ".filter(node => node.kind !== 'actuator')" in cartography
+    assert "!['actuator', 'embodiment_binding'].includes(node.kind)" in cartography
 
 
 def test_cognition_map_keeps_only_nonphysical_motor_relations_visible() -> None:
@@ -2176,7 +2176,7 @@ def test_atlas_meso_lod_keeps_first_class_motor_and_body_knowledge_visible() -> 
         "embodiment_binding",
     ):
         assert f"'{kind}'" in lod
-    assert "firstClassKinds.has(node.kind)" in lod
+    assert "alwaysVisibleKinds.has(node.kind)" in lod
 
 
 def test_physicalized_atlas_exposes_physical_motor_layer_without_leaking_into_relational() -> None:
