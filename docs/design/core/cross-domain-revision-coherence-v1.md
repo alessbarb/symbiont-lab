@@ -1,8 +1,8 @@
 # Cross-Domain Revision Coherence v1
 
-Status: **revision 3** — conceptually approved by the owner (reviews
-2026-09-28). Wave 0 is ready for implementation once the owner confirms the
-start; later waves still need their own approval. Baseline: `main @ c1a43963`. Origin: owner audit of
+Status: **revision 3 — approved for Wave 0 implementation** (owner, 2026-09-28).
+Wave 1 conceptually approved, pending owner start. Waves 2-5 remain gated by
+their preregistered decisions. Baseline: `main @ c1a43963`. Origin: owner audit of
 `org-5c3fb582fb17` (2026-09-27), code claims re-verified against `main`
 (§1.2).
 
@@ -58,7 +58,7 @@ bounded forgetting observable.
 | F10 | P2 | No ACTIVE private model ⇒ every training is a root | `modeling/runtime.py:926` |
 | F11 | P2 | `established_competence_count` counts *executable* competences | `action.py:2077` |
 | F12 | P1 | Hard bounds truncate without recording pressure or evictions | EffectSpace, primitive stats, bindings, executive keys, generative reps |
-| F13 | — | (E8 v3 pilot, not evidence) footprints admit atoms on drifting receptors (13/22 members, seed 101, 600 ticks) | measured against the E8 body's ground truth |
+| F13 | — | Footprints admit atoms on drifting receptors: pilot 13/22 members (seed 101, 600 ticks); **E8 v3 (preregistered): 8/8 satisfactions under current reconciliation and 106/127 under chance-corrected reconciliation are spurious** | Factorized Effects §16.4 |
 | F14 | — | Physics3D copies of `org-ea3e7bbbc628` starve with zero absorbed material (factorized 2 650 ticks, flag-off control 2 604) | Factorized Effects §15 |
 
 Kept as correct: competence knowledge ≠ binding; generative hypothesis ≠
@@ -118,6 +118,22 @@ existing policy selects and applies its victims, and only then are they
 noted. Instrumentation must not change sort order, eviction timing, dict
 iteration, hash material, or any checkpoint content that behaviour reads;
 new metrics live in separate checkpoint sections that no decision reads.
+
+**Implementation decisions (Wave 0).**
+
+- Evictions are recorded in `CapacityPressure` only (with a short one-way
+  fingerprint per evicted item for `relearned_after_eviction`). Emitting
+  them as provenance events would change the provenance history the W0 gate
+  requires to be identical, so eviction events arrive with Wave 3A.
+- `sterile_reactivation_count` is defined operationally as a reactivation of
+  an already tracked representation in an already seen episode (context)
+  that adds no new source ref (evidence or branch). Uncertainty reduction is
+  not observable at the tracker; Wave 4 refines the definition.
+- Found while instrumenting (not changed, behaviour): `GenerativeUseTracker`
+  evicts the oldest representation by insertion order, but
+  `from_checkpoint` rebuilds in sorted order, so after a restore the victim
+  can differ from a continuous run — a replay-determinism defect to repair
+  with a strict regression test outside Wave 0.
 
 **Gate W0:** trajectory hashes byte-identical and provenance histories
 identical (by `revision_id`/event id) with Wave 0 on vs. the pre-Wave-0
