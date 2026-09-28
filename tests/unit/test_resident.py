@@ -121,3 +121,34 @@ def test_resident_dilates_interval_when_dormant(tmp_path, monkeypatch) -> None:
     # First tick was dormant -> 4.0x interval (4.0s)
     # Second tick was max_ticks reached -> stopped before wait
     assert waited_intervals == [4.0]
+
+
+
+def test_resident_can_sample_observation_slower_than_life_ticks(tmp_path) -> None:
+    class ObservableRuntime(FakeRuntime):
+        def __init__(self) -> None:
+            super().__init__()
+            self.observability_flags: list[bool] = []
+
+        def tick(self, *, include_observability=True):
+            self.observability_flags.append(bool(include_observability))
+            return super().tick()
+
+    runtime = ObservableRuntime()
+    seen = []
+    resident = ResidentOrganism(
+        runtime,  # type: ignore[arg-type]
+        state_file=tmp_path / "sampled.json",
+        config=ResidentConfig(
+            interval_seconds=0.001,
+            checkpoint_every_ticks=10,
+            observation_every_ticks=2,
+            max_ticks=5,
+        ),
+        on_tick=seen.append,
+    )
+
+    assert resident.run() == 5
+    assert runtime.ticks == 5
+    assert runtime.observability_flags == [False, True, False, True, False]
+    assert seen == [2, 4]
