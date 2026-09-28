@@ -71,6 +71,18 @@ def main(argv: list[str] | None = None) -> int:
         help="canonical Symbiont decision/perception frequency",
     )
     parser.add_argument(
+        "--observation-hz",
+        type=int,
+        default=None,
+        help="rich scientific telemetry rate; default is a deterministic cadence up to 12 Hz",
+    )
+    parser.add_argument(
+        "--render-hz",
+        type=int,
+        default=None,
+        help="presentation pose rate; default is up to 60 Hz with deterministic phase sampling",
+    )
+    parser.add_argument(
         "--work-cost-per-joule",
         type=float,
         default=0.001,
@@ -163,6 +175,8 @@ def main(argv: list[str] | None = None) -> int:
         environment=args.environment,
         hz=args.hz,
         cognition_hz=args.cognition_hz,
+        observation_hz=args.observation_hz,
+        render_hz=args.render_hz,
         mechanical_work_cost_per_joule=args.work_cost_per_joule,
         telemetry_physics_trace=args.telemetry_physics_trace,
         symbiont_file=args.symbiont_file.expanduser(),

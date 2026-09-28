@@ -223,6 +223,7 @@ class PyBulletEmbodimentRuntime:
         seed: int = 42,
         time_step: float = 1.0 / 240.0,
         physics_substeps_per_tick: int = 10,
+        presentation_hz: int = 60,
         mechanical_work_cost_per_joule: float = 0.001,
         capture_physics_trace: bool = False,
         body_kind: str = "anthropomorphic-v6",
@@ -249,6 +250,10 @@ class PyBulletEmbodimentRuntime:
         if physics_substeps_per_tick < 1:
             raise ValueError("physics_substeps_per_tick must be >= 1")
         self.physics_substeps_per_tick = int(physics_substeps_per_tick)
+        self.physics_hz = int(round(1.0 / self.time_step))
+        if presentation_hz < 1 or presentation_hz > self.physics_hz:
+            raise ValueError("presentation_hz must be within [1, physics_hz]")
+        self.presentation_hz = int(presentation_hz)
         if (
             isinstance(mechanical_work_cost_per_joule, bool)
             or not isinstance(mechanical_work_cost_per_joule, (int, float))
@@ -436,9 +441,10 @@ class PyBulletEmbodimentRuntime:
         self._last_physical_tick = 0
 
         # Passive presentation sampling is deliberately outside organism state.
-        # At the default 240 Hz solver rate, every 4th substep yields a 60 Hz
-        # physical-pose stream for observers without adding cognition ticks.
+        # A rational phase accumulator yields the requested long-run render rate
+        # without requiring render_hz to divide physics_hz exactly.
         self._presentation_substep = 0
+        self._presentation_phase = 0
         self._presentation_pose_frames: list[dict[str, object]] = []
         reading_provider = PhysicsReadingProvider(
             self.apparatus,
@@ -1107,7 +1113,7 @@ class PyBulletEmbodimentRuntime:
         return dict(self._last_physical_state)
 
     def drain_presentation_pose_frames(self) -> list[dict[str, object]]:
-        """Drain passive 60 Hz pose samples captured during physics integration.
+        """Drain passive render-cadence pose samples captured during physics integration.
 
         These frames are observer-only. They are not checkpointed, sensed,
         learned from, or exposed to the organism.
@@ -1484,7 +1490,7 @@ class PyBulletEmbodimentRuntime:
             )
         )
 
-    def step(self) -> Tick3D:
+    def step(self, *, include_observability: bool = True) -> Tick3D:
         if not self.physics_connected():
             raise PhysicsServerDisconnected("PyBullet physics server was closed")
 
@@ -1505,7 +1511,8 @@ class PyBulletEmbodimentRuntime:
                 embodiment_id=self.embodiment_id,
                 embodiment_tick=self.embodiment_tick,
                 body_id=self.body_identity,
-            )
+            ),
+            include_observability=include_observability,
         )
         self._update_embodiment_evidence(result)
         organism_ms = (time.perf_counter() - phase_started) * 1000.0
@@ -1551,7 +1558,9 @@ class PyBulletEmbodimentRuntime:
                     mechanical_work_joules += fallback_work
 
                 self._presentation_substep += 1
-                if self._presentation_substep % 4 == 0:
+                self._presentation_phase += self.presentation_hz
+                if self._presentation_phase >= self.physics_hz:
+                    self._presentation_phase -= self.physics_hz
                     pose = self.apparatus.export_physical_state()
                     self._presentation_pose_frames.append(
                         {
@@ -1562,6 +1571,7 @@ class PyBulletEmbodimentRuntime:
                             "tick_simulation_span_s": float(
                                 self.physics_substeps_per_tick * self.time_step
                             ),
+                            "sampling_hz": float(self.presentation_hz),
                             "physical_state": pose,
                         }
                     )
@@ -1668,24 +1678,23 @@ class PyBulletEmbodimentRuntime:
             1 for candidate in shadow_predictions if bool(getattr(candidate, "promotable", False))
         )
         ledger_records = self.organism.experience_ledger.records
-        if self._telemetry_last_ledger_index > len(ledger_records):
-            self._telemetry_last_ledger_index = 0
-            self._telemetry_seen_experience_ids.clear()
-            self._telemetry_transition_records_count = 0
+        new_experience_records: list[dict[str, object]] = []
+        if include_observability:
+            if self._telemetry_last_ledger_index > len(ledger_records):
+                self._telemetry_last_ledger_index = 0
+                self._telemetry_seen_experience_ids.clear()
+                self._telemetry_transition_records_count = 0
 
-        new_slice = ledger_records[self._telemetry_last_ledger_index :]
-        self._telemetry_last_ledger_index = len(ledger_records)
-
-        new_experience_records = []
-        for record in new_slice:
-            rec_id = str(record.record_id)
-            if rec_id not in self._telemetry_seen_experience_ids:
-                self._telemetry_seen_experience_ids.add(rec_id)
-                new_experience_records.append(record.canonical_payload())
-            if rec_id.startswith("transition."):
-                self._telemetry_transition_records_count += 1
+            new_slice = ledger_records[self._telemetry_last_ledger_index :]
+            self._telemetry_last_ledger_index = len(ledger_records)
+            for record in new_slice:
+                rec_id = str(record.record_id)
+                if rec_id not in self._telemetry_seen_experience_ids:
+                    self._telemetry_seen_experience_ids.add(rec_id)
+                    new_experience_records.append(record.canonical_payload())
+                if rec_id.startswith("transition."):
+                    self._telemetry_transition_records_count += 1
         transition_records = self._telemetry_transition_records_count
-
         resource_distance = self.resource.distance_to(tuple(float(value) for value in position))
         self._minimum_resource_distance = min(
             self._minimum_resource_distance,
@@ -1712,8 +1721,10 @@ class PyBulletEmbodimentRuntime:
         self._last_physical_state = self._physical_state_payload(raw_physical_state)
         self._last_physical_tick = self.tick_count
 
-        body_schema_representation = self.organism.body_schema.export_representation(
-            current_tick=self.tick_count
+        body_schema_representation = (
+            self.organism.body_schema.export_representation(current_tick=self.tick_count)
+            if include_observability
+            else {}
         )
         active_commitment = getattr(
             self.organism,
@@ -1730,7 +1741,7 @@ class PyBulletEmbodimentRuntime:
         )
 
         sensorimotor_payload = {}
-        if sensorimotor is not None:
+        if include_observability and sensorimotor is not None:
             motor_competence_candidates = [
                 dict(candidate) for candidate in self.organism.sensorimotor_competence_candidates
             ]
@@ -1857,316 +1868,330 @@ class PyBulletEmbodimentRuntime:
         prospective_reason = (
             prospective_decision.reason if prospective_decision is not None else None
         )
-        agency_observation = self.organism.agency_observation
-        prospective_payload = {
-            "reason": prospective_reason,
-            "candidate_count": int(self.organism.last_prospective_query_count),
-            "selected": bool(
-                prospective_decision is not None and prospective_decision.reason == "selected"
-            ),
-            "action_id": (
-                prospective_decision.candidate_id if prospective_decision is not None else None
-            ),
-            "predicted_outcome": (
-                prospective_decision.predicted_outcome if prospective_decision is not None else None
-            ),
-            "expected_value": (
-                prospective_decision.expected_value if prospective_decision is not None else None
-            ),
-            "model_confidence": (
-                prospective_decision.model_confidence if prospective_decision is not None else None
-            ),
-            "value_confidence": (
-                prospective_decision.value_confidence if prospective_decision is not None else None
-            ),
-            "value_samples": int(self.organism.last_prospective_value_samples),
-            "decision_margin": (
-                prospective_decision.decision_margin if prospective_decision is not None else None
-            ),
-            "query_cost": float(self.organism.last_prospective_cost),
-            "known_outcome_values": int(self.organism.prospective_outcome_value_count),
-        }
-        self._last_telemetry_state = {
-            "schema_version": 3,
-            "tick": int(self.tick_count),
-            "organism_id": str(self.organism_id),
-            "embodiment": {
-                "embodiment_id": self.embodiment_id,
-                "body_id": self.body_identity,
-                "epoch": self.embodiment_epoch,
-                "embodiment_tick": self.embodiment_tick,
-                "contract_fingerprint": (self._core_embodiment_contract.contract_fingerprint),
-                "state": self._embodiment_episode.state.value,
-                "prior": {
-                    "relation": self._embodiment_episode.prior.relation,
-                    "authority": "hypothesis_only",
-                    "source_body_id": (self._embodiment_episode.prior.source_body_id),
-                    "source_embodiment_id": (self._embodiment_episode.prior.source_embodiment_id),
-                },
-                "adaptation": self._telemetry_value(self._embodiment_episode.adaptation.snapshot()),
-                "dynamics": {
-                    "relation_count": int(self._embodiment_episode.dynamics_model.relation_count),
-                    "mean_prediction_error": float(
-                        self._embodiment_episode.dynamics_model.mean_prediction_error
-                    ),
-                },
-                "embodied_competences": {
-                    "count": len(self._embodiment_episode.execution_bindings.items),
-                    "executable": int(
-                        sum(
-                            1
-                            for competence in self.organism.competence_library.items
-                            if self.organism.competence_executable_now(competence)
-                        )
-                    ),
-                },
-                "bindings": self._embodiment_episode.execution_bindings.checkpoint()["items"],
-            },
-            "pre": {
-                "physical": pre_physical_state,
-                "resource": {
-                    "field": float(resource_field),
-                    "state": self.resource.checkpoint(),
-                },
-                "metabolism": {
-                    **self._metabolism_payload(metabolic_snapshot),
-                    "physical_energy_reserve": float(
-                        self.organism.living_body_state.energy_reserve
-                    ),
-                    "physical_energy_capacity": float(self.organism.living_body_state.max_energy),
-                    "physical_energy_ratio": float(reserve_ratio_after),
-                },
-                "sensory_input": {
-                    "monotonic_timestamp_ns": self._reading_provider.last_monotonic_timestamp_ns,
-                    "values": dict(self._reading_provider.last_values),
-                    "sampled_values": dict(self._reading_provider.observed_tick_values),
-                },
-            },
-            "observer_semantics": {
-                "body": {
-                    "body_kind": self.body_descriptor.body_kind,
-                    "base_link": self.body_descriptor.observer_base_link_name,
-                    "contact_regions": list(self.body_descriptor.observer_contact_region_names),
-                    "segments": {
-                        str(name): {
-                            "size": [float(value) for value in segment.size],
-                            "origin": [float(value) for value in segment.origin],
-                        }
-                        for name, segment in (
-                            self.body_descriptor.observer_segments.items()
-                            if self.body_descriptor.observer_segments is not None
-                            else ()
-                        )
-                    },
-                    "joints": [
-                        {
-                            "name": str(topology.joint_name),
-                            "parent": str(topology.parent_link),
-                            "child": str(topology.child_link),
-                            "origin": [float(value) for value in topology.origin],
-                        }
-                        for topology in self.body_descriptor.observer_joint_topology
-                    ],
-                },
-                "sensory": sensory_semantics(
-                    self.organism.sensory_system.sensors,
-                    joint_specs=self.body_descriptor.observer_joint_specs,
-                    contact_region_names=(self.body_descriptor.observer_contact_region_names),
-                    interoceptive_source_ordinals=(
-                        self._body_interoception.source_ordinals_by_slot
-                    ),
+        prospective_payload: dict[str, object] = {}
+        agency_observation: dict[str, object] = {}
+        if include_observability:
+            agency_observation = self.organism.agency_observation
+            prospective_payload = {
+                "reason": prospective_reason,
+                "candidate_count": int(self.organism.last_prospective_query_count),
+                "selected": bool(
+                    prospective_decision is not None and prospective_decision.reason == "selected"
                 ),
-                "motor": motor_semantics(
-                    self._actuator_to_effector,
-                    joint_specs=self.body_descriptor.observer_joint_specs,
+                "action_id": (
+                    prospective_decision.candidate_id if prospective_decision is not None else None
                 ),
-                "action_dimensions": action_dimension_semantics(
-                    self.organism.action_dimension_registry,
-                    self._actuator_to_effector,
-                    joint_specs=self.body_descriptor.observer_joint_specs,
-                ),
-                "provenance": {
-                    "owner": "observer",
-                    "source": "physics3d-apparatus",
-                    "feeds_back": False,
-                },
-            },
-            "runtime": {
-                "percepts": self._telemetry_value(result.percepts),
-                "narrative": self._telemetry_value(getattr(result, "narrative", ())),
-                "allocations": self._telemetry_value(result.allocations),
-                "perceptual_allocations": self._telemetry_value(result.perceptual_allocations),
-                "investigated_capability": result.investigated_capability,
-                "evidence_gathered": int(result.evidence_gathered),
-                "signal_knowledge": self._telemetry_value(result.signal_knowledge),
-                "knowledge_events": self._telemetry_value(result.knowledge_events),
-                "signal_references": self._telemetry_value(result.signal_references),
-                "assimilation": self._telemetry_value(result.assimilation),
-                "homeostasis": self._telemetry_value(result.homeostasis),
-                "homeostatic_deviation": float(self.organism.homeostatic_deviation),
-                "pending_homeostatic_credit": int(self.organism.pending_homeostatic_credit_count),
-                "prospective_agency": prospective_payload,
-                "development": self._telemetry_value(result.development),
-                "sensory_phenotype": self._telemetry_value(result.sensory_phenotype),
-                "runtime_events": list(result.runtime_events),
-                "motor_intents": self._telemetry_value(result.motor_intents),
-                "experience_records_created": new_experience_records,
-            },
-            "cognition": self._cognition_payload(cognition),
-            "cognitive_topology": self._cognitive_topology_payload(
-                getattr(self.organism, "cognitive_bridge", None)
-            ),
-            "action": self._action_payload(),
-            "physics": {
-                "substeps": int(self.physics_substeps_per_tick),
-                "mechanical_work_joules": float(mechanical_work_joules),
-                "positive_actuator_work_joules": float(positive_actuator_work_joules),
-                "negative_actuator_work_joules": float(negative_actuator_work_joules),
-                "absolute_actuator_work_joules": float(mechanical_work_joules),
-                "net_actuator_work_joules": float(net_actuator_work_joules),
-                "resource_contacted": bool(resource_contacted),
-                "contact_count": int(contact_count),
-                "ground_contact_count": int(ground_contact_count),
-                "self_contact_count": int(self_contact_count),
-                "resource_contact_count": int(resource_contact_count),
-                "base_path_length": float(base_path_length),
-                "max_contact_normal_force": float(max_contact_force),
-                "contact_normal_impulse": float(contact_normal_impulse),
-                "final_contacts": self._contact_payload(),
-                "raw_substeps": physics_trace if self.capture_physics_trace else None,
-            },
-            "post": {
-                "physical": dict(self._last_physical_state),
-                "resource": {
-                    "distance": float(resource_distance),
-                    "remaining": float(self.resource.remaining),
-                    "absorbed_energy": float(absorbed_energy),
-                },
-                "metabolism": self._metabolism_payload(reserve_snapshot),
-                "physiology": {
-                    "state": str(
-                        getattr(
-                            getattr(physiology_state, "state", None),
-                            "value",
-                            getattr(physiology_state, "state", "unknown"),
-                        )
-                    ),
-                    "transitions": int(getattr(physiology_state, "transitions", 0) or 0),
-                    "death_tick": getattr(physiology_state, "death_tick", None),
-                }
-                if physiology_state is not None
-                else None,
-            },
-            "self_model": self.organism.self_model.export(current_tick=self.tick_count),
-            "body_schema": body_schema_representation,
-            "body_schema_boundary": {
-                "self_caused_channels": list(self.organism.body_schema.self_caused_channels),
-                "somatic_correlated_channels": list(
-                    self.organism.body_schema.somatic_correlated_channels
-                ),
-                "external_channels": list(self.organism.body_schema.external_channels),
-                "confidence": self.organism.body_schema.boundary_confidence,
-                "revision_count": self.organism.body_schema.boundary_revision_count,
-                "disruption_score": self.organism.body_schema.boundary_disruption_score,
-            },
-            "motor_competences": [
-                {
-                    "competence_id": item.competence_id,
-                    "controller_id": item.controller_id,
-                    "effect_id": item.effect_id,
-                    "maturity": item.maturity.value,
-                    "parent_competence_ids": list(item.parent_competence_ids),
-                    "support": item.evidence.support,
-                    "failures": item.evidence.failures,
-                    "reproducibility": item.evidence.reproducibility,
-                    "controllability": item.evidence.controllability,
-                    "directional_consistency": item.evidence.directional_consistency,
-                }
-                for item in self.organism.motor_competences
-            ],
-            "effects": [
-                {
-                    "effect_id": item.effect_id,
-                    "feature_refs": list(item.feature_refs),
-                    "support": item.support,
-                    "confidence": item.confidence,
-                }
-                for item in self.organism.effect_representations
-            ],
-            "action_dimensions": agency_observation["action_dimensions"],
-            "agency_acquisition": {
-                key: agency_observation[key]
-                for key in (
-                    "physical_motor_opportunities",
-                    "action_attempt_count",
-                    "recent_attempts",
-                    "intervention_signatures",
-                    "intervention_signature_count",
-                    "recurring_intervention_signature_count",
-                    "causal_relation_count",
-                    "causal_relations",
-                    "causal_evidence_count",
-                    "passive_window_count",
-                )
-            },
-            "affordances": agency_observation["affordances"],
-            "executive_intention": {
-                **agency_observation["executive"],
-                "trace": agency_observation["trace"],
-            },
-            "outcome": {
-                "initial_resource_distance": float(self._initial_resource_distance),
-                "minimum_resource_distance": float(self._minimum_resource_distance),
-                "current_resource_distance": float(resource_distance),
-                "resource_progress": float(self._initial_resource_distance - resource_distance),
-                "resource_remaining": float(self.resource.remaining),
-                "absorbed_energy": float(absorbed_energy),
-            },
-            "sensorimotor": {
-                **sensorimotor_payload,
-                "competence_candidates": int(
-                    sensorimotor.competence_candidates if sensorimotor is not None else 0
-                ),
-                "recurrent_competence_candidates": int(
-                    sensorimotor.recurrent_competence_candidates if sensorimotor is not None else 0
-                ),
-                "max_competence_samples": int(
-                    sensorimotor.max_competence_samples if sensorimotor is not None else 0
-                ),
-                "sample_gate_candidates": int(
-                    sensorimotor.sample_gate_candidates if sensorimotor is not None else 0
-                ),
-                "controllability_gate_candidates": int(
-                    sensorimotor.controllability_gate_candidates if sensorimotor is not None else 0
-                ),
-                "variance_gate_candidates": int(
-                    sensorimotor.variance_gate_candidates if sensorimotor is not None else 0
-                ),
-                "direction_gate_candidates": int(
-                    sensorimotor.direction_gate_candidates if sensorimotor is not None else 0
-                ),
-                "full_competence_gate_candidates": int(
-                    sensorimotor.full_competence_gate_candidates if sensorimotor is not None else 0
-                ),
-                "best_candidate_controllability": float(
-                    sensorimotor.best_candidate_controllability if sensorimotor is not None else 0.0
-                ),
-                "best_candidate_directional_consistency": float(
-                    sensorimotor.best_candidate_directional_consistency
-                    if sensorimotor is not None
-                    else 0.0
-                ),
-                "lowest_recurrent_effect_variance": (
-                    sensorimotor.lowest_recurrent_effect_variance
-                    if sensorimotor is not None
+                "predicted_outcome": (
+                    prospective_decision.predicted_outcome
+                    if prospective_decision is not None
                     else None
                 ),
-            },
-            "timing_ms": {
-                "organism": float(organism_ms),
-                "physics": float(physics_ms),
-            },
-        }
+                "expected_value": (
+                    prospective_decision.expected_value
+                    if prospective_decision is not None
+                    else None
+                ),
+                "model_confidence": (
+                    prospective_decision.model_confidence
+                    if prospective_decision is not None
+                    else None
+                ),
+                "value_confidence": (
+                    prospective_decision.value_confidence
+                    if prospective_decision is not None
+                    else None
+                ),
+                "value_samples": int(self.organism.last_prospective_value_samples),
+                "decision_margin": (
+                    prospective_decision.decision_margin
+                    if prospective_decision is not None
+                    else None
+                ),
+                "query_cost": float(self.organism.last_prospective_cost),
+                "known_outcome_values": int(self.organism.prospective_outcome_value_count),
+            }
+        if include_observability:
+            self._last_telemetry_state = {
+                "schema_version": 3,
+                "tick": int(self.tick_count),
+                "organism_id": str(self.organism_id),
+                "embodiment": {
+                    "embodiment_id": self.embodiment_id,
+                    "body_id": self.body_identity,
+                    "epoch": self.embodiment_epoch,
+                    "embodiment_tick": self.embodiment_tick,
+                    "contract_fingerprint": (self._core_embodiment_contract.contract_fingerprint),
+                    "state": self._embodiment_episode.state.value,
+                    "prior": {
+                        "relation": self._embodiment_episode.prior.relation,
+                        "authority": "hypothesis_only",
+                        "source_body_id": (self._embodiment_episode.prior.source_body_id),
+                        "source_embodiment_id": (self._embodiment_episode.prior.source_embodiment_id),
+                    },
+                    "adaptation": self._telemetry_value(self._embodiment_episode.adaptation.snapshot()),
+                    "dynamics": {
+                        "relation_count": int(self._embodiment_episode.dynamics_model.relation_count),
+                        "mean_prediction_error": float(
+                            self._embodiment_episode.dynamics_model.mean_prediction_error
+                        ),
+                    },
+                    "embodied_competences": {
+                        "count": len(self._embodiment_episode.execution_bindings.items),
+                        "executable": int(
+                            sum(
+                                1
+                                for competence in self.organism.competence_library.items
+                                if self.organism.competence_executable_now(competence)
+                            )
+                        ),
+                    },
+                    "bindings": self._embodiment_episode.execution_bindings.checkpoint()["items"],
+                },
+                "pre": {
+                    "physical": pre_physical_state,
+                    "resource": {
+                        "field": float(resource_field),
+                        "state": self.resource.checkpoint(),
+                    },
+                    "metabolism": {
+                        **self._metabolism_payload(metabolic_snapshot),
+                        "physical_energy_reserve": float(
+                            self.organism.living_body_state.energy_reserve
+                        ),
+                        "physical_energy_capacity": float(self.organism.living_body_state.max_energy),
+                        "physical_energy_ratio": float(reserve_ratio_after),
+                    },
+                    "sensory_input": {
+                        "monotonic_timestamp_ns": self._reading_provider.last_monotonic_timestamp_ns,
+                        "values": dict(self._reading_provider.last_values),
+                        "sampled_values": dict(self._reading_provider.observed_tick_values),
+                    },
+                },
+                "observer_semantics": {
+                    "body": {
+                        "body_kind": self.body_descriptor.body_kind,
+                        "base_link": self.body_descriptor.observer_base_link_name,
+                        "contact_regions": list(self.body_descriptor.observer_contact_region_names),
+                        "segments": {
+                            str(name): {
+                                "size": [float(value) for value in segment.size],
+                                "origin": [float(value) for value in segment.origin],
+                            }
+                            for name, segment in (
+                                self.body_descriptor.observer_segments.items()
+                                if self.body_descriptor.observer_segments is not None
+                                else ()
+                            )
+                        },
+                        "joints": [
+                            {
+                                "name": str(topology.joint_name),
+                                "parent": str(topology.parent_link),
+                                "child": str(topology.child_link),
+                                "origin": [float(value) for value in topology.origin],
+                            }
+                            for topology in self.body_descriptor.observer_joint_topology
+                        ],
+                    },
+                    "sensory": sensory_semantics(
+                        self.organism.sensory_system.sensors,
+                        joint_specs=self.body_descriptor.observer_joint_specs,
+                        contact_region_names=(self.body_descriptor.observer_contact_region_names),
+                        interoceptive_source_ordinals=(
+                            self._body_interoception.source_ordinals_by_slot
+                        ),
+                    ),
+                    "motor": motor_semantics(
+                        self._actuator_to_effector,
+                        joint_specs=self.body_descriptor.observer_joint_specs,
+                    ),
+                    "action_dimensions": action_dimension_semantics(
+                        self.organism.action_dimension_registry,
+                        self._actuator_to_effector,
+                        joint_specs=self.body_descriptor.observer_joint_specs,
+                    ),
+                    "provenance": {
+                        "owner": "observer",
+                        "source": "physics3d-apparatus",
+                        "feeds_back": False,
+                    },
+                },
+                "runtime": {
+                    "percepts": self._telemetry_value(result.percepts),
+                    "narrative": self._telemetry_value(getattr(result, "narrative", ())),
+                    "allocations": self._telemetry_value(result.allocations),
+                    "perceptual_allocations": self._telemetry_value(result.perceptual_allocations),
+                    "investigated_capability": result.investigated_capability,
+                    "evidence_gathered": int(result.evidence_gathered),
+                    "signal_knowledge": self._telemetry_value(result.signal_knowledge),
+                    "knowledge_events": self._telemetry_value(result.knowledge_events),
+                    "signal_references": self._telemetry_value(result.signal_references),
+                    "assimilation": self._telemetry_value(result.assimilation),
+                    "homeostasis": self._telemetry_value(result.homeostasis),
+                    "homeostatic_deviation": float(self.organism.homeostatic_deviation),
+                    "pending_homeostatic_credit": int(self.organism.pending_homeostatic_credit_count),
+                    "prospective_agency": prospective_payload,
+                    "development": self._telemetry_value(result.development),
+                    "sensory_phenotype": self._telemetry_value(result.sensory_phenotype),
+                    "runtime_events": list(result.runtime_events),
+                    "motor_intents": self._telemetry_value(result.motor_intents),
+                    "experience_records_created": new_experience_records,
+                },
+                "cognition": self._cognition_payload(cognition),
+                "cognitive_topology": self._cognitive_topology_payload(
+                    getattr(self.organism, "cognitive_bridge", None)
+                ),
+                "action": self._action_payload(),
+                "physics": {
+                    "substeps": int(self.physics_substeps_per_tick),
+                    "mechanical_work_joules": float(mechanical_work_joules),
+                    "positive_actuator_work_joules": float(positive_actuator_work_joules),
+                    "negative_actuator_work_joules": float(negative_actuator_work_joules),
+                    "absolute_actuator_work_joules": float(mechanical_work_joules),
+                    "net_actuator_work_joules": float(net_actuator_work_joules),
+                    "resource_contacted": bool(resource_contacted),
+                    "contact_count": int(contact_count),
+                    "ground_contact_count": int(ground_contact_count),
+                    "self_contact_count": int(self_contact_count),
+                    "resource_contact_count": int(resource_contact_count),
+                    "base_path_length": float(base_path_length),
+                    "max_contact_normal_force": float(max_contact_force),
+                    "contact_normal_impulse": float(contact_normal_impulse),
+                    "final_contacts": self._contact_payload(),
+                    "raw_substeps": physics_trace if self.capture_physics_trace else None,
+                },
+                "post": {
+                    "physical": dict(self._last_physical_state),
+                    "resource": {
+                        "distance": float(resource_distance),
+                        "remaining": float(self.resource.remaining),
+                        "absorbed_energy": float(absorbed_energy),
+                    },
+                    "metabolism": self._metabolism_payload(reserve_snapshot),
+                    "physiology": {
+                        "state": str(
+                            getattr(
+                                getattr(physiology_state, "state", None),
+                                "value",
+                                getattr(physiology_state, "state", "unknown"),
+                            )
+                        ),
+                        "transitions": int(getattr(physiology_state, "transitions", 0) or 0),
+                        "death_tick": getattr(physiology_state, "death_tick", None),
+                    }
+                    if physiology_state is not None
+                    else None,
+                },
+                "self_model": self.organism.self_model.export(current_tick=self.tick_count),
+                "body_schema": body_schema_representation,
+                "body_schema_boundary": {
+                    "self_caused_channels": list(self.organism.body_schema.self_caused_channels),
+                    "somatic_correlated_channels": list(
+                        self.organism.body_schema.somatic_correlated_channels
+                    ),
+                    "external_channels": list(self.organism.body_schema.external_channels),
+                    "confidence": self.organism.body_schema.boundary_confidence,
+                    "revision_count": self.organism.body_schema.boundary_revision_count,
+                    "disruption_score": self.organism.body_schema.boundary_disruption_score,
+                },
+                "motor_competences": [
+                    {
+                        "competence_id": item.competence_id,
+                        "controller_id": item.controller_id,
+                        "effect_id": item.effect_id,
+                        "maturity": item.maturity.value,
+                        "parent_competence_ids": list(item.parent_competence_ids),
+                        "support": item.evidence.support,
+                        "failures": item.evidence.failures,
+                        "reproducibility": item.evidence.reproducibility,
+                        "controllability": item.evidence.controllability,
+                        "directional_consistency": item.evidence.directional_consistency,
+                    }
+                    for item in self.organism.motor_competences
+                ],
+                "effects": [
+                    {
+                        "effect_id": item.effect_id,
+                        "feature_refs": list(item.feature_refs),
+                        "support": item.support,
+                        "confidence": item.confidence,
+                    }
+                    for item in self.organism.effect_representations
+                ],
+                "action_dimensions": agency_observation["action_dimensions"],
+                "agency_acquisition": {
+                    key: agency_observation[key]
+                    for key in (
+                        "physical_motor_opportunities",
+                        "action_attempt_count",
+                        "recent_attempts",
+                        "intervention_signatures",
+                        "intervention_signature_count",
+                        "recurring_intervention_signature_count",
+                        "causal_relation_count",
+                        "causal_relations",
+                        "causal_evidence_count",
+                        "passive_window_count",
+                    )
+                },
+                "affordances": agency_observation["affordances"],
+                "executive_intention": {
+                    **agency_observation["executive"],
+                    "trace": agency_observation["trace"],
+                },
+                "outcome": {
+                    "initial_resource_distance": float(self._initial_resource_distance),
+                    "minimum_resource_distance": float(self._minimum_resource_distance),
+                    "current_resource_distance": float(resource_distance),
+                    "resource_progress": float(self._initial_resource_distance - resource_distance),
+                    "resource_remaining": float(self.resource.remaining),
+                    "absorbed_energy": float(absorbed_energy),
+                },
+                "sensorimotor": {
+                    **sensorimotor_payload,
+                    "competence_candidates": int(
+                        sensorimotor.competence_candidates if sensorimotor is not None else 0
+                    ),
+                    "recurrent_competence_candidates": int(
+                        sensorimotor.recurrent_competence_candidates if sensorimotor is not None else 0
+                    ),
+                    "max_competence_samples": int(
+                        sensorimotor.max_competence_samples if sensorimotor is not None else 0
+                    ),
+                    "sample_gate_candidates": int(
+                        sensorimotor.sample_gate_candidates if sensorimotor is not None else 0
+                    ),
+                    "controllability_gate_candidates": int(
+                        sensorimotor.controllability_gate_candidates if sensorimotor is not None else 0
+                    ),
+                    "variance_gate_candidates": int(
+                        sensorimotor.variance_gate_candidates if sensorimotor is not None else 0
+                    ),
+                    "direction_gate_candidates": int(
+                        sensorimotor.direction_gate_candidates if sensorimotor is not None else 0
+                    ),
+                    "full_competence_gate_candidates": int(
+                        sensorimotor.full_competence_gate_candidates if sensorimotor is not None else 0
+                    ),
+                    "best_candidate_controllability": float(
+                        sensorimotor.best_candidate_controllability if sensorimotor is not None else 0.0
+                    ),
+                    "best_candidate_directional_consistency": float(
+                        sensorimotor.best_candidate_directional_consistency
+                        if sensorimotor is not None
+                        else 0.0
+                    ),
+                    "lowest_recurrent_effect_variance": (
+                        sensorimotor.lowest_recurrent_effect_variance
+                        if sensorimotor is not None
+                        else None
+                    ),
+                },
+                "timing_ms": {
+                    "organism": float(organism_ms),
+                    "physics": float(physics_ms),
+                },
+            }
 
         diagnostics_ms = (time.perf_counter() - diagnostics_started) * 1000.0
 

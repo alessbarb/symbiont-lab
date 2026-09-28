@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 class ResidentConfig:
     interval_seconds: float = 15.0
     checkpoint_every_ticks: int = 20
+    observation_every_ticks: int = 1
     max_ticks: int | None = None
 
     def __post_init__(self) -> None:
@@ -26,6 +27,8 @@ class ResidentConfig:
             raise ValueError("interval_seconds must be positive")
         if self.checkpoint_every_ticks < 1:
             raise ValueError("checkpoint_every_ticks must be at least 1")
+        if self.observation_every_ticks < 1:
+            raise ValueError("observation_every_ticks must be at least 1")
         if self.max_ticks is not None and self.max_ticks < 1:
             raise ValueError("max_ticks must be at least 1 when provided")
 
@@ -72,9 +75,11 @@ class ResidentOrganism:
         ticks = 0
         try:
             while not self._stop.is_set():
-                result = governed.tick()
+                next_tick = ticks + 1
+                observation_due = next_tick % self.config.observation_every_ticks == 0
+                result = governed.tick(include_observability=observation_due)
                 ticks += 1
-                if self.on_tick is not None:
+                if observation_due and self.on_tick is not None:
                     self.on_tick(result)
                 if ticks % self.config.checkpoint_every_ticks == 0:
                     self.runtime.save(self.state_file)

@@ -19,6 +19,7 @@ from symbiont_lab.app.physics3d_monitor import (
     UnifiedViewerProcess,
     strongest_outputs,
 )
+from symbiont_lab.observation.cadence import ExecutionRates
 from symbiont_lab.observation.provenance_journal import ProvenanceJournal
 
 from .persistence import (
@@ -233,6 +234,8 @@ def run(
     seed: int = 42,
     hz: int = 240,
     cognition_hz: int = 24,
+    observation_hz: int | None = None,
+    render_hz: int | None = None,
     mechanical_work_cost_per_joule: float = 0.001,
     telemetry_physics_trace: bool = False,
     body_kind: str = "anthropomorphic-v6",
@@ -257,10 +260,12 @@ def run(
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
-    if cognition_hz < 1 or cognition_hz > hz:
-        raise ValueError("cognition_hz must be within [1, hz]")
-    if hz % cognition_hz != 0:
-        raise ValueError("hz must be an integer multiple of cognition_hz")
+    rates = ExecutionRates.resolve(
+        physics_hz=hz,
+        cognition_hz=cognition_hz,
+        observation_hz=observation_hz,
+        render_hz=render_hz,
+    )
     if checkpoint_interval < 1:
         raise ValueError("checkpoint_interval must be >= 1")
 
@@ -332,9 +337,9 @@ def run(
     else:
         embodiment_mode = "reembodiment"
 
-    time_step = 1.0 / float(hz)
-    cognition_period = 1.0 / float(cognition_hz)
-    physics_substeps_per_tick = hz // cognition_hz
+    time_step = 1.0 / float(rates.physics_hz)
+    cognition_period = 1.0 / float(rates.cognition_hz)
+    physics_substeps_per_tick = rates.physics_substeps_per_cognition
     # Normal interactive mode renders PyBullet in DIRECT and embeds the camera
     # image into the unified evaluator window. The native PyBullet GUI remains
     # available only when the evaluator is explicitly disabled.
@@ -344,6 +349,7 @@ def run(
         seed=seed,
         time_step=time_step,
         physics_substeps_per_tick=physics_substeps_per_tick,
+        presentation_hz=rates.render_hz,
         mechanical_work_cost_per_joule=mechanical_work_cost_per_joule,
         capture_physics_trace=telemetry_physics_trace,
         body_kind=body_kind,
@@ -363,6 +369,10 @@ def run(
     telemetry_configuration["telemetry_physics_trace"] = bool(telemetry_physics_trace)
     telemetry_configuration["body_kind"] = body_kind
     telemetry_configuration["lab_world"] = runtime.environment_recipe
+    telemetry_configuration["physics_hz"] = rates.physics_hz
+    telemetry_configuration["cognition_hz"] = rates.cognition_hz
+    telemetry_configuration["observation_hz"] = rates.observation_hz
+    telemetry_configuration["render_hz"] = rates.render_hz
     runtime_checkpoint_for_identity = runtime.checkpoint()
     raw_genome = runtime_checkpoint_for_identity.get("genome", {})
     software_identity = {
@@ -459,8 +469,10 @@ def run(
         organism_id=runtime.organism_id,
         start_tick=runtime.tick_count,
         seed=seed,
-        physics_hz=hz,
-        cognition_hz=cognition_hz,
+        physics_hz=rates.physics_hz,
+        cognition_hz=rates.cognition_hz,
+        observation_hz=rates.observation_hz,
+        render_hz=rates.render_hz,
         embodiment_mode=embodiment_mode,
         effective_configuration=telemetry_configuration,
         software_identity=software_identity,
@@ -504,8 +516,14 @@ def run(
             was_manual_step = step_once
             step_once = False
 
+            next_tick = runtime.tick_count + 1
+            observation_due = rates.observation_due(
+                next_tick,
+                force=was_manual_step,
+            )
+
             cycle_started = time.perf_counter()
-            record = runtime.step()
+            record = runtime.step(include_observability=observation_due)
             runtime_elapsed = time.perf_counter() - cycle_started
             if checkpoint_observer is not None:
                 checkpoint_observer(
@@ -513,9 +531,9 @@ def run(
                     runtime.checkpoint(),
                 )
 
-            # Drain presentation-only pose samples captured inside the 240 Hz
-            # physics integration loop. The bridge emits them as a lightweight
-            # 60 Hz observer stream; they never enter organism state.
+            # Drain presentation-only pose samples captured inside the physics
+            # integration loop at the resolved render cadence. They never enter
+            # organism state and are independent of rich observation sampling.
             pose_frames = runtime.drain_presentation_pose_frames()
             if viewer is not None:
                 publish_pose_frame = getattr(viewer, "publish_pose_frame", None)
@@ -531,56 +549,57 @@ def run(
                             physics_step=int(pose_frame["physics_step"]),
                             simulation_time_s=float(pose_frame["simulation_time_s"]),
                             tick_simulation_span_s=float(pose_frame["tick_simulation_span_s"]),
+                            sampling_hz=float(pose_frame["sampling_hz"]),
                         )
 
-            rich_state = runtime.passive_telemetry_state()
-            episodic_snapshot = getattr(runtime.organism, "episodic_memory_snapshot", None)
-            if callable(episodic_snapshot):
-                rich_state["episodic_memory"] = episodic_snapshot()
-            if slm is not None:
-                rich_state["slm"] = {
-                    "training": bool(slm.training),
-                    "last_error": slm.last_error,
-                    "last_gate_reason": slm.last_gate_reason,
-                    "last_gate_gain": slm.last_gate_gain,
-                    "last_best_baseline": slm.last_best_baseline,
-                    "last_candidate_loss": slm.last_candidate_loss,
-                    "last_best_baseline_loss": slm.last_best_baseline_loss,
-                    "last_plan_reason": slm.last_plan_reason,
-                    "last_plan_replay_pressure": slm.last_plan_replay_pressure,
-                    "last_plan_epochs": slm.last_plan_epochs,
-                    "last_plan_steps": slm.last_plan_steps,
-                    "last_internal_validation_loss": slm.last_internal_validation_loss,
-                    "last_internal_validation_accuracy": slm.last_internal_validation_accuracy,
-                    "last_epochs_completed": slm.last_epochs_completed,
-                    "last_steps_completed": slm.last_steps_completed,
-                    "last_parameter_count": slm.last_parameter_count,
-                    "last_resolved_embedding_dim": slm.last_resolved_embedding_dim,
-                    "last_resolved_hidden_dim": slm.last_resolved_hidden_dim,
-                    "last_vocab_size": slm.last_vocab_size,
-                }
-            full_snapshot = None
-            if telemetry.needs_snapshot(record.tick):
-                full_snapshot = {
-                    "organism": runtime.checkpoint(),
-                    "physical": runtime.passive_physical_state(),
-                }
-            telemetry.append(
-                record,
-                rich_state=rich_state,
-                full_snapshot=full_snapshot,
-            )
+            rich_state: dict[str, object] = {}
+            if observation_due:
+                rich_state = runtime.passive_telemetry_state()
+                episodic_snapshot = getattr(runtime.organism, "episodic_memory_snapshot", None)
+                if callable(episodic_snapshot):
+                    rich_state["episodic_memory"] = episodic_snapshot()
+                if slm is not None:
+                    rich_state["slm"] = {
+                        "training": bool(slm.training),
+                        "last_error": slm.last_error,
+                        "last_gate_reason": slm.last_gate_reason,
+                        "last_gate_gain": slm.last_gate_gain,
+                        "last_best_baseline": slm.last_best_baseline,
+                        "last_candidate_loss": slm.last_candidate_loss,
+                        "last_best_baseline_loss": slm.last_best_baseline_loss,
+                        "last_plan_reason": slm.last_plan_reason,
+                        "last_plan_replay_pressure": slm.last_plan_replay_pressure,
+                        "last_plan_epochs": slm.last_plan_epochs,
+                        "last_plan_steps": slm.last_plan_steps,
+                        "last_internal_validation_loss": slm.last_internal_validation_loss,
+                        "last_internal_validation_accuracy": slm.last_internal_validation_accuracy,
+                        "last_epochs_completed": slm.last_epochs_completed,
+                        "last_steps_completed": slm.last_steps_completed,
+                        "last_parameter_count": slm.last_parameter_count,
+                        "last_resolved_embedding_dim": slm.last_resolved_embedding_dim,
+                        "last_resolved_hidden_dim": slm.last_resolved_hidden_dim,
+                        "last_vocab_size": slm.last_vocab_size,
+                    }
+                full_snapshot = None
+                if telemetry.needs_snapshot(record.tick):
+                    full_snapshot = {
+                        "organism": runtime.checkpoint(),
+                        "physical": runtime.passive_physical_state(),
+                    }
+                telemetry.append(
+                    record,
+                    rich_state=rich_state,
+                    full_snapshot=full_snapshot,
+                )
+    
 
             if slm is not None:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
-            # The dense 60 Hz body_pose stream above owns motion rendering.
-            # Keep body/cognition/vitals and rich snapshots at the original
-            # sparse observer cadence so presentation traffic cannot crowd out
-            # diagnostics on the SSE transport.
-            rich_render_due = viewer is not None and (
-                was_manual_step or record.tick % max(1, cognition_hz // 5) == 0
-            )
+            # The dense body_pose stream owns motion presentation. Rich
+            # body/cognition/vitals snapshots follow the independent scientific
+            # observation cadence.
+            rich_render_due = viewer is not None and observation_due
             body_render_due = rich_render_due
 
             cycle_elapsed = time.perf_counter() - cycle_started
@@ -589,7 +608,7 @@ def run(
                 cognition_period / max(cycle_elapsed, 1e-9),
             )
 
-            if headless and record.tick % cognition_hz == 0:
+            if headless and record.tick % rates.cognition_hz == 0:
                 _print_headless_progress(
                     record,
                     checkpoint_age=max(0, record.tick - last_checkpoint_tick),
