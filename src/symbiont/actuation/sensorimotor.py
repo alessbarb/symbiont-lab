@@ -875,7 +875,31 @@ class CompetenceDevelopmentEngine:
 
     @staticmethod
     def _pattern_distance(left: MotorPattern, right: MotorPattern) -> float:
-        """Distance for canonical sorted patterns without temporary maps or sets."""
+        """Distance for canonical sorted patterns without temporary maps or sets.
+
+        Historical checkpoints may contain valid unique actuator ids in a
+        non-canonical order. Those rare inputs retain the old order-insensitive
+        map/set semantics; organism-generated patterns take the linear fast path.
+        """
+        left_sorted = all(left[index][0] < left[index + 1][0] for index in range(len(left) - 1))
+        right_sorted = all(
+            right[index][0] < right[index + 1][0] for index in range(len(right) - 1)
+        )
+        if not left_sorted or not right_sorted:
+            left_map = dict(left)
+            right_map = dict(right)
+            left_ids = set(left_map)
+            right_ids = set(right_map)
+            union = left_ids | right_ids
+            if not union:
+                return 0.0
+            amplitude_distance = sum(
+                abs(int(left_map.get(actuator_id, 0)) - int(right_map.get(actuator_id, 0)))
+                for actuator_id in union
+            ) / (7.0 * len(union))
+            support_distance = len(left_ids.symmetric_difference(right_ids)) / len(union)
+            return max(amplitude_distance, support_distance)
+
         left_index = 0
         right_index = 0
         union_count = 0
