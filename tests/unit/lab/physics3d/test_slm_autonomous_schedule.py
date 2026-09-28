@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from symbiont_lab.physics3d.slm import Physics3DSlmManager
+from symbiont_lab.physics3d.private_model_training import PrivateModelTrainingService
 
 
 class _FakeExecutor:
@@ -24,8 +24,8 @@ class _FakeRuntime:
         return self._plan
 
 
-def _manager(tmp_path) -> Physics3DSlmManager:
-    manager = object.__new__(Physics3DSlmManager)
+def _manager(tmp_path) -> PrivateModelTrainingService:
+    manager = object.__new__(PrivateModelTrainingService)
     manager.models_dir = tmp_path
     manager.train_interval = 1
     manager.device = "cpu"
@@ -53,7 +53,7 @@ def _manager(tmp_path) -> Physics3DSlmManager:
     return manager
 
 
-def test_slm_manager_does_not_invent_training_without_organism_plan(tmp_path):
+def test_private_model_training_service_does_not_invent_training_without_organism_plan(tmp_path):
     manager = _manager(tmp_path)
     runtime = _FakeRuntime(None)
 
@@ -62,7 +62,7 @@ def test_slm_manager_does_not_invent_training_without_organism_plan(tmp_path):
     assert manager._executor.calls == []
 
 
-def test_slm_manager_only_services_organism_authored_plan(tmp_path):
+def test_private_model_training_service_only_services_organism_authored_plan(tmp_path):
     plan = SimpleNamespace(
         request=SimpleNamespace(
             requested_epochs=6,
@@ -108,7 +108,7 @@ class _ClosingExecutor:
         self.shutdown_calls.append((wait, cancel_futures))
 
 
-def test_slm_close_uses_normal_shutdown_when_worker_is_idle(tmp_path):
+def test_private_model_training_service_close_uses_normal_shutdown_when_worker_is_idle(tmp_path):
     manager = _manager(tmp_path)
     executor = _ClosingExecutor()
     manager._executor = executor
@@ -119,7 +119,7 @@ def test_slm_close_uses_normal_shutdown_when_worker_is_idle(tmp_path):
     assert executor.shutdown_calls == [(False, True)]
 
 
-def test_slm_close_uses_normal_shutdown_when_pending_future_cancels(tmp_path):
+def test_private_model_training_service_close_uses_normal_shutdown_when_pending_future_cancels(tmp_path):
     manager = _manager(tmp_path)
     executor = _ClosingExecutor()
     future = _FakeFuture(done=False, cancel_result=True)
@@ -132,7 +132,7 @@ def test_slm_close_uses_normal_shutdown_when_pending_future_cancels(tmp_path):
     assert executor.shutdown_calls == [(False, True)]
 
 
-def test_slm_close_delegates_running_worker_to_force_stop(tmp_path, monkeypatch):
+def test_private_model_training_service_close_delegates_running_worker_to_force_stop(tmp_path, monkeypatch):
     manager = _manager(tmp_path)
     executor = _ClosingExecutor()
     future = _FakeFuture(done=False, cancel_result=False)
