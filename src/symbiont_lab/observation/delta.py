@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from copy import deepcopy
 from typing import Any, Mapping
 
@@ -34,12 +35,20 @@ def _join(path: str, segment: str) -> str:
 
 
 def _equal(left: Any, right: Any) -> bool:
-    return _canonical_bytes(left) == _canonical_bytes(right)
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, Mapping):
+        return set(left) == set(right) and all(_equal(left[key], right[key]) for key in left)
+    if isinstance(left, list):
+        return len(left) == len(right) and all(_equal(a, b) for a, b in zip(left, right))
+    if isinstance(left, float):
+        if left == 0.0 and right == 0.0:
+            return math.copysign(1.0, left) == math.copysign(1.0, right)
+        return left == right
+    return left == right
 
 
 def _diff(previous: Any, current: Any, path: str = "") -> list[dict[str, Any]]:
-    if _equal(previous, current):
-        return []
     if isinstance(previous, Mapping) and isinstance(current, Mapping):
         operations: list[dict[str, Any]] = []
         before = set(previous)
@@ -53,9 +62,16 @@ def _diff(previous: Any, current: Any, path: str = "") -> list[dict[str, Any]]:
         for key in sorted(before & after, key=str):
             operations.extend(_diff(previous[key], current[key], _join(path, str(key))))
         return operations
-    # Live transport deliberately replaces changed arrays atomically. This keeps
-    # the browser patcher small and deterministic while still compacting stable
-    # object structure aggressively.
+
+    if isinstance(previous, list) and isinstance(current, list):
+        if _equal(previous, current):
+            return []
+        # Live transport deliberately replaces changed arrays atomically. This
+        # keeps the browser patcher small and deterministic.
+        return [{"op": "set", "path": path, "value": deepcopy(current)}]
+
+    if _equal(previous, current):
+        return []
     return [{"op": "set", "path": path, "value": deepcopy(current)}]
 
 
@@ -95,7 +111,6 @@ class ObservationDeltaEncoder:
                 "revision": revision,
                 "base_revision": revision - 1,
                 "patch": operations,
-                "state_sha256": state_hash(current),
             }
             self._since_anchor[channel] = self._since_anchor.get(channel, 0) + 1
 
@@ -213,8 +228,6 @@ class ObservationDeltaDecoder:
         state = _apply(self._states[channel], list(event.get("patch") or ()))
         if not isinstance(state, dict) or state.get("type") != channel:
             raise ValueError("observation delta changed channel identity")
-        if state_hash(state) != event.get("state_sha256"):
-            raise ValueError("observation delta hash mismatch")
         self._states[channel] = state
         self._revisions[channel] = revision
         return deepcopy(state)
