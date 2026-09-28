@@ -396,3 +396,38 @@ def test_borderline_family_variant_is_retained_as_bounded_exception() -> None:
     )
     assert match
     assert match[0].episode_id == family.episode_id
+
+
+def test_missing_evidence_must_never_contribute_positive_similarity() -> None:
+    # 1. outcome.a vs outcome.b, sin effect.* -> no deben parecer identicos (0.0)
+    p_a = EpisodicProjection(effect_features=("outcome.a",))
+    p_b = EpisodicProjection(effect_features=("outcome.b",))
+    assert EpisodicExperienceMemory._effect_similarity(p_a, p_b) == 0.0
+
+    # 2. mismos canales, sin effect.* -> similitud de canales (1.0)
+    assert EpisodicExperienceMemory._effect_similarity(p_a, p_a) == 1.0
+
+    # 3. effect.* presente en ambos -> mantiene ponderacion prevista (0.72 summary + 0.28 channels)
+    p_up_a = EpisodicProjection(effect_features=("effect.balance.up", "outcome.a"))
+    assert EpisodicExperienceMemory._effect_similarity(p_up_a, p_up_a) == 1.0
+    p_down_a = EpisodicProjection(effect_features=("effect.balance.down", "outcome.a"))
+    assert EpisodicExperienceMemory._effect_similarity(p_up_a, p_down_a) == pytest.approx(0.28)
+
+    # 4. effect.* solo en uno -> se compara mediante evidencia comun (canales)
+    assert EpisodicExperienceMemory._effect_similarity(p_up_a, p_a) == 1.0
+    assert EpisodicExperienceMemory._effect_similarity(p_up_a, p_b) == 0.0
+
+    # 5. ambos completamente vacios -> 0.0, no 1.0
+    p_empty = EpisodicProjection(effect_features=())
+    assert EpisodicExperienceMemory._effect_similarity(p_empty, p_empty) == 0.0
+
+    # 6. simetria: sim(a,b) == sim(b,a)
+    assert EpisodicExperienceMemory._effect_similarity(
+        p_up_a, p_a
+    ) == EpisodicExperienceMemory._effect_similarity(p_a, p_up_a)
+    assert EpisodicExperienceMemory._effect_similarity(
+        p_up_a, p_b
+    ) == EpisodicExperienceMemory._effect_similarity(p_b, p_up_a)
+    assert EpisodicExperienceMemory._effect_similarity(
+        p_a, p_empty
+    ) == EpisodicExperienceMemory._effect_similarity(p_empty, p_a)

@@ -695,11 +695,21 @@ class EpisodicExperienceMemory:
         right_channels = tuple(
             token for token in right.effect_features if not token.startswith("effect.")
         )
-        summary = _jaccard(left_summary, right_summary)
-        channels = _jaccard(left_channels, right_channels)
-        if not left_channels and not right_channels:
+        has_summary = bool(left_summary and right_summary)
+        has_channels = bool(left_channels and right_channels)
+
+        if not has_summary and not has_channels:
+            # Missing evidence must never contribute positive similarity.
+            return 0.0
+
+        summary = _jaccard(left_summary, right_summary) if has_summary else 0.0
+        channels = _jaccard(left_channels, right_channels) if has_channels else 0.0
+
+        if has_summary and has_channels:
+            return 0.72 * summary + 0.28 * channels
+        if has_summary:
             return summary
-        return 0.72 * summary + 0.28 * channels
+        return channels
 
     def _family_match(
         self,
