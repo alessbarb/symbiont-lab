@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { performance } from 'node:perf_hooks';
 import {
+  BRUTE_FORCE_PAIR_THRESHOLD,
   forEachNearbyPair2D,
   forEachNearbyPair3D,
 } from '../src/symbiont_lab/workbench/web/views/mind/spatial-index.js';
@@ -26,25 +27,24 @@ function nodes3D(count) {
   return [nodes, positions];
 }
 
-function allPairs2D(nodes, radius) {
-  let pairs = 0;
+function allPairs2D(nodes, radius, callback) {
   const r2 = radius * radius;
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const dx = nodes[j].x - nodes[i].x;
       const dy = nodes[j].y - nodes[i].y;
-      if (dx * dx + dy * dy <= r2) pairs++;
+      if (dx * dx + dy * dy <= r2) callback(nodes[i], nodes[j]);
     }
   }
-  return pairs;
 }
 
 function main() {
   const count = Number(process.argv[2] ?? 2000);
   const n2 = nodes2D(count);
 
+  let referencePairs = 0;
   let started = performance.now();
-  const referencePairs = allPairs2D(n2, 520);
+  allPairs2D(n2, 520, () => { referencePairs++; });
   const referenceMs = performance.now() - started;
 
   let indexedPairs = 0;
@@ -69,6 +69,8 @@ function main() {
     indexed_3d_ms: Number(indexed3DMs.toFixed(3)),
     exact_2d_pairs: indexedPairs,
     local_3d_pairs: indexed3DPairs,
+    strategy_2d: count <= BRUTE_FORCE_PAIR_THRESHOLD ? 'brute_force' : 'spatial_bucket',
+    brute_force_threshold: BRUTE_FORCE_PAIR_THRESHOLD,
     speedup_2d: Number((referenceMs / Math.max(indexed2DMs, 1e-9)).toFixed(3)),
   }, null, 2));
 }
