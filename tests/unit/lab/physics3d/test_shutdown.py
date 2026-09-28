@@ -240,7 +240,10 @@ def test_resume_requires_matching_body_or_explicit_fresh_body(monkeypatch, tmp_p
 
 
 @pytest.mark.parametrize("failure_phase", [None, "async", "final"])
-def test_run_checkpoint_failure_reaches_caller_after_cleanup(monkeypatch, tmp_path, failure_phase):
+@pytest.mark.parametrize("observer_fails", [False, True])
+def test_run_checkpoint_failure_reaches_caller_after_cleanup(
+    monkeypatch, tmp_path, failure_phase, observer_fails
+):
     import signal
     from concurrent.futures import Future
     from unittest.mock import Mock
@@ -258,6 +261,9 @@ def test_run_checkpoint_failure_reaches_caller_after_cleanup(monkeypatch, tmp_pa
 
     runtime.step.side_effect = step
     telemetry = Mock(root=tmp_path / "telemetry")
+    if observer_fails:
+        telemetry.flush.side_effect = OSError("observer flush failed")
+        telemetry.close.side_effect = OSError("observer close failed")
     monkeypatch.setattr(engine, "PyBulletEmbodimentRuntime", lambda **kwargs: runtime)
     monkeypatch.setattr(engine, "AsyncTelemetryV41Writer", lambda *args, **kwargs: telemetry)
     monkeypatch.setattr(engine.ExecutionRates, "observation_due", lambda *args, **kwargs: False)
@@ -330,3 +336,96 @@ def test_explicit_reembodiment_and_coherent_resume_reach_runtime(
             fresh_body=fresh_body,
             telemetry_file=tmp_path / "telemetry",
         )
+
+
+@pytest.mark.parametrize("failed_operation", ["append", "flush", "close", "measurement"])
+def test_observer_failure_preserves_tick_budget_checkpoint_and_cleanup(
+    monkeypatch, tmp_path, failed_operation
+):
+    import signal
+    from unittest.mock import Mock
+
+    runtime = Mock(tick_count=0, organism_id="test", environment_recipe={})
+    runtime.checkpoint.return_value = {}
+    runtime.passive_telemetry_state.return_value = {}
+    runtime.drain_presentation_pose_frames.return_value = []
+
+    def step(**kwargs):
+        runtime.tick_count += 1
+        return SimpleNamespace(tick=runtime.tick_count, alive=True)
+
+    runtime.step.side_effect = step
+    telemetry = Mock(root=tmp_path / "telemetry")
+    if failed_operation != "measurement":
+        getattr(telemetry, failed_operation).side_effect = OSError("observer unavailable")
+    monkeypatch.setattr(engine, "PyBulletEmbodimentRuntime", lambda **kwargs: runtime)
+    monkeypatch.setattr(engine, "AsyncTelemetryV41Writer", lambda *args, **kwargs: telemetry)
+    monkeypatch.setattr(engine.ExecutionRates, "observation_due", lambda *args, **kwargs: True)
+    save = Mock(return_value=None)
+    monkeypatch.setattr(engine, "_save_checkpoint", save)
+    previous = {s: signal.getsignal(s) for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+    causes = []
+
+    assert (
+        engine.run(
+            ticks=3,
+            show_monitor=False,
+            enable_slm=False,
+            checkpoint_interval=1,
+            measurement_file=tmp_path if failed_operation == "measurement" else None,
+            symbiont_file=tmp_path / "mind",
+            body_file=tmp_path / "body",
+            telemetry_file=tmp_path / "telemetry",
+            termination_callback=causes.append,
+        )
+        == 0
+    )
+
+    assert runtime.tick_count == 3
+    assert causes == ["budget_exhausted"]
+    assert save.call_count == 4
+    assert save.call_args.kwargs["lifecycle_state"] == "dormant"
+    runtime.close.assert_called_once()
+    telemetry.close.assert_called_once()
+    assert {s: signal.getsignal(s) for s in previous} == previous
+
+
+@pytest.mark.parametrize("checkpoint_fails", [False, True])
+def test_all_resources_close_when_cleanup_fails(monkeypatch, tmp_path, checkpoint_fails):
+    import signal
+    from unittest.mock import Mock
+
+    runtime = Mock(tick_count=0, organism_id="test", environment_recipe={})
+    runtime.checkpoint.return_value = {}
+    runtime.close.side_effect = OSError("runtime close failed")
+    telemetry = Mock(root=tmp_path / "telemetry")
+    telemetry.close.side_effect = OSError("telemetry close failed")
+    viewer = Mock()
+    viewer.poll_stop.return_value = True
+    viewer.close.side_effect = OSError("viewer close failed")
+    training = Mock()
+    training.close.side_effect = OSError("training close failed")
+    monkeypatch.setattr(engine, "PyBulletEmbodimentRuntime", lambda **kwargs: runtime)
+    monkeypatch.setattr(engine, "AsyncTelemetryV41Writer", lambda *args, **kwargs: telemetry)
+    monkeypatch.setattr(engine, "PrivateModelTrainingService", lambda **kwargs: training)
+    save = Mock(side_effect=OSError("checkpoint failed") if checkpoint_fails else None)
+    monkeypatch.setattr(engine, "_save_checkpoint", save)
+    previous = {s: signal.getsignal(s) for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+    causes = []
+    with pytest.raises(
+        OSError, match="checkpoint failed" if checkpoint_fails else "training close failed"
+    ):
+        engine.run(
+            ticks=1,
+            viewer_bridge=viewer,
+            checkpoint_interval=1,
+            symbiont_file=tmp_path / "mind",
+            body_file=tmp_path / "body",
+            telemetry_file=tmp_path / "telemetry",
+            termination_callback=causes.append,
+        )
+    save.assert_called_once()
+    for resource in (runtime, telemetry, viewer, training):
+        resource.close.assert_called_once()
+    assert causes == ["error"]
+    assert {s: signal.getsignal(s) for s in previous} == previous

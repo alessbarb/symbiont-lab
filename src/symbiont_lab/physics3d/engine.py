@@ -11,7 +11,9 @@ import sys
 import threading
 import time
 from concurrent.futures import Future
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 from symbiont import __version__ as symbiont_version
 from symbiont.actuation.sensorimotor import RESTORABLE_SCHEMA_VERSIONS
@@ -43,6 +45,15 @@ LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
 LEGACY_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v4.json"
 DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v6.json"
 DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "telemetry-v4.1"
+
+
+@contextmanager
+def _observer_operation(operation: str):
+    """Report apparatus failures without giving them authority over life."""
+    try:
+        yield
+    except Exception as exc:
+        print(f"{operation} failed: {type(exc).__name__}: {exc}", file=sys.stderr)
 
 
 def _archive_existing_subject(
@@ -450,7 +461,7 @@ def run(
             f"models={restored_models}"
         )
 
-    previous_signal_handlers: dict[int, object] = {}
+    previous_signal_handlers: dict[int, Any] = {}
     stop_requested = False
 
     def _graceful_stop(signum, _frame) -> None:
@@ -617,17 +628,18 @@ def run(
                         "last_resolved_hidden_dim": private_model_training.last_resolved_hidden_dim,
                         "last_vocab_size": private_model_training.last_vocab_size,
                     }
-                full_snapshot = None
-                if telemetry.needs_snapshot(record.tick):
-                    full_snapshot = {
-                        "organism": runtime.checkpoint(advance_lineage=False),
-                        "physical": runtime.passive_physical_state(),
-                    }
-                telemetry.append(
-                    record,
-                    rich_state=rich_state,
-                    full_snapshot=full_snapshot,
-                )
+                with _observer_operation("Telemetry append"):
+                    full_snapshot = None
+                    if telemetry.needs_snapshot(record.tick):
+                        full_snapshot = {
+                            "organism": runtime.checkpoint(advance_lineage=False),
+                            "physical": runtime.passive_physical_state(),
+                        }
+                    telemetry.append(
+                        record,
+                        rich_state=rich_state,
+                        full_snapshot=full_snapshot,
+                    )
 
             if private_model_training is not None:
                 private_model_training.maybe_schedule(runtime.organism, current_tick=record.tick)
@@ -821,7 +833,8 @@ def run(
                 remaining -= 1
 
             if runtime.tick_count % checkpoint_interval == 0:
-                telemetry.flush()
+                with _observer_operation("Telemetry flush"):
+                    telemetry.flush()
                 active_checkpoint_thread = _save_checkpoint(
                     runtime,
                     symbiont_file=symbiont_file,
@@ -856,7 +869,8 @@ def run(
     except KeyboardInterrupt:
         exit_cause = "operator_stop"
     finally:
-        telemetry.flush()
+        with _observer_operation("Telemetry flush"):
+            telemetry.flush()
         checkpoint_error: BaseException | None = None
         if active_checkpoint_thread is not None:
             try:
@@ -865,19 +879,20 @@ def run(
                 checkpoint_error = exc
                 exit_cause = "error"
         if measurement_file is not None:
-            # Wave 0 (Cross-Domain Revision Coherence v1 §2.1): read-only.
-            Path(measurement_file).write_text(
-                json.dumps(
-                    {
-                        "tick": runtime.tick_count,
-                        "epoch_metrics": runtime._epoch_metrics,
-                        "measurement": runtime.organism.measurement_snapshot(),
-                    },
-                    indent=2,
-                    sort_keys=True,
-                    default=str,
+            with _observer_operation("Measurement export"):
+                # Wave 0 (Cross-Domain Revision Coherence v1 §2.1): read-only.
+                Path(measurement_file).write_text(
+                    json.dumps(
+                        {
+                            "tick": runtime.tick_count,
+                            "epoch_metrics": runtime._epoch_metrics,
+                            "measurement": runtime.organism.measurement_snapshot(),
+                        },
+                        indent=2,
+                        sort_keys=True,
+                        default=str,
+                    )
                 )
-            )
         try:
             _save_checkpoint(
                 runtime,
@@ -886,40 +901,60 @@ def run(
                 models_dir=models_dir,
                 lifecycle_state="dormant",
             )
-        except Exception as exc:
+        except BaseException as exc:
             checkpoint_error = checkpoint_error or exc
             exit_cause = "error"
             print(
                 f"Final checkpoint failed: {type(exc).__name__}: {exc}",
                 file=sys.stderr,
             )
-        if headless and _HEADLESS_PROGRESS_TTY:
-            # Terminate the last \r-overwritten progress line before the summary.
-            print()
-        if headless and record is not None:
-            pos = record.base_position
-            print(
-                f"ticks={runtime.tick_count} "
-                f"base=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
-                f"schema={record.schema_confidence:.4f} "
-                f"parts={record.schema_parts} "
-                f"deps={record.schema_dependencies} "
-                f"slm_records={record.slm_records}"
-            )
-        print(f"Symbiont state: {symbiont_file}")
-        print(f"Body state:     {body_file}")
-        print(f"Telemetry run:  {telemetry.root}")
-        if viewer is not None:
-            viewer.close()
-        if private_model_training is not None:
-            private_model_training.close()
-        telemetry.close()
-        runtime.close()
+        with _observer_operation("Shutdown summary"):
+            if headless and _HEADLESS_PROGRESS_TTY:
+                # Terminate the last \r-overwritten progress line before the summary.
+                print()
+            if headless and record is not None:
+                pos = record.base_position
+                print(
+                    f"ticks={runtime.tick_count} "
+                    f"base=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
+                    f"schema={record.schema_confidence:.4f} "
+                    f"parts={record.schema_parts} "
+                    f"deps={record.schema_dependencies} "
+                    f"slm_records={record.slm_records}"
+                )
+            print(f"Symbiont state: {symbiont_file}")
+            print(f"Body state:     {body_file}")
+            print(f"Telemetry run:  {telemetry.root}")
+        # Each cleanup is independent; observer failures cannot prevent release
+        # of native resources or restoration of the caller's signal handlers.
+        cleanup_error: BaseException | None = None
+        for resource, observer in (
+            (viewer, True),
+            (private_model_training, False),
+            (telemetry, True),
+            (runtime, False),
+        ):
+            if resource is None:
+                continue
+            try:
+                resource.close()
+            except BaseException as exc:
+                if not observer or not isinstance(exc, Exception):
+                    cleanup_error = cleanup_error or exc
+                    exit_cause = "error"
+                print(f"Cleanup failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         if owns_signal_handlers:
             for signum, previous_handler in previous_signal_handlers.items():
-                signal.signal(signum, previous_handler)
+                try:
+                    signal.signal(signum, previous_handler)
+                except BaseException as exc:
+                    cleanup_error = cleanup_error or exc
+                    exit_cause = "error"
         if termination_callback is not None:
-            termination_callback(exit_cause)
+            with _observer_operation("Termination callback"):
+                termination_callback(exit_cause)
         if checkpoint_error is not None:
             raise checkpoint_error
+        if cleanup_error is not None and sys.exc_info()[0] is None:
+            raise cleanup_error
     return 0
