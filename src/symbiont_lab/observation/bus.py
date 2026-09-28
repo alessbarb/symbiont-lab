@@ -22,7 +22,7 @@ class ObservationMessage:
     """Serialized observer payload paired with its transport identity."""
 
     stream_id: int
-    data: str
+    data: bytes
 
 
 
@@ -64,8 +64,11 @@ class ObservationBus:
             self._sequence += 1
             stream_id = self._sequence
             projected = dict(encoded)
-            projected["_stream_id"] = stream_id
-            data = json.dumps(projected, separators=(",", ":"), ensure_ascii=False)
+            data = json.dumps(
+                projected,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
 
             event_type = str(event.get("type") or "")
             if event_type:
@@ -73,9 +76,10 @@ class ObservationBus:
                     self._last_by_type[event_type] = ObservationMessage(
                         stream_id=stream_id,
                         data=json.dumps(
-                            {**self._world_scene, "_stream_id": stream_id},
+                            self._world_scene,
                             separators=(",", ":"),
-                        ),
+                            ensure_ascii=False,
+                        ).encode("utf-8"),
                     )
                 elif projected.get("type") == "observation_delta":
                     anchor = self._delta.anchor(event_type)
@@ -83,10 +87,10 @@ class ObservationBus:
                         self._last_by_type[event_type] = ObservationMessage(
                             stream_id=stream_id,
                             data=json.dumps(
-                                {**anchor, "_stream_id": stream_id},
+                                anchor,
                                 separators=(",", ":"),
                                 ensure_ascii=False,
-                            ),
+                            ).encode("utf-8"),
                         )
                 else:
                     self._last_by_type[event_type] = ObservationMessage(
