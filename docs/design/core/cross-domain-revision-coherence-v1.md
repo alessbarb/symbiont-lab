@@ -800,6 +800,30 @@ first needs eligible models to exist; what to change (training budget,
 eligibility criterion, or seeding P5-B from a baseline-beating model) is an
 owner decision and needs its own preregistration.
 
+### 8.6 Owner decisions after P5 (2026-09-28)
+
+- **P5 is closed as `INCONCLUSIVE — ancestry not exercised`**, and
+  **negative for the current root-training regime** (0/41 candidates beat
+  the non-neural baseline).
+- `ancestry_training` stays **off**; the eligibility criterion is
+  **unchanged**. A model that does not beat the non-neural baseline is not
+  evidence for making it an ancestor; lowering the gate to exercise the
+  branch would empty it of meaning.
+- Seeding P5-B from a baseline-beating model is acceptable only as a
+  **mechanics-only lineage test** (vocabulary, restore, embeddings,
+  inheritance), never reported as scientific evidence for ancestry.
+- **Next study, before any P5.1:** private-model learnability under the
+  training budget (Private Model Learnability v1, P6). Architecture,
+  parameter ceiling, promotion criterion, baselines and corpus
+  construction stay fixed; only the training budget varies.
+- P5 is re-run with ancestry actually exercisable only if at least one
+  model legitimately beats the baseline.
+- Genealogy is not yet the bottleneck; the current private models do not
+  reach a minimum level of predictive utility.
+
+P5 organism copies were deleted after archiving (`.symbiont/archive/p5/`,
+including the 41 trained model manifests and tokenizers).
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
