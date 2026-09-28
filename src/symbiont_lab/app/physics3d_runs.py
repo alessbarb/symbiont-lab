@@ -16,6 +16,7 @@ from symbiont_lab.physics3d.engine import (
     DEFAULT_SYMBIONT_FILE,
     LEGACY_BODY_FILE,
 )
+from symbiont_lab.physics3d.environments import environment_recipe
 from symbiont_lab.physics3d.persistence import (
     read_symbiont_bundle_manifest,
     read_symbiont_bundle_runtime,
@@ -58,6 +59,7 @@ class Physics3DLaunchSpec:
     symbiont_file: Path
     body_file: Path
     telemetry_file: Path
+    environment: str | None = None
 
     @property
     def new_symbiont(self) -> bool:
@@ -76,6 +78,7 @@ class Physics3DLaunchSpec:
     def runner_kwargs(self) -> dict[str, object]:
         return {
             "body_kind": self.body_kind,
+            "environment": self.environment,
             "symbiont_file": self.symbiont_file,
             "body_file": self.body_file,
             "telemetry_file": self.telemetry_file,
@@ -89,6 +92,7 @@ class Physics3DLaunchSpec:
             "organism_ref": self.organism_ref,
             "body_ref": self.body_ref,
             "body_kind": self.body_kind,
+            "environment": self.environment,
             "organism_mode": self.organism_mode,
             "body_mode": self.body_mode,
             "embodiment_mode": self.embodiment_mode,
@@ -321,6 +325,9 @@ class Physics3DRunStore:
     def prepare(self, payload: dict[str, Any]) -> Physics3DLaunchSpec:
         body_kind = str(payload.get("body_kind") or "anthropomorphic-v6")
         descriptor = self.body_registry.get(body_kind)
+        environment = payload.get("environment")
+        if environment is not None:
+            environment_recipe(environment)
         organism = payload.get("organism", {})
         body = payload.get("body", {})
         if not isinstance(organism, dict) or not isinstance(body, dict):
@@ -394,6 +401,7 @@ class Physics3DRunStore:
             organism_ref=organism_ref,
             body_ref=body_ref,
             body_kind=body_kind,
+            environment=environment,
             organism_mode=organism_mode,
             body_mode=body_mode,
             symbiont_file=symbiont_file,

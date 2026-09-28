@@ -242,6 +242,11 @@ def make_handler(
                 self._json(200, payload)
                 return
 
+            if path == "/api/environments" and body_catalog is not None:
+                from symbiont_lab.physics3d.environments import ENVIRONMENT_NAMES
+                self._json(200, {"items": list(ENVIRONMENT_NAMES)})
+                return
+
             if path == "/api/bodies" and body_catalog is not None:
                 self._json(200, {"items": body_catalog()})
                 return

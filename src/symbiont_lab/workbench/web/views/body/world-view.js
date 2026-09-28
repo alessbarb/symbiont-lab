@@ -20,6 +20,8 @@ export class WorldView {
     this.layers = { physical: true, perception: false, self: false, known: false, predictions: false, truth: true };
     this.entities = new Map();
     this.receptors = new Map();
+    this.relations = new THREE.Group();
+    viewer.scene.add(this.relations);
     this.contacts = new THREE.Group();
     this.viewer.scene.add(this.contacts);
     this.selected = null;
@@ -63,7 +65,10 @@ export class WorldView {
     this.legend.className = 'body-world-legend';
     this.legend.hidden = !this.active;
     this.legend.textContent = 'World unavailable · waiting for spatial evidence';
-    viewer.canvasWrap.append(this.toolbar, this.legend);
+    this.experience = document.createElement('div');
+    this.experience.className = 'body-world-experience';
+    this.experience.hidden = true;
+    viewer.canvasWrap.append(this.toolbar, this.legend, this.experience);
     let down = null;
     viewer.canvas.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; }, { signal: this.abort.signal });
     viewer.canvas.addEventListener('pointerup', e => {
@@ -105,6 +110,7 @@ export class WorldView {
     this.active = active;
     this.toolbar.hidden = !active;
     this.legend.hidden = !active;
+    this.experience.hidden = true;
     this.updateVisibility();
   }
 
@@ -267,6 +273,8 @@ export class WorldView {
       for (const { group } of this.entities.values()) group.visible = false;
       for (const marker of this.receptors.values()) marker.visible = false;
       this.contacts.visible = false;
+      this.relations.visible = false;
+      this.experience.hidden = true;
       return;
     }
     for (const { group } of this.entities.values()) {
@@ -285,12 +293,66 @@ export class WorldView {
     this.viewer.baseNode.visible = this.layers.physical || this.layers.self;
     if (this.viewer.gridHelper) this.viewer.gridHelper.visible = this.layers.physical && this.layers.truth && !!this.state;
     if (this.viewer.contactMarkerGroup) this.viewer.contactMarkerGroup.visible = !this.state && this.layers.physical;
+    this.syncExperience();
     this.legend.textContent = !this.state ? 'World unavailable · no spatial contract in this stream' :
       `${this.layers.truth ? 'WORLD TRUTH · observer geometry' : 'SYMBIONT VIEW · no object-localized world model'} · tick ${this.state.tick}\n` +
       (this.layers.perception ? 'Teal: perceived · amber: sampled · grey: unsampled · select to focus\n' : '') +
       (this.layers.self ? 'Self Model: mapped signal confidence, not anatomical recognition\n' : '') +
       ((this.layers.known || this.layers.predictions) ? 'Object memory / spatial predictions: no exported evidence\n' : '') +
       'Objects shown ≠ objects known · select an element to inspect evidence';
+  }
+
+  syncExperience() {
+    while (this.relations.children.length) dispose(this.relations.children[0]);
+    this.relations.visible = this.active && this.layers.perception;
+    this.experience.hidden = true;
+    if (!this.relations.visible || !this.state || !this.selected) return;
+    const matches = Object.entries(this.state.receptors).filter(([id, r]) => this.relatedReceptor(id, r));
+    // Focus one actual sampled anchor. Other related receptors remain highlighted.
+    matches.sort(([a], [b]) => Number(!!this.state.evidence[b]?.percept_emitted) - Number(!!this.state.evidence[a]?.percept_emitted));
+    const [id, receptor] = matches.find(([rid]) => this.receptors.get(rid)?.userData.hasPosition) ?? [];
+    if (!id) return;
+    const marker = this.receptors.get(id), evidence = this.state.evidence[id];
+    this.experienceAnchor = marker.position.clone();
+    const signals = evidence?.signals ?? [];
+    const sampled = evidence?.sampled == null ? 'Sampling unavailable' : evidence.sampled ? `Sample ${Number(evidence.sample).toPrecision(3)}` : 'Not sampled';
+    const claims = signals.flatMap(s => s.knowledge?.claims ?? []);
+    const statuses = [...new Set(claims.map(c => c.status))].join(', ');
+    this.experience.innerHTML = `<strong>${escapeHtml(id)} · ${escapeHtml(receptor.modality)}</strong>
+      <span>${escapeHtml(sampled)} → ${signals.filter(s => s.percept).length} emitted percepts</span>
+      ${signals.slice(0, 2).map(signal => `<span title="${escapeHtml(signal.signal_id ?? signal.id)}">${escapeHtml((signal.signal_id ?? signal.id).slice(0, 22))} · ${signal.percept?.value == null ? 'not emitted' : Number(signal.percept.value).toPrecision(3)}</span>`).join('')}
+      <span>${claims.length ? `${claims.length} signal claims · ${escapeHtml(statuses)}` : 'Signal learning: no linked evidence'}</span>
+      <small>Pre-action t${escapeHtml(String(this.state.tick))} · observer placement</small>`;
+    this.experience.hidden = false;
+    const connect = (end, tone, dashed) => {
+      const material = dashed ? new THREE.LineDashedMaterial({color:tone, dashSize:.05, gapSize:.04, transparent:true, opacity:.7}) : new THREE.LineBasicMaterial({color:tone, transparent:true, opacity:.8});
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([marker.position, end]), material);
+      if (dashed) line.computeLineDistances();
+      this.relations.add(line);
+    };
+    if (this.layers.truth && receptor.source_entity_id) {
+      const source = this.entities.get(receptor.source_entity_id)?.group;
+      if (source) connect(source.position, 0xe9b765, true);
+    }
+    // A learned signal relation may be located on apparatus anchors by the observer;
+    // it is not an acquired spatial edge or proof of a common external object.
+    const related = new Set(claims.filter(c => c.related_signal_id).map(c => c.related_signal_id));
+    for (const [rid, other] of Object.entries(this.state.evidence)) {
+      if (rid === id || !other.signals.some(s => related.has(s.signal_id))) continue;
+      const target = this.receptors.get(rid);
+      if (target?.userData.hasPosition) connect(target.position, 0x53e3da, true);
+    }
+    this.positionExperience();
+  }
+
+  positionExperience() {
+    if (this.experience.hidden || !this.experienceAnchor) return;
+    const point = this.experienceAnchor.clone().project(this.viewer.camera);
+    const width = this.viewer.canvas.clientWidth, height = this.viewer.canvas.clientHeight;
+    const visible = point.z >= -1 && point.z <= 1 && Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1;
+    this.experience.style.visibility = visible ? 'visible' : 'hidden';
+    this.experience.style.left = `${Math.max(8, Math.min(width - 250, (point.x + 1) * width / 2 + 18))}px`;
+    this.experience.style.top = `${Math.max(100, Math.min(height - 130, (1 - point.y) * height / 2))}px`;
   }
 
   fieldSelected(id) {
@@ -339,6 +401,7 @@ export class WorldView {
 
   update() {
     if (!this.active) return;
+    this.positionExperience();
     // BodyViewer refreshes these overlays on incoming poses. Reapply the epistemic
     // boundary at render time so observer-only trajectories cannot leak into View.
     const truthVisible = this.layers.truth && this.layers.physical;
@@ -381,6 +444,7 @@ export class WorldView {
       const e = s.entities[this.selected.id];
       if (e) {
         html += '<div class="body-section"><div class="body-section-title">World truth · observer only</div>' + row('Geometry', e.shapes.map(x => x.kind).join(', ')) + row('Position · m, Z-up', vector(e.position)) + row('Orientation · XYZW', vector(e.orientation));
+        if (e.material) html += row('Lateral friction · physical', e.material.lateral_friction) + row('Mass · kg', e.material.mass);
         if (e.field) html += row('Field support · m', e.field.radius) + row('Source active', e.field.active);
         const touching = s.contacts.filter(x => x.entity_id === e.id);
         html += row('Contacts · post-action', touching.length) + row('Touching body links', [...new Set(touching.map(x => x.link).filter(Boolean))].join(', ') || 'None in this frame') + '</div>';
@@ -411,21 +475,41 @@ export class WorldView {
     });
     for (const [id, r] of ids) {
       const e = s.evidence[id];
-      html += '<div class="body-section"><div class="body-section-title">' + escapeHtml(`${id} · ${r.modality}`) + '</div>' + row('Can be sampled', 'Apparatus receptor') + row('Sampled this tick', e?.sampled) + row('Recorded value', e?.sample) + row('Nonzero stimulus', e?.sampled ? Math.abs(e.sample ?? 0) > 0 : null) + row('Percept emitted', e?.percept_emitted) + row('Evidence time', `${s.tick} · pre-action`);
+      html += '<div class="body-section"><div class="body-section-title">' + `<button type="button" class="body-world-receptor" data-world-receptor="${escapeHtml(id)}">${escapeHtml(`${id} · ${r.modality}`)}</button>` + '</div>' + row('Can be sampled', 'Apparatus receptor') + row('Sampled this tick', e?.sampled) + row('Recorded value', e?.sample) + row('Nonzero stimulus', e?.sampled ? Math.abs(e.sample ?? 0) > 0 : null) + row('Percept emitted', e?.percept_emitted) + row('Evidence time', `${s.tick} · pre-action`);
       for (const signal of e?.signals ?? []) html += row('Opaque signal', signal.id) + row('Percept value', signal.percept?.value) + row('Self representation', signal.represented) + row('Confidence class', signal.self_model?.confidence_class) + row('Maturity class', signal.self_model?.maturity_class);
+      for (const signal of e?.signals ?? []) {
+        html += row('Percept → signal reference', signal.signal_id ?? 'Unjustified: no exported reference');
+        html += row('Receptor → percept', signal.source_mapping ?? 'Observer lineage');
+        for (const claim of signal.knowledge?.claims ?? []) {
+          html += row(`${claim.kind} · ${claim.status}`, `${claim.evidence_count ?? '?'} observations · revision ${claim.revision ?? '?'}`);
+          if (claim.related_signal_id) html += row('Related signal', claim.related_signal_id);
+          if (claim.horizon != null) html += row('Signal horizon · ticks', claim.horizon);
+          if (claim.reason_class) html += row('Evidence limitation', claim.reason_class);
+        }
+      }
+      html += '<p class="body-world-note">Dashed links show observer attribution or signal relations located on receptors. They do not establish spatial knowledge or object identity.</p>';
       if (r.modality === 'scalar_field') html += '<p class="body-world-note">Scalar intensity only. No sensed direction, distance or object identity.</p>';
       html += '</div>';
     }
     if (!this.selected) html += '<div class="body-section"><div class="body-section-title">Explore this scene</div><p class="body-world-note">Select a body part, object, receptor or contact. Rotate to inspect, pan to explore, or frame the world.</p>' + row('World entities', Object.keys(s.entities).length) + row('Sampled receptors', Object.values(s.evidence).filter(e => e.sampled).length) + row('Emitted percepts mapped', Object.values(s.evidence).filter(e => e.percept_emitted).length) + '</div>';
     if (!this.selected) html += '<div class="body-section"><div class="body-section-title">Spatial knowledge boundary</div><p class="body-world-note">This runtime exports signal learning and motor evidence, but no object-localized memory or predictions. Inspect acquired dependencies in Self-Model and predictors in Mind. No object is marked known by proxy.</p></div>';
     panel.innerHTML = html;
+    panel.querySelectorAll('[data-world-receptor]').forEach(button => button.addEventListener('click', () => {
+      if (!this.active) return;
+      this.selected = {kind: 'receptor', id: button.dataset.worldReceptor};
+      this.layers.perception = true;
+      this.toolbar.querySelector('[data-layer="perception"]').setAttribute('aria-pressed', 'true');
+      this.updateVisibility();
+      this.inspector(panel);
+    }));
   }
 
   dispose() {
     this.setActive(false);
-    this.closed = true; this.abort.abort(); this.toolbar.remove(); this.legend.remove();
+    this.closed = true; this.abort.abort(); this.toolbar.remove(); this.legend.remove(); this.experience.remove();
     for (const { group } of this.entities.values()) dispose(group);
     for (const marker of this.receptors.values()) dispose(marker);
     dispose(this.contacts);
+    dispose(this.relations);
   }
 }

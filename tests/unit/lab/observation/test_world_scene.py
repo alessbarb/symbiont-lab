@@ -153,3 +153,29 @@ def test_recovery_endpoint_returns_materialized_state_without_mutating_bus():
     assert recovered["entities"]["e"]["position"] == [9, 0, 0]
     recovered["entities"].clear()
     assert bus.world_scene()["entities"]
+
+
+def test_signal_claims_require_an_exported_percept_reference():
+    rich = rich_state()
+    sensor = next(iter(rich["observer_semantics"]["sensory"]))
+    rich["runtime"]["signal_references"] = {sensor: "signal.acquired"}
+    claim = {
+        "claim_id": "claim.1",
+        "kind": "coupling",
+        "status": "insufficient",
+        "related_signal_id": "signal.other",
+        "evidence_count": 2,
+        "revision": 1,
+    }
+    rich["runtime"]["signal_knowledge"] = [{"signal_id": "signal.acquired", "claims": [claim]}]
+    scene = project_world_scene(rich)
+    signal = next(s for e in scene["evidence"].values() for s in e["signals"] if s["id"] == sensor)
+    assert signal["signal_id"] == "signal.acquired"
+    assert signal["knowledge"]["claims"][0]["status"] == "insufficient"
+    signal["knowledge"]["claims"].clear()
+    assert rich["runtime"]["signal_knowledge"][0]["claims"] == [claim]
+    rich["runtime"]["signal_references"] = {}
+    scene = project_world_scene(rich)
+    signal = next(s for e in scene["evidence"].values() for s in e["signals"] if s["id"] == sensor)
+    assert signal["knowledge"] is None
+    assert signal["reference_status"] == "unavailable"

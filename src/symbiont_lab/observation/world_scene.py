@@ -24,6 +24,12 @@ def project_world_scene(rich: Mapping[str, Any]) -> dict | None:
         if isinstance(p, Mapping) and p.get("name")
     }
     self_model = rich.get("self_model", {})
+    references = rich.get("runtime", {}).get("signal_references") or {}
+    knowledge = {
+        item["signal_id"]: item
+        for item in rich.get("runtime", {}).get("signal_knowledge", ()) or ()
+        if isinstance(item, Mapping) and item.get("signal_id")
+    }
     evidence = {}
     for rid, anchor in truth.get("receptors", {}).items():
         signals = []
@@ -39,6 +45,10 @@ def project_world_scene(rich: Mapping[str, Any]) -> dict | None:
                     "self_model": deepcopy(self_model.get(sid)),
                     "represented": sid in self_model,
                     "mapping": "observer-source-lineage",
+                    "signal_id": references.get(sid),
+                    "knowledge": deepcopy(knowledge.get(references.get(sid))),
+                    "reference_status": "exported" if sid in references else "unavailable",
+                    "source_mapping": mapping.get("mapping", "unspecified"),
                 }
             )
         evidence[rid] = {
@@ -61,6 +71,7 @@ def project_world_scene(rich: Mapping[str, Any]) -> dict | None:
         "body_id": rich.get("embodiment", {}).get("body_id"),
         "coordinates": truth["coordinates"],
         "environment": truth["environment"],
+        "environment_recipe": deepcopy(truth.get("environment_recipe")),
         "entities": deepcopy(truth.get("entities", {})),
         "receptors": deepcopy(truth.get("receptors", {})),
         "contacts": deepcopy(truth.get("contacts", [])),

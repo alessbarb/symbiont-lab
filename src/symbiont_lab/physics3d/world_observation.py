@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from uuid import uuid4
 
 
@@ -51,6 +52,7 @@ class PhysicsWorldObserver:
                             "orientation": list(shape[6]),
                         }
                     )
+                dynamics = p.getDynamicsInfo(uid, link, physicsClientId=client)
                 eid = self._ids[uid] if link == -1 else f"{self._ids[uid]}.link.{link}"
                 entity = {
                     "id": eid,
@@ -58,6 +60,7 @@ class PhysicsWorldObserver:
                     "orientation": list(orn),
                     "shapes": shapes,
                     "exists": True,
+                    "material": {"mass": dynamics[0], "lateral_friction": dynamics[1], "restitution": dynamics[5]},
                     "provenance": "physics-collision-geometry",
                 }
                 if uid == runtime.resource.body_id:
@@ -141,5 +144,6 @@ class PhysicsWorldObserver:
             "contacts": contacts,
             "coordinates": {"up": "z", "units": "metres", "quaternion": "xyzw"},
             "environment": "physics3d",
+            "environment_recipe": deepcopy(getattr(runtime, "environment_recipe", None)),
             "provenance": {"owner": "observer", "feeds_back": False},
         }

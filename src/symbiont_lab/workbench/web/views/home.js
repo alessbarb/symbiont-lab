@@ -5,6 +5,7 @@ let selectedBody = null;
 let organismMode = 'new';
 let organismRef = '';
 let bodyMode = 'fresh';
+let selectedEnvironment = 'flat-v1';
 let lastPhysicsState = null;
 
 function esc(value) {
@@ -24,12 +25,13 @@ async function loadState() {
 }
 
 async function loadCatalog() {
-  const [bodies, organisms, runs] = await Promise.all([
+  const [bodies, organisms, runs, environments] = await Promise.all([
     jsonRequest('/api/bodies'),
     jsonRequest('/api/organisms'),
     jsonRequest('/api/runs'),
+    jsonRequest('/api/environments'),
   ]);
-  catalog = { bodies: bodies.items ?? [], organisms: organisms.items ?? [], runs: runs.items ?? [] };
+  catalog = { bodies: bodies.items ?? [], organisms: organisms.items ?? [], runs: runs.items ?? [], environments: environments.items ?? [] };
   if (!selectedBody) selectedBody = catalog.bodies[0]?.body_kind ?? null;
   if (!organismRef) organismRef = catalog.organisms[0]?.ref ?? '';
 }
@@ -181,6 +183,9 @@ function render() {
             <label><input type="radio" name="body-mode" value="fresh" ${bodyMode === 'fresh' ? 'checked' : ''}> Fresh body</label>
             <label><input type="radio" name="body-mode" value="resume" ${bodyMode === 'resume' ? 'checked' : ''} ${organismMode === 'existing' ? '' : 'disabled'}> Resume previous body</label>
           </div>
+          <label for="home-environment">World · physical environment</label>
+          <select id="home-environment" ${bodyMode === 'resume' ? 'disabled' : ''}>${(catalog.environments ?? []).map(name => `<option value="${esc(name)}" ${name === selectedEnvironment ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select>
+          <p>${bodyMode === 'resume' ? 'Resume restores the saved world.' : 'Contact garden adds real surfaces and obstacles. Their identities are not given to Symbiont.'}</p>
           <div class="home-preflight"><strong>Preflight</strong><span>${esc(compatibilityText())}</span></div>
         </section>
       </div>
@@ -202,6 +207,7 @@ async function startRun() {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         body_kind: selectedBody,
+        environment: bodyMode === 'resume' ? undefined : selectedEnvironment,
         organism: { mode: organismMode, ref: organismMode === 'existing' ? organismRef : undefined },
         body: { mode: bodyMode },
       }),
@@ -239,6 +245,7 @@ function bind() {
     organismRef = event.target.value;
     render();
   });
+  rootNode?.querySelector('#home-environment')?.addEventListener('change', event => { selectedEnvironment = event.target.value; });
   document.getElementById('home-start')?.addEventListener('click', startRun);
   document.getElementById('home-stop')?.addEventListener('click', stopRun);
   rootNode?.querySelectorAll('[data-open]').forEach(node => node.addEventListener('click', () => window.routeToView?.(node.dataset.open)));
@@ -274,3 +281,4 @@ export function update(root, nextState) {
 export function unmount() {
   rootNode = null;
 }
+

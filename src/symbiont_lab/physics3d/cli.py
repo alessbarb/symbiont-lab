@@ -14,6 +14,7 @@ from .engine import (
     DEFAULT_TELEMETRY_FILE,
     run,
 )
+from .environments import ENVIRONMENT_NAMES
 from .persistence import load_telemetry_records
 
 
@@ -60,6 +61,8 @@ def main(argv: list[str] | None = None) -> int:
         help="ticks to run; 0 means until interrupted",
     )
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--environment", choices=ENVIRONMENT_NAMES, default=None,
+                        help="physical world recipe; resume preserves the saved world")
     parser.add_argument("--hz", type=int, default=240, help="PyBullet physics frequency")
     parser.add_argument(
         "--cognition-hz",
@@ -157,6 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         headless=args.headless,
         ticks=args.ticks,
         seed=args.seed,
+        environment=args.environment,
         hz=args.hz,
         cognition_hz=args.cognition_hz,
         mechanical_work_cost_per_joule=args.work_cost_per_joule,

@@ -50,6 +50,7 @@ from .apparatus import (
     physics3d_sensory_system,
 )
 from .bodies import DEFAULT_BODY_REGISTRY
+from .environments import build_environment, resolve_environment
 from .humanoid import apply_surface_material, configure_physics_solver
 from .observer_semantics import (
     action_dimension_semantics,
@@ -225,6 +226,7 @@ class PyBulletEmbodimentRuntime:
         mechanical_work_cost_per_joule: float = 0.001,
         capture_physics_trace: bool = False,
         body_kind: str = "anthropomorphic-v6",
+        environment: str | None = None,
         runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
         organism_id: str | None = None,
@@ -237,6 +239,11 @@ class PyBulletEmbodimentRuntime:
                 "PyBullet is optional. Install with: pip install 'symbiont-lab[physics3d]'"
             ) from exc
 
+        # Validate before allocating a physics client. Historical poses used flat-v1.
+        saved_world = physical_state.get("lab_world") if physical_state is not None else None
+        if physical_state is not None and saved_world is None:
+            saved_world = resolve_environment("flat-v1", None)
+        self.environment_recipe = resolve_environment(environment, saved_world)
         self.p = p
         self.time_step = float(time_step)
         if physics_substeps_per_tick < 1:
@@ -279,6 +286,7 @@ class PyBulletEmbodimentRuntime:
             client_id=self.client_id,
         )
 
+        self.environment_bodies = build_environment(p, self.client_id, self.environment_recipe)
         self.apparatus = self.body_descriptor.apparatus_factory(p, self.client_id)
         if physical_state is not None:
             # Resume may contain finite solver penetration beyond the declared
@@ -1003,6 +1011,7 @@ class PyBulletEmbodimentRuntime:
         )
         state["body_id"] = self._physical_body_id
         state["locomotion_resource"] = self.resource.checkpoint()
+        state["lab_world"] = resolve_environment(None, self.environment_recipe)
         contact_counts = self._contact_counts()
         state["contact_count"] = int(contact_counts["body"])
         state["ground_contact_count"] = int(contact_counts["ground"])

@@ -236,6 +236,7 @@ def run(
     mechanical_work_cost_per_joule: float = 0.001,
     telemetry_physics_trace: bool = False,
     body_kind: str = "anthropomorphic-v6",
+    environment: str | None = None,
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
@@ -346,6 +347,7 @@ def run(
         mechanical_work_cost_per_joule=mechanical_work_cost_per_joule,
         capture_physics_trace=telemetry_physics_trace,
         body_kind=body_kind,
+        environment=environment,
         runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
     )
@@ -360,6 +362,7 @@ def run(
     telemetry_configuration = dict(runtime_config) if isinstance(runtime_config, dict) else {}
     telemetry_configuration["telemetry_physics_trace"] = bool(telemetry_physics_trace)
     telemetry_configuration["body_kind"] = body_kind
+    telemetry_configuration["lab_world"] = runtime.environment_recipe
     runtime_checkpoint_for_identity = runtime.checkpoint()
     raw_genome = runtime_checkpoint_for_identity.get("genome", {})
     software_identity = {

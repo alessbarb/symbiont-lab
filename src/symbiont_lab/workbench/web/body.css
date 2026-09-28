@@ -1869,3 +1869,19 @@
 .body-view-root .body-world-toolbar button:disabled {
   opacity: .45; cursor: default; border-style: dashed;
 }
+
+.body-view-root .body-world-experience {
+  position: absolute; z-index: 4; width: 230px; display: grid; gap: 5px;
+  padding: 10px; border-left: 2px solid #53e3da; border-radius: 5px;
+  background: rgba(9,19,27,.92); color: #c0d7df; pointer-events: none;
+  font: 11px/1.4 var(--mono, monospace);
+}
+.body-view-root .body-world-experience small { color: #8ea5b5; }
+.body-view-root .body-world-experience[hidden],
+.body-view-root:not(.body-world-mode) .body-world-experience { display: none; }
+
+.body-view-root.body-world-mode .body-world-receptor {
+  color: #80d8da; border: 0; background: transparent; padding: 2px 0;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.body-view-root.body-world-mode .body-world-receptor:focus-visible { outline: 2px solid #80d8da; }
