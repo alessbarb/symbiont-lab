@@ -392,15 +392,28 @@ class TelemetryV41Writer:
         }
         _write_json(self.root / "manifest.json", self.manifest)
 
+        self._cognition_hz = int(cognition_hz)
+        self._observation_hz = int(observation_hz or cognition_hz)
+        self._first_sample_tick: int = self._start_tick + 1
+        for k in range(1, max(2, self._cognition_hz + 1)):
+            candidate = self._start_tick + k
+            if (candidate * self._observation_hz // self._cognition_hz) != (
+                (candidate - 1) * self._observation_hz // self._cognition_hz
+            ):
+                self._first_sample_tick = candidate
+                break
+
     def needs_snapshot(self, tick: int) -> bool:
         """Whether the engine should capture a large organism/physical checkpoint."""
         tick = int(tick)
-        initial_record = self._sequence == 0
+        initial_record = self._sequence == 0 and tick == self._first_sample_tick
         return initial_record or tick % self._snapshot_interval == 0
 
     def needs_anchor(self, tick: int) -> bool:
         """Whether telemetry should persist a lightweight random-access anchor."""
-        return self._sequence == 0 or int(tick) % self._anchor_interval == 0
+        tick = int(tick)
+        initial_record = self._sequence == 0 and tick == self._first_sample_tick
+        return initial_record or tick % self._anchor_interval == 0
 
     def _write_checkpoint_component(
         self,
@@ -814,7 +827,7 @@ class AsyncTelemetryV41Writer:
     def needs_snapshot(self, tick: int) -> bool:
         self._raise_worker_error()
         tick = int(tick)
-        initial_record = self._submitted == 0
+        initial_record = self._submitted == 0 and tick == self._writer._first_sample_tick
         return initial_record or tick % self._snapshot_interval == 0
 
     def append(
