@@ -151,7 +151,11 @@ def test_headless_tick_omits_only_passive_projections() -> None:
     assert silent_result.cognition is not None
     assert silent_result.cognition.representation_maturity is None
 
-    assert observed_result.narrative
+    # This fixture intentionally has no semantic host senses. On tick 1 it may
+    # have no acclimated capabilities yet, so a correctly enabled observer can
+    # still have an empty host narrative. Observer activation is instead proven
+    # by projections whose source state always exists for this embodied subject.
+    assert isinstance(observed_result.narrative, tuple)
     assert observed_result.sensory_phenotype is not None
     assert observed_result.cognition is not None
     assert observed_result.cognition.representation_maturity is not None
