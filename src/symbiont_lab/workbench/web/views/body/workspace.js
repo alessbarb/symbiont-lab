@@ -162,7 +162,6 @@ export class BodyWorkspace {
   updateMetric(id, text, color = null) {
     const previousText = this.metrics.get(id);
     const previousColor = this.colors.get(id) ?? null;
-    const nextColor = color ?? previousColor;
     const textChanged = previousText !== text;
     const colorChanged = color != null && previousColor !== color;
     if (!textChanged && !colorChanged) return;
