@@ -36,7 +36,7 @@ def _decoded_queue_events(queue) -> list[dict]:
     decoder = ObservationDeltaDecoder()
     events = []
     while not queue.empty():
-        payload = json.loads(queue.get_nowait())
+        payload = json.loads(queue.get_nowait().data)
         decoded = decoder.decode(payload)
         if decoded is not None:
             events.append(decoded)
@@ -1448,7 +1448,7 @@ def test_stream_replays_from_transport_sequence() -> None:
     first_id = stream.push({"type": "vitals", "tick": 1})
 
     decoder = ObservationDeltaDecoder()
-    first_payload = json.loads(live.get_nowait())
+    first_payload = json.loads(live.get_nowait().data)
     assert decoder.decode(first_payload)["tick"] == 1
     stream.unsubscribe(live)
 
@@ -1459,8 +1459,9 @@ def test_stream_replays_from_transport_sequence() -> None:
     replayed = []
     transport_ids = []
     while not consumer.empty():
-        payload = json.loads(consumer.get_nowait())
-        transport_ids.append(payload["_stream_id"])
+        message = consumer.get_nowait()
+        payload = json.loads(message.data)
+        transport_ids.append(message.stream_id)
         decoded = decoder.decode(payload)
         if decoded is not None:
             replayed.append(decoded)
