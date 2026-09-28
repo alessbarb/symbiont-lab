@@ -1833,7 +1833,7 @@
   padding: 9px 12px; font: 10px/1.7 var(--mono, monospace); z-index: 4;
 }
 .body-world-note { color: #9cb0be; font-size: 12px; line-height: 1.6; padding: 8px 0; }
-.body-inspector .body-row strong { overflow-wrap: anywhere; }
+.body-view-root.body-world-mode .body-inspector .body-row strong { overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .body-world-toolbar { left: 8px; right: 8px; top: 56px; gap: 3px; }
   .body-world-toolbar button { padding: 6px 7px; font-size: 10px; }
@@ -1863,4 +1863,9 @@
 .body-view-root:not(.body-world-mode) .body-world-toolbar,
 .body-view-root:not(.body-world-mode) .body-world-legend {
   display: none;
+}
+
+
+.body-view-root .body-world-toolbar button:disabled {
+  opacity: .45; cursor: default; border-style: dashed;
 }

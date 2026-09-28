@@ -27,7 +27,8 @@ export class WorldView {
     this.pointer = new THREE.Vector2();
     this.abort = new AbortController();
     this.closed = false;
-    this.active = viewer.workspace?.activeTab === 'world';
+    this.active = false;
+    this.sharedState = null;
     this.recovering = false;
     this.eventGeneration = 0;
     this.recoveryPending = false;
@@ -37,11 +38,16 @@ export class WorldView {
     this.toolbar.hidden = !this.active;
     for (const [id, label] of LAYERS) {
       const button = document.createElement('button');
-      button.textContent = label;
+      button.textContent = ['known', 'predictions'].includes(id) ? `${label} · unavailable` : label;
+      if (['known', 'predictions'].includes(id)) {
+        button.disabled = true;
+        button.title = 'No object-localized evidence is exported by this spatial contract. See Self-Model and Mind for signal learning.';
+      }
       button.dataset.layer = id;
       button.type = 'button';
       button.setAttribute('aria-pressed', String(this.layers[id]));
       button.addEventListener('click', () => {
+        if (!this.active) return;
         this.layers[id] = !this.layers[id];
         button.setAttribute('aria-pressed', String(this.layers[id]));
         this.updateVisibility();
@@ -64,23 +70,61 @@ export class WorldView {
       if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 5) this.pick(e);
       down = null;
     }, { signal: this.abort.signal });
+    this.setActive(viewer.workspace?.activeTab === 'world');
     this.recover();
   }
 
   setActive(active) {
-    this.active = Boolean(active);
-    this.toolbar.hidden = !this.active;
-    this.legend.hidden = !this.active;
-
-    if (!this.active) {
-      for (const { group } of this.entities.values()) group.visible = false;
-      for (const marker of this.receptors.values()) marker.visible = false;
-      this.contacts.visible = false;
-      if (this.viewer.gridHelper) this.viewer.gridHelper.visible = false;
-      return;
+    active = Boolean(active);
+    if (active === this.active) return;
+    if (active) {
+      const v = this.viewer;
+      this.sharedState = {
+        objects: [v.baseNode, v.gridHelper, v.legacyGround, v.contactMarkerGroup, v.comMarker,
+          v.comProjectionLine, v.trajectoryLine, v.resourceObject, v.resourceGuide]
+          .filter(Boolean).map(object => [object, object.visible]),
+        materials: new Map(), situationHidden: v.situationEl?.hidden,
+        camera: v.camera.position.clone(), target: v.controls.target.clone(),
+        far: v.camera.far, pan: v.controls.enablePan,
+        maxDistance: v.controls.maxDistance, follow: v.followBody,
+      };
+    } else if (this.sharedState) {
+      const v = this.viewer, saved = this.sharedState;
+      for (const [object, visible] of saved.objects) {
+        object.visible = visible;
+        delete object.userData.worldTruthWasVisible;
+      }
+      this.restoreSelfMaterials();
+      if (v.situationEl) v.situationEl.hidden = saved.situationHidden;
+      v.camera.position.copy(saved.camera); v.camera.far = saved.far;
+      v.camera.updateProjectionMatrix(); v.controls.target.copy(saved.target);
+      v.controls.enablePan = saved.pan; v.controls.maxDistance = saved.maxDistance;
+      v.followBody = saved.follow; v.controls.update();
+      this.sharedState = null;
     }
-
+    this.active = active;
+    this.toolbar.hidden = !active;
+    this.legend.hidden = !active;
     this.updateVisibility();
+  }
+
+  restoreSelfMaterials() {
+    for (const [material, saved] of this.sharedState?.materials ?? []) {
+      material.emissive.copy(saved.color);
+      material.emissiveIntensity = saved.intensity;
+    }
+    this.sharedState?.materials.clear();
+    this.selfWasVisible = false;
+  }
+
+  relatedReceptor(id, receptor) {
+    const selection = this.selected;
+    if (!selection) return false;
+    if (selection.kind === 'receptor') return id === selection.id;
+    if (selection.kind === 'entity') return receptor.source_entity_id === selection.id;
+    if (selection.kind === 'body') return receptor.link === selection.id ||
+      (this.viewer.bodyModel.segmentActivityJoints[selection.id] ?? []).includes(receptor.joint);
+    return receptor.link === this.state?.contacts.find(c => c.id === selection.id)?.link;
   }
 
   accept(event) {
@@ -223,28 +267,39 @@ export class WorldView {
       for (const { group } of this.entities.values()) group.visible = false;
       for (const marker of this.receptors.values()) marker.visible = false;
       this.contacts.visible = false;
-      if (this.viewer.gridHelper) this.viewer.gridHelper.visible = false;
       return;
     }
     for (const { group } of this.entities.values()) {
       group.visible = this.layers.physical && this.layers.truth;
-      for (const child of group.children) if (child.userData.field) child.visible = this.layers.perception && !!this.state?.entities[group.userData.selection.id]?.field?.active;
+      for (const child of group.children) if (child.userData.field) child.visible = this.layers.perception && this.fieldSelected(group.userData.selection.id) && !!this.state?.entities[group.userData.selection.id]?.field?.active;
     }
-    for (const marker of this.receptors.values()) marker.visible = this.layers.perception && !!marker.userData.hasPosition;
+    for (const [id, marker] of this.receptors) {
+      marker.visible = this.layers.perception && !!marker.userData.hasPosition;
+      const focused = this.relatedReceptor(id, this.state?.receptors[id] ?? {});
+      marker.material.opacity = this.selected && !focused ? 0.18 : 0.9;
+      marker.scale.setScalar(focused ? 1.6 : 1);
+    }
+    if (this.viewer.resourceObject && this.state) this.viewer.resourceObject.visible = false;
+    if (this.viewer.resourceGuide && this.state) this.viewer.resourceGuide.visible = false;
     this.contacts.visible = this.layers.physical && this.layers.truth;
     this.viewer.baseNode.visible = this.layers.physical || this.layers.self;
     if (this.viewer.gridHelper) this.viewer.gridHelper.visible = this.layers.physical && this.layers.truth && !!this.state;
     if (this.viewer.contactMarkerGroup) this.viewer.contactMarkerGroup.visible = !this.state && this.layers.physical;
     this.legend.textContent = !this.state ? 'World unavailable · no spatial contract in this stream' :
       `${this.layers.truth ? 'WORLD TRUTH · observer geometry' : 'SYMBIONT VIEW · no object-localized world model'} · tick ${this.state.tick}\n` +
-      (this.layers.perception ? 'Teal: emitted percept · amber: sampled only · grey: unsampled · pre-action positions\n' : '') +
+      (this.layers.perception ? 'Teal: perceived · amber: sampled · grey: unsampled · select to focus\n' : '') +
       (this.layers.self ? 'Self Model: mapped signal confidence, not anatomical recognition\n' : '') +
       ((this.layers.known || this.layers.predictions) ? 'Object memory / spatial predictions: no exported evidence\n' : '') +
-      'Unknown objects: muted outlines · floor edge: display window, not a physical boundary';
+      'Objects shown ≠ objects known · select an element to inspect evidence';
+  }
+
+  fieldSelected(id) {
+    return this.selected?.kind === 'entity' && this.selected.id === id ||
+      this.selected?.kind === 'receptor' && this.state?.receptors[this.selected.id]?.source_entity_id === id;
   }
 
   frameWorld() {
-    if (!this.state) return;
+    if (!this.active || !this.state) return;
     const bounds = new THREE.Box3().setFromObject(this.viewer.baseNode);
     for (const { group } of this.entities.values()) {
       if (!group.userData.isPlane) bounds.expandByPoint(group.position);
@@ -274,11 +329,12 @@ export class WorldView {
     });
     for (const hit of hits) {
       for (let object = hit.object; object; object = object.parent) {
-        if (object.userData.selection) { this.selected = object.userData.selection; this.viewer.workspace.setTab('world'); return; }
+        if (object.userData.selection) { this.selected = object.userData.selection; this.updateVisibility(); this.viewer.workspace.setTab('world'); return; }
         const segment = Object.entries(this.viewer.segmentMeshes).find(([, mesh]) => mesh === object)?.[0];
-        if (segment) { this.selected = { kind: 'body', id: segment }; this.viewer.workspace.setTab('world'); return; }
+        if (segment) { this.selected = { kind: 'body', id: segment }; this.updateVisibility(); this.viewer.workspace.setTab('world'); return; }
       }
     }
+    this.selected = null; this.updateVisibility(); this.viewer.workspace.requestRender();
   }
 
   update() {
@@ -298,12 +354,7 @@ export class WorldView {
     if (this.viewer.situationEl) this.viewer.situationEl.hidden = !this.layers.truth;
     // Existing motion colors are refreshed by BodyViewer; apply optional self evidence last.
     if (!this.layers.self || !this.state) {
-      if (this.selfWasVisible) {
-        for (const segment of Object.keys(this.viewer.segmentMeshes)) this.viewer.forEachSegmentMaterial(segment, material => {
-          if (material.emissive && material.userData.bodyOriginalEmissive === undefined) { material.emissive.setHex(0); material.emissiveIntensity = 0; }
-        });
-      }
-      this.selfWasVisible = false;
+      if (this.selfWasVisible) this.restoreSelfMaterials();
       return;
     }
     this.selfWasVisible = true;
@@ -314,6 +365,7 @@ export class WorldView {
       const confidence = known.length ? known.reduce((sum, e) => sum + (e.self_model.confidence_class ?? 0) / 15, 0) / known.length : 0;
       this.viewer.forEachSegmentMaterial(segment, material => {
         if (!material.emissive) return;
+        if (!this.sharedState.materials.has(material)) this.sharedState.materials.set(material, { color: material.emissive.clone(), intensity: material.emissiveIntensity });
         material.emissive.setHex(known.length ? 0x249caa : 0x1e2835);
         material.emissiveIntensity = known.length ? 0.15 + confidence * 0.8 : 0.1;
       });
@@ -365,11 +417,12 @@ export class WorldView {
       html += '</div>';
     }
     if (!this.selected) html += '<div class="body-section"><div class="body-section-title">Explore this scene</div><p class="body-world-note">Select a body part, object, receptor or contact. Rotate to inspect, pan to explore, or frame the world.</p>' + row('World entities', Object.keys(s.entities).length) + row('Sampled receptors', Object.values(s.evidence).filter(e => e.sampled).length) + row('Emitted percepts mapped', Object.values(s.evidence).filter(e => e.percept_emitted).length) + '</div>';
-    if (this.layers.known || this.layers.predictions) html += '<div class="body-section"><div class="body-section-title">Spatial knowledge boundary</div><p class="body-world-note">This runtime exports signal learning and motor evidence, but no object-localized memory or predictions. Inspect acquired dependencies in Self-Model and predictors in Mind. No object is marked known by proxy.</p></div>';
+    if (!this.selected) html += '<div class="body-section"><div class="body-section-title">Spatial knowledge boundary</div><p class="body-world-note">This runtime exports signal learning and motor evidence, but no object-localized memory or predictions. Inspect acquired dependencies in Self-Model and predictors in Mind. No object is marked known by proxy.</p></div>';
     panel.innerHTML = html;
   }
 
   dispose() {
+    this.setActive(false);
     this.closed = true; this.abort.abort(); this.toolbar.remove(); this.legend.remove();
     for (const { group } of this.entities.values()) dispose(group);
     for (const marker of this.receptors.values()) dispose(marker);
