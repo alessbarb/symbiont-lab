@@ -13,7 +13,7 @@ function key3(ix, iy, iz) {
   return `${ix}:${iy}:${iz}`;
 }
 
-export function nearbyPairs2D(nodes, cellSize, radius) {
+export function forEachNearbyPair2D(nodes, cellSize, radius, callback) {
   const cells = new Map();
   const index = new Map(nodes.map((node, i) => [node, i]));
   const reach = Math.max(1, Math.ceil(radius / cellSize));
@@ -26,7 +26,6 @@ export function nearbyPairs2D(nodes, cellSize, radius) {
     cells.get(key).push(node);
   }
 
-  const pairs = [];
   for (const a of nodes) {
     const ai = index.get(a);
     const ax = Math.floor(a.x / cellSize);
@@ -39,15 +38,14 @@ export function nearbyPairs2D(nodes, cellSize, radius) {
           if (index.get(b) <= ai) continue;
           const px = b.x - a.x;
           const py = b.y - a.y;
-          if (px * px + py * py <= radius * radius) pairs.push([a, b]);
+          if (px * px + py * py <= radius * radius) callback(a, b);
         }
       }
     }
   }
-  return pairs;
 }
 
-export function nearbyPairs3D(nodes, positions, cellSize, radius) {
+export function forEachNearbyPair3D(nodes, positions, cellSize, radius) {
   const cells = new Map();
   const index = new Map(nodes.map((node, i) => [node, i]));
   const reach = Math.max(1, Math.ceil(radius / cellSize));
@@ -63,7 +61,6 @@ export function nearbyPairs3D(nodes, positions, cellSize, radius) {
     cells.get(key).push(node);
   }
 
-  const pairs = [];
   for (const a of nodes) {
     const ai = index.get(a);
     const pa = positions.get(a.id);
@@ -82,11 +79,10 @@ export function nearbyPairs3D(nodes, positions, cellSize, radius) {
             const px = pb.x - pa.x;
             const py = pb.y - pa.y;
             const pz = pb.z - pa.z;
-            if (px * px + py * py + pz * pz <= radius * radius) pairs.push([a, b]);
+            if (px * px + py * py + pz * pz <= radius * radius) callback(a, b);
           }
         }
       }
     }
   }
-  return pairs;
 }
