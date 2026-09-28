@@ -1,4 +1,4 @@
-import { nearbyPairs3D } from './spatial-index.js';
+import { forEachNearbyPair3D } from './spatial-index.js';
 /**
  * Scientific 3D cognition projection.
  *
@@ -143,8 +143,7 @@ export function relaxCognition3D(
     // Pairwise repulsion and physical exclusion are local presentation
     // phenomena. Global structure is carried by real graph edges and component
     // cohesion, so avoid all-pairs O(N²) work for distant nodes.
-    const repulsionPairs = nearbyPairs3D(nodes, positions, 96, 288);
-    for (const [a, b] of repulsionPairs) {
+    forEachNearbyPair3D(nodes, positions, 96, 288, (a, b) => {
       const pa = positions.get(a.id);
       const pb = positions.get(b.id);
       let dx = pb.x - pa.x;
@@ -173,7 +172,7 @@ export function relaxCognition3D(
       const ux = dx / dist, uy = dy / dist, uz = dz / dist;
       fa.x -= ux * magnitude; fa.y -= uy * magnitude; fa.z -= uz * magnitude;
       fb.x += ux * magnitude; fb.y += uy * magnitude; fb.z += uz * magnitude;
-    }
+    });
 
     const plasticityByNode = new Map(
       nodes.map(node => [node.id, { sum: 0, count: 0 }])
