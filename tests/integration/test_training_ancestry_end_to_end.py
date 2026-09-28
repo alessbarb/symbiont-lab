@@ -15,7 +15,7 @@ pytest.importorskip("torch")
 
 from symbiont.modeling import ModeledOrganismRuntime, ModelState
 from symbiont_lab.modeling.artifacts import FileArtifactStore
-from symbiont_lab.physics3d.slm import _train_job
+from symbiont_lab.physics3d.private_model_training import _train_job
 from tests.unit.test_modeled_organism_runtime import _transition
 
 
