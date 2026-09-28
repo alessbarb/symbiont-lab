@@ -4,7 +4,145 @@ Consolidated from docs/releases/archive/ (140 individual release notes).
 
 ---
 
+## Experience & World Architecture v1 (Milestones EW-A, EW-B, EW-C)
+
+Implements the normative architecture governing the principle *"Experience acquires capability. World integrates capability."* (`docs/design/observability/symbiont-lab-experience-and-world-architecture-specification-v1.md`).
+
+- **Milestone EW-A (Run Ontology & Provenance):**
+  - First-class `RunKind` taxonomy: `acquisition.embodiment`, `acquisition.vision`, `world.challenge`, and `world.open` (`symbiont_lab.experience`).
+  - Protected acquisition boundaries: acquisition runs terminate cleanly before irreversible viability loss (`VitalState.AGONIZING` / `DORMANT`) with reason `protected_recovery`, preserving causal checkpoints without invisible body repair.
+  - Consequence completeness in World runs: physical body death closes the `EmbodimentEpisode` with `BODY_DEATH` and sets the organism to dormant without in-run respawn.
+  - Standardized termination taxonomy (`time_budget_reached`, `evidence_window_complete`, `protected_recovery`, `body_non_viable`, `world_duration_complete`, `operator_stop`, `technical_failure`).
+  - Immutable content-addressed State-X run provenance (`<checkpoint_id>-<sha256 prefix>`), refusing mismatched cross-world resumes early before allocating run directories.
+  - Formalized in ADR-0008 (EW-001) and ADR-0009 (EW-002).
+- **Milestone EW-B (Workbench Domain Decomposition):**
+  - Reorganization of the Workbench: extraction of `World` from `Body` workspace into separate first-class routes.
+  - Dedicated `Embodiment` tabs: Discovery (Action Discovery), Apparatus, Interoception, and Acquired Self (visualizing observer correspondence of evidence on anatomical figures).
+  - Dedicated `World` route exposing ground-truth physical environment without contaminating organism state.
+  - Observer-only human-readable organism aliases: editable names stored in Lab `metadata.json` (outside organism checkpoints), shown in Home and status bars.
+- **Milestone EW-C (Causal Visual Apparatus Substrate):**
+  - New body kind `anthropomorphic-v6-vision`, leaving the baseline `anthropomorphic-v6` receptor contract byte-identical.
+  - Causal `VisualApparatus`: 12×12 head-mounted luminance array (144 receptors, `rec.107`–`rec.250` under a versioned permutation) sampled deterministically via TinyRenderer once per cognition tick directly from simulation state. Zero downward depth, segmentation, or color names.
+  - `PerceptualTopology`: apparatus-side adjacency neighbor lists over opaque IDs without spatial coordinates or eye semantics.
+  - Per-body sensory capacity: expanded to 512 for the vision body while keeping 256 for all existing bodies.
+  - Launchable `vision-nursery-v1` recipe with luminance contrast, requiring the vision body.
+  - Formalized in ADR-0011 (EW-004) and ADR-0012 (EW-005).
+
+---
+
+## Architecture Decision Records Formalization (ADR-0001 to ADR-0041)
+
+Comprehensive formalization and cataloging of the complete 41-ADR corpus in `docs/adr/`, indexed via a canonical Mermaid mindmap across 8 architectural domains:
+
+- **Fronteras & Metodología:** ADR-0001 (Two-Package Boundary), ADR-0002 (Ground Truth Isolation), ADR-0004 (Separated RNG Streams), ADR-0021 (Experimental Decontamination P0–P2), ADR-0027 (Tests vs Experiments Segregation), ADR-0034 (Content-Addressed Immutable Scientific Archive).
+- **Atención & Causalidad:** ADR-0003 (Attention is Not Classification), ADR-0005 (Shadow-Only Second-Look Probes), ADR-0006 (Evidence Revision Identity), ADR-0007 (Common Causal Eligibility), ADR-0022 (Factorized Effect Representation), ADR-0026 (Statistical Binding Degradation via Wilson Intervals), ADR-0030 (Bayesian Evidence Saturation Cap).
+- **Cuerpo & Encarnación:** ADR-0013 (Longitudinal Re-embodiment), ADR-0014 (Single Motor Authority), ADR-0035 (Canonical Somatic Physiology), ADR-0036 (Hypothesis-Driven Embodiment Memory), ADR-0040 (Sensorimotor Loop Closure).
+- **Cognición & Plasticidad:** ADR-0015 (Immutable Mathematical Kernel & Limits), ADR-0016 (Bounded Counterfactual Replay), ADR-0025 (Dual Memory Architecture), ADR-0028 (Domain Architecture & TickContext), ADR-0029 (Collinearity Pruning), ADR-0031 (Oja Synaptic Normalization), ADR-0037 (Reality Authority over Imagination).
+- **Genoma & Reproducción:** ADR-0019 (Genome v2 Germline Immutability), ADR-0033 (Endogenous Stress-Induced Reproduction), ADR-0038 (Epigenetic Three-Layer Expression Model).
+- **Sociedad & Comunicación:** ADR-0020 (Emergent Grounding over Semantic Imposition), ADR-0041 (Bounded Population Ecology & Local Interaction).
+- **Simulación & Mundo:** ADR-0008 (Experience vs World Execution), ADR-0012 (Acquired World vs Observer Truth), ADR-0023 (Atomic Transactional Step & Conservation), ADR-0032 (Multi-Scale Temporal Domains).
+- **Observación & Seguridad:** ADR-0009 (State-X Run Provenance), ADR-0010 (Observer Architecture Preservation P0–P7), ADR-0011 (Visual Apparatus & Perceptual Topology), ADR-0017 (Host Safety & Non-Remediation), ADR-0018 (Transparent Resident Lifecycle), ADR-0024 (High-Frequency Binary Telemetry), ADR-0039 (Epistemic Integrity in Visual Telemetry).
+
+---
+
+## Observability Performance Optimization Program (P0–P8, P10)
+
+Comprehensive architectural program freezing passive observation boundaries and eliminating causal path bottlenecks:
+
+- **P0:** Automated performance gate enforcing strict hot-path latency boundaries (`test_performance_optimization_gate.py`).
+- **P1:** Extraction of observer projections and snapshot building out of the organism causal hot path.
+- **P2:** Decoupled execution rates: physics dynamics (60–120 Hz), cognition ticks (10–20 Hz), and browser rendering (RAF / 60 Hz).
+- **P3:** Constant-time age-independent World journal indexing and compaction.
+- **P4:** Live delta transport (`LiveDelta`) transmitting sparse differential updates over periodic keyframe anchors.
+- **P5:** Single-pass SSE serialization broadcasting pre-encoded byte buffers to all clients without per-client JSON encoding overhead.
+- **P6:** Bounded browser DOM updates and layout costs (`test_browser_render_boundary.py`).
+- **P7:** Deterministic sensorimotor sequence matching optimizations.
+- **P8:** Local-first full-system automated reprofiling gate (`test_p8_reprofile_contract.py`).
+- **P10:** Fixed-width linear algebra optimization for width-4 `RidgePredictor`: precomputed exact row products, unrolled normal-equation matrix assembly, and specialized solve.
+- Formalized in ADR-0010 (EW-003) and ADR-0024.
+
+---
+
+## Cross-Domain Revision Coherence & Footprint Precision (Waves 0–5)
+
+Multi-wave experimental program establishing rigorous statistical criteria for causal model invalidation and false attribution removal (`docs/design/core/cross-domain-revision-coherence-v1.md`, `footprint-precision-v1.md`):
+
+- **Wave 0:** Baseline measurement coherence established across E6, E8, and Physics3D runs.
+- **Wave 1:** Canonical competence availability; execution binding lifecycle schema 2; invalidation of execution bindings upon contradictory causal evidence.
+- **Study BD-1 (Binding Degradation):** Invalidation against a binding's own causal history evaluated via Wilson score 99% confidence intervals ($z = 2.576$) over non-overlapping commitments. Formalized in ADR-0026.
+- **Footprint Precision (FP-0, FP-1, FP-2, FP-3):** Systematic investigation of false attribution caused by drifting passive receptors. Evaluated Benjamini-Hochberg (BH) false discovery rate control and block-replicated membership against synthetic ground truth.
+- **Wave 5 & Study P5:** Training ancestry of SHADOW models with append-only inherited vocabularies. Documented negative result (ancestry never outperformed local baselines), leading to owner decisions on Private Model Learnability v1 (P6).
+
+---
+
+## Cognitive Atlas Semantic Layout & Level-of-Detail (LOD)
+
+Major architectural overhaul of the Mind Cognitive Atlas visualization:
+
+- Rebased atlas causal observation onto the current action domain.
+- Strict semantic separation between structural topology (endogenous neural connectivity) and projected evidence overlays (causal estimates, sensorimotor relationships).
+- Semantic Level-of-Detail (LOD): collapsing unlinked degree-zero registries at higher zoom levels to avoid flooding the meso view.
+- Satellite tethering: anchoring overlay nodes and structural fringe closely to their cognitive core hosts without displacing the structural map.
+
+---
+
+## Causal Provenance v1 & Provenance Journaling
+
+Formalization and implementation of the `CausalProvenance` contract (`docs/design/core/causal-provenance-v1.md`):
+
+- Content-addressed provenance DAG tracking footprint estimate ancestry, executive commitments, action attempts, and outcome learning.
+- Causal provenance journal integration into Physics3D runs (`physics3d/world_observation.py`).
+- Workbench query API for exploring causal dependency chains and historical decision trees.
+
+---
+
+## Factorized Effect Representation & Causal Footprints (E8)
+
+Solution to combinatorial effect saturation in high-dimensional morphological bodies (`docs/design/core/factorized-effect-representation-v1.md`):
+
+- Transition from holistic whole-state quantization to atomic directional effect tokens (`EffectAtom(feature_ref, direction, magnitude_class)`).
+- Transition atoms indexed in `CausalEvidenceLedger`.
+- Causal probing exploration: attributing feature deltas per probing pulse against synthetic ground truth.
+- Length-matched, significance-based causal footprints grounded in `AgencyAcquisition`.
+- Reconciling footprint intents via accumulated change recall.
+- Preregistration and execution of high-dimensional acquisition study E8 and passing E6 gate in factorized mode. Formalized in ADR-0022.
+
+---
+
+## Executive Outcome Learning v1 & v1.1 (EOL)
+
+Deliberate action admission modulated by experiential outcomes (`docs/design/core/executive-outcome-learning-v1.md`):
+
+- Executive admission of action intents modulated by observed effect reliability.
+- Granular keying of outcome evidence by relational contexts rather than global action keys.
+- Studies E2/E5 v3 & v4, and E4-v4 consolidated causal interventions.
+
+---
+
+## Self-Model Workbench & Known Body Self View
+
+Deep integration of somatic visualization into the Body workspace (`docs/design/observability/self-model-workbench-v1.md`):
+
+- Known Body Self View: anatomical ghost body rendered dynamically from active morphology topology.
+- Multi-region agency projection, mapping learned action dimensions to observer physics.
+- Interactive development timeline controls with signed developmental deltas and session tracking.
+- Progressive disclosure UI: contextual inspector collapsing when idle to reduce visual clutter.
+- Clean separation of learned quality from physical body coverage.
+
+---
+
+## Social Emergence & Autonomous Cultural Agency
+
+Completion of the social communication substrate (`docs/design/communication/emergent-structured-communication-v1.md`, `autonomous-cultural-agency-v1.md`):
+
+- Implementation of cultural foundation, cumulative heritage, and autonomous agency.
+- Emergent communication channels and peer-to-peer message routing with committed-tick delivery.
+- Deduplication of replayed evidence in social ledgers. Formalized in ADR-0020 and ADR-0041.
+
+---
+
 ## Unreleased — Agency Acquisition & Executive Action v1
+
 
 Closes the continuity from causal discovery to deliberate reuse
 (`docs/design/core/agency-acquisition-and-executive-action-v1.md`; audit in
@@ -1602,7 +1740,7 @@ Las relaciones deberán emerger de señales, costes, recursos, memoria y evidenc
 locales.
 
 El diseño normativo está en
-[`docs/design/sociabilidad-y-desarrollo-predictivo.md`](design/general/sociability-and-predictive-development.md).
+[`docs/history/design/sociabilidad-y-desarrollo-predictivo.md`](history/design/sociabilidad-y-desarrollo-predictivo.md).
 
 La implementación queda bloqueada hasta cerrar las deudas explícitas del
 Observatory y pasar una nueva revisión de seguridad y contratos. Esta release no
