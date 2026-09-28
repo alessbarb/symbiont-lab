@@ -15,6 +15,7 @@ import { BodyWorkspace } from './workspace.js';
 import { WorldView } from './world-view.js';
 import { mountBodyCameraControls } from './camera-controls.js';
 import { BODY_PRESENTATION } from './presentation-config.js';
+import { LiveObservationDecoder } from '../../stream-delta.js';
 import { createAnatomicalSegment, createTechnicalJointMarker } from './anatomical-visual.js';
 
 
@@ -152,6 +153,7 @@ export class BodyViewer {
     this.lastUIDrawTime = 0;
     this.UI_UPDATE_INTERVAL_MS = BODY_PRESENTATION.uiUpdateIntervalMs;
     this.workspace = new BodyWorkspace(this);
+    this.liveDecoder = new LiveObservationDecoder();
 
     // Event & Render handles
     this.rafId = null;
@@ -1230,6 +1232,7 @@ export class BodyViewer {
 
       let data;
       try { data = JSON.parse(ev.data); } catch { return; }
+      data = this.liveDecoder.decode(data);
       if (!data || !data.type) return;
 
       switch (data.type) {
