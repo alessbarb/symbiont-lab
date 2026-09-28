@@ -12,9 +12,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         path = Path(str(item.path)).as_posix()
         slow = (
-            "/tests/integration/" in path
-            or "/tests/experimental_integrity/" in path
-            or "/tests/integration/studies/" in path
+            "/tests/integration/studies/" in path
             or "/tests/integration/dashboard/" in path
             or path.endswith("test_physics3d_existing_reuse.py")
             or path.endswith("test_private_model_training.py")

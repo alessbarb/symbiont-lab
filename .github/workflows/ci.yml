@@ -41,7 +41,7 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: pip install -e '.[dev]'
-      - run: pytest tests/experimental_integrity -q
+      - run: pytest -o addopts= tests/experimental_integrity -q
 
   regression:
     name: regression (py${{ matrix.python-version }})
