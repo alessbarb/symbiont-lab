@@ -58,7 +58,7 @@ bounded forgetting observable.
 | F10 | P2 | No ACTIVE private model ⇒ every training is a root | `modeling/runtime.py:926` |
 | F11 | P2 | `established_competence_count` counts *executable* competences | `action.py:2077` |
 | F12 | P1 | Hard bounds truncate without recording pressure or evictions | EffectSpace, primitive stats, bindings, executive keys, generative reps |
-| F13 | — | Footprints admit atoms on drifting receptors: pilot 13/22 members (seed 101, 600 ticks); **E8 v3 (preregistered): 8/8 satisfactions under current reconciliation and 106/127 under chance-corrected reconciliation are spurious** | Factorized Effects §16.4 |
+| F13 | — | Footprints admit atoms on drifting receptors: pilot 13/22 members (seed 101, 600 ticks); **E8 v3 (preregistered): 8/8 satisfactions under current reconciliation and 106/127 under chance-corrected reconciliation are spurious** | Factorized Effects §16.4. Status (owner, 2026-09-28, after FP-0…FP-3): **OPEN — mechanism characterized, solution not established** (Footprint Precision v1 §14) |
 | F14 | — | Physics3D copies of `org-ea3e7bbbc628` starve with zero absorbed material (factorized 2 650 ticks, flag-off control 2 604) | Factorized Effects §15 |
 
 Kept as correct: competence knowledge ≠ binding; generative hypothesis ≠
@@ -742,6 +742,17 @@ candidates, promotions, compute and wall-clock.
 Decision: 1-4 pass and 5 passes → propose `ancestry_training` (owner
 decision on the default); any of 1-4 fails → fix before any adoption; 5
 fails → reported, not adopted. Limit: one organism, one run per arm.
+
+**Descriptive observations (owner, 2026-09-28, added while P5 runs; not
+gates, criteria above unchanged).** The P5 report compares A and B on:
+(1) predictive validation; (2) training generations and genealogy;
+(3) promotion and retirement outcomes; (4) representational continuity —
+parent tokens and ids preserved, inherited embeddings preserved; and
+(5) **vocabulary expansion cost per generation** (child vocabulary size
+against its parent's, along each lineage), computed afterwards from model
+manifests. Unbounded growth along a lineage would be reported as a new
+growth limit to study, not as a P5 failure. P5 is judged by training
+transitions and outcomes, not wall-clock duration.
 
 ## 9. Out of scope
 

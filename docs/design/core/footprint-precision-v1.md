@@ -328,3 +328,29 @@ own effects at this sample size. BH on these seeds (0.623) is below its
 FP-2 value (0.738), so its precision varies substantially between seed
 sets. Raw run artifacts are archived outside the repository
 (`.symbiont/archive/`, digest `RUNS.md`).
+
+## 14. Owner decisions after FP-3 (2026-09-28)
+
+- **FP-3 is closed as a negative result.** BHB gets no variant on its
+  seeds; BH is not promoted; the gates (precision ≥ 0.80, recall ≥ 0.42,
+  E6 3/3) are unchanged; production membership is unchanged.
+- **FP-0 → FP-3 are kept as experimental history**, including BH's
+  inter-seed variability (0.738 on 463-523, 0.623 on 541-599): the rule
+  captures some real structure but does not yet characterize what
+  distinguishes a legitimate footprint member from a drift coincidence.
+- **No automatic FP-4.** A further study requires a new causal hypothesis
+  about why false members appear, not another combination of existing
+  filters. What the series established:
+  - H3 (quiet-window correction): worse, does not resolve;
+  - multiple-comparison handling (M, BH): substantially higher precision,
+    not stable evidence;
+  - disjoint replicated pulse blocks (BHB): removes almost all drift,
+    destroys recall.
+
+  The tension is between temporal stability and sensitivity to real
+  members; progress likely needs a revised notion of what it means for a
+  receptor to belong to a footprint rather than a harder statistical test.
+- **F13 status: OPEN — mechanism characterized, solution not established.**
+  It is not debt that must close before everything else. Wave 2 still must
+  not reinforce contaminated footprints, and there is now evidence that the
+  fix is not ready.
