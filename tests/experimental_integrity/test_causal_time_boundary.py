@@ -14,59 +14,83 @@ from pathlib import Path
 import symbiont
 
 ROOT = Path(symbiont.__file__).parent
-_CLOCK_ATTRS = {
-    ("time", "time"),
-    ("time", "time_ns"),
-    ("time", "monotonic"),
-    ("time", "monotonic_ns"),
-    ("time", "perf_counter"),
-    ("time", "perf_counter_ns"),
-    ("datetime", "now"),
-    ("datetime", "today"),
-    ("datetime", "utcnow"),
+_CLOCK_NAMES = {
+    "time",
+    "time_ns",
+    "monotonic",
+    "monotonic_ns",
+    "perf_counter",
+    "perf_counter_ns",
+    "process_time",
+    "now",
+    "today",
+    "utcnow",
 }
-# path relative to src/symbiont -> reason (ADR-0042 §5)
+# path relative to src/symbiont -> (exact number of clock reads, reason).
+# Exact counts, not whole-file exemptions: a new read anywhere in an
+# allowlisted file (e.g. perception, where the leak lived) fails the test.
 DECLARED_EXCEPTIONS = {
-    "host/readings.py": "profiling clock -> observed_elapsed_s only",
-    "host/lifecycle.py": "profiling clock -> observed_elapsed_s only",
-    "host/second_look.py": "profiling clock -> observed_elapsed_s only",
-    "core/domains/epistemic.py": "profiling clock -> observed_elapsed_s only",
-    "core/orchestration/governor.py": "safety: consent and tick rate guard",
-    "core/host/advisory.py": "safety: outward advisory rate limit",
-    "core/host/local_habitat.py": "local capsule mailbox TTL and file ids",
-    "core/orchestration/runtime.py": "real-host interoception tick latency",
-    "core/domains/lifecycle.py": "real-host interoception tick latency",
-    "core/domains/perception.py": "reading-timestamp metadata fallback",
+    "host/providers/interoception.py": (1, "apparatus reading timestamp"),
+    "host/providers/linux_surfaces.py": (1, "apparatus reading timestamp"),
+    "host/providers/stdlib_readings.py": (1, "apparatus reading timestamp"),
+    "host/readings.py": (2, "profiling clock -> observed_elapsed_s only"),
+    "host/lifecycle.py": (1, "profiling clock -> observed_elapsed_s only"),
+    "host/second_look.py": (1, "profiling clock -> observed_elapsed_s only"),
+    "core/domains/epistemic.py": (1, "profiling clock -> observed_elapsed_s only"),
+    "core/orchestration/governor.py": (1, "safety: consent and tick rate guard"),
+    "core/host/advisory.py": (1, "safety: outward advisory rate limit"),
+    "core/host/local_habitat.py": (2, "local capsule mailbox TTL and file ids"),
+    "core/orchestration/runtime.py": (1, "real-host interoception tick latency"),
+    "core/domains/lifecycle.py": (1, "real-host interoception tick latency"),
+    "core/domains/perception.py": (1, "reading-timestamp metadata fallback"),
 }
 
 
-def _clock_reads(tree: ast.AST) -> list[int]:
-    lines = []
+def _clock_reads(tree: ast.AST) -> int:
+    """Count wall-clock reads, resolving ``import time as t`` and
+    ``from time import perf_counter as pc`` style aliases."""
+    modules: set[str] = set()
+    names: set[str] = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            if (node.value.id, node.attr) in _CLOCK_ATTRS:
-                lines.append(node.lineno)
-        if isinstance(node, ast.ImportFrom) and node.module in {"time", "datetime"}:
-            lines.append(node.lineno)
-    return lines
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in {"time", "datetime"}:
+                    modules.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module in {"time", "datetime"}:
+            for alias in node.names:
+                if alias.name == "datetime":
+                    modules.add(alias.asname or alias.name)
+                elif alias.name in _CLOCK_NAMES:
+                    names.add(alias.asname or alias.name)
+    reads = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr in _CLOCK_NAMES:
+            owner = node.value
+            if isinstance(owner, ast.Name) and owner.id in modules:
+                reads += 1
+            elif isinstance(owner, ast.Attribute) and owner.attr == "datetime":
+                reads += 1
+        elif isinstance(node, ast.Name) and node.id in names and isinstance(node.ctx, ast.Load):
+            reads += 1
+    return reads
 
 
-def test_wall_clock_reads_are_confined_to_declared_exceptions() -> None:
-    offenders = {}
+def test_wall_clock_reads_match_declared_exceptions_exactly() -> None:
+    observed = {}
     for path in ROOT.rglob("*.py"):
-        relative = path.relative_to(ROOT).as_posix()
-        if relative.startswith("host/providers/") or relative in DECLARED_EXCEPTIONS:
-            continue
-        lines = _clock_reads(ast.parse(path.read_text(encoding="utf-8")))
-        if lines:
-            offenders[relative] = lines
-    assert offenders == {}
+        reads = _clock_reads(ast.parse(path.read_text(encoding="utf-8")))
+        if reads:
+            observed[path.relative_to(ROOT).as_posix()] = reads
+    expected = {path: count for path, (count, _reason) in DECLARED_EXCEPTIONS.items()}
+    assert observed == expected
 
 
-def test_declared_exceptions_still_exist() -> None:
-    # A stale allowlist silently widens the boundary.
-    for relative in DECLARED_EXCEPTIONS:
-        assert (ROOT / relative).is_file(), relative
+def test_alias_detection_catches_disguised_clock_reads() -> None:
+    disguised = ast.parse(
+        "import time as t\nfrom time import perf_counter as pc\n"
+        "from datetime import datetime as dt\nx = t.monotonic() + pc() + dt.now().hour\n"
+    )
+    assert _clock_reads(disguised) == 3
 
 
 def test_observed_elapsed_time_is_never_read_by_the_organism() -> None:
