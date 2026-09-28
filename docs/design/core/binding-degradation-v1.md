@@ -81,3 +81,36 @@ intents per arm; executable competences at the end.
 All four → HIST is proposed as an option (default is an owner decision).
 Criterion 1 or 4 fails → rejected. Otherwise reported, not proposed. No
 parameter (`N_REF`, `N_MIN`, z) changes after results.
+
+## 4. BD-1 result (2026-09-28) — reported, not proposed
+
+Runs on `ac504417`: OFF `20260928T101601Z-learning-binding-degradation-ac50441-0349`,
+HIST `...-f95a`, E6 gate with HIST
+`20260928T101601Z-learning-agency-acquisition-reuse-closure-ac50441-1d3a`.
+
+| Criterion | OFF | HIST | Met |
+|---|---|---|---|
+| 1. False invalidations ≤ 5% of at-risk | 0/197 | 0/197 | yes |
+| 2. True detections ≥ 50% of degraded | 0/79 | **0/79** | **no** |
+| 3. Spurious satisfactions ≤ OFF | 13 | 13 | yes |
+| 4. E6 gate 3/3 with HIST | — | 3/3 | yes |
+
+Criterion 2 fails (79 truly degraded bindings, so it is assessable) while
+1 and 4 hold: by the decision rule HIST is **reported, not proposed** and
+not rejected. No parameter changes.
+
+The two arms are identical in every metric: HIST never invalidated
+anything. Diagnostic (seed 409, same code, not evidence): 600 commitments
+ended, 177 on a bound competence, concentrated on six competences (106,
+40, 17, 8, 5, 1 executions); only 6 of 61 bindings were ever executed and
+only 2 completed their 8-execution reference. **55 of 61 bindings were
+never executed**, so no execution-based rule can observe their
+degradation. The rule itself is safe (no false invalidation, E6 intact)
+but starved of evidence.
+
+Reading: evidence-based invalidation depends on the organism re-executing
+its competences. That is the problem Revision Coherence Wave 2
+(endogenous epistemic retest) addresses, which in turn is gated on
+footprint precision (Footprint Precision v1, where no membership fix has
+yet qualified). BD-1 cannot pass until competences are re-exercised; a
+retest mechanism would have to be established independently first.
