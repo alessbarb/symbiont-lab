@@ -676,14 +676,14 @@ def run(
                         slm_transition_records=record.slm_transition_records,
                         slm_models=record.slm_models,
                         slm_active=record.slm_active,
-                        slm_training=bool(private_model_training.training) if slm is not None else False,
-                        slm_error=private_model_training.last_error if slm is not None else None,
-                        slm_gate_reason=(private_model_training.last_gate_reason if slm is not None else None),
-                        slm_gate_gain=(private_model_training.last_gate_gain if slm is not None else None),
-                        slm_best_baseline=(private_model_training.last_best_baseline if slm is not None else None),
-                        slm_candidate_loss=(private_model_training.last_candidate_loss if slm is not None else None),
+                        slm_training=bool(private_model_training.training) if private_model_training is not None else False,
+                        slm_error=private_model_training.last_error if private_model_training is not None else None,
+                        slm_gate_reason=(private_model_training.last_gate_reason if private_model_training is not None else None),
+                        slm_gate_gain=(private_model_training.last_gate_gain if private_model_training is not None else None),
+                        slm_best_baseline=(private_model_training.last_best_baseline if private_model_training is not None else None),
+                        slm_candidate_loss=(private_model_training.last_candidate_loss if private_model_training is not None else None),
                         slm_best_baseline_loss=(
-                            private_model_training.last_best_baseline_loss if slm is not None else None
+                            private_model_training.last_best_baseline_loss if private_model_training is not None else None
                         ),
                         cycle_ms=runtime_elapsed * 1000.0,
                         realtime_ratio=realtime_ratio,
