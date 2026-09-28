@@ -24,15 +24,17 @@ It does not change:
 The previous 2D and 3D layouts performed explicit pairwise repulsion across the
 whole visible graph.
 
-P7 introduces deterministic spatial buckets.
+P7 now uses deterministic adaptive pair enumeration.
 
 ### 2D
 
 Only pairs within the pre-existing local repulsion radius are enumerated through
 `forEachNearbyPair2D()`.
 
-The spatial index is exact for that radius: the benchmark compares its pair set
-against a brute-force reference and requires identical pair counts.
+For small and medium graphs, V8's direct nested loop is faster than paying Map
+and bucket setup cost, so the renderer uses brute force up to the measured
+threshold. Larger graphs switch to spatial buckets. Both paths are exact for
+the same radius and the benchmark compares them against the same callback work.
 
 Graph edges, sector anchors, gravity and affinity links continue to provide
 global organization.
@@ -40,7 +42,7 @@ global organization.
 ### 3D
 
 `forEachNearbyPair3D()` bounds collision/repulsion work to a 288-unit local
-neighbourhood.
+neighbourhood. It uses the same adaptive brute-force/spatial-bucket strategy.
 
 This is intentionally a presentation approximation. Distant pairwise repulsion
 is not scientific evidence and does not belong to Symbiont. Global shape still
