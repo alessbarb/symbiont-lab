@@ -18,8 +18,8 @@ from tempfile import TemporaryDirectory
 from types import MethodType
 from typing import Any, Iterable
 
-from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 from symbiont_lab.physics3d.private_model_training import PrivateModelTrainingService
+from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
 _CONDITIONS = (
     "full",
@@ -359,13 +359,13 @@ def run_prospective_embodied_trial(
                     # Settle any worker that completed before deciding whether
                     # this tick can become the matched split. A split is valid
                     # only when no training computation remains in flight.
-                    slm.poll(runtime)
+                    private_model_training.poll(runtime.organism)
 
                     active = runtime.organism.model_registry.active
                     active_model_id = active.model_id if active is not None else None
                     final_tick = tick.tick
                     motor_competence_candidates = tick.motor_competence_candidates
-                    motor_competences = tick.cognitive_motor_competence_candidates
+                    motor_competences = tick.motor_competences
                     competence_readout_nodes = tick.competence_readout_nodes
                     if first_motor_competence_tick is None and motor_competences > 0:
                         first_motor_competence_tick = tick.tick
