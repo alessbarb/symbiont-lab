@@ -43,7 +43,7 @@ def _run(*, ticks: int, seed: int, observed: bool) -> dict[str, object]:
     # Fixed warm-up avoids timing object construction and first-import effects.
     warmup = min(100, max(10, ticks // 10))
     for _ in range(warmup):
-        runtime.tick()
+        runtime.tick(include_observability=observed)
         if observed:
             _observe(runtime)
         body.advance(runtime.last_actuations)
@@ -51,7 +51,7 @@ def _run(*, ticks: int, seed: int, observed: bool) -> dict[str, object]:
     start_hash = runtime.state_hash()
     started = time.perf_counter()
     for _ in range(ticks):
-        runtime.tick()
+        runtime.tick(include_observability=observed)
         if observed:
             _observe(runtime)
         body.advance(runtime.last_actuations)
