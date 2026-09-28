@@ -9,6 +9,8 @@ from __future__ import annotations
 import math
 from copy import deepcopy
 
+from symbiont_world.rng import derive_world_rng
+
 ENVIRONMENT_NAMES = (
     "flat-v1",
     "contact-garden-v1",
@@ -67,11 +69,13 @@ _RECIPES = {
             "luminance": 0.5,
         },
     ],
-    # Vision Acquisition v1 D1: uniform background plus one coherent luminance
+    # Visual Acquisition v1 D1: uniform background plus one coherent luminance
     # source that sweeps laterally in front of the eye. The source is
     # kinematic and has no collision shape: it changes only what the visual
-    # apparatus transduces, and its pose is a pure function of the causal
-    # tick (never the clock), so resume and replay are exact.
+    # apparatus transduces. Phase and period derive from the run seed through
+    # a world RNG namespace (never the organism's RNG); the pose is then a
+    # pure function of (causal tick, derived parameters), so resume and
+    # replay are exact.
     "vision-nursery-d1-v1": [
         {
             "id": "background",
@@ -86,7 +90,12 @@ _RECIPES = {
             "size": [0.05, 0.35, 0.35],
             "friction": 0.65,
             "luminance": 0.95,
-            "motion": {"axis": [0.0, 1.0, 0.0], "amplitude": 0.8, "period_ticks": 96},
+            "motion": {
+                "axis": [0.0, 1.0, 0.0],
+                "amplitude": 0.8,
+                "period_ticks_range": [72, 120],
+                "namespace": "vision.d1.source-motion.v1",
+            },
         },
     ],
 }
@@ -112,21 +121,34 @@ def resolve_environment(name: str | None, saved: dict | None) -> dict:
     return deepcopy(saved)
 
 
-def fixture_position(fixture: dict, tick: int) -> list[float]:
+def motion_parameters(motion: dict, seed: int) -> tuple[float, int]:
+    """(phase fraction, period in ticks) derived once from the run seed."""
+    rng = derive_world_rng(seed, motion["namespace"])
+    low, high = motion["period_ticks_range"]
+    return rng.random(), rng.randint(int(low), int(high))
+
+
+def fixture_position(fixture: dict, tick: int, seed: int) -> list[float]:
     """Deterministic fixture position at a causal tick (static unless ``motion``)."""
     motion = fixture.get("motion")
     if not motion:
         return list(fixture["position"])
-    offset = motion["amplitude"] * math.sin(2.0 * math.pi * tick / motion["period_ticks"])
+    phase, period = motion_parameters(motion, seed)
+    offset = motion["amplitude"] * math.sin(2.0 * math.pi * (tick / period + phase))
     return [base + axis * offset for base, axis in zip(fixture["position"], motion["axis"])]
 
 
-def update_environment(p, client_id: int, recipe: dict, bodies: tuple[int, ...], tick: int) -> None:
+def update_environment(
+    p, client_id: int, recipe: dict, bodies: tuple[int, ...], tick: int, seed: int
+) -> None:
     """Move kinematic fixtures to their pose for ``tick``; static ones are untouched."""
     for fixture, body in zip(recipe["fixtures"], bodies):
         if fixture.get("motion"):
             p.resetBasePositionAndOrientation(
-                body, fixture_position(fixture, tick), (0, 0, 0, 1), physicsClientId=client_id
+                body,
+                fixture_position(fixture, tick, seed),
+                (0, 0, 0, 1),
+                physicsClientId=client_id,
             )
 
 

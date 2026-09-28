@@ -154,8 +154,9 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "body": {"actuator_count", "receptors_per_actuator", "drifting_receptor_count"},
         # Private Model Learnability v1 §8: frozen checkpoint inputs.
         "corpora": {"c1", "c2"},
-        # Vision Acquisition v1 §5: late evaluation window.
-        "vision": {"late_window"},
+        # Visual Acquisition v1 §5-§6: horizons, late window, and whether
+        # predictive performance may be computed (only at a frozen H).
+        "vision": {"late_window", "horizons", "report_performance"},
         "output": {"save_trace", "save_summary"},
     }
     for block_name in (

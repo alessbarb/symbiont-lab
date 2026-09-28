@@ -150,7 +150,7 @@ from symbiont_lab.studies.learning.structured_communication_characterization imp
 from symbiont_lab.studies.learning.temporal_private_model_controls import (
     run_temporal_private_model_controls_study,
 )
-from symbiont_lab.studies.learning.vision_acquisition import run_vision_acquisition_d1_study
+from symbiont_lab.studies.learning.visual_acquisition import run_visual_acquisition_study
 from symbiont_lab.studies.longitudinal_population_ecology import (
     run_longitudinal_population_ecology_study,
 )
@@ -250,7 +250,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.footprint-precision": run_footprint_precision_study,
     "learning.private-model-learnability": run_private_model_learnability_study,
     "learning.binding-degradation": run_binding_degradation_study,
-    "learning.vision-acquisition-d1": run_vision_acquisition_d1_study,
+    "learning.visual-acquisition-v1": run_visual_acquisition_study,
     "embodiment.yoked-external-causation": run_yoked_external_causation_study,
     "embodiment.somatic-correlation-trap": run_somatic_correlation_trap_study,
     "embodiment.causal-revision-sequence": run_causal_revision_sequence_study,

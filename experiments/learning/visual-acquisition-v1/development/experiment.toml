@@ -1,0 +1,31 @@
+schema_version = 1
+
+[experiment]
+id = "learning.visual-acquisition-v1-development"
+title = "Visual Acquisition v1 D1 — development (feasibility only)"
+protocol = "learning.visual-acquisition-v1"
+protocol_version = 1
+hypothesis = """
+Not a hypothesis test. Measures, per candidate horizon, runtime, memory,
+the number of visual targets predicted through the late window and
+numerical stability, to fix H by feasibility alone (preregistration §6).
+"""
+success_criteria = """
+None. Predictive performance is not computed in this stage, so H cannot be
+chosen by results. Reported as development only.
+"""
+
+[world]
+steps = 2000
+
+[design]
+seeds = [101, 127, 149]
+
+[vision]
+horizons = [500, 1000, 1500, 2000]
+late_window = 400
+report_performance = false
+
+[output]
+save_trace = false
+save_summary = true

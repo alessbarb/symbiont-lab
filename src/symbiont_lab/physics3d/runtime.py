@@ -293,6 +293,8 @@ class PyBulletEmbodimentRuntime:
 
         self.environment_bodies = build_environment(p, self.client_id, self.environment_recipe)
         self.last_organism_result = None
+        # Seeds world-side stimulus parameters (e.g. nursery source motion).
+        self.environment_seed = int(seed)
         self.apparatus = self.body_descriptor.apparatus_factory(p, self.client_id)
         if physical_state is not None:
             # Resume may contain finite solver penetration beyond the declared
@@ -1517,6 +1519,7 @@ class PyBulletEmbodimentRuntime:
             self.environment_recipe,
             self.environment_bodies,
             self.tick_count + 1,
+            self.environment_seed,
         )
 
         phase_started = time.perf_counter()

@@ -435,10 +435,11 @@ class OrganismRuntime:
         )
         self._explicit_metabolism = bool(explicit_metabolism)
         self._auto_promote_predictors = bool(auto_promote_predictors)
-        # Lab ablation for controlled comparisons (Vision Acquisition v1 arm
-        # B): set by the apparatus after construction, never by cognition,
-        # never checkpointed, never part of effective_config.
-        self.cognitive_plasticity_ablated = False
+        # Runtime-scoped switches for existing capabilities. They are
+        # configuration, not acquired state: never checkpointed and never
+        # part of effective_config. Cognition does not write them.
+        self._cognitive_plasticity_enabled = True
+        self._predictor_promotion_enabled = True
         self._developmental_tracker = (
             developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
         )
@@ -1992,8 +1993,8 @@ class OrganismRuntime:
             )
         )
         degradation_excreted = physiology_preflight.degradation_excreted
-        plasticity_gate = physiology_preflight.plasticity_enabled and not (
-            self.cognitive_plasticity_ablated
+        plasticity_gate = (
+            physiology_preflight.plasticity_enabled and self._cognitive_plasticity_enabled
         )
 
         perception = self._perception_domain.step(
@@ -2073,7 +2074,7 @@ class OrganismRuntime:
             action_projection=action_projection,
             plasticity_enabled=plasticity_gate,
             auto_promote_predictors=(
-                self._auto_promote_predictors and not self.cognitive_plasticity_ablated
+                self._auto_promote_predictors and self._predictor_promotion_enabled
             ),
             reacclimation_remaining=self._reacclimation_remaining,
             cognitive_self_namespace_key=self._cognitive_self_namespace_key,
@@ -2442,6 +2443,14 @@ class OrganismRuntime:
             "checkpoint_schema_version": CHECKPOINT_SCHEMA_VERSION,
         }
         return payload
+
+    def set_cognitive_plasticity_enabled(self, enabled: bool) -> None:
+        """Enable or disable cognitive plasticity for this runtime session."""
+        self._cognitive_plasticity_enabled = bool(enabled)
+
+    def set_predictor_promotion_enabled(self, enabled: bool) -> None:
+        """Enable or disable predictor/structure promotion for this runtime session."""
+        self._predictor_promotion_enabled = bool(enabled)
 
     def state_hash(self) -> str:
         """Content hash of current organism state (spec: save/load neutrality).

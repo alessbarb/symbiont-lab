@@ -237,11 +237,13 @@ class ExperimentRunner:
                 **{key: int(value) for key, value in body.items()},
             )
             raw_metrics = result
-        elif spec.protocol == "learning.vision-acquisition-d1":
+        elif spec.protocol == "learning.visual-acquisition-v1":
+            vision = spec.extra_params.get("vision", {})
             result = protocol_fn(
                 seeds=spec.seeds,
-                ticks=spec.steps,
-                late_window=int(spec.extra_params.get("vision", {}).get("late_window", 400)),
+                horizons=tuple(int(h) for h in vision.get("horizons", (spec.steps,))),
+                late_window=int(vision.get("late_window", 400)),
+                report_performance=bool(vision.get("report_performance", False)),
             )
             raw_metrics = result
         elif spec.protocol == "learning.agency-acquisition-reuse-closure":

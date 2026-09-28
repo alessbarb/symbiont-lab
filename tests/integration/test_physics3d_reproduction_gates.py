@@ -24,7 +24,7 @@ TICKS = 24
 
 
 # The vision body in the moving-source nursery adds TinyRenderer sampling and
-# a kinematic source as new causal inputs (Vision Acquisition v1 §2).
+# a kinematic source as new causal inputs (Visual Acquisition v1 §3).
 CONFIGS = {
     "v6-flat": {"body_kind": "anthropomorphic-v6", "environment": None},
     "vision-d1": {"body_kind": "anthropomorphic-v6-vision", "environment": "vision-nursery-d1-v1"},
