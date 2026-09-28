@@ -221,3 +221,20 @@ precision.
 the highest precision is proposed (ties: M, BH). If none qualifies, the
 results are reported and no membership change is proposed. Adoption as
 default is an owner decision.
+
+## 10. FP-1 replication on the default regime (diagnostic / robustness)
+
+Runs on `caed967f` (binding invalidation off), same seeds and criteria;
+FP-1 was already known, so this is not a confirmation.
+
+| Arm | own | cross | drift | other | precision | recall | E6 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| R | 146 | 2 | 141 | 6 | 0.495 | 0.523 | (reference) |
+| T | 148 | 2 | 357 | 6 | 0.288 | 0.500 | 3/3 |
+| M | 127 | 1 | 43 | 1 | 0.738 | 0.455 | 3/3 |
+| TM | 129 | 1 | 286 | 2 | 0.309 | 0.458 | 3/3 |
+
+No arm qualifies. R reproduces FP-0 exactly (determinism). The pattern is
+robust across regimes: T worsens precision; M removes most drift members
+(141 → 43) but stays below 0.80 (0.738 here, 0.795 with invalidation on).
+FP-2 (explicit FDR correction, new seeds) is the preregistered next test.
