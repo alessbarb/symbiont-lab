@@ -1241,3 +1241,81 @@ def test_restore_rejects_v9_checkpoint_missing_motor_unit_contract():
             actuator_ids=ids,
             organism_id="org-v9-missing-groups",
         )
+
+
+def _reference_sequence_distance(left, right):
+    if len(left) != len(right):
+        return 1.0
+    step_distances = []
+    for left_pattern, right_pattern in zip(left, right):
+        left_map = dict(left_pattern)
+        right_map = dict(right_pattern)
+        left_ids = set(left_map)
+        right_ids = set(right_map)
+        union = left_ids | right_ids
+        if not union:
+            step_distances.append(0.0)
+            continue
+        amplitude = sum(
+            abs(int(left_map.get(actuator_id, 0)) - int(right_map.get(actuator_id, 0)))
+            for actuator_id in union
+        ) / (7.0 * len(union))
+        support = len(left_ids.symmetric_difference(right_ids)) / len(union)
+        step_distances.append(max(amplitude, support))
+    return sum(step_distances) / len(step_distances) if step_distances else 0.0
+
+
+@pytest.mark.parametrize(
+    ("left", "right"),
+    [
+        ((("a", 1),), (("a", 1),)),
+        ((("a", 1), ("b", 7)), (("a", 7), ("b", 1))),
+        ((("a", 3),), (("b", 3),)),
+        ((("a", 1), ("c", 4)), (("a", 2), ("b", 5), ("c", 4))),
+        ((), ()),
+    ],
+)
+def test_pattern_distance_matches_reference_allocation_heavy_formula(left, right):
+    sequence_left = (left,) * 4
+    sequence_right = (right,) * 4
+    assert CompetenceDevelopmentEngine._sequence_distance(
+        sequence_left, sequence_right
+    ) == _reference_sequence_distance(sequence_left, sequence_right)
+
+
+def test_primitive_match_preserves_lexicographic_tie_break_independent_of_insertion_order():
+    learner = CompetenceDevelopmentEngine(_ids(3), organism_id="org-match-tie")
+    query = ((("actuator.1", 4),),) * 4
+    lower = ((("actuator.0", 4),),) * 4
+    higher = ((("actuator.2", 4),),) * 4
+
+    # Both candidates have the same distance from the query. Insert the
+    # lexicographically larger one first to prove dict order is irrelevant.
+    learner._primitive_stats[higher] = sensorimotor_module._RunningStat()
+    learner._primitive_stats[lower] = sensorimotor_module._RunningStat()
+
+    # Temporarily widen the acceptance threshold only for winner selection;
+    # the test targets deterministic argmin semantics, not the production gate.
+    original = sensorimotor_module._SEQUENCE_MATCH_THRESHOLD
+    sensorimotor_module._SEQUENCE_MATCH_THRESHOLD = 1.0
+    try:
+        assert learner._matched_primitive_sequence(query) == lower
+    finally:
+        sensorimotor_module._SEQUENCE_MATCH_THRESHOLD = original
+
+
+def test_primitive_match_returns_original_sequence_above_threshold():
+    learner = CompetenceDevelopmentEngine(_ids(2), organism_id="org-match-threshold")
+    query = ((("actuator.0", 7),),) * 4
+    candidate = ((("actuator.1", 7),),) * 4
+    learner._primitive_stats[candidate] = sensorimotor_module._RunningStat()
+
+    assert learner._matched_primitive_sequence(query) == query
+
+def test_sequence_distance_preserves_unordered_historical_pattern_semantics():
+    left = ((("actuator.2", 5), ("actuator.0", 2)),) * 4
+    right = ((("actuator.0", 3), ("actuator.2", 1)),) * 4
+
+    assert CompetenceDevelopmentEngine._sequence_distance(
+        left, right
+    ) == _reference_sequence_distance(left, right)
