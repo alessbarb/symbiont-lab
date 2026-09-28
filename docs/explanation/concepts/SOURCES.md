@@ -97,7 +97,7 @@ permitted forms.
 | repair-not-free-observed | empirical | 05#evidencia | tests/unit/core/test_homeostasis.py::test_constitutive_repair_uses_resources_without_cognitive_request |
 | excretion-observed | empirical | 05#evidencia | tests/unit/core/test_degradation.py::test_state_ages_and_is_excreted |
 | ontogeny-controller | implementation | 06#mecanismo | src/symbiont/core/embodiment/ontogeny.py::OntogenyController |
-| habitat-birth-authority | implementation | 06#mecanismo | src/symbiont/core/lineage/birth_authority.py::HabitatBirthAuthority |
+| habitat-birth-authority | implementation | 06#mecanismo | src/symbiont_lab/reproduction/authority.py::HabitatBirthAuthority |
 | reproduction-boundary | implementation | 06#mecanismo | src/symbiont/core/orchestration/runtime.py::OrganismRuntime |
 | reproduction-design | normative | 06#respaldo-formal | docs/explanation/concepts/06-reproduction-and-lineage.md |
 | growth-costs-energy-observed | empirical | 06#evidencia | tests/unit/core/test_ontogeny.py::test_growth_is_constitutive_and_consumes_physical_energy |

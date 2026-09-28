@@ -408,7 +408,7 @@ En [`physiology.py`](../src/symbiont/core/embodiment/physiology.py#L7-L58):
 - En el momento de la muerte, el runtime libera atómicamente y una sola vez:
   - Asignaciones en el hábitat compartido ecológico ([`SharedHabitat.release`](../src/symbiont/core/social/ecology.py#L52-L56)).
   - Cupo de membresía en el hábitat social ([`SocialHabitat.release`](../src/symbiont/core/social/relations.py#L1-L100)).
-  - Registro de defunción en la autoridad de linaje ([`HabitatBirthAuthority.death`](../src/symbiont/core/lineage/birth_authority.py#L83-L90)).
+- La autoridad poblacional pertenece a Lab: el aparato observa la muerte y libera el registro de linaje de forma idempotente mediante [`HabitatBirthAuthority.observe_death`](../src/symbiont_lab/reproduction/authority.py). El organismo no conserva ni invoca esta autoridad.
 
 #### Regulación Homeostática y Reparación (`HomeostaticController`)
 
@@ -467,7 +467,7 @@ flowchart LR
 - **Readiness reproductiva:** depende sólo de madurez física, energía,
   integridad, estado vital y senescencia. No consulta topología cognitiva,
   adaptación, predicción ni crecimiento estructural bloqueado.
-- **Nacimiento conservativo:** `OrganismRuntime.materialize_clonal_bud()`
+- **Nacimiento conservativo:** `symbiont_lab.reproduction.materialize_clonal_bud(parent, authority=authority)`
   crea un hijo sólo después de obtener un slot. La energía inicial del hijo se
   descuenta exactamente del progenitor.
 - **Autoridad de hábitat:** `HabitatBirthAuthority` gestiona identidad,
