@@ -1,0 +1,35 @@
+schema_version = 1
+
+[experiment]
+id = "learning.footprint-precision-fp3-bh"
+title = "FP-3 arm BH — FP-2 Benjamini-Hochberg unchanged (comparator)"
+protocol = "learning.footprint-precision"
+protocol_version = 4
+hypothesis = """
+Drift members are admitted by repeated re-testing of overlapping samples;
+testing disjoint blocks once and requiring replication removes them.
+"""
+success_criteria = """
+Preregistered in Footprint Precision v1 §12 (commit 5b510f31): an arm
+qualifies with pooled precision >= 0.80 at tick 3000, mean recall >= 0.42
+and the E6 gate 3/3; among qualifying arms the highest precision is
+proposed (ties: BH, BHB). New seeds, never used by earlier studies.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [541, 547, 557, 563, 569, 571, 577, 587, 593, 599]
+
+[body]
+actuator_count = 16
+receptors_per_actuator = 4
+drifting_receptor_count = 32
+
+[ablation]
+membership = "BH"
+
+[output]
+save_trace = false
+save_summary = true

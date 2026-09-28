@@ -296,3 +296,9 @@ confirmation).
 tick 3 000, mean recall ≥ 0.42 and E6 3/3; among qualifying arms the
 highest precision is proposed (ties: BH, BHB). If none qualifies, results
 are reported and no membership change is proposed.
+
+**Disclosure (before the FP-3 runs).** During implementation a 1 000-tick
+smoke test was accidentally run on confirmation seed 541 (arm BHB); the
+only thing observed was that no member existed yet at tick 1 000 (BHB needs
+two complete 8-pulse blocks). Further diagnostics used design seed 101. The
+preregistered design and criteria are unchanged.

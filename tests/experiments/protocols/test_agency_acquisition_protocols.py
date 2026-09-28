@@ -476,3 +476,21 @@ def test_bd1_arms_and_runner(tmp_path):
     _result, _manifest, run_dir = ExperimentRunner(base_dir=tmp_path / ".symbiont").run(spec)
     metrics = json.loads((run_dir / "metrics.json").read_text())
     assert metrics["protocol"] == "learning.binding-degradation" and metrics["arm"] == "HIST"
+
+
+@pytest.mark.experiment_contract
+def test_fp3_runs_on_seeds_never_used_before():
+    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    used = (
+        set(EXECUTIVE_SEEDS)
+        | {409, 419, 421, 431, 433, 439, 443, 449, 457, 461}
+        | {463, 467, 479, 487, 491, 499, 503, 509, 521, 523}
+    )
+    for arm in ("r", "bh", "bhb"):
+        spec = load_experiment_file(root / f"footprint-precision-fp3-{arm}" / "experiment.toml")
+        assert spec.extra_params["ablation"] == {"membership": arm.upper()}
+        assert len(spec.seeds) == 10 and not set(spec.seeds) & used
+    gate = load_experiment_file(
+        root / "agency-acquisition-reuse-closure-membership-bhb" / "experiment.toml"
+    )
+    assert gate.extra_params["ablation"]["membership"] == "BHB"

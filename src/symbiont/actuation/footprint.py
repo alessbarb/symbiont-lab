@@ -343,6 +343,40 @@ def _record_from(payload: Mapping[str, Any]) -> MemberRecord:
     return MemberRecord(str(payload["atom"]), int(payload["entered_tick"]), estimate)
 
 
+def block_replicated_members(
+    pulses: Iterable[Pulse],
+    passive: Iterable[CausalEvidence],
+    *,
+    block: int = 8,
+    q: float = 0.05,
+) -> frozenset[str]:
+    """Footprint Precision v1 §12 (FP-3 arm BHB), for one source's pulses.
+
+    Pulses are split into consecutive disjoint blocks of ``block``; each
+    complete block is tested once (exact binomial test against the Jeffreys
+    quiet rate, Benjamini-Hochberg at ``q``). Members are the atoms rejected
+    in both of the two most recent complete blocks.
+    """
+    quiet = [item for item in passive if item.is_passive]
+    quiet_hits = Counter(atom for item in quiet for atom in item.effect_atoms)
+    ordered = sorted(pulses, key=lambda pulse: (pulse.end_tick, pulse.commitment_id))
+    complete = len(ordered) // block
+    if complete < 2:
+        return frozenset()
+    rejected_by_block = []
+    for index in (complete - 2, complete - 1):
+        items = ordered[index * block : (index + 1) * block]
+        length = sum(pulse.windows for pulse in items) / block
+        hits = Counter(atom for pulse in items for atom in pulse.atoms)
+        p_values = {}
+        for atom, count in hits.items():
+            per_window = (quiet_hits[atom] + 0.5) / (len(quiet) + 1)
+            expected = 1.0 - (1.0 - per_window) ** length
+            p_values[atom] = binomial_upper_tail(count, block, expected)
+        rejected_by_block.append(benjamini_hochberg(p_values, q))
+    return rejected_by_block[0] & rejected_by_block[1]
+
+
 def _excess_p_value(estimate: AtomEstimate) -> float:
     """FP-2: exact one-sided test of pulse hits against the length-matched
     quiet rate, from the Jeffreys estimate of the per-window rate (an atom
@@ -551,6 +585,7 @@ class FootprintRegistry:
         estimates: Mapping[tuple[str, ...], Mapping[str, AtomEstimate]],
         *,
         tick: int,
+        decided: Mapping[tuple[str, ...], frozenset[str]] | None = None,
     ) -> None:
         """Enter above ``enter_margin``; leave only at or below ``exit_margin``."""
         for source, per_atom in sorted(estimates.items()):
@@ -574,7 +609,10 @@ class FootprintRegistry:
             )
             for atom, estimate in sorted(per_atom.items()):
                 previous = current.get(atom)
-                if self.membership_test == "bh":
+                if self.membership_test == "bhb":
+                    margin = self.fdr_q
+                    qualifies = atom in (decided or {}).get(source, frozenset())
+                elif self.membership_test == "bh":
                     margin = self.fdr_q
                     qualifies = atom in rejected
                 else:

@@ -333,3 +333,18 @@ def test_bh_membership_keeps_real_effects_and_rejects_rest_level_drift():
     registry.update(_estimates(evidence), tick=1)
     members = registry.footprints.get(("channel.a",), frozenset())
     assert CAUSED in members and DRIFT not in members
+
+
+def test_block_replicated_membership_needs_two_independent_blocks():
+    # Footprint Precision v1 §12 (FP-3 arm BHB).
+    from symbiont.actuation.footprint import block_replicated_members
+
+    def members(pulse_count):
+        evidence = _history(pulse_count)
+        active = [item for item in evidence if not item.is_passive]
+        pulses = [p for p in pulses_from(active, CHANNELS.get) if p.source == ("channel.a",)]
+        return block_replicated_members(pulses, [i for i in evidence if i.is_passive])
+
+    assert members(12) == frozenset()  # one complete block only
+    replicated = members(16)
+    assert CAUSED in replicated and DRIFT not in replicated

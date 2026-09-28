@@ -52,6 +52,7 @@ from .evidence import (
 from .footprint import (
     FootprintRegistry,
     atom_estimates,
+    block_replicated_members,
     footprint_effect_id,
     pulses_from,
     version_ref,
@@ -636,8 +637,8 @@ class AgencyAcquisition:
         """Footprint Precision v1 §6 (T: time-matched quiet baseline; M:
         multiplicity-adjusted entry, exit margin half the entry margin) and
         §9 (BH: Benjamini-Hochberg membership, ``test="bh"``)."""
-        if test not in ("margin", "bh"):
-            raise ValueError("footprint membership test must be margin or bh")
+        if test not in ("margin", "bh", "bhb"):
+            raise ValueError("footprint membership test must be margin, bh or bhb")
         self.footprint_quiet_near = None if quiet_near is None else int(quiet_near)
         self.footprint_multiplicity = bool(multiplicity)
         self.footprints.exit_margin = self.footprints.enter_margin / 2 if multiplicity else 0.0
@@ -674,7 +675,16 @@ class AgencyAcquisition:
             quiet_near=self.footprint_quiet_near,
             multiplicity=self.footprint_multiplicity,
         )
-        self.footprints.update({source: estimates.get(source, {})}, tick=tick)
+        decided = (
+            {
+                source: block_replicated_members(
+                    pulses, self.causal_evidence.passive_evidence, q=self.footprints.fdr_q
+                )
+            }
+            if self.footprints.membership_test == "bhb"
+            else None
+        )
+        self.footprints.update({source: estimates.get(source, {})}, tick=tick, decided=decided)
         if self.footprint_effects:
             self._register_footprint_effect(source)
 

@@ -22,6 +22,7 @@ MEMBERSHIP_ARMS = {
     "M": (None, True, "margin"),
     "TM": (8, True, "margin"),
     "BH": (None, False, "bh"),  # Footprint Precision v1 §9 (FP-2)
+    "BHB": (None, False, "bhb"),  # Footprint Precision v1 §12 (FP-3)
 }
 
 
