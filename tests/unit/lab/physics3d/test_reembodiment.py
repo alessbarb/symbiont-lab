@@ -249,11 +249,17 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
 
     records = transformed["private_model_registry"]["records"]
     assert records[0]["model_id"] == "model-1"
-    assert records[0]["state"] == "degraded"
+    assert records[0]["state"] == "active"
 
     active_nodes = {node["node_id"] for node in transformed["cognitive_bridge"]["graph"]["nodes"]}
-    assert active_nodes == {"concept.old"}
-    assert transformed["cognitive_bridge"]["graph"]["edges"] == []
+    assert active_nodes == {
+        "concept.old",
+        "sensor.identity.old",
+        "predictor.old",
+        "readout_motor:actuator.old",
+        "readout_primitive:primitive.old",
+    }
+    assert transformed["cognitive_bridge"] == previous["cognitive_bridge"]
 
     assert transformed["living_body"]["vital_state"] == "active"
     assert transformed["living_body"]["energy_reserve"] == 1600.0
@@ -307,16 +313,19 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
     assert records[0]["state"] == "degraded"
 
     active_nodes = {node["node_id"] for node in transformed["cognitive_bridge"]["graph"]["nodes"]}
-    assert "concept.old" in active_nodes
-    assert active_nodes == {"concept.old"}
-    assert transformed["cognitive_bridge"]["graph"]["edges"] == []
-    assert transformed["cognitive_bridge"]["structural_candidates"] == [
-        {"candidate_id": "concept:keep", "family": "concept"}
-    ]
+    assert active_nodes == {
+        "concept.old",
+        "sensor.identity.old",
+        "predictor.old",
+        "readout_motor:actuator.old",
+        "readout_primitive:primitive.old",
+    }
+    assert transformed["cognitive_bridge"] == previous["cognitive_bridge"]
 
-    assert transformed["body_schema"]["state"] == "undeveloped"
-    assert transformed["self_model"] == {}
-    assert transformed["sensory_development"] == {}
+    assert transformed["body_schema"] == previous["body_schema"]
+    assert transformed["self_model"] == previous["self_model"]
+    assert transformed["sensory_development"] == previous["sensory_development"]
+    assert transformed["sensory_system"] == previous["sensory_system"]
     assert transformed["actuation"]["sensorimotor"]["primitives"] == []
     assert transformed["actuation"]["sensorimotor"]["historical_candidates"] == []
     assert transformed["actuation"]["proposer"] == {"learned": "fresh"}
@@ -419,16 +428,42 @@ def test_sensorimotor_v2_retains_knowledge_without_rebinding_to_new_body() -> No
     # Historical v1 knowledge never learned dimensions; none are fabricated.
     assert v2["agency_acquisition"]["action_dimensions"] is None
     assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
-    assert "surface_binding" not in v2["competences"][0]
-    assert v2["competences"][0]["effect_id"] is None
-    assert v2["competences"][0]["support"] == 8
-    assert v2["effect_space"] == fresh["actuation"]["sensorimotor_v2"]["effect_space"]
-    assert v2["causal_evidence"] == fresh["actuation"]["sensorimotor_v2"]["causal_evidence"]
+    assert v2["competences"] == previous["actuation"]["sensorimotor_v2"]["competences"]
+    assert v2["effect_space"] == previous["actuation"]["sensorimotor_v2"]["effect_space"]
+    assert v2["causal_evidence"] == previous["actuation"]["sensorimotor_v2"]["causal_evidence"]
+    assert v2["exploration"] == previous["actuation"]["sensorimotor_v2"]["exploration"]
+    assert v2["composition"] == previous["actuation"]["sensorimotor_v2"]["composition"]
     assert v2["execution_bindings"]["items"] == []
-    assert v2["exploration"] == {"strength_memory": {}, "active_preference": []}
-    assert v2["composition"]["predecessor_id"] is None
-    assert v2["composition"]["active_children"] == []
     assert transformed["actuation"]["action_commitment"] is None
+
+
+def test_every_reembodiment_preserves_symbiont_learned_state() -> None:
+    previous = _checkpoint(vital_state="active")
+    learned_keys = (
+        "cognitive_bridge",
+        "experience_ledger",
+        "episodic_memory",
+        "private_model_registry",
+        "body_schema",
+        "self_model",
+        "sensory_development",
+        "sensory_system",
+        "genome",
+    )
+
+    for descriptor, fresh in (
+        (PhysicsEmbodimentDescriptor("anthropomorphic-v6", 107, 62), _fresh()),
+        (PhysicsEmbodimentDescriptor("anthropomorphic-v6-vision", 251, 62), _fresh()),
+        (PhysicsEmbodimentDescriptor("crawler-v1", 84, 40), _fresh(slots=40)),
+        (PhysicsEmbodimentDescriptor("asymmetric-v1", 96, 40), _fresh(slots=40)),
+    ):
+        transformed = prepare_fresh_embodiment_checkpoint(
+            previous,
+            fresh,
+            contract=descriptor,
+        )
+        for key in learned_keys:
+            assert transformed[key] == previous[key]
 
 
 def test_stopping_marks_symbiont_dormant_without_changing_body_death_state() -> None:
@@ -470,11 +505,9 @@ def test_known_contract_return_recovers_hypotheses_without_restoring_authority()
         "primitive.old"
     ]
 
-    assert returned["body_schema"]["state"] == "undeveloped"
-    assert {node["node_id"] for node in returned["cognitive_bridge"]["graph"]["nodes"]} == {
-        "concept.old"
-    }
-    assert returned["private_model_registry"]["records"][0]["state"] == "degraded"
+    assert returned["body_schema"] == humanoid["body_schema"]
+    assert returned["cognitive_bridge"] == humanoid["cognitive_bridge"]
+    assert returned["private_model_registry"] == humanoid["private_model_registry"]
 
 
 def test_temporal_migration_repairs_only_unambiguous_global_body_age() -> None:
@@ -845,12 +878,12 @@ def test_canonical_action_domain_reembodiment_preserves_knowledge_not_authority(
     assert v2["schema_version"] == 4
     assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
     assert v2["competences"][0]["competence_id"] == "competence.old"
-    assert v2["competences"][0]["effect_id"] is None
-    assert v2["competences"][0]["support"] == 8
+    assert v2["competences"] == previous_actuation["action_domain"]["sensorimotor_v2"]["competences"]
+    assert v2["effect_space"] == previous_actuation["action_domain"]["sensorimotor_v2"]["effect_space"]
+    assert v2["causal_evidence"] == previous_actuation["action_domain"]["sensorimotor_v2"]["causal_evidence"]
+    assert v2["exploration"] == previous_actuation["action_domain"]["sensorimotor_v2"]["exploration"]
+    assert v2["composition"] == previous_actuation["action_domain"]["sensorimotor_v2"]["composition"]
     assert v2["execution_bindings"]["items"] == []
-    assert v2["exploration"] == {"strength_memory": {}, "active_preference": []}
-    assert v2["composition"]["predecessor_id"] is None
-    assert v2["composition"]["active_children"] == []
 
 
 def test_reembodiment_carries_learned_dimensions_as_unbound_knowledge() -> None:
