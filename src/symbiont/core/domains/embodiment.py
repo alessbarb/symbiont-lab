@@ -30,7 +30,7 @@ class EmbodimentServices:
 
 @dataclass(frozen=True, slots=True)
 class EmbodimentStepResult:
-    sensory_phenotype: dict[str, Any]
+    sensory_phenotype: dict[str, Any] | None
 
 
 class EmbodimentDomain:
@@ -116,21 +116,25 @@ class EmbodimentDomain:
         services: EmbodimentServices,
         context: TickContext,
         cognition: CognitionStepResult,
+        include_observability: bool = True,
     ) -> EmbodimentStepResult:
-        source_ids = {
-            source_id
-            for sensor in services.sensory_system.sensors
-            for source_id in sensor.source_ids
-        }
-        sensory_phenotype = services.sensory_system.phenotype_view(
-            signal_ids_by_source={
-                source_id: services.signal_identity.signal_id(source_id)
-                for source_id in sorted(source_ids)
+        body_schema_view = services.sensory_system.body_schema_view()
+        sensory_phenotype = None
+        if include_observability:
+            source_ids = {
+                source_id
+                for sensor in services.sensory_system.sensors
+                for source_id in sensor.source_ids
             }
-        )
+            sensory_phenotype = services.sensory_system.phenotype_view(
+                signal_ids_by_source={
+                    source_id: services.signal_identity.signal_id(source_id)
+                    for source_id in sorted(source_ids)
+                }
+            )
         if services.sensory_system.plasticity_enabled:
             services.body_schema.observe_sensory_phenotype(
-                sensory_phenotype,
+                body_schema_view,
                 tick=context.symbiont_tick,
             )
         else:
