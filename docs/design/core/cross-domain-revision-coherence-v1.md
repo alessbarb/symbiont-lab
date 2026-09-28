@@ -754,6 +754,52 @@ manifests. Unbounded growth along a lineage would be reported as a new
 growth limit to study, not as a P5 failure. P5 is judged by training
 transitions and outcomes, not wall-clock duration.
 
+### 8.5 P5 result (2026-09-28) — ancestry never engaged; inconclusive
+
+Runs on `95267c78`, copies of `org-ea3e7bbbc628` at tick 9 246, synchronous
+training, factorized effects, both arms to body death at tick 11 891
+(2 645 ticks; wall-clock A 64 min, B 71 min). Artifacts:
+`.symbiont/archive/p5/` (measurements, provenance, final runtime state).
+
+| | P5-A | P5-B |
+|---|---:|---:|
+| trainings (provenance `train_request`) | 41 | 41 |
+| generation > 0 | 0 | 0 |
+| root reasons | (not recorded, ancestry off) | `no-eligible-ancestor` × 41 |
+| eligible ancestors at any time | 0 | 0 |
+| retirement deferrals | 0 | 0 |
+| candidates beating the baseline | 0 / 41 | 0 / 41 |
+| last 10 candidates: best / median validation loss | 6.197 / 6.362 | 6.197 / 6.362 |
+| validation − baseline loss: min / median | +0.501 / +0.922 | +0.501 / +0.922 |
+| promotions to ACTIVE | 0 | 0 |
+
+The two arms are identical: same model artifacts (content-addressed file
+names match), same final registry, byte-identical provenance journals.
+**No trained model ever beat the non-neural baseline**, so no model was
+ancestry-eligible (§8.4 item 2) and P5-B never had a parent to inherit
+from. The only causal difference between the arms was never exercised.
+
+Gates: 1 *mechanics* — holds vacuously (no eligible model; every training
+carries a traced root reason); 2 *vocabulary continuity* and 3 *restore* —
+not exercised (no child, no ancestry-capable tokenizer); 4 *safety* —
+passes (no ACTIVE model, no lineage); 5 *improvement* — fails (equal, not
+lower). By the decision rule `ancestry_training` is **not adopted**; the
+result is **inconclusive about ancestry itself**, not evidence against it.
+
+Descriptive observations (§8.4): (1) predictive validation 0.50-0.92 nats
+worse than the baseline for every candidate; (2) 41 generation-0 roots;
+(3) 38 retired by recency, 3 SHADOW at death, none promoted;
+(4) continuity not exercised; (5) root vocabularies are rebuilt each time
+and *shrink* slightly over the run (4 822 → 4 489 tokens) as the corpus
+window moves, so the growth concern does not arise for roots.
+
+The binding constraint P5 exposes is upstream of ancestry: from-scratch
+training at the authorized budget (48 steps, 8 epochs, ≤ 1 M parameters)
+never reaches the baseline on this organism. Any further ancestry study
+first needs eligible models to exist; what to change (training budget,
+eligibility criterion, or seeding P5-B from a baseline-beating model) is an
+owner decision and needs its own preregistration.
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
