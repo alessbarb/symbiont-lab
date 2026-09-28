@@ -14,6 +14,8 @@ from symbiont_lab.observation.observatory import ObservatorySource
 
 SSE_POLL_SECONDS = 1.0
 SSE_HEARTBEAT_SECONDS = 15.0
+SSE_BATCH_MESSAGES = 64
+SSE_BATCH_BYTES = 256 * 1024
 REPLAY_LINES = 200
 CLIENT_ERRORS = (ConnectionError, BrokenPipeError, ConnectionResetError)
 
@@ -23,6 +25,31 @@ def _encode_sse(data: dict[str, Any], *, event_id: str | int | None = None) -> b
     payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
     return (prefix + "data: " + payload + "\n\n").encode()
 
+
+
+
+def _encode_serialized_sse(data: str, *, event_id: str | int | None = None) -> bytes:
+    """Frame already-serialized JSON without parsing or re-encoding it."""
+    prefix = "" if event_id is None else f"id: {event_id}\n"
+    return (prefix + "data: " + data + "\n\n").encode()
+
+
+def _drain_observation_batch(consumer, first) -> bytes:
+    chunks = [
+        _encode_serialized_sse(first.data, event_id=first.stream_id),
+    ]
+    total = len(chunks[0])
+    count = 1
+    while count < SSE_BATCH_MESSAGES and total < SSE_BATCH_BYTES:
+        try:
+            message = consumer.get_nowait()
+        except queue.Empty:
+            break
+        chunk = _encode_serialized_sse(message.data, event_id=message.stream_id)
+        chunks.append(chunk)
+        total += len(chunk)
+        count += 1
+    return b"".join(chunks)
 
 def _last_event_id(handler: BaseHTTPRequestHandler) -> str | None:
     value = handler.headers.get("Last-Event-ID")
@@ -53,13 +80,8 @@ def stream_organism(handler: BaseHTTPRequestHandler, stream: ObservationBus) -> 
     try:
         while True:
             try:
-                data = consumer.get(timeout=SSE_HEARTBEAT_SECONDS)
-                try:
-                    event_id = json.loads(data).get("_stream_id")
-                except (json.JSONDecodeError, AttributeError):
-                    event_id = None
-                prefix = "" if event_id is None else f"id: {event_id}\n"
-                handler.wfile.write((prefix + "data: " + data + "\n\n").encode())
+                first = consumer.get(timeout=SSE_HEARTBEAT_SECONDS)
+                handler.wfile.write(_drain_observation_batch(consumer, first))
                 handler.wfile.flush()
             except queue.Empty:
                 handler.wfile.write(b": heartbeat\n\n")
