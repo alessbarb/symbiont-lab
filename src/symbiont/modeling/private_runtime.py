@@ -806,8 +806,9 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         self,
         *,
         context: TickContext | None = None,
+        include_observability: bool = True,
     ) -> RuntimeTickResult:
-        result = super().tick(context=context)
+        result = super().tick(context=context, include_observability=include_observability)
         # Resolve outcome-value credit traces at due ticks (L8).
         # This must happen on every tick regardless of _capture_private_experience
         # because prospective decisions may have been made before the flag was set.
