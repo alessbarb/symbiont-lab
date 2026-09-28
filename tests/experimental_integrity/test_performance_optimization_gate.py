@@ -135,3 +135,33 @@ def test_performance_gate_repeated_matched_runs_emit_identical_causal_history() 
         first._action_domain.acquisition.provenance.events()
         == second._action_domain.acquisition.provenance.events()
     )
+
+
+def test_headless_tick_omits_only_passive_projections() -> None:
+    """P1: suppress observer projections without changing causal state."""
+
+    silent, silent_body = _subject(seed=101)
+    observed, observed_body = _subject(seed=101)
+
+    silent_result = silent.tick(include_observability=False)
+    observed_result = observed.tick(include_observability=True)
+
+    assert silent_result.narrative == ()
+    assert silent_result.sensory_phenotype is None
+    assert silent_result.cognition is not None
+    assert silent_result.cognition.representation_maturity is None
+
+    assert observed_result.narrative
+    assert observed_result.sensory_phenotype is not None
+    assert observed_result.cognition is not None
+    assert observed_result.cognition.representation_maturity is not None
+
+    # The bounded life journal, BodySchema, cognition and motor authority remain
+    # identical even though one result omits human-facing projections.
+    assert silent.state_hash() == observed.state_hash()
+    assert silent.last_motor_intents == observed.last_motor_intents
+    assert silent.last_actuations == observed.last_actuations
+    assert _maturity(silent) == _maturity(observed)
+
+    silent_body.advance(silent.last_actuations)
+    observed_body.advance(observed.last_actuations)
