@@ -59,16 +59,15 @@ def test_decoder_rejects_revision_gap_until_fresh_anchor():
     assert decoder.decode(recovery) == {"type": "cognition", "tick": 4, "value": 4}
 
 
-def test_decoder_detects_tampered_delta_state_commitment():
+def test_decoder_detects_tampered_anchor_state_commitment():
     encoder = ObservationDeltaEncoder(anchor_interval=8)
     decoder = ObservationDeltaDecoder()
 
-    assert decoder.decode(encoder.encode({"type": "vitals", "tick": 1, "reserve": 1.0}))
-    delta = encoder.encode({"type": "vitals", "tick": 2, "reserve": 0.5})
-    delta["state_sha256"] = "0" * 64
+    anchor = encoder.encode({"type": "vitals", "tick": 1, "reserve": 1.0})
+    anchor["state_sha256"] = "0" * 64
 
     with pytest.raises(ValueError, match="hash mismatch"):
-        decoder.decode(delta)
+        decoder.decode(anchor)
 
 
 def test_non_compressible_pose_remains_plain_event():
@@ -125,3 +124,38 @@ def test_bus_slow_consumer_gets_immediate_anchor_after_drop():
             decoded.append(item)
 
     assert decoded == [{"type": "vitals", "tick": 3}]
+
+
+
+def test_delta_is_materially_smaller_for_stable_large_structure():
+    encoder = ObservationDeltaEncoder(anchor_interval=64)
+    topology = {
+        f"node.{index}": {
+            "kind": "concept",
+            "bias": index / 1000.0,
+            "tau": 1.0,
+        }
+        for index in range(200)
+    }
+    first = {
+        "type": "cognition",
+        "tick": 1,
+        "topology": topology,
+        "activation": {"node.1": 0.1},
+    }
+    second = {
+        "type": "cognition",
+        "tick": 2,
+        "topology": topology,
+        "activation": {"node.1": 0.2},
+    }
+
+    anchor = encoder.encode(first)
+    delta = encoder.encode(second)
+
+    full_bytes = len(json.dumps(second, separators=(",", ":")).encode())
+    delta_bytes = len(json.dumps(delta, separators=(",", ":")).encode())
+
+    assert anchor["kind"] == "anchor"
+    assert delta["kind"] == "delta"
+    assert delta_bytes < full_bytes * 0.25
