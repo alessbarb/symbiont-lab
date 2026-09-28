@@ -14,11 +14,13 @@ are evidence and are never interpreted as CI pass/fail thresholds.
 from __future__ import annotations
 
 import argparse
+import ast
 import cProfile
 import json
 import platform
 import pstats
 import statistics
+import shutil
 import subprocess
 import sys
 import time
@@ -171,13 +173,29 @@ def _command(name: str, command: list[str]) -> dict[str, Any]:
     }
 
 
-def _json_command(name: str, command: list[str]) -> dict[str, Any]:
+def _structured_command(name: str, command: list[str]) -> dict[str, Any]:
     result = _command(name, command)
-    if result["returncode"] == 0:
-        try:
-            result["parsed"] = json.loads(result["stdout"])
-        except json.JSONDecodeError:
-            result["parse_error"] = "stdout was not JSON"
+    if result["returncode"] != 0:
+        return result
+
+    stdout = result["stdout"].strip()
+    if not stdout:
+        return result
+    try:
+        result["parsed"] = json.loads(stdout)
+        return result
+    except json.JSONDecodeError:
+        pass
+
+    parsed_lines = []
+    try:
+        for line in stdout.splitlines():
+            if line.strip():
+                parsed_lines.append(ast.literal_eval(line))
+    except (SyntaxError, ValueError):
+        result["parse_error"] = "stdout was neither JSON nor Python literals"
+        return result
+    result["parsed"] = parsed_lines[0] if len(parsed_lines) == 1 else parsed_lines
     return result
 
 
@@ -299,11 +317,11 @@ def main() -> None:
 
     python = sys.executable
     focused = [
-        _json_command(
+        _structured_command(
             "organism_scaling",
             [python, "scripts/bench_organism_tick.py", "--organisms", "1", "10", "--ticks", "120" if args.quick else "500"],
         ),
-        _json_command(
+        _structured_command(
             "sensorimotor_matching",
             [python, "scripts/bench_sensorimotor_matching.py", "--queries", "30" if args.quick else "150", "--candidates", "128" if args.quick else "512"],
         ),
@@ -311,24 +329,32 @@ def main() -> None:
             "world_journal_age_scaling",
             [python, "scripts/bench_world_journal_index.py", "--ages", "1000", "5000" if args.quick else "100000", "--repeats", "40" if args.quick else "200"],
         ),
-        _json_command(
+        _structured_command(
             "sse_transport",
             [python, "scripts/bench_sse_transport.py", "--messages", "1000" if args.quick else "10000", "--payload-bytes", "4096"],
         ),
     ]
 
-    node = _command(
-        "browser_layout",
-        ["node", "scripts/bench_browser_layout.mjs", "500" if args.quick else "2000"],
-    )
-    if node["returncode"] == 0:
-        try:
-            node["parsed"] = json.loads(node["stdout"])
-        except json.JSONDecodeError:
-            node["parse_error"] = "stdout was not JSON"
-    elif "No such file" in node["stderr"] or "not found" in node["stderr"].lower():
-        node["skipped"] = True
-    focused.append(node)
+    if shutil.which("node") is None:
+        focused.append(
+            {
+                "name": "browser_layout",
+                "command": ["node", "scripts/bench_browser_layout.mjs"],
+                "returncode": 0,
+                "elapsed_s": 0.0,
+                "stdout": "",
+                "stderr": "",
+                "skipped": True,
+                "reason": "node executable not available",
+            }
+        )
+    else:
+        focused.append(
+            _structured_command(
+                "browser_layout",
+                ["node", "scripts/bench_browser_layout.mjs", "500" if args.quick else "2000"],
+            )
+        )
 
     report = {
         "schema": "symbiont-performance-reprofile-v1",
