@@ -302,3 +302,29 @@ smoke test was accidentally run on confirmation seed 541 (arm BHB); the
 only thing observed was that no member existed yet at tick 1 000 (BHB needs
 two complete 8-pulse blocks). Further diagnostics used design seed 101. The
 preregistered design and criteria are unchanged.
+
+## 13. FP-3 result (2026-09-28) — no arm qualifies
+
+Runs on `853707d0` (clean), seeds 541-599: R `...-853707d-cede`,
+BH `...-7cea`, BHB `...-1fb0`; E6 gate for BHB `...-8e35`. Counts pooled
+over the ten seeds at tick 3 000.
+
+| Arm | own | cross | drift | other | precision | recall | E6 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| R | 135 | 1 | 157 | 3 | 0.456 | 0.510 | (reference) |
+| BH | 180 | 1 | 106 | 2 | 0.623 | 0.580 | 3/3 (FP-2) |
+| BHB | 16 | 0 | 7 | 0 | 0.696 | 0.259 (n = 9) | 3/3 |
+
+By the preregistered criteria (precision ≥ 0.80, recall ≥ 0.42, E6 3/3)
+**no arm qualifies**. BHB fails both precision and recall (< 0.42, per the
+owner's rule a failure, not a candidate), and its seeds are not reused for
+a variant. No membership change is proposed; no threshold is changed.
+
+Descriptive reading: disjoint, replicated blocks cut drift members sharply
+(7 vs 106 for BH) but admit very few own members; four seeds (569, 571,
+577, 587) still end with drift-only or drift-dominated footprints, so
+removing data reuse across tests does not by itself separate drift from
+own effects at this sample size. BH on these seeds (0.623) is below its
+FP-2 value (0.738), so its precision varies substantially between seed
+sets. Raw run artifacts are archived outside the repository
+(`.symbiont/archive/`, digest `RUNS.md`).
