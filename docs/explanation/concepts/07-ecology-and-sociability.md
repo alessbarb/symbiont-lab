@@ -56,6 +56,6 @@ It is directly proven that the valence of a relationship is derived from accumul
 ## Formal backing
 
 The complete normative design of social perception, local decision, competition for finite resources and adversarial limits is in
-[`docs/design/sociabilidad-y-desarrollo-predictivo.md`](../design/sociabilidad-y-desarrollo-predictivo.md).
+[`docs/history/design/sociabilidad-y-desarrollo-predictivo.md`](../../history/design/sociabilidad-y-desarrollo-predictivo.md).
 The collective consensus without external oracle, relevant for how multiple organisms revise shared evidence without treating the majority as truth, is in
-[`docs/math/06-consenso-colectivo-y-confianza.md`](../math/06-consenso-colectivo-y-confianza.md).
+[`docs/explanation/math/06-collective-consensus-and-trust.md`](../math/06-collective-consensus-and-trust.md).

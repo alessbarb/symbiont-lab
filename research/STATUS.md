@@ -149,7 +149,7 @@ de nuevas modalidades permanecen cerradas.
 
 ### Emergent Sensory Modalities v1 — diseño propuesto, no implementado
 
-La siguiente frontera queda definida en [`../docs/design/emergent-sensory-modalities-v1.md`](../docs/design/general/emergent-sensory-modalities-v1.md). El diseño elimina `alpha/beta/gamma` como clases constitucionales de desarrollo: todos los receptores compartirán un kernel común de primitivas bounded y “modalidad” será una propiedad derivada evaluator-side del fenotipo receptor, nunca una respuesta suministrada al organismo.
+La siguiente frontera queda definida en [`../docs/history/design/emergent-sensory-modalities-v1.md`](../docs/history/design/emergent-sensory-modalities-v1.md). El diseño elimina `alpha/beta/gamma` como clases constitucionales de desarrollo: todos los receptores compartirán un kernel común de primitivas bounded y “modalidad” será una propiedad derivada evaluator-side del fenotipo receptor, nunca una respuesta suministrada al organismo.
 
 La migración se abre por etapas: compatibilidad escalar, `ReceptorProgram`, retirada de restricciones por modalidad, mutación estructural bounded y solo después geometría vectorial. Event/sequence/field, ciclos, invención de primitivas e herencia de programas adquiridos permanecen cerrados.
 

@@ -11,7 +11,7 @@ last_reviewed: null
 
 > **Status:** IMPLEMENTED  
 > **Type:** CODE IDENTITY AND STOCHASTIC MODELING  
-> **Related modules:** [`symbiont.host.drift`](../../src/symbiont/host/drift.py), [`symbiont.host.rhythms`](../../src/symbiont/host/rhythms.py)
+> **Related modules:** [`symbiont.host.drift`](../../../src/symbiont/host/drift.py), [`symbiont.host.rhythms`](../../../src/symbiont/host/rhythms.py)
 
 ---
 
@@ -23,7 +23,7 @@ In a complex operating system or synthetic environment, signals do not behave as
 2. **Regime Shift:** Permanent structural modification of the activity level (e.g., startup of a database service or phase transition in the simulator). The model must discard the pre-shift history and re-center quickly on the new level.
 3. **Slow Creep:** Progressive displacement with small increments per tick (e.g., a gradual resource leak) that never crosses the abrupt anomaly thresholds in an isolated step, but whose sustained accumulation transforms the normality of the system.
 
-[`DriftAwareBaseline`](../../src/symbiont/host/drift.py) and [`RhythmModel`](../../src/symbiont/host/rhythms.py) implement the mathematical machinery to manage these dynamics.
+[`DriftAwareBaseline`](../../../src/symbiont/host/drift.py) and [`RhythmModel`](../../../src/symbiont/host/rhythms.py) implement the mathematical machinery to manage these dynamics.
 
 ---
 
@@ -144,7 +144,7 @@ The divergence is a **constant proportional to the slope $c$**.
 ### 5.2 The False Stability Loop with Live Variance
 If one attempted to normalize $D$ against the live standard deviation $\sigma_{\text{live}, t}$:
 
-In the algorithm ([`_apply_direct`](../../src/symbiont/host/drift.py#L308-L310)), the residual $\Delta_t = x_t - \mu_{t-1}$ is evaluated **before** updating the mean with the current step. For a linear ramp $x_t = c \cdot t$ with slope $c > 0$:
+In the algorithm ([`_apply_direct`](../../../src/symbiont/host/drift.py#L308-L310)), the residual $\Delta_t = x_t - \mu_{t-1}$ is evaluated **before** updating the mean with the current step. For a linear ramp $x_t = c \cdot t$ with slope $c > 0$:
 - The delay with respect to the updated mean is $x_t - \mu_t \longrightarrow \frac{1-\lambda}{\lambda} c = 9 c$.
 - The residual with respect to the previous mean is:
   $$\Delta_t = x_t - \mu_{t-1} = (x_t - \mu_t) + (\mu_t - \mu_{t-1}) \longrightarrow 9c + c = 10 c = \frac{c}{\lambda}$$
@@ -195,7 +195,7 @@ When $|z_{\text{creep}}| \ge z_{\text{creep}} = 1.0$ for $K_{\text{creep}} = 8$ 
 
 > **Classification:** CONTEXT HEURISTIC WITHOUT ABSOLUTE TELEMETRY
 
-To capture cyclic oscillations (e.g., diurnal vs. nocturnal load) without violating privacy by retaining real timestamps, [`RhythmModel`](../../src/symbiont/host/rhythms.py) defines a temporal partition in quadrants:
+To capture cyclic oscillations (e.g., diurnal vs. nocturnal load) without violating privacy by retaining real timestamps, [`RhythmModel`](../../../src/symbiont/host/rhythms.py) defines a temporal partition in quadrants:
 
 $$\psi(h) = \begin{cases}
 \text{NIGHT} & \text{if } 0 \le h < 6 \\
@@ -204,4 +204,4 @@ $$\psi(h) = \begin{cases}
 \text{EVENING} & \text{if } 18 \le h \le 23
 \end{cases}$$
 
-For each ordered pair $(\text{percept\_name}, \text{bucket})$, the system maintains an independent instance of [`RunningStats`](../../src/symbiont/host/acclimation.py), allowing the normality of a reading to be evaluated in relation to its corresponding diurnal phase.
+For each ordered pair $(\text{percept\_name}, \text{bucket})$, the system maintains an independent instance of [`RunningStats`](../../../src/symbiont/host/acclimation.py), allowing the normality of a reading to be evaluated in relation to its corresponding diurnal phase.

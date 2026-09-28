@@ -58,4 +58,4 @@ It is proven that reproductive pressure requires sustained persistence before en
 ## Formal backing
 
 This chapter describes a transaction machine and a discrete life cycle, not a formal mathematical development of its own in the compendium. The complete normative design — including the recombination of inheritable loci, bounded epigenetic inheritance and the separation of inheritance channels — is in
-[`docs/design/fisiologia-y-reproduccion.md`](../design/fisiologia-y-reproduccion.md).
+[`docs/history/design/fisiologia-y-reproduccion.md`](../../history/design/fisiologia-y-reproduccion.md).

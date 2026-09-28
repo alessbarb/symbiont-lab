@@ -6,11 +6,12 @@ That corpus is written as one connected work: it explains the organism from its 
 
 The rest of `docs/` remains intentionally available because it contains the source material from which the canonical description is maintained:
 
+- `architecture.md` provides the unified technical architecture and epistemological foundation.
 - `design/` contains specifications, implementation audits and research proposals. A specification records intended design; it must not be read automatically as a statement about current behaviour.
 - `explanation/` contains earlier explanatory treatments and the mathematical compendium.
 - `adr/` records accepted architectural decisions and their context.
 - `methodology/` and `design/experimentation/` describe experimental practice and individual protocols.
-- `history/`, `roadmap.md` and `CHANGELOG.md` preserve development history.
+- `history/` (including `history/roadmap-log.md`), `roadmap.md` and `CHANGELOG.md` preserve development history.
 - `development/` documents engineering concerns that are useful to maintainers but are not part of the scientific description of the organism.
 
 No historical source has been removed simply because a canonical synthesis now exists. The canonical corpus includes a [`source-map`](symbiont/source-map.md) that accounts for every Markdown source in the current documentation set and indicates the scientific area into which its knowledge belongs.

@@ -14,7 +14,7 @@ language: en
 
 > **Status:** IMPLEMENTED  
 > **Type:** COOPERATIVE PROTOCOL AND REPUTATION DYNAMICS  
-> **Related modules:** [`symbiont.core.trust`](../../src/symbiont/core/social/trust.py), [`symbiont.core.collective`](../../src/symbiont/core/social/collective.py), [`symbiont.core.heritage`](../../src/symbiont/core/lineage/heritage.py)
+> **Related modules:** [`symbiont.core.social.evidence_trust`](../../../src/symbiont/core/social/evidence_trust.py), [`symbiont.core.social.ledger`](../../../src/symbiont/core/social/ledger.py), [`symbiont.core.heritage`](../../../src/symbiont/core/lineage/heritage.py)
 
 ---
 
@@ -31,7 +31,7 @@ The system addresses two simultaneous mathematical problems:
 1. **Evidence Aggregation:** How to combine the discrete votes of multiple sources to infer a coherent collective belief?
 2. **Endogenous Trust Evaluation (*Trust Modeling*):** How to evaluate if a source is reliable without having external truth labels to contrast their claims?
 
-Symbiont implements these mechanisms in [`SourceTrustModel`](../../src/symbiont/core/social/trust.py), [`CollectiveMemory`](../../src/symbiont/core/social/collective.py) and [`SpeciesHeritage`](../../src/symbiont/core/lineage/heritage.py).
+Symbiont implements these mechanisms in [`SourceEvidenceState`](../../../src/symbiont/core/social/source_evidence.py), [`SocialEvidenceLedger`](../../../src/symbiont/core/social/ledger.py) and [`SpeciesHeritage`](../../../src/symbiont/core/lineage/heritage.py).
 
 ---
 
@@ -39,9 +39,9 @@ Symbiont implements these mechanisms in [`SourceTrustModel`](../../src/symbiont/
 
 > **Classification:** CODE IDENTITY / HEAVY-TAILED SIMILARITY METRIC
 
-When a host receives a knowledge capsule ([`KnowledgeCapsule`](../../src/symbiont/core/social/capsule.py)) cryptographically signed with Ed25519, it extracts the claimed remote mean $\mu_{\text{remote}}$ for a capability $c_k$.
+When a host receives a knowledge capsule ([`KnowledgeCapsule`](../../../src/symbiont/core/social/capsule.py)) cryptographically signed with Ed25519, it extracts the claimed remote mean $\mu_{\text{remote}}$ for a capability $c_k$.
 
-The local organism compares this claim with its own acclimated distribution $\mathcal{N}(\mu_{\text{local}}, \sigma_{\text{local}}^2)$ via [`agreement_score`](../../src/symbiont/core/social/trust.py#L31-L45):
+The local organism compares this claim with its own acclimated distribution $\mathcal{N}(\mu_{\text{local}}, \sigma_{\text{local}}^2)$ via [`EvidenceTrust`](../../../src/symbiont/core/social/evidence_trust.py):
 
 If the capability is not locally acclimated or $\sigma_{\text{local}} = 0.0$, the system returns `None` (epistemic silence given the lack of comparative baseline). Otherwise:
 
@@ -74,7 +74,7 @@ Agreement
 
 ## 3. Evidence Fusion in Collective Memory
 
-In the population simulator ([`CollectiveMemory`](../../src/symbiont/core/social/collective.py)), each agent $s$ emits for a signature $\text{fp}$ a vote containing its verdict $\text{threat}_s \in \{0, 1\}$ and its declared confidence $C_s \in [0.05, 1.0]$.
+In the population simulator ([`SocialEvidenceLedger`](../../../src/symbiont/core/social/ledger.py)), each agent $s$ emits for a signature $\text{fp}$ a vote containing its verdict $\text{threat}_s \in \{0, 1\}$ and its declared confidence $C_s \in [0.05, 1.0]$.
 
 The informational weight assigned to each informant is modulated by its accumulated reputation $T(s) \in [0.15, 0.98]$:
 
@@ -107,7 +107,7 @@ $$c_{\text{live}} = \min\Big( 1.0, \; 0.35 \cdot D + 0.25 \cdot \bar{C} + 0.25 \
 
 > **Classification:** RECALIBRATION HEURISTIC / LIMIT CASE ANALYSIS
 
-In [`CollectiveMemory.recalibrate_sources`](../../src/symbiont/core/social/collective.py#L166-L218), the system evaluates the legitimacy of an informant $s$ by comparing its vote with the consensus of the rest of the population **explicitly excluding $s$**:
+In [`SocialEvidenceLedger`](../../../src/symbiont/core/social/ledger.py), the system evaluates the legitimacy of an informant $s$ by comparing its vote with the consensus of the rest of the population **explicitly excluding $s$**:
 
 $$W_{-s} = \sum_{p \in \text{Votes} \setminus \{s\}} T(p) \cdot C_p$$
 
@@ -150,7 +150,7 @@ Under the strict assumption of a stable and uncorrelated honest majority, honest
 
 > **Classification:** COMPRESSION POLICY AND PRIORS ATTENUATION
 
-Between generations of agents, accumulated knowledge is transferred as a **compressed epigenetic distillation** ([`SpeciesHeritage`](../../src/symbiont/core/lineage/heritage.py)).
+Between generations of agents, accumulated knowledge is transferred as a **compressed epigenetic distillation** ([`SpeciesHeritage`](../../../src/symbiont/core/lineage/heritage.py)).
 
 ### 5.1 Quadruple Selection Criteria
 

@@ -121,7 +121,7 @@ P2 therefore separates biological need from semantic objective.
 
 ## Living Body P0 alignment
 
-[Living Body P0](living-body-p0.md) is now the canonical next step.
+[Living Body P0](../embodiment/living-body-p0.md) is now the canonical next step.
 
 This strengthens, rather than relaxes, P2:
 

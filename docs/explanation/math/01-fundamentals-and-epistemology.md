@@ -14,7 +14,7 @@ language: en
 
 > **Status:** IMPLEMENTED  
 > **Type:** FORMAL SPECIFICATION OF BOUNDARIES AND CODE IDENTITIES  
-> **Related modules:** [`symbiont.core.model`](../../src/symbiont/core/foundation/model.py), [`symbiont.environment.rng`](../../src/symbiont/environment/rng.py), [`symbiont.environment.world`](../../src/symbiont/environment/world.py)
+> **Related modules:** [`symbiont.core.model`](../../../src/symbiont/core/foundation/model.py), [`symbiont.environment.rng`](../../../src/symbiont/environment/rng.py), [`symbiont.environment.world`](../../../src/symbiont/environment/world.py)
 
 ---
 
@@ -36,11 +36,11 @@ The purpose of this mathematical framework is to formalize how an adaptive syste
 
 ### 2.1 Environment / Host Signal Space ($\mathcal{X}$)
 
-Let $\mathcal{X} \subseteq \mathbb{R}^D$ be the space of observable signals from the environment or host. For the canonical synthetic case ($D=5$), the observation vector at time $t$ is defined in [`Observation`](../../src/symbiont/core/foundation/model.py):
+Let $\mathcal{X} \subseteq \mathbb{R}^D$ be the space of observable signals from the environment or host. For the canonical synthetic case ($D=5$), the observation vector at time $t$ is defined in [`Observation`](../../../src/symbiont/core/foundation/model.py):
 
 $$\mathbf{x}(t) = \begin{pmatrix} x_{\text{cpu}}(t) \\ x_{\text{net}}(t) \\ x_{\text{file}}(t) \\ x_{\text{proc}}(t) \\ x_{\text{persist}}(t) \end{pmatrix} \in [0, 1]^5$$
 
-For the real host case ([`symbiont.host`](../../src/symbiont/host)), the space is composed of a dynamic and open set of capabilities $C = \{c_1, c_2, \dots, c_K\}$, where each capability produces readings $x_{c_k}(t) \in \mathbb{R} \cup \{\emptyset\}$ associated with physical units and declarative privacy policies.
+For the real host case ([`symbiont.host`](../../../src/symbiont/host)), the space is composed of a dynamic and open set of capabilities $C = \{c_1, c_2, \dots, c_K\}$, where each capability produces readings $x_{c_k}(t) \in \mathbb{R} \cup \{\emptyset\}$ associated with physical units and declarative privacy policies.
 
 ### 2.2 Percept Space and Opaque Names ($\mathcal{S}$)
 
@@ -53,7 +53,7 @@ where $\mathcal{S} \subseteq [-1, 1]^M$ is the space of normalized percepts. In 
 $$\text{sense\_id} = \operatorname{SHA-256}(\text{"symbiont-sense:"} \parallel c_k)_{[0:12]}$$
 
 > **Security and Cryptography Note (Design Heuristic):**  
-> Truncating SHA-256 to 12 hexadecimal characters (48 bits of entropy) **does not constitute a mathematical guarantee of anonymization in itself**. If the space of known capabilities is small (for example, standard `/proc` metrics), a dictionary attack can reverse the mapping. Its function in the architecture is to generate opaque identifiers to decouple the host's semantics from the organism's reasoning rules. True privacy protection comes from the isolation boundaries of the reading provider ([`symbiont.host.contracts`](../../src/symbiont/host/contracts.py)), which restricts which observation surfaces can be queried.
+> Truncating SHA-256 to 12 hexadecimal characters (48 bits of entropy) **does not constitute a mathematical guarantee of anonymization in itself**. If the space of known capabilities is small (for example, standard `/proc` metrics), a dictionary attack can reverse the mapping. Its function in the architecture is to generate opaque identifiers to decouple the host's semantics from the organism's reasoning rules. True privacy protection comes from the isolation boundaries of the reading provider ([`symbiont.host.contracts`](../../../src/symbiont/host/contracts.py)), which restricts which observation surfaces can be queried.
 
 ### 2.3 Epistemic States and Belief Space ($\mathcal{B}$)
 
@@ -69,7 +69,7 @@ where:
 
 ### 2.4 Evaluator Ground Truth Space ($\mathcal{Y}^*$)
 
-Exclusive to the simulator and the experimental laboratory ([`symbiont_lab`](../../src/symbiont_lab) and [`symbiont.simulation`](../../src/symbiont/simulation)):
+Exclusive to the simulator and the experimental laboratory ([`symbiont_lab`](../../../src/symbiont_lab) and [`symbiont.simulation`](../../../src/symbiont/simulation)):
 
 $$\mathcal{Y}^* = \{0, 1\} \times \Omega_{\text{fam}}$$
 
@@ -147,7 +147,7 @@ Regardless of how the simulator's hidden ground truth ($u_{\text{sim}}$) differs
 
 It is necessary to distinguish between a static code check and the full mathematical property:
 
-- **Architectural Hygiene:** The static AST dependency analysis ([`test_ground_truth_boundary.py`](../../tests/experimental_integrity/test_ground_truth_boundary.py)) verifies that the `symbiont` package never imports symbols from `symbiont_lab`. Likewise, the simulator wrappers ([`SimulatedEvent`](../../src/symbiont/environment/world.py)) unpack and deliver only `event.observation` to `agent.observe()`, discarding `truth_label`.
+- **Architectural Hygiene:** The static AST dependency analysis ([`test_ground_truth_boundary.py`](../../../tests/experimental_integrity/test_ground_truth_boundary.py)) verifies that the `symbiont` package never imports symbols from `symbiont_lab`. Likewise, the simulator wrappers ([`SimulatedEvent`](../../../src/symbiont/environment/world.py)) unpack and deliver only `event.observation` to `agent.observe()`, discarding `truth_label`.
 - **Sufficient Condition:** The static verification of imports is an indispensable defense-in-depth mechanism to preserve the architecture, but the full non-interference property additionally requires fixing the internal determinism $(s_0, \theta_{\text{cfg}}, \omega_{\text{org}})$ and guaranteeing the orthogonality of the pseudorandom number streams (§4).
 
 ---
@@ -164,7 +164,7 @@ an additional draw to select poisoned agents would shift the global pointer, cha
 
 ### 4.1 Deterministic Seed Derivation
 
-Symbiont solves this problem through a cryptographic derivation tree of independent seeds ([`symbiont.environment.rng.derive_seed`](../../src/symbiont/environment/rng.py#L8-L18)):
+Symbiont solves this problem through a cryptographic derivation tree of independent seeds ([`symbiont.environment.rng.derive_seed`](../../../src/symbiont/environment/rng.py#L8-L18)):
 
 Given an experimental seed integer $S \in \mathbb{N}$ and a textual namespace $N \in \mathcal{S}_{\text{names}}$ (e.g., `"profiles"`, `"agents"`, `"reporters"`, `"schedule"`, `"observations"`, `"drift"`):
 

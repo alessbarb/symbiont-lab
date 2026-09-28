@@ -59,7 +59,7 @@ The canonical state of the project is distributed across:
   record;
 - [`research/STATUS.md`](research/STATUS.md) — current evidence status, including
   positive, partial and negative results;
-- [`docs/design/experimental-organism-v1-freeze.md`](docs/design/experimental-organism-v1-freeze.md)
+- [`docs/design/experimentation/experimental-organism-v1-freeze.md`](docs/design/experimentation/experimental-organism-v1-freeze.md)
   — freeze contract for Experimental Organism v1.
 
 This document serves a different purpose: it explains the **evolution of the
@@ -1078,9 +1078,9 @@ source → sensor → percept pipeline and the world's `WorldObservation` /
 truth — now including world semantics, not just host semantics.
 
 The normative spec is
-[`docs/design/symbiont-world-v1.md`](docs/design/symbiont-world-v1.md); the
+[`docs/design/archive/symbiont-world-v1.md`](docs/design/archive/symbiont-world-v1.md); the
 research rationale and ALife background are in
-[`docs/design/symbiont-world-v1-rationale.md`](docs/design/symbiont-world-v1-rationale.md).
+[`docs/design/world/symbiont-world-v1-rationale.md`](docs/design/world/symbiont-world-v1-rationale.md).
 
 ## W0 — kernel foundation (implemented)
 

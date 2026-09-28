@@ -58,6 +58,6 @@ Three concrete behaviors are covered by deterministic tests: the confirmation of
 ## Formal backing
 
 The complete analytical development — univariate and bivariate Welford numerical stability, the derivation of the frozen noise floor for creep detection, and the dynamic utility function of sensory selection — is in
-[`docs/math/02-percepcion-aclimatacion-y-relaciones.md`](../math/02-percepcion-aclimatacion-y-relaciones.md)
+[`docs/explanation/math/02-perception-acclimation-and-relations.md`](../math/02-perception-acclimation-and-relations.md)
 and
-[`docs/math/03-deteccion-de-deriva-y-regimenes.md`](../math/03-deteccion-de-deriva-y-regimenes.md).
+[`docs/explanation/math/03-drift-detection-and-regimes.md`](../math/03-drift-detection-and-regimes.md).

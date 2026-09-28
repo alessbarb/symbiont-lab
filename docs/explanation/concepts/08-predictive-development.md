@@ -55,6 +55,6 @@ It is directly proven that a predictive candidate without sustained gain is not 
 ## Formal backing
 
 The normative design of anti-capture attention, quantized persistence with exact zero, stranded concepts and shadow mode prediction is in
-[`docs/design/sociabilidad-y-desarrollo-predictivo.md`](../design/sociabilidad-y-desarrollo-predictivo.md).
+[`docs/history/design/sociabilidad-y-desarrollo-predictivo.md`](../../history/design/sociabilidad-y-desarrollo-predictivo.md).
 Causal streaming selection via Treaps, the Brier Score and Murphy's decomposition are formalized in
-[`docs/math/10-seleccion-causal-y-evaluacion-estadistica.md`](../math/10-seleccion-causal-y-evaluacion-estadistica.md).
+[`docs/explanation/math/10-causal-selection-and-statistical-evaluation.md`](../math/10-causal-selection-and-statistical-evaluation.md).

@@ -51,4 +51,4 @@ These limits apply across all mechanisms described in chapters 1-8, not to a sin
 
 ## Formal backing
 
-The five methodological principles are in [`docs/methodology/README.md`](../methodology/README.md). Pre-registered protocols live in `research/protocols/`, declarative studies in `research/studies/`, and adversarial audits in `research/audits/`.
+The five methodological principles are in [`docs/methodology/README.md`](../../methodology/README.md). Pre-registered protocols live in `research/protocols/`, declarative studies in `research/studies/`, and adversarial audits in `research/audits/`.

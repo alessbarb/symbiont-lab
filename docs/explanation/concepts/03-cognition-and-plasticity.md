@@ -57,5 +57,5 @@ Independence regarding graph build order is verified by direct proof. The modula
 
 ## Formal backing
 
-The causal delay activation dynamics, the discretized Oja rule, eligibility traces and the bounding invariant in `[-1, 1]` are formalized in [`docs/math/09-plasticidad-endogena-y-redes-recurrentes.md`](../math/09-plasticidad-endogena-y-redes-recurrentes.md).
-The organism's self-model and the non-linear cost quantization are in [`docs/math/08-automodelo-y-sensores-adaptativos.md`](../math/08-automodelo-y-sensores-adaptativos.md), and agent cognition and metacognition in [`docs/math/07-cognicion-agentes-y-metacognicion.md`](../math/07-cognicion-agentes-y-metacognicion.md).
+The causal delay activation dynamics, the discretized Oja rule, eligibility traces and the bounding invariant in `[-1, 1]` are formalized in [`docs/explanation/math/09-endogenous-plasticity-and-recurrent-networks.md`](../math/09-endogenous-plasticity-and-recurrent-networks.md).
+The organism's self-model and the non-linear cost quantization are in [`docs/explanation/math/08-self-model-and-adaptive-sensors.md`](../math/08-self-model-and-adaptive-sensors.md), and agent cognition and metacognition in [`docs/explanation/math/07-agent-cognition-and-metacognition.md`](../math/07-agent-cognition-and-metacognition.md).
