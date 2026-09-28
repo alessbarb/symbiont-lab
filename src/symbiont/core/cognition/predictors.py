@@ -378,6 +378,12 @@ class PredictorLifecycle:
         )[:limit]
         self.preliminary_support = dict(retained)
 
+    def needs_prune_shadows(self, *, topology_revision: int, max_nodes: int) -> bool:
+        topology_changed = self._shadow_prune_topology_revision != topology_revision
+        limit = self.live_shadow_limit(max_nodes)
+        over_limit = len(self.shadows) > limit
+        return bool(self._shadow_prune_dirty or topology_changed or over_limit)
+
     def prune_shadows(
         self,
         *,

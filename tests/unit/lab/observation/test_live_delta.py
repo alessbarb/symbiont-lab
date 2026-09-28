@@ -44,7 +44,7 @@ def test_periodic_anchor_breaks_dependency_chain():
 
 
 def test_decoder_rejects_revision_gap_until_fresh_anchor():
-    encoder = ObservationDeltaEncoder(anchor_interval=3)
+    encoder = ObservationDeltaEncoder(anchor_interval=2)
     decoder = ObservationDeltaDecoder()
 
     anchor = encoder.encode({"type": "cognition", "tick": 1, "value": 1})
@@ -124,7 +124,6 @@ def test_bus_slow_consumer_gets_immediate_anchor_after_drop():
             decoded.append(item)
 
     assert decoded == [{"type": "vitals", "tick": 3}]
-
 
 
 def test_delta_is_materially_smaller_for_stable_large_structure():

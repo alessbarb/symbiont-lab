@@ -82,7 +82,7 @@ def test_lineage_keeps_concept_signature_after_all_incident_edges_are_lost() -> 
         edges=(),
         kernel_limits=limits,
     )
-    bridge._seed_new_edges()
+    bridge._plasticity.seed_new_edges(bridge._graph)
 
     assert bridge._concept_signature_exists(("sense_alpha", "sense_beta"))
     assert bridge._concept_signature_exists(("sense_beta", "sense_alpha"))

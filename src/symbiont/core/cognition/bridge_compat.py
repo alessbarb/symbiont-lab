@@ -366,6 +366,23 @@ class CognitiveBridgeCompatibility:
             protected_node_ids=protected_node_ids,
         )
 
+    @property
+    def _shadow_predictions(self) -> dict[tuple[str, str], ShadowPrediction]:
+        return self._predictors.shadows
+
+    @_shadow_predictions.setter
+    def _shadow_predictions(self, value: dict[tuple[str, str], ShadowPrediction]) -> None:
+        self._predictors.shadows = dict(value)
+        self._predictors.invalidate_shadow_cache()
+
+    @property
+    def _shadow_prune_dirty(self) -> bool:
+        return self._predictors._shadow_prune_dirty
+
+    @property
+    def _shadow_prune_topology_revision(self) -> int:
+        return self._predictors._shadow_prune_topology_revision
+
     def _invalidate_shadow_predictions_cache(self) -> None:
         self._predictors.invalidate_shadow_cache()
 

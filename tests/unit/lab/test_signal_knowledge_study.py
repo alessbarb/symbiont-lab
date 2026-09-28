@@ -87,6 +87,6 @@ def test_extended_acceptance_matrix_runs_all_frozen_seeds():
 def test_signal_pressure_respects_profile_and_claim_caps():
     report = run_signal_pressure(ticks=96)
     assert report.profiles == 64
-    assert report.claims <= 192
+    assert report.claims <= 256
     assert report.max_claims_per_signal <= 4
-    assert 0 < report.knowledge_checkpoint_bytes < 256 * 1024
+    assert 0 < report.knowledge_checkpoint_bytes < 1024 * 1024

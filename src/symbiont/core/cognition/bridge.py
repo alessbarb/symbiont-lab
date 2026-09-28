@@ -247,9 +247,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         """
         live = {node.node_id for node in self._graph.nodes}
         self._generative_protected_node_ids = {
-            str(node_id)
-            for node_id in node_ids
-            if str(node_id) in live
+            str(node_id) for node_id in node_ids if str(node_id) in live
         }
 
     def bind_contention_identity(self, identity: str) -> None:
@@ -513,6 +511,11 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         return self._predictors.shadow_predictions
 
     def _prune_shadow_predictions(self) -> None:
+        if not self._predictors.needs_prune_shadows(
+            topology_revision=self._topology_revision,
+            max_nodes=self._kernel_limits.max_nodes,
+        ):
+            return
         node_kinds, _ = self._topology_cache()
         self._predictors.prune_shadows(
             node_kinds=node_kinds,
@@ -789,9 +792,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         protected_node_ids: Collection[str] = (),
     ) -> tuple[Mutation, ...]:
         protected = {
-            str(node_id)
-            for node_id in protected_node_ids
-            if str(node_id)
+            str(node_id) for node_id in protected_node_ids if str(node_id)
         } | self._generative_protected_node_ids
         return self._lifecycle.orphan_node_mutations(
             graph=self._graph if graph is None else graph,

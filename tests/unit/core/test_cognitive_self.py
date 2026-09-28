@@ -70,7 +70,7 @@ def test_invalid_private_salt_or_namespace_is_rejected():
 
 
 def test_observation_is_bounded_to_strongest_channels():
-    activations = {f"concept_{index}": 0.11 + index / 1000 for index in range(80)}
+    activations = {f"concept_{index}": 0.11 + index / 1000 for index in range(200)}
     observation = project(activations)
 
     assert len(observation["channels"]) == MAX_COGNITIVE_CHANNELS_PER_TICK
