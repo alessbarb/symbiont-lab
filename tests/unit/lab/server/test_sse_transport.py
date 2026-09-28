@@ -3,7 +3,6 @@ from __future__ import annotations
 import queue
 from io import BytesIO
 
-import pytest
 
 from symbiont_lab.observation.bus import ObservationMessage
 from symbiont_lab.server import sse
