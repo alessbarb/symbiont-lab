@@ -2199,6 +2199,7 @@ class OrganismRuntime:
             auto_promote_predictors=self._auto_promote_predictors,
             reacclimation_remaining=self._reacclimation_remaining,
             cognitive_self_namespace_key=self._cognitive_self_namespace_key,
+            include_observability=include_observability,
         )
         cognition_result = cognition_step.cognition
         self._memory_domain.observe(
