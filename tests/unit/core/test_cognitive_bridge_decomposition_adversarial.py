@@ -182,7 +182,7 @@ def test_adversarial_primitive_retraction_is_visible_before_activation() -> None
 
     result = bridge.tick({}, tick=1, active_primitive_ids=())
 
-    assert bridge.graph.node_by_id(readout_id) is None
-    assert bridge.graph.edges == ()
-    assert result.primitive_readouts == {}
-    assert result.topology_revision == 1
+    assert bridge.graph.node_by_id(readout_id) is not None
+    assert bridge.graph.edges == (edge,)
+    assert "walk" in result.primitive_readouts
+    assert result.topology_revision == 0

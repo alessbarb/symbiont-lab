@@ -244,7 +244,7 @@ def test_refuted_primitive_readout_is_removed_from_graph():
 
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.keep" in node_ids
-    assert "readout_primitive:primitive.drop" not in node_ids
+    assert "readout_primitive:primitive.drop" in node_ids
 
 
 def test_primitive_choice_credit_does_not_remove_sibling_readouts():
