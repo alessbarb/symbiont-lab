@@ -167,12 +167,18 @@ def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
 def _detach_body_specific_cognition(
     checkpoint: Mapping[str, Any],
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """Archive and remove cognition whose authority depends on one embodiment.
+    """Archive embodiment-sensitive cognition without deleting Symbiont memory.
 
-    Fresh embodiment must not inherit active sensory identities, body-derived
-    predictors or motor/primitive readouts. General concepts remain as durable
-    cognition, but all incident edges to removed body-bound nodes disappear so
-    they can only become useful again through fresh evidence.
+    Re-embodiment changes current-body authority, not autobiographical
+    knowledge. The CognitiveGraph is Symbiont-owned longitudinal state and must
+    therefore survive *every* Body replacement intact, regardless of whether
+    the new opaque contract is equal, known or novel.
+
+    Body authority is withdrawn elsewhere: fresh sensory/body state, fresh
+    actuator health, cleared execution bindings/commitments and the normal
+    reacclimation gate. The archival projection returned here records which
+    preserved nodes/edges were embodiment-sensitive without mutating the live
+    cognitive bridge.
     """
     raw_bridge = checkpoint.get("cognitive_bridge")
     if not isinstance(raw_bridge, Mapping):
@@ -183,7 +189,7 @@ def _detach_body_specific_cognition(
 
     bridge = deepcopy(dict(raw_bridge))
     graph = bridge.get("graph")
-    if not isinstance(graph, dict):
+    if not isinstance(graph, Mapping):
         return bridge, None
 
     nodes = graph.get("nodes")
@@ -200,131 +206,30 @@ def _detach_body_specific_cognition(
             or node_id.startswith("readout_primitive:")
         )
 
-    removed_ids = {
+    body_bound_ids = {
         str(node.get("node_id"))
         for node in nodes
         if isinstance(node, Mapping) and body_bound_node(node)
     }
-    if not removed_ids:
-        return bridge, {"nodes": [], "edges": []}
 
     archived_nodes = [
         deepcopy(node)
         for node in nodes
-        if isinstance(node, Mapping) and str(node.get("node_id")) in removed_ids
+        if isinstance(node, Mapping) and str(node.get("node_id")) in body_bound_ids
     ]
     archived_edges = [
         deepcopy(edge)
         for edge in edges
         if isinstance(edge, Mapping)
-        and (str(edge.get("source_id")) in removed_ids or str(edge.get("target_id")) in removed_ids)
-    ]
-
-    graph["nodes"] = [
-        node
-        for node in nodes
-        if not (isinstance(node, Mapping) and str(node.get("node_id")) in removed_ids)
-    ]
-    graph["edges"] = [
-        edge
-        for edge in edges
-        if not (
-            isinstance(edge, Mapping)
-            and (
-                str(edge.get("source_id")) in removed_ids
-                or str(edge.get("target_id")) in removed_ids
-            )
+        and (
+            str(edge.get("source_id")) in body_bound_ids
+            or str(edge.get("target_id")) in body_bound_ids
         )
     ]
 
-    raw_normalizers = bridge.get("sensory_normalizers")
-    if isinstance(raw_normalizers, dict):
-        bridge["sensory_normalizers"] = {
-            sensor_id: value
-            for sensor_id, value in raw_normalizers.items()
-            if str(sensor_id) not in removed_ids
-        }
-
-    raw_lineage = bridge.get("concept_lineage")
-    if isinstance(raw_lineage, list):
-        bridge["concept_lineage"] = [
-            entry
-            for entry in raw_lineage
-            if not (
-                isinstance(entry, Mapping)
-                and isinstance(entry.get("parent_ids"), list)
-                and any(str(parent_id) in removed_ids for parent_id in entry["parent_ids"])
-            )
-        ]
-
-    for key in (
-        "node_born_tick",
-        "node_observation_count",
-        "node_active_count",
-        "sense_last_seen_tick",
-        "concept_last_active_tick",
-        "orphan_since_tick",
-        "unrouted_since_tick",
-        "predictor_utility",
-        "predictor_retirement",
-    ):
-        raw = bridge.get(key)
-        if isinstance(raw, dict):
-            bridge[key] = {
-                node_id: value for node_id, value in raw.items() if str(node_id) not in removed_ids
-            }
-
-    raw_shadow = bridge.get("shadow_predictions")
-    if isinstance(raw_shadow, list):
-        bridge["shadow_predictions"] = [
-            item
-            for item in raw_shadow
-            if not (
-                isinstance(item, Mapping)
-                and (
-                    str(item.get("source_id")) in removed_ids
-                    or str(item.get("target_id")) in removed_ids
-                )
-            )
-        ]
-
-    raw_preliminary = bridge.get("shadow_preliminary_support")
-    if isinstance(raw_preliminary, list):
-        bridge["shadow_preliminary_support"] = [
-            item
-            for item in raw_preliminary
-            if not (
-                isinstance(item, Mapping)
-                and (
-                    str(item.get("source_id")) in removed_ids
-                    or str(item.get("target_id")) in removed_ids
-                )
-            )
-        ]
-
-    def _references_removed(value: object) -> bool:
-        if isinstance(value, str):
-            return value in removed_ids
-        if isinstance(value, Mapping):
-            return any(_references_removed(item) for item in value.values())
-        if isinstance(value, (list, tuple)):
-            return any(_references_removed(item) for item in value)
-        return False
-
-    raw_candidates = bridge.get("structural_candidates")
-    if isinstance(raw_candidates, list):
-        bridge["structural_candidates"] = [
-            item
-            for item in raw_candidates
-            if not (
-                isinstance(item, Mapping)
-                and (
-                    str(item.get("family")) in {"motor_readout", "primitive_readout", "predictor"}
-                    or _references_removed(item)
-                )
-            )
-        ]
-
+    # P0 longitudinal invariant: a Body replacement must never delete cognition
+    # owned by the Symbiont. Archive is a provenance/view over the preserved
+    # graph, not a transfer operation.
     return bridge, {
         "nodes": archived_nodes,
         "edges": archived_edges,
