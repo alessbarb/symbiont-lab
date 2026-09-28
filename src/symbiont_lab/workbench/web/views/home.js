@@ -8,6 +8,20 @@ let organismRef = '';
 let bodyMode = 'fresh';
 let selectedEnvironment = 'flat-v1';
 let lastPhysicsState = null;
+let lastPhysicsSignature = null;
+
+function physicsSignature(p) {
+  return [
+    p?.state,
+    p?.run_id,
+    p?.run_kind,
+    p?.organism_ref,
+    p?.body_kind,
+    p?.startup_phase,
+    p?.error,
+    p?.traceback,
+  ].join('|');
+}
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -168,9 +182,24 @@ function recentRuns() {
   `).join('');
 }
 
+function restoreScroll(prevScrollTop) {
+  if (prevScrollTop <= 0 || !rootNode) return;
+  const shell = rootNode.querySelector('.view-shell');
+  if (shell) {
+    shell.scrollTop = prevScrollTop;
+    requestAnimationFrame(() => {
+      const el = rootNode?.querySelector('.view-shell');
+      if (el) el.scrollTop = prevScrollTop;
+    });
+  }
+}
+
 function render() {
   if (!rootNode) return;
+  const prevShell = rootNode.querySelector('.view-shell');
+  const prevScrollTop = prevShell ? prevShell.scrollTop : 0;
   const physics = currentPhysics();
+  lastPhysicsSignature = physicsSignature(physics);
   if (activeRun()) {
     rootNode.innerHTML = `
       <div class="view-shell home-shell">
@@ -194,6 +223,7 @@ function render() {
         <section class="card"><h3 class="card-title">Recent runs</h3>${recentRuns()}</section>
       </div>`;
     bind();
+    restoreScroll(prevScrollTop);
     return;
   }
 
@@ -250,6 +280,7 @@ function render() {
       <section class="card home-recent"><h3 class="card-title">Recent runs</h3>${recentRuns()}</section>
     </div>`;
   bind();
+  restoreScroll(prevScrollTop);
 }
 
 async function startRun() {
@@ -334,6 +365,7 @@ export async function mount(root, nextState = null) {
   rootNode = root;
   state = nextState;
   lastPhysicsState = currentPhysics().state;
+  lastPhysicsSignature = physicsSignature(currentPhysics());
   root.innerHTML = '<div class="empty-state">Loading run catalog…</div>';
   try {
     await Promise.all([loadCatalog(), loadState()]);
@@ -348,16 +380,25 @@ export function update(root, nextState) {
   if (!rootNode || root !== rootNode) return;
   const previous = lastPhysicsState;
   state = nextState;
-  const next = currentPhysics().state;
+  const physics = currentPhysics();
+  const next = physics.state;
+  const currentSig = physicsSignature(physics);
   lastPhysicsState = next;
+
   if (['starting','running','stopping'].includes(previous) && !['starting','running','stopping'].includes(next)) {
+    lastPhysicsSignature = currentSig;
     loadCatalog().then(render).catch(render);
     return;
   }
-  render();
+
+  if (currentSig !== lastPhysicsSignature) {
+    lastPhysicsSignature = currentSig;
+    render();
+  }
 }
 
 export function unmount() {
   rootNode = null;
+  lastPhysicsSignature = null;
 }
 

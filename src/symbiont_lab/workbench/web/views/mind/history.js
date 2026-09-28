@@ -69,6 +69,7 @@ function sparklineSvg(points, key, color, width = 900, height = 90) {
 export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   const root = document.getElementById('mind-history-wrap');
   if (!root) return;
+  const prevScroll = root.scrollTop;
   root.innerHTML = '';
 
   const heading = el('h2', '');
@@ -230,6 +231,13 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
     inspectorMetric(observer, 'Predictive tension', pct(coord.predictiveTension));
     inspectorMetric(observer, 'Nearest reference zone', analysis.nearest?.name ?? '—');
     root.appendChild(observer);
+  }
+
+  if (prevScroll > 0) {
+    root.scrollTop = prevScroll;
+    requestAnimationFrame(() => {
+      root.scrollTop = prevScroll;
+    });
   }
 }
 

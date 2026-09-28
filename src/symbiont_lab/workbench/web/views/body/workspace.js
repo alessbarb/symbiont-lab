@@ -241,6 +241,7 @@ export class BodyWorkspace {
 
   render() {
     if (!this.panel) return;
+    const prevPanelScroll = this.panel.scrollTop;
     if (this.activeTab === 'world') {
       if (this.viewer.worldView) this.viewer.worldView.inspector(this.panel);
       else this.panel.innerHTML = this.head('Body in World', 'Waiting for spatial evidence', 'World truth and acquired evidence remain separate.');
@@ -253,6 +254,13 @@ export class BodyWorkspace {
     else if (this.activeTab === 'physiology') this.renderPhysiology();
     else if (this.activeTab === 'history') this.renderHistory();
     else if (this.activeTab === 'self-model') this.renderSelfModel();
+
+    if (this.panel && prevPanelScroll > 0) {
+      this.panel.scrollTop = prevPanelScroll;
+      requestAnimationFrame(() => {
+        if (this.panel) this.panel.scrollTop = prevPanelScroll;
+      });
+    }
   }
 
   head(kicker, title, sub) {
@@ -361,6 +369,7 @@ export class BodyWorkspace {
 
   renderPhysiology() {
     if (!this.overlayContent) return;
+    const prevScroll = this.overlay ? this.overlay.scrollTop : 0;
     const reserve = this.history.map(x=>x.reserve).filter(Number.isFinite);
     const contacts = this.history.map(x=>x.groundContacts).filter(Number.isFinite);
     const active = this.history.map(x=>x.activeJoints).filter(Number.isFinite);
@@ -370,6 +379,12 @@ export class BodyWorkspace {
       `<div class="body-chart-grid">${this.chart('Metabolic reserve',reserve,'mint')}${this.chart('Active joints',active)}${this.chart('Ground contacts',contacts,'amber')}${this.chart('Self contacts',selfContacts,'violet')}</div>`;
     this.panel.innerHTML = this.head('Embodiment · Interoception', 'Physical cost and state', 'Live evidence from the body, without introducing goals or reward.') +
       this.rows(['alive','metabolic_reserve','reserve_trend','motor_activity','active_joints','contact_count','ground_contact_count','self_contact_count']);
+    if (this.overlay && prevScroll > 0) {
+      this.overlay.scrollTop = prevScroll;
+      requestAnimationFrame(() => {
+        if (this.overlay) this.overlay.scrollTop = prevScroll;
+      });
+    }
   }
 
   deriveEpisodes() {
@@ -395,6 +410,7 @@ export class BodyWorkspace {
 
   renderHistory() {
     if (!this.overlayContent) return;
+    const prevScroll = this.overlay ? this.overlay.scrollTop : 0;
     const reserve = this.history.map(x=>x.reserve).filter(Number.isFinite);
     const displacement = this.history.map(x=>x.displacement).filter(Number.isFinite);
     const resource = this.history.map(x=>x.resource).filter(Number.isFinite);
@@ -405,6 +421,12 @@ export class BodyWorkspace {
       `<div class="body-section"><div class="body-section-title">Physical episodes</div><div class="body-episodes">${episodes.length ? episodes.map(e=>`<div class="body-episode"><div class="body-episode-tick">t${e.tick}</div><div><div class="body-episode-title">${e.title}</div><div class="body-episode-detail">${escapeHtml(e.detail)}</div></div><span class="body-chip">${e.kind}</span></div>`).join('') : '<div class="body-inspector-sub">No bounded episode detected yet.</div>'}</div></div>`;
     this.panel.innerHTML = this.head('Body · History', 'Physical episodes', 'Observer-derived changes over the current attached session.') +
       `<div class="body-section"><div class="body-row"><span>Captured frames</span><strong>${this.history.length}</strong></div><div class="body-row"><span>Episodes</span><strong>${episodes.length}</strong></div></div>`;
+    if (this.overlay && prevScroll > 0) {
+      this.overlay.scrollTop = prevScroll;
+      requestAnimationFrame(() => {
+        if (this.overlay) this.overlay.scrollTop = prevScroll;
+      });
+    }
   }
 
   mountDiscovery() {

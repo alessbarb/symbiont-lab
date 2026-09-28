@@ -130,6 +130,8 @@ function makeObservationBanner(model) {
  */
 export function renderActionDiscovery(root) {
   if (!root) return;
+  const scrollParent = root.closest('.body-data-overlay') || root;
+  const prevScroll = scrollParent.scrollTop;
   root.innerHTML = '';
 
   const model = deriveMotorLearningModel({ tel, snap, streamState });
@@ -298,4 +300,11 @@ export function renderActionDiscovery(root) {
 
   if (observation.stale) root.style.opacity = '.86';
   else root.style.opacity = '1';
+
+  if (prevScroll > 0) {
+    scrollParent.scrollTop = prevScroll;
+    requestAnimationFrame(() => {
+      scrollParent.scrollTop = prevScroll;
+    });
+  }
 }

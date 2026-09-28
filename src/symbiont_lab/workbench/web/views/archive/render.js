@@ -88,6 +88,7 @@ function archivePanel(title, content) {
 }
 
 export function renderArchive(root, state = null) {
+  const prevScroll = root.querySelector('.view-shell')?.scrollTop ?? 0;
   root.innerHTML = '';
 
   const shell = document.createElement('div');
@@ -121,4 +122,11 @@ export function renderArchive(root, state = null) {
 
   shell.appendChild(grid);
   root.appendChild(shell);
+
+  if (prevScroll > 0) {
+    shell.scrollTop = prevScroll;
+    requestAnimationFrame(() => {
+      shell.scrollTop = prevScroll;
+    });
+  }
 }

@@ -8,6 +8,7 @@ import { finiteNumber, pct } from './util.js';
 export function renderOverview({ onOpenHistoryTick = () => {} } = {}) {
   const root = document.getElementById('mind-overview-wrap');
   if (!root) return;
+  const prevScroll = root.scrollTop;
   root.innerHTML = '';
 
   const topology = snap.topology ?? {nodes:[], edges:[]};
@@ -141,4 +142,11 @@ export function renderOverview({ onOpenHistoryTick = () => {} } = {}) {
     timeline.appendChild(strip);
   }
   root.appendChild(timeline);
+
+  if (prevScroll > 0) {
+    root.scrollTop = prevScroll;
+    requestAnimationFrame(() => {
+      root.scrollTop = prevScroll;
+    });
+  }
 }

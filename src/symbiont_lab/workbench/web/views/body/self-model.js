@@ -282,6 +282,10 @@ export class SelfModelWorkspace {
     root?.classList.add('self-model-mode');
     root?.classList.toggle('self-model-inspector-open', Boolean(this.selectedId));
 
+    const scrollParent = overlay.closest('.body-data-overlay') || overlay;
+    const prevOverlayScroll = scrollParent.scrollTop;
+    const prevPanelScroll = panel.scrollTop;
+
     overlay.innerHTML = this.renderOverlay();
     panel.innerHTML = this.renderInspector();
 
@@ -350,6 +354,15 @@ export class SelfModelWorkspace {
       this.selectedId = null;
       this.render(overlay, panel);
     });
+
+    if (prevOverlayScroll > 0) {
+      scrollParent.scrollTop = prevOverlayScroll;
+      requestAnimationFrame(() => { scrollParent.scrollTop = prevOverlayScroll; });
+    }
+    if (prevPanelScroll > 0) {
+      panel.scrollTop = prevPanelScroll;
+      requestAnimationFrame(() => { panel.scrollTop = prevPanelScroll; });
+    }
   }
 
   shell(body) {
