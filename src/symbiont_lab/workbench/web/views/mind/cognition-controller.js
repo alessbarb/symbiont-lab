@@ -42,6 +42,7 @@ import {
   sensorySemantic,
 } from './semantics.js';
 import { graph, historySnapshots, mindHistory, observerUsage, snap, tel } from './state.js';
+import { nearbyPairs2D } from './spatial-index.js';
 import {
   classRatio,
   clamp01,
@@ -834,62 +835,57 @@ export function createCognitionController({
       state.y /= Math.max(1, state.n);
     }
   
-    // Relationship-aware repulsion/attraction.
-    for (let i = 0; i < n; i++) {
-      const a = physicsNodes[i];
-      for (let j = i + 1; j < n; j++) {
-        const b = physicsNodes[j];
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const distSq = dx * dx + dy * dy + 144;
-        if (distSq > 490000) continue;
-        const dist = Math.sqrt(distSq);
-  
-        const structurallyRelated = a.neighbors?.has(b.id) || b.neighbors?.has(a.id);
-        const projectedRelated =
-          a.projectedNeighbors?.has(b.id) || b.projectedNeighbors?.has(a.id);
-        const directlyRelated = structurallyRelated || projectedRelated;
-        let shared = 0;
-        if (!directlyRelated && a.neighbors?.size && b.neighbors?.size) {
-          const smaller = a.neighbors.size < b.neighbors.size ? a.neighbors : b.neighbors;
-          const larger  = smaller === a.neighbors ? b.neighbors : a.neighbors;
-          for (const id of smaller) {
-            if (larger.has(id)) shared += 1;
-            if (shared >= 3) break;
-          }
-        }
-  
-        const sameCommunity =
-          a.community &&
-          b.community &&
-          a.community !== 'isolated' &&
-          a.community === b.community;
-  
-        // Unrelated nodes repel more strongly, making visual sectors emerge.
-        const overlayPair = a.overlayOnly || b.overlayOnly;
-        const repulsionScale = overlayPair
-          ? (projectedRelated ? 0.045 : 0.18)
-          : directlyRelated
-            ? 0.25
-            : sameCommunity
-              ? 0.62
-              : 1.28;
-        const force = ((GRAPH_PHYSICS.repulsion * repulsionScale) / distSq) * alpha;
-        const fx = (dx / dist) * force, fy = (dy / dist) * force;
-        if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
-        if (!b.pinned) { b.vx += fx; b.vy += fy; }
-  
-        // Two nodes sharing downstream/upstream partners get a weak secondary
-        // attraction. It uses graph structure only; no semantic clustering.
-        if (!directlyRelated && !overlayPair && shared > 0) {
-          const desired = 95 + 18 / shared;
-          const pull = (dist - desired) * 0.0065 * Math.min(3, shared) * alpha;
-          const pfx = (dx / dist) * pull, pfy = (dy / dist) * pull;
-          if (!a.pinned) { a.vx += pfx; a.vy += pfy; }
-          if (!b.pinned) { b.vx -= pfx; b.vy -= pfy; }
+    // Relationship-aware repulsion/attraction. Long-range graph structure is
+    // carried by springs, sector anchors and gravity; pairwise repulsion only
+    // needs a local neighbourhood.
+    const repulsionPairs = nearbyPairs2D(physicsNodes, 180, 520);
+    for (const [a, b] of repulsionPairs) {
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const distSq = dx * dx + dy * dy + 144;
+      const dist = Math.sqrt(distSq);
+
+      const structurallyRelated = a.neighbors?.has(b.id) || b.neighbors?.has(a.id);
+      const projectedRelated =
+        a.projectedNeighbors?.has(b.id) || b.projectedNeighbors?.has(a.id);
+      const directlyRelated = structurallyRelated || projectedRelated;
+      let shared = 0;
+      if (!directlyRelated && a.neighbors?.size && b.neighbors?.size) {
+        const smaller = a.neighbors.size < b.neighbors.size ? a.neighbors : b.neighbors;
+        const larger  = smaller === a.neighbors ? b.neighbors : a.neighbors;
+        for (const id of smaller) {
+          if (larger.has(id)) shared += 1;
+          if (shared >= 3) break;
         }
       }
+
+      const sameCommunity =
+        a.community &&
+        b.community &&
+        a.community !== 'isolated' &&
+        a.community === b.community;
+
+      const overlayPair = a.overlayOnly || b.overlayOnly;
+      const repulsionScale = overlayPair
+        ? (projectedRelated ? 0.045 : 0.18)
+        : directlyRelated
+          ? 0.25
+          : sameCommunity
+            ? 0.62
+            : 1.28;
+      const force = ((GRAPH_PHYSICS.repulsion * repulsionScale) / distSq) * alpha;
+      const fx = (dx / dist) * force, fy = (dy / dist) * force;
+      if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
+      if (!b.pinned) { b.vx += fx; b.vy += fy; }
+
+      if (!directlyRelated && !overlayPair && shared > 0) {
+        const desired = 95 + 18 / shared;
+        const pull = (dist - desired) * 0.0065 * Math.min(3, shared) * alpha;
+        const pfx = (dx / dist) * pull, pfy = (dy / dist) * pull;
+        if (!a.pinned) { a.vx += pfx; a.vy += pfy; }
+        if (!b.pinned) { b.vx -= pfx; b.vy -= pfy; }
+      }
     }
-  
+
     // Direct graph edges are the strongest attractive force.
     for (const edge of edges) {
       if (!isStructuralAtlasEdge(edge)) continue;
