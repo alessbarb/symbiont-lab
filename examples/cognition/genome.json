@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "genome_id": "genome_v2_resident_example000001",
-  "kernel_compatibility": ">=0.80,<0.90",
+  "kernel_compatibility": ">=0.80,<1.00",
   "development": {
     "soft_node_budget": 16,
     "soft_edge_budget": 32,

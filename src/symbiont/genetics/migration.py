@@ -38,7 +38,7 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
     v2: dict[str, Any] = {
         "schema_version": 2,
         "genome_id": str(payload["genome_id"]).replace("genome_", "genome_v2_", 1),
-        "kernel_compatibility": ">=0.80,<0.90",
+        "kernel_compatibility": ">=0.80,<1.00",
         "development": {
             "soft_node_budget": int(development["soft_node_budget"]),
             "soft_edge_budget": int(development["soft_edge_budget"]),

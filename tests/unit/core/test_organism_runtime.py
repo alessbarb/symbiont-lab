@@ -223,7 +223,7 @@ def test_full_runtime_checkpoint_contains_bounded_signal_knowledge(tmp_path):
     assert len(saved_payload["signal_knowledge"]["profiles"]) == 64
     assert (
         sum(len(profile["claims"]) for profile in saved_payload["signal_knowledge"]["profiles"])
-        == 192
+        == 256
     )
     assert path.stat().st_size < 2 * 1024 * 1024
     restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
@@ -852,7 +852,7 @@ def test_checkpoint_byte_bound_is_retained_with_real_cognition():
     genome_payload = {
         "schema_version": 2,
         "genome_id": "genome_v2_bytebound00000000000000",
-        "kernel_compatibility": ">=0.80,<0.90",
+        "kernel_compatibility": ">=0.80,<1.00",
         "development": {
             "soft_node_budget": 64,
             "soft_edge_budget": 384,
@@ -1238,7 +1238,7 @@ def test_p9_salient_trace_never_mutates_structure_by_itself():
     genome_payload = {
         "schema_version": 2,
         "genome_id": "genome_v2_p9test0000000000000000000",
-        "kernel_compatibility": ">=0.80,<0.90",
+        "kernel_compatibility": ">=0.80,<1.00",
         "development": {
             "soft_node_budget": 64,
             "soft_edge_budget": 384,

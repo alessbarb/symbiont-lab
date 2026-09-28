@@ -15,7 +15,7 @@ from symbiont.genetics.genome import (
 VALID_PAYLOAD = {
     "schema_version": 2,
     "genome_id": "genome_test_v2",
-    "kernel_compatibility": ">=0.80,<0.90",
+    "kernel_compatibility": ">=0.80,<1.00",
     "development": {
         "soft_node_budget": 192,
         "soft_edge_budget": 1536,
@@ -165,10 +165,10 @@ def test_kernel_compatibility_parser_and_predicate():
 
 
 def test_validate_accepts_current_kernel_version_and_limits():
-    GenomeCodec().validate(load(), KernelLimits(), running_version=(0, 85, 0))
+    GenomeCodec().validate(load(), KernelLimits(), running_version=(0, 90, 0))
 
 
-@pytest.mark.parametrize("running_version", [(0, 79, 9), (0, 90, 0)])
+@pytest.mark.parametrize("running_version", [(0, 79, 9), (1, 0, 0)])
 def test_validate_rejects_kernel_version_outside_declared_range(running_version):
     with pytest.raises(GenomeError):
         GenomeCodec().validate(load(), KernelLimits(), running_version=running_version)

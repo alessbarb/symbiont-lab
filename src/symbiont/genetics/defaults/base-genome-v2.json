@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "genome_id": "genome_symbiont_base_v2",
-  "kernel_compatibility": ">=0.80,<0.90",
+  "kernel_compatibility": ">=0.80,<1.00",
   "development": {
     "soft_node_budget": 192,
     "soft_edge_budget": 1536,

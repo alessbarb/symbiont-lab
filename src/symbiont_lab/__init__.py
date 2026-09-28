@@ -1,3 +1,3 @@
 """Symbiont Lab: Scientific apparatus, experimental protocols, archives, and tools."""
 
-__version__ = "0.80.16"
+__version__ = "0.90.0"

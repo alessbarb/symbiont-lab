@@ -4,7 +4,11 @@ Consolidated from docs/releases/archive/ (140 individual release notes).
 
 ---
 
-## Experience & World Architecture v1 (Milestones EW-A, EW-B, EW-C)
+## [0.90.0] — 2026-09-28 — Agencia, Mundos y Formalización Arquitectónica
+
+Esta versión consolida la transición evolutiva posterior a `v0.80.16`. Siguiendo el principio de diseño del proyecto, **no** constituye un congelamiento prematuro de sustrato; la versión `1.0.0` queda explícitamente reservada para cuando el organismo (*Symbiont*) logre transformar aprendizaje causal en ejecución autónoma deliberada.
+
+### Experience & World Architecture v1 (Milestones EW-A, EW-B, EW-C)
 
 Implements the normative architecture governing the principle *"Experience acquires capability. World integrates capability."* (`docs/design/observability/symbiont-lab-experience-and-world-architecture-specification-v1.md`).
 
@@ -192,11 +196,11 @@ general de DAGs y la evolución de modalidades siguen gated.
 
 ---
 
-## 1.0.0 — Symbiont Experimental Organism v1 (`experimental-organism-v1`)
+## [0.81.0-draft] — Candidate Freeze: Symbiont Experimental Organism v1 (`experimental-organism-v1`)
 
-This is the first frozen organism-substrate cut. It follows the published
-`v0.80.16` tag, which remains immutable, and consolidates the validated work
-performed on `main` since that cut:
+*Nota de evolución:* Este corte representó el borrador de congelamiento de sustrato post-v0.80.16. El número de versión `1.0.0` se difirió formalmente para cuando el organismo logre transformar aprendizaje en ejecución; este trabajo se consolidó en la línea de desarrollo abierta hacia `0.90.0`.
+
+This cut consolidates the validated work performed on `main` following the published `v0.80.16` tag:
 
 - **Integrated Habitat Runtime v1:** a canonical bounded population lifecycle
   orchestrates existing physiology, birth/death/reproduction, individual

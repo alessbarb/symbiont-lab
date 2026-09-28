@@ -1,27 +1,29 @@
 # Versioning policy
 
 Symbiont Lab uses the package version as the software release identifier. The
-canonical frozen-organism cut is package version `1.0.0` with the annotated
-scientific tag `experimental-organism-v1`. The state is recorded in
-`ORGANISM.md`, `README.md` and the release changelog; historical milestones
-remain in [`roadmap.md`](roadmap.md).
+current active development release line is package version `0.90.0`. The state
+is recorded in `ORGANISM.md`, `README.md` and the release changelog; historical
+milestones remain in [`roadmap.md`](roadmap.md).
 
 ## Release lanes
 
 - **Milestone releases** (`v0.30` onward) add organism capabilities and their
   scientific contracts.
-- **Post-roadmap hardening** (`v0.76.x`) is limited to compatibility, safety,
-  observability, test-boundary and documentation closure. It must not silently
-  add a new organism capability.
-- **New organism capabilities** require a new milestone and design review rather
-  than another `v0.76.x` patch.
-- **Experimental Organism v1 (`1.0.0`)** freezes the organism core by default.
-  The prior `v0.80.16` tag is immutable history, not a moving compatibility
-  alias.
-- **Post-freeze work** may change experiments, habitats, research analysis,
-  Observatory, performance and bug/safety/reproducibility behavior when causal
-  semantics are preserved. New organism capabilities require an explicit new
-  design/review gate and a new release line.
+- **Post-roadmap hardening** (`v0.76.x` to `v0.80.16`) closed compatibility,
+  safety, observability, and test boundaries. The prior `v0.80.16` tag is
+  immutable history.
+- **Agencia, Mundos y Formalización (`0.90.0`)**: consolidates the evolutionary
+  arc following `v0.80.16` (Agency Acquisition, Adaptive Sensory System,
+  Experience & World Architecture v1, Observability P0–P10, and the formalization
+  of ADR-0001 to ADR-0041). The substrate is not prematurely frozen.
+- **Milestone 1.0.0 (Transforming Learning into Execution)**: Version `1.0.0` is
+  reserved for when the organism demonstrates the closure of the autonomous
+  operational loop—transforming acquired causal learning into effective,
+  deliberate execution. A canonical substrate freeze occurs only when this
+  empirical milestone is attained.
+- **Post-1.0 work**: once `1.0.0` is achieved, changes to the organism core will
+  freeze by default, and new organism capabilities will require an explicit new
+  design/review gate and release line.
 
 ## Contract changes
 

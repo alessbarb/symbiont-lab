@@ -21,7 +21,7 @@ from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorRe
 _GENOME_PAYLOAD = {
     "schema_version": 2,
     "genome_id": "genome_v2_continuity00000000000000",
-    "kernel_compatibility": ">=0.80,<0.90",
+    "kernel_compatibility": ">=0.80,<1.00",
     "development": {
         "soft_node_budget": 64,
         "soft_edge_budget": 384,
