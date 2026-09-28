@@ -263,7 +263,7 @@ def test_dead_body_reembodiment_preserves_identity_but_revalidates_body_knowledg
 
     assert transformed["living_body"]["vital_state"] == "active"
     assert transformed["living_body"]["energy_reserve"] == 1600.0
-    assert transformed["body_schema"]["state"] == "undeveloped"
+    assert transformed["body_schema"] == previous["body_schema"]
     assert transformed["actuation"]["states"] == {"fresh": {"health": 1.0}}
     assert transformed["actuation"]["proposer"] == {"learned": "fresh"}
 
@@ -878,11 +878,22 @@ def test_canonical_action_domain_reembodiment_preserves_knowledge_not_authority(
     assert v2["schema_version"] == 4
     assert v2["surface_binding"]["contract_fingerprint"] == "surface.new"
     assert v2["competences"][0]["competence_id"] == "competence.old"
-    assert v2["competences"] == previous_actuation["action_domain"]["sensorimotor_v2"]["competences"]
-    assert v2["effect_space"] == previous_actuation["action_domain"]["sensorimotor_v2"]["effect_space"]
-    assert v2["causal_evidence"] == previous_actuation["action_domain"]["sensorimotor_v2"]["causal_evidence"]
-    assert v2["exploration"] == previous_actuation["action_domain"]["sensorimotor_v2"]["exploration"]
-    assert v2["composition"] == previous_actuation["action_domain"]["sensorimotor_v2"]["composition"]
+    assert (
+        v2["competences"] == previous_actuation["action_domain"]["sensorimotor_v2"]["competences"]
+    )
+    assert (
+        v2["effect_space"] == previous_actuation["action_domain"]["sensorimotor_v2"]["effect_space"]
+    )
+    assert (
+        v2["causal_evidence"]
+        == previous_actuation["action_domain"]["sensorimotor_v2"]["causal_evidence"]
+    )
+    assert (
+        v2["exploration"] == previous_actuation["action_domain"]["sensorimotor_v2"]["exploration"]
+    )
+    assert (
+        v2["composition"] == previous_actuation["action_domain"]["sensorimotor_v2"]["composition"]
+    )
     assert v2["execution_bindings"]["items"] == []
 
 

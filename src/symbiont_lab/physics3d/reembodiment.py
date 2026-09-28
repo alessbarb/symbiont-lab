@@ -306,6 +306,17 @@ def _carry_sensorimotor_v2_knowledge(
 
     if isinstance(prior_v2, Mapping) and isinstance(fresh_v2, Mapping):
         preserved_v2 = deepcopy(dict(prior_v2))
+        prior_acquisition = prior_v2.get("agency_acquisition")
+        preserved_v2["schema_version"] = 4
+        if isinstance(prior_acquisition, Mapping):
+            preserved_v2["agency_acquisition"] = deepcopy(dict(prior_acquisition))
+        elif not isinstance(preserved_v2.get("agency_acquisition"), Mapping):
+            preserved_v2["agency_acquisition"] = {
+                "schema_version": 1,
+                "attempt_count": 0,
+                "intervention_signatures": None,
+                "action_dimensions": None,
+            }
         # The only rewritten v2 fields describe *current execution authority*.
         # Everything learned remains untouched.
         if "surface_binding" in fresh_v2:
