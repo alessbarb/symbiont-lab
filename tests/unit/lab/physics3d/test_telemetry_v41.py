@@ -886,3 +886,52 @@ def test_v41_state_at_materializes_only_requested_tick(tmp_path, monkeypatch):
 
     assert state["tick"] == 7
     assert calls == 1
+
+
+
+def test_v41_supports_sparse_observer_ticks_and_snapshots_first_sample(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:sparse",
+        start_tick=0,
+        seed=7,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        observation_hz=12,
+        render_hz=60,
+        snapshot_interval=100,
+        flush_every=1,
+        run_id="sparse",
+    )
+
+    for tick in (2, 4, 6):
+        state = _state(tick)
+        summary = DummyTick(
+            tick=tick,
+            metabolic_work_cost=tick * 0.001,
+            signed_zero=0.0,
+        )
+        full = (
+            {"organism": {"saved_at_tick": tick}, "physical": {"tick": tick}}
+            if writer.needs_snapshot(tick)
+            else None
+        )
+        writer.append(summary, rich_state=state, full_snapshot=full)
+    writer.close()
+
+    reader = TelemetryV41Reader(writer.root)
+    assert [item["tick"] for item in reader.iter_summaries()] == [2, 4, 6]
+    assert reader.state_at(4)["tick"] == 4
+    with pytest.raises(KeyError):
+        reader.state_at(3)
+
+    manifest = json.loads((writer.root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["observation_hz"] == 12
+    assert manifest["render_hz"] == 60
+    assert manifest["first_recorded_tick"] == 2
+
+    checkpoints = sorted((writer.root / "checkpoints" / "organism").glob("*.json"))
+    assert checkpoints
+    first = json.loads(checkpoints[0].read_text(encoding="utf-8"))
+    assert first["tick"] == 2
