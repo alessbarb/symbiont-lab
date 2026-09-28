@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+
 import hashlib
 
 import pytest
@@ -1319,3 +1321,26 @@ def test_sequence_distance_preserves_unordered_historical_pattern_semantics():
     assert CompetenceDevelopmentEngine._sequence_distance(
         left, right
     ) == _reference_sequence_distance(left, right)
+
+
+def test_sequence_distance_matches_reference_exactly_for_p2_benchmark_seed():
+    rng = random.Random(127)
+    ids = [f"actuator.{index:03d}" for index in range(64)]
+
+    def sequence():
+        return tuple(
+            tuple(
+                (actuator_id, rng.randint(1, 7))
+                for actuator_id in ids
+                if rng.random() < 0.35
+            )
+            for _ in range(4)
+        )
+
+    candidates = [sequence() for _ in range(512)]
+    query = sequence()
+
+    optimized = CompetenceDevelopmentEngine._sequence_distance(query, candidates[0])
+    reference = _reference_sequence_distance(query, candidates[0])
+
+    assert optimized == reference
