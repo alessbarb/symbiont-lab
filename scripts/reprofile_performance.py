@@ -38,7 +38,7 @@ def _subject(seed: int, *, observed: bool) -> tuple[OrganismRuntime, CausalBody]
     body = CausalBody(actuator_count=4, seed=seed)
     runtime = build_subject(
         body,
-        organism_id=f"p8-{seed}-{'on' if observed else 'off'}",
+        organism_id=f"p8-{seed}",
         factorized_effects=True,
     )
     for _ in range(50):
@@ -305,6 +305,10 @@ def main() -> None:
         "ms_per_tick": tax_ms,
         "percent": (tax_ms / off * 100.0) if off else 0.0,
     }
+    organism["matched_end_hash"] = (
+        organism["observer_off"]["samples"][0]["end_hash"]
+        == organism["observer_on"]["samples"][0]["end_hash"]
+    )
 
     profiles = {}
     for observed, key in ((False, "observer_off"), (True, "observer_on")):
@@ -323,6 +327,8 @@ def main() -> None:
                 python,
                 "-m",
                 "pytest",
+                "-o",
+                "addopts=",
                 "tests/experimental_integrity/test_performance_optimization_gate.py",
                 "-q",
             ],
