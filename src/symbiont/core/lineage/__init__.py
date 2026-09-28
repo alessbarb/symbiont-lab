@@ -7,7 +7,6 @@ from .germline import (
     LocusSpec,
     LocusType,
     SymbiontGenome,
-    create_offspring_package,
     create_standard_genome,
 )
 
@@ -22,6 +21,5 @@ __all__ = [
     "LocusType",
     "STANDARD_COGNITIVE_LOCI",
     "SymbiontGenome",
-    "create_offspring_package",
     "create_standard_genome",
 ]

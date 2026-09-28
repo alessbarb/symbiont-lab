@@ -14,6 +14,8 @@ from symbiont.genetics import (
     GermlineState,
     InheritancePackage,
     canonical_gene_bindings,
+)
+from symbiont_lab.evolution import (
     create_offspring_package,
     mutate_genome,
     recombine_genomes,

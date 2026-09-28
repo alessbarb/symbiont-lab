@@ -27,12 +27,8 @@ from .germline import (
     EpigeneticProtocol,
     GermlineState,
     InheritancePackage,
-    create_offspring_package,
 )
-from .lineage import GenomeLineageRecord
 from .migration import migrate_v1_genome, migrate_v1_payload
-from .mutation import mutate_genome
-from .recombination import recombine_genomes
 from .schema import DEFAULT_GENOME_SCHEMA, GeneSpec, GeneType, GenomeSchema, MutationMode
 
 __all__ = [
@@ -43,6 +39,7 @@ __all__ = [
     "EpigeneticProtocol",
     "EvolvabilityGenes",
     "ExpressionRegulator",
+    "GeneBinding",
     "GeneExpressionState",
     "GeneSpec",
     "GeneType",
@@ -50,8 +47,6 @@ __all__ = [
     "GenomeCodec",
     "GenomeError",
     "GenomeSchema",
-    "GenomeLineageRecord",
-    "GeneBinding",
     "GermlineState",
     "InheritancePackage",
     "MutationMode",
@@ -60,15 +55,12 @@ __all__ = [
     "RegulatorySignals",
     "SensorimotorGenes",
     "StructuralGenes",
-    "create_offspring_package",
     "canonical_gene_bindings",
     "export_expression",
     "export_genome",
     "export_germline",
     "migrate_v1_genome",
     "migrate_v1_payload",
-    "mutate_genome",
-    "recombine_genomes",
     "restore_expression",
     "restore_genome",
     "restore_germline",

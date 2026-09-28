@@ -1,4 +1,4 @@
-"""Genome v2 recombination with linkage groups."""
+"""Genome v2 recombination with linkage groups for laboratory evolution."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import copy
 import random
 from typing import Any
 
-from .genome import Genome, GenomeCodec, _genome_to_plain_dict, flatten_genes
-from .schema import DEFAULT_GENOME_SCHEMA, GenomeSchema
+from symbiont.genetics.genome import Genome, GenomeCodec, _genome_to_plain_dict, flatten_genes
+from symbiont.genetics.schema import DEFAULT_GENOME_SCHEMA, GenomeSchema
 
 
 def _parts(locus: str) -> tuple[str, ...]:

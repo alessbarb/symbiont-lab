@@ -14,10 +14,7 @@ from ...genetics.germline import (
     EpigeneticMark,
     GermlineState,
     InheritancePackage,
-    create_offspring_package,
 )
-from ...genetics.mutation import mutate_genome
-from ...genetics.recombination import recombine_genomes
 from ...genetics.schema import DEFAULT_GENOME_SCHEMA, GeneSpec, GeneType
 
 SymbiontGenome = Genome
@@ -58,8 +55,5 @@ __all__ = [
     "STANDARD_COGNITIVE_LOCI",
     "SymbiontGenome",
     "create_germline_state",
-    "create_offspring_package",
     "create_standard_genome",
-    "mutate_genome",
-    "recombine_genomes",
 ]

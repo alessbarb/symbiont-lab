@@ -8,12 +8,12 @@ from symbiont.core.germline import (
     GermlineState,
     SymbiontGenome,
     create_germline_state,
-    create_offspring_package,
     create_standard_genome,
 )
 from symbiont.core.symbiont import Symbiont
 
 from symbiont.genetics.germline import EpigeneticProtocol
+from symbiont_lab.evolution.reproduction import create_offspring_package
 
 
 def _genome_with(genome_id: str, **overrides: float | int) -> SymbiontGenome:

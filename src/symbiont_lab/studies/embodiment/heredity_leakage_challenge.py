@@ -22,11 +22,11 @@ from symbiont.core.lineage.germline import (
     GermlineState,
     InheritancePackage,
     SymbiontGenome,
-    create_offspring_package,
     create_standard_genome,
 )
 from symbiont.genetics.germline import EpigeneticProtocol
 from symbiont.genetics.schema import DEFAULT_GENOME_SCHEMA
+from symbiont_lab.evolution.reproduction import create_offspring_package
 
 _STUDY_ID = "embodiment.heredity-leakage-challenge"
 

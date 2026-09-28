@@ -49,7 +49,6 @@ from ...cognition.limits import KernelLimits
 from ...genetics.expression import ExpressionRegulator, GeneExpressionState
 from ...genetics.genome import Genome
 from ...genetics.migration import apply_legacy_heritable_payload
-from ...genetics.mutation import mutate_genome
 from ...host.acclimation import HostAcclimation
 from ...host.adaptive import AdaptiveSenseModel, SamplingPlan
 from ...host.checkpoint import (
@@ -1524,12 +1523,7 @@ class OrganismRuntime:
 
     def _next_heritable_genome(self) -> Genome | None:
         """Create the next genotype through the single typed Genome v2 path."""
-        if self._genome is None:
-            return None
-        return mutate_genome(
-            self._genome,
-            seed=self._mutation_seed + self._generation + 1,
-        )
+        return self._genome
 
     def _child_genome(self, inherited: Genome) -> Genome:
         return inherited
