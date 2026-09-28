@@ -10,7 +10,7 @@ from ...host.readings import HostSampler, ReadingProvider
 from ...host.second_look import SecondLookSession
 from ..cognition.evidence import DissentRecord, EvidenceRevisionLedger
 from ..cognition.host_self_model import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
-from ..foundation.narrative import NarrativeEntry, narrate_host
+from ..foundation.narrative import NarrativeEntry, narrate_attended, narrate_host
 from .context import TickContext
 from .perception import PerceptionStepResult
 
@@ -34,6 +34,7 @@ class EpistemicStepResult:
     evidence_counts: dict[str, int]
     dissent_by_capability: dict[str, DissentRecord]
     narrative: tuple[NarrativeEntry, ...]
+    journal_narrative: tuple[NarrativeEntry, ...]
 
 
 class EpistemicDomain:
@@ -46,6 +47,7 @@ class EpistemicDomain:
         context: TickContext,
         perception: PerceptionStepResult,
         investigate_ticks: int,
+        include_observability: bool = True,
     ) -> EpistemicStepResult:
         investigated_capability: str | None = None
         evidence_gathered = 0
@@ -118,11 +120,21 @@ class EpistemicDomain:
                     dissent_by_capability[candidate] = dissent
                 break
 
-        narrative = narrate_host(
+        journal_narrative = narrate_attended(
             services.acclimation,
             allocations=perception.allocations,
             evidence_counts=evidence_counts,
             dissent_by_capability=dissent_by_capability,
+        )
+        narrative = (
+            narrate_host(
+                services.acclimation,
+                allocations=perception.allocations,
+                evidence_counts=evidence_counts,
+                dissent_by_capability=dissent_by_capability,
+            )
+            if include_observability
+            else ()
         )
         return EpistemicStepResult(
             investigated_capability=investigated_capability,
@@ -131,4 +143,5 @@ class EpistemicDomain:
             evidence_counts=evidence_counts,
             dissent_by_capability=dissent_by_capability,
             narrative=narrative,
+            journal_narrative=journal_narrative,
         )
