@@ -100,8 +100,8 @@ def test_performance_gate_observer_on_off_is_causally_equivalent() -> None:
     observed, observed_body = _subject()
 
     for _ in range(160):
-        silent_result = silent.tick()
-        observed_result = observed.tick()
+        silent_result = silent.tick(include_observability=False)
+        observed_result = observed.tick(include_observability=True)
 
         # Capture the actual decision before the external body advances.
         silent_trace = _trace(silent, silent_result)
