@@ -167,12 +167,18 @@ def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
 def _detach_body_specific_cognition(
     checkpoint: Mapping[str, Any],
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """Archive and remove cognition whose authority depends on one embodiment.
+    """Archive embodiment-sensitive cognition without deleting Symbiont memory.
 
-    Fresh embodiment must not inherit active sensory identities, body-derived
-    predictors or motor/primitive readouts. General concepts remain as durable
-    cognition, but all incident edges to removed body-bound nodes disappear so
-    they can only become useful again through fresh evidence.
+    Re-embodiment changes current-body authority, not autobiographical
+    knowledge. The CognitiveGraph is Symbiont-owned longitudinal state and must
+    therefore survive *every* Body replacement intact, regardless of whether
+    the new opaque contract is equal, known or novel.
+
+    Body authority is withdrawn elsewhere: fresh sensory/body state, fresh
+    actuator health, cleared execution bindings/commitments and the normal
+    reacclimation gate. The archival projection returned here records which
+    preserved nodes/edges were embodiment-sensitive without mutating the live
+    cognitive bridge.
     """
     raw_bridge = checkpoint.get("cognitive_bridge")
     if not isinstance(raw_bridge, Mapping):
@@ -183,7 +189,7 @@ def _detach_body_specific_cognition(
 
     bridge = deepcopy(dict(raw_bridge))
     graph = bridge.get("graph")
-    if not isinstance(graph, dict):
+    if not isinstance(graph, Mapping):
         return bridge, None
 
     nodes = graph.get("nodes")
@@ -200,131 +206,30 @@ def _detach_body_specific_cognition(
             or node_id.startswith("readout_primitive:")
         )
 
-    removed_ids = {
+    body_bound_ids = {
         str(node.get("node_id"))
         for node in nodes
         if isinstance(node, Mapping) and body_bound_node(node)
     }
-    if not removed_ids:
-        return bridge, {"nodes": [], "edges": []}
 
     archived_nodes = [
         deepcopy(node)
         for node in nodes
-        if isinstance(node, Mapping) and str(node.get("node_id")) in removed_ids
+        if isinstance(node, Mapping) and str(node.get("node_id")) in body_bound_ids
     ]
     archived_edges = [
         deepcopy(edge)
         for edge in edges
         if isinstance(edge, Mapping)
-        and (str(edge.get("source_id")) in removed_ids or str(edge.get("target_id")) in removed_ids)
-    ]
-
-    graph["nodes"] = [
-        node
-        for node in nodes
-        if not (isinstance(node, Mapping) and str(node.get("node_id")) in removed_ids)
-    ]
-    graph["edges"] = [
-        edge
-        for edge in edges
-        if not (
-            isinstance(edge, Mapping)
-            and (
-                str(edge.get("source_id")) in removed_ids
-                or str(edge.get("target_id")) in removed_ids
-            )
+        and (
+            str(edge.get("source_id")) in body_bound_ids
+            or str(edge.get("target_id")) in body_bound_ids
         )
     ]
 
-    raw_normalizers = bridge.get("sensory_normalizers")
-    if isinstance(raw_normalizers, dict):
-        bridge["sensory_normalizers"] = {
-            sensor_id: value
-            for sensor_id, value in raw_normalizers.items()
-            if str(sensor_id) not in removed_ids
-        }
-
-    raw_lineage = bridge.get("concept_lineage")
-    if isinstance(raw_lineage, list):
-        bridge["concept_lineage"] = [
-            entry
-            for entry in raw_lineage
-            if not (
-                isinstance(entry, Mapping)
-                and isinstance(entry.get("parent_ids"), list)
-                and any(str(parent_id) in removed_ids for parent_id in entry["parent_ids"])
-            )
-        ]
-
-    for key in (
-        "node_born_tick",
-        "node_observation_count",
-        "node_active_count",
-        "sense_last_seen_tick",
-        "concept_last_active_tick",
-        "orphan_since_tick",
-        "unrouted_since_tick",
-        "predictor_utility",
-        "predictor_retirement",
-    ):
-        raw = bridge.get(key)
-        if isinstance(raw, dict):
-            bridge[key] = {
-                node_id: value for node_id, value in raw.items() if str(node_id) not in removed_ids
-            }
-
-    raw_shadow = bridge.get("shadow_predictions")
-    if isinstance(raw_shadow, list):
-        bridge["shadow_predictions"] = [
-            item
-            for item in raw_shadow
-            if not (
-                isinstance(item, Mapping)
-                and (
-                    str(item.get("source_id")) in removed_ids
-                    or str(item.get("target_id")) in removed_ids
-                )
-            )
-        ]
-
-    raw_preliminary = bridge.get("shadow_preliminary_support")
-    if isinstance(raw_preliminary, list):
-        bridge["shadow_preliminary_support"] = [
-            item
-            for item in raw_preliminary
-            if not (
-                isinstance(item, Mapping)
-                and (
-                    str(item.get("source_id")) in removed_ids
-                    or str(item.get("target_id")) in removed_ids
-                )
-            )
-        ]
-
-    def _references_removed(value: object) -> bool:
-        if isinstance(value, str):
-            return value in removed_ids
-        if isinstance(value, Mapping):
-            return any(_references_removed(item) for item in value.values())
-        if isinstance(value, (list, tuple)):
-            return any(_references_removed(item) for item in value)
-        return False
-
-    raw_candidates = bridge.get("structural_candidates")
-    if isinstance(raw_candidates, list):
-        bridge["structural_candidates"] = [
-            item
-            for item in raw_candidates
-            if not (
-                isinstance(item, Mapping)
-                and (
-                    str(item.get("family")) in {"motor_readout", "primitive_readout", "predictor"}
-                    or _references_removed(item)
-                )
-            )
-        ]
-
+    # P0 longitudinal invariant: a Body replacement must never delete cognition
+    # owned by the Symbiont. Archive is a provenance/view over the preserved
+    # graph, not a transfer operation.
     return bridge, {
         "nodes": archived_nodes,
         "edges": archived_edges,
@@ -372,81 +277,60 @@ def _carry_sensorimotor_v2_knowledge(
     previous: Mapping[str, Any],
     fresh_actuation: dict[str, Any],
 ) -> dict[str, Any]:
-    """Carry general competence knowledge, never old-Body authority.
+    """Attach a fresh execution surface without rewriting learned motor knowledge.
 
-    Current checkpoints store all motor state under actuation.action_domain.
-    The legacy top-level layout is read only to migrate older organisms.
+    Re-embodiment must preserve the Symbiont's learned causal/motor state.
+    Only current-Body authority is replaced: the actuator constitution/evidence
+    surface comes from the fresh Body, execution bindings are empty, and
+    in-flight execution state is cleared. Competences, effects, causal evidence,
+    exploration memory, composition and acquired dimensions are copied exactly
+    from the prior Symbiont checkpoint.
     """
     previous_actuation = previous.get("actuation")
     if not isinstance(previous_actuation, Mapping):
-        return fresh_actuation
+        return deepcopy(fresh_actuation)
+
+    result = deepcopy(fresh_actuation)
     prior_domain = previous_actuation.get("action_domain")
     prior_v2 = (
         prior_domain.get("sensorimotor_v2")
         if isinstance(prior_domain, Mapping)
         else previous_actuation.get("sensorimotor_v2")
     )
-    if not isinstance(prior_v2, Mapping):
-        return fresh_actuation
-
-    result = deepcopy(fresh_actuation)
     fresh_domain = result.get("action_domain")
-    if isinstance(fresh_domain, dict):
-        fresh_v2_raw = fresh_domain.get("sensorimotor_v2")
-    else:
-        fresh_v2_raw = result.get("sensorimotor_v2")
-    if not isinstance(fresh_v2_raw, Mapping):
-        return result
-    fresh_v2 = deepcopy(dict(fresh_v2_raw))
+    fresh_v2 = (
+        fresh_domain.get("sensorimotor_v2")
+        if isinstance(fresh_domain, Mapping)
+        else result.get("sensorimotor_v2")
+    )
 
-    prior_competences = prior_v2.get("competences", [])
-    transferable: list[dict[str, Any]] = []
-    if isinstance(prior_competences, list):
-        for item in prior_competences:
-            if not isinstance(item, Mapping):
-                continue
-            candidate = deepcopy(dict(item))
-            candidate.pop("surface_binding", None)
-            candidate["effect_id"] = None
-            transferable.append(candidate)
-
-    # The fresh template owns current surface identity, EffectSpace, causal
-    # evidence, execution bindings, exploration and composition state.
-    # Learned intervention families and ActionDimensions are organism-owned
-    # historical knowledge (Agency Acquisition v1 §80-§81): they are carried
-    # over, and remain unbound until evidence is gathered on the new surface.
-    prior_acquisition = prior_v2.get("agency_acquisition")
-    fresh_v2["schema_version"] = 4
-    if isinstance(prior_acquisition, Mapping):
-        fresh_v2["agency_acquisition"] = deepcopy(dict(prior_acquisition))
-    elif not isinstance(fresh_v2.get("agency_acquisition"), Mapping):
-        fresh_v2["agency_acquisition"] = {
+    if isinstance(prior_v2, Mapping) and isinstance(fresh_v2, Mapping):
+        preserved_v2 = deepcopy(dict(prior_v2))
+        # The only rewritten v2 fields describe *current execution authority*.
+        # Everything learned remains untouched.
+        if "surface_binding" in fresh_v2:
+            preserved_v2["surface_binding"] = deepcopy(fresh_v2["surface_binding"])
+        preserved_v2["execution_bindings"] = {
             "schema_version": 1,
-            "attempt_count": 0,
-            "intervention_signatures": None,
-            "action_dimensions": None,
+            "capacity": 512,
+            "items": [],
         }
-    fresh_v2["competences"] = transferable
-    fresh_v2["execution_bindings"] = {
-        "schema_version": 1,
-        "capacity": 512,
-        "items": [],
-    }
+        preserved_v2["binding_invalidation"] = "reembodiment"
 
-    if isinstance(fresh_domain, dict):
-        fresh_domain["sensorimotor_v2"] = fresh_v2
-        fresh_domain["active_commitment"] = None
-        fresh_domain["last_executed_controller_seed_id"] = None
-        fresh_domain["pending_motor_observation"] = []
-        fresh_domain["pending_proprioception"] = {}
-        result["action_domain"] = fresh_domain
-    else:
-        # One-way support for a pre-ActionDomain fresh template.
-        result["sensorimotor_v2"] = fresh_v2
-        result["action_commitment"] = None
-        result["last_executed_primitive_id"] = None
-        result["pending_motor_observation"] = []
-        result["pending_proprioception"] = {}
+        if isinstance(fresh_domain, dict):
+            fresh_domain["sensorimotor_v2"] = preserved_v2
+            fresh_domain["active_commitment"] = None
+            fresh_domain["last_executed_controller_seed_id"] = None
+            fresh_domain["pending_motor_observation"] = []
+            fresh_domain["pending_proprioception"] = {}
+            result["action_domain"] = fresh_domain
+        else:
+            result["sensorimotor_v2"] = preserved_v2
+            result["action_commitment"] = None
+            result["last_executed_primitive_id"] = None
+            result["pending_motor_observation"] = []
+            result["pending_proprioception"] = {}
+
     return result
 
 
@@ -523,11 +407,11 @@ def prepare_fresh_embodiment_checkpoint(
     contract: PhysicsEmbodimentDescriptor,
     canonical_contract_fingerprint: str | None = None,
 ) -> dict[str, Any]:
-    """Move one persistent Symbiont into a fresh Body.
+    """Move one unchanged Symbiont into a fresh Body.
 
-    A fresh Body never inherits physiological age or current motor authority.
-    Body-specific knowledge is archived and may return only as a bounded
-    historical hypothesis under a matching opaque contract.
+    Re-embodiment never rewrites learned Symbiont state. Only Body-owned
+    physiology and current execution authority are replaced. Any adaptation to
+    the new embodiment must be acquired later through ordinary experience.
     """
     previous = migrate_temporal_domains(previous)
     result = deepcopy(dict(previous))
@@ -790,15 +674,13 @@ def prepare_fresh_embodiment_checkpoint(
         fresh_actuation,
     )
 
-    # General cognition persists, embodiment-specific motor authority does not.
+    # The Symbiont itself is invariant across re-embodiment. Cognitive state,
+    # private models, self-model, sensory learning and learned BodySchema are
+    # preserved exactly. A new Body may make parts of that knowledge currently
+    # inapplicable, but experience must revise it; re-embodiment never erases
+    # or degrades it by fiat.
     if historical_bridge is not None:
         result["cognitive_bridge"] = historical_bridge
-    _degrade_active_private_model(result)
-
-    # Body-specific self knowledge is reacquired for every fresh Body.
-    for key in ("body_schema", "self_model", "sensory_development", "sensory_system"):
-        if key in fresh:
-            result[key] = deepcopy(fresh[key])
 
     # Genome v2 is body-independent. Re-embodiment changes physiology,
     # sensory/actuator surfaces and acquired embodiment state only; genotype

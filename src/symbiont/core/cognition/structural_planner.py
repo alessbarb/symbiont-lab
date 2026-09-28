@@ -279,13 +279,17 @@ class StructuralPlanner:
         tick: int,
         frozen: bool,
     ) -> tuple[CognitiveGraph, tuple[Mutation, ...]]:
+        """Ensure current primitive readouts exist without deleting historical ones.
+
+        Primitive readouts are cognitive memory owned by the Symbiont. A new
+        embodiment may make a competence temporarily non-executable, but that
+        lack of current authority must be represented by action bindings and
+        competence availability, never by removing the historical readout or
+        its incident cognitive relations.
+        """
         requested = sorted({str(value) for value in primitive_ids if str(value)})
         requested_set = set(requested)
-        requested_nodes = {self.primitive_readout_id(primitive_id) for primitive_id in requested}
         existing_nodes = {node.node_id for node in graph.nodes}
-        existing_primitive_nodes = {
-            node_id for node_id in existing_nodes if node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
-        }
 
         for candidate_id, candidate in list(contention.candidates.items()):
             if (
@@ -294,59 +298,9 @@ class StructuralPlanner:
             ):
                 contention.drop(candidate_id)
 
-        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-        mutations: list[Mutation] = []
-        planning_graph = graph
-        for node_id in sorted(existing_primitive_nodes - requested_nodes):
-            incident = [
-                edge
-                for edge in planning_graph.edges
-                if edge.source_id == node_id or edge.target_id == node_id
-            ]
-            stale_mutations = tuple(
-                Mutation(
-                    kind="remove_edge",
-                    payload={
-                        "source_id": edge.source_id,
-                        "target_id": edge.target_id,
-                        "kind": edge.kind.value,
-                    },
-                )
-                for edge in incident
-            ) + (
-                Mutation(
-                    kind="remove_node",
-                    payload={"node_id": node_id},
-                ),
-            )
-            if len(mutations) + len(stale_mutations) > mutation_cap:
-                break
-            candidate_graph = apply_mutations(
-                planning_graph,
-                stale_mutations,
-                self._kernel_limits,
-                frozen=frozen,
-            )
-            if candidate_graph is planning_graph:
-                continue
-            mutations.extend(stale_mutations)
-            planning_graph = candidate_graph
-
-        live_graph = graph
-        mutation_tuple = tuple(mutations)
-        if mutation_tuple:
-            candidate_graph = apply_mutations(
-                graph,
-                mutation_tuple,
-                self._kernel_limits,
-                frozen=frozen,
-            )
-            if candidate_graph is not graph:
-                live_graph = candidate_graph
-            else:
-                mutation_tuple = ()
-
-        existing_nodes = {node.node_id for node in live_graph.nodes}
+        # Historical primitive readouts deliberately remain in the graph.
+        # Current-body authority is enforced by the ActionDomain's executable
+        # competence set and fresh execution bindings, not graph deletion.
         for primitive_id in requested:
             node_id = self.primitive_readout_id(primitive_id)
             candidate_id = f"primitive:{primitive_id}"
@@ -367,7 +321,8 @@ class StructuralPlanner:
                 ),
                 eligible_tick=tick,
             )
-        return live_graph, mutation_tuple
+        return graph, ()
+
 
     def admit_senses(
         self,

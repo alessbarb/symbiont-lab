@@ -202,3 +202,56 @@ adoption rejected any child whose vocabulary had grown, because it required
 the parent's exact tokenizer hash. Fixed in `c6ee7192` (an append-only
 extension of the held parent vocabulary is accepted); the previous
 end-to-end test never appended a token. All listed mechanics now pass.
+
+## 9. P6 result (2026-09-28) — budget-limited on both corpora
+
+Run `20260928T194311Z-learning-private-model-learnability-3c9a24e-eb71`
+(`3c9a24ec`, clean). Artifacts: `.symbiont/archive/p6/run/`. Held-out
+losses in nats; *G* = held-out − best baseline (frequency: C1 6.037, C2
+5.538). Outcome tokens: C1 18 766 / 3 710 / 3 116 train / validation /
+held-out; C2 15 860 / 1 420 / 1 536.
+
+**Long arm, per seed (G at each budget):**
+
+| corpus / seed | 48 | 96 | 192 | 384 | 768 | 1 536 |
+|---|---:|---:|---:|---:|---:|---:|
+| C1 / 1687003792 | +1.043 | +0.066 | −0.251 | −0.637 | −1.355 | −1.840 |
+| C1 / 124483085 | +1.002 | +0.083 | −0.192 | −0.478 | −1.215 | −1.832 |
+| C1 / 1076999112 | +1.088 | +0.076 | −0.264 | −0.673 | −1.380 | −1.882 |
+| C2 / 1001803534 | +0.617 | −0.223 | −0.495 | −0.790 | −1.260 | −1.634 |
+| C2 / 622678074 | +0.678 | −0.141 | −0.459 | −0.905 | −1.366 | −1.806 |
+| C2 / 1899705726 | +0.864 | −0.087 | −0.479 | −0.801 | −1.268 | −1.687 |
+
+**Classification (preregistered):** C1 **budget-limited** (median *G*
+crosses zero; R = 2.76); C2 **budget-limited** (R = 3.49). No heterogeneity
+between corpora; all six seeds agree.
+
+**Four readings (every seed):**
+
+- *Optimisation:* training loss falls from about 7.2 (C1) / 6.7 (C2) at
+  48 steps to about 3.5 / 3.6 at 1 536 (drop 3.7 / 3.1 nats).
+- *Generalisation:* held-out loss falls monotonically, 7.04-7.13 → 4.16-4.21
+  (C1) and 6.16-6.40 → 3.73-3.90 (C2).
+- *Baseline competitiveness:* *G* turns negative between 96 and 192 steps
+  (C1: all seeds below zero at 192; C2: already at 96) and reaches about
+  −1.7 to −1.9 at 1 536.
+- *Shape:* still improving at 1 536 (held-out −0.37 to −0.62 nats between
+  768 and 1 536), no flattening or reversal. The train/held-out gap opens
+  late (held-out − train: −0.2 at 192, +0.1 to +0.2 (C1) / −0.3 (C2) at
+  768, +0.7 (C1) / +0.1 to +0.3 (C2) at 1 536): an early sign of
+  overfitting beyond the grid, not overfitting by the preregistered rule
+  (held-out never worsens).
+
+**Reference arm (current regime, same inputs and seeds):** 48 steps every
+time; held-out 7.04-7.12 (C1, *G* +1.00 to +1.09) and 6.15-6.40 (C2, *G*
++0.61 to +0.86), matching the long arm at 48 steps. C2 lies inside P5's
+range (+0.50 to +0.92); C1 is slightly worse (+1.00 to +1.09), consistent
+with C1 being the earliest corpus. P6 reproduces P5's failure: the current
+regime stops at 48 steps, just before the curve crosses the baseline.
+
+**Proposal (owner decision; nothing changes automatically).** By §5 the
+smallest budget with median *G* < 0 on both corpora is **192 steps** (every
+seed below zero). Larger budgets keep improving up to 1 536, with a
+widening train/held-out gap. Limits: one organism lineage, offline corpora,
+fixed architecture and learning rate. If a budget is raised, P5 becomes
+re-runnable with ancestry actually exercisable (Revision Coherence §8.6).
