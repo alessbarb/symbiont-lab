@@ -385,3 +385,25 @@ def test_fp0_classifies_members_and_reports_the_decision_inputs():
     assert set(snapshot["by_class"]) == {"own", "cross", "drift", "other"}
     assert snapshot["members"] == sum(snapshot["by_class"].values())
     assert set(result["decision_inputs"]) >= {"wrong_members", "selected_hypothesis"}
+
+
+@pytest.mark.experiment_contract
+def test_runner_records_fp0_results(tmp_path):
+    # Regression: the runner branch once dropped the result, losing a full run.
+    spec = spec_from_payload(
+        {
+            "id": "test.footprint-precision",
+            "protocol": "learning.footprint-precision",
+            "steps": 24,
+            "seeds": [7],
+            "body": {
+                "actuator_count": 4,
+                "receptors_per_actuator": 2,
+                "drifting_receptor_count": 4,
+            },
+        }
+    )
+    _result, _manifest, run_dir = ExperimentRunner(base_dir=tmp_path / ".symbiont").run(spec)
+    metrics = json.loads((run_dir / "metrics.json").read_text())
+    assert metrics["protocol"] == "learning.footprint-precision"
+    assert metrics["seeds"] == [7] and "decision_inputs" in metrics
