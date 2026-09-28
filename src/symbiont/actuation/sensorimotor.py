@@ -881,10 +881,16 @@ class CompetenceDevelopmentEngine:
         non-canonical order. Those rare inputs retain the old order-insensitive
         map/set semantics; organism-generated patterns take the linear fast path.
         """
-        left_sorted = all(left[index][0] < left[index + 1][0] for index in range(len(left) - 1))
-        right_sorted = all(
-            right[index][0] < right[index + 1][0] for index in range(len(right) - 1)
-        )
+        left_sorted = True
+        for index in range(len(left) - 1):
+            if left[index][0] >= left[index + 1][0]:
+                left_sorted = False
+                break
+        right_sorted = True
+        for index in range(len(right) - 1):
+            if right[index][0] >= right[index + 1][0]:
+                right_sorted = False
+                break
         if not left_sorted or not right_sorted:
             left_map = dict(left)
             right_map = dict(right)
