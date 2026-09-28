@@ -959,10 +959,14 @@ class CompetenceDevelopmentEngine:
             return 1.0
         if not left:
             return 0.0
-        total = 0.0
-        for left_pattern, right_pattern in zip(left, right):
-            total += cls._pattern_distance(left_pattern, right_pattern)
-        return total / len(left)
+        step_distances = (
+            cls._pattern_distance(left_pattern, right_pattern)
+            for left_pattern, right_pattern in zip(left, right)
+        )
+        # Keep the historical built-in sum semantics exactly. On Python 3.12+
+        # sum(float_iterable) uses improved precision and can differ by one ULP
+        # from manual incremental accumulation.
+        return sum(step_distances) / len(left)
 
     def _matched_primitive_sequence(
         self,

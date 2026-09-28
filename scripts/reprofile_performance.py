@@ -38,7 +38,7 @@ def _subject(seed: int, *, observed: bool) -> tuple[OrganismRuntime, CausalBody]
     body = CausalBody(actuator_count=4, seed=seed)
     runtime = build_subject(
         body,
-        organism_id=f"p8-{seed}-{'on' if observed else 'off'}",
+        organism_id=f"p8-{seed}",
         factorized_effects=True,
     )
     for _ in range(50):
@@ -208,6 +208,13 @@ def _markdown(report: dict[str, Any]) -> str:
         f"- Mode: `{report['configuration']['mode']}`",
         f"- Seed: `{report['configuration']['seed']}`",
         "",
+        "## Validity",
+        "",
+        f"- Overall: **{'VALID' if report['validity']['valid'] else 'INVALID'}**",
+        f"- Observer ON/OFF end hash: `{report['validity']['matched_observer_end_hash']}`",
+        f"- Causal equivalence gate: `{report['validity']['causal_equivalence_gate']}`",
+        f"- Sensorimotor equivalence: `{report['validity']['sensorimotor_equivalence']}`",
+        "",
         "## Organism throughput",
         "",
         "| mode | median ms/tick | ticks/s |",
@@ -254,6 +261,11 @@ def _markdown(report: dict[str, Any]) -> str:
             if len(compact) > 600:
                 compact = compact[:597] + "..."
             lines.append(f"  - `{compact}`")
+        elif result["returncode"] != 0 and result.get("stderr"):
+            detail = str(result["stderr"]).strip().replace("\n", " ")
+            if len(detail) > 600:
+                detail = detail[:597] + "..."
+            lines.append(f"  - error: `{detail}`")
 
     lines.extend(
         [
@@ -305,6 +317,10 @@ def main() -> None:
         "ms_per_tick": tax_ms,
         "percent": (tax_ms / off * 100.0) if off else 0.0,
     }
+    organism["matched_end_hash"] = (
+        organism["observer_off"]["samples"][0]["end_hash"]
+        == organism["observer_on"]["samples"][0]["end_hash"]
+    )
 
     profiles = {}
     for observed, key in ((False, "observer_off"), (True, "observer_on")):
@@ -323,6 +339,8 @@ def main() -> None:
                 python,
                 "-m",
                 "pytest",
+                "-o",
+                "addopts=",
                 "tests/experimental_integrity/test_performance_optimization_gate.py",
                 "-q",
             ],
@@ -366,6 +384,18 @@ def main() -> None:
             )
         )
 
+    focused_by_name = {item["name"]: item for item in focused}
+    validity = {
+        "matched_observer_end_hash": bool(organism["matched_end_hash"]),
+        "causal_equivalence_gate": (
+            focused_by_name.get("causal_equivalence_gate", {}).get("returncode") == 0
+        ),
+        "sensorimotor_equivalence": (
+            focused_by_name.get("sensorimotor_matching", {}).get("returncode") == 0
+        ),
+    }
+    validity["valid"] = all(validity.values())
+
     report = {
         "schema": "symbiont-performance-reprofile-v1",
         "generated_at_unix": time.time(),
@@ -382,6 +412,7 @@ def main() -> None:
             "profile_ticks": profile_ticks,
             "repeats": repeats,
         },
+        "validity": validity,
         "organism": organism,
         "profile": profiles,
         "focused": focused,
