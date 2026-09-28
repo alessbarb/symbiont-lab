@@ -52,7 +52,7 @@ def test_checkpoint_saves_portable_symbiont_before_reading_physics(monkeypatch, 
     runtime = _FakeRuntimeForSave(physical_error=RuntimeError("physics server already closed"))
 
     with pytest.raises(RuntimeError, match="physics server already closed"):
-        cli._save_checkpoint(
+        engine._save_checkpoint(
             runtime,
             symbiont_file=tmp_path / "subject.symbiont",
             body_file=tmp_path / "body.json",
@@ -78,7 +78,7 @@ def test_checkpoint_writes_body_with_its_own_completed_tick(monkeypatch, tmp_pat
     monkeypatch.setattr(engine, "save_body_state_file", save_body)
 
     runtime = _FakeRuntimeForSave(tick=321)
-    cli._save_checkpoint(
+    engine._save_checkpoint(
         runtime,
         symbiont_file=tmp_path / "subject.symbiont",
         body_file=tmp_path / "body.json",
@@ -119,7 +119,7 @@ def test_new_subject_archives_existing_artifacts(tmp_path):
     body.write_text("body", encoding="utf-8")
     telemetry.write_text("telemetry", encoding="utf-8")
 
-    archived = cli._archive_existing_subject(
+    archived = engine._archive_existing_subject(
         symbiont_file=symbiont,
         body_file=body,
         telemetry_file=telemetry,
@@ -154,7 +154,7 @@ def test_new_subject_preserves_v3_telemetry_history(tmp_path):
     symbiont.write_bytes(b"mind")
     body.write_text("body", encoding="utf-8")
 
-    archived = cli._archive_existing_subject(
+    archived = engine._archive_existing_subject(
         symbiont_file=symbiont,
         body_file=body,
         telemetry_file=telemetry_root,

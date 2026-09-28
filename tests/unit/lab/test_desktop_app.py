@@ -47,12 +47,12 @@ def test_physics3d_monitor_facade_reexports_private_contract():
     assert facade._event_transition is implementation._event_transition
 
 
-def test_physics3d_cli_uses_application_owned_monitor():
+def test_physics3d_engine_uses_application_owned_monitor():
     from symbiont_lab.app import physics3d_monitor
-    from symbiont_lab.physics3d import cli
+    from symbiont_lab.physics3d import engine
 
-    assert cli.MonitorSnapshot is physics3d_monitor.MonitorSnapshot
-    assert cli.UnifiedViewerProcess is physics3d_monitor.UnifiedViewerProcess
+    assert engine.MonitorSnapshot is physics3d_monitor.MonitorSnapshot
+    assert engine.UnifiedViewerProcess is physics3d_monitor.UnifiedViewerProcess
 
 
 def test_application_owned_monitor_has_no_broken_relative_physics_imports():
