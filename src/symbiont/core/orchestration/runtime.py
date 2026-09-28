@@ -2082,6 +2082,7 @@ class OrganismRuntime:
         self,
         *,
         context: TickContext | None = None,
+        include_observability: bool = True,
     ) -> RuntimeTickResult:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("organism is irreversibly dead")
@@ -2233,6 +2234,7 @@ class OrganismRuntime:
             context=context,
             perception=perception,
             investigate_ticks=self._investigate_ticks,
+            include_observability=include_observability,
         )
         embodiment_step = self._embodiment_domain.observe(
             services=EmbodimentServices(
@@ -2243,6 +2245,7 @@ class OrganismRuntime:
             ),
             context=context,
             cognition=cognition_step,
+            include_observability=include_observability,
         )
         sensory_phenotype_view = embodiment_step.sensory_phenotype
         # Cognitive/information-assimilation "success" (incorporation utility,
@@ -2354,7 +2357,7 @@ class OrganismRuntime:
             drift_observations=drift_observations,
             dissent=epistemic.dissent,
             assimilation_count=len(perception.assimilation),
-            narrative=epistemic.narrative,
+            narrative=epistemic.journal_narrative,
         )
         self._epigenetic_priors = self._development_domain.decay_epigenetic_priors(
             self._epigenetic_priors,
