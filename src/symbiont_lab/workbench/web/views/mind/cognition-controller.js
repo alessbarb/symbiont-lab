@@ -42,7 +42,7 @@ import {
   sensorySemantic,
 } from './semantics.js';
 import { graph, historySnapshots, mindHistory, observerUsage, snap, tel } from './state.js';
-import { nearbyPairs2D } from './spatial-index.js';
+import { forEachNearbyPair2D } from './spatial-index.js';
 import {
   classRatio,
   clamp01,
@@ -840,8 +840,7 @@ export function createCognitionController({
     // Relationship-aware repulsion/attraction. Long-range graph structure is
     // carried by springs, sector anchors and gravity; pairwise repulsion only
     // needs a local neighbourhood.
-    const repulsionPairs = nearbyPairs2D(physicsNodes, 180, 520);
-    for (const [a, b] of repulsionPairs) {
+    forEachNearbyPair2D(physicsNodes, 180, 520, (a, b) => {
       const dx = b.x - a.x, dy = b.y - a.y;
       const distSq = dx * dx + dy * dy + 144;
       const dist = Math.sqrt(distSq);
@@ -886,7 +885,7 @@ export function createCognitionController({
         if (!a.pinned) { a.vx += pfx; a.vy += pfy; }
         if (!b.pinned) { b.vx -= pfx; b.vy -= pfy; }
       }
-    }
+    });
 
     // Direct graph edges are the strongest attractive force.
     for (const edge of edges) {
