@@ -98,22 +98,17 @@ def test_organism_runtime_populates_structures_from_actuator_slots():
     from symbiont.actuation.constitution import ActuatorConstitution, MotorSlot
 
     constitution = ActuatorConstitution(
-        slots=(
+        channels=(
             MotorSlot(
                 slot_id="slot.0",
                 actuator_id="act.0",
-                basal_cost=0.05,
-                initial_health=1.0,
-                execution_threshold=0.5,
             ),
             MotorSlot(
                 slot_id="slot.1",
                 actuator_id="act.1",
-                basal_cost=0.05,
-                initial_health=1.0,
-                execution_threshold=0.5,
             ),
-        )
+        ),
+        contract_fingerprint="test-fingerprint",
     )
     runtime = OrganismRuntime(
         actuation_enabled=True,

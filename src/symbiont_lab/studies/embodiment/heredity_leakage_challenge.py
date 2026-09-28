@@ -15,18 +15,28 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
-from symbiont.core.germline import (
+from symbiont.core.symbiont import Symbiont
+
+from symbiont.core.lineage.germline import (
     EpigeneticMark,
     GermlineState,
     InheritancePackage,
     SymbiontGenome,
-    create_germline_state,
     create_offspring_package,
     create_standard_genome,
 )
-from symbiont.core.symbiont import Symbiont
+from symbiont.genetics.germline import EpigeneticProtocol
+from symbiont.genetics.schema import DEFAULT_GENOME_SCHEMA
 
 _STUDY_ID = "embodiment.heredity-leakage-challenge"
+
+HERITABLE_EXPRESSION_LOCI: tuple[str, ...] = tuple(
+    locus
+    for locus, spec in DEFAULT_GENOME_SCHEMA.specs.items()
+    if spec.regulable and locus.startswith("plasticity.")
+)
+TARGET_HERITABLE_LOCUS: str = "plasticity.learning_rate.baseline"
+assert TARGET_HERITABLE_LOCUS in HERITABLE_EXPRESSION_LOCI
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +129,7 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
 
 
 def _control_germline(genome: SymbiontGenome) -> GermlineState:
-    return GermlineState(birth_expression=dict(genome.loci_values))
+    return GermlineState.from_genome(genome)
 
 
 def _child_from_package(
@@ -129,9 +139,9 @@ def _child_from_package(
     inherited_marks: bool,
     suffix: str,
 ) -> Symbiont:
-    germline = create_germline_state(
+    germline = GermlineState.from_genome(
         package.genome,
-        epigenetic_marks=(package.epigenetic_marks if inherited_marks else ()),
+        inherited_marks=(package.epigenetic_marks if inherited_marks else ()),
     )
     return Symbiont(
         f"child-{suffix}-{seed}",
@@ -254,27 +264,15 @@ def _run_transformed_conditions(
 
 
 def _run_seed(seed: int) -> HeredityLeakSeedResult:
-    base = create_standard_genome(f"parent-{seed}")
-    # Make transmission deterministic for the integrity assay while keeping the
-    # inherited content a legitimate capacity parameter.
-    genome = SymbiontGenome(
-        genome_id=base.genome_id,
-        loci_values={
-            **dict(base.loci_values),
-            "learning_rate": 0.12,
-            "acquired_transmission_rate": 1.0,
-            "epigenetic_decay": 0.20,
-        },
-        specs=base.specs,
-    )
-    germline = create_germline_state(genome)
+    genome = create_standard_genome(f"parent-{seed}")
+    # Epigenetic mark applied exclusively to a Genome v2 regulable locus
     mark = EpigeneticMark(
-        locus="learning_rate",
-        delta=0.08,
+        locus=TARGET_HERITABLE_LOCUS,
+        delta=0.03,
         strength=1.0,
         generations_left=3,
     )
-    assert germline.add_mark(mark)
+    germline = GermlineState.from_genome(genome, inherited_marks=(mark,))
 
     parent = Symbiont(
         f"parent-sym-{seed}",
@@ -282,6 +280,7 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         genome=genome,
         germline=germline,
     )
+    parent.attach_execution_surface("surface.parent")
 
     # Deliberately create concrete parent lifetime state through the real
     # canonical Symbiont path. None of it may cross birth.
@@ -300,11 +299,12 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         germline,
         seed=seed,
         generation=1,
+        epigenetic_protocol=EpigeneticProtocol(enabled=True, decay=0.20),
     )
 
-    child_germline = create_germline_state(
+    child_germline = GermlineState.from_genome(
         package.genome,
-        epigenetic_marks=package.epigenetic_marks,
+        inherited_marks=package.epigenetic_marks,
     )
     child = Symbiont(
         f"child-sym-{seed}",
@@ -335,12 +335,8 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
     )
 
     transmitted = {m.locus: m for m in package.epigenetic_marks}
-    epi_ok = set(transmitted) <= {"learning_rate"}
-    expected_lr = child_germline.effective_expression(
-        "learning_rate",
-        float(package.genome.get("learning_rate")),
-        spec=package.genome.specs["learning_rate"],
-    )
+    epi_ok = set(transmitted) <= {TARGET_HERITABLE_LOCUS}
+    expected_lr = float(child_germline.effective_value(package.genome, TARGET_HERITABLE_LOCUS))
     expression_ok = abs(child.learning_rate - expected_lr) <= 1e-12
 
     transformed = _run_transformed_conditions(package, seed=seed)

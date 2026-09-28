@@ -105,7 +105,11 @@ def run_embodiment_integrity_gates(
     )
 
     genome_values = flatten_genes(genome) if genome is not None else {}
-    genome_text = repr(sorted(genome_values.items())).lower()
+    # Exclude canonical endogenous loci from world identity checks
+    inspected_genome = {
+        k: v for k, v in genome_values.items() if k != "regulation.embodiment_mismatch_gain"
+    }
+    genome_text = repr(sorted(inspected_genome.items())).lower()
     identity_tokens = (
         "world",
         "resource",
