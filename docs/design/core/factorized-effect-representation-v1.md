@@ -719,3 +719,33 @@ Decision rule: all three pass -> propose AB as factorized-mode
 reconciliation (owner decision). Safety fails -> AB rejected. Improvement
 fails with safety passing -> reported, not adopted. No threshold changes
 after results.
+
+### 16.4 E8 v3 result (2026-09-28) — AB REJECTED by the safety criterion
+
+Runs on `3cf261ba`, same seeds, body and budget: arm R
+`20260927T215420Z-learning-agency-high-dimensional-acquisition-3cf261b-99fc`,
+arm AB `...-3cf261b-4182`, E6 gate
+`20260927T215419Z-learning-agency-acquisition-reuse-closure-3cf261b-5e00`.
+
+| Criterion | Result |
+| --- | --- |
+| 1. Improvement | **met**: satisfied 127 (AB) vs 8 (R), >= 2x; satisfied/terminated higher in AB for 10/10 seeds |
+| 2. Safety | **failed**: 106 of AB's 127 satisfactions (83.5%) are spurious (all matched atoms on drifting receptors), limit 10% |
+| 3. E6 gate with AB | **met**: 3/3 closed, self-acquired, traced to pulses |
+
+Per the decision rule, **AB is rejected** and not proposed for adoption.
+
+The ground-truth metric also exposes arm R: **8 of 8** of its satisfactions
+are spurious. The current reconciliation's rare successes in the
+high-dimensional body are drift, so the E8 v2 "intents satisfied" figures
+(§15) must be read as spurious as well. Terminal reasons: R 795
+`repeated_high_mismatch`, 727 `competence_exhausted`; AB 190 and 1 052 — rule
+A removes most drift-induced mismatch failures as intended.
+
+Reading, without post-hoc criteria: reconciliation is not the bottleneck.
+**Footprint membership admits drift** (Cross-Domain Revision Coherence v1,
+F13), so any rule that trusts footprint members satisfies intents on noise;
+loosening the rule amplifies it. The next step is a footprint-precision
+specification (membership against ground truth in the E8 body: what fraction
+of members lie on receptors driven by the source), preregistered before any
+change to membership, and a prerequisite of Revision Coherence Wave 2.
