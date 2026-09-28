@@ -8,6 +8,7 @@ may read payload() and events_after() without steering the world.
 from __future__ import annotations
 
 import time
+from collections import deque
 from threading import Lock, Thread
 from typing import Any
 
@@ -77,12 +78,12 @@ class WorldRuntimeState:
 
         # Bounded timeline metrics (docs/design/symbiont-world-v3.md §27, §28)
         self._timeline_max = 2048
-        self._history_ticks: list[int] = []
-        self._history_alive: list[int] = []
-        self._history_mean_integrity: list[float] = []
-        self._history_mean_reserve: list[float] = []
-        self._history_hazard_hits: list[int] = []
-        self._history_acquisitions: list[float] = []
+        self._history_ticks: deque[int] = deque(maxlen=self._timeline_max)
+        self._history_alive: deque[int] = deque(maxlen=self._timeline_max)
+        self._history_mean_integrity: deque[float] = deque(maxlen=self._timeline_max)
+        self._history_mean_reserve: deque[float] = deque(maxlen=self._timeline_max)
+        self._history_hazard_hits: deque[int] = deque(maxlen=self._timeline_max)
+        self._history_acquisitions: deque[float] = deque(maxlen=self._timeline_max)
 
         self._record_metrics(self.population.state.tick, None)
 
@@ -123,9 +124,8 @@ class WorldRuntimeState:
             acq_count = float(
                 sum(
                     1
-                    for event in self.population.journal.replay()
-                    if event.tick == tick
-                    and event.kind == "ACTUATION_RESOLVED"
+                    for event in self.population.journal.events_for_tick(tick)
+                    if event.kind == "ACTUATION_RESOLVED"
                     and event.payload.get("effect") == "material_exchange"
                     and event.payload.get("outcome") == "granted"
                 )
@@ -137,14 +137,6 @@ class WorldRuntimeState:
         self._history_mean_reserve.append(round(mean_res, 4))
         self._history_hazard_hits.append(hits_count)
         self._history_acquisitions.append(acq_count)
-
-        if len(self._history_ticks) > self._timeline_max:
-            self._history_ticks.pop(0)
-            self._history_alive.pop(0)
-            self._history_mean_integrity.pop(0)
-            self._history_mean_reserve.pop(0)
-            self._history_hazard_hits.pop(0)
-            self._history_acquisitions.pop(0)
 
     def start(self) -> None:
         with self._lock:
@@ -203,21 +195,14 @@ class WorldRuntimeState:
         if limit < 1 or limit > 1024:
             raise ValueError("event page limit must be within [1, 1024]")
         with self._lock:
-            events = self.population.journal.replay()
-            start = 0
-            if after is not None:
-                for index, event in enumerate(events):
-                    if event.event_id == after:
-                        start = index + 1
-                        break
-                else:
-                    raise ValueError("unknown after event_id")
-            page = events[start : start + limit]
-            next_after = page[-1].event_id if page else after
+            page, next_after, has_more = self.population.journal.page_after(
+                after,
+                limit=limit,
+            )
             return {
                 "events": [self._event_payload(event) for event in page],
                 "next_after": next_after,
-                "has_more": start + len(page) < len(events),
+                "has_more": has_more,
             }
 
     def payload(self) -> dict:
@@ -239,7 +224,7 @@ class WorldRuntimeState:
                 population=self.population,
             )
             events = [
-                self._event_payload(event) for event in self.population.journal.replay()[-60:]
+                self._event_payload(event) for event in self.population.journal.tail(60)
             ]
             return {
                 "running": self._running,

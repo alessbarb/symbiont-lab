@@ -617,3 +617,43 @@ def test_clean_mode_is_checkpointed_and_restored():
     assert rig.individual.body is not None
     assert len(rig.receptor_ids) == 8
     restored.assert_experimental_boundary()
+
+
+def test_checkpoint_persists_only_new_journal_delta_without_full_snapshot(tmp_path: Path):
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "incremental_checkpoint")
+    pop = _make_pop(seed=808, count=2)
+    pop.run(2)
+    storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    first_count = len(pop.journal)
+
+    pop.run(2)
+    original_snapshot = pop.journal.snapshot
+
+    def forbidden_full_snapshot():
+        raise AssertionError("checkpoint must not serialize full journal history")
+
+    pop.journal.snapshot = forbidden_full_snapshot
+    try:
+        storage.save_checkpoint(
+            pop,
+            world_fingerprint=smoke.constitution.fingerprint(),
+            constitution=smoke.constitution,
+        )
+    finally:
+        pop.journal.snapshot = original_snapshot
+
+    manifest = json.loads(storage.manifest_file.read_text(encoding="utf-8"))
+    assert manifest["journal_event_count"] == len(pop.journal)
+    assert manifest["journal_event_count"] > first_count
+    assert manifest["journal_prefix_digest"] == pop.journal.prefix_digest()
+
+    restored = storage.restore(
+        ground_truth=pop.ground_truth,
+        expected_constitution=smoke.constitution,
+    )
+    assert restored.journal.snapshot() == pop.journal.snapshot()

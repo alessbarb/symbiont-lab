@@ -105,9 +105,8 @@ def world_snapshot(
                 recent_damage = round(
                     sum(
                         float(event.payload.get("damage", 0.0))
-                        for event in population.journal.replay()
-                        if event.tick == last_tick
-                        and event.actor == organism_id
+                        for event in population.journal.events_for_tick(last_tick)
+                        if event.actor == organism_id
                         and event.kind == "PHYSIOLOGICAL_DAMAGE"
                     ),
                     4,
@@ -358,7 +357,7 @@ def render_world(
     if journal is None or len(journal) == 0:
         lines.append("  (no journal attached / no events recorded)")
     else:
-        for event in journal.replay()[-20:]:
+        for event in journal.tail(20):
             causal = f"causal={list(event.causal_parent_ids)}" if event.causal_parent_ids else ""
             contributing = (
                 f"contributing={list(event.contributing_event_ids)}"

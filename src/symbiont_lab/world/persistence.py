@@ -156,6 +156,7 @@ def capture_checkpoint(
     *,
     world_fingerprint: str,
     epoch: int = 0,
+    include_journal: bool = True,
 ) -> PersistentWorldCheckpoint:
     """Extract a complete PersistentWorldCheckpoint from a live PopulationGenesisRuntime."""
     pop.assert_experimental_boundary()
@@ -230,7 +231,13 @@ def capture_checkpoint(
                 ),
             }
 
-    journal_snapshot = pop.journal.snapshot()
+    journal_snapshot = pop.journal.snapshot() if include_journal else []
+    journal_event_count = len(pop.journal)
+    last_event_id = (
+        pop.journal.event_at(journal_event_count - 1).event_id
+        if journal_event_count
+        else None
+    )
     return PersistentWorldCheckpoint(
         schema_version=PERSISTENCE_SCHEMA_VERSION,
         world_id=pop.state.world_id,
@@ -244,8 +251,8 @@ def capture_checkpoint(
         environment=env_data,
         organisms=organisms,
         deferred_effects=pop.deferred_queue.snapshot(),
-        journal_event_count=len(journal_snapshot),
-        last_event_id=journal_snapshot[-1]["event_id"] if journal_snapshot else None,
+        journal_event_count=journal_event_count,
+        last_event_id=last_event_id,
         journal=journal_snapshot,
         geography=pop.geography.to_dict()
         if hasattr(pop, "geography") and pop.geography is not None
@@ -422,17 +429,24 @@ class WorldStorage:
             return {}
         return data if isinstance(data, dict) else {}
 
-    def _persist_event_delta(self, events: list[dict[str, Any]], previous_count: int) -> None:
-        if previous_count < 0 or previous_count > len(events):
+    def _persist_event_delta(
+        self,
+        events: list[dict[str, Any]],
+        previous_count: int,
+        total_count: int,
+    ) -> None:
+        if previous_count < 0 or previous_count > total_count:
             raise ValueError("journal event count regressed relative to durable manifest")
-        if previous_count == len(events):
+        if previous_count == total_count:
             return
+        if len(events) != total_count - previous_count:
+            raise ValueError("journal delta length does not match committed event count")
         start = previous_count
-        end = len(events)
+        end = total_count
         target = self.events_dir / f"segment-{start:012d}-{end:012d}.jsonl"
         tmp = self.events_dir / f".tmp-events-{uuid.uuid4().hex[:8]}.jsonl"
         with open(tmp, "w", encoding="utf-8") as f:
-            for event in events[start:end]:
+            for event in events:
                 f.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
             f.flush()
             os.fsync(f.fileno())
@@ -500,7 +514,12 @@ class WorldStorage:
     ) -> Path:
         """Atomically persist a universe checkpoint and journal delta."""
         self.ensure_dirs()
-        checkpoint = capture_checkpoint(pop, world_fingerprint=world_fingerprint, epoch=epoch)
+        checkpoint = capture_checkpoint(
+            pop,
+            world_fingerprint=world_fingerprint,
+            epoch=epoch,
+            include_journal=False,
+        )
 
         manifest_before = self._read_manifest()
         # manifest.json is descriptive metadata, not the authority for causal
@@ -516,6 +535,9 @@ class WorldStorage:
                 "last_checkpoint": self.head_file.read_text(encoding="utf-8").strip(),
                 "journal_event_count": durable.journal_event_count,
                 "last_event_id": durable.last_event_id,
+                "journal_prefix_digest": EventJournal.from_snapshot(
+                    durable.journal
+                ).prefix_digest(),
                 "actuation_binding_fingerprints": {
                     oid: str(odata.get("actuation_binding_fingerprint", ""))
                     for oid, odata in sorted(durable.organisms.items())
@@ -548,22 +570,33 @@ class WorldStorage:
 
         previous_event_count = int(manifest_before.get("journal_event_count", 0))
         durable_last_event_id = manifest_before.get("last_event_id")
+        if previous_event_count > len(pop.journal):
+            raise ValueError("journal event count regressed relative to durable manifest")
+
         if previous_event_count:
-            if previous_event_count > len(checkpoint.journal):
-                raise ValueError("journal event count regressed relative to durable manifest")
-            in_memory_tail = checkpoint.journal[previous_event_count - 1].get("event_id")
+            in_memory_tail = pop.journal.event_at(previous_event_count - 1).event_id
             if durable_last_event_id is not None and in_memory_tail != durable_last_event_id:
                 raise ValueError(
                     "journal prefix mismatch: in-memory history does not extend "
                     "the durable causal prefix"
                 )
-            durable_events = self._load_event_prefix(previous_event_count)
-            for idx in range(min(previous_event_count, len(durable_events))):
-                if checkpoint.journal[idx].get("event_id") != durable_events[idx].get("event_id"):
-                    raise ValueError(
-                        f"journal prefix mismatch: event {idx} differs from durable history"
-                    )
-        self._persist_event_delta(checkpoint.journal, previous_event_count)
+
+            durable_prefix_digest = manifest_before.get("journal_prefix_digest")
+            if durable_prefix_digest is None:
+                # One-time compatibility path for manifests written before P3.
+                durable_events = self._load_event_prefix(previous_event_count)
+                durable_prefix_digest = EventJournal.from_snapshot(
+                    durable_events
+                ).prefix_digest()
+            if pop.journal.prefix_digest(previous_event_count) != durable_prefix_digest:
+                raise ValueError("journal prefix mismatch: durable prefix digest differs")
+
+        event_delta = pop.journal.snapshot_range(previous_event_count)
+        self._persist_event_delta(
+            event_delta,
+            previous_event_count,
+            len(pop.journal),
+        )
 
         # Journal entries themselves are stored once in events/. The checkpoint
         # records the exact prefix required for recovery.
@@ -605,6 +638,7 @@ class WorldStorage:
             "last_checkpoint": target_name,
             "journal_event_count": checkpoint.journal_event_count,
             "last_event_id": checkpoint.last_event_id,
+            "journal_prefix_digest": pop.journal.prefix_digest(),
             "actuation_binding_fingerprints": {
                 oid: str(odata.get("actuation_binding_fingerprint", ""))
                 for oid, odata in sorted(checkpoint.organisms.items())
@@ -692,6 +726,9 @@ class WorldStorage:
                     "last_checkpoint": path.name,
                     "journal_event_count": checkpoint.journal_event_count,
                     "last_event_id": checkpoint.last_event_id,
+                    "journal_prefix_digest": EventJournal.from_snapshot(
+                        checkpoint.journal
+                    ).prefix_digest(),
                     "actuation_binding_fingerprints": {
                         oid: str(odata.get("actuation_binding_fingerprint", ""))
                         for oid, odata in sorted(checkpoint.organisms.items())
