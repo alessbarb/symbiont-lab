@@ -141,6 +141,32 @@ class EpisodicProjection:
         if self.action_token is not None and not _valid_token(self.action_token):
             raise EpisodicMemoryError("invalid episodic action token")
 
+    @classmethod
+    def _from_validated(
+        cls,
+        *,
+        sense_ids: tuple[str, ...],
+        concept_ids: tuple[str, ...],
+        internal_tokens: tuple[str, ...],
+        action_token: str | None,
+        effect_features: tuple[str, ...],
+    ) -> "EpisodicProjection":
+        """Build without re-validating tokens that are already known valid.
+
+        Only for ``ExperienceEpisode.projection``: its support keys and action
+        token were validated when the episode was built or restored and only
+        grow from validated projections, and prototype limits never exceed the
+        projection bounds. Re-validating every token on each access made
+        episodic reinterpretation O(history x tokens) per tick.
+        """
+        projection = object.__new__(cls)
+        object.__setattr__(projection, "sense_ids", sense_ids)
+        object.__setattr__(projection, "concept_ids", concept_ids)
+        object.__setattr__(projection, "internal_tokens", internal_tokens)
+        object.__setattr__(projection, "action_token", action_token)
+        object.__setattr__(projection, "effect_features", effect_features)
+        return projection
+
     @property
     def context_tokens(self) -> tuple[str, ...]:
         return (
@@ -384,7 +410,7 @@ class ExperienceEpisode:
 
     @property
     def projection(self) -> EpisodicProjection:
-        return EpisodicProjection(
+        return EpisodicProjection._from_validated(
             sense_ids=self._prototype(self.sense_support, self.recurrence, limit=16),
             concept_ids=self._prototype(self.concept_support, self.recurrence, limit=8),
             internal_tokens=self._prototype(self.internal_support, self.recurrence, limit=8),
@@ -1118,18 +1144,23 @@ class EpisodicExperienceMemory:
         if not support:
             return 0
         changed = 0
+        capacity = self._limits.max_episodic_interpretations_per_episode
         for episode in self._episodes:
-            factual = set(episode.projection.context_tokens) | set(
-                episode.projection.effect_features
-            )
-            indexed = factual | self._interpretations.get(episode.episode_id, set())
+            # Cheap exits first: an episode already carrying this
+            # interpretation, or at capacity, can never change, so its
+            # projection (rebuilt and validated on every access) is not
+            # needed. Outcome is identical to checking overlap first.
+            existing = self._interpretations.get(episode.episode_id)
+            if existing is not None and (
+                representation_id in existing or len(existing) >= capacity
+            ):
+                continue
+            projection = episode.projection
+            factual = set(projection.context_tokens) | set(projection.effect_features)
+            indexed = factual | (existing or set())
             if len(indexed & support) / len(support) < min_overlap:
                 continue
             bucket = self._interpretations.setdefault(episode.episode_id, set())
-            if representation_id in bucket:
-                continue
-            if len(bucket) >= self._limits.max_episodic_interpretations_per_episode:
-                continue
             bucket.add(representation_id)
             changed += 1
         return changed
