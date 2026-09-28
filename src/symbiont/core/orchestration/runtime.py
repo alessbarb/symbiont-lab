@@ -438,6 +438,10 @@ class OrganismRuntime:
         )
         self._explicit_metabolism = bool(explicit_metabolism)
         self._auto_promote_predictors = bool(auto_promote_predictors)
+        # Lab ablation for controlled comparisons (Vision Acquisition v1 arm
+        # B): set by the apparatus after construction, never by cognition,
+        # never checkpointed, never part of effective_config.
+        self.cognitive_plasticity_ablated = False
         self._birth_authority = birth_authority
         self._developmental_tracker = (
             developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
@@ -2112,7 +2116,9 @@ class OrganismRuntime:
             )
         )
         degradation_excreted = physiology_preflight.degradation_excreted
-        plasticity_gate = physiology_preflight.plasticity_enabled
+        plasticity_gate = physiology_preflight.plasticity_enabled and not (
+            self.cognitive_plasticity_ablated
+        )
 
         perception = self._perception_domain.step(
             services=PerceptionServices(
@@ -2190,7 +2196,9 @@ class OrganismRuntime:
             perception=perception,
             action_projection=action_projection,
             plasticity_enabled=plasticity_gate,
-            auto_promote_predictors=self._auto_promote_predictors,
+            auto_promote_predictors=(
+                self._auto_promote_predictors and not self.cognitive_plasticity_ablated
+            ),
             reacclimation_remaining=self._reacclimation_remaining,
             cognitive_self_namespace_key=self._cognitive_self_namespace_key,
             include_observability=include_observability,

@@ -23,8 +23,17 @@ pytestmark = pytest.mark.slow
 TICKS = 24
 
 
-@pytest.fixture(scope="module")
-def state_x(tmp_path_factory) -> tuple[Path, Path]:
+# The vision body in the moving-source nursery adds TinyRenderer sampling and
+# a kinematic source as new causal inputs (Vision Acquisition v1 §2).
+CONFIGS = {
+    "v6-flat": {"body_kind": "anthropomorphic-v6", "environment": None},
+    "vision-d1": {"body_kind": "anthropomorphic-v6-vision", "environment": "vision-nursery-d1-v1"},
+}
+
+
+@pytest.fixture(scope="module", params=sorted(CONFIGS))
+def state_x(request, tmp_path_factory) -> tuple[Path, Path, dict]:
+    config = CONFIGS[request.param]
     root = tmp_path_factory.mktemp("x")
     bundle, body = root / "x.symbiont", root / "x.json"
     run(
@@ -37,11 +46,12 @@ def state_x(tmp_path_factory) -> tuple[Path, Path]:
         symbiont_file=bundle,
         body_file=body,
         telemetry_file=root / "t",
+        **config,
     )
-    return bundle, body
+    return bundle, body, config
 
 
-def _resume(state_x: tuple[Path, Path], root: Path, **kwargs) -> dict:
+def _resume(state_x: tuple[Path, Path, dict], root: Path, **kwargs) -> dict:
     root.mkdir()
     bundle, body = root / "o.symbiont", root / "b.json"
     shutil.copy(state_x[0], bundle)
@@ -55,6 +65,7 @@ def _resume(state_x: tuple[Path, Path], root: Path, **kwargs) -> dict:
         symbiont_file=bundle,
         body_file=body,
         telemetry_file=root / "t",
+        **state_x[2],
         **kwargs,
     )
     payload = read_symbiont_bundle_runtime(bundle)

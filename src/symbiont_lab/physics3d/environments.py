@@ -6,9 +6,15 @@ persisted alongside physical state, never in a genome or cognitive checkpoint.
 
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 
-ENVIRONMENT_NAMES = ("flat-v1", "contact-garden-v1", "vision-nursery-v1")
+ENVIRONMENT_NAMES = (
+    "flat-v1",
+    "contact-garden-v1",
+    "vision-nursery-v1",
+    "vision-nursery-d1-v1",
+)
 
 # Versioned immutable recipes: positions in metres, Z up; box sizes are full extents.
 _RECIPES = {
@@ -61,6 +67,28 @@ _RECIPES = {
             "luminance": 0.5,
         },
     ],
+    # Vision Acquisition v1 D1: uniform background plus one coherent luminance
+    # source that sweeps laterally in front of the eye. The source is
+    # kinematic and has no collision shape: it changes only what the visual
+    # apparatus transduces, and its pose is a pure function of the causal
+    # tick (never the clock), so resume and replay are exact.
+    "vision-nursery-d1-v1": [
+        {
+            "id": "background",
+            "position": [2.2, 0.0, 1.2],
+            "size": [0.1, 6.0, 2.4],
+            "friction": 0.65,
+            "luminance": 0.45,
+        },
+        {
+            "id": "source",
+            "position": [1.4, 0.0, 1.0],
+            "size": [0.05, 0.35, 0.35],
+            "friction": 0.65,
+            "luminance": 0.95,
+            "motion": {"axis": [0.0, 1.0, 0.0], "amplitude": 0.8, "period_ticks": 96},
+        },
+    ],
 }
 
 
@@ -84,12 +112,34 @@ def resolve_environment(name: str | None, saved: dict | None) -> dict:
     return deepcopy(saved)
 
 
+def fixture_position(fixture: dict, tick: int) -> list[float]:
+    """Deterministic fixture position at a causal tick (static unless ``motion``)."""
+    motion = fixture.get("motion")
+    if not motion:
+        return list(fixture["position"])
+    offset = motion["amplitude"] * math.sin(2.0 * math.pi * tick / motion["period_ticks"])
+    return [base + axis * offset for base, axis in zip(fixture["position"], motion["axis"])]
+
+
+def update_environment(p, client_id: int, recipe: dict, bodies: tuple[int, ...], tick: int) -> None:
+    """Move kinematic fixtures to their pose for ``tick``; static ones are untouched."""
+    for fixture, body in zip(recipe["fixtures"], bodies):
+        if fixture.get("motion"):
+            p.resetBasePositionAndOrientation(
+                body, fixture_position(fixture, tick), (0, 0, 0, 1), physicsClientId=client_id
+            )
+
+
 def build_environment(p, client_id: int, recipe: dict) -> tuple[int, ...]:
-    """Instantiate real static colliders and native Physics3D visuals."""
+    """Instantiate static colliders, kinematic visual sources and their visuals."""
     bodies = []
     for fixture in recipe["fixtures"]:
         half = [v / 2 for v in fixture["size"]]
-        shape = p.createCollisionShape(p.GEOM_BOX, halfExtents=half, physicsClientId=client_id)
+        shape = (
+            -1  # kinematic sources are visual only; they never collide
+            if fixture.get("motion")
+            else p.createCollisionShape(p.GEOM_BOX, halfExtents=half, physicsClientId=client_id)
+        )
         luminance = fixture.get("luminance")
         rgba = (0.35, 0.45, 0.5, 1) if luminance is None else (luminance, luminance, luminance, 1)
         visual = p.createVisualShape(
@@ -102,8 +152,13 @@ def build_environment(p, client_id: int, recipe: dict) -> tuple[int, ...]:
             basePosition=fixture["position"],
             physicsClientId=client_id,
         )
-        p.changeDynamics(
-            body, -1, lateralFriction=fixture["friction"], restitution=0, physicsClientId=client_id
-        )
+        if shape != -1:
+            p.changeDynamics(
+                body,
+                -1,
+                lateralFriction=fixture["friction"],
+                restitution=0,
+                physicsClientId=client_id,
+            )
         bodies.append(body)
     return tuple(bodies)

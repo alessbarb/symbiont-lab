@@ -50,7 +50,7 @@ from .apparatus import (
     physics3d_sensory_system,
 )
 from .bodies import DEFAULT_BODY_REGISTRY
-from .environments import build_environment, resolve_environment
+from .environments import build_environment, resolve_environment, update_environment
 from .humanoid import apply_surface_material, configure_physics_solver
 from .observer_semantics import (
     action_dimension_semantics,
@@ -292,6 +292,7 @@ class PyBulletEmbodimentRuntime:
         )
 
         self.environment_bodies = build_environment(p, self.client_id, self.environment_recipe)
+        self.last_organism_result = None
         self.apparatus = self.body_descriptor.apparatus_factory(p, self.client_id)
         if physical_state is not None:
             # Resume may contain finite solver penetration beyond the declared
@@ -1508,6 +1509,15 @@ class PyBulletEmbodimentRuntime:
         self.apparatus.set_opaque_environment_state(
             external_field=resource_field,
         )
+        # Kinematic nursery sources take their pose for the tick about to be
+        # sensed; a pure function of the causal tick (ADR-0042).
+        update_environment(
+            self.p,
+            self.client_id,
+            self.environment_recipe,
+            self.environment_bodies,
+            self.tick_count + 1,
+        )
 
         phase_started = time.perf_counter()
         self._reading_provider.observed_tick_values.clear()
@@ -1521,6 +1531,8 @@ class PyBulletEmbodimentRuntime:
             ),
             include_observability=include_observability,
         )
+        # Observer-only reference for evaluator-side studies; never read back.
+        self.last_organism_result = result
         self._update_embodiment_evidence(result)
         organism_ms = (time.perf_counter() - phase_started) * 1000.0
 

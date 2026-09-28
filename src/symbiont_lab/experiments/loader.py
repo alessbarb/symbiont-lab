@@ -35,6 +35,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "consolidation",
         "body",
         "corpora",
+        "vision",
         "output",
     }
     unknown = set(data) - allowed
@@ -153,6 +154,8 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "body": {"actuator_count", "receptors_per_actuator", "drifting_receptor_count"},
         # Private Model Learnability v1 §8: frozen checkpoint inputs.
         "corpora": {"c1", "c2"},
+        # Vision Acquisition v1 §5: late evaluation window.
+        "vision": {"late_window"},
         "output": {"save_trace", "save_summary"},
     }
     for block_name in (
@@ -165,6 +168,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "consolidation",
         "body",
         "corpora",
+        "vision",
         "output",
     ):
         if block_name in data:
