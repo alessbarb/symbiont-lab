@@ -619,6 +619,55 @@ on by default (owner decision); 1 or 3 fails → fix before any adoption;
 (Physics3D is deterministic apart from training nondeterminism, which is
 recorded).
 
+### 8.3 Wave 5 amendment — implementation stopped at the spec boundary (2026-09-28)
+
+Mapping the code before implementing §8.1 found facts that invalidate
+part of the plan; nothing of Wave 5 is implemented and P5 is not run until
+the owner decides the items below.
+
+1. **F10 has two causes, not one.** `physics3d/slm.py` `_train_job` always
+   calls `PrivateModelFactory.build` (training from scratch) and never
+   `adapt`; and `request_private_model_adaptation` has no caller in `src`.
+   Even with an ACTIVE model the autonomous plan trains a new root. P5's
+   "root-only" arm is therefore "never adapt"; wiring adaptation of an
+   ACTIVE model is a separate behaviour decision.
+   *Recommendation:* keep ACTIVE adaptation out of P5's scope; treat it as
+   its own decision after P5.
+2. **Tokenizer inheritance.** Adaptation requires the parent's tokenizer,
+   but each plan rebuilds the vocabulary from the current corpus. Data (a
+   copy of `org-ea3e7bbbc628/models`, 186 historical models): only **4 of
+   185** consecutive vocabularies are subsets of their predecessor;
+   vocabulary grows from 769 to 4 814 tokens, median 54 new tokens per
+   training (max 431). Options:
+   (a) the child reuses the parent vocabulary, new tokens become `<UNK>`
+   (lossy, ~54 tokens per generation, confounds the arms);
+   (b) a new root whenever the corpus has tokens outside the parent
+   vocabulary (no parameter, but by the data it would almost never allow
+   ancestry);
+   (c) **append-only vocabulary extension**: the child's vocabulary is the
+   parent's followed by the new tokens, and the parent's embedding/output
+   rows are copied with new rows initialised as for a root (a lab-side
+   trainer change; no free parameter).
+   *Recommendation:* (c).
+3. **Vocabulary storage.** `symbiont` cannot read lab files, so the
+   organism must keep ancestor vocabularies itself. *Recommendation:* keep
+   them only for SHADOW and ACTIVE records (bounded by the registry's
+   non-retired models), dropped on retirement.
+4. **Ancestor pool.** `_retire_stale_candidates(keep=3)` retires shadows by
+   recency, so the best-validation ancestor can be retired before it is
+   chosen. *Recommendation:* the current best eligible ancestor is exempt
+   from recency retirement (still retired when superseded or contradicted).
+5. **P5 validity.** Training runs in a `ProcessPoolExecutor` polled per
+   tick; the tick at which a model is adopted depends on wall-clock time and
+   CPU load, not only on seeds. *Recommendation:* amend P5 so the study
+   waits for each training synchronously at the tick it was requested (a
+   study-only switch; the resident behaviour is unchanged), and run the
+   arms on an otherwise idle machine; record wall-clock and training
+   nondeterminism.
+
+P5's criteria are unchanged; this amendment is recorded before any Wave 5
+code or run.
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
