@@ -389,6 +389,14 @@ def read_symbiont_bundle_manifest(
                     raise ValueError(
                         f"manifest checkpoint_hash mismatch: {raw.get('checkpoint_hash')} != {expected}"
                     )
+                # Revision Coherence v1 §3.7: the manifest describes exactly
+                # this runtime (Workbench metadata.json is never authority).
+                derived = build_symbiont_bundle_manifest(
+                    json.loads(runtime_bytes.decode("utf-8")), runtime_sha256=runtime_sha256
+                )
+                for field in ("saved_at_tick", "organism_id", "embodiment_epoch"):
+                    if raw.get(field) != derived.get(field):
+                        raise ValueError(f"manifest {field} does not match runtime.json")
             return raw
 
         if "runtime.json" not in names:
