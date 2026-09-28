@@ -668,6 +668,81 @@ the owner decides the items below.
 P5's criteria are unchanged; this amendment is recorded before any Wave 5
 code or run.
 
+### 8.4 Wave 5 amended design and P5 preregistration (owner, 2026-09-28)
+
+Supersedes §8.1 and §8.2 where they differ. Scope: **training ancestry of
+non-authoritative models only**; only ACTIVE controls; P5 never adapts the
+ACTIVE model; the promotion gate is unchanged.
+
+**Design.**
+
+1. `ModelRecord` records `validation_loss` and `baseline_loss` from the
+   training result (older records: `None`, never ancestry-eligible).
+2. **Ancestry eligibility** (unchanged from §8.1 item 2) plus the
+   invariant *ancestry-eligible ⇒ tokenizer available*. The organism keeps
+   the vocabulary of SHADOW and ACTIVE models only; retirement removes,
+   together, eligibility, tokenizer and training-parent capability. No
+   usable genealogical reference points at an artifact that can no longer
+   be reproduced.
+3. **Inherited, append-only vocabulary.** A child starts from the parent's
+   tokenizer exactly; tokens of the current corpus absent from it are
+   appended (deterministic order: descending corpus frequency, then
+   lexical). Existing ids never change, nothing is reordered or removed.
+   Embeddings of inherited tokens are copied; new rows are initialised
+   deterministically from the training seed. Every vocabulary-shaped
+   matrix (input embedding, output projection) is expanded coherently;
+   tied weights stay tied. Vocabulary growth is a mechanical consequence,
+   not a tunable P5 parameter.
+4. **Retirement protection.** The best ancestry-eligible SHADOW is exempt
+   from recency retirement while it remains the best under the
+   eligibility criterion; it loses protection when contradicted, when a
+   better eligible descendant appears, or when it stops being eligible.
+   Each deferral is recorded (`retirement_deferred`, reason
+   `protected_training_ancestor`).
+5. **Root reasons** as §8.1 item 4 (`no-eligible-ancestor`,
+   `ancestor-contradicted`, `architecture-change`, `lineage-stagnation`
+   after N = 3 non-improving generations).
+6. **Synchronous training for P5.** At a training boundary the corpus is
+   frozen, the request issued, the simulation paused until training,
+   validation and the registry transition complete, then resumed; the
+   resident's asynchronous behaviour is unchanged outside the study
+   switch. Each request is a provenance event carrying corpus hash,
+   `parent_model_id`, parent tokenizer hash, training seed, architecture,
+   training configuration and requested tick.
+
+**P5 (preregistered).** Physics3D copy of `org-ea3e7bbbc628` (tick 9 246),
+private SLM on, synchronous training, factorized effects as in the Wave 0
+baseline, until body death or 6 000 ticks, arms:
+
+- **P5-A — Independent Roots:** every training starts from fresh weights
+  and a fresh tokenizer;
+- **P5-B — Shadow Lineage:** eligible SHADOW ancestor, append-only
+  inherited tokenizer, inherited compatible parameters and embeddings,
+  new-token expansion.
+
+The only causal difference is inherited training ancestry. Reported: models
+trained, generations, root reasons, retirement deferrals, candidates
+beating the baseline, best and median validation loss of the last 10
+candidates, promotions, compute and wall-clock.
+
+**Gates (all fixed now).**
+
+1. *Mechanics:* in P5-B every training after the first eligible model has
+   `generation > 0` or a traced root reason.
+2. *Vocabulary continuity:* every parent token has the same id and the
+   inherited embedding in the child; no child loses a parent token.
+3. *Restore:* checkpoint → restore preserves the exact ancestry-capable
+   tokenizers.
+4. *Safety:* no ACTIVE model without the unchanged promotion gate; no
+   lineage longer than N non-improving generations; training ancestry never
+   grants action authority (structural).
+5. *Improvement:* median validation loss of the last 10 candidates lower in
+   P5-B than P5-A, and at least as many candidates beating the baseline.
+
+Decision: 1-4 pass and 5 passes → propose `ancestry_training` (owner
+decision on the default); any of 1-4 fails → fix before any adoption; 5
+fails → reported, not adopted. Limit: one organism, one run per arm.
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
