@@ -91,7 +91,7 @@ class GovernedOrganism:
     def revoke(self) -> None:
         self._granted = False
 
-    def tick(self) -> RuntimeTickResult:
+    def tick(self, *, include_observability: bool = True) -> RuntimeTickResult:
         if not self._granted:
             raise ConsentRevokedError("consent has been revoked; call grant() to resume")
         if self._max_ticks is not None and self._ticks_run >= self._max_ticks:
@@ -110,7 +110,11 @@ class GovernedOrganism:
                 f"(only {waited:.3f}s elapsed)"
             )
 
-        result = self._runtime.tick()
+        result = (
+            self._runtime.tick()
+            if include_observability
+            else self._runtime.tick(include_observability=False)
+        )
         self._last_tick_at = self._clock()
         self._ticks_run += 1
         return result
