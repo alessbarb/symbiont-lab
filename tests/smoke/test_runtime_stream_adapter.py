@@ -22,6 +22,7 @@ def _self_model_source() -> str:
 import json
 
 from symbiont_lab.observation.bus import ObservationBus
+from symbiont_lab.observation.delta import ObservationDeltaDecoder
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
 from symbiont_lab.observation.projection import (
     mind_snapshot_from_rich_state,
@@ -29,6 +30,17 @@ from symbiont_lab.observation.projection import (
 )
 from symbiont_lab.server.sse import _encode_sse
 from symbiont_lab.workbench import WEB_ROOT
+
+
+def _decoded_queue_events(queue) -> list[dict]:
+    decoder = ObservationDeltaDecoder()
+    events = []
+    while not queue.empty():
+        payload = json.loads(queue.get_nowait())
+        decoded = decoder.decode(payload)
+        if decoded is not None:
+            events.append(decoded)
+    return events
 
 
 def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
@@ -108,14 +120,11 @@ def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
     stream.push({"type": "vitals", "tick": 2})
     stream.push({"type": "vitals", "tick": 3})
 
-    events = []
-    while not queue.empty():
-        events.append(queue.get_nowait())
+    events = _decoded_queue_events(queue)
 
-    assert len(events) == 2
-    assert '"tick":1' not in events
-    assert '"tick":2' in events[0]
-    assert '"tick":3' in events[1]
+    # tick 2 is a delta whose anchor was evicted. It is rejected; the
+    # overflow path replaces tick 3 with a fresh materialized anchor.
+    assert [event["tick"] for event in events] == [3]
 
 
 def test_mind_projection_preserves_completely_absent_sections() -> None:
@@ -168,10 +177,8 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
         },
     )
 
-    events = []
-    while not queue.empty():
-        events.append(queue.get_nowait())
-    joined = "\n".join(events)
+    events = _decoded_queue_events(queue)
+    joined = "\n".join(json.dumps(event, separators=(",", ":")) for event in events)
 
     assert '"source":"physics3d"' in joined
     assert '"alive":false' in joined
@@ -747,10 +754,8 @@ def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
         }
     )
 
-    events = []
-    while not queue.empty():
-        events.append(queue.get_nowait())
-    joined = "\n".join(events)
+    events = _decoded_queue_events(queue)
+    joined = "\n".join(json.dumps(event, separators=(",", ":")) for event in events)
     assert '"type":"mind_snapshot"' in joined
     assert '"source":"physics3d"' in joined
     assert '"tick":44' in joined
@@ -987,7 +992,7 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
 def test_physics3d_engine_decouples_body_and_rich_viewer_cadence() -> None:
     engine = (WEB_ROOT.parent.parent / "physics3d" / "engine.py").read_text(encoding="utf-8")
 
-    assert "rich_render_due = (" in engine
+    assert "rich_render_due = viewer is not None and observation_due" in engine
     assert "body_render_due = rich_render_due" in engine
     assert "if body_render_due and viewer is not None:" in engine
     assert "drain_presentation_pose_frames()" in engine
@@ -1439,18 +1444,30 @@ def test_sse_event_identity_is_encoded_for_browser_resume() -> None:
 
 def test_stream_replays_from_transport_sequence() -> None:
     stream = ObservationBus(queue_size=8, history_size=8)
+    live = stream.subscribe()
     first_id = stream.push({"type": "vitals", "tick": 1})
+
+    decoder = ObservationDeltaDecoder()
+    first_payload = json.loads(live.get_nowait())
+    assert decoder.decode(first_payload)["tick"] == 1
+    stream.unsubscribe(live)
+
     stream.push({"type": "vitals", "tick": 2})
     stream.push({"type": "cognition", "tick": 2})
 
     consumer = stream.subscribe(after_sequence=first_id)
     replayed = []
+    transport_ids = []
     while not consumer.empty():
-        replayed.append(json.loads(consumer.get_nowait()))
+        payload = json.loads(consumer.get_nowait())
+        transport_ids.append(payload["_stream_id"])
+        decoded = decoder.decode(payload)
+        if decoded is not None:
+            replayed.append(decoded)
     stream.unsubscribe(consumer)
 
     assert [event["tick"] for event in replayed] == [2, 2]
-    assert all(event["_stream_id"] > first_id for event in replayed)
+    assert all(stream_id > first_id for stream_id in transport_ids)
 
 
 def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
@@ -1482,9 +1499,7 @@ def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
         }
     )
 
-    payloads = []
-    while not consumer.empty():
-        payloads.append(json.loads(consumer.get_nowait()))
+    payloads = _decoded_queue_events(consumer)
     frame = next(item for item in payloads if item.get("type") == "observed_frame")
 
     assert frame["tick"] == 55

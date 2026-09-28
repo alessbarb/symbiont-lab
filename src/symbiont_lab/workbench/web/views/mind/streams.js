@@ -1,3 +1,4 @@
+import { LiveObservationDecoder } from '../../stream-delta.js';
 /**
  * Mind stream coordinator.
  *
@@ -26,6 +27,7 @@ export class MindStreams {
     this.localMindActive = false;
     this.closed = true;
     this.sourceIdentity = { source: null, instanceId: null, runId: null };
+    this.liveDecoder = new LiveObservationDecoder();
   }
 
   emitSourceState(status, next = {}) {
@@ -66,6 +68,7 @@ export class MindStreams {
     this.activeInstance = null;
     this.activeRunId = null;
     this.localMindActive = false;
+    this.liveDecoder.reset();
     this.emitSourceState('disconnected', { source: null, instanceId: null, runId: null, reason: 'closed' });
   }
 
@@ -76,6 +79,7 @@ export class MindStreams {
     this.organism.addEventListener('message', (event) => {
       let data;
       try { data = JSON.parse(event.data); } catch { return; }
+      data = this.liveDecoder.decode(data);
       if (!data?.type) return;
 
       if (data.type === 'observed_frame' && data.source === 'physics3d') {
