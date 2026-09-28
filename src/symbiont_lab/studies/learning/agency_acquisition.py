@@ -1163,6 +1163,7 @@ def run_high_dimensional_acquisition_study(
                 **metrics,
                 "satisfied_rate": metrics["intents_satisfied"] / terminated if terminated else 0.0,
                 **terminations(),
+                "measurement": runtime.measurement_snapshot(),
             }
         )
     keys = (
@@ -1309,6 +1310,7 @@ def _closure_seed(
             if factorized_effects and trace is not None
             else None
         ),
+        "measurement": runtime.measurement_snapshot(),
     }
 
 

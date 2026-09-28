@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import multiprocessing as mp
 import platform
 import shutil
@@ -251,6 +252,7 @@ def run(
     checkpoint_observer=None,
     factorized_effects: bool = False,
     provenance_journal: Path | None = None,
+    measurement_file: Path | None = None,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -761,6 +763,20 @@ def run(
         telemetry.flush()
         if active_checkpoint_thread is not None and active_checkpoint_thread.is_alive():
             active_checkpoint_thread.join()
+        if measurement_file is not None:
+            # Wave 0 (Cross-Domain Revision Coherence v1 §2.1): read-only.
+            Path(measurement_file).write_text(
+                json.dumps(
+                    {
+                        "tick": runtime.tick_count,
+                        "epoch_metrics": runtime._epoch_metrics,
+                        "measurement": runtime.organism.measurement_snapshot(),
+                    },
+                    indent=2,
+                    sort_keys=True,
+                    default=str,
+                )
+            )
         try:
             _save_checkpoint(
                 runtime,

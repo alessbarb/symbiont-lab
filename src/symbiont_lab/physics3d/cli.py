@@ -144,6 +144,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="append every causal provenance event to this JSONL journal",
     )
+    parser.add_argument(
+        "--measurement-file",
+        type=Path,
+        default=None,
+        help="write the Wave 0 measurement snapshot (JSON) when the run ends",
+    )
     args = parser.parse_args(argv)
     if args.replay is not None:
         return run_replay(Path(args.replay))
@@ -169,6 +175,7 @@ def main(argv: list[str] | None = None) -> int:
         provenance_journal=(
             args.provenance_journal.expanduser() if args.provenance_journal else None
         ),
+        measurement_file=args.measurement_file.expanduser() if args.measurement_file else None,
     )
 
 
