@@ -42,6 +42,7 @@ import {
   sensorySemantic,
 } from './semantics.js';
 import { graph, historySnapshots, mindHistory, observerUsage, snap, tel } from './state.js';
+import { forEachNearbyPair2D } from './spatial-index.js';
 import {
   classRatio,
   clamp01,
@@ -93,6 +94,8 @@ export function createCognitionController({
 } = {}) {
   let rafId = null;
   let provenanceRequestSerial = 0;
+  let lastSummaryAt = 0;
+  let lastSummaryKey = '';
   const presentation = createCognitivePresentationAnimator();
   const inspector = createCognitionInspector({
     atlasModeMeta: () => atlasModeMeta(),
@@ -834,62 +837,56 @@ export function createCognitionController({
       state.y /= Math.max(1, state.n);
     }
   
-    // Relationship-aware repulsion/attraction.
-    for (let i = 0; i < n; i++) {
-      const a = physicsNodes[i];
-      for (let j = i + 1; j < n; j++) {
-        const b = physicsNodes[j];
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const distSq = dx * dx + dy * dy + 144;
-        if (distSq > 490000) continue;
-        const dist = Math.sqrt(distSq);
-  
-        const structurallyRelated = a.neighbors?.has(b.id) || b.neighbors?.has(a.id);
-        const projectedRelated =
-          a.projectedNeighbors?.has(b.id) || b.projectedNeighbors?.has(a.id);
-        const directlyRelated = structurallyRelated || projectedRelated;
-        let shared = 0;
-        if (!directlyRelated && a.neighbors?.size && b.neighbors?.size) {
-          const smaller = a.neighbors.size < b.neighbors.size ? a.neighbors : b.neighbors;
-          const larger  = smaller === a.neighbors ? b.neighbors : a.neighbors;
-          for (const id of smaller) {
-            if (larger.has(id)) shared += 1;
-            if (shared >= 3) break;
-          }
-        }
-  
-        const sameCommunity =
-          a.community &&
-          b.community &&
-          a.community !== 'isolated' &&
-          a.community === b.community;
-  
-        // Unrelated nodes repel more strongly, making visual sectors emerge.
-        const overlayPair = a.overlayOnly || b.overlayOnly;
-        const repulsionScale = overlayPair
-          ? (projectedRelated ? 0.045 : 0.18)
-          : directlyRelated
-            ? 0.25
-            : sameCommunity
-              ? 0.62
-              : 1.28;
-        const force = ((GRAPH_PHYSICS.repulsion * repulsionScale) / distSq) * alpha;
-        const fx = (dx / dist) * force, fy = (dy / dist) * force;
-        if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
-        if (!b.pinned) { b.vx += fx; b.vy += fy; }
-  
-        // Two nodes sharing downstream/upstream partners get a weak secondary
-        // attraction. It uses graph structure only; no semantic clustering.
-        if (!directlyRelated && !overlayPair && shared > 0) {
-          const desired = 95 + 18 / shared;
-          const pull = (dist - desired) * 0.0065 * Math.min(3, shared) * alpha;
-          const pfx = (dx / dist) * pull, pfy = (dy / dist) * pull;
-          if (!a.pinned) { a.vx += pfx; a.vy += pfy; }
-          if (!b.pinned) { b.vx -= pfx; b.vy -= pfy; }
+    // Relationship-aware repulsion/attraction. Long-range graph structure is
+    // carried by springs, sector anchors and gravity; pairwise repulsion only
+    // needs a local neighbourhood.
+    forEachNearbyPair2D(physicsNodes, 180, 520, (a, b) => {
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const distSq = dx * dx + dy * dy + 144;
+      const dist = Math.sqrt(distSq);
+
+      const structurallyRelated = a.neighbors?.has(b.id) || b.neighbors?.has(a.id);
+      const projectedRelated =
+        a.projectedNeighbors?.has(b.id) || b.projectedNeighbors?.has(a.id);
+      const directlyRelated = structurallyRelated || projectedRelated;
+      let shared = 0;
+      if (!directlyRelated && a.neighbors?.size && b.neighbors?.size) {
+        const smaller = a.neighbors.size < b.neighbors.size ? a.neighbors : b.neighbors;
+        const larger  = smaller === a.neighbors ? b.neighbors : a.neighbors;
+        for (const id of smaller) {
+          if (larger.has(id)) shared += 1;
+          if (shared >= 3) break;
         }
       }
-    }
-  
+
+      const sameCommunity =
+        a.community &&
+        b.community &&
+        a.community !== 'isolated' &&
+        a.community === b.community;
+
+      const overlayPair = a.overlayOnly || b.overlayOnly;
+      const repulsionScale = overlayPair
+        ? (projectedRelated ? 0.045 : 0.18)
+        : directlyRelated
+          ? 0.25
+          : sameCommunity
+            ? 0.62
+            : 1.28;
+      const force = ((GRAPH_PHYSICS.repulsion * repulsionScale) / distSq) * alpha;
+      const fx = (dx / dist) * force, fy = (dy / dist) * force;
+      if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
+      if (!b.pinned) { b.vx += fx; b.vy += fy; }
+
+      if (!directlyRelated && !overlayPair && shared > 0) {
+        const desired = 95 + 18 / shared;
+        const pull = (dist - desired) * 0.0065 * Math.min(3, shared) * alpha;
+        const pfx = (dx / dist) * pull, pfy = (dy / dist) * pull;
+        if (!a.pinned) { a.vx += pfx; a.vy += pfy; }
+        if (!b.pinned) { b.vx -= pfx; b.vy -= pfy; }
+      }
+    });
+
     // Direct graph edges are the strongest attractive force.
     for (const edge of edges) {
       if (!isStructuralAtlasEdge(edge)) continue;
@@ -1591,7 +1588,7 @@ export function createCognitionController({
 
   function drawGraphFrame3D(canvas) {
     currentDetailLevel();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary();
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     const { nodes, edges, hoveredNode, fmriEnabled } = graph;
@@ -1802,7 +1799,7 @@ export function createCognitionController({
           : Math.min(1, (0.16 + modeScore * 0.62 + nodeRecency * 0.12 + activityGlow * 0.10) * depthFog);
       ctx.globalAlpha = baseNodeAlpha * nodeAnim.opacity;
       ctx.shadowColor = node.color;
-      ctx.shadowBlur = isSelected ? 18 : pathNode ? 11 : activityGlow * 9;
+      ctx.shadowBlur = isSelected ? 14 : pathNode ? 8 : 0;
       if (node.kind === 'embodiment_binding') {
         // Embodiment layer draws hollow: cognitive knowledge stays solid, the
         // boundary to the current body does not.
@@ -1886,12 +1883,10 @@ export function createCognitionController({
 
     const note = document.getElementById('mind-cognition-3d-note');
     if (note) {
-      if (graph.dimension === '3d') {
-        note.textContent =
-          `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`;
-      } else {
-        note.textContent = 'RELATIONAL · 2D observer cartography';
-      }
+      const nextNote = graph.dimension === '3d'
+        ? `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`
+        : 'RELATIONAL · 2D observer cartography';
+      if (note.textContent !== nextNote) note.textContent = nextNote;
     }
 
   }
@@ -1902,7 +1897,7 @@ export function createCognitionController({
       return;
     }
     currentDetailLevel();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary();
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     const { nodes, edges, scale, panX, panY, hoveredNode, fmriEnabled } = graph;
@@ -2119,12 +2114,14 @@ export function createCognitionController({
       ctx.fillStyle = isHovered ? '#fff' : node.color;
       ctx.shadowColor = node.color;
       ctx.shadowBlur = isSelected
-        ? 20
-        : pathNode
-          ? 12
-          : isConn
-            ? 10
-            : (fmriEnabled && node.activationLevel > 0 ? 3 + node.activationLevel * 8 : 2);
+        ? 14
+        : isHovered
+          ? 10
+          : pathNode
+            ? 8
+            : isConn
+              ? 5
+              : 0;
       const graphTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
       const nodeIdleTicks = node.lastUseTick > 0 ? Math.max(0, graphTick - node.lastUseTick) : 2048;
       const nodeRecency = Math.exp(-nodeIdleTicks / 768);
@@ -2436,7 +2433,7 @@ export function createCognitionController({
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     updateTimelineControls();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary({ force: true });
     inspector.render();
   }
 
@@ -2463,7 +2460,7 @@ export function createCognitionController({
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     updateTimelineControls();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary({ force: true });
     inspector.render();
   }
 
@@ -2518,6 +2515,31 @@ export function createCognitionController({
         panel.appendChild(row);
       }
     }
+  }
+
+  function cognitionSummaryKey() {
+    return [
+      finiteNumber(graph.replayTick ?? tel.tick, 0),
+      graph.dimension,
+      graph.detailLevel,
+      graph.atlasMode,
+      graph.focusedSectorId ?? '',
+      graph.selectedNodeId ?? '',
+      graph.replaySnapshot ? 'replay' : 'live',
+      graph.diffBaselineTick ?? '',
+      graph.nodes.length,
+      graph.edges.length,
+      historySnapshots.length,
+    ].join('|');
+  }
+
+  function maybeUpdateCognitionSummary({ force = false } = {}) {
+    const now = performance.now();
+    const key = cognitionSummaryKey();
+    if (!force && key === lastSummaryKey && now - lastSummaryAt < 250) return;
+    lastSummaryKey = key;
+    lastSummaryAt = now;
+    updateCognitionSummary();
   }
 
   function updateCognitionSummary() {
@@ -2660,7 +2682,7 @@ export function createCognitionController({
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     updateTimelineControls();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary({ force: true });
     inspector.render();
     graph.alpha = Math.max(graph.alpha, 0.22);
     if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
@@ -2672,7 +2694,7 @@ export function createCognitionController({
     graph.replayTick = null;
     graph.timelineIndex = null;
     updateTimelineControls();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary();
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     inspector.render();

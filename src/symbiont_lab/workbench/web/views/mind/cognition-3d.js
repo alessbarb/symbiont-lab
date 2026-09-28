@@ -1,3 +1,4 @@
+import { forEachNearbyPair3D } from './spatial-index.js';
 /**
  * Scientific 3D cognition projection.
  *
@@ -132,45 +133,58 @@ export function relaxCognition3D(
   if (!nodes.length) return;
 
   const nodeById = new Map(nodes.map(node => [node.id, node]));
+  const nodeIndex = new Map(nodes.map((node, index) => [node.id, index]));
   const maxSupport = Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.support, 0)))));
   const maxStable = Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.stableTicks, 0)))));
 
   for (let iteration = 0; iteration < iterations; iteration++) {
     const forces = new Map(nodes.map(node => [node.id, { x: 0, y: 0, z: 0 }]));
 
-    // Pairwise repulsion and physical exclusion. No type or sector bias.
-    for (let i = 0; i < nodes.length; i++) {
-      const a = nodes[i];
+    // Pairwise repulsion and physical exclusion are local presentation
+    // phenomena. Global structure is carried by real graph edges and component
+    // cohesion, so avoid all-pairs O(N²) work for distant nodes.
+    forEachNearbyPair3D(nodes, positions, 96, 288, (a, b) => {
       const pa = positions.get(a.id);
-      for (let j = i + 1; j < nodes.length; j++) {
-        const b = nodes[j];
-        const pb = positions.get(b.id);
-        let dx = pb.x - pa.x;
-        let dy = pb.y - pa.y;
-        let dz = pb.z - pa.z;
-        let distSq = dx * dx + dy * dy + dz * dz;
-        if (distSq < 1e-5) {
-          // Deterministic axis nudge, used only for exact numerical overlap.
-          dx = 0.01 * (i + 1);
-          dy = 0.01 * (j + 1);
-          dz = 0.005 * (i + j + 2);
-          distSq = dx * dx + dy * dy + dz * dz;
-        }
-        const dist = Math.sqrt(distSq);
-        const fa = forces.get(a.id);
-        const fb = forces.get(b.id);
-
-        const sameComponent = finite(a.componentRank, 0) === finite(b.componentRank, 0);
-        const repulsion = (sameComponent ? 1900 : 3600) / Math.max(100, distSq);
-        const minDistance = nodeVolumeRadius(a) + nodeVolumeRadius(b) + 4;
-        const overlap = Math.max(0, minDistance - dist);
-        const exclusion = mode === 'physicalized' ? overlap * 0.055 : overlap * 0.025;
-        const magnitude = repulsion + exclusion;
-
-        const ux = dx / dist, uy = dy / dist, uz = dz / dist;
-        fa.x -= ux * magnitude; fa.y -= uy * magnitude; fa.z -= uz * magnitude;
-        fb.x += ux * magnitude; fb.y += uy * magnitude; fb.z += uz * magnitude;
+      const pb = positions.get(b.id);
+      let dx = pb.x - pa.x;
+      let dy = pb.y - pa.y;
+      let dz = pb.z - pa.z;
+      let distSq = dx * dx + dy * dy + dz * dz;
+      if (distSq < 1e-5) {
+        const ai = nodeIndex.get(a.id) ?? 0;
+        const bi = nodeIndex.get(b.id) ?? 0;
+        dx = 0.01 * (ai + 1);
+        dy = 0.01 * (bi + 1);
+        dz = 0.005 * (ai + bi + 2);
+        distSq = dx * dx + dy * dy + dz * dz;
       }
+      const dist = Math.sqrt(distSq);
+      const fa = forces.get(a.id);
+      const fb = forces.get(b.id);
+
+      const sameComponent = finite(a.componentRank, 0) === finite(b.componentRank, 0);
+      const repulsion = (sameComponent ? 1900 : 3600) / Math.max(100, distSq);
+      const minDistance = nodeVolumeRadius(a) + nodeVolumeRadius(b) + 4;
+      const overlap = Math.max(0, minDistance - dist);
+      const exclusion = mode === 'physicalized' ? overlap * 0.055 : overlap * 0.025;
+      const magnitude = repulsion + exclusion;
+
+      const ux = dx / dist, uy = dy / dist, uz = dz / dist;
+      fa.x -= ux * magnitude; fa.y -= uy * magnitude; fa.z -= uz * magnitude;
+      fb.x += ux * magnitude; fb.y += uy * magnitude; fb.z += uz * magnitude;
+    });
+
+    const plasticityByNode = new Map(
+      nodes.map(node => [node.id, { sum: 0, count: 0 }])
+    );
+    for (const edge of edges) {
+      const sourceId = edge.source?.id ?? edge.sourceId;
+      const targetId = edge.target?.id ?? edge.targetId;
+      const plasticity = finite(edge.plasticity, 0);
+      const sourceStats = plasticityByNode.get(sourceId);
+      const targetStats = plasticityByNode.get(targetId);
+      if (sourceStats) { sourceStats.sum += plasticity; sourceStats.count += 1; }
+      if (targetStats) { targetStats.sum += plasticity; targetStats.count += 1; }
     }
 
     // Actual graph edges provide all attractive topology.
@@ -244,11 +258,9 @@ export function relaxCognition3D(
       }
 
       const velocity = velocities.get(node.id);
+      const incident = plasticityByNode.get(node.id) ?? { sum: 0, count: 0 };
       const plasticity = clamp(
-        edges
-          .filter(edge => (edge.source?.id ?? edge.sourceId) === node.id || (edge.target?.id ?? edge.targetId) === node.id)
-          .reduce((sum, edge) => sum + finite(edge.plasticity, 0), 0) /
-          Math.max(1, edges.filter(edge => (edge.source?.id ?? edge.sourceId) === node.id || (edge.target?.id ?? edge.targetId) === node.id).length),
+        incident.sum / Math.max(1, incident.count),
         0,
         1,
       );
