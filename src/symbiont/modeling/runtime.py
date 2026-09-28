@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from collections import deque
+from collections import Counter, deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,6 +10,7 @@ from ..cognition.birth import load_base_graph
 from ..core.embodiment.metabolism import MetabolicLedger
 from ..core.embodiment.physiology import LivingBodyState, VitalState
 from ..core.orchestration.runtime import OrganismDeadError, OrganismRuntime
+from ..provenance import CausalEvent, CausalRef
 from .authority import ArchitectureId, ModelArtifactManifest, ModelObjective, TrainingRequest
 from .corpus import TrainingCorpus, build_training_corpus
 from .culture import (
@@ -56,7 +57,7 @@ from .symbols import (
     SymbolReinforcementSignal,
     default_symbol_space,
 )
-from .tokenizer import NativeTokenizer
+from .tokenizer import _MAX_VOCAB, NativeTokenizer, _record_tokens
 
 _PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS = 64
 _PRIVATE_LEARNING_MIN_NEW_TRANSITIONS = 32
@@ -82,6 +83,9 @@ class AutonomousTrainingPlan:
     new_transition_count: int
     contradiction_ratio: float
     replay_pressure: float
+    # Revision Coherence §8.4: the parent's exact vocabulary when the plan
+    # trains from a SHADOW ancestor (append-only inherited tokenizer).
+    parent_vocabulary: tuple[str, ...] | None = None
 
 
 class ModeledOrganismRuntime(OrganismRuntime):
@@ -106,6 +110,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             "roots": sum(1 for record in records if record.parent_model_id is None),
             "max_generation": max((record.generation for record in records), default=0),
             "by_state": dict(sorted(by_state.items())),
+            "root_reasons": dict(sorted(self._lineage_root_reasons.items())),
+            "retirement_deferrals": self._retirement_deferrals,
+            "eligible_ancestors": len(self._eligible_shadow_ancestors()),
         }
         return snapshot
 
@@ -209,6 +216,15 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._sequence_decisions: deque[SequenceDecisionRecord] = deque(maxlen=MAX_HISTORY)
         self._private_learning_last_transition_tick = -1
         self._private_learning_last_corpus_hash: str | None = None
+        # Revision Coherence §8.4 (Wave 5), off by default: training ancestry of
+        # non-authoritative models. Ancestor vocabularies live only for SHADOW
+        # and ACTIVE models (ancestry-eligible => tokenizer available).
+        self.ancestry_training = False
+        self.trace_training_requests = False
+        self._ancestor_vocabularies: dict[str, tuple[str, ...]] = {}
+        self._ancestor_child_failures: dict[str, int] = {}
+        self._lineage_root_reasons: dict[str, int] = {}
+        self._retirement_deferrals = 0
         self._private_learning_latest_transition_tick = -1
         self._private_learning_total_transition_count = 0
         self._private_learning_new_transition_count = 0
@@ -956,6 +972,31 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if corpus.manifest.corpus_hash == self._private_learning_last_corpus_hash:
             return None
         tokenizer = NativeTokenizer.from_records(corpus.train)
+        parent: ModelRecord | None = None
+        parent_vocabulary: tuple[str, ...] | None = None
+        if self.ancestry_training:
+            parent, root_reason = self._training_parent()
+            if parent is not None:
+                inherited = self._ancestor_vocabularies[parent.model_id]
+                known = set(inherited)
+                counts = Counter(
+                    token
+                    for record in corpus.train
+                    for token in _record_tokens(record)
+                    if token not in known
+                )
+                appended = tuple(sorted(counts, key=lambda token: (-counts[token], token)))
+                if parent.architecture_id is not ArchitectureId.GRU_V1 or (
+                    len(inherited) + len(appended) > _MAX_VOCAB
+                ):
+                    parent, root_reason = None, "architecture-change"
+                else:
+                    tokenizer = NativeTokenizer(vocabulary=inherited + appended)
+                    parent_vocabulary = inherited
+            if parent is None and root_reason is not None:
+                self._lineage_root_reasons[root_reason] = (
+                    self._lineage_root_reasons.get(root_reason, 0) + 1
+                )
         seed = (
             int.from_bytes(
                 hashlib.sha256(
@@ -986,10 +1027,39 @@ class ModeledOrganismRuntime(OrganismRuntime):
             requested_epochs=requested_epochs,
             requested_steps=requested_steps,
             seed=seed,
+            parent_model_id=parent.model_id if parent is not None else None,
+            adaptation_reason="ancestry" if parent is not None else None,
             autonomous_stopping=True,
             requested_patience=2,
             requested_min_validation_gain=0.005,
         )
+        if self.trace_training_requests:
+            # §8.4 item 6: each request is reconstructible from provenance.
+            ref = CausalRef("training_request", request.request_id)
+            self.provenance.emit(
+                CausalEvent(
+                    tick=self.tick_count,
+                    domain="private_model",
+                    operation="train_request",
+                    subject=ref,
+                    caused_by=(CausalRef("model", parent.model_id),) if parent else (),
+                    produced=(ref,),
+                    rule=reason,
+                    parameters={
+                        "corpus_hash": corpus.manifest.corpus_hash,
+                        "parent_model_id": parent.model_id if parent else "",
+                        "parent_tokenizer_hash": parent.tokenizer_hash if parent else "",
+                        "tokenizer_hash": tokenizer.tokenizer_hash,
+                        "seed": seed,
+                        "architecture": ArchitectureId.GRU_V1.value,
+                        "context_window": 96,
+                        "requested_parameters": 1_000_000,
+                        "requested_epochs": requested_epochs,
+                        "requested_steps": requested_steps,
+                        "requested_tick": self.tick_count,
+                    },
+                )
+            )
         self._private_learning_last_transition_tick = latest_tick
         self._private_learning_last_corpus_hash = corpus.manifest.corpus_hash
         self._private_learning_new_transition_count = 0
@@ -1002,6 +1072,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             new_transition_count=new_transitions,
             contradiction_ratio=contradiction_ratio,
             replay_pressure=replay_pressure,
+            parent_vocabulary=parent_vocabulary,
         )
 
     def request_private_model_training(
@@ -1027,7 +1098,15 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise OrganismDeadError("dead organisms cannot request model training")
         if parent_model_id is not None:
             parent = self._model_registry.get(parent_model_id)
-            if parent is None or parent.state is not ModelState.ACTIVE:
+            if adaptation_reason == "ancestry":
+                # §8.4: a non-authoritative training parent; never ACTIVE here.
+                if (
+                    parent is None
+                    or parent.state is not ModelState.SHADOW
+                    or not self.training_ancestry_eligible(parent_model_id)
+                ):
+                    raise ValueError("ancestry requests require an eligible SHADOW parent")
+            elif parent is None or parent.state is not ModelState.ACTIVE:
                 raise ValueError("parent-bearing requests require this organism's active model")
             if adaptation_reason is None:
                 raise ValueError("parent-bearing requests require an adaptation reason")
@@ -1126,6 +1205,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         artifact: ModelArtifactManifest,
         *,
         evaluation_summary: tuple[int, ...] = (),
+        validation_loss: float | None = None,
+        baseline_loss: float | None = None,
+        vocabulary: tuple[str, ...] | None = None,
     ) -> ModelRecord:
         """Adopt a verified external artifact as SHADOW, never directly ACTIVE."""
 
@@ -1151,7 +1233,61 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 ModelState.SHADOW,
                 evaluation_summary=evaluation_summary,
             )
+        if validation_loss is not None and baseline_loss is not None:
+            record = self._model_registry.record_losses(
+                record.model_id, validation_loss=validation_loss, baseline_loss=baseline_loss
+            )
+        if vocabulary is not None and record.state in (ModelState.SHADOW, ModelState.ACTIVE):
+            self._ancestor_vocabularies[record.model_id] = tuple(vocabulary)
+        parent_id = record.parent_model_id
+        if parent_id is not None and parent_id in self._ancestor_vocabularies:
+            # §8.4 item 5: a lineage stagnates after 3 children in a row that
+            # do not improve on their ancestor.
+            if self._model_registry.ancestry_eligible(record.model_id):
+                self._ancestor_child_failures[parent_id] = 0
+            else:
+                self._ancestor_child_failures[parent_id] = (
+                    self._ancestor_child_failures.get(parent_id, 0) + 1
+                )
         return record
+
+    def training_ancestry_eligible(self, model_id: str) -> bool:
+        """§8.4 item 2: eligible and its tokenizer is still held."""
+        return model_id in self._ancestor_vocabularies and self._model_registry.ancestry_eligible(
+            model_id
+        )
+
+    def _eligible_shadow_ancestors(self) -> list[ModelRecord]:
+        return sorted(
+            (
+                record
+                for record in self._model_registry.records
+                if record.state is ModelState.SHADOW
+                and self.training_ancestry_eligible(record.model_id)
+            ),
+            key=lambda record: (record.validation_loss, record.model_id),
+        )
+
+    def protected_training_ancestor(self) -> str | None:
+        """§8.4 item 4: the best eligible SHADOW, exempt from recency retirement
+        while it remains the best under the eligibility criterion."""
+        if not self.ancestry_training:
+            return None
+        eligible = self._eligible_shadow_ancestors()
+        return eligible[0].model_id if eligible else None
+
+    def note_retirement_deferred(self, model_id: str) -> None:
+        """Record one recency retirement deferred for the protected ancestor."""
+        if model_id == self.protected_training_ancestor():
+            self._retirement_deferrals += 1
+
+    def _training_parent(self) -> tuple[ModelRecord | None, str | None]:
+        """(parent, root reason). §8.4 items 4-5."""
+        eligible = self._eligible_shadow_ancestors()
+        usable = [r for r in eligible if self._ancestor_child_failures.get(r.model_id, 0) < 3]
+        if usable:
+            return usable[0], None
+        return None, "lineage-stagnation" if eligible else "no-eligible-ancestor"
 
     def private_model_observations(self) -> tuple[dict[str, object], ...]:
         """Return passive, weight-free model status for the Observatory."""
@@ -1321,7 +1457,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
     def retire_private_model(self, model_id: str) -> ModelRecord:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot change private model state")
-        return self._model_registry.transition(model_id, ModelState.RETIRED)
+        record = self._model_registry.transition(model_id, ModelState.RETIRED)
+        # §8.4 item 2: retirement removes eligibility, tokenizer and
+        # training-parent capability together.
+        self._ancestor_vocabularies.pop(model_id, None)
+        self._ancestor_child_failures.pop(model_id, None)
+        return record
 
     def shadow_private_prediction(
         self,
@@ -1484,6 +1625,18 @@ class ModeledOrganismRuntime(OrganismRuntime):
             "model_request_base_cost": self._model_request_base_cost,
             "model_storage_scale": self._model_storage_scale,
         }
+        if self.ancestry_training or self.trace_training_requests or self._ancestor_vocabularies:
+            payload["training_ancestry"] = {
+                "enabled": self.ancestry_training,
+                "trace_requests": self.trace_training_requests,
+                "vocabularies": {
+                    model_id: list(vocabulary)
+                    for model_id, vocabulary in sorted(self._ancestor_vocabularies.items())
+                },
+                "child_failures": dict(sorted(self._ancestor_child_failures.items())),
+                "root_reasons": dict(sorted(self._lineage_root_reasons.items())),
+                "retirement_deferrals": self._retirement_deferrals,
+            }
         payload["private_learning_state"] = {
             "last_transition_tick": self._private_learning_last_transition_tick,
             "last_corpus_hash": self._private_learning_last_corpus_hash,
@@ -1529,6 +1682,27 @@ class ModeledOrganismRuntime(OrganismRuntime):
             payload.get("private_model_registry"),
             organism_id=runtime.organism_id,
         )
+        ancestry = payload.get("training_ancestry")
+        if isinstance(ancestry, dict):
+            runtime.ancestry_training = bool(ancestry.get("enabled", False))
+            runtime.trace_training_requests = bool(ancestry.get("trace_requests", False))
+            live = {
+                record.model_id
+                for record in runtime._model_registry.records
+                if record.state in (ModelState.SHADOW, ModelState.ACTIVE)
+            }
+            runtime._ancestor_vocabularies = {
+                str(model_id): tuple(str(token) for token in vocabulary)
+                for model_id, vocabulary in dict(ancestry.get("vocabularies", {})).items()
+                if model_id in live
+            }
+            runtime._ancestor_child_failures = {
+                str(k): int(v) for k, v in dict(ancestry.get("child_failures", {})).items()
+            }
+            runtime._lineage_root_reasons = {
+                str(k): int(v) for k, v in dict(ancestry.get("root_reasons", {})).items()
+            }
+            runtime._retirement_deferrals = int(ancestry.get("retirement_deferrals", 0))
         runtime._experience_ledger = ExperienceLedger.restore(
             payload.get("experience_ledger"),
             organism_id=runtime.organism_id,

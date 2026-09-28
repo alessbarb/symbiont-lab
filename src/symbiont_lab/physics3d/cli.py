@@ -61,8 +61,12 @@ def main(argv: list[str] | None = None) -> int:
         help="ticks to run; 0 means until interrupted",
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--environment", choices=ENVIRONMENT_NAMES, default=None,
-                        help="physical world recipe; resume preserves the saved world")
+    parser.add_argument(
+        "--environment",
+        choices=ENVIRONMENT_NAMES,
+        default=None,
+        help="physical world recipe; resume preserves the saved world",
+    )
     parser.add_argument("--hz", type=int, default=240, help="PyBullet physics frequency")
     parser.add_argument(
         "--cognition-hz",
@@ -165,6 +169,16 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="write the Wave 0 measurement snapshot (JSON) when the run ends",
     )
+    parser.add_argument(
+        "--slm-synchronous",
+        action="store_true",
+        help="P5: pause the simulation until each private-model training completes",
+    )
+    parser.add_argument(
+        "--ancestry-training",
+        action="store_true",
+        help="P5 arm B: train from eligible SHADOW ancestors (requires --slm-synchronous)",
+    )
     args = parser.parse_args(argv)
     if args.replay is not None:
         return run_replay(Path(args.replay))
@@ -194,6 +208,8 @@ def main(argv: list[str] | None = None) -> int:
             args.provenance_journal.expanduser() if args.provenance_journal else None
         ),
         measurement_file=args.measurement_file.expanduser() if args.measurement_file else None,
+        ancestry_training=args.ancestry_training,
+        slm_synchronous=args.slm_synchronous,
     )
 
 

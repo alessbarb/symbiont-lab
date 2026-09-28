@@ -45,6 +45,7 @@ class TrainingResultPayload(TypedDict):
     resolved_embedding_dim: int
     resolved_hidden_dim: int
     vocab_size: int
+    vocabulary: list[str]
 
 
 class _PrivateModelRuntime(Protocol):
@@ -57,7 +58,9 @@ class _PrivateModelRuntime(Protocol):
     def settle_private_model_training_compute(
         self, *, request_id: str, steps_completed: int
     ) -> None: ...
-    def adopt_private_model(self, manifest: Any, *, evaluation_summary: tuple[int, ...]) -> Any: ...
+    def adopt_private_model(
+        self, manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any
+    ) -> Any: ...
     def activate_private_model(
         self,
         model_id: str,
@@ -78,6 +81,7 @@ def _train_job(
     corpus: TrainingCorpus,
     vocabulary: tuple[str, ...],
     device: str,
+    parent_vocabulary: tuple[str, ...] | None = None,
 ) -> TrainingResultPayload:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     from symbiont_lab.modeling.factory import PrivateModelFactory
@@ -98,11 +102,22 @@ def _train_job(
     tokenizer = NativeTokenizer(vocabulary=vocabulary)
     store = FileArtifactStore(models_dir)
     factory = PrivateModelFactory(store=store, device=device)
-    result = factory.build(
-        request=request,
-        corpus=corpus,
-        tokenizer=tokenizer,
-    )
+    if request.parent_model_id is not None:
+        # Revision Coherence §8.4: training ancestry from a SHADOW parent with
+        # an append-only inherited vocabulary.
+        result = factory.adapt(
+            request=request,
+            corpus=corpus,
+            tokenizer=tokenizer,
+            adaptation_reason=request.adaptation_reason,
+            parent_vocabulary=parent_vocabulary,
+        )
+    else:
+        result = factory.build(
+            request=request,
+            corpus=corpus,
+            tokenizer=tokenizer,
+        )
     model_id = result.training.artifact.manifest.model_id
     tokenizer_path = _tokenizer_path(models_dir, model_id)
     encoded_tokenizer = json.dumps(
@@ -153,6 +168,7 @@ def _train_job(
         "resolved_embedding_dim": resolved_embedding_dim,
         "resolved_hidden_dim": resolved_hidden_dim,
         "vocab_size": len(tokenizer.vocabulary),
+        "vocabulary": list(tokenizer.vocabulary),
     }
 
 
@@ -376,7 +392,14 @@ class Physics3DSlmManager:
             if (active is None or record.model_id != active.model_id)
             and record.state.value in {"shadow", "degraded"}
         ]
+        protected_of = getattr(runtime, "protected_training_ancestor", None)
+        protected = protected_of() if callable(protected_of) else None
         for record in replaceable[:-keep] if keep > 0 else replaceable:
+            if record.model_id == protected:
+                # Revision Coherence §8.4 item 4: the best eligible ancestor is
+                # exempt from recency retirement; the deferral is recorded.
+                runtime.note_retirement_deferred(record.model_id)
+                continue
             runtime.retire_private_model(record.model_id)
 
     def poll(self, runtime: _PrivateModelRuntime) -> None:
@@ -408,9 +431,19 @@ class Physics3DSlmManager:
             artifact = store.get(model_id)
             summary = tuple(int(x) for x in result.get("evaluation_summary", ()))
             self._make_registry_room(runtime)
+            lineage = {}
+            if getattr(runtime, "ancestry_training", False) or getattr(
+                runtime, "trace_training_requests", False
+            ):
+                lineage = {
+                    "validation_loss": self._last_candidate_loss,
+                    "baseline_loss": self._last_best_baseline_loss,
+                    "vocabulary": tuple(result.get("vocabulary", ())),
+                }
             record = runtime.adopt_private_model(
                 artifact.manifest,
                 evaluation_summary=summary,
+                **lineage,
             )
             if bool(result.get("promote", False)):
                 record = runtime.activate_private_model(
@@ -480,6 +513,7 @@ class Physics3DSlmManager:
                 plan.corpus,
                 plan.tokenizer.vocabulary,
                 self.device,
+                getattr(plan, "parent_vocabulary", None),
             )
             self._last_submitted_tick = current_tick
             self._last_plan_reason = plan.reason

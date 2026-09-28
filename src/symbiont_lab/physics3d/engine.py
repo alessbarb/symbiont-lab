@@ -257,6 +257,8 @@ def run(
     factorized_effects: bool = False,
     provenance_journal: Path | None = None,
     measurement_file: Path | None = None,
+    ancestry_training: bool = False,
+    slm_synchronous: bool = False,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -453,6 +455,11 @@ def run(
             runtime.organism,
             candidate_model_ids=runtime.historical_private_model_candidates,
         )
+        if slm_synchronous:
+            # Revision Coherence §8.4 item 6 (P5): lineage bookkeeping and
+            # traced requests; ancestry itself only in the lineage arm.
+            runtime.organism.trace_training_requests = True
+            runtime.organism.ancestry_training = bool(ancestry_training)
 
     remaining = None if ticks <= 0 else ticks
     record = None
@@ -591,10 +598,13 @@ def run(
                     rich_state=rich_state,
                     full_snapshot=full_snapshot,
                 )
-    
 
             if slm is not None:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
+                if slm_synchronous:
+                    # P5: the simulation pauses until training, validation and
+                    # the registry transition complete (wall-clock independent).
+                    slm.wait_until_idle(runtime.organism)
 
             # The dense body_pose stream owns motion presentation. Rich
             # body/cognition/vitals snapshots follow the independent scientific
