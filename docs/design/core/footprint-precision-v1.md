@@ -238,3 +238,29 @@ No arm qualifies. R reproduces FP-0 exactly (determinism). The pattern is
 robust across regimes: T worsens precision; M removes most drift members
 (141 → 43) but stays below 0.80 (0.738 here, 0.795 with invalidation on).
 FP-2 (explicit FDR correction, new seeds) is the preregistered next test.
+
+## 11. FP-2 result (2026-09-28) — no arm qualifies
+
+Runs on `4383a7ec`, new seeds 463-523 (disjoint from FP-2's design data):
+R `...-4383a7e-5d50`, M `...-92ec`, BH `...-beea`; E6 gate for BH
+`...-40a4`.
+
+| Arm | own | cross | drift | other | precision | recall | E6 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| R | 188 | 15 | 189 | 6 | 0.472 | 0.542 | (reference) |
+| M | 122 | 1 | 44 | 0 | 0.731 | 0.512 | 3/3 (FP-1) |
+| BH | 186 | 0 | 63 | 3 | 0.738 | 0.535 | 3/3 |
+
+By the preregistered criteria (precision ≥ 0.80, recall ≥ 0.42, E6 3/3)
+**no arm qualifies**; no membership change is proposed and no threshold
+or parameter is changed.
+
+Descriptive reading: on unseen seeds the explicit false-discovery-rate
+correction (BH, q = 0.05) keeps nearly all of R's recall (0.535 vs 0.542)
+while removing every cross member and two thirds of drift members;
+multiplicity-based fixes (M, BH) converge near 0.73-0.74, well above R and
+far above T. The remaining drift members (63) exceed what a 5% FDR per
+update would predict, which points at repeated evaluation over time (each
+update re-tests the same atoms; members accumulate across updates) as the
+residual mechanism. Any further study needs its own preregistration and
+new seeds; none is proposed here without an owner decision.
