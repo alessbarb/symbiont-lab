@@ -305,6 +305,12 @@ class Physics3DRunStore:
         )
         return items
 
+    def alias_for(self, organism_ref: str | None) -> str | None:
+        if not organism_ref:
+            return None
+        alias = self._organism_metadata(str(organism_ref)).get("alias")
+        return str(alias) if alias else None
+
     def set_alias(self, organism_ref: str, alias: str | None) -> dict[str, Any]:
         """Observer-only human name for an organism.
 

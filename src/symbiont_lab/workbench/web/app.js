@@ -80,7 +80,7 @@ function updateStatusBar(state) {
   setStatus(running ? 'running' : 'ready');
   setRunState(
     physicsRunning
-      ? (physics.run_id || 'Physics3D')
+      ? [physics.organism_alias, physics.run_id || 'Physics3D'].filter(Boolean).join(' · ')
       : state.running
         ? `run #${state.experiment_number ?? 0}`
         : state.study?.running

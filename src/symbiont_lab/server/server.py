@@ -214,7 +214,11 @@ def make_server(
                 "available": observatory_source.available,
             },
             "physics3d": (
-                session.snapshot().as_dict()
+                {
+                    **session.snapshot().as_dict(),
+                    # Observer-only human name; Symbiont never sees it.
+                    "organism_alias": run_store.alias_for(session.snapshot().organism_ref),
+                }
                 if session is not None
                 else {
                     "state": "disabled",

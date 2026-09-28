@@ -392,6 +392,8 @@ def test_observer_alias_persists_across_runs_and_never_enters_the_organism(tmp_p
         "alias": "Ada the first",
     }
     assert store.organisms()[0]["alias"] == "Ada the first"
+    assert store.alias_for("org-x") == "Ada the first"
+    assert store.alias_for(None) is None
 
     launch = _prepare_existing(store)
     assert "Ada" not in repr(launch.runner_kwargs())
