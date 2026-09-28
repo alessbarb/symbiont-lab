@@ -432,6 +432,15 @@ class Physics3DRunStore:
             body_file = self.bodies_dir / body_ref / "body.json"
             if not body_file.is_file():
                 raise ValueError("selected physical body checkpoint is unavailable")
+            if definition.environment is not None:
+                # A resumed pose keeps its world; historical poses used flat-v1.
+                saved_world = _read_json(body_file).get("lab_world")
+                saved_name = saved_world.get("name") if isinstance(saved_world, dict) else "flat-v1"
+                if saved_name != definition.environment:
+                    raise ValueError(
+                        f"resumed body lives in {saved_name}; {definition.definition_id} "
+                        f"requires {definition.environment} and therefore a fresh body"
+                    )
         else:
             body_ref = f"body-{uuid.uuid4().hex[:12]}"
             body_dir = self.bodies_dir / body_ref
@@ -522,7 +531,13 @@ class Physics3DRunStore:
         checkpoint_id = str(
             summary.get("checkpoint_id") or f"chk-{bundle_hash.removeprefix('sha256:')[:16]}"
         )
-        retained = self.organisms_dir / organism_ref / "checkpoints" / f"{checkpoint_id}.symbiont"
+        # checkpoint_id is organism+tick only; two bundles can share it (e.g. a
+        # re-embodiment stopped before its first tick), so the name carries
+        # the content hash too.
+        digest = bundle_hash.removeprefix("sha256:")[:16]
+        retained = (
+            self.organisms_dir / organism_ref / "checkpoints" / f"{checkpoint_id}-{digest}.symbiont"
+        )
         _retain(bundle, retained)
         return {
             "genesis": False,

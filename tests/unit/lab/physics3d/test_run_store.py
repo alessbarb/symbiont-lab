@@ -279,6 +279,10 @@ def test_finalize_records_termination_ending_state_and_lifecycle(tmp_path) -> No
     from symbiont_lab.physics3d import persistence
 
     _existing_organism(tmp_path)
+    (tmp_path / "bodies" / "body-x" / "body.json").write_text(
+        json.dumps({"symbiont_ticks": 5, "lab_world": {"name": "contact-garden-v1"}}),
+        encoding="utf-8",
+    )
     store = Physics3DRunStore(tmp_path)
     launch = _prepare_existing(store, definition_id="contact-garden-challenge-v1")
     persistence.save_symbiont_bundle(
@@ -310,6 +314,53 @@ def test_finalize_records_termination_ending_state_and_lifecycle(tmp_path) -> No
     # The dead body can no longer be resumed; only fresh re-embodiment remains.
     with pytest.raises(ValueError, match="previous body is dead"):
         _prepare_existing(store)
+
+
+def test_retention_distinguishes_bundles_sharing_organism_and_tick(tmp_path) -> None:
+    from symbiont_lab.physics3d import persistence
+
+    organism_dir = _existing_organism(tmp_path)
+    store = Physics3DRunStore(tmp_path)
+    first = store._retain_organism("org-x", organism_dir / "organism.symbiont")
+    persistence.save_symbiont_bundle(
+        {
+            "organism_id": "symbiont:x",
+            "saved_at_tick": 5,
+            "living_body": {"vital_state": "active"},
+            "embodiment_lifecycle": {
+                "schema_version": 1,
+                "state": "dormant",
+                "epoch": 2,
+                "current": {"body_kind": "anthropomorphic-v6"},
+                "history": [],
+            },
+        },
+        tmp_path / "models",
+        organism_dir / "organism.symbiont",
+    )
+    second = store._retain_organism("org-x", organism_dir / "organism.symbiont")
+    assert first["checkpoint_id"] == second["checkpoint_id"]
+    assert first["bundle_hash"] != second["bundle_hash"]
+    assert first["retained_path"] != second["retained_path"]
+    for state in (first, second):
+        assert persistence.hashlib.sha256(
+            (tmp_path / state["retained_path"]).read_bytes()
+        ).hexdigest() == state["bundle_hash"].removeprefix("sha256:")
+
+
+def test_fixed_environment_definition_rejects_resumed_body_from_other_world(tmp_path) -> None:
+    _existing_organism(tmp_path)
+    body = tmp_path / "bodies" / "body-x" / "body.json"
+    body.write_text(
+        json.dumps({"symbiont_ticks": 5, "lab_world": {"name": "contact-garden-v1"}}),
+        encoding="utf-8",
+    )
+    store = Physics3DRunStore(tmp_path)
+    runs_before = set((tmp_path / "runs").iterdir())
+    with pytest.raises(ValueError, match="requires flat-v1 and therefore a fresh body"):
+        _prepare_existing(store, definition_id="embodiment-nursery-v1")
+    assert set((tmp_path / "runs").iterdir()) == runs_before  # refused before any run exists
+    assert _prepare_existing(store, definition_id="contact-garden-challenge-v1")
 
 
 def test_acquisition_refuses_resume_at_protected_boundary(tmp_path) -> None:
