@@ -72,7 +72,7 @@ def run(n_organisms: int, n_ticks: int, *, seed: int = _SEED) -> dict[str, objec
     for _ in range(n_ticks):
         for organism in organisms:
             try:
-                organism.tick()
+                organism.tick(include_observability=False)
                 ticks_completed += 1
             except OrganismDeadError:
                 deaths += 1

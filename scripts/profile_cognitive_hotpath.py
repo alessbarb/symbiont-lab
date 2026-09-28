@@ -85,12 +85,12 @@ def main() -> None:
 
     organism = make_organism(synthetic=args.synthetic)
     for _ in range(args.warmup):
-        organism.tick()
+        organism.tick(include_observability=False)
 
     profiler = cProfile.Profile()
     profiler.enable()
     for _ in range(args.ticks):
-        organism.tick()
+        organism.tick(include_observability=False)
     profiler.disable()
 
     if args.output:

@@ -591,6 +591,27 @@ class SensorySystem:
             raise RuntimeError("sensory mutation budget invariant violated")
         return tuple(self._mutations[before:])
 
+    def body_schema_view(self) -> dict[str, Any]:
+        """Minimal organism-owned sensory state required by BodySchema.
+
+        Unlike ``phenotype_view`` this deliberately omits observer-facing
+        modality, lineage, signal and summary projections. The causal body
+        schema only consumes sensor identity, maturity, health, confidence and
+        energetic cost.
+        """
+        return {
+            "sensors": [
+                {
+                    "sensor_id": sensor.sensor_id,
+                    "maturity": sensor.maturity.value,
+                    "health": round(sensor.health, 6),
+                    "confidence": round(sensor.confidence, 6),
+                    "cost": round(sensor.acquisition_cost + sensor.transduction_cost, 6),
+                }
+                for sensor in self.sensors
+            ]
+        }
+
     def phenotype_view(
         self,
         *,

@@ -115,6 +115,38 @@ def narrate_capability(
     )
 
 
+def narrate_attended(
+    acclimation: HostAcclimation,
+    *,
+    allocations: Iterable[AttentionAllocation] = (),
+    evidence_counts: Mapping[str, int] | None = None,
+    dissent_by_capability: Mapping[str, DissentRecord] | None = None,
+    limit: int = 3,
+) -> tuple[NarrativeEntry, ...]:
+    """Build only the attended entries required by the bounded life journal."""
+    if limit < 0:
+        raise ValueError("limit must be non-negative")
+    allocation_by_name = {allocation.name: allocation for allocation in allocations}
+    resolved_evidence_counts = evidence_counts if evidence_counts is not None else {}
+    resolved_dissent = dissent_by_capability if dissent_by_capability is not None else {}
+    entries: list[NarrativeEntry] = []
+    for capability_id in acclimation.known_capabilities:
+        allocation = allocation_by_name.get(capability_id)
+        if allocation is None:
+            continue
+        entries.append(
+            narrate_capability(
+                capability_id=capability_id,
+                baseline=acclimation.baseline(capability_id),
+                allocation=allocation,
+                evidence_gathered=resolved_evidence_counts.get(capability_id, 0),
+                dissent=resolved_dissent.get(capability_id),
+            )
+        )
+        if len(entries) >= limit:
+            break
+    return tuple(entries)
+
 def narrate_host(
     acclimation: HostAcclimation,
     *,
