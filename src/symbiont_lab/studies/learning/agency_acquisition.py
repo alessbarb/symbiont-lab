@@ -1258,7 +1258,10 @@ def _closure_seed(
     max_ticks: int,
     factorized_effects: bool = False,
     reconciliation: str = "recall",
+    membership: str = "R",
 ) -> dict[str, Any]:
+    from .footprint_precision import apply_membership
+
     body = CausalBody(actuator_count=actuator_count, seed=seed)
     runtime = build_subject(
         body,
@@ -1266,6 +1269,7 @@ def _closure_seed(
         factorized_effects=factorized_effects,
         **_reconciliation_options(reconciliation),
     )
+    apply_membership(runtime, membership)
     domain = runtime._action_domain
     milestones: dict[str, int | None] = {name: None for name in _MILESTONES}
     trace: dict[str, Any] | None = None
@@ -1321,6 +1325,7 @@ def run_acquisition_reuse_closure_study(
     max_ticks: int = 3000,
     factorized_effects: bool = False,
     reconciliation: str = "recall",
+    membership: str = "R",
 ) -> dict[str, Any]:
     """E6 release gate: one organism acquires agency, then deliberately reuses it."""
     resolved = _seeds(seeds)
@@ -1331,6 +1336,7 @@ def run_acquisition_reuse_closure_study(
             max_ticks=_positive(max_ticks, "max_ticks"),
             factorized_effects=bool(factorized_effects),
             reconciliation=reconciliation,
+            membership=membership,
         )
         for seed in resolved
     ]
@@ -1338,6 +1344,7 @@ def run_acquisition_reuse_closure_study(
         "protocol": "learning.agency-acquisition-reuse-closure",
         "factorized_effects": bool(factorized_effects),
         "reconciliation": reconciliation,
+        "membership": membership,
         "seeds": list(resolved),
         "max_ticks": max_ticks,
         "per_seed": per_seed,

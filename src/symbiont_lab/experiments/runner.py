@@ -211,6 +211,7 @@ class ExperimentRunner:
             result = protocol_fn(
                 seeds=spec.seeds,
                 ticks=spec.steps,
+                membership=str(spec.extra_params.get("ablation", {}).get("membership", "R")),
                 **{key: int(value) for key, value in body.items()},
             )
             raw_metrics = result
@@ -221,6 +222,7 @@ class ExperimentRunner:
                 max_ticks=spec.steps,
                 factorized_effects=bool(ablation.get("factorized_effects", False)),
                 reconciliation=str(ablation.get("reconciliation", "recall")),
+                membership=str(ablation.get("membership", "R")),
             )
             raw_metrics = result
         elif spec.protocol == "learning.embodied-behavioral-ablation":

@@ -1,0 +1,35 @@
+schema_version = 1
+
+[experiment]
+id = "learning.footprint-precision-fp1-m"
+title = "FP-1 arm M — multiplicity-adjusted entry and exit margin"
+protocol = "learning.footprint-precision"
+protocol_version = 2
+hypothesis = """
+Footprint membership admits drift through sequential multiple comparisons
+(M) or a quiet baseline that does not match the pulses (T).
+"""
+success_criteria = """
+Preregistered in Footprint Precision v1 §6 (commit 6ae4c7bc): an arm
+qualifies with pooled precision >= 0.80 at tick 3000, mean recall >= 0.42
+and the E6 gate 3/3; among qualifying arms the highest precision is proposed
+(ties: T, M, TM). No threshold changes after results.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
+
+[body]
+actuator_count = 16
+receptors_per_actuator = 4
+drifting_receptor_count = 32
+
+[ablation]
+membership = "M"
+
+[output]
+save_trace = false
+save_summary = true

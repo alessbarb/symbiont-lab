@@ -15,6 +15,17 @@ from .agency_acquisition import DEFAULT_SEEDS, _seeds
 from .agency_acquisition_body import CausalBody, build_subject
 
 SNAPSHOT_TICKS = (500, 1000, 1500, 2000, 2500, 3000)
+# Footprint Precision v1 §6 arms: (quiet_near, multiplicity).
+MEMBERSHIP_ARMS = {"R": (None, False), "T": (8, False), "M": (None, True), "TM": (8, True)}
+
+
+def apply_membership(runtime, membership: str) -> None:
+    if membership not in MEMBERSHIP_ARMS:
+        raise ValueError(f"membership must be one of {sorted(MEMBERSHIP_ARMS)}")
+    quiet_near, multiplicity = MEMBERSHIP_ARMS[membership]
+    runtime._action_domain.acquisition.set_footprint_membership(
+        quiet_near=quiet_near, multiplicity=multiplicity
+    )
 
 
 def _classify(runtime, body: CausalBody) -> dict[str, Any]:
@@ -83,6 +94,7 @@ def run_footprint_precision_study(
     actuator_count: int = 16,
     receptors_per_actuator: int = 4,
     drifting_receptor_count: int = 32,
+    membership: str = "R",
 ) -> dict[str, Any]:
     resolved = _seeds(seeds)
     snapshots = tuple(tick for tick in SNAPSHOT_TICKS if tick <= ticks) or (ticks,)
@@ -97,6 +109,7 @@ def run_footprint_precision_study(
         runtime = build_subject(
             body, organism_id=f"footprint-precision-{seed}", factorized_effects=True
         )
+        apply_membership(runtime, membership)
         rows = {}
         for tick in range(1, ticks + 1):
             runtime.tick()
@@ -106,6 +119,7 @@ def run_footprint_precision_study(
         per_seed.append({"seed": seed, "snapshots": rows})
     return {
         "protocol": "learning.footprint-precision",
+        "membership": membership,
         "seeds": list(resolved),
         "ticks": ticks,
         "snapshot_ticks": list(snapshots),
@@ -138,4 +152,4 @@ def _decision_inputs(per_seed: list[dict[str, Any]], final: str) -> dict[str, An
     }
 
 
-__all__ = ["SNAPSHOT_TICKS", "run_footprint_precision_study"]
+__all__ = ["MEMBERSHIP_ARMS", "SNAPSHOT_TICKS", "apply_membership", "run_footprint_precision_study"]

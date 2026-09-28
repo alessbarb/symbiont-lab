@@ -407,3 +407,27 @@ def test_runner_records_fp0_results(tmp_path):
     metrics = json.loads((run_dir / "metrics.json").read_text())
     assert metrics["protocol"] == "learning.footprint-precision"
     assert metrics["seeds"] == [7] and "decision_inputs" in metrics
+    assert metrics["membership"] == "R"
+
+
+@pytest.mark.experiment_contract
+def test_fp1_arms_differ_only_in_membership():
+    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    arms = {
+        arm: load_experiment_file(root / f"footprint-precision-fp1-{arm}" / "experiment.toml")
+        for arm in ("r", "t", "m", "tm")
+    }
+    for arm, spec in arms.items():
+        assert spec.protocol == "learning.footprint-precision"
+        assert tuple(spec.seeds) == EXECUTIVE_SEEDS and spec.steps == 3000
+        assert spec.extra_params["ablation"] == {"membership": arm.upper()}
+        assert spec.extra_params["body"] == arms["r"].extra_params["body"]
+    for arm in ("t", "m", "tm"):
+        gate = load_experiment_file(
+            root / f"agency-acquisition-reuse-closure-membership-{arm}" / "experiment.toml"
+        )
+        assert tuple(gate.seeds) == BASE_SEEDS
+        assert gate.extra_params["ablation"] == {
+            "factorized_effects": True,
+            "membership": arm.upper(),
+        }

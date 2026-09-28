@@ -132,6 +132,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "inert_actuator_count",
             "factorized_effects",
             "reconciliation",
+            "membership",
         },
         "adaptation": {"horizon_ticks"},
         "consolidation": {
