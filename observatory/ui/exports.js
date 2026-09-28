@@ -56,34 +56,13 @@ async function fetchJson(path) {
   return response.json();
 }
 
-async function loadProvenanceArtifacts() {
-  if (state.source !== "local server" || !state.instanceId) return { manifest: null, historySummary: null };
-  const base = `/instance/${state.instanceId}`;
-  const [manifest, historySummary] = await Promise.all([
-    fetchJson(`${base}/manifest`).catch(() => null),
-    fetchJson(`${base}/history-summary`).catch(() => null),
-  ]);
-  return { manifest, historySummary };
-}
-
-async function exportManifest() {
-  if (state.source !== "local server" || !state.instanceId) { showToast("Manifest is available only from the local Observatory server"); return; }
-  try {
-    const manifest = await fetchJson(`/instance/${state.instanceId}/manifest`);
-    downloadJson("symbiont-manifest.json", manifest);
-    showToast("Projected manifest exported locally");
-  } catch {
-    showToast("No projected manifest is available for this resident");
-  }
-}
-
-async function exportEvidenceBundle() {
-  const snapshot = state.lastRawSnapshot ? clone(state.lastRawSnapshot) : currentSnapshot();
-  const { manifest, historySummary } = await loadProvenanceArtifacts();
-  const bundle = {
-    bundle_version: 1,
-    exported_at: new Date().toISOString(),
-    scope: "bounded Observatory evidence only",
+// Capture all browser evidence before any asynchronous server request. Later UI
+// transitions must not relabel this export, including in-place object updates.
+function captureExportContext() {
+  return clone({
+    exportedAt: new Date().toISOString(),
+    snapshot: state.lastRawSnapshot ?? currentSnapshot(),
+    topology: state.topology ?? null,
     provenance: {
       source: state.source,
       instance_id: state.instanceId ?? null,
@@ -95,14 +74,75 @@ async function exportEvidenceBundle() {
       rejected_snapshots_browser_session: state.rejectedSnapshots ?? 0,
       projection: "bounded browser-local",
     },
-    snapshot,
-    topology: state.topology ? clone(state.topology) : null,
-    manifest,
-    history_summary: historySummary,
-    note: "This bundle contains passive Observatory projections and derived provenance only. It excludes checkpoint contents, raw host readings and control surfaces.",
+  });
+}
+
+function validateArtifact(artifact, context) {
+  if (artifact == null) return;
+  if (typeof artifact !== "object" || Array.isArray(artifact)) throw new Error("Invalid provenance artifact");
+  const expected = {
+    ...context.provenance,
+    last_sequence: context.provenance.sequence,
+    topology_revision: context.snapshot?.cognition?.topology_revision ?? context.topology?.topologyRevision,
+    organism_id: context.snapshot?.organism?.organism_id ?? context.snapshot?.organism_id,
   };
-  downloadJson("symbiont-evidence-bundle.json", bundle);
-  showToast("Evidence bundle exported locally");
+  // History summaries publish run_id and tick_range, not a snapshot sequence.
+  // Compare only fields actually published by both sides; never interpret a
+  // summary's coverage endpoint as the captured snapshot's revision.
+  for (const key of ["instance_id", "run_id", "organism_id", "sequence", "last_sequence", "tick", "schema_version", "topology_revision"]) {
+    if (artifact[key] != null && expected[key] != null && artifact[key] !== expected[key]) {
+      throw new Error(`Incompatible provenance ${key}`);
+    }
+  }
+}
+
+async function loadProvenanceArtifacts(context) {
+  const { source, instance_id } = context.provenance;
+  if (source !== "local server" || !instance_id) return { manifest: null, historySummary: null };
+  const base = `/instance/${encodeURIComponent(instance_id)}`;
+  const [manifest, historySummary] = await Promise.all([
+    fetchJson(`${base}/manifest`).catch(() => null),
+    fetchJson(`${base}/history-summary`).catch(() => null),
+  ]);
+  validateArtifact(manifest, context);
+  validateArtifact(historySummary, context);
+  return { manifest, historySummary };
+}
+
+async function exportManifest() {
+  const context = captureExportContext();
+  const { source, instance_id } = context.provenance;
+  if (source !== "local server" || !instance_id) { showToast("Manifest is available only from the local Observatory server"); return; }
+  try {
+    const manifest = await fetchJson(`/instance/${encodeURIComponent(instance_id)}/manifest`);
+    validateArtifact(manifest, context);
+    downloadJson("symbiont-manifest.json", manifest);
+    showToast("Projected manifest exported locally");
+  } catch {
+    showToast("No compatible projected manifest is available for this captured snapshot");
+  }
+}
+
+async function exportEvidenceBundle() {
+  const context = captureExportContext();
+  try {
+    const { manifest, historySummary } = await loadProvenanceArtifacts(context);
+    const bundle = {
+      bundle_version: 1,
+      exported_at: context.exportedAt,
+      scope: "bounded Observatory evidence only",
+      provenance: context.provenance,
+      snapshot: context.snapshot,
+      topology: context.topology,
+      manifest,
+      history_summary: historySummary,
+      note: "This bundle contains passive Observatory projections and derived provenance only. It excludes checkpoint contents, raw host readings and control surfaces.",
+    };
+    downloadJson("symbiont-evidence-bundle.json", bundle);
+    showToast("Evidence bundle exported locally");
+  } catch {
+    showToast("Evidence export cancelled: server provenance is incompatible with the captured snapshot");
+  }
 }
 
 function addExportButton(container, id, label, handler) {
