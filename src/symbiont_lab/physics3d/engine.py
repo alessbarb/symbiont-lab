@@ -349,7 +349,7 @@ def run(
         seed=seed,
         time_step=time_step,
         physics_substeps_per_tick=physics_substeps_per_tick,
-        presentation_substeps_per_frame=rates.physics_substeps_per_render,
+        presentation_hz=rates.render_hz,
         mechanical_work_cost_per_joule=mechanical_work_cost_per_joule,
         capture_physics_trace=telemetry_physics_trace,
         body_kind=body_kind,
