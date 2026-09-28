@@ -18,7 +18,7 @@ Accepted
 4. **World consequence completeness.** World runs apply no protection. Body death ends the run with `body_non_viable`. The canonical runtime closes the `EmbodimentEpisode` with `BODY_DEATH` and persists the Symbiont as dormant. No replacement body appears during the same run; re-embodiment is a new run with a fresh body and a new embodiment epoch.
 5. **Termination taxonomy.** Every run records one reason, chosen from `time_budget_reached`, `evidence_window_complete`, `operator_stop`, `experimental_condition_complete`, `protected_recovery`, `technical_failure` (acquisition) and `body_non_viable`, `world_duration_complete`, `operator_stop`, `technical_failure` (World). `won` and `lost` are not lifecycle states.
 6. **Default.** A launch payload with no definition keeps the exact pre-ADR semantics: an open World run with no protection, in which death already ended the loop.
-7. **Vision is not launchable** until a causal `VisualApparatus` exists (ADR-EW-004, pending). The catalog marks it unavailable and the launch path rejects it.
+7. **Vision is launchable only with its apparatus.** Until a causal `VisualApparatus` existed, the catalog marked Vision unavailable and the launch path rejected it. ADR-0011 (EW-004) supplies the apparatus. A definition may now require a body kind, and the Vision definition requires `anthropomorphic-v6-vision`.
 
 ## Consequences
 

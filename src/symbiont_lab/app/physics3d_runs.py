@@ -392,6 +392,8 @@ class Physics3DRunStore:
             raise ValueError(
                 f"{definition.definition_id} is not launchable: {definition.unavailable_reason}"
             )
+        if definition.body_kind is not None and body_kind != definition.body_kind:
+            raise ValueError(f"{definition.definition_id} requires body {definition.body_kind}")
         policy = consequence_policy(definition.kind)
         environment = payload.get("environment")
         if definition.environment is not None:

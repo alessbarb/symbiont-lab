@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-ENVIRONMENT_NAMES = ("flat-v1", "contact-garden-v1")
+ENVIRONMENT_NAMES = ("flat-v1", "contact-garden-v1", "vision-nursery-v1")
 
 # Versioned immutable recipes: positions in metres, Z up; box sizes are full extents.
 _RECIPES = {
@@ -28,6 +28,38 @@ _RECIPES = {
         },
         {"id": "block", "position": [1.8, 1.0, 0.25], "size": [0.5, 0.7, 0.5], "friction": 0.65},
         {"id": "barrier", "position": [-2.0, 1.0, 0.2], "size": [0.25, 1.5, 0.4], "friction": 0.65},
+    ],
+    # ADR-0011: luminance contrast for the visual apparatus. Luminance is a
+    # physical surface property of the fixture, never an organism signal.
+    "vision-nursery-v1": [
+        {
+            "id": "bright-panel",
+            "position": [1.6, 0.0, 1.0],
+            "size": [0.1, 2.4, 2.0],
+            "friction": 0.65,
+            "luminance": 0.95,
+        },
+        {
+            "id": "dark-stripe",
+            "position": [1.53, 0.35, 1.0],
+            "size": [0.04, 0.4, 2.0],
+            "friction": 0.65,
+            "luminance": 0.05,
+        },
+        {
+            "id": "dark-panel",
+            "position": [-1.6, 0.0, 0.6],
+            "size": [0.1, 1.6, 1.2],
+            "friction": 0.65,
+            "luminance": 0.08,
+        },
+        {
+            "id": "mid-block",
+            "position": [0.0, 1.5, 0.25],
+            "size": [0.6, 0.3, 0.5],
+            "friction": 0.65,
+            "luminance": 0.5,
+        },
     ],
 }
 
@@ -58,8 +90,10 @@ def build_environment(p, client_id: int, recipe: dict) -> tuple[int, ...]:
     for fixture in recipe["fixtures"]:
         half = [v / 2 for v in fixture["size"]]
         shape = p.createCollisionShape(p.GEOM_BOX, halfExtents=half, physicsClientId=client_id)
+        luminance = fixture.get("luminance")
+        rgba = (0.35, 0.45, 0.5, 1) if luminance is None else (luminance, luminance, luminance, 1)
         visual = p.createVisualShape(
-            p.GEOM_BOX, halfExtents=half, rgbaColor=(0.35, 0.45, 0.5, 1), physicsClientId=client_id
+            p.GEOM_BOX, halfExtents=half, rgbaColor=rgba, physicsClientId=client_id
         )
         body = p.createMultiBody(
             baseMass=0,

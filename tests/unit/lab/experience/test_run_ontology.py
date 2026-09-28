@@ -78,11 +78,13 @@ def test_catalog_definitions_carry_no_goal_or_reward() -> None:
             assert f"'{word}" not in text, (item["definition_id"], word)
 
 
-def test_vision_is_not_launchable_without_apparatus() -> None:
+def test_vision_requires_the_visual_apparatus_body() -> None:
+    # ADR-0011: launchable only together with the causal VisualApparatus body.
     vision = run_definition("vision-nursery-v1")
     assert vision.kind is RunKind.ACQUISITION_VISION
-    assert not vision.launchable
-    assert "VisualApparatus" in (vision.unavailable_reason or "")
+    assert vision.launchable
+    assert vision.body_kind == "anthropomorphic-v6-vision"
+    assert vision.environment == "vision-nursery-v1"
 
 
 def test_default_definition_preserves_pre_ontology_open_world() -> None:

@@ -41,7 +41,7 @@ def _running_version() -> tuple[int, int, int]:
     return int(major), int(minor), int(patch)
 
 
-def physics3d_sensory_system() -> SensorySystem:
+def physics3d_sensory_system(*, max_active_sensors: int = 256) -> SensorySystem:
     """Body-sized sensory substrate with an explicit bounded checkpoint budget.
 
     Anthropomorphic-v2 exposes a 107-channel opaque body surface. The apparatus
@@ -50,7 +50,7 @@ def physics3d_sensory_system() -> SensorySystem:
     prioritization by the lab.
     """
     limits = SensoryLimits(
-        max_active_sensors=256,
+        max_active_sensors=max_active_sensors,
         max_sensor_checkpoint_bytes=1024 * 1024,
     )
     return SensorySystem(
@@ -324,4 +324,3 @@ __all__ = [
     "physics3d_cognition",
     "physics3d_sensory_system",
 ]
-

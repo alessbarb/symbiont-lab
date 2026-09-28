@@ -240,9 +240,19 @@ def test_acquisition_definition_fixes_its_protected_environment(tmp_path) -> Non
         )
 
 
-def test_vision_launch_is_rejected_until_apparatus_exists(tmp_path) -> None:
+def test_vision_launch_requires_the_vision_body(tmp_path) -> None:
     store = Physics3DRunStore(tmp_path)
-    with pytest.raises(ValueError, match="not launchable"):
+    launch = store.prepare(
+        {
+            "body_kind": "anthropomorphic-v6-vision",
+            "organism": {"mode": "new"},
+            "body": {"mode": "fresh"},
+            "definition_id": "vision-nursery-v1",
+        }
+    )
+    assert launch.run_kind.value == "acquisition.vision"
+    assert launch.environment == "vision-nursery-v1"
+    with pytest.raises(ValueError, match="requires body anthropomorphic-v6-vision"):
         store.prepare(
             {
                 "body_kind": "anthropomorphic-v6",

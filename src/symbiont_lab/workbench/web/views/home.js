@@ -115,6 +115,8 @@ function selectedOrganism() {
 }
 
 function isCompatible() {
+  const required = currentDefinition()?.body_kind;
+  if (required && selectedBody !== required) return false;
   if (organismMode === 'new') return bodyMode === 'fresh';
   const organism = selectedOrganism();
   const body = catalog.bodies.find(item => item.body_kind === selectedBody);
@@ -300,6 +302,8 @@ async function stopRun() {
 function bind() {
   rootNode?.querySelectorAll('[data-definition]').forEach(node => node.addEventListener('click', () => {
     selectedDefinition = node.dataset.definition;
+    const required = currentDefinition()?.body_kind;
+    if (required) selectedBody = required;
     render();
   }));
   rootNode?.querySelectorAll('[data-body]').forEach(node => node.addEventListener('click', () => {

@@ -23,6 +23,8 @@ def test_default_registry_exposes_three_distinct_morphologies() -> None:
     bodies = {item.body_kind: item for item in DEFAULT_BODY_REGISTRY.list()}
     assert set(bodies) == {
         "anthropomorphic-v6",
+        # ADR-0011: same morphology as v6 plus a visual apparatus.
+        "anthropomorphic-v6-vision",
         "crawler-v1",
         "asymmetric-v1",
     }
@@ -42,7 +44,7 @@ def test_default_registry_exposes_three_distinct_morphologies() -> None:
         )
         for body in bodies.values()
     }
-    assert len(contracts) == 3
+    assert len(contracts) == len(bodies)  # every body is a distinct contract
 
 
 def test_alternative_body_contracts_remain_opaque_ordinals() -> None:

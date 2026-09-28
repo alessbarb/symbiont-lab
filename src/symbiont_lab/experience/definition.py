@@ -97,6 +97,7 @@ class RunDefinition:
     environment: str | None
     situations: tuple[Situation, ...] = ()
     unavailable_reason: str | None = None
+    body_kind: str | None = None  # required apparatus, when the definition needs one
 
     @property
     def launchable(self) -> bool:
@@ -112,6 +113,7 @@ class RunDefinition:
             "environment": self.environment,
             "situations": [item.as_dict() for item in self.situations],
             "launchable": self.launchable,
+            "body_kind": self.body_kind,
             "unavailable_reason": self.unavailable_reason,
         }
 
@@ -135,11 +137,8 @@ DEFINITIONS: tuple[RunDefinition, ...] = (
         kind=RunKind.ACQUISITION_VISION,
         title="Vision nursery",
         observer_purpose=("temporal structure of a visual apparatus",),
-        environment="flat-v1",
-        unavailable_reason=(
-            "no causal VisualApparatus exists yet; world_scene geometry is not "
-            "a valid visual input (ADR-EW-004 pending)"
-        ),
+        environment="vision-nursery-v1",
+        body_kind="anthropomorphic-v6-vision",
     ),
     RunDefinition(
         definition_id="contact-garden-challenge-v1",

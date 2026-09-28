@@ -534,6 +534,9 @@ def apply_surface_material(
 class HumanoidPhysics:
     """31-DoF humanoid with Bullet-enforced anatomical joint constraints."""
 
+    # The body's own receptor surface; subclasses may append apparatus.
+    physical_receptor_ids = physical_receptor_contract_ids()
+
     def __init__(self, pybullet_module, client_id: int, *, spawn_height: float = 1.08) -> None:
         self.p = pybullet_module
         self.client_id = client_id
@@ -550,7 +553,7 @@ class HumanoidPhysics:
             )
             for ordinal, joint_index in enumerate(self.motor_joint_indices)
         )
-        self.receptor_ids = physical_receptor_contract_ids()
+        self.receptor_ids = self.physical_receptor_ids
         self.effector_ids = effector_contract_ids(len(self.motor_bindings))
         self._configure_self_collisions()
         self._configure_joint_dynamics()
@@ -798,11 +801,12 @@ class HumanoidPhysics:
         values.extend(
             self._bounded_contact_load(peak_force_by_link[link]) for link in self._contact_links
         )
-        if len(values) != len(self.receptor_ids):
+        if len(values) != len(self.physical_receptor_ids):
             raise RuntimeError(
-                f"physics receptor contract mismatch: {len(values)} != {len(self.receptor_ids)}"
+                "physics receptor contract mismatch: "
+                f"{len(values)} != {len(self.physical_receptor_ids)}"
             )
-        self._sensor_values = dict(zip(self.receptor_ids, values))
+        self._sensor_values = dict(zip(self.physical_receptor_ids, values))
         return dict(self._sensor_values)
 
     def receptor_value(self, receptor_id: str) -> float:

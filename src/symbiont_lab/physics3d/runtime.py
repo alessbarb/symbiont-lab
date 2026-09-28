@@ -517,7 +517,9 @@ class PyBulletEmbodimentRuntime:
                 mutation_seed=seed,
                 bootstrap_semantic_senses=False,
                 discover_senses=True,
-                sensory_system=physics3d_sensory_system(),
+                sensory_system=physics3d_sensory_system(
+                    max_active_sensors=self.body_descriptor.sensory_capacity
+                ),
                 sensory_plasticity=True,
                 metabolism=MetabolicLedger(
                     capacity=metabolic_capacity,
@@ -1926,11 +1928,17 @@ class PyBulletEmbodimentRuntime:
                         "relation": self._embodiment_episode.prior.relation,
                         "authority": "hypothesis_only",
                         "source_body_id": (self._embodiment_episode.prior.source_body_id),
-                        "source_embodiment_id": (self._embodiment_episode.prior.source_embodiment_id),
+                        "source_embodiment_id": (
+                            self._embodiment_episode.prior.source_embodiment_id
+                        ),
                     },
-                    "adaptation": self._telemetry_value(self._embodiment_episode.adaptation.snapshot()),
+                    "adaptation": self._telemetry_value(
+                        self._embodiment_episode.adaptation.snapshot()
+                    ),
                     "dynamics": {
-                        "relation_count": int(self._embodiment_episode.dynamics_model.relation_count),
+                        "relation_count": int(
+                            self._embodiment_episode.dynamics_model.relation_count
+                        ),
                         "mean_prediction_error": float(
                             self._embodiment_episode.dynamics_model.mean_prediction_error
                         ),
@@ -1958,7 +1966,9 @@ class PyBulletEmbodimentRuntime:
                         "physical_energy_reserve": float(
                             self.organism.living_body_state.energy_reserve
                         ),
-                        "physical_energy_capacity": float(self.organism.living_body_state.max_energy),
+                        "physical_energy_capacity": float(
+                            self.organism.living_body_state.max_energy
+                        ),
                         "physical_energy_ratio": float(reserve_ratio_after),
                     },
                     "sensory_input": {
@@ -2029,7 +2039,9 @@ class PyBulletEmbodimentRuntime:
                     "assimilation": self._telemetry_value(result.assimilation),
                     "homeostasis": self._telemetry_value(result.homeostasis),
                     "homeostatic_deviation": float(self.organism.homeostatic_deviation),
-                    "pending_homeostatic_credit": int(self.organism.pending_homeostatic_credit_count),
+                    "pending_homeostatic_credit": int(
+                        self.organism.pending_homeostatic_credit_count
+                    ),
                     "prospective_agency": prospective_payload,
                     "development": self._telemetry_value(result.development),
                     "sensory_phenotype": self._telemetry_value(result.sensory_phenotype),
@@ -2153,7 +2165,9 @@ class PyBulletEmbodimentRuntime:
                         sensorimotor.competence_candidates if sensorimotor is not None else 0
                     ),
                     "recurrent_competence_candidates": int(
-                        sensorimotor.recurrent_competence_candidates if sensorimotor is not None else 0
+                        sensorimotor.recurrent_competence_candidates
+                        if sensorimotor is not None
+                        else 0
                     ),
                     "max_competence_samples": int(
                         sensorimotor.max_competence_samples if sensorimotor is not None else 0
@@ -2162,7 +2176,9 @@ class PyBulletEmbodimentRuntime:
                         sensorimotor.sample_gate_candidates if sensorimotor is not None else 0
                     ),
                     "controllability_gate_candidates": int(
-                        sensorimotor.controllability_gate_candidates if sensorimotor is not None else 0
+                        sensorimotor.controllability_gate_candidates
+                        if sensorimotor is not None
+                        else 0
                     ),
                     "variance_gate_candidates": int(
                         sensorimotor.variance_gate_candidates if sensorimotor is not None else 0
@@ -2171,10 +2187,14 @@ class PyBulletEmbodimentRuntime:
                         sensorimotor.direction_gate_candidates if sensorimotor is not None else 0
                     ),
                     "full_competence_gate_candidates": int(
-                        sensorimotor.full_competence_gate_candidates if sensorimotor is not None else 0
+                        sensorimotor.full_competence_gate_candidates
+                        if sensorimotor is not None
+                        else 0
                     ),
                     "best_candidate_controllability": float(
-                        sensorimotor.best_candidate_controllability if sensorimotor is not None else 0.0
+                        sensorimotor.best_candidate_controllability
+                        if sensorimotor is not None
+                        else 0.0
                     ),
                     "best_candidate_directional_consistency": float(
                         sensorimotor.best_candidate_directional_consistency

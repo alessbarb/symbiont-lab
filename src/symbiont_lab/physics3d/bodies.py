@@ -30,6 +30,12 @@ from .humanoid import (
     interoceptive_receptor_contract_ids,
     receptor_contract_ids,
 )
+from .vision import (
+    VISION_BODY_KIND,
+    VISION_TOTAL_RECEPTOR_COUNT,
+    VisionHumanoidPhysics,
+    vision_receptor_contract_ids,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +56,10 @@ class BodyDescriptor:
     observer_segments: Any = None
     observer_joint_topology: tuple[Any, ...] = ()
     observer_base_link_name: str | None = None
+    # Active-sensor budget for this apparatus. v6 admits ~152 sensors
+    # (receptors plus proprioceptive derivations); larger surfaces need more
+    # room or body senses are silently squeezed out.
+    sensory_capacity: int = 256
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -165,9 +175,31 @@ ASYMMETRIC_V1 = BodyDescriptor(
     observer_base_link_name=ASYMMETRIC_SPEC.base_link_name,
 )
 
+# ADR-0011: vision is a new body kind; the v6 contract stays byte-identical.
+ANTHROPOMORPHIC_V6_VISION = BodyDescriptor(
+    body_kind=VISION_BODY_KIND,
+    display_name="Anthropomorphic · visual apparatus",
+    version=BODY_STATE_SCHEMA_VERSION,
+    motor_dof=MOTOR_DOF,
+    receptor_count=VISION_TOTAL_RECEPTOR_COUNT,
+    effector_count=MOTOR_DOF * 2,
+    receptor_ids=vision_receptor_contract_ids(),
+    interoceptive_receptor_ids=interoceptive_receptor_contract_ids(),
+    effector_ids=effector_contract_ids(),
+    apparatus_factory=VisionHumanoidPhysics,
+    ground_material=GROUND_MATERIAL,
+    observer_joint_specs=JOINT_SPECS,
+    observer_contact_region_names=("pelvis", *CONTACT_LINK_NAMES),
+    observer_segments=SEGMENTS,
+    observer_joint_topology=JOINT_TOPOLOGY,
+    observer_base_link_name="pelvis",
+    sensory_capacity=512,
+)
+
 DEFAULT_BODY_REGISTRY = BodyRegistry(
     (
         ANTHROPOMORPHIC_V6,
+        ANTHROPOMORPHIC_V6_VISION,
         CRAWLER_V1,
         ASYMMETRIC_V1,
     )
@@ -176,6 +208,7 @@ DEFAULT_BODY_REGISTRY = BodyRegistry(
 
 __all__ = [
     "ANTHROPOMORPHIC_V6",
+    "ANTHROPOMORPHIC_V6_VISION",
     "CRAWLER_V1",
     "ASYMMETRIC_V1",
     "BodyDescriptor",
