@@ -88,6 +88,43 @@ class AutonomousTrainingPlan:
     parent_vocabulary: tuple[str, ...] | None = None
 
 
+def private_causal_records(
+    ledger: ExperienceLedger,
+    archive: HistoricalExperienceArchive,
+    *,
+    max_records: int = 8192,
+) -> tuple[ExperienceRecord, ...]:
+    """Exact recent + cross-lifetime sampled causal transitions of one organism.
+
+    The organism's private-training selection, usable offline from checkpoint
+    state (Private Model Learnability v1 §8)."""
+    if isinstance(max_records, bool) or not isinstance(max_records, int) or max_records < 3:
+        raise ValueError("max_records must be an integer >= 3")
+    live = tuple(
+        record
+        for record in ledger.records
+        if record.record_id.startswith("transition.")
+        and record.epistemic_status is EpistemicStatus.OBSERVED
+        and record.source_kind is not SourceKind.MODEL
+    )
+    live = live[-min(len(live), max_records) :]
+    slots = max(0, max_records - len(live))
+    sampled = tuple(
+        record
+        for record in archive.sample(slots)
+        if record.record_id.startswith("transition.")
+        and record.epistemic_status is EpistemicStatus.OBSERVED
+        and record.source_kind is not SourceKind.MODEL
+    )
+    combined = {record.record_id: record for record in (*sampled, *live)}
+    return tuple(
+        sorted(
+            combined.values(),
+            key=lambda record: (record.tick_class, record.record_id),
+        )
+    )
+
+
 class ModeledOrganismRuntime(OrganismRuntime):
     """OrganismRuntime with an acquired private-model phenotype.
 
@@ -897,30 +934,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
         max_records: int = 8192,
     ) -> tuple[ExperienceRecord, ...]:
         """Return exact recent + cross-lifetime sampled causal transitions."""
-        if isinstance(max_records, bool) or not isinstance(max_records, int) or max_records < 3:
-            raise ValueError("max_records must be an integer >= 3")
-        live = tuple(
-            record
-            for record in self._experience_ledger.records
-            if record.record_id.startswith("transition.")
-            and record.epistemic_status is EpistemicStatus.OBSERVED
-            and record.source_kind is not SourceKind.MODEL
-        )
-        live = live[-min(len(live), max_records) :]
-        slots = max(0, max_records - len(live))
-        archive = tuple(
-            record
-            for record in self._experience_archive.sample(slots)
-            if record.record_id.startswith("transition.")
-            and record.epistemic_status is EpistemicStatus.OBSERVED
-            and record.source_kind is not SourceKind.MODEL
-        )
-        combined = {record.record_id: record for record in (*archive, *live)}
-        return tuple(
-            sorted(
-                combined.values(),
-                key=lambda record: (record.tick_class, record.record_id),
-            )
+        return private_causal_records(
+            self._experience_ledger, self._experience_archive, max_records=max_records
         )
 
     def _private_validation_contradiction_ratio(self) -> tuple[int, float]:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -75,6 +76,27 @@ class TrainingResult:
     epochs_completed: int
     steps_completed: int
     validation_trace: tuple[TrainingMetrics, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingProbe:
+    """Study-only instrumentation (Private Model Learnability v1 §8).
+
+    ``callback(step, model)`` sees the current weights after each listed
+    optimizer step; train mode is restored afterwards and the callback must
+    not consume randomness. ``fixed_budget`` disables every early stop so the
+    step ceiling binds.
+    """
+
+    steps: tuple[int, ...]
+    callback: Callable[[int, Any], None]
+    fixed_budget: bool = True
+
+    def __post_init__(self) -> None:
+        if any(
+            isinstance(step, bool) or not isinstance(step, int) or step < 1 for step in self.steps
+        ):
+            raise ValueError("probe steps must be positive integers")
 
 
 def _torch() -> Any:
@@ -241,6 +263,7 @@ def _train_private_model(
     device: str = "cpu",
     parent_artifact: ModelArtifact | None = None,
     parent_vocab_size: int | None = None,
+    probe: TrainingProbe | None = None,
 ) -> TrainingResult:
     """Train one deterministic private candidate, optionally from a verified parent."""
 
@@ -309,6 +332,8 @@ def _train_private_model(
     epochs_completed = 0
     last_validation_step = 0
     stop_requested = False
+    allow_stop = probe is None or not probe.fixed_budget
+    probe_steps = frozenset(probe.steps) if probe is not None else frozenset()
     validation_interval_steps = (
         max(1, min(12, authorization.step_ceiling // 4 or 1))
         if request.autonomous_stopping
@@ -385,23 +410,27 @@ def _train_private_model(
             torch.nn.utils.clip_grad_norm_(model.parameters(), float(selected_config.gradient_clip))
             optimizer.step()
             steps += 1
+            if probe is not None and steps in probe_steps:
+                was_training = model.training
+                probe.callback(steps, model)
+                model.train(was_training)
             if (
                 request.autonomous_stopping
                 and validation_interval_steps is not None
                 and (steps % validation_interval_steps == 0 or steps >= authorization.step_ceiling)
             ):
-                if capture_validation():
+                if capture_validation() and allow_stop:
                     stop_requested = True
                     break
 
         epochs_completed = epoch + 1
         if request.autonomous_stopping:
-            if steps > last_validation_step and capture_validation():
+            if steps > last_validation_step and capture_validation() and allow_stop:
                 stop_requested = True
             if stop_requested:
                 break
         else:
-            if capture_validation():
+            if capture_validation() and allow_stop:
                 break
 
     if best_state is None:
@@ -461,13 +490,19 @@ def train_private_model(
     authority: ModelTrainingAuthority,
     config: TrainingConfig | None = None,
     device: str = "cpu",
+    probe: TrainingProbe | None = None,
 ) -> TrainingResult:
     """Train from a cold start; parent-bearing requests use ``adapt_private_model``."""
 
     if request.parent_model_id is not None:
         raise ValueError("parent-bearing requests must use adapt_private_model")
     return _train_private_model(
-        request=request, corpus=corpus, authority=authority, config=config, device=device
+        request=request,
+        corpus=corpus,
+        authority=authority,
+        config=config,
+        device=device,
+        probe=probe,
     )
 
 

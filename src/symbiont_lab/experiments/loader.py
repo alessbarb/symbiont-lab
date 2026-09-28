@@ -34,6 +34,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "adaptation",
         "consolidation",
         "body",
+        "corpora",
         "output",
     }
     unknown = set(data) - allowed
@@ -136,6 +137,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "binding_invalidation",
             "arm",
             "break_tick",
+            "arms",
         },
         "adaptation": {"horizon_ticks"},
         "consolidation": {
@@ -149,6 +151,8 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "primary_horizon",
         },
         "body": {"actuator_count", "receptors_per_actuator", "drifting_receptor_count"},
+        # Private Model Learnability v1 §8: frozen checkpoint inputs.
+        "corpora": {"c1", "c2"},
         "output": {"save_trace", "save_summary"},
     }
     for block_name in (
@@ -160,6 +164,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "adaptation",
         "consolidation",
         "body",
+        "corpora",
         "output",
     ):
         if block_name in data:

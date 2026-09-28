@@ -215,6 +215,17 @@ class ExperimentRunner:
                 **{key: int(value) for key, value in body.items()},
             )
             raw_metrics = result
+        elif spec.protocol == "learning.private-model-learnability":
+            result = protocol_fn(
+                corpora={
+                    str(label): str(path)
+                    for label, path in spec.extra_params.get("corpora", {}).items()
+                },
+                arms=tuple(
+                    spec.extra_params.get("ablation", {}).get("arms", ["reference", "long"])
+                ),
+            )
+            raw_metrics = result
         elif spec.protocol == "learning.binding-degradation":
             body = spec.extra_params.get("body", {})
             ablation = spec.extra_params.get("ablation", {})

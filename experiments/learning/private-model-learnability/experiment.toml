@@ -1,0 +1,37 @@
+schema_version = 1
+
+[experiment]
+id = "learning.private-model-learnability"
+title = "P6 — private-model learnability under the training budget"
+protocol = "learning.private-model-learnability"
+protocol_version = 1
+hypothesis = """
+From-scratch private models fail to beat the non-neural baseline because the
+authorized training budget is too small, rather than for a structural reason.
+"""
+success_criteria = """
+Preregistered in Private Model Learnability v1 §8 (commit 6d35a6c2): per
+corpus, on the median over 3 seeds of G = held-out loss - best baseline,
+R = (G48 - min(G96..G1536)) / G48 (G48 > 0): budget-limited if some G <= 0
+or R >= 0.50; overfitting if G reaches a minimum, then worsens by > 0.05
+while training-split loss keeps decreasing; structural if R < 0.25 and
+training-split loss falls by < 0.05 nats from 48 to 1536 steps; otherwise
+mixed. Still improving at 1536 without crossing is mixed / unresolved.
+"""
+
+[world]
+steps = 1536
+
+[design]
+seeds = [0]
+
+[corpora]
+c1 = ".symbiont/archive/p6/inputs/c1-org-ea3e7bbbc628-t9246.runtime.json.gz"
+c2 = ".symbiont/archive/p6/inputs/c2-p5a-t11891.runtime.json.gz"
+
+[ablation]
+arms = ["reference", "long"]
+
+[output]
+save_trace = false
+save_summary = true

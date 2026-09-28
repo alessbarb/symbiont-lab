@@ -163,6 +163,19 @@ selection the organism uses (`private causal records` →
 `build_training_corpus` → `NativeTokenizer.from_records`). Each result
 records the corpus and tokenizer hashes.
 
+**Operationalisation disclosed before the run (2026-09-28).** "Training
+loss also fails to fall materially" (structural) is implemented as: the
+median training-split loss falls by less than 0.05 nats between 48 and
+1 536 steps (the same fixed 0.05). "Keeps decreasing" (overfitting) means
+the median training-split loss decreases strictly at every grid step from
+the held-out minimum onwards. Inputs are frozen copies in
+`.symbiont/archive/p6/inputs/` (C1 sha256 `a482c285…`, taken read-only
+from the owner's trashed `org-ea3e7bbbc628` at tick 9 246; C2 sha256
+`41043cbd…`). Corpora: C1 `e057da8d…`, vocabulary 4 822, 2 288 / 490 /
+491 train / validation / held-out sequences, best baseline frequency
+6.037; C2 `526a47b2…`, vocabulary 4 495, 2 304 / 493 / 495, frequency
+5.538.
+
 **Separate item (not part of P6).** A mechanics-only lineage test forces an
 eligible SHADOW parent and checks: child selected from it; generation =
 parent + 1; parent token ids and embeddings preserved; new tokens appended
@@ -170,3 +183,9 @@ deterministically; checkpoint → restore preserves ancestry, tokenizer and
 parameters; training ancestry never grants ACTIVE/control authority; a
 retired or non-eligible parent is never selected. It is never reported as
 evidence for ancestry.
+
+*Result (2026-09-28):* the test found a defect P5 could not reach —
+adoption rejected any child whose vocabulary had grown, because it required
+the parent's exact tokenizer hash. Fixed in `5b52bf39` (an append-only
+extension of the held parent vocabulary is accepted); the previous
+end-to-end test never appended a token. All listed mechanics now pass.
