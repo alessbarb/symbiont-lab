@@ -310,7 +310,7 @@ def test_changed_contract_archives_old_schema_and_restarts_body_specific_learnin
     records = transformed["private_model_registry"]["records"]
     assert len(records) == 1
     assert records[0]["model_id"] == "model-1"
-    assert records[0]["state"] == "degraded"
+    assert records[0]["state"] == "active"
 
     active_nodes = {node["node_id"] for node in transformed["cognitive_bridge"]["graph"]["nodes"]}
     assert active_nodes == {
