@@ -39,6 +39,10 @@ class ModelRecord:
     artifact_hash: str
     evaluation_summary: tuple[int, ...] = ()
     generation: int = 0
+    # Revision Coherence §8.4: held-out validation loss and the canonical
+    # non-neural baseline loss of its training (None: never ancestry-eligible).
+    validation_loss: float | None = None
+    baseline_loss: float | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_id, str) or not self.model_id or len(self.model_id) > 128:
@@ -97,6 +101,14 @@ class ModelRecord:
             or not 0 <= self.generation <= 2_147_483_647
         ):
             raise ValueError("generation outside serialization safety bounds")
+        for name, loss in (
+            ("validation_loss", self.validation_loss),
+            ("baseline_loss", self.baseline_loss),
+        ):
+            if loss is not None and (
+                isinstance(loss, bool) or not isinstance(loss, (int, float)) or not loss >= 0.0
+            ):
+                raise ValueError(f"{name} must be a non-negative number when present")
 
     @classmethod
     def from_artifact(cls, artifact: ModelArtifactManifest) -> "ModelRecord":
@@ -130,6 +142,13 @@ class ModelRecord:
             "artifact_hash": self.artifact_hash,
             "evaluation_summary": list(self.evaluation_summary),
             "generation": self.generation,
+            # Written only when known, so records without them stay unchanged.
+            **(
+                {"validation_loss": self.validation_loss}
+                if self.validation_loss is not None
+                else {}
+            ),
+            **({"baseline_loss": self.baseline_loss} if self.baseline_loss is not None else {}),
         }
 
     @classmethod
@@ -181,6 +200,16 @@ class ModelRecord:
                 artifact_hash=payload["artifact_hash"],
                 evaluation_summary=tuple(raw_summary),
                 generation=generation,
+                validation_loss=(
+                    float(payload["validation_loss"])
+                    if payload.get("validation_loss") is not None
+                    else None
+                ),
+                baseline_loss=(
+                    float(payload["baseline_loss"])
+                    if payload.get("baseline_loss") is not None
+                    else None
+                ),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid model record checkpoint") from exc
@@ -245,6 +274,37 @@ class ModelRegistry:
         record = ModelRecord.from_artifact(artifact)
         self._records[record.model_id] = record
         return record
+
+    def record_losses(
+        self, model_id: str, *, validation_loss: float, baseline_loss: float
+    ) -> ModelRecord:
+        """Attach the training result's held-out and baseline losses (§8.4)."""
+        current = self._records[model_id]
+        updated = replace(
+            current, validation_loss=float(validation_loss), baseline_loss=float(baseline_loss)
+        )
+        self._records[model_id] = updated
+        return updated
+
+    def ancestry_eligible(self, model_id: str) -> bool:
+        """Revision Coherence §8.4 item 2 (tokenizer availability is the
+        runtime's half of the invariant): beats the non-neural baseline and
+        its own parent on held-out validation, and is not retired."""
+        record = self._records.get(model_id)
+        if (
+            record is None
+            or record.state not in (ModelState.SHADOW, ModelState.ACTIVE)
+            or record.validation_loss is None
+            or record.baseline_loss is None
+            or not record.validation_loss < record.baseline_loss
+        ):
+            return False
+        parent = self._records.get(record.parent_model_id) if record.parent_model_id else None
+        return (
+            parent is None
+            or parent.validation_loss is None
+            or record.validation_loss < parent.validation_loss
+        )
 
     def transition(
         self,

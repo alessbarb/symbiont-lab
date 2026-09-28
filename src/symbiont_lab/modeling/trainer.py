@@ -152,8 +152,22 @@ def _serialize_weights(model) -> bytes:
 
 
 def _load_parent_state(
-    parent: ModelArtifact, *, request: TrainingRequest, corpus: EncodedCorpus, model, torch
+    parent: ModelArtifact,
+    *,
+    request: TrainingRequest,
+    corpus: EncodedCorpus,
+    model,
+    torch,
+    parent_vocab_size: int | None = None,
 ) -> None:
+    """Load a parent's weights into ``model``.
+
+    With ``parent_vocab_size`` (Revision Coherence §8.4 item 3, append-only
+    inherited vocabulary) the child's vocabulary extends the parent's: every
+    tensor of equal shape is copied, the vocabulary-shaped rows of the
+    embedding and output projection are copied into the same token ids, and
+    rows of new tokens keep the model's seeded initialisation.
+    """
     manifest = parent.manifest
     if manifest.organism_id != request.organism_id:
         raise ValueError("parent model belongs to a different organism")
@@ -163,14 +177,15 @@ def _load_parent_state(
         raise ValueError("parent architecture is incompatible")
     if manifest.objective is not request.objective:
         raise ValueError("parent objective is incompatible")
-    if (
+    extending = parent_vocab_size is not None
+    if not extending and (
         manifest.tokenizer_hash != request.tokenizer_hash
         or manifest.tokenizer_hash != corpus.tokenizer_hash
     ):
         raise ValueError("parent tokenizer is incompatible")
     if manifest.context_window != request.context_window:
         raise ValueError("parent context window is incompatible")
-    if manifest.parameter_count != count_parameters(model):
+    if not extending and manifest.parameter_count != count_parameters(model):
         raise ValueError("parent parameter shape is incompatible")
     buffer = io.BytesIO(parent.weights)
     try:
@@ -182,10 +197,39 @@ def _load_parent_state(
         state = torch.load(buffer, map_location="cpu")  # nosec B614
     except Exception as exc:
         raise ValueError("parent model weights are corrupt or not loadable") from exc
+    if extending:
+        state = _extend_vocabulary_state(state, model.state_dict(), parent_vocab_size, torch)
     try:
         model.load_state_dict(state, strict=True)
     except (TypeError, RuntimeError, ValueError) as exc:
         raise ValueError("parent model weights are structurally incompatible") from exc
+
+
+def _extend_vocabulary_state(parent_state, child_state, parent_vocab_size: int, torch):
+    """Parent tensors placed into the child's shapes: vocabulary-shaped tensors
+    (first dimension = vocabulary) keep the parent rows at the same ids and
+    the child's seeded rows for appended tokens; every other tensor must match
+    exactly."""
+    if set(parent_state) != set(child_state):
+        raise ValueError("parent model weights are structurally incompatible")
+    merged = {}
+    for key, child in child_state.items():
+        parent = parent_state[key]
+        if tuple(parent.shape) == tuple(child.shape):
+            merged[key] = parent
+            continue
+        if (
+            parent.dim() == child.dim()
+            and parent.shape[0] == parent_vocab_size
+            and child.shape[0] > parent_vocab_size
+            and tuple(parent.shape[1:]) == tuple(child.shape[1:])
+        ):
+            expanded = child.detach().clone()
+            expanded[:parent_vocab_size] = parent.to(expanded.dtype)
+            merged[key] = expanded
+            continue
+        raise ValueError("parent model weights are structurally incompatible")
+    return merged
 
 
 def _train_private_model(
@@ -196,6 +240,7 @@ def _train_private_model(
     config: TrainingConfig | None = None,
     device: str = "cpu",
     parent_artifact: ModelArtifact | None = None,
+    parent_vocab_size: int | None = None,
 ) -> TrainingResult:
     """Train one deterministic private candidate, optionally from a verified parent."""
 
@@ -241,7 +286,12 @@ def _train_private_model(
         )
     if parent_artifact is not None:
         _load_parent_state(
-            parent_artifact, request=request, corpus=corpus, model=model, torch=torch
+            parent_artifact,
+            request=request,
+            corpus=corpus,
+            model=model,
+            torch=torch,
+            parent_vocab_size=parent_vocab_size,
         )
 
     optimizer = torch.optim.AdamW(
@@ -429,8 +479,12 @@ def adapt_private_model(
     authority: ModelTrainingAuthority,
     config: TrainingConfig | None = None,
     device: str = "cpu",
+    parent_vocab_size: int | None = None,
 ) -> TrainingResult:
-    """Boundedly update a same-organism parent artifact using permitted new evidence."""
+    """Boundedly update a same-organism parent artifact using permitted new evidence.
+
+    ``parent_vocab_size`` enables the append-only inherited vocabulary
+    (Revision Coherence §8.4); the caller verifies the prefix relation."""
 
     if request.parent_model_id is None:
         raise ValueError("adaptation requires a parent_model_id")
@@ -445,4 +499,5 @@ def adapt_private_model(
         config=config,
         device=device,
         parent_artifact=parent_artifact,
+        parent_vocab_size=parent_vocab_size,
     )

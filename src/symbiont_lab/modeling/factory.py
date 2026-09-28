@@ -150,8 +150,14 @@ class PrivateModelFactory:
         tokenizer: NativeTokenizer,
         adaptation_reason: str | None = None,
         cognitive_reference_loss: float | None = None,
+        parent_vocabulary: tuple[str, ...] | None = None,
     ) -> FactoryResult:
         """Create a candidate successor from a verified same-organism parent.
+
+        With ``parent_vocabulary`` (training ancestry, Revision Coherence
+        §8.4) the child's tokenizer must extend the parent's append-only: the
+        parent vocabulary is reproduced exactly (its hash is the parent's) and
+        is a prefix of the child's.
 
         The parent remains untouched in the registry and artifact store until the
         caller independently accepts the returned promotion decision.
@@ -169,6 +175,15 @@ class PrivateModelFactory:
         parent = self._store.get(request.parent_model_id)
         if parent.manifest.organism_id != request.organism_id:
             raise ValueError("parent model belongs to a different organism")
+        parent_vocab_size = None
+        if parent_vocabulary is not None:
+            if NativeTokenizer(vocabulary=parent_vocabulary).tokenizer_hash != (
+                parent.manifest.tokenizer_hash
+            ):
+                raise ValueError("parent vocabulary does not reproduce the parent tokenizer")
+            if tokenizer.vocabulary[: len(parent_vocabulary)] != parent_vocabulary:
+                raise ValueError("child vocabulary does not extend the parent's append-only")
+            parent_vocab_size = len(parent_vocabulary)
         encoded = encode_corpus(corpus, tokenizer, context_window=request.context_window)
         candidate = adapt_private_model(
             request=request,
@@ -177,6 +192,7 @@ class PrivateModelFactory:
             authority=self._authority,
             config=self._training_config,
             device=self._device,
+            parent_vocab_size=parent_vocab_size,
         )
         evaluation, decision = evaluate_candidate(
             candidate.artifact,
