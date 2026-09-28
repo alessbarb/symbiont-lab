@@ -101,8 +101,8 @@ permitted forms.
 | reproduction-boundary | implementation | 06#mecanismo | src/symbiont/core/orchestration/runtime.py::OrganismRuntime |
 | reproduction-design | normative | 06#respaldo-formal | docs/explanation/concepts/06-reproduction-and-lineage.md |
 | growth-costs-energy-observed | empirical | 06#evidencia | tests/unit/core/test_ontogeny.py::test_growth_is_constitutive_and_consumes_physical_energy |
-| denied-birth-preserves-energy-observed | empirical | 06#evidencia | tests/unit/core/test_physiology.py::test_denied_birth_does_not_consume_parent_energy |
-| birth-conserves-energy-observed | empirical | 06#evidencia | tests/unit/core/test_physiology.py::test_materialized_birth_conserves_parent_child_energy |
+| denied-birth-preserves-energy-observed | empirical | 06#evidencia | tests/integration/test_lab_reproduction.py::test_denied_birth_does_not_consume_parent_energy |
+| birth-conserves-energy-observed | empirical | 06#evidencia | tests/integration/test_lab_reproduction.py::test_materialized_birth_conserves_parent_child_energy |
 | germinal-tabula-rasa-observed | empirical | 06#evidencia | tests/unit/cognition/test_birth.py::test_base_graph_is_a_true_tabula_rasa |
 | social-relation | implementation | 07#mecanismo | src/symbiont/core/social/relations.py::SocialRelation |
 | resource-evidence-ledger | implementation | 07#mecanismo | src/symbiont/core/social/relations.py::ResourceEvidenceLedger |
