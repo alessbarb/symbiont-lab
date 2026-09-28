@@ -824,6 +824,18 @@ owner decision and needs its own preregistration.
 P5 organism copies were deleted after archiving (`.symbiont/archive/p5/`,
 including the 41 trained model manifests and tokenizers).
 
+### 8.7 P5.1 — re-run with ancestry exercisable (owner go-ahead, 2026-09-28)
+
+Recorded before the run. Same design, arms, gates, decision rule and
+descriptive observations as §8.4 (unchanged), on a fresh copy of
+`org-ea3e7bbbc628` at tick 9 246 (read-only from the owner's trashed state
+directory; bundle and 558 model files copied). Only two things differ from
+P5, both already on `main`: the autonomous step ceiling is 192
+(Private Model Learnability v1 §10, `2d538f16`), and adoption accepts an
+append-only child vocabulary (`c6ee7192`). Run from a clean worktree at the
+then-current `main`; arm A then arm B, synchronous training, disk guard at
+1 GiB.
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
