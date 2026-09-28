@@ -2115,12 +2115,14 @@ export function createCognitionController({
       ctx.fillStyle = isHovered ? '#fff' : node.color;
       ctx.shadowColor = node.color;
       ctx.shadowBlur = isSelected
-        ? 20
-        : pathNode
-          ? 12
-          : isConn
-            ? 10
-            : (fmriEnabled && node.activationLevel > 0 ? 3 + node.activationLevel * 8 : 2);
+        ? 14
+        : isHovered
+          ? 10
+          : pathNode
+            ? 8
+            : isConn
+              ? 5
+              : 0;
       const graphTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
       const nodeIdleTicks = node.lastUseTick > 0 ? Math.max(0, graphTick - node.lastUseTick) : 2048;
       const nodeRecency = Math.exp(-nodeIdleTicks / 768);
