@@ -39,6 +39,7 @@ class ObservationBus:
         self._lock = threading.Lock()
         self._queues: list[queue.Queue[str]] = []
         self._last_by_type: dict[str, str] = {}
+        self._last_sequence_by_type: dict[str, int] = {}
         self._history: deque[tuple[int, str]] = deque(maxlen=int(history_size))
         self._sequence = 0
         self._world_scene: dict | None = None
@@ -73,6 +74,7 @@ class ObservationBus:
                         )
                 else:
                     self._last_by_type[event_type] = data
+                self._last_sequence_by_type[event_type] = stream_id
 
             self._history.append((stream_id, data))
             overflow_data = (
@@ -103,13 +105,20 @@ class ObservationBus:
             replay: list[str]
             history = list(self._history)
             history_floor = history[0][0] if history else self._sequence + 1
+            current = [
+                self._last_by_type[event_type]
+                for event_type in sorted(
+                    self._last_by_type,
+                    key=lambda item: self._last_sequence_by_type.get(item, 0),
+                )
+            ]
             if after_sequence is None:
-                replay = list(self._last_by_type.values())
+                replay = current
             elif int(after_sequence) < history_floor - 1:
                 # The requested resume point fell out of retained history.
                 # Replay materialized anchors/current states rather than a delta
                 # chain with an unknowable missing base revision.
-                replay = list(self._last_by_type.values())
+                replay = current
             else:
                 replay = [
                     data for stream_id, data in history if stream_id > int(after_sequence)
