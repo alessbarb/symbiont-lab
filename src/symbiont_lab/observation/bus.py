@@ -9,6 +9,7 @@ from collections import deque
 from copy import deepcopy
 from typing import Any
 
+from .delta import ObservationDeltaEncoder
 from .world_scene import apply_world_event
 
 _DEFAULT_QUEUE_SIZE = 2048
@@ -28,6 +29,7 @@ class ObservationBus:
         *,
         queue_size: int = _DEFAULT_QUEUE_SIZE,
         history_size: int = _DEFAULT_HISTORY_SIZE,
+        anchor_interval: int = 32,
     ) -> None:
         if queue_size < 1:
             raise ValueError("queue_size must be >= 1")
@@ -40,24 +42,38 @@ class ObservationBus:
         self._history: deque[tuple[int, str]] = deque(maxlen=int(history_size))
         self._sequence = 0
         self._world_scene: dict | None = None
+        self._delta = ObservationDeltaEncoder(anchor_interval=anchor_interval)
 
     def push(self, event: dict[str, Any]) -> int:
         with self._lock:
             if event.get("type") == "world_scene":
                 self._world_scene = apply_world_event(self._world_scene, event)
+
+            encoded = self._delta.encode(event)
             self._sequence += 1
             stream_id = self._sequence
-            projected = dict(event)
+            projected = dict(encoded)
             projected["_stream_id"] = stream_id
             data = json.dumps(projected, separators=(",", ":"), ensure_ascii=False)
-            event_type = str(projected.get("type") or "")
+
+            event_type = str(event.get("type") or "")
             if event_type:
                 if event_type == "world_scene":
                     self._last_by_type[event_type] = json.dumps(
-                        {**self._world_scene, "_stream_id": stream_id}, separators=(",", ":")
+                        {**self._world_scene, "_stream_id": stream_id},
+                        separators=(",", ":"),
                     )
+                elif projected.get("type") == "observation_delta":
+                    anchor = self._delta.anchor(event_type)
+                    if anchor is not None:
+                        self._last_by_type[event_type] = json.dumps(
+                            {**anchor, "_stream_id": stream_id},
+                            separators=(",", ":"),
+                            ensure_ascii=False,
+                        )
                 else:
                     self._last_by_type[event_type] = data
+
             self._history.append((stream_id, data))
             for consumer in self._queues:
                 if consumer.full():
@@ -74,11 +90,19 @@ class ObservationBus:
     def subscribe(self, after_sequence: int | None = None) -> queue.Queue[str]:
         consumer: queue.Queue[str] = queue.Queue(maxsize=self._queue_size)
         with self._lock:
+            replay: list[str]
+            history = list(self._history)
+            history_floor = history[0][0] if history else self._sequence + 1
             if after_sequence is None:
+                replay = list(self._last_by_type.values())
+            elif int(after_sequence) < history_floor - 1:
+                # The requested resume point fell out of retained history.
+                # Replay materialized anchors/current states rather than a delta
+                # chain with an unknowable missing base revision.
                 replay = list(self._last_by_type.values())
             else:
                 replay = [
-                    data for stream_id, data in self._history if stream_id > int(after_sequence)
+                    data for stream_id, data in history if stream_id > int(after_sequence)
                 ]
             for data in replay[-self._queue_size :]:
                 if consumer.full():
