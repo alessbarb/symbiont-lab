@@ -52,6 +52,7 @@ class CognitionDomain:
         auto_promote_predictors: bool,
         reacclimation_remaining: int,
         cognitive_self_namespace_key: str,
+        include_observability: bool = True,
     ) -> CognitionStepResult:
         result: CognitiveBridgeResult | None = None
         cognitive_self_observation: dict[str, Any] | None = None
@@ -124,6 +125,7 @@ class CognitionDomain:
                 active_motor_actuator_ids=(action_projection.active_motor_actuator_ids),
                 motor_effect_actuator_ids=(action_projection.motor_effect_actuator_ids),
                 active_primitive_ids=(action_projection.active_competence_ids),
+                include_observability=include_observability,
             )
             if auto_promote_predictors:
                 bridge.nominate_shadow_prediction(tick=context.symbiont_tick)
