@@ -375,7 +375,7 @@ def run(
     if provenance_journal is not None:
         # Causal Provenance v1 §6: every event, once, outward only.
         runtime.organism.provenance.subscribe(ProvenanceJournal(provenance_journal).append)
-    runtime_config = runtime.checkpoint().get("effective_config", {})
+    runtime_config = runtime.checkpoint(advance_lineage=False).get("effective_config", {})
     telemetry_configuration = dict(runtime_config) if isinstance(runtime_config, dict) else {}
     telemetry_configuration["telemetry_physics_trace"] = bool(telemetry_physics_trace)
     telemetry_configuration["body_kind"] = body_kind
@@ -384,7 +384,7 @@ def run(
     telemetry_configuration["cognition_hz"] = rates.cognition_hz
     telemetry_configuration["observation_hz"] = rates.observation_hz
     telemetry_configuration["render_hz"] = rates.render_hz
-    runtime_checkpoint_for_identity = runtime.checkpoint()
+    runtime_checkpoint_for_identity = runtime.checkpoint(advance_lineage=False)
     raw_genome = runtime_checkpoint_for_identity.get("genome", {})
     software_identity = {
         "symbiont_version": str(symbiont_version),
@@ -498,7 +498,7 @@ def run(
     if checkpoint_observer is not None:
         checkpoint_observer(
             runtime.tick_count,
-            runtime.checkpoint(),
+            runtime.checkpoint(advance_lineage=False),
         )
     if ready_callback is not None:
         ready_callback()
@@ -546,7 +546,7 @@ def run(
             if checkpoint_observer is not None:
                 checkpoint_observer(
                     record.tick,
-                    runtime.checkpoint(),
+                    runtime.checkpoint(advance_lineage=False),
                 )
 
             # Drain presentation-only pose samples captured inside the physics
@@ -601,7 +601,7 @@ def run(
                 full_snapshot = None
                 if telemetry.needs_snapshot(record.tick):
                     full_snapshot = {
-                        "organism": runtime.checkpoint(),
+                        "organism": runtime.checkpoint(advance_lineage=False),
                         "physical": runtime.passive_physical_state(),
                     }
                 telemetry.append(

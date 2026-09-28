@@ -1638,8 +1638,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self.record_experience(validated)
         return validated
 
-    def checkpoint(self) -> dict[str, Any]:
-        payload = super().checkpoint()
+    def checkpoint(self, *, advance_lineage: bool = True) -> dict[str, Any]:
+        payload = super().checkpoint(advance_lineage=advance_lineage)
         payload["private_model_registry"] = self._model_registry.checkpoint()
         payload["experience_ledger"] = self._experience_ledger.checkpoint()
         payload["experience_archive"] = self._experience_archive.checkpoint()

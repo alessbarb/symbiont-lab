@@ -880,8 +880,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 result = replace(result, generative=replay_snapshot)
         return result
 
-    def checkpoint(self) -> dict[str, object]:
-        payload = super().checkpoint()
+    def checkpoint(self, *, advance_lineage: bool = True) -> dict[str, object]:
+        payload = super().checkpoint(advance_lineage=advance_lineage)
         config = dict(payload.get("private_model_config", {}))
         config["capture_private_experience"] = self._capture_private_experience
         config["enable_prospective_agency"] = self._enable_prospective_agency

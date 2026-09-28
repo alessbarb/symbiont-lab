@@ -2679,14 +2679,22 @@ class OrganismRuntime:
             except Exception:
                 pass
 
-    def checkpoint(self) -> dict[str, Any]:
+    def checkpoint(self, *, advance_lineage: bool = True) -> dict[str, Any]:
+        """Serialize organism state.
+
+        ``advance_lineage=False`` is for observer reads (telemetry snapshots,
+        identity probes): the payload is identical, but it is not recorded
+        as a save event, so observation density cannot change later
+        checkpoints (ADR-0010 Gate I).
+        """
         payload = self._build_checkpoint_payload()
         state_hash = _state_hash_of(payload)
         payload["checkpoint_lineage"] = {
             "checkpoint_id": state_hash,
             "parent_checkpoint_hash": self._last_checkpoint_hash,
         }
-        self._last_checkpoint_hash = state_hash
+        if advance_lineage:
+            self._last_checkpoint_hash = state_hash
         return payload
 
     def save(self, path: str | Path) -> None:

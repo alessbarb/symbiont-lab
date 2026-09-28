@@ -1046,9 +1046,14 @@ class PyBulletEmbodimentRuntime:
                     raise
         return dict(self._last_physical_state), int(self._last_physical_tick)
 
-    def checkpoint(self, *, lifecycle_state: str = "active") -> dict[str, Any]:
-        """Portable Symbiont state plus body-independent embodiment history."""
-        payload = self.organism.checkpoint()
+    def checkpoint(
+        self, *, lifecycle_state: str = "active", advance_lineage: bool = True
+    ) -> dict[str, Any]:
+        """Portable Symbiont state plus body-independent embodiment history.
+
+        Observer reads pass ``advance_lineage=False`` (ADR-0010 Gate I).
+        """
+        payload = self.organism.checkpoint(advance_lineage=advance_lineage)
         if self._embodiment_lifecycle is not None:
             payload["embodiment_lifecycle"] = deepcopy(self._embodiment_lifecycle)
         if self._embodiment_epoch_summaries:
