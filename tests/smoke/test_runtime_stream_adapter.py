@@ -122,7 +122,9 @@ def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
 
     events = _decoded_queue_events(queue)
 
-    assert [event["tick"] for event in events] == [2, 3]
+    # tick 2 is a delta whose anchor was evicted. It is rejected; the
+    # overflow path replaces tick 3 with a fresh materialized anchor.
+    assert [event["tick"] for event in events] == [3]
 
 
 def test_mind_projection_preserves_completely_absent_sections() -> None:
@@ -1442,12 +1444,18 @@ def test_sse_event_identity_is_encoded_for_browser_resume() -> None:
 
 def test_stream_replays_from_transport_sequence() -> None:
     stream = ObservationBus(queue_size=8, history_size=8)
+    live = stream.subscribe()
     first_id = stream.push({"type": "vitals", "tick": 1})
+
+    decoder = ObservationDeltaDecoder()
+    first_payload = json.loads(live.get_nowait())
+    assert decoder.decode(first_payload)["tick"] == 1
+    stream.unsubscribe(live)
+
     stream.push({"type": "vitals", "tick": 2})
     stream.push({"type": "cognition", "tick": 2})
 
     consumer = stream.subscribe(after_sequence=first_id)
-    decoder = ObservationDeltaDecoder()
     replayed = []
     transport_ids = []
     while not consumer.empty():
