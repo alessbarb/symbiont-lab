@@ -94,6 +94,8 @@ export function createCognitionController({
 } = {}) {
   let rafId = null;
   let provenanceRequestSerial = 0;
+  let lastSummaryAt = 0;
+  let lastSummaryKey = '';
   const presentation = createCognitivePresentationAnimator();
   const inspector = createCognitionInspector({
     atlasModeMeta: () => atlasModeMeta(),
@@ -1587,7 +1589,7 @@ export function createCognitionController({
 
   function drawGraphFrame3D(canvas) {
     currentDetailLevel();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary();
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     const { nodes, edges, hoveredNode, fmriEnabled } = graph;
@@ -1798,7 +1800,7 @@ export function createCognitionController({
           : Math.min(1, (0.16 + modeScore * 0.62 + nodeRecency * 0.12 + activityGlow * 0.10) * depthFog);
       ctx.globalAlpha = baseNodeAlpha * nodeAnim.opacity;
       ctx.shadowColor = node.color;
-      ctx.shadowBlur = isSelected ? 18 : pathNode ? 11 : activityGlow * 9;
+      ctx.shadowBlur = isSelected ? 14 : pathNode ? 8 : 0;
       if (node.kind === 'embodiment_binding') {
         // Embodiment layer draws hollow: cognitive knowledge stays solid, the
         // boundary to the current body does not.
@@ -1882,12 +1884,10 @@ export function createCognitionController({
 
     const note = document.getElementById('mind-cognition-3d-note');
     if (note) {
-      if (graph.dimension === '3d') {
-        note.textContent =
-          `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`;
-      } else {
-        note.textContent = 'RELATIONAL · 2D observer cartography';
-      }
+      const nextNote = graph.dimension === '3d'
+        ? `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`
+        : 'RELATIONAL · 2D observer cartography';
+      if (note.textContent !== nextNote) note.textContent = nextNote;
     }
 
   }
@@ -1898,7 +1898,7 @@ export function createCognitionController({
       return;
     }
     currentDetailLevel();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary();
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     const { nodes, edges, scale, panX, panY, hoveredNode, fmriEnabled } = graph;
@@ -2432,7 +2432,7 @@ export function createCognitionController({
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     updateTimelineControls();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary({ force: true });
     inspector.render();
   }
 
@@ -2459,7 +2459,7 @@ export function createCognitionController({
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     updateTimelineControls();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary({ force: true });
     inspector.render();
   }
 
@@ -2514,6 +2514,31 @@ export function createCognitionController({
         panel.appendChild(row);
       }
     }
+  }
+
+  function cognitionSummaryKey() {
+    return [
+      finiteNumber(graph.replayTick ?? tel.tick, 0),
+      graph.dimension,
+      graph.detailLevel,
+      graph.atlasMode,
+      graph.focusedSectorId ?? '',
+      graph.selectedNodeId ?? '',
+      graph.replaySnapshot ? 'replay' : 'live',
+      graph.diffBaselineTick ?? '',
+      graph.nodes.length,
+      graph.edges.length,
+      historySnapshots.length,
+    ].join('|');
+  }
+
+  function maybeUpdateCognitionSummary({ force = false } = {}) {
+    const now = performance.now();
+    const key = cognitionSummaryKey();
+    if (!force && key === lastSummaryKey && now - lastSummaryAt < 250) return;
+    lastSummaryKey = key;
+    lastSummaryAt = now;
+    updateCognitionSummary();
   }
 
   function updateCognitionSummary() {
@@ -2656,7 +2681,7 @@ export function createCognitionController({
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     updateTimelineControls();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary({ force: true });
     inspector.render();
     graph.alpha = Math.max(graph.alpha, 0.22);
     if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
@@ -2668,7 +2693,7 @@ export function createCognitionController({
     graph.replayTick = null;
     graph.timelineIndex = null;
     updateTimelineControls();
-    updateCognitionSummary();
+    maybeUpdateCognitionSummary();
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
     inspector.render();
