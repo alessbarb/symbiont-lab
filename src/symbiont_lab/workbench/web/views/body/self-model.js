@@ -429,6 +429,9 @@ export class SelfModelWorkspace {
         <button type="button" class="${this.selfViewPane === 'composite' ? 'active' : ''}" data-self-view-pane="composite">Composite</button>
         <button type="button" class="${this.selfViewPane === 'development' ? 'active' : ''}" data-self-view-pane="development">Development</button>
       </div>`;
+      // Spec §6.7/§12: the anatomical figure is an observer correspondence of
+      // acquired evidence, never what Symbiont "thinks its body looks like".
+      const correspondence = `<div class="self-boundary-note compact" data-observer-correspondence>Observer correspondence: organism-acquired evidence projected onto observer morphology. Anatomical names and the figure are observer-side; Symbiont holds only opaque structure.</div>`;
       const developmentIndex = this.selfViewDevelopmentIndex === null
         ? Math.max(0, this.selfViewDevelopment.length - 1)
         : this.selfViewDevelopmentIndex;
@@ -438,7 +441,7 @@ export class SelfModelWorkspace {
             bodyMode: this.selfViewDevelopmentBodyMode,
             scaleMode: this.selfViewDevelopmentScale,
           })}`
-        : `${paneNav}${renderSelfView(this.snapshot, this.selfViewMode, selected)}`;
+        : `${paneNav}${correspondence}${renderSelfView(this.snapshot, this.selfViewMode, selected)}`;
     } else if (this.selfLens === 'embodiment') {
       body = this.embodiment();
     }

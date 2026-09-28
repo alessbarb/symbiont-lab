@@ -2,14 +2,13 @@
  * Stateless DOM coordinator for Mind tabs.
  * Rendering decisions stay in mind.js; this module owns only shell presentation.
  */
-const TAB_IDS = ['overview', 'phenotype', 'sensory', 'cognition', 'motor', 'history'];
+const TAB_IDS = ['overview', 'phenotype', 'sensory', 'cognition', 'history'];
 
 const WRAP_IDS = {
   overview: 'mind-overview-wrap',
   phenotype: 'mind-identity-wrap',
   sensory: 'mind-sensory-wrap',
   cognition: 'mind-cognition-wrap',
-  motor: 'mind-motor-wrap',
   history: 'mind-history-wrap',
 };
 

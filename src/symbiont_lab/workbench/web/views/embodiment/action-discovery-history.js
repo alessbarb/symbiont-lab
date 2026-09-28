@@ -1,7 +1,7 @@
 /**
- * Bounded observer-side motor learning history. Scientific time is organism tick.
+ * Bounded observer-side action-discovery history. Scientific time is organism tick.
  */
-import { motorEpochEvents, motorHistory, snap, streamState, tel } from './state.js';
+import { motorEpochEvents, motorHistory, snap, streamState, tel } from '../mind/state.js';
 
 export const MOTOR_HISTORY_INTERVAL_TICKS = 50;
 export const MOTOR_HISTORY_MAX_SAMPLES = 512;

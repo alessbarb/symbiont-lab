@@ -33,7 +33,6 @@ export function buildMindLayout(root, {
     { id: 'phenotype', label: 'Identity',       panelId: 'mind-identity-wrap' },
     { id: 'sensory',   label: 'Sensory',        panelId: 'mind-sensory-wrap' },
     { id: 'cognition', label: 'Cognition',      panelId: 'mind-cognition-wrap' },
-    { id: 'motor',     label: 'Motor Learning', panelId: 'mind-motor-wrap' },
     { id: 'history',   label: 'History',        panelId: 'mind-history-wrap' },
   ];
 
@@ -334,11 +333,6 @@ export function buildMindLayout(root, {
   overviewWrap.setAttribute('role', 'tabpanel');
   overviewWrap.setAttribute('aria-labelledby', 'mind-tab-overview');
 
-  const motorWrap = el('div', 'mind-motor-wrap hidden');
-  motorWrap.id = 'mind-motor-wrap';
-  motorWrap.setAttribute('role', 'tabpanel');
-  motorWrap.setAttribute('aria-labelledby', 'mind-tab-motor');
-
   const historyWrap = el('div', 'mind-history-wrap hidden');
   historyWrap.id = 'mind-history-wrap';
   historyWrap.setAttribute('role', 'tabpanel');
@@ -354,7 +348,7 @@ export function buildMindLayout(root, {
   waitingOverlay.append(waitSpinner, waitText);
 
   // Assemble canvas area
-  canvasArea.append(overviewWrap, identityWrap, sensoryWrap, cognitionWrap, motorWrap, historyWrap, waitingOverlay);
+  canvasArea.append(overviewWrap, identityWrap, sensoryWrap, cognitionWrap, historyWrap, waitingOverlay);
   workspace.append(sensesPanel, cognitionInspector, canvasArea);
   root.appendChild(workspace);
 

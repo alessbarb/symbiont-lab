@@ -1,11 +1,11 @@
 import { el } from '../shared/dom.js';
-import { PAL } from './config.js';
-import { inspectorMetric, panelSection } from './components.js';
-import { motorEpochEvents, snap, streamState, tel } from './state.js';
-import { pct } from './util.js';
-import { historyForCurrentSession } from './motor-learning-history.js';
-import { deriveMotorLearningModel } from './motor-learning-model.js';
-import { embodimentTimeline, motorSparkline } from './motor-learning-chart.js';
+import { PAL } from '../mind/config.js';
+import { inspectorMetric, panelSection } from '../mind/components.js';
+import { motorEpochEvents, snap, streamState, tel } from '../mind/state.js';
+import { pct } from '../mind/util.js';
+import { historyForCurrentSession } from './action-discovery-history.js';
+import { deriveMotorLearningModel } from './action-discovery-model.js';
+import { embodimentTimeline, motorSparkline } from './action-discovery-chart.js';
 
 function metricValue(value, digits = 3) {
   return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : '—';
@@ -123,8 +123,12 @@ function makeObservationBanner(model) {
   return banner;
 }
 
-export function renderMotorLearning() {
-  const root = document.getElementById('mind-motor-wrap');
+/**
+ * Action Discovery (spec §6.6): effector → consequence → evidence → competence.
+ * Presentation owned by the Embodiment Experience; data is the shared passive
+ * Mind observation state. Observer interpretation only.
+ */
+export function renderActionDiscovery(root) {
   if (!root) return;
   root.innerHTML = '';
 
@@ -142,7 +146,7 @@ export function renderMotorLearning() {
   const titleWrap = el('div', '');
   const title = el('h2', '');
   title.style.cssText = 'font-size:16px;margin:0 0 4px;';
-  title.textContent = 'Motor learning';
+  title.textContent = 'Action discovery';
   const copy = el('p', '');
   copy.style.cssText = 'font-size:10px;color:var(--muted);margin:0;';
   copy.textContent = 'How sensorimotor regularities become reusable control across embodiment changes.';
@@ -162,7 +166,7 @@ export function renderMotorLearning() {
   heading.append(titleWrap, context);
   root.append(heading, makeObservationBanner(model));
 
-  const hero = panelSection('Motor development', 'Observer interpretation only · no feedback, goals or thresholds are introduced into Symbiont.');
+  const hero = panelSection('Sensorimotor discovery', 'Observer interpretation only · no feedback, goals or thresholds are introduced into Symbiont.');
   hero.appendChild(makeStageRail(stage));
   const stageMeta = el('div', '');
   stageMeta.style.cssText = 'font-size:8px;color:var(--muted);margin:-2px 0 10px;';
@@ -249,7 +253,7 @@ export function renderMotorLearning() {
   diag.append(headline, body, focus);
   root.appendChild(diag);
 
-  const trajectories = panelSection('Motor learning trajectories', 'Organism tick is the scientific time axis. Reembodiment markers are observer-side annotations.');
+  const trajectories = panelSection('Discovery trajectories', 'Organism tick is the scientific time axis. Reembodiment markers are observer-side annotations.');
   trajectories.style.cssText += ';margin-top:12px;';
   trajectories.append(
     motorSparkline({ label: 'Controllability', history, key: 'controllability', epochEvents }),

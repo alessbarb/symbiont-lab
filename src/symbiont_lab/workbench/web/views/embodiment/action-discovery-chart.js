@@ -1,5 +1,5 @@
 import { el } from '../shared/dom.js';
-import { PAL } from './config.js';
+import { PAL } from '../mind/config.js';
 
 function finite(value) {
   const n = Number(value);

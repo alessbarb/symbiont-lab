@@ -3,13 +3,13 @@
  *
  * This module never writes to the organism and never invents biological gates.
  */
-import { currentMotorOutputEdges } from './derived.js';
+import { currentMotorOutputEdges } from '../mind/derived.js';
 import {
   currentEpochStartTick,
   deriveTrend,
   embodimentEpochs,
   historyForCurrentSession,
-} from './motor-learning-history.js';
+} from './action-discovery-history.js';
 
 function finite(value, fallback = 0) {
   const number = Number(value);

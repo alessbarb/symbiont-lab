@@ -6,7 +6,10 @@
  *   unmount()                 → void
  *
  * Displays one live symbiont organism across six research tabs:
- *   Overview · Identity · Sensory · Cognition · Motor Learning · History
+ *   Overview · Identity · Sensory · Cognition · History
+ *
+ * Action discovery (formerly Motor Learning) belongs to the Embodiment
+ * Experience (ADR-0008); Mind keeps cognitive structure only.
  *
  * SSE endpoints consumed:
  *   /api/organism   — type:'cognition' | type:'vitals' events (lightweight telemetry)
@@ -26,8 +29,6 @@ import { buildMindLayout } from './mind/layout.js';
 import { MindStreams } from './mind/streams.js';
 import { applyTelemetryEvent } from './mind/telemetry.js';
 import { applyMindSnapshot } from './mind/snapshot.js';
-import { renderMotorLearning } from './mind/motor-learning.js';
-import { recordMotorHistory } from './mind/motor-learning-history.js';
 import { renderOverview as renderOverviewPanel } from './mind/overview.js';
 import { nearestHistorySnapshot, recordMindHistory, renderHistory as renderHistoryPanel } from './mind/history.js';
 import { createIdentitySensoryRenderer } from './mind/identity-sensory.js';
@@ -109,7 +110,6 @@ function switchTab(tabId) {
     cognition.start();
     cognition.renderInspector();
   }
-  if (_activeTab === 'motor') renderMotorLearning();
   if (_activeTab === 'history') renderHistory();
 }
 
@@ -196,7 +196,6 @@ function openHistoryTick(tick) {
 function refreshSnapshotViews() {
   setWaiting(false, null);
   recordMindHistory();
-  recordMotorHistory();
   updateTelemetryStrip();
   if (_activeTab === 'overview') renderOverview();
   if (_activeTab === 'phenotype') {
@@ -216,7 +215,6 @@ function refreshSnapshotViews() {
     );
     cognition.renderInspector();
   }
-  if (_activeTab === 'motor') renderMotorLearning();
   if (_activeTab === 'history') renderHistory();
 }
 
@@ -275,7 +273,6 @@ function updateMindSourceState(next) {
   });
   updateCoherence();
   updateTelemetryStrip(true);
-  if (_activeTab === 'motor') renderMotorLearning();
 }
 
 function physicsRunning(appState) {
@@ -299,10 +296,8 @@ export function update(root, appState) {
     _streamState.stale = true;
     _streamState.reason = 'physics3d-run-ended';
     updateTelemetryStrip(true);
-    if (_activeTab === 'motor') renderMotorLearning();
   } else if (timedOut) {
     updateTelemetryStrip(true);
-    if (_activeTab === 'motor') renderMotorLearning();
   }
 }
 

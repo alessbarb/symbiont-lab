@@ -21,6 +21,12 @@ def _body_sources() -> str:
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
 
+def _discovery_sources() -> str:
+    """Action discovery moved from Mind to the Embodiment Experience (ADR-0008)."""
+    paths = sorted((WEB_ROOT / "views" / "embodiment").glob("*.js"))
+    return "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+
 def _self_model_source() -> str:
     return (WEB_ROOT / "views" / "body" / "self-model.js").read_text(encoding="utf-8")
 
@@ -1114,22 +1120,26 @@ def test_mind_dual_semantics_are_explicit_in_the_ui() -> None:
 def test_mind_research_navigation_matches_telemetry_story() -> None:
     asset = _mind_sources()
 
-    for label in ("Overview", "Identity", "Sensory", "Cognition", "Motor Learning", "History"):
+    for label in ("Overview", "Identity", "Sensory", "Cognition", "History"):
         assert f"label: '{label}'" in asset
+    # Action discovery belongs to the Embodiment Experience (ADR-0008).
+    assert "label: 'Motor Learning'" not in asset
+    assert "renderMotorLearning" not in asset
+    assert "export function renderActionDiscovery(root)" in _discovery_sources()
     assert "function renderOverview()" in asset
-    assert "function renderMotorLearning()" in asset
     assert "function renderHistory()" in asset
-    assert "Learning pipeline" in asset
-    assert "exists → learned → usable" in asset
+    assert "Learning pipeline" in asset + _discovery_sources()
+    assert "exists → learned → usable" in asset + _discovery_sources()
 
 
 def test_mind_motor_funnel_distinguishes_learning_from_use() -> None:
-    asset = _mind_sources()
+    asset = _discovery_sources()
 
     assert "Sensorimotor patterns" in asset
     assert "Motor primitives" in asset
     assert "Motor repertoire" in asset
-    assert "Cognition → motor edges" in asset
+    # Mind keeps the cognitive link to motor structure, not the acquisition surface.
+    assert "Cognition → motor edges" in _mind_sources()
     assert "cognitive control" in asset
     assert "LEARNED AGENCY" in asset
     assert "Cognitive primitives" in asset
@@ -1966,8 +1976,10 @@ def test_mind_ingests_embodiment_reacclimation_state() -> None:
 
 
 def test_motor_learning_observer_model_is_epistemically_conservative() -> None:
-    model = (WEB_ROOT / "views" / "mind" / "motor-learning-model.js").read_text(encoding="utf-8")
-    history = (WEB_ROOT / "views" / "mind" / "motor-learning-history.js").read_text(
+    model = (WEB_ROOT / "views" / "embodiment" / "action-discovery-model.js").read_text(
+        encoding="utf-8"
+    )
+    history = (WEB_ROOT / "views" / "embodiment" / "action-discovery-history.js").read_text(
         encoding="utf-8"
     )
 
@@ -2002,15 +2014,17 @@ def test_mind_snapshot_preserves_embodiment_context() -> None:
 
 
 def test_motor_learning_temporal_ui_distinguishes_live_stale_and_partial_observation() -> None:
-    asset = _mind_sources()
-    chart = (WEB_ROOT / "views" / "mind" / "motor-learning-chart.js").read_text(encoding="utf-8")
+    asset = _discovery_sources()
+    chart = (WEB_ROOT / "views" / "embodiment" / "action-discovery-chart.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "LAST OBSERVED STATE" in asset
     assert "PARTIAL OBSERVATION" in asset
     assert "SKILL · UNDEFINED" in asset
     assert "LEARNED AGENCY" in asset
     assert "Structural motor associations" in asset
-    assert "Motor learning trajectories" in asset
+    assert "Discovery trajectories" in asset
     assert "Embodiment history" in asset
     assert "Transfer evidence" in asset
     assert "epochEvents" in chart

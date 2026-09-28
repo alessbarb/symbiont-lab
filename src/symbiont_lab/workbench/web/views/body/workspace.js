@@ -1,5 +1,6 @@
 import { escapeHtml } from '../shared/dom.js';
 import { SelfModelWorkspace } from './self-model.js';
+import { ActionDiscoveryPanel } from '../embodiment/discovery.js';
 
 /**
  * Embodiment / World research workspace.
@@ -12,6 +13,7 @@ import { SelfModelWorkspace } from './self-model.js';
 
 const DOMAIN_TABS = {
   embodiment: [
+    ['discovery', 'Discovery'],
     ['anatomy', 'Apparatus'],
     ['physiology', 'Interoception'],
     ['self-model', 'Acquired Self'],
@@ -106,6 +108,7 @@ export class BodyWorkspace {
     this.overlayContent = null;
     this.renderQueued = false;
     this.selfModel = new SelfModelWorkspace();
+    this.discovery = new ActionDiscoveryPanel();
   }
 
   mount(root, canvasWrap, panel) {
@@ -170,9 +173,11 @@ export class BodyWorkspace {
     this.root?.classList.toggle('self-model-mode', tab === 'self-model');
     this.root?.classList.toggle('body-world-mode', tab === 'world');
     if (tab !== 'self-model') this.root?.classList.remove('self-model-inspector-open');
-    const dataView = tab === 'physiology' || tab === 'history' || tab === 'self-model';
+    const dataView = tab === 'discovery' || tab === 'physiology' || tab === 'history' || tab === 'self-model';
     this.overlay?.classList.toggle('visible', dataView);
     if (tab !== 'anatomy') this.clearSegmentHighlight();
+    if (tab === 'discovery') this.mountDiscovery();
+    else this.discovery.deactivate();
 
     // WorldView owns observer-only spatial overlays and canvas picking. Make
     // its lifecycle explicit so controls, hit-testing and visibility cannot
@@ -240,6 +245,7 @@ export class BodyWorkspace {
       if (this.viewer.worldView) this.viewer.worldView.inspector(this.panel);
       else this.panel.innerHTML = this.head('Body in World', 'Waiting for spatial evidence', 'World truth and acquired evidence remain separate.');
     }
+    else if (this.activeTab === 'discovery') return; // ActionDiscoveryPanel owns its own coalesced render
     else if (this.activeTab === 'overview') this.renderOverview();
     else if (this.activeTab === 'anatomy') this.renderAnatomy();
     else if (this.activeTab === 'motion') this.renderMotion();
@@ -401,12 +407,25 @@ export class BodyWorkspace {
       `<div class="body-section"><div class="body-row"><span>Captured frames</span><strong>${this.history.length}</strong></div><div class="body-row"><span>Episodes</span><strong>${episodes.length}</strong></div></div>`;
   }
 
+  mountDiscovery() {
+    if (!this.overlayContent || !this.panel) return;
+    const wrap = node('div', 'embodiment-discovery');
+    this.overlayContent.replaceChildren(wrap);
+    this.panel.innerHTML = this.head(
+      'Embodiment · Discovery',
+      'Action discovery',
+      'effector → consequence → evidence → competence. Observer interpretation of organism evidence; nothing here is fed back to Symbiont.',
+    );
+    this.discovery.activate(wrap);
+  }
+
   renderSelfModel() {
     if (!this.overlayContent || !this.panel) return;
     this.selfModel.render(this.overlayContent, this.panel);
   }
 
   dispose() {
+    this.discovery.deactivate();
     this.clearSegmentHighlight();
     this.nav?.remove();
     this.overlay?.remove();

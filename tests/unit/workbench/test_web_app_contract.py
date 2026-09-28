@@ -76,6 +76,7 @@ def test_package_data_contains_nested_workbench_modules():
     for pattern in (
         '"web/views/body/*.js"',
         '"web/views/world/*.js"',
+        '"web/views/embodiment/*.js"',
         '"web/views/lab/*.js"',
         '"web/views/archive/*.js"',
         '"web/views/shared/*.js"',
@@ -276,3 +277,29 @@ def test_home_launches_explicit_run_definitions():
     assert "/api/run-definitions" in home
     assert "definition_id: selectedDefinition" in home
     assert "item.launchable ? '' : 'disabled'" in home
+
+
+def test_action_discovery_moved_from_mind_to_embodiment():
+    """Gap §11 / milestone EW-B: Mind owns cognition, not motor acquisition."""
+    workspace = _read("views/body/workspace.js")
+    layout = _read("views/mind/layout.js")
+    tabs = _read("views/mind/tab-controller.js")
+    discovery = _read("views/embodiment/discovery.js")
+
+    embodiment_tabs = workspace.split("embodiment: [", 1)[1].split("],\n  world:", 1)[0]
+    assert embodiment_tabs.strip().startswith("['discovery', 'Discovery']")
+    assert "Motor Learning" not in layout
+    assert "'motor'" not in tabs
+    assert not list((WEB_ROOT / "views" / "mind").glob("motor-learning*.js"))
+
+    # Reuses the existing transport; subscribed only while the tab is active.
+    assert "new MindStreams(" in discovery
+    assert "deactivate()" in discovery and "this.streams?.close()" in discovery
+    assert "else this.discovery.deactivate();" in workspace
+    assert "requestAnimationFrame" in discovery
+
+
+def test_acquired_self_marks_observer_correspondence():
+    self_model = _read("views/body/self-model.js")
+    assert "data-observer-correspondence" in self_model
+    assert "Anatomical names and the figure are observer-side" in self_model
