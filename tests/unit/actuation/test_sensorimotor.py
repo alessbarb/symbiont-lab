@@ -1311,3 +1311,11 @@ def test_primitive_match_returns_original_sequence_above_threshold():
     learner._primitive_stats[candidate] = sensorimotor_module._RunningStat()
 
     assert learner._matched_primitive_sequence(query) == query
+
+def test_sequence_distance_preserves_unordered_historical_pattern_semantics():
+    left = ((("actuator.2", 5), ("actuator.0", 2)),) * 4
+    right = ((("actuator.0", 3), ("actuator.2", 1)),) * 4
+
+    assert CompetenceDevelopmentEngine._sequence_distance(
+        left, right
+    ) == _reference_sequence_distance(left, right)
