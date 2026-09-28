@@ -317,3 +317,32 @@ def test_client_disconnect_does_not_crash_server(running_server):
     status, body = _get(running_server, "/world/state")
     assert status == 200
     assert b"tick" in body
+
+
+def test_world_live_metrics_and_projection_do_not_replay_full_history():
+    state = WorldRuntimeState(
+        world_seed=909,
+        founders=1,
+        width=4,
+        height=4,
+        tick_delay_s=0.0,
+    )
+    record = state.population.run_tick()
+    assert record is not None
+
+    original_replay = state.population.journal.replay
+
+    def forbidden_replay():
+        raise AssertionError("live World path must not replay full journal history")
+
+    state.population.journal.replay = forbidden_replay
+    try:
+        state._record_metrics(state.population.state.tick, record)
+        payload = state.payload()
+        page = state.events_after(limit=8)
+    finally:
+        state.population.journal.replay = original_replay
+
+    assert payload["tick"] == state.population.state.tick
+    assert isinstance(payload["events"], list)
+    assert isinstance(page["events"], list)
