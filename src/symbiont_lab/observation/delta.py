@@ -130,10 +130,101 @@ class ObservationDeltaEncoder:
         }
 
 
+def _split(path: str) -> list[str]:
+    if path == "":
+        return []
+    if not path.startswith("/"):
+        raise ValueError(f"invalid observation delta pointer: {path!r}")
+    return [part.replace("~1", "/").replace("~0", "~") for part in path[1:].split("/")]
+
+
+def _apply(state: Any, operations: list[Mapping[str, Any]]) -> Any:
+    result = deepcopy(state)
+    for raw in operations:
+        operation = dict(raw)
+        op = operation.get("op")
+        path = str(operation.get("path", ""))
+        if op == "set" and path == "":
+            result = deepcopy(operation.get("value"))
+            continue
+        if op == "remove" and path == "":
+            result = None
+            continue
+        parts = _split(path)
+        if not parts:
+            raise ValueError("observation delta path has no target")
+        parent = result
+        for segment in parts[:-1]:
+            if isinstance(parent, list):
+                parent = parent[int(segment)]
+            elif isinstance(parent, dict):
+                parent = parent[segment]
+            else:
+                raise ValueError("observation delta descends through scalar")
+        leaf = parts[-1]
+        if op == "set":
+            value = deepcopy(operation.get("value"))
+            if isinstance(parent, list):
+                parent[int(leaf)] = value
+            elif isinstance(parent, dict):
+                parent[leaf] = value
+            else:
+                raise ValueError("observation delta cannot set child on scalar")
+        elif op == "remove":
+            if isinstance(parent, list):
+                del parent[int(leaf)]
+            elif isinstance(parent, dict):
+                del parent[leaf]
+            else:
+                raise ValueError("observation delta cannot remove child from scalar")
+        else:
+            raise ValueError(f"unsupported observation delta operation: {op!r}")
+    return result
+
+
+class ObservationDeltaDecoder:
+    """Reference decoder used by tests and non-browser observer consumers."""
+
+    def __init__(self) -> None:
+        self._states: dict[str, dict[str, Any]] = {}
+        self._revisions: dict[str, int] = {}
+
+    def decode(self, payload: Mapping[str, Any]) -> dict[str, Any] | None:
+        event = dict(payload)
+        if event.get("type") != "observation_delta":
+            return event
+        if event.get("contract") != DELTA_CONTRACT:
+            return None
+        channel = str(event.get("channel") or "")
+        revision = int(event.get("revision") or 0)
+        if event.get("kind") == "anchor":
+            state = deepcopy(event.get("state"))
+            if not isinstance(state, dict) or state.get("type") != channel:
+                return None
+            if state_hash(state) != event.get("state_sha256"):
+                raise ValueError("observation anchor hash mismatch")
+            self._states[channel] = state
+            self._revisions[channel] = revision
+            return deepcopy(state)
+        if event.get("kind") != "delta":
+            return None
+        if self._revisions.get(channel) != int(event.get("base_revision") or -1):
+            return None
+        state = _apply(self._states[channel], list(event.get("patch") or ()))
+        if not isinstance(state, dict) or state.get("type") != channel:
+            raise ValueError("observation delta changed channel identity")
+        if state_hash(state) != event.get("state_sha256"):
+            raise ValueError("observation delta hash mismatch")
+        self._states[channel] = state
+        self._revisions[channel] = revision
+        return deepcopy(state)
+
+
 __all__ = [
     "COMPRESSIBLE_TYPES",
     "DEFAULT_ANCHOR_INTERVAL",
     "DELTA_CONTRACT",
+    "ObservationDeltaDecoder",
     "ObservationDeltaEncoder",
     "state_hash",
 ]
