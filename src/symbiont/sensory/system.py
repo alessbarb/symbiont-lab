@@ -604,9 +604,9 @@ class SensorySystem:
                 {
                     "sensor_id": sensor.sensor_id,
                     "maturity": sensor.maturity.value,
-                    "health": sensor.health,
-                    "confidence": sensor.confidence,
-                    "cost": sensor.acquisition_cost + sensor.transduction_cost,
+                    "health": round(sensor.health, 6),
+                    "confidence": round(sensor.confidence, 6),
+                    "cost": round(sensor.acquisition_cost + sensor.transduction_cost, 6),
                 }
                 for sensor in self.sensors
             ]
