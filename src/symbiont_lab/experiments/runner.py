@@ -206,6 +206,13 @@ class ExperimentRunner:
                 **{key: int(value) for key, value in body.items()},
             )
             raw_metrics = result
+        elif spec.protocol == "learning.footprint-precision":
+            body = spec.extra_params.get("body", {})
+            raw_metrics = protocol_fn(
+                seeds=spec.seeds,
+                ticks=spec.steps,
+                **{key: int(value) for key, value in body.items()},
+            )
         elif spec.protocol == "learning.agency-acquisition-reuse-closure":
             ablation = spec.extra_params.get("ablation", {})
             result = protocol_fn(

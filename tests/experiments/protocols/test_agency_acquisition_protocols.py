@@ -364,3 +364,24 @@ def test_e8_v3_reports_terminations_and_spurious_satisfactions():
     assert row["unmapped_matched_atoms"] == 0
     with pytest.raises(ValueError):
         run_high_dimensional_acquisition_study(seeds=(101,), ticks=1, reconciliation="other")
+
+
+@pytest.mark.experiment_contract
+def test_fp0_classifies_members_and_reports_the_decision_inputs():
+    from symbiont_lab.studies.learning.footprint_precision import run_footprint_precision_study
+
+    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    spec = load_experiment_file(root / "footprint-precision" / "experiment.toml")
+    assert spec.protocol == "learning.footprint-precision"
+    assert tuple(spec.seeds) == EXECUTIVE_SEEDS and spec.steps == 3000
+    assert get_protocol("learning.footprint-precision") is run_footprint_precision_study
+
+    result = run_footprint_precision_study(
+        seeds=(101,), ticks=400, actuator_count=4, receptors_per_actuator=2,
+        drifting_receptor_count=4,
+    )  # fmt: skip
+    (row,) = result["per_seed"]
+    snapshot = row["snapshots"]["400"]
+    assert set(snapshot["by_class"]) == {"own", "cross", "drift", "other"}
+    assert snapshot["members"] == sum(snapshot["by_class"].values())
+    assert set(result["decision_inputs"]) >= {"wrong_members", "selected_hypothesis"}

@@ -1,0 +1,34 @@
+schema_version = 1
+
+[experiment]
+id = "learning.footprint-precision"
+title = "FP-0 — footprint membership against ground truth (E8 body)"
+protocol = "learning.footprint-precision"
+protocol_version = 1
+hypothesis = """
+Footprint membership admits drift because rare drift atoms get a zero quiet
+rate (H1), because few pulses are tested repeatedly (H2), or because the
+pooled quiet baseline does not match the pulses in time (H3).
+"""
+success_criteria = """
+Descriptive (Footprint Precision v1 §3, preregistered at 02ad29be): precision,
+recall and member classes (own/cross/drift/other) per snapshot and seed. At
+tick 3000, pooled over seeds, among drift+cross members: >= 50% with
+passive_hits == 0 selects H1; else >= 50% with pulses <= 6 selects H2; else
+H3. The rule chooses the next specification; nothing is adopted.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149, 163, 179, 193, 211, 227, 241, 257]
+
+[body]
+actuator_count = 16
+receptors_per_actuator = 4
+drifting_receptor_count = 32
+
+[output]
+save_trace = false
+save_summary = true

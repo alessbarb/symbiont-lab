@@ -85,6 +85,7 @@ from symbiont_lab.studies.learning.emergent_symbol_grounding import (
     run_emergent_symbol_grounding_study,
 )
 from symbiont_lab.studies.learning.episodic_memory_utility import run_episodic_memory_utility_study
+from symbiont_lab.studies.learning.footprint_precision import run_footprint_precision_study
 from symbiont_lab.studies.learning.generative_cognition_release import (
     run_generative_cognition_release_gates,
 )
@@ -241,6 +242,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.agency-intentional-causal-advantage": run_intentional_causal_advantage_study,
     "learning.agency-acquisition-reuse-closure": run_acquisition_reuse_closure_study,
     "learning.agency-high-dimensional-acquisition": run_high_dimensional_acquisition_study,
+    "learning.footprint-precision": run_footprint_precision_study,
     "embodiment.yoked-external-causation": run_yoked_external_causation_study,
     "embodiment.somatic-correlation-trap": run_somatic_correlation_trap_study,
     "embodiment.causal-revision-sequence": run_causal_revision_sequence_study,
