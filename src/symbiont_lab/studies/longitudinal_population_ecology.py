@@ -92,12 +92,13 @@ def _finite(value: Any) -> bool:
 
 
 def _snapshot_summary(snapshot: SimulationSnapshot) -> tuple[Any, ...]:
+    social_events = getattr(snapshot, "social_claims", getattr(snapshot, "collective_patterns", 0))
     return (
         snapshot.step,
         snapshot.pathogen_events,
         snapshot.benign_events,
         snapshot.investigated,
-        snapshot.collective_patterns,
+        social_events,
         snapshot.open_questions,
         snapshot.forgotten_episodes,
         snapshot.consolidated_episodes,
@@ -129,11 +130,14 @@ def _run_stage(*, seed: int, hosts: int, ticks: int) -> LongitudinalStageResult:
         ]
         if any(not _finite(value) for value in numeric):
             anomalies.add("NON_FINITE_NUMERIC")
+        social_events = getattr(
+            snapshot, "social_claims", getattr(snapshot, "collective_patterns", 0)
+        )
         counters = (
             snapshot.pathogen_events,
             snapshot.benign_events,
             snapshot.investigated,
-            snapshot.collective_patterns,
+            social_events,
             snapshot.open_questions,
             snapshot.forgotten_episodes,
             snapshot.consolidated_episodes,
@@ -163,7 +167,13 @@ def _run_stage(*, seed: int, hosts: int, ticks: int) -> LongitudinalStageResult:
         hosts=hosts,
         ticks=ticks,
         final_population=hosts,
-        final_collective_patterns=snapshots[-1].collective_patterns if snapshots else 0,
+        final_collective_patterns=(
+            getattr(
+                snapshots[-1], "social_claims", getattr(snapshots[-1], "collective_patterns", 0)
+            )
+            if snapshots
+            else 0
+        ),
         final_forgotten_episodes=snapshots[-1].forgotten_episodes if snapshots else 0,
         final_consolidated_episodes=snapshots[-1].consolidated_episodes if snapshots else 0,
         final_drift_adaptations=snapshots[-1].drift_adaptations if snapshots else 0,

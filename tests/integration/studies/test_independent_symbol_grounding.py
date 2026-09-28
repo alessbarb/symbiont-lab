@@ -51,7 +51,17 @@ def test_no_shared_symbol_policy_seed_between_emitters() -> None:
     # emitter_b must always derive its seed via _independent_seed, never reuse `seed` directly.
     assert "seed_b = _independent_seed(seed)" in source
     assert "symbol_policy_seed=seed_b" in source
-    emitter_b_line = next(
-        line for line in source.splitlines() if "emitter_b = ModeledOrganismRuntime" in line
+    emitter_b_call = next(
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "emitter_b" for target in node.targets
+        )
+        and isinstance(node.value, ast.Call)
     )
-    assert "symbol_policy_seed=seed_b" in emitter_b_line
+    symbol_seed_keyword = next(
+        kw for kw in emitter_b_call.keywords if kw.arg == "symbol_policy_seed"
+    )
+    assert isinstance(symbol_seed_keyword.value, ast.Name)
+    assert symbol_seed_keyword.value.id == "seed_b"

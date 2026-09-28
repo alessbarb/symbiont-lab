@@ -34,7 +34,13 @@ def test_world_observer_reads_real_shapes_for_each_body_without_mutating_physics
         first = observer.capture(runtime)
         assert apparatus.export_physical_state() == before
         assert len(first["entities"]) == 2
-        assert len(first["receptors"]) == descriptor.receptor_count - 4
+        expected_receptors = (
+            len(descriptor.observer_joint_specs) * 2
+            + 10
+            + len(descriptor.observer_contact_region_names) * 2
+            + 1
+        )
+        assert len(first["receptors"]) == expected_receptors
         sphere = next(e for e in first["entities"].values() if "field" in e)
         assert sphere["position"] == [2.0, 1.0, 0.27]
         assert sphere["shapes"][0]["dimensions"][0] == pytest.approx(0.27)
