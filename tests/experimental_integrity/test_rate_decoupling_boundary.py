@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 def test_physics_engine_samples_rich_observation_independently_of_cognition() -> None:
-    root = Path(__file__).resolve().parents[3]
+    root = Path(__file__).resolve().parents[2]
     source = (root / "src" / "symbiont_lab" / "physics3d" / "engine.py").read_text(
         encoding="utf-8"
     )
@@ -20,7 +20,7 @@ def test_physics_engine_samples_rich_observation_independently_of_cognition() ->
 
 
 def test_physics_runtime_keeps_rich_projection_behind_observer_boundary() -> None:
-    root = Path(__file__).resolve().parents[3]
+    root = Path(__file__).resolve().parents[2]
     source = (root / "src" / "symbiont_lab" / "physics3d" / "runtime.py").read_text(
         encoding="utf-8"
     )
