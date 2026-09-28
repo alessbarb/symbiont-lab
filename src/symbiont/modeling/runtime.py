@@ -1219,9 +1219,18 @@ class ModeledOrganismRuntime(OrganismRuntime):
             parent = self._model_registry.get(artifact.parent_model_id)
             if parent is None or parent.organism_id != self.organism_id:
                 raise ValueError("private model artifact parent is not owned by this organism")
-            if (
-                parent.architecture_id is not artifact.architecture_id
-                or parent.tokenizer_hash != artifact.tokenizer_hash
+            # Revision Coherence §8.4 item 3: an append-only extension of the
+            # held parent vocabulary is compatible despite a new tokenizer hash.
+            inherited = self._ancestor_vocabularies.get(parent.model_id)
+            extends_parent = (
+                inherited is not None
+                and vocabulary is not None
+                and tuple(vocabulary[: len(inherited)]) == inherited
+                and NativeTokenizer(vocabulary=tuple(vocabulary)).tokenizer_hash
+                == artifact.tokenizer_hash
+            )
+            if parent.architecture_id is not artifact.architecture_id or not (
+                parent.tokenizer_hash == artifact.tokenizer_hash or extends_parent
             ):
                 raise ValueError("private model artifact parent is structurally incompatible")
         storage_fraction = min(0.20, artifact.artifact_bytes / float(256 * 1024 * 1024))
