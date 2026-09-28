@@ -7,6 +7,7 @@ import queue
 import threading
 from collections import deque
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any
 
 from .delta import ObservationDeltaEncoder
@@ -14,6 +15,15 @@ from .world_scene import apply_world_event
 
 _DEFAULT_QUEUE_SIZE = 2048
 _DEFAULT_HISTORY_SIZE = 512
+
+
+@dataclass(frozen=True, slots=True)
+class ObservationMessage:
+    """Serialized observer payload paired with its transport identity."""
+
+    stream_id: int
+    data: str
+
 
 
 class ObservationBus:
@@ -37,10 +47,10 @@ class ObservationBus:
             raise ValueError("history_size must be >= 1")
         self._queue_size = int(queue_size)
         self._lock = threading.Lock()
-        self._queues: list[queue.Queue[str]] = []
-        self._last_by_type: dict[str, str] = {}
+        self._queues: list[queue.Queue[ObservationMessage]] = []
+        self._last_by_type: dict[str, ObservationMessage] = {}
         self._last_sequence_by_type: dict[str, int] = {}
-        self._history: deque[tuple[int, str]] = deque(maxlen=int(history_size))
+        self._history: deque[ObservationMessage] = deque(maxlen=int(history_size))
         self._sequence = 0
         self._world_scene: dict | None = None
         self._delta = ObservationDeltaEncoder(anchor_interval=anchor_interval)
@@ -60,30 +70,40 @@ class ObservationBus:
             event_type = str(event.get("type") or "")
             if event_type:
                 if event_type == "world_scene":
-                    self._last_by_type[event_type] = json.dumps(
-                        {**self._world_scene, "_stream_id": stream_id},
-                        separators=(",", ":"),
+                    self._last_by_type[event_type] = ObservationMessage(
+                        stream_id=stream_id,
+                        data=json.dumps(
+                            {**self._world_scene, "_stream_id": stream_id},
+                            separators=(",", ":"),
+                        ),
                     )
                 elif projected.get("type") == "observation_delta":
                     anchor = self._delta.anchor(event_type)
                     if anchor is not None:
-                        self._last_by_type[event_type] = json.dumps(
-                            {**anchor, "_stream_id": stream_id},
-                            separators=(",", ":"),
-                            ensure_ascii=False,
+                        self._last_by_type[event_type] = ObservationMessage(
+                            stream_id=stream_id,
+                            data=json.dumps(
+                                {**anchor, "_stream_id": stream_id},
+                                separators=(",", ":"),
+                                ensure_ascii=False,
+                            ),
                         )
                 else:
-                    self._last_by_type[event_type] = data
+                    self._last_by_type[event_type] = ObservationMessage(
+                        stream_id=stream_id,
+                        data=data,
+                    )
                 self._last_sequence_by_type[event_type] = stream_id
 
-            self._history.append((stream_id, data))
-            overflow_data = (
-                self._last_by_type.get(event_type, data)
+            message = ObservationMessage(stream_id=stream_id, data=data)
+            self._history.append(message)
+            overflow_message = (
+                self._last_by_type.get(event_type, message)
                 if projected.get("type") == "observation_delta"
-                else data
+                else message
             )
             for consumer in self._queues:
-                selected = data
+                selected = message
                 if consumer.full():
                     try:
                         consumer.get_nowait()
@@ -92,19 +112,22 @@ class ObservationBus:
                     # A dropped delta invalidates the consumer's channel base.
                     # Replace the current message with a materialized anchor so
                     # the next message is immediately self-healing.
-                    selected = overflow_data
+                    selected = overflow_message
                 try:
                     consumer.put_nowait(selected)
                 except queue.Full:
                     pass
             return stream_id
 
-    def subscribe(self, after_sequence: int | None = None) -> queue.Queue[str]:
-        consumer: queue.Queue[str] = queue.Queue(maxsize=self._queue_size)
+    def subscribe(
+        self,
+        after_sequence: int | None = None,
+    ) -> queue.Queue[ObservationMessage]:
+        consumer: queue.Queue[ObservationMessage] = queue.Queue(maxsize=self._queue_size)
         with self._lock:
-            replay: list[str]
+            replay: list[ObservationMessage]
             history = list(self._history)
-            history_floor = history[0][0] if history else self._sequence + 1
+            history_floor = history[0].stream_id if history else self._sequence + 1
             current = [
                 self._last_by_type[event_type]
                 for event_type in sorted(
@@ -115,18 +138,17 @@ class ObservationBus:
             if after_sequence is None:
                 replay = current
             elif int(after_sequence) < history_floor - 1:
-                # The requested resume point fell out of retained history.
-                # Replay materialized anchors/current states rather than a delta
-                # chain with an unknowable missing base revision.
                 replay = current
             else:
                 replay = [
-                    data for stream_id, data in history if stream_id > int(after_sequence)
+                    message
+                    for message in history
+                    if message.stream_id > int(after_sequence)
                 ]
-            for data in replay[-self._queue_size :]:
+            for message in replay[-self._queue_size :]:
                 if consumer.full():
                     consumer.get_nowait()
-                consumer.put_nowait(data)
+                consumer.put_nowait(message)
             self._queues.append(consumer)
         return consumer
 
@@ -135,7 +157,7 @@ class ObservationBus:
         with self._lock:
             return deepcopy(self._world_scene)
 
-    def unsubscribe(self, consumer: queue.Queue[str]) -> None:
+    def unsubscribe(self, consumer: queue.Queue[ObservationMessage]) -> None:
         with self._lock:
             try:
                 self._queues.remove(consumer)
