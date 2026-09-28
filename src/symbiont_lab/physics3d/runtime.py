@@ -223,7 +223,7 @@ class PyBulletEmbodimentRuntime:
         seed: int = 42,
         time_step: float = 1.0 / 240.0,
         physics_substeps_per_tick: int = 10,
-        presentation_substeps_per_frame: int = 4,
+        presentation_hz: int = 60,
         mechanical_work_cost_per_joule: float = 0.001,
         capture_physics_trace: bool = False,
         body_kind: str = "anthropomorphic-v6",
@@ -250,9 +250,10 @@ class PyBulletEmbodimentRuntime:
         if physics_substeps_per_tick < 1:
             raise ValueError("physics_substeps_per_tick must be >= 1")
         self.physics_substeps_per_tick = int(physics_substeps_per_tick)
-        if presentation_substeps_per_frame < 1:
-            raise ValueError("presentation_substeps_per_frame must be >= 1")
-        self.presentation_substeps_per_frame = int(presentation_substeps_per_frame)
+        self.physics_hz = int(round(1.0 / self.time_step))
+        if presentation_hz < 1 or presentation_hz > self.physics_hz:
+            raise ValueError("presentation_hz must be within [1, physics_hz]")
+        self.presentation_hz = int(presentation_hz)
         if (
             isinstance(mechanical_work_cost_per_joule, bool)
             or not isinstance(mechanical_work_cost_per_joule, (int, float))
@@ -440,9 +441,10 @@ class PyBulletEmbodimentRuntime:
         self._last_physical_tick = 0
 
         # Passive presentation sampling is deliberately outside organism state.
-        # The engine resolves an exact render cadence from the physics rate and
-        # passes its substep stride here; no hard-coded 240/60 assumption remains.
+        # A rational phase accumulator yields the requested long-run render rate
+        # without requiring render_hz to divide physics_hz exactly.
         self._presentation_substep = 0
+        self._presentation_phase = 0
         self._presentation_pose_frames: list[dict[str, object]] = []
         reading_provider = PhysicsReadingProvider(
             self.apparatus,
@@ -1556,7 +1558,9 @@ class PyBulletEmbodimentRuntime:
                     mechanical_work_joules += fallback_work
 
                 self._presentation_substep += 1
-                if self._presentation_substep % self.presentation_substeps_per_frame == 0:
+                self._presentation_phase += self.presentation_hz
+                if self._presentation_phase >= self.physics_hz:
+                    self._presentation_phase -= self.physics_hz
                     pose = self.apparatus.export_physical_state()
                     self._presentation_pose_frames.append(
                         {
@@ -1567,13 +1571,7 @@ class PyBulletEmbodimentRuntime:
                             "tick_simulation_span_s": float(
                                 self.physics_substeps_per_tick * self.time_step
                             ),
-                            "sampling_hz": float(
-                                1.0
-                                / (
-                                    self.time_step
-                                    * self.presentation_substeps_per_frame
-                                )
-                            ),
+                            "sampling_hz": float(self.presentation_hz),
                             "physical_state": pose,
                         }
                     )
