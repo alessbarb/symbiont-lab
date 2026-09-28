@@ -160,9 +160,16 @@ export class BodyWorkspace {
   }
 
   updateMetric(id, text, color = null) {
+    const previousText = this.metrics.get(id);
+    const previousColor = this.colors.get(id) ?? null;
+    const nextColor = color ?? previousColor;
+    const textChanged = previousText !== text;
+    const colorChanged = color != null && previousColor !== color;
+    if (!textChanged && !colorChanged) return;
+
     this.metrics.set(id, text);
-    if (color) this.colors.set(id, color);
-    if (id === 'tick') this.recordSample();
+    if (color != null) this.colors.set(id, color);
+    if (id === 'tick' && textChanged) this.recordSample();
     this.requestRender();
   }
 
