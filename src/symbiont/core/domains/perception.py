@@ -9,7 +9,6 @@ from typing import Any
 
 from ...host.acclimation import HostAcclimation
 from ...host.adaptive import AdaptiveSenseModel, SamplingPlan
-from ...host.bootstrap import current_time_bucket
 from ...host.drift import DriftAwareBaseline, DriftObservation
 from ...host.lifecycle import HostLifecycle, LifecycleSnapshot
 from ...host.percepts import DEFAULT_PERCEPT_NAMES, Percept
@@ -321,11 +320,11 @@ class PerceptionDomain:
         acquisition_costs: dict[str, float] = {}
         for outcome in snapshot.sampling_outcomes:
             acquisition_costs[outcome.capability_id] = (
-                acquisition_costs.get(outcome.capability_id, 0.0) + outcome.attributed_elapsed_s
+                acquisition_costs.get(outcome.capability_id, 0.0) + outcome.causal_acquisition_cost
             )
         services.sensory_system.update_acquisition_costs(acquisition_costs)
         services.acclimation.observe(cognitive_readings)
-        services.rhythm_model.observe(percepts, time_bucket=current_time_bucket())
+        services.rhythm_model.observe(percepts, phase=context.macro_phase)
         for percept in percepts:
             sensor = sensor_by_cognitive_name.get(percept.name)
             if (

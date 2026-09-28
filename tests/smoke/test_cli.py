@@ -130,11 +130,13 @@ def test_cli_host_rhythms():
     )
     assert result.returncode == 0
     payload = json.loads(result.stdout)
-    assert payload["time_bucket"] in ("night", "morning", "afternoon", "evening")
-    assert set(payload["co_occurring_percepts"]) >= {"system_load", "storage_pressure"}
-    for name in payload["co_occurring_percepts"]:
-        baseline = payload["baselines"][name]
-        assert baseline["count"] == 5
+    # ADR-0042: internal macro-cycle phases, never the host clock. Five ticks
+    # from tick 0 all fall in the first phase.
+    assert list(payload["phases"]) == ["phase.0"]
+    phase = payload["phases"]["phase.0"]
+    assert set(phase["co_occurring_percepts"]) >= {"system_load", "storage_pressure"}
+    for name in phase["co_occurring_percepts"]:
+        assert phase["baselines"][name]["count"] == 5
 
 
 def test_cli_host_acclimate():
@@ -194,7 +196,7 @@ def test_cli_host_checkpoint_round_trips():
     )
     assert export_result.returncode == 0
     checkpoint = json.loads(export_result.stdout)
-    assert checkpoint["schema_version"] == 9
+    assert checkpoint["schema_version"] == 10
 
     import_result = subprocess.run(
         [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "import"],
@@ -490,7 +492,7 @@ def test_cli_organism_run():
     payload = json.loads(result.stdout)
     assert len(payload["ticks"]) == 4
     assert [t["tick"] for t in payload["ticks"]] == [1, 2, 3, 4]
-    assert payload["checkpoint"]["schema_version"] == 9
+    assert payload["checkpoint"]["schema_version"] == 10
     assert payload["checkpoint"]["acclimation"]
     for tick in payload["ticks"]:
         assert isinstance(tick["narrative"], list) and tick["narrative"]

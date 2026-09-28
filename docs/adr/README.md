@@ -50,6 +50,7 @@ mindmap
       ADR-0012 Mundo adquirido vs verdad del observador
       ADR-0023 Transaccionalidad y conservación
       ADR-0032 Dominios temporales multiescala
+      ADR-0042 Tiempo causal determinista
     Observación & Seguridad
       ADR-0009 Proveniencia State-X
       ADR-0010 Invariantes P0-P7
@@ -132,6 +133,7 @@ mindmap
 | **[ADR-0012](ADR-0012-acquired-world-versus-observer-truth.md)** | Acquired World versus Observer Truth (EW-005) | Aceptado | El mundo adquirido deriva solo de evidencia del organismo; prohibida la inyección de entidades físicas del simulador. |
 | **[ADR-0023](ADR-0023-atomic-transactional-step-and-ecological-conservation.md)** | Atomic Transactional Step and Ecological Conservation Laws | Aceptado | Transaccionalidad atómica reversible (`IntegratedWorldTickTransaction`) y leyes de conservación de materia/fertilidad sin generación *ex nihilo*. |
 | **[ADR-0032](ADR-0032-multi-scale-temporal-domains-and-biological-rhythms.md)** | Multi-Scale Temporal Domains and Biological Rhythms | Aceptado | Jerarquía temporal desacoplada (micro/meso/macro) para aislar el ruido sensorial rápido de la aclimatación lenta y ciclos circadianos. |
+| **[ADR-0042](ADR-0042-deterministic-causal-time-and-sensor-cost.md)** | Deterministic Causal Time and Sensor Cost (EW-006) | Aceptado | El reloj del host y la velocidad de la CPU nunca determinan estado causal: coste de adquisición declarado por el aparato y fase rítmica interna derivada del tick. |
 
 ### 8. Observación & Seguridad
 

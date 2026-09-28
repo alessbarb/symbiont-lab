@@ -39,7 +39,9 @@ _HEALTH_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.health_classes
 _CONFIDENCE_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.confidence_classes
 _MATURITY_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.maturity_classes
 _COST_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.cost_classes
-_COST_REFERENCE_S = 1.0  # attributed cost at/above 1s quantizes to the top bin
+# Deterministic cost units (ADR-0042); historically calibrated to seconds, so
+# the quantization scale is unchanged: a cost at/above 1.0 is the top bin.
+_COST_REFERENCE = 1.0
 
 
 def _clip(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -59,7 +61,7 @@ def _idle_decayed(value: float, neutral: float, idle_ticks: int) -> float:
 
 @dataclass(slots=True)
 class SenseSelfState:
-    cost_ewma_s: float = 0.0
+    cost_ewma: float = 0.0
     health_ewma: float = 0.5
     quality_ewma: float = 0.5
     confidence_ewma: float = 0.0
@@ -99,10 +101,10 @@ class SelfModel:
         state = self._states.setdefault(outcome.capability_id, SenseSelfState())
         state.attempts += 1
         state.last_observed_tick = tick
-        state.cost_ewma_s = (
-            _ewma(state.cost_ewma_s, outcome.attributed_elapsed_s)
+        state.cost_ewma = (
+            _ewma(state.cost_ewma, outcome.causal_acquisition_cost)
             if state.attempts > 1
-            else outcome.attributed_elapsed_s
+            else outcome.causal_acquisition_cost
         )
 
         if outcome.kind is SamplingOutcomeKind.SUCCEEDED:
@@ -144,7 +146,7 @@ class SelfModel:
 
     def relative_cost(self, sense_id: str, *, reference_ids: Iterable[str]) -> float:
         established_costs = [
-            self._states[ref_id].cost_ewma_s
+            self._states[ref_id].cost_ewma
             for ref_id in reference_ids
             if ref_id in self._states and self._states[ref_id].established
         ]
@@ -154,7 +156,7 @@ class SelfModel:
         state = self._state(sense_id)
         if state is None or reference_median <= 0.0:
             return 1.0
-        return _clip(state.cost_ewma_s / reference_median, 0.25, 4.0)
+        return _clip(state.cost_ewma / reference_median, 0.25, 4.0)
 
     def reconcile(self, allowed_sense_ids: Collection[str]) -> None:
         allowed = set(allowed_sense_ids)
@@ -169,7 +171,7 @@ class SelfModel:
                 continue
             idle_ticks = max(0, current_tick - state.last_observed_tick)
             payload[sense_id] = {
-                "cost_class": _quantize_cost(state.cost_ewma_s),
+                "cost_class": _quantize_cost(state.cost_ewma),
                 "health_class": _quantize(state.health_ewma, _HEALTH_CLASSES),
                 "confidence_class": _quantize(state.confidence_ewma, _CONFIDENCE_CLASSES),
                 "maturity_class": _quantize(_maturity(state.successes), _MATURITY_CLASSES),
@@ -215,7 +217,7 @@ class SelfModel:
             maturity = maturity_class / (_MATURITY_CLASSES - 1)
             successes = int(round(math.expm1(maturity * math.log1p(MIN_SELF_MODEL_ATTEMPTS))))
             state = SenseSelfState(
-                cost_ewma_s=_dequantize_cost(cost_class),
+                cost_ewma=_dequantize_cost(cost_class),
                 health_ewma=_dequantize(health_class, _HEALTH_CLASSES),
                 quality_ewma=_dequantize(health_class, _HEALTH_CLASSES),
                 confidence_ewma=_dequantize(confidence_class, _CONFIDENCE_CLASSES),
@@ -243,10 +245,10 @@ def _dequantize(class_id: int, num_classes: int) -> float:
 
 
 def _quantize_cost(cost_s: float) -> int:
-    ratio = min(1.0, math.log1p(max(0.0, cost_s)) / math.log1p(_COST_REFERENCE_S))
+    ratio = min(1.0, math.log1p(max(0.0, cost_s)) / math.log1p(_COST_REFERENCE))
     return round(ratio * (_COST_CLASSES - 1))
 
 
 def _dequantize_cost(class_id: int) -> float:
     ratio = class_id / (_COST_CLASSES - 1)
-    return math.expm1(ratio * math.log1p(_COST_REFERENCE_S))
+    return math.expm1(ratio * math.log1p(_COST_REFERENCE))

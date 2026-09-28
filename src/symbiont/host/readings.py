@@ -95,23 +95,48 @@ class SamplingOutcomeKind(StrEnum):
     PROVIDER_FAILED = "provider_failed"
 
 
+# ADR-0042: deterministic per-capability acquisition cost, in dimensionless
+# cost units. Calibrated once (2026-09-28) to the median wall-clock share that
+# the former implementation measured: ~1e-5 s per capability for both the
+# Physics3D body provider (n=717) and the stdlib host provider (n=48). It is a
+# constant of the apparatus constitution, never re-measured at run time.
+DEFAULT_SAMPLING_COST_PER_CAPABILITY = 1e-5
+
+
+def provider_sampling_cost(provider: object) -> float:
+    """Declared per-capability sampling cost of a provider's apparatus."""
+    value = getattr(provider, "sampling_cost_per_capability", DEFAULT_SAMPLING_COST_PER_CAPABILITY)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0.0:
+        raise ValueError("sampling_cost_per_capability must be a non-negative number")
+    return float(value)
+
+
 @dataclass(slots=True, frozen=True)
 class CapabilitySamplingOutcome:
-    """One capability's fate in one provider's sampling call, for self-model
-    cost/health attribution (roadmap v0.53). ``attributed_elapsed_s`` divides
-    that call's wall-clock time evenly across every capability it was asked
-    to sample, not just the ones it returned — an omitted or failed
-    capability must not appear free."""
+    """One capability's fate in one provider's sampling call (roadmap v0.53).
+
+    ``causal_acquisition_cost`` is the deterministic cost the organism may
+    learn from: the provider's declared per-capability cost, charged to every
+    capability it was asked to sample, not just the ones it returned (an
+    omitted or failed capability must not appear free).
+
+    ``observed_elapsed_s`` is the same call's wall-clock share for observer
+    profiling only (ADR-0042). Nothing causal may read it; it is never
+    checkpointed.
+    """
 
     capability_id: str
     provider_id: str
     kind: SamplingOutcomeKind
-    attributed_elapsed_s: float
+    causal_acquisition_cost: float
+    observed_elapsed_s: float = 0.0
     quality: ReadingQuality | None = None
 
     def __post_init__(self) -> None:
-        if self.attributed_elapsed_s < 0.0:
-            raise ValueError("attributed_elapsed_s must be non-negative")
+        if self.causal_acquisition_cost < 0.0:
+            raise ValueError("causal_acquisition_cost must be non-negative")
+        if self.observed_elapsed_s < 0.0:
+            raise ValueError("observed_elapsed_s must be non-negative")
 
 
 class ReadingProvider(Protocol):
@@ -159,9 +184,9 @@ class HostSampler:
         tuple[SensorReading, ...], tuple[ReadingFailure, ...], tuple[CapabilitySamplingOutcome, ...]
     ]:
         """Like :meth:`sample`, but also reports what happened to every
-        attempted capability and how much wall-clock time it cost (roadmap
-        v0.53's self-model). ``clock`` is injectable for deterministic
-        tests; production callers use the default ``time.perf_counter``."""
+        attempted capability, its deterministic acquisition cost and, for
+        observer profiling only, its wall-clock share (ADR-0042). ``clock``
+        is injectable for tests."""
         return self._sample_internal(manifest, capability_ids=capability_ids, clock=clock)
 
     def _sample_internal(
@@ -187,6 +212,7 @@ class HostSampler:
         for provider in sorted(self._providers, key=lambda item: item.provider_id):
             if not available:
                 continue
+            cost = provider_sampling_cost(provider)
             start = clock()
             try:
                 sampled = provider.sample(available)
@@ -204,7 +230,8 @@ class HostSampler:
                         capability_id=capability_id,
                         provider_id=provider.provider_id,
                         kind=SamplingOutcomeKind.PROVIDER_FAILED,
-                        attributed_elapsed_s=share,
+                        causal_acquisition_cost=cost,
+                        observed_elapsed_s=share,
                     )
                     for capability_id in attempted_ids
                 )
@@ -249,7 +276,8 @@ class HostSampler:
                         capability_id=capability_id,
                         provider_id=provider.provider_id,
                         kind=kind,
-                        attributed_elapsed_s=share,
+                        causal_acquisition_cost=cost,
+                        observed_elapsed_s=share,
                         quality=quality,
                     )
                 )

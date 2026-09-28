@@ -19,7 +19,7 @@ from symbiont.host import (
     reading_matches_manifest,
     sample_local_host,
 )
-from symbiont.host.readings import SamplingOutcomeKind
+from symbiont.host.readings import DEFAULT_SAMPLING_COST_PER_CAPABILITY, SamplingOutcomeKind
 
 
 def _capability(capability_id: str, source: str = "trusted") -> Capability:
@@ -160,7 +160,7 @@ def test_capability_selection_is_applied_before_provider_reads() -> None:
     assert [reading.capability_id for reading in readings] == ["sense-b"]
 
 
-def test_outcomes_attribute_elapsed_time_evenly_across_attempted_capabilities():
+def test_outcomes_split_causal_cost_from_observed_elapsed_time():
     manifest = _manifest(_capability("sense-a"), _capability("sense-b"))
     clock_values = iter([0.0, 0.010])
     provider = RecordingProvider()
@@ -169,9 +169,26 @@ def test_outcomes_attribute_elapsed_time_evenly_across_attempted_capabilities():
     _, _, outcomes = sampler.sample_with_outcomes(manifest, clock=lambda: next(clock_values))
 
     by_id = {o.capability_id: o for o in outcomes}
-    assert by_id["sense-a"].attributed_elapsed_s == pytest.approx(0.005)
-    assert by_id["sense-b"].attributed_elapsed_s == pytest.approx(0.005)
+    # ADR-0042: wall-clock share is observer profiling only...
+    assert by_id["sense-a"].observed_elapsed_s == pytest.approx(0.005)
+    assert by_id["sense-b"].observed_elapsed_s == pytest.approx(0.005)
+    # ...while the causal cost is the declared constant, whatever the clock.
+    assert by_id["sense-a"].causal_acquisition_cost == DEFAULT_SAMPLING_COST_PER_CAPABILITY
+    assert by_id["sense-b"].causal_acquisition_cost == DEFAULT_SAMPLING_COST_PER_CAPABILITY
     assert by_id["sense-a"].kind == SamplingOutcomeKind.SUCCEEDED
+
+
+def test_causal_cost_is_independent_of_host_speed_and_declared_by_provider():
+    manifest = _manifest(_capability("sense-a"), _capability("sense-b"))
+    fast, slow = iter([0.0, 0.0001]), iter([0.0, 9.0])
+    provider = RecordingProvider()
+    provider.sampling_cost_per_capability = 0.25
+
+    _, _, quick = HostSampler((provider,)).sample_with_outcomes(manifest, clock=lambda: next(fast))
+    _, _, loaded = HostSampler((provider,)).sample_with_outcomes(manifest, clock=lambda: next(slow))
+
+    assert [o.causal_acquisition_cost for o in quick] == [0.25, 0.25]
+    assert [o.causal_acquisition_cost for o in loaded] == [0.25, 0.25]
 
 
 def test_missing_capability_gets_missing_outcome_not_zero_cost():
@@ -184,7 +201,7 @@ def test_missing_capability_gets_missing_outcome_not_zero_cost():
 
     by_id = {o.capability_id: o for o in outcomes}
     assert by_id["sense-b"].kind == SamplingOutcomeKind.MISSING
-    assert by_id["sense-b"].attributed_elapsed_s == pytest.approx(0.005)
+    assert by_id["sense-b"].causal_acquisition_cost == DEFAULT_SAMPLING_COST_PER_CAPABILITY
 
 
 def test_provider_exception_attributes_provider_failed_to_every_attempted_capability():

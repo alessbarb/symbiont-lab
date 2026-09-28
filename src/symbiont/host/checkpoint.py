@@ -15,9 +15,9 @@ from .consolidated_baseline import (
     seed_capability_baseline,
 )
 from .drift import DriftAwareBaseline
-from .rhythms import RhythmModel, TimeBucket
+from .rhythms import CyclePhase, RhythmModel
 
-CHECKPOINT_SCHEMA_VERSION = 9
+CHECKPOINT_SCHEMA_VERSION = 10
 # v8 -> v9 removes the contaminated typed local-action-selection subsystem
 # (ActionKind/ExpectedOutcome/LocalActionModel and its scalar utility
 # function) from canonical symbiont.core.runtime.  See _migrate_v8_to_v9:
@@ -103,11 +103,11 @@ def export_checkpoint(
         payload["rhythms"] = [
             {
                 "percept_name": percept_name,
-                "time_bucket": time_bucket.value,
+                "phase": phase.value,
                 **_seed_payload(consolidate_baseline(baseline)),
             }
-            for percept_name, time_bucket in rhythm_model.learned_contexts
-            if (baseline := rhythm_model.baseline(percept_name, time_bucket)) is not None
+            for percept_name, phase in rhythm_model.learned_contexts
+            if (baseline := rhythm_model.baseline(percept_name, phase)) is not None
         ]
         if include_replay:
             payload["rhythms_replay"] = rhythm_model.replay_state()
@@ -392,6 +392,25 @@ def _migrate_v8_to_v9(payload: dict[str, Any]) -> dict[str, Any]:
 _MIGRATIONS[8] = _migrate_v8_to_v9
 
 
+def _migrate_v9_to_v10(payload: dict[str, Any]) -> dict[str, Any]:
+    """ADR-0042: rhythm contexts become internal macro-cycle phases.
+
+    v9 rhythm baselines were keyed by a wall-clock time-of-day bucket read
+    from the host OS. They cannot be re-keyed to the organism's internal
+    phase without inventing an alignment, so they are intentionally
+    discarded (both the public projection and the replay accumulators);
+    rhythms are relearned from causal ticks.
+    """
+    migrated = dict(payload)
+    migrated["schema_version"] = 10
+    migrated.pop("rhythms", None)
+    migrated.pop("rhythms_replay", None)
+    return migrated
+
+
+_MIGRATIONS[9] = _migrate_v9_to_v10
+
+
 def normalize_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
     """Return one current-schema checkpoint for all restore consumers.
 
@@ -472,7 +491,7 @@ def import_checkpoint(
         for entry in payload.get("rhythms", []):
             rhythm_model.restore(
                 entry["percept_name"],
-                TimeBucket(entry["time_bucket"]),
+                CyclePhase(entry["phase"]),
                 _baseline_from_stats_entry(entry),
             )
         raw_rhythms_replay = payload.get("rhythms_replay")

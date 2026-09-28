@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ...host.rhythms import CyclePhase, cycle_phase_for_tick
+
 
 @dataclass(frozen=True, slots=True)
 class TickContext:
@@ -28,3 +30,11 @@ class TickContext:
             self.body_id is not None or self.embodiment_tick is not None
         ):
             raise ValueError("body_id/embodiment_tick require an embodiment_id")
+
+    @property
+    def macro_phase(self) -> CyclePhase:
+        """Internal macro-cycle phase of this causal tick (ADR-0042/ADR-0032).
+
+        Derived only from the persisted Symbiont tick, so it survives restore
+        and re-embodiment and never depends on the host clock."""
+        return cycle_phase_for_tick(self.symbiont_tick)

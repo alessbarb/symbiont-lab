@@ -8,7 +8,6 @@ from symbiont.core import EvidenceRevisionLedger, attend_to_host, narrate_host
 from symbiont.host import (
     CheckpointError,
     acclimate_local_host,
-    current_time_bucket,
     discover_local_host,
     export_checkpoint,
     import_checkpoint,
@@ -264,21 +263,25 @@ def run_host_command(args: argparse.Namespace) -> int:
         return 0
     if args.host_action == "rhythms":
         ticks = min(max(int(args.ticks), 1), 1000)
-        bucket = current_time_bucket()
-        model = learn_local_host_rhythms(ticks=ticks, time_bucket=bucket)
+        # ADR-0042: phases of the internal cycle, never the host clock.
+        model = learn_local_host_rhythms(ticks=ticks)
         payload = {
-            "time_bucket": bucket.value,
-            "co_occurring_percepts": list(model.co_occurring_percepts(bucket)),
-            "baselines": {
-                percept_name: {
-                    "count": baseline.count,
-                    "mean": baseline.mean,
-                    "variance": baseline.variance,
-                    "stdev": baseline.stdev,
+            "phases": {
+                phase.value: {
+                    "co_occurring_percepts": list(model.co_occurring_percepts(phase)),
+                    "baselines": {
+                        percept_name: {
+                            "count": baseline.count,
+                            "mean": baseline.mean,
+                            "variance": baseline.variance,
+                            "stdev": baseline.stdev,
+                        }
+                        for percept_name, learned_phase in model.learned_contexts
+                        if learned_phase == phase
+                        and (baseline := model.baseline(percept_name, phase)) is not None
+                    },
                 }
-                for percept_name, learned_bucket in model.learned_contexts
-                if learned_bucket == bucket
-                and (baseline := model.baseline(percept_name, bucket)) is not None
+                for phase in sorted({phase for _name, phase in model.learned_contexts})
             },
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
@@ -330,8 +333,8 @@ def run_host_command(args: argparse.Namespace) -> int:
             summary = {
                 "restored_acclimation_capabilities": list(acclimation.acclimated_capabilities),
                 "restored_rhythm_contexts": [
-                    {"percept_name": name, "time_bucket": bucket.value}
-                    for name, bucket in rhythm_model.learned_contexts
+                    {"percept_name": name, "phase": phase.value}
+                    for name, phase in rhythm_model.learned_contexts
                 ],
                 "restored_drift_percepts": {
                     name: {"count": baseline.count, "mean": baseline.mean, "stdev": baseline.stdev}

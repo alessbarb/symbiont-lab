@@ -18,7 +18,7 @@ def _outcome(
         capability_id=capability_id,
         provider_id="p",
         kind=kind,
-        attributed_elapsed_s=elapsed,
+        causal_acquisition_cost=elapsed,
         quality=quality,
     )
 

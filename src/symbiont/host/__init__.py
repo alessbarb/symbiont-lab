@@ -11,7 +11,6 @@ from .adaptive import (
 )
 from .bootstrap import (
     acclimate_local_host,
-    current_time_bucket,
     discover_local_host,
     learn_local_host_rhythms,
     monitor_local_host,
@@ -51,7 +50,7 @@ from .readings import (
     Unit,
     reading_matches_manifest,
 )
-from .rhythms import RhythmModel, TimeBucket, time_bucket_for_hour
+from .rhythms import CYCLE_PERIOD_TICKS, CyclePhase, RhythmModel, cycle_phase_for_tick
 from .second_look import SecondLookResult, SecondLookSession
 
 __all__ = [
@@ -93,10 +92,11 @@ __all__ = [
     "SecondLookResult",
     "SecondLookSession",
     "SensorReading",
-    "TimeBucket",
+    "CYCLE_PERIOD_TICKS",
+    "CyclePhase",
     "Unit",
     "acclimate_local_host",
-    "current_time_bucket",
+    "cycle_phase_for_tick",
     "discover_local_host",
     "export_checkpoint",
     "import_checkpoint",
@@ -107,6 +107,5 @@ __all__ = [
     "sample_local_host",
     "second_look_at_local_host",
     "synthesize_percepts",
-    "time_bucket_for_hour",
     "track_local_host_drift",
 ]

@@ -17,7 +17,7 @@ from symbiont.host.checkpoint import (
 )
 from symbiont.host.drift import DriftAwareBaseline
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
-from symbiont.host.rhythms import RhythmModel, TimeBucket
+from symbiont.host.rhythms import CyclePhase, RhythmModel
 
 
 def _reading(capability_id: str, value: float) -> SensorReading:
@@ -94,13 +94,13 @@ def test_rhythms_round_trip_through_checkpoint():
         privacy_class=ReadingPrivacyClass.AGGREGATE,
     )
     for _ in range(8):
-        model.observe([percept], time_bucket=TimeBucket.NIGHT)
+        model.observe([percept], phase=CyclePhase.PHASE_0)
 
     payload = export_checkpoint(rhythm_model=model)
     _, restored, _ = import_checkpoint(payload, rhythm_model=RhythmModel(min_samples=2))
 
-    assert restored.is_learned("system_load", TimeBucket.NIGHT)
-    baseline = restored.baseline("system_load", TimeBucket.NIGHT)
+    assert restored.is_learned("system_load", CyclePhase.PHASE_0)
+    baseline = restored.baseline("system_load", CyclePhase.PHASE_0)
     assert baseline.count <= 8
     assert baseline.mean == pytest.approx(0.5, rel=0.6)
 
@@ -158,13 +158,13 @@ def test_import_rejects_malformed_entries():
         )
 
 
-def test_import_rejects_unknown_time_bucket():
+def test_import_rejects_unknown_phase():
     payload = {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "rhythms": [
             {
                 "percept_name": "x",
-                "time_bucket": "midnight-ish",
+                "phase": "midnight-ish",
                 "count": 5,
                 "mean": 1.0,
                 "variance": 0.0,
@@ -328,7 +328,7 @@ def test_import_rejects_negative_count_in_rhythms():
     payload = {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "rhythms": [
-            {"percept_name": "x", "time_bucket": "night", "count": -1, "mean": 0.0, "variance": 0.0}
+            {"percept_name": "x", "phase": "phase.0", "count": -1, "mean": 0.0, "variance": 0.0}
         ],
     }
     with pytest.raises(CheckpointError):
@@ -397,8 +397,8 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     assert acclimation.baseline("x") is not None
 
 
-def test_current_schema_version_is_nine():
-    assert CHECKPOINT_SCHEMA_VERSION == 9
+def test_current_schema_version_is_ten():
+    assert CHECKPOINT_SCHEMA_VERSION == 10
 
 
 def test_v6_checkpoint_migrates_through_signal_knowledge_to_current():
@@ -455,7 +455,7 @@ def test_v7_checkpoint_migrates_to_v8_without_inventing_sensory_phenotype():
             "effective_config": {"discover_senses": True},
         }
     )
-    assert migrated["schema_version"] == 9
+    assert migrated["schema_version"] == 10  # migrates through the ADR-0042 rhythm step
     assert migrated["sensory_system"] is None
     assert migrated["effective_config"]["sensory_plasticity"] is False
 
@@ -565,13 +565,8 @@ def test_v5_acclimation_with_exact_stats_migrates_to_consolidated_classes():
     }
     migrated = normalize_checkpoint(v5_payload)
     assert set(migrated["acclimation"]["cpu"]) == {"center_class", "scale_class", "maturity_class"}
-    assert set(migrated["rhythms"][0]) == {
-        "percept_name",
-        "time_bucket",
-        "center_class",
-        "scale_class",
-        "maturity_class",
-    }
+    # v5 rhythms were keyed by the host wall clock; v10 discards them (ADR-0042).
+    assert "rhythms" not in migrated
     assert set(migrated["drift"]["cpu"]) == {"center_class", "scale_class", "maturity_class"}
 
     acclimation, rhythm_model, drift_baselines = import_checkpoint(migrated)
