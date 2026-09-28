@@ -1567,6 +1567,13 @@ class PyBulletEmbodimentRuntime:
                             "tick_simulation_span_s": float(
                                 self.physics_substeps_per_tick * self.time_step
                             ),
+                            "sampling_hz": float(
+                                1.0
+                                / (
+                                    self.time_step
+                                    * self.presentation_substeps_per_frame
+                                )
+                            ),
                             "physical_state": pose,
                         }
                     )
