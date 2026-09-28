@@ -836,6 +836,20 @@ append-only child vocabulary (`c6ee7192`). Run from a clean worktree at the
 then-current `main`; arm A then arm B, synchronous training, disk guard at
 1 GiB.
 
+**Amendment before any P5.1 tick (2026-09-29, owner instruction).**
+`org-ea3e7bbbc628` cannot be restored on `main`: its genome declares
+`kernel_compatibility >=0.80,<0.90` and the package is 0.90.0 (`bade329c`
+widened the bound only for new genomes). The owner asked for a sample from
+the state directory instead. P5.1 therefore runs on a snapshot of
+`org-2df92a9d8fda` (`symbiont:3d:c18275bd52b9d478`): tick 768, juvenile,
+active, body `anthropomorphic-v6-vision` (62 effectors, 251 receptors),
+genome `<1.00`, 1 ACTIVE and 3 SHADOW models (none with recorded losses,
+so none ancestry-eligible at start), 1 881 experiences. Checkpoint sha256
+`ac27ed44…`, body sha256 `c987c530…`, both at tick 768; the live organism
+is not touched. Arms, gates and decision rule are unchanged; P5.1 is a
+within-run A/B comparison and is not directly comparable to P5 (different
+organism, body and age).
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
