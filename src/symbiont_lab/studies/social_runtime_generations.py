@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
 
@@ -14,6 +13,7 @@ from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController
 from symbiont.core.social import SocialHabitat
+from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +43,6 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
     active = OrganismRuntime(
         organism_id="generation-0",
         genome=genome,
-        birth_authority=authority,
         social_habitat=social,
         metabolism=MetabolicLedger(replenishment=zero),
         explicit_metabolism=True,
@@ -51,6 +50,7 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
+    authority.register_runtime(active)
     assert active.join_social_habitat(social)
     release_count = 0
     membership_survived = True
@@ -63,7 +63,6 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
         restored = OrganismRuntime.from_checkpoint(
             checkpoint,
             social_habitat=social,
-            birth_authority=authority,
             bootstrap_semantic_senses=False,
             discover_senses=False,
         )
@@ -78,7 +77,7 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
             "ready:",
             active._ontogeny.reproductively_ready(),
         )
-        child = active.materialize_clonal_bud()
+        child = materialize_clonal_bud(active, authority=authority)
         print(f"Loop {index}: child is None? {child is None}")
         if child is not None:
             print(f"Loop {index}: join? {child.join_social_habitat(social)}")
@@ -94,6 +93,7 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
         active.request_social_exchange("peer", "food", 0.25)
         active.metabolism.charge("maintenance", 8.0)
         active.tick()
+        authority.observe_death(active)
         release_count += int(
             active.organism_id not in authority.live_ids
             and active.organism_id not in social.members

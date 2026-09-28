@@ -1,4 +1,3 @@
-from .birth_authority import BirthRecord, DeathRecord, HabitatBirthAuthority
 from .germline import (
     STANDARD_COGNITIVE_LOCI,
     EpigeneticMark,
@@ -11,9 +10,6 @@ from .germline import (
 )
 
 __all__ = [
-    "BirthRecord",
-    "DeathRecord",
-    "HabitatBirthAuthority",
     "EpigeneticMark",
     "GermlineState",
     "InheritancePackage",

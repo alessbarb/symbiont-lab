@@ -42,12 +42,10 @@ from .host.advisory import (
     append_advisories_to_log,
     load_advisory_log,
 )
-from .lineage import birth_authority as _birth_authority
 from .lineage import germline as _germline
 from .lineage import heredity as _heredity
 from .lineage import heritage as _heritage
 from .lineage import inheritance as _inheritance
-from .lineage.birth_authority import BirthRecord, DeathRecord, HabitatBirthAuthority
 from .lineage.heritage import HeritagePattern, SpeciesHeritage, apply_heritage, distill_heritage
 from .orchestration.governor import (
     ConsentRevokedError,
@@ -100,7 +98,6 @@ from .social.capsule import (
 from .social.ledger import SocialClaim, SocialEvidenceLedger, SocialQuestion
 from .social.source_evidence import SourceEvidenceOutcome, SourceEvidenceSample, SourceEvidenceState
 
-_sys.modules[__name__ + ".birth_authority"] = _birth_authority
 _sys.modules[__name__ + ".heredity"] = _heredity
 _sys.modules[__name__ + ".inheritance"] = _inheritance
 _sys.modules[__name__ + ".heritage"] = _heritage
@@ -181,9 +178,6 @@ __all__ = [
     "HomeostaticSnapshot",
     "LifeState",
     "ViabilityController",
-    "BirthRecord",
-    "DeathRecord",
-    "HabitatBirthAuthority",
     "HeritableGenome",
     "recombine_loci",
     "CulturalArtifact",

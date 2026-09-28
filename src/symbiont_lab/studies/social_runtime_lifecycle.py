@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.runtime import OrganismRuntime
 
@@ -14,6 +13,7 @@ from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController
 from symbiont.core.social import SocialHabitat
+from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +43,6 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
     parent = OrganismRuntime(
         organism_id="parent",
         genome=genome,
-        birth_authority=authority,
         social_habitat=social,
         metabolism=metabolism,
         explicit_metabolism=True,
@@ -51,6 +50,7 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
+    authority.register_runtime(parent)
     parent.request_social_exchange("peer", "food", 0.5)
     parent.suspend_social_interaction("peer")
     runtime_payload = parent.checkpoint()
@@ -62,15 +62,16 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
     restored = OrganismRuntime.from_checkpoint(
         runtime_payload,
         social_habitat=restored_social,
-        birth_authority=restored_authority,
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
+    if restored.organism_id not in restored_authority.live_ids:
+        raise RuntimeError("restored subject is missing from laboratory population")
     replay_equal = restored.social_ledger.checkpoint() == parent.social_ledger.checkpoint()
     resumed_after_restore = restored.resume_social_interaction("peer")
 
     parent.living_body_state.growth_progress = 1.0
-    child = parent.materialize_clonal_bud()
+    child = materialize_clonal_bud(parent, authority=authority)
     if child is None:
         raise RuntimeError("social lifecycle study could not materialize child")
     child_record = next(
@@ -79,6 +80,7 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
     social.admit(child.organism_id)
     metabolism.charge("maintenance", 8.0)
     parent.tick()
+    authority.observe_death(parent)
 
     return SocialRuntimeLifecycleStudy(
         restored_identity=restored.organism_id == parent.organism_id,

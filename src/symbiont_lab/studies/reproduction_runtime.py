@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.runtime import OrganismRuntime
 
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
+from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,12 +33,12 @@ def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStud
     parent = OrganismRuntime(
         organism_id="study-parent",
         genome=genome,
-        birth_authority=authority,
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
+    authority.register_runtime(parent)
     parent.living_body_state.growth_progress = 1.0
-    child = parent.materialize_clonal_bud()
+    child = materialize_clonal_bud(parent, authority=authority)
     if child is None:
         raise RuntimeError("study could not materialize child")
     child.run(ticks)
@@ -46,7 +46,6 @@ def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStud
         child.checkpoint(),
         bootstrap_semantic_senses=False,
         discover_senses=False,
-        birth_authority=authority,
     )
     left = tuple(result.metabolism for result in child.run(ticks))
     right = tuple(result.metabolism for result in restored.run(ticks))

@@ -22,7 +22,6 @@ class LifecycleEventState:
 @dataclass(frozen=True, slots=True)
 class LifecycleReleaseResult:
     habitat_released: bool
-    birth_authority_released: bool
     social_habitat_released: bool
 
 
@@ -111,8 +110,6 @@ class LifecycleDomain:
         habitat: Any | None,
         habitat_released: bool,
         resource_habitats: dict[str, Any],
-        birth_authority: Any | None,
-        birth_authority_released: bool,
         social_habitat: Any | None,
         social_habitat_released: bool,
     ) -> LifecycleReleaseResult:
@@ -120,7 +117,6 @@ class LifecycleDomain:
         if physiology_snapshot.state.value != "dead":
             return LifecycleReleaseResult(
                 habitat_released=habitat_released,
-                birth_authority_released=birth_authority_released,
                 social_habitat_released=social_habitat_released,
             )
 
@@ -132,11 +128,6 @@ class LifecycleDomain:
         for resource in resource_habitats.values():
             resource.release(organism_id)
 
-        next_birth_released = birth_authority_released
-        if birth_authority is not None and not birth_authority_released:
-            birth_authority.death(organism_id)
-            next_birth_released = True
-
         next_social_released = social_habitat_released
         if social_habitat is not None and not social_habitat_released:
             social_habitat.release(organism_id)
@@ -144,7 +135,6 @@ class LifecycleDomain:
 
         return LifecycleReleaseResult(
             habitat_released=next_habitat_released,
-            birth_authority_released=next_birth_released,
             social_habitat_released=next_social_released,
         )
 

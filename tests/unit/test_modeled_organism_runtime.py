@@ -5,7 +5,6 @@ from dataclasses import replace
 from importlib import resources
 
 import pytest
-from symbiont.core.birth_authority import HabitatBirthAuthority
 
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.modeling import (
@@ -20,6 +19,7 @@ from symbiont.modeling import (
     SourceKind,
     TrainingRequest,
 )
+from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
@@ -97,10 +97,10 @@ def test_clonal_child_inherits_modeling_capacity_but_not_private_model_or_experi
     parent = ModeledOrganismRuntime(
         organism_id="model-parent",
         genome=genome,
-        birth_authority=authority,
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
+    authority.register_runtime(parent)
     parent.adopt_private_model(_artifact(parent))
     parent.record_experience(
         ExperienceRecord(
@@ -117,7 +117,7 @@ def test_clonal_child_inherits_modeling_capacity_but_not_private_model_or_experi
         )
     )
     parent.living_body_state.growth_progress = 1.0
-    child = parent.materialize_clonal_bud()
+    child = materialize_clonal_bud(parent, authority=authority)
     assert isinstance(child, ModeledOrganismRuntime)
     assert child is not None
     assert child.model_registry.records == ()

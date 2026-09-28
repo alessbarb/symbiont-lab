@@ -35,7 +35,6 @@ from ...agency.prospective import (
     ProspectiveDecision,
     admit_afforded_action,
 )
-from ...cognition.birth import load_base_graph
 from ...cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
 from ...cognition.generative import (
     CompetenceEffectGenerativeAdapter,
@@ -110,7 +109,6 @@ from ..embodiment.physiology import (
     VitalState,
 )
 from ..foundation.narrative import NarrativeEntry
-from ..lineage.birth_authority import HabitatBirthAuthority
 from ..lineage.inheritance import EpigeneticPrior
 from ..regulation import InnateReactivity, ReactiveMemory
 from ..signals.identity import SignalIdentity
@@ -286,7 +284,6 @@ class OrganismRuntime:
         exchange_sequence: int = 0,
         explicit_metabolism: bool = False,
         auto_promote_predictors: bool = False,
-        birth_authority: HabitatBirthAuthority | None = None,
         generation: int = 0,
         social_exchange_quantum: float = 0.1,
         social_exchange_cost: float = 0.01,
@@ -442,7 +439,6 @@ class OrganismRuntime:
         # B): set by the apparatus after construction, never by cognition,
         # never checkpointed, never part of effective_config.
         self.cognitive_plasticity_ablated = False
-        self._birth_authority = birth_authority
         self._developmental_tracker = (
             developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
         )
@@ -683,7 +679,6 @@ class OrganismRuntime:
                 self._epistemic_ledger.receive_claim(claim)
         self._social_habitat_released = False
         self._habitat_released = False
-        self._birth_authority_released = False
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
             self._habitat.admit(self._organism_id)
         for resource in self._resource_habitats.values():
@@ -736,18 +731,6 @@ class OrganismRuntime:
         self._mutation_seed = mutation_seed
         self._epigenetic_priors = tuple(epigenetic_priors)
         self._epigenetic_decay = float(epigenetic_decay)
-        if (
-            self._birth_authority is not None
-            and self._organism_id not in self._birth_authority.live_ids
-        ):
-            genome_id = self._genome.genome_id if self._genome is not None else "runtime"
-            if (
-                self._birth_authority.register_existing(
-                    organism_id=self._organism_id, genome_id=genome_id, generation=self._generation
-                )
-                is None
-            ):
-                raise ValueError("birth authority cannot register runtime")
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
         self._memory_consolidator = (
             memory_consolidator
@@ -1525,13 +1508,6 @@ class OrganismRuntime:
         """Coarse, non-semantic developmental biases; never lifetime knowledge."""
         return self._epigenetic_priors
 
-    def _next_heritable_genome(self) -> Genome | None:
-        """Create the next genotype through the single typed Genome v2 path."""
-        return self._genome
-
-    def _child_genome(self, inherited: Genome) -> Genome:
-        return inherited
-
     @property
     def generation(self) -> int:
         return self._generation
@@ -1785,95 +1761,6 @@ class OrganismRuntime:
         """Physical readiness derived only from canonical body state."""
         return self._ontogeny.reproductively_ready()
 
-    def materialize_clonal_bud(self) -> "OrganismRuntime | None":
-        """Materialize one asexual descendant from conserved parental energy.
-
-        Readiness is purely physiological.  No cognitive topology, learned
-        competence, blocked growth, reward or evaluator score participates.
-        World/habitat authority may deny materialization, but cannot create
-        readiness.
-        """
-        if (
-            self._birth_authority is None
-            or self._genome is None
-            or not self._ontogeny.reproductively_ready()
-            or not self._birth_surfaces_available()
-        ):
-            return None
-
-        inherited = self._next_heritable_genome()
-        child_genome_id = inherited.genome_id if inherited is not None else self._genome.genome_id
-        record = self._birth_authority.birth(
-            genome_id=child_genome_id,
-            parent_ids=(self._organism_id,),
-            generation=self._generation + 1,
-        )
-        if record is None:
-            return None
-
-        birth_energy = self._ontogeny.reproduction_energy()
-        child_genome = self._child_genome(inherited) if inherited is not None else self._genome
-        child_state = LivingBodyState(
-            energy_reserve=birth_energy,
-            max_energy=self._living_body_state.max_energy,
-            growth_progress=0.0,
-            senescence=0.0,
-        )
-        parent_metabolism = self._metabolism.snapshot()
-        parent_metabolism_checkpoint = self._metabolism.checkpoint()
-        child_metabolism = MetabolicLedger(
-            capacity=dict(parent_metabolism.capacity),
-            replenishment=dict(parent_metabolism_checkpoint["replenishment"]),
-            physiology_config=self._physiology_config,
-            body_state=child_state,
-        )
-        graph = load_base_graph(kernel_limits=self._kernel_limits)
-
-        try:
-            child = OrganismRuntime(
-                attention_budget=self._attention_budget,
-                investigate_ticks=self._investigate_ticks,
-                conflict_z=self._conflict_z,
-                min_samples=self._min_samples,
-                discover_senses=self._discover_senses,
-                bootstrap_semantic_senses=self._bootstrap_semantic_senses,
-                sensory_system=self._sensory_system.germinal_copy(),
-                genome=child_genome,
-                mutation_seed=self._mutation_seed + self._generation + 1,
-                epigenetic_priors=self._epigenetic_priors,
-                epigenetic_decay=self._epigenetic_decay,
-                kernel_limits=self._kernel_limits,
-                cognitive_graph=graph,
-                host_lifecycle=self._lifecycle.fork_for_child(),
-                persist_replay_state=self._persist_replay_state,
-                physiology_config=self._physiology_config,
-                metabolism=child_metabolism,
-                living_body_state=child_state,
-                organism_id=record.organism_id,
-                birth_authority=self._birth_authority,
-                generation=record.generation,
-                social_habitat=None,
-                resource_habitats=self._resource_habitats,
-                explicit_metabolism=self._explicit_metabolism,
-                social_exchange_quantum=self._social_exchange_quantum,
-                social_exchange_cost=self._social_exchange_cost,
-                interoception_enabled=self._interoception_enabled,
-                interoception_mode=self._interoception_mode,
-                actuation_enabled=self._actuation_enabled,
-                motor_selection_threshold=self._action_domain.selection_threshold,
-            )
-        except Exception:
-            self._birth_authority.death(record.organism_id)
-            raise
-
-        # Conservation boundary: the child's initial physical energy is exactly
-        # the energy removed from the parent.  No birth-energy minting.
-        self._metabolism.charge("maintenance", birth_energy)
-
-        if self._social_habitat is not None:
-            child.join_social_habitat(self._social_habitat)
-        return child
-
     @property
     def cognitive_bridge(self) -> CognitiveBridge | None:
         return self._cognitive_bridge
@@ -2017,17 +1904,6 @@ class OrganismRuntime:
     def pending_homeostatic_credit_count(self) -> int:
         """Number of live delayed action-credit traces."""
         return len(self._pending_homeostatic_action_credit)
-
-    def _birth_surfaces_available(self) -> bool:
-        """Preflight external carrying-capacity surfaces only.
-
-        Physical birth energy is transferred from the parent. Shared habitat
-        resource quantities are not a second reproductive currency.
-        """
-        surfaces = list(self._resource_habitats.values())
-        if self._habitat is not None:
-            surfaces.append(self._habitat)
-        return all(surface.snapshot().population < surface.capacity for surface in surfaces)
 
     def request_rest(self) -> None:
         """Enter a bounded rest request; reserves are not replenished."""
@@ -2304,13 +2180,10 @@ class OrganismRuntime:
             habitat=self._habitat,
             habitat_released=self._habitat_released,
             resource_habitats=self._resource_habitats,
-            birth_authority=self._birth_authority,
-            birth_authority_released=self._birth_authority_released,
             social_habitat=self._social_habitat,
             social_habitat_released=self._social_habitat_released,
         )
         self._habitat_released = release.habitat_released
-        self._birth_authority_released = release.birth_authority_released
         self._social_habitat_released = release.social_habitat_released
         self._lifecycle_domain.update_interoception_metrics(
             provider=self._interoception_provider,
@@ -3181,7 +3054,6 @@ class OrganismRuntime:
             else None
         )
         constructor_kwargs = dict(kwargs)
-        constructor_kwargs.pop("birth_authority", None)
         constructor_kwargs.pop("generation", None)
         constructor_kwargs.pop("social_exchange_quantum", None)
         constructor_kwargs.pop("social_exchange_cost", None)
@@ -3271,7 +3143,6 @@ class OrganismRuntime:
                     "auto_promote_predictors", effective.get("auto_promote_predictors", False)
                 )
             ),
-            birth_authority=kwargs.get("birth_authority"),
             generation=int(
                 normalized.get(
                     "generation", normalized.get("effective_config", {}).get("generation", 0)

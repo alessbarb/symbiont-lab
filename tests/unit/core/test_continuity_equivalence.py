@@ -182,20 +182,20 @@ def test_reproduction_preserves_lineage_across_checkpoint_without_experience():
     """Genealogy (spec §29): a born child's generation/lineage survive a
     checkpoint round-trip, and it never inherits the parent's acquired
     cognitive experience."""
-    from symbiont.core.birth_authority import HabitatBirthAuthority
+    from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
     authority = HabitatBirthAuthority(habitat_id="continuity", capacity=2)
     parent = OrganismRuntime(
         organism_id="lineage-parent",
         genome=_reproduction_genome(),
-        birth_authority=authority,
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
+    authority.register_runtime(parent)
     parent.run(5)
     parent.living_body_state.growth_progress = 1.0
 
-    child = parent.materialize_clonal_bud()
+    child = materialize_clonal_bud(parent, authority=authority)
     assert child is not None
 
     restored_child = _restore(child.checkpoint())

@@ -13,7 +13,6 @@ import math
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
 
 from symbiont import __version__ as symbiont_version
@@ -27,6 +26,7 @@ from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.runtime import ModeledOrganismRuntime
 from symbiont.modeling.sequences import SequenceChannel
 from symbiont.modeling.telemetry import CommunicationTelemetry
+from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,7 +161,6 @@ class IntegratedHabitatRuntime:
                 discovery=HostDiscovery(providers=()), reading_providers=()
             ),
             genome=genome,
-            birth_authority=self.authority,
             generation=generation,
             social_habitat=self.social_habitat,
             living_body_state=body_state,
@@ -217,6 +216,7 @@ class IntegratedHabitatRuntime:
             )
         )
         for identifier in dead:
+            self.authority.observe_death(self.population[identifier])
             self.dead[identifier] = self.population.pop(identifier)
         return dead
 
@@ -229,7 +229,7 @@ class IntegratedHabitatRuntime:
         if parent is None:
             return ()
         parent.living_body_state.growth_progress = 1.0
-        child = parent.materialize_clonal_bud()
+        child = materialize_clonal_bud(parent, authority=self.authority)
         if child is None:
             return ()
         if not child.join_social_habitat(self.social_habitat):
@@ -387,7 +387,6 @@ class IntegratedHabitatRuntime:
         for raw in raw_population:
             organism = ModeledOrganismRuntime.from_checkpoint(
                 raw,
-                birth_authority=runtime.authority,
                 social_habitat=runtime.social_habitat,
                 bootstrap_semantic_senses=True,
                 discover_senses=False,

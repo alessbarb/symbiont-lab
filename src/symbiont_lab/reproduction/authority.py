@@ -67,6 +67,24 @@ class HabitatBirthAuthority:
     def death_records(self) -> tuple[DeathRecord, ...]:
         return tuple(self._deaths)
 
+    def register_runtime(self, runtime: Any) -> BirthRecord:
+        """Explicitly admit an existing subject without giving it authority."""
+        genome_id = runtime.genome.genome_id if runtime.genome is not None else "runtime"
+        record = self.register_existing(
+            organism_id=runtime.organism_id,
+            genome_id=genome_id,
+            generation=runtime.generation,
+        )
+        if record is None:
+            raise ValueError("birth authority cannot register runtime")
+        return record
+
+    def observe_death(self, runtime: Any) -> DeathRecord | None:
+        """Release a population slot from observed subject state, idempotently."""
+        if runtime.living_body_state.vital_state.value != "dead":
+            return None
+        return self.death(runtime.organism_id)
+
     def register_existing(
         self,
         *,

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.runtime import OrganismRuntime
 
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
+from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,25 +35,27 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
     parent = OrganismRuntime(
         organism_id="parent",
         genome=genome,
-        birth_authority=authority,
         metabolism=MetabolicLedger(replenishment=zero),
         explicit_metabolism=True,
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
+    authority.register_runtime(parent)
     parent.living_body_state.growth_progress = 1.0
-    child = parent.materialize_clonal_bud()
+    child = materialize_clonal_bud(parent, authority=authority)
     if child is None:
         raise RuntimeError("population study could not materialize child")
-    capacity_blocked_birth = parent.materialize_clonal_bud() is None
+    capacity_blocked_birth = materialize_clonal_bud(parent, authority=authority) is None
     child.metabolism.charge("maintenance", 8.0)
     result = child.tick()
+    authority.observe_death(child)
     child_died = result.physiology is not None and result.physiology.state.value == "dead"
     slot_released = child.organism_id not in authority.live_ids
     # A second tick is rejected before any second release can occur.
     duplicate_release_prevented = False
     try:
         child.tick()
+        authority.observe_death(child)
     except RuntimeError:
         duplicate_release_prevented = True
     return RuntimePopulationStudy(
