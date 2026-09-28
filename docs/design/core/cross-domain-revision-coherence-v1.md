@@ -139,6 +139,28 @@ new metrics live in separate checkpoint sections that no decision reads.
 identical (by `revision_id`/event id) with Wave 0 on vs. the pre-Wave-0
 commit; every metric above present, checkpoint-stable and documented.
 
+### 2.1.1 Wave 0 baseline (2026-09-28, commit `50aeab50`)
+
+Gate W0 passed: behaviour and provenance fingerprints identical to the
+pre-Wave-0 commit (E6 both modes with checkpoint→restore→continue; E8 600
+and 3 000 ticks). Baseline runs on `50aeab50`:
+
+| Run | Result | Wave 0 measurements |
+|---|---|---|
+| E6 whole-state (`...-27d0`) | gate passed | known 1-2, executable 0-1; passive: ledger 0-1 windows, motor baseline 0 frames |
+| E6 factorized (`...-84c4`) | gate passed | known 2-8, executable 2-7, suppressed 0-1; passive: ledger 36-175, motor 15-52 |
+| E8 arm R, 10 seeds (`...-b0c8`) | 8 satisfied, 8 spurious | known 383, predictable 383, executable 328, suppressed 48; effect space **16 994 evictions, 1 375 relearned**; passive: ledger 6 268, motor 2 265 |
+| Physics3D copy of `org-ea3e7bbbc628` | starved at tick 11 897 (reproduced) | known 27, predictable 22, executable 20, suppressed 1; `reacclimation_completed = true` with `adaptation_state = unstable` (F4 observed); private models 64, **all roots, generation 0**, 61 retired, 3 shadow (F10 observed); passive: ledger 754, motor 286 |
+
+Readings: F4, F7 and F10 are now measured, not inferred; F8 shows as two
+different counts everywhere and as near-zero passive evidence in whole-state
+E6. Every suppressed competence is also non-executable in these runs.
+**Limit:** `sterile_reactivation_count` is 0 in every run, including
+Physics3D with 56 generative representations. Either no sterile reuse
+occurred or the operational definition (same episode, no new source) never
+matches because episode ids differ per activation; this must be resolved
+before Wave 4 relies on it.
+
 ### 2.2 Revision identity
 
 Every revision (binding status change, causal revision, suppression,
