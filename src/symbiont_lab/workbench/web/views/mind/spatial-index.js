@@ -45,7 +45,7 @@ export function forEachNearbyPair2D(nodes, cellSize, radius, callback) {
   }
 }
 
-export function forEachNearbyPair3D(nodes, positions, cellSize, radius) {
+export function forEachNearbyPair3D(nodes, positions, cellSize, radius, callback) {
   const cells = new Map();
   const index = new Map(nodes.map((node, i) => [node, i]));
   const reach = Math.max(1, Math.ceil(radius / cellSize));
