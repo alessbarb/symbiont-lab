@@ -75,14 +75,24 @@ class ObservationBus:
                     self._last_by_type[event_type] = data
 
             self._history.append((stream_id, data))
+            overflow_data = (
+                self._last_by_type.get(event_type, data)
+                if projected.get("type") == "observation_delta"
+                else data
+            )
             for consumer in self._queues:
+                selected = data
                 if consumer.full():
                     try:
                         consumer.get_nowait()
                     except queue.Empty:
                         pass
+                    # A dropped delta invalidates the consumer's channel base.
+                    # Replace the current message with a materialized anchor so
+                    # the next message is immediately self-healing.
+                    selected = overflow_data
                 try:
-                    consumer.put_nowait(data)
+                    consumer.put_nowait(selected)
                 except queue.Full:
                     pass
             return stream_id
