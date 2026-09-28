@@ -114,3 +114,44 @@ pulses — e.g. compare each pulse with the rest windows that bracket it
 whatever makes drift appear more often around pulses is present in both
 terms. It will be preregistered with a precision criterion on the E8 body
 and the E6 gate before any change to membership.
+
+### 5.1 Reading after the rule (2026-09-28)
+
+A post-hoc diagnostic (one seed, 1 200 ticks, not evidence) found the same
+mean number of atoms per window in pulse and rest windows (2.65 vs 2.65),
+which argues against the mechanism H3 assumes (drift appearing more often
+around pulses). The observed pattern — drift members with an inflated hit
+rate (0.375 vs 0.107 expected) — is what selection produces: membership
+tests ~64 drift atoms per source after every pulse at a 95% bound with a
+0.0 exit margin, so some cross by chance and stay. That is H2 in the broad
+sense (sequential multiple comparisons); the preregistered operationalisation
+of H2 (`pulses ≤ 6`) was too narrow to register it (median 12 pulses). The
+rule's selection (H3) stands; FP-1 therefore tests the H3 fix **and** a
+multiplicity fix, rather than replacing one with the other.
+
+## 6. FP-1 — membership fixes against ground truth (preregistered)
+
+**Arms** (E8 body, same 10 seeds, factorized effects, 3 000 ticks; the
+organism differs only in footprint membership, behind options off by
+default):
+
+- **R** — current membership (reference);
+- **T (H3, time-matched baseline)** — each atom's quiet rate is estimated
+  only from passive windows within ±8 ticks of the source's pulses (the
+  rest brackets of causal probing), instead of all passive windows;
+- **M (multiplicity)** — the entry bound uses a Bonferroni-adjusted z for
+  the number `m` of candidate atoms evaluated for that source,
+  `z = Φ⁻¹(1 − 0.025 / m)`, and a member leaves when its lower bound falls
+  below the expected quiet rate + 0.025 (exit margin half the entry
+  margin, instead of 0);
+- **TM** — both.
+
+**Metrics** at tick 3 000, pooled over seeds: precision (own/members),
+mean recall (as FP-0), member classes; plus the E6 gate per arm.
+
+**Criteria, fixed now.** An arm qualifies if (1) pooled precision ≥ 0.80,
+(2) mean recall ≥ 0.42 (80% of R's 0.52 in FP-0), and (3) E6 passes 3/3.
+Among qualifying arms the highest precision is proposed (ties: the
+simpler, in order T, M, TM). If none qualifies, the results are reported
+and no membership change is proposed. Adoption as default is an owner
+decision.
