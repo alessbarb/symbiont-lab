@@ -317,6 +317,16 @@ def main() -> None:
 
     python = sys.executable
     focused = [
+        _command(
+            "causal_equivalence_gate",
+            [
+                python,
+                "-m",
+                "pytest",
+                "tests/experimental_integrity/test_performance_optimization_gate.py",
+                "-q",
+            ],
+        ),
         _structured_command(
             "organism_scaling",
             [python, "scripts/bench_organism_tick.py", "--organisms", "1", "10", "--ticks", "120" if args.quick else "500"],
