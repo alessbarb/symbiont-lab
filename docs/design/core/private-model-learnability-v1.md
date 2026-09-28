@@ -186,6 +186,6 @@ evidence for ancestry.
 
 *Result (2026-09-28):* the test found a defect P5 could not reach —
 adoption rejected any child whose vocabulary had grown, because it required
-the parent's exact tokenizer hash. Fixed in `5b52bf39` (an append-only
+the parent's exact tokenizer hash. Fixed in `c6ee7192` (an append-only
 extension of the held parent vocabulary is accepted); the previous
 end-to-end test never appended a token. All listed mechanics now pass.
