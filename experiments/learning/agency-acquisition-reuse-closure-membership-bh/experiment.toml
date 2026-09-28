@@ -1,0 +1,27 @@
+schema_version = 1
+
+[experiment]
+id = "learning.agency-acquisition-reuse-closure-membership-bh"
+title = "E6 gate for FP-2 arm BH (Benjamini-Hochberg membership)"
+protocol = "learning.agency-acquisition-reuse-closure"
+protocol_version = 1
+hypothesis = """
+The E6 closure still holds with Benjamini-Hochberg footprint membership.
+"""
+success_criteria = """
+E6 release gate unchanged on all three seeds (FP-2 criterion 3).
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+factorized_effects = true
+membership = "BH"
+
+[output]
+save_trace = false
+save_summary = true

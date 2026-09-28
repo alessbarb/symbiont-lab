@@ -16,15 +16,21 @@ from .agency_acquisition_body import CausalBody, build_subject
 
 SNAPSHOT_TICKS = (500, 1000, 1500, 2000, 2500, 3000)
 # Footprint Precision v1 §6 arms: (quiet_near, multiplicity).
-MEMBERSHIP_ARMS = {"R": (None, False), "T": (8, False), "M": (None, True), "TM": (8, True)}
+MEMBERSHIP_ARMS = {
+    "R": (None, False, "margin"),
+    "T": (8, False, "margin"),
+    "M": (None, True, "margin"),
+    "TM": (8, True, "margin"),
+    "BH": (None, False, "bh"),  # Footprint Precision v1 §9 (FP-2)
+}
 
 
 def apply_membership(runtime, membership: str) -> None:
     if membership not in MEMBERSHIP_ARMS:
         raise ValueError(f"membership must be one of {sorted(MEMBERSHIP_ARMS)}")
-    quiet_near, multiplicity = MEMBERSHIP_ARMS[membership]
+    quiet_near, multiplicity, test = MEMBERSHIP_ARMS[membership]
     runtime._action_domain.acquisition.set_footprint_membership(
-        quiet_near=quiet_near, multiplicity=multiplicity
+        quiet_near=quiet_near, multiplicity=multiplicity, test=test
     )
 
 

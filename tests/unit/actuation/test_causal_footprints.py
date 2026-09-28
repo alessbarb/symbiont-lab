@@ -312,3 +312,24 @@ def test_multiplicity_widens_the_entry_bound():
     for atom in plain:
         assert adjusted[atom].pulse_rate_lower_bound < plain[atom].pulse_rate_lower_bound
     assert adjusted[CAUSED].contrast > 0.05  # a real every-pulse effect still qualifies
+
+
+def test_benjamini_hochberg_and_binomial_tail():
+    from symbiont.actuation.footprint import benjamini_hochberg, binomial_upper_tail
+
+    # Classic step-up example: q=0.05, m=4 -> thresholds .0125, .025, .0375, .05.
+    p = {"a": 0.001, "b": 0.02, "c": 0.03, "d": 0.2}
+    assert benjamini_hochberg(p, 0.05) == frozenset({"a", "b", "c"})
+    assert benjamini_hochberg({"a": 0.5}, 0.05) == frozenset()
+    assert abs(binomial_upper_tail(2, 3, 0.5) - 0.5) < 1e-12
+    assert binomial_upper_tail(0, 5, 0.3) == 1.0
+
+
+def test_bh_membership_keeps_real_effects_and_rejects_rest_level_drift():
+    # Footprint Precision v1 §9 (FP-2 arm BH).
+    evidence = _history(12)
+    registry = FootprintRegistry()
+    registry.membership_test = "bh"
+    registry.update(_estimates(evidence), tick=1)
+    members = registry.footprints.get(("channel.a",), frozenset())
+    assert CAUSED in members and DRIFT not in members

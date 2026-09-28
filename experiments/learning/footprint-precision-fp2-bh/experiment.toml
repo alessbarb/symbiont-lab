@@ -1,0 +1,35 @@
+schema_version = 1
+
+[experiment]
+id = "learning.footprint-precision-fp2-bh"
+title = "FP-2 arm BH — Benjamini-Hochberg membership at q = 0.05"
+protocol = "learning.footprint-precision"
+protocol_version = 3
+hypothesis = """
+An explicit false-discovery-rate correction of footprint membership removes
+drift members admitted by multiple comparisons while keeping real effects.
+"""
+success_criteria = """
+Preregistered in Footprint Precision v1 §9 (commit e47c4042): an arm
+qualifies with pooled precision >= 0.80 at tick 3000, mean recall >= 0.42
+and the E6 gate 3/3; among qualifying arms the highest precision is
+proposed (ties: M, BH). New seeds, disjoint from those that designed FP-2.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [463, 467, 479, 487, 491, 499, 503, 509, 521, 523]
+
+[body]
+actuator_count = 16
+receptors_per_actuator = 4
+drifting_receptor_count = 32
+
+[ablation]
+membership = "BH"
+
+[output]
+save_trace = false
+save_summary = true

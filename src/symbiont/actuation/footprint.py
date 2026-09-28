@@ -90,6 +90,28 @@ def pulses_from(
     return tuple(pulses)
 
 
+def binomial_upper_tail(successes: int, trials: int, rate: float) -> float:
+    """P(X >= successes), X ~ Binomial(trials, rate), exact."""
+    if successes <= 0:
+        return 1.0
+    rate = min(1.0, max(0.0, rate))
+    return sum(
+        math.comb(trials, k) * rate**k * (1.0 - rate) ** (trials - k)
+        for k in range(successes, trials + 1)
+    )
+
+
+def benjamini_hochberg(p_values: Mapping[str, float], q: float) -> frozenset[str]:
+    """Keys whose nulls are rejected at false-discovery rate ``q``."""
+    ordered = sorted(p_values.items(), key=lambda item: (item[1], item[0]))
+    m = len(ordered)
+    cutoff = 0
+    for rank, (_, value) in enumerate(ordered, start=1):
+        if value <= rank / m * q:
+            cutoff = rank
+    return frozenset(key for key, _ in ordered[:cutoff])
+
+
 def wilson_lower_bound(hits: int, trials: int, z: float = _Z95) -> float:
     if trials <= 0:
         return 0.0
@@ -321,6 +343,15 @@ def _record_from(payload: Mapping[str, Any]) -> MemberRecord:
     return MemberRecord(str(payload["atom"]), int(payload["entered_tick"]), estimate)
 
 
+def _excess_p_value(estimate: AtomEstimate) -> float:
+    """FP-2: exact one-sided test of pulse hits against the length-matched
+    quiet rate, from the Jeffreys estimate of the per-window rate (an atom
+    never seen at rest has a small, not zero, rate)."""
+    per_window = (estimate.passive_hits + 0.5) / (estimate.passive_windows + 1)
+    expected = 1.0 - (1.0 - per_window) ** estimate.mean_pulse_windows
+    return binomial_upper_tail(estimate.hits, estimate.pulses, expected)
+
+
 class FootprintRegistry:
     """Footprints with full causal provenance (§13.7, owner traceability requirement).
 
@@ -356,6 +387,9 @@ class FootprintRegistry:
         self.exit_margin = float(exit_margin)
         self.min_pulses = int(min_pulses)
         self.max_footprints = int(max_footprints)
+        # Footprint Precision v1 §9 (FP-2 arm BH), off by default.
+        self.membership_test = "margin"
+        self.fdr_q = 0.05
         self._members: dict[tuple[str, ...], dict[str, MemberRecord]] = {}
         self._versions: dict[tuple[str, ...], int] = {}
         self._version_ticks: dict[tuple[str, ...], int] = {}
@@ -526,10 +560,26 @@ class FootprintRegistry:
             entity = footprint_entity_id(source)
             updated: dict[str, MemberRecord] = {}
             changes: list[tuple[TransitionKind, str, float, AtomEstimate | None]] = []
+            rejected = (
+                benjamini_hochberg(
+                    {
+                        atom: _excess_p_value(estimate)
+                        for atom, estimate in per_atom.items()
+                        if estimate.pulses >= self.min_pulses
+                    },
+                    self.fdr_q,
+                )
+                if self.membership_test == "bh"
+                else frozenset()
+            )
             for atom, estimate in sorted(per_atom.items()):
                 previous = current.get(atom)
-                margin = self.exit_margin if previous is not None else self.enter_margin
-                qualifies = estimate.pulses >= self.min_pulses and estimate.contrast > margin
+                if self.membership_test == "bh":
+                    margin = self.fdr_q
+                    qualifies = atom in rejected
+                else:
+                    margin = self.exit_margin if previous is not None else self.enter_margin
+                    qualifies = estimate.pulses >= self.min_pulses and estimate.contrast > margin
                 if qualifies:
                     entered = previous.entered_tick if previous is not None else int(tick)
                     updated[atom] = MemberRecord(atom, entered, estimate)

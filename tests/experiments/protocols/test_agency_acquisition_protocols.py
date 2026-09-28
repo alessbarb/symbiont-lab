@@ -431,3 +431,17 @@ def test_fp1_arms_differ_only_in_membership():
             "factorized_effects": True,
             "membership": arm.upper(),
         }
+
+
+@pytest.mark.experiment_contract
+def test_fp2_runs_on_new_seeds_disjoint_from_its_design_data():
+    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    design_seeds = set(EXECUTIVE_SEEDS)
+    for arm in ("r", "m", "bh"):
+        spec = load_experiment_file(root / f"footprint-precision-fp2-{arm}" / "experiment.toml")
+        assert spec.extra_params["ablation"] == {"membership": arm.upper()}
+        assert len(spec.seeds) == 10 and not set(spec.seeds) & design_seeds
+    gate = load_experiment_file(
+        root / "agency-acquisition-reuse-closure-membership-bh" / "experiment.toml"
+    )
+    assert gate.extra_params["ablation"]["membership"] == "BH"

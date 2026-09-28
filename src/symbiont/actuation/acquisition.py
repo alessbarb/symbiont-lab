@@ -630,12 +630,18 @@ class AgencyAcquisition:
         signature = self.signatures.get(signature_id)
         return tuple(sorted(signature.channel_refs)) if signature is not None else None
 
-    def set_footprint_membership(self, *, quiet_near: int | None, multiplicity: bool) -> None:
-        """Footprint Precision v1 §6: T (time-matched quiet baseline) and M
-        (multiplicity-adjusted entry, exit margin half the entry margin)."""
+    def set_footprint_membership(
+        self, *, quiet_near: int | None, multiplicity: bool, test: str = "margin"
+    ) -> None:
+        """Footprint Precision v1 §6 (T: time-matched quiet baseline; M:
+        multiplicity-adjusted entry, exit margin half the entry margin) and
+        §9 (BH: Benjamini-Hochberg membership, ``test="bh"``)."""
+        if test not in ("margin", "bh"):
+            raise ValueError("footprint membership test must be margin or bh")
         self.footprint_quiet_near = None if quiet_near is None else int(quiet_near)
         self.footprint_multiplicity = bool(multiplicity)
         self.footprints.exit_margin = self.footprints.enter_margin / 2 if multiplicity else 0.0
+        self.footprints.membership_test = test
 
     def refresh_footprint(self, source: tuple[str, ...], *, tick: int) -> None:
         """Re-estimate one source's footprint from its retained pulses.
@@ -1047,6 +1053,7 @@ class AgencyAcquisition:
             "footprint_membership": {
                 "quiet_near": self.footprint_quiet_near,
                 "multiplicity": self.footprint_multiplicity,
+                "test": self.footprints.membership_test,
             },
             "footprint_effect_sources": [
                 {"effect_id": effect_id, "source": list(source)}
@@ -1124,6 +1131,7 @@ class AgencyAcquisition:
             self.set_footprint_membership(
                 quiet_near=membership.get("quiet_near"),
                 multiplicity=bool(membership.get("multiplicity", False)),
+                test=str(membership.get("test", "margin")),
             )
             self._footprint_commitments = {
                 tuple(str(v) for v in raw["source"]): deque(
