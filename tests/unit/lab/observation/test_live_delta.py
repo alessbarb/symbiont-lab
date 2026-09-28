@@ -84,7 +84,7 @@ def test_bus_new_subscriber_receives_materialized_anchor_not_orphan_delta():
     bus.push({"type": "vitals", "tick": 3, "reserve": 0.8})
 
     consumer = bus.subscribe()
-    payload = json.loads(consumer.get_nowait())
+    payload = json.loads(consumer.get_nowait().data)
     decoded = ObservationDeltaDecoder().decode(payload)
 
     assert payload["kind"] == "anchor"
@@ -101,7 +101,7 @@ def test_bus_history_overflow_recovers_resume_request_with_current_anchor():
     consumer = bus.subscribe(after_sequence=first_id)
     payloads = []
     while not consumer.empty():
-        payloads.append(json.loads(consumer.get_nowait()))
+        payloads.append(json.loads(consumer.get_nowait().data))
 
     vitals = next(item for item in payloads if item.get("channel") == "vitals")
     assert vitals["kind"] == "anchor"
@@ -119,7 +119,7 @@ def test_bus_slow_consumer_gets_immediate_anchor_after_drop():
     decoder = ObservationDeltaDecoder()
     decoded = []
     while not consumer.empty():
-        item = decoder.decode(json.loads(consumer.get_nowait()))
+        item = decoder.decode(json.loads(consumer.get_nowait().data))
         if item is not None:
             decoded.append(item)
 
