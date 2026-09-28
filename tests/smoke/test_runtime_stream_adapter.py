@@ -36,7 +36,7 @@ def _decoded_queue_events(queue) -> list[dict]:
     decoder = ObservationDeltaDecoder()
     events = []
     while not queue.empty():
-        payload = json.loads(queue.get_nowait())
+        payload = json.loads(queue.get_nowait().data)
         decoded = decoder.decode(payload)
         if decoded is not None:
             events.append(decoded)
@@ -702,7 +702,7 @@ def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
         tick_simulation_span_s=10.0 / 240.0,
     )
 
-    payload = json.loads(queue.get_nowait())
+    payload = json.loads(queue.get_nowait().data)
     assert payload["type"] == "body_pose"
     assert payload["tick"] == 1
     assert payload["substep_index"] == 3
@@ -734,7 +734,7 @@ def test_physics3d_bridge_projects_active_morphology_without_humanoid_names() ->
         tick_simulation_span_s=10.0 / 240.0,
     )
 
-    payload = json.loads(queue.get_nowait())
+    payload = json.loads(queue.get_nowait().data)
     assert payload["body_kind"] == "crawler-v1"
     assert payload["joints"] == [{"name": "front_left_hip_yaw", "position": 0.2}]
 
@@ -1448,7 +1448,7 @@ def test_stream_replays_from_transport_sequence() -> None:
     first_id = stream.push({"type": "vitals", "tick": 1})
 
     decoder = ObservationDeltaDecoder()
-    first_payload = json.loads(live.get_nowait())
+    first_payload = json.loads(live.get_nowait().data)
     assert decoder.decode(first_payload)["tick"] == 1
     stream.unsubscribe(live)
 
@@ -1459,8 +1459,9 @@ def test_stream_replays_from_transport_sequence() -> None:
     replayed = []
     transport_ids = []
     while not consumer.empty():
-        payload = json.loads(consumer.get_nowait())
-        transport_ids.append(payload["_stream_id"])
+        message = consumer.get_nowait()
+        payload = json.loads(message.data)
+        transport_ids.append(message.stream_id)
         decoded = decoder.decode(payload)
         if decoded is not None:
             replayed.append(decoded)
