@@ -86,6 +86,7 @@ class BindingTransition:
     previous_status: BindingStatus
     previous_revision: int
     binding: CompetenceExecutionBinding
+    cause_refs: tuple[str, ...] = ()
 
 
 class CompetenceExecutionBindingRegistry:
@@ -102,6 +103,9 @@ class CompetenceExecutionBindingRegistry:
         self.pressure = CapacityPressure(self.capacity)
         # Lifecycle changes not yet traced by the owner of provenance.
         self._transitions: list[BindingTransition] = []
+        # Executions since each binding's last confirmation that did not
+        # confirm it (binding evidence for §3.9 decision 1).
+        self._unconfirmed: dict[str, dict[str, object]] = {}
 
     def bind_from_evidence(
         self,
@@ -138,6 +142,7 @@ class CompetenceExecutionBindingRegistry:
             revision=(existing.revision + int(revalidated)) if existing is not None else 0,
         )
         self._items[competence_id] = binding
+        self._unconfirmed.pop(competence_id, None)  # confirmed
         if revalidated:
             self._transitions.append(
                 BindingTransition(competence_id, existing.status, existing.revision, binding)
@@ -173,6 +178,7 @@ class CompetenceExecutionBindingRegistry:
         reason: StalenessReason | InvalidationReason | None,
         *,
         tick: int,
+        cause_refs: tuple[str, ...] = (),
     ) -> BindingTransition | None:
         """Apply a lifecycle change decided by binding evidence; None if unchanged.
 
@@ -192,9 +198,29 @@ class CompetenceExecutionBindingRegistry:
             revision=binding.revision + 1,
         )
         self._items[competence_id] = changed
-        transition = BindingTransition(competence_id, binding.status, binding.revision, changed)
+        transition = BindingTransition(
+            competence_id, binding.status, binding.revision, changed, tuple(cause_refs)
+        )
         self._transitions.append(transition)
         return transition
+
+    def note_unconfirmed_execution(
+        self, competence_id: str, *, windows: int, commitment_id: str
+    ) -> tuple[int, float, tuple[str, ...]]:
+        """Record one execution that did not confirm the binding.
+
+        Returns (executions, mean windows, recent commitment ids) since the
+        binding's last confirmation.
+        """
+        entry = self._unconfirmed.setdefault(
+            competence_id, {"executions": 0, "windows": 0, "commitments": []}
+        )
+        entry["executions"] = int(entry["executions"]) + 1
+        entry["windows"] = int(entry["windows"]) + max(1, int(windows))
+        commitments = [*list(entry["commitments"]), commitment_id][-8:]
+        entry["commitments"] = commitments
+        executions = int(entry["executions"])
+        return executions, int(entry["windows"]) / executions, tuple(commitments)
 
     def drain_transitions(self) -> tuple[BindingTransition, ...]:
         drained = tuple(self._transitions)
@@ -255,6 +281,10 @@ class CompetenceExecutionBindingRegistry:
                 for item in self.items
             ],
             "capacity_pressure": self.pressure.checkpoint(),
+            "unconfirmed_executions": {
+                competence_id: dict(entry)
+                for competence_id, entry in sorted(self._unconfirmed.items())
+            },
         }
 
     @classmethod
@@ -293,6 +323,13 @@ class CompetenceExecutionBindingRegistry:
         obj.pressure = CapacityPressure.restore(
             payload.get("capacity_pressure"), capacity=obj.capacity
         )
+        for competence_id, entry in dict(payload.get("unconfirmed_executions", {})).items():
+            if competence_id in obj._items:
+                obj._unconfirmed[str(competence_id)] = {
+                    "executions": int(entry["executions"]),
+                    "windows": int(entry["windows"]),
+                    "commitments": [str(ref) for ref in entry.get("commitments", [])][-8:],
+                }
         return obj
 
 

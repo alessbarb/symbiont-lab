@@ -22,6 +22,7 @@ from ...actuation.arbitration import ActionArbitrator
 from ...actuation.binding import (
     BindingStatus,
     CompetenceExecutionBindingRegistry,
+    InvalidationReason,
     StalenessReason,
 )
 from ...actuation.checkpoint import export_actuation_state
@@ -37,6 +38,7 @@ from ...actuation.evidence import (
     SensorimotorTransition,
 )
 from ...actuation.exploration import ExplorationPolicy, ExplorationSignals
+from ...actuation.footprint import wilson_lower_bound
 from ...actuation.intervention import InterventionSignatureRegistry, opaque_channel_ref
 from ...actuation.model import (
     AgencyModel,
@@ -90,6 +92,10 @@ def _canonical_hash(payload: dict[str, Any]) -> str:
         "utf-8"
     )
     return hashlib.sha256(encoded).hexdigest()
+
+
+# Revision Coherence v1 §3.9 decision 1: executions needed before judging.
+BINDING_INVALIDATION_MIN_EXECUTIONS = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -402,7 +408,7 @@ class ActionDomain:
 
     def availability_counts(self) -> dict[str, int]:
         """Counts of the four competence questions from the projection."""
-        counts = dict.fromkeys(
+        counts: dict[str, int] = dict.fromkeys(
             ("known", "predictable", "executable", "admissible", "suppressed"), 0
         )
         for competence in self.competence_library.items:
@@ -503,7 +509,10 @@ class ActionDomain:
                     domain="binding",
                     operation=binding.status.value,
                     subject=ref,
-                    caused_by=(CausalRef("competence", transition.competence_id),),
+                    caused_by=(
+                        CausalRef("competence", transition.competence_id),
+                        *(CausalRef("commitment", cause) for cause in transition.cause_refs),
+                    ),
                     produced=(ref,),
                     rule=(
                         binding.status_reason.value
@@ -639,6 +648,69 @@ class ActionDomain:
         )
         self.acquisition.provenance.retire((ref,))
         self._traced_commitment = None
+        self._judge_binding_after(commitment)
+
+    def _judge_binding_after(self, commitment: ActionCommitment) -> None:
+        """Revision Coherence v1 §3.9 decision 1 (owner-approved 2026-09-28).
+
+        An execution that did not confirm a VALID binding is binding evidence.
+        After at least 4 such executions since the last confirmation, the
+        binding is INVALIDATED when the Wilson upper bound (95%) of their
+        match rate is below the rate at which the binding's effect appears at
+        rest over the same length — the symmetric test of footprint
+        membership: invalidated by the evidence that would have refused it.
+        The rest rate is its Wilson upper bound (95%): an effect never seen
+        at rest has an unknown, not a zero, rate, so "no better than rest"
+        stays testable (a point estimate of 0 would never allow it).
+        """
+        competence_id = commitment.competence_id
+        if competence_id is None:
+            return
+        binding = self.execution_bindings.get(competence_id)
+        if binding is None or binding.status is not BindingStatus.VALID:
+            return
+        if binding.last_evidence_tick >= commitment.started_tick:
+            return  # confirmed during this execution
+        ended = (
+            commitment.ended_tick if commitment.ended_tick is not None else commitment.started_tick
+        )
+        executions, windows, commitments = self.execution_bindings.note_unconfirmed_execution(
+            competence_id,
+            windows=ended - commitment.started_tick,
+            commitment_id=commitment.commitment_id,
+        )
+        if executions < BINDING_INVALIDATION_MIN_EXECUTIONS:
+            return
+        quiet = self._effect_quiet_rate(binding.effect_id, windows=windows)
+        upper = 1.0 - wilson_lower_bound(executions, executions)  # 0 matches
+        if quiet is not None and upper < quiet:
+            self.execution_bindings.set_status(
+                competence_id,
+                BindingStatus.INVALIDATED,
+                InvalidationReason.CAUSAL_RELATION_REVISED,
+                tick=ended,
+                cause_refs=commitments,
+            )
+
+    def _effect_quiet_rate(self, effect_id: str, *, windows: float) -> float | None:
+        """Upper-bound probability the effect is matched at rest over ``windows``."""
+
+        def upper(hits: int, trials: int) -> float:
+            return 1.0 - wilson_lower_bound(trials - hits, trials)
+
+        if self.effect_space.footprint_atoms(effect_id) is not None:
+            counts = self.acquisition.footprint_quiet_counts(effect_id)
+            if not counts:
+                return None
+            silent = 1.0
+            for hits, trials in counts.values():
+                silent *= (1.0 - upper(hits, trials)) ** windows
+            return 1.0 - silent  # any member appears (a match confirms)
+        passive = self.causal_evidence.passive_evidence
+        if not passive:
+            return None
+        hits = sum(1 for item in passive if item.effect_id == effect_id)
+        return 1.0 - (1.0 - upper(hits, len(passive))) ** windows
 
     def issue_command(self, channels: Mapping[str, float], *, tick: int) -> MotorCommand:
         commitment = self.active_commitment

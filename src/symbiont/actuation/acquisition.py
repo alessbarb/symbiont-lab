@@ -295,6 +295,25 @@ class AgencyAcquisition:
             rates[key] = max(rate, rates.get(key, 0.0))
         return rates
 
+    def footprint_quiet_counts(self, effect_id: str) -> dict[str, tuple[int, int]]:
+        """(passive hits, passive windows) per expected change key; the atom
+        with the highest quiet rate represents its key."""
+        source = self._footprint_effect_sources.get(effect_id)
+        if source is None:
+            return {}
+        _, _, estimates, _ = self._footprint_union(source)
+        counts: dict[str, tuple[int, int]] = {}
+        for atom_id, estimate in estimates.items():
+            atom = self._atom_catalog.get(atom_id)
+            if atom is None or estimate.passive_windows <= 0:
+                continue
+            key = atom_change_key(atom)
+            candidate = (estimate.passive_hits, estimate.passive_windows)
+            current = counts.get(key)
+            if current is None or candidate[0] / candidate[1] > current[0] / current[1]:
+                counts[key] = candidate
+        return counts
+
     def known_footprint_features(self) -> frozenset[str]:
         """Features any current footprint claims (§16.1)."""
         return frozenset(

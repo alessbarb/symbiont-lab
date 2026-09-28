@@ -1168,6 +1168,14 @@ class OrganismRuntime:
         )
         return {
             "competence_availability": self._action_domain.availability_counts(),
+            "binding_status": {
+                status: sum(
+                    1
+                    for binding in self._action_domain.execution_bindings.items
+                    if binding.status.value == status
+                )
+                for status in ("valid", "stale", "invalidated")
+            },
             "capacity": capacity,
             "generative": {
                 "sterile_reactivations": sum(sterile.values()),
