@@ -374,7 +374,15 @@ beside `reacclimation_window_completed`.
   CONTROLLER_UNAVAILABLE — the audit's "competence outlives its
   controller", now a traced status.
 
-The three owner decisions of §3.9 remain open.
+**§3.9 decisions (owner, 2026-09-28): all three proposals accepted.**
+Decision 1 is implemented with one refinement found while testing: the
+rest rate it compares against is its Wilson upper bound (95%), not its
+point estimate. Every bound effect in the E6 fixture had never been seen in
+135 passive windows (point estimate 0), and no match rate can be shown to
+be below 0, so the literal rule could never invalidate anything. With the
+upper bound (~0.027 per window at 135 windows) roughly 30 or more
+consecutive unconfirmed executions of a few windows are needed —
+testable, still conservative. Decisions 2 and 3 are not triggered.
 
 ## 4. Wave 2 — Endogenous epistemic retest (P1)
 
