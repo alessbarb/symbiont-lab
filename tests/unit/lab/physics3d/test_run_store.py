@@ -168,3 +168,154 @@ def test_changed_contract_is_reembodiment_not_incompatible(tmp_path) -> None:
     manifest = json.loads((tmp_path / "runs" / launch.run_id / "manifest.json").read_text())
     assert manifest["compatibility"] == "reembodiment"
     assert launch.fresh_body is True
+
+
+def _existing_organism(tmp_path, ref="org-x", vital_state="active"):
+    from symbiont_lab.physics3d import persistence
+
+    organism_dir = tmp_path / "organisms" / ref
+    organism_dir.mkdir(parents=True)
+    runtime = {
+        "organism_id": "symbiont:x",
+        "saved_at_tick": 5,
+        "living_body": {"vital_state": vital_state},
+        "embodiment_lifecycle": {
+            "schema_version": 1,
+            "state": "dormant",
+            "epoch": 1,
+            "current": {"body_kind": "anthropomorphic-v6", "started_tick": 0},
+            "history": [],
+        },
+    }
+    persistence.save_symbiont_bundle(
+        runtime, tmp_path / "models", organism_dir / "organism.symbiont"
+    )
+    body_dir = tmp_path / "bodies" / "body-x"
+    body_dir.mkdir(parents=True)
+    (body_dir / "body.json").write_text('{"symbiont_ticks":5}', encoding="utf-8")
+    (organism_dir / "metadata.json").write_text(
+        json.dumps({"ref": ref, "body_kind": "anthropomorphic-v6", "last_body_ref": "body-x"}),
+        encoding="utf-8",
+    )
+    return organism_dir
+
+
+def _prepare_existing(store, **extra):
+    return store.prepare(
+        {
+            "body_kind": "anthropomorphic-v6",
+            "organism": {"mode": "existing", "ref": "org-x"},
+            "body": {"mode": "resume"},
+            **extra,
+        }
+    )
+
+
+def test_payload_without_definition_keeps_open_world_semantics(tmp_path) -> None:
+    store = Physics3DRunStore(tmp_path)
+    launch = store.prepare(
+        {"body_kind": "anthropomorphic-v6", "organism": {"mode": "new"}, "body": {"mode": "fresh"}}
+    )
+    manifest = json.loads((tmp_path / "runs" / launch.run_id / "manifest.json").read_text())
+    assert manifest["run_kind"] == "world.open"
+    assert manifest["definition"]["definition_id"] == "open-world-v1"
+    assert manifest["starting_state"] == {"genesis": True}
+    assert manifest["seed"] == 42
+    assert manifest["rates"]["physics_hz"] == 240
+
+
+def test_acquisition_definition_fixes_its_protected_environment(tmp_path) -> None:
+    store = Physics3DRunStore(tmp_path)
+    base = {
+        "body_kind": "anthropomorphic-v6",
+        "organism": {"mode": "new"},
+        "body": {"mode": "fresh"},
+    }
+    launch = store.prepare({**base, "definition_id": "embodiment-nursery-v1"})
+    assert launch.run_kind.value == "acquisition.embodiment"
+    assert launch.environment == "flat-v1"
+    with pytest.raises(ValueError, match="fixes environment"):
+        store.prepare(
+            {**base, "definition_id": "embodiment-nursery-v1", "environment": "contact-garden-v1"}
+        )
+
+
+def test_vision_launch_is_rejected_until_apparatus_exists(tmp_path) -> None:
+    store = Physics3DRunStore(tmp_path)
+    with pytest.raises(ValueError, match="not launchable"):
+        store.prepare(
+            {
+                "body_kind": "anthropomorphic-v6",
+                "organism": {"mode": "new"},
+                "body": {"mode": "fresh"},
+                "definition_id": "vision-nursery-v1",
+            }
+        )
+
+
+def test_starting_state_x_is_retained_immutably(tmp_path) -> None:
+    _existing_organism(tmp_path)
+    store = Physics3DRunStore(tmp_path)
+    launch = _prepare_existing(store, seed=101)
+    manifest = json.loads((tmp_path / "runs" / launch.run_id / "manifest.json").read_text())
+    start = manifest["starting_state"]
+    assert start["genesis"] is False
+    assert start["checkpoint_id"] == "chk-symbiontx-00000005"
+    assert start["checkpoint_hash"].startswith("sha256:")
+    retained = tmp_path / start["retained_path"]
+    assert retained.read_bytes() == launch.symbiont_file.read_bytes()
+    assert start["body_checkpoint_hash"].startswith("sha256:")
+    assert (tmp_path / start["body_retained_path"]).read_text() == '{"symbiont_ticks":5}'
+    assert manifest["seed"] == 101
+
+    # The live slot evolves; the retained X never does.
+    before = retained.read_bytes()
+    launch.symbiont_file.write_bytes(b"overwritten by a later run")
+    _prepare_existing(store)
+    assert retained.read_bytes() == before
+
+
+def test_finalize_records_termination_ending_state_and_lifecycle(tmp_path) -> None:
+    from symbiont_lab.physics3d import persistence
+
+    _existing_organism(tmp_path)
+    store = Physics3DRunStore(tmp_path)
+    launch = _prepare_existing(store, definition_id="contact-garden-challenge-v1")
+    persistence.save_symbiont_bundle(
+        {
+            "organism_id": "symbiont:x",
+            "saved_at_tick": 9,
+            "living_body": {"vital_state": "dead"},
+            "embodiment_lifecycle": {
+                "schema_version": 1,
+                "state": "dormant",
+                "epoch": 1,
+                "current": {"body_kind": "anthropomorphic-v6", "started_tick": 0},
+                "history": [],
+            },
+        },
+        tmp_path / "models",
+        launch.symbiont_file,
+    )
+    store.finalize(launch, status="stopped", termination_reason="body_non_viable")
+    manifest = json.loads((tmp_path / "runs" / launch.run_id / "manifest.json").read_text())
+    assert manifest["run_kind"] == "world.challenge"
+    assert manifest["termination_reason"] == "body_non_viable"
+    assert manifest["protection_breach"] is False
+    assert manifest["ending_state"]["checkpoint_id"] == "chk-symbiontx-00000009"
+    assert (tmp_path / manifest["ending_state"]["retained_path"]).is_file()
+    assert manifest["lifecycle"]["embodiment_closed"] is True
+    assert manifest["lifecycle"]["reembodiment_required"] is True
+    assert manifest["lifecycle"]["symbiont_state"] == "dormant"
+    # The dead body can no longer be resumed; only fresh re-embodiment remains.
+    with pytest.raises(ValueError, match="previous body is dead"):
+        _prepare_existing(store)
+
+
+def test_acquisition_refuses_resume_at_protected_boundary(tmp_path) -> None:
+    _existing_organism(tmp_path, vital_state="agonizing")
+    store = Physics3DRunStore(tmp_path)
+    with pytest.raises(ValueError, match="protected viability boundary"):
+        _prepare_existing(store, definition_id="embodiment-nursery-v1")
+    # World accepts the same body: consequences are not the Lab's to prevent.
+    assert _prepare_existing(store).run_kind.value == "world.open"

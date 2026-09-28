@@ -33,6 +33,8 @@ class Physics3DSessionSnapshot:
     organism_ref: str | None = None
     body_kind: str | None = None
     startup_phase: str | None = None
+    run_kind: str | None = None
+    exit_cause: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -45,6 +47,8 @@ class Physics3DSessionSnapshot:
             "organism_ref": self.organism_ref,
             "body_kind": self.body_kind,
             "startup_phase": self.startup_phase,
+            "run_kind": self.run_kind,
+            "exit_cause": self.exit_cause,
         }
 
 
@@ -75,6 +79,7 @@ class Physics3DSession:
         self._traceback: str | None = None
         self._launch: Physics3DLaunchSpec | None = None
         self._startup_phase: str | None = None
+        self._exit_cause: str | None = None
 
     def start(self, launch: Physics3DLaunchSpec | None = None) -> bool:
         with self._lock:
@@ -86,6 +91,7 @@ class Physics3DSession:
             self._error = None
             self._traceback = None
             self._launch = launch
+            self._exit_cause = None
             self._startup_phase = "launching"
             thread = threading.Thread(
                 target=self._run,
@@ -127,6 +133,13 @@ class Physics3DSession:
                 runner_kwargs["provenance_journal"] = (
                     launch.telemetry_file.parent / "provenance.jsonl"
                 )
+                runner_kwargs["run_guard"] = launch.run_guard()
+
+            def _terminated(cause: str) -> None:
+                with self._lock:
+                    self._exit_cause = str(cause)
+
+            runner_kwargs["termination_callback"] = _terminated
 
             if self._runner is None:
 
@@ -212,6 +225,8 @@ class Physics3DSession:
                 organism_ref=launch.organism_ref if launch is not None else None,
                 body_kind=launch.body_kind if launch is not None else None,
                 startup_phase=self._startup_phase,
+                run_kind=launch.run_kind.value if launch is not None else None,
+                exit_cause=self._exit_cause,
             )
 
 

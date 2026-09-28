@@ -259,7 +259,16 @@ def run(
     measurement_file: Path | None = None,
     ancestry_training: bool = False,
     slm_synchronous: bool = False,
+    run_guard=None,
+    termination_callback=None,
 ) -> int:
+    """Run the canonical loop.
+
+    ``run_guard(alive, vital_state)`` is a Lab policy (ADR-0008): it reads only
+    causal-path state and may end the run by returning an exit cause. It never
+    changes the organism. ``termination_callback(exit_cause)`` is called once,
+    after the final dormant checkpoint has been written.
+    """
     if hz < 30:
         raise ValueError("hz must be >= 30")
     rates = ExecutionRates.resolve(
@@ -494,6 +503,7 @@ def run(
     if ready_callback is not None:
         ready_callback()
 
+    exit_cause = "error"
     is_paused = False
     step_once = False
     speed_multiplier = 1.0
@@ -514,6 +524,7 @@ def run(
                         speed_multiplier = max(0.1, min(10.0, float(cmd.get("speed", 1.0))))
 
             if stop_requested:
+                exit_cause = "operator_stop"
                 break
 
             if is_paused and not step_once:
@@ -785,12 +796,24 @@ def run(
                 remaining_time = target_period - cycle_elapsed
                 if remaining_time > 0.0:
                     time.sleep(remaining_time)
+            if run_guard is not None:
+                guard_cause = run_guard(
+                    bool(record.alive),
+                    runtime.organism.living_body_state.vital_state.value,
+                )
+                if guard_cause is not None:
+                    exit_cause = guard_cause
+                    break
             if not record.alive:
+                exit_cause = "body_non_viable"
                 break
+        else:
+            exit_cause = "operator_stop" if stop_requested else "budget_exhausted"
     except PhysicsServerDisconnected:
+        exit_cause = "physics_disconnected"
         print("PyBullet window closed; ending embodiment cleanly.")
     except KeyboardInterrupt:
-        pass
+        exit_cause = "operator_stop"
     finally:
         telemetry.flush()
         if active_checkpoint_thread is not None and active_checkpoint_thread.is_alive():
@@ -847,4 +870,6 @@ def run(
         if owns_signal_handlers:
             for signum, previous_handler in previous_signal_handlers.items():
                 signal.signal(signum, previous_handler)
+        if termination_callback is not None:
+            termination_callback(exit_cause)
     return 0

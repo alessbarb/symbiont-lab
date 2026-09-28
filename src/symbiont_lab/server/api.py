@@ -15,6 +15,7 @@ Routes:
   GET  /api/bodies            → available Physics3D body contracts
   GET  /api/organisms         → persisted Symbiont identities
   GET  /api/runs              → managed Physics3D run history
+  GET  /api/run-definitions   → Experience/World run definitions (observer-only)
   POST /api/runs              → start a managed Physics3D run
   POST /api/runs/stop         → stop the active Physics3D run
   POST /api/experiments/start → start an experiment run
@@ -244,7 +245,14 @@ def make_handler(
 
             if path == "/api/environments" and body_catalog is not None:
                 from symbiont_lab.physics3d.environments import ENVIRONMENT_NAMES
+
                 self._json(200, {"items": list(ENVIRONMENT_NAMES)})
+                return
+
+            if path == "/api/run-definitions" and body_catalog is not None:
+                from symbiont_lab.experience import run_definition_catalog
+
+                self._json(200, {"items": run_definition_catalog()})
                 return
 
             if path == "/api/bodies" and body_catalog is not None:

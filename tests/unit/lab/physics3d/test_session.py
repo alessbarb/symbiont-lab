@@ -100,3 +100,36 @@ def test_physics3d_session_passes_managed_launch_to_runner(tmp_path) -> None:
     snapshot = session.snapshot()
     assert snapshot.run_id == "run-test"
     assert snapshot.organism_ref == "org-test"
+
+
+def test_session_reports_engine_exit_cause_for_run_kind(tmp_path) -> None:
+    from symbiont_lab.experience import RunKind
+
+    terminal = threading.Event()
+
+    def runner(**kwargs) -> int:
+        assert kwargs["run_guard"](True, "agonizing") == "guard:protected_recovery"
+        kwargs["termination_callback"]("guard:protected_recovery")
+        return 0
+
+    launch = Physics3DLaunchSpec(
+        run_id="run-acq",
+        organism_ref="org-test",
+        body_ref="body-test",
+        body_kind="anthropomorphic-v6",
+        organism_mode="existing",
+        body_mode="fresh",
+        symbiont_file=tmp_path / "organism.symbiont",
+        body_file=tmp_path / "body.json",
+        telemetry_file=tmp_path / "telemetry",
+        run_kind=RunKind.ACQUISITION_EMBODIMENT,
+        definition_id="embodiment-nursery-v1",
+    )
+    session = Physics3DSession(ObservationBus(), runner=runner, on_terminal=terminal.set)
+    assert session.start(launch) is True
+    assert terminal.wait(timeout=2.0)
+    session.close(timeout=2.0)
+
+    snapshot = session.snapshot()
+    assert snapshot.run_kind == "acquisition.embodiment"
+    assert snapshot.exit_cause == "guard:protected_recovery"

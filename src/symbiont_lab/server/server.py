@@ -11,13 +11,14 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from symbiont.provenance import CausalRef
 from symbiont_lab.app.physics3d_runs import DEFAULT_LAB_STATE_ROOT, Physics3DRunStore
 from symbiont_lab.app.physics3d_session import Physics3DSession, Physics3DSessionState
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
+from symbiont_lab.experience import resolve_termination
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.demo import DemoOrganismTelemetry
-from symbiont.provenance import CausalRef
 from symbiont_lab.observation.observatory import ObservatorySource
 from symbiont_lab.observation.provenance_journal import ProvenanceIndex, ProvenanceJournal
 from symbiont_lab.workbench import WEB_ROOT
@@ -125,9 +126,19 @@ def make_server(
 
         def on_terminal() -> None:
             snapshot = session.snapshot()
-            status = "failed" if snapshot.state == Physics3DSessionState.FAILED else "stopped"
+            failed = snapshot.state == Physics3DSessionState.FAILED
+            status = "failed" if failed else "stopped"
+            reason = resolve_termination(launch.run_kind, snapshot.exit_cause, failed=failed)
             try:
-                run_store.finalize(launch, status=status, error=snapshot.error)
+                run_store.finalize(
+                    launch,
+                    status=status,
+                    error=snapshot.error,
+                    termination_reason=reason.value,
+                    protection_breach=(
+                        launch.run_kind.is_acquisition and reason.value == "body_non_viable"
+                    ),
+                )
             finally:
                 coordinator.release("physics3d")
 
@@ -141,7 +152,12 @@ def make_server(
             if not session.start(launch):
                 raise RuntimeError("Physics3D session refused to start")
         except BaseException as exc:
-            run_store.finalize(launch, status="failed", error=f"{type(exc).__name__}: {exc}")
+            run_store.finalize(
+                launch,
+                status="failed",
+                error=f"{type(exc).__name__}: {exc}",
+                termination_reason="technical_failure",
+            )
             coordinator.release("physics3d")
             raise
         return launch.as_dict()
@@ -173,9 +189,7 @@ def make_server(
             # A root reference can legitimately lack a producer; only return
             # such a tree when it is mentioned by some recorded event.
             mentioned = any(
-                ref == event.subject
-                or ref in event.produced
-                or ref in event.caused_by
+                ref == event.subject or ref in event.produced or ref in event.caused_by
                 for event in index.events
             )
             if not mentioned:

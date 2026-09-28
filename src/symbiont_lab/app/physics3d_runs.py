@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import uuid
@@ -10,6 +11,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from symbiont import __version__ as symbiont_version
+from symbiont_lab.experience import (
+    RunGuard,
+    RunKind,
+    consequence_policy,
+    run_definition,
+)
+from symbiont_lab.observation.cadence import ExecutionRates
 from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyRegistry
 from symbiont_lab.physics3d.engine import (
     DEFAULT_STATE_DIR,
@@ -24,6 +33,7 @@ from symbiont_lab.physics3d.persistence import (
 from symbiont_lab.physics3d.reembodiment import lifecycle_summary
 
 DEFAULT_LAB_STATE_ROOT = DEFAULT_STATE_DIR.parent
+DEFAULT_SEED = 42
 
 
 def _now() -> str:
@@ -36,6 +46,24 @@ def _read_json(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return f"sha256:{digest.hexdigest()}"
+
+
+def _retain(source: Path, destination: Path) -> None:
+    """Content-addressed retention: an existing destination is never rewritten."""
+    if destination.exists():
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp = destination.with_name(f".{destination.name}.tmp")
+    shutil.copy2(source, temp)
+    temp.replace(destination)
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -60,6 +88,12 @@ class Physics3DLaunchSpec:
     body_file: Path
     telemetry_file: Path
     environment: str | None = None
+    run_kind: RunKind = RunKind.WORLD_OPEN
+    definition_id: str = "open-world-v1"
+    seed: int = DEFAULT_SEED
+
+    def run_guard(self) -> RunGuard:
+        return RunGuard(self.run_kind)
 
     @property
     def new_symbiont(self) -> bool:
@@ -79,6 +113,7 @@ class Physics3DLaunchSpec:
         return {
             "body_kind": self.body_kind,
             "environment": self.environment,
+            "seed": self.seed,
             "symbiont_file": self.symbiont_file,
             "body_file": self.body_file,
             "telemetry_file": self.telemetry_file,
@@ -93,6 +128,9 @@ class Physics3DLaunchSpec:
             "body_ref": self.body_ref,
             "body_kind": self.body_kind,
             "environment": self.environment,
+            "run_kind": self.run_kind.value,
+            "definition_id": self.definition_id,
+            "seed": self.seed,
             "organism_mode": self.organism_mode,
             "body_mode": self.body_mode,
             "embodiment_mode": self.embodiment_mode,
@@ -325,9 +363,24 @@ class Physics3DRunStore:
     def prepare(self, payload: dict[str, Any]) -> Physics3DLaunchSpec:
         body_kind = str(payload.get("body_kind") or "anthropomorphic-v6")
         descriptor = self.body_registry.get(body_kind)
+        definition = run_definition(payload.get("definition_id"))
+        if not definition.launchable:
+            raise ValueError(
+                f"{definition.definition_id} is not launchable: {definition.unavailable_reason}"
+            )
+        policy = consequence_policy(definition.kind)
         environment = payload.get("environment")
+        if definition.environment is not None:
+            if environment not in (None, definition.environment):
+                raise ValueError(
+                    f"{definition.definition_id} fixes environment {definition.environment}"
+                )
+            environment = definition.environment
         if environment is not None:
             environment_recipe(environment)
+        seed = payload.get("seed", DEFAULT_SEED)
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            raise ValueError("seed must be an integer")
         organism = payload.get("organism", {})
         body = payload.get("body", {})
         if not isinstance(organism, dict) or not isinstance(body, dict):
@@ -359,6 +412,11 @@ class Physics3DRunStore:
             if body_mode == "resume":
                 if summary.get("vital_state") == "dead":
                     raise ValueError("previous body is dead; select a fresh body for re-embodiment")
+                if policy.refuses_start(summary.get("vital_state")):
+                    raise ValueError(
+                        "previous body is at the protected viability boundary; "
+                        "acquisition requires a fresh body"
+                    )
                 if previous_kind != body_kind:
                     raise ValueError("resume requires the same body kind")
 
@@ -407,9 +465,23 @@ class Physics3DRunStore:
             symbiont_file=symbiont_file,
             body_file=body_file,
             telemetry_file=telemetry_file,
+            run_kind=definition.kind,
+            definition_id=definition.definition_id,
+            seed=seed,
         )
+        rates = ExecutionRates.resolve(physics_hz=240, cognition_hz=24)
         manifest = {
             **launch.as_dict(),
+            "definition": definition.as_dict(),
+            "rates": {
+                "physics_hz": rates.physics_hz,
+                "cognition_hz": rates.cognition_hz,
+                "observation_hz": rates.observation_hz,
+                "render_hz": rates.render_hz,
+            },
+            "software": {"symbiont_version": str(symbiont_version)},
+            "starting_state": self._retain_state(launch),
+            "termination_reason": None,
             "status": "starting",
             "started_at": _now(),
             "ended_at": None,
@@ -424,6 +496,48 @@ class Physics3DRunStore:
         _write_json(run_dir / "manifest.json", manifest)
         return launch
 
+    def _retain_state(self, launch: Physics3DLaunchSpec) -> dict[str, Any]:
+        """Identify and keep State X (ADR-0009); a new organism starts at genesis."""
+        if launch.new_symbiont or not launch.symbiont_file.is_file():
+            return {"genesis": True}
+        state = self._retain_organism(launch.organism_ref, launch.symbiont_file)
+        if launch.body_mode == "resume" and launch.body_file.is_file():
+            body_hash = _sha256(launch.body_file)
+            retained = (
+                self.bodies_dir
+                / launch.body_ref
+                / "checkpoints"
+                / f"{body_hash.removeprefix('sha256:')[:16]}.json"
+            )
+            _retain(launch.body_file, retained)
+            state["body_checkpoint_hash"] = body_hash
+            state["body_retained_path"] = str(retained.relative_to(self.root))
+        else:
+            state["body_checkpoint_hash"] = None
+        return state
+
+    def _retain_organism(self, organism_ref: str, bundle: Path) -> dict[str, Any]:
+        summary = self._bundle_summary(bundle)
+        bundle_hash = _sha256(bundle)
+        checkpoint_id = str(
+            summary.get("checkpoint_id") or f"chk-{bundle_hash.removeprefix('sha256:')[:16]}"
+        )
+        retained = self.organisms_dir / organism_ref / "checkpoints" / f"{checkpoint_id}.symbiont"
+        _retain(bundle, retained)
+        return {
+            "genesis": False,
+            "checkpoint_id": checkpoint_id,
+            "checkpoint_hash": summary.get("checkpoint_hash"),
+            "bundle_hash": bundle_hash,
+            "retained_path": str(retained.relative_to(self.root)),
+            "tick": summary.get("tick"),
+            "embodiment_epoch": summary.get("embodiment_epoch"),
+            "embodiment_id": summary.get("embodiment_id"),
+            "body_id": summary.get("body_id"),
+            "symbiont_state": summary.get("symbiont_state"),
+            "vital_state": summary.get("vital_state"),
+        }
+
     def mark_running(self, launch: Physics3DLaunchSpec) -> None:
         path = self.runs_dir / launch.run_id / "manifest.json"
         manifest = _read_json(path)
@@ -431,12 +545,26 @@ class Physics3DRunStore:
         _write_json(path, manifest)
 
     def finalize(
-        self, launch: Physics3DLaunchSpec, *, status: str, error: str | None = None
+        self,
+        launch: Physics3DLaunchSpec,
+        *,
+        status: str,
+        error: str | None = None,
+        termination_reason: str | None = None,
+        protection_breach: bool = False,
     ) -> None:
         descriptor = self.body_registry.get(launch.body_kind)
         run_manifest_path = self.runs_dir / launch.run_id / "manifest.json"
         manifest = _read_json(run_manifest_path)
         summary = self._bundle_summary(launch.symbiont_file)
+        ending_state = (
+            self._retain_organism(launch.organism_ref, launch.symbiont_file)
+            if launch.symbiont_file.is_file()
+            else None
+        )
+        if ending_state is not None and launch.body_file.is_file():
+            ending_state["body_checkpoint_hash"] = _sha256(launch.body_file)
+        body_lost = summary.get("vital_state") == "dead"
         manifest.update(
             {
                 "status": status,
@@ -444,6 +572,16 @@ class Physics3DRunStore:
                 "error": error,
                 "end_tick": summary.get("tick"),
                 "organism_id": summary.get("organism_id"),
+                "termination_reason": termination_reason,
+                "protection_breach": bool(protection_breach),
+                "ending_state": ending_state,
+                "lifecycle": {
+                    "embodiment_epoch": summary.get("embodiment_epoch"),
+                    "embodiment_closed": body_lost,
+                    "symbiont_state": summary.get("symbiont_state"),
+                    "vital_state": summary.get("vital_state"),
+                    "reembodiment_required": body_lost,
+                },
             }
         )
         _write_json(run_manifest_path, manifest)
