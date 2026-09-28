@@ -11,7 +11,13 @@ def _mind_sources() -> str:
 
 
 def _body_sources() -> str:
-    paths = [WEB_ROOT / "views" / "body.js", *sorted((WEB_ROOT / "views" / "body").glob("*.js"))]
+    # Embodiment and World share the 3D apparatus viewer; World presentation
+    # moved to views/world/ (ADR-0008) but remains part of this surface.
+    paths = [
+        WEB_ROOT / "views" / "body.js",
+        *sorted((WEB_ROOT / "views" / "body").glob("*.js")),
+        *sorted((WEB_ROOT / "views" / "world").glob("*.js")),
+    ]
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
 
@@ -474,7 +480,7 @@ def test_body_self_model_uses_canonical_agency_v1_state() -> None:
     self_model = _self_model_source()
 
     assert "SelfModelWorkspace" in body
-    assert "['self-model', 'Self-Model']" in body
+    assert "['self-model', 'Acquired Self']" in body
     assert "case 'mind_snapshot'" in body
     for label in (
         "Overview",
@@ -665,7 +671,7 @@ def test_body_self_view_development_is_bounded_observer_history() -> None:
     assert "captureSelfViewDevelopment" in self_model
     assert "renderSelfViewDevelopment" in self_model
     assert "selfViewPane = 'composite'" in self_model
-    assert "data-self-view-pane=\"development\"" in self_model
+    assert 'data-self-view-pane="development"' in self_model
     assert "maxSelfViewFrames = 120" in self_model
     assert "selfViewDevelopmentBodyMode = 'state'" in self_model
     assert "selfViewDevelopmentScale = 'detail'" in self_model
@@ -2192,7 +2198,7 @@ def test_mind_snapshot_state_carries_agency_and_executive_blocks() -> None:
 
 
 def test_body_in_world_controls_and_picking_are_isolated_to_world_tab() -> None:
-    world_view = (WEB_ROOT / "views" / "body" / "world-view.js").read_text(encoding="utf-8")
+    world_view = (WEB_ROOT / "views" / "world" / "world-view.js").read_text(encoding="utf-8")
     workspace = (WEB_ROOT / "views" / "body" / "workspace.js").read_text(encoding="utf-8")
     body_css = (WEB_ROOT / "body.css").read_text(encoding="utf-8")
 

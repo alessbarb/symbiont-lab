@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pbPos, pbQuat } from './coordinates.js';
+import { pbPos, pbQuat } from '../body/coordinates.js';
 import { escapeHtml } from '../shared/dom.js';
 import { reconcileWorld, receptorStatus } from './world-state.js';
 

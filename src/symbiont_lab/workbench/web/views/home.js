@@ -1,6 +1,7 @@
 let rootNode = null;
 let state = null;
-let catalog = { bodies: [], organisms: [], runs: [] };
+let catalog = { bodies: [], organisms: [], runs: [], definitions: [] };
+let selectedDefinition = 'embodiment-nursery-v1';
 let selectedBody = null;
 let organismMode = 'new';
 let organismRef = '';
@@ -25,15 +26,47 @@ async function loadState() {
 }
 
 async function loadCatalog() {
-  const [bodies, organisms, runs, environments] = await Promise.all([
+  const [bodies, organisms, runs, environments, definitions] = await Promise.all([
     jsonRequest('/api/bodies'),
     jsonRequest('/api/organisms'),
     jsonRequest('/api/runs'),
     jsonRequest('/api/environments'),
+    jsonRequest('/api/run-definitions'),
   ]);
-  catalog = { bodies: bodies.items ?? [], organisms: organisms.items ?? [], runs: runs.items ?? [], environments: environments.items ?? [] };
+  catalog = {
+    bodies: bodies.items ?? [],
+    organisms: organisms.items ?? [],
+    runs: runs.items ?? [],
+    environments: environments.items ?? [],
+    definitions: definitions.items ?? [],
+  };
   if (!selectedBody) selectedBody = catalog.bodies[0]?.body_kind ?? null;
   if (!organismRef) organismRef = catalog.organisms[0]?.ref ?? '';
+}
+
+function currentDefinition() {
+  return catalog.definitions.find(item => item.definition_id === selectedDefinition) ?? null;
+}
+
+const KIND_LABELS = {
+  'acquisition.embodiment': 'Embodiment Experience',
+  'acquisition.vision': 'Vision Experience',
+  'world.challenge': 'World · Challenge',
+  'world.open': 'World · Open',
+};
+
+function isAcquisition(kind) {
+  return String(kind || '').startsWith('acquisition.');
+}
+
+function definitionCards() {
+  return catalog.definitions.map(item => `
+    <button class="home-choice ${item.definition_id === selectedDefinition ? 'selected' : ''}" data-definition="${esc(item.definition_id)}" ${item.launchable ? '' : 'disabled'} title="${esc(item.unavailable_reason || '')}">
+      <strong>${esc(KIND_LABELS[item.kind] || item.kind)}</strong>
+      <span>${esc(item.title)} · v${esc(item.version)}</span>
+      <small>${item.launchable ? (isAcquisition(item.kind) ? 'Protected: ends before irreversible body loss' : 'Full consequences: the body may die') : 'Unavailable: ' + esc(item.unavailable_reason)}</small>
+    </button>
+  `).join('');
 }
 
 function currentPhysics() {
@@ -77,10 +110,12 @@ function isCompatible() {
   const body = catalog.bodies.find(item => item.body_kind === selectedBody);
   if (!organism || !body) return false;
   if (bodyMode === 'resume') {
+    const protectedBoundary = isAcquisition(currentDefinition()?.kind) && ['agonizing', 'dormant'].includes(organism.vital_state);
     return Boolean(
       organism.last_body_ref &&
       organism.body_kind === selectedBody &&
-      organism.vital_state !== 'dead'
+      organism.vital_state !== 'dead' &&
+      !protectedBoundary
     );
   }
   return true;
@@ -111,10 +146,10 @@ function recentRuns() {
     <div class="home-run-row">
       <div>
         <strong>${esc(run.organism_id || run.organism_ref)}</strong>
-        <span>${esc(run.body_kind)} · ${esc(run.embodiment_mode)}</span>
+        <span>${esc(KIND_LABELS[run.run_kind] || KIND_LABELS['world.open'])} · ${esc(run.body_kind)} · ${esc(run.embodiment_mode)}</span>
       </div>
       <div class="home-run-meta">
-        <span>${esc(run.status)}</span>
+        <span>${esc(run.termination_reason || run.status)}</span>
         <span>${run.end_tick != null ? 't' + Number(run.end_tick).toLocaleString() : esc(run.run_id)}</span>
       </div>
     </div>
@@ -135,11 +170,11 @@ function render() {
           <div>
             <p class="eyebrow">Active run</p>
             <h2>${esc(physics.run_id || 'Physics3D')}</h2>
-            <p>${esc(physics.organism_ref || '')} → ${esc(physics.body_kind || '')}</p>
+            <p>${esc(KIND_LABELS[physics.run_kind] || 'Physics3D')} · ${esc(physics.organism_ref || '')} → ${esc(physics.body_kind || '')}</p>
             ${physics.state === 'starting' ? `<p>Startup: ${esc(physics.startup_phase || 'launching')}</p>` : ''}
           </div>
           <div class="home-actions">
-            <button class="btn" data-open="body">Open Body</button>
+            <button class="btn" data-open="${isAcquisition(physics.run_kind) ? 'embodiment' : 'world'}">${isAcquisition(physics.run_kind) ? 'Open Embodiment' : 'Open World'}</button>
             <button class="btn" data-open="mind">Open Mind</button>
             <button class="btn btn-danger" id="home-stop">Stop run</button>
           </div>
@@ -161,6 +196,10 @@ function render() {
         <span class="pill muted">No active embodiment</span>
       </div>
       ${failure}
+      <section class="card home-section">
+        <div><h3>Run</h3><p>Experiences acquire capability in a protected envelope. Worlds integrate it under complete consequences. Purposes stay with the observer.</p></div>
+        <div class="home-choice-grid">${definitionCards()}</div>
+      </section>
       <div class="home-launch-grid">
         <section class="card home-section">
           <div class="home-step">1</div>
@@ -183,15 +222,15 @@ function render() {
             <label><input type="radio" name="body-mode" value="fresh" ${bodyMode === 'fresh' ? 'checked' : ''}> Fresh body</label>
             <label><input type="radio" name="body-mode" value="resume" ${bodyMode === 'resume' ? 'checked' : ''} ${organismMode === 'existing' ? '' : 'disabled'}> Resume previous body</label>
           </div>
-          <label for="home-environment">World · physical environment</label>
-          <select id="home-environment" ${bodyMode === 'resume' ? 'disabled' : ''}>${(catalog.environments ?? []).map(name => `<option value="${esc(name)}" ${name === selectedEnvironment ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select>
-          <p>${bodyMode === 'resume' ? 'Resume restores the saved world.' : 'Contact garden adds real surfaces and obstacles. Their identities are not given to Symbiont.'}</p>
+          <label for="home-environment">Physical environment</label>
+          <select id="home-environment" ${bodyMode === 'resume' || currentDefinition()?.environment ? 'disabled' : ''}>${(catalog.environments ?? []).map(name => `<option value="${esc(name)}" ${name === (currentDefinition()?.environment || selectedEnvironment) ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select>
+          <p>${bodyMode === 'resume' ? 'Resume restores the saved environment.' : currentDefinition()?.environment ? 'Fixed by the selected definition.' : 'Contact garden adds real surfaces and obstacles. Their identities are not given to Symbiont.'}</p>
           <div class="home-preflight"><strong>Preflight</strong><span>${esc(compatibilityText())}</span></div>
         </section>
       </div>
       <div class="home-start-bar">
-        <div><strong>${organismMode === 'new' ? 'New Symbiont' : esc(selectedOrganism()?.organism_id || organismRef)}</strong><span> → ${esc(selectedBody)} · ${bodyMode}</span></div>
-        <button class="btn btn-primary" id="home-start" ${selectedBody && (organismMode === 'new' || organismRef) && isCompatible() ? '' : 'disabled'}>Start run</button>
+        <div><strong>${organismMode === 'new' ? 'New Symbiont' : esc(selectedOrganism()?.organism_id || organismRef)}</strong><span> → ${esc(selectedBody)} · ${bodyMode} · ${esc(KIND_LABELS[currentDefinition()?.kind] || '')}</span></div>
+        <button class="btn btn-primary" id="home-start" ${selectedBody && currentDefinition()?.launchable && (organismMode === 'new' || organismRef) && isCompatible() ? '' : 'disabled'}>Start run</button>
       </div>
       <section class="card home-recent"><h3 class="card-title">Recent runs</h3>${recentRuns()}</section>
     </div>`;
@@ -207,7 +246,8 @@ async function startRun() {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         body_kind: selectedBody,
-        environment: bodyMode === 'resume' ? undefined : selectedEnvironment,
+        definition_id: selectedDefinition,
+        environment: bodyMode === 'resume' || currentDefinition()?.environment ? undefined : selectedEnvironment,
         organism: { mode: organismMode, ref: organismMode === 'existing' ? organismRef : undefined },
         body: { mode: bodyMode },
       }),
@@ -228,6 +268,10 @@ async function stopRun() {
 }
 
 function bind() {
+  rootNode?.querySelectorAll('[data-definition]').forEach(node => node.addEventListener('click', () => {
+    selectedDefinition = node.dataset.definition;
+    render();
+  }));
   rootNode?.querySelectorAll('[data-body]').forEach(node => node.addEventListener('click', () => {
     selectedBody = node.dataset.body;
     render();

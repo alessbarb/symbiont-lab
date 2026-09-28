@@ -75,6 +75,7 @@ def test_package_data_contains_nested_workbench_modules():
     pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     for pattern in (
         '"web/views/body/*.js"',
+        '"web/views/world/*.js"',
         '"web/views/lab/*.js"',
         '"web/views/archive/*.js"',
         '"web/views/shared/*.js"',
@@ -243,3 +244,35 @@ def test_atlas_overlay_satellites_stay_local_without_becoming_structure():
     assert "0.020 + confidence * 0.010" in controller
     assert "evidence satellite" in inspector
     assert "structural fringe" in inspector
+
+
+def test_world_is_extracted_from_embodiment_domain():
+    """ADR-0008: the UI no longer presents World as part of Body/Embodiment."""
+    html = _read("app.html")
+    app = _read("app.js")
+    workspace = _read("views/body/workspace.js")
+    viewer = _read("views/body/viewer.js")
+
+    assert 'href="#embodiment"' in html and 'href="#world"' in html
+    assert 'href="#body"' not in html
+    assert "body: 'embodiment'" in app  # old links keep working
+    assert "options: { domain: 'embodiment' }" in app
+    assert "options: { domain: 'world' }" in app
+
+    embodiment_tabs = workspace.split("embodiment: [", 1)[1].split("],\n  world:", 1)[0]
+    for world_only in ("'world'", "'motion'", "'interaction'", "'history'", "'overview'"):
+        assert world_only not in embodiment_tabs
+    assert "'Acquired Self'" in embodiment_tabs
+    assert "In World" not in workspace
+
+    assert "this.domain === 'world' ? new WorldView(this) : null" in viewer
+    assert "this.domain === 'world' && Array.isArray(data.resource_position)" in viewer
+    assert (WEB_ROOT / "views" / "world" / "world-view.js").is_file()
+    assert not (WEB_ROOT / "views" / "body" / "world-view.js").exists()
+
+
+def test_home_launches_explicit_run_definitions():
+    home = _read("views/home.js")
+    assert "/api/run-definitions" in home
+    assert "definition_id: selectedDefinition" in home
+    assert "item.launchable ? '' : 'disabled'" in home

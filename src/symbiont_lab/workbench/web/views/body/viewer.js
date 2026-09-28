@@ -12,7 +12,7 @@ import {
   fallbackBodyModel,
 } from './model.js';
 import { BodyWorkspace } from './workspace.js';
-import { WorldView } from './world-view.js';
+import { WorldView } from '../world/world-view.js';
 import { mountBodyCameraControls } from './camera-controls.js';
 import { BODY_PRESENTATION } from './presentation-config.js';
 import { LiveObservationDecoder } from '../../stream-delta.js';
@@ -27,7 +27,13 @@ function el(tag, cls, styles = {}) {
 }
 
 export class BodyViewer {
-  constructor(rootElement, sseUrl = '/api/organism') {
+  /**
+   * One shared 3D apparatus viewer, two product domains (ADR-0008):
+   * - 'embodiment': the body as a scientific apparatus map — no room,
+   *   trajectory, resource or navigation presentation;
+   * - 'world': the body inside its environment with observer truth.
+   */
+  constructor(rootElement, sseUrl = '/api/organism', { domain = 'world' } = {}) {
     if (!(rootElement instanceof HTMLElement)) {
       throw new TypeError('BodyViewer requires a valid HTMLElement root');
     }
@@ -35,6 +41,7 @@ export class BodyViewer {
     this.root = rootElement;
     this.rootStyleBeforeMount = rootElement.style.cssText;
     this.sseUrl = sseUrl;
+    this.domain = domain === 'embodiment' ? 'embodiment' : 'world';
     this.unmounted = false;
 
     this.bodyModels = new Map();
@@ -167,7 +174,7 @@ export class BodyViewer {
   init() {
     this.buildDOM();
     this.buildScene();
-    this.worldView = new WorldView(this);
+    this.worldView = this.domain === 'world' ? new WorldView(this) : null;
     this.loadBodyModels();
     this.connectSSE();
     this.animate();
@@ -1236,7 +1243,7 @@ export class BodyViewer {
       if (!data || !data.type) return;
 
       switch (data.type) {
-        case 'world_scene': this.worldView.accept(data); break;
+        case 'world_scene': this.worldView?.accept(data); break;
         case 'body_pose':     this.handleBodyPoseEvent(data);      break;
         case 'body':          this.handleBodyEvent(data);          break;
         case 'cognition':     this.handleCognitionEvent(data);     break;
@@ -1390,7 +1397,7 @@ export class BodyViewer {
         this.hasAuthoritativeLinkPoses = true;
       }
     }
-    if (Array.isArray(data.resource_position) && data.resource_position.length === 3 && this.resourceObject && !this.worldView?.state) {
+    if (this.domain === 'world' && Array.isArray(data.resource_position) && data.resource_position.length === 3 && this.resourceObject && !this.worldView?.state) {
       this.resourceObject.position.set(...pbPos(...data.resource_position));
       this.resourceObject.visible = true;
       this.updateResourceGuide();

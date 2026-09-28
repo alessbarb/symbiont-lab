@@ -12,7 +12,7 @@ def test_client_rejects_gaps_and_stale_responses_and_reconciles_removals():
     if node is None:
         pytest.skip("Node.js is needed to execute the browser reducer")
     root = Path(__file__).resolve().parents[4]
-    module = root / "src/symbiont_lab/workbench/web/views/body/world-state.js"
+    module = root / "src/symbiont_lab/workbench/web/views/world/world-state.js"
     script = """
 import assert from 'node:assert/strict';
 const {reconcileWorld} = await import(MODULE);

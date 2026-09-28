@@ -2,22 +2,28 @@ import { escapeHtml } from '../shared/dom.js';
 import { SelfModelWorkspace } from './self-model.js';
 
 /**
- * BODY research workspace.
+ * Embodiment / World research workspace.
  *
- * Observer-only presentation layer: seven coordinated views over the existing
- * Physics3D telemetry. Nothing in this module writes back to Symbiont.
+ * Observer-only presentation layer over the existing Physics3D telemetry.
+ * Nothing in this module writes back to Symbiont. The two domains never share
+ * a tab: Embodiment asks what can be discovered about acting through this
+ * apparatus; World shows the body inside its environment (ADR-0008).
  */
 
-const TABS = [
-  ['world', 'In World'],
-  ['overview', 'Overview'],
-  ['anatomy', 'Anatomy'],
-  ['motion', 'Motion'],
-  ['physiology', 'Physiology'],
-  ['interaction', 'Interaction'],
-  ['history', 'History'],
-  ['self-model', 'Self-Model'],
-];
+const DOMAIN_TABS = {
+  embodiment: [
+    ['anatomy', 'Apparatus'],
+    ['physiology', 'Interoception'],
+    ['self-model', 'Acquired Self'],
+  ],
+  world: [
+    ['world', 'Observer Truth'],
+    ['overview', 'Overview'],
+    ['motion', 'Motion'],
+    ['interaction', 'Interaction'],
+    ['history', 'History'],
+  ],
+};
 
 const METRIC_LABELS = {
   tick: 'Tick',
@@ -85,7 +91,9 @@ function metricCard(label, value, tone = '') {
 export class BodyWorkspace {
   constructor(viewer) {
     this.viewer = viewer;
-    this.activeTab = 'world';
+    this.domain = viewer.domain === 'embodiment' ? 'embodiment' : 'world';
+    this.tabs = DOMAIN_TABS[this.domain];
+    this.activeTab = this.tabs[0][0];
     this.metrics = new Map();
     this.colors = new Map();
     this.history = [];
@@ -104,8 +112,8 @@ export class BodyWorkspace {
     this.root = root;
     this.nav = node('div', 'body-tabs');
     this.nav.setAttribute('role', 'tablist');
-    this.nav.setAttribute('aria-label', 'Body view tabs');
-    for (const [id, label] of TABS) {
+    this.nav.setAttribute('aria-label', this.domain === 'embodiment' ? 'Embodiment view tabs' : 'World view tabs');
+    for (const [id, label] of this.tabs) {
       const b = node('button', 'body-tab', label);
       b.type = 'button';
       b.id = `body-tab-${id}`;
@@ -130,12 +138,27 @@ export class BodyWorkspace {
     panel.classList.add('body-inspector');
     panel.setAttribute('role', 'tabpanel');
     panel.setAttribute('aria-labelledby', 'body-tab-overview');
-    this.setTab('world');
+    this.setTab(this.tabs[0][0]);
   }
 
 
+  handleTabKey(event, id) {
+    const ids = this.tabs.map(([tab]) => tab);
+    const index = ids.indexOf(id);
+    const next = {
+      ArrowRight: ids[(index + 1) % ids.length],
+      ArrowLeft: ids[(index - 1 + ids.length) % ids.length],
+      Home: ids[0],
+      End: ids[ids.length - 1],
+    }[event.key];
+    if (!next) return;
+    event.preventDefault();
+    this.setTab(next);
+    this.nav?.querySelector(`[data-tab="${next}"]`)?.focus();
+  }
+
   setTab(tab) {
-    if (!TABS.some(([id]) => id === tab)) return;
+    if (!this.tabs.some(([id]) => id === tab)) return;
     this.activeTab = tab;
     this.nav?.querySelectorAll('.body-tab').forEach((button) => {
       const active = button.dataset.tab === tab;
@@ -265,7 +288,7 @@ export class BodyWorkspace {
     }).join('');
     const diagnosticLabel = this.viewer.articulationDiagnostic ? 'Return to live pose' : 'Visual articulation check';
 
-    this.panel.innerHTML = this.head('Body · Anatomy', 'Inspectable morphology', 'Real joint angles from Physics3D. Activity and flexion are shown separately.') +
+    this.panel.innerHTML = this.head('Embodiment · Apparatus', 'Inspectable apparatus morphology', 'Real joint angles from Physics3D. Activity and flexion are shown separately.') +
       `<div class="body-section"><div class="body-section-title">Articulation</div>
         <div class="body-row"><span>Flexed joints ≥10°</span><strong>${flexion.flexed} / ${flexion.joints.length}</strong></div>
         <div class="body-row"><span>Largest absolute angle</span><strong>${flexion.max ? `${escapeHtml(flexion.max.name.replaceAll('_',' '))} · ${flexion.max.degrees.toFixed(1)}°` : '—'}</strong></div>
@@ -335,11 +358,11 @@ export class BodyWorkspace {
     const reserve = this.history.map(x=>x.reserve).filter(Number.isFinite);
     const contacts = this.history.map(x=>x.groundContacts).filter(Number.isFinite);
     const active = this.history.map(x=>x.activeJoints).filter(Number.isFinite);
-    const progress = this.history.map(x=>x.progress).filter(Number.isFinite);
-    this.overlayContent.innerHTML = this.viewHeader('Physiology', 'How physical activity, contact and reserve evolve together.') +
+    const selfContacts = this.history.map(x=>x.selfContacts).filter(Number.isFinite);
+    this.overlayContent.innerHTML = this.viewHeader('Interoception', 'How physical activity, contact and reserve evolve together.') +
       `<div class="body-card-grid">${metricCard('Reserve',this.m('metabolic_reserve'))}${metricCard('Reserve trend',this.m('reserve_trend'))}${metricCard('Motor activity',this.m('motor_activity'))}${metricCard('Ground contacts',this.m('ground_contact_count'))}</div>` +
-      `<div class="body-chart-grid">${this.chart('Metabolic reserve',reserve,'mint')}${this.chart('Active joints',active)}${this.chart('Ground contacts',contacts,'amber')}${this.chart('Resource progress',progress,'violet')}</div>`;
-    this.panel.innerHTML = this.head('Body · Physiology', 'Physical cost and state', 'Live evidence from the body, without introducing goals or reward.') +
+      `<div class="body-chart-grid">${this.chart('Metabolic reserve',reserve,'mint')}${this.chart('Active joints',active)}${this.chart('Ground contacts',contacts,'amber')}${this.chart('Self contacts',selfContacts,'violet')}</div>`;
+    this.panel.innerHTML = this.head('Embodiment · Interoception', 'Physical cost and state', 'Live evidence from the body, without introducing goals or reward.') +
       this.rows(['alive','metabolic_reserve','reserve_trend','motor_activity','active_joints','contact_count','ground_contact_count','self_contact_count']);
   }
 

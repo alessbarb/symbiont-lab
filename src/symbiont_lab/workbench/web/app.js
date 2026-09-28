@@ -5,7 +5,7 @@ import { mount as mountArchive, update as updateArchive, unmount as unmountArchi
 import { RuntimeStatePoller } from './runtime-state.js';
 
 const ROOT_ID = 'view-root';
-const ROUTE_ALIASES = { lab: 'experiments' };
+const ROUTE_ALIASES = { lab: 'experiments', body: 'embodiment' };
 const ROUTES = {
   home: {
     mount: (root, state) => mountHome(root, state),
@@ -27,8 +27,17 @@ const ROUTES = {
     update: (root, state) => updateArchive(root, state),
     unmount: () => unmountArchive(),
   },
-  body: {
+  // Embodiment and World share one lazily loaded 3D apparatus viewer; the
+  // route decides the product domain (ADR-0008).
+  embodiment: {
     load: () => import('./views/body.js'),
+    options: { domain: 'embodiment' },
+    label: 'Embodiment',
+  },
+  world: {
+    load: () => import('./views/body.js'),
+    options: { domain: 'world' },
+    label: 'World',
   },
 };
 
@@ -153,7 +162,7 @@ async function mountRoute(viewId) {
   if (route.load) {
     const loading = document.createElement('div');
     loading.className = 'empty-state';
-    loading.textContent = 'Loading 3D body viewer…';
+    loading.textContent = `Loading ${route.label ?? 'view'}…`;
     root.appendChild(loading);
 
     try {
@@ -161,12 +170,12 @@ async function mountRoute(viewId) {
       if (token !== loadToken || currentView !== viewId) return;
       root.replaceChildren();
       mountedModule = module;
-      module.mount(root, currentState);
+      module.mount(root, currentState, route.options);
       focusViewRoot();
     } catch (error) {
       if (token !== loadToken || currentView !== viewId) return;
       mountedView = null;
-      renderFailure('Body viewer unavailable. The 3D module could not be loaded.', error);
+      renderFailure(`${route.label ?? 'View'} unavailable. The 3D module could not be loaded.`, error);
     }
     return;
   }
