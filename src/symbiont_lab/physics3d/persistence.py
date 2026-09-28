@@ -289,17 +289,14 @@ def save_symbiont_bundle(
     target = Path(path).expanduser()
     target.parent.mkdir(parents=True, exist_ok=True)
     models_root = Path(models_dir).expanduser()
-    registry = runtime_payload.get("private_model_registry", {})
-    records = registry.get("records", []) if isinstance(registry, dict) else []
-    model_ids = [
-        str(record.get("model_id"))
-        for record in records
-        if (
-            isinstance(record, dict)
-            and isinstance(record.get("model_id"), str)
-            and record.get("state") != "retired"
-        )
-    ]
+    artifacts: dict[str, bytes] = {}
+    for model_id, required in _bundle_models(runtime_payload):
+        for suffix in (".json", ".pt", ".tokenizer.json"):
+            source = models_root / f"{model_id}{suffix}"
+            if source.is_file():
+                artifacts[f"models/{model_id}{suffix}"] = source.read_bytes()
+            elif required:
+                raise ValueError(f"missing required model artifact: {source.name}")
 
     runtime_bytes = json.dumps(
         runtime_payload,
@@ -314,6 +311,11 @@ def save_symbiont_bundle(
         runtime_payload,
         runtime_sha256=runtime_sha256,
     )
+    manifest_payload["bundle_schema_version"] = "1.1"
+    manifest_payload["model_artifacts"] = {
+        name: f"sha256:{hashlib.sha256(data).hexdigest()}"
+        for name, data in sorted(artifacts.items())
+    }
     manifest_bytes = (
         json.dumps(
             manifest_payload,
@@ -338,14 +340,8 @@ def save_symbiont_bundle(
         ) as archive:
             archive.writestr("manifest.json", manifest_bytes)
             archive.writestr("runtime.json", runtime_bytes)
-            for model_id in sorted(set(model_ids)):
-                for suffix in (".json", ".pt", ".tokenizer.json"):
-                    source = models_root / f"{model_id}{suffix}"
-                    if source.is_file():
-                        archive.write(
-                            source,
-                            arcname=f"models/{model_id}{suffix}",
-                        )
+            for name, data in sorted(artifacts.items()):
+                archive.writestr(name, data)
         os.replace(temp_name, target)
     finally:
         if os.path.exists(temp_name):
@@ -369,47 +365,53 @@ def read_symbiont_bundle_manifest(
     """
     source = Path(path).expanduser()
     with zipfile.ZipFile(source, "r") as archive:
-        names = set(archive.namelist())
-        if "manifest.json" in names:
-            try:
-                raw = json.loads(archive.read("manifest.json").decode("utf-8"))
-            except Exception as exc:
-                raise ValueError("portable Symbiont bundle has corrupt manifest.json") from exc
-            if not isinstance(raw, dict):
-                raise ValueError("portable Symbiont manifest root must be an object")
-            if verify:
-                if "runtime.json" not in names:
-                    raise ValueError(
-                        "portable Symbiont bundle has manifest.json but no runtime.json"
-                    )
-                runtime_bytes = archive.read("runtime.json")
-                runtime_sha256 = hashlib.sha256(runtime_bytes).hexdigest()
-                expected = f"sha256:{runtime_sha256}"
-                if raw.get("checkpoint_hash") != expected:
-                    raise ValueError(
-                        f"manifest checkpoint_hash mismatch: {raw.get('checkpoint_hash')} != {expected}"
-                    )
-                # Revision Coherence v1 §3.7: the manifest describes exactly
-                # this runtime (Workbench metadata.json is never authority).
-                derived = build_symbiont_bundle_manifest(
-                    json.loads(runtime_bytes.decode("utf-8")), runtime_sha256=runtime_sha256
-                )
-                for field in ("saved_at_tick", "organism_id", "embodiment_epoch"):
-                    if raw.get(field) != derived.get(field):
-                        raise ValueError(f"manifest {field} does not match runtime.json")
-            return raw
+        return _read_bundle_manifest(archive, verify=verify)
 
-        if "runtime.json" not in names:
-            raise ValueError("portable Symbiont bundle has neither manifest.json nor runtime.json")
-        runtime_bytes = archive.read("runtime.json")
+
+def _read_bundle_manifest(archive: zipfile.ZipFile, *, verify: bool) -> dict[str, Any]:
+    names = set(archive.namelist())
+    if "manifest.json" in names:
         try:
-            runtime_payload = json.loads(runtime_bytes.decode("utf-8"))
+            raw = json.loads(archive.read("manifest.json").decode("utf-8"))
         except Exception as exc:
-            raise ValueError("portable Symbiont bundle has corrupt runtime.json") from exc
-        if not isinstance(runtime_payload, dict):
-            raise ValueError("portable Symbiont runtime root must be an object")
-        runtime_sha256 = hashlib.sha256(runtime_bytes).hexdigest()
-        return build_symbiont_bundle_manifest(runtime_payload, runtime_sha256=runtime_sha256)
+            raise ValueError("portable Symbiont bundle has corrupt manifest.json") from exc
+        if not isinstance(raw, dict):
+            raise ValueError("portable Symbiont manifest root must be an object")
+        if verify:
+            if "runtime.json" not in names:
+                raise ValueError("portable Symbiont bundle has manifest.json but no runtime.json")
+            runtime_bytes = archive.read("runtime.json")
+            runtime_sha256 = hashlib.sha256(runtime_bytes).hexdigest()
+            expected = f"sha256:{runtime_sha256}"
+            if raw.get("checkpoint_hash") != expected:
+                raise ValueError(
+                    f"manifest checkpoint_hash mismatch: {raw.get('checkpoint_hash')} != {expected}"
+                )
+            # Revision Coherence v1 §3.7: the manifest describes exactly
+            # this runtime (Workbench metadata.json is never authority).
+            runtime_payload = json.loads(runtime_bytes.decode("utf-8"))
+            if not isinstance(runtime_payload, dict):
+                raise ValueError("portable Symbiont runtime root must be an object")
+            validate_bundle_export_invariants(raw, runtime_payload, runtime_sha256)
+            derived = build_symbiont_bundle_manifest(
+                json.loads(runtime_bytes.decode("utf-8")), runtime_sha256=runtime_sha256
+            )
+            for field in ("saved_at_tick", "organism_id", "embodiment_epoch"):
+                if raw.get(field) != derived.get(field):
+                    raise ValueError(f"manifest {field} does not match runtime.json")
+        return raw
+
+    if "runtime.json" not in names:
+        raise ValueError("portable Symbiont bundle has neither manifest.json nor runtime.json")
+    runtime_bytes = archive.read("runtime.json")
+    try:
+        runtime_payload = json.loads(runtime_bytes.decode("utf-8"))
+    except Exception as exc:
+        raise ValueError("portable Symbiont bundle has corrupt runtime.json") from exc
+    if not isinstance(runtime_payload, dict):
+        raise ValueError("portable Symbiont runtime root must be an object")
+    runtime_sha256 = hashlib.sha256(runtime_bytes).hexdigest()
+    return build_symbiont_bundle_manifest(runtime_payload, runtime_sha256=runtime_sha256)
 
 
 def read_symbiont_bundle_runtime(path: str | Path) -> dict:
@@ -429,33 +431,106 @@ def read_symbiont_bundle_runtime(path: str | Path) -> dict:
         return raw
 
 
+def _bundle_models(payload: dict) -> list[tuple[str, bool]]:
+    registry = payload.get("private_model_registry", {})
+    records = registry.get("records", []) if isinstance(registry, dict) else []
+    models = []
+    for record in records:
+        if not isinstance(record, dict) or record.get("state") == "retired":
+            continue
+        model_id = record.get("model_id")
+        if (
+            not isinstance(model_id, str)
+            or not model_id
+            or any(
+                c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+                for c in model_id
+            )
+        ):
+            raise ValueError("portable Symbiont bundle contains unsafe model identity")
+        models.append((model_id, record.get("state") in {"active", "shadow"}))
+    return models
+
+
 def load_symbiont_bundle(
     path: str | Path,
     models_dir: str | Path,
 ) -> dict:
-    """Restore runtime state and materialize bundled private SLM artifacts."""
+    """Verify a complete bundle before publishing artifacts without overwriting.
+
+    Legacy manifest-free and 1.0 bundles lack artifact hashes but still undergo
+    path, duplicate-member and required-artifact checks. Conflicting local
+    artifacts are rejected; identical files are reused. Publication failures
+    roll back newly installed files (not a crash-atomic multi-file transaction).
+    """
     source = Path(path).expanduser()
     models_root = Path(models_dir).expanduser()
-    models_root.mkdir(parents=True, exist_ok=True)
-
     with zipfile.ZipFile(source, "r") as archive:
-        names = set(archive.namelist())
-        if "runtime.json" not in names:
-            raise ValueError("portable Symbiont bundle has no runtime.json")
+        names = archive.namelist()
+        if len(names) != len(set(names)):
+            raise ValueError("portable Symbiont bundle contains duplicate members")
+        manifest = _read_bundle_manifest(archive, verify=True)
         raw = json.loads(archive.read("runtime.json").decode("utf-8"))
-        if not isinstance(raw, dict):
-            raise ValueError("portable Symbiont runtime root must be an object")
-
-        for name in sorted(names):
-            if not name.startswith("models/"):
+        artifacts = {}
+        for name in names:
+            if name in {"manifest.json", "runtime.json"}:
                 continue
             leaf = name.removeprefix("models/")
-            if "/" in leaf or not leaf or not (leaf.endswith(".json") or leaf.endswith(".pt")):
+            if (
+                not name.startswith("models/")
+                or "/" in leaf
+                or "\\" in leaf
+                or not leaf
+                or leaf.startswith(".")
+                or not (leaf.endswith(".json") or leaf.endswith(".pt"))
+            ):
                 raise ValueError("portable Symbiont bundle contains unsafe model path")
-            destination = models_root / leaf
-            temporary = destination.with_name(f".{destination.name}.tmp")
-            temporary.write_bytes(archive.read(name))
-            os.replace(temporary, destination)
+            artifacts[name] = archive.read(name)
+        for model_id, required in _bundle_models(raw):
+            if required:
+                for suffix in (".json", ".pt", ".tokenizer.json"):
+                    if f"models/{model_id}{suffix}" not in artifacts:
+                        raise ValueError(f"missing required model artifact: {model_id}{suffix}")
+        version = manifest.get("bundle_schema_version")
+        if version not in {"1.0", "1.1"}:
+            raise ValueError("unsupported portable Symbiont bundle schema")
+        if version == "1.1" or "model_artifacts" in manifest:
+            inventory = {
+                name: f"sha256:{hashlib.sha256(data).hexdigest()}"
+                for name, data in artifacts.items()
+            }
+            if manifest.get("model_artifacts") != inventory:
+                raise ValueError("portable Symbiont bundle artifact inventory mismatch")
+
+    pending = {}
+    for name, data in artifacts.items():
+        destination = models_root / name.removeprefix("models/")
+        if destination.is_symlink():
+            raise ValueError(f"model artifact destination is a symlink: {destination.name}")
+        if destination.exists():
+            if not destination.is_file() or destination.read_bytes() != data:
+                raise ValueError(f"conflicting local model artifact: {destination.name}")
+        else:
+            pending[destination] = data
+    if not pending:
+        return raw
+    models_root.mkdir(parents=True, exist_ok=True)
+    installed = []
+    with tempfile.TemporaryDirectory(prefix=".bundle-", dir=models_root) as staging:
+        staged = []
+        for destination, data in pending.items():
+            temporary = Path(staging) / destination.name
+            temporary.write_bytes(data)
+            staged.append((temporary, destination))
+        try:
+            for temporary, destination in staged:
+                # Atomic no-clobber publication, including concurrent writers.
+                os.link(temporary, destination)
+                installed.append(destination)
+        except BaseException:
+            for destination in reversed(installed):
+                destination.unlink()
+            raise
     return raw
 
 

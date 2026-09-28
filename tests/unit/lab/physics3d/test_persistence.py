@@ -173,9 +173,13 @@ def test_portable_bundle_contains_authoritative_manifest_and_validates_invariant
         },
     }
 
+    models = tmp_path / "models"
+    models.mkdir()
+    for suffix in (".json", ".pt", ".tokenizer.json"):
+        (models / f"m2{suffix}").write_bytes(b"artifact")
     bundle = save_symbiont_bundle(
         payload,
-        tmp_path / "models",
+        models,
         tmp_path / "subject.symbiont",
     )
 
@@ -243,7 +247,11 @@ def test_portable_bundle_syncs_external_organism_metadata(tmp_path):
         "experience_ledger": {"records": [{"tick": 1}]},
     }
 
-    save_symbiont_bundle(payload, tmp_path / "models", bundle_path)
+    models = tmp_path / "models"
+    models.mkdir()
+    for suffix in (".json", ".pt", ".tokenizer.json"):
+        (models / f"m1{suffix}").write_bytes(b"artifact")
+    save_symbiont_bundle(payload, models, bundle_path)
 
     updated_meta = json.loads(meta_path.read_text(encoding="utf-8"))
     manifest = read_symbiont_bundle_manifest(bundle_path)
