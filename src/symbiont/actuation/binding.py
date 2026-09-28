@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
+from ..capacity import CapacityPressure
 from .competence import CompetenceMaturity, MotorCompetence
 
 
@@ -43,6 +44,8 @@ class CompetenceExecutionBindingRegistry:
             raise ValueError("capacity must be positive")
         self.capacity = int(capacity)
         self._items: dict[str, CompetenceExecutionBinding] = {}
+        # Wave 0 measurement only (Cross-Domain Revision Coherence v1 §2.1).
+        self.pressure = CapacityPressure(self.capacity)
 
     def bind_from_evidence(
         self,
@@ -71,6 +74,8 @@ class CompetenceExecutionBindingRegistry:
             last_evidence_tick=int(tick),
         )
         self._items[competence_id] = binding
+        if existing is None:
+            self.pressure.note_admitted(competence_id)
         self._enforce_bound()
         return binding
 
@@ -86,7 +91,9 @@ class CompetenceExecutionBindingRegistry:
                 item.competence_id,
             ),
         )[: self.capacity]
+        before = tuple(self._items)
         self._items = {item.competence_id: item for item in retained}
+        self.pressure.note_evicted(ref for ref in before if ref not in self._items)
 
     def get(self, competence_id: str) -> CompetenceExecutionBinding | None:
         return self._items.get(competence_id)
@@ -136,6 +143,7 @@ class CompetenceExecutionBindingRegistry:
                 }
                 for item in self.items
             ],
+            "capacity_pressure": self.pressure.checkpoint(),
         }
 
     @classmethod
@@ -164,6 +172,9 @@ class CompetenceExecutionBindingRegistry:
                 last_evidence_tick=int(entry.get("last_evidence_tick", 0)),
             )
             obj._items[binding.competence_id] = binding
+        obj.pressure = CapacityPressure.restore(
+            payload.get("capacity_pressure"), capacity=obj.capacity
+        )
         return obj
 
 

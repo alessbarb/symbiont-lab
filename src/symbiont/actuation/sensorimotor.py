@@ -6,6 +6,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
+from ..capacity import CapacityPressure
 from .competence import CompetenceEvidence, CompetenceMaturity
 from .types import MotorIntent
 
@@ -455,6 +456,9 @@ class CompetenceDevelopmentEngine:
         self._horizon_counts = {horizon: 0 for horizon in _HORIZONS}
 
         self._primitive_stats: dict[MotorSequence, _RunningStat] = {}
+        # Wave 0 measurement only (Cross-Domain Revision Coherence v1 §2.1).
+        self.primitive_stats_pressure = CapacityPressure(_MAX_PRIMITIVE_STATS)
+        self.primitives_pressure = CapacityPressure(_MAX_PRIMITIVES)
         self._primitive_first_sample_tick: dict[MotorSequence, int] = {}
         self._primitive_last_sample_tick: dict[MotorSequence, int] = {}
         self._primitive_materialized_tick: dict[MotorSequence, int] = {}
@@ -496,7 +500,9 @@ class CompetenceDevelopmentEngine:
                 item.primitive_id,
             ),
         )[:_MAX_PRIMITIVES]
+        before = tuple(self._primitives)
         self._primitives = {primitive.primitive_id: primitive for primitive in retained}
+        self.primitives_pressure.note_evicted(ref for ref in before if ref not in self._primitives)
         self._invalidate_primitive_caches()
 
     def _primitive_id_for_sequence(self, sequence: MotorSequence) -> str:
@@ -1000,6 +1006,8 @@ class CompetenceDevelopmentEngine:
 
         raw_effect = self._body_delta(before, after)
         effect = max(0.0, raw_effect - self._passive_effect_stat.mean)
+        if sequence not in self._primitive_stats:
+            self.primitive_stats_pressure.note_admitted(repr(sequence))
         stat = self._primitive_stats.setdefault(sequence, _RunningStat())
         if stat.count == 0:
             self._primitive_first_sample_tick[sequence] = int(end_tick)
@@ -1022,6 +1030,9 @@ class CompetenceDevelopmentEngine:
                     key=lambda item: (-item[1].count, -item[1].mean, item[0]),
                 )[:_MAX_PRIMITIVE_STATS]
             }
+            self.primitive_stats_pressure.note_evicted(
+                repr(key) for key in self._primitive_stats if key not in retained_sequences
+            )
             self._primitive_stats = {
                 key: value
                 for key, value in self._primitive_stats.items()
@@ -1093,6 +1104,8 @@ class CompetenceDevelopmentEngine:
             )
             return None
 
+        if primitive_id not in self._primitives:
+            self.primitives_pressure.note_admitted(primitive_id)
         self._primitives[primitive_id] = MotorPrimitive(
             primitive_id=primitive_id,
             embodiment_fingerprint=self._embodiment_fingerprint,
@@ -1428,6 +1441,8 @@ class CompetenceDevelopmentEngine:
             "replay_id": self._replay_id,
             "replay_step": self._replay_step,
             "replay_source": self._replay_source,
+            "primitive_stats_pressure": self.primitive_stats_pressure.checkpoint(),
+            "primitives_pressure": self.primitives_pressure.checkpoint(),
         }
 
     @classmethod
@@ -1810,6 +1825,12 @@ class CompetenceDevelopmentEngine:
             learner._last_episode_end_tick[sequence] = _require_int(
                 item.get("tick"), field="sensorimotor episode end tick"
             )
+        learner.primitive_stats_pressure = CapacityPressure.restore(
+            payload.get("primitive_stats_pressure"), capacity=_MAX_PRIMITIVE_STATS
+        )
+        learner.primitives_pressure = CapacityPressure.restore(
+            payload.get("primitives_pressure"), capacity=_MAX_PRIMITIVES
+        )
         return learner
 
     @property

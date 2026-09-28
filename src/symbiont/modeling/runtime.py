@@ -94,6 +94,21 @@ class ModeledOrganismRuntime(OrganismRuntime):
     serialized into the organism checkpoint.
     """
 
+    def measurement_snapshot(self) -> dict[str, Any]:
+        """Wave 0: adds private-model lineage (Cross-Domain Revision Coherence v1 §2.1)."""
+        snapshot = super().measurement_snapshot()
+        records = self._model_registry.records
+        by_state: dict[str, int] = {}
+        for record in records:
+            by_state[record.state.value] = by_state.get(record.state.value, 0) + 1
+        snapshot["private_models"] = {
+            "models": len(records),
+            "roots": sum(1 for record in records if record.parent_model_id is None),
+            "max_generation": max((record.generation for record in records), default=0),
+            "by_state": dict(sorted(by_state.items())),
+        }
+        return snapshot
+
     def __init__(
         self,
         *,

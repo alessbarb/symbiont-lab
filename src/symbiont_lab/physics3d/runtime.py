@@ -626,6 +626,11 @@ class PyBulletEmbodimentRuntime:
             "reacclimation_completed": bool(
                 raw_epoch_metrics.get("reacclimation_completed", False)
             ),
+            "reacclimation_window_completed": bool(
+                raw_epoch_metrics.get("reacclimation_window_completed", False)
+            ),
+            "adaptation_state": str(raw_epoch_metrics.get("adaptation_state", "reacquiring")),
+            "adaptation_recovered_at_tick": raw_epoch_metrics.get("adaptation_recovered_at_tick"),
             "vital_state_ticks": dict(raw_epoch_metrics.get("vital_state_ticks") or {}),
         }
         raw_core_archive = (
@@ -1841,6 +1846,15 @@ class PyBulletEmbodimentRuntime:
             )
         else:
             self._epoch_metrics["reacclimation_completed"] = True
+        # Wave 0 (Cross-Domain Revision Coherence v1 §3.6): the timer and the
+        # adaptation the evidence shows, recorded separately.
+        window_completed = self.organism.reacclimation_remaining <= 0
+        self._epoch_metrics["reacclimation_window_completed"] = window_completed
+        adaptation = self._embodiment_episode.adaptation
+        self._epoch_metrics["adaptation_state"] = adaptation.adaptation_state(
+            window_completed=window_completed
+        )
+        self._epoch_metrics["adaptation_recovered_at_tick"] = adaptation.recovery_tick
         state_name = str(
             getattr(
                 getattr(result, "physiology", None),

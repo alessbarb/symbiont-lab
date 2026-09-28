@@ -390,6 +390,55 @@ class ActionDomain:
             tick=self._decision_tick,
         )
 
+    def availability_counts(self) -> dict[str, int]:
+        """Wave 0 measurement of the four competence questions, computed as
+        the Wave 1 projection would, without changing any decision."""
+        suppressed_ids = self.intention.outcome_ledger.suppressed_competences()
+        counts = dict.fromkeys(
+            ("known", "predictable", "executable", "admissible", "suppressed"), 0
+        )
+        for competence in self.competence_library.items:
+            counts["known"] += 1
+            if (
+                competence.effect_id is not None
+                and self.effect_space.get(competence.effect_id) is not None
+                and self.execution_bindings.get(competence.competence_id) is not None
+            ):
+                counts["predictable"] += 1
+            executable = self.competence_is_executable(competence)
+            suppressed = competence.competence_id in suppressed_ids
+            counts["executable"] += executable
+            counts["suppressed"] += suppressed
+            counts["admissible"] += executable and not suppressed
+        return counts
+
+    def capacity_snapshots(self) -> dict[str, dict]:
+        """Wave 0 capacity pressure of the action-side bounded stores."""
+        snapshots = {
+            "effect_space": self.effect_space.capacity_snapshot(),
+            "execution_bindings": self.execution_bindings.pressure.snapshot(
+                len(self.execution_bindings.items)
+            ),
+            "executive_keys": self.intention.outcome_ledger.pressure.snapshot(
+                len(self.intention.outcome_ledger)
+            ),
+        }
+        engine = self._competence_development
+        if engine is not None:
+            snapshots["primitive_stats"] = engine.primitive_stats_pressure.snapshot(
+                len(engine._primitive_stats)
+            )
+            snapshots["primitives"] = engine.primitives_pressure.snapshot(len(engine._primitives))
+        return snapshots
+
+    def passive_evidence_counts(self) -> dict[str, int]:
+        """Wave 0: both passive-evidence mechanisms, side by side (F8)."""
+        engine = self._competence_development
+        return {
+            "motor_baseline_frames": engine._passive_effect_stat.count if engine is not None else 0,
+            "ledger_passive_windows": len(self.causal_evidence.passive_evidence),
+        }
+
     def competence_is_executable(self, competence: MotorCompetence) -> bool:
         """Bound on this surface, mature, and its controller can actually run.
 

@@ -1157,6 +1157,25 @@ class OrganismRuntime:
             sensory_system=self._sensory_system,
         )
 
+    def measurement_snapshot(self) -> dict[str, Any]:
+        """Wave 0 measurement coherence (Cross-Domain Revision Coherence v1
+        §2.1): read-only; no decision reads it."""
+        tracker = self._generative_cognition.consolidator.tracker
+        sterile = tracker.sterile_reactivations
+        capacity = self._action_domain.capacity_snapshots()
+        capacity["generative_representations"] = tracker.pressure.snapshot(
+            len(tracker.representation_refs)
+        )
+        return {
+            "competence_availability": self._action_domain.availability_counts(),
+            "capacity": capacity,
+            "generative": {
+                "sterile_reactivations": sum(sterile.values()),
+                "max_sterile_per_representation": max(sterile.values(), default=0),
+            },
+            "passive_evidence": self._action_domain.passive_evidence_counts(),
+        }
+
     @property
     def provenance(self) -> ProvenanceLog:
         """The organism's causal provenance log (read/subscribe only, §6)."""

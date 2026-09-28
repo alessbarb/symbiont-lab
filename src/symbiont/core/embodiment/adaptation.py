@@ -58,6 +58,15 @@ class EmbodimentAdaptation:
         self.recovery_tick: int | None = None
         self._stable_ticks = 0
 
+    def adaptation_state(self, *, window_completed: bool) -> str:
+        """Wave 0 (Cross-Domain Revision Coherence v1 §3.6): what adaptation
+        the evidence shows, independent of the reacclimation timer."""
+        if self.recovery_tick is not None:
+            return "adapted"
+        if not window_completed:
+            return "reacquiring"
+        return "stabilizing" if self._stable_ticks > 0 else "unstable"
+
     def observe(
         self,
         *,

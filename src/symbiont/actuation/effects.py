@@ -12,6 +12,8 @@ import math
 from dataclasses import dataclass
 from typing import Mapping
 
+from ..capacity import CapacityPressure
+
 _ALLOWED_PREFIXES = ("signal.", "latent.", "part.", "channel.", "internal.", "effect.")
 
 
@@ -176,6 +178,8 @@ class EffectSpace:
         # keyed by entity, registered explicitly and never evicted by the
         # whole-state bound (which saturates in high-dimensional bodies).
         self._footprints: dict[str, tuple[EffectRepresentation, tuple[EffectAtom, ...]]] = {}
+        # Wave 0 measurement only (Cross-Domain Revision Coherence v1 §2.1).
+        self.pressure = CapacityPressure(self._max_effects)
 
     @staticmethod
     def signature(changes: Mapping[str, float]) -> tuple[tuple[str, int], ...]:
@@ -204,6 +208,7 @@ class EffectSpace:
         self._support[signature] = support
         effect_id = self._id(signature)
         confidence = min(1.0, support / 8.0)
+        admitted = effect_id not in self._effects
         representation = EffectRepresentation(
             effect_id=effect_id,
             feature_refs=tuple(feature for feature, _ in signature),
@@ -212,7 +217,10 @@ class EffectSpace:
             confidence=confidence,
         )
         self._effects[effect_id] = representation
+        if admitted:
+            self.pressure.note_admitted(effect_id)
         if len(self._effects) > self._max_effects:
+            before = tuple(self._effects)
             retained = sorted(
                 self._effects.values(),
                 key=lambda item: (-item.support, -item.confidence, item.effect_id),
@@ -222,6 +230,7 @@ class EffectSpace:
             self._support = {
                 key: value for key, value in self._support.items() if key in retained_signatures
             }
+            self.pressure.note_evicted(ref for ref in before if ref not in self._effects)
         return representation
 
     def register_footprint(
@@ -283,6 +292,10 @@ class EffectSpace:
             raise KeyError("EffectTarget cannot be constructed from an external/unknown effect")
         return EffectTarget(effect_id, desired_change, tolerance)
 
+    def capacity_snapshot(self) -> dict[str, object]:
+        """Pressure on the bounded whole-state effects (footprints are exempt)."""
+        return self.pressure.snapshot(len(self._effects))
+
     def checkpoint(self) -> dict[str, object]:
         return {
             "schema_version": self.SCHEMA_VERSION,
@@ -301,6 +314,7 @@ class EffectSpace:
                 }
                 for effect_id, (representation, atoms) in sorted(self._footprints.items())
             ],
+            "capacity_pressure": self.pressure.checkpoint(),
         }
 
     @classmethod
@@ -330,4 +344,7 @@ class EffectSpace:
                 tuple(EffectAtom(str(f), int(d), int(m)) for f, d, m in item["atoms"]),
                 support=int(item["support"]),
             )
+        obj.pressure = CapacityPressure.restore(
+            payload.get("capacity_pressure"), capacity=obj._max_effects
+        )
         return obj

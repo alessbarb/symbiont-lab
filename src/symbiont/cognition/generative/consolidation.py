@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ...capacity import CapacityPressure
 from .types import bounded_identifier, bounded_tuple, unit_interval
 
 
@@ -72,6 +73,11 @@ class GenerativeUseTracker:
         self._disagreement_sum: dict[str, float] = {}
         self._disagreement_count: dict[str, int] = {}
         self._last_use_tick: dict[str, int] = {}
+        # Wave 0 measurement only (Cross-Domain Revision Coherence v1 §2.1):
+        # eviction pressure, and reactivations that bring no new context
+        # (episode) and no new source/branch ref. Never read by decisions.
+        self.pressure = CapacityPressure(self.MAX_REPRESENTATIONS)
+        self.sterile_reactivations: dict[str, int] = {}
 
     def record(
         self,
@@ -97,9 +103,7 @@ class GenerativeUseTracker:
         if hypothesis_ref is not None:
             bounded_identifier(hypothesis_ref, name="hypothesis_ref")
         unit_interval(model_disagreement, name="model_disagreement")
-        if tick is not None and (
-            isinstance(tick, bool) or not isinstance(tick, int) or tick < 0
-        ):
+        if tick is not None and (isinstance(tick, bool) or not isinstance(tick, int) or tick < 0):
             raise ValueError("tick must be a non-negative integer or None")
 
         if (
@@ -108,7 +112,13 @@ class GenerativeUseTracker:
         ):
             victim = next(iter(self._activation_counts))
             self._drop(victim)
+            self.pressure.note_evicted((victim,))
 
+        known = representation_ref in self._activation_counts
+        if not known:
+            self.pressure.note_admitted(representation_ref)
+        seen_episode = episode_id in self._episodes.get(representation_ref, ())
+        sources_before = len(self._sources.get(representation_ref, ()))
         self._activation_counts[representation_ref] = min(
             1_000_000,
             self._activation_counts.get(representation_ref, 0) + 1,
@@ -121,6 +131,10 @@ class GenerativeUseTracker:
             if len(sources) >= self.MAX_SOURCES_PER_REPRESENTATION:
                 break
             sources.add(source_ref)
+        if known and seen_episode and len(sources) == sources_before:
+            self.sterile_reactivations[representation_ref] = (
+                self.sterile_reactivations.get(representation_ref, 0) + 1
+            )
         if hypothesis_ref is not None:
             self._hypothesis_counts[representation_ref] = min(
                 1_000_000,
@@ -207,7 +221,9 @@ class GenerativeUseTracker:
                     "last_use_tick": self._last_use_tick.get(representation_ref),
                 }
                 for representation_ref in sorted(self._activation_counts)
-            ]
+            ],
+            "capacity_pressure": self.pressure.checkpoint(),
+            "sterile_reactivations": dict(sorted(self.sterile_reactivations.items())),
         }
 
     @classmethod
@@ -260,6 +276,14 @@ class GenerativeUseTracker:
             tracker._disagreement_count[representation_ref] = disagreement_count
             if last_use_tick is not None:
                 tracker._last_use_tick[representation_ref] = last_use_tick
+        tracker.pressure = CapacityPressure.restore(
+            payload.get("capacity_pressure"), capacity=cls.MAX_REPRESENTATIONS
+        )
+        tracker.sterile_reactivations = {
+            str(ref): max(0, int(count))
+            for ref, count in dict(payload.get("sterile_reactivations", {})).items()
+            if ref in tracker._activation_counts
+        }
         return tracker
 
     def _drop(self, representation_ref: str) -> None:
@@ -270,6 +294,7 @@ class GenerativeUseTracker:
         self._disagreement_sum.pop(representation_ref, None)
         self._disagreement_count.pop(representation_ref, None)
         self._last_use_tick.pop(representation_ref, None)
+        self.sterile_reactivations.pop(representation_ref, None)
 
 
 class GenerativeConsolidator:

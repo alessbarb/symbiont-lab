@@ -22,6 +22,8 @@ from enum import StrEnum
 from statistics import fmean
 from typing import Any, Mapping
 
+from ..capacity import CapacityPressure
+
 WINDOW = 16
 MAX_KEYS = 256
 
@@ -259,6 +261,8 @@ class ExecutiveOutcomeLedger:
         self.keys_evicted = 0
         self.lookups = 0
         self.history_hits = 0
+        # Wave 0 measurement only (Cross-Domain Revision Coherence v1 §2.1).
+        self.pressure = CapacityPressure(self.max_keys)
 
     def __len__(self) -> int:
         return len(self._items)
@@ -272,11 +276,20 @@ class ExecutiveOutcomeLedger:
             evidence = ExecutiveOutcomeEvidence()
             self._items[key] = evidence
             self.keys_created += 1
+            self.pressure.note_admitted("|".join(key))
         self._items.move_to_end(key)  # least-recently-updated is evicted first
         while len(self._items) > self.max_keys:
-            self._items.popitem(last=False)
+            evicted, _ = self._items.popitem(last=False)
             self.keys_evicted += 1
+            self.pressure.note_evicted(("|".join(evicted),))
         return evidence
+
+    def suppressed_competences(self) -> frozenset[str]:
+        """Competences with a live suppression record, read without side
+        effects (no lifting, no lookup counting)."""
+        return frozenset(
+            key[0] for key, evidence in self._items.items() if evidence.suppression is not None
+        )
 
     def record(
         self,
@@ -349,6 +362,7 @@ class ExecutiveOutcomeLedger:
                 "lookups": self.lookups,
                 "history_hits": self.history_hits,
             },
+            "capacity_pressure": self.pressure.checkpoint(),
         }
 
     @classmethod
@@ -379,6 +393,9 @@ class ExecutiveOutcomeLedger:
             if value < 0 or not math.isfinite(value):
                 raise ValueError("invalid executive outcome counter")
             setattr(ledger, name, value)
+        ledger.pressure = CapacityPressure.restore(
+            payload.get("capacity_pressure"), capacity=ledger.max_keys
+        )
         return ledger
 
 
