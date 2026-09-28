@@ -7,6 +7,8 @@ or multiple concurrent antecedents goes in contributing_event_ids instead.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -63,12 +65,36 @@ class EventJournal:
         self._staged: list[WorldEvent] = []
         self._first_index_by_event_id: dict[str, int] = {}
         self._events_by_tick: dict[int, list[WorldEvent]] = {}
+        self._prefix_digests: list[str] = []
+
+    @staticmethod
+    def _snapshot_event(event: WorldEvent) -> dict[str, Any]:
+        return {
+            "event_id": event.event_id,
+            "world_id": event.world_id,
+            "tick": event.tick,
+            "kind": event.kind,
+            "actor": event.actor,
+            "position": event.position,
+            "payload": dict(event.payload),
+            "causal_parent_ids": list(event.causal_parent_ids),
+            "contributing_event_ids": list(event.contributing_event_ids),
+        }
 
     def append(self, event: WorldEvent) -> None:
         index = len(self._events)
         self._events.append(event)
         self._first_index_by_event_id.setdefault(event.event_id, index)
         self._events_by_tick.setdefault(event.tick, []).append(event)
+        previous = self._prefix_digests[-1] if self._prefix_digests else ""
+        encoded = json.dumps(
+            self._snapshot_event(event),
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        self._prefix_digests.append(
+            hashlib.sha256(previous.encode("ascii") + b"\0" + encoded).hexdigest()
+        )
 
     def stage(self, event: WorldEvent) -> None:
         self._staged.append(event)
@@ -104,6 +130,20 @@ class EventJournal:
             return ()
         return tuple(self._events[-limit:])
 
+    def event_at(self, index: int) -> WorldEvent:
+        """Return one committed event by append index."""
+        return self._events[index]
+
+    def prefix_digest(self, count: int | None = None) -> str:
+        """Digest of a committed prefix, maintained incrementally on append."""
+        resolved = len(self._events) if count is None else int(count)
+        if resolved < 0 or resolved > len(self._events):
+            raise ValueError("journal prefix count out of bounds")
+        return "" if resolved == 0 else self._prefix_digests[resolved - 1]
+
+    def snapshot_range(self, start: int = 0, stop: int | None = None) -> list[dict[str, Any]]:
+        """Serialize only a bounded append range, not the complete history."""
+        return [self._snapshot_event(event) for event in self._events[start:stop]]
     def page_after(
         self,
         after: str | None = None,
@@ -124,20 +164,7 @@ class EventJournal:
         return page, next_after, start + len(page) < len(self._events)
 
     def snapshot(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "event_id": e.event_id,
-                "world_id": e.world_id,
-                "tick": e.tick,
-                "kind": e.kind,
-                "actor": e.actor,
-                "position": e.position,
-                "payload": dict(e.payload),
-                "causal_parent_ids": list(e.causal_parent_ids),
-                "contributing_event_ids": list(e.contributing_event_ids),
-            }
-            for e in self._events
-        ]
+        return self.snapshot_range()
 
     @classmethod
     def from_snapshot(cls, events_data: list[dict[str, Any]]) -> "EventJournal":
