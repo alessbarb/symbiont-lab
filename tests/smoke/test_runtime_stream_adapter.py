@@ -702,7 +702,7 @@ def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
         tick_simulation_span_s=10.0 / 240.0,
     )
 
-    payload = json.loads(queue.get_nowait())
+    payload = json.loads(queue.get_nowait().data)
     assert payload["type"] == "body_pose"
     assert payload["tick"] == 1
     assert payload["substep_index"] == 3
@@ -734,7 +734,7 @@ def test_physics3d_bridge_projects_active_morphology_without_humanoid_names() ->
         tick_simulation_span_s=10.0 / 240.0,
     )
 
-    payload = json.loads(queue.get_nowait())
+    payload = json.loads(queue.get_nowait().data)
     assert payload["body_kind"] == "crawler-v1"
     assert payload["joints"] == [{"name": "front_left_hip_yaw", "position": 0.2}]
 
