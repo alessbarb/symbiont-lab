@@ -370,3 +370,38 @@ def test_acquisition_refuses_resume_at_protected_boundary(tmp_path) -> None:
         _prepare_existing(store, definition_id="embodiment-nursery-v1")
     # World accepts the same body: consequences are not the Lab's to prevent.
     assert _prepare_existing(store).run_kind.value == "world.open"
+
+
+def test_observer_alias_persists_across_runs_and_never_enters_the_organism(tmp_path) -> None:
+    from symbiont_lab.physics3d import persistence
+
+    _existing_organism(tmp_path)
+    store = Physics3DRunStore(tmp_path)
+    assert store.set_alias("org-x", "  Ada   the  first ") == {
+        "ref": "org-x",
+        "alias": "Ada the first",
+    }
+    assert store.organisms()[0]["alias"] == "Ada the first"
+
+    launch = _prepare_existing(store)
+    assert "Ada" not in repr(launch.runner_kwargs())
+    store.finalize(launch, status="stopped", termination_reason="operator_stop")
+    assert store.organisms()[0]["alias"] == "Ada the first"
+
+    bundle = tmp_path / "organisms" / "org-x" / "organism.symbiont"
+    with persistence.zipfile.ZipFile(bundle) as archive:
+        for name in archive.namelist():
+            assert b"Ada" not in archive.read(name)
+
+    assert store.set_alias("org-x", "")["alias"] is None
+    assert "alias" not in store.organisms()[0]
+
+
+def test_alias_rejects_unknown_or_unsafe_refs_and_long_names(tmp_path) -> None:
+    _existing_organism(tmp_path)
+    store = Physics3DRunStore(tmp_path)
+    for ref in ("org-missing", "../org-x", "", ".hidden"):
+        with pytest.raises(ValueError, match="unknown organism"):
+            store.set_alias(ref, "x")
+    with pytest.raises(ValueError, match="at most 64"):
+        store.set_alias("org-x", "x" * 65)

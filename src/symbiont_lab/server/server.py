@@ -243,6 +243,7 @@ def make_server(
             run_catalog=run_store.runs,
             physics_run_starter=start_physics_run,
             physics_run_stopper=stop_physics_run,
+            organism_alias_setter=run_store.set_alias,
             causal_provenance_query=causal_provenance_query,
         ),
     )

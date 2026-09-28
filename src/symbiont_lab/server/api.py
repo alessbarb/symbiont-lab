@@ -18,6 +18,7 @@ Routes:
   GET  /api/run-definitions   → Experience/World run definitions (observer-only)
   POST /api/runs              → start a managed Physics3D run
   POST /api/runs/stop         → stop the active Physics3D run
+  POST /api/organisms/alias   → set/clear an observer-only organism alias
   POST /api/experiments/start → start an experiment run
   POST /api/studies/start     → start a comparative study
 """
@@ -70,6 +71,7 @@ def make_handler(
     run_catalog: Callable[[], list[dict[str, Any]]] | None = None,
     physics_run_starter: Callable[[dict[str, Any]], dict[str, object]] | None = None,
     physics_run_stopper: Callable[[], bool] | None = None,
+    organism_alias_setter: Callable[[str, str | None], dict[str, Any]] | None = None,
     causal_provenance_query: Callable[[str, str, int], dict[str, Any] | None] | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     observatory_source = ObservatorySource(observatory_dir)
@@ -329,6 +331,20 @@ def make_handler(
                     self._json(409, {"error": str(exc)})
                     return
                 self._json(202, {"started": True, **started})
+                return
+
+            if path == "/api/organisms/alias":
+                if organism_alias_setter is None:
+                    self._json(503, {"error": "organism catalog unavailable"})
+                    return
+                try:
+                    result = organism_alias_setter(
+                        str(payload.get("ref") or ""), payload.get("alias")
+                    )
+                except ValueError as exc:
+                    self._json(400, {"error": str(exc)})
+                    return
+                self._json(200, result)
                 return
 
             if path == "/api/runs/stop":

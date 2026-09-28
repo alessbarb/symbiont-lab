@@ -44,6 +44,16 @@ async function loadCatalog() {
   if (!organismRef) organismRef = catalog.organisms[0]?.ref ?? '';
 }
 
+// Observer-only organism alias (never part of the Symbiont bundle).
+function aliasFor(ref) {
+  return catalog.organisms.find(item => item.ref === ref)?.alias ?? null;
+}
+
+function organismName(ref, organismId) {
+  const alias = aliasFor(ref);
+  return alias ? `${alias} · ${organismId || ref}` : (organismId || ref);
+}
+
 function currentDefinition() {
   return catalog.definitions.find(item => item.definition_id === selectedDefinition) ?? null;
 }
@@ -81,7 +91,7 @@ function activeRun() {
 function organismOptions() {
   if (!catalog.organisms.length) return '<option value="">No saved Symbionts</option>';
   return catalog.organisms.map(item => {
-    const label = item.organism_id || item.ref;
+    const label = item.alias ? `${item.alias} · ${item.organism_id || item.ref}` : (item.organism_id || item.ref);
     const tick = Number(item.tick || 0).toLocaleString();
     const lifecycle = item.symbiont_state ? ` · ${item.symbiont_state}` : '';
     const bodyState = item.vital_state === 'dead' ? ' · previous body dead' : '';
@@ -145,7 +155,7 @@ function recentRuns() {
   return catalog.runs.slice(0, 8).map(run => `
     <div class="home-run-row">
       <div>
-        <strong>${esc(run.organism_id || run.organism_ref)}</strong>
+        <strong>${esc(organismName(run.organism_ref, run.organism_id))}</strong>
         <span>${esc(KIND_LABELS[run.run_kind] || KIND_LABELS['world.open'])} · ${esc(run.body_kind)} · ${esc(run.embodiment_mode)}</span>
       </div>
       <div class="home-run-meta">
@@ -170,7 +180,7 @@ function render() {
           <div>
             <p class="eyebrow">Active run</p>
             <h2>${esc(physics.run_id || 'Physics3D')}</h2>
-            <p>${esc(KIND_LABELS[physics.run_kind] || 'Physics3D')} · ${esc(physics.organism_ref || '')} → ${esc(physics.body_kind || '')}</p>
+            <p>${esc(KIND_LABELS[physics.run_kind] || 'Physics3D')} · ${esc(organismName(physics.organism_ref, null))} → ${esc(physics.body_kind || '')}</p>
             ${physics.state === 'starting' ? `<p>Startup: ${esc(physics.startup_phase || 'launching')}</p>` : ''}
           </div>
           <div class="home-actions">
@@ -213,7 +223,10 @@ function render() {
             <label><input type="radio" name="organism-mode" value="new" ${organismMode === 'new' ? 'checked' : ''}> New Symbiont</label>
             <label><input type="radio" name="organism-mode" value="existing" ${organismMode === 'existing' ? 'checked' : ''} ${catalog.organisms.length ? '' : 'disabled'}> Dormant / existing Symbiont</label>
           </div>
-          <select id="home-organism" ${organismMode === 'existing' ? '' : 'disabled'}>${organismOptions()}</select>
+          <div class="home-radio-row">
+            <select id="home-organism" ${organismMode === 'existing' ? '' : 'disabled'}>${organismOptions()}</select>
+            <button class="btn" id="home-alias" ${catalog.organisms.length && organismRef && organismRef !== 'legacy-default' ? '' : 'disabled'} title="Observer-only name; Symbiont never sees it">Alias…</button>
+          </div>
         </section>
         <section class="card home-section">
           <div class="home-step">3</div>
@@ -229,7 +242,7 @@ function render() {
         </section>
       </div>
       <div class="home-start-bar">
-        <div><strong>${organismMode === 'new' ? 'New Symbiont' : esc(selectedOrganism()?.organism_id || organismRef)}</strong><span> → ${esc(selectedBody)} · ${bodyMode} · ${esc(KIND_LABELS[currentDefinition()?.kind] || '')}</span></div>
+        <div><strong>${organismMode === 'new' ? 'New Symbiont' : esc(organismName(organismRef, selectedOrganism()?.organism_id))}</strong><span> → ${esc(selectedBody)} · ${bodyMode} · ${esc(KIND_LABELS[currentDefinition()?.kind] || '')}</span></div>
         <button class="btn btn-primary" id="home-start" ${selectedBody && currentDefinition()?.launchable && (organismMode === 'new' || organismRef) && isCompatible() ? '' : 'disabled'}>Start run</button>
       </div>
       <section class="card home-recent"><h3 class="card-title">Recent runs</h3>${recentRuns()}</section>
@@ -255,6 +268,23 @@ async function startRun() {
     await Promise.all([loadCatalog(), loadState()]);
   } catch (error) {
     window.alert(`Unable to start Physics3D run: ${error.message}`);
+  }
+  render();
+}
+
+async function editAlias() {
+  const current = aliasFor(organismRef) ?? '';
+  const next = window.prompt('Observer-only alias for this Symbiont (empty clears it):', current);
+  if (next === null) return;
+  try {
+    await jsonRequest('/api/organisms/alias', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ref: organismRef, alias: next }),
+    });
+    await loadCatalog();
+  } catch (error) {
+    window.alert(`Unable to set alias: ${error.message}`);
   }
   render();
 }
@@ -291,6 +321,7 @@ function bind() {
   });
   rootNode?.querySelector('#home-environment')?.addEventListener('change', event => { selectedEnvironment = event.target.value; });
   document.getElementById('home-start')?.addEventListener('click', startRun);
+  document.getElementById('home-alias')?.addEventListener('click', editAlias);
   document.getElementById('home-stop')?.addEventListener('click', stopRun);
   rootNode?.querySelectorAll('[data-open]').forEach(node => node.addEventListener('click', () => window.routeToView?.(node.dataset.open)));
 }

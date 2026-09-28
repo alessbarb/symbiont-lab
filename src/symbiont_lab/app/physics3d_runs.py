@@ -305,6 +305,30 @@ class Physics3DRunStore:
         )
         return items
 
+    def set_alias(self, organism_ref: str, alias: str | None) -> dict[str, Any]:
+        """Observer-only human name for an organism.
+
+        Lives in the Lab's organism metadata, never in the portable bundle or
+        runtime state, so Symbiont cannot know it. Survives every run because
+        finalize() merges over existing metadata. Empty clears it.
+        """
+        ref = str(organism_ref or "").strip()
+        directory = self.organisms_dir / ref
+        if not ref or "/" in ref or ref.startswith(".") or not directory.is_dir():
+            raise ValueError("unknown organism")
+        text = " ".join(str(alias or "").split())
+        if len(text) > 64:
+            raise ValueError("alias must be at most 64 characters")
+        path = directory / "metadata.json"
+        metadata = _read_json(path)
+        if text:
+            metadata["alias"] = text
+        else:
+            metadata.pop("alias", None)
+        metadata["ref"] = ref
+        _write_json(path, metadata)
+        return {"ref": ref, "alias": metadata.get("alias")}
+
     def runs(self, limit: int = 20) -> list[dict[str, Any]]:
         records: list[dict[str, Any]] = []
         for directory in self.runs_dir.iterdir():
