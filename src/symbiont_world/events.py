@@ -141,9 +141,14 @@ class EventJournal:
             raise ValueError("journal prefix count out of bounds")
         return "" if resolved == 0 else self._prefix_digests[resolved - 1]
 
-    def snapshot_range(self, start: int = 0, stop: int | None = None) -> list[dict[str, Any]]:
+    def snapshot_range(
+        self,
+        start: int = 0,
+        stop: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Serialize only a bounded append range, not the complete history."""
         return [self._snapshot_event(event) for event in self._events[start:stop]]
+
     def page_after(
         self,
         after: str | None = None,
