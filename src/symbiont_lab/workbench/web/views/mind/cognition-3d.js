@@ -133,6 +133,7 @@ export function relaxCognition3D(
   if (!nodes.length) return;
 
   const nodeById = new Map(nodes.map(node => [node.id, node]));
+  const nodeIndex = new Map(nodes.map((node, index) => [node.id, index]));
   const maxSupport = Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.support, 0)))));
   const maxStable = Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.stableTicks, 0)))));
 
@@ -151,8 +152,8 @@ export function relaxCognition3D(
       let dz = pb.z - pa.z;
       let distSq = dx * dx + dy * dy + dz * dz;
       if (distSq < 1e-5) {
-        const ai = nodes.indexOf(a);
-        const bi = nodes.indexOf(b);
+        const ai = nodeIndex.get(a.id) ?? 0;
+        const bi = nodeIndex.get(b.id) ?? 0;
         dx = 0.01 * (ai + 1);
         dy = 0.01 * (bi + 1);
         dz = 0.005 * (ai + bi + 2);
