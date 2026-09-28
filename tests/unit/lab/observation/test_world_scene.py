@@ -82,7 +82,7 @@ def test_bus_reconnect_materializes_snapshot_after_history_overflow():
         scene["entities"]["e"]["position"][0] = tick
         bus.push(pub.event(scene))
     consumer = bus.subscribe()
-    event = json.loads(consumer.get_nowait())
+    event = json.loads(consumer.get_nowait().data)
     assert event["kind"] == "snapshot"
     assert event["revision"] == 10
     assert event["entities"]["e"]["position"][0] == 9
