@@ -4,7 +4,7 @@
 > fisiología del **Body**. Tras la introducción de re-embodiment, edad,
 > crecimiento, senescencia y muerte pertenecen exclusivamente al Body y no a la
 > identidad persistente del Symbiont. La separación temporal normativa está en
-> [Separación temporal Symbiont / Body](symbiont-body-temporal-separation-v1.md).
+> [Separación temporal Symbiont / Body](../../design/embodiment/symbiont-body-temporal-separation-v1.md).
 
 ## Principio
 
