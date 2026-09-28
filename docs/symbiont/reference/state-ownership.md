@@ -21,3 +21,16 @@ Ownership determines what a state means and whether it may survive a boundary ch
 | Provenance frontier | Symbiont | live causal state | checkpointed |
 
 This table expresses intended current ownership, not a licence to infer semantics. Individual serializers and migration rules remain authoritative for exact persistence behaviour.
+
+
+## Re-embodiment preservation invariant
+
+Re-embodiment is a change of Body and Embodiment, not a rewrite of the Symbiont.
+
+The following rule is normative:
+
+> Re-embodiment must never erase, degrade, reset or reinterpret learned Symbiont state merely because the Body changes.
+
+This applies to every Body transition, including same-contract, known-contract and novel-contract replacement. Cognitive topology, learned evidence, self-model, sensory learning, learned BodySchema, private models, acquired action dimensions, effects, causal evidence, competences and composition remain part of the same Symbiont.
+
+A fresh Body may invalidate **current execution authority** only. Physical physiology, pose, actuator health, current execution bindings, in-flight commitments and other Body/Embodiment-owned transient state may be fresh. If prior knowledge does not apply to the new Body, it remains knowledge without current authority until ordinary experience revises, extends or supersedes it.
