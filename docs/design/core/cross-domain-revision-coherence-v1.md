@@ -532,6 +532,60 @@ invariant); after repeated failed promotions the next training has
 `generation > 0` or a traced root reason; no indistinguishable root chains;
 no lineage of more than N non-improving generations.
 
+### 8.1 Wave 5 implementation plan (2026-09-28)
+
+Code facts: every training result carries `candidate_loss` (held-out
+validation), `best_baseline` / `best_baseline_loss` (the canonical
+non-neural baseline) and `gain_over_trivial` (`physics3d/slm.py` `poll`),
+but `ModelRecord` keeps neither loss; `request_private_model_training`
+accepts a parent only if it is ACTIVE (`modeling/runtime.py`), which is why
+all 64 models of the Wave 0 Physics3D baseline are generation-0 roots.
+
+1. `ModelRecord` gains `validation_loss` and `baseline_loss` (adopted from
+   the training result; schema bump, older records migrate with `None`,
+   which makes them ineligible as ancestors).
+2. **Ancestry eligibility** (pure function): `validation_loss <
+   baseline_loss`, `validation_loss < parent.validation_loss` (roots: no
+   parent condition), state SHADOW or ACTIVE, and not contradicted
+   (`prediction-revision` has not fired against it).
+3. A training request may name an **ancestry parent** (eligible SHADOW or
+   ACTIVE), distinct from the existing adaptation parent (ACTIVE only).
+   The child records `parent_model_id` and `generation + 1`. Activation is
+   untouched: the promotion gate still decides authority alone
+   (structural test: no code path from ancestry to activation).
+4. **Parent choice:** the eligible model with the lowest validation loss
+   of the same architecture. **Root reasons** (traced in the request):
+   `no-eligible-ancestor`, `ancestor-contradicted`, `architecture-change`,
+   `lineage-stagnation` — the last after **N = 3** consecutive generations
+   without improving the lineage's best validation loss.
+5. Option `ancestry_training=False` by default; Wave 0 lineage metrics
+   report roots, generations and root reasons.
+
+### 8.2 Preregistered study P5 (before any run)
+
+Physics3D copy of `org-ea3e7bbbc628` (tick 9 246), private SLM enabled,
+factorized effects as in the Wave 0 baseline, run until body death or
+6 000 ticks; arms **root-only** (current) and **ancestry**, same copy, same
+seeds. Reported: models trained, generation distribution, root reasons,
+fraction of candidates beating the baseline, best and median validation
+loss of the last 10 candidates, promotions to ACTIVE, training compute.
+
+Criteria, fixed now:
+
+1. **Mechanics:** in the ancestry arm, every training after the first
+   eligible model has `generation > 0` or a traced root reason.
+2. **Improvement:** median validation loss of the last 10 candidates lower
+   in the ancestry arm than in the root-only arm, and at least as many
+   candidates beating the baseline.
+3. **Safety:** no ACTIVE model without the unchanged promotion gate; no
+   lineage longer than N non-improving generations.
+
+Decision rule: 1 and 3 pass and 2 passes → propose `ancestry_training`
+on by default (owner decision); 1 or 3 fails → fix before any adoption;
+2 fails → report, not adopted. Limit: one organism, one run per arm
+(Physics3D is deterministic apart from training nondeterminism, which is
+recorded).
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
