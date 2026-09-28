@@ -75,6 +75,9 @@ def _resolver(space, library, bindings, *, surface=SURFACE.contract_fingerprint,
         predict=_predict(library),
         controllability_model=ControllabilityModel(),
         execution_bindings=bindings,
+        executable=lambda competence: bindings.is_executable(
+            competence, surface_fingerprint=surface
+        ),
         effect_space=space,
         effect_matcher=EffectMatcher(),
         surface_fingerprint=surface,

@@ -32,6 +32,11 @@ class EffectPrediction:
     effect_id: str
     confidence: float
     support: int
+    # Availability annotations (Revision Coherence v1 §3.4); None when the
+    # prediction comes from competence experience alone.
+    prediction_scope: str | None = None
+    executable_now: bool | None = None
+    admissible_now: bool | None = None
 
 
 class CompetenceEffectModel:

@@ -1492,11 +1492,9 @@ class OrganismRuntime:
             else None
         )
 
-    def _competence_is_executable(self, competence: MotorCompetence) -> bool:
-        return self._action_domain.execution_bindings.is_executable(
-            competence,
-            surface_fingerprint=self._current_surface_fingerprint(),
-        )
+    def competence_executable_now(self, competence: MotorCompetence) -> bool:
+        """The canonical executability (Revision Coherence v1 §3.1)."""
+        return self._action_domain.competence_is_executable(competence)
 
     @property
     def evidence_ledger(self) -> EvidenceRevisionLedger:

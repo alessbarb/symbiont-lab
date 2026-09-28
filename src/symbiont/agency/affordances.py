@@ -35,6 +35,7 @@ class AffordanceResolver:
         predict: Callable[..., EffectPrediction | None],
         controllability_model: ControllabilityModel,
         execution_bindings: CompetenceExecutionBindingRegistry,
+        executable: Callable[[MotorCompetence], bool],
         effect_space: EffectSpace,
         effect_matcher: EffectMatcher,
         surface_fingerprint: str | None,
@@ -44,6 +45,7 @@ class AffordanceResolver:
         self._predict = predict
         self._controllability = controllability_model
         self._bindings = execution_bindings
+        self._executable = executable
         self._effect_space = effect_space
         self._matcher = effect_matcher
         self._surface_fingerprint = surface_fingerprint
@@ -58,9 +60,7 @@ class AffordanceResolver:
     ) -> ActionAffordance | None:
         if embodiment_id != self._embodiment_id:
             return None
-        if not self._bindings.is_executable(
-            competence, surface_fingerprint=self._surface_fingerprint
-        ):
+        if not self._executable(competence):
             return None
         binding = self._bindings.get(competence.competence_id)
         if binding is None:

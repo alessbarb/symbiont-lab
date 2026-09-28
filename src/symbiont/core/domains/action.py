@@ -19,7 +19,11 @@ from ...actuation.action import (
     MotorCommand,
 )
 from ...actuation.arbitration import ActionArbitrator
-from ...actuation.binding import CompetenceExecutionBindingRegistry
+from ...actuation.binding import (
+    BindingStatus,
+    CompetenceExecutionBindingRegistry,
+    StalenessReason,
+)
 from ...actuation.checkpoint import export_actuation_state
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
 from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
@@ -49,6 +53,7 @@ from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
 from ...agency.affordance import ActionAffordance
 from ...agency.affordances import AffordanceResolver
+from ...agency.availability import CompetenceAvailability, derive_availability
 from ...agency.executive_outcome import CausalRevisionState, ExecutiveKey, ExecutiveModulation
 from ...agency.intention import ActionIntent, AdmissionRoute, IntentStatus
 from ...agency.prospective import ProspectiveDecision
@@ -332,12 +337,12 @@ class ActionDomain:
             if prediction is not None:
                 return prediction
         binding = self.execution_bindings.get(competence_id)
-        if (
-            competence is None
-            or competence.effect_id is None
-            or binding is None
-            or self.effect_space.get(competence.effect_id) is None
-        ):
+        if competence is None or binding is None:
+            return None
+        availability = self.competence_availability(competence)
+        # Predictability, not admissibility, decides whether the causal
+        # relation still speaks (§3.4); the annotations say what it is about.
+        if not availability.predictable_now or competence.effect_id is None:
             return None
         material = f"grounding|{competence_id}|{competence.effect_id}|{len(binding.evidence_refs)}"
         return EffectPrediction(
@@ -347,6 +352,11 @@ class ActionDomain:
             effect_id=competence.effect_id,
             confidence=binding.reliability,
             support=len(binding.evidence_refs),
+            prediction_scope=(
+                availability.prediction_scope.value if availability.prediction_scope else None
+            ),
+            executable_now=availability.executable_now,
+            admissible_now=availability.admissible_now,
         )
 
     def causal_revision_state(self, key: ExecutiveKey) -> CausalRevisionState:
@@ -391,25 +401,17 @@ class ActionDomain:
         )
 
     def availability_counts(self) -> dict[str, int]:
-        """Wave 0 measurement of the four competence questions, computed as
-        the Wave 1 projection would, without changing any decision."""
-        suppressed_ids = self.intention.outcome_ledger.suppressed_competences()
+        """Counts of the four competence questions from the projection."""
         counts = dict.fromkeys(
             ("known", "predictable", "executable", "admissible", "suppressed"), 0
         )
         for competence in self.competence_library.items:
+            availability = self.competence_availability(competence)
             counts["known"] += 1
-            if (
-                competence.effect_id is not None
-                and self.effect_space.get(competence.effect_id) is not None
-                and self.execution_bindings.get(competence.competence_id) is not None
-            ):
-                counts["predictable"] += 1
-            executable = self.competence_is_executable(competence)
-            suppressed = competence.competence_id in suppressed_ids
-            counts["executable"] += executable
-            counts["suppressed"] += suppressed
-            counts["admissible"] += executable and not suppressed
+            counts["predictable"] += availability.predictable_now
+            counts["executable"] += availability.executable_now
+            counts["admissible"] += availability.admissible_now
+            counts["suppressed"] += availability.suppressed
         return counts
 
     def capacity_snapshots(self) -> dict[str, dict]:
@@ -439,24 +441,82 @@ class ActionDomain:
             "ledger_passive_windows": len(self.causal_evidence.passive_evidence),
         }
 
-    def competence_is_executable(self, competence: MotorCompetence) -> bool:
-        """Bound on this surface, mature, and its controller can actually run.
-
-        A library competence can outlive its controller seed (the development
-        engine's primitive pool is bounded); admitting it would fail the
-        controller on every attempt and loop, so it is not executable.
-        """
-        if not self.execution_bindings.is_executable(
-            competence,
-            surface_fingerprint=self.current_surface_fingerprint,
-        ):
-            return False
+    def _controller_available(self, competence: MotorCompetence) -> bool:
+        """A library competence can outlive its controller seed (the primitive
+        pool is bounded); then it cannot run."""
         if self._competence_development is None:
             return True
         return all(
             self._competence_development.can_activate(leaf)
             for leaf in self._flatten_competence_controller(competence.competence_id)
         )
+
+    def competence_availability(self, competence: MotorCompetence) -> CompetenceAvailability:
+        """The canonical availability projection (Revision Coherence v1 §3.1)."""
+        return derive_availability(
+            competence,
+            binding=self.execution_bindings.get(competence.competence_id),
+            effect_known=(
+                competence.effect_id is not None
+                and self.effect_space.get(competence.effect_id) is not None
+            ),
+            surface_fingerprint=self.current_surface_fingerprint,
+            controller_available=self._controller_available(competence),
+            suppressed=(
+                competence.competence_id in self.intention.outcome_ledger.suppressed_competences()
+            ),
+        )
+
+    def competence_is_executable(self, competence: MotorCompetence) -> bool:
+        """Bound on this surface, mature, and its controller can actually run."""
+        return self.competence_availability(competence).executable_now
+
+    def reconcile_binding_status(self, *, tick: int) -> None:
+        """Record live staleness as traced binding status (§3.2-§3.3).
+
+        Only binding evidence changes a binding: the current surface and the
+        controller pool. The executive never does. Transitions (including
+        revalidations by new evidence) are traced as provenance events.
+        """
+        surface = self.current_surface_fingerprint
+        if surface is not None:
+            live = {StalenessReason.SURFACE_NOT_CURRENT, StalenessReason.CONTROLLER_UNAVAILABLE}
+            for binding in self.execution_bindings.items:
+                if binding.status is BindingStatus.INVALIDATED:
+                    continue
+                competence = self.competence_library.get(binding.competence_id)
+                if binding.surface_fingerprint != surface:
+                    target = (BindingStatus.STALE, StalenessReason.SURFACE_NOT_CURRENT)
+                elif competence is not None and not self._controller_available(competence):
+                    target = (BindingStatus.STALE, StalenessReason.CONTROLLER_UNAVAILABLE)
+                elif binding.status is BindingStatus.STALE and binding.status_reason in live:
+                    target = (BindingStatus.VALID, None)
+                else:
+                    continue
+                self.execution_bindings.set_status(binding.competence_id, *target, tick=tick)
+        for transition in self.execution_bindings.drain_transitions():
+            binding = transition.binding
+            ref = CausalRef("binding", transition.competence_id)
+            self.acquisition.provenance.emit(
+                CausalEvent(
+                    tick=binding.status_changed_tick,
+                    domain="binding",
+                    operation=binding.status.value,
+                    subject=ref,
+                    caused_by=(CausalRef("competence", transition.competence_id),),
+                    produced=(ref,),
+                    rule=(
+                        binding.status_reason.value
+                        if binding.status_reason is not None
+                        else "new_evidence"
+                    ),
+                    parameters={
+                        "previous_status": transition.previous_status.value,
+                        "previous_revision": transition.previous_revision,
+                        "revision": binding.revision,
+                    },
+                )
+            )
 
     def begin_embodiment(
         self,
@@ -1207,6 +1267,7 @@ class ActionDomain:
             predict=self.predict_competence_effect,
             controllability_model=self.controllability_model,
             execution_bindings=self.execution_bindings,
+            executable=self.competence_is_executable,
             effect_space=self.effect_space,
             effect_matcher=self.acquisition.effect_matcher,
             surface_fingerprint=self.current_surface_fingerprint,
@@ -1633,6 +1694,7 @@ class ActionDomain:
         tick = observation.tick
         if tick != context.symbiont_tick:
             raise ValueError("action observation belongs to another tick")
+        self.reconcile_binding_status(tick=tick)
         baseline = observation.baseline
         sensorimotor_body_state = observation.body_state
         homeostatic_baseline = services.homeostasis.deviation()
@@ -2120,13 +2182,16 @@ class ActionDomain:
             for item in self.last_exploration_signals.values()
         ]
         active = self.active_commitment
+        availability = self.availability_counts()
         return SensorimotorV2Snapshot(
             effect_count=len(self.effect_space.effects),
             causal_evidence_count=len(self.causal_evidence),
             competence_count=len(self.competence_library.items),
-            established_competence_count=sum(
-                1 for item in self.competence_library.items if self.competence_is_executable(item)
-            ),
+            established_competence_count=availability["executable"],
+            predictable_competence_count=availability["predictable"],
+            executable_competence_count=availability["executable"],
+            admissible_competence_count=availability["admissible"],
+            suppressed_competence_count=availability["suppressed"],
             competence_candidate_count=legacy.competence_candidates if legacy is not None else 0,
             controllability_estimate_count=len(self.controllability_model),
             predictive_context_count=self.effect_model.context_count,

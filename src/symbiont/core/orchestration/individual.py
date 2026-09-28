@@ -191,15 +191,11 @@ class Individual:
         controllability_values = tuple(
             item.confidence for item in self.symbiont.controllability_model.estimates
         )
-        current_surface = self.embodiment.contract.actuator_surface.contract_fingerprint
         general_competences = self.symbiont.competence_library.items
         revalidated = sum(
             1
             for competence in general_competences
-            if self.symbiont.competence_execution_bindings.is_executable(
-                competence,
-                surface_fingerprint=current_surface,
-            )
+            if self.symbiont.action_domain.competence_is_executable(competence)
         )
         self.embodiment.adaptation.observe(
             tick=self.embodiment_tick,

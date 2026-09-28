@@ -932,21 +932,10 @@ class PyBulletEmbodimentRuntime:
         controllability_values = [
             float(item.confidence) for item in self.organism.controllability_model.estimates
         ]
-        current_surface = (
-            self.organism.actuator_constitution.contract_fingerprint
-            if self.organism.actuator_constitution is not None
-            else None
-        )
-        bindings = self.organism.competence_execution_bindings
         competences = self.organism.competence_library.items
         candidate_count = len(competences)
         revalidated_count = sum(
-            1
-            for competence in competences
-            if bindings.is_executable(
-                competence,
-                surface_fingerprint=current_surface,
-            )
+            1 for competence in competences if self.organism.competence_executable_now(competence)
         )
 
         transition_error = getattr(
@@ -1726,19 +1715,9 @@ class PyBulletEmbodimentRuntime:
         causal_evidence = self.organism.causal_evidence
         motor_competences = self.organism.motor_competences
         compositions = tuple(self.organism._composition_engine.established)
-        current_surface = (
-            self.organism.actuator_constitution.contract_fingerprint
-            if self.organism.actuator_constitution is not None
-            else None
-        )
         execution_bindings = self.organism.competence_execution_bindings
         unbound_competences = tuple(
-            item
-            for item in motor_competences
-            if not execution_bindings.is_executable(
-                item,
-                surface_fingerprint=current_surface,
-            )
+            item for item in motor_competences if not self.organism.competence_executable_now(item)
         )
 
         sensorimotor_payload = {}
@@ -1820,10 +1799,7 @@ class PyBulletEmbodimentRuntime:
                                 else None
                             ),
                             "parents": list(item.parent_competence_ids),
-                            "executable": execution_bindings.is_executable(
-                                item,
-                                surface_fingerprint=current_surface,
-                            ),
+                            "executable": self.organism.competence_executable_now(item),
                         }
                         for item in motor_competences
                     ],
@@ -1931,10 +1907,7 @@ class PyBulletEmbodimentRuntime:
                         sum(
                             1
                             for competence in self.organism.competence_library.items
-                            if self._embodiment_episode.execution_bindings.is_executable(
-                                competence,
-                                surface_fingerprint=current_surface,
-                            )
+                            if self.organism.competence_executable_now(competence)
                         )
                     ),
                 },

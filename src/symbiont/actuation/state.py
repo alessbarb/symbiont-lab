@@ -41,6 +41,13 @@ class SensorimotorV2Snapshot:
     intent_interrupted_count: int = 0
     intent_invalidated_count: int = 0
     intent_prediction_match: float | None = None
+    # Revision Coherence v1 §3.5: the four competence questions.
+    # ``established_competence_count`` is a deprecated alias of the executable
+    # count, kept until the live telemetry contract is revised.
+    predictable_competence_count: int = 0
+    executable_competence_count: int = 0
+    admissible_competence_count: int = 0
+    suppressed_competence_count: int = 0
 
     def __post_init__(self) -> None:
         counts = (
