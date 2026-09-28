@@ -9,7 +9,7 @@ from symbiont_lab.studies.learning.predictive_utility import (
 
 
 def test_predictive_utility_trial_learns_and_beats_baselines():
-    outcome = run_predictive_utility_trial(seed=101, ticks=350, eval_window=70)
+    outcome = run_predictive_utility_trial(seed=101, ticks=500, eval_window=70)
 
     assert isinstance(outcome, PredictiveUtilityOutcome)
     assert outcome.horizon_ticks == 1
