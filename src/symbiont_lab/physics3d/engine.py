@@ -10,6 +10,7 @@ import signal
 import sys
 import threading
 import time
+from concurrent.futures import Future
 from pathlib import Path
 
 from symbiont import __version__ as symbiont_version
@@ -28,8 +29,8 @@ from .persistence import (
     save_body_state_file,
     save_symbiont_bundle,
 )
-from .runtime import PhysicsServerDisconnected, PyBulletEmbodimentRuntime
 from .private_model_training import PrivateModelTrainingService
+from .runtime import PhysicsServerDisconnected, PyBulletEmbodimentRuntime
 from .telemetry_v41 import AsyncTelemetryV41Writer
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
@@ -101,11 +102,11 @@ def _save_checkpoint(
     body_file: Path,
     models_dir: Path,
     async_write: bool = False,
-    active_thread: threading.Thread | None = None,
+    active_thread: Future[None] | None = None,
     lifecycle_state: str = "active",
-) -> threading.Thread | None:
-    if active_thread is not None and active_thread.is_alive():
-        active_thread.join()
+) -> Future[None] | None:
+    if active_thread is not None:
+        active_thread.result()
     runtime_payload = runtime.checkpoint(lifecycle_state=lifecycle_state)
     saved_tick = int(runtime_payload.get("saved_at_tick") or 0)
     signal_payload = runtime.organism.signal_knowledge.checkpoint()
@@ -136,18 +137,26 @@ def _save_checkpoint(
         save_symbiont_bundle(runtime_payload, models_dir, symbiont_file)
         raise
 
-    thread = threading.Thread(
-        target=_write_checkpoint_payloads,
-        args=(runtime_payload, body_payload),
-        kwargs={
-            "symbiont_file": symbiont_file,
-            "body_file": body_file,
-            "models_dir": models_dir,
-        },
-        daemon=True,
-    )
-    thread.start()
-    return thread
+    completion: Future[None] = Future()
+
+    def write() -> None:
+        if not completion.set_running_or_notify_cancel():
+            return
+        try:
+            _write_checkpoint_payloads(
+                runtime_payload,
+                body_payload,
+                symbiont_file=symbiont_file,
+                body_file=body_file,
+                models_dir=models_dir,
+            )
+        except BaseException as exc:
+            completion.set_exception(exc)
+        else:
+            completion.set_result(None)
+
+    threading.Thread(target=write, daemon=True).start()
+    return completion
 
 
 def _sensorimotor_checkpoint_schema(payload: dict | None) -> int | None:
@@ -333,10 +342,17 @@ def run(
             physical_state = candidate
             print(f"Restoring physical embodiment from {body_file}")
         elif runtime_checkpoint is not None:
-            print(
-                "Ignoring physical body checkpoint because it does not match "
-                f"the organism tick ({saved_tick} != {expected_tick})."
+            raise RuntimeError(
+                "Physical body checkpoint does not match the organism tick "
+                f"({saved_tick} != {expected_tick}); use --fresh-body to explicitly "
+                "re-embody the persisted Symbiont."
             )
+
+    if runtime_checkpoint is not None and physical_state is None and not fresh_body:
+        raise RuntimeError(
+            "Physical body checkpoint is missing; use --fresh-body to explicitly "
+            "re-embody the persisted Symbiont."
+        )
 
     if fresh_body and runtime_checkpoint is not None:
         print("Implanting persisted canonical Symbiont into a fresh physical body.")
@@ -507,10 +523,13 @@ def run(
     is_paused = False
     step_once = False
     speed_multiplier = 1.0
-    active_checkpoint_thread: threading.Thread | None = None
+    active_checkpoint_thread: Future[None] | None = None
 
     try:
         while not stop_requested and (remaining is None or remaining > 0):
+            if active_checkpoint_thread is not None and active_checkpoint_thread.done():
+                active_checkpoint_thread.result()
+                active_checkpoint_thread = None
             if viewer is not None:
                 for cmd in viewer.poll_commands():
                     cmd_type = cmd.get("type")
@@ -676,14 +695,36 @@ def run(
                         slm_transition_records=record.slm_transition_records,
                         slm_models=record.slm_models,
                         slm_active=record.slm_active,
-                        slm_training=bool(private_model_training.training) if private_model_training is not None else False,
-                        slm_error=private_model_training.last_error if private_model_training is not None else None,
-                        slm_gate_reason=(private_model_training.last_gate_reason if private_model_training is not None else None),
-                        slm_gate_gain=(private_model_training.last_gate_gain if private_model_training is not None else None),
-                        slm_best_baseline=(private_model_training.last_best_baseline if private_model_training is not None else None),
-                        slm_candidate_loss=(private_model_training.last_candidate_loss if private_model_training is not None else None),
+                        slm_training=bool(private_model_training.training)
+                        if private_model_training is not None
+                        else False,
+                        slm_error=private_model_training.last_error
+                        if private_model_training is not None
+                        else None,
+                        slm_gate_reason=(
+                            private_model_training.last_gate_reason
+                            if private_model_training is not None
+                            else None
+                        ),
+                        slm_gate_gain=(
+                            private_model_training.last_gate_gain
+                            if private_model_training is not None
+                            else None
+                        ),
+                        slm_best_baseline=(
+                            private_model_training.last_best_baseline
+                            if private_model_training is not None
+                            else None
+                        ),
+                        slm_candidate_loss=(
+                            private_model_training.last_candidate_loss
+                            if private_model_training is not None
+                            else None
+                        ),
                         slm_best_baseline_loss=(
-                            private_model_training.last_best_baseline_loss if private_model_training is not None else None
+                            private_model_training.last_best_baseline_loss
+                            if private_model_training is not None
+                            else None
                         ),
                         cycle_ms=runtime_elapsed * 1000.0,
                         realtime_ratio=realtime_ratio,
@@ -816,8 +857,13 @@ def run(
         exit_cause = "operator_stop"
     finally:
         telemetry.flush()
-        if active_checkpoint_thread is not None and active_checkpoint_thread.is_alive():
-            active_checkpoint_thread.join()
+        checkpoint_error: BaseException | None = None
+        if active_checkpoint_thread is not None:
+            try:
+                active_checkpoint_thread.result()
+            except BaseException as exc:
+                checkpoint_error = exc
+                exit_cause = "error"
         if measurement_file is not None:
             # Wave 0 (Cross-Domain Revision Coherence v1 §2.1): read-only.
             Path(measurement_file).write_text(
@@ -841,6 +887,8 @@ def run(
                 lifecycle_state="dormant",
             )
         except Exception as exc:
+            checkpoint_error = checkpoint_error or exc
+            exit_cause = "error"
             print(
                 f"Final checkpoint failed: {type(exc).__name__}: {exc}",
                 file=sys.stderr,
@@ -872,4 +920,6 @@ def run(
                 signal.signal(signum, previous_handler)
         if termination_callback is not None:
             termination_callback(exit_cause)
+        if checkpoint_error is not None:
+            raise checkpoint_error
     return 0

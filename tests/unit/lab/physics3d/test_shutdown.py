@@ -165,3 +165,168 @@ def test_new_subject_preserves_v3_telemetry_history(tmp_path):
     assert (archived / body.name).is_file()
     assert telemetry_root.is_dir()
     assert (run / "ticks.ndjson").is_file()
+
+
+@pytest.mark.parametrize("failed_artifact", ["symbiont", "body"])
+def test_async_checkpoint_failure_is_observable_and_blocks_next_write(
+    monkeypatch, tmp_path, failed_artifact
+):
+    events = []
+
+    def save_bundle(*args):
+        events.append("symbiont")
+        if failed_artifact == "symbiont":
+            raise OSError("disk full")
+
+    def save_body(*args):
+        events.append("body")
+        if failed_artifact == "body":
+            raise OSError("disk full")
+
+    monkeypatch.setattr(engine, "save_symbiont_bundle", save_bundle)
+    monkeypatch.setattr(engine, "save_body_state_file", save_body)
+    paths = dict(
+        symbiont_file=tmp_path / "mind", body_file=tmp_path / "body", models_dir=tmp_path / "models"
+    )
+    completion = engine._save_checkpoint(_FakeRuntimeForSave(), async_write=True, **paths)
+    with pytest.raises(OSError, match="disk full"):
+        completion.result(timeout=2)
+    before = list(events)
+    with pytest.raises(OSError, match="disk full"):
+        engine._save_checkpoint(_FakeRuntimeForSave(), active_thread=completion, **paths)
+    assert events == before
+
+
+def test_async_checkpoint_completion_reports_success(monkeypatch, tmp_path):
+    events = []
+    monkeypatch.setattr(engine, "save_symbiont_bundle", lambda *args: events.append("mind"))
+    monkeypatch.setattr(engine, "save_body_state_file", lambda *args: events.append("body"))
+    completion = engine._save_checkpoint(
+        _FakeRuntimeForSave(),
+        async_write=True,
+        symbiont_file=tmp_path / "mind",
+        body_file=tmp_path / "body",
+        models_dir=tmp_path / "models",
+    )
+    assert completion.result(timeout=2) is None
+    assert events == ["mind", "body"]
+
+
+@pytest.mark.parametrize("body_tick", [122, None])
+def test_resume_requires_matching_body_or_explicit_fresh_body(monkeypatch, tmp_path, body_tick):
+    mind, body = tmp_path / "mind", tmp_path / "body"
+    mind.write_bytes(b"preserved mind")
+    if body_tick is not None:
+        body.write_bytes(b"preserved body")
+    monkeypatch.setattr(
+        engine,
+        "load_symbiont_bundle",
+        lambda *args: {
+            "saved_at_tick": 123,
+            "actuation": {"enabled": False},
+        },
+    )
+    monkeypatch.setattr(engine, "load_body_state_file", lambda *args: {"symbiont_ticks": body_tick})
+
+    def unexpected_runtime(**kwargs):
+        pytest.fail("must reject implicit reembodiment before creating runtime")
+
+    monkeypatch.setattr(engine, "PyBulletEmbodimentRuntime", unexpected_runtime)
+    with pytest.raises(RuntimeError, match="--fresh-body"):
+        engine.run(symbiont_file=mind, body_file=body, telemetry_file=tmp_path / "telemetry")
+    assert mind.read_bytes() == b"preserved mind"
+    if body_tick is not None:
+        assert body.read_bytes() == b"preserved body"
+
+
+@pytest.mark.parametrize("failure_phase", [None, "async", "final"])
+def test_run_checkpoint_failure_reaches_caller_after_cleanup(monkeypatch, tmp_path, failure_phase):
+    import signal
+    from concurrent.futures import Future
+    from unittest.mock import Mock
+
+    runtime = Mock()
+    runtime.tick_count = 0
+    runtime.organism_id = "test"
+    runtime.environment_recipe = {}
+    runtime.checkpoint.return_value = {}
+    runtime.drain_presentation_pose_frames.return_value = []
+
+    def step(**kwargs):
+        runtime.tick_count += 1
+        return SimpleNamespace(tick=runtime.tick_count, alive=True)
+
+    runtime.step.side_effect = step
+    telemetry = Mock(root=tmp_path / "telemetry")
+    monkeypatch.setattr(engine, "PyBulletEmbodimentRuntime", lambda **kwargs: runtime)
+    monkeypatch.setattr(engine, "AsyncTelemetryV41Writer", lambda *args, **kwargs: telemetry)
+    monkeypatch.setattr(engine.ExecutionRates, "observation_due", lambda *args, **kwargs: False)
+    writes = []
+
+    def save(*args, async_write=False, **kwargs):
+        writes.append("async" if async_write else "final")
+        if async_write:
+            future = Future()
+            if failure_phase == "async":
+                future.set_exception(OSError("async failed"))
+            else:
+                future.set_result(None)
+            return future
+        if failure_phase == "final":
+            raise OSError("final failed")
+
+    monkeypatch.setattr(engine, "_save_checkpoint", save)
+    causes = []
+    previous = {s: signal.getsignal(s) for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+    kwargs = dict(
+        ticks=1,
+        show_monitor=False,
+        enable_slm=False,
+        checkpoint_interval=1,
+        symbiont_file=tmp_path / "mind",
+        body_file=tmp_path / "body",
+        telemetry_file=tmp_path / "telemetry",
+        termination_callback=causes.append,
+    )
+    if failure_phase:
+        with pytest.raises(OSError, match=f"{failure_phase} failed"):
+            engine.run(**kwargs)
+        assert causes == ["error"]
+    else:
+        assert engine.run(**kwargs) == 0
+        assert causes == ["budget_exhausted"]
+    assert writes == ["async", "final"]
+    runtime.close.assert_called_once()
+    telemetry.close.assert_called_once()
+    assert {s: signal.getsignal(s) for s in previous} == previous
+
+
+@pytest.mark.parametrize("fresh_body,body_tick", [(True, 122), (True, None), (False, 123)])
+def test_explicit_reembodiment_and_coherent_resume_reach_runtime(
+    monkeypatch, tmp_path, fresh_body, body_tick
+):
+    mind, body = tmp_path / "mind", tmp_path / "body"
+    mind.write_bytes(b"mind")
+    if body_tick is not None:
+        body.write_bytes(b"body")
+    checkpoint = {"saved_at_tick": 123, "actuation": {"enabled": False}}
+    physical = {"symbiont_ticks": body_tick}
+    monkeypatch.setattr(engine, "load_symbiont_bundle", lambda *args: checkpoint)
+    monkeypatch.setattr(engine, "load_body_state_file", lambda *args: physical)
+
+    class ReachedRuntime(Exception):
+        pass
+
+    def capture_runtime(**kwargs):
+        assert kwargs["runtime_checkpoint"] is checkpoint
+        assert kwargs["physical_state"] == (None if fresh_body else physical)
+        raise ReachedRuntime
+
+    monkeypatch.setattr(engine, "PyBulletEmbodimentRuntime", capture_runtime)
+    with pytest.raises(ReachedRuntime):
+        engine.run(
+            symbiont_file=mind,
+            body_file=body,
+            fresh_body=fresh_body,
+            telemetry_file=tmp_path / "telemetry",
+        )
