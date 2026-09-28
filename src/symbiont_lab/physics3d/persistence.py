@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from symbiont import __version__ as symbiont_version
+
 from .reembodiment import lifecycle_summary
 from .runtime import Tick3D
 from .telemetry_reader import detect_telemetry_run, open_telemetry
@@ -117,20 +119,17 @@ def build_symbiont_bundle_manifest(
     saved_at_tick = int(runtime_payload.get("saved_at_tick") or 0)
     organism_id = str(runtime_payload.get("organism_id") or "")
     raw_lifecycle = runtime_payload.get("embodiment_lifecycle")
-    raw_current = (
-        raw_lifecycle.get("current")
-        if isinstance(raw_lifecycle, dict) and isinstance(raw_lifecycle.get("current"), dict)
-        else {}
-    )
+    raw_current: dict[str, Any] = {}
+    if isinstance(raw_lifecycle, dict):
+        raw_current_val = raw_lifecycle.get("current")
+        if isinstance(raw_current_val, dict):
+            raw_current = raw_current_val
     raw_episode = runtime_payload.get("embodiment_episode")
     raw_episode = raw_episode if isinstance(raw_episode, dict) else {}
 
     lifecycle_data = lifecycle_summary(runtime_payload)
-    current = (
-        dict(lifecycle_data.get("current", {}))
-        if isinstance(lifecycle_data.get("current"), dict)
-        else {}
-    )
+    lifecycle_current = lifecycle_data.get("current")
+    current: dict[str, Any] = dict(lifecycle_current) if isinstance(lifecycle_current, dict) else {}
     for k, v in raw_current.items():
         if v is not None:
             current[k] = v
@@ -139,13 +138,13 @@ def build_symbiont_bundle_manifest(
     if raw_episode.get("body_id"):
         current["body_id"] = raw_episode.get("body_id")
 
-    embodiment_epoch = (
+    raw_epoch = (
         (raw_lifecycle.get("epoch") if isinstance(raw_lifecycle, dict) else None)
         or raw_episode.get("epoch")
         or lifecycle_data.get("epoch")
         or 1
     )
-    embodiment_epoch = int(embodiment_epoch or 1)
+    embodiment_epoch = max(1, int(raw_epoch)) if isinstance(raw_epoch, (int, str, float)) else 1
     symbiont_state = str(
         (raw_lifecycle.get("state") if isinstance(raw_lifecycle, dict) else None)
         or raw_episode.get("state")
@@ -199,6 +198,11 @@ def build_symbiont_bundle_manifest(
     safe_id = "".join(ch for ch in organism_id.lower() if ch.isalnum())[-12:] or "organism"
     checkpoint_id = f"chk-{safe_id}-{saved_at_tick:08d}"
 
+    raw_history_count = lifecycle_data.get("history_count", 0)
+    history_count = (
+        max(0, int(raw_history_count)) if isinstance(raw_history_count, (int, str, float)) else 0
+    )
+
     manifest: dict[str, Any] = {
         "bundle_schema_version": "1.0",
         "checkpoint_id": checkpoint_id,
@@ -237,9 +241,9 @@ def build_symbiont_bundle_manifest(
         "embodiment_summary_count": len(summaries),
         "known_contract_count": known_contracts,
         "last_epoch_summary": last_summary,
-        "embodiment_history_count": int(lifecycle_data.get("history_count", 0)),
+        "embodiment_history_count": history_count,
         "runtime_schema_version": runtime_payload.get("schema_version"),
-        "software_version": "0.1.0",
+        "software_version": str(runtime_payload.get("software_version") or symbiont_version),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
