@@ -277,81 +277,60 @@ def _carry_sensorimotor_v2_knowledge(
     previous: Mapping[str, Any],
     fresh_actuation: dict[str, Any],
 ) -> dict[str, Any]:
-    """Carry general competence knowledge, never old-Body authority.
+    """Attach a fresh execution surface without rewriting learned motor knowledge.
 
-    Current checkpoints store all motor state under actuation.action_domain.
-    The legacy top-level layout is read only to migrate older organisms.
+    Re-embodiment must preserve the Symbiont's learned causal/motor state.
+    Only current-Body authority is replaced: the actuator constitution/evidence
+    surface comes from the fresh Body, execution bindings are empty, and
+    in-flight execution state is cleared. Competences, effects, causal evidence,
+    exploration memory, composition and acquired dimensions are copied exactly
+    from the prior Symbiont checkpoint.
     """
     previous_actuation = previous.get("actuation")
     if not isinstance(previous_actuation, Mapping):
-        return fresh_actuation
+        return deepcopy(fresh_actuation)
+
+    result = deepcopy(fresh_actuation)
     prior_domain = previous_actuation.get("action_domain")
     prior_v2 = (
         prior_domain.get("sensorimotor_v2")
         if isinstance(prior_domain, Mapping)
         else previous_actuation.get("sensorimotor_v2")
     )
-    if not isinstance(prior_v2, Mapping):
-        return fresh_actuation
-
-    result = deepcopy(fresh_actuation)
     fresh_domain = result.get("action_domain")
-    if isinstance(fresh_domain, dict):
-        fresh_v2_raw = fresh_domain.get("sensorimotor_v2")
-    else:
-        fresh_v2_raw = result.get("sensorimotor_v2")
-    if not isinstance(fresh_v2_raw, Mapping):
-        return result
-    fresh_v2 = deepcopy(dict(fresh_v2_raw))
+    fresh_v2 = (
+        fresh_domain.get("sensorimotor_v2")
+        if isinstance(fresh_domain, Mapping)
+        else result.get("sensorimotor_v2")
+    )
 
-    prior_competences = prior_v2.get("competences", [])
-    transferable: list[dict[str, Any]] = []
-    if isinstance(prior_competences, list):
-        for item in prior_competences:
-            if not isinstance(item, Mapping):
-                continue
-            candidate = deepcopy(dict(item))
-            candidate.pop("surface_binding", None)
-            candidate["effect_id"] = None
-            transferable.append(candidate)
-
-    # The fresh template owns current surface identity, EffectSpace, causal
-    # evidence, execution bindings, exploration and composition state.
-    # Learned intervention families and ActionDimensions are organism-owned
-    # historical knowledge (Agency Acquisition v1 §80-§81): they are carried
-    # over, and remain unbound until evidence is gathered on the new surface.
-    prior_acquisition = prior_v2.get("agency_acquisition")
-    fresh_v2["schema_version"] = 4
-    if isinstance(prior_acquisition, Mapping):
-        fresh_v2["agency_acquisition"] = deepcopy(dict(prior_acquisition))
-    elif not isinstance(fresh_v2.get("agency_acquisition"), Mapping):
-        fresh_v2["agency_acquisition"] = {
+    if isinstance(prior_v2, Mapping) and isinstance(fresh_v2, Mapping):
+        preserved_v2 = deepcopy(dict(prior_v2))
+        # The only rewritten v2 fields describe *current execution authority*.
+        # Everything learned remains untouched.
+        if "surface_binding" in fresh_v2:
+            preserved_v2["surface_binding"] = deepcopy(fresh_v2["surface_binding"])
+        preserved_v2["execution_bindings"] = {
             "schema_version": 1,
-            "attempt_count": 0,
-            "intervention_signatures": None,
-            "action_dimensions": None,
+            "capacity": 512,
+            "items": [],
         }
-    fresh_v2["competences"] = transferable
-    fresh_v2["execution_bindings"] = {
-        "schema_version": 1,
-        "capacity": 512,
-        "items": [],
-    }
+        preserved_v2["binding_invalidation"] = "reembodiment"
 
-    if isinstance(fresh_domain, dict):
-        fresh_domain["sensorimotor_v2"] = fresh_v2
-        fresh_domain["active_commitment"] = None
-        fresh_domain["last_executed_controller_seed_id"] = None
-        fresh_domain["pending_motor_observation"] = []
-        fresh_domain["pending_proprioception"] = {}
-        result["action_domain"] = fresh_domain
-    else:
-        # One-way support for a pre-ActionDomain fresh template.
-        result["sensorimotor_v2"] = fresh_v2
-        result["action_commitment"] = None
-        result["last_executed_primitive_id"] = None
-        result["pending_motor_observation"] = []
-        result["pending_proprioception"] = {}
+        if isinstance(fresh_domain, dict):
+            fresh_domain["sensorimotor_v2"] = preserved_v2
+            fresh_domain["active_commitment"] = None
+            fresh_domain["last_executed_controller_seed_id"] = None
+            fresh_domain["pending_motor_observation"] = []
+            fresh_domain["pending_proprioception"] = {}
+            result["action_domain"] = fresh_domain
+        else:
+            result["sensorimotor_v2"] = preserved_v2
+            result["action_commitment"] = None
+            result["last_executed_primitive_id"] = None
+            result["pending_motor_observation"] = []
+            result["pending_proprioception"] = {}
+
     return result
 
 
@@ -428,11 +407,11 @@ def prepare_fresh_embodiment_checkpoint(
     contract: PhysicsEmbodimentDescriptor,
     canonical_contract_fingerprint: str | None = None,
 ) -> dict[str, Any]:
-    """Move one persistent Symbiont into a fresh Body.
+    """Move one unchanged Symbiont into a fresh Body.
 
-    A fresh Body never inherits physiological age or current motor authority.
-    Body-specific knowledge is archived and may return only as a bounded
-    historical hypothesis under a matching opaque contract.
+    Re-embodiment never rewrites learned Symbiont state. Only Body-owned
+    physiology and current execution authority are replaced. Any adaptation to
+    the new embodiment must be acquired later through ordinary experience.
     """
     previous = migrate_temporal_domains(previous)
     result = deepcopy(dict(previous))
@@ -695,15 +674,13 @@ def prepare_fresh_embodiment_checkpoint(
         fresh_actuation,
     )
 
-    # General cognition persists, embodiment-specific motor authority does not.
+    # The Symbiont itself is invariant across re-embodiment. Cognitive state,
+    # private models, self-model, sensory learning and learned BodySchema are
+    # preserved exactly. A new Body may make parts of that knowledge currently
+    # inapplicable, but experience must revise it; re-embodiment never erases
+    # or degrades it by fiat.
     if historical_bridge is not None:
         result["cognitive_bridge"] = historical_bridge
-    _degrade_active_private_model(result)
-
-    # Body-specific self knowledge is reacquired for every fresh Body.
-    for key in ("body_schema", "self_model", "sensory_development", "sensory_system"):
-        if key in fresh:
-            result[key] = deepcopy(fresh[key])
 
     # Genome v2 is body-independent. Re-embodiment changes physiology,
     # sensory/actuator surfaces and acquired embodiment state only; genotype
