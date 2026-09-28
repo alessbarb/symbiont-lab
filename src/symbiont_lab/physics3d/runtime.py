@@ -223,6 +223,7 @@ class PyBulletEmbodimentRuntime:
         seed: int = 42,
         time_step: float = 1.0 / 240.0,
         physics_substeps_per_tick: int = 10,
+        presentation_substeps_per_frame: int = 4,
         mechanical_work_cost_per_joule: float = 0.001,
         capture_physics_trace: bool = False,
         body_kind: str = "anthropomorphic-v6",
@@ -249,6 +250,9 @@ class PyBulletEmbodimentRuntime:
         if physics_substeps_per_tick < 1:
             raise ValueError("physics_substeps_per_tick must be >= 1")
         self.physics_substeps_per_tick = int(physics_substeps_per_tick)
+        if presentation_substeps_per_frame < 1:
+            raise ValueError("presentation_substeps_per_frame must be >= 1")
+        self.presentation_substeps_per_frame = int(presentation_substeps_per_frame)
         if (
             isinstance(mechanical_work_cost_per_joule, bool)
             or not isinstance(mechanical_work_cost_per_joule, (int, float))
@@ -436,8 +440,8 @@ class PyBulletEmbodimentRuntime:
         self._last_physical_tick = 0
 
         # Passive presentation sampling is deliberately outside organism state.
-        # At the default 240 Hz solver rate, every 4th substep yields a 60 Hz
-        # physical-pose stream for observers without adding cognition ticks.
+        # The engine resolves an exact render cadence from the physics rate and
+        # passes its substep stride here; no hard-coded 240/60 assumption remains.
         self._presentation_substep = 0
         self._presentation_pose_frames: list[dict[str, object]] = []
         reading_provider = PhysicsReadingProvider(
@@ -1107,7 +1111,7 @@ class PyBulletEmbodimentRuntime:
         return dict(self._last_physical_state)
 
     def drain_presentation_pose_frames(self) -> list[dict[str, object]]:
-        """Drain passive 60 Hz pose samples captured during physics integration.
+        """Drain passive render-cadence pose samples captured during physics integration.
 
         These frames are observer-only. They are not checkpointed, sensed,
         learned from, or exposed to the organism.
@@ -1484,7 +1488,7 @@ class PyBulletEmbodimentRuntime:
             )
         )
 
-    def step(self) -> Tick3D:
+    def step(self, *, include_observability: bool = True) -> Tick3D:
         if not self.physics_connected():
             raise PhysicsServerDisconnected("PyBullet physics server was closed")
 
@@ -1505,7 +1509,8 @@ class PyBulletEmbodimentRuntime:
                 embodiment_id=self.embodiment_id,
                 embodiment_tick=self.embodiment_tick,
                 body_id=self.body_identity,
-            )
+            ),
+            include_observability=include_observability,
         )
         self._update_embodiment_evidence(result)
         organism_ms = (time.perf_counter() - phase_started) * 1000.0
@@ -1551,7 +1556,7 @@ class PyBulletEmbodimentRuntime:
                     mechanical_work_joules += fallback_work
 
                 self._presentation_substep += 1
-                if self._presentation_substep % 4 == 0:
+                if self._presentation_substep % self.presentation_substeps_per_frame == 0:
                     pose = self.apparatus.export_physical_state()
                     self._presentation_pose_frames.append(
                         {
