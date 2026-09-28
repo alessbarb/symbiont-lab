@@ -87,14 +87,44 @@ class RidgePredictor:
             return None
         width = len(x)
         matrix = [[0.0] * (width + 1) for _ in range(width)]
-        for outer, rhs in self._prepared:
-            offset = 0
-            for i in range(width):
-                matrix_row = matrix[i]
-                for j in range(width):
-                    matrix_row[j] += outer[offset]
-                    offset += 1
-                matrix_row[-1] += rhs[i]
+        if width == 4:
+            # Production signal-knowledge predictors use exactly three
+            # features plus the intercept. Keep the historical row/addition
+            # order, but remove the two nested Python loops from the hot path.
+            m0, m1, m2, m3 = matrix
+            for outer, rhs in self._prepared:
+                m0[0] += outer[0]
+                m0[1] += outer[1]
+                m0[2] += outer[2]
+                m0[3] += outer[3]
+                m0[4] += rhs[0]
+
+                m1[0] += outer[4]
+                m1[1] += outer[5]
+                m1[2] += outer[6]
+                m1[3] += outer[7]
+                m1[4] += rhs[1]
+
+                m2[0] += outer[8]
+                m2[1] += outer[9]
+                m2[2] += outer[10]
+                m2[3] += outer[11]
+                m2[4] += rhs[2]
+
+                m3[0] += outer[12]
+                m3[1] += outer[13]
+                m3[2] += outer[14]
+                m3[3] += outer[15]
+                m3[4] += rhs[3]
+        else:
+            for outer, rhs in self._prepared:
+                offset = 0
+                for i in range(width):
+                    matrix_row = matrix[i]
+                    for j in range(width):
+                        matrix_row[j] += outer[offset]
+                        offset += 1
+                    matrix_row[-1] += rhs[i]
         for i in range(1, width):
             matrix[i][i] += self.regularization
         # Gaussian elimination with pivoting; singular rows simply censor
