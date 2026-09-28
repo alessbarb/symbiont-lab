@@ -1032,7 +1032,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         )
         replay_pressure = max(experience_pressure, contradiction_pressure)
         requested_epochs = 2 + round(6 * replay_pressure)
-        requested_steps = 12 + round(36 * replay_pressure)
+        # Private Model Learnability v1 §9-§10 (owner decision after P6): at
+        # 48 steps no candidate beat the non-neural baseline; every seed did
+        # by 192. The organism's pressure scaling is kept, ×4.
+        requested_steps = 48 + round(144 * replay_pressure)
         request = self.request_private_model_training(
             corpus_hash=corpus.manifest.corpus_hash,
             tokenizer_hash=tokenizer.tokenizer_hash,

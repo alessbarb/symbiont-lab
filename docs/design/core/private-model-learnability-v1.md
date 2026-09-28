@@ -255,3 +255,24 @@ seed below zero). Larger budgets keep improving up to 1 536, with a
 widening train/held-out gap. Limits: one organism lineage, offline corpora,
 fixed architecture and learning rate. If a budget is raised, P5 becomes
 re-runnable with ancestry actually exercisable (Revision Coherence §8.6).
+
+## 10. Owner decision after P6 (2026-09-28): step ceiling 48 → 192
+
+The organism's autonomous training plan keeps its replay-pressure scaling,
+multiplied by 4: `requested_steps = 48 + round(144 × pressure)` (was
+`12 + round(36 × pressure)`), so full pressure — every P5 request — asks
+for 192 steps. Epochs (`2 + round(6 × pressure)`), autonomous stopping
+(patience 2, minimum gain 0.005), architecture, parameter ceiling,
+baselines and the promotion gate are unchanged. Metabolic compute charge
+is `steps / 100 000` (0.0019 instead of 0.0005 per training).
+
+**Check under the resident regime (with autonomous stopping, which P6's
+long arm disabled):** on C1/C2 with P6's seeds, all six trainings ran the
+full 192 steps (2 epochs) and beat the baseline — held-out *G* −0.20 to
+−0.27 (C1) and −0.47 to −0.50 (C2), matching P6's 192-step values.
+Historical studies that fix their own budgets (e.g. the replay-pressure
+curve) are unchanged.
+
+Consequence: models can now become ancestry-eligible, so P5 can be re-run
+with ancestry actually exercisable (Revision Coherence §8.6); that re-run
+needs its own owner go-ahead.

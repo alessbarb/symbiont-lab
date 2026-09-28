@@ -283,7 +283,7 @@ def test_autonomous_replay_budget_is_bounded():
     assert plan is not None
     assert plan.replay_pressure == 1.0
     assert plan.request.requested_epochs == 8
-    assert plan.request.requested_steps == 48
+    assert plan.request.requested_steps == 192
 
 
 def test_autonomous_private_learning_plan_authors_stopping_policy():
