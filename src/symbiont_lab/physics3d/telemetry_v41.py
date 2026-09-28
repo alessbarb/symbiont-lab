@@ -233,6 +233,8 @@ class TelemetryV41Writer:
         seed: int,
         physics_hz: int,
         cognition_hz: int,
+        observation_hz: int | None = None,
+        render_hz: int | None = None,
         embodiment_mode: str,
         effective_configuration: Mapping[str, Any] | None = None,
         software_identity: Mapping[str, Any] | None = None,
@@ -370,6 +372,8 @@ class TelemetryV41Writer:
             "seed": int(seed),
             "physics_hz": int(physics_hz),
             "cognition_hz": int(cognition_hz),
+            "observation_hz": int(observation_hz or cognition_hz),
+            "render_hz": int(render_hz or min(60, physics_hz)),
             "physics_substeps_per_tick": int(physics_hz // cognition_hz),
             "embodiment_mode": str(embodiment_mode),
             "anchor_interval": self._anchor_interval,
@@ -391,7 +395,7 @@ class TelemetryV41Writer:
     def needs_snapshot(self, tick: int) -> bool:
         """Whether the engine should capture a large organism/physical checkpoint."""
         tick = int(tick)
-        initial_record = self._sequence == 0 and tick == self._start_tick + 1
+        initial_record = self._sequence == 0
         return initial_record or tick % self._snapshot_interval == 0
 
     def needs_anchor(self, tick: int) -> bool:
@@ -810,7 +814,7 @@ class AsyncTelemetryV41Writer:
     def needs_snapshot(self, tick: int) -> bool:
         self._raise_worker_error()
         tick = int(tick)
-        initial_record = self._submitted == 0 and tick == self._writer._start_tick + 1
+        initial_record = self._submitted == 0
         return initial_record or tick % self._snapshot_interval == 0
 
     def append(
