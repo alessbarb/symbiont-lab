@@ -155,3 +155,28 @@ Among qualifying arms the highest precision is proposed (ties: the
 simpler, in order T, M, TM). If none qualifies, the results are reported
 and no membership change is proposed. Adoption as default is an owner
 decision.
+
+## 7. FP-1 result (2026-09-28) — no arm qualifies
+
+Runs on `a87ba71b` (all arms and gates in `.symbiont/runs/*-a87ba71-*`):
+
+| Arm | own | cross | drift | other | precision | recall | E6 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| R | 356 | 47 | 330 | 9 | 0.480 | 0.529 | (reference) |
+| T | 214 | 26 | 568 | 6 | 0.263 | 0.525 | 3/3 |
+| M | 232 | 2 | 56 | 2 | **0.795** | 0.433 | 3/3 |
+| TM | 254 | 45 | 399 | 1 | 0.363 | 0.456 | 3/3 |
+
+By the preregistered criteria (precision ≥ 0.80, recall ≥ 0.42, E6 3/3)
+**no arm qualifies** — M misses precision by 0.005 — so no membership
+change is proposed and no threshold is moved. Reading: the H3 fix (T)
+makes precision worse and multiplicity correction (M) removes 83% of drift
+members (330 → 56) and nearly all cross members; the cause is
+multiplicity, as §5.1 argued, not baseline mismatch.
+
+**Regime caveat.** `a87ba71b` still had the causal binding invalidation
+rule on by default (Revision Coherence §3.11), which changes behaviour
+(R here has ~2.5× the members of FP-0's R). The arm comparison is valid
+within that regime, but the default regime is now rule-off, so FP-1 is
+repeated as a **replication (not blind; same criteria)** on the rule-off
+commit before any proposal.

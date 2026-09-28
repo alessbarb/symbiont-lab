@@ -25,6 +25,7 @@ def _organism():
         runtime.tick()
         body.advance(runtime.last_actuations)
     domain = runtime._action_domain
+    domain.causal_binding_invalidation = True  # off by default (§3.11)
     binding = next(b for b in domain.execution_bindings.items if b.status is BindingStatus.VALID)
     return runtime, domain, binding
 

@@ -241,6 +241,9 @@ class ActionDomain:
         # Tick of the executive decision in progress (provenance of admission).
         self._decision_tick = -1
         self._traced_commitment: ActionCommitment | None = None
+        # §3.9 decision 1, OFF by default: the approved rule failed the E6
+        # release gate (seed 149 invalidated before closing), see §3.11.
+        self.causal_binding_invalidation = False
         self.composition_engine = CompositionEngine()
 
         self.active_commitment: ActionCommitment | None = None
@@ -664,7 +667,7 @@ class ActionDomain:
         stays testable (a point estimate of 0 would never allow it).
         """
         competence_id = commitment.competence_id
-        if competence_id is None:
+        if competence_id is None or not self.causal_binding_invalidation:
             return
         binding = self.execution_bindings.get(competence_id)
         if binding is None or binding.status is not BindingStatus.VALID:

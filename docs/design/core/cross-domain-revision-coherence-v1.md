@@ -384,6 +384,33 @@ upper bound (~0.027 per window at 135 windows) roughly 30 or more
 consecutive unconfirmed executions of a few windows are needed —
 testable, still conservative. Decisions 2 and 3 are not triggered.
 
+### 3.11 Decision 1 failed the E6 gate — now off by default (2026-09-28)
+
+Comparison runs of `f2538744` (rule on) against Wave 1 (`c3ece2d4`):
+
+| Run | Wave 1 | Rule on |
+|---|---|---|
+| E6 whole-state | gate passed | gate passed |
+| E6 factorized | gate passed | **gate FAILED**: seed 149 never closes (Wave 1: first satisfied intent at 1 832); 6 bindings invalidated, 24 competences known (8 before) |
+| E8 arm R | 8 satisfied, 8 spurious; 328 executable | 15 satisfied, 5 spurious; 226 executable; 140 bindings invalidated |
+
+Cause: the refinement (upper bound of the rest rate) makes the rule most
+aggressive when the organism knows least. With few passive windows the
+upper bound is large (~0.16 per window at 20 windows, ~0.65 over a
+6-window commitment), so 4 failures (Wilson upper bound 0.49) already
+invalidate a binding that would later have closed. The literal rule (point
+estimate) never fires for effects never seen at rest. Both show that
+"no better than rest" is the wrong comparison when rest is unobserved.
+
+Because E6 is a release gate, the rule is **off by default**
+(`ActionDomain.causal_binding_invalidation = False`); with it off,
+behaviour and provenance are identical to Wave 1. Proposal for an owner
+decision: compare the competence with **its own history** instead of rest —
+invalidate when the Wilson upper bound of the match rate since the last
+confirmation falls below the Wilson lower bound of its match rate while
+the binding was being confirmed — preregistered with the E6 gate and the
+E8 spurious-satisfaction metric (which the rule did improve: 5/15 vs 8/8).
+
 ## 4. Wave 2 — Endogenous epistemic retest (P1)
 
 ### 4.1 Mechanism
