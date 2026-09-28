@@ -264,3 +264,35 @@ update would predict, which points at repeated evaluation over time (each
 update re-tests the same atoms; members accumulate across updates) as the
 residual mechanism. Any further study needs its own preregistration and
 new seeds; none is proposed here without an owner decision.
+
+## 12. FP-3 — repeated evaluation over time (preregistered, owner option A)
+
+**Rationale.** FP-2's residual drift members exceed a 5% false-discovery
+rate per update. Membership re-tests the same atoms after every pulse on
+overlapping, growing samples, so an atom only needs to cross once to be
+admitted; this study removes the reuse of data across tests.
+
+**Rule under test (arm BHB).** For each source, its pulses (ordered by end
+tick) are partitioned into consecutive, disjoint **blocks of 8 pulses**;
+a block is tested only when complete, and no pulse belongs to two blocks.
+Within a block, each atom observed in it is tested exactly as in FP-2
+(exact one-sided binomial test of the block's hits against the
+length-matched quiet rate from the Jeffreys estimate over all passive
+windows), and Benjamini–Hochberg at **q = 0.05** is applied over the
+block's atoms. An atom is a member exactly when it is rejected in **both
+of the two most recent completed blocks** (replication on independent
+pulses). Block size 8, q and the two-block replication are fixed here.
+
+**Arms.** R (current), BH (FP-2 unchanged, comparator), BHB. Binding
+invalidation off (default) in all arms; no combination with Binding
+Degradation v1.
+
+**Data separation.** Seeds used so far (101-257, 409-461, 463-523) are
+excluded. FP-3 runs on 541, 547, 557, 563, 569, 571, 577, 587, 593, 599.
+The E6 gate keeps seeds 101/127/149 (a gate, not a precision
+confirmation).
+
+**Criteria (unchanged).** An arm qualifies with pooled precision ≥ 0.80 at
+tick 3 000, mean recall ≥ 0.42 and E6 3/3; among qualifying arms the
+highest precision is proposed (ties: BH, BHB). If none qualifies, results
+are reported and no membership change is proposed.
