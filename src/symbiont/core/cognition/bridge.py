@@ -272,6 +272,13 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             minimum_support=self._genome.structure.minimum_support,
         )
 
+    def representation_maturity_counts(self) -> dict[str, int]:
+        """Passive maturity histogram for observers and diagnostics."""
+        counts = {maturity.value: 0 for maturity in RepresentationMaturity}
+        for node in self._graph.nodes:
+            counts[self._representation_maturity(node.node_id).value] += 1
+        return counts
+
     def _representation_mature_enough_as_target(
         self,
         node_id: str,
@@ -1108,6 +1115,7 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
         active_motor_actuator_ids: Collection[str] = (),
         motor_effect_actuator_ids: Collection[str] = (),
         active_primitive_ids: Collection[str] = (),
+        include_observability: bool = True,
     ) -> CognitiveBridgeResult:
         self._tick = max(0, int(tick))
         self._sync_motor_readouts(active_motor_actuator_ids)
@@ -1311,14 +1319,9 @@ class CognitiveBridge(CognitiveBridgeCompatibility):
             if node_id in live_node_ids
         }
 
-        # Passive/reporting projection only.  The previous implementation
-        # traversed every live node once for *each* maturity enum member,
-        # calling _representation_maturity() ~N_states * N_nodes per tick.
-        # Derive the same histogram in one node pass instead.
-        representation_maturity_counts = {maturity.value: 0 for maturity in RepresentationMaturity}
-        for node in live_nodes:
-            maturity = self._representation_maturity(node.node_id)
-            representation_maturity_counts[maturity.value] += 1
+        representation_maturity_counts = (
+            self.representation_maturity_counts() if include_observability else None
+        )
 
         return CognitiveBridgeResult(
             tick=tick,
