@@ -124,6 +124,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--state-file", type=Path, default=Path(DEFAULT_STATE_FILE).expanduser())
     parser.add_argument("--interval", type=float, default=DEFAULT_TICK_INTERVAL_SECONDS)
     parser.add_argument("--checkpoint-every", type=int, default=DEFAULT_CHECKPOINT_TICKS)
+    parser.add_argument(
+        "--observe-every",
+        type=int,
+        default=1,
+        help="publish one Observatory snapshot every N organism ticks",
+    )
     parser.add_argument("--display-id", default="local-symbiont")
     parser.add_argument(
         "--max-ticks", type=int, default=None, help="optional finite budget for testing"
@@ -477,6 +483,7 @@ def main(argv: list[str] | None = None) -> int:
         config=ResidentConfig(
             interval_seconds=args.interval,
             checkpoint_every_ticks=args.checkpoint_every,
+            observation_every_ticks=args.observe_every,
             max_ticks=args.max_ticks,
         ),
         habitat=habitat,
