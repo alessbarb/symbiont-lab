@@ -353,6 +353,15 @@ def main() -> None:
             "sensorimotor_matching",
             [python, "scripts/bench_sensorimotor_matching.py", "--queries", "30" if args.quick else "150", "--candidates", "128" if args.quick else "512"],
         ),
+        _structured_command(
+            "ridge_predictor",
+            [
+                python,
+                "scripts/bench_ridge_predictor.py",
+                "--queries",
+                "1000" if args.quick else "10000",
+            ],
+        ),
         _command(
             "world_journal_age_scaling",
             [python, "scripts/bench_world_journal_index.py", "--ages", "1000", "5000" if args.quick else "100000", "--repeats", "40" if args.quick else "200"],
