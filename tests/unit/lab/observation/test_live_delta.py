@@ -158,3 +158,83 @@ def test_delta_is_materially_smaller_for_stable_large_structure():
     assert anchor["kind"] == "anchor"
     assert delta["kind"] == "delta"
     assert delta_bytes < full_bytes * 0.25
+
+
+@pytest.mark.parametrize("queue_size", [1, 2])
+def test_bus_overflow_rebases_other_channels_before_their_next_delta(queue_size):
+    bus = ObservationBus(queue_size=queue_size, anchor_interval=64)
+    slow = bus.subscribe()
+    fast = bus.subscribe()
+    slow_decoder = ObservationDeltaDecoder()
+    fast_decoder = ObservationDeltaDecoder()
+
+    def publish(channel, tick):
+        event = {"type": channel, "tick": tick}
+        bus.push(event)
+        assert fast_decoder.decode(json.loads(fast.get_nowait().data)) == event
+        assert slow.qsize() <= queue_size
+
+    for channel in ("body", "vitals"):
+        publish(channel, 1)
+        assert slow_decoder.decode(json.loads(slow.get_nowait().data)) == {
+            "type": channel,
+            "tick": 1,
+        }
+    publish("body", 2)
+    publish("vitals", 2)
+    publish("vitals", 3)
+    while not slow.empty():
+        assert slow_decoder.decode(json.loads(slow.get_nowait().data)) is not None
+
+    publish("body", 3)
+    assert slow_decoder.decode(json.loads(slow.get_nowait().data)) == {
+        "type": "body",
+        "tick": 3,
+    }
+    publish("body", 4)
+    payload = json.loads(slow.get_nowait().data)
+    assert payload["kind"] == "delta"
+    assert slow_decoder.decode(payload) == {"type": "body", "tick": 4}
+
+
+def test_bus_truncated_single_channel_replay_materializes_current_state():
+    bus = ObservationBus(queue_size=2, history_size=8, anchor_interval=64)
+    for tick in range(1, 6):
+        bus.push({"type": "body", "tick": tick})
+
+    consumer = bus.subscribe(after_sequence=1)
+    decoder = ObservationDeltaDecoder()
+    states = []
+    while not consumer.empty():
+        states.append(decoder.decode(json.loads(consumer.get_nowait().data)))
+    assert states == [{"type": "body", "tick": 5}]
+    bus.push({"type": "body", "tick": 6})
+    assert decoder.decode(json.loads(consumer.get_nowait().data)) == {
+        "type": "body",
+        "tick": 6,
+    }
+
+
+@pytest.mark.parametrize("after_sequence", [None, 0, 1])
+def test_bus_bounded_reconnect_rebases_channels_omitted_from_snapshot(after_sequence):
+    bus = ObservationBus(queue_size=2, history_size=8, anchor_interval=64)
+    channels = ("body", "vitals", "cognition")
+    for tick in (1, 2):
+        for channel in channels:
+            bus.push({"type": channel, "tick": tick})
+
+    consumer = bus.subscribe(after_sequence=after_sequence)
+    assert consumer.qsize() == 2
+    decoder = ObservationDeltaDecoder()
+    ids = []
+    while not consumer.empty():
+        message = consumer.get_nowait()
+        ids.append(message.stream_id)
+        assert decoder.decode(json.loads(message.data)) is not None
+    for channel in channels:
+        event = {"type": channel, "tick": 3}
+        bus.push(event)
+        message = consumer.get_nowait()
+        ids.append(message.stream_id)
+        assert decoder.decode(json.loads(message.data)) == event
+    assert ids == sorted(set(ids))

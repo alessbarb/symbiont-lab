@@ -179,3 +179,26 @@ def test_signal_claims_require_an_exported_percept_reference():
     signal = next(s for e in scene["evidence"].values() for s in e["signals"] if s["id"] == sensor)
     assert signal["knowledge"] is None
     assert signal["reference_status"] == "unavailable"
+
+
+def test_bus_overflow_rebases_world_channel_on_next_scene_event():
+    bus = ObservationBus(queue_size=2)
+    consumer = bus.subscribe()
+    publisher = WorldScenePublisher()
+    scene = project_world_scene(rich_state())
+    bus.push(publisher.event(scene))
+    observed = apply_world_event(None, json.loads(consumer.get_nowait().data))
+
+    scene["tick"] += 1
+    scene["entities"]["e"]["position"][0] = 10
+    bus.push(publisher.event(scene))
+    bus.push({"type": "vitals", "tick": 1})
+    bus.push({"type": "vitals", "tick": 2})
+    while not consumer.empty():
+        consumer.get_nowait()
+
+    scene["tick"] += 1
+    scene["entities"]["e"]["position"][0] = 20
+    bus.push(publisher.event(scene))
+    observed = apply_world_event(observed, json.loads(consumer.get_nowait().data))
+    assert observed == bus.world_scene()

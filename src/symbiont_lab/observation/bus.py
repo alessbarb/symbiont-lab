@@ -10,11 +10,12 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-from .delta import ObservationDeltaEncoder
+from .delta import COMPRESSIBLE_TYPES, ObservationDeltaEncoder
 from .world_scene import apply_world_event
 
 _DEFAULT_QUEUE_SIZE = 2048
 _DEFAULT_HISTORY_SIZE = 512
+_DEPENDENT_TYPES = COMPRESSIBLE_TYPES | {"world_scene"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,7 +24,6 @@ class ObservationMessage:
 
     stream_id: int
     data: bytes
-
 
 
 class ObservationBus:
@@ -47,7 +47,9 @@ class ObservationBus:
             raise ValueError("history_size must be >= 1")
         self._queue_size = int(queue_size)
         self._lock = threading.Lock()
-        self._queues: list[queue.Queue[ObservationMessage]] = []
+        # Channels with a base either delivered or queued in FIFO order. Only
+        # dependency-bearing channels are tracked, so this is bounded per client.
+        self._queues: dict[queue.Queue[ObservationMessage], set[str]] = {}
         self._last_by_type: dict[str, ObservationMessage] = {}
         self._last_sequence_by_type: dict[str, int] = {}
         self._history: deque[ObservationMessage] = deque(maxlen=int(history_size))
@@ -101,26 +103,24 @@ class ObservationBus:
 
             message = ObservationMessage(stream_id=stream_id, data=data)
             self._history.append(message)
-            overflow_message = (
-                self._last_by_type.get(event_type, message)
-                if projected.get("type") == "observation_delta"
-                else message
-            )
-            for consumer in self._queues:
-                selected = message
+            for consumer, based_channels in self._queues.items():
                 if consumer.full():
-                    try:
-                        consumer.get_nowait()
-                    except queue.Empty:
-                        pass
-                    # A dropped delta invalidates the consumer's channel base.
-                    # Replace the current message with a materialized anchor so
-                    # the next message is immediately self-healing.
-                    selected = overflow_message
-                try:
-                    consumer.put_nowait(selected)
-                except queue.Full:
-                    pass
+                    # Any retained delta may depend on a dropped message, even
+                    # when it belongs to a different channel from this event.
+                    # Drop the pending presentation backlog and lazily rebase
+                    # each channel; never block the subject on a slow observer.
+                    while True:
+                        try:
+                            consumer.get_nowait()
+                        except queue.Empty:
+                            break
+                    based_channels.clear()
+                selected = message
+                if event_type in _DEPENDENT_TYPES:
+                    if event_type not in based_channels:
+                        selected = self._last_by_type[event_type]
+                    based_channels.add(event_type)
+                consumer.put_nowait(selected)
             return stream_id
 
     def subscribe(
@@ -139,21 +139,24 @@ class ObservationBus:
                     key=lambda item: self._last_sequence_by_type.get(item, 0),
                 )
             ]
-            if after_sequence is None:
-                replay = current
-            elif int(after_sequence) < history_floor - 1:
+            based_channels: set[str] = set()
+            if after_sequence is None or int(after_sequence) < history_floor - 1:
                 replay = current
             else:
-                replay = [
-                    message
-                    for message in history
-                    if message.stream_id > int(after_sequence)
-                ]
+                replay = [message for message in history if message.stream_id > int(after_sequence)]
+                if len(replay) <= self._queue_size:
+                    # A complete replay extends the bases retained by the client.
+                    based_channels.update(_DEPENDENT_TYPES)
+                else:
+                    # Slicing a delta chain would discard required revisions.
+                    replay = current
             for message in replay[-self._queue_size :]:
-                if consumer.full():
-                    consumer.get_nowait()
                 consumer.put_nowait(message)
-            self._queues.append(consumer)
+                payload = json.loads(message.data)
+                channel = str(payload.get("channel") or payload.get("type") or "")
+                if channel in _DEPENDENT_TYPES:
+                    based_channels.add(channel)
+            self._queues[consumer] = based_channels
         return consumer
 
     def world_scene(self) -> dict | None:
@@ -163,10 +166,7 @@ class ObservationBus:
 
     def unsubscribe(self, consumer: queue.Queue[ObservationMessage]) -> None:
         with self._lock:
-            try:
-                self._queues.remove(consumer)
-            except ValueError:
-                pass
+            self._queues.pop(consumer, None)
 
     @property
     def has_data(self) -> bool:
