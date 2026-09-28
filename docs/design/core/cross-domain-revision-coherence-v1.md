@@ -306,6 +306,50 @@ yields the same projection after restore; E6 passes in both effect modes; trajec
 documented against the Wave 0 baseline. Wave 1 changes defaults without an
 option because it removes contradictions rather than adding capability.
 
+### 3.9 Wave 1 implementation decisions (2026-09-28)
+
+Found while mapping the code: **no causal evidence invalidates a binding
+today.** Bindings are only refreshed when an execution's observed effect
+matches the competence's effect (`action.py` `bind_from_evidence`); the
+only use of `required_causal_binding_invalidated` is a post-restore
+consistency check (`action.py:2651`), not causal evidence.
+
+Implemented in Wave 1 (no new modelling):
+
+- binding lifecycle fields, invariants, schema bump and migration (§3.2);
+- `STALE / SURFACE_NOT_CURRENT` when the current surface differs, reverting
+  to `VALID` when it returns (replaces the implicit `invalid_for_surface`);
+- `STALE / CONTROLLER_UNAVAILABLE` when a controller leaf cannot activate,
+  reverting when it can — today's `competence_is_executable` controller
+  condition, now recorded as a traced status instead of recomputed silently;
+- the projection, read-only suppression query, consumers, annotations,
+  metrics, structural test and export manifest (§3.1, §3.3-§3.7);
+- the post-restore check keeps its reason but is traced as an intent
+  consistency event, not as a binding invalidation.
+
+**Owner decisions required before they are triggered** (schema admits them;
+nothing produces them yet):
+
+1. `INVALIDATED / CAUSAL_RELATION_REVISED` needs a producing rule. Proposal:
+   since the binding's last confirmation, at least 4 executions of the
+   competence and the Wilson upper bound (95%) of their match rate against
+   the binding's effect below the length-matched quiet rate of that effect —
+   symmetric with footprint membership (§13.7), so a binding is invalidated
+   by the same kind of evidence that would have refused it.
+2. `STALE / EMBODIMENT_NOT_CURRENT` on re-embodiment into a body with the
+   **same** contract would mark every binding stale at each rebirth and
+   remove all executable competences until re-confirmed. Proposal: do not
+   trigger it in Wave 1 (surface change already covers different bodies);
+   revisit with Physics3D rebirth data.
+3. `STALE / EVIDENCE_AGED` needs an age scale; proposal: not triggered in
+   Wave 1.
+
+Telemetry: `executable_competence_count` and the new counts are added and
+`established_competence_count` kept as a deprecated alias (the live
+telemetry contract is changed only through its own design, per the project
+rule on live protocol changes); likewise `reacclimation_completed` stays
+beside `reacclimation_window_completed`.
+
 ## 4. Wave 2 — Endogenous epistemic retest (P1)
 
 ### 4.1 Mechanism
