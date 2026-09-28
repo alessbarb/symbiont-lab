@@ -129,18 +129,51 @@ class RidgePredictor:
             matrix[i][i] += self.regularization
         # Gaussian elimination with pivoting; singular rows simply censor
         # this trial instead of emitting a non-finite prediction.
-        for col in range(width):
-            pivot = max(range(col, width), key=lambda r: abs(matrix[r][col]))
-            if abs(matrix[pivot][col]) < 1e-12:
-                return None
-            matrix[col], matrix[pivot] = matrix[pivot], matrix[col]
-            divisor = matrix[col][col]
-            matrix[col] = [v / divisor for v in matrix[col]]
-            for r in range(width):
-                if r == col:
-                    continue
-                factor = matrix[r][col]
-                matrix[r] = [a - factor * b for a, b in zip(matrix[r], matrix[col])]
+        if width == 4:
+            for col in range(4):
+                pivot = col
+                best = abs(matrix[col][col])
+                for candidate in range(col + 1, 4):
+                    score = abs(matrix[candidate][col])
+                    if score > best:
+                        pivot = candidate
+                        best = score
+                if best < 1e-12:
+                    return None
+                if pivot != col:
+                    matrix[col], matrix[pivot] = matrix[pivot], matrix[col]
+
+                pivot_row = matrix[col]
+                divisor = pivot_row[col]
+                pivot_row[0] = pivot_row[0] / divisor
+                pivot_row[1] = pivot_row[1] / divisor
+                pivot_row[2] = pivot_row[2] / divisor
+                pivot_row[3] = pivot_row[3] / divisor
+                pivot_row[4] = pivot_row[4] / divisor
+
+                for r in range(4):
+                    if r == col:
+                        continue
+                    row = matrix[r]
+                    factor = row[col]
+                    row[0] = row[0] - factor * pivot_row[0]
+                    row[1] = row[1] - factor * pivot_row[1]
+                    row[2] = row[2] - factor * pivot_row[2]
+                    row[3] = row[3] - factor * pivot_row[3]
+                    row[4] = row[4] - factor * pivot_row[4]
+        else:
+            for col in range(width):
+                pivot = max(range(col, width), key=lambda r: abs(matrix[r][col]))
+                if abs(matrix[pivot][col]) < 1e-12:
+                    return None
+                matrix[col], matrix[pivot] = matrix[pivot], matrix[col]
+                divisor = matrix[col][col]
+                matrix[col] = [v / divisor for v in matrix[col]]
+                for r in range(width):
+                    if r == col:
+                        continue
+                    factor = matrix[r][col]
+                    matrix[r] = [a - factor * b for a, b in zip(matrix[r], matrix[col])]
         value = sum(matrix[i][-1] * x[i] for i in range(width))
         return value if math.isfinite(value) else None
 

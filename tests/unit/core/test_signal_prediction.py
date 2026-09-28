@@ -120,3 +120,38 @@ def test_ridge_precomputation_survives_checkpoint_roundtrip_exactly():
 
     assert restored.predict(query) == before
     assert restored.checkpoint() == predictor.checkpoint()
+
+
+
+def test_ridge_width4_preserves_first_pivot_on_exact_tie():
+    predictor = RidgePredictor(history_limit=8)
+    rows = []
+    for index in range(1, 9):
+        features = (1.0, float(index % 2), float(index % 3))
+        target = float(index) * 0.75 - 1.0
+        predictor.observe(features, target)
+        rows.append((features, target))
+
+    query = (1.0, 1.0, 2.0)
+    assert predictor.predict(query) == _legacy_ridge_predict(
+        rows,
+        predictor.regularization,
+        query,
+    )
+
+
+def test_ridge_non_width4_keeps_generic_solver_exact():
+    predictor = RidgePredictor(history_limit=8)
+    rows = []
+    for index in range(1, 9):
+        features = (float(index), float(index % 2))
+        target = float(index) * 0.5 + 3.0
+        predictor.observe(features, target)
+        rows.append((features, target))
+
+    query = (9.0, 1.0)
+    assert predictor.predict(query) == _legacy_ridge_predict(
+        rows,
+        predictor.regularization,
+        query,
+    )
