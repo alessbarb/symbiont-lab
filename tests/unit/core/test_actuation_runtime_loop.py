@@ -181,10 +181,12 @@ def test_exploration_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
 def test_motor_percept_snapshot_preserves_complete_opaque_body_surface():
     from types import SimpleNamespace
 
+    from symbiont.core.domains.action import ActionDomain
     from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime.__new__(OrganismRuntime)
     runtime._sensory_system = SimpleNamespace(sensors=())
+    runtime._action_domain = ActionDomain(organism_id="test", enabled=False, surface=None)
     percepts = tuple(
         SimpleNamespace(name=f"sense.{index:03d}", value=float(index)) for index in range(96)
     )

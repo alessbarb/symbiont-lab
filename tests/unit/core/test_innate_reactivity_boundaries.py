@@ -43,8 +43,8 @@ def test_regulation_contains_no_anatomical_motor_mapping() -> None:
 
 
 def test_runtime_protection_enters_universal_action_arbitration() -> None:
-    source = Path("src/symbiont/core/orchestration/runtime.py").read_text(encoding="utf-8")
+    source = Path("src/symbiont/core/domains/action.py").read_text(encoding="utf-8")
     assert "ActionSource.PROTECTION" in source
-    assert "self._action_arbitrator.choose(" in source
+    assert "self.arbitrator.choose(" in source
     assert '"primitive_reactive"' not in source
     assert "choose_reactive(" not in source

@@ -2478,10 +2478,13 @@ class OrganismRuntime:
                     for slot in self._action_domain.surface.slots
                 ],
             }
+            action_state = self._action_domain.checkpoint_state()
             payload["actuation"] = {
                 "enabled": True,
                 "constitution": constitution_payload,
-                "action_domain": self._action_domain.checkpoint_state(),
+                "action_domain": action_state,
+                "pending_motor_observation": action_state.get("pending_motor_observation", []),
+                "pending_proprioception": action_state.get("pending_proprioception", {}),
             }
         elif self._action_domain.surface is not None:
             # A disabled runtime may still carry the body-owned actuator

@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any, Mapping
@@ -170,6 +170,30 @@ class ActionStepResult:
     executed: bool
     result: object | None = None
     reason: str | None = None
+
+
+class IntentCausalBaseline(dict):
+    """Causal baseline record bound to an explicit motor commitment/intent.
+
+    Preserves the prior causal reference for each admitted intent under concurrent
+    action, so outcome attribution can distinguish intent-specific effects from shared
+    or indeterminate consequences without collapsing concurrent exploration.
+    """
+
+    def __init__(
+        self,
+        baseline: Mapping[str, float] | Iterable[tuple[str, float]],
+        *,
+        intent_id: str,
+        commitment_id: str | None = None,
+        context_ref: str | None = None,
+        actuator_id: str | None = None,
+    ) -> None:
+        super().__init__(baseline)
+        self.intent_id = intent_id
+        self.commitment_id = commitment_id
+        self.context_ref = context_ref
+        self.actuator_id = actuator_id
 
 
 class ActionDomain:
@@ -2096,16 +2120,30 @@ class ActionDomain:
                     exploration_preference=self.active_exploration_preference,
                 )
             self.last_action_source = source_value
-
-        if self.last_action_source == "exploration" and len(intents) == 1:
-            isolated = intents[0]
-            pending.append(
-                (
-                    isolated.actuator_id,
-                    float(isolated.activation),
-                    baseline,
-                )
+        if self.last_action_source == "exploration":
+            commitment_id = (
+                self.active_commitment.commitment_id if self.active_commitment is not None else None
             )
+            for intent in intents:
+                intent_causal_id = (
+                    f"{commitment_id}:{intent.actuator_id}"
+                    if commitment_id is not None
+                    else f"exploration.{intent.actuator_id}"
+                )
+                causal_baseline = IntentCausalBaseline(
+                    baseline,
+                    intent_id=intent_causal_id,
+                    commitment_id=commitment_id,
+                    context_ref=context_ref,
+                    actuator_id=intent.actuator_id,
+                )
+                pending.append(
+                    (
+                        intent.actuator_id,
+                        float(intent.activation),
+                        causal_baseline,
+                    )
+                )
 
         if self._competence_development is not None and intents:
             intents = self._competence_development.constrain_intents(intents)
