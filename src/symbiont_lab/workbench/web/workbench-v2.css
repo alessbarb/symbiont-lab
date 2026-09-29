@@ -1,0 +1,23 @@
+.view-subtitle{margin:.4rem 0 0;color:var(--muted,#8ea2b3);max-width:72ch;line-height:1.5}
+.v2-hero{display:flex;justify-content:space-between;gap:2rem;align-items:flex-end;padding:1.5rem;border:1px solid rgba(140,180,210,.16);background:linear-gradient(135deg,rgba(45,72,92,.24),rgba(17,27,37,.62));border-radius:18px;margin-bottom:1rem}
+.v2-hero h2{font-size:1.8rem;margin:.25rem 0}
+.v2-kicker{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:#8fb9d1}
+.v2-status-grid{display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:.65rem;min-width:380px}
+.v2-status-grid div,.v2-facts div{padding:.7rem .8rem;border:1px solid rgba(140,180,210,.12);border-radius:12px;background:rgba(8,15,22,.38)}
+.v2-status-grid span,.v2-facts span{display:block;color:#7f95a7;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em}
+.v2-status-grid strong,.v2-facts strong{display:block;margin-top:.25rem;font-size:.9rem}
+.v2-segmented{display:flex;gap:.45rem;margin:0 0 1rem}
+.v2-segmented button{border:1px solid rgba(140,180,210,.15);background:rgba(15,24,32,.55);color:#8fa3b4;border-radius:999px;padding:.48rem .85rem}
+.v2-segmented button.active{background:rgba(72,142,176,.18);color:#dff6ff;border-color:rgba(90,190,220,.35)}
+.v2-two-col{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:1rem;margin-bottom:1rem}
+.v2-panel{padding:1.15rem}
+.v2-panel h3{margin:.35rem 0 1rem;font-size:1.05rem}
+.v2-note{color:#8197a8;line-height:1.55}
+.v2-empty{padding:1rem;border:1px dashed rgba(140,180,210,.18);border-radius:14px;background:rgba(8,14,20,.3);margin-bottom:1rem}
+.v2-empty p{margin:.45rem 0 0;color:#8094a5;line-height:1.5}
+.v2-facts{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
+.vision-field{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;aspect-ratio:1/1;max-width:520px;padding:.7rem;background:#081018;border:1px solid rgba(125,178,204,.15);border-radius:16px}
+.vision-field i{display:block;border-radius:2px;background:rgba(96,183,219,calc(.12 + ((var(--i) % 7) * .025)));box-shadow:inset 0 0 0 1px rgba(130,210,235,.04)}
+.archive-shell .panel-title{letter-spacing:.03em}
+body .rail{backdrop-filter:blur(16px)}
+@media (max-width:980px){.v2-hero{align-items:stretch;flex-direction:column}.v2-status-grid{min-width:0}.v2-two-col{grid-template-columns:1fr}}
