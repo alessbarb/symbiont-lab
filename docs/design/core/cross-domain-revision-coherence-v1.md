@@ -850,6 +850,40 @@ is not touched. Arms, gates and decision rule are unchanged; P5.1 is a
 within-run A/B comparison and is not directly comparable to P5 (different
 organism, body and age).
 
+### 8.8 P5.1 result (2026-09-29) — ancestry structurally unreachable
+
+Runs on `d3dac186`, snapshot of `org-2df92a9d8fda` at tick 768; both arms
+died at tick 2 147 (1 379 ticks; wall-clock A 75 min, B 52 min). Artifacts:
+`.symbiont/archive/p51/`.
+
+The budget change works: each arm trained 44 models (requested steps 165-192
+by replay pressure) and **44/44 beat the non-neural baseline** (*G* −0.27 to
+−0.62, median −0.50; held-out loss 5.95 → 5.69 over the run). But **all 44
+also passed the unchanged promotion gate and became ACTIVE on adoption**;
+each displaced ACTIVE became DEGRADED and was then retired by recency. No
+SHADOW model beating the baseline ever existed, so under §8.4 — ancestry
+only from non-authoritative SHADOW models, never from ACTIVE — P5-B never
+had an eligible parent: 44 roots with reason `no-eligible-ancestor`, zero
+eligible ancestors, zero deferrals. The arms are again identical (same
+registry, byte-identical provenance).
+
+Gates: 1 holds vacuously; 2 and 3 not exercised by the run (covered only by
+the mechanics test, Private Model Learnability v1 §8); 4 passes (every
+ACTIVE passed the gate, summary `promote = 1`; no lineage); 5 fails (equal).
+`ancestry_training` is **not adopted**; the result is inconclusive about
+ancestry.
+
+**Finding.** At the new budget, eligibility (beating the baseline) implies
+promotion in practice, so the SHADOW-only rule makes ancestry unreachable
+by construction whenever training works. A further study needs an owner
+decision on the parent pool: (a) DEGRADED models (former ACTIVE, now
+non-authoritative) as ancestors; (b) the ACTIVE model as a training parent
+(the child is a SHADOW candidate; the ACTIVE is untouched — §8.3 item 1
+kept this out of P5); or (c) close ancestry as redundant with the
+promotion pipeline. Also observed: every candidate replaced the ACTIVE
+model (44 promotions in 1 379 ticks); the gate compares against the
+baselines, not against the current ACTIVE.
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
