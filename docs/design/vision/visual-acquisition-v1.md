@@ -94,6 +94,28 @@ At the start of the window, 143–170 visual senses exist on every seed and hori
 
 **Criteria 1 (budget) and 3 (stability) hold for every candidate. Criterion 2 (≥ 8 targets in A on all three seeds) holds for none.** Under §6.2, D1 is **not runnable as designed**. Nothing is frozen and no held-out seed is enabled. The design returns to the owner. Changing the candidate horizons, the target minimum, the nursery or the measurement is a new owner decision, taken before any performance quantity is computed.
 
+### 6.5 EW-D1A audit (2026-09-29): why only 1–5 targets
+
+Run `20260929T073605Z-learning-visual-predictor-audit-759ce5f-5b83`: development seeds, arm A, 2000 ticks, sampled every 50. It is observer-side and read-only, and it computes no evaluator metric (`studies/learning/visual_predictor_audit.py`).
+
+| Stage (tick ≈ 1600) | 101 | 127 | 149 |
+|---|---|---|---|
+| Visual senses admitted | 167 | 158 | 155 |
+| … of which cognitive sense nodes | 67 | 62 | 51 |
+| Promotable visual shadows (the organism's own supported evidence) | ~1200 | ~340 | ~260 |
+| Visual predictors / all predictors | 3 / 16 | 2 / 14 | 4 / 13 |
+| Visual predictors alive at end / lasting ≥ 400 ticks | 3 / 3 | 2 / 2 | 4 / 3 |
+| Visual-target churn (sum of set differences over 40 samples) | 39 | 23 | 14 |
+
+Findings:
+
+1. **Not an evaluator artefact, not churn, not retirement.** Once promoted, visual predictors persist (median span 1150–1500 ticks, alive at the end), and target identity is stable. The whole-window requirement does not hide intermittent predictors, because there are almost none to hide. Owner cases A and D are excluded.
+2. **Promotion throughput is the dominant bottleneck (case C).** Hundreds of promotable visual shadows exist, but promotion is serial: at most one predictor nominee in structural contention at a time. That yields about one predictor per ~120 ticks *across all targets* (13–16 by tick 1650). Vision gets 20–30 % of them, although visual shadows make up the majority of the promotable pool. The mechanism is generic and not visual-specific.
+3. **Graph admission limits the reachable targets.** Only 51–67 of the 155–170 admitted visual senses become cognitive sense nodes, and that number is flat after ~300 ticks.
+4. **A metabolic ceiling at ~1650 ticks, a design flaw in D1.** On all three seeds the shadow, promotion and predictor state freezes from tick ≈ 1654 onward. The D1 nursery has no resource. Energy drains deterministically: reserve 25 % and "stressed" at tick 1500 in EW-D0 on the same nursery. At SEVERE pressure, homeostasis pauses plasticity. That is also the acquisition protection boundary (ADR-0008), which the D1 runner does not apply. So candidate H = 2000 lies beyond the protected acquisition envelope, and no protected D1 run can last longer than ≈ 1650 ticks as designed.
+
+Consequence: D1 as preregistered measures the organism's generic promotion throughput and the nursery's energy budget more than visual acquisition. Any redesign (D1-v2) is an owner decision. Options must be decided before any performance quantity is computed: a nursery energy supply or a Lab-provided protected-recovery protocol (spec §6.4), the acquisition safety guard in the runner, and a generic, non-visual review of predictor promotion throughput.
+
 ## 7. Criteria (approved 2026-09-28)
 
 D1 passes on the held-out seeds if:
