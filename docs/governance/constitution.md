@@ -267,4 +267,35 @@ architecture decision approved by the project owner. The Constitution is the sin
 
 > **Inherited constitution belongs to the organism. Evolutionary operators acting on organisms belong to the Lab.**
 
+### 23. Real-host and safety boundaries
 
+Adopted by [ADR-0044](../adr/ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md).
+Verbatim from the pre-2026-09-29 roadmap. [ADR-0017](../adr/ADR-0017-host-least-privilege-and-non-remediation-safety.md)
+and [ADR-0018](../adr/ADR-0018-transparent-resident-lifecycle-supervision.md) are the
+accepted operational specifications of items 159–165. The approval gates for changing
+any of these boundaries are in [`decision-gates.md`](decision-gates.md) § Host and safety.
+
+159. Real-host access remains explicit, revocable and capability-bounded.
+160. Learned state cannot manufacture permissions, commands, executable code or new kernel capabilities.
+161. Credentials and privilege-escalation mechanisms remain outside the organism's developmental substrate.
+162. Residence and persistence remain transparent and owner-controlled.
+163. No stealth, concealment or evasion is used to maintain residence or acquire resources.
+164. No exploitation is used to acquire capabilities, compute, storage or access.
+165. Hard CPU, memory, storage and communication ceilings remain outside learned control.
+166. Reproduction never means covert or uncontrolled propagation.
+167. Materializing a descendant requires an authorized habitat, carrying-capacity slot and explicit resource allocation.
+168. A dead organism identity cannot be normally resumed as though continuity never closed.
+169. Experimental ground truth remains outside organism cognition (see also §2).
+170. The laboratory may observe the organism without silently becoming its controller (see also §13).
+171. New write, network, action or reproduction capabilities cross an explicit design and consent gate before implementation.
+
+These invariants do not imply that Symbiont must remain permanently read-only,
+non-communicating or non-reproductive.
+
+### 24. Lifecycle identity
+
+Adopted by [ADR-0044](../adr/ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md).
+
+172. Normal restore rejects a `DEAD` identity.
+173. Reconstructing or cloning from historical artifacts, if allowed experimentally, creates a new identity and is not resurrection.
+174. Organism lifecycle, cognitive topology health and reproductive readiness remain separate state dimensions. An organism may simultaneously be `MATURE`, `ADAPTIVE` and `REPRODUCTIVELY_READY`.

@@ -1,6 +1,6 @@
 # ADR-0044 — Host-safety and lifecycle invariants in the Constitution
 
-- **Status:** Proposed
+- **Status:** Accepted (owner acceptance recorded in `daaa931d`, 2026-09-29; applied to the Constitution as §23–§24)
 - **Date:** 2026-09-29
 - **Decision owner:** project owner
 
@@ -44,9 +44,9 @@ Today these survive only partially:
 Because the Constitution now claims to be the single source, a host-safety or
 lifecycle invariant that is absent from it has no canonical home.
 
-## Decision (proposed)
+## Decision
 
-After owner acceptance, add two sections to the Constitution. Numbering continues after
+Add two sections to the Constitution (applied as §23 and §24, items 159–174). Numbering continues after
 the current last invariant.
 
 ### 23. Real-host and safety boundaries
