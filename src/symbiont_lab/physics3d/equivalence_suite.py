@@ -42,6 +42,9 @@ class Scenario:
     min_training_completions: int
     require_promotion_event: bool
     coverage: tuple[str, ...]
+    memory_gb: float
+    disk_gb: float
+    cpu_threads: int
 
 
 def load_suite(path: Path) -> tuple[str, tuple[Scenario, ...]]:
@@ -62,6 +65,9 @@ def load_suite(path: Path) -> tuple[str, tuple[Scenario, ...]]:
                 min_training_completions=minimum,
                 require_promotion_event=bool(raw.get("require_promotion_event", False)),
                 coverage=tuple(str(x) for x in raw.get("coverage", [])),
+                memory_gb=float(raw.get("memory_gb", 6.0 if raw.get("training", False) else 4.0)),
+                disk_gb=float(raw.get("disk_gb", 1.0)),
+                cpu_threads=int(raw.get("cpu_threads", 1)),
             )
         )
     return str(data["suite_id"]), tuple(scenarios)
@@ -190,6 +196,54 @@ def compare(scenario: Scenario, baseline: dict, candidate: dict) -> dict:
         "first_divergence": first_divergence(a, b),
         "baseline_active_model": (a.get("registry_final") or {}).get("active_model_id"),
         "candidate_active_model": (b.get("registry_final") or {}).get("active_model_id"),
+    }
+
+
+def suite_status(path: Path) -> dict:
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    suite_id, scenarios = load_suite(path)
+    rows: list[dict[str, object]] = []
+    ready = True
+    for scenario in scenarios:
+        if not scenario.snapshot.exists():
+            rows.append({
+                "id": scenario.scenario_id,
+                "state": "MISSING",
+                "snapshot": str(scenario.snapshot),
+                "coverage": list(scenario.coverage),
+            })
+            ready = False
+            continue
+        try:
+            manifest = verify_snapshot(scenario.snapshot)
+        except Exception as exc:
+            rows.append({
+                "id": scenario.scenario_id,
+                "state": "INVALID",
+                "snapshot": str(scenario.snapshot),
+                "reason": str(exc),
+                "coverage": list(scenario.coverage),
+            })
+            ready = False
+            continue
+        rows.append({
+            "id": scenario.scenario_id,
+            "state": "READY",
+            "snapshot": str(scenario.snapshot),
+            "snapshot_id": manifest.get("snapshot_id"),
+            "organism_id": manifest.get("organism_id"),
+            "captured_tick": manifest.get("captured_tick"),
+            "coverage": list(scenario.coverage),
+            "memory_gb": scenario.memory_gb,
+            "disk_gb": scenario.disk_gb,
+            "cpu_threads": scenario.cpu_threads,
+        })
+    return {
+        "suite_id": suite_id,
+        "declared_status": data.get("status"),
+        "computed_status": "READY" if ready else "CAPTURE_REQUIRED",
+        "ready": ready,
+        "scenarios": rows,
     }
 
 

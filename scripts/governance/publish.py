@@ -7,12 +7,14 @@ evidence, validation, audit trailers, commit normalization and optimistic public
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,7 +24,8 @@ if str(SRC) not in sys.path:
 
 from governance.classify import ChangeClass, Assessment, assess  # noqa: E402
 from symbiont_lab.experiments.execution_workspace import pinned_worktree  # noqa: E402
-from symbiont_lab.physics3d.equivalence_suite import compare, load_suite  # noqa: E402
+from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources  # noqa: E402
+from symbiont_lab.physics3d.equivalence_suite import compare, load_suite, suite_status  # noqa: E402
 
 
 def _git(*args: str, check: bool = True) -> str:
@@ -66,6 +69,62 @@ def _classify(base: str) -> tuple[list[str], Assessment]:
     return paths, assess(ROOT, base, paths, diff)
 
 
+def _active_work_conflicts(paths: list[str]) -> list[str]:
+    registry = ROOT / "docs/governance/active-work.toml"
+    if not registry.is_file():
+        return []
+    data = tomllib.loads(registry.read_text(encoding="utf-8"))
+    conflicts: list[str] = []
+    for work in data.get("work", []):
+        if work.get("state") != "RUNNING":
+            continue
+        for path in paths:
+            if any(fnmatch.fnmatchcase(path, pattern) for pattern in work.get("protected_paths", [])):
+                conflicts.append(f"{work.get('id')}: {path}")
+    return conflicts
+
+
+def _running_long_work() -> list[str]:
+    registry = ROOT / "docs/governance/active-work.toml"
+    if not registry.is_file():
+        return []
+    data = tomllib.loads(registry.read_text(encoding="utf-8"))
+    return [str(work.get("id")) for work in data.get("work", []) if work.get("state") == "RUNNING"]
+
+
+def _git_common_dir() -> Path:
+    raw = _git("rev-parse", "--git-common-dir")
+    path = Path(raw)
+    return path if path.is_absolute() else (ROOT / path).resolve()
+
+
+def _scientific_lock_path() -> Path:
+    return _git_common_dir() / "symbiont-agent" / "scientific-run.json"
+
+
+def _equivalence_lock_path() -> Path:
+    return _git_common_dir() / "symbiont-agent" / "equivalence-run.json"
+
+
+class _EquivalenceLock:
+    def __enter__(self) -> "_EquivalenceLock":
+        if _scientific_lock_path().exists():
+            raise RuntimeError("equivalence unavailable while a scientific run lock exists")
+        lock = _equivalence_lock_path()
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError as exc:
+            raise RuntimeError("another equivalence run is already active") from exc
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump({"pid": os.getpid(), "started_at": time.time(), "kind": "causal-equivalence"}, handle)
+            handle.write("\n")
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        _equivalence_lock_path().unlink(missing_ok=True)
+
+
 def _run_scenario(code_root: Path, suite: Path, scenario: str, output: Path) -> dict:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(code_root / "src")
@@ -91,30 +150,53 @@ def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict[s
     if not scenarios:
         return True, {}
 
+    running = _running_long_work()
+    if running:
+        return False, {"suite": {"status": "NOT_ASSESSABLE_ACTIVE_RUN", "active_work": running}}
+
     suite = ROOT / "experiments/equivalence/suite-v1/suite.toml"
     if not suite.is_file():
         return False, {"suite": {"status": "ERROR", "reason": "equivalence suite missing"}}
+    readiness = suite_status(suite)
+    if not readiness.get("ready"):
+        return False, {"suite": {"status": "NOT_ASSESSABLE_SNAPSHOT_SET", "details": readiness}}
 
     _, definitions = load_suite(suite)
     by_id = {item.scenario_id: item for item in definitions}
     evidence: dict[str, dict] = {}
 
-    with pinned_worktree(ROOT, base) as baseline_tree:
-        for scenario_id in scenarios:
-            definition = by_id.get(scenario_id)
-            if definition is None:
-                evidence[scenario_id] = {"status": "ERROR", "reason": "unknown scenario"}
-                return False, evidence
-            with tempfile.TemporaryDirectory() as td:
-                td_path = Path(td)
-                baseline = _run_scenario(
-                    baseline_tree, suite, scenario_id, td_path / "baseline.json"
-                )
-                candidate = _run_scenario(ROOT, suite, scenario_id, td_path / "candidate.json")
-                result = compare(definition, baseline, candidate)
-                evidence[scenario_id] = result
-                if result.get("status") != "PASS":
+    with _EquivalenceLock():
+        with pinned_worktree(ROOT, base) as baseline_tree:
+            for scenario_id in scenarios:
+                definition = by_id.get(scenario_id)
+                if definition is None:
+                    evidence[scenario_id] = {"status": "ERROR", "reason": "unknown scenario"}
                     return False, evidence
+                resources = assess_resources(
+                    ResourceRequest(
+                        peak_memory_gb=definition.memory_gb,
+                        disk_gb=definition.disk_gb,
+                        cpu_threads=definition.cpu_threads,
+                        safety_memory_gb=1.0,
+                    ),
+                    disk_path=ROOT,
+                )
+                if not resources.allowed:
+                    evidence[scenario_id] = {
+                        "status": "NOT_ASSESSABLE_RESOURCES",
+                        "reason": list(resources.reasons),
+                    }
+                    return False, evidence
+                with tempfile.TemporaryDirectory() as td:
+                    td_path = Path(td)
+                    baseline = _run_scenario(
+                        baseline_tree, suite, scenario_id, td_path / "baseline.json"
+                    )
+                    candidate = _run_scenario(ROOT, suite, scenario_id, td_path / "candidate.json")
+                    result = compare(definition, baseline, candidate)
+                    evidence[scenario_id] = result
+                    if result.get("status") != "PASS":
+                        return False, evidence
     return True, evidence
 
 
@@ -126,6 +208,13 @@ def _evaluate(
     paths, assessment = _classify(base)
     if not paths:
         return assessment, ChangeClass.ORDINARY, {}
+
+    conflicts = _active_work_conflicts(paths)
+    if conflicts:
+        raise RuntimeError(
+            "ACTIVE-WORK: proposed diff touches a RUNNING campaign:\n  - "
+            + "\n  - ".join(conflicts)
+        )
 
     print(f"classification: {assessment.classification}")
     for reason in assessment.reasons:

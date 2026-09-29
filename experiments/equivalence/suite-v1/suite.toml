@@ -9,6 +9,9 @@ snapshot = "snapshots/S01-established-anthropomorphic"
 body_kind = "anthropomorphic-v6-vision"
 ticks = 96
 training = false
+memory_gb = 4.0
+disk_gb = 1.0
+cpu_threads = 1
 coverage = ["organism-state", "body-state", "provenance"]
 
 [[scenario]]
@@ -19,6 +22,9 @@ ticks = 160
 training = true
 train_interval = 32
 min_training_completions = 3
+memory_gb = 6.0
+disk_gb = 1.0
+cpu_threads = 1
 coverage = ["organism-state", "private-model-training", "model-lineage"]
 
 [[scenario]]
@@ -30,6 +36,9 @@ training = true
 train_interval = 32
 min_training_completions = 4
 require_promotion_event = true
+memory_gb = 6.0
+disk_gb = 1.0
+cpu_threads = 1
 coverage = ["organism-state", "private-model-training", "model-promotion", "model-lineage"]
 
 [[scenario]]
@@ -38,6 +47,9 @@ snapshot = "snapshots/S04-reembodied-established"
 body_kind = "anthropomorphic-v6-vision"
 ticks = 96
 training = false
+memory_gb = 4.0
+disk_gb = 1.0
+cpu_threads = 1
 coverage = ["organism-state", "reembodiment", "body-state"]
 
 [[scenario]]
@@ -46,4 +58,7 @@ snapshot = "snapshots/S05-developed-cognition"
 body_kind = "anthropomorphic-v6-vision"
 ticks = 128
 training = false
+memory_gb = 4.0
+disk_gb = 1.0
+cpu_threads = 1
 coverage = ["organism-state", "cognition", "provenance"]

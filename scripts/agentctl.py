@@ -24,7 +24,12 @@ from governance.classify import ChangeClass, assess as assess_change
 from governance.publish import publish as publish_changes
 from symbiont_lab.experiments.execution_workspace import pinned_worktree
 from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
-from symbiont_lab.experiments.snapshot_archive import archive_snapshot
+from symbiont_lab.experiments.snapshot_archive import archive_snapshot, verify_snapshot
+from symbiont_lab.physics3d.equivalence_suite import (
+    load_suite as load_equivalence_suite,
+    run_once as run_equivalence_once,
+    suite_status as equivalence_suite_status,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 GOV = ROOT / "docs" / "governance"
@@ -633,6 +638,10 @@ def _run_lock_path() -> Path:
     return runtime_dir() / "scientific-run.json"
 
 
+def _equivalence_lock_path() -> Path:
+    return runtime_dir() / "equivalence-run.json"
+
+
 def _pid_alive(pid: int) -> bool:
     if pid <= 0:
         return False
@@ -812,6 +821,10 @@ def run_pinned(
     if not commit_exists(commit):
         print(f"unknown commit: {commit}", file=sys.stderr)
         return 2
+    commit = git("rev-parse", f"{commit}^{{commit}}")
+    if _equivalence_lock_path().exists():
+        print("BLOCKED — causal-equivalence run already active", file=sys.stderr)
+        return 3
     others = _tracked_running_other_than(run_id)
     if others:
         print(f"BLOCKED — long scientific run already active: {', '.join(others)}", file=sys.stderr)
@@ -869,6 +882,11 @@ def run_pinned(
         "cpu_threads": cpu,
         "disk_gb": disk_gb,
         "input_manifest": manifest,
+        "resource_preflight": {
+            "available_memory_gb": assessment.available_memory_gb,
+            "free_disk_gb": assessment.free_disk_gb,
+            "available_cpu_threads": assessment.available_cpu_threads,
+        },
         "state": "launching",
     }
     if _reserve_run_lock(payload):
@@ -955,6 +973,71 @@ def clear_stale() -> int:
     return 0
 
 
+def equivalence_status_command(suite: Path) -> int:
+    payload = equivalence_suite_status(suite)
+    print(json.dumps(payload, indent=2, default=str))
+    return 0 if payload.get("ready") else 2
+
+
+def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
+    running = [work["id"] for work in load("active-work.toml").get("work", []) if work.get("state") == "RUNNING"]
+    if running:
+        print("BLOCKED — long scientific work already RUNNING: " + ", ".join(running), file=sys.stderr)
+        return 3
+    if _run_lock_path().exists() or _equivalence_lock_path().exists():
+        print("BLOCKED — another heavy run is already active", file=sys.stderr)
+        return 3
+
+    _, scenarios = load_equivalence_suite(suite)
+    by_id = {scenario.scenario_id: scenario for scenario in scenarios}
+    selected = list(by_id) if not scenario_ids else scenario_ids
+    unknown = [scenario_id for scenario_id in selected if scenario_id not in by_id]
+    if unknown:
+        print("unknown equivalence scenario(s): " + ", ".join(unknown), file=sys.stderr)
+        return 2
+
+    readiness = equivalence_suite_status(suite)
+    if not readiness.get("ready"):
+        print(json.dumps(readiness, indent=2, default=str))
+        return 2
+
+    lock = _equivalence_lock_path()
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        print("BLOCKED — another equivalence run is already active", file=sys.stderr)
+        return 3
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        json.dump({"pid": os.getpid(), "started_at": datetime.now(timezone.utc).isoformat()}, handle)
+        handle.write("\n")
+
+    exit_code = 0
+    try:
+        for scenario_id in selected:
+            scenario = by_id[scenario_id]
+            resources = assess_resources(
+                ResourceRequest(
+                    peak_memory_gb=scenario.memory_gb,
+                    disk_gb=scenario.disk_gb,
+                    cpu_threads=scenario.cpu_threads,
+                    safety_memory_gb=1.0,
+                ),
+                disk_path=ROOT,
+            )
+            if not resources.allowed:
+                print(json.dumps({"scenario": scenario_id, "status": "NOT_ASSESSABLE_RESOURCES", "reasons": list(resources.reasons)}, indent=2))
+                exit_code = 2
+                continue
+            result = run_equivalence_once(scenario)
+            print(json.dumps({"scenario": scenario_id, **result}, indent=2, default=str))
+            if result.get("status") != "PASS":
+                exit_code = 2
+    finally:
+        lock.unlink(missing_ok=True)
+    return exit_code
+
+
 def status() -> int:
     state = load("project-state.toml")
     print(f"current gate: {state['current_gate']}")
@@ -972,9 +1055,9 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status")
     sub.add_parser("verify")
-    p_validate = sub.add_parser("validate")
+    p_validate = sub.add_parser("validate", help=argparse.SUPPRESS)
     p_validate.add_argument("--staged", action="store_true", default=True)
-    p_check = sub.add_parser("check")
+    p_check = sub.add_parser("check", help=argparse.SUPPRESS)
     p_check.add_argument("--base", default="HEAD")
     p_check.add_argument("--staged", action="store_true")
     p_check.add_argument("--manifest", default=".agent-session.toml")
@@ -986,6 +1069,14 @@ def main() -> int:
     p_publish.add_argument("--message", required=True)
     p_publish.add_argument("--owner-approved", action="store_true")
 
+    p_equivalence = sub.add_parser("equivalence")
+    equivalence_sub = p_equivalence.add_subparsers(dest="equivalence_command", required=True)
+    p_eq_status = equivalence_sub.add_parser("status")
+    p_eq_status.add_argument("--suite", type=Path, default=ROOT / "experiments/equivalence/suite-v1/suite.toml")
+    p_eq_run = equivalence_sub.add_parser("run")
+    p_eq_run.add_argument("--suite", type=Path, default=ROOT / "experiments/equivalence/suite-v1/suite.toml")
+    p_eq_run.add_argument("--scenario", action="append", default=[])
+
     p_snapshot = sub.add_parser("snapshot")
     snapshot_sub = p_snapshot.add_subparsers(dest="snapshot_command", required=True)
     p_capture = snapshot_sub.add_parser("capture")
@@ -993,6 +1084,9 @@ def main() -> int:
     p_capture.add_argument("--destination", type=Path, required=True)
     p_capture.add_argument("--body-kind")
     p_capture.add_argument("--scenario")
+    p_capture.add_argument("--source-commit")
+    p_verify_snapshot = snapshot_sub.add_parser("verify")
+    p_verify_snapshot.add_argument("--path", type=Path, required=True)
 
     p_run = sub.add_parser("run")
     run_sub = p_run.add_subparsers(dest="run_command", required=True)
@@ -1008,7 +1102,7 @@ def main() -> int:
     p_start.add_argument("--owner-approved", action="store_true")
     p_start.add_argument("argv", nargs=argparse.REMAINDER)
 
-    p_exec = run_sub.add_parser("exec")
+    p_exec = run_sub.add_parser("exec", help=argparse.SUPPRESS)
     p_exec.add_argument("--grant", required=True)
     p_exec.add_argument("--id", required=True)
     p_exec.add_argument("--wall-minutes", type=int, default=180)
@@ -1026,11 +1120,23 @@ def main() -> int:
         return verify()
     if args.command == "publish":
         return publish_changes(message=args.message, owner_approved=args.owner_approved)
+    if args.command == "equivalence":
+        if args.equivalence_command == "status":
+            return equivalence_status_command(args.suite)
+        return equivalence_run_command(args.suite, args.scenario)
     if args.command == "snapshot":
+        if args.snapshot_command == "verify":
+            print(json.dumps(verify_snapshot(args.path), indent=2, sort_keys=True))
+            return 0
+        source_commit = args.source_commit or git("rev-parse", "HEAD")
+        if not commit_exists(source_commit):
+            print(f"unknown source commit: {source_commit}", file=sys.stderr)
+            return 2
+        source_commit = git("rev-parse", f"{source_commit}^{{commit}}")
         manifest = archive_snapshot(
             source=args.source,
             destination=args.destination,
-            source_commit=git("rev-parse", "HEAD"),
+            source_commit=source_commit,
             body_kind=args.body_kind,
             scenario=args.scenario,
         )
