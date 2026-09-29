@@ -84,6 +84,29 @@ from the interquartile half-width of the fair differences. A provisional
 value from the current data would be ≈ 0.05 nats (half the interquartile
 range, 11/31 promotions).
 
+**D1 repeat with the common-vocabulary metric (2026-09-29, `27edefe6`).**
+Same archived input, instrument on only; final organism state, provenance
+and body identical to the archived *off* copy (the extended instrument is
+observational), and the full-loss rows reproduce D1 exactly. Common targets
+are 91-97 % of held-out targets. Fair difference ACTIVE − candidate: min
+−0.169, p10 −0.063, p25 −0.040, **median −0.003**, p75 +0.070, p90 +0.085,
+max +0.857; **16/31 promoted candidates worse than the ACTIVE**. It still
+correlates with the fraction of targets unknown to the ACTIVE (r = 0.635),
+so the correlation is **not** a scoring artefact of unknown tokens (they
+are excluded here): the unknown fraction tracks how new the recent data
+is, and on newer data candidates genuinely predict better. The earlier
+"vocabulary mismatch" reading is withdrawn.
+
+Interquartile half-width of the fair differences: **0.0548 nats**. Under a
+margin of 0.055 nats, 9/31 candidates would have been promoted (15/31 at
+margin 0, 3/31 at 0.10).
+
+**Proposed for the confirmation preregistration (owner decision):** a
+candidate becomes ACTIVE only if it beats the canonical baseline (unchanged)
+**and** its common-vocabulary held-out loss is lower than the current
+ACTIVE's by more than **0.055 nats**. This margin comes from D1 design data
+and cannot be confirmed by it.
+
 ## 5. Confirmation (to be preregistered after D1)
 
 New data only: a different organism or snapshot, arms current gate vs
