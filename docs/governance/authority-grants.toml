@@ -143,7 +143,7 @@ allowed_paths = [
 [[grant]]
 id = "owner-2026-09-29-governance-simplification-and-equivalence-v2"
 kind = "change"
-status = "open"
+status = "revoked"
 authority = "L4"
 base_commit = "7e95f314da62bd457b8bcec15789155bd7e09e2f"
 issued_by = "alessbarb"
@@ -175,7 +175,7 @@ allowed_paths = [
 [[grant]]
 id = "owner-2026-09-29-governance-simplification-and-equivalence-v2b"
 kind = "change"
-status = "open"
+status = "revoked"
 authority = "L4"
 base_commit = "467cea8ae087f8362fb226ef148c23a7e33a1fa9"
 issued_by = "alessbarb"
