@@ -11,7 +11,6 @@ import { graph, observerUsage } from './state.js';
 
 export function createCognitionInteraction({
   onInvalidate3D = () => {},
-  onRebuild = () => {},
   onSelectionChange = () => {},
   onRegionFocusChange = () => {},
   onRenderInspector = () => {},
