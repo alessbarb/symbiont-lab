@@ -417,3 +417,76 @@ def test_alias_rejects_unknown_or_unsafe_refs_and_long_names(tmp_path) -> None:
             store.set_alias(ref, "x")
     with pytest.raises(ValueError, match="at most 64"):
         store.set_alias("org-x", "x" * 65)
+
+
+def test_catalog_marks_stale_body_checkpoint_non_resumable(tmp_path) -> None:
+    _existing_organism(tmp_path)
+    body = tmp_path / "bodies" / "body-x" / "body.json"
+    body.write_text('{"symbiont_ticks":4}', encoding="utf-8")
+
+    store = Physics3DRunStore(tmp_path)
+    item = store.organisms()[0]
+
+    assert item["tick"] == 5
+    assert item["body_checkpoint_tick"] == 4
+    assert item["body_checkpoint_in_sync"] is False
+    assert item["resumable_body"] is False
+    assert item["runnable"] is True
+
+
+def test_resume_rejects_stale_body_before_creating_run(tmp_path) -> None:
+    _existing_organism(tmp_path)
+    body = tmp_path / "bodies" / "body-x" / "body.json"
+    body.write_text('{"symbiont_ticks":4}', encoding="utf-8")
+
+    store = Physics3DRunStore(tmp_path)
+    runs_before = set((tmp_path / "runs").iterdir())
+
+    with pytest.raises(ValueError, match=r"stale relative to the Symbiont \(4 != 5\)"):
+        _prepare_existing(store)
+
+    assert set((tmp_path / "runs").iterdir()) == runs_before
+    # The Symbiont remains runnable through explicit fresh re-embodiment.
+    launch = store.prepare(
+        {
+            "body_kind": "anthropomorphic-v6",
+            "organism": {"mode": "existing", "ref": "org-x"},
+            "body": {"mode": "fresh"},
+        }
+    )
+    assert launch.embodiment_mode == "reembodiment"
+    assert launch.fresh_body is True
+
+
+def test_finalize_only_marks_body_resumable_when_tick_aligned(tmp_path) -> None:
+    from symbiont_lab.physics3d import persistence
+
+    _existing_organism(tmp_path)
+    store = Physics3DRunStore(tmp_path)
+    launch = _prepare_existing(store)
+
+    persistence.save_symbiont_bundle(
+        {
+            "organism_id": "symbiont:x",
+            "saved_at_tick": 8,
+            "living_body": {"vital_state": "active"},
+            "embodiment_lifecycle": {
+                "schema_version": 1,
+                "state": "dormant",
+                "epoch": 1,
+                "current": {"body_kind": "anthropomorphic-v6", "started_tick": 0},
+                "history": [],
+            },
+        },
+        tmp_path / "models",
+        launch.symbiont_file,
+    )
+    # Simulate a crash window: organism persisted at t8, body remained at t5.
+    store.finalize(launch, status="failed", error="simulated interruption")
+
+    body_meta = json.loads(
+        (tmp_path / "bodies" / "body-x" / "metadata.json").read_text(encoding="utf-8")
+    )
+    assert body_meta["checkpoint_tick"] == 5
+    assert body_meta["checkpoint_in_sync"] is False
+    assert body_meta["resumable"] is False
