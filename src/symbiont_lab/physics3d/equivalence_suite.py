@@ -100,6 +100,9 @@ def _snapshot_contract_failure(scenario: Scenario, manifest: dict) -> str | None
     )
     if body_kind and body_kind != scenario.body_kind:
         return f"snapshot body_kind mismatch: {body_kind!r} != {scenario.body_kind!r}"
+    models_source = str(manifest.get("models_source") or "")
+    if models_source not in {"external", "bundle"}:
+        return "snapshot has no captured model artifacts"
     return None
 
 
