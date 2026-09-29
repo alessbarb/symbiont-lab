@@ -64,3 +64,34 @@ allowed_paths = [
   "docs/adr/ADR-0044-*.md",
   "docs/adr/README.md",
 ]
+
+[[grant]]
+id = "owner-2026-09-29-governance-enforcement-v3"
+kind = "change"
+status = "open"
+authority = "L4"
+base_commit = "9de95671e965d9f0dc727f3b0c94ca0ab97191ce"
+issued_by = "alessbarb"
+purpose = "Close the adversarial governance audit findings: full commit-range auditing, explicit owner-root grant issuance, scientific execution authorization, complete control-plane protection, full experiment freezing, validation receipts, documentation reconciliation, and broken docs tests."
+single_use = true
+allowed_paths = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "README.md",
+  "ORGANISM.md",
+  "docs/governance/**",
+  "scripts/agentctl.py",
+  "tests/governance/**",
+  ".github/**",
+  ".pre-commit-config.yaml",
+  ".gitignore",
+  ".agents/**",
+  ".claude/**",
+  ".codex/**",
+  "pyproject.toml",
+  "pyrightconfig.json",
+  "docs/adr/**",
+  "docs/roadmap.md",
+  "docs/history/roadmap-log.md",
+  "docs/glossary.md",
+]
