@@ -95,3 +95,32 @@ allowed_paths = [
   "docs/history/roadmap-log.md",
   "docs/glossary.md",
 ]
+
+[[grant]]
+id = "owner-2026-09-29-governance-enforcement-v4"
+kind = "change"
+status = "open"
+authority = "L4"
+base_commit = "5e2322798f25ccc7626ec3b79066808b4e48b022"
+issued_by = "alessbarb"
+purpose = "Close adversarial governance gaps and reconcile current roadmap/docs without touching the active D1-v2 run."
+single_use = true
+allowed_paths = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "README.md",
+  "docs/governance/**",
+  "scripts/agentctl.py",
+  "tests/governance/**",
+  ".github/**",
+  ".pre-commit-config.yaml",
+  ".gitignore",
+  ".agents/**",
+  ".claude/**",
+  ".codex/**",
+  "pyproject.toml",
+  "pyrightconfig.json",
+  "docs/adr/**",
+  "docs/roadmap.md",
+  "docs/history/roadmap-log.md",
+]
