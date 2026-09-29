@@ -310,3 +310,54 @@ body .rail{backdrop-filter:blur(16px)}
 }
 .acquired-self-physical-regions strong.novel,
 .acquired-self-column-head em.novel{color:var(--violet);border-color:rgba(167,119,255,.24)}
+
+
+/* ── Acquired Self v2.1 / v2.2 refinements ─────────────────────── */
+.acquired-self-toolbar{display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px}
+.acquired-self-toolbar>button,.acquired-self-physical-stage-copy button{
+  border:1px solid rgba(118,145,167,.14);border-radius:7px;padding:6px 8px;
+  background:rgba(255,255,255,.012);color:var(--muted);font:8px var(--mono);cursor:pointer
+}
+.acquired-self-toolbar>button.active{color:var(--cyan);border-color:rgba(86,214,255,.28);background:rgba(86,214,255,.045)}
+.acquired-self-compare-mode .acquired-self-compare{grid-template-columns:50% 50%}
+.acquired-self-compare-mode .self-model-head,
+.acquired-self-compare-mode .acquired-self-modes{width:calc(50% - 18px)}
+.acquired-self-physical-stage-copy.compact{right:auto;max-width:360px;bottom:auto}
+.acquired-self-physical-regions{left:10px;right:auto;width:min(390px,42vw);max-height:36%}
+.acquired-self-mini-projection .self-view-layout{grid-template-columns:1fr}
+.acquired-self-mini-projection .self-body-stage{min-height:470px}
+.acquired-self-mini-projection .self-body-svg{height:min(430px,58vh)}
+.acquired-self-mini-projection .self-body-regions{display:none}
+.labels-hidden .self-body-label,
+.labels-hidden [data-observer-label],
+.labels-hidden .self-body-regions{display:none!important}
+.labels-visible .self-body-regions{display:block}
+.self-evidence-toggle{width:100%;margin-top:7px;color:var(--cyan)!important}
+.self-evidence-expanded{margin-top:8px;padding-top:8px;border-top:1px solid rgba(118,145,167,.08)}
+.acquired-self-development-context{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;
+  margin-bottom:10px;padding:10px;border:1px solid rgba(118,145,167,.11);
+  border-radius:9px;background:rgba(255,255,255,.01)
+}
+.acquired-self-development-context>div{padding:8px;border:1px solid rgba(118,145,167,.08);border-radius:7px}
+.acquired-self-development-context span{display:block;color:var(--muted);font:8px var(--mono);text-transform:uppercase}
+.acquired-self-development-context strong{display:block;margin-top:4px;font:600 12px var(--sans)}
+.acquired-self-development-context small{grid-column:1/-1;color:var(--muted);font:8px/1.45 var(--mono)}
+.acquired-self-development-event{width:100%;border-left:0;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.acquired-self-development-event:hover{background:rgba(86,214,255,.025)}
+.acquired-self-development-event.strengthened,
+.acquired-self-development-event.became_stable,
+.acquired-self-development-event.agency_appeared{border-left:2px solid var(--mint);padding-left:8px}
+.acquired-self-development-event.weakened,
+.acquired-self-development-event.became_uncertain,
+.acquired-self-development-event.lost_support{border-left:2px solid var(--amber);padding-left:8px}
+.acquired-self-development-event.novel{border-left:2px solid var(--violet);padding-left:8px}
+
+/* World Acquired / Compare must contain no physical presentation until organism-owned structure exists */
+.world-epistemic-mode .body-canvas{visibility:hidden!important}
+.world-epistemic-mode .body-canvas-wrap{background:#07111a!important}
+
+/* Global experience/view context */
+.statusbar-context{display:inline-flex;gap:8px;align-items:center}
+.statusbar-context-label{color:var(--muted);font:7px var(--mono);text-transform:uppercase;letter-spacing:.08em}
+.statusbar-context strong{font:8px var(--mono);font-weight:500}
