@@ -376,6 +376,7 @@ def _verify_toml() -> list[str]:
         "owner-root.toml",
         "bootstrap-exceptions.toml",
         "change-surfaces.toml",
+        "publication-policy.toml",
     ):
         try:
             load(name)
@@ -813,6 +814,10 @@ def run_pinned(
     others = _tracked_running_other_than(run_id)
     if others:
         print(f"BLOCKED — long scientific run already active: {', '.join(others)}", file=sys.stderr)
+        return 3
+
+    if _run_lock_path().exists():
+        print("BLOCKED — local scientific run lock already exists", file=sys.stderr)
         return 3
 
     assessment = assess_resources(
