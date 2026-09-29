@@ -124,3 +124,18 @@ allowed_paths = [
   "docs/roadmap.md",
   "docs/history/roadmap-log.md",
 ]
+
+[[grant]]
+id = "owner-2026-09-29-governance-bootstrap-audit-fix"
+kind = "change"
+status = "open"
+authority = "L4"
+base_commit = "557b421d4eb8edbc0e08796b301810c5a28e92ae"
+issued_by = "alessbarb"
+purpose = "Record exact bootstrap authority exceptions caused by a concurrent grant-issuance race and make historical commit auditing explicit."
+single_use = true
+allowed_paths = [
+  "docs/governance/**",
+  "scripts/agentctl.py",
+  "tests/governance/**",
+]
