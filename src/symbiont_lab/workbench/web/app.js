@@ -61,6 +61,35 @@ function setRunState(text) {
   if (node && node.textContent !== text) node.textContent = text;
 }
 
+function setContext(experience, view) {
+  const experienceNode = document.getElementById('sb-experience');
+  const viewNode = document.getElementById('sb-view');
+  if (experienceNode) experienceNode.textContent = experience || 'none';
+  if (viewNode) viewNode.textContent = view || 'Home';
+}
+
+function viewLabel(view) {
+  const labels = {
+    home: 'Home',
+    mind: 'Mind',
+    embodiment: 'Embodiment',
+    vision: 'Vision',
+    world: 'World',
+    archive: 'Archive',
+  };
+  return labels[view] || view;
+}
+
+function experienceLabel(runKind) {
+  const labels = {
+    'acquisition.embodiment': 'Embodiment Experience',
+    'acquisition.vision': 'Vision Experience',
+    'world.challenge': 'World · Challenge',
+    'world.open': 'World · Open',
+  };
+  return labels[runKind] || runKind || 'none';
+}
+
 function setDetail(text, visible = true) {
   const detail = document.getElementById('sb-detail');
   const sep = document.getElementById('sb-sep2');
@@ -82,6 +111,7 @@ function updateStatusBar(state) {
   const tick = physics.tick ?? state.current?.tick ?? state.tick;
   const epoch = physics.embodiment_epoch ?? state.current?.embodiment_epoch;
   const runKind = physics.run_kind;
+  setContext(experienceLabel(runKind), viewLabel(currentView));
   setRunState(
     physicsRunning
       ? [
@@ -201,6 +231,7 @@ function routeToView(viewId, { updateHash = true } = {}) {
   }
 
   activateRail(next);
+  setContext(experienceLabel(currentState?.sources?.physics3d?.run_kind), viewLabel(next));
   void mountRoute(next);
 }
 
