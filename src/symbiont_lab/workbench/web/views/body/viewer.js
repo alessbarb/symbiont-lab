@@ -167,6 +167,12 @@ export class BodyViewer {
     this.sse = null;
     this.resizeObs = null;
     this.cameraControls = null;
+    this.segmentPickRaycaster = null;
+    this.segmentPickPointer = null;
+    this.onCanvasClick = null;
+    this.segmentPickRaycaster = new THREE.Raycaster();
+    this.segmentPickPointer = new THREE.Vector2();
+    this.onCanvasClick = (event) => this.handleCanvasSegmentPick(event);
 
     this.init();
   }
@@ -215,6 +221,7 @@ export class BodyViewer {
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'body-canvas';
     this.canvasWrap.appendChild(this.canvas);
+    this.canvas.addEventListener('click', this.onCanvasClick);
 
     // Status Overlay
     this.statusEl = el('span', 'body-status-pill', {
@@ -353,6 +360,42 @@ export class BodyViewer {
     if (!root.traverse && root.material) {
       const materials = Array.isArray(root.material) ? root.material : [root.material];
       for (const material of materials) callback(material, root);
+    }
+  }
+
+  segmentNameForObject(object) {
+    let current = object;
+    while (current) {
+      for (const [segmentName, root] of Object.entries(this.segmentMeshes ?? {})) {
+        if (current === root) return segmentName;
+      }
+      current = current.parent;
+    }
+    return null;
+  }
+
+  handleCanvasSegmentPick(event) {
+    if (
+      this.domain !== 'embodiment' ||
+      this.workspace?.activeTab !== 'self-model' ||
+      this.workspace?.selfModel?.mode !== 'compare' ||
+      !this.camera ||
+      !this.canvas ||
+      !this.segmentPickRaycaster
+    ) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    this.segmentPickPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.segmentPickPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    this.segmentPickRaycaster.setFromCamera(this.segmentPickPointer, this.camera);
+    const roots = Object.values(this.segmentMeshes ?? {}).filter(Boolean);
+    const hits = this.segmentPickRaycaster.intersectObjects(roots, true);
+    for (const hit of hits) {
+      const segment = this.segmentNameForObject(hit.object);
+      if (!segment) continue;
+      this.workspace?.handleCanvasSegmentPick(segment);
+      break;
     }
   }
 
@@ -1641,6 +1684,10 @@ export class BodyViewer {
     if (this.resizeObs) {
       this.resizeObs.disconnect();
       this.resizeObs = null;
+    }
+
+    if (this.canvas && this.onCanvasClick) {
+      this.canvas.removeEventListener('click', this.onCanvasClick);
     }
 
     this.worldView?.dispose();
