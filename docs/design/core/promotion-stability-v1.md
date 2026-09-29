@@ -43,6 +43,16 @@ organism; the equivalence harness checks that the organism's trajectory is
 unchanged by the instrument. The distribution of (ACTIVE − candidate)
 paired differences fixes the margin, before any confirmation run.
 
+**D1 as run (2026-09-29).** The tick-768 snapshot was not archived (it
+lived only in the deleted P5.1 copies), so D1 uses a new snapshot of the
+same organism at tick 1 105 (stressed; checkpoint sha256 `7490de26…`, body
+`8c8bf460…`, archived with its models in `.symbiont/archive/d1/input/`).
+Code `247dca7f` (instrument, off by default). Two copies run in parallel to
+death or 6 000 ticks: *on* logs paired evaluations, *off* does not; their
+final organism state, provenance and body must be byte-identical. The
+paired value is logged for every training whose current ACTIVE has a
+tokenizer on disk, promoted or not.
+
 ## 5. Confirmation (to be preregistered after D1)
 
 New data only: a different organism or snapshot, arms current gate vs
