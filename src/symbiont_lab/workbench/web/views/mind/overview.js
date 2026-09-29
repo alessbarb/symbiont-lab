@@ -1,152 +1,196 @@
 import { el } from '../shared/dom.js';
 import { PAL } from './config.js';
-import { bigMetric, inspectorMetric, panelSection } from './components.js';
+import { panelSection } from './components.js';
 import { currentMotorOutputEdges, currentPhysiologyState } from './derived.js';
-import { milestones, mindHistory, snap, tel } from './state.js';
-import { finiteNumber, pct } from './util.js';
+import { graph, milestones, mindHistory, snap, tel } from './state.js';
+import { pct } from './util.js';
+
+function nodeActivity(node) {
+  const candidates = [node?.activity, node?.activation, node?.salience, node?.strength];
+  for (const value of candidates) {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return 0;
+}
+
+function metric(label, value, tone = 'neutral') {
+  const card = el('div', `mind-live-metric ${tone}`);
+  const l = el('span', 'mind-live-metric-label');
+  l.textContent = label;
+  const v = el('strong', 'mind-live-metric-value');
+  v.textContent = String(value ?? '—');
+  card.append(l, v);
+  return card;
+}
+
+function deltaText(current, previous) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return '—';
+  const d = current - previous;
+  return d === 0 ? 'no change' : `${d > 0 ? '+' : ''}${d}`;
+}
+
+function cognitiveLabel(node) {
+  return node?.observer_label || node?.semantic_label || node?.label || node?.id || node?.kind || 'unknown';
+}
 
 export function renderOverview({ onOpenHistoryTick = () => {} } = {}) {
   const root = document.getElementById('mind-overview-wrap');
   if (!root) return;
   const prevScroll = root.scrollTop;
-  root.innerHTML = '';
+  root.replaceChildren();
 
-  const topology = snap.topology ?? {nodes:[], edges:[]};
+  const topology = snap.topology ?? { nodes: [], edges: [] };
   const nodes = topology.nodes ?? [];
-  const sensorimotor = snap.sensorimotor ?? {};
-  const outcome = snap.outcome ?? {};
+  const edges = topology.edges ?? [];
+  const concepts = nodes.filter(node => node.kind === 'concept').length;
+  const predictors = nodes.filter(node => node.kind === 'predictor').length;
+  const readouts = nodes.filter(node => node.kind === 'readout').length;
+  const activeNodes = [...nodes]
+    .filter(node => nodeActivity(node) > 0)
+    .sort((a,b) => nodeActivity(b) - nodeActivity(a))
+    .slice(0, 6);
   const physiology = currentPhysiologyState();
-  const concepts = nodes.filter(n => n.kind === 'concept').length;
-  const predictors = nodes.filter(n => n.kind === 'predictor').length;
-  const motorEdges = currentMotorOutputEdges(topology);
+  const currentPoint = mindHistory.at(-1) ?? null;
+  const previousPoint = mindHistory.length > 1 ? mindHistory.at(-2) : null;
+  const latestMilestone = milestones.at(-1) ?? null;
+  const recentEvents = (graph.cognitiveEvents ?? []).slice(-5).reverse();
   const energy = tel.metabolicReserve;
-  const repertoire = Array.isArray(sensorimotor.active_motor_repertoire) ? sensorimotor.active_motor_repertoire.length : 0;
-  const readoutCount = nodes.filter(n => n.kind === 'readout' && (String(n.id).startsWith('readout_motor:') || String(n.id).startsWith('readout_primitive:'))).length;
+  const motorEdges = currentMotorOutputEdges(topology);
 
-  const heading = el('div','');
-  heading.style.cssText='display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:14px;';
-  const copy=el('div','');
-  const h=el('h2',''); h.style.cssText='font-size:16px;margin:0;color:var(--text);'; h.textContent='Organism overview';
-  const sub=el('p',''); sub.style.cssText='font-size:10px;color:var(--muted);margin:4px 0 0;'; sub.textContent='What exists, what has been learned, and what the organism can actually use.';
-  copy.append(h,sub);
-  const phase=el('strong',''); phase.style.cssText='font-size:12px;text-transform:uppercase;letter-spacing:.08em;'; phase.style.color =
-    physiology==='dead'?PAL.coral:physiology==='dormant'?PAL.amber:physiology==='stressed'?PAL.coral:PAL.mint;
-  const epochLabel=tel.embodimentEpoch!=null?`E${tel.embodimentEpoch}`:'';
-  const reacclimationLabel=tel.reacclimating
-    ? `reacclimating ${tel.reacclimationRemaining ?? '?'}t`
-    : '';
-  phase.textContent=[physiology,epochLabel,reacclimationLabel].filter(Boolean).join(' · ');
-  heading.append(copy,phase);
-  root.appendChild(heading);
+  const head = el('div', 'mind-live-head');
+  const copy = el('div', '');
+  const eyebrow = el('div', 'mind-live-eyebrow');
+  eyebrow.textContent = 'MIND · LIVE';
+  const title = el('h2', '');
+  title.textContent = 'What is happening now';
+  const sub = el('p', '');
+  sub.textContent = 'Current cognitive activity, recent structural change and what the organism can presently reuse.';
+  copy.append(eyebrow, title, sub);
+  const state = el('strong', 'mind-live-state');
+  state.textContent = [
+    String(physiology || 'unknown').toUpperCase(),
+    tel.embodimentEpoch != null ? `E${tel.embodimentEpoch}` : null,
+    tel.tick != null ? `t${Number(tel.tick).toLocaleString()}` : null,
+  ].filter(Boolean).join(' · ');
+  head.append(copy, state);
+  root.appendChild(head);
 
-  const metrics=el('div','');
-  metrics.style.cssText='display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin-bottom:12px;';
+  const metrics = el('div', 'mind-live-metrics');
   metrics.append(
-    bigMetric('Tick', tel.tick ?? '—'),
-    bigMetric('Energy', energy != null ? pct(energy) : '—', energy != null && energy < .2 ? PAL.coral : PAL.mint),
-    bigMetric('Resource progress', tel.resourceProgress != null ? `${tel.resourceProgress >=0?'+':''}${tel.resourceProgress.toFixed(2)} m` : '—'),
-    bigMetric('Cognition', `${concepts} C · ${predictors} P`, PAL.violet),
-    bigMetric('Motor origin', tel.motorOrigin ?? '—', tel.motorOrigin === 'babbling' ? PAL.amber : PAL.mint),
+    metric('Concepts', concepts, 'violet'),
+    metric('Predictors', predictors, 'amber'),
+    metric('Relations', edges.length, 'cyan'),
+    metric('Readouts', readouts, 'mint'),
+    metric('Motor links', motorEdges, 'mint'),
+    metric('Energy', energy != null ? pct(energy) : '—', energy != null && energy < .2 ? 'coral' : 'mint'),
   );
   root.appendChild(metrics);
 
-  if (mindHistory.length > 1) {
-    const phaseStrip = panelSection('Observed physiology timeline','Session-local phase history; it never backdates states seen before attachment.');
-    phaseStrip.style.marginBottom='12px';
-    const track=el('div','');
-    track.style.cssText='height:18px;display:flex;overflow:hidden;border-radius:5px;background:rgba(98,120,136,.12);';
-    const points=mindHistory;
-    const t0=points[0].tick;
-    const t1=points[points.length-1].tick;
-    const runs=[];
-    let runStart=points[0].tick;
-    let runState=points[0].physiology;
-    for(let i=1;i<points.length;i++){
-      if(points[i].physiology!==runState){
-        runs.push({state:runState,start:runStart,end:points[i].tick});
-        runStart=points[i].tick; runState=points[i].physiology;
-      }
+  const grid = el('div', 'mind-live-grid');
+
+  const active = panelSection('Active now', 'Most active cognitive structures in the current observer projection.');
+  active.classList.add('mind-live-panel');
+  if (!activeNodes.length) {
+    const empty = el('div', 'mind-live-empty');
+    empty.textContent = 'No currently active cognitive nodes are exported in this frame.';
+    active.appendChild(empty);
+  } else {
+    const list = el('div', 'mind-live-list');
+    for (const item of activeNodes) {
+      const row = el('div', 'mind-live-row');
+      const left = el('div', '');
+      const kind = el('span', '');
+      kind.textContent = item.kind || 'node';
+      const name = el('strong', '');
+      name.textContent = cognitiveLabel(item);
+      left.append(kind, name);
+      const amount = el('b', '');
+      amount.textContent = nodeActivity(item).toFixed(2);
+      row.append(left, amount);
+      list.appendChild(row);
     }
-    runs.push({state:runState,start:runStart,end:t1+1});
-    for(const run of runs){
-      const seg=el('div','');
-      const width=Math.max(1,((run.end-run.start)/Math.max(1,t1-t0+1))*100);
-      const color=run.state==='dead'?PAL.coral:run.state==='dormant'?PAL.amber:run.state==='stressed'?'#d77676':PAL.mint;
-      seg.style.cssText=`width:${width}%;background:${color};opacity:.62;position:relative;`;
-      seg.title=`${run.state} · t${run.start}–t${run.end}`;
-      track.appendChild(seg);
-    }
-    phaseStrip.appendChild(track);
-    const labels=el('div','');
-    labels.style.cssText='display:flex;justify-content:space-between;margin-top:4px;font-size:8px;color:var(--muted);';
-    labels.innerHTML=`<span>t${t0}</span><span>t${t1}</span>`;
-    phaseStrip.appendChild(labels);
-    root.appendChild(phaseStrip);
+    active.appendChild(list);
   }
 
-  const grid=el('div','');
-  grid.style.cssText='display:grid;grid-template-columns:1.15fr 1fr;gap:12px;';
+  const change = panelSection('Recent change', 'Difference between the latest two observed Mind frames.');
+  change.classList.add('mind-live-panel');
+  const changeGrid = el('div', 'mind-live-change-grid');
+  changeGrid.append(
+    metric('Concepts Δ', deltaText(currentPoint?.concepts, previousPoint?.concepts)),
+    metric('Predictors Δ', deltaText(currentPoint?.predictors, previousPoint?.predictors)),
+    metric('Relations Δ', deltaText(currentPoint?.edges, previousPoint?.edges)),
+    metric('Motor edges Δ', deltaText(currentPoint?.motorEdges, previousPoint?.motorEdges)),
+  );
+  change.appendChild(changeGrid);
+  const origin = el('div', 'mind-live-context-line');
+  origin.innerHTML = `<span>Motor origin</span><strong>${String(tel.motorOrigin ?? 'none')}</strong><span>Prediction error</span><strong>${Number.isFinite(Number(tel.predictionError)) ? Number(tel.predictionError).toFixed(3) : '—'}</strong>`;
+  change.appendChild(origin);
 
-  const pipeline=panelSection('Learning pipeline','Three distinct levels: exists → learned → usable.');
-  const stages=[
-    ['Sensory system', `${snap.sensoryPhenotype?.sensors?.length ?? nodes.filter(n=>n.kind==='sense').length} sensors`, true],
-    ['Sensorimotor patterns', `${tel.sensorimotorPatterns ?? sensorimotor.known_patterns ?? 0}`, (tel.sensorimotorPatterns ?? sensorimotor.known_patterns ?? 0) > 0],
-    ['Motor competences', `${tel.motorCompetences ?? sensorimotor.competence_chunks ?? 0}`, (tel.motorCompetences ?? sensorimotor.competence_chunks ?? 0) > 0],
-    ['Cognitive structure', `${concepts} concepts · ${predictors} predictors`, concepts > 0],
-    ['Motor repertoire', `${repertoire}`, repertoire > 0],
-    ['Motor readouts', `${readoutCount}`, readoutCount > 0],
-    ['Cognition → motor edges', `${motorEdges}`, motorEdges > 0],
-    ['Cognitive motor use', tel.motorOrigin ?? 'none', ['cognition','mixed'].includes(tel.motorOrigin) || String(tel.motorOrigin).includes('primitive')],
-  ];
-  stages.forEach(([label,value,ok],idx)=>{
-    const row=el('div','');
-    row.style.cssText='display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid rgba(98,120,136,.12);font-size:9px;';
-    const dot=el('span',''); dot.textContent=ok?'●':'○'; dot.style.color=ok?PAL.mint:PAL.muted;
-    const name=el('span',''); name.textContent=label; name.style.color='var(--text)';
-    const val=el('strong',''); val.textContent=value; val.style.color=ok?'var(--text)':'var(--muted)';
-    row.append(dot,name,val); pipeline.appendChild(row);
-    if(idx<stages.length-1){
-      const arrow=el('div',''); arrow.textContent='↓'; arrow.style.cssText='margin:-2px 0 -2px 4px;color:rgba(98,120,136,.45);font-size:9px;';
-      pipeline.appendChild(arrow);
-    }
-  });
-
-  const outcomePanel=panelSection('Outcome','External behavioral result; not a reward signal fed into cognition.');
-  const startDist=finiteNumber(outcome.initial_resource_distance, NaN);
-  const minDist=finiteNumber(outcome.minimum_resource_distance, NaN);
-  const currentDist=finiteNumber(tel.resourceDistance ?? outcome.current_resource_distance, NaN);
-  const consumed=finiteNumber(tel.absorbedEnergy ?? outcome.absorbed_energy, 0);
-  [
-    ['Start distance', Number.isFinite(startDist)?`${startDist.toFixed(2)} m`:'—'],
-    ['Best distance', Number.isFinite(minDist)?`${minDist.toFixed(2)} m`:'—'],
-    ['Current distance', Number.isFinite(currentDist)?`${currentDist.toFixed(2)} m`:'—'],
-    ['Progress', tel.resourceProgress!=null?`${tel.resourceProgress>=0?'+':''}${tel.resourceProgress.toFixed(2)} m`:'—'],
-    ['Consumed energy', consumed.toFixed(2)],
-    ['Resource remaining', tel.resourceRemaining!=null?tel.resourceRemaining.toFixed(2):outcome.resource_remaining ?? '—'],
-  ].forEach(([key,value])=>inspectorMetric(outcomePanel,key,value));
-
-  grid.append(pipeline,outcomePanel);
+  grid.append(active, change);
   root.appendChild(grid);
 
-  const timeline=panelSection('Major milestones','First-occurrence lifecycle and learning events captured in the current browser session.');
-  timeline.style.marginTop='12px';
-  if(!milestones.length){
-    const empty=el('div',''); empty.style.cssText='font-size:9px;color:var(--muted);'; empty.textContent='No milestones recorded yet.'; timeline.appendChild(empty);
+  const flow = el('div', 'mind-live-grid');
+
+  const eventsPanel = panelSection('Recent cognitive events', 'Observer-visible structural events; they are not instructions to the organism.');
+  eventsPanel.classList.add('mind-live-panel');
+  if (!recentEvents.length) {
+    const empty = el('div', 'mind-live-empty');
+    empty.textContent = 'No recent cognitive events are currently exported.';
+    eventsPanel.appendChild(empty);
   } else {
-    const strip=el('div',''); strip.style.cssText='display:flex;gap:6px;align-items:flex-start;overflow-x:auto;padding:4px 0 2px;';
-    for(const milestone of milestones){
-      const button=el('button',''); button.type='button'; button.style.cssText='min-width:110px;text-align:left;padding:7px 8px;border:1px solid rgba(98,120,136,.2);border-radius:7px;background:rgba(255,255,255,.015);color:var(--text);cursor:pointer;';
-      button.innerHTML=`<strong style="font-size:9px">t${milestone.tick}</strong><br><span style="font-size:8px;color:var(--muted)">${milestone.label}</span>`;
-      button.addEventListener('click',()=>onOpenHistoryTick(milestone.tick)); strip.appendChild(button);
+    const list = el('div', 'mind-live-events');
+    for (const event of recentEvents) {
+      const row = el('div', 'mind-live-event');
+      const when = el('span', '');
+      when.textContent = event.tick != null ? `t${event.tick}` : 'live';
+      const text = el('strong', '');
+      text.textContent = event.label || event.title || event.kind || event.type || 'cognitive change';
+      row.append(when, text);
+      list.appendChild(row);
     }
-    timeline.appendChild(strip);
+    eventsPanel.appendChild(list);
   }
-  root.appendChild(timeline);
+
+  const development = panelSection('Current developmental position', 'Capability exists only when evidence supports it; absence here is not filled from observer truth.');
+  development.classList.add('mind-live-panel');
+  const dev = el('div', 'mind-development-now');
+  const sensoryCount = snap.sensoryPhenotype?.sensors?.length ?? nodes.filter(node => node.kind === 'sense').length;
+  const patterns = Number(tel.sensorimotorPatterns ?? snap.sensorimotor?.known_patterns ?? 0);
+  const competences = Number(tel.motorCompetences ?? snap.sensorimotor?.competence_chunks ?? 0);
+  for (const [label, value, detail] of [
+    ['Perception', sensoryCount, 'senses represented'],
+    ['Regularities', patterns, 'sensorimotor patterns'],
+    ['Prediction', predictors, 'current predictor structures'],
+    ['Competence', competences, 'motor competences'],
+  ]) {
+    const row = el('div', 'mind-development-step');
+    row.innerHTML = `<span>${label}</span><strong>${value}</strong><small>${detail}</small>`;
+    dev.appendChild(row);
+  }
+  development.appendChild(dev);
+  if (latestMilestone) {
+    const milestone = el('button', 'mind-live-milestone');
+    milestone.type = 'button';
+    milestone.innerHTML = `<span>Latest milestone · t${latestMilestone.tick}</span><strong>${latestMilestone.label}</strong>`;
+    milestone.addEventListener('click', () => onOpenHistoryTick(latestMilestone.tick));
+    development.appendChild(milestone);
+  }
+
+  flow.append(eventsPanel, development);
+  root.appendChild(flow);
+
+  const context = el('div', 'mind-live-context');
+  context.innerHTML = `
+    <span>Physiology <strong>${String(physiology || '—')}</strong></span>
+    <span>Embodiment <strong>${tel.embodimentEpoch != null ? 'e' + tel.embodimentEpoch : '—'}</strong></span>
+    <span>Reacclimation <strong>${tel.reacclimating ? (tel.reacclimationRemaining ?? 'active') : 'no'}</strong></span>
+    <span>Observer <strong>passive</strong></span>
+  `;
+  root.appendChild(context);
 
   if (prevScroll > 0) {
     root.scrollTop = prevScroll;
-    requestAnimationFrame(() => {
-      root.scrollTop = prevScroll;
-    });
+    requestAnimationFrame(() => { root.scrollTop = prevScroll; });
   }
 }
