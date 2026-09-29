@@ -29,11 +29,9 @@ export function buildMindLayout(root, {
   tabBar.setAttribute('aria-label', 'Mind view tabs');
 
   const TABS = [
-    { id: 'overview',  label: 'Overview',       panelId: 'mind-overview-wrap' },
-    { id: 'phenotype', label: 'Identity',       panelId: 'mind-identity-wrap' },
-    { id: 'sensory',   label: 'Sensory',        panelId: 'mind-sensory-wrap' },
-    { id: 'cognition', label: 'Cognition',      panelId: 'mind-cognition-wrap' },
-    { id: 'history',   label: 'History',        panelId: 'mind-history-wrap' },
+    { id: 'overview',  label: 'Live',        panelId: 'mind-overview-wrap' },
+    { id: 'cognition', label: 'Atlas',       panelId: 'mind-cognition-wrap' },
+    { id: 'history',   label: 'Development', panelId: 'mind-history-wrap' },
   ];
 
   for (const tab of TABS) {
@@ -72,7 +70,7 @@ export function buildMindLayout(root, {
   cognitionInspector.id = 'mind-cognition-inspector';
   cognitionInspector.hidden = activeTab !== 'cognition';
   const cognitionInspectorHeading = el('div', 'mind-side-heading');
-  cognitionInspectorHeading.textContent = 'Cognitive Observatory';
+  cognitionInspectorHeading.textContent = 'Selected entity';
   const cognitionInspectorBody = el('div', 'mind-cognition-inspector-body');
   cognitionInspectorBody.id = 'mind-cognition-inspector-body';
   cognitionInspector.append(cognitionInspectorHeading, cognitionInspectorBody);
