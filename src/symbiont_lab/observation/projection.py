@@ -306,6 +306,11 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     mind_cognition: dict[str, Any] = {}
     if isinstance(cognition.get("readouts"), Mapping):
         mind_cognition["readouts"] = dict(cognition["readouts"])
+    if isinstance(cognition.get("generative"), Mapping):
+        # Generative cognition is organism-owned but ephemeral. Preserve the
+        # bounded passive snapshot as a separate cognition sub-surface; never
+        # promote it into structural Atlas topology.
+        mind_cognition["generative"] = dict(cognition["generative"])
     if cognition.get("topology_health") is not None:
         mind_cognition["topologyHealth"] = str(cognition["topology_health"])
     safety_state: dict[str, Any] = {}
