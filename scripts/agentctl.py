@@ -366,6 +366,7 @@ def _verify_toml() -> list[str]:
         "project-state.toml", "frozen-artifacts.toml", "active-work.toml",
         "validation-matrix.toml", "authority-grants.toml", "resource-policy.toml",
         "owner-root.toml",
+        "bootstrap-exceptions.toml",
     ):
         try:
             load(name)
@@ -420,6 +421,13 @@ def _verify_semantics() -> list[str]:
     if open_scientific > 1:
         errors.append("more than one open scientific-run grant exists")
 
+    for entry in load("bootstrap-exceptions.toml").get("commit", []):
+        sha = str(entry.get("sha", ""))
+        if len(sha) != 40 or any(ch not in "0123456789abcdef" for ch in sha.lower()):
+            errors.append("bootstrap exception has invalid commit SHA")
+        if entry.get("status") != "accepted" or not entry.get("reason"):
+            errors.append(f"bootstrap exception {sha[:12]} lacks accepted status/reason")
+
     frozen_patterns = {a["path_glob"] for a in load("frozen-artifacts.toml").get("artifact", [])}
     for pattern in CONTROL_PLANE:
         if pattern not in frozen_patterns:
@@ -473,9 +481,22 @@ def _owner_grant_issuance(commit: str, actor: str | None) -> bool:
     )
 
 
+def _bootstrap_exception(commit: str) -> dict[str, Any] | None:
+    try:
+        entries = load("bootstrap-exceptions.toml").get("commit", [])
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    for entry in entries:
+        if entry.get("sha") == commit and entry.get("status") == "accepted":
+            return entry
+    return None
+
+
 def _audit_commit(commit: str, actor: str | None) -> list[str]:
     parent = parent_of(commit)
     if not parent:
+        return []
+    if _bootstrap_exception(commit):
         return []
     if _owner_grant_issuance(commit, actor):
         return []

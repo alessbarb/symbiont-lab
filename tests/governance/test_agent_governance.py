@@ -34,6 +34,7 @@ def test_governance_toml_is_parseable() -> None:
         "project-state.toml", "frozen-artifacts.toml", "active-work.toml",
         "validation-matrix.toml", "authority-grants.toml", "resource-policy.toml",
         "owner-root.toml",
+        "bootstrap-exceptions.toml",
     ):
         with (GOV / name).open("rb") as handle:
             assert tomllib.load(handle)
@@ -86,3 +87,14 @@ def test_agentctl_verifies_repository_governance() -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "PASS" in result.stdout
+
+
+def test_bootstrap_exceptions_are_exact() -> None:
+    with (GOV / "bootstrap-exceptions.toml").open("rb") as handle:
+        entries = tomllib.load(handle)["commit"]
+    assert entries
+    for entry in entries:
+        assert entry["status"] == "accepted"
+        assert len(entry["sha"]) == 40
+        int(entry["sha"], 16)
+        assert entry["reason"]

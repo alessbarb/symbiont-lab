@@ -68,7 +68,7 @@ allowed_paths = [
 [[grant]]
 id = "owner-2026-09-29-governance-enforcement-v3"
 kind = "change"
-status = "open"
+status = "revoked"
 authority = "L4"
 base_commit = "9de95671e965d9f0dc727f3b0c94ca0ab97191ce"
 issued_by = "alessbarb"
@@ -128,7 +128,7 @@ allowed_paths = [
 [[grant]]
 id = "owner-2026-09-29-governance-bootstrap-audit-fix"
 kind = "change"
-status = "open"
+status = "consumed"
 authority = "L4"
 base_commit = "557b421d4eb8edbc0e08796b301810c5a28e92ae"
 issued_by = "alessbarb"

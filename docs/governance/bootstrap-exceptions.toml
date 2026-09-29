@@ -1,0 +1,16 @@
+schema_version = 1
+
+# Exact, owner-approved bootstrap exceptions only. These are historical facts, not a
+# general retroactive-authority mechanism.
+
+[[commit]]
+sha = "a4fd1575c4dcd3610710996ec574e4359a8fed69"
+status = "accepted"
+kind = "owner-grant-issuance"
+reason = "The v4 grant was issued during concurrent unrelated main activity. Its recorded base preceded the actual issuance parent, so the strict direct-parent rule cannot reconstruct that already-published administrative event."
+
+[[commit]]
+sha = "557b421d4eb8edbc0e08796b301810c5a28e92ae"
+status = "accepted"
+kind = "owner-authorized-change"
+reason = "The enforcement-v4 implementation was explicitly owner-directed but inherited the concurrent issuance base mismatch above. This exact historical commit is accepted; future grants follow ADR-0045 owner-root issuance."
