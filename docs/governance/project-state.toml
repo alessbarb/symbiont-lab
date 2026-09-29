@@ -1,0 +1,56 @@
+schema_version = 1
+updated = "2026-09-29"
+canonical_roadmap = "docs/roadmap.md"
+current_gate = "visual-acquisition-d1-v2"
+
+[programmes.visual-acquisition-d1-v2]
+state = "running"
+kind = "capability-gate"
+follow_up_positive = "freeze-horizon-then-owner-approval-for-held-out"
+follow_up_negative = "phase-a"
+notes = "Development assessability run in progress; held-out disabled."
+
+[programmes.promotion-stability-v1]
+state = "design-data-complete"
+confirmation = "paused"
+
+[programmes.predictor-promotion-throughput-v1]
+state = "unscheduled"
+
+[programmes.agency-acquisition-v1]
+state = "frozen"
+
+[programmes.executive-outcome-learning-v1]
+state = "frozen"
+generalisation = "not-established"
+
+[programmes.private-model-learnability-v1]
+state = "closed-bounded"
+generalisation = "not-established"
+
+[programmes.e8-label-invariance]
+state = "p0-open"
+priority = "P0"
+
+[programmes.world]
+state = "maintenance-only"
+
+[programmes.culture-grounding]
+state = "closed-bounded"
+generalisation = "not-established"
+
+[programmes.population-expansion]
+state = "blocked"
+blocked_by = "individual-readiness-gate"
+
+[phases.P0]
+state = "next"
+items = ["A1-fault-injection", "A2-hermetic-execution", "A3-dependency-lock", "A4-generational-commit", "A8-E8"]
+
+[phases.P1]
+state = "blocked-by-P0"
+items = ["A5-observation-independence", "A6-equivalence-harness", "A7-numerical-mechanical-stability"]
+
+[phases.P2]
+state = "blocked-by-P1"
+items = ["B0-general-causal-agency", "E1-E6-unified-falsification-battery"]
