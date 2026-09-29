@@ -28,6 +28,11 @@ TICKS = 24
 CONFIGS = {
     "v6-flat": {"body_kind": "anthropomorphic-v6", "environment": None},
     "vision-d1": {"body_kind": "anthropomorphic-v6-vision", "environment": "vision-nursery-d1-v1"},
+    # D1-v2 adds protected-nursery metabolic support as a causal input.
+    "vision-d1-v2": {
+        "body_kind": "anthropomorphic-v6-vision",
+        "environment": "vision-nursery-d1-v2",
+    },
 }
 
 

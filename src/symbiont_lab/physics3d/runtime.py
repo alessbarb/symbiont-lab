@@ -50,7 +50,12 @@ from .apparatus import (
     physics3d_sensory_system,
 )
 from .bodies import DEFAULT_BODY_REGISTRY
-from .environments import build_environment, resolve_environment, update_environment
+from .environments import (
+    build_environment,
+    nursery_support_amount,
+    resolve_environment,
+    update_environment,
+)
 from .humanoid import apply_surface_material, configure_physics_solver
 from .observer_semantics import (
     action_dimension_semantics,
@@ -293,6 +298,8 @@ class PyBulletEmbodimentRuntime:
 
         self.environment_bodies = build_environment(p, self.client_id, self.environment_recipe)
         self.last_organism_result = None
+        # Lab provenance: cumulative protected-nursery energy supplied.
+        self.nursery_support_total = 0.0
         # Seeds world-side stimulus parameters (e.g. nursery source motion).
         self.environment_seed = int(seed)
         self.apparatus = self.body_descriptor.apparatus_factory(p, self.client_id)
@@ -1651,6 +1658,17 @@ class PyBulletEmbodimentRuntime:
                 absorbed_energy = self.organism.absorb_metabolic_energy(offered)
                 if absorbed_energy > 0.0:
                     self.resource.consume_absorbed(absorbed_energy)
+        # Protected nursery metabolic support: environment property, same
+        # physical intake path, independent of action (Visual Acquisition D1-v2).
+        body_state = self.organism.living_body_state
+        if body_state.alive:
+            support = nursery_support_amount(
+                self.environment_recipe,
+                energy_reserve=body_state.energy_reserve,
+                max_energy=body_state.max_energy,
+            )
+            if support > 0.0:
+                self.nursery_support_total += self.organism.absorb_metabolic_energy(support)
 
         physics_ms = (time.perf_counter() - physics_started) * 1000.0
         diagnostics_started = time.perf_counter()

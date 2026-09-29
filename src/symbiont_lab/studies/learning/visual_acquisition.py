@@ -23,6 +23,7 @@ from statistics import median
 from typing import Any, Iterable, Sequence
 
 from symbiont.cognition.learning import huber_loss
+from symbiont_lab.experience import RunGuard, RunKind
 from symbiont_lab.studies.ablations import CognitiveAcquisitionAblation
 
 PROTOCOL = "learning.visual-acquisition-v1"
@@ -170,15 +171,23 @@ def _predicted_visual_targets(runtime: Any, visual_ids: frozenset[str]) -> int:
     )
 
 
-def make_state_x(seed: int) -> dict[str, Any]:
+def _guard_step(runtime: Any, guard: RunGuard, *, include_observability: bool) -> str | None:
+    """One causal tick under the mandatory acquisition safety policy (ADR-0008)."""
+    record = runtime.step(include_observability=include_observability)
+    return guard(bool(record.alive), runtime.organism.living_body_state.vital_state.value)
+
+
+def make_state_x(seed: int, *, environment: str = ENVIRONMENT) -> dict[str, Any]:
     from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
     runtime = PyBulletEmbodimentRuntime(
-        gui=False, seed=seed, body_kind=BODY_KIND, environment=ENVIRONMENT
+        gui=False, seed=seed, body_kind=BODY_KIND, environment=environment
     )
+    guard = RunGuard(RunKind.ACQUISITION_VISION)
     try:
         for _ in range(X_TICKS):
-            runtime.step(include_observability=False)
+            if _guard_step(runtime, guard, include_observability=False) is not None:
+                raise RuntimeError("State X could not be made inside the protected envelope")
         body, tick = runtime.physical_checkpoint()
         body["symbiont_ticks"] = tick
         return {
@@ -198,6 +207,7 @@ def run_arm(
     horizons: Sequence[int],
     late_window: int,
     report_performance: bool,
+    environment: str = ENVIRONMENT,
 ) -> dict[str, Any]:
     from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
@@ -211,7 +221,7 @@ def run_arm(
         gui=False,
         seed=seed,
         body_kind=BODY_KIND,
-        environment=ENVIRONMENT,
+        environment=environment,
         runtime_checkpoint=state_x["organism"],
         physical_state=state_x["body"],
     )
@@ -222,6 +232,9 @@ def run_arm(
     elapsed_at: dict[int, float] = {}
     rss_at: dict[int, int] = {}
     rows: list[Row] = []
+    guard = RunGuard(RunKind.ACQUISITION_VISION)
+    termination: str | None = None
+    terminated_at: int | None = None
     started = time.perf_counter()
     try:
         for index in range(horizons[-1]):
@@ -229,7 +242,7 @@ def run_arm(
                 targets_at[window_starts[index]] = visual_targets(
                     runtime.organism._sensory_system.sensors, visual_ids
                 )
-            runtime.step(include_observability=True)
+            cause = _guard_step(runtime, guard, include_observability=True)
             cognition = getattr(runtime.last_organism_result, "cognition", None)
             learned: dict[str, list[float]] = {}
             activations: dict[str, float] = {}
@@ -241,16 +254,29 @@ def run_arm(
             if index + 1 in horizons:
                 elapsed_at[index + 1] = time.perf_counter() - started
                 rss_at[index + 1] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
+            if cause is not None:
+                # Protected acquisition ends here; it never continues past it.
+                termination = guard.triggered.value if guard.triggered else cause
+                terminated_at = index + 1
+                break
+        final_vital_state = runtime.organism.living_body_state.vital_state.value
+        support_total = round(float(runtime.nursery_support_total), 3)
     finally:
         runtime.close()
 
     per_horizon = {}
     for horizon in horizons:
+        if horizon not in elapsed_at or (terminated_at is not None and terminated_at <= horizon):
+            per_horizon[str(horizon)] = {
+                "feasibility": {"reached": False, "termination": termination}
+            }
+            continue
         per_target = score_window(
             rows, targets=targets_at[horizon], start=horizon - late_window, stop=horizon
         )
         full = full_window_targets(per_target, window=late_window)
         feasibility = {
+            "reached": True,
             "wall_s": round(elapsed_at[horizon], 1),
             "max_rss_mb": rss_at[horizon],
             "visual_targets_at_window_start": len(targets_at[horizon]),
@@ -264,7 +290,15 @@ def run_arm(
             entry["performance"] = summarize(per_target, window=late_window)
             entry["full_window_targets"] = full
         per_horizon[str(horizon)] = entry
-    return {"seed": seed, "arm": arm, "horizons": per_horizon}
+    return {
+        "seed": seed,
+        "arm": arm,
+        "termination": termination,
+        "terminated_at_tick": terminated_at,
+        "final_vital_state": final_vital_state,
+        "nursery_support_energy": support_total,
+        "horizons": per_horizon,
+    }
 
 
 def run_visual_acquisition_study(
@@ -273,13 +307,14 @@ def run_visual_acquisition_study(
     horizons: Sequence[int] = CANDIDATE_HORIZONS,
     late_window: int = LATE_WINDOW,
     report_performance: bool = False,
+    environment: str = ENVIRONMENT,
 ) -> dict[str, Any]:
     horizons = tuple(sorted(int(h) for h in horizons))
     if report_performance and len(horizons) != 1:
         raise ValueError("performance is reported only at a single frozen horizon")
     per_seed = []
     for seed in seeds:
-        state_x = make_state_x(int(seed))
+        state_x = make_state_x(int(seed), environment=environment)
         arms = {
             arm: run_arm(
                 state_x,
@@ -288,6 +323,7 @@ def run_visual_acquisition_study(
                 horizons=horizons,
                 late_window=late_window,
                 report_performance=report_performance,
+                environment=environment,
             )
             for arm in ARMS
         }
@@ -301,7 +337,8 @@ def run_visual_acquisition_study(
     result: dict[str, Any] = {
         "protocol": PROTOCOL,
         "body_kind": BODY_KIND,
-        "environment": ENVIRONMENT,
+        "environment": environment,
+        "acquisition_guard": "AcquisitionSafetyPolicy (ADR-0008)",
         "arm_b_ablation": ARM_B_ABLATION.as_dict(),
         "horizons": list(horizons),
         "late_window": late_window,
@@ -319,8 +356,11 @@ def decision_inputs(per_seed: list[dict[str, Any]], *, horizon: str) -> dict[str
     for row in per_seed:
         a = row["arms"]["A"]["horizons"][horizon]
         b = row["arms"]["B"]["horizons"][horizon]
-        perf = a["performance"]
-        comparison = a_beats_b_on_intersection(a["full_window_targets"], b["full_window_targets"])
+        # A horizon beyond a protected termination is not assessable.
+        perf = a.get("performance") or {"assessable": False}
+        comparison = a_beats_b_on_intersection(
+            a.get("full_window_targets", {}), b.get("full_window_targets", {})
+        )
         assessable = bool(perf["assessable"])
         utility = assessable and all(
             perf[key] is not None and perf[key] > 0

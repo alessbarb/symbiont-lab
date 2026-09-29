@@ -156,7 +156,13 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "corpora": {"c1", "c2"},
         # Visual Acquisition v1 §5-§6: horizons, late window, and whether
         # predictive performance may be computed (only at a frozen H).
-        "vision": {"late_window", "horizons", "report_performance", "sample_every"},
+        "vision": {
+            "late_window",
+            "horizons",
+            "report_performance",
+            "sample_every",
+            "environment",
+        },
         "output": {"save_trace", "save_summary"},
     }
     for block_name in (

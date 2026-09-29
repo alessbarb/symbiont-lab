@@ -251,6 +251,7 @@ class ExperimentRunner:
                 horizons=tuple(int(h) for h in vision.get("horizons", (spec.steps,))),
                 late_window=int(vision.get("late_window", 400)),
                 report_performance=bool(vision.get("report_performance", False)),
+                environment=str(vision.get("environment", "vision-nursery-d1-v1")),
             )
             raw_metrics = result
         elif spec.protocol == "learning.agency-acquisition-reuse-closure":

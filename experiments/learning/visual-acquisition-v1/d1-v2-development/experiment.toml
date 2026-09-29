@@ -1,0 +1,32 @@
+schema_version = 1
+
+[experiment]
+id = "learning.visual-acquisition-v1-d1v2-development"
+title = "Visual Acquisition v1 D1-v2 — development (feasibility only, supported nursery)"
+protocol = "learning.visual-acquisition-v1"
+protocol_version = 2
+hypothesis = """
+Not a hypothesis test. D1-v2 changes the protected acquisition environment
+(bounded metabolic support) and applies the mandatory acquisition guard; it
+does not change the cognitive acquisition mechanism. Measures feasibility per
+candidate horizon to fix H by feasibility alone (§11).
+"""
+success_criteria = """
+None. No predictive performance is computed. Reported as development only.
+"""
+
+[world]
+steps = 4000
+
+[design]
+seeds = [101, 127, 149]
+
+[vision]
+environment = "vision-nursery-d1-v2"
+horizons = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000]
+late_window = 400
+report_performance = false
+
+[output]
+save_trace = false
+save_summary = true

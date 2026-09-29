@@ -136,3 +136,43 @@ def test_development_stage_never_computes_performance() -> None:
     assert list(spec.seeds) == [101, 127, 149]
     assert spec.extra_params["vision"]["report_performance"] is False
     assert spec.extra_params["vision"]["horizons"] == [500, 1000, 1500, 2000]
+
+
+def test_d1_v2_changes_only_the_protected_environment() -> None:
+    from symbiont_lab.physics3d.environments import environment_recipe, nursery_support_amount
+
+    v1 = environment_recipe("vision-nursery-d1-v1")
+    v2 = environment_recipe("vision-nursery-d1-v2")
+    assert v2["fixtures"] == v1["fixtures"]  # identical stimulus
+    assert "metabolic_support" not in v1
+    support = v2["metabolic_support"]
+    assert support == {"kind": "bounded_maintenance", "rate_per_tick": 0.6, "ceiling_fraction": 0.9}
+    # Bounded, deterministic, never refills to full.
+    assert nursery_support_amount(v2, energy_reserve=800.0, max_energy=1600.0) == 0.6
+    assert nursery_support_amount(v2, energy_reserve=1439.9, max_energy=1600.0) == pytest.approx(
+        0.1
+    )
+    assert nursery_support_amount(v2, energy_reserve=1500.0, max_energy=1600.0) == 0.0
+    assert nursery_support_amount(v1, energy_reserve=100.0, max_energy=1600.0) == 0.0
+
+
+def test_runner_applies_the_acquisition_guard_every_tick() -> None:
+    import inspect
+
+    from symbiont_lab.studies.learning import visual_acquisition as va
+
+    for fn in (va.make_state_x, va.run_arm):
+        source = inspect.getsource(fn)
+        assert "RunGuard(RunKind.ACQUISITION_VISION)" in source
+        assert "_guard_step(runtime, guard" in source
+
+
+def test_d1_v2_development_spec() -> None:
+    spec = load_experiment_file(
+        "experiments/learning/visual-acquisition-v1/d1-v2-development/experiment.toml"
+    )
+    vision = spec.extra_params["vision"]
+    assert vision["environment"] == "vision-nursery-d1-v2"
+    assert vision["report_performance"] is False
+    assert vision["horizons"] == [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000]
+    assert list(spec.seeds) == [101, 127, 149]

@@ -16,7 +16,24 @@ ENVIRONMENT_NAMES = (
     "contact-garden-v1",
     "vision-nursery-v1",
     "vision-nursery-d1-v1",
+    "vision-nursery-d1-v2",
 )
+
+# Protected nursery metabolic support (Visual Acquisition v1 D1-v2). A
+# property of the protected environment, not a resource to find: a fixed,
+# deterministic, action-independent energy input through the body's ordinary
+# intake path, bounded below the full reserve. Sized from EW-D0: basal drain
+# ~0.80 energy/tick in vision-nursery-d1-v1; 0.6/tick (75%) keeps real cost
+# and homeostatic variation while preventing basal metabolism from ending the
+# Experience before its horizon. AcquisitionSafetyPolicy remains the final
+# barrier.
+_METABOLIC_SUPPORT = {
+    "vision-nursery-d1-v2": {
+        "kind": "bounded_maintenance",
+        "rate_per_tick": 0.6,
+        "ceiling_fraction": 0.9,
+    },
+}
 
 # Versioned immutable recipes: positions in metres, Z up; box sizes are full extents.
 _RECIPES = {
@@ -98,13 +115,49 @@ _RECIPES = {
             },
         },
     ],
+    # Visual Acquisition v1 D1-v2: identical stimulus to d1-v1; only the
+    # nursery's metabolic support differs (see _METABOLIC_SUPPORT).
+    "vision-nursery-d1-v2": [
+        {
+            "id": "background",
+            "position": [2.2, 0.0, 1.2],
+            "size": [0.1, 6.0, 2.4],
+            "friction": 0.65,
+            "luminance": 0.45,
+        },
+        {
+            "id": "source",
+            "position": [1.4, 0.0, 1.0],
+            "size": [0.05, 0.35, 0.35],
+            "friction": 0.65,
+            "luminance": 0.95,
+            "motion": {
+                "axis": [0.0, 1.0, 0.0],
+                "amplitude": 0.8,
+                "period_ticks_range": [72, 120],
+                "namespace": "vision.d1.source-motion.v1",
+            },
+        },
+    ],
 }
 
 
 def environment_recipe(name: str = "flat-v1") -> dict:
     if not isinstance(name, str) or name not in _RECIPES:
         raise ValueError(f"unknown Physics3D environment: {name}")
-    return {"schema_version": 1, "name": name, "fixtures": deepcopy(_RECIPES[name])}
+    recipe = {"schema_version": 1, "name": name, "fixtures": deepcopy(_RECIPES[name])}
+    if name in _METABOLIC_SUPPORT:
+        recipe["metabolic_support"] = deepcopy(_METABOLIC_SUPPORT[name])
+    return recipe
+
+
+def nursery_support_amount(recipe: dict, *, energy_reserve: float, max_energy: float) -> float:
+    """Energy the protected nursery supplies this tick (0 outside such nurseries)."""
+    support = recipe.get("metabolic_support")
+    if not support:
+        return 0.0
+    room = support["ceiling_fraction"] * max_energy - energy_reserve
+    return max(0.0, min(float(support["rate_per_tick"]), room))
 
 
 def resolve_environment(name: str | None, saved: dict | None) -> dict:
