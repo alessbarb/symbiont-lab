@@ -3,8 +3,11 @@ import { pbPos, pbQuat } from '../body/coordinates.js';
 import { escapeHtml } from '../shared/dom.js';
 import { reconcileWorld, receptorStatus } from './world-state.js';
 
-const LAYERS = [['physical', 'Physical'], ['perception', 'Perception'], ['self', 'Self Model'],
-  ['known', 'Known World'], ['predictions', 'Predictions'], ['truth', 'World Truth']];
+const LAYERS = [
+  ['physical', 'Geometry'],
+  ['perception', 'Receptor evidence'],
+  ['self', 'Self evidence'],
+];
 const color = { unknown: 0x718396, perceived: 0x53e3da, sampled: 0xe9b765, unsampled: 0x667382 };
 const row = (label, value) => `<div class="body-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value ?? 'Unavailable'))}</strong></div>`;
 const vector = (v) => Array.isArray(v) ? v.map(x => Number(x).toFixed(3)).join(', ') : 'Unavailable';
@@ -37,14 +40,10 @@ export class WorldView {
     this.toolbar = document.createElement('div');
     this.toolbar.className = 'body-world-toolbar';
     this.toolbar.setAttribute('aria-label', 'Spatial observation layers');
-    this.toolbar.hidden = !this.active;
+    this.toolbar.hidden = true;
     for (const [id, label] of LAYERS) {
       const button = document.createElement('button');
-      button.textContent = ['known', 'predictions'].includes(id) ? `${label} · unavailable` : label;
-      if (['known', 'predictions'].includes(id)) {
-        button.disabled = true;
-        button.title = 'No object-localized evidence is exported by this spatial contract. See Self-Model and Mind for signal learning.';
-      }
+      button.textContent = label;
       button.dataset.layer = id;
       button.type = 'button';
       button.setAttribute('aria-pressed', String(this.layers[id]));
@@ -108,7 +107,9 @@ export class WorldView {
       this.sharedState = null;
     }
     this.active = active;
-    this.toolbar.hidden = !active;
+    // Observer Truth is one scene. Layer controls live in the inspector,
+    // not as a second navigation bar across the canvas.
+    this.toolbar.hidden = true;
     this.legend.hidden = !active;
     this.experience.hidden = true;
     this.updateVisibility();
@@ -437,9 +438,20 @@ export class WorldView {
 
   inspector(panel) {
     const s = this.state;
-    const head = `<div class="body-inspector-head"><div class="body-inspector-kicker">Body in World</div><div class="body-inspector-title">${escapeHtml(this.selected?.id ?? 'Situated organism')}</div><div class="body-inspector-sub">World truth and acquired evidence remain separate.</div></div>`;
-    if (!s) { panel.innerHTML = head + '<p class="body-world-note">No spatial observation available. Older streams cannot establish what exists around this body.</p>'; return; }
-    let html = head;
+    const head = `<div class="body-inspector-head"><div class="body-inspector-kicker">World · Observer Truth</div><div class="body-inspector-title">${escapeHtml(this.selected?.id ?? 'Situated organism')}</div><div class="body-inspector-sub">Physical reality and observer correlations only. Nothing here becomes organism knowledge.</div></div>`;
+    const controls = `
+      <div class="world-overlay-controls" aria-label="Observer truth overlays">
+        <button type="button" data-world-overlay="physical" aria-pressed="${this.layers.physical}">Geometry</button>
+        <button type="button" data-world-overlay="perception" aria-pressed="${this.layers.perception}">Receptor evidence</button>
+        <button type="button" data-world-overlay="self" aria-pressed="${this.layers.self}">Self evidence</button>
+        <button type="button" data-frame-world>Frame scene</button>
+      </div>`;
+    if (!s) {
+      panel.innerHTML = head + controls + '<p class="body-world-note">No spatial observation available. Older streams cannot establish what exists around this body.</p>';
+      this.bindInspectorControls(panel);
+      return;
+    }
+    let html = head + controls;
     if (this.selected?.kind === 'entity') {
       const e = s.entities[this.selected.id];
       if (e) {
@@ -494,14 +506,29 @@ export class WorldView {
     if (!this.selected) html += '<div class="body-section"><div class="body-section-title">Explore this scene</div><p class="body-world-note">Select a body part, object, receptor or contact. Rotate to inspect, pan to explore, or frame the world.</p>' + row('World entities', Object.keys(s.entities).length) + row('Sampled receptors', Object.values(s.evidence).filter(e => e.sampled).length) + row('Emitted percepts mapped', Object.values(s.evidence).filter(e => e.percept_emitted).length) + '</div>';
     if (!this.selected) html += '<div class="body-section"><div class="body-section-title">Spatial knowledge boundary</div><p class="body-world-note">This runtime exports signal learning and motor evidence, but no object-localized memory or predictions. Inspect acquired dependencies in Self-Model and predictors in Mind. No object is marked known by proxy.</p></div>';
     panel.innerHTML = html;
+    this.bindInspectorControls(panel);
     panel.querySelectorAll('[data-world-receptor]').forEach(button => button.addEventListener('click', () => {
       if (!this.active) return;
       this.selected = {kind: 'receptor', id: button.dataset.worldReceptor};
       this.layers.perception = true;
-      this.toolbar.querySelector('[data-layer="perception"]').setAttribute('aria-pressed', 'true');
+      this.toolbar.querySelector('[data-layer="perception"]')?.setAttribute('aria-pressed', 'true');
       this.updateVisibility();
       this.inspector(panel);
     }));
+  }
+
+  bindInspectorControls(panel) {
+    panel.querySelectorAll('[data-world-overlay]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (!this.active) return;
+        const layer = button.dataset.worldOverlay;
+        this.layers[layer] = !this.layers[layer];
+        button.setAttribute('aria-pressed', String(this.layers[layer]));
+        this.toolbar.querySelector(`[data-layer="${layer}"]`)?.setAttribute('aria-pressed', String(this.layers[layer]));
+        this.updateVisibility();
+      });
+    });
+    panel.querySelector('[data-frame-world]')?.addEventListener('click', () => this.frameWorld());
   }
 
   dispose() {
