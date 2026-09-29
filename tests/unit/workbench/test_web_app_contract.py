@@ -430,3 +430,54 @@ def test_archive_development_events_link_back_to_live_contexts():
     assert "data-archive-open" in archive
     assert "Open context" in archive
     assert "Open Mind" in archive
+
+
+def test_acquired_self_v2_is_compare_acquired_development_not_legacy_dashboard():
+    workspace = _read("views/body/workspace.js")
+    acquired = _read("views/body/acquired-self-v2.js")
+    self_view = _read("views/body/self-view.js")
+    css = _read("workbench-v2.css")
+
+    assert "AcquiredSelfWorkspace" in workspace
+    assert "['compare', 'Compare']" in acquired
+    assert "['acquired', 'Acquired']" in acquired
+    assert "['development', 'Development']" in acquired
+    assert "APPARATUS TRUTH" in acquired
+    assert "ACQUIRED SELF" in acquired
+    assert "observer correspondence only" in acquired
+    assert "['uncertainty', 'Uncertainty']" in self_view
+    assert ".acquired-self-compare-mode .body-data-overlay" in css
+
+
+def test_acquired_self_v2_selection_is_bidirectional_between_canvas_and_projection():
+    workspace = _read("views/body/workspace.js")
+    viewer = _read("views/body/viewer.js")
+    acquired = _read("views/body/acquired-self-v2.js")
+
+    assert "handleCanvasSegmentPick(name)" in workspace
+    assert "this.selfModel.selectSegment(name, { notifyPhysical: false })" in workspace
+    assert "segmentPickRaycaster" in viewer
+    assert "handleCanvasSegmentPick(event)" in viewer
+    assert "data-physical-segment" in acquired
+    assert "onSelectPhysical" in acquired
+
+
+def test_acquired_self_v2_reembodiment_preserves_history_without_claiming_reacquisition():
+    acquired = _read("views/body/acquired-self-v2.js")
+
+    assert "priorSegmentRecords" in acquired
+    assert "Embodiment changed" in acquired
+    assert "STALE · not currently mapped" in acquired
+    assert "RETAINED · current mapping" in acquired
+    assert "NOVEL · current body" in acquired
+    assert "Reacquisition is not claimed unless explicit current evidence supports it." in acquired
+
+
+def test_acquired_self_v2_remains_observer_only():
+    acquired = _read("views/body/acquired-self-v2.js")
+
+    assert "never fed back to Symbiont" in acquired
+    assert "Observer anatomy is only a projection surface" in acquired
+    assert "fetch(" not in acquired
+    assert "WebSocket" not in acquired
+    assert "EventSource" not in acquired
