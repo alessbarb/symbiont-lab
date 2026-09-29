@@ -167,9 +167,6 @@ export class BodyViewer {
     this.sse = null;
     this.resizeObs = null;
     this.cameraControls = null;
-    this.segmentPickRaycaster = null;
-    this.segmentPickPointer = null;
-    this.onCanvasClick = null;
     this.segmentPickRaycaster = new THREE.Raycaster();
     this.segmentPickPointer = new THREE.Vector2();
     this.onCanvasClick = (event) => this.handleCanvasSegmentPick(event);
@@ -1694,6 +1691,9 @@ export class BodyViewer {
     this.workspace?.dispose();
     this.cameraControls?.dispose();
     this.cameraControls = null;
+    this.segmentPickRaycaster = null;
+    this.segmentPickPointer = null;
+    this.onCanvasClick = null;
 
     // OrbitControls installs DOM listeners, so dispose it explicitly.
     if (this.controls) {
