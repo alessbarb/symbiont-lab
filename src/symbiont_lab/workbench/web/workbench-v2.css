@@ -302,3 +302,11 @@ body .rail{backdrop-filter:blur(16px)}
   .acquired-self-development-layout{grid-template-columns:1fr}
   .acquired-self-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+
+.self-body-segment.focus-uncertainty > *{
+  fill:rgba(241,190,90,.10);
+  stroke:rgba(241,190,90,.58);
+}
+.acquired-self-physical-regions strong.novel,
+.acquired-self-column-head em.novel{color:var(--violet);border-color:rgba(167,119,255,.24)}
