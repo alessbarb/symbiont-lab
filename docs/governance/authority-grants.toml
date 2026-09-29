@@ -171,3 +171,35 @@ allowed_paths = [
   ".github/workflows/**",
   ".gitignore",
 ]
+
+[[grant]]
+id = "owner-2026-09-29-governance-simplification-and-equivalence-v2b"
+kind = "change"
+status = "open"
+authority = "L4"
+base_commit = "467cea8ae087f8362fb226ef148c23a7e33a1fa9"
+issued_by = "alessbarb"
+purpose = "Implement task-oriented publish governance, Equivalence Suite v2, immutable snapshot capture, pinned worktrees, resource preflight and simplify agent workflow."
+single_use = true
+allowed_paths = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "docs/governance/**",
+  "docs/adr/**",
+  "scripts/agentctl.py",
+  "scripts/governance/**",
+  "src/symbiont_lab/physics3d/equivalence.py",
+  "src/symbiont_lab/physics3d/equivalence_suite.py",
+  "src/symbiont_lab/modeling/determinism.py",
+  "src/symbiont_lab/modeling/trainer.py",
+  "src/symbiont_lab/physics3d/private_model_training.py",
+  "src/symbiont_lab/experiments/**",
+  "tests/governance/**",
+  "tests/integration/test_physics3d_equivalence_harness.py",
+  "tests/integration/test_equivalence_suite.py",
+  "tests/unit/lab/experiments/**",
+  "experiments/equivalence/**",
+  ".pre-commit-config.yaml",
+  ".github/workflows/**",
+  ".gitignore"
+]
