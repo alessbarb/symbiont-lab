@@ -325,6 +325,23 @@ export class BodyViewer {
     this.workspace.render();
   }
 
+  setObserverMode(mode) {
+    this.observerMode = mode;
+    const epistemicOnly =
+      this.domain === 'world' && (mode === 'acquired' || mode === 'compare');
+    if (this.baseNode) this.baseNode.visible = !epistemicOnly;
+    if (epistemicOnly) {
+      if (this.resourceObject) this.resourceObject.visible = false;
+      if (this.resourceGuide) this.resourceGuide.visible = false;
+      if (this.resourceIndicator) this.resourceIndicator.style.display = 'none';
+      if (this.comMarker) this.comMarker.visible = false;
+      if (this.comProjectionLine) this.comProjectionLine.visible = false;
+      if (this.contactMarkerGroup) this.contactMarkerGroup.visible = false;
+    } else if (this.contactMarkerGroup) {
+      this.contactMarkerGroup.visible = true;
+    }
+  }
+
   forEachSegmentMaterial(segmentName, callback) {
     const root = this.segmentMeshes?.[segmentName];
     if (!root || typeof callback !== 'function') return;
@@ -461,6 +478,10 @@ export class BodyViewer {
     this.baseNode.name = 'body_base';
     this.baseNode.position.copy(this.targetBasePos);
     this.scene.add(this.baseNode);
+    this.baseNode.visible = !(
+      this.domain === 'world' &&
+      (this.observerMode === 'acquired' || this.observerMode === 'compare')
+    );
 
     // Attach light target to baseNode for dynamic shadows
     this.dirLight.target = this.baseNode;
