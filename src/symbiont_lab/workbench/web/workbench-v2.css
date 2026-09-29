@@ -170,3 +170,10 @@ body .rail{backdrop-filter:blur(16px)}
 .world-epistemic-mode .body-presentation-debug,
 .world-epistemic-mode .body-situation-overlay,
 .world-epistemic-mode .body-resource-indicator{display:none!important}
+
+
+/* Observer Truth: one scene, inspector-owned overlays */
+.world-overlay-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0 0 12px}
+.world-overlay-controls button{padding:7px 8px;border:1px solid rgba(118,145,167,.16);border-radius:7px;background:rgba(255,255,255,.015);color:var(--muted);font:8px var(--mono);cursor:pointer}
+.world-overlay-controls button[aria-pressed="true"]{color:var(--cyan);border-color:rgba(86,214,255,.28);background:rgba(86,214,255,.045)}
+.body-world-toolbar{display:none!important}
