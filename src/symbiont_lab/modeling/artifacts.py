@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from symbiont.host.durable import durable_atomic_write
 from symbiont.modeling.authority import ArchitectureId, ModelArtifactManifest, ModelObjective
 
 
@@ -161,17 +160,4 @@ class FileArtifactStore:
 
     @staticmethod
     def _atomic_write(path: Path, data: bytes) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        handle = tempfile.NamedTemporaryFile(dir=path.parent, delete=False)
-        try:
-            with handle:
-                handle.write(data)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(handle.name, path)
-        finally:
-            try:
-                if os.path.exists(handle.name):
-                    os.unlink(handle.name)
-            except OSError:
-                pass
+        durable_atomic_write(path, data, sync_dir=True)

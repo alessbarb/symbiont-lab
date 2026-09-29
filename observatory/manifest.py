@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import subprocess  # nosec B404
-import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from symbiont.host.durable import durable_atomic_write_json
 
 
 def _file_sha256(path: Path | str) -> str | None:
@@ -105,22 +105,15 @@ def create_capture_manifest(
 
 def write_capture_manifest(target_path: Path | str, manifest: CaptureManifest) -> Path:
     target = Path(target_path)
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload = manifest.as_dict()
-    fd, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent, text=True)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2, ensure_ascii=False)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, target)
-    except BaseException:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
-        raise
+    durable_atomic_write_json(
+        target,
+        payload,
+        indent=2,
+        sort_keys=False,
+        ensure_ascii=False,
+        sync_dir=True,
+    )
     return target
 
 

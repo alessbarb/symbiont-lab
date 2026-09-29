@@ -19,6 +19,7 @@ from typing import Any
 
 from symbiont.core.ecology import SharedHabitat
 
+from symbiont.host.durable import durable_atomic_write, sync_directory
 from symbiont.modeling.runtime import ModeledOrganismRuntime
 from symbiont_world.constitution import WorldConstitution
 from symbiont_world.events import EventJournal
@@ -234,9 +235,7 @@ def capture_checkpoint(
     journal_snapshot = pop.journal.snapshot() if include_journal else []
     journal_event_count = len(pop.journal)
     last_event_id = (
-        pop.journal.event_at(journal_event_count - 1).event_id
-        if journal_event_count
-        else None
+        pop.journal.event_at(journal_event_count - 1).event_id if journal_event_count else None
     )
     return PersistentWorldCheckpoint(
         schema_version=PERSISTENCE_SCHEMA_VERSION,
@@ -413,12 +412,7 @@ class WorldStorage:
         self.events_dir.mkdir(parents=True, exist_ok=True)
 
     def _atomic_write_text(self, path: Path, content: str) -> None:
-        tmp = path.parent / f".{path.name}.tmp.{uuid.uuid4().hex[:8]}"
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write(content)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
+        durable_atomic_write(path, content, sync_dir=True)
 
     def _read_manifest(self) -> dict[str, Any]:
         if not self.manifest_file.exists():
@@ -444,13 +438,10 @@ class WorldStorage:
         start = previous_count
         end = total_count
         target = self.events_dir / f"segment-{start:012d}-{end:012d}.jsonl"
-        tmp = self.events_dir / f".tmp-events-{uuid.uuid4().hex[:8]}.jsonl"
-        with open(tmp, "w", encoding="utf-8") as f:
-            for event in events:
-                f.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, target)
+        content = "".join(
+            json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n" for event in events
+        )
+        durable_atomic_write(target, content, sync_dir=True)
 
     def _load_event_prefix(self, count: int) -> list[dict[str, Any]]:
         if count <= 0:
@@ -585,9 +576,7 @@ class WorldStorage:
             if durable_prefix_digest is None:
                 # One-time compatibility path for manifests written before P3.
                 durable_events = self._load_event_prefix(previous_event_count)
-                durable_prefix_digest = EventJournal.from_snapshot(
-                    durable_events
-                ).prefix_digest()
+                durable_prefix_digest = EventJournal.from_snapshot(durable_events).prefix_digest()
             if pop.journal.prefix_digest(previous_event_count) != durable_prefix_digest:
                 raise ValueError("journal prefix mismatch: durable prefix digest differs")
 
@@ -628,6 +617,7 @@ class WorldStorage:
             raise IOError("checkpoint write failed checksum verification")
 
         os.replace(tmp_path, target_path)
+        sync_directory(target_path.parent)
 
         self._atomic_write_text(self.head_file, f"{target_name}\n")
         manifest_data = {

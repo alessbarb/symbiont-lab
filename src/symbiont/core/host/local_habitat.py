@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
 from typing import Any
 
+from ...host.durable import durable_atomic_write
 from ..social.capsule import KnowledgeCapsule, verify_capsule
 
 
@@ -45,16 +45,10 @@ class LocalHabitat:
         self._prune_capsules()
         capsule_id = f"cap_{time.time_ns()}_{capsule.signer_public_key[:8].hex()}"
         target = self.capsules_dir / f"{capsule_id}.json"
-        tmp = self.capsules_dir / f"{capsule_id}.tmp"
         try:
-            tmp.write_text(json.dumps(capsule.to_dict()), encoding="utf-8")
-            os.replace(tmp, target)
+            durable_atomic_write(target, json.dumps(capsule.to_dict()), sync_dir=True)
             self._prune_capsules()
         except OSError:
-            try:
-                tmp.unlink(missing_ok=True)
-            except OSError:
-                pass
             return None
         return target
 
@@ -115,15 +109,9 @@ class LocalHabitat:
     def deposit_embryo(self, embryo_payload: dict[str, Any], child_id: str) -> Path | None:
         """Deposit an authorized child embryo in the incubator."""
         target = self.incubator_dir / f"{child_id}.json"
-        tmp = self.incubator_dir / f"{child_id}.tmp"
         try:
-            tmp.write_text(json.dumps(embryo_payload, indent=2), encoding="utf-8")
-            os.replace(tmp, target)
+            durable_atomic_write(target, json.dumps(embryo_payload, indent=2), sync_dir=True)
         except OSError:
-            try:
-                tmp.unlink(missing_ok=True)
-            except OSError:
-                pass
             return None
         return target
 

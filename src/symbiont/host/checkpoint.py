@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Callable
@@ -15,6 +13,7 @@ from .consolidated_baseline import (
     seed_capability_baseline,
 )
 from .drift import DriftAwareBaseline
+from .durable import durable_atomic_write
 from .rhythms import CyclePhase, RhythmModel
 
 CHECKPOINT_SCHEMA_VERSION = 10
@@ -525,35 +524,19 @@ def import_checkpoint(
 
 
 def save_checkpoint_atomic(payload: dict[str, Any], path: str | Path) -> None:
-    """Write a checkpoint to disk atomically (roadmap v0.46).
+    """Write a checkpoint to disk atomically and durably (roadmap v0.46).
 
     Writes to a temporary file in the same directory, flushes and fsyncs
-    it, then renames it into place — ``os.replace`` is atomic on the same
-    filesystem on every platform Python supports. A crash or power loss
-    mid-write can only ever leave the temporary file behind; the path
-    callers actually read is either the previous complete checkpoint or the
-    new complete one, never a half-written one.
+    it, renames it into place with ``os.replace``, and fsyncs the parent
+    directory so directory entries reach persistent storage on POSIX.
     """
     target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode(
         "utf-8"
     )
     if len(encoded) > MAX_HOST_CHECKPOINT_BYTES:
         raise CheckpointError("checkpoint exceeds host size limit")
-    fd, tmp_name = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(encoded.decode("utf-8"))
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp_name, target)
-    except BaseException:
-        try:
-            os.unlink(tmp_name)
-        except OSError:
-            pass
-        raise
+    durable_atomic_write(target, encoded, sync_dir=True)
 
 
 def load_checkpoint_file(path: str | Path) -> dict[str, Any] | None:

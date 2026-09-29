@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from symbiont import __version__ as symbiont_version
+from symbiont.host.durable import durable_atomic_replacement, durable_atomic_write_json
 
 from .reembodiment import lifecycle_summary
 from .runtime import Tick3D
@@ -20,33 +21,14 @@ from .telemetry_reader import detect_telemetry_run, open_telemetry
 
 
 def _atomic_write_json(path: Path, payload: dict) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = (
-        json.dumps(
-            payload,
-            sort_keys=True,
-            indent=2,
-            ensure_ascii=False,
-            allow_nan=False,
-        )
-        + "\n"
+    return durable_atomic_write_json(
+        path,
+        payload,
+        indent=2,
+        sort_keys=True,
+        ensure_ascii=False,
+        sync_dir=True,
     )
-    fd, temp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=str(path.parent),
-        text=True,
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(encoded)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temp_name, path)
-    finally:
-        if os.path.exists(temp_name):
-            os.unlink(temp_name)
-    return path
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -330,13 +312,7 @@ def save_symbiont_bundle(
         + "\n"
     ).encode("utf-8")
 
-    fd, temp_name = tempfile.mkstemp(
-        prefix=f".{target.name}.",
-        suffix=".tmp",
-        dir=str(target.parent),
-    )
-    os.close(fd)
-    try:
+    with durable_atomic_replacement(target, sync_dir=True) as temp_name:
         with zipfile.ZipFile(
             temp_name,
             "w",
@@ -346,10 +322,8 @@ def save_symbiont_bundle(
             archive.writestr("runtime.json", runtime_bytes)
             for name, data in sorted(artifacts.items()):
                 archive.writestr(name, data)
-        os.replace(temp_name, target)
-    finally:
-        if os.path.exists(temp_name):
-            os.unlink(temp_name)
+        with open(temp_name, "rb") as handle:
+            os.fsync(handle.fileno())
 
     if sync_metadata:
         sync_organism_metadata(target, manifest_payload)

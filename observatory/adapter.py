@@ -5,9 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -22,6 +20,7 @@ from symbiont.cognition.checkpoint import (
 from symbiont.cognition.graph import CognitiveGraph
 from symbiont.cognition.types import WEIGHT_RANGE
 from symbiont.genetics.genome import Genome
+from symbiont.host.durable import durable_atomic_write_json
 
 try:
     from .config import (
@@ -476,8 +475,7 @@ def _generative_cognition_state(generative: Any) -> dict[str, Any] | None:
                 "origin": _text(getattr(raw, "origin", "inferred"), 32),
                 "depth": max(0, int(getattr(raw, "depth", 0))),
                 "model_ids": [
-                    _text(value, 128)
-                    for value in tuple(getattr(raw, "model_ids", ()))[:8]
+                    _text(value, 128) for value in tuple(getattr(raw, "model_ids", ()))[:8]
                 ],
                 "uncertainty": unit(getattr(raw, "uncertainty", 0.0)),
                 "coherence": unit(getattr(raw, "coherence", 0.0)),
@@ -493,8 +491,7 @@ def _generative_cognition_state(generative: Any) -> dict[str, Any] | None:
                 "target_state_id": _text(getattr(raw, "target_state_id", ""), 128),
                 "operation": _text(getattr(raw, "operation", "predict"), 32),
                 "model_ids": [
-                    _text(value, 128)
-                    for value in tuple(getattr(raw, "model_ids", ()))[:8]
+                    _text(value, 128) for value in tuple(getattr(raw, "model_ids", ()))[:8]
                 ],
             }
         )
@@ -507,8 +504,7 @@ def _generative_cognition_state(generative: Any) -> dict[str, Any] | None:
                 "target_id": _text(getattr(raw, "target_id", ""), 128),
                 "status": _text(getattr(raw, "status", "hypothesized"), 32),
                 "model_ids": [
-                    _text(value, 128)
-                    for value in tuple(getattr(raw, "model_ids", ()))[:8]
+                    _text(value, 128) for value in tuple(getattr(raw, "model_ids", ()))[:8]
                 ],
                 "uncertainty": unit(getattr(raw, "uncertainty", 0.0)),
             }
@@ -1538,9 +1534,7 @@ def project_tick(
             organism["cognition"]["developmental_divergence"] = round(
                 _developmental_divergence(graph, developmental_baseline), 6
             )
-        generative_projection = _generative_cognition_state(
-            getattr(result, "generative", None)
-        )
+        generative_projection = _generative_cognition_state(getattr(result, "generative", None))
         if generative_projection is not None:
             organism["cognition"]["generative"] = generative_projection
     embodiment_projection = _embodiment_state(embodiment_state)
@@ -1663,22 +1657,8 @@ def write_replay(path: str | Path, snapshots: Iterable[dict[str, Any]]) -> None:
     items = list(snapshots)
     if not 1 <= len(items) <= MAX_TICKS:
         raise ValueError(f"replay must contain between 1 and {MAX_TICKS} snapshots")
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload = {"schema_version": 1, "snapshots": items}
-    fd, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent, text=True)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, target)
-    except BaseException:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
-        raise
+    durable_atomic_write_json(target, payload, sort_keys=False, ensure_ascii=False, sync_dir=True)
 
 
 def main(argv: list[str] | None = None) -> int:

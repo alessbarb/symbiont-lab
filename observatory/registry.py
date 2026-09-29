@@ -6,12 +6,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from symbiont.host.durable import durable_atomic_write_json
 
 _NAMESPACE = "symbiont-observatory-instance"
 
@@ -26,21 +26,7 @@ def new_run_id() -> str:
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent, text=True)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    except BaseException:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
-        raise
+    durable_atomic_write_json(path, payload, sort_keys=False, ensure_ascii=False, sync_dir=True)
 
 
 def write_heartbeat(
@@ -53,6 +39,7 @@ def write_heartbeat(
     started_at: str,
     topology_revision: int,
     organism_id: str | None = None,
+    key_fingerprint: str | None = None,
 ) -> None:
     record: dict[str, Any] = {
         "instance_id": instance_id,
@@ -65,6 +52,8 @@ def write_heartbeat(
     }
     if organism_id is not None:
         record["organism_id"] = organism_id
+    if key_fingerprint is not None:
+        record["key_fingerprint"] = key_fingerprint
     _atomic_write_json(Path(observatory_dir) / "instances" / f"{instance_id}.json", record)
 
 
