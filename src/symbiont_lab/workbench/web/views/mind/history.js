@@ -70,141 +70,108 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   const root = document.getElementById('mind-history-wrap');
   if (!root) return;
   const prevScroll = root.scrollTop;
-  root.innerHTML = '';
+  root.replaceChildren();
 
-  const heading = el('h2', '');
-  heading.style.cssText = 'font-size:16px;margin:0 0 4px;';
-  heading.textContent = 'History';
-  const copy = el('p', '');
-  copy.style.cssText = 'font-size:10px;color:var(--muted);margin:0 0 14px;';
-  copy.textContent = 'Bounded observer-side history for this browser session. Click a milestone to inspect the nearest captured graph.';
-  root.append(heading, copy);
-
-  const charts = el('div', '');
-  charts.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;';
-  const energy = panelSection('Energy / physiology');
-  energy.appendChild(sparklineSvg(mindHistory.filter((point) => point.energy != null), 'energy', PAL.coral));
-  const edges = panelSection('Cognitive edges');
-  edges.appendChild(sparklineSvg(mindHistory, 'edges', PAL.violet));
-  const concepts = panelSection('Concept growth');
-  concepts.appendChild(sparklineSvg(mindHistory, 'concepts', PAL.cyan));
-  const predictors = panelSection('Predictor growth');
-  predictors.appendChild(sparklineSvg(mindHistory, 'predictors', PAL.amber));
-  const resource = panelSection('Resource progress');
-  resource.appendChild(sparklineSvg(mindHistory, 'resourceProgress', PAL.mint));
-  const motor = panelSection('Motor-output edges');
-  motor.appendChild(sparklineSvg(mindHistory, 'motorEdges', '#e09f3e'));
-  charts.append(energy, edges, concepts, predictors, resource, motor);
-  root.appendChild(charts);
-
-  const timeline = panelSection('Milestones');
-  timeline.style.marginTop = '10px';
-  if (!milestones.length) {
-    const empty = el('div', '');
-    empty.style.cssText = 'font-size:9px;color:var(--muted);';
-    empty.textContent = 'No milestones yet.';
-    timeline.appendChild(empty);
-  } else {
-    for (const milestone of milestones) {
-      const row = el('button', '');
-      row.type = 'button';
-      row.style.cssText = 'width:100%;display:grid;grid-template-columns:60px 1fr;gap:10px;text-align:left;padding:8px 0;border:0;border-top:1px solid rgba(98,120,136,.14);background:none;color:var(--text);cursor:pointer;';
-      const tick = el('strong', '');
-      tick.textContent = `t${milestone.tick}`;
-      tick.style.color = PAL.cyan;
-      const label = el('span', '');
-      label.textContent = milestone.label;
-      label.style.cssText = 'font-size:9px;';
-      row.append(tick, label);
-      row.addEventListener('click', () => onOpenHistoryTick(milestone.tick));
-      timeline.appendChild(row);
-    }
-  }
-  root.appendChild(timeline);
-
+  const current = mindHistory.at(-1) ?? null;
+  const previous = mindHistory.length > 1 ? mindHistory.at(-2) : null;
   const episodes = deriveCognitiveEpisodes(historySnapshots, mindHistory, 160);
-  const episodePanel = panelSection(
-    'Cognitive Episodes',
-    'Observer-derived clusters of contiguous structural change between captured snapshots.',
-  );
-  episodePanel.style.marginTop = '10px';
-  if (episodes.length) {
-    const nav = el('div', '');
-    nav.style.cssText = 'display:flex;align-items:center;gap:6px;margin:0 0 6px;';
-    const prev = el('button', 'mind-ctrl-btn');
-    prev.type = 'button';
-    prev.textContent = '← Previous';
-    const next = el('button', 'mind-ctrl-btn');
-    next.type = 'button';
-    next.textContent = 'Next →';
-    const active = el('span', '');
-    active.style.cssText = 'margin-left:auto;font-size:8px;color:var(--muted);';
-    const activeIndex = Math.max(0, episodes.findIndex(item => item.id === activeEpisodeId));
-    active.textContent = activeEpisodeId
-      ? `${activeIndex + 1}/${episodes.length}`
-      : `${episodes.length} episodes`;
-    const openEpisode = index => {
-      if (!episodes.length) return;
-      const bounded = Math.max(0, Math.min(episodes.length - 1, index));
-      const episode = episodes[bounded];
-      activeEpisodeId = episode.id;
-      const tick = episodeFocusTick(episode);
-      if (tick != null) onOpenHistoryTick(tick);
-    };
-    prev.addEventListener('click', () => openEpisode(
-      activeEpisodeId ? Math.max(0, activeIndex - 1) : Math.max(0, episodes.length - 2)
-    ));
-    next.addEventListener('click', () => openEpisode(
-      activeEpisodeId ? Math.min(episodes.length - 1, activeIndex + 1) : episodes.length - 1
-    ));
-    nav.append(prev, next, active);
-    episodePanel.appendChild(nav);
-  }
 
+  const head = el('div', 'mind-development-head');
+  const copy = el('div', '');
+  const eyebrow = el('div', 'mind-live-eyebrow');
+  eyebrow.textContent = 'MIND · DEVELOPMENT';
+  const title = el('h2', '');
+  title.textContent = 'How cognition is changing';
+  const sub = el('p', '');
+  sub.textContent = 'Observed developmental events and structural episodes in organism time. Charts are supporting evidence, not the story itself.';
+  copy.append(eyebrow, title, sub);
+  const now = el('strong', 'mind-live-state');
+  now.textContent = current?.tick != null ? `t${Number(current.tick).toLocaleString()}` : 'NO HISTORY';
+  head.append(copy, now);
+  root.appendChild(head);
+
+  const changeStrip = el('div', 'mind-live-metrics');
+  const diff = (key) => {
+    const a = Number(current?.[key]);
+    const b = Number(previous?.[key]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return '—';
+    const d = a - b;
+    return d === 0 ? '0' : `${d > 0 ? '+' : ''}${d}`;
+  };
+  const compact = (label, value) => {
+    const card = el('div', 'mind-live-metric');
+    card.innerHTML = `<span class="mind-live-metric-label">${label}</span><strong class="mind-live-metric-value">${value}</strong>`;
+    return card;
+  };
+  changeStrip.append(
+    compact('Concepts Δ', diff('concepts')),
+    compact('Predictors Δ', diff('predictors')),
+    compact('Relations Δ', diff('edges')),
+    compact('Motor links Δ', diff('motorEdges')),
+    compact('Self regions', current?.selfRegions ?? '—'),
+    compact('Episodes', episodes.length),
+  );
+  root.appendChild(changeStrip);
+
+  const narrative = panelSection(
+    'Developmental narrative',
+    'First-observed milestones in organism time. Selecting an event opens the nearest captured cognitive state.',
+  );
+  narrative.classList.add('mind-development-narrative');
+  if (!milestones.length) {
+    const empty = el('div', 'mind-live-empty');
+    empty.textContent = 'No developmental milestones have been observed in this browser session yet.';
+    narrative.appendChild(empty);
+  } else {
+    const line = el('div', 'mind-development-line');
+    for (const milestone of milestones) {
+      const event = el('button', 'mind-development-event');
+      event.type = 'button';
+      event.innerHTML = `
+        <span>t${milestone.tick}</span>
+        <i></i>
+        <strong>${milestone.label}</strong>
+      `;
+      event.addEventListener('click', () => onOpenHistoryTick(milestone.tick));
+      line.appendChild(event);
+    }
+    narrative.appendChild(line);
+  }
+  root.appendChild(narrative);
+
+  const episodePanel = panelSection(
+    'Cognitive episodes',
+    'Observer-derived windows where structural, predictive or contextual change clustered together.',
+  );
+  episodePanel.classList.add('mind-development-episodes');
   if (!episodes.length) {
-    const empty = el('div', '');
-    empty.style.cssText = 'font-size:9px;color:var(--muted);';
+    const empty = el('div', 'mind-live-empty');
     empty.textContent = 'No structural episodes captured yet.';
     episodePanel.appendChild(empty);
   } else {
-    for (const episode of episodes.slice(-12).reverse()) {
+    for (const episode of episodes.slice(-10).reverse()) {
       const impact = episodeImpact(episode);
-      const row = el('button', '');
-      row.type = 'button';
-      row.style.cssText = [
-        'width:100%;display:grid;grid-template-columns:92px 1fr;gap:10px',
-        'text-align:left;padding:8px 0;border:0',
-        'border-top:1px solid rgba(98,120,136,.14)',
-        `background:${episode.id === activeEpisodeId ? 'rgba(80,217,255,.055)' : 'none'};color:var(--text);cursor:pointer`,
-      ].join(';');
-      const when = el('strong', '');
-      when.style.cssText = 'font-size:9px;color:var(--cyan);';
-      when.textContent = `t${episode.startTick}–${episode.endTick}`;
-      const detail = el('span', '');
-      detail.style.cssText = 'font-size:8px;line-height:1.4;color:var(--muted);';
       const totals = episode.totals;
-      const context = episode.context ?? {};
-      const contextBits = [
+      const row = el('button', 'mind-development-episode');
+      row.type = 'button';
+      row.classList.toggle('active', episode.id === activeEpisodeId);
+      const changes = [
+        totals.addedNodes ? `+${totals.addedNodes} nodes` : null,
+        totals.removedNodes ? `−${totals.removedNodes} nodes` : null,
+        totals.addedEdges ? `+${totals.addedEdges} relations` : null,
+        totals.removedEdges ? `−${totals.removedEdges} relations` : null,
+        totals.predictionErrorChanges ? `${totals.predictionErrorChanges} prediction-error changes` : null,
         totals.motorTransitions ? `${totals.motorTransitions} motor transitions` : null,
         totals.physiologyTransitions ? `${totals.physiologyTransitions} physiology transitions` : null,
-        totals.predictionShifts ? `${totals.predictionShifts} prediction shifts` : null,
-      ].filter(Boolean).join(' · ');
-      const subevents = [
-        totals.addedNodes || totals.removedNodes ? 'structural growth' : null,
-        totals.predictionErrorChanges || totals.predictionShifts ? 'prediction shift' : null,
-        totals.motorTransitions ? 'motor transition' : null,
-        totals.physiologyTransitions ? 'physiology transition' : null,
       ].filter(Boolean);
-      detail.innerHTML =
-        `<strong style="color:var(--text)">${episode.events.length} observed change windows · impact ${impact.label} ${Math.round(impact.score * 100)}%</strong><br>` +
-        `+${totals.addedNodes}/-${totals.removedNodes} nodes · ` +
-        `+${totals.addedEdges}/-${totals.removedEdges} relations · ` +
-        `${totals.changedEdges} relation updates · ` +
-        `${totals.predictionErrorChanges} prediction-error changes` +
-        (subevents.length ? `<br>${subevents.join(' · ')} · dominant ${impact.dominant}` : '') +
-        (contextBits ? `<br>${contextBits}` : '') +
-        (context.motorOrigins?.length ? `<br>motor: ${context.motorOrigins.join(' → ')}` : '');
-      row.append(when, detail);
+      row.innerHTML = `
+        <div class="mind-development-episode-time">t${episode.startTick}–${episode.endTick}</div>
+        <div class="mind-development-episode-body">
+          <strong>${impact.dominant || 'structural change'} · ${impact.label} impact</strong>
+          <span>${changes.join(' · ') || 'contextual change'}</span>
+        </div>
+        <div class="mind-development-episode-score">${Math.round(impact.score * 100)}%</div>
+      `;
       row.addEventListener('click', () => {
         activeEpisodeId = episode.id;
         const tick = episodeFocusTick(episode);
@@ -215,12 +182,32 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   }
   root.appendChild(episodePanel);
 
+  const measures = document.createElement('details');
+  measures.className = 'mind-development-measures';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Longitudinal measures';
+  measures.appendChild(summary);
+  const charts = el('div', 'mind-development-charts');
+  const energy = panelSection('Energy / physiology');
+  energy.appendChild(sparklineSvg(mindHistory.filter(point => point.energy != null), 'energy', PAL.coral));
+  const edges = panelSection('Cognitive relations');
+  edges.appendChild(sparklineSvg(mindHistory, 'edges', PAL.violet));
+  const concepts = panelSection('Concept growth');
+  concepts.appendChild(sparklineSvg(mindHistory, 'concepts', PAL.cyan));
+  const predictors = panelSection('Predictor growth');
+  predictors.appendChild(sparklineSvg(mindHistory, 'predictors', PAL.amber));
+  const motor = panelSection('Motor-output relations');
+  motor.appendChild(sparklineSvg(mindHistory, 'motorEdges', '#e09f3e'));
+  charts.append(energy, edges, concepts, predictors, motor);
+  measures.appendChild(charts);
+  root.appendChild(measures);
+
   if (mindHistory.length) {
     const observer = panelSection(
       'Observer analysis',
-      'Secondary analytical projection; not part of the organism.',
+      'Secondary analytical projection. It is not part of the organism and is never fed back.',
     );
-    observer.style.marginTop = '10px';
+    observer.classList.add('mind-development-observer');
     const coord = computeObserverMapCoordinates({
       senses: snap.senses,
       cognition: snap.cognition,
@@ -235,9 +222,7 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
 
   if (prevScroll > 0) {
     root.scrollTop = prevScroll;
-    requestAnimationFrame(() => {
-      root.scrollTop = prevScroll;
-    });
+    requestAnimationFrame(() => { root.scrollTop = prevScroll; });
   }
 }
 
