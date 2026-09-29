@@ -14,8 +14,16 @@ from pathlib import Path
 class ChangeClass(StrEnum):
     ORDINARY = "ORDINARY"
     SCIENTIFIC = "SCIENTIFIC"
-    FROZEN = "FROZEN"
     CONSTITUTIONAL = "CONSTITUTIONAL"
+    FROZEN = "FROZEN"
+
+
+_PRIORITY = {
+    ChangeClass.ORDINARY: 0,
+    ChangeClass.SCIENTIFIC: 1,
+    ChangeClass.CONSTITUTIONAL: 2,
+    ChangeClass.FROZEN: 3,
+}
 
 
 @dataclass(frozen=True)
@@ -28,6 +36,10 @@ class Assessment:
 
 def _matches(path: str, pattern: str) -> bool:
     return fnmatch.fnmatchcase(path, pattern)
+
+
+def _elevate(current: ChangeClass, candidate: ChangeClass) -> ChangeClass:
+    return candidate if _PRIORITY[candidate] > _PRIORITY[current] else current
 
 
 def _frozen(repo: Path, base: str, path: str) -> bool:
@@ -48,43 +60,71 @@ def _frozen(repo: Path, base: str, path: str) -> bool:
     return False
 
 
+def _diff_by_path(diff_text: str) -> dict[str, str]:
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in diff_text.splitlines():
+        match = re.match(r"^diff --git a/(.+) b/(.+)$", line)
+        if match:
+            current = match.group(2)
+            sections.setdefault(current, []).append(line)
+            continue
+        if current is not None:
+            sections[current].append(line)
+    return {path: "\n".join(lines) for path, lines in sections.items()}
+
+
+def _surface_haystack(repo: Path, path: str, sections: dict[str, str]) -> str:
+    segment = sections.get(path, "")
+    if segment:
+        return segment
+    candidate = repo / path
+    if candidate.is_file():
+        try:
+            return candidate.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return ""
+    return ""
+
+
 def assess(repo: Path, base: str, paths: list[str], diff_text: str) -> Assessment:
     config = tomllib.loads(
         (repo / "docs/governance/change-surfaces.toml").read_text(encoding="utf-8")
     )
+    sections = _diff_by_path(diff_text)
     classification = ChangeClass.ORDINARY
-    rank = {
-        ChangeClass.ORDINARY: 0,
-        ChangeClass.SCIENTIFIC: 1,
-        ChangeClass.CONSTITUTIONAL: 2,
-        ChangeClass.FROZEN: 3,
-    }
     reasons: list[str] = []
     scenarios: list[str] = []
 
     for path in paths:
         if _frozen(repo, base, path):
-            classification = ChangeClass.FROZEN
+            classification = _elevate(classification, ChangeClass.FROZEN)
             reasons.append(f"{path}: completed experiment evidence")
             continue
 
+        haystack = _surface_haystack(repo, path, sections)
         for surface in config.get("surface", []):
             if not any(_matches(path, pattern) for pattern in surface.get("paths", [])):
                 continue
-            target = ChangeClass(surface["classification"])
-            regexes = surface.get("diff_regex", [])
-            if regexes and not any(re.search(rx, diff_text, re.IGNORECASE) for rx in regexes):
+            regexes = [str(rx) for rx in surface.get("diff_regex", [])]
+            symbols = [str(symbol) for symbol in surface.get("symbols", [])]
+            if regexes and not any(re.search(rx, haystack, re.IGNORECASE) for rx in regexes):
                 continue
-            if rank[target] > rank[classification]:
-                classification = target
+            if symbols and not any(
+                re.search(rf"\b{re.escape(symbol)}\b", haystack) for symbol in symbols
+            ):
+                continue
+
+            target = ChangeClass(surface["classification"])
+            classification = _elevate(classification, target)
             reasons.append(f"{path}: {surface['id']}")
             for scenario in surface.get("equivalence", []):
                 if scenario not in scenarios:
-                    scenarios.append(scenario)
+                    scenarios.append(str(scenario))
 
     return Assessment(
-        classification,
-        tuple(paths),
-        tuple(dict.fromkeys(reasons)),
-        tuple(scenarios),
+        classification=classification,
+        paths=tuple(paths),
+        reasons=tuple(dict.fromkeys(reasons)),
+        equivalence_scenarios=tuple(scenarios),
     )

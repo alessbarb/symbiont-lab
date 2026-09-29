@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,19 @@ def _tree_hash(root: Path) -> str:
     return digest.hexdigest()
 
 
+def _fsync_file(path: Path) -> None:
+    with path.open("rb") as handle:
+        os.fsync(handle.fileno())
+
+
+def _fsync_dir(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def _body_metadata(body: Path) -> dict[str, Any]:
     try:
         payload = json.loads(body.read_text(encoding="utf-8"))
@@ -42,6 +56,7 @@ def _body_metadata(body: Path) -> dict[str, Any]:
     return {
         "embodiment_id": payload.get("embodiment_id") or payload.get("epoch_id"),
         "body_kind_from_state": payload.get("body_kind") or payload.get("kind"),
+        "body_age_ticks": payload.get("age_ticks") or payload.get("tick"),
     }
 
 
@@ -90,9 +105,16 @@ def archive_snapshot(
         else:
             (tmp / "models").mkdir()
 
+        for path in (tmp / "organism.symbiont", tmp / "body.json"):
+            _fsync_file(path)
+        for path in sorted((tmp / "models").rglob("*")):
+            if path.is_file():
+                _fsync_file(path)
+
         manifest = {
-            "schema_version": 1,
+            "schema_version": 2,
             "snapshot_id": destination.name,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
             "source_commit": source_commit,
             "body_kind": body_kind,
             "scenario": scenario,
@@ -102,17 +124,24 @@ def archive_snapshot(
             "body_sha256": _sha256(tmp / "body.json"),
             "models_tree_sha256": _tree_hash(tmp / "models"),
         }
-        (tmp / "manifest.json").write_text(
-            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        manifest_path = tmp / "manifest.json"
+        with manifest_path.open("w", encoding="utf-8") as handle:
+            handle.write(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
         verify_snapshot(tmp)
-        for path in sorted(tmp.rglob("*"), reverse=True):
+        _fsync_dir(tmp / "models")
+        _fsync_dir(tmp)
+        os.replace(tmp, destination)
+        _fsync_dir(destination.parent)
+
+        for path in sorted(destination.rglob("*"), reverse=True):
             if path.is_file():
                 try:
                     path.chmod(0o444)
                 except OSError:
                     pass
-        os.replace(tmp, destination)
         return manifest
     except Exception:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -123,7 +152,17 @@ def verify_snapshot(snapshot: Path) -> dict[str, Any]:
     manifest_path = snapshot / "manifest.json"
     if not manifest_path.is_file():
         raise ValueError("snapshot manifest.json missing")
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("snapshot manifest.json is invalid") from exc
+    if not isinstance(manifest, dict):
+        raise ValueError("snapshot manifest must be an object")
+    if manifest.get("snapshot_id") != snapshot.name:
+        raise ValueError("snapshot_id does not match directory name")
+    for required in ("organism.symbiont", "body.json"):
+        if not (snapshot / required).is_file():
+            raise ValueError(f"snapshot is missing {required}")
     checks = {
         "organism_sha256": _sha256(snapshot / "organism.symbiont"),
         "body_sha256": _sha256(snapshot / "body.json"),

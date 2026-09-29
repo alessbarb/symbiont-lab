@@ -12,7 +12,13 @@ from pathlib import Path
 
 from symbiont_lab.experiments.snapshot_archive import verify_snapshot
 
-from .equivalence import EquivalenceRunConfig, equivalent, first_divergence, run_digests
+from .equivalence import (
+    DeterminismContractError,
+    EquivalenceRunConfig,
+    equivalent,
+    first_divergence,
+    run_digests,
+)
 
 
 class EquivalenceStatus(StrEnum):
@@ -33,15 +39,17 @@ class Scenario:
     seed: int
     training: bool
     train_interval: int
-    min_training_windows: int
+    min_training_completions: int
+    require_promotion_event: bool
     coverage: tuple[str, ...]
 
 
 def load_suite(path: Path) -> tuple[str, tuple[Scenario, ...]]:
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     root = path.parent
-    scenarios = []
+    scenarios: list[Scenario] = []
     for raw in data.get("scenario", []):
+        minimum = int(raw.get("min_training_completions", raw.get("min_training_windows", 0)))
         scenarios.append(
             Scenario(
                 scenario_id=str(raw["id"]),
@@ -51,7 +59,8 @@ def load_suite(path: Path) -> tuple[str, tuple[Scenario, ...]]:
                 seed=int(raw.get("seed", 42)),
                 training=bool(raw.get("training", False)),
                 train_interval=int(raw.get("train_interval", 32)),
-                min_training_windows=int(raw.get("min_training_windows", 0)),
+                min_training_completions=minimum,
+                require_promotion_event=bool(raw.get("require_promotion_event", False)),
                 coverage=tuple(str(x) for x in raw.get("coverage", [])),
             )
         )
@@ -59,7 +68,7 @@ def load_suite(path: Path) -> tuple[str, tuple[Scenario, ...]]:
 
 
 def _finite_result(result: dict) -> bool:
-    def walk(value) -> bool:
+    def walk(value: object) -> bool:
         if isinstance(value, float):
             return math.isfinite(value)
         if isinstance(value, dict):
@@ -67,12 +76,26 @@ def _finite_result(result: dict) -> bool:
         if isinstance(value, (list, tuple)):
             return all(walk(v) for v in value)
         return True
+
     return walk(result)
+
+
+def _coverage_failure(scenario: Scenario, result: dict) -> str | None:
+    if scenario.training:
+        observed = int(result.get("training_completions", 0))
+        if observed < scenario.min_training_completions:
+            return (
+                f"observed {observed} completed private-model trainings; "
+                f"{scenario.min_training_completions} required"
+            )
+    if scenario.require_promotion_event and not result.get("promotion_events"):
+        return "no private-model promotion event was observed"
+    return None
 
 
 def run_once(scenario: Scenario) -> dict:
     try:
-        verify_snapshot(scenario.snapshot)
+        snapshot_manifest = verify_snapshot(scenario.snapshot)
     except Exception as exc:
         return {
             "status": EquivalenceStatus.NOT_ASSESSABLE_INVALID_SNAPSHOT,
@@ -86,10 +109,18 @@ def run_once(scenario: Scenario) -> dict:
         training=scenario.training,
         synchronous_training=True,
         train_interval=scenario.train_interval,
+        torch_threads=1,
+        torch_interop_threads=1,
+        deterministic_algorithms=True,
     )
     try:
         first = run_digests(scenario.snapshot, config=config)
         second = run_digests(scenario.snapshot, config=config)
+    except DeterminismContractError as exc:
+        return {
+            "status": EquivalenceStatus.NOT_ASSESSABLE_NONDETERMINISM,
+            "reason": str(exc),
+        }
     except Exception as exc:
         return {"status": EquivalenceStatus.ERROR, "reason": f"{type(exc).__name__}: {exc}"}
 
@@ -105,36 +136,60 @@ def run_once(scenario: Scenario) -> dict:
             "first_divergence": first_divergence(first, second),
         }
 
-    if scenario.training and scenario.min_training_windows:
-        minimum_ticks = scenario.train_interval * scenario.min_training_windows
-        if scenario.ticks < minimum_ticks:
-            return {
-                "status": EquivalenceStatus.NOT_ASSESSABLE_MISSING_EVENT,
-                "reason": f"horizon {scenario.ticks} < {minimum_ticks} ticks of requested coverage",
-            }
-        observed = int(first.get("private_model_transitions", 0))
-        if observed < scenario.min_training_windows:
-            return {
-                "status": EquivalenceStatus.NOT_ASSESSABLE_MISSING_EVENT,
-                "reason": (
-                    f"observed {observed} private-model lifecycle transitions; "
-                    f"{scenario.min_training_windows} required"
-                ),
-            }
-    return {"status": EquivalenceStatus.PASS, "result": first}
+    failure = _coverage_failure(scenario, first)
+    if failure is not None:
+        return {
+            "status": EquivalenceStatus.NOT_ASSESSABLE_MISSING_EVENT,
+            "reason": failure,
+            "training_completions": int(first.get("training_completions", 0)),
+            "promotion_events": len(first.get("promotion_events", [])),
+        }
+
+    return {
+        "status": EquivalenceStatus.PASS,
+        "snapshot": {
+            "snapshot_id": snapshot_manifest.get("snapshot_id"),
+            "organism_id": snapshot_manifest.get("organism_id"),
+            "captured_tick": snapshot_manifest.get("captured_tick"),
+            "body_kind": snapshot_manifest.get("body_kind")
+            or snapshot_manifest.get("body_kind_from_state"),
+            "organism_sha256": snapshot_manifest.get("organism_sha256"),
+            "body_sha256": snapshot_manifest.get("body_sha256"),
+            "models_tree_sha256": snapshot_manifest.get("models_tree_sha256"),
+        },
+        "coverage": {
+            "declared": list(scenario.coverage),
+            "training_completions": int(first.get("training_completions", 0)),
+            "promotion_events": len(first.get("promotion_events", [])),
+        },
+        "result": first,
+    }
 
 
 def compare(scenario: Scenario, baseline: dict, candidate: dict) -> dict:
     if baseline.get("status") != EquivalenceStatus.PASS:
-        return {"status": baseline.get("status"), "reason": baseline.get("reason")}
+        return {
+            "status": baseline.get("status"),
+            "reason": baseline.get("reason"),
+        }
     if candidate.get("status") != EquivalenceStatus.PASS:
-        return {"status": candidate.get("status"), "reason": candidate.get("reason")}
+        return {
+            "status": candidate.get("status"),
+            "reason": candidate.get("reason"),
+        }
     a, b = baseline["result"], candidate["result"]
     if equivalent(a, b):
-        return {"status": EquivalenceStatus.PASS, "first_divergence": None}
+        return {
+            "status": EquivalenceStatus.PASS,
+            "first_divergence": None,
+            "coverage": baseline.get("coverage"),
+            "snapshot": baseline.get("snapshot"),
+        }
     return {
         "status": EquivalenceStatus.FAIL_CAUSAL_DIVERGENCE,
         "first_divergence": first_divergence(a, b),
+        "baseline_active_model": (a.get("registry_final") or {}).get("active_model_id"),
+        "candidate_active_model": (b.get("registry_final") or {}).get("active_model_id"),
     }
 
 

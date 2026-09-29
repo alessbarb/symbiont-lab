@@ -14,12 +14,31 @@ def test_private_model_promotion_is_scientific_by_semantics() -> None:
         ROOT,
         "HEAD",
         ["src/symbiont_lab/physics3d/private_model_training.py"],
-        "+ activate_private_model(... promotion_authorized=True)",
+        "diff --git a/src/symbiont_lab/physics3d/private_model_training.py b/src/symbiont_lab/physics3d/private_model_training.py\n+ activate_private_model(... promotion_authorized=True)",
     )
     assert result.classification == ChangeClass.SCIENTIFIC
     assert "promotion-eligible" in result.equivalence_scenarios
 
 
+def test_unrelated_diff_text_does_not_taint_private_model_file() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        [
+            "src/symbiont_lab/physics3d/private_model_training.py",
+            "docs/notes.md",
+        ],
+        "diff --git a/src/symbiont_lab/physics3d/private_model_training.py b/src/symbiont_lab/physics3d/private_model_training.py\n+ # formatting only\n"
+        "diff --git a/docs/notes.md b/docs/notes.md\n+ promotion training active shadow",
+    )
+    assert "promotion-eligible" not in result.equivalence_scenarios
+
+
 def test_observatory_presentation_is_ordinary() -> None:
-    result = assess(ROOT, "HEAD", ["observatory/ui/view.js"], "+ renderLabel()")
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["observatory/ui/view.js"],
+        "diff --git a/observatory/ui/view.js b/observatory/ui/view.js\n+ renderLabel()",
+    )
     assert result.classification == ChangeClass.ORDINARY
