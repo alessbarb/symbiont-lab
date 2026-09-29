@@ -203,3 +203,8 @@ body .rail{backdrop-filter:blur(16px)}
   .vision-apparatus-diagram{grid-template-columns:1fr;gap:10px}
   .vision-apparatus-link{width:1px;height:35px;justify-self:center}
 }
+
+
+.archive-event-actions{display:flex;gap:6px;margin-top:8px}
+.archive-event-actions button{padding:5px 7px;border:1px solid rgba(118,145,167,.14);border-radius:6px;background:rgba(255,255,255,.012);color:var(--muted);font:8px var(--mono);cursor:pointer}
+.archive-event-actions button:hover{color:var(--cyan);border-color:rgba(86,214,255,.24)}
