@@ -1,0 +1,35 @@
+schema_version = 1
+
+[[surface]]
+id = "governance-control"
+paths = ["AGENTS.md", "CLAUDE.md", "docs/governance/**", "scripts/agentctl.py", "scripts/governance/**", ".github/**", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml"]
+classification = "CONSTITUTIONAL"
+
+[[surface]]
+id = "scientific-protocol"
+paths = ["experiments/**", "docs/design/**", "research/**"]
+classification = "SCIENTIFIC"
+
+[[surface]]
+id = "organism-causal-runtime"
+paths = ["src/symbiont/**"]
+classification = "SCIENTIFIC"
+equivalence = ["developed-cognition"]
+
+[[surface]]
+id = "private-model-training"
+paths = ["src/symbiont_lab/physics3d/private_model_training.py", "src/symbiont_lab/modeling/**"]
+classification = "SCIENTIFIC"
+diff_regex = ["promotion", "active", "shadow", "training", "model_registry", "adopt_private_model", "activate_private_model"]
+equivalence = ["private-model-training", "promotion-eligible"]
+
+[[surface]]
+id = "physics3d-causal-engine"
+paths = ["src/symbiont_lab/physics3d/engine.py", "src/symbiont_lab/world/**", "src/symbiont_world/**"]
+classification = "SCIENTIFIC"
+equivalence = ["established-anthropomorphic", "developed-cognition"]
+
+[[surface]]
+id = "observatory-presentation"
+paths = ["observatory/**", "src/symbiont_lab/app/**"]
+classification = "ORDINARY"
