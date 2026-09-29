@@ -168,7 +168,84 @@ export function renderActionDiscovery(root) {
   heading.append(titleWrap, context);
   root.append(heading, makeObservationBanner(model));
 
-  const hero = panelSection('Sensorimotor discovery', 'Observer interpretation only · no feedback, goals or thresholds are introduced into Symbiont.');
+  const chain = panelSection(
+    'Current causal chain',
+    'Observer projection of how action becomes reusable evidence. Empty stages are shown explicitly rather than inferred.',
+  );
+  chain.classList.add('action-causal-chain');
+  const causalFlow = el('div', 'action-causal-flow');
+  const flowStages = [
+    {
+      id: 'action',
+      label: 'Action',
+      value: String(evidence.origin || 'none'),
+      detail: tel.activeEffectors != null ? `${tel.activeEffectors} active effectors` : 'current motor output',
+      active: true,
+    },
+    {
+      id: 'effect',
+      label: 'Observed consequence',
+      value: evidence.patterns > 0 ? `${evidence.patterns} regularities` : 'not recurrent yet',
+      detail: evidence.recurrent > 0 ? `${evidence.recurrent} recurrent candidates` : 'waiting for repeatable effects',
+      active: evidence.patterns > 0 || evidence.recurrent > 0,
+    },
+    {
+      id: 'evidence',
+      label: 'Evidence',
+      value: evidence.controllability != null ? `control ${metricValue(evidence.controllability)}` : 'insufficient',
+      detail: evidence.directionalConsistency != null
+        ? `direction ${metricValue(evidence.directionalConsistency)}`
+        : 'directional consistency unavailable',
+      active: evidence.controllability != null || evidence.directionalConsistency != null,
+    },
+    {
+      id: 'structure',
+      label: 'Reusable structure',
+      value: evidence.cognitivePrimitives > 0
+        ? `${evidence.cognitivePrimitives} cognitive primitives`
+        : evidence.repertoire > 0
+          ? `${evidence.repertoire} repertoire entries`
+          : 'not formed yet',
+      detail: `${evidence.motorEdges} structural motor relations`,
+      active: evidence.cognitivePrimitives > 0 || evidence.repertoire > 0,
+    },
+    {
+      id: 'competence',
+      label: 'Competence',
+      value: evidence.competence > 0 ? `${evidence.competence} candidates` : 'not established',
+      detail: agency.status === 'active' ? 'participating in control' : `agency ${agency.status}`,
+      active: evidence.competence > 0 || agency.status === 'active',
+    },
+  ];
+
+  flowStages.forEach((item, index) => {
+    const stageNode = el('div', `action-causal-stage ${item.active ? 'active' : ''} ${bottleneck.id === item.id ? 'blocked' : ''}`);
+    const stageLabel = el('span', 'action-causal-label');
+    stageLabel.textContent = item.label;
+    const stageValue = el('strong', 'action-causal-value');
+    stageValue.textContent = item.value;
+    const stageDetail = el('small', 'action-causal-detail');
+    stageDetail.textContent = item.detail;
+    stageNode.append(stageLabel, stageValue, stageDetail);
+    causalFlow.appendChild(stageNode);
+    if (index < flowStages.length - 1) {
+      const arrow = el('div', 'action-causal-arrow');
+      arrow.textContent = '→';
+      causalFlow.appendChild(arrow);
+    }
+  });
+  chain.appendChild(causalFlow);
+
+  const causalSummary = el('div', 'action-causal-summary');
+  causalSummary.innerHTML = `
+    <span>Current developmental bottleneck</span>
+    <strong>${bottleneck.title}</strong>
+    <small>${bottleneck.body}</small>
+  `;
+  chain.appendChild(causalSummary);
+  root.appendChild(chain);
+
+  const hero = panelSection('Developmental stage', 'Observer interpretation only · no feedback, goals or thresholds are introduced into Symbiont.');
   hero.appendChild(makeStageRail(stage));
   const stageMeta = el('div', '');
   stageMeta.style.cssText = 'font-size:8px;color:var(--muted);margin:-2px 0 10px;';
