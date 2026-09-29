@@ -49,6 +49,9 @@ def test_training_coverage_requires_observed_events(tmp_path: Path) -> None:
         min_training_completions=4,
         require_promotion_event=True,
         coverage=("private-model-training", "model-promotion"),
+        memory_gb=6.0,
+        disk_gb=1.0,
+        cpu_threads=1,
     )
     assert "completed private-model trainings" in (
         _coverage_failure(scenario, {"training_completions": 3, "promotion_events": []}) or ""
@@ -66,3 +69,30 @@ def test_not_assessable_status_is_distinct_from_causal_fail() -> None:
     assert EquivalenceStatus.NOT_ASSESSABLE_NONDETERMINISM != (
         EquivalenceStatus.FAIL_CAUSAL_DIVERGENCE
     )
+
+
+
+def test_suite_status_reports_missing_reference_snapshots(tmp_path: Path) -> None:
+    from symbiont_lab.physics3d.equivalence_suite import suite_status
+
+    suite = tmp_path / "suite.toml"
+    suite.write_text(
+        '''
+schema_version = 1
+suite_id = "test-suite"
+status = "capture-required"
+
+[[scenario]]
+id = "missing"
+snapshot = "snapshots/S01"
+body_kind = "anthropomorphic-v6"
+ticks = 10
+training = false
+coverage = ["organism-state"]
+''',
+        encoding="utf-8",
+    )
+    status = suite_status(suite)
+    assert status["ready"] is False
+    assert status["computed_status"] == "CAPTURE_REQUIRED"
+    assert status["scenarios"][0]["state"] == "MISSING"

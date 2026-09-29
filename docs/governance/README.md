@@ -53,3 +53,19 @@ Per-commit grants are deprecated for ordinary publication by ADR-0046.
 Human identity/approval lives outside the repository. Repository records are guardrails
 and provenance, not cryptographic identity when agents share owner credentials.
 Cross-machine locking and portable storage quotas remain external infrastructure.
+
+
+## Low-friction operational commands
+
+Agents normally need only:
+
+```bash
+python scripts/agentctl.py publish --message "..."
+python scripts/agentctl.py equivalence status
+python scripts/agentctl.py run start ...
+```
+
+The legacy `validate`, `check` and `run exec` commands remain for CI/backward
+compatibility and are hidden from normal help. `publish` owns validation and final
+classification; `run start` owns input archival, resource preflight and commit-pinned
+execution.

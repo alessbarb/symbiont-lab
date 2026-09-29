@@ -42,3 +42,13 @@ def test_observatory_presentation_is_ordinary() -> None:
         "diff --git a/observatory/ui/view.js b/observatory/ui/view.js\n+ renderLabel()",
     )
     assert result.classification == ChangeClass.ORDINARY
+
+
+from governance.publish import _active_work_conflicts
+
+
+def test_active_work_conflict_is_detected() -> None:
+    conflicts = _active_work_conflicts(
+        ["src/symbiont_lab/studies/learning/visual_acquisition.py"]
+    )
+    assert any("visual-acquisition-d1-v2" in conflict for conflict in conflicts)
