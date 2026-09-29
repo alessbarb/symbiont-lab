@@ -93,10 +93,11 @@ def archive_snapshot(
         )
         verify_snapshot(tmp)
         for path in sorted(tmp.rglob("*"), reverse=True):
-            try:
-                path.chmod(0o555 if path.is_dir() else 0o444)
-            except OSError:
-                pass
+            if path.is_file():
+                try:
+                    path.chmod(0o444)
+                except OSError:
+                    pass
         os.replace(tmp, destination)
         return manifest
     except Exception:
