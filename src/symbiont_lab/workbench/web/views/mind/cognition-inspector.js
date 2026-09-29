@@ -125,6 +125,7 @@ export function createCognitionInspector({
       const relationsGroup = inspectorGroup(panel, 'Relations & pathway', true);
   
       const facts = cognitionNodeFacts(selected.id);
+      const motorSignal = selected.atlasSignals ?? graph.atlasSignals?.get?.(selected.id) ?? null;
       const observerContext = observerContextForNode(
         graph.replaySnapshot?.topology ?? snap.topology,
         graph.replaySnapshot?.observerSemantics ?? snap.observerSemantics,
@@ -162,6 +163,36 @@ export function createCognitionInspector({
               : 'unresolved',
       );
       inspectorMetric(identityGroup, 'Kind', selected.kind);
+
+      if (graph.atlasMode === 'motor' || motorSignal?.motorDomain || motorSignal?.motorRelated) {
+        const motorRouteGroup = inspectorGroup(panel, 'Motor route', true);
+        const routeState = motorSignal?.motorConnected
+          ? 'CONNECTED MOTOR ROUTE'
+          : motorSignal?.motorDomain
+            ? 'MOTOR DOMAIN · NO OBSERVED ROUTE'
+            : motorSignal?.motorRelated
+              ? 'MOTOR RELATED · LOCAL EVIDENCE ONLY'
+              : 'NO MOTOR RELATION';
+        inspectorMetric(
+          motorRouteGroup,
+          'Route state',
+          routeState,
+          motorSignal?.motorConnected ? PAL.mint : motorSignal?.motorRelated ? PAL.amber : PAL.muted,
+        );
+        inspectorMetric(
+          motorRouteGroup,
+          'Observed route distance',
+          motorSignal?.motorDistance == null ? '—' : String(motorSignal.motorDistance) + ' hops',
+        );
+        const routeNote = el('div', 'mind-inspector-evidence-note');
+        routeNote.textContent = motorSignal?.motorConnected
+          ? 'A traceable route exists in the exported observer graph. This does not imply intent or semantic understanding.'
+          : motorSignal?.motorDomain
+            ? 'This node belongs to the motor domain by role, but no exported cognitive route currently connects it to motor output.'
+            : 'Only local motor-related evidence is visible; no complete motor route is currently exported.';
+        motorRouteGroup.appendChild(routeNote);
+      }
+
       if (selected.kind === 'motor_primitive') {
         inspectorMetric(roleGroup, 'Cognitive reuse', selected.cognitivePrimitive ? 'eligible' : 'not yet');
         inspectorMetric(roleGroup, 'Samples', selected.samples);
