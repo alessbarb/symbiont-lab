@@ -50,7 +50,7 @@ function tickOf(snapshot) {
   return Number(snapshot?.tick ?? 0);
 }
 
-function statusFor(record, priorRecord = null) {
+function statusFor(record, priorRecord = null, afterEmbodimentChange = false) {
   const item = record?.item;
   const prior = priorRecord?.item;
   if (!item || item.learned_channels_mapped <= 0) {
@@ -59,6 +59,7 @@ function statusFor(record, priorRecord = null) {
   }
   if (item.confidence < .25 || item.stability < .2) return { id: 'uncertain', label: 'UNCERTAIN' };
   if (prior?.learned_channels_mapped > 0) return { id: 'retained', label: 'RETAINED · current mapping' };
+  if (afterEmbodimentChange) return { id: 'novel', label: 'NOVEL · current body' };
   if (item.agency >= .5) return { id: 'agentic', label: 'AGENTIC' };
   if (item.coverage >= .5 && item.stability >= .5) return { id: 'represented', label: 'REPRESENTED' };
   return { id: 'emerging', label: 'EMERGING' };
@@ -101,6 +102,7 @@ export class AcquiredSelfWorkspace {
     this.previousEmbodimentId = null;
     this.previousBodyKind = null;
     this.priorSegmentRecords = new Map();
+    this.hasEmbodimentTransition = false;
     this.lastSegmentSignature = new Map();
     this.developmentIndex = null;
     this.developmentBodyMode = 'state';
@@ -127,6 +129,7 @@ export class AcquiredSelfWorkspace {
           selfViewSegmentRecord(previousSnapshot, segment),
         ])
       );
+      this.hasEmbodimentTransition = true;
       this.events.push({
         tick: tickOf(snapshot),
         kind: 'embodiment',
@@ -341,7 +344,7 @@ export class AcquiredSelfWorkspace {
     return `<div class="acquired-self-physical-regions">
       ${physical.map((segment) => {
         const record = selfViewSegmentRecord(this.snapshot, segment);
-        const status = statusFor(record, this.priorSegmentRecords.get(segment));
+        const status = statusFor(record, this.priorSegmentRecords.get(segment), this.hasEmbodimentTransition);
         return `<button type="button" class="${this.selectedSegment === segment ? 'selected' : ''}" data-physical-segment="${escapeHtml(segment)}">
           <span>${escapeHtml(segment.replaceAll('_', ' '))}</span>
           <strong class="${status.id}">${status.label}</strong>
@@ -354,7 +357,7 @@ export class AcquiredSelfWorkspace {
     const selected = this.selectedSegment;
     const record = selected ? selfViewSegmentRecord(this.snapshot, selected) : null;
     const prior = selected ? this.priorSegmentRecords.get(selected) : null;
-    const status = statusFor(record, prior);
+    const status = statusFor(record, prior, this.hasEmbodimentTransition);
     const acquired = record?.item;
     const priorItem = prior?.item;
 
@@ -493,7 +496,7 @@ export class AcquiredSelfWorkspace {
 
     const record = selfViewSegmentRecord(this.snapshot, this.selectedSegment);
     const prior = this.priorSegmentRecords.get(this.selectedSegment);
-    const status = statusFor(record, prior);
+    const status = statusFor(record, prior, this.hasEmbodimentTransition);
     const item = record?.item;
 
     if (!item) {
