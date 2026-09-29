@@ -543,3 +543,13 @@ def test_empty_world_acquired_compare_hides_physics_canvas():
     css = _read("workbench-v2.css")
 
     assert ".world-epistemic-mode .body-canvas{visibility:hidden!important}" in css
+
+
+def test_home_refuses_stale_physical_body_resume_and_preserves_symbiont():
+    home = _read("views/home.js")
+
+    assert "organism.resumable_body === true" in home
+    assert "body_checkpoint_in_sync === false" in home
+    assert "Previous body checkpoint is stale" in home
+    assert "Symbiont identity and cognition are preserved" in home
+    assert "selectedOrganism()?.resumable_body !== true" in home
