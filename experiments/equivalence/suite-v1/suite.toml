@@ -1,4 +1,4 @@
-schema_version = 1
+schema_version = 2
 suite_id = "causal-equivalence-v1"
 status = "capture-required"
 note = "Reference snapshots are intentionally not fabricated. Capture real organism states with agentctl snapshot capture before enabling automatic ORDINARY downgrade."
@@ -18,7 +18,7 @@ body_kind = "anthropomorphic-v6-vision"
 ticks = 160
 training = true
 train_interval = 32
-min_training_windows = 4
+min_training_completions = 3
 coverage = ["organism-state", "private-model-training", "model-lineage"]
 
 [[scenario]]
@@ -28,7 +28,8 @@ body_kind = "anthropomorphic-v6-vision"
 ticks = 192
 training = true
 train_interval = 32
-min_training_windows = 4
+min_training_completions = 4
+require_promotion_event = true
 coverage = ["organism-state", "private-model-training", "model-promotion", "model-lineage"]
 
 [[scenario]]

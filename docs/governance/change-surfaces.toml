@@ -1,8 +1,8 @@
-schema_version = 1
+schema_version = 2
 
 [[surface]]
 id = "governance-control"
-paths = ["AGENTS.md", "CLAUDE.md", "docs/governance/**", "scripts/agentctl.py", "scripts/governance/**", ".github/**", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml"]
+paths = ["AGENTS.md", "CLAUDE.md", "docs/governance/**", "scripts/agentctl.py", "scripts/governance/**", ".github/**", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml", "pyrightconfig.json"]
 classification = "CONSTITUTIONAL"
 
 [[surface]]
@@ -17,10 +17,10 @@ classification = "SCIENTIFIC"
 equivalence = ["developed-cognition"]
 
 [[surface]]
-id = "private-model-training"
+id = "private-model-lifecycle"
 paths = ["src/symbiont_lab/physics3d/private_model_training.py", "src/symbiont_lab/modeling/**"]
 classification = "SCIENTIFIC"
-diff_regex = ["promotion", "active", "shadow", "training", "model_registry", "adopt_private_model", "activate_private_model"]
+diff_regex = ["promotion", "active", "shadow", "training", "model_registry", "lineage", "adopt_private_model", "activate_private_model"]
 equivalence = ["private-model-training", "promotion-eligible"]
 
 [[surface]]
@@ -30,6 +30,13 @@ classification = "SCIENTIFIC"
 equivalence = ["established-anthropomorphic", "developed-cognition"]
 
 [[surface]]
+id = "reembodiment"
+paths = ["src/symbiont_lab/physics3d/reembodiment.py", "src/symbiont/**"]
+classification = "SCIENTIFIC"
+symbols = ["reembodiment", "embodiment", "BodySchema", "body_schema"]
+equivalence = ["reembodied-established"]
+
+[[surface]]
 id = "observatory-presentation"
-paths = ["observatory/**", "src/symbiont_lab/app/**"]
+paths = ["observatory/**", "src/symbiont_lab/app/**", "src/symbiont_lab/workbench/**"]
 classification = "ORDINARY"
