@@ -279,6 +279,7 @@ def run(
     measurement_file: Path | None = None,
     ancestry_training: bool = False,
     slm_synchronous: bool = False,
+    paired_promotion_file: Path | None = None,
     run_guard=None,
     termination_callback=None,
 ) -> int:
@@ -486,6 +487,7 @@ def run(
             models_dir=models_dir,
             train_interval=slm_train_interval,
             device=slm_device,
+            paired_evaluation_file=paired_promotion_file,
         )
         private_model_training.attach_existing(
             runtime.organism,

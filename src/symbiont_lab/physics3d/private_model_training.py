@@ -47,6 +47,7 @@ class TrainingResultPayload(TypedDict):
     resolved_hidden_dim: int
     vocab_size: int
     vocabulary: list[str]
+    paired_reference: dict[str, Any] | None
 
 
 class _PrivateModelRuntime(Protocol):
@@ -76,6 +77,44 @@ def _tokenizer_path(models_dir: str | Path, model_id: str) -> Path:
     return Path(models_dir) / f"{model_id}.tokenizer.json"
 
 
+def _paired_reference_evaluation(
+    models_dir: str, reference_model_id: str, corpus: TrainingCorpus, context_window: int
+) -> dict[str, Any]:
+    """Promotion Stability v1 D1: the current ACTIVE on the candidate's held-out
+    split, encoded with the ACTIVE's own tokenizer. Observational only."""
+    from symbiont_lab.modeling.dataset import encode_corpus
+    from symbiont_lab.modeling.gateway import load_artifact_model
+    from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
+
+    raw = json.loads(_tokenizer_path(models_dir, reference_model_id).read_text(encoding="utf-8"))
+    tokenizer = NativeTokenizer(vocabulary=tuple(raw["vocabulary"]))
+    encoded = encode_corpus(corpus, tokenizer, context_window=context_window)
+    artifact = FileArtifactStore(models_dir).get(reference_model_id)
+    model = load_artifact_model(
+        artifact, vocab_size=encoded.vocab_size, pad_id=encoded.pad_id, device="cpu"
+    )
+    metrics = evaluate_outcome_model(
+        model, encoded.test, pad_id=encoded.pad_id, context_window=context_window
+    )
+    unknown = tokenizer.token_to_id["<UNK>"]
+    targets = [
+        sequence[position + 1]
+        for sequence, positions in zip(
+            encoded.test.sequences, encoded.test.outcome_target_positions
+        )
+        for position in positions
+        if position < len(sequence[: context_window + 1]) - 1
+    ]
+    return {
+        "reference_model_id": reference_model_id,
+        "reference_loss": float(metrics.mean_log_loss),
+        "reference_predictions": int(metrics.predictions),
+        "reference_unknown_target_fraction": (
+            sum(1 for token in targets if token == unknown) / len(targets) if targets else 0.0
+        ),
+    }
+
+
 def _train_job(
     models_dir: str,
     request: TrainingRequest,
@@ -83,6 +122,7 @@ def _train_job(
     vocabulary: tuple[str, ...],
     device: str,
     parent_vocabulary: tuple[str, ...] | None = None,
+    paired_reference_id: str | None = None,
 ) -> TrainingResultPayload:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     from symbiont_lab.modeling.factory import PrivateModelFactory
@@ -151,7 +191,17 @@ def _train_job(
     resolved_hidden_dim = result.training.artifact.manifest.resolved_hidden_dim
     if resolved_embedding_dim is None or resolved_hidden_dim is None:
         raise ValueError("training artifact is missing resolved model dimensions")
+    paired: dict[str, Any] | None = None
+    if paired_reference_id is not None:
+        try:
+            paired = _paired_reference_evaluation(
+                models_dir, paired_reference_id, corpus, request.context_window
+            )
+        except Exception as exc:  # observational: never fails the training
+            paired = {"reference_model_id": paired_reference_id, "error": repr(exc)}
+        paired["candidate_predictions"] = int(result.evaluation.candidate.predictions)
     return {
+        "paired_reference": paired,
         "model_id": model_id,
         "request_id": request.request_id,
         "promote": bool(result.decision.promote),
@@ -176,10 +226,10 @@ def _train_job(
 class PrivateModelTrainingService:
     """Non-blocking host service for one organism-owned private model.
 
-The service never chooses what the organism should learn. It executes an
-organism-authored learning plan, persists the resulting artifact and attaches
-eligible inference infrastructure back to the same organism runtime.
-"""
+    The service never chooses what the organism should learn. It executes an
+    organism-authored learning plan, persists the resulting artifact and attaches
+    eligible inference infrastructure back to the same organism runtime.
+    """
 
     def __init__(
         self,
@@ -187,6 +237,7 @@ eligible inference infrastructure back to the same organism runtime.
         models_dir: str | Path,
         train_interval: int = 1,
         device: str = "cpu",
+        paired_evaluation_file: str | Path | None = None,
     ) -> None:
         if train_interval < 1:
             raise ValueError("train_interval must be >= 1")
@@ -194,6 +245,10 @@ eligible inference infrastructure back to the same organism runtime.
         self.models_dir.mkdir(parents=True, exist_ok=True)
         self.train_interval = int(train_interval)
         self.device = str(device)
+        # Promotion Stability v1 D1: lab-side paired evaluation log (off by default).
+        self.paired_evaluation_file = (
+            Path(paired_evaluation_file) if paired_evaluation_file is not None else None
+        )
         self._executor = ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn"))
         self._future: Future[TrainingResultPayload] | None = None
         self._last_submitted_tick = -self.train_interval
@@ -340,7 +395,9 @@ eligible inference infrastructure back to the same organism runtime.
         if active is not None:
             path = _tokenizer_path(self.models_dir, active.model_id)
             if not path.is_file():
-                self._last_error = "active private-model artifact exists but its tokenizer sidecar is missing"
+                self._last_error = (
+                    "active private-model artifact exists but its tokenizer sidecar is missing"
+                )
                 return
             try:
                 self._attach_model(runtime, active.model_id)
@@ -408,6 +465,29 @@ eligible inference infrastructure back to the same organism runtime.
                 continue
             runtime.retire_private_model(record.model_id)
 
+    def _paired_reference_id(self, runtime: _PrivateModelRuntime) -> str | None:
+        if self.paired_evaluation_file is None:
+            return None
+        active = runtime.model_registry.active
+        if active is None or not _tokenizer_path(self.models_dir, active.model_id).exists():
+            return None
+        return active.model_id
+
+    def _record_paired_evaluation(self, runtime, result, *, promoted: bool) -> None:
+        if self.paired_evaluation_file is None or result.get("paired_reference") is None:
+            return
+        row = {
+            "tick": int(getattr(runtime, "tick_count", 0)),
+            "request_id": str(result["request_id"]),
+            "candidate_model_id": str(result["model_id"]),
+            "candidate_loss": float(result["candidate_loss"]),
+            "best_baseline_loss": float(result["best_baseline_loss"]),
+            "promoted": promoted,
+            **result["paired_reference"],
+        }
+        with self.paired_evaluation_file.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+
     def poll(self, runtime: _PrivateModelRuntime) -> None:
         future = self._future
         if future is None or not future.done():
@@ -466,6 +546,7 @@ eligible inference infrastructure back to the same organism runtime.
                     self._attach_model(runtime, active.model_id)
                 else:
                     runtime.attach_private_model_bridge(None)
+            self._record_paired_evaluation(runtime, result, promoted=record.state.value == "active")
             self._retire_stale_candidates(runtime)
             self._last_error = None
         except Exception as exc:
@@ -520,6 +601,7 @@ eligible inference infrastructure back to the same organism runtime.
                 plan.tokenizer.vocabulary,
                 self.device,
                 getattr(plan, "parent_vocabulary", None),
+                self._paired_reference_id(runtime),
             )
             self._last_submitted_tick = current_tick
             self._last_plan_reason = plan.reason
