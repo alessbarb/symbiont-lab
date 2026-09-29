@@ -90,6 +90,39 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   head.append(copy, now);
   root.appendChild(head);
 
+  const observerAttached = milestones.find(item =>
+    String(item?.label || '').toLowerCase().includes('observer attached')
+  );
+  const observedStart = observerAttached?.tick ?? mindHistory.at(0)?.tick ?? current?.tick ?? null;
+  const observedBaseline = mindHistory.find(point => point.tick >= observedStart) ?? mindHistory.at(0) ?? null;
+  const observedDelta = (key) => {
+    const a = Number(current?.[key]);
+    const b = Number(observedBaseline?.[key]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return '—';
+    const d = a - b;
+    return d === 0 ? '0' : `${d > 0 ? '+' : ''}${d}`;
+  };
+
+  const scope = el('section', 'mind-development-scope');
+  scope.innerHTML = `
+    <div class="mind-development-scope-block">
+      <span>Current cognitive structure</span>
+      <strong>${current?.concepts ?? '—'} concepts · ${current?.predictors ?? '—'} predictors · ${current?.selfRegions ?? '—'} self regions</strong>
+      <small>This structure may predate the current observer session.</small>
+    </div>
+    <div class="mind-development-scope-block">
+      <span>Observed since</span>
+      <strong>${observedStart != null ? 't' + Number(observedStart).toLocaleString() : 'observer start unknown'}</strong>
+      <small>Only changes captured after observer attachment are narrated below.</small>
+    </div>
+    <div class="mind-development-scope-block">
+      <span>Session-observed change</span>
+      <strong>${observedDelta('concepts')} concepts · ${observedDelta('predictors')} predictors · ${episodes.length} episodes</strong>
+      <small>Zero change means stable during observation, not undeveloped.</small>
+    </div>
+  `;
+  root.appendChild(scope);
+
   const changeStrip = el('div', 'mind-live-metrics');
   const diff = (key) => {
     const a = Number(current?.[key]);
@@ -104,10 +137,10 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
     return card;
   };
   changeStrip.append(
-    compact('Concepts Δ', diff('concepts')),
-    compact('Predictors Δ', diff('predictors')),
-    compact('Relations Δ', diff('edges')),
-    compact('Motor links Δ', diff('motorEdges')),
+    compact('Concepts · last frame Δ', diff('concepts')),
+    compact('Predictors · last frame Δ', diff('predictors')),
+    compact('Relations · last frame Δ', diff('edges')),
+    compact('Motor links · last frame Δ', diff('motorEdges')),
     compact('Self regions', current?.selfRegions ?? '—'),
     compact('Episodes', episodes.length),
   );
