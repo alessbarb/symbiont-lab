@@ -19,6 +19,7 @@ from symbiont_lab.studies.learning.visual_acquisition import (
     decision_inputs,
     run_visual_acquisition_study,
     score_window,
+    stable_targets,
     summarize,
     visual_targets,
 )
@@ -176,3 +177,12 @@ def test_d1_v2_development_spec() -> None:
     assert vision["report_performance"] is False
     assert vision["horizons"] == [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000]
     assert list(spec.seeds) == [101, 127, 149]
+
+
+def test_d1_v2_counts_only_targets_whose_predictor_identity_is_unchanged() -> None:
+    row = {"ticks": 4, "learned_loss": 0.1, "persist_loss": 0.3, "mean_loss": 0.2, "zero_loss": 0.4}
+    per_target = {"same": row, "replaced": row, "new": row}
+    start = {"same": frozenset({"p1"}), "replaced": frozenset({"p2"})}
+    stop = {"same": frozenset({"p1"}), "replaced": frozenset({"p3"}), "new": frozenset({"p4"})}
+    kept = stable_targets(per_target, predictors_at_start=start, predictors_at_stop=stop)
+    assert set(kept) == {"same"}

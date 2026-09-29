@@ -1,6 +1,6 @@
 # Predictor Promotion Throughput v1: preregistration draft
 
-Status: **draft for owner review. Not approved, not implemented, not run.**
+Status: **draft for owner review. Not approved, not implemented, not run. Not scheduled** (owner decision 2026-09-29: it is not the D1-v2 follow-up; if D1-v2 is not assessable, work moves to the remediation roadmap).
 
 Origin: EW-D1A audit (`docs/design/vision/visual-acquisition-v1.md` §6.5). On the vision body, about 260–1200 visual shadow hypotheses were promotable by the organism's own evidence. Meanwhile the serial nomination path, with at most one predictor candidate in structural contention at a time, produced only 13–16 predictors across *all* targets by tick 1650. This is a generic cognitive question, not a Vision one, and it must not be answered inside D1-v2.
 

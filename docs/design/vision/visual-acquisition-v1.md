@@ -179,9 +179,19 @@ D1-v1 remains a permanent result: `not_assessable`. The established causes are s
 
 **Horizon rule for D1-v2**, fixed before any D1-v2 run:
 - **Candidates:** `H ∈ {500, 1000, …, 4000}`, step 500. **Technical limit:** 4000 ticks, and at most 90 min and 6 GB per arm.
-- **Selection:** H is the smallest candidate that every development seed reaches inside the protected envelope in both arms, with ≥ 8 fully predicted visual targets in A and finite values.
+- **Selection:** H is the smallest candidate that satisfies the assessability gate below on every development seed.
 - **Single development run:** each seed and arm runs once to 4000 ticks, and every candidate is an exact prefix (Gate H), so all candidates are evaluated without further runs.
 - **No predictive quantity is computed** (`report_performance = false`).
-- **No candidate satisfies the rule:** D1-v2 is reported `not_assessable` for development. The next step is the separate promotion study, not a relaxed threshold.
+
+**Assessability gate (owner decision 2026-09-29), checked before any performance quantity.** For a candidate H, on every development seed:
+
+1. **Protected envelope.** Both arms reach H with no acquisition-guard termination (`reached = true`).
+2. **Admitted receptors.** Arm A has at least 8 visual cognitive sense nodes at the start of the window (`visual_sense_nodes_at_window_start`). This is a necessary condition derived from the 8-target criterion, not a new threshold.
+3. **Stable predictors.** Arm A has at least 8 visual targets predicted through the whole window **by the same predictor identity**: the set of predictor ids for the target is non-empty and identical at the window start and at H (`visual_targets_stable_full_window`). A target whose predictor was replaced inside W does not count. This also replaces "fully predicted" in §7.1 for D1-v2.
+4. **No artificial churn.** Item 3 is the gate. Whole-run visual predictor churn (sum of id-set differences, sampled every 50 ticks) is reported descriptively (`visual_predictor_churn`) without a threshold.
+5. **Observation independence.** Gate I (observer density does not change the causal trajectory) passes for `vision-nursery-d1-v2`.
+6. **Budget and stability.** §6.2 items 1 and 3 still apply (90 min and 6 GB per arm, finite values).
+
+**Stop rule (owner decision 2026-09-29).** If no candidate satisfies the gate, D1-v2 is closed as a **structural negative result** (`not_assessable`). Vision is recorded as an undemonstrated capability, and work moves to the remediation roadmap (Phase A → B). There is no further D1 redesign and no threshold relaxation. The promotion-throughput draft (`docs/design/cognition/predictor-promotion-throughput-v1.md`) is **not scheduled** as a D1 follow-up.
 
 Held-out seeds 613, 617 and 619 stay disabled until D1-v2 is frozen and the owner approves explicitly.

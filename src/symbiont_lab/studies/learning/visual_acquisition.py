@@ -35,6 +35,7 @@ ARM_B_ABLATION = CognitiveAcquisitionAblation(plasticity_enabled=False, predicto
 MIN_VISUAL_TARGETS = 8
 CANDIDATE_HORIZONS = (500, 1000, 1500, 2000)
 LATE_WINDOW = 400
+CHURN_EVERY = 50
 
 # Failure taxonomy (preregistration §8).
 PASSED = "passed"
@@ -124,6 +125,22 @@ def full_window_targets(
     return {name: row for name, row in per_target.items() if row["ticks"] == window}
 
 
+def stable_targets(
+    per_target: dict[str, dict[str, float]],
+    *,
+    predictors_at_start: dict[str, frozenset[str]],
+    predictors_at_stop: dict[str, frozenset[str]],
+) -> dict[str, dict[str, float]]:
+    """D1-v2 no-churn rule: a target counts only if the same predictor ids cover
+    it at both ends of the window (no replacement inside W)."""
+    return {
+        name: row
+        for name, row in per_target.items()
+        if predictors_at_start.get(name)
+        and predictors_at_start.get(name) == predictors_at_stop.get(name)
+    }
+
+
 def summarize(per_target: dict[str, dict[str, float]], *, window: int) -> dict[str, Any]:
     full = full_window_targets(per_target, window=window)
 
@@ -169,6 +186,20 @@ def _predicted_visual_targets(runtime: Any, visual_ids: frozenset[str]) -> int:
         for node in graph["nodes"]
         if node.get("kind") == "predictor" and node.get("predicts_node_id") in targets
     )
+
+
+def _graph_view(runtime: Any, targets: frozenset[str]) -> tuple[int, dict[str, frozenset[str]]]:
+    """Read-only: visual sense nodes in the graph, and predictor ids per visual target."""
+    graph = runtime.organism._cognitive_bridge._graph
+    sense_nodes = 0
+    predictors: dict[str, set[str]] = {}
+    for node in graph.nodes:
+        kind = getattr(node.kind, "value", node.kind)
+        if kind == "sense" and node.node_id in targets:
+            sense_nodes += 1
+        elif kind == "predictor" and node.predicts_node_id in targets:
+            predictors.setdefault(node.predicts_node_id, set()).add(node.node_id)
+    return sense_nodes, {target: frozenset(ids) for target, ids in predictors.items()}
 
 
 def _guard_step(runtime: Any, guard: RunGuard, *, include_observability: bool) -> str | None:
@@ -229,6 +260,11 @@ def run_arm(
         ARM_B_ABLATION.apply(runtime.organism)
     window_starts = {h - late_window: h for h in horizons}
     targets_at: dict[int, frozenset[str]] = {}
+    sense_nodes_at: dict[int, int] = {}
+    predictors_at_start: dict[int, dict[str, frozenset[str]]] = {}
+    predictors_at_stop: dict[int, dict[str, frozenset[str]]] = {}
+    churn = 0
+    previous_ids: frozenset[str] = frozenset()
     elapsed_at: dict[int, float] = {}
     rss_at: dict[int, int] = {}
     rows: list[Row] = []
@@ -239,8 +275,12 @@ def run_arm(
     try:
         for index in range(horizons[-1]):
             if index in window_starts:
-                targets_at[window_starts[index]] = visual_targets(
+                horizon = window_starts[index]
+                targets_at[horizon] = visual_targets(
                     runtime.organism._sensory_system.sensors, visual_ids
+                )
+                sense_nodes_at[horizon], predictors_at_start[horizon] = _graph_view(
+                    runtime, targets_at[horizon]
                 )
             cause = _guard_step(runtime, guard, include_observability=True)
             cognition = getattr(runtime.last_organism_result, "cognition", None)
@@ -254,6 +294,17 @@ def run_arm(
             if index + 1 in horizons:
                 elapsed_at[index + 1] = time.perf_counter() - started
                 rss_at[index + 1] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
+                predictors_at_stop[index + 1] = _graph_view(runtime, targets_at[index + 1])[1]
+            if (index + 1) % CHURN_EVERY == 0:
+                # Descriptive only: sum of set differences of visual predictor ids.
+                current = frozenset().union(
+                    *_graph_view(
+                        runtime,
+                        visual_targets(runtime.organism._sensory_system.sensors, visual_ids),
+                    )[1].values()
+                )
+                churn += len(current ^ previous_ids)
+                previous_ids = current
             if cause is not None:
                 # Protected acquisition ends here; it never continues past it.
                 termination = guard.triggered.value if guard.triggered else cause
@@ -274,13 +325,21 @@ def run_arm(
         per_target = score_window(
             rows, targets=targets_at[horizon], start=horizon - late_window, stop=horizon
         )
+        predicted = full_window_targets(per_target, window=late_window)
+        per_target = stable_targets(
+            per_target,
+            predictors_at_start=predictors_at_start[horizon],
+            predictors_at_stop=predictors_at_stop[horizon],
+        )
         full = full_window_targets(per_target, window=late_window)
         feasibility = {
             "reached": True,
             "wall_s": round(elapsed_at[horizon], 1),
             "max_rss_mb": rss_at[horizon],
             "visual_targets_at_window_start": len(targets_at[horizon]),
-            "visual_targets_predicted_full_window": len(full),
+            "visual_sense_nodes_at_window_start": sense_nodes_at[horizon],
+            "visual_targets_predicted_full_window": len(predicted),
+            "visual_targets_stable_full_window": len(full),
             "numerically_stable": all(
                 math.isfinite(value) for row in full.values() for value in row.values()
             ),
@@ -297,6 +356,7 @@ def run_arm(
         "terminated_at_tick": terminated_at,
         "final_vital_state": final_vital_state,
         "nursery_support_energy": support_total,
+        "visual_predictor_churn": churn,
         "horizons": per_horizon,
     }
 
@@ -416,6 +476,7 @@ __all__ = [
     "run_arm",
     "run_visual_acquisition_study",
     "score_window",
+    "stable_targets",
     "summarize",
     "visual_targets",
 ]
