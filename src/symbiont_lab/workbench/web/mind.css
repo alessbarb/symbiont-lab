@@ -1116,13 +1116,31 @@
   color: var(--muted);
 }
 
-.mind-cognition-live-focus {
-  top: 58px;
+.mind-cognition-right-rail {
+  position: absolute;
+  top: 88px;
   right: 12px;
+  bottom: 54px;
+  z-index: 3;
   width: 248px;
-  max-height: calc(100% - 132px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.mind-cognition-live-focus {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: auto;
+  max-height: none;
+  min-height: 0;
+  flex: 1 1 auto;
   overflow: auto;
   padding: 10px 11px 12px;
+  pointer-events: auto;
 }
 
 .mind-cognition-event-stream {
@@ -1362,14 +1380,14 @@
 .mind-live-timeline-bar.motor { background: var(--amber); }
 
 @media (max-width: 1180px) {
-  .mind-cognition-live-focus { width: 214px; }
+  .mind-cognition-right-rail { width: 214px; top: 96px; }
   .mind-cognition-event-stream { width: 230px; }
   .mind-cognition-live-timeline { left: 250px; right: 238px; }
   .mind-cognition-mode-controls { max-width: calc(100% - 260px); }
 }
 
 @media (max-width: 900px) {
-  .mind-cognition-live-focus,
+  .mind-cognition-right-rail,
   .mind-cognition-event-stream { display: none; }
   .mind-cognition-live-timeline { left: 12px; right: 12px; bottom: 50px; }
 }
@@ -1751,11 +1769,12 @@
 
 /* Generative cognition is an ephemeral observer layer, never Atlas topology. */
 .mind-cognition-generative {
-  position: absolute;
-  right: 16px;
-  top: 94px;
-  width: min(300px, 34%);
-  max-height: 310px;
+  position: relative;
+  right: auto;
+  top: auto;
+  width: auto;
+  max-height: 220px;
+  flex: 0 0 auto;
   overflow: auto;
   padding: 10px 12px;
   border: 1px dashed var(--border);
@@ -1763,6 +1782,7 @@
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   backdrop-filter: blur(8px);
   z-index: 4;
+  pointer-events: auto;
 }
 .mind-cognition-generative-title {
   display: block;
