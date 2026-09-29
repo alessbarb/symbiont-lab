@@ -1252,8 +1252,8 @@ class PyBulletEmbodimentRuntime:
         return {"nodes": nodes, "edges": edges}
 
     @staticmethod
-    def _cognition_payload(cognition) -> dict[str, object]:
-        if cognition is None:
+    def _cognition_payload(cognition, *, generative=None) -> dict[str, object]:
+        if cognition is None and generative is None:
             return {}
         prediction_errors = []
         for item in tuple(getattr(cognition, "prediction_errors", ())):
@@ -1276,7 +1276,7 @@ class PyBulletEmbodimentRuntime:
                 }
             )
         health = getattr(cognition, "topology_health", "germinal")
-        return {
+        payload = {
             "activations": {
                 str(key): float(value)
                 for key, value in dict(getattr(cognition, "activations", {}) or {}).items()
@@ -1326,6 +1326,11 @@ class PyBulletEmbodimentRuntime:
             "edge_budget": int(getattr(cognition, "edge_budget", 0)),
             "sense_budget": int(getattr(cognition, "sense_budget", 0)),
         }
+        if generative is not None:
+            # Organism-owned ephemeral generative state. This is observation
+            # only; it never enters the CognitiveGraph or feeds back to runtime.
+            payload["generative"] = PyBulletEmbodimentRuntime._telemetry_value(generative)
+        return payload
 
     def _action_payload(self) -> dict[str, object]:
         actuations = []
@@ -2087,7 +2092,10 @@ class PyBulletEmbodimentRuntime:
                     "motor_intents": self._telemetry_value(result.motor_intents),
                     "experience_records_created": new_experience_records,
                 },
-                "cognition": self._cognition_payload(cognition),
+                "cognition": self._cognition_payload(
+                    cognition,
+                    generative=result.generative,
+                ),
                 "cognitive_topology": self._cognitive_topology_payload(
                     getattr(self.organism, "cognitive_bridge", None)
                 ),
