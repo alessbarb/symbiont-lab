@@ -1,6 +1,6 @@
 # Visual Acquisition v1 (EW-D): preregistration
 
-Status: **D1 criteria approved (2026-09-28). Development stage run (2026-09-29): no candidate H satisfies §6.2, so D1 is not runnable as designed (§6.4). Awaiting an owner decision.** Held-out seeds 613/617/619 are disabled until the preregistration is frozen (§6.3) and the owner gives explicit approval.
+Status: **D1-v1 `not_assessable` (§6.4–§6.5). D1-v2 preregistered (§11): development pending. Held-out seeds disabled.** Held-out seeds 613/617/619 are disabled until the preregistration is frozen (§6.3) and the owner gives explicit approval.
 
 D2–D4 are outlines only (§10) and are **not preregistered**.
 
@@ -154,3 +154,34 @@ Negative results are kept and reported.
 - **D2 — coherence and source candidates.** Multi-receptor structure that improves held-out prediction, is stable across more than one stimulus configuration and is revisable when coherence fails. No row/column labels, fixture ids, coordinates or classes.
 - **D3 — persistence through occlusion.** Visible → partial occlusion → absence → reappearance. Blind persistence (never revised despite contradiction) must be distinguished from evidence-supported persistence.
 - **D4 — self-caused versus external change.** An acquired action or competence produces one visual transform; independent source motion produces another. The question is whether the evidence separates change explained by the current action model from change it does not explain. No `self_motion` label.
+
+## 11. D1-v2 (owner decision 2026-09-29): supported protected nursery
+
+D1-v1 remains a permanent result: `not_assessable`. The established causes are serial predictor promotion and a metabolic ceiling at about tick 1650 (§6.4–§6.5).
+
+> **D1-v2 changes the protected acquisition environment, not the cognitive acquisition mechanism. Its purpose is to remove metabolic termination as a confound while preserving the organism's existing predictor-formation and promotion dynamics.**
+
+**Declared causal changes (only these two):**
+
+1. **Nursery `vision-nursery-d1-v2`.** Same fixtures and seeded stimulus as `-v1`, plus `metabolic_support = {kind: bounded_maintenance, rate_per_tick: 0.6, ceiling_fraction: 0.9}`.
+   - It is a property of the protected environment, not a resource to find.
+   - It is deterministic and independent of action and of visual performance, identical in arms A and B, and versioned with the nursery.
+   - It enters through the body's ordinary intake path (`absorb_metabolic_energy`). It is not hidden from interoception, and it needs no behaviour to obtain.
+   - It never refills to full. Sizing: EW-D0 measured a basal drain of about 0.80 energy per tick in `-v1`; 0.6 is 75 % of that. This keeps real cost and homeostatic variation while keeping basal metabolism from ending the Experience before 4000 ticks.
+   - The supplied total is recorded per arm (`nursery_support_energy`).
+2. **Mandatory acquisition guard.** `AcquisitionSafetyPolicy` via `RunGuard(acquisition.vision)` runs on every tick of X and of each arm. If the body still reaches SEVERE, the arm ends as `protected_recovery` and never continues. Horizons past that tick are `reached = false`, which counts as not assessable.
+
+**Unchanged:**
+- cognition, including serial promotion;
+- the visual apparatus;
+- baselines, criteria and the taxonomy (§7–§8, including ≥ 8 targets);
+- seeds and the Lab-owned arm-B ablation.
+
+**Horizon rule for D1-v2**, fixed before any D1-v2 run:
+- **Candidates:** `H ∈ {500, 1000, …, 4000}`, step 500. **Technical limit:** 4000 ticks, and at most 90 min and 6 GB per arm.
+- **Selection:** H is the smallest candidate that every development seed reaches inside the protected envelope in both arms, with ≥ 8 fully predicted visual targets in A and finite values.
+- **Single development run:** each seed and arm runs once to 4000 ticks, and every candidate is an exact prefix (Gate H), so all candidates are evaluated without further runs.
+- **No predictive quantity is computed** (`report_performance = false`).
+- **No candidate satisfies the rule:** D1-v2 is reported `not_assessable` for development. The next step is the separate promotion study, not a relaxed threshold.
+
+Held-out seeds 613, 617 and 619 stay disabled until D1-v2 is frozen and the owner approves explicitly.
