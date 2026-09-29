@@ -51,7 +51,19 @@ is merged on a speed number alone.
    physics substeps, cheaper vision, simplified world. Changes experience;
    would need its own study showing which effects are preserved.
 
-## 4. Open for the owner
+## 4. Owner decisions (2026-09-29)
+
+- **Level 0 approved:** sparse telemetry in studies, provided it is purely
+  observational and changes no decision, causal order, RNG consumption or
+  organism hash.
+- **Level 1 approved under strict equivalence:** every organism
+  optimisation must pass the equivalence harness (same behaviour and same
+  observable causal history). A change that alters trajectory, RNG
+  consumption, event order or provenance is not Level 1 and needs its own
+  study.
+- Level 3 remains out of scope.
+
+## 5. Originally open for the owner
 
 - Approve Level 0 as the default for studies that do not read telemetry.
 - Approve Level 1 work (organism code, behaviour-identical by harness).

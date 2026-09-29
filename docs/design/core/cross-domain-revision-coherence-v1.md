@@ -884,6 +884,28 @@ promotion pipeline. Also observed: every candidate replaced the ACTIVE
 model (44 promotions in 1 379 ticks); the gate compares against the
 baselines, not against the current ACTIVE.
 
+### 8.9 Owner decisions after P5.1 (2026-09-29)
+
+P5.1 reads: **inconclusive for ancestry; positive for 192-step
+learnability; new finding: promotion churn.**
+
+- **Parent pool: DEGRADED (option a).** ACTIVE = current authority;
+  DEGRADED = former ACTIVE, no authority, historical evidence of utility;
+  SHADOW = not yet authorised. The ACTIVE model is **not** a training parent
+  (that is continuity of the current controller, a different question);
+  ancestry is **not** closed (promotion answers "who controls now",
+  ancestry answers "which representation seeds the next training").
+- **Eligible training parent (P5.2):** lifecycle DEGRADED, previously
+  passed the promotion gate, tokenizer and artifact still available, not
+  contradicted by later evidence. Among several, the best by preregistered
+  validation evidence, not by recency. The best eligible DEGRADED is
+  protected from retirement while it remains the best (as §8.4 item 4 did
+  for SHADOW).
+- **Order:** (1) Promotion Stability study; (2) freeze the resulting
+  promotion semantics; (3) P5.2 with DEGRADED ancestry. Running ancestry
+  while the ACTIVE changes at almost every training would confound
+  genealogy with promotion churn.
+
 ## 9. Out of scope
 
 - Homeostasis → foraging learning (F14): open scientific question; no
