@@ -65,15 +65,6 @@ function statusFor(record, priorRecord = null, afterEmbodimentChange = false) {
   return { id: 'emerging', label: 'EMERGING' };
 }
 
-function lensScore(record, lens) {
-  const item = record?.item;
-  if (!item) return 0;
-  if (lens === 'stability') return finite(item.stability);
-  if (lens === 'agency') return finite(item.agency);
-  if (lens === 'uncertainty') return 1 - Math.min(finite(item.confidence), finite(item.stability));
-  return finite(item.coverage);
-}
-
 function eventLabel(event) {
   if (event.kind === 'embodiment') return 'Embodiment changed';
   if (event.kind === 'region') return 'Acquired correspondence changed';
@@ -381,7 +372,7 @@ export class AcquiredSelfWorkspace {
         </div>
         ${this.lensNav()}
         <div class="acquired-self-mini-projection ${this.showMorphology ? '' : 'morphology-hidden'}">
-          ${renderSelfView(this.snapshot, this.lens === 'uncertainty' ? 'stability' : this.lens, selected)}
+          ${renderSelfView(this.snapshot, this.lens, selected)}
         </div>
         ${selected ? this.selectedSummary(selected, acquired, priorItem, status) :
           '<div class="acquired-self-selection-empty">Select a physical or acquired region to inspect its correspondence.</div>'}
@@ -444,7 +435,7 @@ export class AcquiredSelfWorkspace {
         <div><span>Uncertain regions</span><strong>${uncertain}</strong></div>
       </div>
       <div class="acquired-self-full-projection ${this.showMorphology ? '' : 'morphology-hidden'}">
-        ${renderSelfView(this.snapshot, this.lens === 'uncertainty' ? 'stability' : this.lens, this.selectedSegment)}
+        ${renderSelfView(this.snapshot, this.lens, this.selectedSegment)}
       </div>
       <div class="self-boundary-note compact" data-observer-correspondence>
         Observer correspondence only. Anatomical labels and morphology are presentation metadata; Symbiont retains opaque evidence and relations.
