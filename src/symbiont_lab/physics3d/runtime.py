@@ -19,6 +19,7 @@ from typing import Any, Mapping
 
 from symbiont.actuation.model import CausalSourceKind
 from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine
+from symbiont.cognition.generative import GenerativeMode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
 from symbiont.core.domains.context import TickContext
@@ -2094,7 +2095,13 @@ class PyBulletEmbodimentRuntime:
                 },
                 "cognition": self._cognition_payload(
                     cognition,
-                    generative=result.generative,
+                    generative=(
+                        result.generative
+                        if result.generative is not None
+                        else self.organism.generative_cognition.snapshot(
+                            mode=GenerativeMode.ONLINE
+                        )
+                    ),
                 ),
                 "cognitive_topology": self._cognitive_topology_payload(
                     getattr(self.organism, "cognitive_bridge", None)
