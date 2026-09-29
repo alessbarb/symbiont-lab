@@ -86,6 +86,23 @@ def _finite_result(result: dict) -> bool:
     return walk(result)
 
 
+def _snapshot_contract_failure(scenario: Scenario, manifest: dict) -> str | None:
+    manifest_scenario = manifest.get("scenario")
+    if manifest_scenario and manifest_scenario != scenario.scenario_id:
+        return (
+            f"snapshot scenario mismatch: {manifest_scenario!r} "
+            f"!= {scenario.scenario_id!r}"
+        )
+    body_kind = (
+        manifest.get("body_kind")
+        or manifest.get("body_kind_from_state")
+        or manifest.get("body_kind_from_bundle")
+    )
+    if body_kind and body_kind != scenario.body_kind:
+        return f"snapshot body_kind mismatch: {body_kind!r} != {scenario.body_kind!r}"
+    return None
+
+
 def _coverage_failure(scenario: Scenario, result: dict) -> str | None:
     if scenario.training:
         observed = int(result.get("training_completions", 0))
@@ -106,6 +123,13 @@ def run_once(scenario: Scenario) -> dict:
         return {
             "status": EquivalenceStatus.NOT_ASSESSABLE_INVALID_SNAPSHOT,
             "reason": str(exc),
+        }
+
+    contract_failure = _snapshot_contract_failure(scenario, snapshot_manifest)
+    if contract_failure is not None:
+        return {
+            "status": EquivalenceStatus.NOT_ASSESSABLE_INVALID_SNAPSHOT,
+            "reason": contract_failure,
         }
 
     config = EquivalenceRunConfig(
@@ -222,6 +246,17 @@ def suite_status(path: Path) -> dict:
                 "state": "INVALID",
                 "snapshot": str(scenario.snapshot),
                 "reason": str(exc),
+                "coverage": list(scenario.coverage),
+            })
+            ready = False
+            continue
+        contract_failure = _snapshot_contract_failure(scenario, manifest)
+        if contract_failure is not None:
+            rows.append({
+                "id": scenario.scenario_id,
+                "state": "INVALID",
+                "snapshot": str(scenario.snapshot),
+                "reason": contract_failure,
                 "coverage": list(scenario.coverage),
             })
             ready = False
