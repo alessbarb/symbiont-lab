@@ -569,6 +569,7 @@ export class AcquiredSelfWorkspace {
           index,
           bodyMode: this.developmentBodyMode,
           scaleMode: this.developmentScale,
+          events: this.events,
         })}
       </section>
     </div>`;
