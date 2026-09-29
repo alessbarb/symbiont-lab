@@ -24,7 +24,11 @@ except ImportError:  # Direct script invocation remains a documented interface.
     from publisher import JournalSink, SnapshotPublisher, StdoutSink
     from registry import derive_instance_id, new_run_id, write_heartbeat
 
-from symbiont.host.durable import durable_atomic_write, durable_atomic_write_json
+from symbiont.host.durable import (
+    durable_atomic_write,
+    durable_atomic_write_json,
+    ensure_secure_file_permissions,
+)
 
 
 def _rounded(value: float | None) -> float | None:
@@ -264,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
 
     key_file = Path(args.state_file).with_suffix(".key")
     if key_file.is_file():
+        ensure_secure_file_permissions(key_file)
         try:
             keypair = CapsuleKeyPair.from_private_bytes(key_file.read_bytes())
         except Exception as exc:

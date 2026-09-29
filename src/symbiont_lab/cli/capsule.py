@@ -18,7 +18,10 @@ from symbiont.host import (
     learn_local_host_rhythms,
     track_local_host_drift,
 )
-from symbiont.host.durable import durable_atomic_write
+from symbiont.host.durable import (
+    durable_atomic_write,
+    ensure_secure_file_permissions,
+)
 
 
 def build_capsule_parser(parser: argparse.ArgumentParser) -> None:
@@ -53,6 +56,7 @@ def _load_or_create_keypair(keyfile: str | None) -> CapsuleKeyPair:
         return CapsuleKeyPair.generate()
     path = Path(keyfile)
     if path.is_file():
+        ensure_secure_file_permissions(path)
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             return CapsuleKeyPair.from_private_bytes(bytes.fromhex(data["private_key"]))

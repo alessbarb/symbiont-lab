@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
 from pathlib import Path
 
@@ -63,3 +64,34 @@ def test_cli_capsule_refuses_to_overwrite_truncated_hex_key(tmp_path: Path) -> N
 
     # Invariant: still truncated, never replaced
     assert json.loads(key_path.read_text())["private_key"] == "1234deadbeef"
+
+
+def test_cli_capsule_tightens_permissive_key_permissions(tmp_path: Path) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX only")
+    key_path = tmp_path / "permissive.key"
+    original = CapsuleKeyPair.generate()
+    payload = json.dumps({"private_key": original.private_bytes.hex()})
+    key_path.write_text(payload)
+    os.chmod(key_path, 0o644)
+    assert stat.S_IMODE(key_path.stat().st_mode) == 0o644
+
+    loaded = _load_or_create_keypair(str(key_path))
+    assert loaded.private_bytes == original.private_bytes
+    assert stat.S_IMODE(key_path.stat().st_mode) == 0o600
+
+
+def test_cli_capsule_fails_if_insecure_permissions_cannot_be_tightened(tmp_path: Path) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX only")
+    key_path = tmp_path / "untightenable.key"
+    original = CapsuleKeyPair.generate()
+    payload = json.dumps({"private_key": original.private_bytes.hex()})
+    key_path.write_text(payload)
+    os.chmod(key_path, 0o644)
+
+    from unittest.mock import patch
+
+    with patch("os.chmod", side_effect=OSError("permission denied")):
+        with pytest.raises(PermissionError, match="group/other access forbidden"):
+            _load_or_create_keypair(str(key_path))
