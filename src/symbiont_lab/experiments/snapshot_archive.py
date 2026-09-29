@@ -33,6 +33,27 @@ def _tree_hash(root: Path) -> str:
     return digest.hexdigest()
 
 
+def _bundle_models_hash(bundle: Path) -> str:
+    """Hash model artifacts embedded in the portable organism bundle."""
+    digest = hashlib.sha256()
+    try:
+        with zipfile.ZipFile(bundle) as archive:
+            names = sorted(
+                name
+                for name in archive.namelist()
+                if name.startswith("models/") and not name.endswith("/")
+            )
+            for name in names:
+                rel = name.removeprefix("models/").encode()
+                payload = archive.read(name)
+                digest.update(len(rel).to_bytes(4, "big"))
+                digest.update(rel)
+                digest.update(hashlib.sha256(payload).digest())
+    except (OSError, zipfile.BadZipFile):
+        return digest.hexdigest()
+    return digest.hexdigest()
+
+
 def _fsync_file(path: Path) -> None:
     with path.open("rb") as handle:
         os.fsync(handle.fileno())
@@ -70,7 +91,14 @@ def _bundle_metadata(bundle: Path) -> dict[str, Any]:
                         return {
                             "organism_id": payload.get("organism_id"),
                             "captured_tick": payload.get("saved_at_tick") or payload.get("tick"),
-                            "snapshot_schema": payload.get("schema_version"),
+                            "snapshot_schema": payload.get("runtime_schema_version")
+                            or payload.get("schema_version"),
+                            "body_kind_from_bundle": payload.get("body_kind"),
+                            "body_age_ticks_from_bundle": payload.get("body_age_ticks"),
+                            "embodiment_id_from_bundle": payload.get("embodiment_id"),
+                            "body_id_from_bundle": payload.get("body_id"),
+                            "checkpoint_id": payload.get("checkpoint_id"),
+                            "checkpoint_hash": payload.get("checkpoint_hash"),
                         }
     except (OSError, ValueError, zipfile.BadZipFile, json.JSONDecodeError):
         pass
@@ -122,6 +150,7 @@ def archive_snapshot(
             **_body_metadata(body),
             "organism_sha256": _sha256(tmp / "organism.symbiont"),
             "body_sha256": _sha256(tmp / "body.json"),
+            "bundle_models_tree_sha256": _bundle_models_hash(tmp / "organism.symbiont"),
             "models_tree_sha256": _tree_hash(tmp / "models"),
         }
         manifest_path = tmp / "manifest.json"
@@ -166,9 +195,15 @@ def verify_snapshot(snapshot: Path) -> dict[str, Any]:
     checks = {
         "organism_sha256": _sha256(snapshot / "organism.symbiont"),
         "body_sha256": _sha256(snapshot / "body.json"),
+        "bundle_models_tree_sha256": _bundle_models_hash(snapshot / "organism.symbiont"),
         "models_tree_sha256": _tree_hash(snapshot / "models"),
     }
     for key, value in checks.items():
         if manifest.get(key) != value:
             raise ValueError(f"snapshot integrity mismatch: {key}")
+    source_commit = str(manifest.get("source_commit") or "")
+    if len(source_commit) != 40 or any(
+        ch not in "0123456789abcdef" for ch in source_commit.lower()
+    ):
+        raise ValueError("snapshot source_commit must be a full commit SHA")
     return manifest
