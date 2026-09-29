@@ -1,4 +1,4 @@
-schema_version = 1
+schema_version = 2
 updated = "2026-09-29"
 
 [[work]]
@@ -7,12 +7,13 @@ state = "RUNNING"
 authority = "owner-approved"
 owner = "external-session"
 base_commit = "c00846d3499dae81b05b9b6be645be3312ae2063"
+external_run_exception = true
 protected_paths = [
   "docs/design/vision/**",
   "experiments/learning/visual-acquisition-v1/**",
   "src/symbiont_lab/studies/learning/visual_acquisition.py",
 ]
-notes = "Do not change protocol, mechanism or inputs until the development run completes."
+notes = "Run began before the governed launcher existed. Do not change protocol, mechanism, inputs or dependencies until completion."
 
 [[work]]
 id = "promotion-stability-v1"

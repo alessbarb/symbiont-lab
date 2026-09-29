@@ -11,4 +11,4 @@ tmp
 
 # graphify-generated knowledge graph (regenerate with /graphify)
 graphify-out/
-build/
+build/\n# Local agent authority/session state\n.agent-session.toml\n

@@ -47,7 +47,7 @@ falsifiable capabilities.
 
 ## 2. Permanent architectural invariants
 
-These constraints remain in force regardless of future capability growth.
+These constraints remain in force regardless of future capability growth. The complete and canonical invariant set lives in [`governance/constitution.md`](governance/constitution.md); this roadmap summarizes only the constraints needed to explain the active research sequence.
 
 ### 2.1 Package and authority boundaries
 
@@ -329,21 +329,16 @@ No predictive performance is inspected until assessability has been resolved.
 For a candidate horizon `H`, all preregistered conditions must hold before any
 performance calculation.
 
-At minimum:
+For each candidate horizon and every development seed, the preregistered §11 gate requires:
 
-1. the body remains inside the protected acquisition viability envelope;
-2. the preregistered resource/metabolic budget remains within limits;
-3. sufficient visual receptor structure is admitted into the organism's
-   cognitive substrate;
-4. the required number of visual targets possesses a predictor at the beginning
-   of the late evaluation window;
-5. the **same predictor** remains responsible for that target at the end of the
-   window;
-6. observation-density / Observer ON-OFF integrity remains causally neutral.
+1. both arms reach the horizon without acquisition-guard termination;
+2. arm A has at least 8 visual cognitive sense nodes at the start of the late window;
+3. arm A has at least 8 visual targets predicted at **every tick of the whole window by the same predictor identity**;
+4. visual predictor churn is recorded only as a descriptive diagnostic, with no threshold;
+5. observer-density / Observer ON-OFF integrity remains causally neutral;
+6. each arm stays within **90 minutes and 6 GB peak RSS**, and every per-target quantity used by the window is finite.
 
-Visual predictor churn may be recorded as diagnostic evidence.
-
-It is not itself a pass criterion and must not be used to move thresholds.
+No predictive-performance quantity participates in horizon selection.
 
 ### 7.4 Metabolic support constraint
 
@@ -380,6 +375,19 @@ If an `H` passes the development assessability gate:
 Passing assessability does not establish visual acquisition.
 
 The held-out experiment must do that.
+
+### 7.7 Pre-existing research lines during the transition
+
+D1-v2 is the only active **capability** programme allowed to advance before Phase A.
+Pre-existing observational work may only finish and freeze already-approved design data:
+
+- **Promotion Stability v1 D1** — design data complete; confirmation and P5.2 are paused until P0/P1 close.
+- **Agency Acquisition & Executive Action v1** — FROZEN; existing mechanism becomes subject to the Phase B falsification battery.
+- **Executive Outcome Learning v1/v1.1** — FROZEN; bounded evidence retained, further mechanism work deferred to Phase B.
+- **Private Model Learnability v1 / P6** — CLOSED — BOUNDED EXPERIMENTAL SCOPE; further scaling is paused.
+- **Predictor Promotion Throughput v1** — UNSCHEDULED.
+
+No follow-up implementation, confirmation programme or new cognitive line is opened merely because an older programme exists.
 
 ---
 
@@ -641,7 +649,7 @@ linked to the exact result artefact it summarises.
 
 ---
 
-## 9. Phase A-P1 — Apparatus equivalence and numerical stability
+## 9. Phase A (P1) — Apparatus equivalence and numerical stability
 
 This block follows A1–A4 and E8 and precedes the causal remediation programme.
 
@@ -1127,7 +1135,7 @@ morphology.
 
 ---
 
-### D1 — Development as physical law
+### M1 — Development as physical law
 
 Target:
 
@@ -1147,7 +1155,7 @@ genome
 
 ---
 
-### D2 — Invalid representation vs. non-viable organism
+### M2 — Invalid representation vs. non-viable organism
 
 The apparatus may reject only structures that cannot be represented coherently,
 for example:
@@ -1172,12 +1180,23 @@ Those are legitimate outcomes.
 
 ---
 
-### D3 — No morphology fitness filter
+### M3 — No morphology fitness filter
 
 No rule may reject a body simply because it appears mechanically poor or unlike
 a desired morphology.
 
 Physics and physiology determine consequence.
+
+### M4 — Marginal morphology campaign
+
+Developmental studies must deliberately include physically representable phenotypes
+that are marginal, unstable, inefficient, malformed or non-surviving. The Lab may
+reject simulator-unrepresentable states, but it must not silently filter difficult
+phenotypes out of the scientific population.
+
+The campaign reports consequence rather than assigning human quality: viability,
+mechanical stability, metabolic cost, sensory reach, developmental persistence and
+failure mode are evaluator measurements, not organism reward.
 
 ---
 
@@ -1190,7 +1209,7 @@ inside simulation.
 
 ---
 
-### E1 — Sensor perturbation
+#### O1 — Sensor perturbation
 
 Evaluate:
 
@@ -1205,7 +1224,7 @@ Evaluate:
 
 ---
 
-### E2 — Actuator perturbation
+#### O2 — Actuator perturbation
 
 Evaluate:
 
@@ -1218,7 +1237,7 @@ Evaluate:
 
 ---
 
-### E3 — Physics-domain variation
+#### O3 — Physics-domain variation
 
 Vary:
 
@@ -1231,7 +1250,7 @@ Vary:
 
 ---
 
-### E4 — Unseen environments
+#### O4 — Unseen environments
 
 Test environments whose:
 
@@ -1246,7 +1265,7 @@ were not used during mechanism development.
 
 ---
 
-### E5 — Re-embodiment robustness
+#### O5 — Re-embodiment robustness
 
 A mature Symbiont must be evaluated across:
 
@@ -1277,6 +1296,23 @@ body changed
 → revalidate body-specific relations
 → retain general knowledge
 ```
+
+### O6 — OOD exit gate
+
+Phase E closes only if the organism can, under preregistered moderate distribution
+shift:
+
+```text
+detect mismatch
+-> increase uncertainty where prior assumptions no longer fit
+-> reacquire/relearn from experience
+-> recover useful prediction/control
+-> avoid treating stale beliefs as certain
+```
+
+Passing requires bounded degradation, explicit uncertainty response and recovery across
+the declared sensor, actuator, physics, environment and re-embodiment shift classes.
+A reset that merely erases the conflicting knowledge does not satisfy this gate.
 
 ---
 
@@ -1322,6 +1358,10 @@ Changing body does not reset the organism.
 
 Body-specific prior knowledge becomes uncertain when appropriate and is updated
 through experience.
+
+The existing `experiments/embodiment/reembodiment-reacclimation-v1/` A-B-A study is
+retained as bounded evidence and as a regression anchor; it does not by itself establish
+general OOD re-embodiment robustness.
 
 ### Epistemic invariance
 
@@ -1636,11 +1676,11 @@ C1–C4
     ↓
 
 P4 — DEVELOPMENTAL MORPHOGENESIS
-D1–D3
+M1–M4
     ↓
 
 P5 — OOD ROBUSTNESS
-E1–E5
+O1–O6
     ↓
 
 INDIVIDUAL READINESS GATE
@@ -1650,9 +1690,6 @@ P6 — POPULATION / COMMUNICATION / CULTURE
 F1–F7
 ```
 
-The duplicated phase-local `E1`, `E2`, etc. identifiers in the OOD section refer
-to roadmap sub-items, not the historical embodiment campaigns. Implementations
-should prefer explicit names in filenames to avoid ambiguity.
 
 ---
 

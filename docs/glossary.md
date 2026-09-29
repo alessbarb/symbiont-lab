@@ -32,7 +32,7 @@ language: en
 
 - **Organism:** A single developmental identity (`organism_id`), distinct
   from process lifetime, checkpoint filename, and genome identity. See
-  `docs/roadmap.md` § Birth, identity, dormancy and death.
+  `docs/roadmap.md` §3 Lifecycle semantics.
 - **Genome:** The closed, versioned, kernel-validated configuration for one
   individual's development. See `docs/design/cognicion-y-plasticidad.md`.
 - **Phenotype:** The plastic cognitive graph (nodes/edges/weights) an

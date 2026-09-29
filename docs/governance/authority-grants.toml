@@ -1,11 +1,8 @@
 schema_version = 1
 
-# Owner grants are consumed against the exact parent commit. agentctl reads this file
-# from the parent/base revision, never from the working tree under review.
-
 [[grant]]
 id = "owner-2026-09-29-governance-hardening"
-status = "open"
+status = "consumed"
 authority = "L4"
 base_commit = "3a9707ac09e2725ce0502307dcff2a9441e89781"
 purpose = "Harden agent governance enforcement and reconcile the canonical roadmap after the 2026-09-29 audit."

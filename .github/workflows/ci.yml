@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -23,6 +25,16 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e '.[dev]'
       - run: python scripts/agentctl.py verify
+      - name: Audit commit authority
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BASE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          BASE="$PUSH_BASE"
+          if [ "$EVENT_NAME" = "pull_request" ]; then BASE="$PR_BASE"; fi
+          python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD_SHA"
       - run: pytest tests/governance tests/docs -q
       - run: ruff check src/ observatory/ tests/
       - run: ruff format --check src/ observatory/ tests/
@@ -109,6 +121,8 @@ jobs:
       - run: pytest observatory -q
 
   smoke:
+    # These executions verify CLI/protocol mechanics only. They are not scientific
+    # campaigns and MUST NOT be used to elevate research claims.
     name: smoke (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
@@ -169,6 +183,8 @@ jobs:
       - run: symbiont-lab host sample
 
   canonical-cli-protocols:
+    # Mechanical protocol regression only; results produced here are not scientific
+    # evidence because CI is not a preregistered campaign environment.
     name: canonical-cli-protocols (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:

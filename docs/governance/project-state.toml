@@ -1,7 +1,14 @@
-schema_version = 1
+schema_version = 2
 updated = "2026-09-29"
 canonical_roadmap = "docs/roadmap.md"
 current_gate = "visual-acquisition-d1-v2"
+
+[governance]
+mode = "enforced-control-plane-v2"
+authority_grants = true
+commit_ancestry_audit = true
+single_constitution_source = true
+scientific_run_launcher = true
 
 [programmes.visual-acquisition-d1-v2]
 state = "running"

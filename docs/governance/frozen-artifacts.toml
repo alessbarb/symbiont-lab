@@ -1,38 +1,70 @@
-schema_version = 1
+schema_version = 2
 
+# Control plane: changing the guard requires a prior L4 owner grant.
 [[artifact]]
 path_glob = "AGENTS.md"
-class = "governance"
+class = "governance-control-plane"
 minimum_authority = "L4"
 
 [[artifact]]
 path_glob = "CLAUDE.md"
-class = "governance"
+class = "governance-control-plane"
 minimum_authority = "L4"
 
 [[artifact]]
 path_glob = "docs/governance/**"
-class = "governance"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = "scripts/agentctl.py"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = "tests/governance/**"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = ".github/workflows/**"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = ".github/CODEOWNERS"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = ".pre-commit-config.yaml"
+class = "governance-control-plane"
 minimum_authority = "L4"
 
 [[artifact]]
 path_glob = "docs/roadmap.md"
-class = "project-direction"
+class = "governance-control-plane"
 minimum_authority = "L4"
+
+[[artifact]]
+path_glob = "docs/adr/**"
+class = "architectural-decision"
+minimum_authority = "L3"
+
+[[artifact]]
+path_glob = "experiments/**/experiment.toml"
+class = "scientific-protocol"
+minimum_authority = "L3"
+rule = "automatically escalates to L4 when a sibling results.json exists in the parent revision"
 
 [[artifact]]
 path_glob = "experiments/**/results.json"
 class = "scientific-result"
 minimum_authority = "L4"
-rule = "append-or-supersede; do not rewrite completed evidence"
-
-[[artifact]]
-path_glob = "experiments/embodiment/label-invariance/experiment.toml"
-class = "preregistered-protocol"
-minimum_authority = "L4"
+rule = "append-or-supersede; never rewrite completed evidence"
 
 [[artifact]]
 path_glob = "docs/design/vision/visual-acquisition-v1.md"
 class = "active-preregistration"
 minimum_authority = "L3"
-rule = "frozen criteria do not move because of observed data"
+rule = "held-out criteria are frozen; development annotations require recorded owner authority"
