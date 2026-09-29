@@ -1,0 +1,25 @@
+schema_version = 1
+
+[docs]
+paths = ["README.md", "docs/**", "AGENTS.md", "CLAUDE.md"]
+commands = ["pytest tests/docs -q", "python scripts/agentctl.py verify", "git diff --check"]
+
+[governance]
+paths = ["docs/governance/**", "AGENTS.md", "CLAUDE.md", "scripts/agentctl.py", "tests/governance/**"]
+commands = ["pytest tests/governance tests/docs -q", "python scripts/agentctl.py verify", "git diff --check"]
+
+[subject]
+paths = ["src/symbiont/**"]
+commands = ["pytest tests/unit tests/integration -q", "pytest -o addopts= tests/experimental_integrity -q", "python scripts/agentctl.py verify", "git diff --check"]
+
+[lab]
+paths = ["src/symbiont_lab/**"]
+commands = ["pytest tests/unit tests/integration -q", "pytest -o addopts= tests/experimental_integrity -q", "python scripts/agentctl.py verify", "git diff --check"]
+
+[world]
+paths = ["src/symbiont_world/**", "src/symbiont_lab/world/**"]
+commands = ["pytest tests/unit/world tests/unit/lab/world -q", "pytest -o addopts= tests/experimental_integrity -q", "python scripts/agentctl.py verify", "git diff --check"]
+
+[experiment_protocol]
+paths = ["experiments/**/experiment.toml", "src/symbiont_lab/studies/**"]
+commands = ["pytest -o addopts= tests/experiments tests/experimental_integrity -q", "python scripts/agentctl.py verify", "git diff --check"]
