@@ -53,6 +53,12 @@ def assess(repo: Path, base: str, paths: list[str], diff_text: str) -> Assessmen
         (repo / "docs/governance/change-surfaces.toml").read_text(encoding="utf-8")
     )
     classification = ChangeClass.ORDINARY
+    rank = {
+        ChangeClass.ORDINARY: 0,
+        ChangeClass.SCIENTIFIC: 1,
+        ChangeClass.CONSTITUTIONAL: 2,
+        ChangeClass.FROZEN: 3,
+    }
     reasons: list[str] = []
     scenarios: list[str] = []
 
@@ -69,9 +75,7 @@ def assess(repo: Path, base: str, paths: list[str], diff_text: str) -> Assessmen
             regexes = surface.get("diff_regex", [])
             if regexes and not any(re.search(rx, diff_text, re.IGNORECASE) for rx in regexes):
                 continue
-            if target == ChangeClass.CONSTITUTIONAL:
-                classification = target
-            elif target == ChangeClass.SCIENTIFIC and classification == ChangeClass.ORDINARY:
+            if rank[target] > rank[classification]:
                 classification = target
             reasons.append(f"{path}: {surface['id']}")
             for scenario in surface.get("equivalence", []):
