@@ -41,13 +41,26 @@ allowed_paths = [
 
 [[grant]]
 id = "owner-2026-09-29-roadmap-completion-and-host-safety-adr"
-status = "open"
+status = "consumed"
 authority = "L4"
 base_commit = "295696f149882e1d7eccd3bb3387b73be560aa24"
 purpose = "Complete the roadmap reconciliation (Phase B heading normalization, E1 discrepancy cause, restored lifecycle and merge gates in §3/§4) and propose ADR-0044 restoring host-safety and lifecycle invariants to the Constitution (status: Proposed)."
 single_use = true
 allowed_paths = [
   "docs/roadmap.md",
+  "docs/adr/ADR-0044-*.md",
+  "docs/adr/README.md",
+]
+
+[[grant]]
+id = "owner-2026-09-29-constitution-host-safety"
+status = "open"
+authority = "L4"
+base_commit = "ab048a128a1688e1c77fd892b8b04485b81301df"
+purpose = "Apply accepted ADR-0044: add host-safety and lifecycle invariants to the Constitution and mark the ADR Accepted."
+single_use = true
+allowed_paths = [
+  "docs/governance/constitution.md",
   "docs/adr/ADR-0044-*.md",
   "docs/adr/README.md",
 ]
