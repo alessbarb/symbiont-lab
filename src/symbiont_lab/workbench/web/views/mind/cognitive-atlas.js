@@ -20,6 +20,45 @@ export const ATLAS_MODES = Object.freeze([
   { id: 'dynamics', label: 'Dynamics', description: 'Recent flow, activity, learning and prediction pressure' },
 ]);
 
+export const ATLAS_CONFIG = Object.freeze({
+  recencyHalfLifeTicks: 512,
+  normalization: Object.freeze({
+    supportScale: 3.2,
+    stabilityScale: 4.0,
+    predictionErrorScale: 3.0,
+  }),
+  activity: Object.freeze({ activation: 0.78, recency: 0.22 }),
+  learning: Object.freeze({ plasticity: 0.48, instability: 0.30, error: 0.22 }),
+  prediction: Object.freeze({ kind: 0.62, error: 0.38 }),
+  dynamics: Object.freeze({ activity: 0.42, learning: 0.28, prediction: 0.20, recency: 0.10 }),
+  motor: Object.freeze({ disconnectedDomain: 0.08, localRelated: 0.18, distanceDecay: 0.18 }),
+});
+
+export const MOTOR_NODE_KINDS = new Set([
+  'motor_primitive',
+  'motor_competence',
+  'effect',
+  'controller',
+  'embodiment_binding',
+  'body_schema',
+  'action_dimension',
+  'intervention_signature',
+  'action_intent',
+]);
+
+export const MOTOR_EDGE_KINDS = new Set([
+  'invokes',
+  'produces',
+  'requires',
+  'bound_to',
+  'causal_estimate',
+  'affords',
+  'intends_with',
+  'anticipates',
+  'motor_component',
+  'causal_effect',
+]);
+
 function finite(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -29,8 +68,15 @@ function clamp01(value) {
   return Math.max(0, Math.min(1, finite(value, 0)));
 }
 
-function errorScore(value) {
-  if (Number.isFinite(Number(value))) return clamp01(Number(value) / 15);
+function saturatingLog(value, scale) {
+  return clamp01(1 - Math.exp(-Math.log1p(Math.max(0, finite(value, 0))) / Math.max(1e-6, scale)));
+}
+
+function normalizePredictionError(value) {
+  const n = Number(value);
+  if (Number.isFinite(n)) {
+    return clamp01(1 - Math.exp(-Math.abs(n) / ATLAS_CONFIG.normalization.predictionErrorScale));
+  }
   const cls = String(value ?? '').toLowerCase();
   if (cls === 'extreme') return 1;
   if (cls === 'high') return 0.78;
@@ -39,82 +85,187 @@ function errorScore(value) {
   return 0;
 }
 
-function edgeEvidence(edge, maxima) {
-  const support = Math.log1p(Math.max(0, finite(edge.support, 0))) / maxima.support;
-  const stable = Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / maxima.stable;
+function percentile(values, q = 0.75) {
+  const xs = values.filter(Number.isFinite).sort((a,b) => a - b);
+  if (!xs.length) return 0;
+  if (xs.length === 1) return xs[0];
+  const pos = clamp01(q) * (xs.length - 1);
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  if (lo === hi) return xs[lo];
+  return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo);
+}
+
+function normalizeSupport(value) {
+  return saturatingLog(value, ATLAS_CONFIG.normalization.supportScale);
+}
+
+function normalizeStability(value) {
+  return saturatingLog(value, ATLAS_CONFIG.normalization.stabilityScale);
+}
+
+function edgeEvidence(edge) {
+  const support = normalizeSupport(edge.support ?? edge.action_support);
+  const stable = normalizeStability(edge.stableTicks);
   const weight = Math.min(1, Math.abs(finite(edge.weight, 0)));
-  return clamp01(support * 0.45 + stable * 0.35 + weight * 0.20);
+  const confidence = clamp01(edge.confidence ?? edge.evidence?.confidence ?? 0);
+  return clamp01(support * 0.38 + stable * 0.30 + weight * 0.17 + confidence * 0.15);
 }
 
 function structuralEdgeScore(edge) {
-  // Learned causal estimates are evidence overlays, not CognitiveGraph
-  // structure. Keep them almost invisible in structural/anatomical views while
-  // leaving them first-class in Motor/Evidence.
   if (edge.kind === 'causal_estimate') return 0.03;
   if (['affords', 'intends_with', 'anticipates'].includes(edge.kind)) return 0.16;
   return clamp01(
     Math.abs(finite(edge.weight, 0)) * 0.35 +
-    Math.min(1, Math.log1p(Math.max(0, finite(edge.support, 0))) / 8) * 0.65
+    normalizeSupport(edge.support) * 0.65
   );
 }
 
 function edgeRecency(edge, tick) {
   const lastUse = finite(edge.lastUseTick, 0);
   if (lastUse <= 0 || tick <= 0) return 0;
-  return Math.exp(-Math.max(0, tick - lastUse) / 512);
+  return Math.exp(-Math.max(0, tick - lastUse) / ATLAS_CONFIG.recencyHalfLifeTicks);
 }
 
-export function atlasSignals(nodes, edges, tick = 0) {
+export function isMotorNode(node) {
+  if (!node) return false;
+  if (MOTOR_NODE_KINDS.has(node.kind)) return true;
+  if (node.kind !== 'readout') return false;
+  return (
+    String(node.id).startsWith('readout_motor:') ||
+    String(node.id).startsWith('readout_primitive:') ||
+    node.subtype === 'motor' ||
+    node.learnedLayer === 'motor'
+  );
+}
+
+function isCognitiveMotorSource(node) {
+  if (!node || isMotorNode(node)) return false;
+  return ['sense', 'concept', 'predictor', 'state', 'readout'].includes(node.kind);
+}
+
+export function buildAtlasGraph(nodes, edges) {
+  const nodesById = new Map(nodes.map(node => [node.id, node]));
+  const incoming = new Map(nodes.map(node => [node.id, []]));
+  const outgoing = new Map(nodes.map(node => [node.id, []]));
   const incident = new Map(nodes.map(node => [node.id, []]));
+
   for (const edge of edges) {
+    if (!nodesById.has(edge.sourceId) || !nodesById.has(edge.targetId)) continue;
+    outgoing.get(edge.sourceId)?.push({ id: edge.targetId, edge });
+    incoming.get(edge.targetId)?.push({ id: edge.sourceId, edge });
     incident.get(edge.sourceId)?.push(edge);
     incident.get(edge.targetId)?.push(edge);
   }
 
-  const maxima = {
-    support: Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.support, 0))))),
-    stable: Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.stableTicks, 0))))),
-  };
+  return { nodes, edges, nodesById, incoming, outgoing, incident };
+}
 
+function shortestDistances(seedIds, adjacency, maxDepth = 16) {
+  const distance = new Map();
+  const queue = [];
+  for (const id of seedIds) {
+    if (distance.has(id)) continue;
+    distance.set(id, 0);
+    queue.push(id);
+  }
+  let head = 0;
+  while (head < queue.length) {
+    const id = queue[head++];
+    const depth = distance.get(id) ?? 0;
+    if (depth >= maxDepth) continue;
+    for (const next of adjacency.get(id) ?? []) {
+      if (distance.has(next.id)) continue;
+      distance.set(next.id, depth + 1);
+      queue.push(next.id);
+    }
+  }
+  return distance;
+}
+
+export function motorReachability(nodes, edges, maxDepth = 16) {
+  const index = buildAtlasGraph(nodes, edges);
+  const motorIds = nodes.filter(isMotorNode).map(node => node.id);
+  const cognitiveIds = nodes.filter(isCognitiveMotorSource).map(node => node.id);
+
+  // Nodes that can reach a motor target follow outgoing graph direction.
+  // Starting from motor targets and walking incoming edges gives that distance
+  // in one pass for the whole graph.
+  const distanceToMotor = shortestDistances(motorIds, index.incoming, maxDepth);
+  // A motor-domain node is only "connected" when some non-motor cognitive
+  // structure can actually reach it.
+  const distanceFromCognition = shortestDistances(cognitiveIds, index.outgoing, maxDepth);
+
+  const result = new Map();
+  for (const node of nodes) {
+    const domain = isMotorNode(node);
+    const motorDistance = distanceToMotor.get(node.id);
+    const fromCognition = distanceFromCognition.get(node.id);
+    const connected = domain
+      ? Number.isFinite(fromCognition) && fromCognition > 0
+      : Number.isFinite(motorDistance);
+    const localRelated = domain || (index.incident.get(node.id) ?? []).some(edge => MOTOR_EDGE_KINDS.has(edge.kind));
+    result.set(node.id, {
+      motorDomain: domain,
+      motorRelated: connected || localRelated,
+      motorConnected: connected,
+      motorDistance: domain ? fromCognition ?? null : motorDistance ?? null,
+    });
+  }
+  return { index, nodes: result };
+}
+
+export function atlasSignals(nodes, edges, tick = 0) {
+  const reachability = motorReachability(nodes, edges);
+  const { incident } = reachability.index;
   const signals = new Map();
+
   for (const node of nodes) {
     const related = incident.get(node.id) ?? [];
-    const evidence = related.length
-      ? Math.max(...related.map(edge => edgeEvidence(edge, maxima)))
-      : 0;
-    const recency = related.length
-      ? Math.max(...related.map(edge => edgeRecency(edge, tick)))
-      : 0;
-    const plasticity = related.length
-      ? Math.max(...related.map(edge => clamp01(edge.plasticity)))
-      : 0;
-    const stability = related.length
-      ? Math.max(...related.map(edge =>
-          Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / maxima.stable
-        ))
-      : 0;
-    const error = node.predictionError != null
-      ? clamp01(Math.abs(finite(node.predictionError, 0)))
-      : errorScore(node.errorCls);
-    const activity = clamp01(finite(node.activationLevel, 0) * 0.78 + recency * 0.22);
-    const learning = clamp01(
-      plasticity * 0.48 +
-      (1 - stability) * Math.min(1, related.length ? 0.30 : 0) +
-      error * 0.22
+    const edgeSignals = related.map(edge => {
+      const stability = normalizeStability(edge.stableTicks);
+      const plasticity = clamp01(edge.plasticity);
+      return {
+        evidence: edgeEvidence(edge),
+        recency: edgeRecency(edge, tick),
+        plasticity,
+        stability,
+      };
+    });
+    const evidence = percentile(edgeSignals.map(item => item.evidence));
+    const recency = percentile(edgeSignals.map(item => item.recency));
+    const plasticity = percentile(edgeSignals.map(item => item.plasticity));
+    const stability = percentile(edgeSignals.map(item => item.stability));
+    const error = normalizePredictionError(node.predictionError ?? node.errorCls);
+    const activity = clamp01(
+      finite(node.activationLevel, 0) * ATLAS_CONFIG.activity.activation +
+      recency * ATLAS_CONFIG.activity.recency
     );
+    const perEdgeLearning = edgeSignals.map(item => clamp01(
+      item.plasticity * ATLAS_CONFIG.learning.plasticity +
+      (1 - item.stability) * ATLAS_CONFIG.learning.instability +
+      error * ATLAS_CONFIG.learning.error
+    ));
+    const learning = related.length ? percentile(perEdgeLearning) : 0;
     const prediction = clamp01(
-      (node.kind === 'predictor' || node.kind === 'state' ? 0.62 : 0) +
-      error * 0.38
+      (node.kind === 'predictor' || node.kind === 'state' ? ATLAS_CONFIG.prediction.kind : 0) +
+      error * ATLAS_CONFIG.prediction.error
     );
-    const motor = clamp01(
-      (node.kind === 'motor_primitive' ? 0.82 : 0) +
-      (['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension', 'intervention_signature', 'action_intent'].includes(node.kind) ? 0.82 : 0) +
-      (node.kind === 'readout' && (
-        String(node.id).startsWith('readout_motor:') ||
-        String(node.id).startsWith('readout_primitive:')
-      ) ? 0.72 : 0) +
-      (node.cognitivePrimitive ? 0.18 : 0)
-    );
+
+    const motorState = reachability.nodes.get(node.id) ?? {
+      motorDomain: false,
+      motorRelated: false,
+      motorConnected: false,
+      motorDistance: null,
+    };
+    let motor = 0;
+    if (motorState.motorConnected) {
+      motor = clamp01(1 / (1 + Math.max(0, finite(motorState.motorDistance, 0)) * ATLAS_CONFIG.motor.distanceDecay));
+    } else if (motorState.motorDomain) {
+      motor = ATLAS_CONFIG.motor.disconnectedDomain;
+    } else if (motorState.motorRelated) {
+      motor = ATLAS_CONFIG.motor.localRelated;
+    }
 
     signals.set(node.id, {
       structure: clamp01(finite(node.structuralImportance ?? node.visualValue, 0)),
@@ -122,6 +273,10 @@ export function atlasSignals(nodes, edges, tick = 0) {
       learning,
       prediction,
       motor,
+      motorDomain: motorState.motorDomain,
+      motorRelated: motorState.motorRelated,
+      motorConnected: motorState.motorConnected,
+      motorDistance: motorState.motorDistance,
       evidence,
       error,
       recency,
@@ -144,27 +299,38 @@ export function atlasModeScore(node, signals, mode = 'structure') {
   return clamp01(signal[mode] ?? 0);
 }
 
-export function atlasEdgeScore(edge, mode, tick = 0) {
+export function atlasEdgeScore(edge, mode, tick = 0, signals = null) {
   if (mode === 'structure') return structuralEdgeScore(edge);
   if (mode === 'activity') return edgeRecency(edge, tick);
   if (mode === 'learning') {
-    const stability = Math.log1p(Math.max(0, finite(edge.stableTicks, 0)));
-    const support = Math.log1p(Math.max(0, finite(edge.support, 0)));
-    const instability = 1 / (1 + stability);
-    return clamp01(clamp01(edge.plasticity) * 0.65 + instability * 0.25 + Math.min(1, support / 8) * 0.10);
+    const stability = normalizeStability(edge.stableTicks);
+    const support = normalizeSupport(edge.support);
+    const instability = 1 - stability;
+    return clamp01(clamp01(edge.plasticity) * 0.65 + instability * 0.25 + support * 0.10);
   }
   if (mode === 'prediction') return edge.kind === 'predictive' ? 1 : edge.kind === 'gating' ? 0.45 : 0.08;
-  if (mode === 'motor') return ['invokes', 'produces', 'requires', 'bound_to', 'causal_estimate', 'affords', 'intends_with', 'anticipates'].includes(edge.kind) ? 1 : 0.06;
-  if (mode === 'anatomy') return atlasEdgeScore(edge, 'structure', tick);
+  if (mode === 'motor') {
+    const source = signals?.get?.(edge.sourceId) ?? null;
+    const target = signals?.get?.(edge.targetId) ?? null;
+    if (source?.motorConnected && target?.motorConnected) {
+      const sourceDistance = finite(source.motorDistance, 99);
+      const targetDistance = finite(target.motorDistance, 99);
+      if (targetDistance < sourceDistance) return MOTOR_EDGE_KINDS.has(edge.kind) ? 1 : 0.72;
+      return MOTOR_EDGE_KINDS.has(edge.kind) ? 0.62 : 0.24;
+    }
+    if (MOTOR_EDGE_KINDS.has(edge.kind) && (source?.motorRelated || target?.motorRelated)) return 0.18;
+    return 0.025;
+  }
+  if (mode === 'anatomy') return atlasEdgeScore(edge, 'structure', tick, signals);
   if (mode === 'dynamics') return clamp01(
-    atlasEdgeScore(edge, 'activity', tick) * 0.55 +
-    atlasEdgeScore(edge, 'learning', tick) * 0.25 +
-    atlasEdgeScore(edge, 'prediction', tick) * 0.20
+    atlasEdgeScore(edge, 'activity', tick, signals) * 0.55 +
+    atlasEdgeScore(edge, 'learning', tick, signals) * 0.25 +
+    atlasEdgeScore(edge, 'prediction', tick, signals) * 0.20
   );
   if (mode === 'diff') return 0;
   if (mode === 'evidence') {
-    const support = Math.min(1, Math.log1p(Math.max(0, finite(edge.support ?? edge.action_support, 0))) / 8);
-    const stable = Math.min(1, Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / 9);
+    const support = normalizeSupport(edge.support ?? edge.action_support);
+    const stable = normalizeStability(edge.stableTicks);
     const confidence = clamp01(edge.confidence ?? edge.evidence?.confidence ?? 0);
     const counterfactual = Math.min(1, Math.log1p(Math.max(0, finite(edge.counterfactualSupport ?? edge.counterfactual_support, 0))) / 8);
     if (edge.kind === 'causal_estimate') {
@@ -209,10 +375,11 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
     grouped.set(node.community, item);
   }
 
+  const nodesById = new Map(nodes.map(node => [node.id, node]));
   for (const edge of edges) {
     if (!isStructuralAtlasEdge(edge)) continue;
-    const source = nodes.find(node => node.id === edge.sourceId);
-    const target = nodes.find(node => node.id === edge.targetId);
+    const source = nodesById.get(edge.sourceId);
+    const target = nodesById.get(edge.targetId);
     if (!source?.community || !target?.community || source.community === target.community) continue;
     grouped.get(source.community) && (grouped.get(source.community).bridges += 1);
     grouped.get(target.community) && (grouped.get(target.community).bridges += 1);
@@ -233,38 +400,38 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
   }).sort((a,b) => b.total - a.total || a.label.localeCompare(b.label));
 }
 
-function adjacencyFor(edges, reverse = false) {
-  const adjacency = new Map();
-  for (const edge of edges) {
-    const from = reverse ? edge.targetId : edge.sourceId;
-    const to = reverse ? edge.sourceId : edge.targetId;
-    if (!adjacency.has(from)) adjacency.set(from, []);
-    adjacency.get(from).push({ id: to, edge });
-  }
-  return adjacency;
-}
+function bfsPath(startId, targetPredicate, index, reverse = false, maxDepth = 10) {
+  const adjacency = reverse ? index.incoming : index.outgoing;
+  const queue = [startId];
+  const depth = new Map([[startId, 0]]);
+  const parent = new Map();
+  const parentEdge = new Map();
+  let head = 0;
 
-function bfsPath(startId, targetPredicate, nodesById, edges, reverse = false, maxDepth = 10) {
-  const adjacency = adjacencyFor(edges, reverse);
-  const queue = [{ id: startId, path: [startId], edgePath: [] }];
-  const visited = new Set([startId]);
-  while (queue.length) {
-    const current = queue.shift();
-    if (current.id !== startId && targetPredicate(nodesById.get(current.id))) {
-      return {
-        nodeIds: reverse ? [...current.path].reverse() : current.path,
-        edges: reverse ? [...current.edgePath].reverse() : current.edgePath,
-      };
+  while (head < queue.length) {
+    const id = queue[head++];
+    const currentDepth = depth.get(id) ?? 0;
+    if (id !== startId && targetPredicate(index.nodesById.get(id))) {
+      const nodeIds = [];
+      const edges = [];
+      let cursor = id;
+      while (cursor != null) {
+        nodeIds.push(cursor);
+        const edge = parentEdge.get(cursor);
+        if (edge) edges.push(edge);
+        cursor = parent.get(cursor);
+      }
+      nodeIds.reverse();
+      edges.reverse();
+      return { nodeIds, edges };
     }
-    if (current.path.length > maxDepth) continue;
-    for (const next of adjacency.get(current.id) ?? []) {
-      if (visited.has(next.id)) continue;
-      visited.add(next.id);
-      queue.push({
-        id: next.id,
-        path: [...current.path, next.id],
-        edgePath: [...current.edgePath, next.edge],
-      });
+    if (currentDepth >= maxDepth) continue;
+    for (const next of adjacency.get(id) ?? []) {
+      if (depth.has(next.id)) continue;
+      depth.set(next.id, currentDepth + 1);
+      parent.set(next.id, id);
+      parentEdge.set(next.id, next.edge);
+      queue.push(next.id);
     }
   }
   return null;
@@ -272,28 +439,18 @@ function bfsPath(startId, targetPredicate, nodesById, edges, reverse = false, ma
 
 export function cognitivePath(startId, nodes, edges, maxDepth = 10) {
   if (!startId) return null;
-  const nodesById = new Map(nodes.map(node => [node.id, node]));
-  const start = nodesById.get(startId);
+  const index = buildAtlasGraph(nodes, edges);
+  const start = index.nodesById.get(startId);
   if (!start) return null;
-
-  const motorTarget = node => node?.kind === 'motor_primitive' ||
-    ['motor_competence', 'effect', 'controller', 'embodiment_binding', 'body_schema', 'action_dimension', 'intervention_signature', 'action_intent'].includes(node?.kind) || (
-      node?.kind === 'readout' && (
-        String(node.id).startsWith('readout_motor:') ||
-        String(node.id).startsWith('readout_primitive:')
-      )
-    );
   const sensoryTarget = node => node?.kind === 'sense';
 
-  if (motorTarget(start)) {
-    return bfsPath(startId, sensoryTarget, nodesById, edges, true, maxDepth);
+  if (isMotorNode(start)) {
+    return bfsPath(startId, sensoryTarget, index, true, maxDepth);
   }
 
-  const downstream = bfsPath(startId, motorTarget, nodesById, edges, false, maxDepth);
+  const downstream = bfsPath(startId, isMotorNode, index, false, maxDepth);
   if (downstream) return downstream;
-
-  const upstream = bfsPath(startId, sensoryTarget, nodesById, edges, true, maxDepth);
-  return upstream;
+  return bfsPath(startId, sensoryTarget, index, true, maxDepth);
 }
 
 /**
