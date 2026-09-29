@@ -96,3 +96,60 @@ coverage = ["organism-state"]
     assert status["ready"] is False
     assert status["computed_status"] == "CAPTURE_REQUIRED"
     assert status["scenarios"][0]["state"] == "MISSING"
+
+
+
+def test_snapshot_contract_rejects_wrong_body_kind() -> None:
+    from symbiont_lab.physics3d.equivalence_suite import _snapshot_contract_failure
+
+    scenario = Scenario(
+        scenario_id="developed-cognition",
+        snapshot=Path("."),
+        body_kind="anthropomorphic-v6-vision",
+        ticks=32,
+        seed=42,
+        training=False,
+        train_interval=32,
+        min_training_completions=0,
+        require_promotion_event=False,
+        coverage=("organism-state",),
+        memory_gb=4.0,
+        disk_gb=1.0,
+        cpu_threads=1,
+    )
+    reason = _snapshot_contract_failure(
+        scenario,
+        {
+            "scenario": "developed-cognition",
+            "body_kind": "crawler-v1",
+        },
+    )
+    assert reason and "body_kind mismatch" in reason
+
+
+def test_snapshot_contract_rejects_wrong_scenario() -> None:
+    from symbiont_lab.physics3d.equivalence_suite import _snapshot_contract_failure
+
+    scenario = Scenario(
+        scenario_id="promotion-eligible",
+        snapshot=Path("."),
+        body_kind="anthropomorphic-v6-vision",
+        ticks=192,
+        seed=42,
+        training=True,
+        train_interval=32,
+        min_training_completions=4,
+        require_promotion_event=True,
+        coverage=("model-promotion",),
+        memory_gb=6.0,
+        disk_gb=1.0,
+        cpu_threads=1,
+    )
+    reason = _snapshot_contract_failure(
+        scenario,
+        {
+            "scenario": "private-model-training",
+            "body_kind": "anthropomorphic-v6-vision",
+        },
+    )
+    assert reason and "scenario mismatch" in reason
