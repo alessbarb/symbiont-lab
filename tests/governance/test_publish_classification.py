@@ -49,6 +49,28 @@ from governance.publish import _active_work_conflicts
 
 def test_active_work_conflict_is_detected() -> None:
     conflicts = _active_work_conflicts(
-        ["src/symbiont_lab/studies/learning/visual_acquisition.py"]
+        ["src/symbiont_lab/studies/learning/visual_acquisition.py"],
+        "HEAD",
     )
     assert any("visual-acquisition-d1-v2" in conflict for conflict in conflicts)
+
+
+
+def test_equivalence_control_plane_is_constitutional() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["src/symbiont_lab/physics3d/equivalence_suite.py"],
+        "diff --git a/src/symbiont_lab/physics3d/equivalence_suite.py b/src/symbiont_lab/physics3d/equivalence_suite.py\n+ # candidate tweak",
+    )
+    assert result.classification == ChangeClass.CONSTITUTIONAL
+
+
+def test_equivalence_suite_manifest_is_constitutional() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["experiments/equivalence/suite-v1/suite.toml"],
+        "diff --git a/experiments/equivalence/suite-v1/suite.toml b/experiments/equivalence/suite-v1/suite.toml\n+ ticks = 1",
+    )
+    assert result.classification == ChangeClass.CONSTITUTIONAL
