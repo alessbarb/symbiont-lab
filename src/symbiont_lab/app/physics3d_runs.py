@@ -56,6 +56,21 @@ def _sha256(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
+
+def _body_checkpoint_tick(path: Path) -> int | None:
+    """Return the organism tick paired with a physical body checkpoint.
+
+    Physical state is intentionally written after the portable organism.  A
+    crash between those writes may therefore leave a valid but stale body
+    checkpoint.  Such a checkpoint is historical evidence, not resumable
+    physical continuity.
+    """
+    payload = _read_json(path)
+    value = payload.get("symbiont_ticks")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return int(value)
+
 def _retain(source: Path, destination: Path) -> None:
     """Content-addressed retention: an existing destination is never rewritten."""
     if destination.exists():
@@ -285,6 +300,23 @@ class Physics3DRunStore:
                 "ref": directory.name,
                 "bundle_available": bundle.is_file(),
             }
+            last_body_ref = item.get("last_body_ref")
+            body_path = (
+                self.bodies_dir / str(last_body_ref) / "body.json"
+                if last_body_ref
+                else None
+            )
+            body_tick = _body_checkpoint_tick(body_path) if body_path and body_path.is_file() else None
+            organism_tick = int(item.get("tick") or 0)
+            body_in_sync = body_tick is not None and body_tick == organism_tick
+            item["body_checkpoint_tick"] = body_tick
+            item["body_checkpoint_in_sync"] = body_in_sync
+            item["resumable_body"] = bool(
+                body_path
+                and body_path.is_file()
+                and body_in_sync
+                and item.get("vital_state") != "dead"
+            )
             items.append(item)
 
         if self._include_legacy_default and DEFAULT_SYMBIONT_FILE.is_file():
@@ -464,6 +496,15 @@ class Physics3DRunStore:
             body_file = self.bodies_dir / body_ref / "body.json"
             if not body_file.is_file():
                 raise ValueError("selected physical body checkpoint is unavailable")
+            organism_tick = int(self._bundle_summary(symbiont_file).get("tick") or 0)
+            body_tick = _body_checkpoint_tick(body_file)
+            if body_tick != organism_tick:
+                raise ValueError(
+                    "selected physical body checkpoint is stale relative to the Symbiont "
+                    f"({body_tick if body_tick is not None else 'unknown'} != {organism_tick}); "
+                    "select a fresh body to re-embody the persisted Symbiont. "
+                    "The stale body checkpoint is retained as historical physical evidence."
+                )
             if definition.environment is not None:
                 # A resumed pose keeps its world; historical poses used flat-v1.
                 saved_world = _read_json(body_file).get("lab_world")
@@ -666,6 +707,13 @@ class Physics3DRunStore:
         _write_json(organism_meta_path, organism_meta)
 
         body_meta_path = self.bodies_dir / launch.body_ref / "metadata.json"
+        body_checkpoint_tick = (
+            _body_checkpoint_tick(launch.body_file) if body_checkpoint_available else None
+        )
+        organism_tick = int(summary.get("tick") or 0)
+        body_checkpoint_in_sync = (
+            body_checkpoint_tick is not None and body_checkpoint_tick == organism_tick
+        )
         body_meta = {
             **self._body_metadata(launch.body_ref),
             "ref": launch.body_ref,
@@ -674,8 +722,14 @@ class Physics3DRunStore:
             "last_run_id": launch.run_id,
             "organism_ref": launch.organism_ref,
             "checkpoint_available": body_checkpoint_available,
+            "checkpoint_tick": body_checkpoint_tick,
+            "checkpoint_in_sync": body_checkpoint_in_sync,
             "vital_state": summary.get("vital_state"),
-            "resumable": bool(body_checkpoint_available and summary.get("vital_state") != "dead"),
+            "resumable": bool(
+                body_checkpoint_available
+                and body_checkpoint_in_sync
+                and summary.get("vital_state") != "dead"
+            ),
         }
         body_meta.setdefault("created_at", manifest.get("started_at") or _now())
         _write_json(body_meta_path, body_meta)
