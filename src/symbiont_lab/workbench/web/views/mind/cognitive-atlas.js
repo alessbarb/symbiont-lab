@@ -183,8 +183,8 @@ function shortestDistances(seedIds, adjacency, maxDepth = 16) {
   return distance;
 }
 
-export function motorReachability(nodes, edges, maxDepth = 16) {
-  const index = buildAtlasGraph(nodes, edges);
+export function motorReachability(nodes, edges, maxDepth = 16, existingIndex = null) {
+  const index = existingIndex ?? buildAtlasGraph(nodes, edges);
   const motorIds = nodes.filter(isMotorNode).map(node => node.id);
   const cognitiveIds = nodes.filter(isCognitiveMotorSource).map(node => node.id);
 
@@ -215,9 +215,11 @@ export function motorReachability(nodes, edges, maxDepth = 16) {
   return { index, nodes: result };
 }
 
-export function atlasSignals(nodes, edges, tick = 0) {
-  const reachability = motorReachability(nodes, edges);
-  const { incident } = reachability.index;
+export function atlasSignals(nodes, edges, tick = 0, options = {}) {
+  const index = options.index ?? buildAtlasGraph(nodes, edges);
+  const reachability = motorReachability(nodes, edges, 16, index);
+  const fullMotor = options.fullMotor ?? null;
+  const { incident } = index;
   const signals = new Map();
 
   for (const node of nodes) {
@@ -252,18 +254,22 @@ export function atlasSignals(nodes, edges, tick = 0) {
       error * ATLAS_CONFIG.prediction.error
     );
 
-    const motorState = reachability.nodes.get(node.id) ?? {
+    const visibleMotor = reachability.nodes.get(node.id) ?? {
       motorDomain: false,
       motorRelated: false,
       motorConnected: false,
       motorDistance: null,
     };
+    const fullState = fullMotor?.nodes?.get?.(node.id) ?? visibleMotor;
+    const collapsedOnly = Boolean(fullState.motorConnected && !visibleMotor.motorConnected);
     let motor = 0;
-    if (motorState.motorConnected) {
-      motor = clamp01(1 / (1 + Math.max(0, finite(motorState.motorDistance, 0)) * ATLAS_CONFIG.motor.distanceDecay));
-    } else if (motorState.motorDomain) {
+    if (visibleMotor.motorConnected) {
+      motor = clamp01(1 / (1 + Math.max(0, finite(visibleMotor.motorDistance, 0)) * ATLAS_CONFIG.motor.distanceDecay));
+    } else if (collapsedOnly) {
+      motor = 0.32;
+    } else if (fullState.motorDomain) {
       motor = ATLAS_CONFIG.motor.disconnectedDomain;
-    } else if (motorState.motorRelated) {
+    } else if (fullState.motorRelated) {
       motor = ATLAS_CONFIG.motor.localRelated;
     }
 
@@ -273,10 +279,12 @@ export function atlasSignals(nodes, edges, tick = 0) {
       learning,
       prediction,
       motor,
-      motorDomain: motorState.motorDomain,
-      motorRelated: motorState.motorRelated,
-      motorConnected: motorState.motorConnected,
-      motorDistance: motorState.motorDistance,
+      motorDomain: fullState.motorDomain,
+      motorRelated: fullState.motorRelated,
+      motorConnected: visibleMotor.motorConnected,
+      motorConnectedFull: fullState.motorConnected,
+      motorCollapsedOnly: collapsedOnly,
+      motorDistance: visibleMotor.motorConnected ? visibleMotor.motorDistance : fullState.motorDistance,
       evidence,
       error,
       recency,
@@ -341,7 +349,7 @@ export function atlasEdgeScore(edge, mode, tick = 0, signals = null) {
   return structuralEdgeScore(edge);
 }
 
-export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, signals) {
+export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, signals, index = null) {
   const grouped = new Map();
   for (const node of nodes) {
     if (!node.community || node.community === 'isolated') continue;
@@ -375,7 +383,7 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
     grouped.set(node.community, item);
   }
 
-  const nodesById = new Map(nodes.map(node => [node.id, node]));
+  const nodesById = index?.nodesById ?? new Map(nodes.map(node => [node.id, node]));
   for (const edge of edges) {
     if (!isStructuralAtlasEdge(edge)) continue;
     const source = nodesById.get(edge.sourceId);
@@ -437,9 +445,9 @@ function bfsPath(startId, targetPredicate, index, reverse = false, maxDepth = 10
   return null;
 }
 
-export function cognitivePath(startId, nodes, edges, maxDepth = 10) {
+export function cognitivePath(startId, nodes, edges, maxDepth = 10, existingIndex = null) {
   if (!startId) return null;
-  const index = buildAtlasGraph(nodes, edges);
+  const index = existingIndex ?? buildAtlasGraph(nodes, edges);
   const start = index.nodesById.get(startId);
   if (!start) return null;
   const sensoryTarget = node => node?.kind === 'sense';
