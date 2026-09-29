@@ -1,0 +1,11 @@
+session_id = "replace-me"
+base_commit = "replace-me"
+task = "describe the authorised task"
+authority = "L2"
+allowed_paths = [
+  "src/symbiont_lab/example/**",
+  "tests/example/**",
+]
+protocol_change = false
+claim_change = false
+may_run_scientific_campaigns = false
