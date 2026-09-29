@@ -1,21 +1,21 @@
 import { mount as mountHome, update as updateHome, unmount as unmountHome } from './views/home.js';
 import { mount as mountMind, update as updateMind, unmount as unmountMind } from './views/mind.js';
-import { mount as mountLab, update as updateLab, unmount as unmountLab } from './views/lab.js';
 import { mount as mountArchive, update as updateArchive, unmount as unmountArchive } from './views/archive.js';
+import { mount as mountVision, update as updateVision, unmount as unmountVision } from './views/vision.js';
 import { RuntimeStatePoller } from './runtime-state.js';
 
 const ROOT_ID = 'view-root';
-const ROUTE_ALIASES = { lab: 'experiments', body: 'embodiment' };
+const ROUTE_ALIASES = { lab: 'home', experiments: 'home', body: 'embodiment' };
 const ROUTES = {
   home: {
     mount: (root, state) => mountHome(root, state),
     update: (root, state) => updateHome(root, state),
     unmount: () => unmountHome(),
   },
-  experiments: {
-    mount: (root, state) => mountLab(root, state),
-    update: (root, state) => updateLab(root, state),
-    unmount: () => unmountLab(),
+  vision: {
+    mount: (root, state) => mountVision(root, state),
+    update: (root, state) => updateVision(root, state),
+    unmount: () => unmountVision(),
   },
   mind: {
     mount: (root, state) => mountMind(root, state),
@@ -78,14 +78,21 @@ function updateStatusBar(state) {
   const running = Boolean(state.running || state.study?.running || physicsRunning);
 
   setStatus(running ? 'running' : 'ready');
+  const organismLabel = physics.organism_alias || physics.organism_id || physics.organism_ref;
+  const tick = physics.tick ?? state.current?.tick ?? state.tick;
+  const epoch = physics.embodiment_epoch ?? state.current?.embodiment_epoch;
+  const runKind = physics.run_kind;
   setRunState(
     physicsRunning
-      ? [physics.organism_alias, physics.run_id || 'Physics3D'].filter(Boolean).join(' · ')
-      : state.running
-        ? `run #${state.experiment_number ?? 0}`
-        : state.study?.running
-          ? `study ${state.study.phase ?? 'active'}`
-          : 'no active run',
+      ? [
+          organismLabel || 'Symbiont',
+          tick != null ? `t${Number(tick).toLocaleString()}` : null,
+          epoch != null ? `embodiment e${epoch}` : null,
+          runKind || null,
+        ].filter(Boolean).join(' · ')
+      : organismLabel
+        ? [organismLabel, tick != null ? `t${Number(tick).toLocaleString()}` : null, 'inactive'].filter(Boolean).join(' · ')
+        : 'no active Symbiont',
   );
 
   const current = state.current ?? {};
