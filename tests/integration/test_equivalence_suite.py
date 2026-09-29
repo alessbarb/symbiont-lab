@@ -153,3 +153,32 @@ def test_snapshot_contract_rejects_wrong_scenario() -> None:
         },
     )
     assert reason and "scenario mismatch" in reason
+
+
+def test_snapshot_contract_rejects_missing_model_artifacts() -> None:
+    from symbiont_lab.physics3d.equivalence_suite import _snapshot_contract_failure
+
+    scenario = Scenario(
+        scenario_id="developed-cognition",
+        snapshot=Path("."),
+        body_kind="anthropomorphic-v6-vision",
+        ticks=32,
+        seed=42,
+        training=False,
+        train_interval=32,
+        min_training_completions=0,
+        require_promotion_event=False,
+        coverage=("organism-state",),
+        memory_gb=4.0,
+        disk_gb=1.0,
+        cpu_threads=1,
+    )
+    reason = _snapshot_contract_failure(
+        scenario,
+        {
+            "scenario": "developed-cognition",
+            "body_kind": "anthropomorphic-v6-vision",
+            "models_source": "none",
+        },
+    )
+    assert reason and "model artifacts" in reason
