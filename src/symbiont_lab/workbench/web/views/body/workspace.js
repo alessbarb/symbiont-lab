@@ -193,7 +193,11 @@ export class BodyWorkspace {
       }
     }
     if (tab !== 'self-model') {
-      this.root?.classList.remove('self-model-inspector-open', 'acquired-self-compare-mode');
+      this.root?.classList.remove(
+        'self-model-inspector-open',
+        'acquired-self-compare-mode',
+        'acquired-self-v2-mode',
+      );
     } else {
       this.root?.classList.toggle('acquired-self-compare-mode', this.selfModel.mode === 'compare');
     }
@@ -539,6 +543,12 @@ export class BodyWorkspace {
   dispose() {
     this.discovery.deactivate();
     this.clearSegmentHighlight();
+    this.root?.classList.remove(
+      'self-model-mode',
+      'self-model-inspector-open',
+      'acquired-self-compare-mode',
+      'acquired-self-v2-mode',
+    );
     this.nav?.remove();
     this.overlay?.remove();
     this.nav = null;
