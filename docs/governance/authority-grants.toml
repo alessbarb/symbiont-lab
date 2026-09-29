@@ -24,3 +24,17 @@ allowed_paths = [
   "docs/history/roadmap-log.md",
   "docs/glossary.md",
 ]
+
+[[grant]]
+id = "owner-2026-09-29-governance-consistency"
+status = "open"
+authority = "L4"
+base_commit = "d267217e267244bd6223ecec5e587ecc4315cdb3"
+purpose = "Complete control-plane ownership metadata and repair documentation links after governance hardening."
+single_use = true
+allowed_paths = [
+  "docs/governance/**",
+  ".github/CODEOWNERS",
+  ".github/pull_request_template.md",
+  "docs/history/roadmap-log.md",
+]
