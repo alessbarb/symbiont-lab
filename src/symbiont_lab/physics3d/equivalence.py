@@ -50,7 +50,7 @@ def _tree_digest(root: Path) -> str:
 
 def _private_model_state(payload):
     if isinstance(payload, dict):
-        for key in ("private_models", "model_registry", "models"):
+        for key in ("private_model_registry", "private_models", "model_registry", "models"):
             if key in payload:
                 return payload[key]
         for value in payload.values():
