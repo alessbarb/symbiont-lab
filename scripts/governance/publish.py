@@ -171,9 +171,15 @@ def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict[s
     if not readiness.get("ready"):
         return False, {"suite": {"status": "NOT_ASSESSABLE_SNAPSHOT_SET", "details": readiness}}
 
-    _, definitions = load_suite(suite)
+    suite_id, definitions = load_suite(suite)
     by_id = {item.scenario_id: item for item in definitions}
-    evidence: dict[str, dict] = {}
+    evidence: dict[str, dict] = {
+        "_meta": {
+            "baseline_commit": base,
+            "suite_id": suite_id,
+            "suite_path": suite.relative_to(ROOT).as_posix(),
+        }
+    }
 
     with _EquivalenceLock():
         with pinned_worktree(ROOT, base) as baseline_tree:
