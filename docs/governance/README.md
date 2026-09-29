@@ -108,9 +108,12 @@ The generated commit records `Governance-ADR:` provenance.
 
 ### Trusted run coordination
 
-`run start` and `equivalence run` refresh and read active-work/resource policy from
-**origin/main**, not from an editable working-tree copy. A local agent cannot remove a
+`run start` and `equivalence run` refresh **origin/main once**, pin that exact commit as the governance reference, and read active-work/resource policy from that same ref—not from an editable working-tree copy. A local agent cannot remove a
 RUNNING campaign or raise resource ceilings by changing uncommitted governance files.
 
 Any tracked RUNNING long campaign blocks a new long run, including reuse of the same
 run id; the registry must be updated after the previous execution is actually complete.
+
+
+The exact trusted commit is recorded as `governance_ref` in scientific-run receipts,
+so a later change to main cannot retroactively change the admission decision.

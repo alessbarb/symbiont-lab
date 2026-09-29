@@ -99,17 +99,30 @@ def load_at(ref: str, name: str) -> dict[str, Any]:
     return tomllib.loads(raw) if raw is not None else {}
 
 
-def _trusted_origin_governance(name: str) -> dict[str, Any]:
+def _trusted_origin_ref() -> str:
     fetch = git_result("fetch", "origin", "main")
     if fetch.returncode != 0:
         raise RuntimeError(
             "cannot refresh trusted origin/main governance state: "
             + (fetch.stderr.strip() or "git fetch failed")
         )
-    raw = git_show("origin/main", f"docs/governance/{name}")
+    ref = git("rev-parse", "origin/main")
+    if not commit_exists(ref):
+        raise RuntimeError("trusted origin/main did not resolve to a commit")
+    return ref
+
+
+def _trusted_governance_at(ref: str, name: str) -> dict[str, Any]:
+    raw = git_show(ref, f"docs/governance/{name}")
     if raw is None:
-        raise RuntimeError(f"trusted origin/main is missing docs/governance/{name}")
+        raise RuntimeError(f"trusted governance ref {ref[:12]} is missing docs/governance/{name}")
     return tomllib.loads(raw)
+
+
+def _trusted_origin_governance(name: str) -> dict[str, Any]:
+    """Compatibility helper for callers that need one document only."""
+    ref = _trusted_origin_ref()
+    return _trusted_governance_at(ref, name)
 
 
 def matches(path: str, pattern: str) -> bool:
@@ -669,13 +682,18 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
-def _tracked_running() -> list[str]:
-    data = _trusted_origin_governance("active-work.toml")
+def _tracked_running_at(ref: str) -> list[str]:
+    data = _trusted_governance_at(ref, "active-work.toml")
     return [
         str(work["id"])
         for work in data.get("work", [])
         if work.get("state") == "RUNNING"
     ]
+
+
+def _tracked_running() -> list[str]:
+    """Compatibility helper: fetch origin/main once and evaluate that exact ref."""
+    return _tracked_running_at(_trusted_origin_ref())
 
 
 def _working_tree_clean() -> bool:
@@ -749,7 +767,8 @@ def run_exec(
         return 1
 
     try:
-        policy = _trusted_origin_governance("resource-policy.toml").get(
+        governance_ref = _trusted_origin_ref()
+        policy = _trusted_governance_at(governance_ref, "resource-policy.toml").get(
             "scientific_runs", {}
         )
     except RuntimeError as exc:
@@ -765,7 +784,7 @@ def run_exec(
         print("policy requires POSIX hard memory limits", file=sys.stderr)
         return 1
 
-    others = _tracked_running()
+    others = _tracked_running_at(governance_ref)
     if others:
         print(f"tracked scientific run already active: {', '.join(others)}", file=sys.stderr)
         return 1
@@ -774,7 +793,8 @@ def run_exec(
         "id": run_id, "grant_id": grant_id, "scope": grant.get("scope"),
         "owner_pid": os.getpid(), "started_at": datetime.now(timezone.utc).isoformat(),
         "command": command, "wall_minutes": wall_minutes, "memory_gb": memory_gb,
-        "cpu_threads": cpu, "head": git("rev-parse", "HEAD"), "state": "launching",
+        "cpu_threads": cpu, "head": git("rev-parse", "HEAD"),
+        "governance_ref": governance_ref, "state": "launching",
     }
     if _reserve_run_lock(payload):
         return 1
@@ -852,10 +872,11 @@ def run_pinned(
         print("BLOCKED — causal-equivalence run already active", file=sys.stderr)
         return 3
     try:
-        policy = _trusted_origin_governance("resource-policy.toml").get(
+        governance_ref = _trusted_origin_ref()
+        policy = _trusted_governance_at(governance_ref, "resource-policy.toml").get(
             "scientific_runs", {}
         )
-        others = _tracked_running()
+        others = _tracked_running_at(governance_ref)
     except RuntimeError as exc:
         print(f"BLOCKED — {exc}", file=sys.stderr)
         return 3
@@ -958,6 +979,7 @@ def run_pinned(
         "scope": scope,
         "commit": commit,
         "input_source_commit": input_source_commit,
+        "governance_ref": governance_ref,
         "owner_approved": owner_approved,
         "owner_pid": os.getpid(),
         "started_at": datetime.now(timezone.utc).isoformat(),
@@ -1065,12 +1087,22 @@ def equivalence_status_command(suite: Path) -> int:
 
 def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
     try:
-        running = _tracked_running()
+        governance_ref = _trusted_origin_ref()
+        running = _tracked_running_at(governance_ref)
+        trusted_policy = _trusted_governance_at(
+            governance_ref, "resource-policy.toml"
+        ).get("scientific_runs", {})
     except RuntimeError as exc:
         print(f"BLOCKED — {exc}", file=sys.stderr)
         return 3
     if running:
-        print("BLOCKED — long scientific work already RUNNING: " + ", ".join(running), file=sys.stderr)
+        print(
+            "BLOCKED — long scientific work already RUNNING at "
+            + governance_ref[:12]
+            + ": "
+            + ", ".join(running),
+            file=sys.stderr,
+        )
         return 3
     if _run_lock_path().exists() or _equivalence_lock_path().exists():
         print("BLOCKED — another heavy run is already active", file=sys.stderr)
@@ -1104,6 +1136,34 @@ def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
     try:
         for scenario_id in selected:
             scenario = by_id[scenario_id]
+            if scenario.memory_gb > float(trusted_policy.get("max_memory_gb", 12)):
+                print(
+                    json.dumps(
+                        {
+                            "scenario": scenario_id,
+                            "status": "NOT_ASSESSABLE_RESOURCES",
+                            "governance_ref": governance_ref,
+                            "reasons": ["scenario memory exceeds trusted policy"],
+                        },
+                        indent=2,
+                    )
+                )
+                exit_code = 2
+                continue
+            if scenario.cpu_threads > int(trusted_policy.get("max_cpu_threads", 4)):
+                print(
+                    json.dumps(
+                        {
+                            "scenario": scenario_id,
+                            "status": "NOT_ASSESSABLE_RESOURCES",
+                            "governance_ref": governance_ref,
+                            "reasons": ["scenario CPU exceeds trusted policy"],
+                        },
+                        indent=2,
+                    )
+                )
+                exit_code = 2
+                continue
             resources = assess_resources(
                 ResourceRequest(
                     peak_memory_gb=scenario.memory_gb,

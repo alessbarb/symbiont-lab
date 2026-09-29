@@ -106,3 +106,24 @@ def test_resource_policy_uses_run_start() -> None:
         policy = tomllib.load(handle)["scientific_runs"]
     assert policy["launcher"] == "python scripts/agentctl.py run start"
     assert policy["trusted_state"] == "origin/main"
+
+
+
+def test_trusted_governance_helpers_share_explicit_ref(monkeypatch) -> None:
+    ctl = _agentctl()
+    calls: list[tuple[str, str]] = []
+
+    def fake_show(ref: str, path: str) -> str | None:
+        calls.append((ref, path))
+        if path.endswith("active-work.toml"):
+            return 'schema_version = 1\n[[work]]\nid = "x"\nstate = "RUNNING"\n'
+        if path.endswith("resource-policy.toml"):
+            return 'schema_version = 1\n[scientific_runs]\nmax_memory_gb = 12\n'
+        return None
+
+    monkeypatch.setattr(ctl, "git_show", fake_show)
+    ref = "a" * 40
+    assert ctl._tracked_running_at(ref) == ["x"]
+    policy = ctl._trusted_governance_at(ref, "resource-policy.toml")
+    assert policy["scientific_runs"]["max_memory_gb"] == 12
+    assert {item[0] for item in calls} == {ref}
