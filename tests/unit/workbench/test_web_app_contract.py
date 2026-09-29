@@ -347,3 +347,25 @@ def test_mind_primary_tabs_are_live_atlas_development():
     assert "label: 'Live'" in layout
     assert "label: 'Atlas'" in layout
     assert "label: 'Development'" in layout
+
+
+def test_developmental_observatory_surfaces_organism_not_run_as_primary_subject():
+    home = _read("views/home.js")
+    overview = _read("views/mind/overview.js")
+    history = _read("views/mind/history.js")
+    discovery = _read("views/embodiment/action-discovery.js")
+    archive = _read("views/archive.js")
+    archive_render = _read("views/archive/render.js")
+
+    assert "Current Symbiont" in home
+    assert "Development now" in home
+    assert "What is happening now" in overview
+    assert "Recent cognitive events" in overview
+    assert "How cognition is changing" in history
+    assert "Developmental narrative" in history
+    assert "Current causal chain" in discovery
+    assert "Action" in discovery and "Observed consequence" in discovery
+    assert "Evidence" in discovery and "Competence" in discovery
+    assert "/api/runs" in archive and "/api/organisms" in archive
+    assert "Developmental timeline" in archive_render
+    assert "Symbiont continuity" in archive_render
