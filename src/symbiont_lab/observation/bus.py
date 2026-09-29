@@ -102,7 +102,12 @@ class ObservationBus:
                 self._last_sequence_by_type[event_type] = stream_id
 
             message = ObservationMessage(stream_id=stream_id, data=data)
-            self._history.append(message)
+            # Reconnect cursors identify transport messages, not the client's
+            # per-channel bases (which an earlier overflow may have dropped).
+            # Keep bounded materialized history so replay is self-contained.
+            self._history.append(
+                self._last_by_type[event_type] if event_type in _DEPENDENT_TYPES else message
+            )
             for consumer, based_channels in self._queues.items():
                 if consumer.full():
                     # Any retained delta may depend on a dropped message, even
@@ -144,10 +149,7 @@ class ObservationBus:
                 replay = current
             else:
                 replay = [message for message in history if message.stream_id > int(after_sequence)]
-                if len(replay) <= self._queue_size:
-                    # A complete replay extends the bases retained by the client.
-                    based_channels.update(_DEPENDENT_TYPES)
-                else:
+                if len(replay) > self._queue_size:
                     # Slicing a delta chain would discard required revisions.
                     replay = current
             for message in replay[-self._queue_size :]:

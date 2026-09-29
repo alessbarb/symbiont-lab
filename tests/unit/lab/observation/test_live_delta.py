@@ -238,3 +238,27 @@ def test_bus_bounded_reconnect_rebases_channels_omitted_from_snapshot(after_sequ
         ids.append(message.stream_id)
         assert decoder.decode(json.loads(message.data)) == event
     assert ids == sorted(set(ids))
+
+
+def test_reconnect_does_not_assume_bases_survived_previous_overflow():
+    bus = ObservationBus(queue_size=1, history_size=8, anchor_interval=64)
+    consumer = bus.subscribe()
+    bus.push({"type": "body", "tick": 1})
+    sequence = bus.push({"type": "vitals", "tick": 1})
+    # Overflow discarded body1, but the client consumed vitals1 successfully.
+    consumer.get_nowait()
+    bus.unsubscribe(consumer)
+    bus.push({"type": "body", "tick": 2})
+    resumed = bus.subscribe(after_sequence=sequence)
+    decoded = ObservationDeltaDecoder().decode(json.loads(resumed.get_nowait().data))
+    assert decoded == {"type": "body", "tick": 2}
+
+
+def test_empty_replay_does_not_assume_omitted_channel_bases():
+    bus = ObservationBus(queue_size=1, history_size=8, anchor_interval=64)
+    bus.push({"type": "body", "tick": 1})
+    sequence = bus.push({"type": "vitals", "tick": 1})
+    resumed = bus.subscribe(after_sequence=sequence)
+    bus.push({"type": "body", "tick": 2})
+    decoded = ObservationDeltaDecoder().decode(json.loads(resumed.get_nowait().data))
+    assert decoded == {"type": "body", "tick": 2}
