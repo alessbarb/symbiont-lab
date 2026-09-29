@@ -237,6 +237,13 @@ class ExperimentRunner:
                 **{key: int(value) for key, value in body.items()},
             )
             raw_metrics = result
+        elif spec.protocol == "learning.visual-predictor-audit":
+            result = protocol_fn(
+                seeds=spec.seeds,
+                ticks=spec.steps,
+                every=int(spec.extra_params.get("vision", {}).get("sample_every", 50)),
+            )
+            raw_metrics = result
         elif spec.protocol == "learning.visual-acquisition-v1":
             vision = spec.extra_params.get("vision", {})
             result = protocol_fn(

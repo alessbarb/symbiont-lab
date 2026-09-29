@@ -1,0 +1,30 @@
+schema_version = 1
+
+[experiment]
+id = "learning.visual-predictor-audit-d1a"
+title = "EW-D1A — visual predictor formation audit (development seeds, arm A)"
+protocol = "learning.visual-predictor-audit"
+protocol_version = 1
+hypothesis = """
+Mechanistic audit, not a hypothesis test: trace visual senses through the
+organism's predictor pipeline (sense node, shadow status, promotion,
+predictor, retirement) to explain the D1 development result. Computes no
+evaluator performance metric.
+"""
+success_criteria = """
+None. Output classifies the bottleneck (visual-acquisition-v1 §6.4
+follow-up; owner decision tree cases A-F).
+"""
+
+[world]
+steps = 2000
+
+[design]
+seeds = [101, 127, 149]
+
+[vision]
+sample_every = 50
+
+[output]
+save_trace = false
+save_summary = true

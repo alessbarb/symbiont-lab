@@ -151,6 +151,7 @@ from symbiont_lab.studies.learning.temporal_private_model_controls import (
     run_temporal_private_model_controls_study,
 )
 from symbiont_lab.studies.learning.visual_acquisition import run_visual_acquisition_study
+from symbiont_lab.studies.learning.visual_predictor_audit import run_visual_predictor_audit
 from symbiont_lab.studies.longitudinal_population_ecology import (
     run_longitudinal_population_ecology_study,
 )
@@ -251,6 +252,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.private-model-learnability": run_private_model_learnability_study,
     "learning.binding-degradation": run_binding_degradation_study,
     "learning.visual-acquisition-v1": run_visual_acquisition_study,
+    "learning.visual-predictor-audit": run_visual_predictor_audit,
     "embodiment.yoked-external-causation": run_yoked_external_causation_study,
     "embodiment.somatic-correlation-trap": run_somatic_correlation_trap_study,
     "embodiment.causal-revision-sequence": run_causal_revision_sequence_study,
