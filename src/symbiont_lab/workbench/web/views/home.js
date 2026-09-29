@@ -234,12 +234,12 @@ function render() {
   rootNode.innerHTML = `
     <div class="view-shell home-shell">
       <div class="view-header">
-        <div><p class="eyebrow">Symbiont Lab</p><h1>Start a run</h1></div>
+        <div><p class="eyebrow">Symbiont</p><h1>Developmental home</h1><p class="view-subtitle">Choose an organism, inspect its continuity, then start an Experience or enter World.</p></div>
         <span class="pill muted">No active embodiment</span>
       </div>
       ${failure}
       <section class="card home-section">
-        <div><h3>Run</h3><p>Experiences acquire capability in a protected envelope. Worlds integrate it under complete consequences. Purposes stay with the observer.</p></div>
+        <div><h3>Development context</h3><p>Experiences acquire capability in a protected envelope. World integrates acquired capabilities under complete consequences. Observer purposes never become organism goals.</p></div>
         <div class="home-choice-grid">${definitionCards()}</div>
       </section>
       <div class="home-launch-grid">
@@ -275,7 +275,7 @@ function render() {
       </div>
       <div class="home-start-bar">
         <div><strong>${organismMode === 'new' ? 'New Symbiont' : esc(organismName(organismRef, selectedOrganism()?.organism_id))}</strong><span> → ${esc(selectedBody)} · ${bodyMode} · ${esc(KIND_LABELS[currentDefinition()?.kind] || '')}</span></div>
-        <button class="btn btn-primary" id="home-start" ${selectedBody && currentDefinition()?.launchable && (organismMode === 'new' || organismRef) && isCompatible() ? '' : 'disabled'}>Start run</button>
+        <button class="btn btn-primary" id="home-start" ${selectedBody && currentDefinition()?.launchable && (organismMode === 'new' || organismRef) && isCompatible() ? '' : 'disabled'}>Start experience / world</button>
       </div>
       <section class="card home-recent"><h3 class="card-title">Recent runs</h3>${recentRuns()}</section>
     </div>`;
