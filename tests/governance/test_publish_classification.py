@@ -74,3 +74,45 @@ def test_equivalence_suite_manifest_is_constitutional() -> None:
         "diff --git a/experiments/equivalence/suite-v1/suite.toml b/experiments/equivalence/suite-v1/suite.toml\n+ ticks = 1",
     )
     assert result.classification == ChangeClass.CONSTITUTIONAL
+
+
+
+def test_physics3d_runtime_is_scientific_even_without_keywords() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["src/symbiont_lab/physics3d/runtime.py"],
+        "diff --git a/src/symbiont_lab/physics3d/runtime.py b/src/symbiont_lab/physics3d/runtime.py\n+ value = old_value + 1",
+    )
+    assert result.classification == ChangeClass.SCIENTIFIC
+    assert "established-anthropomorphic" in result.equivalence_scenarios
+
+
+def test_private_model_file_is_scientific_without_keyword_match() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["src/symbiont_lab/physics3d/private_model_training.py"],
+        "diff --git a/src/symbiont_lab/physics3d/private_model_training.py b/src/symbiont_lab/physics3d/private_model_training.py\n+ # harmless-looking refactor",
+    )
+    assert result.classification == ChangeClass.SCIENTIFIC
+
+
+def test_lab_run_controller_is_scientific() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["src/symbiont_lab/app/run_controller.py"],
+        "diff --git a/src/symbiont_lab/app/run_controller.py b/src/symbiont_lab/app/run_controller.py\n+ return launch(spec)",
+    )
+    assert result.classification == ChangeClass.SCIENTIFIC
+
+
+def test_workbench_web_presentation_stays_ordinary() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["src/symbiont_lab/workbench/web/views/body/viewer.js"],
+        "diff --git a/src/symbiont_lab/workbench/web/views/body/viewer.js b/src/symbiont_lab/workbench/web/views/body/viewer.js\n+ renderPanel()",
+    )
+    assert result.classification == ChangeClass.ORDINARY
