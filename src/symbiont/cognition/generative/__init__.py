@@ -44,6 +44,7 @@ from .persistence import (
 from .recombination import ExperienceRecombiner, RecombinationFragment
 from .reconciliation import GenerativeReconciler
 from .registry import GenerativeModelRegistry
+from .replay import ReplayEngine, ReplayFragment
 from .resident import (
     GenerativeHypothesisSnapshot,
     GenerativeResidentSnapshot,
@@ -51,7 +52,6 @@ from .resident import (
     GenerativeTransitionSnapshot,
     ResidentGenerativeCognition,
 )
-from .replay import ReplayEngine, ReplayFragment
 from .rollout import RolloutEngine, RolloutResult
 from .scheduler import GenerativeScheduler, ScheduleDecision
 from .types import (

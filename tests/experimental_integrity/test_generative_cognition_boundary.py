@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -34,9 +33,9 @@ def test_resident_generative_cognition_has_no_lab_world_or_actuator_dependency()
 
 
 def test_runtime_remains_orchestrator_not_generative_algorithm_owner() -> None:
-    source = (
-        ROOT / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
-    ).read_text(encoding="utf-8")
+    source = (ROOT / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
     forbidden = (
         "RolloutEngine(",
         "BranchEngine(",

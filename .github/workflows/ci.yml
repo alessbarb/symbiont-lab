@@ -11,6 +11,36 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    name: quality-and-security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - run: ruff check src/ observatory/ tests/
+      - run: bandit -r src/ -ll
+
+  contracts:
+    name: contracts (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - run: pytest -o addopts= tests/contract tests/compatibility tests/experiments -q
+
   software-tests:
     name: software-tests (py${{ matrix.python-version }})
     runs-on: ubuntu-latest

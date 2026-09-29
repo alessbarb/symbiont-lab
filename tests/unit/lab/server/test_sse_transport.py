@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import queue
-from io import BytesIO
-
 
 from symbiont_lab.observation.bus import ObservationBus, ObservationMessage
 from symbiont_lab.server import sse
@@ -106,7 +104,6 @@ def test_batch_does_not_wait_for_future_messages():
     batch = sse._drain_observation_batch(consumer, first)
 
     assert batch == b'id: 1\ndata: {"type":"body_pose","tick":1}\n\n'
-
 
 
 def test_observation_bus_keeps_stream_id_out_of_json_payload():

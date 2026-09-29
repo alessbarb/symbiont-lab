@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import random
-
 import hashlib
+import random
 
 import pytest
 
@@ -1314,6 +1313,7 @@ def test_primitive_match_returns_original_sequence_above_threshold():
 
     assert learner._matched_primitive_sequence(query) == query
 
+
 def test_sequence_distance_preserves_unordered_historical_pattern_semantics():
     left = ((("actuator.2", 5), ("actuator.0", 2)),) * 4
     right = ((("actuator.0", 3), ("actuator.2", 1)),) * 4
@@ -1329,11 +1329,7 @@ def test_sequence_distance_matches_reference_exactly_for_p2_benchmark_seed():
 
     def sequence():
         return tuple(
-            tuple(
-                (actuator_id, rng.randint(1, 7))
-                for actuator_id in ids
-                if rng.random() < 0.35
-            )
+            tuple((actuator_id, rng.randint(1, 7)) for actuator_id in ids if rng.random() < 0.35)
             for _ in range(4)
         )
 
