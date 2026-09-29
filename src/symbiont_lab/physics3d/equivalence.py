@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -97,8 +98,12 @@ def run_digests(
                 (tick, _digest(private) if private is not None else None)
             )
 
-        exit_code = run(
-            headless=True,
+        previous_strict = os.environ.get("SYMBIONT_STRICT_DETERMINISM")
+        if config.training:
+            os.environ["SYMBIONT_STRICT_DETERMINISM"] = "1"
+        try:
+            exit_code = run(
+                headless=True,
             ticks=config.ticks,
             seed=config.seed,
             symbiont_file=work / "organism.symbiont",
@@ -114,8 +119,13 @@ def run_digests(
             factorized_effects=True,
             observation_hz=config.observation_hz,
             provenance_journal=work / "provenance.jsonl",
-            checkpoint_observer=observe,
-        )
+                checkpoint_observer=observe,
+            )
+        finally:
+            if previous_strict is None:
+                os.environ.pop("SYMBIONT_STRICT_DETERMINISM", None)
+            else:
+                os.environ["SYMBIONT_STRICT_DETERMINISM"] = previous_strict
         final_models = _tree_digest(work / "models")
         private_model_transitions = sum(
             1
