@@ -66,9 +66,46 @@ function statusFor(record, priorRecord = null, afterEmbodimentChange = false) {
 }
 
 function eventLabel(event) {
-  if (event.kind === 'embodiment') return 'Embodiment changed';
-  if (event.kind === 'region') return 'Acquired correspondence changed';
-  return event.title || event.kind || 'developmental change';
+  const labels = {
+    embodiment: 'Embodiment changed',
+    first_representation: 'First representation observed',
+    strengthened: 'Correspondence strengthened',
+    weakened: 'Correspondence weakened',
+    became_stable: 'Correspondence became stable',
+    became_uncertain: 'Correspondence became uncertain',
+    agency_appeared: 'Agency appeared',
+    agency_weakened: 'Agency weakened',
+    lost_support: 'Lost current support',
+    retained: 'Retained evidence observed',
+    novel: 'Novel correspondence observed',
+  };
+  return event.title || labels[event.kind] || event.kind || 'developmental change';
+}
+
+function meaningfulDelta(a, b, threshold = .10) {
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) >= threshold;
+}
+
+function classifyRegionChange(previous, current, status, priorStatus = null) {
+  if (!previous && current.learned_channels_mapped > 0) return 'first_representation';
+  if (previous && previous.learned_channels_mapped > 0 && current.learned_channels_mapped <= 0) return 'lost_support';
+  if (priorStatus && priorStatus.id !== status.id) {
+    if (status.id === 'uncertain') return 'became_uncertain';
+    if (status.id === 'retained') return 'retained';
+    if (status.id === 'novel') return 'novel';
+    if (status.id === 'represented' && priorStatus.id !== 'represented') return 'became_stable';
+    if (status.id === 'agentic' && priorStatus.id !== 'agentic') return 'agency_appeared';
+  }
+  if (previous) {
+    if (previous.agency < .1 && current.agency >= .1) return 'agency_appeared';
+    if (previous.agency >= .25 && current.agency < previous.agency - .1) return 'agency_weakened';
+    const strengthBefore = (previous.coverage + previous.stability) / 2;
+    const strengthNow = (current.coverage + current.stability) / 2;
+    if (meaningfulDelta(strengthNow, strengthBefore, .10)) {
+      return strengthNow > strengthBefore ? 'strengthened' : 'weakened';
+    }
+  }
+  return null;
 }
 
 export class AcquiredSelfWorkspace {
@@ -82,6 +119,9 @@ export class AcquiredSelfWorkspace {
     this.lens = 'coverage';
     this.selectedSegment = null;
     this.showMorphology = true;
+    this.showObserverLabels = false;
+    this.showRegionsFallback = false;
+    this.evidenceExpanded = false;
     this.onSelectPhysical = onSelectPhysical;
     this.onModeChange = onModeChange;
     this.getPhysicalSegments = getPhysicalSegments;
@@ -95,6 +135,7 @@ export class AcquiredSelfWorkspace {
     this.priorSegmentRecords = new Map();
     this.hasEmbodimentTransition = false;
     this.lastSegmentSignature = new Map();
+    this.lastSegmentState = new Map();
     this.developmentIndex = null;
     this.developmentBodyMode = 'state';
     this.developmentScale = 'detail';
@@ -165,22 +206,45 @@ export class AcquiredSelfWorkspace {
     for (const segment of selfViewSegmentNames(this.snapshot)) {
       const record = selfViewSegmentRecord(this.snapshot, segment);
       if (!record?.item) continue;
-      const signature = [
-        Math.round(record.item.coverage * 20),
-        Math.round(record.item.stability * 20),
-        Math.round(record.item.agency * 20),
-        record.item.learned_channels_mapped,
-      ].join('|');
-      const previous = this.lastSegmentSignature.get(segment);
-      if (previous && previous !== signature) {
-        this.events.push({
-          tick,
-          kind: 'region',
-          title: `${record.displayId} changed`,
-          detail: `coverage ${pct(record.item.coverage)} · stability ${pct(record.item.stability)} · agency ${pct(record.item.agency)}`,
-        });
+      const current = {
+        coverage: finite(record.item.coverage),
+        stability: finite(record.item.stability),
+        agency: finite(record.item.agency),
+        confidence: finite(record.item.confidence),
+        learned_channels_mapped: finite(record.item.learned_channels_mapped),
+      };
+      const previous = this.lastSegmentState.get(segment) ?? null;
+      const priorStatus = previous?.status ?? null;
+      const currentStatus = statusFor(record, this.priorSegmentRecords.get(segment), this.hasEmbodimentTransition);
+      const kind = classifyRegionChange(previous, current, currentStatus, priorStatus);
+
+      if (kind) {
+        const detail = previous
+          ? [
+              meaningfulDelta(current.coverage, previous.coverage, .01) ? `coverage ${pct(previous.coverage)} → ${pct(current.coverage)}` : null,
+              meaningfulDelta(current.stability, previous.stability, .01) ? `stability ${pct(previous.stability)} → ${pct(current.stability)}` : null,
+              meaningfulDelta(current.agency, previous.agency, .01) ? `agency ${pct(previous.agency)} → ${pct(current.agency)}` : null,
+              current.learned_channels_mapped !== previous.learned_channels_mapped ? `mapped ${previous.learned_channels_mapped} → ${current.learned_channels_mapped}` : null,
+            ].filter(Boolean).join(' · ')
+          : `coverage ${pct(current.coverage)} · stability ${pct(current.stability)} · agency ${pct(current.agency)}`;
+
+        const recentSame = this.events.at(-1);
+        const duplicate = recentSame &&
+          recentSame.kind === kind &&
+          recentSame.segment === segment &&
+          tick - recentSame.tick < 20;
+        if (!duplicate) {
+          this.events.push({
+            tick,
+            kind,
+            segment,
+            title: `${record.displayId} · ${eventLabel({ kind })}`,
+            detail,
+          });
+        }
       }
-      this.lastSegmentSignature.set(segment, signature);
+
+      this.lastSegmentState.set(segment, { ...current, status: currentStatus });
     }
     if (this.events.length > this.maxEvents) {
       this.events.splice(0, this.events.length - this.maxEvents);
@@ -258,6 +322,18 @@ export class AcquiredSelfWorkspace {
       this.showMorphology = !this.showMorphology;
       this.render(overlay, panel);
     });
+    overlay.querySelector('[data-toggle-observer-labels]')?.addEventListener('click', () => {
+      this.showObserverLabels = !this.showObserverLabels;
+      this.render(overlay, panel);
+    });
+    overlay.querySelector('[data-toggle-regions]')?.addEventListener('click', () => {
+      this.showRegionsFallback = !this.showRegionsFallback;
+      this.render(overlay, panel);
+    });
+    panel.querySelector('[data-toggle-evidence]')?.addEventListener('click', () => {
+      this.evidenceExpanded = !this.evidenceExpanded;
+      this.render(overlay, panel);
+    });
     overlay.querySelectorAll('[data-self-dev-body-mode]').forEach((button) => {
       button.addEventListener('click', () => {
         this.developmentBodyMode = button.dataset.selfDevBodyMode || 'state';
@@ -267,6 +343,17 @@ export class AcquiredSelfWorkspace {
     overlay.querySelectorAll('[data-self-dev-scale]').forEach((button) => {
       button.addEventListener('click', () => {
         this.developmentScale = button.dataset.selfDevScale || 'detail';
+        this.render(overlay, panel);
+      });
+    });
+    overlay.querySelectorAll('[data-development-tick]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const tick = Number(button.dataset.developmentTick);
+        const segment = button.dataset.developmentSegment || null;
+        let bestIndex = this.development.findIndex((frame) => frame.tick >= tick);
+        if (bestIndex < 0) bestIndex = Math.max(0, this.development.length - 1);
+        this.developmentIndex = bestIndex;
+        if (segment) this.selectSegment(segment);
         this.render(overlay, panel);
       });
     });
@@ -358,11 +445,12 @@ export class AcquiredSelfWorkspace {
           <div><span>APPARATUS TRUTH</span><strong>Physical body</strong><small>Physics3D / observer morphology</small></div>
           <em>observer authority</em>
         </div>
-        <div class="acquired-self-physical-stage-copy">
-          <strong>Live 3D apparatus remains visible on the left.</strong>
-          <p>Select a physical region below or directly in Apparatus; the same observer correspondence stays selected here.</p>
+        <div class="acquired-self-physical-stage-copy compact">
+          <strong>Select the body itself.</strong>
+          <p>The live 3D apparatus is the primary selector. Region names are observer metadata and stay hidden unless requested.</p>
+          <button type="button" data-toggle-regions>${this.showRegionsFallback ? 'Hide' : 'Regions'} fallback</button>
         </div>
-        ${this.physicalSegmentList()}
+        ${this.showRegionsFallback ? this.physicalSegmentList() : ''}
       </section>
 
       <section class="acquired-self-acquired-column">
@@ -370,8 +458,12 @@ export class AcquiredSelfWorkspace {
           <div><span>ACQUIRED SELF</span><strong>Evidence-supported structure</strong><small>organism evidence × observer correspondence</small></div>
           <em class="${status.id}">${status.label}</em>
         </div>
-        ${this.lensNav()}
-        <div class="acquired-self-mini-projection ${this.showMorphology ? '' : 'morphology-hidden'}">
+        <div class="acquired-self-toolbar">
+          ${this.lensNav()}
+          <button type="button" class="${this.showMorphology ? 'active' : ''}" data-toggle-observer-morphology>Observer morphology</button>
+          <button type="button" class="${this.showObserverLabels ? 'active' : ''}" data-toggle-observer-labels>Observer labels</button>
+        </div>
+        <div class="acquired-self-mini-projection ${this.showMorphology ? '' : 'morphology-hidden'} ${this.showObserverLabels ? 'labels-visible' : 'labels-hidden'}">
           ${renderSelfView(this.snapshot, this.lens, selected)}
         </div>
         ${selected ? this.selectedSummary(selected, acquired, priorItem, status) :
@@ -424,9 +516,10 @@ export class AcquiredSelfWorkspace {
     return `
       <div class="acquired-self-acquired-head">
         ${this.lensNav()}
-        <button type="button" class="acquired-self-morphology-toggle ${this.showMorphology ? 'active' : ''}" data-toggle-observer-morphology>
-          ${this.showMorphology ? 'Hide' : 'Show'} observer morphology
-        </button>
+        <div class="acquired-self-toolbar">
+          <button type="button" class="acquired-self-morphology-toggle ${this.showMorphology ? 'active' : ''}" data-toggle-observer-morphology>Observer morphology</button>
+          <button type="button" class="acquired-self-morphology-toggle ${this.showObserverLabels ? 'active' : ''}" data-toggle-observer-labels>Observer labels</button>
+        </div>
       </div>
       <div class="acquired-self-summary-strip">
         <div><span>Represented regions</span><strong>${represented} / ${segments.length}</strong></div>
@@ -434,7 +527,7 @@ export class AcquiredSelfWorkspace {
         <div><span>Agentic regions</span><strong>${agentic}</strong></div>
         <div><span>Uncertain regions</span><strong>${uncertain}</strong></div>
       </div>
-      <div class="acquired-self-full-projection ${this.showMorphology ? '' : 'morphology-hidden'}">
+      <div class="acquired-self-full-projection ${this.showMorphology ? '' : 'morphology-hidden'} ${this.showObserverLabels ? 'labels-visible' : 'labels-hidden'}">
         ${renderSelfView(this.snapshot, this.lens, this.selectedSegment)}
       </div>
       <div class="self-boundary-note compact" data-observer-correspondence>
@@ -448,14 +541,23 @@ export class AcquiredSelfWorkspace {
       : Math.max(0, Math.min(this.development.length - 1, this.developmentIndex));
     const events = this.events.slice(-12).reverse();
     const eventHtml = events.length
-      ? events.map((event) => `<div class="acquired-self-development-event ${escapeHtml(event.kind)}">
+      ? events.map((event) => `<button type="button" class="acquired-self-development-event ${escapeHtml(event.kind)}" data-development-tick="${event.tick}" data-development-segment="${escapeHtml(event.segment || '')}">
           <span>t${event.tick}</span>
           <strong>${escapeHtml(eventLabel(event))}</strong>
           <small>${escapeHtml(event.detail || '')}</small>
-        </div>`).join('')
+        </button>`).join('')
       : '<div class="self-empty">No developmental correspondence changes captured yet.</div>';
 
-    return `<div class="acquired-self-development-layout">
+    const currentFrame = this.development.at(-1);
+    const currentSummary = currentFrame?.aggregate ?? {};
+    const observerStart = this.development.at(0)?.tick ?? tickOf(this.snapshot);
+    return `<div class="acquired-self-development-context">
+      <div><span>Current acquired structure</span><strong>${currentSummary.representedRegions ?? 0} represented · ${currentSummary.agenticRegions ?? 0} agentic</strong></div>
+      <div><span>Observation window</span><strong>t${observerStart} → t${tickOf(this.snapshot)}</strong></div>
+      <div><span>Session-observed events</span><strong>${this.events.length}</strong></div>
+      <small>Structure may predate observer attachment. This timeline only narrates changes captured in the current observer history.</small>
+    </div>
+    <div class="acquired-self-development-layout">
       <section class="acquired-self-development-events">
         <div class="self-section-head">
           <div><span>Developmental events</span><small>Lifetime tick · observer-side interpretation of acquired evidence</small></div>
@@ -499,8 +601,8 @@ export class AcquiredSelfWorkspace {
         </div>`;
     }
 
-    const receptors = item.receptor_ids.slice(0, 8).map((id) => `<code>${escapeHtml(shortId(id, 26))}</code>`).join('');
-    const dimensions = item.dimension_ids.slice(0, 8).map((id) => `<code>${escapeHtml(shortId(id, 26))}</code>`).join('');
+    const receptors = item.receptor_ids.map((id) => `<code>${escapeHtml(shortId(id, 26))}</code>`).join('');
+    const dimensions = item.dimension_ids.map((id) => `<code>${escapeHtml(shortId(id, 26))}</code>`).join('');
 
     return `<button type="button" class="self-inspector-close" data-self-clear>×</button>
       <div class="body-inspector-head">
@@ -519,9 +621,14 @@ export class AcquiredSelfWorkspace {
         <div class="body-row"><span>Confidence</span><strong>${pct(item.confidence)}</strong></div>
       </div>
       <div class="body-section">
-        <div class="body-section-title">Opaque evidence</div>
-        <div class="self-inspector-list"><span>Receptors</span>${receptors || '<code>none</code>'}</div>
-        <div class="self-inspector-list"><span>Action dimensions</span>${dimensions || '<code>none</code>'}</div>
+        <div class="body-section-title">Evidence</div>
+        <div class="body-row"><span>Receptors</span><strong>${item.receptor_ids.length}</strong></div>
+        <div class="body-row"><span>Action dimensions</span><strong>${item.dimension_ids.length}</strong></div>
+        <button type="button" class="body-segment self-evidence-toggle" data-toggle-evidence>${this.evidenceExpanded ? 'Hide evidence' : 'Inspect evidence →'}</button>
+        ${this.evidenceExpanded ? `<div class="self-evidence-expanded">
+          <div class="self-inspector-list"><span>Receptors</span>${receptors || '<code>none</code>'}</div>
+          <div class="self-inspector-list"><span>Action dimensions</span>${dimensions || '<code>none</code>'}</div>
+        </div>` : ''}
       </div>
       <div class="body-section">
         <div class="body-section-title">Epistemic status</div>
