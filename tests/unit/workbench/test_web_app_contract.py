@@ -369,3 +369,23 @@ def test_developmental_observatory_surfaces_organism_not_run_as_primary_subject(
     assert "/api/runs" in archive and "/api/organisms" in archive
     assert "Developmental timeline" in archive_render
     assert "Symbiont continuity" in archive_render
+
+
+def test_world_acquired_compare_hide_observer_body_and_explain_absence():
+    workspace = _read("views/body/workspace.js")
+    viewer = _read("views/body/viewer.js")
+    css = _read("workbench-v2.css")
+    assert "world-epistemic-stage" in workspace
+    assert "No organism-owned external model yet" in workspace
+    assert "Nothing to compare yet" in workspace
+    assert "this.baseNode.visible = !epistemicOnly" in viewer
+    assert ".world-epistemic-mode .body-camera-bar" in css
+
+
+def test_vision_distinguishes_apparatus_from_active_experience():
+    vision = _read("views/vision.js")
+    assert "hasVisualApparatus" in vision
+    assert "visionExperienceActive" in vision
+    assert "VISUAL APPARATUS PRESENT" in vision
+    assert "VISION EXPERIENCE LIVE" in vision
+    assert "current run is not a Vision Experience" in vision
