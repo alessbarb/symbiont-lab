@@ -20,12 +20,27 @@ equivalence = ["developed-cognition"]
 id = "private-model-lifecycle"
 paths = ["src/symbiont_lab/physics3d/private_model_training.py", "src/symbiont_lab/modeling/**"]
 classification = "SCIENTIFIC"
-diff_regex = ["promotion", "active", "shadow", "training", "model_registry", "lineage", "adopt_private_model", "activate_private_model"]
 equivalence = ["private-model-training", "promotion-eligible"]
 
 [[surface]]
 id = "physics3d-causal-engine"
-paths = ["src/symbiont_lab/physics3d/engine.py", "src/symbiont_lab/world/**", "src/symbiont_world/**"]
+paths = [
+  "src/symbiont_lab/physics3d/alternative_bodies.py",
+  "src/symbiont_lab/physics3d/apparatus.py",
+  "src/symbiont_lab/physics3d/articulated.py",
+  "src/symbiont_lab/physics3d/bodies.py",
+  "src/symbiont_lab/physics3d/effects.py",
+  "src/symbiont_lab/physics3d/engine.py",
+  "src/symbiont_lab/physics3d/environments.py",
+  "src/symbiont_lab/physics3d/humanoid.py",
+  "src/symbiont_lab/physics3d/persistence.py",
+  "src/symbiont_lab/physics3d/resource.py",
+  "src/symbiont_lab/physics3d/runtime.py",
+  "src/symbiont_lab/physics3d/settling.py",
+  "src/symbiont_lab/physics3d/vision.py",
+  "src/symbiont_lab/world/**",
+  "src/symbiont_world/**",
+]
 classification = "SCIENTIFIC"
 equivalence = ["established-anthropomorphic", "developed-cognition"]
 
@@ -38,7 +53,7 @@ equivalence = ["reembodied-established"]
 
 [[surface]]
 id = "observatory-presentation"
-paths = ["observatory/**", "src/symbiont_lab/app/**", "src/symbiont_lab/workbench/**"]
+paths = ["observatory/**", "src/symbiont_lab/workbench/web/**"]
 classification = "ORDINARY"
 
 
@@ -57,3 +72,15 @@ paths = [
   "tests/unit/lab/experiments/test_resource_guard.py",
 ]
 classification = "CONSTITUTIONAL"
+
+
+[[surface]]
+id = "lab-run-control"
+paths = [
+  "src/symbiont_lab/app/physics3d_runs.py",
+  "src/symbiont_lab/app/physics3d_session.py",
+  "src/symbiont_lab/app/run_controller.py",
+  "src/symbiont_lab/workbench/runs.py",
+]
+classification = "SCIENTIFIC"
+equivalence = ["established-anthropomorphic", "developed-cognition"]
