@@ -1,6 +1,6 @@
 # Visual Acquisition v1 (EW-D): preregistration
 
-Status: **D1 criteria approved by the owner (2026-09-28). H is not frozen yet.** The development stage (seeds 101/127/149, feasibility only) has not been run. Held-out seeds 613/617/619 are disabled until the preregistration is frozen (§6.3) and the owner gives explicit approval.
+Status: **D1 criteria approved (2026-09-28). Development stage run (2026-09-29): no candidate H satisfies §6.2, so D1 is not runnable as designed (§6.4). Awaiting an owner decision.** Held-out seeds 613/617/619 are disabled until the preregistration is frozen (§6.3) and the owner gives explicit approval.
 
 D2–D4 are outlines only (§10) and are **not preregistered**.
 
@@ -79,6 +79,20 @@ If no candidate satisfies the rule, D1 is not runnable as designed. That is repo
 ### 6.3 Freeze
 
 After development, a `held-out/` experiment is committed with the frozen H, W, baselines, criteria, nursery, apparatus version and seeds 613/617/619, `report_performance = true`, and a single horizon. Only then, and only after explicit owner approval, are the held-out seeds run, each **once**.
+
+### 6.4 Development result (2026-09-29): no candidate H satisfies the rule
+
+Run `20260929T055046Z-learning-visual-acquisition-v1-5807c08-9c22`, code identical to `c3fa3235` for every file the run uses. Seeds 101, 127, 149; `report_performance = false`, so no loss or gain was computed.
+
+| Seed | Visual predictors at X | A: visual targets predicted through the whole window (H = 500 / 1000 / 1500 / 2000) | B: same | A: wall time to H=2000 | Peak RSS |
+|---|---|---|---|---|---|
+| 101 | 0 | 0 / 1 / 1 / 1 | 0 / 0 / 0 / 0 | 1048 s | 158 MB |
+| 127 | 0 | 0 / 2 / 3 / 4 | 0 / 0 / 0 / 0 | 1034 s | 184 MB |
+| 149 | 0 | 0 / 2 / 3 / 5 | 0 / 0 / 0 / 0 | 790 s | 186 MB |
+
+At the start of the window, 143–170 visual senses exist on every seed and horizon. All values are finite.
+
+**Criteria 1 (budget) and 3 (stability) hold for every candidate. Criterion 2 (≥ 8 targets in A on all three seeds) holds for none.** Under §6.2, D1 is **not runnable as designed**. Nothing is frozen and no held-out seed is enabled. The design returns to the owner. Changing the candidate horizons, the target minimum, the nursery or the measurement is a new owner decision, taken before any performance quantity is computed.
 
 ## 7. Criteria (approved 2026-09-28)
 
