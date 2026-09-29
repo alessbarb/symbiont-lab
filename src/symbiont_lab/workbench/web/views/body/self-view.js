@@ -42,6 +42,7 @@ export const SELF_VIEW_MODES = [
   ['coverage', 'Coverage'],
   ['stability', 'Stability'],
   ['agency', 'Agency'],
+  ['uncertainty', 'Uncertainty'],
 ];
 
 function observerBody(snapshot) {
@@ -317,6 +318,7 @@ function scoreFor(entry, mode) {
   if (mode === 'coverage') return entry.coverage;
   if (mode === 'stability') return entry.stability;
   if (mode === 'agency') return entry.agency;
+  if (mode === 'uncertainty') return 1 - Math.min(entry.confidence, entry.stability);
   if (mode === 'composite') {
     return ratio(
       entry.knowledge * .45
