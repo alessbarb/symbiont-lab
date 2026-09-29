@@ -69,3 +69,22 @@ The legacy `validate`, `check` and `run exec` commands remain for CI/backward
 compatibility and are hidden from normal help. `publish` owns validation and final
 classification; `run start` owns input archival, resource preflight and commit-pinned
 execution.
+
+
+### Snapshot provenance
+
+Before a pinned run, inspect/capture the exact physical input state. If the raw state
+was produced by a commit other than the code commit being executed, preserve that
+provenance explicitly:
+
+```bash
+python scripts/agentctl.py run start \
+  --commit <code-commit> \
+  --snapshot-source /path/to/raw-state \
+  --snapshot-source-commit <commit-that-produced-the-state> \
+  ...
+```
+
+If `--snapshot-source` is already an immutable archived snapshot, `run start`
+verifies it and preserves its recorded `source_commit`; a conflicting override is
+rejected.

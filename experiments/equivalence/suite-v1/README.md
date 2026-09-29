@@ -70,3 +70,22 @@ python scripts/agentctl.py snapshot capture \
 ```
 
 Use `snapshot verify --path ...` before accepting any captured reference.
+
+
+### Inspecting candidate states
+
+A portable `.symbiont` bundle may already contain its private-model artifacts. The
+capture tool extracts those real embedded model files automatically when no external
+`models/` directory is present.
+
+The physical `body.json` remains mandatory. It must come from the same captured
+embodiment; the learned BodySchema inside the organism is not a substitute.
+
+Use:
+
+```bash
+python scripts/agentctl.py snapshot inspect --source /path/to/state-dir
+```
+
+A candidate with an organism bundle and embedded models but no `body.json` is reported
+as non-capturable rather than being reconstructed or guessed.

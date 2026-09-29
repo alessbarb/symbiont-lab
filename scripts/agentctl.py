@@ -24,7 +24,11 @@ from governance.classify import ChangeClass, assess as assess_change
 from governance.publish import publish as publish_changes
 from symbiont_lab.experiments.execution_workspace import pinned_worktree
 from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
-from symbiont_lab.experiments.snapshot_archive import archive_snapshot, verify_snapshot
+from symbiont_lab.experiments.snapshot_archive import (
+    archive_snapshot,
+    inspect_snapshot_source,
+    verify_snapshot,
+)
 from symbiont_lab.physics3d.equivalence_suite import (
     load_suite as load_equivalence_suite,
     run_once as run_equivalence_once,
@@ -803,6 +807,7 @@ def run_pinned(
     run_id: str,
     scope: str,
     snapshot_source: Path,
+    snapshot_source_commit: str | None,
     command: list[str],
     wall_minutes: int,
     memory_gb: float,
@@ -849,18 +854,55 @@ def run_pinned(
             print(f"  - {reason}", file=sys.stderr)
         return 3
 
+    existing_manifest: dict[str, Any] | None = None
+    if (snapshot_source / "manifest.json").is_file():
+        try:
+            existing_manifest = verify_snapshot(snapshot_source)
+        except ValueError as exc:
+            print(f"BLOCKED — invalid archived snapshot: {exc}", file=sys.stderr)
+            return 3
+
+    input_source_commit = snapshot_source_commit
+    if existing_manifest is not None:
+        archived_commit = str(existing_manifest.get("source_commit") or "")
+        if input_source_commit and input_source_commit != archived_commit:
+            print(
+                "BLOCKED — --snapshot-source-commit conflicts with archived snapshot provenance",
+                file=sys.stderr,
+            )
+            return 3
+        input_source_commit = archived_commit
+    if input_source_commit is None:
+        input_source_commit = commit
+    if not commit_exists(input_source_commit):
+        print(
+            f"BLOCKED — snapshot source commit is unavailable: {input_source_commit}",
+            file=sys.stderr,
+        )
+        return 3
+    input_source_commit = git("rev-parse", f"{input_source_commit}^{{commit}}")
+
     run_root = runtime_dir() / "runs" / run_id
     if run_root.exists():
         print(f"run id already exists: {run_id}", file=sys.stderr)
         return 3
     run_root.mkdir(parents=True, exist_ok=False)
     input_dir = run_root / "input"
-    manifest = archive_snapshot(
-        source=snapshot_source,
-        destination=input_dir,
-        source_commit=commit,
-        scenario=scope,
-    )
+    try:
+        manifest = archive_snapshot(
+            source=snapshot_source,
+            destination=input_dir,
+            source_commit=input_source_commit,
+            body_kind=(
+                str(existing_manifest.get("body_kind"))
+                if existing_manifest and existing_manifest.get("body_kind")
+                else None
+            ),
+            scenario=scope,
+        )
+    except Exception:
+        shutil.rmtree(run_root, ignore_errors=True)
+        raise
     work_dir = run_root / "work"
     shutil.copytree(input_dir, work_dir, copy_function=shutil.copy2)
     for path in work_dir.rglob("*"):
@@ -874,6 +916,7 @@ def run_pinned(
         "id": run_id,
         "scope": scope,
         "commit": commit,
+        "input_source_commit": input_source_commit,
         "owner_approved": owner_approved,
         "owner_pid": os.getpid(),
         "started_at": datetime.now(timezone.utc).isoformat(),
@@ -1079,6 +1122,8 @@ def main() -> int:
 
     p_snapshot = sub.add_parser("snapshot")
     snapshot_sub = p_snapshot.add_subparsers(dest="snapshot_command", required=True)
+    p_inspect = snapshot_sub.add_parser("inspect")
+    p_inspect.add_argument("--source", type=Path, required=True)
     p_capture = snapshot_sub.add_parser("capture")
     p_capture.add_argument("--source", type=Path, required=True)
     p_capture.add_argument("--destination", type=Path, required=True)
@@ -1095,6 +1140,10 @@ def main() -> int:
     p_start.add_argument("--id", required=True)
     p_start.add_argument("--scope", choices=sorted(SCIENTIFIC_SCOPES), required=True)
     p_start.add_argument("--snapshot-source", type=Path, required=True)
+    p_start.add_argument(
+        "--snapshot-source-commit",
+        help="commit that produced the input state; archived snapshots preserve their own source_commit",
+    )
     p_start.add_argument("--wall-minutes", type=int, default=180)
     p_start.add_argument("--memory-gb", type=float, default=8.0)
     p_start.add_argument("--disk-gb", type=float, default=2.0)
@@ -1125,6 +1174,10 @@ def main() -> int:
             return equivalence_status_command(args.suite)
         return equivalence_run_command(args.suite, args.scenario)
     if args.command == "snapshot":
+        if args.snapshot_command == "inspect":
+            payload = inspect_snapshot_source(args.source)
+            print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+            return 0 if payload.get("capturable") else 2
         if args.snapshot_command == "verify":
             print(json.dumps(verify_snapshot(args.path), indent=2, sort_keys=True))
             return 0
@@ -1160,6 +1213,7 @@ def main() -> int:
             run_id=args.id,
             scope=args.scope,
             snapshot_source=args.snapshot_source,
+            snapshot_source_commit=args.snapshot_source_commit,
             command=argv,
             wall_minutes=args.wall_minutes,
             memory_gb=args.memory_gb,

@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import zipfile
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 
@@ -33,17 +33,26 @@ def _tree_hash(root: Path) -> str:
     return digest.hexdigest()
 
 
+def _bundle_model_names(bundle: Path) -> tuple[str, ...]:
+    try:
+        with zipfile.ZipFile(bundle) as archive:
+            return tuple(
+                sorted(
+                    name
+                    for name in archive.namelist()
+                    if name.startswith("models/") and not name.endswith("/")
+                )
+            )
+    except (OSError, zipfile.BadZipFile):
+        return ()
+
+
 def _bundle_models_hash(bundle: Path) -> str:
     """Hash model artifacts embedded in the portable organism bundle."""
     digest = hashlib.sha256()
     try:
         with zipfile.ZipFile(bundle) as archive:
-            names = sorted(
-                name
-                for name in archive.namelist()
-                if name.startswith("models/") and not name.endswith("/")
-            )
-            for name in names:
+            for name in _bundle_model_names(bundle):
                 rel = name.removeprefix("models/").encode()
                 payload = archive.read(name)
                 digest.update(len(rel).to_bytes(4, "big"))
@@ -52,6 +61,56 @@ def _bundle_models_hash(bundle: Path) -> str:
     except (OSError, zipfile.BadZipFile):
         return digest.hexdigest()
     return digest.hexdigest()
+
+
+def _extract_bundle_models(bundle: Path, destination: Path) -> int:
+    """Extract only embedded model artifacts, rejecting traversal/absolute paths."""
+    names = _bundle_model_names(bundle)
+    if not names:
+        return 0
+    count = 0
+    with zipfile.ZipFile(bundle) as archive:
+        for name in names:
+            relative = PurePosixPath(name).relative_to("models")
+            if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+                raise ValueError(f"unsafe embedded model path: {name}")
+            target = destination.joinpath(*relative.parts)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(name) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+            count += 1
+    return count
+
+
+def inspect_snapshot_source(source: Path) -> dict[str, Any]:
+    """Report whether a source directory is complete enough for immutable capture."""
+    source = source.resolve()
+    organism = source / "organism.symbiont"
+    body = source / "body.json"
+    models = source / "models"
+    external_models = (
+        tuple(sorted(path.relative_to(models).as_posix() for path in models.rglob("*") if path.is_file()))
+        if models.is_dir()
+        else ()
+    )
+    embedded_models = _bundle_model_names(organism) if organism.is_file() else ()
+    return {
+        "source": str(source),
+        "organism_present": organism.is_file(),
+        "body_present": body.is_file(),
+        "external_model_count": len(external_models),
+        "embedded_model_count": len(embedded_models),
+        "model_source": (
+            "external"
+            if external_models
+            else "bundle"
+            if embedded_models
+            else "none"
+        ),
+        "capturable": organism.is_file() and body.is_file(),
+        **(_bundle_metadata(organism) if organism.is_file() else {}),
+        **(_body_metadata(body) if body.is_file() else {}),
+    }
 
 
 def _fsync_file(path: Path) -> None:
@@ -128,10 +187,14 @@ def archive_snapshot(
     try:
         shutil.copy2(organism, tmp / organism.name)
         shutil.copy2(body, tmp / body.name)
-        if models.is_dir():
+        models_source = "none"
+        if models.is_dir() and any(path.is_file() for path in models.rglob("*")):
             shutil.copytree(models, tmp / "models")
+            models_source = "external"
         else:
             (tmp / "models").mkdir()
+            if _extract_bundle_models(organism, tmp / "models"):
+                models_source = "bundle"
 
         for path in (tmp / "organism.symbiont", tmp / "body.json"):
             _fsync_file(path)
@@ -146,6 +209,7 @@ def archive_snapshot(
             "source_commit": source_commit,
             "body_kind": body_kind,
             "scenario": scenario,
+            "models_source": models_source,
             **_bundle_metadata(organism),
             **_body_metadata(body),
             "organism_sha256": _sha256(tmp / "organism.symbiont"),
