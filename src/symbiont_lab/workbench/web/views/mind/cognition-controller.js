@@ -108,7 +108,6 @@ export function createCognitionController({
   });
   const interaction = createCognitionInteraction({
     onInvalidate3D: () => invalidateProjectedRegionHistory3D(),
-    onRebuild: (width, height) => initGraphPhysics(width, height),
     onSelectionChange: (nodeId) => {
       graph.atlasPath = cognitivePath(nodeId, graph.nodes, graph.edges, 12);
       void loadSelectedCausalProvenance(nodeId);
@@ -2464,6 +2463,7 @@ export function createCognitionController({
         graph.focusedSectorId = null;
         graph.selectedNodeId = null;
         graph.cachedPositions.clear();
+        graph.stableCommunityCenters?.clear?.();
         graph.world3d.clear();
         graph.velocity3d.clear();
         ensure3DState(graph.nodes, graph.edges, graph.world3d, graph.velocity3d);
