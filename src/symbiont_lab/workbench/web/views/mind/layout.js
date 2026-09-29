@@ -201,6 +201,10 @@ export function buildMindLayout(root, {
   cognitionGenerativeBody.id = 'mind-cognition-generative-body';
   cognitionGenerative.append(cognitionGenerativeTitle, cognitionGenerativeBody);
 
+  const cognitionRightRail = el('div', 'mind-cognition-right-rail');
+  cognitionRightRail.setAttribute('aria-label', 'Live cognition side panels');
+  cognitionRightRail.append(cognitionLiveFocus, cognitionGenerative);
+
   const cognitionEventStream = el('aside', 'mind-cognition-event-stream');
   cognitionEventStream.id = 'mind-cognition-event-stream';
   cognitionEventStream.setAttribute('aria-label', 'Recent cognitive events');
@@ -318,8 +322,7 @@ export function buildMindLayout(root, {
   cognitionWrap.append(
     cognitionCanvas,
     cognitionSummary,
-    cognitionLiveFocus,
-    cognitionGenerative,
+    cognitionRightRail,
     cognitionEventStream,
     cognitionModeControls,
     atlasTimeline,
