@@ -2320,7 +2320,8 @@ export function createCognitionController({
         if (canvas.width !== Math.floor(rect.width) || canvas.height !== Math.floor(rect.height)) {
           canvas.width  = Math.floor(rect.width);
           canvas.height = Math.floor(rect.height);
-          graph.alpha  = Math.max(graph.alpha, 0.5);
+          // Canvas geometry changed, not cognition. Redraw without injecting
+          // kinetic energy into an already settled Atlas.
         }
       }
     }
@@ -2778,7 +2779,8 @@ export function createCognitionController({
     updateTimelineControls();
     maybeUpdateCognitionSummary({ force: true });
     inspector.render();
-    graph.alpha = Math.max(graph.alpha, 0.22);
+    // Analytical lenses change emphasis, not topology. Redraw the current
+    // cartography without reheating it.
     if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
   }
 
