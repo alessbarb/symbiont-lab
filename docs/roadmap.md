@@ -180,6 +180,13 @@ A descendant is not a continuation of the parent.
 
 A dead identity is not normally resumable as though continuity never ended.
 
+Normal restore rejects a `DEAD` identity. Reconstructing or cloning from historical artifacts, if later allowed experimentally, creates a new identity and is not resurrection.
+
+Organism lifecycle, cognitive topology health and reproductive readiness remain separate state dimensions. For example, an organism may simultaneously be `MATURE`, `ADAPTIVE` and `REPRODUCTIVELY_READY`.
+
+These lifecycle rules are proposed for the Constitution in
+[ADR-0044](adr/ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md).
+
 ---
 
 ## 4. Merge and decision policy
@@ -198,7 +205,12 @@ Before merging a material scientific change:
 5. new resource use must remain bounded;
 6. persistence and replay consequences must be understood;
 7. claims must not exceed the evidence produced;
-8. experiment changes must distinguish apparatus fixes from hypothesis changes.
+8. experiment changes must distinguish apparatus fixes from hypothesis changes;
+9. privacy, consent and safety invariants accompany functional behavior;
+10. the release documents the new organism capability;
+11. lineage, death and reproduction changes are transactional and replay-testable;
+12. ecological changes include aggregate carrying-capacity tests, not only per-organism limits;
+13. dead-organism restore and population-over-capacity paths have explicit negative tests.
 
 An explicit architectural decision is required before changes that:
 
@@ -210,6 +222,11 @@ An explicit architectural decision is required before changes that:
 - permit learned state to mutate hard kernel limits;
 - expand real-host permissions;
 - create new autonomous external actions.
+
+The canonical and complete list of host-safety decision gates is
+[`governance/decision-gates.md`](governance/decision-gates.md) § Host and safety.
+The corresponding permanent host-safety invariants are proposed for the Constitution
+in [ADR-0044](adr/ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md).
 
 ---
 
@@ -638,7 +655,14 @@ the remaining divergence as a deeper contamination finding.
 #### E1 reporting inconsistency
 
 The archived E1 report and `results.json` contain slightly different
-false-positive summaries.
+false-positive summaries: mean FPR 0.3333 in the report, 0.30 in
+`results.json`.
+
+The cause is known. The report (`ce5c8190`) describes the earlier run with
+three controls (exact yoke, anti-causal, independent), so the FPR is 1/3 per
+seed. The archived run follows the APP-001 apparatus revision and adds a
+jittered-yoke control, so the FPR is 0.25 or 0.50 per seed and the mean is
+0.30. `results.json` is canonical.
 
 Both fail the preregistered gate, so the scientific interpretation does not
 change.
@@ -800,7 +824,7 @@ architecture.
 
 ---
 
-## 12. B0 — General causal-agency model
+## 12. B0 — General causal-agency model and its components
 
 **Status:** NOT STARTED.
 
@@ -865,7 +889,7 @@ is not closure.
 
 ---
 
-## 13. B1 — Somatic Correlation Trap / E5
+### B1 — Somatic Correlation Trap / E5
 
 Current result:
 
@@ -874,7 +898,7 @@ Current result:
 The organism detects genuine somatic correlation but also assimilates matched
 external correlation.
 
-### B1 research target
+#### B1 research target
 
 Develop experience-derived evidence that separates:
 
@@ -901,7 +925,7 @@ No motor/environment labels may enter cognition.
 
 ---
 
-## 14. B2 — Temporal Causality / E3
+### B2 — Temporal Causality / E3
 
 Current result:
 
@@ -910,7 +934,7 @@ Current result:
 Immediate consequences are detected; delayed and variable-delay consequences
 are not reliably attributed.
 
-### B2 research target
+#### B2 research target
 
 Introduce temporally extended causal eligibility without introducing reward
 learning or evaluator labels.
@@ -928,7 +952,7 @@ Longer memory alone is not sufficient.
 
 ---
 
-## 15. B3 — Yoked External Causation / E1
+### B3 — Yoked External Causation / E1
 
 Current result:
 
@@ -938,7 +962,7 @@ E1 is not future work to be newly invented.
 
 It becomes a permanent challenge for B0.
 
-### B3 research question
+#### B3 research question
 
 Can the organism distinguish:
 
@@ -956,7 +980,7 @@ when external apparatus creates a matched temporal relationship?
 
 ---
 
-## 16. B4 — Hidden Common Cause / E6
+### B4 — Hidden Common Cause / E6
 
 Current result:
 
@@ -965,7 +989,7 @@ Current result:
 The current mechanism confuses shared-cause correlation with direct causal
 relation.
 
-### B4 research challenge
+#### B4 research challenge
 
 For:
 
@@ -989,7 +1013,7 @@ causal graph.
 
 ---
 
-## 17. B5 — Causal Revision / E4
+### B5 — Causal Revision / E4
 
 Current result:
 
@@ -998,7 +1022,7 @@ Current result:
 Current evidence shows inadequate revision under permutation, break and
 transplant conditions.
 
-### B5 required capability
+#### B5 required capability
 
 The organism must be able to:
 
@@ -1016,7 +1040,7 @@ Revision is a required part of learning.
 
 ---
 
-## 18. B6 — Tool / Body Distinction / E2
+### B6 — Tool / Body Distinction / E2
 
 Current result:
 
@@ -1024,7 +1048,7 @@ Current result:
 
 A remotely controllable object can currently be assimilated as body.
 
-### B6 research target
+#### B6 research target
 
 Body membership must become an acquired, revisable hypothesis rather than a
 static correlation threshold.
@@ -1040,6 +1064,12 @@ Relevant experience may include:
 - dependence on intervening external dynamics.
 
 The organism must not be given a `tool` label.
+
+---
+
+Sections 13–18 are intentionally unused: B1–B6 are components of B0 and are
+listed under §12. Later section numbers are kept stable because other documents
+and tests cite them.
 
 ---
 
