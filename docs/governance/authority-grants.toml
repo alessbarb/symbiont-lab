@@ -54,7 +54,7 @@ allowed_paths = [
 
 [[grant]]
 id = "owner-2026-09-29-constitution-host-safety"
-status = "open"
+status = "consumed"
 authority = "L4"
 base_commit = "ab048a128a1688e1c77fd892b8b04485b81301df"
 purpose = "Apply accepted ADR-0044: add host-safety and lifecycle invariants to the Constitution and mark the ADR Accepted."
