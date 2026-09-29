@@ -1,0 +1,5 @@
+schema_version = 1
+mode = "proportional-publish-v1"
+legacy_cutoff_commit = "9fa3b78c3d903edb1112492e74154e95c7c56280"
+normal_entrypoint = "python scripts/agentctl.py publish --message <message>"
+note = "Commits at or before legacy_cutoff_commit predate ADR-0046 activation. Later commits are audited under generated Governance-Class and Owner-Approval trailers."
