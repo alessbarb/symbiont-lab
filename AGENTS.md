@@ -1,152 +1,145 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Scope
+Repository-wide operating contract for intelligent coding agents working on Symbiont Lab. Read this file before any modification.
 
-Symbiont Lab is a Python 3.11+ research monorepo with three architecturally separated responsibilities:
+<!-- BEGIN CANONICAL AGENT CONTRACT -->
 
-- **`symbiont`** (Research Subject): organism state, cognition, capabilities and a consent-bound local-host organism runtime.
-- **`symbiont_lab`** (Scientific Apparatus): experiments, reproduction, evolution, evaluation, archive, CLI and passive visualization.
-- **`symbiont_world`** (World): external laws, opportunities and dynamics; no organism cognition.
+## Authority model
 
-The local-host direction is intentionally developmental: Symbiont may discover bounded, aggregate, read-only signal surfaces, assign them opaque identities, learn their statistical behavior and usefulness, and decide which ones deserve routine attention. Cognition must not be handed platform semantics when it can learn from the signal itself.
+Coding agents execute authorised work. They do not choose the scientific direction of the project.
 
-## Commands
+Before modifying the repository, classify the task:
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest
+| Level | Authority | Typical work |
+| --- | --- | --- |
+| L0 | Read-only | inspection, review, audit, proposals |
+| L1 | Maintenance | docs, links, formatting, non-semantic test maintenance |
+| L2 | Contract-preserving implementation | bug fix or implementation whose desired behaviour is already normative |
+| L3 | Scientific mechanism change | cognition, learning, agency, physiology, World experience, experiment mechanism |
+| L4 | Constitutional / safety change | host permissions, network, persistence, propagation, evaluator boundary, reproduction authority, global limits |
 
-symbiont-lab simulate --hosts 100 --steps 300 --seed 7
-symbiont-lab organism run --ticks 20
-symbiont-lab organism live
-symbiont-lab dashboard --port 8765
-python observatory/resident.py --interval 15
+L3 requires an approved design and, when scientific evidence will be produced, an approved preregistration before implementation or execution. L4 always requires an explicit owner decision and an accepted ADR before implementation.
+
+A passing test, benchmark, experiment or CI run never grants additional authority.
+
+## Mandatory startup sequence
+
+Before editing:
+
+1. inspect the current branch/head and worktree;
+2. read this contract, `docs/roadmap.md`, `docs/governance/project-state.toml`, and the nearest relevant README/design/ADR;
+3. run `python scripts/agentctl.py status`;
+4. classify the change L0-L4 and identify subject/lab/world/observatory/experiment domains;
+5. check `docs/governance/active-work.toml` and do not edit the mechanism, protocol, inputs or dependencies of an active scientific run;
+6. check `docs/governance/frozen-artifacts.toml`;
+7. choose the smallest-authority solution that satisfies the approved contract.
+
+Do not rely on memory from another session as project authority. An owner decision must be present in the current instruction, an accepted ADR, the roadmap, preregistration, project-state metadata, or a committed design record.
+
+## Change discipline
+
+Agents must distinguish implementation defect, apparatus defect, obsolete test, historical compatibility contract, negative scientific result, and new scientific hypothesis.
+
+A red test is not permission to weaken an assertion. A negative result is not a bug. Do not change the organism merely to satisfy a test, experiment, visualization, benchmark, evaluator or UI.
+
+For scientific work, preserve this order:
+
+```text
+negative or open result
+-> analysis
+-> hypothesis
+-> design
+-> owner approval
+-> preregistration
+-> implementation
+-> campaign
+-> interpretation
 ```
 
-## Test organization and maintenance
+Never skip directly from a negative result to mechanism changes intended to make it positive.
 
-The test tree is an explicit contract. Read the nearest `README.md` before
-adding, moving, deleting, or weakening a test.
+## Protected and frozen material
 
-### Test configuration
+The following are authority-sensitive:
 
-Pytest is configured in `pyproject.toml` with:
+- `AGENTS.md`, `CLAUDE.md`, `docs/governance/**`, `docs/roadmap.md`;
+- accepted ADRs and frozen design/preregistration sections;
+- experiment criteria, seeds, horizons, baselines and frozen inputs;
+- completed result artefacts and historical audit evidence.
 
-- `testpaths = ["tests"]`, so the root `experiments/` tree is never collected
-  as a pytest suite;
-- `addopts = "-m 'not slow'"`, so expensive tests are opt-in by default;
-- `experiment_contract` for mechanical protocol and runner contracts;
-- `slow` for tests that intentionally run campaigns, long simulations,
-  populations, full replays, 3D physics, model training, or real servers.
+Frozen result artefacts are append-only evidence. Correct an error with a new run, version or provenance note; do not rewrite the old result to match a preferred interpretation.
 
-Useful validation layers are:
+## Experiment state rules
 
-```bash
-pytest tests/unit tests/docs tests/smoke
-pytest tests/integration tests/experimental_integrity
-pytest tests/experiments
-pytest tests/integration/studies
-pytest --collect-only -q
-pytest --durations=50 -q
-pytest -m slow
+Experiments move through:
+
+```text
+DRAFT -> DESIGN -> PREREGISTERED -> FROZEN -> RUNNING -> COMPLETE -> INTERPRETED
 ```
 
-The full scientific study suite is explicit and must not become the default
-developer loop. Runs that produce scientific evidence belong under
-`experiments/` and are launched through their documented CLI, not collected
-by pytest.
+While RUNNING, no agent may modify its runner, protocol, frozen inputs, dependencies or relevant subject mechanism.
 
-### Where tests belong
+After PREREGISTERED/FROZEN, seeds, horizon, baselines, success criteria and interpretation rules do not move because of observed results. Held-out or confirmation runs require the explicit authority recorded by the relevant design.
 
-- `tests/unit/`: isolated behavior of one software unit;
-- `tests/integration/`: interaction between software modules;
-- `tests/contract/`: public and boundary contracts;
-- `tests/experimental_integrity/`: RNG, ground truth, provenance, and safety
-  boundaries;
-- `tests/regression/`: preserved failures and previously fixed behavior;
-- `tests/smoke/`: short end-to-end health checks;
-- `tests/experiments/`: mechanical contracts for protocols and runners;
-- `tests/compatibility/`: explicit historical payloads and migrations only;
-- `experiments/`: executable campaigns, configuration, manifests, and run
-  outputs; never `test_*.py` files intended for pytest;
-- `research/`: analysis, audits, interpretation, and evidence; never test
-  fixtures or executable pytest suites.
+Apparatus repair and hypothesis change must be separated.
 
-### Modify, remove, or preserve a test
+## Claims
 
-Modify a test when the test encodes a contract deliberately removed from the
-active runtime, such as Genome v1 fields, old kernel versions, `primitive`
-aliases, or obsolete Body/Embodiment APIs. Update the fixture to the current
-contract and preserve historical coverage in `tests/compatibility/` when that
-artifact is still supported.
+Use the claim vocabulary from `docs/roadmap.md`.
 
-Do not modify an assertion merely to make a failure disappear when it checks
-an active invariant: deterministic replay, persistence, isolation, identity,
-domain validation, RNG behavior, ground-truth separation, or safety limits.
-Investigate `src/` in those cases and add a focused regression test.
+Do not elevate claims such as `validated`, `causal`, `robust`, `emergent`, `learned`, `closed` or `general` without identifying the evidence level, tested scope and limitations.
 
-Delete a test only when it has no distinct contract, is uncollectable dead
-code, or duplicates a stronger current test. Before deletion, check whether it
-is the only coverage for a historical migration or safety boundary; move that
-coverage rather than losing it. Never delete a historical test solely because
-the current runtime no longer supports its input.
+## Concurrency
 
-Every new test must answer one question, use the smallest deterministic
-fixture, and be placed according to the local README. Mark expensive tests
-`slow`; mark runner/protocol contracts `experiment_contract`. Do not expose
-private implementation details such as `_babble_cardinality` as a test
-contract when observable behavior is sufficient.
+Treat `docs/governance/active-work.toml` as a coordination boundary.
 
-### Compatibility and replay rules
+If another session owns a RUNNING campaign, do not modify its protected paths. Read-only inspection is allowed. A work record is not stale merely because time passed; verify that the process/run is actually finished before clearing it.
 
-Genome v2, competence-based sensorimotor behavior, the current
-organism/Body/Embodiment boundary, and current telemetry are the active
-contracts. Historical inputs are supported only through named migrators and
-explicit compatibility suites. Checkpoint restoration must preserve enough
-causal state for deterministic continuation under the same inputs, RNG, and
-world/body conditions. Do not weaken replay assertions to accommodate lossy
-restoration without an explicit architecture decision.
+Default scientific resource policy: one long scientific campaign at a time unless the approved design explicitly requires parallel execution.
 
-### Change and commit discipline
+## Git and commit rules
 
-Before editing, inspect `git status --short --branch` and preserve unrelated
-worktree changes. Group commits by logic, for example:
+Never:
 
-1. test layout and documentation;
-2. fixture/test contract migration;
-3. source bug fixes required by active invariants;
-4. CI or performance changes.
+- use destructive reset/clean on work you did not create;
+- force-push or rewrite published scientific history;
+- stage or overwrite unrelated user/session changes;
+- delete negative results;
+- squash away provenance needed to understand a scientific result.
 
-Run focused validation and `git diff --check` for each logical group. Review
-the staged diff before committing. Push only the grouped commits after
-verification; never stage unrelated user files or generated documentation.
+Before commit:
 
-## Experimental integrity
+1. review the exact diff;
+2. run the validation required by `docs/governance/validation-matrix.toml`;
+3. run `python scripts/agentctl.py verify`;
+4. run `git diff --check`;
+5. keep commits logical and auditable.
 
-Ground truth belongs exclusively to the simulator/evaluator. Agents and reasoning may use only observations, local memory, collective reports, coarse fingerprints and derived trust. Evaluator-only metrics must never feed back into organism decisions. `symbiont` must never import or depend upon `symbiont_lab`.
+Permission to edit does not automatically imply permission to run a campaign, push, merge or reinterpret its result.
 
-## Safety boundaries
+## Stop conditions
 
-Real-host code is limited to explicit, local, least-privileged, read-only aggregate observation. It must not collect identity or user-content metadata. Autonomous discovery is restricted to vetted observation surfaces and may never broaden itself into arbitrary filesystem traversal, process content inspection, credentials, network scanning, peer discovery or permission seeking.
+Stop and request an owner decision before:
 
-A **transparent resident lifecycle is allowed** when explicitly installed by the host owner: foreground/user-service execution, bounded periodic checkpoints, clean SIGINT/SIGTERM shutdown and `systemd --user` supervision are in scope. It must never install itself, hide, evade removal, escalate privileges or modify unrelated OS state.
+- changing a hypothesis, threshold, seed set, horizon, baseline or success criterion;
+- executing held-out or confirmation data without recorded approval;
+- reopening a PAUSED, BLOCKED or UNSCHEDULED programme;
+- moving responsibility across Symbiont/Lab/World boundaries;
+- introducing a new organism capability;
+- changing lifecycle, heredity, reproduction or re-embodiment semantics;
+- adding host permissions, user-content access, identifying metadata, arbitrary file or process inspection, network exchange, credentials, hidden persistence, propagation, autonomous real-world action or new permission classes;
+- weakening evaluator/subject separation or introducing global reward/fitness;
+- altering project priorities or skipping a roadmap gate.
 
-Keep pathogens, reporters and interventions synthetic. Do not introduce network scanning/exchange, propagation, stealth/evasion, exploitation, credential access, quarantine/remediation or autonomous real-world actions. The reasoning layer must not generate or execute real system actions.
+## Host safety
 
-## graphify
+Real-host access remains explicit, revocable, local, least-privileged and bounded. Consent is checked at use time, not treated as a one-time installation event.
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Agents must not add identity or user-content collection, arbitrary filesystem traversal, process-content inspection, credential access, network scanning/peer discovery, autonomous network exchange, privilege escalation, exploitation, stealth/evasion, hidden persistence, autonomous remediation, self-installation or uncontrolled propagation.
 
-When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
+CPU, memory, storage, communication and population ceilings remain outside learned control. Reproduction never means covert self-propagation.
 
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+<!-- END CANONICAL AGENT CONTRACT -->
 
 ## Normative architectural invariants
 
@@ -385,3 +378,4 @@ identical in `AGENTS.md` and `CLAUDE.md`.
 > **When in doubt, information flows from World → sensory boundary → Symbiont, and from Symbiont → passive observation → Lab. Evaluator knowledge never flows back into the subject.**
 
 > **Inherited constitution belongs to the organism. Evolutionary operators acting on organisms belong to the Lab.**
+
