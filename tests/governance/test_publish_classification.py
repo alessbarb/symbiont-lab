@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from governance.classify import ChangeClass, assess
+from governance.publish import _active_work_conflicts, _normalize_adr_ref
 
 
 def test_private_model_promotion_is_scientific_by_semantics() -> None:
@@ -39,9 +40,6 @@ def test_observatory_presentation_is_ordinary() -> None:
         "diff --git a/observatory/ui/view.js b/observatory/ui/view.js\n+ renderLabel()",
     )
     assert result.classification == ChangeClass.ORDINARY
-
-
-from governance.publish import _active_work_conflicts
 
 
 def test_active_work_conflict_is_detected() -> None:
@@ -164,3 +162,17 @@ def test_study_code_is_scientific() -> None:
         "diff --git a/src/symbiont_lab/studies/example.py b/src/symbiont_lab/studies/example.py\n+ def run(): pass",
     )
     assert result.classification == ChangeClass.SCIENTIFIC
+
+
+
+def test_adr_reference_cannot_escape_docs_adr() -> None:
+    import pytest
+
+    with pytest.raises(PermissionError, match="docs/adr"):
+        _normalize_adr_ref("/tmp/ADR-9999.md")
+
+
+def test_adr_reference_resolves_existing_accepted_adr() -> None:
+    resolved = _normalize_adr_ref("ADR-0046")
+    assert resolved.name.startswith("ADR-0046-")
+    assert resolved.parent == (ROOT / "docs/adr").resolve()

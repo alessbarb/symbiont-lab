@@ -10,13 +10,13 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import time
 import tomllib
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
@@ -227,17 +227,27 @@ def _accepted_adr(path: Path) -> bool:
 
 def _normalize_adr_ref(value: str) -> Path:
     raw = value.strip()
+    adr_root = (ROOT / "docs/adr").resolve()
     candidate = Path(raw)
+
     if candidate.suffix.lower() == ".md":
-        path = candidate if candidate.is_absolute() else ROOT / candidate
-        if not path.is_absolute():
-            path = (ROOT / path).resolve()
+        path = (candidate if candidate.is_absolute() else ROOT / candidate).resolve()
+        try:
+            path.relative_to(adr_root)
+        except ValueError as exc:
+            raise PermissionError(
+                "CONSTITUTIONAL: ADR must live under docs/adr"
+            ) from exc
+        if not path.name.upper().startswith("ADR-"):
+            raise PermissionError(
+                "CONSTITUTIONAL: ADR filename must start with ADR-"
+            )
         return path
 
     slug = raw
     if not slug.upper().startswith("ADR-"):
         slug = f"ADR-{slug}"
-    matches = sorted((ROOT / "docs/adr").glob(f"{slug}*.md"))
+    matches = sorted(adr_root.glob(f"{slug}*.md"))
     if len(matches) != 1:
         raise PermissionError(
             f"CONSTITUTIONAL: ADR reference {value!r} did not resolve uniquely"
