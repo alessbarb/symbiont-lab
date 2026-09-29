@@ -1,7 +1,6 @@
 session_id = "replace-me"
-base_commit = "replace-me"
 task = "describe the authorised task"
-authority = "L2"
+grant_id = "owner-grant-id-for-L2-L4"
 allowed_paths = [
   "src/symbiont_lab/example/**",
   "tests/example/**",

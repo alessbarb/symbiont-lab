@@ -27,7 +27,7 @@ allowed_paths = [
 
 [[grant]]
 id = "owner-2026-09-29-governance-consistency"
-status = "open"
+status = "consumed"
 authority = "L4"
 base_commit = "d267217e267244bd6223ecec5e587ecc4315cdb3"
 purpose = "Complete control-plane ownership metadata and repair documentation links after governance hardening."

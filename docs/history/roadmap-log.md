@@ -848,7 +848,7 @@ paths are adjusted only for this file's location.
 L8 conecta por primera vez el repertorio motor adquirido, el Private SLM ACTIVE
 y el valor homeostático aprendido para permitir elección prospectiva de acciones
 sin introducir semántica del laboratorio. La especificación normativa está en
-[`history/design/prospective-agency-v1.md`](../design/prospective-agency-v1.md).
+[`history/design/prospective-agency-v1.md`](design/prospective-agency-v1.md).
 
 El alcance v1 es deliberadamente one-step. Una acción sólo puede entrar en
 deliberación si ya es una competencia sensorimotora y su `primitive_readout`

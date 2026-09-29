@@ -7,7 +7,14 @@
 
 ## Authority source
 
-Describe the owner decision, ADR, roadmap item, preregistration or existing contract that authorises this change.
+For L2-L4, provide the prior owner grant and commit trailer:
+
+```text
+Grant ID:
+Authority-Grant: <grant-id>
+```
+
+Also identify the owner decision, ADR, roadmap item, preregistration or existing contract that authorises the change.
 
 ## Scientific impact
 
@@ -25,6 +32,12 @@ List active work checked in `docs/governance/active-work.toml` and confirm that 
 ## Validation
 
 List commands required by `docs/governance/validation-matrix.toml` and their results.
+For modifying work include:
+
+```bash
+python scripts/agentctl.py check --staged --manifest .agent-session.toml
+python scripts/agentctl.py verify
+```
 
 ## Claim review
 
