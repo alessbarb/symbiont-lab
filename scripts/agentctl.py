@@ -19,6 +19,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from governance.classify import ChangeClass, assess as assess_change
 from governance.publish import publish as publish_changes
 from symbiont_lab.experiments.execution_workspace import pinned_worktree
 from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
@@ -374,6 +375,7 @@ def _verify_toml() -> list[str]:
         "validation-matrix.toml", "authority-grants.toml", "resource-policy.toml",
         "owner-root.toml",
         "bootstrap-exceptions.toml",
+        "change-surfaces.toml",
     ):
         try:
             load(name)
@@ -521,7 +523,17 @@ def _audit_commit(commit: str, actor: str | None) -> list[str]:
     governance_class = _trailer(message, "Governance-Class")
     if governance_class:
         owner_approval = _trailer(message, "Owner-Approval")
-        if governance_class in {"SCIENTIFIC", "CONSTITUTIONAL", "FROZEN"} and owner_approval != "explicit":
+        diff_text = git("diff", parent, commit)
+        assessment = assess_change(ROOT, parent, paths, diff_text)
+        expected = str(assessment.classification)
+        if expected == ChangeClass.FROZEN:
+            return [f"{commit[:12]}: modifies frozen evidence; create a new version instead"]
+        if expected == ChangeClass.CONSTITUTIONAL and governance_class != "CONSTITUTIONAL":
+            return [f"{commit[:12]}: constitutional diff mislabeled as {governance_class}"]
+        if expected == ChangeClass.SCIENTIFIC and governance_class == "ORDINARY":
+            if not _trailer(message, "Equivalence-Evidence"):
+                return [f"{commit[:12]}: scientific-sensitive diff downgraded without equivalence evidence"]
+        if governance_class in {"SCIENTIFIC", "CONSTITUTIONAL"} and owner_approval != "explicit":
             return [f"{commit[:12]}: {governance_class} change lacks explicit owner approval"]
         return []
 
