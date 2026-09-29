@@ -2742,56 +2742,164 @@ export function createCognitionController({
     const panel = document.getElementById('mind-cognition-generative-body');
     if (!panel) return;
     panel.replaceChildren();
+
+    const tick = finiteNumber(source?.tick ?? tel.tick, 0);
     const generative = source?.cognition?.generative ?? null;
+    graph.generativeHistory ??= [];
+
+    if (generative) {
+      const read = (camel, snake, fallback = null) =>
+        generative?.[camel] ?? generative?.[snake] ?? fallback;
+      const sample = {
+        tick,
+        episodeId: read('episodeId', 'episode_id', null),
+        targetId: read('targetId', 'target_id', null),
+        states: finiteNumber(read('stateCount', 'state_count', 0), 0),
+        transitions: finiteNumber(read('transitionCount', 'transition_count', 0), 0),
+        branches: finiteNumber(read('branchCount', 'branch_count', 0), 0),
+        hypotheses: finiteNumber(read('hypothesisCount', 'hypothesis_count', 0), 0),
+        mode: String(read('mode', 'mode', 'online')),
+      };
+      const last = graph.generativeHistory.at(-1);
+      if (!last || last.tick !== sample.tick) {
+        graph.generativeHistory.push(sample);
+        if (graph.generativeHistory.length > 48) graph.generativeHistory.shift();
+      } else {
+        graph.generativeHistory[graph.generativeHistory.length - 1] = sample;
+      }
+    }
+
+    const history = graph.generativeHistory ?? [];
+    const lastObserved = history.at(-1) ?? null;
+
+    const presence = el('div', 'mind-generative-presence');
+    const orb = el('div', `mind-generative-orb ${generative ? 'observed' : lastObserved ? 'historical' : 'unseen'}`);
+    const orbCore = el('span', 'mind-generative-orb-core');
+    const orbRing = el('span', 'mind-generative-orb-ring');
+    orb.append(orbRing, orbCore);
+    const presenceCopy = el('div', 'mind-generative-presence-copy');
+    const status = el('strong', '');
+    status.textContent = generative
+      ? 'Generative resident observed'
+      : lastObserved
+        ? 'Generative activity observed earlier'
+        : 'Generative resident not observed';
+    const sub = el('small', '');
+    sub.textContent = generative
+      ? `live at t${tick}`
+      : lastObserved
+        ? `last observed at t${lastObserved.tick}`
+        : `no generative frame captured through t${tick}`;
+    presenceCopy.append(status, sub);
+    presence.append(orb, presenceCopy);
+    panel.appendChild(presence);
+
+    const timeline = el('div', 'mind-generative-history');
+    timeline.setAttribute('aria-label', 'Recent generative activity');
+    const recent = history.slice(-32);
+    if (recent.length) {
+      for (const sample of recent) {
+        const mark = el('span', 'mind-generative-history-mark');
+        const intensity = Math.min(
+          1,
+          0.18 +
+          sample.transitions * 0.10 +
+          sample.branches * 0.12 +
+          sample.hypotheses * 0.02,
+        );
+        mark.style.setProperty('--generative-intensity', String(intensity));
+        if (sample.episodeId) mark.classList.add('episode');
+        if (sample.transitions > 0) mark.classList.add('productive');
+        mark.title =
+          `t${sample.tick} · ${sample.episodeId ? 'episode' : 'resident'} · ` +
+          `${sample.transitions} transitions · ${sample.hypotheses} hypotheses`;
+        timeline.appendChild(mark);
+      }
+    } else {
+      for (let index = 0; index < 18; index += 1) {
+        const mark = el('span', 'mind-generative-history-mark placeholder');
+        timeline.appendChild(mark);
+      }
+    }
+    panel.appendChild(timeline);
+
     if (!generative) {
-      const empty = el('div', 'mind-inspector-empty');
-      const hasCognition = source?.cognition != null;
-      const tick = finiteNumber(source?.tick ?? tel.tick, 0);
-      empty.textContent = hasCognition
-        ? `Generative telemetry was not recorded for this frame${tick ? ` (t${tick})` : ''}. This is not evidence that generative cognition was inactive.`
-        : 'No cognition snapshot is available for this frame.';
-      panel.appendChild(empty);
+      const note = el('div', 'mind-generative-note');
+      note.textContent = lastObserved
+        ? 'No generative observation in the current frame. The history above preserves what was previously seen.'
+        : 'The Atlas is receiving cognition, but no generative snapshot has reached the observer yet.';
+      panel.appendChild(note);
       return;
     }
+
     const read = (camel, snake, fallback = null) =>
       generative?.[camel] ?? generative?.[snake] ?? fallback;
-    const rows = [
-      ['Mode', read('mode', 'mode', 'online')],
-      ['Target', read('targetId', 'target_id', '—') ?? '—'],
-      ['Episode', read('episodeId', 'episode_id', '—') ?? '—'],
-      ['States', read('stateCount', 'state_count', 0)],
-      ['Transitions', read('transitionCount', 'transition_count', 0)],
-      ['Branches', read('branchCount', 'branch_count', 0)],
-      ['Depth', read('maxDepth', 'max_depth', 0)],
-      ['Hypotheses', read('hypothesisCount', 'hypothesis_count', 0)],
-      ['Reconciled', read('reconciliationCount', 'reconciliation_count', 0)],
-      ['Factual contamination', read('factualContaminationCount', 'factual_contamination_count', 0)],
-      ['Agenda contamination', read('agendaContaminationCount', 'agenda_contamination_count', 0)],
-    ];
-    for (const [label, value] of rows) {
-      const row = el('div', 'mind-cognition-generative-row');
-      const key = el('span', 'mind-cognition-generative-key');
-      key.textContent = label;
-      const rendered = el('strong', 'mind-cognition-generative-value');
-      rendered.textContent = String(value);
-      row.append(key, rendered);
-      panel.appendChild(row);
+    const states = finiteNumber(read('stateCount', 'state_count', 0), 0);
+    const transitions = finiteNumber(read('transitionCount', 'transition_count', 0), 0);
+    const branches = finiteNumber(read('branchCount', 'branch_count', 0), 0);
+    const hypothesesCount = finiteNumber(read('hypothesisCount', 'hypothesis_count', 0), 0);
+    const target = read('targetId', 'target_id', null);
+    const episode = read('episodeId', 'episode_id', null);
+
+    const flow = el('div', 'mind-generative-flow');
+    const root = el('span', 'mind-generative-state root');
+    root.textContent = 'root';
+    flow.appendChild(root);
+    const branchVisuals = Math.max(1, Math.min(4, branches || (transitions > 0 ? 1 : 0)));
+    if (states > 1 || transitions > 0) {
+      const rail = el('span', 'mind-generative-flow-rail');
+      flow.appendChild(rail);
+      for (let index = 0; index < branchVisuals; index += 1) {
+        const state = el('span', 'mind-generative-state generated');
+        state.textContent = index === 0 && target ? 'target' : 'state';
+        flow.appendChild(state);
+      }
     }
+    if (hypothesesCount > 0) {
+      const hypothesis = el('span', 'mind-generative-state hypothesis');
+      hypothesis.textContent = 'H';
+      flow.appendChild(hypothesis);
+    }
+    panel.appendChild(flow);
+
+    const counters = el('div', 'mind-generative-counters');
+    for (const [label, value] of [
+      ['states', states],
+      ['moves', transitions],
+      ['branches', branches],
+      ['hypotheses', hypothesesCount],
+    ]) {
+      const item = el('div', 'mind-generative-counter');
+      const number = el('strong', '');
+      number.textContent = String(value);
+      const name = el('span', '');
+      name.textContent = label;
+      item.append(number, name);
+      counters.appendChild(item);
+    }
+    panel.appendChild(counters);
+
+    const meta = el('div', 'mind-generative-meta');
+    const mode = el('span', '');
+    mode.textContent = String(read('mode', 'mode', 'online'));
+    const episodeLabel = el('span', '');
+    episodeLabel.textContent = episode ? String(episode).replace(/^generative\./, 'episode ') : 'resident idle';
+    meta.append(mode, episodeLabel);
+    panel.appendChild(meta);
 
     const hypotheses = Array.isArray(generative.hypotheses) ? generative.hypotheses : [];
     if (hypotheses.length) {
-      const title = el('div', 'mind-inspector-section-title');
-      title.textContent = 'Active hypotheses';
-      panel.appendChild(title);
-      for (const hypothesis of hypotheses.slice(0, 8)) {
-        const status = hypothesis.status ?? 'hypothesized';
-        const target = hypothesis.targetId ?? hypothesis.target_id ?? '—';
-        const uncertainty = finiteNumber(hypothesis.uncertainty, 0);
-        const row = el('div', 'mind-cognition-generative-hypothesis');
-        row.textContent = status + ' · ' + shortId(String(target), 18, 8)
-          + ' · u ' + uncertainty.toFixed(3);
-        panel.appendChild(row);
+      const hypothesisStrip = el('div', 'mind-generative-hypotheses');
+      for (const hypothesis of hypotheses.slice(0, 12)) {
+        const dot = el('span', 'mind-generative-hypothesis-dot');
+        const statusValue = String(hypothesis.status ?? 'hypothesized');
+        dot.classList.add(`status-${statusValue}`);
+        dot.title =
+          `${statusValue} · ${hypothesis.targetId ?? hypothesis.target_id ?? 'unknown target'} · ` +
+          `u=${finiteNumber(hypothesis.uncertainty, 0).toFixed(2)}`;
+        hypothesisStrip.appendChild(dot);
       }
+      panel.appendChild(hypothesisStrip);
     }
   }
 
