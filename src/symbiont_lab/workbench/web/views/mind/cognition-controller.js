@@ -15,7 +15,9 @@ import {
   atlasModeScore,
   atlasRegions,
   atlasSignals,
+  buildAtlasGraph,
   cognitivePath,
+  motorReachability,
   learningFrontier,
   searchAtlasNodes,
 } from './cognitive-atlas.js';
@@ -311,6 +313,8 @@ export function createCognitionController({
         showEmbodiment: graph.showEmbodiment,
       },
     );
+    const fullMotorReachability = motorReachability(learned.nodes, learned.edges, 16);
+
     const cartography = cartographicGraph(
       learned.nodes,
       learned.edges,
@@ -459,7 +463,11 @@ export function createCognitionController({
     enriched.sectorBridges = sectorBridges(enriched.edges, sectors);
 
     const atlasTick = finiteNumber(source.tick ?? graph.replayTick ?? tel.tick, 0);
-    graph.atlasSignals = atlasSignals(enriched.nodes, enriched.edges, atlasTick);
+    const atlasIndex = buildAtlasGraph(enriched.nodes, enriched.edges);
+    graph.atlasSignals = atlasSignals(enriched.nodes, enriched.edges, atlasTick, {
+      index: atlasIndex,
+      fullMotor: fullMotorReachability,
+    });
     for (const node of enriched.nodes) {
       node.atlasScore = atlasModeScore(node, graph.atlasSignals, graph.atlasMode);
       node.atlasSignals = graph.atlasSignals.get(node.id) ?? null;
@@ -491,6 +499,7 @@ export function createCognitionController({
       enriched.nodes,
       enriched.edges,
       12,
+      atlasIndex,
     );
 
     const structuralEdges = enriched.edges.filter(isStructuralAtlasEdge);
@@ -642,12 +651,14 @@ export function createCognitionController({
       reconcileSectorLabels(graph.communities, rawNodes, labelTick);
     }
 
+    const renderedAtlasIndex = buildAtlasGraph(rawNodes, rawEdges);
     graph.atlasRegions = atlasRegions(
       rawNodes,
       rawEdges,
       graph.sectorLabels,
       sectorDescriptions,
       graph.atlasSignals,
+      renderedAtlasIndex,
     );
     graph.cognitiveSituation = cognitiveSituation({
       nodes: rawNodes,
