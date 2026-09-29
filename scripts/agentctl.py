@@ -17,6 +17,11 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from governance.publish import publish as publish_changes
+from symbiont_lab.experiments.execution_workspace import pinned_worktree
+from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
+from symbiont_lab.experiments.snapshot_archive import archive_snapshot
+
 ROOT = Path(__file__).resolve().parents[1]
 GOV = ROOT / "docs" / "governance"
 LEVEL = {"L0": 0, "L1": 1, "L2": 2, "L3": 3, "L4": 4}
@@ -738,6 +743,133 @@ def run_exec(
     return returncode
 
 
+def run_pinned(
+    *,
+    commit: str,
+    run_id: str,
+    scope: str,
+    snapshot_source: Path,
+    command: list[str],
+    wall_minutes: int,
+    memory_gb: float,
+    cpu: int,
+    disk_gb: float,
+    owner_approved: bool,
+) -> int:
+    """Run one pinned scientific command from an immutable archived starting state."""
+
+    if scope != "mechanical" and not owner_approved:
+        print("BLOCKED — scientific execution requires explicit owner approval", file=sys.stderr)
+        return 3
+    if scope not in SCIENTIFIC_SCOPES:
+        print(f"invalid scientific scope: {scope}", file=sys.stderr)
+        return 2
+    if not commit_exists(commit):
+        print(f"unknown commit: {commit}", file=sys.stderr)
+        return 2
+    others = _tracked_running_other_than(run_id)
+    if others:
+        print(f"BLOCKED — long scientific run already active: {', '.join(others)}", file=sys.stderr)
+        return 3
+
+    assessment = assess_resources(
+        ResourceRequest(
+            peak_memory_gb=memory_gb,
+            disk_gb=disk_gb,
+            cpu_threads=cpu,
+            safety_memory_gb=1.0,
+        ),
+        disk_path=ROOT,
+    )
+    if not assessment.allowed:
+        print("BLOCKED — resource preflight failed:", file=sys.stderr)
+        for reason in assessment.reasons:
+            print(f"  - {reason}", file=sys.stderr)
+        return 3
+
+    run_root = runtime_dir() / "runs" / run_id
+    if run_root.exists():
+        print(f"run id already exists: {run_id}", file=sys.stderr)
+        return 3
+    run_root.mkdir(parents=True, exist_ok=False)
+    input_dir = run_root / "input"
+    manifest = archive_snapshot(
+        source=snapshot_source,
+        destination=input_dir,
+        source_commit=commit,
+        scenario=scope,
+    )
+
+    payload = {
+        "id": run_id,
+        "scope": scope,
+        "commit": commit,
+        "owner_approved": owner_approved,
+        "owner_pid": os.getpid(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "wall_minutes": wall_minutes,
+        "memory_gb": memory_gb,
+        "cpu_threads": cpu,
+        "disk_gb": disk_gb,
+        "input_manifest": manifest,
+        "state": "launching",
+    }
+    if _reserve_run_lock(payload):
+        return 1
+
+    argv = [str(input_dir) if token == "{input}" else token for token in command]
+    env = os.environ.copy()
+    env["SYMBIONT_RUN_INPUT"] = str(input_dir)
+    env["SYMBIONT_RUN_ID"] = run_id
+    for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+        env[key] = str(cpu)
+
+    started = time.time()
+    returncode = 1
+    try:
+        with pinned_worktree(ROOT, commit) as worktree:
+            env["PYTHONPATH"] = str(worktree / "src")
+            proc = subprocess.Popen(
+                argv,
+                cwd=worktree,
+                env=env,
+                start_new_session=True,
+                preexec_fn=_scientific_preexec(memory_gb, wall_minutes, cpu),
+            )
+            payload["child_pid"] = proc.pid
+            payload["worktree_commit"] = commit
+            payload["command"] = argv
+            payload["state"] = "running"
+            _run_lock_path().write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+            try:
+                returncode = proc.wait(timeout=wall_minutes * 60)
+            except subprocess.TimeoutExpired:
+                if os.name == "posix":
+                    os.killpg(proc.pid, signal.SIGTERM)
+                    try:
+                        proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                        proc.wait()
+                else:
+                    proc.terminate()
+                    proc.wait(timeout=10)
+                returncode = 124
+    finally:
+        receipt = {
+            **payload,
+            "state": "complete",
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+            "elapsed_seconds": time.time() - started,
+            "returncode": returncode,
+        }
+        (run_root / "execution.json").write_text(
+            json.dumps(receipt, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+        _run_lock_path().unlink(missing_ok=True)
+    return returncode
+
+
 def run_status() -> int:
     lock = _run_lock_path()
     print(lock.read_text(encoding="utf-8") if lock.exists() else "no local scientific run lock")
@@ -789,8 +921,32 @@ def main() -> int:
     p_ci.add_argument("--base", required=True)
     p_ci.add_argument("--head", required=True)
     p_ci.add_argument("--actor")
+    p_publish = sub.add_parser("publish")
+    p_publish.add_argument("--message", required=True)
+    p_publish.add_argument("--owner-approved", action="store_true")
+
+    p_snapshot = sub.add_parser("snapshot")
+    snapshot_sub = p_snapshot.add_subparsers(dest="snapshot_command", required=True)
+    p_capture = snapshot_sub.add_parser("capture")
+    p_capture.add_argument("--source", type=Path, required=True)
+    p_capture.add_argument("--destination", type=Path, required=True)
+    p_capture.add_argument("--body-kind")
+    p_capture.add_argument("--scenario")
+
     p_run = sub.add_parser("run")
     run_sub = p_run.add_subparsers(dest="run_command", required=True)
+    p_start = run_sub.add_parser("start")
+    p_start.add_argument("--commit", required=True)
+    p_start.add_argument("--id", required=True)
+    p_start.add_argument("--scope", choices=sorted(SCIENTIFIC_SCOPES), required=True)
+    p_start.add_argument("--snapshot-source", type=Path, required=True)
+    p_start.add_argument("--wall-minutes", type=int, default=180)
+    p_start.add_argument("--memory-gb", type=float, default=8.0)
+    p_start.add_argument("--disk-gb", type=float, default=2.0)
+    p_start.add_argument("--cpu", type=int, default=2)
+    p_start.add_argument("--owner-approved", action="store_true")
+    p_start.add_argument("argv", nargs=argparse.REMAINDER)
+
     p_exec = run_sub.add_parser("exec")
     p_exec.add_argument("--grant", required=True)
     p_exec.add_argument("--id", required=True)
@@ -807,6 +963,18 @@ def main() -> int:
         return status()
     if args.command == "verify":
         return verify()
+    if args.command == "publish":
+        return publish_changes(message=args.message, owner_approved=args.owner_approved)
+    if args.command == "snapshot":
+        manifest = archive_snapshot(
+            source=args.source,
+            destination=args.destination,
+            source_commit=git("rev-parse", "HEAD"),
+            body_kind=args.body_kind,
+            scenario=args.scenario,
+        )
+        print(json.dumps(manifest, indent=2, sort_keys=True))
+        return 0
     if args.command == "validate":
         return validate(staged_only=args.staged)
     if args.command == "check":
@@ -815,6 +983,23 @@ def main() -> int:
         return ci_check(args.base, args.head, args.actor)
     if args.run_command == "status":
         return run_status()
+    if args.run_command == "start":
+        argv = args.argv[1:] if args.argv and args.argv[0] == "--" else args.argv
+        if not argv:
+            print("missing command after --", file=sys.stderr)
+            return 2
+        return run_pinned(
+            commit=args.commit,
+            run_id=args.id,
+            scope=args.scope,
+            snapshot_source=args.snapshot_source,
+            command=argv,
+            wall_minutes=args.wall_minutes,
+            memory_gb=args.memory_gb,
+            cpu=args.cpu,
+            disk_gb=args.disk_gb,
+            owner_approved=args.owner_approved,
+        )
     if args.run_command == "clear-stale":
         return clear_stale()
     argv = args.argv[1:] if args.argv and args.argv[0] == "--" else args.argv
