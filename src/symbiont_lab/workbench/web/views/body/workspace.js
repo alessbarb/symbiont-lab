@@ -19,11 +19,9 @@ const DOMAIN_TABS = {
     ['self-model', 'Acquired Self'],
   ],
   world: [
+    ['acquired', 'Acquired'],
+    ['compare', 'Compare'],
     ['world', 'Observer Truth'],
-    ['overview', 'Overview'],
-    ['motion', 'Motion'],
-    ['interaction', 'Interaction'],
-    ['history', 'History'],
   ],
 };
 
@@ -171,7 +169,7 @@ export class BodyWorkspace {
     });
     this.panel?.setAttribute('aria-labelledby', `body-tab-${tab}`);
     this.root?.classList.toggle('self-model-mode', tab === 'self-model');
-    this.root?.classList.toggle('body-world-mode', tab === 'world');
+    this.root?.classList.toggle('body-world-mode', ['acquired','compare','world'].includes(tab));
     if (tab !== 'self-model') this.root?.classList.remove('self-model-inspector-open');
     const dataView = tab === 'discovery' || tab === 'physiology' || tab === 'history' || tab === 'self-model';
     this.overlay?.classList.toggle('visible', dataView);
@@ -242,7 +240,9 @@ export class BodyWorkspace {
   render() {
     if (!this.panel) return;
     const prevPanelScroll = this.panel.scrollTop;
-    if (this.activeTab === 'world') {
+    if (this.activeTab === 'acquired') this.renderAcquiredWorld();
+    else if (this.activeTab === 'compare') this.renderWorldCompare();
+    else if (this.activeTab === 'world') {
       if (this.viewer.worldView) this.viewer.worldView.inspector(this.panel);
       else this.panel.innerHTML = this.head('Body in World', 'Waiting for spatial evidence', 'World truth and acquired evidence remain separate.');
     }
@@ -269,6 +269,30 @@ export class BodyWorkspace {
 
   rows(ids) {
     return ids.map(id => `<div class="body-row"><span>${METRIC_LABELS[id] ?? id}</span><strong style="color:${this.colors.get(id) ?? 'inherit'}">${escapeHtml(this.m(id))}</strong></div>`).join('');
+  }
+
+  renderAcquiredWorld() {
+    this.panel.innerHTML = this.head(
+      'World · Acquired',
+      'Evidence-supported external structure',
+      'Only structure justified by Symbiont belongs here. Observer geometry is deliberately excluded.'
+    ) +
+    '<div class="body-section"><div class="body-section-title">Current state</div>' +
+    '<div class="body-inspector-sub">No canonical acquired external-world model is exported yet. This is intentional: Physics3D entities, coordinates and challenge labels are not organism knowledge.</div></div>' +
+    '<div class="body-section"><div class="body-section-title">What will appear here</div>' +
+    '<div class="body-row"><span>Persistent sources</span><strong>not yet validated</strong></div>' +
+    '<div class="body-row"><span>Cross-modal relations</span><strong>not yet validated</strong></div>' +
+    '<div class="body-row"><span>Spatial relations</span><strong>not yet validated</strong></div></div>';
+  }
+
+  renderWorldCompare() {
+    this.panel.innerHTML = this.head(
+      'World · Compare',
+      'Acquired evidence ↔ observer truth',
+      'Correspondence is an observer-side scientific projection and never feeds back into Symbiont.'
+    ) +
+    '<div class="body-section"><div class="body-section-title">Comparison unavailable</div>' +
+    '<div class="body-inspector-sub">Compare will activate when an organism-owned Acquired World exists. Until then, showing Physics entities here would fabricate knowledge.</div></div>';
   }
 
   renderOverview() {
