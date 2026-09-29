@@ -20,11 +20,18 @@ export const REGIMES = [
 ];
 
 export const GRAPH_PHYSICS = Object.freeze({
-  repulsion: 7500,
-  springK: 0.045,
+  // The Atlas is a persistent cartography, not a box of elastic particles.
+  // Keep long-range repulsion weak; use local overlap exclusion for legibility.
+  repulsion: 1800,
+  overlapStrength: 0.12,
+  overlapGap: 4,
+  springK: 0.028,
   springLength: 80,
-  centerGravity: 0.015,
-  damping: 0.86,
-  alphaDecay: 0.985,
+  centerGravity: 0.010,
+  temporalAnchor: 0.006,
+  damping: 0.72,
+  maxStep: 3.5,
+  settleSpeed: 0.035,
+  alphaDecay: 0.975,
   alphaMin: 0.001,
 });
