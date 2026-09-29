@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
 from governance.publish import publish as publish_changes
 from symbiont_lab.experiments.execution_workspace import pinned_worktree
 from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
@@ -515,9 +517,17 @@ def _audit_commit(commit: str, actor: str | None) -> list[str]:
     if LEVEL[required] <= LEVEL["L1"]:
         return []
 
-    grant_id = _trailer(git("show", "-s", "--format=%B", commit), "Authority-Grant")
+    message = git("show", "-s", "--format=%B", commit)
+    governance_class = _trailer(message, "Governance-Class")
+    if governance_class:
+        owner_approval = _trailer(message, "Owner-Approval")
+        if governance_class in {"SCIENTIFIC", "CONSTITUTIONAL", "FROZEN"} and owner_approval != "explicit":
+            return [f"{commit[:12]}: {governance_class} change lacks explicit owner approval"]
+        return []
+
+    grant_id = _trailer(message, "Authority-Grant")
     if not grant_id:
-        return [f"{commit[:12]}: requires {required} but has no Authority-Grant trailer"]
+        return [f"{commit[:12]}: protected legacy change has neither Governance-Class nor Authority-Grant trailer"]
     grant = _grant_from_base(parent, grant_id)
     if grant is None:
         return [f"{commit[:12]}: grant {grant_id!r} is invalid for parent {parent[:12]}"]
