@@ -25,6 +25,10 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e '.[dev]'
       - run: python scripts/agentctl.py verify
+      - name: Verify proportional governance policy
+        run: |
+          test -f docs/governance/change-surfaces.toml
+          test -f experiments/equivalence/suite-v1/suite.toml
       - name: Audit commit authority
         env:
           EVENT_NAME: ${{ github.event_name }}
