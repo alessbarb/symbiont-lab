@@ -112,6 +112,15 @@ def run_once(scenario: Scenario) -> dict:
                 "status": EquivalenceStatus.NOT_ASSESSABLE_MISSING_EVENT,
                 "reason": f"horizon {scenario.ticks} < {minimum_ticks} ticks of requested coverage",
             }
+        observed = int(first.get("private_model_transitions", 0))
+        if observed < scenario.min_training_windows:
+            return {
+                "status": EquivalenceStatus.NOT_ASSESSABLE_MISSING_EVENT,
+                "reason": (
+                    f"observed {observed} private-model lifecycle transitions; "
+                    f"{scenario.min_training_windows} required"
+                ),
+            }
     return {"status": EquivalenceStatus.PASS, "result": first}
 
 
