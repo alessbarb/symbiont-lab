@@ -155,3 +155,10 @@ mindmap
 | :--- | :--- | :--- | :--- |
 | **[ADR-0043](ADR-0043-agent-governance-and-repository-authority.md)** | Agent Governance and Repository Authority | Aceptado | Autoridad L0-L4 y separación entre capacidad técnica y autoridad científica. |
 | **[ADR-0045](ADR-0045-owner-root-grants-scientific-execution-and-validation.md)** | Owner-root Grants, Scientific Execution Authority and Validation Receipts | Aceptado | Emisión root de grants, auditoría completa, ejecución científica autorizada y validación ligada al árbol staged. |
+
+
+### 10. Agent governance
+
+| ADR | Título | Estado | Invariante Central |
+| :--- | :--- | :--- | :--- |
+| **[ADR-0046](ADR-0046-proportional-governance-equivalence-and-pinned-runs.md)** | Proportional Governance, Causal-Equivalence Evidence and Pinned Runs | Aceptado | El trabajo ordinario usa agentctl publish; los cambios científicos requieren aprobación o equivalencia causal cubierta; los runs fijan commit e input inmutable. |
