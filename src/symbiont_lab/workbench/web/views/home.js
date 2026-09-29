@@ -56,6 +56,7 @@ async function loadCatalog() {
   };
   if (!selectedBody) selectedBody = catalog.bodies[0]?.body_kind ?? null;
   if (!organismRef) organismRef = catalog.organisms[0]?.ref ?? '';
+  if (bodyMode === 'resume' && selectedOrganism()?.resumable_body !== true) bodyMode = 'fresh';
 }
 
 // Observer-only organism alias (never part of the Symbiont bundle).
@@ -141,6 +142,7 @@ function isCompatible() {
       organism.last_body_ref &&
       organism.body_kind === selectedBody &&
       organism.vital_state !== 'dead' &&
+      organism.resumable_body === true &&
       !protectedBoundary
     );
   }
@@ -155,7 +157,13 @@ function compatibilityText() {
   if (bodyMode === 'resume') {
     if (organism.vital_state === 'dead') return 'Previous body is dead. Re-embody this Symbiont in a fresh body instead.';
     if (!organism.last_body_ref || organism.body_kind !== selectedBody) return 'No resumable checkpoint exists for this body type.';
-    return 'The exact previous physical body checkpoint will be resumed.';
+    if (organism.body_checkpoint_in_sync === false) {
+      const bodyTick = organism.body_checkpoint_tick == null ? 'unknown' : 't' + Number(organism.body_checkpoint_tick).toLocaleString();
+      const organismTick = 't' + Number(organism.tick || 0).toLocaleString();
+      return `Previous body checkpoint is stale (${bodyTick} vs ${organismTick}). Choose Fresh body: Symbiont identity and cognition are preserved; only physical continuity is restarted.`;
+    }
+    if (organism.resumable_body !== true) return 'Previous physical checkpoint is not safely resumable. Choose a fresh body for re-embodiment.';
+    return 'The exact previous physical body checkpoint is tick-aligned and will be resumed.';
   }
   const knownContract = organism.receptor_count != null && organism.effector_count != null;
   const same = knownContract &&
@@ -318,7 +326,7 @@ function render() {
           <div><h3>Embodiment</h3><p>Choose physical continuity independently from organism continuity.</p></div>
           <div class="home-radio-row">
             <label><input type="radio" name="body-mode" value="fresh" ${bodyMode === 'fresh' ? 'checked' : ''}> Fresh body</label>
-            <label><input type="radio" name="body-mode" value="resume" ${bodyMode === 'resume' ? 'checked' : ''} ${organismMode === 'existing' ? '' : 'disabled'}> Resume previous body</label>
+            <label><input type="radio" name="body-mode" value="resume" ${bodyMode === 'resume' ? 'checked' : ''} ${organismMode === 'existing' && selectedOrganism()?.resumable_body === true ? '' : 'disabled'}> Resume previous body</label>
           </div>
           <label for="home-environment">Physical environment</label>
           <select id="home-environment" ${bodyMode === 'resume' || currentDefinition()?.environment ? 'disabled' : ''}>${(catalog.environments ?? []).map(name => `<option value="${esc(name)}" ${name === (currentDefinition()?.environment || selectedEnvironment) ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select>
@@ -405,6 +413,7 @@ function bind() {
   }));
   document.getElementById('home-organism')?.addEventListener('change', event => {
     organismRef = event.target.value;
+    if (bodyMode === 'resume' && selectedOrganism()?.resumable_body !== true) bodyMode = 'fresh';
     render();
   });
   rootNode?.querySelector('#home-environment')?.addEventListener('change', event => { selectedEnvironment = event.target.value; });
