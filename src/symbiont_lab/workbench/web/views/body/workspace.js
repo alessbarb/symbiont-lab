@@ -110,7 +110,11 @@ export class BodyWorkspace {
     this.selfModel = new AcquiredSelfWorkspace({
       onSelectPhysical: (segment) => this.syncCorrespondenceSelection(segment),
       onModeChange: (mode) => {
-        this.root?.classList.toggle('acquired-self-compare-mode', mode === 'compare');
+        const compare = mode === 'compare';
+        this.root?.classList.toggle('acquired-self-compare-mode', compare);
+        this.viewer.setAcquiredSelfComparePresentation?.(
+          this.activeTab === 'self-model' && compare,
+        );
       },
       getPhysicalSegments: () => Object.keys(this.viewer.bodyModel?.segments ?? {}),
     });
@@ -198,8 +202,11 @@ export class BodyWorkspace {
         'acquired-self-compare-mode',
         'acquired-self-v2-mode',
       );
+      this.viewer.setAcquiredSelfComparePresentation?.(false);
     } else {
-      this.root?.classList.toggle('acquired-self-compare-mode', this.selfModel.mode === 'compare');
+      const compare = this.selfModel.mode === 'compare';
+      this.root?.classList.toggle('acquired-self-compare-mode', compare);
+      this.viewer.setAcquiredSelfComparePresentation?.(compare);
     }
     const dataView = tab === 'discovery' || tab === 'physiology' || tab === 'history' || tab === 'self-model';
     this.overlay?.classList.toggle('visible', dataView);
@@ -541,6 +548,7 @@ export class BodyWorkspace {
   }
 
   dispose() {
+    this.viewer.setAcquiredSelfComparePresentation?.(false);
     this.discovery.deactivate();
     this.clearSegmentHighlight();
     this.root?.classList.remove(
