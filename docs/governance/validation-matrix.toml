@@ -5,7 +5,7 @@ paths = ["README.md", "ORGANISM.md", "docs/**", "AGENTS.md", "CLAUDE.md"]
 commands = ["pytest tests/docs -q", "python scripts/agentctl.py verify", "git diff --check"]
 
 [governance]
-paths = ["docs/governance/**", "AGENTS.md", "CLAUDE.md", "scripts/agentctl.py", "tests/governance/**", ".github/**", ".pre-commit-config.yaml", ".gitignore", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml", "pyrightconfig.json"]
+paths = ["docs/governance/**", "AGENTS.md", "CLAUDE.md", "scripts/agentctl.py", "scripts/governance/**", "tests/governance/**", ".github/**", ".pre-commit-config.yaml", ".gitignore", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml", "pyrightconfig.json"]
 commands = ["pytest tests/governance tests/docs -q", "python scripts/agentctl.py verify", "git diff --check"]
 
 [subject]
