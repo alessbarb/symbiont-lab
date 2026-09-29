@@ -50,6 +50,13 @@ function developmentSummary(run) {
   return bits.join(' · ');
 }
 
+function routeForRun(run) {
+  if (run?.run_kind === 'acquisition.vision') return 'vision';
+  if (run?.run_kind === 'acquisition.embodiment') return 'embodiment';
+  if (String(run?.run_kind || '').startsWith('world.')) return 'world';
+  return 'home';
+}
+
 function renderDevelopmentTimeline(runs, organisms) {
   if (!runs?.length) return emptyState('No managed Experience or World runs have been persisted yet.');
 
@@ -88,8 +95,15 @@ function renderDevelopmentTimeline(runs, organisms) {
           <span>${escapeHtml(reason)}</span>
           <code>${truncateHtml(run?.run_id || '—', 34)}</code>
         </div>
+        <div class="archive-event-actions">
+          <button type="button" data-archive-open="${routeForRun(run)}">Open context</button>
+          <button type="button" data-archive-open="mind">Open Mind</button>
+        </div>
       </div>
     `;
+    item.querySelectorAll('[data-archive-open]').forEach(button => {
+      button.addEventListener('click', () => window.routeToView?.(button.dataset.archiveOpen));
+    });
     wrap.appendChild(item);
     previousEpoch = epoch;
     previousOrganism = org;
