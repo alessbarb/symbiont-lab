@@ -246,6 +246,34 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
                 "stranded_concepts": [],
                 "predictive_gain": 0.2,
                 "topology_revision": 7,
+                "generative": {
+                    "mode": "online",
+                    "target_id": "concept.1",
+                    "episode_id": "gen.33",
+                    "state_count": 3,
+                    "transition_count": 2,
+                    "branch_count": 1,
+                    "max_depth": 2,
+                    "model_queries": 4,
+                    "termination": "budget_exhausted",
+                    "agenda_candidate_count": 2,
+                    "agenda_contamination_count": 0,
+                    "factual_contamination_count": 0,
+                    "hypothesis_count": 1,
+                    "reconciliation_count": 1,
+                    "consolidation_signal_count": 2,
+                    "states": [],
+                    "transitions": [],
+                    "hypotheses": [
+                        {
+                            "hypothesis_id": "hyp.1",
+                            "target_id": "concept.1",
+                            "status": "predicted",
+                            "model_ids": ["model.1"],
+                            "uncertainty": 0.25,
+                        }
+                    ],
+                },
             },
             "cognitive_topology": {
                 "nodes": [
@@ -275,6 +303,9 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
     assert "active" not in snapshot["senses"][1]
     assert snapshot["beliefs"][0]["certainty"] == 0.8
     assert snapshot["cognition"]["topologyHealth"] == "connected"
+    assert snapshot["cognition"]["generative"]["episode_id"] == "gen.33"
+    assert snapshot["cognition"]["generative"]["hypothesis_count"] == 1
+    assert snapshot["cognition"]["generative"]["hypotheses"][0]["status"] == "predicted"
     assert snapshot["observer_analysis"]["predictionErrors"]["concept.1"] == "medium"
     assert snapshot["observer_analysis"]["predictionErrorValues"]["concept.1"] == 0.08
     assert snapshot["observer_analysis"]["activationClasses"]["concept.1"] == 8
