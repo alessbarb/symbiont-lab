@@ -2,39 +2,54 @@
 
 ## Purpose
 
-Define and mechanically enforce the authority boundary for coding agents and
-scientific execution.
+Keep ordinary engineering cheap while making scientific and constitutional boundary
+crossings explicit.
 
-## Core files
+## Normal workflow
 
-- `constitution.md` — canonical permanent invariants.
-- `agent-policy.md` — L0-L4 authority and grants.
-- `decision-gates.md` — owner-decision boundaries.
-- `project-state.toml` — current programme state.
-- `authority-grants.toml` — owner-issued change/run grants.
-- `owner-root.toml` — GitHub actor root used for grant issuance.
-- `frozen-artifacts.toml` — protected surfaces.
-- `active-work.toml` — active scientific work.
-- `resource-policy.toml` — launcher limits.
-- `validation-matrix.toml` — required validation.
+Agents should use one interface:
 
-## Modifying workflow
+    python scripts/agentctl.py publish --message "..."
 
-```bash
-git add <files>
-python scripts/agentctl.py validate --staged
-python scripts/agentctl.py check --staged --manifest .agent-session.toml
-python scripts/agentctl.py verify
-```
+The command fetches/rebases onto the current main, classifies the final diff, runs any
+required bounded equivalence scenarios, derives validation, creates audit trailers and
+pushes. Agents should not reconstruct grant ancestry by hand.
+
+## Operational classes
+
+- ORDINARY — publish automatically after validation.
+- SCIENTIFIC — explicit owner approval unless required equivalence scenarios all PASS.
+- FROZEN — version, never edit in place.
+- CONSTITUTIONAL — ADR + explicit owner approval.
+
+See agent-policy.md and change-surfaces.toml.
+
+## Equivalence
+
+experiments/equivalence/suite-v1 is a versioned evidence suite. PASS is strong evidence
+only inside the declared scenario coverage. FAIL and NOT_ASSESSABLE remain SCIENTIFIC.
+
+Reference snapshots must be immutable captures of real organism states. The initial
+suite is intentionally capture-required until those inputs are archived.
 
 ## Scientific execution
 
-Use a distinct scientific-run grant and `agentctl run exec`. The current D1-v2 run is
-a tracked external exception because it started before the governed launcher existed.
+Use:
 
-## Limits
+    python scripts/agentctl.py run start --commit <sha> --id <run-id>       --scope <scope> --snapshot-source <state-dir> --owner-approved -- <command>
 
-Repository policy cannot cryptographically distinguish the owner from an agent holding
-the same owner credential, cannot create a global lock across unrelated machines, and
-cannot provide portable filesystem quotas. Those remain external-infrastructure
-boundaries.
+The launcher pins the commit in a detached worktree, archives the starting state before
+execution, checks memory/disk/concurrency and writes an execution record.
+
+The current D1-v2 run is a tracked pre-launcher exception until it completes.
+
+## Historical grants
+
+authority-grants.toml remains historical provenance for the previous governance model.
+Per-commit grants are deprecated for ordinary publication by ADR-0046.
+
+## Root of trust and limits
+
+Human identity/approval lives outside the repository. Repository records are guardrails
+and provenance, not cryptographic identity when agents share owner credentials.
+Cross-machine locking and portable storage quotas remain external infrastructure.
