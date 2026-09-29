@@ -404,6 +404,18 @@ export class BodyWorkspace {
     if (this.selectedSegment) this.viewer.setSegmentInspectorHighlight?.(this.selectedSegment, true);
   }
 
+  handleCanvasSegmentPick(name) {
+    if (
+      this.domain !== 'embodiment' ||
+      this.activeTab !== 'self-model' ||
+      this.selfModel.mode !== 'compare' ||
+      !name
+    ) return;
+    this.syncCorrespondenceSelection(name);
+    this.selfModel.selectSegment(name, { notifyPhysical: false });
+    this.renderSelfModel();
+  }
+
   clearSegmentHighlight() {
     if (!this.selectedSegment) return;
     this.viewer.setSegmentInspectorHighlight?.(this.selectedSegment, false);
