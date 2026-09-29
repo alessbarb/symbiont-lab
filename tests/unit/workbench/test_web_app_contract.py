@@ -601,3 +601,26 @@ def test_acquired_self_compare_uses_left_frame_viewport_and_follow_camera():
     assert "this.followBody = true" in viewer
     assert "this.resetCameraToBody()" in viewer
     assert "setAcquiredSelfComparePresentation" in workspace
+
+
+def test_motor_atlas_distinguishes_visible_routes_from_collapsed_physical_routes():
+    atlas = _read("views/mind/cognitive-atlas.js")
+    controller = _read("views/mind/cognition-controller.js")
+    inspector = _read("views/mind/cognition-inspector.js")
+
+    assert "motorConnectedFull" in atlas
+    assert "motorCollapsedOnly" in atlas
+    assert "fullMotorReachability" in controller
+    assert "CONNECTED VIA COLLAPSED PHYSICAL SUBSTRATE" in inspector
+    assert "passes through physical actuator or embodiment structure intentionally collapsed" in inspector
+
+
+def test_atlas_controller_reuses_graph_index_for_signals_paths_and_regions():
+    atlas = _read("views/mind/cognitive-atlas.js")
+    controller = _read("views/mind/cognition-controller.js")
+
+    assert "existingIndex = null" in atlas
+    assert "const atlasIndex = buildAtlasGraph(enriched.nodes, enriched.edges)" in controller
+    assert "index: atlasIndex" in controller
+    assert "atlasIndex," in controller
+    assert "renderedAtlasIndex" in controller
