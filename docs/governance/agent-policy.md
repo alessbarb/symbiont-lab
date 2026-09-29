@@ -1,61 +1,49 @@
-# Agent authority policy
+# Agent workflow policy
 
-## Principle
+The repository uses proportional governance. Ordinary work should be cheap; crossing
+scientific or constitutional boundaries should be deliberate.
 
-Agents execute authorised work; they do not choose project direction. Technical write
-access is not scientific authority.
+## Operational classes
 
-## Levels
+- **ORDINARY** — engineering work that does not change the organism causal trajectory
+  or a frozen scientific contract. Publish automatically after validation.
+- **SCIENTIFIC** — a change that may alter learning, agency, model promotion, physical
+  experience, protocol or scientific interpretation. Owner decision required unless the
+  required Equivalence Suite scenarios all PASS.
+- **FROZEN** — completed experiment evidence/protocol. Never edit in place; create a new
+  version.
+- **CONSTITUTIONAL** — governance, host permissions, identity/lifecycle, evaluator
+  boundary or equivalent permanent invariants. ADR + explicit owner approval.
 
-- **L0 — Read-only:** inspection, audit and proposals.
-- **L1 — Maintenance:** no runtime, scientific, protocol, claim or architecture change.
-- **L2 — Contract-preserving implementation:** prior owner grant required.
-- **L3 — Scientific mechanism/protocol change:** prior owner grant and approved design/preregistration required.
-- **L4 — Constitutional/safety/direction/control-plane change:** prior owner grant required.
+Path is only a screening signal. Classification uses path, sensitive diff content and
+Equivalence Suite evidence. A PASS is valid only within the scenario coverage.
 
-## Owner-root grant issuance
+## Normal workflow
 
-Normal L2-L4 work uses a grant already present in the parent commit. Grant issuance is
-an administrative root action and is valid only when one commit:
+Agents should not reconstruct grant ancestry. Use:
 
-1. changes only `authority-grants.toml`;
-2. appends exactly one OPEN grant without rewriting prior grants;
-3. sets `base_commit` to the issuance commit's parent;
-4. carries `Owner-Grant-Issuance: <grant-id>`;
-5. is observed in CI under the GitHub actor named by `owner-root.toml`.
+    python scripts/agentctl.py publish --message "..."
 
-This is not cryptographic separation if an agent possesses the owner's credential.
-Protected-branch review remains the external root of trust where available.
+The command fetches/rebases, classifies the final diff, runs required equivalence and
+validation, creates audit trailers and publishes. If it says BLOCKED, do not bypass it.
 
-## Session manifest
+Historical L0-L4 grants remain provenance for older commits but are deprecated for
+ordinary publication.
 
-The ignored local `.agent-session.toml` narrows the task and grant. It never expands
-authority.
+## Root of trust
 
-## Scientific execution
+The real identity/approval root is outside the repository (operator instruction and
+protected review). Repository audit records are provenance and guardrails; they are not
+a cryptographic substitute for external identity when agents share owner credentials.
 
-Long/evidentiary runs require `kind = "scientific-run"` grants fixing exact code,
-run id, argv, scope and resource ceilings. `agentctl run exec` requires an exact
-matching command, a clean tree and `may_run_scientific_campaigns = true`.
+## Scientific runs
 
-A code-change grant cannot authorize a campaign. Held-out and confirmation data are
-owner-authorized data consumption, not ordinary agent commands.
+Long/evidentiary runs must pin an exact commit in a detached worktree, archive and hash
+the starting input before execution, pass memory/disk/concurrency preflight and keep one
+long campaign per machine by default.
 
-## Frozen evidence
+Use:
 
-If a directory under `experiments/` contains archived `results.json`, the entire
-directory is L4: runner, fixtures, protocol and result move together as immutable
-evidence. New work uses a new version/directory.
+    python scripts/agentctl.py run start --commit <sha> --id <run-id>       --scope development --snapshot-source <state-dir> --owner-approved -- <command>
 
-Design, research and contract/integrity-test surfaces require elevated authority.
-
-## Validation receipts
-
-`agentctl validate --staged` derives required commands from
-`validation-matrix.toml` and records a receipt bound to the exact staged Git tree.
-`agentctl check --staged` rejects a changed staged tree without a matching receipt.
-
-## Minimal-authority rule
-
-Choose the solution requiring the least scientific authority. Restoring a violated
-invariant is preferred to redesigning the organism.
+D1-v2 remains a tracked pre-launcher exception until its current run finishes.
