@@ -4,79 +4,100 @@
 
 Agents execute authorised work; they do not choose project direction.
 
-## L0 — Read-only
+## Levels
 
-May inspect, search, audit, compare and propose. No repository modification.
+### L0 — Read-only
 
-## L1 — Maintenance
+Inspection, audit, comparison and proposals. No repository modification.
 
-May perform changes that do not alter scientific or runtime semantics: spelling, links, formatting, indexes, accurate descriptive documentation, non-semantic test maintenance and local typing/lint clean-up.
+### L1 — Maintenance
 
-L1 must not change claims, protocols, thresholds, runtime behaviour or architectural ownership.
+Documentation, links, formatting, indexes and non-semantic maintenance. L1 may not
+change runtime semantics, scientific claims, protocol parameters, architecture
+ownership or project direction.
 
-## L2 — Contract-preserving implementation
+### L2 — Contract-preserving implementation
 
-May repair or implement behaviour whose desired result is already established by a prior authority source such as an accepted ADR, roadmap item, frozen design, regression contract or constitutional invariant.
+Implementation or repair whose desired behaviour is already fixed by an accepted ADR,
+roadmap item, frozen design, regression contract or constitutional invariant.
 
-Examples include approved durability fixes, execution-fingerprint fields, removing nominal label dependence from E8 physical RNG, or fixing loss of body-independent state during re-embodiment.
+### L3 — Scientific mechanism change
 
-L2 may not invent a new scientific success criterion or mechanism.
+Changes to cognition, learning, agency, physiology, sensory experience, model policy,
+World experience or another mechanism under study. Requires approved design and, when
+used as scientific evidence, preregistration before implementation/execution.
 
-## L3 — Scientific mechanism change
+### L4 — Constitutional / safety / direction change
 
-Includes changes to cognition, learning, agency, physiology, sensory experience, model promotion policy, World experience, or any mechanism under scientific study.
+Changes to permanent invariants, host/network/persistence authority, evaluator
+boundary, lifecycle identity, reproduction authority, project priorities, governance
+or global resource ownership.
 
-Requires documented evidence, explicit design, owner approval, preregistration where results will be used scientifically, and implementation only after approval.
+## Grants
 
-No L3 change is justified merely because an experiment was negative.
+L2-L4 authority is never accepted from a command-line `--authority` flag.
 
-## L4 — Constitutional / safety change
+The owner creates a grant in `docs/governance/authority-grants.toml` in a **prior
+commit**. A grant contains:
 
-Includes host permission expansion, network access/exchange, credentials, persistence/propagation authority, evaluator/subject boundary, reproduction authority, global resource-ceiling ownership, global reward/fitness, lifecycle identity semantics, constitutional invariants, and project roadmap authority.
+- unique id;
+- status;
+- exact base commit;
+- maximum authority;
+- allowed path globs;
+- purpose.
 
-Requires explicit owner decision and accepted ADR.
+The implementation commit names that grant in its local session manifest and commit
+trailer:
 
-## Authority sources
+```text
+Authority-Grant: <grant-id>
+```
 
-From strongest to weakest:
+`agentctl` reads the grant from the parent/base commit. A grant edited in the same
+change cannot authorise that change. Because the grant is tied to an exact base commit,
+it is single-use by construction after one new commit advances HEAD.
 
-1. current explicit owner instruction;
-2. accepted constitution/ADR;
-3. canonical roadmap and project-state;
-4. frozen experiment design/preregistration;
-5. active implementation contracts;
-6. research interpretation;
-7. historical documents.
+L1 is the default when no elevated grant exists.
 
-A later low-authority source does not override a higher one.
+## Session manifest
 
-## Minimal-authority rule
-
-When several solutions exist, choose the one requiring the least scientific authority. Restoring a violated invariant is preferred to redesigning the organism.
-
-## Session manifests
-
-A modifying agent should create an untracked local manifest when tooling is available:
+Use an untracked `.agent-session.toml`:
 
 ```toml
 session_id = "..."
-base_commit = "..."
 task = "..."
-authority = "L2"
-allowed_paths = ["src/symbiont_lab/world/**", "tests/experimental_integrity/**"]
+grant_id = "..."
+allowed_paths = ["..."]
 protocol_change = false
 claim_change = false
 may_run_scientific_campaigns = false
 ```
 
-Then use:
+The manifest may narrow a grant, never widen it.
 
-```bash
-python scripts/agentctl.py check --staged --authority L2 --manifest .agent-session.toml
-```
+## Authority precedence
 
-The manifest narrows authority; it never expands the level granted by the owner.
+1. explicit current owner decision;
+2. accepted Constitution/ADR;
+3. roadmap and project-state;
+4. frozen experiment design;
+5. implementation contract;
+6. research interpretation;
+7. historical documents.
+
+## Minimal-authority rule
+
+Choose the solution requiring the least scientific authority. Restoring a violated
+invariant is preferred to redesigning the organism.
+
+## Control-plane rule
+
+Governance code/configuration is protected. An agent cannot first weaken
+`agentctl`, CI, hooks, CODEOWNERS or governance metadata and then use that weakened
+version to approve the same change.
 
 ## Git
 
-Do not destroy unrelated work, force push, rewrite published evidence or delete negative results. Preserve scientific provenance in logical commits.
+Do not destroy unrelated work, rewrite published evidence, delete negative results or
+force-push scientific history. Preserve provenance in logical commits.
