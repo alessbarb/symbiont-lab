@@ -187,7 +187,10 @@ def test_mind_generative_cognition_is_separate_from_atlas_topology():
     assert ".mind-cognition-right-rail" in css
     assert "source?.cognition?.generative" in controller
     assert "renderGenerativePanel(source)" in controller
-    assert "Generative telemetry was not recorded for this frame" in controller
+    assert "Generative resident observed" in controller
+    assert "Generative activity observed earlier" in controller
+    assert "mind-generative-history" in controller
+    assert "mind-generative-flow" in controller
     assert "This is not evidence that generative cognition was inactive." in controller
     assert "generative=result.generative" in physics_runtime
     assert 'mind_cognition["generative"]' in projection
