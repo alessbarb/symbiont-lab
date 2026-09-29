@@ -104,3 +104,13 @@ python scripts/agentctl.py publish \
 
 If exactly one Accepted ADR is changed in the same task, `--adr` is auto-detected.
 The generated commit records `Governance-ADR:` provenance.
+
+
+### Trusted run coordination
+
+`run start` and `equivalence run` refresh and read active-work/resource policy from
+**origin/main**, not from an editable working-tree copy. A local agent cannot remove a
+RUNNING campaign or raise resource ceilings by changing uncommitted governance files.
+
+Any tracked RUNNING long campaign blocks a new long run, including reuse of the same
+run id; the registry must be updated after the previous execution is actually complete.

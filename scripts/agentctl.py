@@ -99,6 +99,19 @@ def load_at(ref: str, name: str) -> dict[str, Any]:
     return tomllib.loads(raw) if raw is not None else {}
 
 
+def _trusted_origin_governance(name: str) -> dict[str, Any]:
+    fetch = git_result("fetch", "origin", "main")
+    if fetch.returncode != 0:
+        raise RuntimeError(
+            "cannot refresh trusted origin/main governance state: "
+            + (fetch.stderr.strip() or "git fetch failed")
+        )
+    raw = git_show("origin/main", f"docs/governance/{name}")
+    if raw is None:
+        raise RuntimeError(f"trusted origin/main is missing docs/governance/{name}")
+    return tomllib.loads(raw)
+
+
 def matches(path: str, pattern: str) -> bool:
     return fnmatch.fnmatchcase(path, pattern)
 
@@ -656,10 +669,12 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
-def _tracked_running_other_than(run_id: str) -> list[str]:
+def _tracked_running() -> list[str]:
+    data = _trusted_origin_governance("active-work.toml")
     return [
-        str(w["id"]) for w in load("active-work.toml").get("work", [])
-        if w.get("state") == "RUNNING" and w.get("id") != run_id
+        str(work["id"])
+        for work in data.get("work", [])
+        if work.get("state") == "RUNNING"
     ]
 
 
@@ -744,7 +759,7 @@ def run_exec(
         print("policy requires POSIX hard memory limits", file=sys.stderr)
         return 1
 
-    others = _tracked_running_other_than(run_id)
+    others = _tracked_running()
     if others:
         print(f"tracked scientific run already active: {', '.join(others)}", file=sys.stderr)
         return 1
@@ -837,6 +852,19 @@ def run_pinned(
 
     if _run_lock_path().exists():
         print("BLOCKED — local scientific run lock already exists", file=sys.stderr)
+        return 3
+
+    if wall_minutes > int(policy.get("max_wall_minutes", 360)):
+        print("BLOCKED — requested wall time exceeds trusted policy", file=sys.stderr)
+        return 3
+    if memory_gb > float(policy.get("max_memory_gb", 12)):
+        print("BLOCKED — requested memory exceeds trusted policy", file=sys.stderr)
+        return 3
+    if cpu > int(policy.get("max_cpu_threads", 4)):
+        print("BLOCKED — requested CPU threads exceed trusted policy", file=sys.stderr)
+        return 3
+    if policy.get("require_posix_hard_memory_limit", True) and os.name != "posix":
+        print("BLOCKED — trusted policy requires POSIX hard memory limits", file=sys.stderr)
         return 3
 
     assessment = assess_resources(
@@ -1023,7 +1051,11 @@ def equivalence_status_command(suite: Path) -> int:
 
 
 def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
-    running = [work["id"] for work in load("active-work.toml").get("work", []) if work.get("state") == "RUNNING"]
+    try:
+        running = _tracked_running()
+    except RuntimeError as exc:
+        print(f"BLOCKED — {exc}", file=sys.stderr)
+        return 3
     if running:
         print("BLOCKED — long scientific work already RUNNING: " + ", ".join(running), file=sys.stderr)
         return 3

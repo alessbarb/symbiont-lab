@@ -98,3 +98,11 @@ def test_bootstrap_exceptions_are_exact() -> None:
         assert len(entry["sha"]) == 40
         int(entry["sha"], 16)
         assert entry["reason"]
+
+
+
+def test_resource_policy_uses_run_start() -> None:
+    with (GOV / "resource-policy.toml").open("rb") as handle:
+        policy = tomllib.load(handle)["scientific_runs"]
+    assert policy["launcher"] == "python scripts/agentctl.py run start"
+    assert policy["trusted_state"] == "origin/main"

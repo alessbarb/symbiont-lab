@@ -6,5 +6,6 @@ max_wall_minutes = 360
 max_memory_gb = 12
 max_cpu_threads = 4
 require_posix_hard_memory_limit = true
-launcher = "python scripts/agentctl.py run exec"
+trusted_state = "origin/main"
+launcher = "python scripts/agentctl.py run start"
 note = "Launcher enforces wall time, POSIX virtual-memory limits and CPU affinity where supported. Portable storage quotas and atomic cross-machine locking remain external-infrastructure limitations."
