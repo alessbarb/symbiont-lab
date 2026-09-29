@@ -748,7 +748,13 @@ def run_exec(
         print("scientific execution grant already has a local receipt; refusing replay", file=sys.stderr)
         return 1
 
-    policy = load("resource-policy.toml").get("scientific_runs", {})
+    try:
+        policy = _trusted_origin_governance("resource-policy.toml").get(
+            "scientific_runs", {}
+        )
+    except RuntimeError as exc:
+        print(f"BLOCKED — {exc}", file=sys.stderr)
+        return 1
     limit_wall = min(int(policy.get("max_wall_minutes", 360)), int(grant.get("max_wall_minutes", 360)))
     limit_mem = min(float(policy.get("max_memory_gb", 12)), float(grant.get("max_memory_gb", 12)))
     limit_cpu = min(int(policy.get("max_cpu_threads", 4)), int(grant.get("max_cpu_threads", 4)))
@@ -845,7 +851,14 @@ def run_pinned(
     if _equivalence_lock_path().exists():
         print("BLOCKED — causal-equivalence run already active", file=sys.stderr)
         return 3
-    others = _tracked_running_other_than(run_id)
+    try:
+        policy = _trusted_origin_governance("resource-policy.toml").get(
+            "scientific_runs", {}
+        )
+        others = _tracked_running()
+    except RuntimeError as exc:
+        print(f"BLOCKED — {exc}", file=sys.stderr)
+        return 3
     if others:
         print(f"BLOCKED — long scientific run already active: {', '.join(others)}", file=sys.stderr)
         return 3
