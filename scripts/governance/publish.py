@@ -69,11 +69,23 @@ def _classify(base: str) -> tuple[list[str], Assessment]:
     return paths, assess(ROOT, base, paths, diff)
 
 
-def _active_work_conflicts(paths: list[str]) -> list[str]:
-    registry = ROOT / "docs/governance/active-work.toml"
-    if not registry.is_file():
-        return []
-    data = tomllib.loads(registry.read_text(encoding="utf-8"))
+def _active_work_at(base: str) -> dict:
+    """Read active-work policy from the trusted publication baseline."""
+    result = subprocess.run(
+        ["git", "show", f"{base}:docs/governance/active-work.toml"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("trusted baseline is missing active-work.toml")
+    return tomllib.loads(result.stdout)
+
+
+def _active_work_conflicts(paths: list[str], base: str) -> list[str]:
+    data = _active_work_at(base)
     conflicts: list[str] = []
     for work in data.get("work", []):
         if work.get("state") != "RUNNING":
@@ -84,11 +96,8 @@ def _active_work_conflicts(paths: list[str]) -> list[str]:
     return conflicts
 
 
-def _running_long_work() -> list[str]:
-    registry = ROOT / "docs/governance/active-work.toml"
-    if not registry.is_file():
-        return []
-    data = tomllib.loads(registry.read_text(encoding="utf-8"))
+def _running_long_work(base: str) -> list[str]:
+    data = _active_work_at(base)
     return [str(work.get("id")) for work in data.get("work", []) if work.get("state") == "RUNNING"]
 
 
@@ -150,7 +159,7 @@ def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict[s
     if not scenarios:
         return True, {}
 
-    running = _running_long_work()
+    running = _running_long_work(base)
     if running:
         return False, {"suite": {"status": "NOT_ASSESSABLE_ACTIVE_RUN", "active_work": running}}
 
@@ -209,7 +218,7 @@ def _evaluate(
     if not paths:
         return assessment, ChangeClass.ORDINARY, {}
 
-    conflicts = _active_work_conflicts(paths)
+    conflicts = _active_work_conflicts(paths, base)
     if conflicts:
         raise RuntimeError(
             "ACTIVE-WORK: proposed diff touches a RUNNING campaign:\n  - "
