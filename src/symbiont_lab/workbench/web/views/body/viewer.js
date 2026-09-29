@@ -59,6 +59,8 @@ export class BodyViewer {
     this.dirLight = null;
     this.lightOffset = new THREE.Vector3(2, 4, 3);
     this.followBody = true;
+    this.compareViewportActive = false;
+    this.compareFollowBefore = null;
     this.followTarget = new THREE.Vector3();
     this.followDelta = new THREE.Vector3();
     
@@ -932,16 +934,57 @@ export class BodyViewer {
     }
   }
 
-  handleResize() {
-    if (!this.canvasWrap) return;
-    const w = this.canvasWrap.clientWidth;
-    const h = this.canvasWrap.clientHeight;
-    if (w === 0 || h === 0) return;
-    this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(w, h, false);
+  presentationViewportSize() {
+    if (!this.canvasWrap) return { width: 1, height: 1, fullWidth: 1 };
+    const fullWidth = Math.max(1, this.canvasWrap.clientWidth);
+    const height = Math.max(1, this.canvasWrap.clientHeight);
+    const width = this.compareViewportActive
+      ? Math.max(1, Math.floor(fullWidth * 0.5))
+      : fullWidth;
+    return { width, height, fullWidth };
   }
 
+  setAcquiredSelfComparePresentation(active) {
+    const next = Boolean(active && this.domain === 'embodiment');
+    if (next === this.compareViewportActive) return;
+    if (next) {
+      this.compareFollowBefore = this.followBody;
+      this.followBody = true;
+    } else if (this.compareFollowBefore !== null) {
+      this.followBody = this.compareFollowBefore;
+      this.compareFollowBefore = null;
+    }
+    this.compareViewportActive = next;
+    this.handleResize();
+    if (next) {
+      requestAnimationFrame(() => {
+        if (!this.unmounted) this.resetCameraToBody();
+      });
+    }
+  }
+
+  applyPresentationViewport() {
+    if (!this.renderer || !this.canvasWrap) return;
+    const { width, height, fullWidth } = this.presentationViewportSize();
+    if (this.compareViewportActive) {
+      this.renderer.setScissorTest(true);
+      this.renderer.setViewport(0, 0, width, height);
+      this.renderer.setScissor(0, 0, width, height);
+    } else {
+      this.renderer.setScissorTest(false);
+      this.renderer.setViewport(0, 0, fullWidth, height);
+    }
+  }
+
+  handleResize() {
+    if (!this.canvasWrap || !this.camera || !this.renderer) return;
+    const { width, height, fullWidth } = this.presentationViewportSize();
+    if (fullWidth === 0 || height === 0) return;
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(fullWidth, height, false);
+    this.applyPresentationViewport();
+  }
   observeDenseProducer(tick, receivedAt, tickSpanMs) {
     if (!Number.isFinite(tick) || !Number.isFinite(tickSpanMs) || tickSpanMs <= 0) return;
 
@@ -1654,6 +1697,7 @@ export class BodyViewer {
     this.camera.updateMatrixWorld();
     this.updateResourceIndicator();
     this.worldView?.update();
+    this.applyPresentationViewport();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -1725,6 +1769,8 @@ export class BodyViewer {
 
     // Release data structures and Three.js object references.
     this.camera = null;
+    this.compareViewportActive = false;
+    this.compareFollowBefore = null;
     this.baseNode = null;
     this.dirLight = null;
     this.canvas = null;
