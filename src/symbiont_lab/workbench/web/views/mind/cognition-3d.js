@@ -265,14 +265,14 @@ export function relaxCognition3D(
         1,
       );
       const inertia = mode === 'physicalized'
-        ? 0.82 + (1 - plasticity) * 0.08
-        : 0.86;
+        ? 0.70 + (1 - plasticity) * 0.08
+        : 0.74;
 
       velocity.x = (velocity.x + force.x) * inertia;
       velocity.y = (velocity.y + force.y) * inertia;
       velocity.z = (velocity.z + force.z) * inertia;
 
-      const maxStep = 8;
+      const maxStep = 4;
       const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
       if (speed > maxStep) {
         const factor = maxStep / speed;
