@@ -1,6 +1,7 @@
 import { escapeHtml } from '../shared/dom.js';
 import { SelfModelWorkspace } from './self-model.js';
 import { ActionDiscoveryPanel } from '../embodiment/discovery.js';
+import { selfViewSegmentRecord } from './self-view.js';
 
 /**
  * Embodiment / World research workspace.
@@ -340,8 +341,24 @@ export class BodyWorkspace {
       return `<div class="body-row"><span>${escapeHtml(joint.name.replaceAll('_',' '))}</span><strong>${value}</strong></div>`;
     }).join('');
     const diagnosticLabel = this.viewer.articulationDiagnostic ? 'Return to live pose' : 'Visual articulation check';
+    const acquired = selected ? selfViewSegmentRecord(this.selfModel.snapshot, selected) : null;
+    const acquiredItem = acquired?.item ?? null;
+    const acquiredSummary = selected
+      ? `<div class="body-section apparatus-acquired-bridge">
+          <div class="body-section-title">Acquired correspondence · observer projection</div>
+          ${acquiredItem
+            ? `<div class="body-row"><span>Mapped learned channels</span><strong>${acquiredItem.learned_channels_mapped} / ${acquiredItem.physical_channels_expected}</strong></div>
+               <div class="body-row"><span>Coverage</span><strong>${Math.round((acquiredItem.coverage ?? 0) * 100)}%</strong></div>
+               <div class="body-row"><span>Stability</span><strong>${Math.round((acquiredItem.stability ?? 0) * 100)}%</strong></div>
+               <div class="body-row"><span>Agency</span><strong>${Math.round((acquiredItem.agency ?? 0) * 100)}%</strong></div>
+               <div class="body-row"><span>Action dimensions</span><strong>${acquiredItem.agentic_dimensions} / ${acquiredItem.action_dimensions}</strong></div>`
+            : '<div class="body-inspector-sub">No acquired correspondence is currently exported for this physical region.</div>'}
+          <button type="button" class="body-segment apparatus-open-acquired" data-open-acquired-self="${escapeHtml(selected)}">Open in Acquired Self →</button>
+          <div class="body-inspector-sub">The anatomical region name remains observer-side. The organism holds only opaque evidence and relations.</div>
+        </div>`
+      : '<div class="body-section apparatus-acquired-bridge"><div class="body-section-title">Physical ↔ acquired</div><div class="body-inspector-sub">Select a physical region to compare apparatus truth with the evidence Symbiont has acquired about that region.</div></div>';
 
-    this.panel.innerHTML = this.head('Embodiment · Apparatus', 'Inspectable apparatus morphology', 'Real joint angles from Physics3D. Activity and flexion are shown separately.') +
+    this.panel.innerHTML = this.head('Embodiment · Apparatus', 'Inspectable apparatus morphology', 'Real apparatus truth alongside acquired correspondence. Observer anatomy never becomes organism semantics.') +
       `<div class="body-section"><div class="body-section-title">Articulation</div>
         <div class="body-row"><span>Flexed joints ≥10°</span><strong>${flexion.flexed} / ${flexion.joints.length}</strong></div>
         <div class="body-row"><span>Largest absolute angle</span><strong>${flexion.max ? `${escapeHtml(flexion.max.name.replaceAll('_',' '))} · ${flexion.max.degrees.toFixed(1)}°` : '—'}</strong></div>
@@ -350,9 +367,17 @@ export class BodyWorkspace {
       </div>` +
       `<div class="body-section"><div class="body-section-title">Largest current angles</div>${leading || '<div class="body-inspector-sub">No joint-angle telemetry yet.</div>'}</div>` +
       `<div class="body-section"><div class="body-section-title">Body regions</div><div class="body-segment-grid">${names.map(name => `<button class="body-segment ${selected===name?'active':''}" data-segment="${escapeHtml(name)}">${escapeHtml(name.replaceAll('_',' '))}</button>`).join('')}</div></div>` +
-      `<div class="body-section"><div class="body-section-title">Selection</div><div class="body-row"><span>Region</span><strong>${escapeHtml(selected ?? 'none')}</strong></div><div class="body-row"><span>Associated joints</span><strong>${joints.length}</strong></div><div class="body-row"><span>Currently active</span><strong>${active}</strong></div>${selectedJointRows}</div>`;
+      `<div class="body-section"><div class="body-section-title">Selection</div><div class="body-row"><span>Region</span><strong>${escapeHtml(selected ?? 'none')}</strong></div><div class="body-row"><span>Associated joints</span><strong>${joints.length}</strong></div><div class="body-row"><span>Currently active</span><strong>${active}</strong></div>${selectedJointRows}</div>` +
+      acquiredSummary;
 
     this.panel.querySelectorAll('[data-segment]').forEach(b => b.addEventListener('click', () => this.selectSegment(b.dataset.segment)));
+    this.panel.querySelector('[data-open-acquired-self]')?.addEventListener('click', (event) => {
+      const segment = event.currentTarget.dataset.openAcquiredSelf;
+      this.selfModel.route('self:self-view');
+      this.selfModel.selfViewPane = 'composite';
+      this.selfModel.selectedId = segment ? `segment|${segment}` : null;
+      this.setTab('self-model');
+    });
     this.panel.querySelector('[data-articulation-diagnostic]')?.addEventListener('click', () => {
       this.viewer.setArticulationDiagnostic?.(!this.viewer.articulationDiagnostic);
     });
