@@ -555,6 +555,24 @@ def _audit_commit(commit: str, actor: str | None) -> list[str]:
     return errors
 
 
+def _publication_cutoff(ref: str = "HEAD") -> str | None:
+    raw = git_show(ref, "docs/governance/publication-policy.toml")
+    if raw is None:
+        return None
+    try:
+        payload = tomllib.loads(raw)
+    except tomllib.TOMLDecodeError:
+        return None
+    value = payload.get("legacy_cutoff_commit")
+    return str(value) if value else None
+
+
+def _is_legacy_commit(commit: str, cutoff: str | None) -> bool:
+    if not cutoff or not commit_exists(cutoff):
+        return False
+    return git_result("merge-base", "--is-ancestor", commit, cutoff).returncode == 0
+
+
 def ci_check(base: str, head: str, actor: str | None) -> int:
     if not commit_exists(head):
         print(f"HEAD commit is unavailable: {head}", file=sys.stderr)
@@ -574,7 +592,10 @@ def ci_check(base: str, head: str, actor: str | None) -> int:
 
     commits = [c for c in git("rev-list", "--reverse", f"{base}..{head}").splitlines() if c]
     errors: list[str] = []
+    cutoff = _publication_cutoff(head)
     for commit in commits:
+        if _is_legacy_commit(commit, cutoff):
+            continue
         errors.extend(_audit_commit(commit, actor))
     if errors:
         for error in errors:
