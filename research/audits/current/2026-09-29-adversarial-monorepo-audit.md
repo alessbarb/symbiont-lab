@@ -2,9 +2,9 @@
 
 ## Estado y alcance
 
-**Resultado: seis hallazgos anteriores corregidos y los seis nuevos hallazgos de esta revisión (A01-A06) completamente resueltos y verificados con pruebas específicas y de regresión en commits atómicos dedicados. No se declara el monorepo libre de defectos.**
+**Resultado: seis hallazgos anteriores corregidos y los seis nuevos hallazgos de esta revisión (A01-A06) corregidos y verificados en los escenarios cubiertos con pruebas específicas y de regresión en commits atómicos dedicados. No se declara el monorepo libre de defectos.**
 
-Base de las correcciones: `d3dac186`. Durante el trabajo entró el commit documental externo `36b3eb21`; se preservó. Código corregido de la primera ronda: `5304304a`, con narrowing tipado en `e52478c3` y referencias documentales en `035942a5`. Resoluciones de la segunda ronda (A01-A06): `eb827a94`, `498ab854`, `9a7ee2c9`, `1643b6f7`, `4ab38690`, `f2530793`. No se hizo push.
+Base de las correcciones: `d3dac186`. Durante el trabajo entró el commit documental externo `36b3eb21`; se preservó. Código corregido de la primera ronda: `5304304a`, con narrowing tipado en `e52478c3` y referencias documentales en `035942a5`. Resoluciones de la segunda ronda (A01-A06): `eb827a94`, `498ab854`, `9a7ee2c9`, `1643b6f7`, `4ab38690`, `f2530793`. Esta sesión no ejecutó push; al reanudar, el historial concurrente ya situaba `origin/main` en `4331f500`. Los commits posteriores de esta sesión permanecen locales.
 
 La revisión cubre límites arquitectónicos, continuidad, persistencia, reproducción, observación, estudios y configuración de pruebas. Combina lectura dirigida, análisis AST, diagnósticos estáticos, pruebas existentes y reproducciones adversarias pequeñas. No equivale a revisión manual de cada línea ni certificación de seguridad. No se ejecutaron campañas científicas completas, pruebas en otros sistemas operativos, ataques a servicios reales ni análisis de vulnerabilidades de dependencias publicado en Internet. Los escenarios destructivos se simularon con dobles o directorios temporales.
 
@@ -68,7 +68,7 @@ Límites deliberados: los bundles históricos sin manifiesto/1.0 carecen de hash
 - **Impacto:** se pierden orientación, radio y origen de emisión; no existe continuidad equivalente de ese estado. Es una API pública exportada desde `symbiont_world.__init__`.
 - **Límite de alcance:** Lab tiene un checkpoint persistente diferente. No se ha demostrado que esta omisión afecte a los guardados de población de Lab; no debe extrapolarse a esa ruta.
 - **Corrección recomendada:** serializar/validar todo el estado causal propiedad de World y probar continuación, no solo ocupación y tick.
-- **Certeza:** reproducción directa. **Estado:** Corregido (`4ab38690`). `WorldCheckpoint` serializa `bodies` de forma inmutable y `restore` reinstancia las colocaciones corporales. Pruebas en `tests/unit/world/test_checkpoint.py` y `tests/integration/test_world_checkpoint_continuation.py`.
+- **Certeza:** reproducción directa. **Estado:** Corregido (`4ab38690`). `WorldCheckpoint` captura `bodies` mediante copia profunda y un mapping de solo lectura y `restore` reinstancia las colocaciones corporales. Pruebas en `tests/unit/world/test_checkpoint.py` y `tests/integration/test_world_checkpoint_continuation.py`.
 
 ### A06 — Media: el estudio prospectivo encarnado falla en su primer tick
 
@@ -91,7 +91,7 @@ Límites deliberados: los bundles históricos sin manifiesto/1.0 carecen de hash
 | Host y despliegue | Superficies Linux acotadas e IDs opacos; servicio de usuario con restricciones; búsquedas de ejecución/serialización | Sin operación sobre host real ni instalación de servicios |
 | CI / tests / scripts | Ruff, Bandit, selección efectiva de pytest y suite predeterminada | No matriz CI remota ni cobertura de todas las campañas |
 
-Bandit: dos avisos LOW (B404/B603) en `scripts/reprofile_performance.py`; no se han convertido en vulnerabilidades sin demostrar una entrada adversaria. Su configuración omite varias familias de reglas, de modo que una salida casi vacía no certifica seguridad. Ruff final: ocho diagnósticos, siete de imports/formato y el F821 de A06; no se corrigieron problemas ajenos automáticamente.
+Bandit: dos avisos LOW (B404/B603) en `scripts/reprofile_performance.py`; no se han convertido en vulnerabilidades sin demostrar una entrada adversaria. Su configuración omite varias familias de reglas, de modo que una salida casi vacía no certifica seguridad. Ruff antes de corregir A01–A06: ocho diagnósticos, siete de imports/formato y el F821 de A06; no se corrigieron problemas ajenos automáticamente.
 
 ## Validación
 
@@ -105,7 +105,11 @@ Bandit: dos avisos LOW (B404/B603) en `scripts/reprofile_performance.py`; no se 
 - Revalidación tras narrowing: **13 passed** (reproducción, autoridad y frontera de propiedad).
 - Enlaces Markdown: inicialmente detectó una referencia rota por el traslado de autoridad; corregida en `035942a5`, reejecución **1 passed**.
 - Base archivada `d3dac186`, suite predeterminada: **2839 passed, 6 failed, 10 skipped, 1 xfailed**, 974 s. Uno de los fallos es propio del método de aislamiento: la comprobación documental necesita `.git`, ausente en `git archive`. Los otros cinco corresponden a dos tests de retracción de readouts y los tres de reembodiment. Los subprocess CLI pueden resolver el ejecutable editable del checkout: esta base no es prueba de aislamiento hermético de todos los procesos.
-- Estado de suite predeterminada del checkout y actualización del grafo: pendiente de consolidar al cerrar el informe.
+- Suite predeterminada iniciada antes de cerrar correcciones/documentación: **2866 passed, 9 failed, 10 skipped, 1 xfailed**, 775 s. Cuatro fallos documentales por referencias trasladadas, dos de retracción y tres de reembodiment. El checkout recibió modificaciones concurrentes durante esta ejecución: no representa una validación congelada del HEAD actual. Las referencias documentales y otros fallos recibieron commits posteriores; no se declara verde la suite completa final.
+- Revalidación actual tras las seis correcciones: **145 passed** (shutdown, clasificación pytest, exportación JS, World, continuación, primer tick del estudio y enlaces/fuentes documentales).
+- Seguimiento A04: dos regresiones nuevas fallaron antes del cambio y pasan después. Suite unitaria de observación: **67 passed, 9 deselected**. `b0a3603e` elimina la presuposición de que un cursor SSE garantiza todas las bases del cliente; conserva historia materializada acotada y establece bases solo para canales realmente enviados. Trade-off: más bytes por entrada histórica y por replay, sin cambiar la compresión del stream vivo ni el número máximo de entradas.
+- El checkpoint de World protege el mapping y separa objetos mediante copia profunda; no hace inmutables los campos de cada `BodyPlacement`. No hay migración que invente los cuerpos ausentes en checkpoints antiguos.
+- El primer tick de A06 también reveló un campo obsoleto: se sustituyó `cognitive_motor_competence_candidates` por `motor_competences`, campo real de `Tick3D`.
 
 ## Estado final de la intervención
 
@@ -115,5 +119,5 @@ Las seis intervenciones recomendadas han sido implementadas, verificadas y conso
 2. **A02 (`498ab854`):** Corrección de filtro de lentitud en `conftest.py` y workflow de CI para ejecución explícita de `tests/experimental_integrity` (150 passed).
 3. **A03 (`9a7ee2c9`):** Congelación y validación de contexto inmutable de exportación antes de llamadas asíncronas en `observatory/ui/exports.js`. Pruebas en `test_observatory_export_identity.py` (9 passed).
 4. **A04 (`1643b6f7`):** Rebase defensivo de canales dependientes ante desbordamiento de cola y truncado de reconexión en `ObservationBus`. Pruebas en `test_live_delta.py` y `test_world_scene.py` (25 passed).
-5. **A05 (`4ab38690`):** Inclusión inmutable de `bodies` en `WorldCheckpoint` y restauración íntegra de `WorldState`. Pruebas en `test_checkpoint.py` y `test_world_checkpoint_continuation.py` (7 passed).
+5. **A05 (`4ab38690`):** Inclusión de una copia independiente de `bodies` en `WorldCheckpoint` y restauración íntegra de `WorldState`. Pruebas en `test_checkpoint.py` y `test_world_checkpoint_continuation.py` (7 passed).
 6. **A06 (`f2530793`):** Sustitución del identificador no definido `slm` por `private_model_training.poll(runtime.organism)` en el estudio prospectivo encarnado. Prueba de contrato de 1 tick en `test_prospective_embodied_warmup.py` (1 passed).
