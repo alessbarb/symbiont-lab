@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import signal
+import shutil
 import subprocess
 import sys
 import time
@@ -847,6 +848,14 @@ def run_pinned(
         source_commit=commit,
         scenario=scope,
     )
+    work_dir = run_root / "work"
+    shutil.copytree(input_dir, work_dir, copy_function=shutil.copy2)
+    for path in work_dir.rglob("*"):
+        if path.is_file():
+            try:
+                path.chmod(0o644)
+            except OSError:
+                pass
 
     payload = {
         "id": run_id,
@@ -865,9 +874,13 @@ def run_pinned(
     if _reserve_run_lock(payload):
         return 1
 
-    argv = [str(input_dir) if token == "{input}" else token for token in command]
+    argv = [
+        str(input_dir) if token == "{input}" else str(work_dir) if token == "{work}" else token
+        for token in command
+    ]
     env = os.environ.copy()
     env["SYMBIONT_RUN_INPUT"] = str(input_dir)
+    env["SYMBIONT_RUN_WORK"] = str(work_dir)
     env["SYMBIONT_RUN_ID"] = run_id
     for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
         env[key] = str(cpu)
