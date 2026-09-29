@@ -99,7 +99,7 @@ export function renderArchive(root, state = null) {
   header.innerHTML = `
     <div>
       <p class="eyebrow">Archive</p>
-      <h1>Experiment and study history</h1>
+      <h1>Developmental history</h1>\n      <p class="view-subtitle">How this organism became what it is: runs, studies, embodiment changes and persisted evidence.</p>
     </div>
   `;
   shell.appendChild(header);
@@ -108,11 +108,11 @@ export function renderArchive(root, state = null) {
   grid.className = 'archive-grid';
   grid.append(
     archivePanel(
-      'Recorded runs',
+      'Experience & World runs',
       renderRunTable(state?.records ?? [], 'No experiments recorded yet.'),
     ),
     archivePanel(
-      'Comparative studies',
+      'Scientific studies',
       renderStudyTable(
         state?.study?.records ?? [],
         'No comparative studies recorded yet.',
