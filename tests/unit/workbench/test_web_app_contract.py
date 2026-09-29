@@ -422,3 +422,11 @@ def test_vision_modes_are_interactive_and_passively_observed():
     assert "Visual attribution is intentionally not inferred" in vision
     assert "Per-receptor luminance samples are currently consumed by the runtime but are not exported" in vision
     assert "((i * 17 + 11) % 9)" not in vision
+
+
+def test_archive_development_events_link_back_to_live_contexts():
+    archive = _read("views/archive/render.js")
+    assert "routeForRun" in archive
+    assert "data-archive-open" in archive
+    assert "Open context" in archive
+    assert "Open Mind" in archive
