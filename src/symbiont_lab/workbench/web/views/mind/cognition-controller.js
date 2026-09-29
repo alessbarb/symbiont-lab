@@ -1951,6 +1951,7 @@ export function createCognitionController({
       const flowEdge = flowTrace.edgeKeys.has(edgeKey);
       if (graph.flowTraceEnabled && !flowEdge && !pathEdge) continue;
       if (sparseEdgeKeys && !sparseEdgeKeys.has(edgeKey) && !pathEdge) continue;
+      if (sparseEdgeKeys && !sparseEdgeKeys.has(edgeKey) && !pathEdge) continue;
       const endpointsVisible =
         visibleIds.has(edge.source.id) && visibleIds.has(edge.target.id);
       if (!sectorFocus && detailLevel === 'regions' && !focusId && !pathEdge) continue;
