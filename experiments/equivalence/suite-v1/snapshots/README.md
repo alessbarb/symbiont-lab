@@ -8,8 +8,11 @@ A valid reference requires:
 ```text
 organism.symbiont
 body.json
-models/
 ```
+
+The portable organism bundle already carries its model artifacts. A sibling `models/`
+directory is optional and is archived when present. The snapshot manifest hashes the
+embedded model tree separately from any external model directory.
 
 Capture archives the files atomically, records SHA-256 digests and the commit that
 produced the state, then makes the archived files read-only.
