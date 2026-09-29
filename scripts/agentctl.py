@@ -8,6 +8,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import re
 import signal
 import shutil
 import subprocess
@@ -499,6 +500,57 @@ def _trailer(message: str, name: str) -> str | None:
     return None
 
 
+def _governance_adr_valid(ref: str, path: str) -> bool:
+    candidate = PurePosixPath(path)
+    if (
+        candidate.is_absolute()
+        or ".." in candidate.parts
+        or len(candidate.parts) < 3
+        or candidate.parts[0:2] != ("docs", "adr")
+        or not candidate.name.startswith("ADR-")
+        or candidate.suffix.lower() != ".md"
+    ):
+        return False
+    raw = git_show(ref, candidate.as_posix())
+    if raw is None:
+        return False
+    return bool(
+        re.search(
+            r"(?im)^-\s*\*\*Status:\*\*\s*Accepted\s*$|^Status:\s*Accepted\s*$",
+            raw,
+        )
+    )
+
+
+def _equivalence_evidence_errors(
+    parent: str,
+    assessment: Any,
+    raw: str | None,
+) -> list[str]:
+    required = tuple(str(item) for item in assessment.equivalence_scenarios)
+    if not required:
+        return ["scientific-sensitive diff has no covering equivalence scenario"]
+    if not raw:
+        return ["scientific-sensitive diff downgraded without equivalence evidence"]
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return ["equivalence evidence trailer is not valid JSON"]
+    if not isinstance(payload, dict):
+        return ["equivalence evidence trailer must be a JSON object"]
+
+    meta = payload.get("_meta")
+    if not isinstance(meta, dict) or meta.get("baseline_commit") != parent:
+        return ["equivalence evidence baseline does not match commit parent"]
+
+    errors: list[str] = []
+    for scenario in required:
+        evidence = payload.get(scenario)
+        if not isinstance(evidence, dict) or evidence.get("status") != "PASS":
+            errors.append(f"equivalence scenario {scenario!r} is missing or not PASS")
+    return errors
+
+
 def _owner_grant_issuance(commit: str, actor: str | None) -> bool:
     parent = parent_of(commit)
     if not parent:
@@ -559,6 +611,19 @@ def _audit_commit(commit: str, actor: str | None) -> list[str]:
     message = git("show", "-s", "--format=%B", commit)
     governance_class = _trailer(message, "Governance-Class")
     if governance_class:
+        if governance_class not in {"ORDINARY", "SCIENTIFIC", "CONSTITUTIONAL"}:
+            return [f"{commit[:12]}: invalid Governance-Class {governance_class!r}"]
+
+        active_errors: list[str] = []
+        for path in paths:
+            blocked = _path_blocked_by_active(path, parent, None)
+            if blocked:
+                active_errors.append(
+                    f"{commit[:12]}: {path} modifies active run {blocked}"
+                )
+        if active_errors:
+            return active_errors
+
         owner_approval = _trailer(message, "Owner-Approval")
         diff_text = git("diff", parent, commit)
         assessment = assess_change(ROOT, parent, paths, diff_text)
@@ -568,10 +633,21 @@ def _audit_commit(commit: str, actor: str | None) -> list[str]:
         if expected == ChangeClass.CONSTITUTIONAL and governance_class != "CONSTITUTIONAL":
             return [f"{commit[:12]}: constitutional diff mislabeled as {governance_class}"]
         if expected == ChangeClass.SCIENTIFIC and governance_class == "ORDINARY":
-            if not _trailer(message, "Equivalence-Evidence"):
-                return [f"{commit[:12]}: scientific-sensitive diff downgraded without equivalence evidence"]
+            evidence_errors = _equivalence_evidence_errors(
+                parent,
+                assessment,
+                _trailer(message, "Equivalence-Evidence"),
+            )
+            if evidence_errors:
+                return [f"{commit[:12]}: {error}" for error in evidence_errors]
         if governance_class in {"SCIENTIFIC", "CONSTITUTIONAL"} and owner_approval != "explicit":
             return [f"{commit[:12]}: {governance_class} change lacks explicit owner approval"]
+        if governance_class == "CONSTITUTIONAL":
+            adr = _trailer(message, "Governance-ADR")
+            if not adr:
+                return [f"{commit[:12]}: constitutional change lacks Governance-ADR"]
+            if not _governance_adr_valid(commit, adr):
+                return [f"{commit[:12]}: Governance-ADR is missing, outside docs/adr, or not Accepted"]
         return []
 
     grant_id = _trailer(message, "Authority-Grant")

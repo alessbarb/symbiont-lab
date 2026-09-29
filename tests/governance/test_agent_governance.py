@@ -127,3 +127,57 @@ def test_trusted_governance_helpers_share_explicit_ref(monkeypatch) -> None:
     policy = ctl._trusted_governance_at(ref, "resource-policy.toml")
     assert policy["scientific_runs"]["max_memory_gb"] == 12
     assert {item[0] for item in calls} == {ref}
+
+
+
+def test_equivalence_evidence_requires_matching_parent_and_passes() -> None:
+    ctl = _agentctl()
+
+    class Assessment:
+        equivalence_scenarios = ("s1", "s2")
+
+    parent = "a" * 40
+    valid = {
+        "_meta": {"baseline_commit": parent},
+        "s1": {"status": "PASS"},
+        "s2": {"status": "PASS"},
+    }
+    assert ctl._equivalence_evidence_errors(parent, Assessment(), __import__("json").dumps(valid)) == []
+
+    wrong_parent = {
+        "_meta": {"baseline_commit": "b" * 40},
+        "s1": {"status": "PASS"},
+        "s2": {"status": "PASS"},
+    }
+    assert ctl._equivalence_evidence_errors(
+        parent, Assessment(), __import__("json").dumps(wrong_parent)
+    )
+    missing = {
+        "_meta": {"baseline_commit": parent},
+        "s1": {"status": "PASS"},
+    }
+    assert ctl._equivalence_evidence_errors(
+        parent, Assessment(), __import__("json").dumps(missing)
+    )
+
+
+def test_governance_adr_must_be_accepted_inside_docs_adr(monkeypatch) -> None:
+    ctl = _agentctl()
+    monkeypatch.setattr(
+        ctl,
+        "git_show",
+        lambda ref, path: "- **Status:** Accepted\n" if path == "docs/adr/ADR-9999-test.md" else None,
+    )
+    assert ctl._governance_adr_valid("a" * 40, "docs/adr/ADR-9999-test.md")
+    assert not ctl._governance_adr_valid("a" * 40, "../ADR-9999-test.md")
+    assert not ctl._governance_adr_valid("a" * 40, "docs/adr/not-an-adr.md")
+
+
+def test_active_run_path_is_blocked_for_governance_class_commits() -> None:
+    ctl = _agentctl()
+    blocked = ctl._path_blocked_by_active(
+        "src/symbiont_lab/studies/learning/visual_acquisition.py",
+        "HEAD",
+        None,
+    )
+    assert blocked == "visual-acquisition-d1-v2"
