@@ -12,6 +12,8 @@ import { graph, observerUsage } from './state.js';
 export function createCognitionInteraction({
   onInvalidate3D = () => {},
   onRebuild = () => {},
+  onSelectionChange = () => {},
+  onRegionFocusChange = () => {},
   onRenderInspector = () => {},
   onSchedule = () => {},
 } = {}) {
@@ -85,7 +87,6 @@ export function createCognitionInteraction({
         graph.panY = y - (y - graph.panY) * (ns / graph.scale);
         graph.scale = ns;
       }
-      graph.alpha = Math.max(graph.alpha, 0.1);
       onSchedule?.();
     }, { passive: false });
   
@@ -127,7 +128,6 @@ export function createCognitionInteraction({
           graph.camera3d = orbitCamera(graph.camera3d, dx, dy);
           orbitLastX = x;
           orbitLastY = y;
-          graph.alpha = Math.max(graph.alpha, 0.08);
           onSchedule?.();
         } else {
           graph.hoveredNode = findNode(x, y);
@@ -141,7 +141,7 @@ export function createCognitionInteraction({
         draggedNode.x = (x - graph.panX) / graph.scale;
         draggedNode.y = (y - graph.panY) / graph.scale;
         draggedNode.vx = draggedNode.vy = 0;
-        graph.alpha = Math.max(graph.alpha, 0.4);
+        graph.alpha = Math.max(graph.alpha, 0.16);
         onSchedule?.();
       } else if (isPanning) {
         graph.panX = x - panStartX;
@@ -164,10 +164,8 @@ export function createCognitionInteraction({
       if (clicked) {
         graph.selectedNodeId = graph.selectedNodeId === clicked.id ? null : clicked.id;
         if (graph.selectedNodeId) recordObserverUsage(observerUsage, 'selection');
-        const graphCanvas = document.getElementById('mind-cognition-canvas');
-        if (graphCanvas) onRebuild?.(graphCanvas.width || 900, graphCanvas.height || 600);
+        onSelectionChange?.(graph.selectedNodeId);
         onRenderInspector?.();
-        graph.alpha = Math.max(graph.alpha, 0.08);
         onSchedule?.();
       } else if (clickedRegion) {
         recordObserverUsage(observerUsage, 'region-focus');
@@ -177,12 +175,15 @@ export function createCognitionInteraction({
         graph.selectedNodeId = null;
         graph.autoFramePending = true;
         graph.manualViewOverride = false;
+        onSelectionChange?.(null);
+        onRegionFocusChange?.(graph.focusedSectorId);
         onRenderInspector?.();
-        graph.alpha = Math.max(graph.alpha, 0.12);
         onSchedule?.();
       } else if (!pressedNode && dragDist < 5) {
         graph.selectedNodeId = null;
         graph.focusedSectorId = null;
+        onSelectionChange?.(null);
+        onRegionFocusChange?.(null);
         onRenderInspector?.();
       }
       pressedNode = null;
