@@ -1154,7 +1154,7 @@ export function createCognitionController({
 
   function currentAtlasEdgeScore(edge, tick) {
     if (graph.atlasMode !== 'diff') {
-      return atlasEdgeScore(edge, graph.atlasMode, tick);
+      return atlasEdgeScore(edge, graph.atlasMode, tick, graph.atlasSignals);
     }
     const key = atlasEdgeKey(edge);
     if ((graph.atlasDiff?.addedEdges ?? []).includes(key)) return 1;
