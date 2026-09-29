@@ -53,6 +53,37 @@ final organism state, provenance and body must be byte-identical. The
 paired value is logged for every training whose current ACTIVE has a
 tokenizer on disk, promoted or not.
 
+**D1 result (2026-09-29; design data only).** The *on* copy was first
+killed by systemd-oomd (memory pressure from two parallel runs; 7 rows
+kept in `archive/d1/on-oomkilled/`) and rerun alone. *on* and *off* then
+ended byte-identical (organism `runtime.json`, provenance, body and
+measurement at tick 2 090): the instrument is observational. 31 trainings
+in 985 ticks, **all 31 promoted**; candidates beat the baseline by a median
+0.44 nats.
+
+Paired difference ACTIVE − candidate on the candidate's held-out split
+(> 0: candidate better): min −0.161, p10 −0.076, p25 −0.036, **median
++0.002**, p75 +0.069, max +0.775. **15/31 promoted candidates were worse
+than the ACTIVE they replaced.** The fraction of held-out targets unknown
+to the ACTIVE's tokenizer ranges 1.4-8.6 % (median 2.7 %) and correlates
+with the difference (r = 0.63): part of the candidate's apparent advantage
+is vocabulary mismatch, not better prediction.
+
+Candidates that would pass a margin *m*: 16/31 at 0, 13 at 0.02, 11 at
+0.05, 4 at 0.10, 2 at 0.20.
+
+**Proposal (owner decision before confirmation).** (1) Compare candidate
+and ACTIVE on a common footing: loss restricted to held-out outcome targets
+known to both tokenizers (reported alongside the full losses), because the
+current paired value favours the candidate when the ACTIVE lacks tokens.
+(2) Fix the margin on that fair metric. D1 was measured on full losses, so
+a margin fixed now would be calibrated on a biased quantity; the cheapest
+correct route is to extend the instrument with the restricted loss and
+repeat D1 *on* once (≈ 45 min, same archived input), then fix the margin
+from the interquartile half-width of the fair differences. A provisional
+value from the current data would be ≈ 0.05 nats (half the interquartile
+range, 11/31 promotions).
+
 ## 5. Confirmation (to be preregistered after D1)
 
 New data only: a different organism or snapshot, arms current gate vs
