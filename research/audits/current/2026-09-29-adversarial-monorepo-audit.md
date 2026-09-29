@@ -109,6 +109,7 @@ Bandit: dos avisos LOW (B404/B603) en `scripts/reprofile_performance.py`; no se 
 - Integridad experimental revalidada sobre el estado actual, selección explícita y ejecución secuencial: **150 passed**, 58 s.
 - Revalidación actual tras las seis correcciones: **145 passed** (shutdown, clasificación pytest, exportación JS, World, continuación, primer tick del estudio y enlaces/fuentes documentales).
 - Seguimiento A04: dos regresiones nuevas fallaron antes del cambio y pasan después. Suite unitaria de observación: **67 passed, 9 deselected**. `b0a3603e` elimina la presuposición de que un cursor SSE garantiza todas las bases del cliente; conserva historia materializada acotada y establece bases solo para canales realmente enviados. Trade-off: más bytes por entrada histórica y por replay, sin cambiar la compresión del stream vivo ni el número máximo de entradas.
+- Smoke de servidor unificado y adaptador de stream tras el seguimiento A04: **131 passed**, 6.86 s.
 - El checkpoint de World protege el mapping y separa objetos mediante copia profunda; no hace inmutables los campos de cada `BodyPlacement`. No hay migración que invente los cuerpos ausentes en checkpoints antiguos.
 - El primer tick de A06 también reveló un campo obsoleto: se sustituyó `cognitive_motor_competence_candidates` por `motor_competences`, campo real de `Tick3D`.
 
