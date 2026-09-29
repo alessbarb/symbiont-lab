@@ -2745,7 +2745,11 @@ export function createCognitionController({
     const generative = source?.cognition?.generative ?? null;
     if (!generative) {
       const empty = el('div', 'mind-inspector-empty');
-      empty.textContent = 'No active generative episode.';
+      const hasCognition = source?.cognition != null;
+      const tick = finiteNumber(source?.tick ?? tel.tick, 0);
+      empty.textContent = hasCognition
+        ? `Generative telemetry was not recorded for this frame${tick ? ` (t${tick})` : ''}. This is not evidence that generative cognition was inactive.`
+        : 'No cognition snapshot is available for this frame.';
       panel.appendChild(empty);
       return;
     }
