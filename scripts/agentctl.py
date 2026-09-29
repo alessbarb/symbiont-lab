@@ -19,7 +19,11 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+_BOOTSTRAP_ROOT = Path(__file__).resolve().parents[1]
+for _bootstrap_path in (_BOOTSTRAP_ROOT / "scripts", _BOOTSTRAP_ROOT / "src"):
+    bootstrap = str(_bootstrap_path)
+    if bootstrap not in sys.path:
+        sys.path.insert(0, bootstrap)
 
 from governance.classify import ChangeClass, assess as assess_change
 from governance.publish import publish as publish_changes
