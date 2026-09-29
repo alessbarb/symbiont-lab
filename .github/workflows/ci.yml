@@ -22,6 +22,8 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: pip install -e '.[dev]'
+      - run: python scripts/agentctl.py verify
+      - run: pytest tests/governance tests/docs -q
       - run: ruff check src/ observatory/ tests/
       - run: ruff format --check src/ observatory/ tests/
       - run: bandit -r src/ -ll
