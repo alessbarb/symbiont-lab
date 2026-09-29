@@ -157,3 +157,16 @@ body .rail{backdrop-filter:blur(16px)}
   .action-causal-arrow{transform:rotate(90deg)}
   .action-causal-summary{grid-template-columns:1fr}
 }
+
+
+/* World · acquired/compare are epistemic surfaces, not body viewers */
+.world-epistemic-stage{position:absolute;inset:0;z-index:4;display:grid;place-content:center;padding:8vw;text-align:center;background:radial-gradient(circle at 50% 42%,rgba(44,121,148,.09),transparent 34%),rgba(8,17,25,.72);pointer-events:none}
+.world-epistemic-stage[hidden]{display:none}
+.world-epistemic-stage strong{display:block;max-width:760px;margin:.45rem auto .55rem;font:600 22px/1.2 var(--sans);color:var(--text)}
+.world-epistemic-stage p{max-width:720px;margin:0 auto;color:var(--muted);font:10px/1.6 var(--mono)}
+.world-epistemic-kicker{color:var(--cyan);font:8px var(--mono);letter-spacing:.16em}
+.world-epistemic-mode .body-camera-bar,
+.world-epistemic-mode .body-status-pill,
+.world-epistemic-mode .body-presentation-debug,
+.world-epistemic-mode .body-situation-overlay,
+.world-epistemic-mode .body-resource-indicator{display:none!important}
