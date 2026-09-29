@@ -54,6 +54,7 @@ def test_all_top_level_views_have_uniform_lifecycle_contract():
         "views/archive.js",
         "views/mind.js",
         "views/body.js",
+        "views/vision.js",
     ):
         source = _read(relative)
         assert "export function mount" in source or "export async function mount" in source, (
@@ -319,3 +320,30 @@ def test_acquired_self_marks_observer_correspondence():
     self_model = _read("views/body/self-model.js")
     assert "data-observer-correspondence" in self_model
     assert "Anatomical names and the figure are observer-side" in self_model
+
+
+def test_workbench_v2_navigation_matches_product_architecture():
+    html = _read("app.html")
+    app = _read("app.js")
+    for route in ("#home", "#mind", "#embodiment", "#vision", "#world", "#archive"):
+        assert f'href="{route}"' in html
+    assert 'href="#experiments"' not in html
+    assert "experiments: 'home'" in app
+    assert "mountVision" in app
+
+
+def test_world_epistemic_modes_are_acquired_compare_truth():
+    workspace = _read("views/body/workspace.js")
+    world_tabs = workspace.split("world: [", 1)[1].split("],", 1)[0]
+    assert "['acquired', 'Acquired']" in world_tabs
+    assert "['compare', 'Compare']" in world_tabs
+    assert "['world', 'Observer Truth']" in world_tabs
+    assert "No canonical acquired external-world model is exported yet" in workspace
+    assert "fabricate knowledge" in workspace
+
+
+def test_mind_primary_tabs_are_live_atlas_development():
+    layout = _read("views/mind/layout.js")
+    assert "label: 'Live'" in layout
+    assert "label: 'Atlas'" in layout
+    assert "label: 'Development'" in layout
