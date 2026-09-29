@@ -1,5 +1,5 @@
 import { escapeHtml } from '../shared/dom.js';
-import { SelfModelWorkspace } from './self-model.js';
+import { AcquiredSelfWorkspace } from './acquired-self-v2.js';
 import { ActionDiscoveryPanel } from '../embodiment/discovery.js';
 import { selfViewSegmentRecord } from './self-view.js';
 
@@ -107,7 +107,13 @@ export class BodyWorkspace {
     this.overlayContent = null;
     this.epistemicStage = null;
     this.renderQueued = false;
-    this.selfModel = new SelfModelWorkspace();
+    this.selfModel = new AcquiredSelfWorkspace({
+      onSelectPhysical: (segment) => this.syncCorrespondenceSelection(segment),
+      onModeChange: (mode) => {
+        this.root?.classList.toggle('acquired-self-compare-mode', mode === 'compare');
+      },
+      getPhysicalSegments: () => Object.keys(this.viewer.bodyModel?.segments ?? {}),
+    });
     this.discovery = new ActionDiscoveryPanel();
   }
 
@@ -186,10 +192,14 @@ export class BodyWorkspace {
           : '<div class="world-epistemic-kicker">COMPARE</div><strong>Nothing to compare yet</strong><p>Observer truth remains separate until an Acquired World exists. Showing Physics entities here now would fabricate correspondence.</p>';
       }
     }
-    if (tab !== 'self-model') this.root?.classList.remove('self-model-inspector-open');
+    if (tab !== 'self-model') {
+      this.root?.classList.remove('self-model-inspector-open', 'acquired-self-compare-mode');
+    } else {
+      this.root?.classList.toggle('acquired-self-compare-mode', this.selfModel.mode === 'compare');
+    }
     const dataView = tab === 'discovery' || tab === 'physiology' || tab === 'history' || tab === 'self-model';
     this.overlay?.classList.toggle('visible', dataView);
-    if (tab !== 'anatomy') this.clearSegmentHighlight();
+    if (tab !== 'anatomy' && tab !== 'self-model') this.clearSegmentHighlight();
     if (tab === 'discovery') this.mountDiscovery();
     else this.discovery.deactivate();
 
@@ -373,9 +383,7 @@ export class BodyWorkspace {
     this.panel.querySelectorAll('[data-segment]').forEach(b => b.addEventListener('click', () => this.selectSegment(b.dataset.segment)));
     this.panel.querySelector('[data-open-acquired-self]')?.addEventListener('click', (event) => {
       const segment = event.currentTarget.dataset.openAcquiredSelf;
-      this.selfModel.route('self:self-view');
-      this.selfModel.selfViewPane = 'composite';
-      this.selfModel.selectedId = segment ? `segment|${segment}` : null;
+      this.selfModel.openCompare(segment || null);
       this.setTab('self-model');
     });
     this.panel.querySelector('[data-articulation-diagnostic]')?.addEventListener('click', () => {
@@ -388,6 +396,12 @@ export class BodyWorkspace {
     this.selectedSegment = name;
     this.viewer.setSegmentInspectorHighlight?.(name, true);
     this.renderAnatomy();
+  }
+
+  syncCorrespondenceSelection(name) {
+    this.clearSegmentHighlight();
+    this.selectedSegment = name || null;
+    if (this.selectedSegment) this.viewer.setSegmentInspectorHighlight?.(this.selectedSegment, true);
   }
 
   clearSegmentHighlight() {
@@ -520,7 +534,11 @@ export class BodyWorkspace {
     this.overlayContent = null;
     this.panel = null;
     this.history = [];
-    this.selfModel = new SelfModelWorkspace();
+    this.selfModel = new AcquiredSelfWorkspace({
+      onSelectPhysical: (segment) => this.syncCorrespondenceSelection(segment),
+      onModeChange: () => {},
+      getPhysicalSegments: () => Object.keys(this.viewer.bodyModel?.segments ?? {}),
+    });
   }
 }
 
