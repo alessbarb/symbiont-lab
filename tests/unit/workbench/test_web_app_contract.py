@@ -481,3 +481,65 @@ def test_acquired_self_v2_remains_observer_only():
     assert "fetch(" not in acquired
     assert "WebSocket" not in acquired
     assert "EventSource" not in acquired
+
+
+def test_acquired_self_v21_compare_is_body_first_and_labels_are_optional():
+    acquired = _read("views/body/acquired-self-v2.js")
+    css = _read("workbench-v2.css")
+
+    assert "Select the body itself." in acquired
+    assert "data-toggle-regions" in acquired
+    assert "data-toggle-observer-labels" in acquired
+    assert "this.showRegionsFallback = false" in acquired
+    assert "this.showObserverLabels = false" in acquired
+    assert "Inspect evidence →" in acquired
+    assert "grid-template-columns:50% 50%" in css
+    assert ".labels-hidden" in css
+
+
+def test_acquired_self_v22_development_uses_classified_events_and_timeline_markers():
+    acquired = _read("views/body/acquired-self-v2.js")
+    self_view = _read("views/body/self-view.js")
+
+    for event_name in (
+        "first_representation",
+        "strengthened",
+        "weakened",
+        "became_stable",
+        "became_uncertain",
+        "agency_appeared",
+        "lost_support",
+    ):
+        assert event_name in acquired
+
+    assert "data-development-tick" in acquired
+    assert "Session-observed events" in acquired
+    assert "Structure may predate observer attachment" in acquired
+    assert "self-dev-event-marker" in self_view
+    assert "Observer interpretation" in self_view
+
+
+def test_mind_development_distinguishes_existing_structure_from_observed_change():
+    history = _read("views/mind/history.js")
+
+    assert "Current cognitive structure" in history
+    assert "Observed since" in history
+    assert "Session-observed change" in history
+    assert "Zero change means stable during observation, not undeveloped." in history
+
+
+def test_statusbar_distinguishes_live_experience_from_observatory_view():
+    html = _read("app.html")
+    app = _read("app.js")
+
+    assert 'id="sb-experience"' in html
+    assert 'id="sb-view"' in html
+    assert "experienceLabel" in app
+    assert "viewLabel" in app
+    assert "setContext" in app
+
+
+def test_empty_world_acquired_compare_hides_physics_canvas():
+    css = _read("workbench-v2.css")
+
+    assert ".world-epistemic-mode .body-canvas{visibility:hidden!important}" in css
