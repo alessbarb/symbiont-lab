@@ -9,15 +9,20 @@ function physics(state) {
   return state?.sources?.physics3d ?? {};
 }
 
-function visualActive(p) {
-  return p?.run_kind === 'acquisition.vision' || String(p?.body_kind || '').includes('vision');
+function hasVisualApparatus(p) {
+  return String(p?.body_kind || '').includes('vision');
+}
+
+function visionExperienceActive(p) {
+  return p?.run_kind === 'acquisition.vision' && ['starting','running','stopping'].includes(p?.state);
 }
 
 function render(state) {
   if (!rootNode) return;
   lastState = state;
   const p = physics(state);
-  const active = visualActive(p);
+  const apparatus = hasVisualApparatus(p);
+  const visionLive = visionExperienceActive(p);
   const running = ['starting','running','stopping'].includes(p.state);
   const name = p.organism_alias || p.organism_id || p.organism_ref || 'No active Symbiont';
   const tick = p.tick ?? state?.current?.tick;
@@ -31,18 +36,18 @@ function render(state) {
           <h1>Vision</h1>
           <p class="view-subtitle">Visual acquisition is shown as evidence, prediction and uncertainty — not as a camera feed.</p>
         </div>
-        <span class="pill ${active ? '' : 'muted'}">${active ? 'visual apparatus active' : 'no active visual apparatus'}</span>
+        <span class="pill ${apparatus ? '' : 'muted'}">${visionLive ? 'VISION EXPERIENCE LIVE' : apparatus ? 'VISUAL APPARATUS PRESENT' : 'NO VISUAL APPARATUS'}</span>
       </header>
 
       <section class="v2-hero">
         <div>
           <div class="v2-kicker">Current organism</div>
           <h2>${esc(name)}</h2>
-          <p>${tick != null ? 't' + Number(tick).toLocaleString() : 'inactive'}${epoch != null ? ' · embodiment e' + esc(epoch) : ''}${running ? ' · live' : ''}</p>
+          <p>${tick != null ? 't' + Number(tick).toLocaleString() : 'tick unavailable'}${epoch != null ? ' · embodiment e' + esc(epoch) : ''} · ${visionLive ? 'Vision Experience live' : running ? 'current run: ' + esc(p.run_kind || 'unknown') : 'inactive'}</p>
         </div>
         <div class="v2-status-grid">
-          <div><span>Apparatus</span><strong>${active ? '12 × 12 luminance array' : '—'}</strong></div>
-          <div><span>Signals</span><strong>${active ? 'opaque receptor ids' : '—'}</strong></div>
+          <div><span>Apparatus</span><strong>${apparatus ? '12 × 12 luminance array' : '—'}</strong></div>
+          <div><span>Signals</span><strong>${apparatus ? 'opaque receptor ids' : '—'}</strong></div>
           <div><span>Acquired sources</span><strong>not yet validated</strong></div>
           <div><span>Observer truth</span><strong>separate</strong></div>
         </div>
@@ -61,9 +66,11 @@ function render(state) {
           <div class="vision-field" aria-label="Opaque visual receptor field">
             ${Array.from({length:144},(_,i)=>`<i style="--i:${i}"></i>`).join('')}
           </div>
-          <p class="v2-note">${active
-            ? 'The grid represents apparatus topology for the observer. Receptor identities remain opaque to cognition.'
-            : 'Start a Vision Experience with anthropomorphic-v6-vision to activate the apparatus.'}</p>
+          <p class="v2-note">${visionLive
+            ? 'Vision Experience is active. The grid represents observer-side apparatus topology; receptor identities remain opaque to cognition.'
+            : apparatus
+              ? 'The body carries a visual apparatus, but the current run is not a Vision Experience. No visual acquisition claim is implied.'
+              : 'Start a Vision Experience with anthropomorphic-v6-vision to make the apparatus available.'}</p>
         </section>
 
         <section class="card v2-panel">
