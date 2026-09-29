@@ -553,3 +553,51 @@ def test_home_refuses_stale_physical_body_resume_and_preserves_symbiont():
     assert "Previous body checkpoint is stale" in home
     assert "Symbiont identity and cognition are preserved" in home
     assert "selectedOrganism()?.resumable_body !== true" in home
+
+
+def test_atlas_motor_mode_uses_traceable_reachability_not_node_kind_scores():
+    atlas = _read("views/mind/cognitive-atlas.js")
+    inspector = _read("views/mind/cognition-inspector.js")
+    controller = _read("views/mind/cognition-controller.js")
+
+    assert "export function motorReachability(" in atlas
+    assert "export function isMotorNode(" in atlas
+    assert "motorConnected" in atlas
+    assert "motorDomain" in atlas
+    assert "motorRelated" in atlas
+    assert "MOTOR_NODE_KINDS" in atlas
+    assert "MOTOR_EDGE_KINDS" in atlas
+    assert "node.kind === 'motor_primitive' ? 0.82" not in atlas
+    assert "MOTOR DOMAIN · NO OBSERVED ROUTE" in inspector
+    assert "CONNECTED MOTOR ROUTE" in inspector
+    assert "atlasEdgeScore(edge, graph.atlasMode, tick, graph.atlasSignals)" in controller
+
+
+def test_atlas_signal_normalization_is_stable_and_indexed():
+    atlas = _read("views/mind/cognitive-atlas.js")
+
+    assert "export const ATLAS_CONFIG" in atlas
+    assert "function normalizePredictionError(" in atlas
+    assert "function normalizeSupport(" in atlas
+    assert "function normalizeStability(" in atlas
+    assert "function percentile(" in atlas
+    assert "export function buildAtlasGraph(" in atlas
+    assert "const nodesById = new Map(" in atlas
+    assert "queue.shift()" not in atlas
+    assert "Math.max(1, ...edges.map" not in atlas
+
+
+def test_acquired_self_compare_uses_left_frame_viewport_and_follow_camera():
+    viewer = _read("views/body/viewer.js")
+    workspace = _read("views/body/workspace.js")
+
+    assert "presentationViewportSize()" in viewer
+    assert "setAcquiredSelfComparePresentation(active)" in viewer
+    assert "this.compareViewportActive" in viewer
+    assert "Math.floor(fullWidth * 0.5)" in viewer
+    assert "this.renderer.setViewport(0, 0, width, height)" in viewer
+    assert "this.renderer.setScissor(0, 0, width, height)" in viewer
+    assert "this.camera.aspect = width / height" in viewer
+    assert "this.followBody = true" in viewer
+    assert "this.resetCameraToBody()" in viewer
+    assert "setAcquiredSelfComparePresentation" in workspace
