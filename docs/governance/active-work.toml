@@ -1,0 +1,22 @@
+schema_version = 1
+updated = "2026-09-29"
+
+[[work]]
+id = "visual-acquisition-d1-v2"
+state = "RUNNING"
+authority = "owner-approved"
+owner = "external-session"
+base_commit = "c00846d3499dae81b05b9b6be645be3312ae2063"
+protected_paths = [
+  "docs/design/vision/**",
+  "experiments/learning/visual-acquisition-v1/**",
+  "src/symbiont_lab/studies/learning/visual_acquisition.py",
+]
+notes = "Do not change protocol, mechanism or inputs until the development run completes."
+
+[[work]]
+id = "promotion-stability-v1"
+state = "DESIGN_DATA_COMPLETE"
+authority = "observational"
+protected_paths = ["docs/design/core/promotion-stability-v1.md"]
+notes = "Confirmation and P5.2 paused until P0/P1 close."
