@@ -401,3 +401,24 @@ def test_observer_truth_uses_one_scene_with_inspector_overlays():
     assert "Known World" not in world.split("const LAYERS", 1)[1].split("];", 1)[0]
     assert "Predictions" not in world.split("const LAYERS", 1)[1].split("];", 1)[0]
     assert ".body-world-toolbar{display:none!important}" in css
+
+
+def test_embodiment_apparatus_links_physical_region_to_acquired_self():
+    workspace = _read("views/body/workspace.js")
+    assert "selfViewSegmentRecord" in workspace
+    assert "Acquired correspondence · observer projection" in workspace
+    assert "data-open-acquired-self" in workspace
+    assert "segment|" in workspace
+    assert "Open in Acquired Self" in workspace
+
+
+def test_vision_modes_are_interactive_and_passively_observed():
+    vision = _read("views/vision.js")
+    assert "new MindStreams" in vision
+    assert "data-vision-mode" in vision
+    assert "activeMode === 'apparatus'" in vision
+    assert "activeMode === 'acquired'" in vision
+    assert "Admitted senses · all modalities" in vision
+    assert "Visual attribution is intentionally not inferred" in vision
+    assert "Per-receptor luminance samples are currently consumed by the runtime but are not exported" in vision
+    assert "((i * 17 + 11) % 9)" not in vision
