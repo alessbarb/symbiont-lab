@@ -874,6 +874,10 @@ export function renderSelfView(snapshot, mode = 'composite', selected = null) {
   </div>`;
 }
 
+export function selfViewSegmentNames(snapshot) {
+  return [...selfViewSegments(snapshot).keys()];
+}
+
 export function selfViewSegmentRecord(snapshot, segment) {
   const entry = selfViewSegments(snapshot).get(segment);
   if (!entry) return null;
