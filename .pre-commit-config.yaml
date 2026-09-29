@@ -1,6 +1,11 @@
 repos:
   - repo: local
     hooks:
+      - id: governance-validate
+        name: Repository governance required validation
+        entry: python scripts/agentctl.py validate --staged
+        language: system
+        pass_filenames: false
       - id: governance-check
         name: Repository governance authority check
         entry: python scripts/agentctl.py check --staged --manifest .agent-session.toml

@@ -1,6 +1,5 @@
-schema_version = 2
+schema_version = 3
 
-# Control plane: changing the guard requires a prior L4 owner grant.
 [[artifact]]
 path_glob = "AGENTS.md"
 class = "governance-control-plane"
@@ -37,7 +36,42 @@ class = "governance-control-plane"
 minimum_authority = "L4"
 
 [[artifact]]
+path_glob = ".github/pull_request_template.md"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
 path_glob = ".pre-commit-config.yaml"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = ".gitignore"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = ".agents/**"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = ".claude/**"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = ".codex/**"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = "pyproject.toml"
+class = "governance-control-plane"
+minimum_authority = "L4"
+
+[[artifact]]
+path_glob = "pyrightconfig.json"
 class = "governance-control-plane"
 minimum_authority = "L4"
 
@@ -45,17 +79,6 @@ minimum_authority = "L4"
 path_glob = "docs/roadmap.md"
 class = "governance-control-plane"
 minimum_authority = "L4"
-
-[[artifact]]
-path_glob = "docs/adr/**"
-class = "architectural-decision"
-minimum_authority = "L3"
-
-[[artifact]]
-path_glob = "experiments/**/experiment.toml"
-class = "scientific-protocol"
-minimum_authority = "L3"
-rule = "automatically escalates to L4 when a sibling results.json exists in the parent revision"
 
 [[artifact]]
 path_glob = "experiments/**/results.json"

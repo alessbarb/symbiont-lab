@@ -4,8 +4,25 @@
 /docs/governance/ @alessbarb
 /docs/roadmap.md @alessbarb
 /docs/adr/ @alessbarb
+/docs/history/ @alessbarb
+/research/ @alessbarb
 /experiments/ @alessbarb
 /src/symbiont/ @alessbarb
 /src/symbiont_lab/ @alessbarb
 /src/symbiont_world/ @alessbarb
-/scripts/agentctl.py @alessbarb\n/tests/governance/ @alessbarb\n/.github/workflows/ @alessbarb\n/.pre-commit-config.yaml @alessbarb\n/docs/history/roadmap-log.md @alessbarb\n
+/observatory/ @alessbarb
+/tests/experimental_integrity/ @alessbarb
+/tests/contract/ @alessbarb
+/tests/experiments/ @alessbarb
+/tests/governance/ @alessbarb
+/scripts/agentctl.py @alessbarb
+/.github/workflows/ @alessbarb
+/.github/CODEOWNERS @alessbarb
+/.github/pull_request_template.md @alessbarb
+/.pre-commit-config.yaml @alessbarb
+/.gitignore @alessbarb
+/.agents/ @alessbarb
+/.claude/ @alessbarb
+/.codex/ @alessbarb
+/pyproject.toml @alessbarb
+/pyrightconfig.json @alessbarb

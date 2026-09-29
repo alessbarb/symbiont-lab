@@ -184,8 +184,8 @@ Normal restore rejects a `DEAD` identity. Reconstructing or cloning from histori
 
 Organism lifecycle, cognitive topology health and reproductive readiness remain separate state dimensions. For example, an organism may simultaneously be `MATURE`, `ADAPTIVE` and `REPRODUCTIVELY_READY`.
 
-These lifecycle rules are proposed for the Constitution in
-[ADR-0044](adr/ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md).
+These lifecycle rules are adopted as permanent invariants in **Constitution §24**
+under [ADR-0044](adr/ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md).
 
 ---
 
@@ -225,8 +225,8 @@ An explicit architectural decision is required before changes that:
 
 The canonical and complete list of host-safety decision gates is
 [`governance/decision-gates.md`](governance/decision-gates.md) § Host and safety.
-The corresponding permanent host-safety invariants are proposed for the Constitution
-in [ADR-0044](adr/ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md).
+The corresponding permanent host-safety invariants are adopted in **Constitution §23**
+under [ADR-0044](adr/ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md).
 
 ---
 

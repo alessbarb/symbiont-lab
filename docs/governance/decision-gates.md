@@ -23,3 +23,10 @@ L4 approval plus ADR is required for new permission classes, identifying metadat
 L4 approval plus ADR is required to weaken evaluator-ground-truth isolation, no-global-reward policy, passive Observatory, opaque action/perception acquisition, or germline/acquired-state separation.
 
 A new ADR cannot be inferred from code. It must be explicitly accepted before the implementation that depends on it.
+
+
+## Scientific execution
+
+Held-out, confirmation, replication and other evidentiary long runs require explicit
+owner approval materialized as a `kind = "scientific-run"` grant. A code-change grant
+does not authorize data consumption or campaign execution.

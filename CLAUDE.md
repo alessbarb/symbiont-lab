@@ -7,124 +7,74 @@ overrides repository governance.
 
 ## Authority model
 
-Agents execute authorised work; they do not choose scientific direction.
+Agents execute authorised work; they do not choose scientific direction. L2-L4 require
+a grant already present in the parent commit. Grant issuance is a separate owner-root
+administrative commit validated by CI actor identity and an append-only single-grant
+diff; an implementation cannot grant itself authority.
 
-| Level | Authority |
-| --- | --- |
-| L0 | Read-only inspection, audit and proposals |
-| L1 | Maintenance with no scientific/runtime semantic change |
-| L2 | Contract-preserving implementation already authorised by a normative source |
-| L3 | Scientific mechanism change under approved design/preregistration |
-| L4 | Constitutional, host-safety, lifecycle, project-direction or authority change |
-
-L0-L1 need no elevated grant. L2-L4 require an **owner grant already present in the
-parent commit**. An agent cannot grant itself authority by editing a grant in the same
-change. `agentctl` reads grants from HEAD/base history, not from the working-tree
-version being committed.
-
-The Constitution at `docs/governance/constitution.md` is the single canonical source
-for permanent architectural and safety invariants.
+The Constitution is the single canonical source for permanent invariants.
 
 ## Mandatory startup sequence
 
-Before editing:
+Before editing: inspect branch/head/worktree; read this contract, Constitution, roadmap,
+project state, active work and relevant design/ADR; run `agentctl status`; classify
+L0-L4; identify any prior grant; do not touch RUNNING campaign paths; choose the
+lowest-authority valid solution.
 
-1. inspect branch/head/worktree and unrelated changes;
-2. read this contract, the Constitution, `docs/roadmap.md`,
-   `docs/governance/project-state.toml`, active-work state and the nearest relevant
-   README/design/ADR;
-3. run `python scripts/agentctl.py status`;
-4. classify the work L0-L4 and identify affected domains;
-5. for L2-L4, identify the owner grant and create a local untracked session manifest;
-6. do not modify paths protected by a RUNNING scientific campaign;
-7. choose the lowest-authority solution that satisfies the approved contract.
-
-Memory from another session is not authority. The decision must exist in the current
-owner instruction or committed repository authority.
-
-## Mandatory pre-commit gate
-
-Every modifying session must run:
+## Mandatory validation and pre-commit gate
 
 ```bash
+python scripts/agentctl.py validate --staged
 python scripts/agentctl.py check --staged --manifest .agent-session.toml
 python scripts/agentctl.py verify
 git diff --check
 ```
 
-The pre-commit hook runs the staged check. Bypassing hooks does not waive the policy.
-CI independently audits commit ancestry and authority grants where repository history
-is available.
+Validation is tied to the exact staged tree.
 
 ## Scientific discipline
 
-Distinguish implementation defect, apparatus defect, obsolete test, historical
-compatibility contract, negative scientific result and new scientific hypothesis.
-
-A red test is not permission to weaken an assertion. A negative result is not a bug.
-Never change the organism merely to satisfy an evaluator or to make a campaign
-positive.
-
-For scientific mechanism work:
-
-```text
-result/problem
--> analysis
--> hypothesis
--> design
--> owner approval
--> preregistration
--> implementation
--> campaign
--> interpretation
-```
+A negative scientific result is not a software bug. Do not change the organism merely
+to satisfy an evaluator. Scientific mechanism work follows analysis -> hypothesis ->
+design -> owner approval -> preregistration -> implementation -> campaign ->
+interpretation.
 
 ## Frozen evidence
 
-Completed results are append-only evidence. A completed protocol with archived results
-is frozen together with those results. Fix errors through a new run/version and an
-explicit provenance note; never silently rewrite old evidence.
+A completed experiment freezes runner, fixtures, protocol and results together. New
+work uses a new version/directory. Held-out or confirmation data require a distinct
+scientific-run grant.
 
-After preregistration/freeze, seeds, horizons, baselines, thresholds, success criteria
-and interpretation rules do not move because of observed data. Held-out and
-confirmation runs require explicit recorded authority.
+## Scientific execution
 
-## Claims
+```bash
+python scripts/agentctl.py run exec --grant <id> --id <run-id> \
+  --manifest .agent-session.toml -- <exact owner-approved argv>
+```
 
-Use the claim vocabulary and evidence levels from `docs/roadmap.md`. Do not elevate
-`validated`, `causal`, `robust`, `emergent`, `learned`, `closed` or
-`general` without the supporting evidence level, scope and limitations.
+The grant fixes code, argv, scope and resource ceilings. The manifest must set
+`may_run_scientific_campaigns = true`. A code-change grant never authorizes a run.
 
-## Concurrency and scientific runs
+## Concurrency and resources
 
-`docs/governance/active-work.toml` is a tracked coordination boundary. A RUNNING
-campaign protects its runner, protocol, inputs, relevant mechanism and declared paths.
+The active-work registry protects RUNNING paths. The launcher shares a lock across
+worktrees through Git's common directory, uses one-long-run default concurrency,
+wall-time termination and POSIX hard memory/CPU limits where supported. Cross-machine
+locking and portable storage quotas are not claimed.
 
-New long scientific runs must be launched through `agentctl run exec` unless the
-owner explicitly records an external-run exception. The default resource policy allows
-one long scientific campaign at a time.
+## Protected control plane
 
-## Git and control-plane protection
-
-Never destroy unrelated work, force-push published scientific history, delete negative
-results, or squash away required provenance.
-
-The governance control plane itself is protected: `AGENTS.md`, `CLAUDE.md`,
-`docs/governance/**`, `scripts/agentctl.py`, `tests/governance/**`,
-`.github/workflows/**`, `.github/CODEOWNERS`, and `.pre-commit-config.yaml`.
-
-Changing the guard and then using the changed guard to authorise the same commit is
-invalid.
+Governance, agent hooks/rules, CI, pre-commit, CODEOWNERS, pytest/linter configuration,
+validation tests and Git-ignore rules are L4. Changing the guard and then using the
+changed guard to authorize the same commit is invalid.
 
 ## Stop conditions
 
-Stop for an owner decision before changing hypotheses, seeds, horizons, thresholds,
-baselines, success criteria, held-out execution, PAUSED/BLOCKED/UNSCHEDULED programmes,
-architecture ownership, lifecycle/heredity/reproduction/re-embodiment semantics,
-project priorities, host permission classes, user-content or identifying-metadata
-access, arbitrary file/process inspection, network exchange, credentials, persistence,
-propagation, real-world actuation, resource-ceiling ownership, evaluator isolation or
-global reward/fitness.
+Stop for owner authority before changing protocol criteria, held-out/confirmation
+execution, PAUSED/BLOCKED work, architecture ownership, lifecycle/heredity/reproduction,
+project priorities, host permissions, identifying/user-content access,
+filesystem/process inspection, network/credentials/persistence/propagation,
+real-world actuation, resource-ceiling ownership, evaluator isolation or global reward.
 
 <!-- END CANONICAL AGENT CONTRACT -->
 
@@ -132,5 +82,3 @@ global reward/fitness.
 ## Canonical permanent invariants
 
 Read and obey [`docs/governance/constitution.md`](docs/governance/constitution.md).
-The Constitution is not duplicated here so that agents cannot create policy drift by
-editing one copy but not another.

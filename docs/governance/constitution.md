@@ -288,6 +288,12 @@ any of these boundaries are in [`decision-gates.md`](decision-gates.md) § Host 
 169. Experimental ground truth remains outside organism cognition (see also §2).
 170. The laboratory may observe the organism without silently becoming its controller (see also §13).
 171. New write, network, action or reproduction capabilities cross an explicit design and consent gate before implementation.
+175. Arbitrary filesystem traversal and process-content inspection are not implicit host capabilities; any new surface requires an explicit bounded design and live consent.
+176. Access to identifying metadata or user content is never inferred from ordinary host observation and requires a separately approved least-privilege contract.
+177. Credential stores, secrets and authentication material remain outside the organism and learned developmental substrate.
+178. Network scanning, peer discovery and autonomous network exchange are prohibited unless a separately approved capability defines scope, consent, authentication and revocation.
+179. Hidden persistence, self-installation and residence intended to evade operator control are prohibited.
+180. Autonomous host remediation or real-world actuation is prohibited unless a separately approved capability defines reversible authority and operator consent.
 
 These invariants do not imply that Symbiont must remain permanently read-only,
 non-communicating or non-reproductive.

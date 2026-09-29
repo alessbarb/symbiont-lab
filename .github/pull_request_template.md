@@ -42,3 +42,10 @@ python scripts/agentctl.py verify
 ## Claim review
 
 State the strongest claim supported after this change and its evidence level/scope.
+
+
+## Scientific execution grant
+
+If this change consumes or reports a scientific run, record the distinct
+`kind = "scientific-run"` grant, exact run id/scope and execution receipt. A
+code-change grant is not sufficient.

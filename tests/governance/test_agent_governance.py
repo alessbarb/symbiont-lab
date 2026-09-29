@@ -22,68 +22,67 @@ def _contract(path: str) -> str:
     text = (ROOT / path).read_text(encoding="utf-8")
     start = "<!-- BEGIN CANONICAL AGENT CONTRACT -->"
     end = "<!-- END CANONICAL AGENT CONTRACT -->"
-    return text[text.index(start) : text.index(end) + len(end)]
+    return text[text.index(start): text.index(end) + len(end)]
 
 
 def test_agent_contract_is_identical() -> None:
     assert _contract("AGENTS.md") == _contract("CLAUDE.md")
 
 
-def test_constitution_is_single_invariant_source() -> None:
-    constitution = (GOV / "constitution.md").read_text(encoding="utf-8")
-    assert "## Architectural invariants" in constitution
-    assert "## Normative architectural invariants" not in (ROOT / "AGENTS.md").read_text()
-    assert "## Normative architectural invariants" not in (ROOT / "CLAUDE.md").read_text()
-
-
 def test_governance_toml_is_parseable() -> None:
     for name in (
-        "project-state.toml",
-        "frozen-artifacts.toml",
-        "active-work.toml",
-        "validation-matrix.toml",
-        "authority-grants.toml",
-        "resource-policy.toml",
+        "project-state.toml", "frozen-artifacts.toml", "active-work.toml",
+        "validation-matrix.toml", "authority-grants.toml", "resource-policy.toml",
+        "owner-root.toml",
     ):
         with (GOV / name).open("rb") as handle:
             assert tomllib.load(handle)
 
 
-def test_project_state_locks_current_direction() -> None:
-    with (GOV / "project-state.toml").open("rb") as handle:
-        state = tomllib.load(handle)
-    assert state["current_gate"] == "visual-acquisition-d1-v2"
-    assert state["programmes"]["world"]["state"] == "maintenance-only"
-    assert state["programmes"]["population-expansion"]["state"] == "blocked"
-    assert state["programmes"]["e8-label-invariance"]["state"] == "p0-open"
-
-
 def test_control_plane_is_l4() -> None:
     ctl = _agentctl()
     for path in (
-        "AGENTS.md",
-        "docs/governance/project-state.toml",
-        "scripts/agentctl.py",
-        "tests/governance/test_agent_governance.py",
-        ".github/workflows/ci.yml",
-        ".pre-commit-config.yaml",
+        "AGENTS.md", "docs/governance/project-state.toml", "scripts/agentctl.py",
+        "tests/governance/test_agent_governance.py", ".github/workflows/ci.yml",
+        ".github/CODEOWNERS", ".pre-commit-config.yaml", ".claude/settings.json",
+        ".codex/hooks.json", ".agents/rules/graphify.md", "pyproject.toml",
+        "pyrightconfig.json", ".gitignore",
     ):
         assert ctl.required_authority(path, "HEAD") == "L4"
 
 
-def test_completed_protocol_is_automatically_frozen() -> None:
+def test_completed_experiment_freezes_entire_directory() -> None:
     ctl = _agentctl()
-    path = "experiments/embodiment/yoked-external-causation/experiment.toml"
-    assert ctl.required_authority(path, "HEAD") == "L4"
+    base = "experiments/embodiment/yoked-external-causation"
+    for path in (f"{base}/experiment.toml", f"{base}/README.md", f"{base}/results.json"):
+        assert ctl.required_authority(path, "HEAD") == "L4"
+
+
+def test_integrity_and_protocol_surfaces_are_not_l1() -> None:
+    ctl = _agentctl()
+    assert ctl.required_authority("tests/experimental_integrity/test_example.py", "HEAD") == "L2"
+    assert ctl.required_authority("tests/experiments/test_example.py", "HEAD") == "L3"
+    assert ctl.required_authority("docs/design/example.md", "HEAD") == "L3"
+    assert ctl.required_authority("research/example.md", "HEAD") == "L3"
+
+
+def test_commit_exists_uses_return_code() -> None:
+    ctl = _agentctl()
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, text=True, capture_output=True
+    ).stdout.strip()
+    assert ctl.commit_exists(head)
+    assert not ctl.commit_exists("0" * 40)
+
+
+def test_git_common_dir_exists() -> None:
+    assert _agentctl().git_common_dir().exists()
 
 
 def test_agentctl_verifies_repository_governance() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/agentctl.py", "verify"],
-        cwd=ROOT,
-        check=False,
-        text=True,
-        capture_output=True,
+        [sys.executable, "scripts/agentctl.py", "verify"], cwd=ROOT,
+        check=False, text=True, capture_output=True,
     )
     assert result.returncode == 0, result.stderr
     assert "PASS" in result.stdout

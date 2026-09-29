@@ -1,39 +1,40 @@
 # Repository governance
 
-This directory contains the authority model used to constrain intelligent agents and coordinate scientific work.
+## Purpose
 
-## Canonical files
+Define and mechanically enforce the authority boundary for coding agents and
+scientific execution.
 
-- `constitution.md` — single source of permanent architectural and safety invariants.
-- `agent-policy.md` — authority levels L0-L4 and grant semantics.
-- `decision-gates.md` — changes that require an explicit owner decision.
-- `project-state.toml` — machine-readable current programme state.
-- `authority-grants.toml` — owner-issued, parent-commit grants for L2-L4 work.
-- `frozen-artifacts.toml` — protected control-plane/scientific artefacts.
-- `active-work.toml` — tracked active campaign coordination.
-- `resource-policy.toml` — admission limits for governed scientific runs.
-- `validation-matrix.toml` — minimum validation by change domain.
-- `session-manifest.example.toml` — local untracked task-scope template.
+## Core files
 
-## Root of trust
+- `constitution.md` — canonical permanent invariants.
+- `agent-policy.md` — L0-L4 authority and grants.
+- `decision-gates.md` — owner-decision boundaries.
+- `project-state.toml` — current programme state.
+- `authority-grants.toml` — owner-issued change/run grants.
+- `owner-root.toml` — GitHub actor root used for grant issuance.
+- `frozen-artifacts.toml` — protected surfaces.
+- `active-work.toml` — active scientific work.
+- `resource-policy.toml` — launcher limits.
+- `validation-matrix.toml` — required validation.
 
-`agentctl` evaluates grants and protection metadata from the parent/base revision.
-A grant or policy edited in the candidate change cannot authorise that same change.
-
-Grant issuance itself is an owner administrative operation. Repository enforcement
-cannot cryptographically distinguish a process using the owner's GitHub credentials
-from the owner; server-side branch protection remains the external root-of-trust layer
-where available.
-
-## Normal modifying workflow
+## Modifying workflow
 
 ```bash
-cp docs/governance/session-manifest.example.toml .agent-session.toml
-# fill task and prior grant id when L2-L4
-python scripts/agentctl.py status
+git add <files>
+python scripts/agentctl.py validate --staged
 python scripts/agentctl.py check --staged --manifest .agent-session.toml
 python scripts/agentctl.py verify
 ```
 
-Long scientific runs use `python scripts/agentctl.py run exec ... -- <command>`
-unless an explicit tracked external-run exception exists.
+## Scientific execution
+
+Use a distinct scientific-run grant and `agentctl run exec`. The current D1-v2 run is
+a tracked external exception because it started before the governed launcher existed.
+
+## Limits
+
+Repository policy cannot cryptographically distinguish the owner from an agent holding
+the same owner credential, cannot create a global lock across unrelated machines, and
+cannot provide portable filesystem quotas. Those remain external-infrastructure
+boundaries.

@@ -189,6 +189,12 @@ python scripts/agentctl.py verify
 
 Scientific campaigns are explicit commands. They do not belong in the default developer loop.
 
+## Core documentation
+
+- [Technical architecture](docs/architecture.md)
+- [Active scientific roadmap](docs/roadmap.md)
+- [Historical roadmap log](docs/history/roadmap-log.md)
+
 ## Documentation authority
 
 Use this order when documents conflict:

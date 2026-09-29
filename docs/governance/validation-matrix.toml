@@ -1,11 +1,11 @@
-schema_version = 2
+schema_version = 3
 
 [docs]
-paths = ["README.md", "docs/**", "AGENTS.md", "CLAUDE.md"]
+paths = ["README.md", "ORGANISM.md", "docs/**", "AGENTS.md", "CLAUDE.md"]
 commands = ["pytest tests/docs -q", "python scripts/agentctl.py verify", "git diff --check"]
 
 [governance]
-paths = ["docs/governance/**", "AGENTS.md", "CLAUDE.md", "scripts/agentctl.py", "tests/governance/**", ".github/workflows/**", ".pre-commit-config.yaml"]
+paths = ["docs/governance/**", "AGENTS.md", "CLAUDE.md", "scripts/agentctl.py", "tests/governance/**", ".github/**", ".pre-commit-config.yaml", ".gitignore", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml", "pyrightconfig.json"]
 commands = ["pytest tests/governance tests/docs -q", "python scripts/agentctl.py verify", "git diff --check"]
 
 [subject]
@@ -20,6 +20,14 @@ commands = ["pytest tests/unit tests/integration -q", "pytest -o addopts= tests/
 paths = ["src/symbiont_world/**", "src/symbiont_lab/world/**"]
 commands = ["pytest tests/unit/world tests/unit/lab/world -q", "pytest -o addopts= tests/experimental_integrity -q", "python scripts/agentctl.py verify", "git diff --check"]
 
+[observatory]
+paths = ["observatory/**"]
+commands = ["pytest observatory -q", "pytest -o addopts= tests/experimental_integrity -q", "python scripts/agentctl.py verify", "git diff --check"]
+
 [experiment_protocol]
-paths = ["experiments/**/experiment.toml", "src/symbiont_lab/studies/**"]
+paths = ["experiments/**", "src/symbiont_lab/studies/**", "docs/design/**", "research/**"]
 commands = ["pytest -o addopts= tests/experiments tests/experimental_integrity -q", "python scripts/agentctl.py verify", "git diff --check"]
+
+[tests]
+paths = ["tests/**"]
+commands = ["pytest -o addopts= tests -q", "python scripts/agentctl.py verify", "git diff --check"]

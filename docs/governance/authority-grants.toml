@@ -99,7 +99,7 @@ allowed_paths = [
 [[grant]]
 id = "owner-2026-09-29-governance-enforcement-v4"
 kind = "change"
-status = "open"
+status = "consumed"
 authority = "L4"
 base_commit = "5e2322798f25ccc7626ec3b79066808b4e48b022"
 issued_by = "alessbarb"

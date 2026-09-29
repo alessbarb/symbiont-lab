@@ -147,3 +147,11 @@ mindmap
 | **[ADR-0024](ADR-0024-high-frequency-binary-telemetry-and-decimated-transport.md)** | High-Frequency Binary Telemetry and Decimated Observation Transport | Aceptado | Telemetría binaria empaquetada de alta frecuencia en el bucle causal, desacoplada de la cadencia decimada de observación y transporte SSE. |
 | **[ADR-0039](ADR-0039-epistemic-integrity-in-visual-and-spatial-telemetry.md)** | Epistemic Integrity in Visual and Spatial Telemetry | Aceptado | Demarcación estricta entre la colocación visual del observador y la ausencia de coordenadas espaciales o mapas alocéntricos en el organismo. |
 | **[ADR-0044](ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md)** | Host-Safety and Lifecycle Invariants in the Constitution | Aceptado | Incorporar a la Constitución los invariantes permanentes de seguridad del anfitrión y de identidad del ciclo de vida (restore rechaza `DEAD`, clonar crea identidad nueva). |
+
+
+### 9. Governance
+
+| ADR | Título | Estado | Invariante Central |
+| :--- | :--- | :--- | :--- |
+| **[ADR-0043](ADR-0043-agent-governance-and-repository-authority.md)** | Agent Governance and Repository Authority | Aceptado | Autoridad L0-L4 y separación entre capacidad técnica y autoridad científica. |
+| **[ADR-0045](ADR-0045-owner-root-grants-scientific-execution-and-validation.md)** | Owner-root Grants, Scientific Execution Authority and Validation Receipts | Aceptado | Emisión root de grants, auditoría completa, ejecución científica autorizada y validación ligada al árbol staged. |

@@ -929,7 +929,7 @@ Línea de discovery posterior al corte congelado `v0.80.16`. Ejecutó stages
 progresivamente largos sobre el simulador existente y reporta por separado el
 sondeo multigeneracional del runtime social existente. No añade capacidades al
 organismo ni convierte patrones descubiertos en claims confirmados. Véase
-[`history/design/longitudinal-population-ecology-v1.md`](../design/longitudinal-population-ecology-v1.md).
+[`history/design/longitudinal-population-ecology-v1.md`](design/longitudinal-population-ecology-v1.md).
 
 ## Integrated Habitat Runtime v1 — P0 de integración resuelto
 

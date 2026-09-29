@@ -30,11 +30,20 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           PUSH_BASE: ${{ github.event.before }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
           HEAD_SHA: ${{ github.sha }}
+          GITHUB_ACTOR_NAME: ${{ github.actor }}
         run: |
           BASE="$PUSH_BASE"
-          if [ "$EVENT_NAME" = "pull_request" ]; then BASE="$PR_BASE"; fi
-          python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD_SHA"
+          HEAD="$HEAD_SHA"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="$PR_BASE"
+            HEAD="$PR_HEAD"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="$(git rev-parse "$HEAD^")"
+          fi
+          python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD" --actor "$GITHUB_ACTOR_NAME"
       - run: pytest tests/governance tests/docs -q
       - run: ruff check src/ observatory/ tests/
       - run: ruff format --check src/ observatory/ tests/

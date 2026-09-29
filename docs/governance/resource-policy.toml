@@ -1,9 +1,10 @@
-schema_version = 1
+schema_version = 2
 
 [scientific_runs]
 max_concurrent = 1
 max_wall_minutes = 360
 max_memory_gb = 12
 max_cpu_threads = 4
+require_posix_hard_memory_limit = true
 launcher = "python scripts/agentctl.py run exec"
-note = "Wall time and concurrency are enforced by the launcher. CPU-thread requests are constrained through common numerical-library environment variables. Memory is a declared hard budget for admission; portable OS-level memory enforcement remains a separate infrastructure item."
+note = "Launcher enforces wall time, POSIX virtual-memory limits and CPU affinity where supported. Portable storage quotas and atomic cross-machine locking remain external-infrastructure limitations."
