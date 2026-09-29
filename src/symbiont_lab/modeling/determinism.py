@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,6 +12,7 @@ class TrainingDeterminism:
     cpu_threads: int | None = None
     interop_threads: int | None = None
     deterministic_algorithms: bool = True
+    warn_only: bool | None = None
 
 
 def configure_training_determinism(config: TrainingDeterminism) -> dict[str, object]:
@@ -29,9 +31,14 @@ def configure_training_determinism(config: TrainingDeterminism) -> dict[str, obj
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(int(config.seed))
 
+    warn_only = (
+        config.warn_only
+        if config.warn_only is not None
+        else os.environ.get("SYMBIONT_STRICT_DETERMINISM") != "1"
+    )
     if config.deterministic_algorithms:
         try:
-            torch.use_deterministic_algorithms(True, warn_only=False)
+            torch.use_deterministic_algorithms(True, warn_only=bool(warn_only))
         except TypeError:  # pragma: no cover
             torch.use_deterministic_algorithms(True)
 
@@ -40,4 +47,5 @@ def configure_training_determinism(config: TrainingDeterminism) -> dict[str, obj
         "cpu_threads": int(torch.get_num_threads()),
         "interop_threads": int(torch.get_num_interop_threads()),
         "deterministic_algorithms": bool(torch.are_deterministic_algorithms_enabled()),
+        "warn_only": bool(warn_only),
     }
