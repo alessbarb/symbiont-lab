@@ -168,7 +168,9 @@ export function createCognitionInspector({
         const motorRouteGroup = inspectorGroup(panel, 'Motor route', true);
         const routeState = motorSignal?.motorConnected
           ? 'CONNECTED MOTOR ROUTE'
-          : motorSignal?.motorDomain
+          : motorSignal?.motorCollapsedOnly
+            ? 'CONNECTED VIA COLLAPSED PHYSICAL SUBSTRATE'
+            : motorSignal?.motorDomain
             ? 'MOTOR DOMAIN · NO OBSERVED ROUTE'
             : motorSignal?.motorRelated
               ? 'MOTOR RELATED · LOCAL EVIDENCE ONLY'
@@ -177,7 +179,7 @@ export function createCognitionInspector({
           motorRouteGroup,
           'Route state',
           routeState,
-          motorSignal?.motorConnected ? PAL.mint : motorSignal?.motorRelated ? PAL.amber : PAL.muted,
+          motorSignal?.motorConnected ? PAL.mint : motorSignal?.motorCollapsedOnly ? PAL.cyan : motorSignal?.motorRelated ? PAL.amber : PAL.muted,
         );
         inspectorMetric(
           motorRouteGroup,
@@ -186,8 +188,10 @@ export function createCognitionInspector({
         );
         const routeNote = el('div', 'mind-inspector-evidence-note');
         routeNote.textContent = motorSignal?.motorConnected
-          ? 'A traceable route exists in the exported observer graph. This does not imply intent or semantic understanding.'
-          : motorSignal?.motorDomain
+          ? 'A traceable route exists in the current exported Atlas projection. This does not imply intent or semantic understanding.'
+          : motorSignal?.motorCollapsedOnly
+            ? 'A route exists in the complete observer graph, but it passes through physical actuator or embodiment structure intentionally collapsed in the Relational projection.'
+            : motorSignal?.motorDomain
             ? 'This node belongs to the motor domain by role, but no exported cognitive route currently connects it to motor output.'
             : 'Only local motor-related evidence is visible; no complete motor route is currently exported.';
         motorRouteGroup.appendChild(routeNote);
