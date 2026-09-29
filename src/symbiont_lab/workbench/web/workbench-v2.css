@@ -17,7 +17,7 @@
 .v2-empty p{margin:.45rem 0 0;color:#8094a5;line-height:1.5}
 .v2-facts{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
 .vision-field{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;aspect-ratio:1/1;max-width:520px;padding:.7rem;background:#081018;border:1px solid rgba(125,178,204,.15);border-radius:16px}
-.vision-field i{display:block;border-radius:2px;background:rgba(96,183,219,calc(.12 + ((var(--i) % 7) * .025)));box-shadow:inset 0 0 0 1px rgba(130,210,235,.04)}
+.vision-field i{display:block;border-radius:2px;background:rgba(96,183,219,.08);box-shadow:inset 0 0 0 1px rgba(130,210,235,.04)}
 .archive-shell .panel-title{letter-spacing:.03em}
 body .rail{backdrop-filter:blur(16px)}
 @media (max-width:980px){.v2-hero{align-items:stretch;flex-direction:column}.v2-status-grid{min-width:0}.v2-two-col{grid-template-columns:1fr}}
@@ -185,7 +185,7 @@ body .rail{backdrop-filter:blur(16px)}
 
 /* Vision · live passive observatory */
 .vision-live-panel{min-height:460px}
-.vision-field.live i.available{background:rgba(96,183,219,calc(.10 + var(--signal) * .018));box-shadow:inset 0 0 0 1px rgba(130,210,235,.06)}
+.vision-field.live i.available{background:rgba(96,183,219,.14);box-shadow:inset 0 0 0 1px rgba(130,210,235,.09)}
 .vision-boundary{margin-top:10px}
 .vision-development-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
 .vision-development-strip.vertical{grid-template-columns:1fr 1fr}
