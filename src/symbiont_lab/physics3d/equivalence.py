@@ -117,6 +117,13 @@ def run_digests(
             checkpoint_observer=observe,
         )
         final_models = _tree_digest(work / "models")
+        private_model_transitions = sum(
+            1
+            for (_, previous), (_, current) in zip(
+                private_model_per_tick, private_model_per_tick[1:]
+            )
+            if previous != current
+        )
         return {
             "schema_version": 2,
             "config": asdict(config),
@@ -125,6 +132,7 @@ def run_digests(
             "per_tick": per_tick,
             "private_model_per_tick": private_model_per_tick,
             "private_model_final": _digest(_private_model_state(last_payload)),
+            "private_model_transitions": private_model_transitions,
             "model_tree_initial": initial_models,
             "model_tree_final": final_models,
             "model_tree_changed": initial_models != final_models,
