@@ -112,3 +112,20 @@ def test_inspect_snapshot_source_requires_physical_body_state(tmp_path: Path) ->
     assert inspected["embedded_model_count"] == 1
     assert inspected["body_present"] is False
     assert inspected["capturable"] is False
+
+
+
+def test_internal_atomic_capture_verifies_destination_identity(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    (source / "models").mkdir(parents=True)
+    (source / "organism.symbiont").write_bytes(b"organism")
+    (source / "body.json").write_text("{}", encoding="utf-8")
+
+    destination = tmp_path / "archive" / "S01"
+    manifest = archive_snapshot(
+        source=source,
+        destination=destination,
+        source_commit="a" * 40,
+    )
+    assert manifest["snapshot_id"] == "S01"
+    assert verify_snapshot(destination)["snapshot_id"] == "S01"

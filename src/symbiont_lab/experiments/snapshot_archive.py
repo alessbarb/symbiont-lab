@@ -223,7 +223,7 @@ def archive_snapshot(
             handle.flush()
             os.fsync(handle.fileno())
 
-        verify_snapshot(tmp)
+        verify_snapshot(tmp, expected_snapshot_id=destination.name)
         _fsync_dir(tmp / "models")
         _fsync_dir(tmp)
         os.replace(tmp, destination)
@@ -241,7 +241,11 @@ def archive_snapshot(
         raise
 
 
-def verify_snapshot(snapshot: Path) -> dict[str, Any]:
+def verify_snapshot(
+    snapshot: Path,
+    *,
+    expected_snapshot_id: str | None = None,
+) -> dict[str, Any]:
     manifest_path = snapshot / "manifest.json"
     if not manifest_path.is_file():
         raise ValueError("snapshot manifest.json missing")
@@ -251,8 +255,9 @@ def verify_snapshot(snapshot: Path) -> dict[str, Any]:
         raise ValueError("snapshot manifest.json is invalid") from exc
     if not isinstance(manifest, dict):
         raise ValueError("snapshot manifest must be an object")
-    if manifest.get("snapshot_id") != snapshot.name:
-        raise ValueError("snapshot_id does not match directory name")
+    expected_id = expected_snapshot_id or snapshot.name
+    if manifest.get("snapshot_id") != expected_id:
+        raise ValueError("snapshot_id does not match expected archive identity")
     for required in ("organism.symbiont", "body.json"):
         if not (snapshot / required).is_file():
             raise ValueError(f"snapshot is missing {required}")
