@@ -173,11 +173,22 @@ def test_cognition_renderer_keeps_shared_graph_helpers():
 def test_mind_generative_cognition_is_separate_from_atlas_topology():
     layout = _read("views/mind/layout.js")
     controller = _read("views/mind/cognition-controller.js")
+    css = _read("mind.css")
+    physics_runtime = (REPO_ROOT / "src" / "symbiont_lab" / "physics3d" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
+    projection = (REPO_ROOT / "src" / "symbiont_lab" / "observation" / "projection.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "mind-cognition-generative" in layout
     assert "mind-cognition-generative-body" in layout
+    assert "mind-cognition-right-rail" in layout
+    assert ".mind-cognition-right-rail" in css
     assert "source?.cognition?.generative" in controller
     assert "renderGenerativePanel(source)" in controller
+    assert "generative=result.generative" in physics_runtime
+    assert 'mind_cognition["generative"]' in projection
     assert "completeTopology.nodes.push" not in controller
     assert "rawNodes.push" not in controller
 
