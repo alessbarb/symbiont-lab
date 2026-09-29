@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess  # nosec B404
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -30,11 +31,13 @@ def _file_sha256(path: Path | str) -> str | None:
 
 
 def _git_commit_sha() -> str:
-    # TODO(security): replace the subprocess probe with a dependency-free,
-    # trusted provenance source if the resident deployment contract permits it.
+    env_sha = os.environ.get("GIT_COMMIT") or os.environ.get("GITHUB_SHA")
+    if env_sha:
+        return env_sha.strip()
+    repo_dir = Path(__file__).resolve().parents[1]
     try:
         out = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],  # nosec
+            ["git", "-C", str(repo_dir), "rev-parse", "HEAD"],  # nosec
             stderr=subprocess.DEVNULL,
             text=True,
         ).strip()

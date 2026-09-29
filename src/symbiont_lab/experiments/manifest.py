@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -14,6 +15,7 @@ from symbiont_lab import __version__ as lab_version
 
 def get_git_info(repo_dir: Path | str | None = None) -> tuple[str, bool]:
     """Return provenance for this source tree, never for the caller's cwd."""
+    env_sha = os.environ.get("GIT_COMMIT") or os.environ.get("GITHUB_SHA")
     cwd = Path(repo_dir) if repo_dir is not None else Path(__file__).resolve().parents[3]
     try:
         sha = subprocess.check_output(
@@ -25,7 +27,44 @@ def get_git_info(repo_dir: Path | str | None = None) -> tuple[str, bool]:
         dirty = bool(status)
         return sha, dirty
     except Exception:
+        if env_sha:
+            return env_sha.strip(), False
         return "unknown", False
+
+
+@dataclass(slots=True, frozen=True)
+class ExecutionFingerprint:
+    """Rigorous execution provenance capturing the active checkout and Python runtime."""
+
+    repo_root: str
+    git_commit: str
+    is_dirty: bool
+    python_executable: str
+    python_version: str
+    symbiont_file: str
+    symbiont_lab_file: str
+
+    @classmethod
+    def capture(cls, repo_root: Path | str | None = None) -> "ExecutionFingerprint":
+        import symbiont
+        import symbiont_lab
+
+        root = Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[3]
+        git_sha, dirty = get_git_info(root)
+        return cls(
+            repo_root=str(root.resolve()),
+            git_commit=git_sha,
+            is_dirty=dirty,
+            python_executable=str(Path(sys.executable).resolve()),
+            python_version=platform.python_version(),
+            symbiont_file=str(Path(symbiont.__file__ or "").resolve()),
+            symbiont_lab_file=str(Path(symbiont_lab.__file__ or "").resolve()),
+        )
+
+    def is_hermetic_to(self, expected_root: Path | str) -> bool:
+        """Verify that resolved modules originate strictly within the expected repository tree."""
+        root = str(Path(expected_root).resolve())
+        return self.symbiont_file.startswith(root) and self.symbiont_lab_file.startswith(root)
 
 
 @dataclass(slots=True)
