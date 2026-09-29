@@ -40,3 +40,20 @@ equivalence = ["reembodied-established"]
 id = "observatory-presentation"
 paths = ["observatory/**", "src/symbiont_lab/app/**", "src/symbiont_lab/workbench/**"]
 classification = "ORDINARY"
+
+
+[[surface]]
+id = "equivalence-control-plane"
+paths = [
+  "src/symbiont_lab/physics3d/equivalence.py",
+  "src/symbiont_lab/physics3d/equivalence_suite.py",
+  "src/symbiont_lab/modeling/determinism.py",
+  "src/symbiont_lab/experiments/snapshot_archive.py",
+  "src/symbiont_lab/experiments/resource_guard.py",
+  "src/symbiont_lab/experiments/execution_workspace.py",
+  "experiments/equivalence/**",
+  "tests/integration/test_equivalence*.py",
+  "tests/unit/lab/experiments/test_snapshot_archive.py",
+  "tests/unit/lab/experiments/test_resource_guard.py",
+]
+classification = "CONSTITUTIONAL"
