@@ -48,10 +48,9 @@ function sensoryStats() {
 }
 
 function fieldCells(apparatus, live) {
-  return Array.from({length:144},(_,i)=>{
-    const strength = live ? ((i * 17 + 11) % 9) : 0;
-    return `<i class="${live ? 'available' : ''}" style="--i:${i};--signal:${strength}"></i>`;
-  }).join('');
+  return Array.from({length:144},(_,i) =>
+    `<i class="${live ? 'available' : ''}" style="--i:${i}"></i>`
+  ).join('');
 }
 
 function modeNav() {
@@ -265,6 +264,16 @@ function connectStreams() {
       requestRender();
     },
     onSourceState: (next) => {
+      if (next.identityChanged) {
+        for (const key of Object.keys(tel)) tel[key] = null;
+        for (const key of Object.keys(snap)) snap[key] = Array.isArray(snap[key]) ? [] : null;
+        snap.senses = [];
+        snap.beliefs = [];
+        snap.sensoryDevelopment = [];
+        snap.sensoryRelations = [];
+        streamState.telemetryTick = null;
+        streamState.snapshotTick = null;
+      }
       Object.assign(streamState, {
         status: next.status,
         source: next.source ?? null,
