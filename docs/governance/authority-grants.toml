@@ -38,3 +38,16 @@ allowed_paths = [
   ".github/pull_request_template.md",
   "docs/history/roadmap-log.md",
 ]
+
+[[grant]]
+id = "owner-2026-09-29-roadmap-completion-and-host-safety-adr"
+status = "open"
+authority = "L4"
+base_commit = "295696f149882e1d7eccd3bb3387b73be560aa24"
+purpose = "Complete the roadmap reconciliation (Phase B heading normalization, E1 discrepancy cause, restored lifecycle and merge gates in §3/§4) and propose ADR-0044 restoring host-safety and lifecycle invariants to the Constitution (status: Proposed)."
+single_use = true
+allowed_paths = [
+  "docs/roadmap.md",
+  "docs/adr/ADR-0044-*.md",
+  "docs/adr/README.md",
+]
