@@ -389,3 +389,15 @@ def test_vision_distinguishes_apparatus_from_active_experience():
     assert "VISUAL APPARATUS PRESENT" in vision
     assert "VISION EXPERIENCE LIVE" in vision
     assert "current run is not a Vision Experience" in vision
+
+
+def test_observer_truth_uses_one_scene_with_inspector_overlays():
+    world = _read("views/world/world-view.js")
+    css = _read("workbench-v2.css")
+    assert "World · Observer Truth" in world
+    assert "data-world-overlay=\"physical\"" in world
+    assert "data-world-overlay=\"perception\"" in world
+    assert "data-world-overlay=\"self\"" in world
+    assert "Known World" not in world.split("const LAYERS", 1)[1].split("];", 1)[0]
+    assert "Predictions" not in world.split("const LAYERS", 1)[1].split("];", 1)[0]
+    assert ".body-world-toolbar{display:none!important}" in css
