@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from typing import Any
@@ -42,6 +43,11 @@ class CapsuleKeyPair:
     @property
     def public_bytes(self) -> bytes:
         return self._private_key.public_key().public_bytes_raw()
+
+    @property
+    def public_key_fingerprint(self) -> str:
+        """Hex-encoded SHA-256 fingerprint of the Ed25519 public key."""
+        return hashlib.sha256(self.public_bytes).hexdigest()
 
     def sign(self, message: bytes) -> bytes:
         return self._private_key.sign(message)

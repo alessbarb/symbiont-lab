@@ -18,6 +18,7 @@ from symbiont.host import (
     learn_local_host_rhythms,
     track_local_host_drift,
 )
+from symbiont.host.durable import durable_atomic_write
 
 
 def build_capsule_parser(parser: argparse.ArgumentParser) -> None:
@@ -47,17 +48,22 @@ def build_capsule_parser(parser: argparse.ArgumentParser) -> None:
     )
 
 
-
-
 def _load_or_create_keypair(keyfile: str | None) -> CapsuleKeyPair:
     if keyfile is None:
         return CapsuleKeyPair.generate()
     path = Path(keyfile)
     if path.is_file():
-        data = json.loads(path.read_text())
-        return CapsuleKeyPair.from_private_bytes(bytes.fromhex(data["private_key"]))
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return CapsuleKeyPair.from_private_bytes(bytes.fromhex(data["private_key"]))
+        except Exception as exc:
+            raise ValueError(
+                f"Identity keyfile at '{path}' is corrupt or unreadable: {exc}. "
+                "Refusing to regenerate identity silently."
+            ) from exc
     keypair = CapsuleKeyPair.generate()
-    path.write_text(json.dumps({"private_key": keypair.private_bytes.hex()}))
+    payload = json.dumps({"private_key": keypair.private_bytes.hex()}, indent=2) + "\n"
+    durable_atomic_write(path, payload, permissions=0o600, sync_dir=True)
     return keypair
 
 

@@ -9,6 +9,7 @@ import signal
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 try:  # Package invocation: ``python -m observatory.resident``.
     from .adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
@@ -22,6 +23,8 @@ except ImportError:  # Direct script invocation remains a documented interface.
     from provenance import build_observer_provenance
     from publisher import JournalSink, SnapshotPublisher, StdoutSink
     from registry import derive_instance_id, new_run_id, write_heartbeat
+
+from symbiont.host.durable import durable_atomic_write, durable_atomic_write_json
 
 
 def _rounded(value: float | None) -> float | None:
@@ -40,25 +43,8 @@ def _running_version_tuple() -> tuple[int, int, int]:
 
 
 def _write_topology(observatory_dir: Path, instance_id: str, payload: dict) -> None:
-    import json as _json
-    import tempfile as _tempfile
-
     target = Path(observatory_dir) / "instances" / f"{instance_id}.topology.json"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    fd, temporary = _tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent, text=True)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            _json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, target)
-    except BaseException:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
-        raise
+    durable_atomic_write_json(target, payload, sort_keys=False, ensure_ascii=False, sync_dir=True)
 
 
 def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict) -> None:
@@ -276,6 +262,28 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             pass
 
+    key_file = Path(args.state_file).with_suffix(".key")
+    if key_file.is_file():
+        try:
+            keypair = CapsuleKeyPair.from_private_bytes(key_file.read_bytes())
+        except Exception as exc:
+            raise RuntimeError(
+                f"Cryptographic identity key at '{key_file}' is corrupt or unreadable: {exc}. "
+                "Refusing to regenerate identity silently."
+            ) from exc
+    else:
+        keypair = CapsuleKeyPair.generate()
+        durable_atomic_write(key_file, keypair.private_bytes, permissions=0o600, sync_dir=True)
+
+    slm_status: dict[str, Any] = {
+        "enabled": bool(args.enable_slm),
+        "available": False,
+        "last_success_tick": None,
+        "consecutive_failures": 0,
+        "last_error_class": None,
+        "last_error": None,
+    }
+
     def publish(result) -> None:
         nonlocal topology_revision, developmental_baseline
         bridge = runtime.cognitive_bridge
@@ -350,6 +358,11 @@ def main(argv: list[str] | None = None) -> int:
             "sampled_this_tick": len(result.snapshot.sampled_capability_ids),
             "discovered": len(result.snapshot.manifest.available),
         }
+        if args.enable_slm:
+            if "apparatus" not in snapshot:
+                snapshot["apparatus"] = {}
+            snapshot["apparatus"]["slm_service"] = dict(slm_status)
+
         envelope_payload = envelope(snapshot)
         publisher.publish(envelope_payload, snapshot)
 
@@ -374,21 +387,8 @@ def main(argv: list[str] | None = None) -> int:
             started_at=started_at,
             topology_revision=topology_revision if topology_revision is not None else 0,
             organism_id=runtime.organism_id,
+            key_fingerprint=keypair.public_key_fingerprint,
         )
-
-    key_file = Path(args.state_file).with_suffix(".key")
-    if key_file.is_file():
-        try:
-            keypair = CapsuleKeyPair.from_private_bytes(key_file.read_bytes())
-        except Exception:
-            keypair = CapsuleKeyPair.generate()
-            key_file.write_bytes(keypair.private_bytes)
-    else:
-        keypair = CapsuleKeyPair.generate()
-        try:
-            key_file.write_bytes(keypair.private_bytes)
-        except OSError:
-            pass
 
     habitat_dir = Path(args.state_file).parent / "habitat"
     habitat = LocalHabitat(habitat_dir)
@@ -426,11 +426,17 @@ def main(argv: list[str] | None = None) -> int:
                             gateway=gateway,
                         )
                         runtime.attach_private_model_bridge(bridge)
-                    except Exception:
-                        pass
-        except Exception:
+                        slm_status["available"] = True
+                    except Exception as exc:
+                        slm_status["available"] = False
+                        slm_status["last_error_class"] = exc.__class__.__name__
+                        slm_status["last_error"] = str(exc)
+        except Exception as exc:
             slm_factory = None
             slm_store = None
+            slm_status["available"] = False
+            slm_status["last_error_class"] = exc.__class__.__name__
+            slm_status["last_error"] = str(exc)
 
     def step_slm_training(current_tick: int) -> None:
         if slm_factory is None or slm_store is None:
@@ -469,8 +475,17 @@ def main(argv: list[str] | None = None) -> int:
                     gateway=gateway,
                 )
                 runtime.attach_private_model_bridge(bridge)
-        except Exception:
-            pass
+
+            slm_status["available"] = True
+            slm_status["last_success_tick"] = current_tick
+            slm_status["consecutive_failures"] = 0
+            slm_status["last_error_class"] = None
+            slm_status["last_error"] = None
+        except Exception as exc:
+            slm_status["available"] = False
+            slm_status["consecutive_failures"] += 1
+            slm_status["last_error_class"] = exc.__class__.__name__
+            slm_status["last_error"] = str(exc)
 
     def on_checkpoint_hook() -> None:
         if args.enable_slm:
