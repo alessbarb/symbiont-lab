@@ -1,6 +1,11 @@
 repos:
   - repo: local
     hooks:
+      - id: governance-verify
+        name: Repository governance verification
+        entry: python scripts/agentctl.py verify
+        language: system
+        pass_filenames: false
       - id: ruff-check
         name: Ruff check
         entry: ruff check --output-format=concise
