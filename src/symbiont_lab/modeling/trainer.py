@@ -22,6 +22,7 @@ from .architectures import (
 )
 from .artifacts import ModelArtifact
 from .dataset import EncodedCorpus, EncodedSplit
+from .determinism import TrainingDeterminism, configure_training_determinism
 
 
 @dataclass(frozen=True, slots=True)
@@ -277,13 +278,7 @@ def _train_private_model(
     )
     selected_config = config or TrainingConfig()
     torch, F = _torch()
-    torch.manual_seed(request.seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(request.seed)
-    try:
-        torch.use_deterministic_algorithms(True, warn_only=True)
-    except TypeError:  # pragma: no cover - older supported torch variants
-        torch.use_deterministic_algorithms(True)
+    configure_training_determinism(TrainingDeterminism(seed=request.seed))
 
     resolved_device = torch.device(device)
     resolved_spec = (
