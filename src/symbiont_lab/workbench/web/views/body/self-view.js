@@ -734,6 +734,28 @@ export function renderSelfViewDevelopment(history, options = {}) {
   };
   const markerX = 18 + (selectedIndex / Math.max(1, frames.length - 1)) * (width - 36);
   const milestones = developmentMilestones(frames);
+  const observerEvents = Array.isArray(options.events) ? options.events : [];
+  const eventMarkers = observerEvents.map((event) => {
+    const tick = Number(event?.tick);
+    if (!Number.isFinite(tick) || tick < first.tick || tick > latest.tick) return '';
+    const x = 18 + ((tick - first.tick) / Math.max(1, latest.tick - first.tick)) * (width - 36);
+    const tone = ['weakened','became_uncertain','lost_support'].includes(event.kind) ? 'warning'
+      : ['embodiment','novel'].includes(event.kind) ? 'novel'
+      : 'change';
+    return `<circle cx="${x.toFixed(1)}" cy="13" r="4" class="self-dev-event-marker ${tone}" data-development-tick="${tick}" data-development-segment="${escapeHtml(event.segment || '')}"><title>${escapeHtml(event.title || event.kind || 'development event')}</title></circle>`;
+  }).join('');
+
+  const interpretation = (() => {
+    const a = selected.aggregate;
+    const coverage = ratio(a.coverage);
+    const stability = ratio(a.stability);
+    const agency = ratio(a.agency);
+    if (coverage < .15) return 'Sparse acquired structure. Most physical correspondence remains unsupported in the selected observer state.';
+    if (stability < coverage * .65) return 'Acquired coverage is broader than stability. The selected state is still restructuring rather than simply accumulating.';
+    if (agency < .15 && stability >= .25) return 'Several mappings are stable, while evidence of action-conditioned agency remains limited.';
+    if (agency >= .35) return 'Acquired structure is comparatively established and includes substantial action-conditioned evidence.';
+    return 'A coherent but incomplete acquired structure is present; coverage, stability and agency remain uneven.';
+  })();
 
   return `<div class="self-development-head">
     <div><span>Development timeline</span><strong>t${first.tick} → t${latest.tick}</strong></div>
@@ -765,6 +787,7 @@ export function renderSelfViewDevelopment(history, options = {}) {
       <path d="${developmentPath(frames, 'coverage', width, height, scale)}" class="self-dev-line coverage"/>
       <path d="${developmentPath(frames, 'stability', width, height, scale)}" class="self-dev-line stability"/>
       <path d="${developmentPath(frames, 'agency', width, height, scale)}" class="self-dev-line agency"/>
+      ${eventMarkers}
       <line x1="${markerX.toFixed(1)}" y1="10" x2="${markerX.toFixed(1)}" y2="${height - 18}" class="self-dev-selection"/>
     </svg>
     <div class="self-development-legend">
@@ -801,6 +824,10 @@ export function renderSelfViewDevelopment(history, options = {}) {
             <div><span>Stability</span><strong>${pct(selected.aggregate.stability)}</strong><small>${selected.aggregate.stable} stable channels</small></div>
             <div><span>Agency</span><strong>${pct(selected.aggregate.agency)}</strong><small>${selected.aggregate.agencyRegions} regions touched</small></div>
             <div><span>Agentic</span><strong>${selected.aggregate.agenticRegions}</strong><small>regions with agentic dimensions</small></div>
+          </div>
+          <div class="self-development-interpretation">
+            <span>Observer interpretation</span>
+            <strong>${escapeHtml(interpretation)}</strong>
           </div>`}
     </div>
   </div>
