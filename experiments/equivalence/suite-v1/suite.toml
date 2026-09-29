@@ -1,0 +1,48 @@
+schema_version = 1
+suite_id = "causal-equivalence-v1"
+status = "capture-required"
+note = "Reference snapshots are intentionally not fabricated. Capture real organism states with agentctl snapshot capture before enabling automatic ORDINARY downgrade."
+
+[[scenario]]
+id = "established-anthropomorphic"
+snapshot = "snapshots/S01-established-anthropomorphic"
+body_kind = "anthropomorphic-v6-vision"
+ticks = 96
+training = false
+coverage = ["organism-state", "body-state", "provenance"]
+
+[[scenario]]
+id = "private-model-training"
+snapshot = "snapshots/S02-private-model-training"
+body_kind = "anthropomorphic-v6-vision"
+ticks = 160
+training = true
+train_interval = 32
+min_training_windows = 4
+coverage = ["organism-state", "private-model-training", "model-lineage"]
+
+[[scenario]]
+id = "promotion-eligible"
+snapshot = "snapshots/S03-promotion-eligible"
+body_kind = "anthropomorphic-v6-vision"
+ticks = 192
+training = true
+train_interval = 32
+min_training_windows = 4
+coverage = ["organism-state", "private-model-training", "model-promotion", "model-lineage"]
+
+[[scenario]]
+id = "reembodied-established"
+snapshot = "snapshots/S04-reembodied-established"
+body_kind = "anthropomorphic-v6-vision"
+ticks = 96
+training = false
+coverage = ["organism-state", "reembodiment", "body-state"]
+
+[[scenario]]
+id = "developed-cognition"
+snapshot = "snapshots/S05-developed-cognition"
+body_kind = "anthropomorphic-v6-vision"
+ticks = 128
+training = false
+coverage = ["organism-state", "cognition", "provenance"]
