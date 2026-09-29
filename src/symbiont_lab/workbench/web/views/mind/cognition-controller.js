@@ -109,6 +109,14 @@ export function createCognitionController({
   const interaction = createCognitionInteraction({
     onInvalidate3D: () => invalidateProjectedRegionHistory3D(),
     onRebuild: (width, height) => initGraphPhysics(width, height),
+    onSelectionChange: (nodeId) => {
+      graph.atlasPath = cognitivePath(nodeId, graph.nodes, graph.edges, 12);
+      void loadSelectedCausalProvenance(nodeId);
+      maybeUpdateCognitionSummary({ force: true });
+    },
+    onRegionFocusChange: () => {
+      maybeUpdateCognitionSummary({ force: true });
+    },
     onRenderInspector: () => inspector.render(),
     onSchedule: () => {
       if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
@@ -712,9 +720,17 @@ export function createCognitionController({
           vx: 0,
           vy: 0,
           pinned: false,
+          layoutAnchorX: x,
+          layoutAnchorY: y,
         };
         graph.cachedPositions.set(raw.id, node);
       } else {
+        // Preserve the current cartographic position as a soft historical
+        // anchor before applying new observed state. Topology may deform the
+        // map, but unchanged cognition should not drift merely because a new
+        // frame arrived or the user changed an analytical lens.
+        node.layoutAnchorX = node.x;
+        node.layoutAnchorY = node.y;
         Object.assign(node, raw);
       }
       node.neighbors = adjacency.get(raw.id) ?? new Set();
@@ -743,6 +759,8 @@ export function createCognitionController({
       node.y = host.y + Math.sin(angle) * radius;
       node.vx = 0;
       node.vy = 0;
+      node.layoutAnchorX = node.x;
+      node.layoutAnchorY = node.y;
       node._satellitePlaced = true;
     }
 
@@ -806,7 +824,34 @@ export function createCognitionController({
       }))
       .filter(link => link.source && link.target);
   
-    graph.alpha = 1.0;
+    const previousEdgeKeys = new Set(previousEdges.map(edge =>
+      `${edge.source?.id ?? edge.sourceId}|${edge.target?.id ?? edge.targetId}|${edge.kind ?? 'edge'}`
+    ));
+    const currentEdgeKeys = new Set(graph.edges.map(edge =>
+      `${edge.source?.id ?? edge.sourceId}|${edge.target?.id ?? edge.targetId}|${edge.kind ?? 'edge'}`
+    ));
+    const edgeTopologyChanged =
+      previousEdgeKeys.size !== currentEdgeKeys.size ||
+      [...currentEdgeKeys].some(key => !previousEdgeKeys.has(key));
+    const nodeTopologyChanged =
+      previousNodeMap.size !== graph.nodes.length ||
+      graph.nodes.some(node => !previousNodeMap.has(node.id));
+    const communityChanged = graph.nodes.some(node => {
+      const previous = previousNodeMap.get(node.id);
+      return previous && previous.community !== node.community;
+    });
+    const initialLayout = previousNodeMap.size === 0;
+
+    // Reheat only when observed structure actually changed. Presentation-only
+    // rebuilds (selection, zoom, analytical mode, resize) keep the settled map.
+    const structuralHeat = initialLayout
+      ? 0.70
+      : nodeTopologyChanged || edgeTopologyChanged
+        ? 0.22
+        : communityChanged
+          ? 0.14
+          : GRAPH_PHYSICS.alphaMin;
+    graph.alpha = Math.max(graph.alpha, structuralHeat);
     inspector.render();
   }
   
@@ -823,26 +868,45 @@ export function createCognitionController({
     const cx = width / 2, cy = height / 2;
     const alpha = graph.alpha;
   
-    const communityCenters = new Map();
+    const observedCommunityCenters = new Map();
     for (const node of nodes) {
       if (!node.community || node.community === 'isolated') continue;
-      const state = communityCenters.get(node.community) ?? { x: 0, y: 0, n: 0 };
+      const state = observedCommunityCenters.get(node.community) ?? { x: 0, y: 0, n: 0 };
       state.x += node.x;
       state.y += node.y;
       state.n += 1;
-      communityCenters.set(node.community, state);
+      observedCommunityCenters.set(node.community, state);
     }
-    for (const state of communityCenters.values()) {
+    for (const state of observedCommunityCenters.values()) {
       state.x /= Math.max(1, state.n);
       state.y /= Math.max(1, state.n);
     }
+
+    // A moving instantaneous centroid makes a dense region behave like jelly:
+    // one displaced node moves the centroid, which then moves every neighbour.
+    // Low-pass the observer-side centre so regions deform without wobbling.
+    graph.stableCommunityCenters ??= new Map();
+    const communityCenters = graph.stableCommunityCenters;
+    for (const [communityId, observed] of observedCommunityCenters) {
+      const previous = communityCenters.get(communityId);
+      if (!previous) {
+        communityCenters.set(communityId, { x: observed.x, y: observed.y });
+        continue;
+      }
+      const mix = 0.10;
+      previous.x += (observed.x - previous.x) * mix;
+      previous.y += (observed.y - previous.y) * mix;
+    }
+    for (const communityId of [...communityCenters.keys()]) {
+      if (!observedCommunityCenters.has(communityId)) communityCenters.delete(communityId);
+    }
   
-    // Relationship-aware repulsion/attraction. Long-range graph structure is
-    // carried by springs, sector anchors and gravity; pairwise repulsion only
-    // needs a local neighbourhood.
-    forEachNearbyPair2D(physicsNodes, 180, 520, (a, b) => {
+    // Local separation only. The Atlas should not behave like charged balls:
+    // distant nodes are organised by graph springs and sector anchors, while
+    // pairwise physics mainly prevents visual overlap.
+    forEachNearbyPair2D(physicsNodes, 120, 420, (a, b) => {
       const dx = b.x - a.x, dy = b.y - a.y;
-      const distSq = dx * dx + dy * dy + 144;
+      const distSq = dx * dx + dy * dy + 25;
       const dist = Math.sqrt(distSq);
 
       const structurallyRelated = a.neighbors?.has(b.id) || b.neighbors?.has(a.id);
@@ -867,20 +931,31 @@ export function createCognitionController({
 
       const overlayPair = a.overlayOnly || b.overlayOnly;
       const repulsionScale = overlayPair
-        ? (projectedRelated ? 0.045 : 0.18)
+        ? (projectedRelated ? 0.03 : 0.10)
         : directlyRelated
-          ? 0.25
+          ? 0.10
           : sameCommunity
-            ? 0.62
-            : 1.28;
-      const force = ((GRAPH_PHYSICS.repulsion * repulsionScale) / distSq) * alpha;
+            ? 0.30
+            : 0.58;
+      const minDistance =
+        finiteNumber(a.radius ?? a.baseRadius, 6) +
+        finiteNumber(b.radius ?? b.baseRadius, 6) +
+        GRAPH_PHYSICS.overlapGap;
+      const overlap = Math.max(0, minDistance - dist);
+      const ambientRange = Math.max(48, minDistance * 3.2);
+      const ambientRepulsion = dist < ambientRange
+        ? ((GRAPH_PHYSICS.repulsion * repulsionScale) / (distSq + 400)) *
+          (1 - dist / ambientRange)
+        : 0;
+      const exclusion = overlap * GRAPH_PHYSICS.overlapStrength;
+      const force = (ambientRepulsion + exclusion) * alpha;
       const fx = (dx / dist) * force, fy = (dy / dist) * force;
       if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
       if (!b.pinned) { b.vx += fx; b.vy += fy; }
 
       if (!directlyRelated && !overlayPair && shared > 0) {
         const desired = 95 + 18 / shared;
-        const pull = (dist - desired) * 0.0065 * Math.min(3, shared) * alpha;
+        const pull = (dist - desired) * 0.0040 * Math.min(3, shared) * alpha;
         const pfx = (dx / dist) * pull, pfy = (dy / dist) * pull;
         if (!a.pinned) { a.vx += pfx; a.vy += pfy; }
         if (!b.pinned) { b.vx -= pfx; b.vy -= pfy; }
@@ -969,9 +1044,18 @@ export function createCognitionController({
       if (node.pinned || node.isolated) continue;
       const center = node.community ? communityCenters.get(node.community) : null;
       if (center && !node.overlayOnly) {
-        const cohesion = (node.fringeStructural ? 0.006 : 0.012) * alpha;
+        const cohesion = (node.fringeStructural ? 0.004 : 0.008) * alpha;
         node.vx += (center.x - node.x) * cohesion;
         node.vy += (center.y - node.y) * cohesion;
+      }
+
+      if (
+        !node.overlayOnly &&
+        Number.isFinite(node.layoutAnchorX) &&
+        Number.isFinite(node.layoutAnchorY)
+      ) {
+        node.vx += (node.layoutAnchorX - node.x) * GRAPH_PHYSICS.temporalAnchor * alpha;
+        node.vy += (node.layoutAnchorY - node.y) * GRAPH_PHYSICS.temporalAnchor * alpha;
       }
 
       if (node.overlayOnly) {
@@ -1014,15 +1098,26 @@ export function createCognitionController({
       const maxRadius = Math.min(width, height) * 0.43;
       if (radial > maxRadius) {
         const excess = radial - maxRadius;
-        node.vx += ((cx - node.x) / radial) * excess * 0.018 * alpha;
-        node.vy += ((cy - node.y) / radial) * excess * 0.018 * alpha;
+        node.vx += ((cx - node.x) / radial) * excess * 0.010 * alpha;
+        node.vy += ((cy - node.y) / radial) * excess * 0.010 * alpha;
       }
   
       const damping = node.overlayOnly
-        ? Math.min(GRAPH_PHYSICS.damping, 0.82)
+        ? Math.min(GRAPH_PHYSICS.damping, 0.66)
         : GRAPH_PHYSICS.damping;
       node.vx *= damping;
       node.vy *= damping;
+
+      const speed = Math.hypot(node.vx, node.vy);
+      if (speed > GRAPH_PHYSICS.maxStep) {
+        const factor = GRAPH_PHYSICS.maxStep / speed;
+        node.vx *= factor;
+        node.vy *= factor;
+      } else if (graph.alpha < 0.02 && speed < GRAPH_PHYSICS.settleSpeed) {
+        node.vx = 0;
+        node.vy = 0;
+      }
+
       node.x += node.vx;
       node.y += node.vy;
     }
@@ -2307,7 +2402,6 @@ export function createCognitionController({
         graph.flowTraceEnabled = !graph.flowTraceEnabled;
         flowBtn.classList.toggle('active', graph.flowTraceEnabled);
         recordObserverUsage(observerUsage, 'flow-trace');
-        graph.alpha = Math.max(graph.alpha, 0.12);
         if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
       });
     }
