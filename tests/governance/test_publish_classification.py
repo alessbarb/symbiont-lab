@@ -176,3 +176,29 @@ def test_adr_reference_resolves_existing_accepted_adr() -> None:
     resolved = _normalize_adr_ref("ADR-0046")
     assert resolved.name.startswith("ADR-0046-")
     assert resolved.parent == (ROOT / "docs/adr").resolve()
+
+
+
+def test_rebase_reprepares_final_diff_before_revalidation(monkeypatch) -> None:
+    import subprocess
+    import governance.publish as publish_mod
+
+    normalized: list[str] = []
+    rebases: list[list[str]] = []
+
+    def fake_run(args, **kwargs):
+        rebases.append(list(args))
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(publish_mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        publish_mod,
+        "_normalize_local_commits",
+        lambda remote: normalized.append(remote),
+    )
+
+    latest = "a" * 40
+    publish_mod._rebase_and_reprepare(latest)
+
+    assert rebases == [["git", "rebase", latest]]
+    assert normalized == [latest]

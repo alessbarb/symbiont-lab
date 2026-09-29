@@ -401,6 +401,24 @@ def _sync_to_remote() -> str:
     return _git("rev-parse", "origin/main")
 
 
+def _rebase_and_reprepare(latest: str) -> None:
+    """Rebase a prepared publication and restore the final diff to the index.
+
+    Rebase operates on an already-created publication commit. Validation must not run
+    against an empty index afterwards: collapse the rebased commit back into a staged
+    diff relative to the exact fetched baseline before reclassification/validation.
+    """
+
+    result = subprocess.run(
+        ["git", "rebase", latest],
+        cwd=ROOT,
+        check=False,
+    )
+    if result.returncode:
+        raise RuntimeError("main changed and rebase conflicts")
+    _normalize_local_commits(latest)
+
+
 def _stage_validate_commit(
     message: str,
     *,
@@ -467,18 +485,13 @@ def publish(
             _git("fetch", "origin", "main")
             latest = _git("rev-parse", "origin/main")
             if latest != remote:
-                result = subprocess.run(
-                    ["git", "rebase", "origin/main"],
-                    cwd=ROOT,
-                    check=False,
-                )
-                if result.returncode:
-                    print("BLOCKED — main changed and rebase conflicts", file=sys.stderr)
-                    return 2
+                _rebase_and_reprepare(latest)
                 remote = latest
 
-                # The baseline changed: recompute evidence and validation, then amend
-                # the publication attestation to match the final rebased diff.
+                # Re-evaluate and validate the *final rebased diff*. The rebased
+                # publication commit was soft-reset by _rebase_and_reprepare, so the
+                # staged tree now represents the actual candidate against this exact
+                # baseline rather than an empty post-rebase index.
                 _, effective, evidence, constitutional_adr = _evaluate(
                     remote,
                     owner_approved=owner_approved,
@@ -490,7 +503,6 @@ def publish(
                     owner_approved=owner_approved,
                     evidence=evidence,
                     constitutional_adr=constitutional_adr,
-                    amend=True,
                 )
 
             result = subprocess.run(
@@ -503,11 +515,24 @@ def publish(
                 return 0
 
             _git("fetch", "origin", "main")
+            advanced = _git("rev-parse", "origin/main")
+            if advanced == remote:
+                print(
+                    "BLOCKED — push failed without main advancing; inspect remote policy, credentials or network",
+                    file=sys.stderr,
+                )
+                return 2
             if attempt == retries:
                 break
 
         print("BLOCKED — main kept changing; rerun agentctl publish", file=sys.stderr)
         return 4
+    except subprocess.CalledProcessError as exc:
+        print(
+            f"BLOCKED — validation command failed with exit code {exc.returncode}",
+            file=sys.stderr,
+        )
+        return 2
     except PermissionError as exc:
         print(f"BLOCKED — {exc}", file=sys.stderr)
         return 3
