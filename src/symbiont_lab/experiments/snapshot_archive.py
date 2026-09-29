@@ -32,6 +32,19 @@ def _tree_hash(root: Path) -> str:
     return digest.hexdigest()
 
 
+def _body_metadata(body: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(body.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return {
+        "embodiment_id": payload.get("embodiment_id") or payload.get("epoch_id"),
+        "body_kind_from_state": payload.get("body_kind") or payload.get("kind"),
+    }
+
+
 def _bundle_metadata(bundle: Path) -> dict[str, Any]:
     try:
         with zipfile.ZipFile(bundle) as archive:
@@ -84,6 +97,7 @@ def archive_snapshot(
             "body_kind": body_kind,
             "scenario": scenario,
             **_bundle_metadata(organism),
+            **_body_metadata(body),
             "organism_sha256": _sha256(tmp / "organism.symbiont"),
             "body_sha256": _sha256(tmp / "body.json"),
             "models_tree_sha256": _tree_hash(tmp / "models"),
