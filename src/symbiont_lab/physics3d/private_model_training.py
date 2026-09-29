@@ -25,6 +25,7 @@ from symbiont.modeling.gateway import PrivateModelBridge
 from symbiont.modeling.registry import ModelState
 from symbiont.modeling.tokenizer import NativeTokenizer
 from symbiont_lab.modeling.artifacts import FileArtifactStore
+from symbiont_lab.modeling.determinism import TrainingDeterminism, configure_training_determinism
 from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
 
 
@@ -176,10 +177,14 @@ def _train_job(
         except OSError:
             pass
         try:
-            import torch
-
-            torch.set_num_threads(1)
-            torch.set_num_interop_threads(1)
+            configure_training_determinism(
+                TrainingDeterminism(
+                    seed=request.seed,
+                    cpu_threads=1,
+                    interop_threads=1,
+                    deterministic_algorithms=True,
+                )
+            )
         except (ImportError, RuntimeError):
             pass
 
