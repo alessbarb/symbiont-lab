@@ -26,10 +26,7 @@ def _git(repo: Path, *args: str) -> str:
 def pinned_worktree(repo: Path, commit: str) -> Iterator[Path]:
     """Create a detached worktree pinned to exactly one commit."""
     repo = repo.resolve()
-    common = Path(_git(repo, "rev-parse", "--git-common-dir"))
-    if not common.is_absolute():
-        common = (repo / common).resolve()
-    root = common / "symbiont-agent" / "worktrees"
+    root = Path(tempfile.gettempdir()) / "symbiont-lab-worktrees"
     root.mkdir(parents=True, exist_ok=True)
     path = Path(tempfile.mkdtemp(prefix=f"run-{commit[:10]}-", dir=root))
     shutil.rmtree(path)
