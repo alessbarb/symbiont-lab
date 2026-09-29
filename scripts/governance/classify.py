@@ -87,10 +87,25 @@ def _surface_haystack(repo: Path, path: str, sections: dict[str, str]) -> str:
     return ""
 
 
-def assess(repo: Path, base: str, paths: list[str], diff_text: str) -> Assessment:
-    config = tomllib.loads(
-        (repo / "docs/governance/change-surfaces.toml").read_text(encoding="utf-8")
+def _load_surfaces(repo: Path, base: str) -> dict:
+    """Load classification policy from the trusted baseline, never the candidate tree."""
+    result = subprocess.run(
+        ["git", "show", f"{base}:docs/governance/change-surfaces.toml"],
+        cwd=repo,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "trusted baseline is missing docs/governance/change-surfaces.toml"
+        )
+    return tomllib.loads(result.stdout)
+
+
+def assess(repo: Path, base: str, paths: list[str], diff_text: str) -> Assessment:
+    config = _load_surfaces(repo, base)
     sections = _diff_by_path(diff_text)
     classification = ChangeClass.ORDINARY
     reasons: list[str] = []
