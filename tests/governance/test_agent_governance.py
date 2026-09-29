@@ -137,28 +137,45 @@ def test_equivalence_evidence_requires_matching_parent_and_passes() -> None:
         equivalence_scenarios = ("s1", "s2")
 
     parent = "a" * 40
-    valid = {
-        "_meta": {"baseline_commit": parent},
-        "s1": {"status": "PASS"},
-        "s2": {"status": "PASS"},
-    }
-    assert ctl._equivalence_evidence_errors(parent, Assessment(), __import__("json").dumps(valid)) == []
+    commit = "c" * 40
+    monkey_tree = "d" * 40
+    original_git = ctl.git
+    ctl.git = lambda *args, **kwargs: monkey_tree if args == ("show", "-s", "--format=%T", commit) else original_git(*args, **kwargs)
+    try:
+        valid = {
+            "_meta": {"baseline_commit": parent, "candidate_tree": monkey_tree},
+            "s1": {"status": "PASS"},
+            "s2": {"status": "PASS"},
+        }
+        assert ctl._equivalence_evidence_errors(
+            parent, commit, Assessment(), __import__("json").dumps(valid)
+        ) == []
 
-    wrong_parent = {
-        "_meta": {"baseline_commit": "b" * 40},
-        "s1": {"status": "PASS"},
-        "s2": {"status": "PASS"},
-    }
-    assert ctl._equivalence_evidence_errors(
-        parent, Assessment(), __import__("json").dumps(wrong_parent)
-    )
-    missing = {
-        "_meta": {"baseline_commit": parent},
-        "s1": {"status": "PASS"},
-    }
-    assert ctl._equivalence_evidence_errors(
-        parent, Assessment(), __import__("json").dumps(missing)
-    )
+        wrong_parent = {
+            "_meta": {"baseline_commit": "b" * 40, "candidate_tree": monkey_tree},
+            "s1": {"status": "PASS"},
+            "s2": {"status": "PASS"},
+        }
+        assert ctl._equivalence_evidence_errors(
+            parent, commit, Assessment(), __import__("json").dumps(wrong_parent)
+        )
+        wrong_tree = {
+            "_meta": {"baseline_commit": parent, "candidate_tree": "e" * 40},
+            "s1": {"status": "PASS"},
+            "s2": {"status": "PASS"},
+        }
+        assert ctl._equivalence_evidence_errors(
+            parent, commit, Assessment(), __import__("json").dumps(wrong_tree)
+        )
+        missing = {
+            "_meta": {"baseline_commit": parent, "candidate_tree": monkey_tree},
+            "s1": {"status": "PASS"},
+        }
+        assert ctl._equivalence_evidence_errors(
+            parent, commit, Assessment(), __import__("json").dumps(missing)
+        )
+    finally:
+        ctl.git = original_git
 
 
 def test_governance_adr_must_be_accepted_inside_docs_adr(monkeypatch) -> None:

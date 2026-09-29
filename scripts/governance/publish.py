@@ -176,6 +176,7 @@ def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict[s
     evidence: dict[str, dict] = {
         "_meta": {
             "baseline_commit": base,
+            "candidate_tree": _git("write-tree"),
             "suite_id": suite_id,
             "suite_path": suite.relative_to(ROOT).as_posix(),
         }
@@ -474,6 +475,9 @@ def publish(
             print("nothing to publish")
             return 0
 
+        # Bind equivalence evidence to the exact proposed Git tree. Staging is
+        # intentionally non-destructive and publication already owns the final index.
+        _git("add", "-A")
         _, effective, evidence, constitutional_adr = _evaluate(
             remote,
             owner_approved=owner_approved,
@@ -498,6 +502,7 @@ def publish(
                 # publication commit was soft-reset by _rebase_and_reprepare, so the
                 # staged tree now represents the actual candidate against this exact
                 # baseline rather than an empty post-rebase index.
+                _git("add", "-A")
                 _, effective, evidence, constitutional_adr = _evaluate(
                     remote,
                     owner_approved=owner_approved,

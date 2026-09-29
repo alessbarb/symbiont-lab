@@ -528,6 +528,7 @@ def _governance_adr_valid(ref: str, path: str) -> bool:
 
 def _equivalence_evidence_errors(
     parent: str,
+    commit: str,
     assessment: Any,
     raw: str | None,
 ) -> list[str]:
@@ -546,6 +547,9 @@ def _equivalence_evidence_errors(
     meta = payload.get("_meta")
     if not isinstance(meta, dict) or meta.get("baseline_commit") != parent:
         return ["equivalence evidence baseline does not match commit parent"]
+    candidate_tree = git("show", "-s", "--format=%T", commit)
+    if meta.get("candidate_tree") != candidate_tree:
+        return ["equivalence evidence candidate tree does not match commit tree"]
 
     errors: list[str] = []
     for scenario in required:
@@ -639,6 +643,7 @@ def _audit_commit(commit: str, actor: str | None) -> list[str]:
         if expected == ChangeClass.SCIENTIFIC and governance_class == "ORDINARY":
             evidence_errors = _equivalence_evidence_errors(
                 parent,
+                commit,
                 assessment,
                 _trailer(message, "Equivalence-Evidence"),
             )
