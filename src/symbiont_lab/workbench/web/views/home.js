@@ -166,9 +166,9 @@ function compatibilityText() {
   return 'Fresh embodiment epoch: identity, memory and cognition persist; body-specific schema is reacquired without channel mapping.';
 }
 
-function recentRuns() {
+function recentRuns(limit = 8) {
   if (!catalog.runs.length) return '<div class="home-empty">No managed Physics3D runs yet.</div>';
-  return catalog.runs.slice(0, 8).map(run => `
+  return catalog.runs.slice(0, limit).map(run => `
     <div class="home-run-row">
       <div>
         <strong>${esc(organismName(run.organism_ref, run.organism_id))}</strong>
@@ -180,6 +180,32 @@ function recentRuns() {
       </div>
     </div>
   `).join('');
+}
+
+function organismSnapshot(item, physics = null) {
+  if (!item && !physics) return '';
+  const name = physics?.organism_ref
+    ? organismName(physics.organism_ref, physics.organism_id)
+    : organismName(item?.ref, item?.organism_id);
+  const tick = physics?.tick ?? item?.tick;
+  const epoch = physics?.embodiment_epoch ?? item?.embodiment_epoch;
+  const body = physics?.body_kind ?? item?.body_kind ?? '—';
+  const lifecycle = item?.symbiont_state ?? (physics ? 'active' : '—');
+  const vital = item?.vital_state ?? '—';
+  return `
+    <section class="home-organism-hero">
+      <div class="home-organism-identity">
+        <p class="eyebrow">Current Symbiont</p>
+        <h2>${esc(name || 'Symbiont')}</h2>
+        <p>${tick != null ? 't' + Number(tick).toLocaleString() : 'tick unknown'} · ${epoch != null ? 'embodiment e' + esc(epoch) : 'no embodiment epoch'}</p>
+      </div>
+      <div class="home-organism-facts">
+        <div><span>Lifecycle</span><strong>${esc(lifecycle)}</strong></div>
+        <div><span>Body state</span><strong>${esc(vital)}</strong></div>
+        <div><span>Current body</span><strong>${esc(body)}</strong></div>
+        <div><span>Continuity</span><strong>${item?.last_body_ref ? 'persistent organism' : 'new lineage'}</strong></div>
+      </div>
+    </section>`;
 }
 
 function restoreScroll(prevScrollTop) {
@@ -201,26 +227,52 @@ function render() {
   const physics = currentPhysics();
   lastPhysicsSignature = physicsSignature(physics);
   if (activeRun()) {
+    const activeOrganism = catalog.organisms.find(item => item.ref === physics.organism_ref) ?? null;
+    const primaryView =
+      physics.run_kind === 'acquisition.vision' ? 'vision' :
+      physics.run_kind === 'acquisition.embodiment' ? 'embodiment' :
+      'world';
     rootNode.innerHTML = `
-      <div class="view-shell home-shell">
+      <div class="view-shell home-shell home-developmental">
         <div class="view-header">
-          <div><p class="eyebrow">Symbiont Lab</p><h1>Home</h1></div>
-          <span class="pill">Physics3D ${esc(physics.state)}</span>
+          <div><p class="eyebrow">Symbiont</p><h1>Developmental home</h1><p class="view-subtitle">Identity, continuity and current developmental context.</p></div>
+          <span class="pill">ACTIVE · ${esc(physics.run_kind || 'run')}</span>
         </div>
-        <section class="home-active card">
+        ${organismSnapshot(activeOrganism, physics)}
+        <section class="home-current-context card">
           <div>
-            <p class="eyebrow">Active run</p>
-            <h2>${esc(physics.run_id || 'Physics3D')}</h2>
-            <p>${esc(KIND_LABELS[physics.run_kind] || 'Physics3D')} · ${esc(organismName(physics.organism_ref, null))} → ${esc(physics.body_kind || '')}</p>
+            <p class="eyebrow">Current context</p>
+            <h3>${esc(KIND_LABELS[physics.run_kind] || 'Physics3D')}</h3>
+            <p>${esc(physics.body_kind || '—')} · ${esc(physics.run_id || '')}</p>
             ${physics.state === 'starting' ? `<p>Startup: ${esc(physics.startup_phase || 'launching')}</p>` : ''}
           </div>
           <div class="home-actions">
-            <button class="btn" data-open="${isAcquisition(physics.run_kind) ? 'embodiment' : 'world'}">${isAcquisition(physics.run_kind) ? 'Open Embodiment' : 'Open World'}</button>
+            <button class="btn btn-primary" data-open="${primaryView}">Open ${primaryView === 'vision' ? 'Vision' : primaryView === 'world' ? 'World' : 'Embodiment'}</button>
             <button class="btn" data-open="mind">Open Mind</button>
+            <button class="btn" data-open="archive">Open Archive</button>
             <button class="btn btn-danger" id="home-stop">Stop run</button>
           </div>
         </section>
-        <section class="card"><h3 class="card-title">Recent runs</h3>${recentRuns()}</section>
+        <section class="home-development-grid">
+          <article class="card home-development-card">
+            <p class="eyebrow">Development now</p>
+            <h3>${esc(KIND_LABELS[physics.run_kind] || physics.run_kind || '—')}</h3>
+            <p>${isAcquisition(physics.run_kind)
+              ? 'Capability acquisition is occurring inside a protected envelope.'
+              : 'Acquired capabilities are being exposed together under World consequences.'}</p>
+          </article>
+          <article class="card home-development-card">
+            <p class="eyebrow">Continuity</p>
+            <h3>${activeOrganism?.last_body_ref ? 'Persistent identity' : 'Current embodiment'}</h3>
+            <p>Symbiont identity and cognition remain distinct from the current physical body.</p>
+          </article>
+          <article class="card home-development-card">
+            <p class="eyebrow">Recent history</p>
+            <h3>${catalog.runs.length} managed runs</h3>
+            <p>Open Archive for the developmental timeline and scientific studies.</p>
+          </article>
+        </section>
+        <section class="card"><h3 class="card-title">Recent developmental contexts</h3>${recentRuns(5)}</section>
       </div>`;
     bind();
     restoreScroll(prevScrollTop);
@@ -238,6 +290,7 @@ function render() {
         <span class="pill muted">No active embodiment</span>
       </div>
       ${failure}
+      ${organismMode === 'existing' && selectedOrganism() ? organismSnapshot(selectedOrganism()) : ''}
       <section class="card home-section">
         <div><h3>Development context</h3><p>Experiences acquire capability in a protected envelope. World integrates acquired capabilities under complete consequences. Observer purposes never become organism goals.</p></div>
         <div class="home-choice-grid">${definitionCards()}</div>
