@@ -1,513 +1,1735 @@
-# Symbiont organism roadmap
+# Symbiont Scientific Roadmap
 
-This roadmap prioritizes capabilities acquired by the organism. Laboratory work is introduced only when a new organism capability needs a new measurement instrument.
+> **Status:** canonical active research roadmap\
+> **Scope:** Symbiont, Symbiont Lab, Physics3D, Observatory and Symbiont World\
+> **Principle:** capabilities are accepted only when supported by reproducible evidence under an apparatus that does not supply the answer being tested.
 
-The sequence is directional rather than calendar-based.
+This document defines the active scientific direction of Symbiont.
 
-The roadmap distinguishes two things that must not be conflated:
+Completed milestone history belongs in
+[`history/roadmap-log.md`](history/roadmap-log.md). Historical results remain
+valid within the exact scope in which they were obtained; this roadmap does not
+retroactively reinterpret a bounded result as evidence of broader
+generalisation.
 
-1. **developmental limitations** — capabilities the organism does not have yet but may acquire later;
-2. **permanent invariants** — consent, boundedness, epistemic separation and anti-evasion constraints that remain in force even as capability grows.
-
-## North star
-
-Build a benevolent digital organism that can develop on a consenting host, regulate its own internal computational economy, maintain viability under finite resources, reproduce through explicit heredity mechanisms, and eventually participate in bounded digital ecologies where cooperation, competition, coexistence and specialization are observable outcomes rather than hard-coded goals.
-
-The organizing research sequence is:
-
-> **Development before intelligence. Physiology before ecology. Ecology before society.**
-
-Symbiont is not intended to remain permanently solitary, read-only or non-reproductive merely because those are properties of the current release. New capabilities may be added when their semantics, consent model, resource model and experimental observability are designed first.
-
-At the same time, increased capability must not weaken the permanent invariants: no covert persistence, no stealth or evasion, no privilege escalation, no exploitation, no hidden evaluator oracle, no learned bypass of kernel limits, and no uncontrolled propagation.
+The sequence is capability- and evidence-driven rather than calendar-driven.
 
 ---
 
-Full milestone history (A-H) and the per-patch tracking log are archived in
-[`docs/history/roadmap-log.md`](history/roadmap-log.md).
+## 1. North star
 
-## Permanent invariants
+Symbiont is an artificial-life research programme centred on a persistent
+digital organism that acquires structure about itself and its environment
+through experience rather than evaluator-provided semantics.
 
-These constraints survive future increases in capability.
+The long-term research question is not whether increasingly complex machinery
+can be assembled around the organism. It is whether progressively richer
+capabilities can be **acquired, retained, revised and generalised** while
+preserving strict epistemic separation between:
 
-1. Real-host access remains explicit, revocable and capability-bounded.
-2. Learned state cannot manufacture permissions, commands, executable code or new kernel capabilities.
-3. Credentials and privilege-escalation mechanisms remain outside the organism's developmental substrate.
-4. Residence and persistence remain transparent and owner-controlled.
-5. No stealth, concealment or evasion is used to maintain residence or acquire resources.
-6. No exploitation is used to acquire capabilities, compute, storage or access.
-7. Hard CPU, memory, storage and communication ceilings remain outside learned control.
-8. Reproduction never means covert or uncontrolled propagation.
-9. Materializing a descendant requires an authorized habitat, carrying-capacity slot and explicit resource allocation.
-10. A dead organism identity cannot be normally resumed as though continuity never closed.
-11. Experimental ground truth remains outside organism cognition.
-12. The laboratory may observe the organism without silently becoming its controller.
-13. New write, network, action or reproduction capabilities cross an explicit design and consent gate before implementation.
+- the organism;
+- its physical substrate;
+- the World;
+- the experimental apparatus;
+- and observer truth.
 
-These invariants do **not** imply that Symbiont must remain permanently read-only, non-communicating or non-reproductive.
+The active research sequence is:
 
----
+> **Reliable apparatus → embodied causal agency → genotype-to-phenotype closure → developmental variation → out-of-distribution robustness → individual readiness → population and culture.**
 
-## Birth, identity, dormancy and death
+This sequence deliberately does not contain an `AGI` milestone.
 
-The physiology and reproduction milestones require explicit life-cycle semantics.
-
-The project uses the following distinctions unless a later design document supersedes them:
-
-- **birth** — creation of a new organism identity with a valid genome and authorized initial resource allocation;
-- **germinal / developing / mature** — viable developmental phases of one organism identity;
-- **active** — viable and executing its normal cognitive cycle;
-- **stressed** — viable but physiologically constrained by resource or integrity pressure;
-- **dormant** — viable but intentionally running a minimal maintenance cycle;
-- **stopped** — process not running; this is not by itself death;
-- **restarted** — the same organism identity resumes only if its durable viable state is valid;
-- **dying** — continuity is still present but bounded recovery has failed and death finalization is pending;
-- **dead / non-viable** — organism continuity is explicitly and irreversibly closed;
-- **descendant** — a new organism identity created through a reproductive event, even when it has exactly the same genome as its parent.
-
-Normal restore rejects a `DEAD` identity. Reconstructing or cloning from historical artifacts, if later allowed experimentally, creates a new identity and is not resurrection.
-
-Organism lifecycle, cognitive topology health and reproductive readiness remain separate state dimensions. For example, an organism may simultaneously be `MATURE`, `ADAPTIVE` and `REPRODUCTIVELY_READY`.
-
-This prevents process management concepts from silently standing in for biological ones.
+AGI, consciousness, intelligence, culture and Sim-to-Real are not acceptance
+criteria. They may only be discussed as later interpretations of demonstrated,
+falsifiable capabilities.
 
 ---
 
-## Merge policy
+## 2. Permanent architectural invariants
 
-The project owner has explicitly instructed that GitHub Actions are not a merge gate.
+These constraints remain in force regardless of future capability growth.
 
-A release can therefore merge after local/structural review even when hosted CI is unavailable.
+### 2.1 Package and authority boundaries
 
-The remaining gates are:
+- `symbiont` owns the organism.
+- `symbiont_lab` owns apparatus, experiments, evaluation and orchestration.
+- `symbiont_world` owns external environmental dynamics.
+- Observatory is passive and owns no organism decision authority.
+- `symbiont` must not import `symbiont_lab`, `symbiont_world` or Observatory.
+- `symbiont_world` must not import organism cognition or Lab policy.
+- Lab may connect organism and World, but evaluator truth must remain outside
+  organism cognition.
 
-1. base/head drift is checked before merge;
-2. no unresolved requested changes are knowingly ignored;
-3. new resource use is bounded by construction and covered with deterministic tests;
-4. privacy, consent and safety invariants accompany functional behavior;
-5. ground truth remains outside organism cognition;
-6. the release documents the new organism capability;
-7. lineage, death and reproduction changes are transactional and replay-testable;
-8. ecological changes include aggregate carrying-capacity tests, not only per-organism limits;
-9. dead-organism restore and population-over-capacity paths have explicit negative tests.
+### 2.2 Epistemic separation
 
----
+The organism may receive physical or physiological consequences.
 
-## Decision gates
+It must not receive:
 
-Work pauses for an explicit architectural and safety decision before any merge that:
+- evaluator labels;
+- object identities with supplied meaning;
+- resource semantics;
+- hazard semantics;
+- world coordinates as privileged knowledge;
+- causal ground truth;
+- fitness scores;
+- task rewards;
+- human semantic categories;
+- externally declared `body`, `tool`, `self`, `motor` or `environment` labels.
 
-- requests new write, execute, elevated or remote permissions;
-- expands perception into identifying metadata or user content;
-- enables network exchange;
-- introduces hidden or non-removable persistence;
-- permits autonomous real-world action;
-- materializes descendants outside an existing authorized habitat;
-- changes reproductive authority or carrying-capacity ownership;
-- creates unbounded CPU, memory, storage, population or network use;
-- weakens the separation between organism and evaluator;
-- allows learned state to alter immutable kernel limits or permissions;
-- materially expands a human-facing security/operational advisory beyond the already approved consultative boundary.
+Observer truth may be used to measure a result. It may not become the mechanism
+that produces that result.
 
-Transparent owner-installed residence and bounded current read-only sensory development are already explicitly approved and do not reopen those decisions.
+### 2.3 No answer injection
 
----
+A failed scientific gate must not be repaired by supplying the category that the
+organism failed to discover.
 
-## Milestone I — Fisiología integrada (implementación parcial)
-
-Milestone I cierra el acoplamiento entre intake, metabolismo, homeostasis,
-reparación, dormancia, degradación, viabilidad, reproducción, muerte y hábitat.
-El diseño normativo está en
-[`history/design/fisiologia-y-reproduccion.md`](history/design/fisiologia-y-reproduccion.md).
-
-La implementación ya cubre estado fisiológico, intake explícito, checkpoint,
-liberación de hábitat y frontera post-muerte. Incluye un arnés determinista de
-inanición/recuperación en `symbiont_lab.studies.physiology`. Quedan gates de
-integración para reparación, dormancia y reproducción; el Observatory ya
-publica estos estados de forma pasiva.
-
-## Milestone J — Desarrollo predictivo autónomo (implementación parcial)
-
-Milestone J convierte señales opacas y relaciones estadísticas en hipótesis
-contrastables, con atención anti-captura, persistencia cuantizada con cero
-exacto, conceptos `stranded` y predicción en shadow mode antes de promover
-nodos `PREDICTOR`. Sus métricas son externas y no otorgan semántica privilegiada
-al organismo. El diseño normativo está en
-[`history/design/sociabilidad-y-desarrollo-predictivo.md`](history/design/sociabilidad-y-desarrollo-predictivo.md).
-
-La implementación se divide en P0 (codec y atención), P1 (hipótesis y reparación
-de rutas) y P2 (predicción e instrumentación). Existe además un gate longitudinal de shadow-promotion con candidatos positivos
-y sin ganancia. La promoción runtime es opt-in, bounded y persiste su contrato
-en checkpoints.
-
-## Milestone K — Sociabilidad emergente (implementación parcial)
-
-Milestone K proporciona capacidades celulares para percibir, intercambiar,
-competir, asociarse, separarse y revisar interacciones sin imponer una sociedad
-ni objetivos sociales. El diseño normativo está en
-[`history/design/sociabilidad-y-desarrollo-predictivo.md`](history/design/sociabilidad-y-desarrollo-predictivo.md).
-
-La base implementada es un ledger de relaciones agregadas, un `SocialHabitat`
-autorizado y un motor de intercambio/competencia sobre recursos finitos. Existe
-un arnés determinista de intercambio/competencia para evaluación externa.
-El ledger conserva ahora reciprocidad, conflictos y frescura de la evidencia,
-y el hábitat permite suspender/reanudar pares explícitamente, con checkpoints
-backward-readable. La validación longitudinal básica ya cuenta con estudios de suspensión,
-reactivación y diferenciación de nichos. v0.79.18 añade un baseline determinista
-de emergencia para el laboratorio; v0.79.19 acopla la dormancia del runtime a
-costes de actividad reducidos sin reposición gratuita; v0.79.20 integra presión
-reproductiva y budding clonal autorizado con identidad y capacidad acotadas; v0.79.21 conserva la frontera estructural del paquete y
-v0.79.22 cobra el coste metabólico de nacimientos exitosos; v0.79.23 materializa
-el runtime germinal del descendiente sin copiar el fenotipo adquirido; v0.79.24
-verifica el replay determinista de padre/descendiente; v0.79.25 verifica muerte
-y liberación exactly-once en una población padre/hijo. Esto
-no demuestra todavía emergencia autónoma en producción ni impone ninguna meta
-social o semántica humana.
-
-## Milestone L8 — Prospective Agency (implementación en curso)
-
-L8 conecta por primera vez el repertorio motor adquirido, el Private SLM ACTIVE
-y el valor homeostático aprendido para permitir elección prospectiva de acciones
-sin introducir semántica del laboratorio. La especificación normativa está en
-[`history/design/prospective-agency-v1.md`](history/design/prospective-agency-v1.md).
-
-El alcance v1 es deliberadamente one-step. Una acción sólo puede entrar en
-deliberación si ya es una competencia sensorimotora y su `primitive_readout`
-ha sido admitido por CognitiveGraph. El modelo privado puede predecir una
-consecuencia opaca, pero esa predicción nunca se convierte por sí sola en
-evidencia ni valor. `OutcomeValueLedger` aprende exclusivamente de outcomes
-observados después de acciones reales y de su consecuencia fisiológica
-posterior.
-
-Estado de cierre:
-
-- L8.0 readiness/candidate repertoire — implementado; validación empírica pendiente.
-- L8.1 primitive causal tokens — implementado.
-- L8.2 ACTIVE counterfactual inference no mutante — implementado.
-- L8.3 endogenous OutcomeValueLedger — implementado.
-- L8.4 prospective policy/runtime integration — implementado baseline.
-- L8.5 delayed observed-outcome credit — implementado.
-- L8.6 checkpoint/fail-closed semantics — implementado baseline.
-- L8.7 Physics3D passive telemetry — implementado baseline.
-- L8.8 decontamination boundary — implementado por tests AST.
-- L8.9 controlled shuffled/no-counterfactual studies — implementado y preregistrado; ejecución local pendiente.
-- L8.10 Physics3D causal study — implementado y preregistrado; ejecución empírica pendiente.
-- L8.11 adversarial re-audit — implementado baseline; full regression pendiente.
-- L8.12 closure — pendiente de resultados y regresión final.
-
-L8 no autoriza rollouts multistep, MCTS, reward externo, distancia al recurso ni
-políticas de locomoción. Cualquier profundidad prospectiva >1 requiere una fase
-separada después de superar los controles causales de v1.
-
----
-
-## Cultural Foundation y Cumulative Culture v1 — cerradas en alcance experimental
-
-Cultural Foundation v1 y Cumulative Culture v1 añaden claims sociales bounded,
-genealogía de roots, composición cultural versionada y transporte local autorizado.
-La composición puede integrar claims de varios organismos, conservar contributors y
-roots, continuar tras la desaparición de los fundadores y degradarse mediante
-retirada explícita. La validación actual es evaluator-side y no demuestra todavía
-una política autónoma de cooperación, símbolos, selección cultural ni coevolución
-con Private SLM. Pesos, adapters y corpus siguen siendo estrictamente privados.
-
-## Autonomous Cultural Agency v1 — cerrada en alcance bounded
-
-`CulturalPolicy` y `CulturalDecisionRecord` trasladan la selección de contenido
-cultural al organismo: el arnés autónomo solo suministra topología local,
-ventanas y presupuestos. El estudio preregistrado
-`learning.autonomous-cultural-agency` cerró ACA1–ACA10 y replay en las semillas
-101, 127 y 149. La política produjo decisiones no triviales y composiciones
-multi-contributor útiles sin recibir IDs de claims/composites ni ground truth.
-El transporte sigue siendo local, autorizado y en memoria; Observatory sigue
-siendo pasivo. No se abren símbolos, lenguaje, selección cultural, reputación ni
-transferencia de Private SLM.
-
-## Emergent Symbol Grounding v1 — cerrada
-
-La línea posterior a `v0.80.16` cerró la convención simbólica opaca,
-organismo-side y aprendida por experiencia dentro de sus gates preregistrados.
-No abrió lenguaje, gramática ni semántica humana.
-
-## Structured Communication Characterization v1 — cerrada
-
-Línea posterior a Emergent Structured Communication v1. No añade capacidades
-lingüísticas: caracteriza el canal general ya cerrado mediante un sweep pequeño
-de complejidad ambiental, vocabulario, longitud, memoria/coste y controles.
-Observatory expone únicamente telemetría pasiva bounded; las métricas de
-estructura son evaluator-side. Véase
-[`design/structured-communication-characterization-v1.md`](design/communication/structured-communication-characterization-v1.md).
-
-## Population Communication Telemetry v1 — cerrada
-
-Trabajo posterior al corte congelado `v0.80.16`; añade únicamente telemetría
-factual bounded y vistas Observatory read-only; no modifica la política ni el
-canal cognitivo de comunicación.
-
-## Longitudinal Population Ecology v1 — cerrada como discovery
-
-Línea de discovery posterior al corte congelado `v0.80.16`. Ejecutó stages
-progresivamente largos sobre el simulador existente y reporta por separado el
-sondeo multigeneracional del runtime social existente. No añade capacidades al
-organismo ni convierte patrones descubiertos en claims confirmados. Véase
-[`history/design/longitudinal-population-ecology-v1.md`](history/design/longitudinal-population-ecology-v1.md).
-
-## Integrated Habitat Runtime v1 — P0 de integración resuelto
-
-`symbiont_lab.integration.IntegratedHabitatRuntime` es ahora el entrypoint
-canónico y bounded para ejercer en un mismo habitat las capacidades existentes
-de población, fisiología, aprendizaje, model registry privado, cultura,
-grounding, comunicación y telemetría. El habitat solo orquesta ciclo, identidad,
-contactos autorizados, checkpoint y contabilidad; no elige claims, mensajes,
-receptores, significados ni composites.
-
-El smoke técnico preregistrado cubre births/deaths, comunicación, grounding,
-restore y replay en seeds `101, 127, 149`. La prueba larga ejecutada cubre
-`1,000` ticks para esos invariantes en seed `101` y `10,000` ticks en seed
-`101`; sus límites de historial, telemetría y transporte son explícitos. La
-clasificación de integración pasa de C a **A — INTEGRATED** en sentido
-arquitectónico y de smoke técnico. Esto demuestra coexistencia técnica, no
-fenómenos poblacionales emergentes. La auditoría adversaria posterior y la
-aprobación del owner congelan ahora el sustrato en `1.0.0`.
-
-## Symbiont Experimental Organism v1 — frozen in 1.0.0
-
-La auditoría adversaria final v2 no encontró P0 ni P1 materiales: integración
-**A**, replay integrado, equivalencia con telemetría activada/desactivada,
-boundedness y QA interactiva de Observatory pasan. Véase
-[`../research/audits/current/experimental-organism-v1/final-v2.md`](../research/audits/current/experimental-organism-v1/final-v2.md).
-El corte publicado usa el tag anotado `experimental-organism-v1` y la versión
-de paquete `1.0.0`; el tag histórico `v0.80.16` no se modifica. La publicación
-del tag y del release se completa como operación administrativa separada.
+For example, a failure to distinguish self-caused feedback from external
+correlation cannot be repaired by adding:
 
 ```text
-CAPABILITY DEVELOPMENT: FROZEN BY DEFAULT
-EXPERIMENTAL RESEARCH: ACTIVE
+is_self_caused = true
+source_type = motor
 ```
 
-Después del freeze, el organismo core solo cambia por bugs, seguridad,
-boundedness o reproducibilidad demostrados. New phenomena should primarily be
-investigated through habitats and experiments, not by continuously adding
-organism capabilities.
+to cognition-visible state.
 
-## Symbiont World v1 — W0 (package boundary y kernel foundation) implementado
+The remediation must introduce a generally defensible mechanism whose behaviour
+is then challenged again.
 
-Nuevo paquete `symbiont_world`, un hábitat espacial persistente y opaco para
-el organismo ya congelado en `1.0.0` — exactamente el tipo de trabajo que el
-freeze permite explícitamente ("new habitats and experiments"). Especificación
-normativa en
-[`design/symbiont-world-v1.md`](design/archive/symbiont-world-v1.md); razonamiento y
-bibliografía de ALife en
-[`design/symbiont-world-v1-rationale.md`](design/world/symbiont-world-v1-rationale.md).
+### 2.4 Observation independence
 
-W0 entrega solo el fundamento estructural, sin fields, resources, hazards ni
-organismos viviendo dentro: `WorldConstitution` (fingerprint versionado),
-contratos `WorldObservation`/`WorldAction` inmutables y sin ground truth,
-topología hexagonal con frontera reflectante y `OccupancyGrid` (una celda, un
-organismo), RNG namespaced sin importar `symbiont`, `WorldEvent` con
-`causal_parent_ids`/`contributing_event_ids` separados sobre un journal
-append-only, y commit/rollback atómico de tick vía `TickTransaction`
-(`symbiont_world/state.py`). 43 tests unitarios en `tests/unit/world/`
-cubren estos invariantes; dos tests AST nuevos en
-`tests/experimental_integrity/test_ground_truth_boundary.py` fijan la
-frontera de paquetes en ambas direcciones (`symbiont` no importa
-`symbiont_world`; `symbiont_world` no importa `symbiont` ni `symbiont_lab`).
-Suite completa: 1817 passed (los 3 fallos restantes son deriva preexistente
-de Observatory, no relacionada).
+Observation must not change the organism's causal future.
 
-Siguiente paso declarado por la spec: W1 añade movimiento y observación
-local por organismo sobre este kernel; W2 incorpora las leyes de Genesis
-(`world-ground-truth.toml`). No se ejecuta ningún gate de falsación (W01–W07)
-hasta que exista implementación real de fields/resources y al menos un
-organismo viviendo en el mundo.
+Observer projections, telemetry, UI rendering and scientific measurement are
+apparatus functions.
 
-## Symbiont World v1 — W1, W2, W2.1 y preset Genesis v1 implementados
+Enabling or disabling them must not alter organism state, learning, action or
+physical consequence except where an experiment explicitly studies observation
+itself.
 
-Sobre el kernel de W0: `symbiont_world/observation.py` (percepción local,
-señal opaca de densidad de ocupación) y `symbiont_world/movement.py`
-(resolución de movimiento determinista con desempate RNG-namespaced) cierran
-W1 (§12 de la spec). Un bug real se encontró y corrigió durante el TDD:
-`WorldState` solo hacía rollback de `occupancy`, no del registro
-`WorldBody`; un tick abortado dejaba posiciones mutadas a medias. Se movió
-`bodies` a `WorldState` para que ambas mutaciones compartan la misma
-transacción atómica.
+### 2.5 Re-embodiment continuity
 
-W2 (§13) añade `symbiont_world/laws.py`
-(`PeriodicFieldLaw`/`ResourceLaw`, parámetros genéricos sin nombre de
-dominio) y `symbiont_world/genesis.py` (`GroundTruth` + `WorldEnvironment`:
-propagación de fields, renovación/decaimiento de recursos por celda con
-inicialización perezosa, adquisición que nunca deja el pool negativo).
-W2.1 (§14) añade `HazardLaw`, sin estado propio, función de exposición
-acoplada a la densidad local que ya calculaba W1 — cierra el conteo
-congelado de Genesis v1 (4 fields, 4 resources, 2 hazards) del lado del
-kernel. `observation.py` extiende sus signals con fields/resources/hazards
-reales cuando se le pasa un `WorldEnvironment`, sin romper el
-comportamiento W1 cuando no se le pasa ninguno.
+A body is not the Symbiont.
 
-Un nuevo paquete `symbiont_lab.world` (único autorizado a conocer semántica
-real, según §2/§13) instancia el primer mundo reproducible completo:
-`genesis_v1.py` construye el `GroundTruth` congelado de Genesis v1 con
-parámetros numéricos reales y su `WorldConstitution` correspondiente
-(fingerprint determinista), manteniendo las etiquetas humanas
-(`GENESIS_V1_METADATA`) fuera de `symbiont_world` en todo momento.
+Re-embodiment must preserve:
 
-92 tests nuevos en `tests/unit/world/` y `tests/unit/lab/world/`. Suite
-completa: 1866 passed (mismos 3 fallos preexistentes de Observatory sin
-relación).
+- organism identity;
+- organism time;
+- body-independent cognition;
+- acquired causal structure;
+- memories;
+- model lineage;
+- social knowledge;
+- epistemic provenance.
 
-### Lo que falta para ejecutar W01/W02 (aún no iniciado)
+Body-dependent knowledge may become uncertain or require revalidation.
 
-Esto es deliberadamente honesto: todavía no existe ningún organismo viviendo
-en el mundo. El preset Genesis v1 y el kernel completo de campos/recursos/
-hazards no equivalen a un experimento ejecutable. Falta:
+It must not be silently erased.
 
-1. El adaptador real `symbiont_lab` que traduzca `WorldObservation` hacia el
-   pipeline `ObservableSource → Sensor → Percept` existente de un
-   `ModeledOrganismRuntime`, y sus decisiones de vuelta hacia `WorldAction`
-   — esto es una integración de tamaño comparable a
-   `IntegratedHabitatRuntime`, no una extensión menor.
-2. El mapeo de efecto fisiológico real: `acquire`/hazard exposure aún no
-   tocan `MetabolicLedger`; el "beneficio inmediato con daño diferido" que
-   §7 exige de al menos un recurso de Genesis sigue sin implementación —
-   `ResourceLaw` solo gobierna el pool, no el efecto sobre el organismo.
-3. Colocación determinista de founders (`seed → founder placement`, §7) —
-   sin implementar; los 8 founders de Genesis v1 no tienen todavía una
-   regla de colocación inicial.
-4. Solo entonces W01/W02 (§8) pueden preregistrarse y ejecutarse contra
-   datos reales, no contra el contrato descrito en la spec.
+### 2.6 Germline separation
 
-Este es un punto de control natural: el siguiente incremento (el
-adaptador) es una pieza de integración grande y merece su propio
-diseño/plan dedicado, no continuación ad hoc.
+Lifetime-acquired cognitive state must not silently cross reproduction.
 
-## Symbiont World v1 — W3 (adaptador real) y W01/W02 ejecutados: v1 cerrado
+The distinction between:
 
-`symbiont_lab.world.adapter.SingleOrganismGenesisRuntime` (§15) conecta un
-`ModeledOrganismRuntime` real al kernel sin modificar `symbiont` en
-absoluto: percepción vía `DiscoveryProvider`/`ReadingProvider`
-(`symbiont/host/contracts.py`, `symbiont/host/readings.py`, ya diseñados
-para exactamente esto), adquisición vía `resource_habitats` +
-`SharedHabitat.set_environment_resources` (ya pública, decisión de
-adquirir sigue siendo de la cognición vía `autonomous_action_step()`), y
-daño de hazard vía `apply_environmental_damage` (ya existente, acotado a
-`(0, 0.25]`). No se añadió ningún `ActionKind`; `grep` de
-`symbiont/core/behavior.py` no cambia — verificado por test.
+- genome;
+- legitimate bounded epigenetic state;
+- lifetime phenotype;
+- acquired cognition;
 
-Descubrimiento clave que redujo el alcance: releyendo §8, **W01 y W02 no
-necesitan movimiento ni founders múltiples** — ambos usan un organismo
-estacionario. Eso hizo tratable el adaptador (una celda, sin comunicación
-ni reproducción) en vez de requerir la pieza completa de colocación de
-founders/movimiento real que el punto de control anterior asumía
-necesaria.
+must remain explicit and testable.
 
-**W01/W02 se ejecutaron de verdad** contra datos reales (no simulados ni
-inventados): `experiments/world/genesis-v1/run_w01_w02.py`, resultados en
-`results.json`, análisis honesto en `audit.md`. Resultado:
+### 2.7 No hidden fitness optimisation
 
+The Lab may measure viability, efficiency, survival, locomotion, learning or
+reproduction.
+
+Those measurements do not automatically become organism rewards.
+
+### 2.8 Negative evidence is valid
+
+A negative campaign is a successful experiment when its protocol and integrity
+gates hold.
+
+The project must never optimise its scientific protocols merely to turn a
+negative result into a positive result.
+
+---
+
+## 3. Lifecycle semantics
+
+The following concepts remain distinct.
+
+- **birth** — creation of a new organism identity;
+- **germinal / developing / mature** — organism developmental state;
+- **active** — viable and executing its normal runtime;
+- **stressed** — viable under significant physiological pressure;
+- **dormant** — viable under reduced activity;
+- **stopped** — process execution has stopped; this is not death;
+- **restarted** — the same organism resumes from valid durable state;
+- **re-embodied** — the same organism continues in a new physical body;
+- **dying** — viability is failing but continuity has not yet closed;
+- **dead / non-viable** — continuity of that organism identity is closed;
+- **descendant** — a distinct organism created through reproduction.
+
+A new body is not a new organism.
+
+A descendant is not a continuation of the parent.
+
+A dead identity is not normally resumable as though continuity never ended.
+
+---
+
+## 4. Merge and decision policy
+
+GitHub Actions are not, by themselves, the project authority.
+
+Scientific and architectural changes still require appropriate local or
+structural evidence.
+
+Before merging a material scientific change:
+
+1. base/head drift must be checked;
+2. known relevant regressions must not be ignored;
+3. deterministic or metamorphic tests must cover new invariants;
+4. ground truth boundaries must remain intact;
+5. new resource use must remain bounded;
+6. persistence and replay consequences must be understood;
+7. claims must not exceed the evidence produced;
+8. experiment changes must distinguish apparatus fixes from hypothesis changes.
+
+An explicit architectural decision is required before changes that:
+
+- weaken evaluator/organism separation;
+- introduce new semantic information into cognition;
+- alter reproductive authority;
+- create unbounded resource use;
+- change lifecycle identity semantics;
+- permit learned state to mutate hard kernel limits;
+- expand real-host permissions;
+- create new autonomous external actions.
+
+---
+
+## 5. Claim vocabulary
+
+All scientific and technical claims must use explicit status language.
+
+### 5.1 Implementation statuses
+
+#### `NOT STARTED`
+
+No accepted implementation exists.
+
+#### `DESIGNED`
+
+A reviewed specification exists but implementation is incomplete.
+
+#### `PARTIAL`
+
+Part of the mechanism or gate exists, but the declared acceptance condition has
+not been closed.
+
+#### `IMPLEMENTED`
+
+The mechanism exists and its mechanical contracts pass.
+
+This does not imply scientific validity.
+
+---
+
+### 5.2 Scientific statuses
+
+#### `NOT ASSESSABLE`
+
+The apparatus cannot yet evaluate the hypothesis under its preregistered
+conditions.
+
+#### `NEGATIVE`
+
+The experiment was scientifically valid but did not support H1.
+
+#### `POSITIVE — BOUNDED SCOPE`
+
+The preregistered result supports H1 within the tested conditions.
+
+No broader generalisation is implied.
+
+#### `CLOSED — BOUNDED EXPERIMENTAL SCOPE`
+
+A programme has completed its declared bounded scope.
+
+Its generalisation status remains separate.
+
+#### `GENERALISATION NOT ESTABLISHED`
+
+Evidence exists under bounded conditions but has not survived the broader gates
+required by this roadmap.
+
+#### `REPLICATED`
+
+The result has independently survived the declared replication conditions.
+
+#### `OOD SUPPORTED`
+
+The capability has survived preregistered out-of-distribution evaluation.
+
+---
+
+## 6. Evidence levels
+
+Claims must indicate the strongest evidence level that supports them.
+
+| Level | Evidence |
+| --- | --- |
+| 0 | Unit-level mechanical contract |
+| 1 | Integration behaviour across subsystems |
+| 2 | Experimental-integrity / non-interference evidence |
+| 3 | Preregistered scientific campaign |
+| 4 | Replication across declared seeds or equivalent conditions |
+| 5 | Preregistered out-of-distribution replication |
+| 6 | Cross-substrate or real-world replication |
+
+A Level 3 result is not evidence of Level 5 generalisation.
+
+A completed software implementation is not automatically scientific evidence.
+
+---
+
+## 7. Immediate gate — Visual Acquisition D1-v2
+
+Visual Acquisition D1-v2 remains the only active programme allowed to complete
+before this roadmap enters Phase A.
+
+No new World, population, social or cognitive programme is opened while this
+gate is unresolved.
+
+### 7.1 Purpose
+
+D1-v2 asks a narrow question:
+
+> Can Symbiont acquire stable predictive temporal structure over opaque visual
+> receptors under an acquisition apparatus that remains physiologically viable
+> long enough for the preregistered evaluation to become assessable?
+
+It does not ask whether Symbiont “has vision”.
+
+### 7.2 Development stage
+
+Development uses only the declared development seeds.
+
+Held-out seeds remain disabled.
+
+No predictive performance is inspected until assessability has been resolved.
+
+### 7.3 Assessability gate
+
+For a candidate horizon `H`, all preregistered conditions must hold before any
+performance calculation.
+
+At minimum:
+
+1. the body remains inside the protected acquisition viability envelope;
+2. the preregistered resource/metabolic budget remains within limits;
+3. sufficient visual receptor structure is admitted into the organism's
+   cognitive substrate;
+4. the required number of visual targets possesses a predictor at the beginning
+   of the late evaluation window;
+5. the **same predictor** remains responsible for that target at the end of the
+   window;
+6. observation-density / Observer ON-OFF integrity remains causally neutral.
+
+Visual predictor churn may be recorded as diagnostic evidence.
+
+It is not itself a pass criterion and must not be used to move thresholds.
+
+### 7.4 Metabolic support constraint
+
+Acquisition support is allowed only as an apparatus-side viability mechanism.
+
+It must:
+
+- enter through ordinary untyped physical intake;
+- depend on physiological reserve rather than task success;
+- remain independent of organism action choice;
+- provide no reward;
+- modify no causal confidence;
+- expose no resource semantics.
+
+### 7.5 Stopping rule
+
+If no preregistered `H` satisfies all assessability conditions:
+
+> **D1-v2 closes as a structural negative. Visual acquisition remains not
+> demonstrated. No further D1 redesign or threshold relaxation is opened. The
+> roadmap proceeds to Phase A and then Phase B.**
+
+`predictor-promotion-throughput-v1` remains unscheduled.
+
+### 7.6 Held-out rule
+
+If an `H` passes the development assessability gate:
+
+1. that horizon is frozen;
+2. the preregistration is frozen;
+3. only then may held-out seeds `613`, `617` and `619` be authorised;
+4. predictive performance is calculated only on that frozen protocol.
+
+Passing assessability does not establish visual acquisition.
+
+The held-out experiment must do that.
+
+---
+
+## 8. Phase A — Scientific infrastructure and reproducibility
+
+No new major cognitive remediation begins until Phase A is closed to the level
+required below.
+
+---
+
+### A1 — Durable persistence
+
+**Status:** IMPLEMENTED, integrity gate incomplete.
+
+The durable-write implementation already provides:
+
+```text
+write temporary
+→ flush
+→ fsync temporary
+→ replace target
+→ fsync parent directory
 ```
-W01: H0 se mantiene (no rechazada). cognitive_wins = 0/3 seeds.
-     Mecanismo observado (no confirmado): la política cognitiva satura
-     INTAKE y nunca elige REPAIR en ninguna semilla; el control aleatorio
-     sí repara por muestreo uniforme y termina con mayor integridad.
-     El daño de hazard no está causalmente conectado a ningún
-     ExpectedOutcome de REPAIR en el modelo de acción actual.
 
-W02: H0 se mantiene (no rechazada), más un hallazgo metodológico real:
-     con exploration=0.0, discover_senses=False y sin reproducción,
-     organism_seed no tiene ningún camino causal hacia la selección de
-     acción de un organismo solitario — dos réplicas con distinto
-     organism_seed producen una trayectoria bit-a-bit idéntica. No es un
-     resultado fabricado de "convergencia"; es una limitación real de esta
-     build para poner a prueba divergencia por historia estocástica.
+and compound temporary replacements fsync their payload before replacement.
+
+#### Remaining work
+
+Add systematic power-loss/fault-injection coverage at each meaningful boundary:
+
+```text
+before write
+during write
+before file fsync
+after file fsync
+before replace
+after replace
+before directory fsync
+during directory fsync
 ```
 
-Ninguno de los dos gates rechaza su H0. Por diseño (§11, §15): **esto es
-lo que cierra v1**, no un resultado positivo fabricado. `docs/design/
-symbiont-world-v1.md` §11 lo dice explícitamente: "W01–W02 operacionalizan
-[la pregunta científica]... su resultado — sea cual sea, incluida
-convergencia trivial como H0 — es lo que cierra v1". Con ambos gates en
-H0, no hay base para avanzar a W03+ (ecología de nichos, evolución,
-cultura, open-endedness, §8 barrera formal entre programas) interpretando
-adaptación que los datos no muestran.
+#### A1 acceptance
 
-166 tests nuevos/actualizados en `tests/unit/lab/world/` y
-`tests/unit/world/`; suite completa: 1878 passed (mismos 3 fallos
-preexistentes de Observatory, verificados independientes de este trabajo
-vía `git stash`).
+A simulated failure may leave:
 
-### Qué queda fuera de v1, explícitamente
+- the complete previous state; or
+- the complete new state.
 
-Movimiento real, founders múltiples/colocación determinista, comunicación,
-reproducción, el efecto de "beneficio inmediato con daño diferido" de un
-recurso (`ResourceLaw` sigue sin modelar ese daño retardado), y cualquier
-mecanismo de divergencia estocástica genuina para un organismo solitario
-(el hallazgo de W02 arriba). Todo eso es material legítimo para W03+, no
-una deuda de v1.
+It must never produce an accepted partial generation.
 
-## Symbiont World v2 — implementado; W03 ejecutado y rechaza H0
+---
 
-Especificación en [`design/symbiont-world-v2.md`](design/archive/symbiont-world-v2.md).
-Todo aditivo sobre v1: ningún test de W0–W3 dejó de pasar (gate V02-08
-verificado por la suite completa).
+### A2 — Hermetic execution and provenance
 
-**Heterogeneidad regional** (`GroundTruth.region_of`/`regional_resources`/
-`regional_hazards`, `symbiont_world/genesis.py`): opcional, default `None`/
-`{}` reproduce exactamente el comportamiento de v1. Corrección honesta
-encontrada al implementar: los pools de recurso son por-celda, no
-por-región — la región solo comparte la *ley*, nunca el pool; no hay
-contención real de recursos entre founders en v2 (documentado en el spec,
-§4). `hazard_exposures()` se mantiene sin cambios por compatibilidad;
-`hazard_exposures_at(cell, density)` es la versión consciente de región.
+**Status:** PARTIAL.
 
-**Multi-organismo** (`symbiont_lab.world.population`): `founder_placement()`
-determinista, `PopulationGenesisRuntime` sostiene 8 `ModeledOrganismRuntime`
-sobre un mismo `WorldState`/`WorldEnvironment`, orden de tick por
-`organism_id` ordenado. `resolve_movement`/intents simultáneos siguen sin
-ejercitarse con más de un organismo (V02-04 marcado N/A: v2 no tiene
-movimiento aprobado, §7).
+`ExecutionFingerprint` exists but does not yet close the full execution
+identity.
 
-**Retry de W02 con plasticidad real** (`sensory_plasticity=True`,
-`discover_senses=True`): **H0 se mantiene otra vez**, pero con diagnóstico
-más preciso que v1 — dos réplicas observan una trayectoria de mundo
-idéntica (mismo `world_seed`), así que no hay nada de lo que plasticidad
-pueda divergir; `organism_seed` solo llega a `mutation_seed`, que solo
-importa si hay reproducción. Ver
-`experiments/world/genesis-v1/audit-w02-retry.md`.
+#### Required fingerprint
 
-**Daño diferido** (`symbiont_lab.world.deferred.DeferredEffectQueue`,
-acotada a 32 entradas): verificado end-to-end disparando exactamente una
-vez por adquisición cualificada, dentro del rango `(0, 0.25]` ya exigido
-por `apply_environmental_damage`.
+Every scientific execution must record at least:
 
-**Observatory CLI** (`symbiont_lab.world.cli_view.render_world`, función
-pura, solo lectura): render de organismos/campos/recursos/hazards con
-etiquetas reales de `GENESIS_V1_METADATA`; confirma honestamente que
-ningún `EventJournal` está todavía conectado a los runtimes (gap real, no
-fabricado). Launcher delgado en `experiments/world/genesis-v1/view_world.py`.
+```text
+git commit
+dirty state
+repository root
+Python executable
+Python version
+symbiont module origin
+symbiont_lab module origin
+dependency lock hash
+effective configuration hash
+experiment identifier
+seed
+```
 
-**Gate de capacidad de movimiento (§7): sin implementar, a propósito.**
-Decisión de abrir la puerta registrada con el owner; diseño concreto de
-`ActionKind.MOVE` explícitamente pendiente de su propia revisión antes de
-tocar `symbiont/core/behavior.py`.
+#### Child-process self-verification
 
-### W03 ejecutado de verdad: **rechaza H0**, con hallazgo honesto sobre el mecanismo
+A spawned experiment process must verify that its:
 
-`experiments/world/genesis-v1/run_w03.py` (Genesis v2:
-`symbiont_lab.world.genesis_v2`, dos regiones con `ResourceLaw` distinta
-para 2 de 4 recursos). Dos founders comparten región (misma ley) y
-**difieren en su recurso dominante de adquisición** — diferenciación
-ecológica real sin variación genética. `reject_h0 = True`.
+- interpreter;
+- imported source;
+- dependency environment;
+- commit identity;
 
-Hipótesis inicial (`hazard-density-coupled` genera presión posicional) —
-**descartada por su propio control**: con `density_coupling=0` para ambos
-hazards, el mismo patrón de desacuerdo aparece idéntico
-(`mechanism_supported = False`). El mecanismo real sigue abierto —
-candidato: el percept crudo de densidad de ocupación local ya difiere por
-posición independientemente del hazard, y dado que v2 confirmó que la
-cognición es una función determinista de su flujo de percepts, un flujo
-distinto basta para producir trayectorias distintas. Se registra como
-`OBSERVED, NEEDS_REPLICATION` — ver `experiments/world/genesis-v1/
-audit-w03.md` — no como fenómeno confirmado.
+match the declared execution environment.
 
-54 tests nuevos en `tests/unit/lab/world/`, `tests/unit/world/`. Suite
-completa: 1920 passed (mismos 3 fallos preexistentes de Observatory).
+Merely prepending a checkout to `PYTHONPATH` is not sufficient evidence of
+hermetic execution.
+
+---
+
+### A3 — Dependency locking
+
+**Status:** NOT STARTED.
+
+Scientific campaigns require a reproducible dependency set.
+
+The project will adopt a canonical locked environment, preferably `uv.lock`
+unless a stronger project-specific reason requires another mechanism.
+
+Two separate lanes remain valid:
+
+#### Scientific lane
+
+Exact locked dependencies for:
+
+- experiments;
+- benchmarks;
+- historical reproduction;
+- scientific comparison.
+
+#### Compatibility lane
+
+Controlled testing against newer supported dependencies.
+
+Compatibility testing must not silently replace the scientific locked
+environment.
+
+---
+
+### A4 — Generational scientific commits
+
+**Status:** NOT STARTED.
+
+Atomic files are insufficient when one scientific state consists of multiple
+files.
+
+A run or checkpoint generation must become visible as one committed generation.
+
+Target pattern:
+
+```text
+run/
+  generation-000042/
+    checkpoint
+    manifest
+    provenance
+    model-artifacts
+    telemetry-index
+    COMPLETE
+
+CURRENT -> generation-000042
+```
+
+Consumers must only open committed generations.
+
+#### A4 acceptance
+
+Crash injection must leave either generation `N` or generation `N+1`
+fully valid.
+
+Mixed generations are invalid.
+
+---
+
+### A8 — Label and apparatus invariance / E8 remediation
+
+**Status:** P0 OPEN.
+
+E8 is an experimental-integrity failure and therefore belongs in Phase A before
+the causal programme.
+
+#### Existing result
+
+The preregistered E8 label-invariance campaign has already been executed across
+its ten seeds.
+
+The World arm fails.
+
+Renaming evaluator-side resource or hazard identifiers changes the subject
+trace.
+
+Therefore label invariance is currently **not established**.
+
+The previous `APP-006: execution pending` status is stale and must be corrected.
+
+#### Identified contamination
+
+World currently allows nominal identifiers to influence physical experience.
+
+Examples include:
+
+```text
+hazard RNG namespace
+    <- hazard_id
+
+receptor transfer geometry
+    <- source_id
+```
+
+Consequently:
+
+```text
+rename observer label
+→ different RNG / transfer response
+→ different physical experience
+→ different organism trace
+```
+
+This is not necessarily cognition reading a human label.
+
+It is nevertheless an experimental-integrity violation because the two E8 arms
+are no longer physically equivalent.
+
+#### Required architectural separation
+
+World must distinguish:
+
+```text
+physical identity / structural slot
+```
+
+from:
+
+```text
+observer / evaluator label
+```
+
+No identifier that E8 is allowed to rename may alter:
+
+- RNG streams;
+- receptor transfer coefficients;
+- collision mechanics;
+- energetic consequences;
+- hazard probabilities;
+- resource dynamics;
+- physical topology.
+
+Physical stochastic identity must derive from stable structural coordinates,
+canonical ordinals or another explicitly constitutional identifier that is not
+the evaluator-facing name under test.
+
+#### E8 acceptance
+
+After the apparatus fix:
+
+1. preserve the existing preregistered E8 protocol;
+2. do not change its success threshold;
+3. rerun all ten seeds;
+4. require `invariant_rate = 1.0`;
+5. require deterministic replay.
+
+If E8 still fails after nominal identifiers are physically inert, investigate
+the remaining divergence as a deeper contamination finding.
+
+#### E1 reporting inconsistency
+
+The archived E1 report and `results.json` contain slightly different
+false-positive summaries.
+
+Both fail the preregistered gate, so the scientific interpretation does not
+change.
+
+The discrepancy must nevertheless be reconciled as a provenance/reporting
+issue. The canonical report should be mechanically derived from or explicitly
+linked to the exact result artefact it summarises.
+
+---
+
+## 9. Phase A-P1 — Apparatus equivalence and numerical stability
+
+This block follows A1–A4 and E8 and precedes the causal remediation programme.
+
+---
+
+### A5 — Observation independence
+
+**Status:** PARTIAL.
+
+Observer OFF/ON equivalence infrastructure already exists.
+
+The final contract must explicitly cover the current canonical organism path.
+
+#### Required equality
+
+Observer state changes must not alter:
+
+- organism state hash;
+- motor intents;
+- delivered actions;
+- causal provenance;
+- competence state;
+- model lifecycle;
+- learning transitions;
+- physical consequences.
+
+#### Profiling
+
+Performance profiling must separately measure:
+
+```text
+causal runtime
+observer projections
+serialization
+memory copies
+queueing
+IPC
+disk I/O
+UI rendering
+```
+
+No technology migration is justified solely by aggregate timing.
+
+---
+
+### A6 — Equivalence harness
+
+**Status:** PARTIAL.
+
+Any performance or infrastructure refactor must pass a shared causal
+equivalence harness.
+
+This applies to changes in:
+
+- `physics3d_monitor`;
+- telemetry;
+- queues;
+- serialization;
+- multiprocessing;
+- shared memory;
+- native extensions;
+- Rust or other implementation-language changes.
+
+#### Per-tick comparison
+
+Where applicable:
+
+```text
+organism-state digest
+motor output
+physical consequence
+causal provenance
+learning transition
+model lifecycle
+observer projection
+```
+
+A faster system that changes the experiment is not an optimisation.
+
+---
+
+### A7 — Numerical and mechanical stability
+
+**Status:** NOT YET AUDITED AS A COMPLETE GATE.
+
+The objective is reproducible experimental mechanics, not universal bit-exact
+physics.
+
+The project must define and test explicit numerical tolerances.
+
+#### Detect
+
+- NaN;
+- Infinity;
+- invalid transforms;
+- contact explosions;
+- velocity explosions;
+- unstable joints;
+- non-finite energy;
+- inconsistent checkpoint/restore state.
+
+#### Canonical stress campaigns
+
+Each canonical body should be exercised under:
+
+```text
+idle stability
+actuation stress
+collision stress
+checkpoint/restore
+re-embodiment
+friction perturbation
+mass perturbation
+```
+
+---
+
+## 10. Phase B — Embodied causal agency
+
+Phase B becomes the central scientific programme after Phase A.
+
+The current evidence does not indicate one isolated bug.
+
+It indicates a family of related failures in causal agency.
+
+---
+
+## 11. Existing embodiment falsification battery
+
+All eight campaigns have already been executed and archived with ten seeds each.
+
+These results are inputs to Phase B, not tasks waiting to be run for the first
+time.
+
+| Study | Roadmap role | Current result |
+| --- | --- | --- |
+| E1 — Yoked External Causation | B3 | H1 not supported |
+| E2 — Tool / Body Distinction | B6 | H1 not supported |
+| E3 — Temporal Causality | B2 | H1 not supported |
+| E4 — Causal Revision | B5 | H1 not supported |
+| E5 — Somatic Correlation Trap | B1 | H1 not supported |
+| E6 — Hidden Common Cause | B4 | H1 not supported |
+| E7 — Heredity Leakage | C1 | no learned-state leakage observed |
+| E8 — Label Invariance | Phase A integrity | failed; P0 open |
+
+E1–E6 therefore form a **unified falsification battery** for the next agency
+architecture.
+
+---
+
+## 12. B0 — General causal-agency model
+
+**Status:** NOT STARTED.
+
+B0 must not be designed to make one failed study pass.
+
+It must define one coherent acquisition and revision mechanism capable of being
+challenged by E1–E6 simultaneously.
+
+The target is not a semantic concept named “agency”.
+
+The target is a mechanism capable of developing distinctions from experience
+that are consistent with:
+
+```text
+correlation
+→ temporal contingency
+→ action-conditioned predictability
+→ intervention
+→ controllability / modulation
+→ delayed consequences
+→ confound detection
+→ contradiction
+→ causal revision
+```
+
+None of these evaluator concepts need to be represented by the same names
+inside the organism.
+
+---
+
+### B0 design rule
+
+No special-case code may ask:
+
+```text
+if running_e3:
+if signal_is_external:
+if source_is_tool:
+if hidden_common_cause:
+```
+
+The mechanism must be general.
+
+---
+
+### B0 acceptance rule
+
+A candidate B0 is evaluated against the complete E1–E6 battery.
+
+Success in one study is insufficient.
+
+Regressions between studies are first-class results.
+
+For example:
+
+```text
+E3 improves
+but E5 worsens
+```
+
+is not closure.
+
+---
+
+## 13. B1 — Somatic Correlation Trap / E5
+
+Current result:
+
+> H1 not supported.
+
+The organism detects genuine somatic correlation but also assimilates matched
+external correlation.
+
+### B1 research target
+
+Develop experience-derived evidence that separates:
+
+```text
+predictable because correlated
+```
+
+from:
+
+```text
+predictable because my intervention changes it
+```
+
+Candidate mechanism classes may include:
+
+- intervention history;
+- action-conditioned prediction;
+- effect modulation;
+- cancellation evidence;
+- counterfactual discrepancy;
+- confidence revision.
+
+No motor/environment labels may enter cognition.
+
+---
+
+## 14. B2 — Temporal Causality / E3
+
+Current result:
+
+> H1 not supported.
+
+Immediate consequences are detected; delayed and variable-delay consequences
+are not reliably attributed.
+
+### B2 research target
+
+Introduce temporally extended causal eligibility without introducing reward
+learning or evaluator labels.
+
+Relevant mechanisms may include:
+
+- bounded eligibility traces;
+- temporally distributed causal candidates;
+- evidence accumulation over repeated intervention;
+- uncertainty over delay;
+- competing explanations;
+- contradiction-driven decay.
+
+Longer memory alone is not sufficient.
+
+---
+
+## 15. B3 — Yoked External Causation / E1
+
+Current result:
+
+> H1 not supported.
+
+E1 is not future work to be newly invented.
+
+It becomes a permanent challenge for B0.
+
+### B3 research question
+
+Can the organism distinguish:
+
+```text
+B usually follows my action
+```
+
+from:
+
+```text
+my action causally influences B
+```
+
+when external apparatus creates a matched temporal relationship?
+
+---
+
+## 16. B4 — Hidden Common Cause / E6
+
+Current result:
+
+> H1 not supported.
+
+The current mechanism confuses shared-cause correlation with direct causal
+relation.
+
+### B4 research challenge
+
+For:
+
+```text
+Z -> A
+Z -> B
+```
+
+the organism must not automatically infer:
+
+```text
+A -> B
+```
+
+solely from observed association.
+
+Again, the latent variable `Z` remains evaluator truth.
+
+The organism must infer uncertainty from experience rather than receive the
+causal graph.
+
+---
+
+## 17. B5 — Causal Revision / E4
+
+Current result:
+
+> H1 not supported.
+
+Current evidence shows inadequate revision under permutation, break and
+transplant conditions.
+
+### B5 required capability
+
+The organism must be able to:
+
+```text
+form relation
+→ accumulate support
+→ encounter contradiction
+→ reduce confidence
+→ deactivate or replace relation
+```
+
+without an evaluator declaring which old belief is wrong.
+
+Revision is a required part of learning.
+
+---
+
+## 18. B6 — Tool / Body Distinction / E2
+
+Current result:
+
+> H1 not supported.
+
+A remotely controllable object can currently be assimilated as body.
+
+### B6 research target
+
+Body membership must become an acquired, revisable hypothesis rather than a
+static correlation threshold.
+
+Relevant experience may include:
+
+- controllability;
+- latency;
+- persistence;
+- coupling stability;
+- sensory continuity;
+- loss and reconnection;
+- dependence on intervening external dynamics.
+
+The organism must not be given a `tool` label.
+
+---
+
+## 19. Phase C — Genotype to phenotype to physical consequence
+
+Phase C verifies that heredity is not merely a serialisation mechanism.
+
+---
+
+### C1 — E7 heredity regression
+
+**Status:** POSITIVE — BOUNDED SCOPE.
+
+The existing E7 campaign found no transfer of acquired:
+
+- agency state;
+- body schema;
+- perceptual state;
+- sensorimotor state.
+
+Its preregistered no-leak gate passed across its tested seeds.
+
+This is evidence, not an eternal guarantee.
+
+E7 remains a permanent regression requirement for changes affecting:
+
+- genome;
+- germline;
+- epigenetics;
+- reproduction;
+- phenotype construction.
+
+---
+
+### C2 — Full causal expression chain
+
+A genetic difference should be able to produce:
+
+```text
+genotype difference
+    ↓
+expression difference
+    ↓
+phenotype difference
+    ↓
+physical consequence
+    ↓
+different experienced evidence
+```
+
+A stored genetic field that never affects the organism is not meaningful
+heredity.
+
+---
+
+### C3 — Controlled genetic intervention
+
+Evaluate paired organisms under:
+
+```text
+same environment
+same causal schedule
+same seed policy
+same initial conditions
+one declared genetic difference
+```
+
+and measure resulting differences in:
+
+- learning dynamics;
+- physiology;
+- mechanics;
+- perception;
+- development.
+
+---
+
+### C4 — No evaluator fitness injection
+
+The Lab may measure viability and consequence.
+
+It may not turn those measurements into hidden organism reward merely to make
+evolution efficient.
+
+---
+
+## 20. Phase D — Developmental morphogenesis
+
+The next heredity step is not arbitrary body mutation.
+
+It is a developmental mapping from inherited constitution to physical
+morphology.
+
+---
+
+### D1 — Development as physical law
+
+Target:
+
+```text
+genome
+→ developmental process
+→ morphology
+```
+
+not:
+
+```text
+genome
+→ human quality filter
+→ approved body
+```
+
+---
+
+### D2 — Invalid representation vs. non-viable organism
+
+The apparatus may reject only structures that cannot be represented coherently,
+for example:
+
+- non-finite masses;
+- impossible joint references;
+- invalid dimensions;
+- broken topologies;
+- numerically undefined constraints.
+
+A physically representable organism may still be:
+
+- inefficient;
+- asymmetric;
+- fragile;
+- immobile;
+- metabolically expensive;
+- reproductively unsuccessful;
+- non-surviving.
+
+Those are legitimate outcomes.
+
+---
+
+### D3 — No morphology fitness filter
+
+No rule may reject a body simply because it appears mechanically poor or unlike
+a desired morphology.
+
+Physics and physiology determine consequence.
+
+---
+
+## 21. Phase E — Out-of-distribution robustness
+
+Sim-to-Real is not an active claim.
+
+The immediate target is whether acquired cognition survives controlled mismatch
+inside simulation.
+
+---
+
+### E1 — Sensor perturbation
+
+Evaluate:
+
+- bias;
+- drift;
+- latency;
+- jitter;
+- dropout;
+- quantisation;
+- saturation;
+- degradation.
+
+---
+
+### E2 — Actuator perturbation
+
+Evaluate:
+
+- latency;
+- reduced authority;
+- nonlinearity;
+- dead zones;
+- backlash-like effects;
+- partial failure.
+
+---
+
+### E3 — Physics-domain variation
+
+Vary:
+
+- friction;
+- mass;
+- damping;
+- contact properties;
+- surface compliance;
+- gravity within declared experimental ranges.
+
+---
+
+### E4 — Unseen environments
+
+Test environments whose:
+
+- geometry;
+- obstacle layout;
+- surface properties;
+- sensory statistics;
+- resource distribution;
+- physical conditions;
+
+were not used during mechanism development.
+
+---
+
+### E5 — Re-embodiment robustness
+
+A mature Symbiont must be evaluated across:
+
+```text
+same body type
+modified instance
+different morphology
+partially degraded body
+```
+
+while preserving organism identity and body-independent cognition.
+
+#### Desired response to mismatch
+
+Not:
+
+```text
+body changed
+→ erase knowledge
+```
+
+but:
+
+```text
+body changed
+→ detect inconsistency
+→ increase uncertainty
+→ revalidate body-specific relations
+→ retain general knowledge
+```
+
+---
+
+## 22. Individual Readiness Gate
+
+Population research may become active again only when an individual satisfies
+the declared readiness criteria.
+
+The gate must be based on evidence, not development chronology.
+
+Required dimensions:
+
+### Causal self/world discrimination
+
+The individual reliably reduces externally induced causal false positives.
+
+### Delayed attribution
+
+Delayed physical consequences can be acquired under the accepted causal model.
+
+### Hidden-cause robustness
+
+Strong correlation alone is insufficient for direct causal commitment.
+
+### Causal revision
+
+Contradicted relations are weakened or replaced.
+
+### Tool/body revision
+
+Controllability alone is insufficient for permanent body membership.
+
+### Persistent acquired structure
+
+Body-independent acquired knowledge survives appropriate checkpoint and
+re-embodiment boundaries.
+
+### Re-embodiment continuity
+
+Changing body does not reset the organism.
+
+### Reacclimation
+
+Body-specific prior knowledge becomes uncertain when appropriate and is updated
+through experience.
+
+### Epistemic invariance
+
+Nominal relabeling and other semantically irrelevant apparatus transformations
+do not change the organism's physical experience or acquired trace.
+
+### Moderate OOD robustness
+
+The organism detects and adapts to bounded mismatch rather than blindly applying
+stale certainty.
+
+Only after this gate is supported may Phase F become an active capability
+programme.
+
+---
+
+## 23. Symbiont World status before Individual Readiness
+
+Until the readiness gate passes:
+
+> **Symbiont World is maintenance / experimental substrate only.**
+
+Allowed work:
+
+- bug fixes;
+- reproducibility fixes;
+- deterministic replay fixes;
+- E8 integrity remediation;
+- completion of already preregistered experiments;
+- apparatus maintenance required by Phases A-E.
+
+Not opened:
+
+- new population capabilities;
+- new ecological complexity for its own sake;
+- new social mechanisms;
+- new cultural mechanisms;
+- new emergent-society claims.
+
+World is not deprecated.
+
+It is temporarily prevented from driving the research agenda ahead of the
+individual organism's demonstrated capabilities.
+
+---
+
+## 24. Existing cultural and grounding lines
+
+The following historical programmes remain valid in their exact preregistered
+scope:
+
+- Cultural Foundation v1;
+- Cumulative Culture v1;
+- Autonomous Cultural Agency v1;
+- Emergent Symbol Grounding v1.
+
+Their canonical status is:
+
+```text
+CLOSED — BOUNDED EXPERIMENTAL SCOPE
+GENERALISATION NOT ESTABLISHED
+```
+
+Their historical evidence is not deleted or downgraded.
+
+The roadmap changes only the scope of the claims that may currently be made.
+
+They do **not** yet establish:
+
+- general social cognition;
+- open-ended cultural evolution;
+- robust symbol grounding across environments;
+- population-level intelligence;
+- autonomous society;
+- language;
+- general communication competence.
+
+Those broader questions reopen only after Individual Readiness.
+
+---
+
+## 25. Phase F — Population, communication and culture
+
+Phase F is inactive until Individual Readiness is met.
+
+---
+
+### F1 — Multiple individuals
+
+Study bounded coexistence involving:
+
+- competition;
+- cooperation;
+- local social observation;
+- resource interaction;
+- social learning.
+
+---
+
+### F2 — Emergent specialisation
+
+Roles must not be preassigned.
+
+The evaluator may later describe functional differentiation.
+
+The organism must not receive role labels.
+
+---
+
+### F3 — Communication without semantics
+
+Communication channels may have:
+
+- finite bandwidth;
+- energetic or computational cost;
+- production;
+- reception;
+- local transport.
+
+They may not ship predefined human meanings.
+
+Allowed:
+
+```text
+opaque signal 17
+```
+
+Not allowed:
+
+```text
+signal 17 = danger
+```
+
+---
+
+### F4 — Grounding
+
+A signal is considered grounded only when organism-side behaviour demonstrates
+an acquired relation between that signal and experienced consequences.
+
+Grounding claims must survive at least:
+
+- symbol permutation;
+- identifier renaming;
+- changed context;
+- changed sender;
+- changed receiver;
+- controlled meaning drift.
+
+---
+
+### F5 — Social epistemology
+
+Investigate acquisition of:
+
+- source reliability;
+- contradiction;
+- corroboration;
+- independence;
+- trust revision;
+- misinformation resistance.
+
+No evaluator reliability score enters the organism.
+
+---
+
+### F6 — Cultural transmission
+
+A stronger cultural claim requires evidence for:
+
+```text
+knowledge acquired during lifetime
+→ transmitted socially
+→ acquired by another organism
+→ retained without genetic encoding
+→ affects later behaviour
+```
+
+---
+
+### F7 — Negative cultural result
+
+If communication or culture does not emerge without semantic scaffolding, that
+is a valid result.
+
+The canonical scientific line will not inject a human-designed language merely
+to satisfy a cultural milestone.
+
+A separate explicitly scaffolded comparison may exist as a control, but it must
+never be confused with spontaneous emergence.
+
+---
+
+## 26. Permanent decontamination programme
+
+Epistemic isolation is never considered permanently “finished”.
+
+Every major capability should be challenged with semantically irrelevant
+transformations where applicable.
+
+Examples:
+
+```text
+identifier renaming
+port permutation
+channel reordering
+observer-label changes
+apparatus relabeling
+equivalent morphology remapping
+observer enabled / disabled
+alternative apparatus implementation
+```
+
+A transformation that preserves physical experience should not alter acquired
+knowledge merely because its metadata changed.
+
+Verification should combine:
+
+- AST/dependency boundaries;
+- runtime contracts;
+- metamorphic tests;
+- paired experiments;
+- causal equivalence;
+- provenance inspection.
+
+The project does not claim mathematical proof that no conceivable side channel
+exists.
+
+It claims only the bounded invariance classes that have actually been tested.
+
+---
+
+## 27. Scientific metrics
+
+No single “intelligence score” is canonical.
+
+Metrics remain capability-specific.
+
+### Causal agency
+
+- causal true-positive rate;
+- causal false-positive rate;
+- delayed attribution;
+- confidence calibration;
+- revision latency;
+- contradiction sensitivity.
+
+### Body acquisition
+
+- genuine somatic assimilation;
+- external false assimilation;
+- boundary uncertainty;
+- reacclimation time;
+- tool/body revision.
+
+### Genetics
+
+- genotype-expression consistency;
+- phenotype divergence;
+- inherited-state isolation;
+- mutation consequence;
+- epigenetic provenance.
+
+### OOD
+
+- degradation under shift;
+- uncertainty response;
+- recovery time;
+- stale-belief persistence;
+- transfer across bodies/environments.
+
+### Social
+
+- signal use;
+- behavioural dependency;
+- cross-individual acquisition;
+- source calibration;
+- persistence of non-genetic knowledge.
+
+---
+
+## 28. Operational priority order
+
+The current execution order is:
+
+```text
+STEP 0
+Visual Acquisition D1-v2
+    ↓
+
+P0 — SCIENTIFIC INFRASTRUCTURE
+A1 fault-injection durability gate
+A2 hermetic execution fingerprint
+A3 dependency lock
+A4 generational scientific commits
+A8 E8 label/physical invariance
+    ↓
+
+P1 — APPARATUS VALIDITY
+A5 observation independence
+A6 equivalence harness
+A7 numerical/mechanical stability
+    ↓
+
+P2 — EMBODIED CAUSAL AGENCY
+B0 general causal-agency model
+E1–E6 unified falsification battery
+    ↓
+
+P3 — GENETIC CAUSAL CLOSURE
+C1–C4
+    ↓
+
+P4 — DEVELOPMENTAL MORPHOGENESIS
+D1–D3
+    ↓
+
+P5 — OOD ROBUSTNESS
+E1–E5
+    ↓
+
+INDIVIDUAL READINESS GATE
+    ↓
+
+P6 — POPULATION / COMMUNICATION / CULTURE
+F1–F7
+```
+
+The duplicated phase-local `E1`, `E2`, etc. identifiers in the OOD section refer
+to roadmap sub-items, not the historical embodiment campaigns. Implementations
+should prefer explicit names in filenames to avoid ambiguity.
+
+---
+
+## 29. Explicitly out of scope for the current roadmap
+
+The following are not current objectives:
+
+- rewriting Physics3D in fixed-point arithmetic merely for determinism;
+- rewriting `physics3d_monitor` in Rust without profiling evidence;
+- adopting SDIF merely because telemetry is expensive;
+- introducing a global reward;
+- introducing evaluator fitness into cognition;
+- adding semantic motor/environment masks;
+- giving communication predefined meanings;
+- resetting cognition on re-embodiment;
+- using population complexity to hide unresolved individual causal failures;
+- declaring AGI as a development milestone;
+- claiming Sim-to-Real before OOD and later cross-substrate evidence exists;
+- reopening failed experiments repeatedly until they become positive.
+
+---
+
+## 30. Roadmap success criterion
+
+The roadmap succeeds if Symbiont Lab can produce trustworthy answers to
+questions such as:
+
+- Can an organism distinguish causal influence from correlation?
+- Can it attribute delayed consequences?
+- Can it reject hidden-common-cause confounds?
+- Can it revise a previously useful but now false causal relation?
+- Can it distinguish body membership from remote controllability?
+- Can it preserve itself across re-embodiment?
+- Can it recognise when body-specific knowledge is stale?
+- Can inherited differences produce real physical consequences?
+- Can it adapt under conditions not used during mechanism development?
+- Can knowledge pass between organisms without evaluator semantics?
+- Can non-genetic knowledge persist socially?
+
+Each answer must be:
+
+```text
+bounded
+reproducible
+auditable
+falsifiable
+provenance-preserving
+```
+
+---
+
+## 31. Final research principle
+
+Symbiont should not progress by accumulating features faster than it can justify
+them.
+
+The governing sequence is:
+
+```text
+reliable measurement
+    ↓
+clean experimental boundary
+    ↓
+falsifiable mechanism
+    ↓
+negative or positive evidence
+    ↓
+replication
+    ↓
+generalisation challenge
+    ↓
+only then broader capability
+```
+
+The strongest property of Symbiont Lab is not that it can produce increasingly
+complex simulated behaviour.
+
+It is that it can be made capable of proving when its own hypotheses are wrong.
+
+That property is the foundation of the roadmap.

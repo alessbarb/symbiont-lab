@@ -6,14 +6,15 @@ from .conftest import REPO_ROOT
 def test_roadmap_keeps_only_active_state():
     text = (REPO_ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
     for must_have in (
-        "## North star",
-        "## Permanent invariants",
-        "## Birth, identity, dormancy and death",
-        "## Merge policy",
-        "## Decision gates",
-        "## Milestone I — Fisiología integrada",
-        "## Milestone J — Desarrollo predictivo",
-        "## Milestone K — Sociabilidad emergente",
+        "## 1. North star",
+        "## 2. Permanent architectural invariants",
+        "## 3. Lifecycle semantics",
+        "## 4. Merge and decision policy",
+        "## 5. Claim vocabulary",
+        "## 6. Evidence levels",
+        "## 10. Phase B — Embodied causal agency",
+        "## 19. Phase C — Genotype to phenotype to physical consequence",
+        "## 25. Phase F — Population, communication and culture",
     ):
         assert must_have in text, f"missing from active roadmap.md: {must_have}"
     for must_not_have in (
