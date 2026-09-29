@@ -1111,6 +1111,10 @@ def main() -> int:
     p_publish = sub.add_parser("publish")
     p_publish.add_argument("--message", required=True)
     p_publish.add_argument("--owner-approved", action="store_true")
+    p_publish.add_argument(
+        "--adr",
+        help="Accepted ADR path/id for CONSTITUTIONAL publication; auto-detected when exactly one Accepted ADR is changed",
+    )
 
     p_equivalence = sub.add_parser("equivalence")
     equivalence_sub = p_equivalence.add_subparsers(dest="equivalence_command", required=True)
@@ -1168,7 +1172,11 @@ def main() -> int:
     if args.command == "verify":
         return verify()
     if args.command == "publish":
-        return publish_changes(message=args.message, owner_approved=args.owner_approved)
+        return publish_changes(
+            message=args.message,
+            owner_approved=args.owner_approved,
+            adr_ref=args.adr,
+        )
     if args.command == "equivalence":
         if args.equivalence_command == "status":
             return equivalence_status_command(args.suite)

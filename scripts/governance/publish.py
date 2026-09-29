@@ -16,6 +16,7 @@ import tempfile
 import time
 import tomllib
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
@@ -209,14 +210,81 @@ def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict[s
     return True, evidence
 
 
+def _accepted_adr(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return bool(
+        re.search(
+            r"(?im)^-\s*\*\*Status:\*\*\s*Accepted\s*$|^Status:\s*Accepted\s*$",
+            text,
+        )
+    )
+
+
+def _normalize_adr_ref(value: str) -> Path:
+    raw = value.strip()
+    candidate = Path(raw)
+    if candidate.suffix.lower() == ".md":
+        path = candidate if candidate.is_absolute() else ROOT / candidate
+        if not path.is_absolute():
+            path = (ROOT / path).resolve()
+        return path
+
+    slug = raw
+    if not slug.upper().startswith("ADR-"):
+        slug = f"ADR-{slug}"
+    matches = sorted((ROOT / "docs/adr").glob(f"{slug}*.md"))
+    if len(matches) != 1:
+        raise PermissionError(
+            f"CONSTITUTIONAL: ADR reference {value!r} did not resolve uniquely"
+        )
+    return matches[0]
+
+
+def _resolve_constitutional_adr(
+    paths: list[str],
+    *,
+    adr_ref: str | None,
+) -> str:
+    changed_adrs = [
+        ROOT / path
+        for path in paths
+        if path.startswith("docs/adr/") and path.endswith(".md")
+    ]
+    accepted_changed = [path for path in changed_adrs if _accepted_adr(path)]
+
+    if adr_ref:
+        path = _normalize_adr_ref(adr_ref)
+        if not _accepted_adr(path):
+            raise PermissionError(
+                f"CONSTITUTIONAL: ADR {path.relative_to(ROOT)} is not Accepted"
+            )
+        return path.relative_to(ROOT).as_posix()
+
+    if len(accepted_changed) == 1:
+        return accepted_changed[0].relative_to(ROOT).as_posix()
+    if len(accepted_changed) > 1:
+        raise PermissionError(
+            "CONSTITUTIONAL: multiple Accepted ADRs changed; select one with --adr"
+        )
+    raise PermissionError(
+        "CONSTITUTIONAL: an Accepted ADR is required; change one in this task or pass --adr"
+    )
+
+
 def _evaluate(
     base: str,
     *,
     owner_approved: bool,
-) -> tuple[Assessment, ChangeClass, dict[str, dict]]:
+    adr_ref: str | None,
+) -> tuple[Assessment, ChangeClass, dict[str, dict], str | None]:
     paths, assessment = _classify(base)
     if not paths:
-        return assessment, ChangeClass.ORDINARY, {}
+        return assessment, ChangeClass.ORDINARY, {}, None
 
     conflicts = _active_work_conflicts(paths, base)
     if conflicts:
@@ -231,8 +299,12 @@ def _evaluate(
 
     if assessment.classification == ChangeClass.FROZEN:
         raise RuntimeError("FROZEN: completed scientific evidence must be versioned, not modified")
-    if assessment.classification == ChangeClass.CONSTITUTIONAL and not owner_approved:
-        raise PermissionError("CONSTITUTIONAL: explicit owner approval required")
+
+    constitutional_adr: str | None = None
+    if assessment.classification == ChangeClass.CONSTITUTIONAL:
+        if not owner_approved:
+            raise PermissionError("CONSTITUTIONAL: explicit owner approval required")
+        constitutional_adr = _resolve_constitutional_adr(paths, adr_ref=adr_ref)
 
     eq_pass, evidence = run_equivalence(base, assessment.equivalence_scenarios)
     effective = assessment.classification
@@ -243,7 +315,7 @@ def _evaluate(
         elif not owner_approved:
             detail = json.dumps(evidence, indent=2) if evidence else "no covering equivalence scenario"
             raise PermissionError(f"SCIENTIFIC: explicit owner decision required\n{detail}")
-    return assessment, effective, evidence
+    return assessment, effective, evidence, constitutional_adr
 
 
 def _publication_message(
@@ -252,11 +324,14 @@ def _publication_message(
     effective: ChangeClass,
     owner_approved: bool,
     evidence: dict[str, dict],
+    constitutional_adr: str | None,
 ) -> str:
     trailers = [
         f"Governance-Class: {effective}",
         f"Owner-Approval: {'explicit' if owner_approved else 'not-required'}",
     ]
+    if constitutional_adr:
+        trailers.append(f"Governance-ADR: {constitutional_adr}")
     if evidence:
         trailers.append(
             "Equivalence-Evidence: "
@@ -322,6 +397,7 @@ def _stage_validate_commit(
     effective: ChangeClass,
     owner_approved: bool,
     evidence: dict[str, dict],
+    constitutional_adr: str | None,
     amend: bool = False,
 ) -> str:
     _git("add", "-A")
@@ -331,6 +407,7 @@ def _stage_validate_commit(
         effective=effective,
         owner_approved=owner_approved,
         evidence=evidence,
+        constitutional_adr=constitutional_adr,
     )
     args = ["commit"]
     if amend:
@@ -340,7 +417,13 @@ def _stage_validate_commit(
     return _git("rev-parse", "HEAD")
 
 
-def publish(*, message: str, owner_approved: bool = False, retries: int = 3) -> int:
+def publish(
+    *,
+    message: str,
+    owner_approved: bool = False,
+    adr_ref: str | None = None,
+    retries: int = 3,
+) -> int:
     """Publish the final task diff while keeping governance invisible for ordinary work."""
 
     branch = _git("rev-parse", "--abbrev-ref", "HEAD")
@@ -357,12 +440,17 @@ def publish(*, message: str, owner_approved: bool = False, retries: int = 3) -> 
             print("nothing to publish")
             return 0
 
-        _, effective, evidence = _evaluate(remote, owner_approved=owner_approved)
+        _, effective, evidence, constitutional_adr = _evaluate(
+            remote,
+            owner_approved=owner_approved,
+            adr_ref=adr_ref,
+        )
         _stage_validate_commit(
             message,
             effective=effective,
             owner_approved=owner_approved,
             evidence=evidence,
+            constitutional_adr=constitutional_adr,
         )
 
         for attempt in range(1, retries + 1):
@@ -381,14 +469,17 @@ def publish(*, message: str, owner_approved: bool = False, retries: int = 3) -> 
 
                 # The baseline changed: recompute evidence and validation, then amend
                 # the publication attestation to match the final rebased diff.
-                _, effective, evidence = _evaluate(
-                    remote, owner_approved=owner_approved
+                _, effective, evidence, constitutional_adr = _evaluate(
+                    remote,
+                    owner_approved=owner_approved,
+                    adr_ref=adr_ref,
                 )
                 _stage_validate_commit(
                     message,
                     effective=effective,
                     owner_approved=owner_approved,
                     evidence=evidence,
+                    constitutional_adr=constitutional_adr,
                     amend=True,
                 )
 

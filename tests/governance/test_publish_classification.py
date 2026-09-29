@@ -113,3 +113,54 @@ def test_workbench_web_presentation_stays_ordinary() -> None:
         "diff --git a/src/symbiont_lab/workbench/web/views/body/viewer.js b/src/symbiont_lab/workbench/web/views/body/viewer.js\n+ renderPanel()",
     )
     assert result.classification == ChangeClass.ORDINARY
+
+
+
+def test_governance_tests_are_constitutional() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["tests/governance/test_agent_governance.py"],
+        "diff --git a/tests/governance/test_agent_governance.py b/tests/governance/test_agent_governance.py\n+ assert True",
+    )
+    assert result.classification == ChangeClass.CONSTITUTIONAL
+
+
+def test_adr_is_constitutional() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["docs/adr/ADR-9999-example.md"],
+        "diff --git a/docs/adr/ADR-9999-example.md b/docs/adr/ADR-9999-example.md\n+ - **Status:** Accepted",
+    )
+    assert result.classification == ChangeClass.CONSTITUTIONAL
+
+
+def test_roadmap_is_scientific_direction() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["docs/roadmap.md"],
+        "diff --git a/docs/roadmap.md b/docs/roadmap.md\n+ new research phase",
+    )
+    assert result.classification == ChangeClass.SCIENTIFIC
+
+
+def test_experimental_integrity_tests_are_scientific() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["tests/experimental_integrity/test_boundary.py"],
+        "diff --git a/tests/experimental_integrity/test_boundary.py b/tests/experimental_integrity/test_boundary.py\n+ assert invariant",
+    )
+    assert result.classification == ChangeClass.SCIENTIFIC
+
+
+def test_study_code_is_scientific() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["src/symbiont_lab/studies/example.py"],
+        "diff --git a/src/symbiont_lab/studies/example.py b/src/symbiont_lab/studies/example.py\n+ def run(): pass",
+    )
+    assert result.classification == ChangeClass.SCIENTIFIC

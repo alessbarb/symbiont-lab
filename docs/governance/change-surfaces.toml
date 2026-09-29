@@ -84,3 +84,29 @@ paths = [
 ]
 classification = "SCIENTIFIC"
 equivalence = ["established-anthropomorphic", "developed-cognition"]
+
+
+[[surface]]
+id = "governance-tests"
+paths = ["tests/governance/**", ".pre-commit-config.yaml", ".gitignore"]
+classification = "CONSTITUTIONAL"
+
+[[surface]]
+id = "architectural-decisions"
+paths = ["docs/adr/**"]
+classification = "CONSTITUTIONAL"
+
+[[surface]]
+id = "scientific-direction"
+paths = ["docs/roadmap.md", "docs/methodology/**"]
+classification = "SCIENTIFIC"
+
+[[surface]]
+id = "scientific-evidence-tests"
+paths = ["tests/experimental_integrity/**", "tests/contract/**", "tests/experiments/**"]
+classification = "SCIENTIFIC"
+
+[[surface]]
+id = "scientific-study-code"
+paths = ["src/symbiont_lab/studies/**", "src/symbiont_lab/experiments/**"]
+classification = "SCIENTIFIC"

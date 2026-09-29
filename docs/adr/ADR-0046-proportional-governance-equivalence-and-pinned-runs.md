@@ -32,4 +32,4 @@ owner credentials.
 ## Transition
 
 Historical L0-L4 grants remain as provenance for old commits but are deprecated for
-ordinary publication. Scientific and constitutional approval remains explicit.
+ordinary publication. Scientific and constitutional approval remains explicit. Constitutional publication records the governing Accepted ADR in commit provenance; ordinary and scientific publication do not inherit that ceremony.

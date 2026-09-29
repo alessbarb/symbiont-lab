@@ -88,3 +88,19 @@ python scripts/agentctl.py run start \
 If `--snapshot-source` is already an immutable archived snapshot, `run start`
 verifies it and preserves its recorded `source_commit`; a conflicting override is
 rejected.
+
+
+## Constitutional publication
+
+CONSTITUTIONAL changes keep deliberate friction. They require explicit owner approval
+and an Accepted ADR:
+
+```bash
+python scripts/agentctl.py publish \
+  --message "..." \
+  --owner-approved \
+  --adr ADR-0046
+```
+
+If exactly one Accepted ADR is changed in the same task, `--adr` is auto-detected.
+The generated commit records `Governance-ADR:` provenance.
