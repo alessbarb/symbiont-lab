@@ -1,0 +1,29 @@
+schema_version = 1
+
+# Owner grants are consumed against the exact parent commit. agentctl reads this file
+# from the parent/base revision, never from the working tree under review.
+
+[[grant]]
+id = "owner-2026-09-29-governance-hardening"
+status = "open"
+authority = "L4"
+base_commit = "3a9707ac09e2725ce0502307dcff2a9441e89781"
+purpose = "Harden agent governance enforcement and reconcile the canonical roadmap after the 2026-09-29 audit."
+single_use = true
+allowed_paths = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "README.md",
+  "docs/governance/**",
+  "scripts/agentctl.py",
+  "tests/governance/**",
+  ".github/workflows/**",
+  ".github/CODEOWNERS",
+  ".github/pull_request_template.md",
+  ".pre-commit-config.yaml",
+  ".gitignore",
+  "docs/adr/**",
+  "docs/roadmap.md",
+  "docs/history/roadmap-log.md",
+  "docs/glossary.md",
+]
