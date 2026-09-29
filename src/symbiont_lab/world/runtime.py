@@ -223,9 +223,7 @@ class WorldRuntimeState:
                 self.topology,
                 population=self.population,
             )
-            events = [
-                self._event_payload(event) for event in self.population.journal.tail(60)
-            ]
+            events = [self._event_payload(event) for event in self.population.journal.tail(60)]
             return {
                 "running": self._running,
                 "error": self._error,

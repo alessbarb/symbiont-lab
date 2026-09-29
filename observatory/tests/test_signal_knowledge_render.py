@@ -48,7 +48,6 @@ def test_snapshot_strings_are_escaped_before_html_interpolation():
     assert "escapeHtml(shorten(e.sourceId))" in inspector
 
 
-
 def test_cognition_renderer_keeps_generative_state_in_separate_inspector_section():
     source = (Path(__file__).parents[1] / "render" / "cognition.js").read_text()
     html = (Path(__file__).parents[1] / "index.html").read_text()

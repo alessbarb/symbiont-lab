@@ -187,7 +187,6 @@ def test_policy_construction_validates_inputs():
         )
 
 
-
 def test_epistemic_value_breaks_only_exact_pragmatic_ties():
     policy = _make_policy(decision_margin=0.0)
     low_epistemic = EvaluatedCandidate(

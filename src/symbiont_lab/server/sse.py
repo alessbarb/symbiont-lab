@@ -26,8 +26,6 @@ def _encode_sse(data: dict[str, Any], *, event_id: str | int | None = None) -> b
     return (prefix + "data: " + payload + "\n\n").encode()
 
 
-
-
 def _encode_serialized_sse(data: bytes, *, event_id: str | int | None = None) -> bytes:
     """Frame already-serialized JSON bytes without parsing or re-encoding."""
     prefix = b"" if event_id is None else f"id: {event_id}\n".encode("ascii")
@@ -50,6 +48,7 @@ def _drain_observation_batch(consumer, first) -> bytes:
         total += len(chunk)
         count += 1
     return b"".join(chunks)
+
 
 def _last_event_id(handler: BaseHTTPRequestHandler) -> str | None:
     value = handler.headers.get("Last-Event-ID")

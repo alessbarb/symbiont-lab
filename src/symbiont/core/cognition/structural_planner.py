@@ -323,7 +323,6 @@ class StructuralPlanner:
             )
         return graph, ()
 
-
     def admit_senses(
         self,
         *,

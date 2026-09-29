@@ -532,9 +532,7 @@ def _competence_effect_edges(
 
     acquisition = snapshot.get("agency_acquisition")
     raw_relations = (
-        acquisition.get("causal_relations")
-        if isinstance(acquisition, Mapping)
-        else None
+        acquisition.get("causal_relations") if isinstance(acquisition, Mapping) else None
     )
     competence_relations: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
     if isinstance(raw_relations, (list, tuple)):

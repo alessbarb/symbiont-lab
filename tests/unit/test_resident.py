@@ -123,7 +123,6 @@ def test_resident_dilates_interval_when_dormant(tmp_path, monkeypatch) -> None:
     assert waited_intervals == [4.0]
 
 
-
 def test_resident_can_sample_observation_slower_than_life_ticks(tmp_path) -> None:
     class ObservableRuntime(FakeRuntime):
         def __init__(self) -> None:

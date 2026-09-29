@@ -146,7 +146,6 @@ def sensory_semantics(
     return result
 
 
-
 def action_dimension_semantics(
     action_dimensions,
     actuator_to_effector: dict[str, str],

@@ -60,7 +60,11 @@ class PhysicsWorldObserver:
                     "orientation": list(orn),
                     "shapes": shapes,
                     "exists": True,
-                    "material": {"mass": dynamics[0], "lateral_friction": dynamics[1], "restitution": dynamics[5]},
+                    "material": {
+                        "mass": dynamics[0],
+                        "lateral_friction": dynamics[1],
+                        "restitution": dynamics[5],
+                    },
                     "provenance": "physics-collision-geometry",
                 }
                 if uid == runtime.resource.body_id:

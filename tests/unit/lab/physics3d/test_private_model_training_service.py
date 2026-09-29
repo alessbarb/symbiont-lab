@@ -119,7 +119,9 @@ def test_private_model_training_service_close_uses_normal_shutdown_when_worker_i
     assert executor.shutdown_calls == [(False, True)]
 
 
-def test_private_model_training_service_close_uses_normal_shutdown_when_pending_future_cancels(tmp_path):
+def test_private_model_training_service_close_uses_normal_shutdown_when_pending_future_cancels(
+    tmp_path,
+):
     manager = _manager(tmp_path)
     executor = _ClosingExecutor()
     future = _FakeFuture(done=False, cancel_result=True)
@@ -132,7 +134,9 @@ def test_private_model_training_service_close_uses_normal_shutdown_when_pending_
     assert executor.shutdown_calls == [(False, True)]
 
 
-def test_private_model_training_service_close_delegates_running_worker_to_force_stop(tmp_path, monkeypatch):
+def test_private_model_training_service_close_delegates_running_worker_to_force_stop(
+    tmp_path, monkeypatch
+):
     manager = _manager(tmp_path)
     executor = _ClosingExecutor()
     future = _FakeFuture(done=False, cancel_result=False)

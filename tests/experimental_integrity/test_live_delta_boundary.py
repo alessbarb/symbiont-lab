@@ -29,9 +29,9 @@ def test_web_consumers_decode_before_dispatch() -> None:
 
 def test_domain_specific_high_frequency_streams_are_not_generic_delta_channels() -> None:
     root = Path(__file__).resolve().parents[2]
-    protocol = (
-        root / "src" / "symbiont_lab" / "observation" / "delta.py"
-    ).read_text(encoding="utf-8")
+    protocol = (root / "src" / "symbiont_lab" / "observation" / "delta.py").read_text(
+        encoding="utf-8"
+    )
 
     assert '"body_pose"' not in protocol.split("COMPRESSIBLE_TYPES", 1)[1].split(")", 1)[0]
     assert '"world_scene"' not in protocol.split("COMPRESSIBLE_TYPES", 1)[1].split(")", 1)[0]

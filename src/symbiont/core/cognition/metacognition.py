@@ -38,7 +38,7 @@ class MetacognitionEngine:
         ledger: SocialEvidenceLedger,
     ) -> MetacognitiveState:
         items = list(assessments)
-        
+
         # Calculate social pressures
         total_claims = len(ledger.claims)
         unresolved_claims = len(ledger.unresolved_claims())
@@ -47,7 +47,9 @@ class MetacognitionEngine:
         # Very coarse approximation for these pressures
         contradictions = sum(s.contradictions for s in ledger.source_states.values())
         social_contradiction_pressure = min(1.0, contradictions / max(total_claims, 1))
-        social_uncertainty_pressure = min(1.0, unresolved_social_pressure + social_contradiction_pressure)
+        social_uncertainty_pressure = min(
+            1.0, unresolved_social_pressure + social_contradiction_pressure
+        )
 
         if not items:
             return MetacognitiveState(
@@ -68,9 +70,7 @@ class MetacognitionEngine:
 
         epistemic_pressure = min(
             1.0,
-            0.55 * mean_uncertainty
-            + 0.35 * mean_novelty
-            + 0.10 * min(mean_curiosity * 8.0, 1.0),
+            0.55 * mean_uncertainty + 0.35 * mean_novelty + 0.10 * min(mean_curiosity * 8.0, 1.0),
         )
         self_confidence = max(0.0, min(1.0, 1.0 - epistemic_pressure))
 

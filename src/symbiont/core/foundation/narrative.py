@@ -147,6 +147,7 @@ def narrate_attended(
             break
     return tuple(entries)
 
+
 def narrate_host(
     acclimation: HostAcclimation,
     *,

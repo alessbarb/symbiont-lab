@@ -101,7 +101,6 @@ def test_active_action_readout_is_not_reclaimed_as_orphan():
     assert "readout_primitive:primitive.drop" in removed
 
 
-
 def test_source_diverse_generative_retention_protects_existing_orphan_without_factual_counts():
     limits = KernelLimits()
     graph = CognitiveGraph(

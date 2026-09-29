@@ -888,7 +888,6 @@ def test_v41_state_at_materializes_only_requested_tick(tmp_path, monkeypatch):
     assert calls == 1
 
 
-
 def test_v41_supports_sparse_observer_ticks_and_snapshots_first_sample(tmp_path):
     writer = TelemetryV41Writer(
         tmp_path,

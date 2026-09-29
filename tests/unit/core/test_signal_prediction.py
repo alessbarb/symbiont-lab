@@ -53,7 +53,6 @@ def test_ridge_predictor_is_bounded_and_trains_only_on_observed_targets():
     assert predictor.count == 7
 
 
-
 def _legacy_ridge_predict(rows, regularization, features):
     if not rows or len(features) != len(rows[0][0]):
         return None
@@ -120,7 +119,6 @@ def test_ridge_precomputation_survives_checkpoint_roundtrip_exactly():
 
     assert restored.predict(query) == before
     assert restored.checkpoint() == predictor.checkpoint()
-
 
 
 def test_ridge_width4_preserves_first_pivot_on_exact_tie():

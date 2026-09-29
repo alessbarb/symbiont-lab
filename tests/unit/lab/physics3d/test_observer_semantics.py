@@ -119,4 +119,3 @@ def test_action_dimension_semantics_projects_multi_channel_grounding_observer_on
     assert item["effector_ids"] == ["eff.0", "eff.44"]
     assert item["observer_joints"] == ["left knee pitch", "trunk yaw"]
     assert item["actuator_ids"] == ["actuator.a", "actuator.c"]
-

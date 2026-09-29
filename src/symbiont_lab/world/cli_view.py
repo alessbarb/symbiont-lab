@@ -106,8 +106,7 @@ def world_snapshot(
                     sum(
                         float(event.payload.get("damage", 0.0))
                         for event in population.journal.events_for_tick(last_tick)
-                        if event.actor == organism_id
-                        and event.kind == "PHYSIOLOGICAL_DAMAGE"
+                        if event.actor == organism_id and event.kind == "PHYSIOLOGICAL_DAMAGE"
                     ),
                     4,
                 )

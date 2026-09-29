@@ -38,7 +38,7 @@ class SourceEvidenceState:
             self.contradictions += 1
         else:
             self.unresolved += 1
-        
+
         # In a real implementation, independent_roots would track unique root_evidence_ids,
         # but as a simplified integer, we just increment for now or rely on the ledger.
         self.independent_roots += 1
@@ -68,4 +68,3 @@ class SourceEvidenceState:
         if total_resolved == 0:
             return 0.5  # Neutral prior
         return self.agreements / total_resolved
-

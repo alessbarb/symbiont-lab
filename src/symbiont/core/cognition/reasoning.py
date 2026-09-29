@@ -36,7 +36,10 @@ class ReasoningEngine:
         title = "socially unresolved claim"
         rationale = "There is a socially transmitted claim that has not been empirically verified or contradicted by the organism's own experience."
 
-        evidence = min((question.independent_support_roots + question.independent_contradiction_roots) / 10.0, 1.0)
+        evidence = min(
+            (question.independent_support_roots + question.independent_contradiction_roots) / 10.0,
+            1.0,
+        )
         confidence = min(1.0, (1.0 - question.uncertainty) * (0.65 + 0.35 * evidence))
         priority = min(1.0, question.uncertainty * (0.45 + 0.55 * evidence))
 

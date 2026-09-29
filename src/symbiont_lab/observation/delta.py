@@ -10,9 +10,7 @@ from typing import Any, Mapping
 
 DELTA_CONTRACT = "observer-live-delta-v1"
 DEFAULT_ANCHOR_INTERVAL = 32
-COMPRESSIBLE_TYPES = frozenset(
-    {"body", "cognition", "vitals", "mind_snapshot", "observed_frame"}
-)
+COMPRESSIBLE_TYPES = frozenset({"body", "cognition", "vitals", "mind_snapshot", "observed_frame"})
 
 
 def _canonical_bytes(value: Any) -> bytes:

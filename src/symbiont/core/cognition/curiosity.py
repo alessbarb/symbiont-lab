@@ -52,7 +52,7 @@ class CuriosityPlanner:
         claim = ledger.claims.get(hypothesis.claim_ref)
         if not claim:
             return []
-        
+
         # Simplified for now: if we have a claim, we're curious about resolving it
         # depending on its independent disagreement, novelty, unresolvedness
         state = ledger.source_states.get(claim.source_id)

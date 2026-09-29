@@ -483,10 +483,7 @@ def test_build_cognitive_atlas_projects_bounded_causal_relations():
     kinds = {node.id: node.kind for node in atlas.nodes}
     assert kinds["intervention.signature.1"] == "intervention_signature"
 
-    edges = {
-        (edge.source_id, edge.target_id, edge.kind): edge
-        for edge in atlas.edges
-    }
+    edges = {(edge.source_id, edge.target_id, edge.kind): edge for edge in atlas.edges}
     dimension = edges[("action.dimension.aaaa", "effect.3", "causal_estimate")]
     assert dimension.metadata["source_kind"] == "dimension"
     assert dimension.metadata["confidence"] == 0.42
@@ -496,9 +493,7 @@ def test_build_cognitive_atlas_projects_bounded_causal_relations():
     assert dimension.metadata["evidence"]["source"] == "controllability_model"
     assert dimension.metadata["evidence"]["confidence"] == 0.42
 
-    intervention = edges[
-        ("intervention.signature.1", "effect.3", "causal_estimate")
-    ]
+    intervention = edges[("intervention.signature.1", "effect.3", "causal_estimate")]
     assert intervention.metadata["context_id"] == "context.a"
     assert intervention.metadata["agency_confidence"] == 0.22
 

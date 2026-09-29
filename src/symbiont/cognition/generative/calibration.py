@@ -68,8 +68,7 @@ class PredictionCalibration:
                     "uncertainty_sum": float(values[2]),
                     "errors": [float(value) for value in values[3:]],
                 }
-                for (model_id, operation, depth_bucket, uncertainty_bucket), values
-                in sorted(
+                for (model_id, operation, depth_bucket, uncertainty_bucket), values in sorted(
                     self._buckets.items(),
                     key=lambda item: (
                         item[0][0],
