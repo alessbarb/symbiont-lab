@@ -24,7 +24,7 @@ def test_resource_guard_rejects_unknown_memory(tmp_path: Path, monkeypatch) -> N
 
 
 def test_resource_guard_rejects_cpu_oversubscription(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(guard.os, "cpu_count", lambda: 2)
+    monkeypatch.setattr(guard, "_available_cpu_threads", lambda: 2)
     monkeypatch.setattr(guard, "_available_memory_gb", lambda: 100.0)
     result = assess_resources(
         ResourceRequest(peak_memory_gb=1.0, disk_gb=0.0, cpu_threads=3),
@@ -32,3 +32,9 @@ def test_resource_guard_rejects_cpu_oversubscription(tmp_path: Path, monkeypatch
     )
     assert not result.allowed
     assert any(reason.startswith("cpu:") for reason in result.reasons)
+
+
+def test_available_cpu_threads_prefers_affinity(monkeypatch) -> None:
+    monkeypatch.setattr(guard.os, "sched_getaffinity", lambda _pid: {2, 3}, raising=False)
+    monkeypatch.setattr(guard.os, "cpu_count", lambda: 64)
+    assert guard._available_cpu_threads() == 2
