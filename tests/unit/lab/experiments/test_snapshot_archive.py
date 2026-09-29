@@ -32,6 +32,7 @@ def test_archive_snapshot_is_hashed_and_not_overwritten(tmp_path: Path) -> None:
     assert persisted["captured_at"]
     assert persisted["embodiment_id"] == "emb-1"
     assert persisted["body_age_ticks"] == 12
+    assert persisted["bundle_models_tree_sha256"]
 
     with pytest.raises(FileExistsError):
         archive_snapshot(
