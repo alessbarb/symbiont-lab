@@ -77,40 +77,83 @@ def _tokenizer_path(models_dir: str | Path, model_id: str) -> Path:
     return Path(models_dir) / f"{model_id}.tokenizer.json"
 
 
+def _target_losses(model, split, *, context_window: int) -> list[tuple[int, float]]:
+    """Per outcome target (target id, loss), in the same order and bounds as
+    evaluate_outcome_model."""
+    import torch
+    import torch.nn.functional as F
+
+    model.eval()
+    rows: list[tuple[int, float]] = []
+    with torch.no_grad():
+        for sequence, positions in zip(split.sequences, split.outcome_target_positions):
+            bounded = tuple(sequence[: context_window + 1])
+            valid = tuple(position for position in positions if position < len(bounded) - 1)
+            if not valid:
+                continue
+            inputs = torch.tensor([bounded[:-1]], dtype=torch.long)
+            logits = model(inputs, attention_mask=torch.ones_like(inputs, dtype=torch.bool))[0]
+            selected = logits.index_select(0, torch.tensor(valid, dtype=torch.long))
+            targets = torch.tensor([bounded[position + 1] for position in valid], dtype=torch.long)
+            losses = F.cross_entropy(selected, targets, reduction="none")
+            rows.extend(zip(targets.tolist(), losses.tolist()))
+    return rows
+
+
 def _paired_reference_evaluation(
-    models_dir: str, reference_model_id: str, corpus: TrainingCorpus, context_window: int
+    models_dir: str,
+    reference_model_id: str,
+    corpus: TrainingCorpus,
+    context_window: int,
+    candidate_model_id: str,
+    candidate_vocabulary: tuple[str, ...],
 ) -> dict[str, Any]:
-    """Promotion Stability v1 D1: the current ACTIVE on the candidate's held-out
-    split, encoded with the ACTIVE's own tokenizer. Observational only."""
+    """Promotion Stability v1 D1: the current ACTIVE and the candidate on the
+    candidate's held-out split, each with its own tokenizer. Besides the full
+    losses, the common loss uses only targets known to both vocabularies, so a
+    vocabulary mismatch cannot favour either model. Observational only."""
     from symbiont_lab.modeling.dataset import encode_corpus
     from symbiont_lab.modeling.gateway import load_artifact_model
-    from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
+
+    store = FileArtifactStore(models_dir)
+
+    def evaluate(model_id: str, vocabulary: tuple[str, ...]):
+        tokenizer = NativeTokenizer(vocabulary=vocabulary)
+        encoded = encode_corpus(corpus, tokenizer, context_window=context_window)
+        model = load_artifact_model(
+            store.get(model_id), vocab_size=encoded.vocab_size, pad_id=encoded.pad_id, device="cpu"
+        )
+        rows = _target_losses(model, encoded.test, context_window=context_window)
+        return rows, tokenizer.token_to_id["<UNK>"]
 
     raw = json.loads(_tokenizer_path(models_dir, reference_model_id).read_text(encoding="utf-8"))
-    tokenizer = NativeTokenizer(vocabulary=tuple(raw["vocabulary"]))
-    encoded = encode_corpus(corpus, tokenizer, context_window=context_window)
-    artifact = FileArtifactStore(models_dir).get(reference_model_id)
-    model = load_artifact_model(
-        artifact, vocab_size=encoded.vocab_size, pad_id=encoded.pad_id, device="cpu"
-    )
-    metrics = evaluate_outcome_model(
-        model, encoded.test, pad_id=encoded.pad_id, context_window=context_window
-    )
-    unknown = tokenizer.token_to_id["<UNK>"]
-    targets = [
-        sequence[position + 1]
-        for sequence, positions in zip(
-            encoded.test.sequences, encoded.test.outcome_target_positions
+    reference, reference_unknown = evaluate(reference_model_id, tuple(raw["vocabulary"]))
+    candidate, candidate_unknown = evaluate(candidate_model_id, candidate_vocabulary)
+    if len(reference) != len(candidate):
+        raise ValueError("paired evaluations disagree on the number of outcome targets")
+    common = [
+        (candidate_loss, reference_loss)
+        for (candidate_target, candidate_loss), (reference_target, reference_loss) in zip(
+            candidate, reference
         )
-        for position in positions
-        if position < len(sequence[: context_window + 1]) - 1
+        if candidate_target != candidate_unknown and reference_target != reference_unknown
     ]
     return {
         "reference_model_id": reference_model_id,
-        "reference_loss": float(metrics.mean_log_loss),
-        "reference_predictions": int(metrics.predictions),
+        "reference_loss": sum(loss for _, loss in reference) / len(reference),
+        "reference_predictions": len(reference),
         "reference_unknown_target_fraction": (
-            sum(1 for token in targets if token == unknown) / len(targets) if targets else 0.0
+            sum(1 for target, _ in reference if target == reference_unknown) / len(reference)
+        ),
+        "candidate_unknown_target_fraction": (
+            sum(1 for target, _ in candidate if target == candidate_unknown) / len(candidate)
+        ),
+        "common_targets": len(common),
+        "candidate_common_loss": (
+            sum(loss for loss, _ in common) / len(common) if common else None
+        ),
+        "reference_common_loss": (
+            sum(loss for _, loss in common) / len(common) if common else None
         ),
     }
 
@@ -195,7 +238,12 @@ def _train_job(
     if paired_reference_id is not None:
         try:
             paired = _paired_reference_evaluation(
-                models_dir, paired_reference_id, corpus, request.context_window
+                models_dir,
+                paired_reference_id,
+                corpus,
+                request.context_window,
+                model_id,
+                tuple(tokenizer.vocabulary),
             )
         except Exception as exc:  # observational: never fails the training
             paired = {"reference_model_id": paired_reference_id, "error": repr(exc)}
