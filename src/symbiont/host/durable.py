@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import mkstemp
 from typing import Any, Callable, Generator
 
 
-def sync_directory(directory_path: str | Path) -> None:
+def sync_directory(directory_path: str | Path, *, required: bool = True) -> None:
     """Flush directory entries to persistent storage (POSIX).
 
     In POSIX, ``os.replace`` updates directory entries in kernel buffer cache.
@@ -17,6 +18,14 @@ def sync_directory(directory_path: str | Path) -> None:
 
     On non-POSIX systems (e.g. Windows), NTFS metadata modifications are journaled
     and opening directory file descriptors for ``fsync`` is not supported.
+
+    Parameters
+    ----------
+    directory_path:
+        Directory path whose directory entries are to be flushed.
+    required:
+        If True (default), raise OSError on POSIX if opening or syncing the directory fails.
+        If False, errors are silently ignored (best-effort durability).
     """
     if os.name != "posix":
         return
@@ -28,17 +37,41 @@ def sync_directory(directory_path: str | Path) -> None:
     try:
         dir_fd = os.open(str(directory_path), flags)
     except (OSError, PermissionError):
+        if required:
+            raise
         return
 
     try:
         os.fsync(dir_fd)
     except OSError:
-        pass
+        if required:
+            raise
     finally:
         try:
             os.close(dir_fd)
         except OSError:
             pass
+
+
+def ensure_secure_file_permissions(path: str | Path, expected_mode: int = 0o600) -> None:
+    """Ensure that on POSIX systems, a sensitive file does not allow group or other access.
+
+    If group or other bits are set (e.g. ``st_mode & 0o077 != 0``), attempts to chmod
+    the file to expected_mode. If chmod fails, raises PermissionError.
+    """
+    if os.name != "posix":
+        return
+    p = Path(path)
+    if not p.is_file():
+        return
+    mode = stat.S_IMODE(p.stat().st_mode)
+    if mode & 0o077 != 0:
+        try:
+            os.chmod(p, expected_mode)
+        except OSError as exc:
+            raise PermissionError(
+                f"Insecure permissions {oct(mode)} on '{p}': group/other access forbidden: {exc}"
+            ) from exc
 
 
 def durable_atomic_write(
@@ -112,7 +145,7 @@ def durable_atomic_write(
         if sync_dir:
             if _fault_point:
                 _fault_point("before_dir_fsync")
-            sync_directory(parent)
+            sync_directory(parent, required=True)
             if _fault_point:
                 _fault_point("after_dir_fsync")
     except BaseException:
@@ -195,6 +228,17 @@ def durable_atomic_replacement(
 
     try:
         yield tmp_path
+        if tmp_path.exists():
+            if _fault_point:
+                _fault_point("before_file_fsync")
+            tmp_fd = os.open(str(tmp_path), os.O_RDONLY)
+            try:
+                os.fsync(tmp_fd)
+            finally:
+                os.close(tmp_fd)
+            if _fault_point:
+                _fault_point("after_file_fsync")
+
         if _fault_point:
             _fault_point("before_replace")
         os.replace(tmp_path, target)
@@ -204,7 +248,7 @@ def durable_atomic_replacement(
         if sync_dir:
             if _fault_point:
                 _fault_point("before_dir_fsync")
-            sync_directory(parent)
+            sync_directory(parent, required=True)
             if _fault_point:
                 _fault_point("after_dir_fsync")
     except BaseException:
