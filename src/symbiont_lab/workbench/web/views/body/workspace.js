@@ -104,6 +104,7 @@ export class BodyWorkspace {
     this.panel = null;
     this.overlay = null;
     this.overlayContent = null;
+    this.epistemicStage = null;
     this.renderQueued = false;
     this.selfModel = new SelfModelWorkspace();
     this.discovery = new ActionDiscoveryPanel();
@@ -133,6 +134,10 @@ export class BodyWorkspace {
     this.overlayContent = node('div', 'body-data-overlay-content');
     this.overlay.appendChild(this.overlayContent);
     canvasWrap.appendChild(this.overlay);
+
+    this.epistemicStage = node('div', 'world-epistemic-stage');
+    this.epistemicStage.hidden = true;
+    canvasWrap.appendChild(this.epistemicStage);
 
     this.panel = panel;
     panel.id = 'body-inspector-panel';
@@ -170,6 +175,16 @@ export class BodyWorkspace {
     this.panel?.setAttribute('aria-labelledby', `body-tab-${tab}`);
     this.root?.classList.toggle('self-model-mode', tab === 'self-model');
     this.root?.classList.toggle('body-world-mode', ['acquired','compare','world'].includes(tab));
+    const epistemicOnly = this.domain === 'world' && (tab === 'acquired' || tab === 'compare');
+    this.root?.classList.toggle('world-epistemic-mode', epistemicOnly);
+    if (this.epistemicStage) {
+      this.epistemicStage.hidden = !epistemicOnly;
+      if (epistemicOnly) {
+        this.epistemicStage.innerHTML = tab === 'acquired'
+          ? '<div class="world-epistemic-kicker">ACQUIRED WORLD</div><strong>No organism-owned external model yet</strong><p>World geometry is intentionally hidden here. Persistent sources, cross-modal relations and spatial structure will appear only when Symbiont has evidence for them.</p>'
+          : '<div class="world-epistemic-kicker">COMPARE</div><strong>Nothing to compare yet</strong><p>Observer truth remains separate until an Acquired World exists. Showing Physics entities here now would fabricate correspondence.</p>';
+      }
+    }
     if (tab !== 'self-model') this.root?.classList.remove('self-model-inspector-open');
     const dataView = tab === 'discovery' || tab === 'physiology' || tab === 'history' || tab === 'self-model';
     this.overlay?.classList.toggle('visible', dataView);
