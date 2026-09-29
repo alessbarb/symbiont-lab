@@ -1399,6 +1399,176 @@ export function createCognitionController({
     });
   }
 
+  function sparseEdgeKeys2D({
+    edges,
+    tick,
+    visibleIds,
+    detailLevel,
+    atlasPath,
+    flowTrace,
+  }) {
+    const forced = new Set([
+      ...(atlasPath?.edgeKeys ?? []),
+      ...(flowTrace?.edgeKeys ?? []),
+    ]);
+    if (detailLevel === 'regions') return forced;
+
+    const modeBudget = {
+      structure: 44,
+      activity: 58,
+      learning: 64,
+      prediction: 52,
+      motor: 64,
+      evidence: 58,
+      diff: 52,
+      anatomy: 42,
+      dynamics: 62,
+    };
+    const detailMultiplier = detailLevel === 'nodes' ? 1.7 : 1;
+    const budget = Math.round((modeBudget[graph.atlasMode] ?? 52) * detailMultiplier);
+    const ranked = [];
+
+    for (const edge of edges) {
+      const key = atlasEdgeKey(edge);
+      if (forced.has(key)) continue;
+      if (!visibleIds.has(edge.source.id) || !visibleIds.has(edge.target.id)) continue;
+
+      const sameSector =
+        edge.source.community &&
+        edge.source.community !== 'isolated' &&
+        edge.source.community === edge.target.community;
+      const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
+      const bridge = !sameSector && graph.bridgeEdges.has(bridgeKey);
+      const modeScore = currentAtlasEdgeScore(edge, tick);
+      const support = Math.min(1, Math.log1p(Math.max(0, finiteNumber(edge.support, 0))) / 7);
+      const idleTicks = Math.max(0, tick - finiteNumber(edge.lastUseTick, tick));
+      const recency = Math.exp(-idleTicks / 512);
+      const structuralBonus = isStructuralAtlasEdge(edge) ? 0.08 : 0;
+      const bridgeBonus = bridge ? 0.34 : 0;
+      const crossRegionBonus = sameSector ? 0 : 0.10;
+      const score =
+        modeScore * 0.50 +
+        support * 0.20 +
+        recency * 0.12 +
+        structuralBonus +
+        bridgeBonus +
+        crossRegionBonus;
+
+      ranked.push({ key, edge, score, bridge });
+    }
+
+    ranked.sort((a, b) =>
+      Number(b.bridge) - Number(a.bridge) ||
+      b.score - a.score ||
+      a.key.localeCompare(b.key)
+    );
+
+    // Prevent one high-degree hub from consuming the whole global budget.
+    const perNode = new Map();
+    const selected = new Set(forced);
+    const maxPerNode = detailLevel === 'nodes' ? 9 : 5;
+    for (const item of ranked) {
+      if (selected.size >= budget + forced.size) break;
+      const sourceCount = perNode.get(item.edge.source.id) ?? 0;
+      const targetCount = perNode.get(item.edge.target.id) ?? 0;
+      if (!item.bridge && (sourceCount >= maxPerNode || targetCount >= maxPerNode)) continue;
+      selected.add(item.key);
+      perNode.set(item.edge.source.id, sourceCount + 1);
+      perNode.set(item.edge.target.id, targetCount + 1);
+    }
+    return selected;
+  }
+
+  function regionLabelRect(ctx, item, x, y) {
+    ctx.font = '600 10px -apple-system, sans-serif';
+    const titleWidth = ctx.measureText(item.title).width;
+    ctx.font = '8px -apple-system, sans-serif';
+    const detailWidth = ctx.measureText(item.detail).width;
+    return {
+      x,
+      y: y - 7,
+      width: Math.max(titleWidth, detailWidth) + 8,
+      height: 24,
+    };
+  }
+
+  function rectsOverlap(a, b, padding = 5) {
+    return !(
+      a.x + a.width + padding < b.x ||
+      b.x + b.width + padding < a.x ||
+      a.y + a.height + padding < b.y ||
+      b.y + b.height + padding < a.y
+    );
+  }
+
+  function drawRegionLabels(ctx, items) {
+    const occupied = [];
+    const sorted = [...items].sort((a, b) =>
+      Number(b.active) - Number(a.active) ||
+      b.priority - a.priority ||
+      b.nodeCount - a.nodeCount ||
+      String(a.title).localeCompare(String(b.title))
+    );
+
+    for (const item of sorted) {
+      const shape = item.shape;
+      const r = shape.radius;
+      const candidates = [
+        { x: shape.center.x - r * 0.54, y: shape.center.y - r - 10 },
+        { x: shape.center.x + r * 0.22, y: shape.center.y - r - 10 },
+        { x: shape.center.x + r + 10, y: shape.center.y - 8 },
+        { x: shape.center.x - r - 10, y: shape.center.y - 8, right: true },
+        { x: shape.center.x - r * 0.50, y: shape.center.y + r + 13 },
+      ];
+      let placed = null;
+      for (const candidate of candidates) {
+        const rect = regionLabelRect(ctx, item, candidate.x, candidate.y);
+        if (candidate.right) rect.x -= rect.width;
+        if (occupied.every(existing => !rectsOverlap(rect, existing))) {
+          placed = { ...candidate, rect };
+          break;
+        }
+      }
+      if (!placed) {
+        if (!item.active && item.priority < 0.38) continue;
+        const candidate = candidates[candidates.length - 1];
+        placed = { ...candidate, rect: regionLabelRect(ctx, item, candidate.x, candidate.y) };
+      }
+      occupied.push(placed.rect);
+
+      const labelX = placed.right ? placed.rect.x + placed.rect.width : placed.rect.x;
+      const labelY = placed.y;
+      const anchor = boundaryPointToward(shape, {
+        x: placed.rect.x + placed.rect.width / 2,
+        y: placed.rect.y + placed.rect.height / 2,
+      });
+      const labelAnchorX = placed.rect.x + (placed.right ? placed.rect.width : 0);
+      const labelAnchorY = placed.rect.y + 8;
+
+      ctx.save();
+      ctx.globalAlpha = item.opacity;
+      if (Math.hypot(anchor.x - labelAnchorX, anchor.y - labelAnchorY) > 12) {
+        ctx.beginPath();
+        ctx.moveTo(anchor.x, anchor.y);
+        ctx.lineTo(labelAnchorX, labelAnchorY);
+        ctx.strokeStyle = `${item.color}4d`;
+        ctx.lineWidth = 0.65;
+        ctx.stroke();
+      }
+      ctx.textAlign = placed.right ? 'right' : 'left';
+      ctx.textBaseline = 'middle';
+      ctx.font = '600 10px -apple-system, sans-serif';
+      ctx.fillStyle = `${item.color}e6`;
+      ctx.fillText(item.title, labelX, labelY);
+      if (graph.detailLevel !== 'regions' || item.active) {
+        ctx.font = '8px -apple-system, sans-serif';
+        ctx.fillStyle = 'rgba(175,199,220,.58)';
+        ctx.fillText(item.detail, labelX, labelY + 12);
+      }
+      ctx.restore();
+    }
+  }
+
   function drawRegionMass(ctx, region, points, dimension, tick, color) {
     if (points.length < 2) return null;
     const shape = regionGeometry(region, points, dimension, tick);
@@ -1555,8 +1725,12 @@ export function createCognitionController({
   }
 
   function drawLearningFrontierZones(ctx, pointsById) {
-    if (!['learning','dynamics'].includes(graph.atlasMode)) return;
-    for (const [clusterIndex, cluster] of (graph.learningFrontierClusters ?? []).entries()) {
+    const explicitLearning = graph.atlasMode === 'learning';
+    const closeDynamics = graph.atlasMode === 'dynamics' && graph.detailLevel === 'nodes';
+    if (!explicitLearning && !closeDynamics) return;
+    const clusters = graph.learningFrontierClusters ?? [];
+    const maxClusters = explicitLearning ? 4 : 1;
+    for (const [clusterIndex, cluster] of clusters.slice(0, maxClusters).entries()) {
       const points = cluster.nodeIds.map(id => pointsById.get(id)).filter(Boolean);
       if (!points.length) continue;
       const x = points.reduce((sum, item) => sum + item.x, 0) / points.length;
@@ -1572,14 +1746,14 @@ export function createCognitionController({
       ctx.save();
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,189,84,${0.025 + cluster.meanScore * 0.06})`;
-      ctx.strokeStyle = `rgba(255,189,84,${0.24 + cluster.maxScore * 0.52})`;
-      ctx.lineWidth = 1 + cluster.maxScore * 1.5;
-      ctx.setLineDash([3, 5]);
+      ctx.fillStyle = `rgba(255,189,84,${0.012 + cluster.meanScore * 0.032})`;
+      ctx.strokeStyle = `rgba(255,189,84,${0.12 + cluster.maxScore * 0.28})`;
+      ctx.lineWidth = 0.7 + cluster.maxScore * 0.8;
+      ctx.setLineDash([3, 7]);
       ctx.fill();
       ctx.stroke();
       ctx.setLineDash([]);
-      if (clusterIndex < 3) {
+      if (explicitLearning && graph.detailLevel === 'nodes' && clusterIndex < 2) {
         ctx.font = '600 8px -apple-system, sans-serif';
         ctx.fillStyle = 'rgba(255,205,120,.76)';
         ctx.textAlign = 'left';
@@ -1776,6 +1950,7 @@ export function createCognitionController({
       const pathEdge = atlasPath.edgeKeys.has(edgeKey);
       const flowEdge = flowTrace.edgeKeys.has(edgeKey);
       if (graph.flowTraceEnabled && !flowEdge && !pathEdge) continue;
+      if (sparseEdgeKeys && !sparseEdgeKeys.has(edgeKey) && !pathEdge) continue;
       const endpointsVisible =
         visibleIds.has(edge.source.id) && visibleIds.has(edge.target.id);
       if (!sectorFocus && detailLevel === 'regions' && !focusId && !pathEdge) continue;
@@ -2027,6 +2202,7 @@ export function createCognitionController({
     }
     const regionTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
+    const regionLabelItems = [];
 
     for (const [communityId, s] of communityStats.entries()) {
       if (s.n < 2) continue;
@@ -2050,29 +2226,20 @@ export function createCognitionController({
 
       const sectorLabel = graph.sectorLabels.get(communityId) ?? 'S-???';
       const sectorDescription = graph.sectorDescriptions.get(communityId);
-      const labelX = shape.center.x - shape.radius * 0.55;
-      const labelY = shape.center.y - shape.radius - 10;
-      ctx.globalAlpha = shape.presentationOpacity ?? 1;
-      ctx.font = '600 10px -apple-system, sans-serif';
-      ctx.fillStyle = `${color}e6`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(
-        `${sectorLabel} · ${sectorDescription?.interpretation ?? 'emergent region'}`,
-        labelX,
-        labelY,
-      );
-      ctx.font = '8px -apple-system, sans-serif';
-      ctx.fillStyle = 'rgba(175,199,220,.62)';
-      ctx.fillText(
-        `${s.n} nodes · ${atlasModeMeta().label.toLowerCase()} ${Math.round(atlasRegionScore(atlasRegion) * 100)}% · boundary tension ${Math.round((shape.tension ?? 0) * 100)}%`,
-        labelX,
-        labelY + 12,
-      );
-      ctx.globalAlpha = 1;
+      regionLabelItems.push({
+        shape,
+        color,
+        opacity: shape.presentationOpacity ?? 1,
+        active: graph.focusedSectorId === communityId,
+        priority: atlasRegionScore(atlasRegion),
+        nodeCount: s.n,
+        title: `${sectorLabel} · ${sectorDescription?.interpretation ?? 'emergent region'}`,
+        detail: `${s.n} nodes · ${atlasModeMeta().label.toLowerCase()} ${Math.round(atlasRegionScore(atlasRegion) * 100)}% · tension ${Math.round((shape.tension ?? 0) * 100)}%`,
+      });
     }
 
     drawPresentationRegionOverlays(ctx, now);
+    drawRegionLabels(ctx, regionLabelItems);
 
     const focusId = hoveredNode?.id ?? graph.selectedNodeId;
     const activeTopology = currentRenderedTopology();
@@ -2090,9 +2257,20 @@ export function createCognitionController({
       { x: node.x, y: node.y, radius: node.radius },
     ]));
     drawLearningFrontierZones(ctx, pointMap);
+
+    const sparseEdgeKeys = (!focusId && !sectorFocus)
+      ? sparseEdgeKeys2D({
+          edges,
+          tick: atlasTick,
+          visibleIds,
+          detailLevel,
+          atlasPath,
+          flowTrace,
+        })
+      : null;
   
-    // Edges: global view shows only a sparse inter-sector backbone.
-    // Internal relations are encoded spatially and revealed on inspection.
+    // Edges: global view is intentionally budgeted. Dense internal evidence is
+    // encoded spatially and expands only on focus/zoom instead of becoming hairball.
     for (const edge of edges) {
       const isConn = Boolean(focusId && connectedIds?.has(edge.source.id) && connectedIds?.has(edge.target.id));
       const sameSector = (
@@ -2118,9 +2296,9 @@ export function createCognitionController({
         const targetLocal = sectorFocus.local.has(edge.target.id);
         if (!(sourceLocal || targetLocal)) continue;
       } else if (graph.atlasMode === 'structure') {
-        if (sameSector && modeScore < 0.58) continue;
-        if (!sameSector && !graph.bridgeEdges.has(bridgeKey) && modeScore < 0.46) continue;
-      } else if (modeScore < 0.16) {
+        if (sameSector && modeScore < 0.30) continue;
+        if (!sameSector && !graph.bridgeEdges.has(bridgeKey) && modeScore < 0.22) continue;
+      } else if (modeScore < 0.08) {
         continue;
       }
       const dimmed = false;
