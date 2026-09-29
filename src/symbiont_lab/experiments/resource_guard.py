@@ -50,10 +50,23 @@ def _available_memory_gb() -> float:
     return pages * page_size / (1024**3)
 
 
+def _available_cpu_threads() -> int:
+    """Return CPUs actually available to this process, respecting affinity limits."""
+    if hasattr(os, "sched_getaffinity"):
+        try:
+            affinity = os.sched_getaffinity(0)
+        except (AttributeError, OSError):
+            pass
+        else:
+            if affinity:
+                return len(affinity)
+    return int(os.cpu_count() or 0)
+
+
 def assess_resources(request: ResourceRequest, *, disk_path: Path) -> ResourceAssessment:
     available = _available_memory_gb()
     free_disk = shutil.disk_usage(disk_path).free / (1024**3)
-    available_cpu = int(os.cpu_count() or 0)
+    available_cpu = _available_cpu_threads()
     reasons: list[str] = []
 
     if request.peak_memory_gb <= 0:
