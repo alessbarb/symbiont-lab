@@ -1,4 +1,9 @@
-"""One-command publication workflow for ordinary agent work."""
+"""One-command governed publication.
+
+The user-facing contract is intentionally small: agents call agentctl publish.
+This module owns synchronization, final-diff classification, bounded equivalence
+evidence, validation, audit trailers, commit normalization and optimistic publication.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +12,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,7 +20,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from governance.classify import ChangeClass, assess  # noqa: E402
+from governance.classify import ChangeClass, Assessment, assess  # noqa: E402
 from symbiont_lab.experiments.execution_workspace import pinned_worktree  # noqa: E402
 from symbiont_lab.physics3d.equivalence_suite import compare, load_suite  # noqa: E402
 
@@ -33,11 +39,31 @@ def _git(*args: str, check: bool = True) -> str:
     return result.stdout.strip()
 
 
+def _untracked_context() -> str:
+    chunks: list[str] = []
+    for raw in filter(None, _git("ls-files", "--others", "--exclude-standard").splitlines()):
+        path = ROOT / raw
+        chunks.append(f"\n--- untracked:{raw} ---\n")
+        try:
+            if path.is_file() and path.stat().st_size <= 1_000_000:
+                chunks.append(path.read_text(encoding="utf-8", errors="replace"))
+            else:
+                chunks.append("<binary-or-large>")
+        except OSError:
+            chunks.append("<unreadable>")
+    return "".join(chunks)
+
+
 def _changed_against(base: str) -> tuple[list[str], str]:
     paths = set(filter(None, _git("diff", "--name-only", base).splitlines()))
     paths.update(filter(None, _git("ls-files", "--others", "--exclude-standard").splitlines()))
-    diff = _git("diff", "--no-ext-diff", base, check=False)
+    diff = _git("diff", "--no-ext-diff", base, check=False) + _untracked_context()
     return sorted(paths), diff
+
+
+def _classify(base: str) -> tuple[list[str], Assessment]:
+    paths, diff = _changed_against(base)
+    return paths, assess(ROOT, base, paths, diff)
 
 
 def _run_scenario(code_root: Path, suite: Path, scenario: str, output: Path) -> dict:
@@ -61,16 +87,18 @@ def _run_scenario(code_root: Path, suite: Path, scenario: str, output: Path) -> 
     return json.loads(output.read_text(encoding="utf-8"))
 
 
-def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict]:
+def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict[str, dict]]:
     if not scenarios:
         return True, {}
+
     suite = ROOT / "experiments/equivalence/suite-v1/suite.toml"
     if not suite.is_file():
-        return False, {"reason": "equivalence suite is not installed"}
+        return False, {"suite": {"status": "ERROR", "reason": "equivalence suite missing"}}
 
     _, definitions = load_suite(suite)
     by_id = {item.scenario_id: item for item in definitions}
     evidence: dict[str, dict] = {}
+
     with pinned_worktree(ROOT, base) as baseline_tree:
         for scenario_id in scenarios:
             definition = by_id.get(scenario_id)
@@ -82,9 +110,7 @@ def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict]:
                 baseline = _run_scenario(
                     baseline_tree, suite, scenario_id, td_path / "baseline.json"
                 )
-                candidate = _run_scenario(
-                    ROOT, suite, scenario_id, td_path / "candidate.json"
-                )
+                candidate = _run_scenario(ROOT, suite, scenario_id, td_path / "candidate.json")
                 result = compare(definition, baseline, candidate)
                 evidence[scenario_id] = result
                 if result.get("status") != "PASS":
@@ -92,122 +118,200 @@ def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict]:
     return True, evidence
 
 
-def _classify(base: str):
-    paths, diff = _changed_against(base)
-    return paths, assess(ROOT, base, paths, diff)
-
-
-def _validate_and_commit(message: str, classification: str, owner_approved: bool, evidence: dict) -> str:
-    _git("add", "-A")
-    subprocess.run(
-        [sys.executable, "scripts/agentctl.py", "validate", "--staged"],
-        cwd=ROOT,
-        check=True,
-    )
-    trailers = [
-        f"Governance-Class: {classification}",
-        f"Owner-Approval: {'explicit' if owner_approved else 'not-required'}",
-    ]
-    if evidence:
-        digest = json.dumps(evidence, sort_keys=True, separators=(",", ":"))
-        trailers.append(f"Equivalence-Evidence: {digest}")
-    _git("commit", "-m", message.rstrip() + "\n\n" + "\n".join(trailers))
-    return _git("rev-parse", "HEAD")
-
-
-def publish(*, message: str, owner_approved: bool = False, retries: int = 3) -> int:
-    """Fetch/rebase, classify the final diff, validate, commit and push to main."""
-    branch = _git("rev-parse", "--abbrev-ref", "HEAD")
-    if branch == "HEAD":
-        print("BLOCKED — publish requires a branch checkout", file=sys.stderr)
-        return 2
-
-    _git("fetch", "origin", "main")
-    remote = _git("rev-parse", "origin/main")
-    if _git("rev-parse", "HEAD") != remote:
-        result = subprocess.run(
-            ["git", "rebase", "--autostash", "origin/main"],
-            cwd=ROOT,
-            check=False,
-        )
-        if result.returncode:
-            print("BLOCKED — concurrent semantic conflict during rebase", file=sys.stderr)
-            return 2
-        remote = _git("rev-parse", "origin/main")
-
-    paths, assessment = _classify(remote)
+def _evaluate(
+    base: str,
+    *,
+    owner_approved: bool,
+) -> tuple[Assessment, ChangeClass, dict[str, dict]]:
+    paths, assessment = _classify(base)
     if not paths:
-        print("nothing to publish")
-        return 0
+        return assessment, ChangeClass.ORDINARY, {}
 
     print(f"classification: {assessment.classification}")
     for reason in assessment.reasons:
         print(f"  - {reason}")
 
     if assessment.classification == ChangeClass.FROZEN:
-        print("BLOCKED — frozen scientific evidence must be versioned", file=sys.stderr)
-        return 3
+        raise RuntimeError("FROZEN: completed scientific evidence must be versioned, not modified")
     if assessment.classification == ChangeClass.CONSTITUTIONAL and not owner_approved:
-        print("BLOCKED — constitutional approval required", file=sys.stderr)
-        return 3
+        raise PermissionError("CONSTITUTIONAL: explicit owner approval required")
 
-    eq_pass, evidence = run_equivalence(remote, assessment.equivalence_scenarios)
+    eq_pass, evidence = run_equivalence(base, assessment.equivalence_scenarios)
     effective = assessment.classification
-    if effective == ChangeClass.SCIENTIFIC and assessment.equivalence_scenarios and eq_pass:
-        effective = ChangeClass.ORDINARY
-        print("equivalence: PASS — causally transparent within declared scenario coverage")
-    elif effective == ChangeClass.SCIENTIFIC and not owner_approved:
-        print("BLOCKED — scientific decision required", file=sys.stderr)
-        if evidence:
-            print(json.dumps(evidence, indent=2))
-        return 3
+    if effective == ChangeClass.SCIENTIFIC:
+        if assessment.equivalence_scenarios and eq_pass:
+            effective = ChangeClass.ORDINARY
+            print("equivalence: PASS — causally transparent within declared scenario coverage")
+        elif not owner_approved:
+            detail = json.dumps(evidence, indent=2) if evidence else "no covering equivalence scenario"
+            raise PermissionError(f"SCIENTIFIC: explicit owner decision required\n{detail}")
+    return assessment, effective, evidence
 
-    local_commit = _validate_and_commit(message, str(effective), owner_approved, evidence)
 
-    for attempt in range(1, retries + 1):
-        _git("fetch", "origin", "main")
-        latest = _git("rev-parse", "origin/main")
-        if latest != remote:
-            result = subprocess.run(["git", "rebase", "origin/main"], cwd=ROOT, check=False)
-            if result.returncode:
-                print("BLOCKED — main changed and rebase conflicts", file=sys.stderr)
-                return 2
-            remote = latest
-
-            _, reassessed = _classify(remote)
-            if reassessed.classification == ChangeClass.FROZEN:
-                print("BLOCKED — rebase now touches frozen evidence", file=sys.stderr)
-                return 3
-            if reassessed.classification == ChangeClass.CONSTITUTIONAL and not owner_approved:
-                print("BLOCKED — rebase now requires constitutional approval", file=sys.stderr)
-                return 3
-            eq_pass, new_evidence = run_equivalence(remote, reassessed.equivalence_scenarios)
-            if reassessed.classification == ChangeClass.SCIENTIFIC and not (
-                eq_pass and reassessed.equivalence_scenarios
-            ) and not owner_approved:
-                print("BLOCKED — rebase invalidated ordinary/equivalence classification", file=sys.stderr)
-                return 3
-            subprocess.run(
-                [sys.executable, "scripts/agentctl.py", "verify"],
-                cwd=ROOT,
-                check=True,
-            )
-
-        before_push = _git("rev-parse", "origin/main")
-        result = subprocess.run(
-            ["git", "push", "origin", "HEAD:main"],
-            cwd=ROOT,
-            check=False,
+def _publication_message(
+    message: str,
+    *,
+    effective: ChangeClass,
+    owner_approved: bool,
+    evidence: dict[str, dict],
+) -> str:
+    trailers = [
+        f"Governance-Class: {effective}",
+        f"Owner-Approval: {'explicit' if owner_approved else 'not-required'}",
+    ]
+    if evidence:
+        trailers.append(
+            "Equivalence-Evidence: "
+            + json.dumps(evidence, sort_keys=True, separators=(",", ":"))
         )
-        if result.returncode == 0:
-            print(f"published: {_git('rev-parse', 'HEAD')}")
-            return 0
-        _git("fetch", "origin", "main")
-        if _git("rev-parse", "origin/main") == before_push:
-            print(f"push failed for non-concurrency reason; local commit {local_commit}", file=sys.stderr)
-            return result.returncode
-        if attempt == retries:
-            break
+    return message.rstrip() + "\n\n" + "\n".join(trailers)
 
-    print("BLOCKED — main kept changing; rerun agentctl publish", file=sys.stderr)
-    return 4
+
+def _validate_staged() -> None:
+    subprocess.run(
+        [sys.executable, "scripts/agentctl.py", "validate", "--staged"],
+        cwd=ROOT,
+        check=True,
+    )
+
+
+def _backup_local_head() -> str | None:
+    remote = _git("rev-parse", "origin/main")
+    head = _git("rev-parse", "HEAD")
+    if head == remote:
+        return None
+    name = f"refs/agentctl/prepublish/{int(time.time())}-{head[:10]}"
+    _git("update-ref", name, head)
+    return name
+
+
+def _normalize_local_commits(remote: str) -> str | None:
+    """Collapse unpublished local commits into the final proposed diff.
+
+    A backup ref preserves the original local history. This avoids requiring every
+    intermediate local commit to carry publication governance metadata.
+    """
+
+    head = _git("rev-parse", "HEAD")
+    if head == remote:
+        return None
+    backup = _backup_local_head()
+    _git("reset", "--soft", remote)
+    if backup:
+        print(f"local history preserved at {backup}")
+    return backup
+
+
+def _sync_to_remote() -> str:
+    _git("fetch", "origin", "main")
+    remote = _git("rev-parse", "origin/main")
+    if _git("rev-parse", "HEAD") == remote:
+        return remote
+
+    result = subprocess.run(
+        ["git", "rebase", "--autostash", "origin/main"],
+        cwd=ROOT,
+        check=False,
+    )
+    if result.returncode:
+        raise RuntimeError("concurrent semantic conflict during rebase")
+    return _git("rev-parse", "origin/main")
+
+
+def _stage_validate_commit(
+    message: str,
+    *,
+    effective: ChangeClass,
+    owner_approved: bool,
+    evidence: dict[str, dict],
+    amend: bool = False,
+) -> str:
+    _git("add", "-A")
+    _validate_staged()
+    full_message = _publication_message(
+        message,
+        effective=effective,
+        owner_approved=owner_approved,
+        evidence=evidence,
+    )
+    args = ["commit"]
+    if amend:
+        args.append("--amend")
+    args += ["-m", full_message]
+    _git(*args)
+    return _git("rev-parse", "HEAD")
+
+
+def publish(*, message: str, owner_approved: bool = False, retries: int = 3) -> int:
+    """Publish the final task diff while keeping governance invisible for ordinary work."""
+
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD")
+    if branch == "HEAD":
+        print("BLOCKED — publish requires a branch checkout", file=sys.stderr)
+        return 2
+
+    try:
+        remote = _sync_to_remote()
+        _normalize_local_commits(remote)
+
+        paths, _ = _classify(remote)
+        if not paths:
+            print("nothing to publish")
+            return 0
+
+        _, effective, evidence = _evaluate(remote, owner_approved=owner_approved)
+        _stage_validate_commit(
+            message,
+            effective=effective,
+            owner_approved=owner_approved,
+            evidence=evidence,
+        )
+
+        for attempt in range(1, retries + 1):
+            _git("fetch", "origin", "main")
+            latest = _git("rev-parse", "origin/main")
+            if latest != remote:
+                result = subprocess.run(
+                    ["git", "rebase", "origin/main"],
+                    cwd=ROOT,
+                    check=False,
+                )
+                if result.returncode:
+                    print("BLOCKED — main changed and rebase conflicts", file=sys.stderr)
+                    return 2
+                remote = latest
+
+                # The baseline changed: recompute evidence and validation, then amend
+                # the publication attestation to match the final rebased diff.
+                _, effective, evidence = _evaluate(
+                    remote, owner_approved=owner_approved
+                )
+                _stage_validate_commit(
+                    message,
+                    effective=effective,
+                    owner_approved=owner_approved,
+                    evidence=evidence,
+                    amend=True,
+                )
+
+            result = subprocess.run(
+                ["git", "push", "origin", "HEAD:main"],
+                cwd=ROOT,
+                check=False,
+            )
+            if result.returncode == 0:
+                print(f"published: {_git('rev-parse', 'HEAD')}")
+                return 0
+
+            _git("fetch", "origin", "main")
+            if attempt == retries:
+                break
+
+        print("BLOCKED — main kept changing; rerun agentctl publish", file=sys.stderr)
+        return 4
+    except PermissionError as exc:
+        print(f"BLOCKED — {exc}", file=sys.stderr)
+        return 3
+    except RuntimeError as exc:
+        print(f"BLOCKED — {exc}", file=sys.stderr)
+        return 2
