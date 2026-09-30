@@ -89,10 +89,7 @@ def _finite_result(result: dict) -> bool:
 def _snapshot_contract_failure(scenario: Scenario, manifest: dict) -> str | None:
     manifest_scenario = manifest.get("scenario")
     if manifest_scenario and manifest_scenario != scenario.scenario_id:
-        return (
-            f"snapshot scenario mismatch: {manifest_scenario!r} "
-            f"!= {scenario.scenario_id!r}"
-        )
+        return f"snapshot scenario mismatch: {manifest_scenario!r} != {scenario.scenario_id!r}"
     body_kind = (
         manifest.get("body_kind")
         or manifest.get("body_kind_from_state")
@@ -233,49 +230,57 @@ def suite_status(path: Path) -> dict:
     ready = True
     for scenario in scenarios:
         if not scenario.snapshot.exists():
-            rows.append({
-                "id": scenario.scenario_id,
-                "state": "MISSING",
-                "snapshot": str(scenario.snapshot),
-                "coverage": list(scenario.coverage),
-            })
+            rows.append(
+                {
+                    "id": scenario.scenario_id,
+                    "state": "MISSING",
+                    "snapshot": str(scenario.snapshot),
+                    "coverage": list(scenario.coverage),
+                }
+            )
             ready = False
             continue
         try:
             manifest = verify_snapshot(scenario.snapshot)
         except Exception as exc:
-            rows.append({
-                "id": scenario.scenario_id,
-                "state": "INVALID",
-                "snapshot": str(scenario.snapshot),
-                "reason": str(exc),
-                "coverage": list(scenario.coverage),
-            })
+            rows.append(
+                {
+                    "id": scenario.scenario_id,
+                    "state": "INVALID",
+                    "snapshot": str(scenario.snapshot),
+                    "reason": str(exc),
+                    "coverage": list(scenario.coverage),
+                }
+            )
             ready = False
             continue
         contract_failure = _snapshot_contract_failure(scenario, manifest)
         if contract_failure is not None:
-            rows.append({
-                "id": scenario.scenario_id,
-                "state": "INVALID",
-                "snapshot": str(scenario.snapshot),
-                "reason": contract_failure,
-                "coverage": list(scenario.coverage),
-            })
+            rows.append(
+                {
+                    "id": scenario.scenario_id,
+                    "state": "INVALID",
+                    "snapshot": str(scenario.snapshot),
+                    "reason": contract_failure,
+                    "coverage": list(scenario.coverage),
+                }
+            )
             ready = False
             continue
-        rows.append({
-            "id": scenario.scenario_id,
-            "state": "READY",
-            "snapshot": str(scenario.snapshot),
-            "snapshot_id": manifest.get("snapshot_id"),
-            "organism_id": manifest.get("organism_id"),
-            "captured_tick": manifest.get("captured_tick"),
-            "coverage": list(scenario.coverage),
-            "memory_gb": scenario.memory_gb,
-            "disk_gb": scenario.disk_gb,
-            "cpu_threads": scenario.cpu_threads,
-        })
+        rows.append(
+            {
+                "id": scenario.scenario_id,
+                "state": "READY",
+                "snapshot": str(scenario.snapshot),
+                "snapshot_id": manifest.get("snapshot_id"),
+                "organism_id": manifest.get("organism_id"),
+                "captured_tick": manifest.get("captured_tick"),
+                "coverage": list(scenario.coverage),
+                "memory_gb": scenario.memory_gb,
+                "disk_gb": scenario.disk_gb,
+                "cpu_threads": scenario.cpu_threads,
+            }
+        )
     return {
         "suite_id": suite_id,
         "declared_status": data.get("status"),

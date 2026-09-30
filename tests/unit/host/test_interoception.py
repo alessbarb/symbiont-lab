@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import symbiont.host.providers.interoception as interoception_module
 from symbiont.host.providers.interoception import (
     InteroceptionProvider,
     ShamInteroceptionProvider,
@@ -75,12 +76,14 @@ def test_interoception_organism_projection_is_bounded_and_uses_ratio_units():
         for reading in provider.sample(provider.discover())
     }
 
-    for reading in projected.values():
-        assert reading.unit == Unit.RATIO
-        assert reading.value is not None
-        assert 0.0 <= reading.value <= 1.0
+    for capability_id, reading in projected.items():
+        if InteroceptionProvider.organism_facing(capability_id):
+            assert reading.unit == Unit.RATIO
+            assert reading.value is not None
+            assert 0.0 <= reading.value <= 1.0
 
-    assert projected["internal.tick_latency"].value == 1.0
+    assert projected["internal.tick_latency"].unit == Unit.SECOND
+    assert projected["internal.memory_rss"].unit == Unit.BYTE
     assert projected["internal.epistemic_surprise"].value == 1.0
     assert projected["internal.metabolic_reserve"].value == 0.0
 
@@ -103,7 +106,22 @@ def test_sham_interoception_preserves_manifest_but_projects_neutral_values():
     assert {reading.capability_id for reading in projected} == {
         capability.capability_id for capability in capabilities
     }
-    assert all(reading.value == 0.5 for reading in projected)
+    organism_projected = [
+        reading
+        for reading in projected
+        if InteroceptionProvider.organism_facing(reading.capability_id)
+    ]
+    apparatus_only = [
+        reading
+        for reading in projected
+        if not InteroceptionProvider.organism_facing(reading.capability_id)
+    ]
+    assert organism_projected
+    assert all(reading.value == 0.5 for reading in organism_projected)
+    assert {reading.capability_id for reading in apparatus_only} == {
+        "internal.tick_latency",
+        "internal.memory_rss",
+    }
     assert provider.local_action_pressure() == 0.5
 
 
@@ -144,3 +162,12 @@ def test_interoception_physiological_refresh_does_not_reset_computational_channe
     assert readings["internal.epistemic_surprise"].value == 0.75
     assert readings["internal.metabolic_reserve"].value == 0.2
     assert readings["internal.integrity"].value == 0.4
+
+
+def test_interoception_sampling_without_resource_module(monkeypatch):
+    monkeypatch.setattr(interoception_module, "resource", None)
+    provider = InteroceptionProvider()
+    readings = {item.capability_id: item for item in provider.sample(provider.discover())}
+
+    assert readings["internal.memory_rss"].unit == Unit.BYTE
+    assert readings["internal.memory_rss"].value is None

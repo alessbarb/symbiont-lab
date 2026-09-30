@@ -191,9 +191,7 @@ def run_digests(
             last_payload = payload
             per_tick.append((tick, _digest(payload)))
             private = _private_model_state(payload)
-            private_model_per_tick.append(
-                (tick, _digest(private) if private is not None else None)
-            )
+            private_model_per_tick.append((tick, _digest(private) if private is not None else None))
             registry = _registry_state(payload)
             registry_per_tick.append((tick, _digest(registry) if registry is not None else None))
             if registry is None:

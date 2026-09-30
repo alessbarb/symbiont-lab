@@ -82,7 +82,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
+      - run: pip install -e '.[dev,physics3d]'
       - run: pytest tests/unit tests/integration -q
 
   experimental-integrity:

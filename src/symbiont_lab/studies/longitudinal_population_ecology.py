@@ -13,8 +13,12 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import resource
 from dataclasses import asdict, dataclass
+
+try:
+    import resource
+except ImportError:  # Windows has no stdlib resource module.
+    resource = None
 from typing import Any, Sequence
 
 from symbiont.simulation import SimulationSnapshot, run_simulation
@@ -78,6 +82,8 @@ class LongitudinalPopulationEcologyStudy:
 
 
 def _rss_bytes() -> int | None:
+    if resource is None:
+        return None
     try:
         value = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
     except (AttributeError, OSError):

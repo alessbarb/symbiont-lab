@@ -56,7 +56,6 @@ def _sha256(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-
 def _body_checkpoint_tick(path: Path) -> int | None:
     """Return the organism tick paired with a physical body checkpoint.
 
@@ -70,6 +69,7 @@ def _body_checkpoint_tick(path: Path) -> int | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     return int(value)
+
 
 def _retain(source: Path, destination: Path) -> None:
     """Content-addressed retention: an existing destination is never rewritten."""
@@ -302,11 +302,11 @@ class Physics3DRunStore:
             }
             last_body_ref = item.get("last_body_ref")
             body_path = (
-                self.bodies_dir / str(last_body_ref) / "body.json"
-                if last_body_ref
-                else None
+                self.bodies_dir / str(last_body_ref) / "body.json" if last_body_ref else None
             )
-            body_tick = _body_checkpoint_tick(body_path) if body_path and body_path.is_file() else None
+            body_tick = (
+                _body_checkpoint_tick(body_path) if body_path and body_path.is_file() else None
+            )
             organism_tick = int(item.get("tick") or 0)
             body_in_sync = body_tick is not None and body_tick == organism_tick
             item["body_checkpoint_tick"] = body_tick

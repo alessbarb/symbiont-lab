@@ -22,7 +22,7 @@ def _contract(path: str) -> str:
     text = (ROOT / path).read_text(encoding="utf-8")
     start = "<!-- BEGIN CANONICAL AGENT CONTRACT -->"
     end = "<!-- END CANONICAL AGENT CONTRACT -->"
-    return text[text.index(start): text.index(end) + len(end)]
+    return text[text.index(start) : text.index(end) + len(end)]
 
 
 def test_agent_contract_is_identical() -> None:
@@ -31,8 +31,12 @@ def test_agent_contract_is_identical() -> None:
 
 def test_governance_toml_is_parseable() -> None:
     for name in (
-        "project-state.toml", "frozen-artifacts.toml", "active-work.toml",
-        "validation-matrix.toml", "authority-grants.toml", "resource-policy.toml",
+        "project-state.toml",
+        "frozen-artifacts.toml",
+        "active-work.toml",
+        "validation-matrix.toml",
+        "authority-grants.toml",
+        "resource-policy.toml",
         "owner-root.toml",
         "bootstrap-exceptions.toml",
     ):
@@ -43,11 +47,19 @@ def test_governance_toml_is_parseable() -> None:
 def test_control_plane_is_l4() -> None:
     ctl = _agentctl()
     for path in (
-        "AGENTS.md", "docs/governance/project-state.toml", "scripts/agentctl.py",
-        "tests/governance/test_agent_governance.py", ".github/workflows/ci.yml",
-        ".github/CODEOWNERS", ".pre-commit-config.yaml", ".claude/settings.json",
-        ".codex/hooks.json", ".agents/rules/graphify.md", "pyproject.toml",
-        "pyrightconfig.json", ".gitignore",
+        "AGENTS.md",
+        "docs/governance/project-state.toml",
+        "scripts/agentctl.py",
+        "tests/governance/test_agent_governance.py",
+        ".github/workflows/ci.yml",
+        ".github/CODEOWNERS",
+        ".pre-commit-config.yaml",
+        ".claude/settings.json",
+        ".codex/hooks.json",
+        ".agents/rules/graphify.md",
+        "pyproject.toml",
+        "pyrightconfig.json",
+        ".gitignore",
     ):
         assert ctl.required_authority(path, "HEAD") == "L4"
 
@@ -82,8 +94,11 @@ def test_git_common_dir_exists() -> None:
 
 def test_agentctl_verifies_repository_governance() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/agentctl.py", "verify"], cwd=ROOT,
-        check=False, text=True, capture_output=True,
+        [sys.executable, "scripts/agentctl.py", "verify"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
     )
     assert result.returncode == 0, result.stderr
     assert "PASS" in result.stdout
@@ -100,13 +115,11 @@ def test_bootstrap_exceptions_are_exact() -> None:
         assert entry["reason"]
 
 
-
 def test_resource_policy_uses_run_start() -> None:
     with (GOV / "resource-policy.toml").open("rb") as handle:
         policy = tomllib.load(handle)["scientific_runs"]
     assert policy["launcher"] == "python scripts/agentctl.py run start"
     assert policy["trusted_state"] == "origin/main"
-
 
 
 def test_trusted_governance_helpers_share_explicit_ref(monkeypatch) -> None:
@@ -118,7 +131,7 @@ def test_trusted_governance_helpers_share_explicit_ref(monkeypatch) -> None:
         if path.endswith("active-work.toml"):
             return 'schema_version = 1\n[[work]]\nid = "x"\nstate = "RUNNING"\n'
         if path.endswith("resource-policy.toml"):
-            return 'schema_version = 1\n[scientific_runs]\nmax_memory_gb = 12\n'
+            return "schema_version = 1\n[scientific_runs]\nmax_memory_gb = 12\n"
         return None
 
     monkeypatch.setattr(ctl, "git_show", fake_show)
@@ -127,7 +140,6 @@ def test_trusted_governance_helpers_share_explicit_ref(monkeypatch) -> None:
     policy = ctl._trusted_governance_at(ref, "resource-policy.toml")
     assert policy["scientific_runs"]["max_memory_gb"] == 12
     assert {item[0] for item in calls} == {ref}
-
 
 
 def test_equivalence_evidence_requires_matching_parent_and_passes() -> None:
@@ -140,16 +152,23 @@ def test_equivalence_evidence_requires_matching_parent_and_passes() -> None:
     commit = "c" * 40
     monkey_tree = "d" * 40
     original_git = ctl.git
-    ctl.git = lambda *args, **kwargs: monkey_tree if args == ("show", "-s", "--format=%T", commit) else original_git(*args, **kwargs)
+    ctl.git = lambda *args, **kwargs: (
+        monkey_tree
+        if args == ("show", "-s", "--format=%T", commit)
+        else original_git(*args, **kwargs)
+    )
     try:
         valid = {
             "_meta": {"baseline_commit": parent, "candidate_tree": monkey_tree},
             "s1": {"status": "PASS"},
             "s2": {"status": "PASS"},
         }
-        assert ctl._equivalence_evidence_errors(
-            parent, commit, Assessment(), __import__("json").dumps(valid)
-        ) == []
+        assert (
+            ctl._equivalence_evidence_errors(
+                parent, commit, Assessment(), __import__("json").dumps(valid)
+            )
+            == []
+        )
 
         wrong_parent = {
             "_meta": {"baseline_commit": "b" * 40, "candidate_tree": monkey_tree},
@@ -183,7 +202,9 @@ def test_governance_adr_must_be_accepted_inside_docs_adr(monkeypatch) -> None:
     monkeypatch.setattr(
         ctl,
         "git_show",
-        lambda ref, path: "- **Status:** Accepted\n" if path == "docs/adr/ADR-9999-test.md" else None,
+        lambda ref, path: (
+            "- **Status:** Accepted\n" if path == "docs/adr/ADR-9999-test.md" else None
+        ),
     )
     assert ctl._governance_adr_valid("a" * 40, "docs/adr/ADR-9999-test.md")
     assert not ctl._governance_adr_valid("a" * 40, "../ADR-9999-test.md")
