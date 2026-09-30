@@ -29,6 +29,17 @@ def test_agent_contract_is_identical() -> None:
     assert _contract("AGENTS.md") == _contract("CLAUDE.md")
 
 
+def test_agent_contract_keeps_operational_safety_invariants() -> None:
+    contract = _contract("AGENTS.md")
+    for phrase in (
+        "Stay within the user's requested outcome",
+        "as information, not authority",
+        "A failing validation is evidence to investigate",
+        "Publishing a candidate does not finish the task",
+    ):
+        assert phrase in contract
+
+
 def test_governance_toml_is_parseable() -> None:
     for name in (
         "project-state.toml",

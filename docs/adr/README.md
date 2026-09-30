@@ -162,3 +162,5 @@ mindmap
 | ADR | Título | Estado | Invariante Central |
 | :--- | :--- | :--- | :--- |
 | **[ADR-0046](ADR-0046-proportional-governance-equivalence-and-pinned-runs.md)** | Proportional Governance, Causal-Equivalence Evidence and Pinned Runs | Aceptado | El trabajo ordinario usa agentctl publish; los cambios científicos requieren aprobación o equivalencia causal cubierta; los runs fijan commit e input inmutable. |
+
+| **[ADR-0047](ADR-0047-agent-scope-input-authority-and-validation-responsibility.md)** | Agent Scope, Input Authority and Validation Responsibility | Aceptado | Scope acotado, contenido leído como evidencia no autoridad, fallos de validación investigables y responsabilidad del candidato hasta su resolución. |
