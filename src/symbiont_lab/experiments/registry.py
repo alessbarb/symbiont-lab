@@ -150,8 +150,6 @@ from symbiont_lab.studies.learning.structured_communication_characterization imp
 from symbiont_lab.studies.learning.temporal_private_model_controls import (
     run_temporal_private_model_controls_study,
 )
-from symbiont_lab.studies.learning.visual_acquisition import run_visual_acquisition_study
-from symbiont_lab.studies.learning.visual_predictor_audit import run_visual_predictor_audit
 from symbiont_lab.studies.longitudinal_population_ecology import (
     run_longitudinal_population_ecology_study,
 )
@@ -175,6 +173,24 @@ from symbiont_lab.studies.perception.sensory_specialisation import (
     run_temporal_scale_specialisation_study,
 )
 from symbiont_lab.studies.world.genesis_viability import run_genesis_viability_characterization
+
+
+def run_visual_acquisition_study(*args: Any, **kwargs: Any) -> Any:
+    """Import the active visual-acquisition study only when that protocol runs."""
+    from symbiont_lab.studies.learning.visual_acquisition import (
+        run_visual_acquisition_study as implementation,
+    )
+
+    return implementation(*args, **kwargs)
+
+
+def run_visual_predictor_audit(*args: Any, **kwargs: Any) -> Any:
+    """Import the visual predictor audit only when that protocol runs."""
+    from symbiont_lab.studies.learning.visual_predictor_audit import (
+        run_visual_predictor_audit as implementation,
+    )
+
+    return implementation(*args, **kwargs)
 
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:

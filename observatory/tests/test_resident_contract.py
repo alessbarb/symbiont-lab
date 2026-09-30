@@ -100,7 +100,7 @@ class ResidentContractTests(unittest.TestCase):
             topology_files = list((observatory_dir / "instances").glob("*.topology.json"))
             self.assertEqual(len(topology_files), 1)
             topology = json.loads(topology_files[0].read_text(encoding="utf-8"))
-            self.assertEqual(topology["genome_id"], "genome_symbiont_base_v1")
+            self.assertEqual(topology["genome_id"], "genome_symbiont_base_v2")
             self.assertEqual(topology["topology_revision"], 0)
             self.assertEqual(topology["nodes"], [])
             self.assertEqual(topology["edges"], [])

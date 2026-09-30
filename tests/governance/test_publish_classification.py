@@ -50,7 +50,6 @@ def test_active_work_conflict_is_detected() -> None:
     assert any("visual-acquisition-d1-v2" in conflict for conflict in conflicts)
 
 
-
 def test_equivalence_control_plane_is_constitutional() -> None:
     result = assess(
         ROOT,
@@ -69,7 +68,6 @@ def test_equivalence_suite_manifest_is_constitutional() -> None:
         "diff --git a/experiments/equivalence/suite-v1/suite.toml b/experiments/equivalence/suite-v1/suite.toml\n+ ticks = 1",
     )
     assert result.classification == ChangeClass.CONSTITUTIONAL
-
 
 
 def test_physics3d_runtime_is_scientific_even_without_keywords() -> None:
@@ -111,7 +109,6 @@ def test_workbench_web_presentation_stays_ordinary() -> None:
         "diff --git a/src/symbiont_lab/workbench/web/views/body/viewer.js b/src/symbiont_lab/workbench/web/views/body/viewer.js\n+ renderPanel()",
     )
     assert result.classification == ChangeClass.ORDINARY
-
 
 
 def test_governance_tests_are_constitutional() -> None:
@@ -164,7 +161,6 @@ def test_study_code_is_scientific() -> None:
     assert result.classification == ChangeClass.SCIENTIFIC
 
 
-
 def test_adr_reference_cannot_escape_docs_adr() -> None:
     import pytest
 
@@ -178,9 +174,9 @@ def test_adr_reference_resolves_existing_accepted_adr() -> None:
     assert resolved.parent == (ROOT / "docs/adr").resolve()
 
 
-
 def test_rebase_reprepares_final_diff_before_revalidation(monkeypatch) -> None:
     import subprocess
+
     import governance.publish as publish_mod
 
     normalized: list[str] = []

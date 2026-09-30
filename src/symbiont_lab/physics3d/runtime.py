@@ -2098,9 +2098,7 @@ class PyBulletEmbodimentRuntime:
                     generative=(
                         result.generative
                         if result.generative is not None
-                        else self.organism.generative_cognition.snapshot(
-                            mode=GenerativeMode.ONLINE
-                        )
+                        else self.organism.generative_cognition.snapshot(mode=GenerativeMode.ONLINE)
                     ),
                 ),
                 "cognitive_topology": self._cognitive_topology_payload(

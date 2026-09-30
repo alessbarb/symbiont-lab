@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import math
-import resource
 import time
+
+try:
+    import resource
+except ImportError:  # Windows has no stdlib resource module.
+    resource = None
 
 from ..contracts import Capability, CapabilityKind
 from ..readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
@@ -164,7 +168,11 @@ class InteroceptionProvider:
 
         if "internal.memory_rss" in available_ids:
             try:
-                rss_bytes = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024)
+                rss_bytes = (
+                    float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024)
+                    if resource is not None
+                    else None
+                )
             except (OSError, ValueError):
                 rss_bytes = None
             readings.append(
@@ -229,15 +237,15 @@ class InteroceptionProvider:
         return tuple(readings)
 
     def normalize_for_organism(self, reading: SensorReading) -> SensorReading:
-        """Project a raw internal reading into a bounded organism signal.
+        """Project only admitted organism-facing internal readings.
 
-        The raw reading remains available to the apparatus through the lifecycle
-        snapshot.  Organism-facing learning must not consume platform units or
-        unbounded process measurements, so this boundary converts the two
-        administrative measurements into finite ratios before they enter
-        adaptive sensing and cognition.
+        Administrative host measurements remain apparatus-only evidence and
+        pass through unchanged. Only capabilities admitted by organism_facing()
+        are normalized for adaptive sensing and cognition.
         """
-        if reading.source != self.provider_id or reading.value is None:
+        if reading.source != self.provider_id or not self.organism_facing(reading.capability_id):
+            return reading
+        if reading.value is None:
             return reading
         if not math.isfinite(reading.value):
             return SensorReading(
@@ -250,14 +258,7 @@ class InteroceptionProvider:
                 privacy_class=reading.privacy_class,
             )
 
-        if reading.capability_id == "internal.tick_latency":
-            value = min(1.0, max(0.0, reading.value / 1.0))
-        elif reading.capability_id == "internal.memory_rss":
-            # Log compression keeps large-but-bounded host variation from
-            # dominating the same signal space as reserve and surprise.
-            value = math.log1p(max(0.0, reading.value)) / math.log1p(512 * 1024 * 1024)
-            value = min(1.0, max(0.0, value))
-        elif reading.capability_id in {
+        if reading.capability_id in {
             "internal.epistemic_surprise",
             "internal.metabolic_reserve",
             "internal.integrity",
@@ -310,7 +311,11 @@ class ShamInteroceptionProvider(InteroceptionProvider):
     """
 
     def normalize_for_organism(self, reading: SensorReading) -> SensorReading:
-        if reading.source != self.provider_id or reading.value is None:
+        if (
+            reading.source != self.provider_id
+            or not self.organism_facing(reading.capability_id)
+            or reading.value is None
+        ):
             return reading
         return SensorReading(
             capability_id=reading.capability_id,

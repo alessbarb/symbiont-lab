@@ -59,10 +59,13 @@ def test_training_coverage_requires_observed_events(tmp_path: Path) -> None:
     assert "promotion event" in (
         _coverage_failure(scenario, {"training_completions": 4, "promotion_events": []}) or ""
     )
-    assert _coverage_failure(
-        scenario,
-        {"training_completions": 4, "promotion_events": [{"tick": 100}]},
-    ) is None
+    assert (
+        _coverage_failure(
+            scenario,
+            {"training_completions": 4, "promotion_events": [{"tick": 100}]},
+        )
+        is None
+    )
 
 
 def test_not_assessable_status_is_distinct_from_causal_fail() -> None:
@@ -71,13 +74,12 @@ def test_not_assessable_status_is_distinct_from_causal_fail() -> None:
     )
 
 
-
 def test_suite_status_reports_missing_reference_snapshots(tmp_path: Path) -> None:
     from symbiont_lab.physics3d.equivalence_suite import suite_status
 
     suite = tmp_path / "suite.toml"
     suite.write_text(
-        '''
+        """
 schema_version = 1
 suite_id = "test-suite"
 status = "capture-required"
@@ -89,14 +91,13 @@ body_kind = "anthropomorphic-v6"
 ticks = 10
 training = false
 coverage = ["organism-state"]
-''',
+""",
         encoding="utf-8",
     )
     status = suite_status(suite)
     assert status["ready"] is False
     assert status["computed_status"] == "CAPTURE_REQUIRED"
     assert status["scenarios"][0]["state"] == "MISSING"
-
 
 
 def test_snapshot_contract_rejects_wrong_body_kind() -> None:
