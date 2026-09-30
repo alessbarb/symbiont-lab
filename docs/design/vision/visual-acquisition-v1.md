@@ -1,6 +1,6 @@
 # Visual Acquisition v1 (EW-D): preregistration
 
-Status: **D1-v1 `not_assessable` (§6.4–§6.5). D1-v2 preregistered (§11): development pending. Held-out seeds disabled.** Held-out seeds 613/617/619 are disabled until the preregistration is frozen (§6.3) and the owner gives explicit approval.
+Status: **D1-v1 `not_assessable` (§6.4–§6.5). D1-v2 closed `not_assessable` (§12): structural negative. Held-out seeds disabled and not authorized.**
 
 D2–D4 are outlines only (§10) and are **not preregistered**.
 
@@ -195,3 +195,29 @@ D1-v1 remains a permanent result: `not_assessable`. The established causes are s
 **Stop rule (owner decision 2026-09-29).** If no candidate satisfies the gate, D1-v2 is closed as a **structural negative result** (`not_assessable`). Vision is recorded as an undemonstrated capability, and work moves to the remediation roadmap (Phase A → B). There is no further D1 redesign and no threshold relaxation. The promotion-throughput draft (`docs/design/cognition/predictor-promotion-throughput-v1.md`) is **not scheduled** as a D1 follow-up.
 
 Held-out seeds 613, 617 and 619 stay disabled until D1-v2 is frozen and the owner approves explicitly.
+
+## 12. D1-v2 closure (2026-09-30; owner-authorized)
+
+The development run `20260929T084348Z-learning-visual-acquisition-v1-c00846d-da19`
+completed all three development seeds in both arms to 4000 ticks. It used
+`report_performance = false`; no predictive-performance quantity was computed.
+The run record is retained at
+`.symbiont/runs/20260929T084348Z-learning-visual-acquisition-v1-c00846d-da19/`.
+
+All arms reached every candidate horizon without acquisition-guard termination;
+the run reports finite quantities throughout, maximum arm time below 90 minutes,
+and peak RSS below 6 GB. At the largest candidate, Arm A had respectively 5, 4,
+and 4 stable visual targets for seeds 101, 127, and 149. No candidate can satisfy
+the required minimum of 8 targets on every development seed. Therefore no H is
+selected: by the preregistered stop rule (§11), D1-v2 closes as a structural
+negative (`not_assessable`). Visual acquisition remains undemonstrated. No
+held-out seeds are enabled, and no further D1 redesign or threshold relaxation
+is authorized.
+
+Gate I for `vision-nursery-d1-v2` was verified by
+`tests/integration/test_physics3d_reproduction_gates.py::test_gate_i_observer_density_does_not_change_causal_state[vision-d1-v2]`
+on 2026-09-30 (1 passed). This establishes observer-density neutrality for that
+mechanical test, not predictive utility or visual acquisition.
+
+Owner authorization to record this closure: user instruction, 2026-09-30,
+“procede con lo pendiente de D1-v2”.
