@@ -2,7 +2,8 @@
 
 The user-facing contract is intentionally small: agents call agentctl publish.
 This module owns synchronization, final-diff classification, bounded equivalence
-evidence, validation, audit trailers, commit normalization and optimistic publication.
+evidence, audit trailers and candidate publication. GitHub Actions owns technical
+validation and promotion into main.
 """
 
 from __future__ import annotations
@@ -357,14 +358,6 @@ def _publication_message(
     return message.rstrip() + "\n\n" + "\n".join(trailers)
 
 
-def _validate_staged() -> None:
-    subprocess.run(
-        [sys.executable, "scripts/agentctl.py", "validate", "--staged"],
-        cwd=ROOT,
-        check=True,
-    )
-
-
 def _backup_local_head() -> str | None:
     remote = _git("rev-parse", "origin/main")
     head = _git("rev-parse", "HEAD")
@@ -409,12 +402,7 @@ def _sync_to_remote() -> str:
 
 
 def _rebase_and_reprepare(latest: str) -> None:
-    """Rebase a prepared publication and restore the final diff to the index.
-
-    Rebase operates on an already-created publication commit. Validation must not run
-    against an empty index afterwards: collapse the rebased commit back into a staged
-    diff relative to the exact fetched baseline before reclassification/validation.
-    """
+    """Rebase a prepared candidate and restore its final diff to the index."""
 
     result = subprocess.run(
         ["git", "rebase", latest],
@@ -426,17 +414,16 @@ def _rebase_and_reprepare(latest: str) -> None:
     _normalize_local_commits(latest)
 
 
-def _stage_validate_commit(
+def _stage_commit(
     message: str,
     *,
     effective: ChangeClass,
     owner_approved: bool,
     evidence: dict[str, dict],
     constitutional_adr: str | None,
-    amend: bool = False,
 ) -> str:
+    """Create one governed candidate commit; CI owns technical validation."""
     _git("add", "-A")
-    _validate_staged()
     full_message = _publication_message(
         message,
         effective=effective,
@@ -444,12 +431,12 @@ def _stage_validate_commit(
         evidence=evidence,
         constitutional_adr=constitutional_adr,
     )
-    args = ["commit"]
-    if amend:
-        args.append("--amend")
-    args += ["-m", full_message]
-    _git(*args)
+    _git("commit", "--no-verify", "-m", full_message)
     return _git("rev-parse", "HEAD")
+
+
+def _candidate_branch(commit: str) -> str:
+    return f"agentctl/{int(time.time())}-{commit[:12]}"
 
 
 def publish(
@@ -459,7 +446,7 @@ def publish(
     adr_ref: str | None = None,
     retries: int = 3,
 ) -> int:
-    """Publish the final task diff while keeping governance invisible for ordinary work."""
+    """Publish a governed candidate; CI is the sole technical validation gate."""
 
     branch = _git("rev-parse", "--abbrev-ref", "HEAD")
     if branch == "HEAD":
@@ -475,15 +462,15 @@ def publish(
             print("nothing to publish")
             return 0
 
-        # Bind equivalence evidence to the exact proposed Git tree. Staging is
-        # intentionally non-destructive and publication already owns the final index.
+        # Governance remains local: active-work, classification/authority,
+        # FROZEN/CONSTITUTIONAL policy and causal-equivalence evidence.
         _git("add", "-A")
         _, effective, evidence, constitutional_adr = _evaluate(
             remote,
             owner_approved=owner_approved,
             adr_ref=adr_ref,
         )
-        _stage_validate_commit(
+        _stage_commit(
             message,
             effective=effective,
             owner_approved=owner_approved,
@@ -491,56 +478,51 @@ def publish(
             constitutional_adr=constitutional_adr,
         )
 
-        for attempt in range(1, retries + 1):
+        for _attempt in range(1, retries + 1):
             _git("fetch", "origin", "main")
             latest = _git("rev-parse", "origin/main")
             if latest != remote:
                 _rebase_and_reprepare(latest)
                 remote = latest
-
-                # Re-evaluate and validate the *final rebased diff*. The rebased
-                # publication commit was soft-reset by _rebase_and_reprepare, so the
-                # staged tree now represents the actual candidate against this exact
-                # baseline rather than an empty post-rebase index.
                 _git("add", "-A")
                 _, effective, evidence, constitutional_adr = _evaluate(
                     remote,
                     owner_approved=owner_approved,
                     adr_ref=adr_ref,
                 )
-                _stage_validate_commit(
+                _stage_commit(
                     message,
                     effective=effective,
                     owner_approved=owner_approved,
                     evidence=evidence,
                     constitutional_adr=constitutional_adr,
                 )
+                continue
 
+            commit = _git("rev-parse", "HEAD")
+            candidate = _candidate_branch(commit)
             result = subprocess.run(
-                ["git", "push", "origin", "HEAD:main"],
+                ["git", "push", "origin", f"HEAD:refs/heads/{candidate}"],
                 cwd=ROOT,
                 check=False,
             )
             if result.returncode == 0:
-                print(f"published: {_git('rev-parse', 'HEAD')}")
+                print(f"candidate: {candidate}")
+                print(f"commit: {commit}")
+                print("publication: awaiting GitHub Actions validation and promotion")
                 return 0
 
-            _git("fetch", "origin", "main")
-            advanced = _git("rev-parse", "origin/main")
-            if advanced == remote:
-                print(
-                    "BLOCKED — push failed without main advancing; inspect remote policy, credentials or network",
-                    file=sys.stderr,
-                )
-                return 2
-            if attempt == retries:
-                break
+            print(
+                "BLOCKED — candidate push failed; inspect remote policy, credentials or network",
+                file=sys.stderr,
+            )
+            return 2
 
         print("BLOCKED — main kept changing; rerun agentctl publish", file=sys.stderr)
         return 4
     except subprocess.CalledProcessError as exc:
         print(
-            f"BLOCKED — validation command failed with exit code {exc.returncode}",
+            f"BLOCKED — candidate preparation failed with exit code {exc.returncode}",
             file=sys.stderr,
         )
         return 2

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, refactor/*]
+    branches: [main, refactor/*, agentctl/**]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -11,8 +11,55 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    name: validation-plan
+    runs-on: ubuntu-latest
+    outputs:
+      classification: ${{ steps.plan.outputs.classification }}
+      docs: ${{ steps.plan.outputs.docs }}
+      governance: ${{ steps.plan.outputs.governance }}
+      software_core: ${{ steps.plan.outputs.software_core }}
+      world: ${{ steps.plan.outputs.world }}
+      observatory: ${{ steps.plan.outputs.observatory }}
+      architecture_integrity: ${{ steps.plan.outputs.architecture_integrity }}
+      runtime_contracts: ${{ steps.plan.outputs.runtime_contracts }}
+      experiment_mechanics: ${{ steps.plan.outputs.experiment_mechanics }}
+      canonical_full: ${{ steps.plan.outputs.canonical_full }}
+      physics3d: ${{ steps.plan.outputs.physics3d }}
+      modeling: ${{ steps.plan.outputs.modeling }}
+      python_compat: ${{ steps.plan.outputs.python_compat }}
+      host_portability: ${{ steps.plan.outputs.host_portability }}
+      alpine: ${{ steps.plan.outputs.alpine }}
+      protocol_mechanics: ${{ steps.plan.outputs.protocol_mechanics }}
+      performance: ${{ steps.plan.outputs.performance }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: plan
+        name: Build governed validation plan
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BASE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          BASE="$PUSH_BASE"
+          HEAD="$HEAD_SHA"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="$PR_BASE"
+            HEAD="$PR_HEAD"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="$(git rev-parse "$HEAD^")"
+          fi
+          python scripts/governance/ci_plan.py --base "$BASE" --head "$HEAD" --github-output "$GITHUB_OUTPUT"
+
   quality:
-    name: quality-and-security
+    name: code-quality-and-governance
+    needs: plan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,14 +68,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - run: python scripts/agentctl.py verify
-      - name: Verify proportional governance policy
-        run: |
-          test -f docs/governance/change-surfaces.toml
-          test -f experiments/equivalence/suite-v1/suite.toml
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync python scripts/agentctl.py verify
+      - run: git diff --check
       - name: Audit commit authority
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -47,142 +98,308 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
             BASE="$(git rev-parse "$HEAD^")"
           fi
-          python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD" --actor "$GITHUB_ACTOR_NAME"
-      - run: pytest tests/governance tests/docs -q
-      - run: ruff check src/ observatory/ tests/
-      - run: ruff format --check src/ observatory/ tests/
-      - run: bandit -r src/ -ll
+          uv run --no-sync python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD" --actor "$GITHUB_ACTOR_NAME"
+      - run: uv run --no-sync ruff check src/ observatory/ tests/ scripts/governance/ci_plan.py
+      - run: uv run --no-sync ruff format --check src/ observatory/ tests/ scripts/governance/ci_plan.py
+      - run: uv run --no-sync bandit -r src/ -ll
 
-  contracts:
-    name: contracts (py${{ matrix.python-version }})
+  governance-docs:
+    name: governance-and-docs-tests
+    needs: plan
+    if: needs.plan.outputs.governance == 'true' || needs.plan.outputs.docs == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12', '3.13']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - run: pytest -o addopts= tests/contract tests/compatibility tests/experiments -q
-
-  software-tests:
-    name: software-tests (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12', '3.13']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev,physics3d]'
-      - run: pytest tests/unit tests/integration -q
-
-  experimental-integrity:
-    name: experimental-integrity (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12', '3.13']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - run: pytest -o addopts= tests/experimental_integrity -q
-
-  regression:
-    name: regression (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12', '3.13']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - run: pytest tests/regression -q
-
-  observatory:
-    name: observatory (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12', '3.13']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - run: pytest observatory -q
-
-  smoke:
-    # These executions verify CLI/protocol mechanics only. They are not scientific
-    # campaigns and MUST NOT be used to elevate research claims.
-    name: smoke (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12', '3.13']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - run: pytest tests/smoke -q
-      - run: symbiont-lab simulate --hosts 10 --steps 20 --seed 1
-      - run: symbiont-lab audit verify
-      - run: symbiont-lab experiment run experiments/attention/causal-v0242-revalidation/experiment.toml
-      - run: symbiont-lab study run attention.replicated --seeds 101,127
-
-  host-cross-platform:
-    name: host-cross-platform (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
-      - shell: bash
-        run: python -m pip install --upgrade pip
-      - shell: bash
-        run: pip install -e '.[dev]'
-      - shell: bash
-        run: pytest tests/unit/host tests/unit/core -k "host or checkpoint or organism or governor or runtime or capsule" -q
-      - shell: bash
-        run: symbiont-lab host discover
-      - shell: bash
-        run: symbiont-lab host sample
-      - shell: bash
-        run: symbiont-lab organism run --ticks 2 --min-samples 1
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest tests/governance tests/docs -q
 
-  host-constrained-environment:
-    name: host-constrained-environment (alpine/musl)
+  software-core:
+    name: software-core (py3.12)
+    needs: plan
+    if: needs.plan.outputs.software_core == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest tests/unit tests/integration -q --ignore=tests/integration/test_equivalence_suite.py
+      - run: uv run --no-sync pytest tests/regression -q
+      - run: uv run --no-sync pytest tests/smoke -q
+
+  physics3d-tests:
+    name: physics3d-tests (py3.12)
+    needs: plan
+    if: needs.plan.outputs.physics3d == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv physics cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: physics
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev --extra physics3d
+      - run: uv run --no-sync pytest tests/unit/lab/physics3d tests/integration/test_physics3d_*.py tests/integration/test_equivalence_suite.py -q
+
+  modeling-tests:
+    name: modeling-tests (py3.12)
+    needs: plan
+    if: needs.plan.outputs.modeling == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv modeling cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: modeling
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev --extra modeling
+      - run: >-
+          uv run --no-sync pytest
+          tests/unit/modeling
+          tests/unit/lab/modeling
+          tests/integration/test_private_model_training.py
+          tests/integration/test_private_model_learnability.py
+          tests/integration/test_private_model_adaptation.py
+          tests/integration/test_training_ancestry_end_to_end.py
+          -q
+
+  world-tests:
+    name: world-tests (py3.12)
+    needs: plan
+    if: needs.plan.outputs.world == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest tests/unit/world tests/unit/lab/world -q
+
+  observatory-tests:
+    name: observatory-tests (py3.12)
+    needs: plan
+    if: needs.plan.outputs.observatory == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest observatory tests/unit/observatory tests/unit/workbench -q
+
+  architecture-integrity:
+    name: architecture-integrity
+    needs: plan
+    if: needs.plan.outputs.architecture_integrity == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest -o addopts= tests/experimental_integrity -q
+
+  runtime-contracts:
+    name: runtime-contracts
+    needs: plan
+    if: needs.plan.outputs.runtime_contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest -o addopts= tests/contract tests/compatibility -q
+
+  experiment-mechanics:
+    name: experiment-mechanics
+    needs: plan
+    if: needs.plan.outputs.experiment_mechanics == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest -o addopts= tests/experiments -q
+
+  canonical-full:
+    name: canonical-full (py3.12)
+    needs: plan
+    if: needs.plan.outputs.canonical_full == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest -o addopts= tests -q
+      - run: uv run --no-sync pytest observatory -q
+
+  python-compatibility:
+    name: python-compatibility (py${{ matrix.python-version }})
+    needs: plan
+    if: needs.plan.outputs.python_compat == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest -o addopts= tests/contract tests/compatibility tests/experimental_integrity -q
+      - run: uv run --no-sync pytest tests/smoke -q
+      - run: uv run --no-sync symbiont-lab audit verify
+
+  host-portability:
+    name: host-portability (${{ matrix.os }})
+    needs: plan
+    if: needs.plan.outputs.host_portability == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - shell: bash
+        run: uv sync --frozen --extra dev
+      - shell: bash
+        run: uv run --no-sync pytest tests/unit/host tests/unit/core -k "host or checkpoint or organism or governor or runtime or capsule" -q
+      - shell: bash
+        run: uv run --no-sync symbiont-lab host discover
+      - shell: bash
+        run: uv run --no-sync symbiont-lab host sample
+      - shell: bash
+        run: uv run --no-sync symbiont-lab organism run --ticks 2 --min-samples 1
+
+  host-constrained:
+    name: host-constrained (alpine/musl)
+    needs: plan
+    if: needs.plan.outputs.alpine == 'true'
     runs-on: ubuntu-latest
     container:
       image: python:3.12-alpine
@@ -195,37 +412,36 @@ jobs:
       - run: symbiont-lab host discover
       - run: symbiont-lab host sample
 
-  canonical-cli-protocols:
-    # Mechanical protocol regression only; results produced here are not scientific
-    # evidence because CI is not a preregistered campaign environment.
-    name: canonical-cli-protocols (py${{ matrix.python-version }})
+  protocol-mechanics:
+    name: protocol-mechanics (py3.12)
+    needs: plan
+    if: needs.plan.outputs.protocol_mechanics == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - run: symbiont-lab simulate --hosts 30 --steps 140 --seed 11
-      - run: symbiont-lab study run heritage.longitudinal --seed 11 --generations 2 --hosts 10 --steps 80
-      - run: symbiont-lab study run attention.retrospective --seed 11 --hosts 12 --steps 90
-      - run: symbiont-lab study run attention.causal --seed 11 --hosts 12 --steps 90
-      - run: symbiont-lab study run attention.replicated --seeds 101,127 --hosts 8 --steps 70
-      - run: symbiont-lab study run evidence.second-look --seed 11 --hosts 12 --steps 90
-      - run: symbiont-lab study run evidence.replicated --seeds 3,7 --hosts 10 --steps 80
-      - run: symbiont-lab study run evidence.noise-sweep --seeds 211,223 --hosts 8 --steps 70
-      - run: symbiont-lab study run heritage.stress --seed 3 --hosts 14 --steps 100
-      - run: symbiont-lab study run heritage.replicated --seeds 3,7 --hosts 10 --steps 80
-      - run: symbiont-lab study compare --parameter threat_rate --baseline 0.01 --variant 0.03 --seeds 3,7 --hosts 10 --steps 60 --no-record
-
+          python-version: '3.12'
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync symbiont-lab simulate --hosts 30 --steps 140 --seed 11
+      - run: uv run --no-sync symbiont-lab study run heritage.longitudinal --seed 11 --generations 2 --hosts 10 --steps 80
+      - run: uv run --no-sync symbiont-lab study run attention.causal --seed 11 --hosts 12 --steps 90
+      - run: uv run --no-sync symbiont-lab study run evidence.replicated --seeds 3,7 --hosts 10 --steps 80
+      - run: uv run --no-sync symbiont-lab study compare --parameter threat_rate --baseline 0.01 --variant 0.03 --seeds 3,7 --hosts 10 --steps 60 --no-record
 
   performance-report:
     name: performance-report (informational)
+    needs: plan
+    if: needs.plan.outputs.performance == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 30
@@ -234,16 +450,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
+      - name: Setup uv cache
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+          cache-suffix: core
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - name: Run P8 quick reprofile
-        run: python scripts/reprofile_performance.py --quick --output-dir .artifacts/p8
-      - name: Upload P8 performance report
-        if: always()
+      - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync python scripts/reprofile_performance.py --quick --output-dir .artifacts/p8
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: p8-performance-${{ github.sha }}
