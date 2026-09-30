@@ -46,4 +46,5 @@ Use:
 
     python scripts/agentctl.py run start --commit <sha> --id <run-id>       --scope development --snapshot-source <state-dir> --owner-approved -- <command>
 
-D1-v2 remains a tracked pre-launcher exception until its current run finishes.
+D1-v2's tracked pre-launcher exception is closed; its development result and
+closure are recorded in `docs/design/vision/visual-acquisition-v1.md` §12.

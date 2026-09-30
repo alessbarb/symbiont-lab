@@ -315,13 +315,19 @@ A completed software implementation is not automatically scientific evidence.
 
 ---
 
-## 7. Immediate gate — Visual Acquisition D1-v2
+## 7. Closed gate — Visual Acquisition D1-v2
 
-Visual Acquisition D1-v2 remains the only active programme allowed to complete
-before this roadmap enters Phase A.
+Visual Acquisition D1-v2 closed on 2026-09-30 as a structural negative
+(`not_assessable`). No candidate horizon met the preregistered minimum of eight
+stable visual targets on every development seed. The complete result and run
+provenance are recorded in
+[`visual-acquisition-v1.md` §12](design/vision/visual-acquisition-v1.md).
+No held-out run is authorized; visual acquisition remains undemonstrated. D1
+will not be redesigned or have its thresholds relaxed. The roadmap proceeds to
+Phase A (P0).
 
-No new World, population, social or cognitive programme is opened while this
-gate is unresolved.
+No new World, population, social or cognitive programme is opened by this
+closure.
 
 ### 7.1 Purpose
 
@@ -333,13 +339,14 @@ D1-v2 asks a narrow question:
 
 It does not ask whether Symbiont “has vision”.
 
-### 7.2 Development stage
+### 7.2 Development stage (completed)
 
 Development uses only the declared development seeds.
 
-Held-out seeds remain disabled.
+Held-out seeds remain disabled; the development run is complete.
 
-No predictive performance is inspected until assessability has been resolved.
+No predictive performance was inspected. Assessability was resolved as a
+negative result: no candidate passed.
 
 ### 7.3 Assessability gate
 
@@ -370,9 +377,9 @@ It must:
 - modify no causal confidence;
 - expose no resource semantics.
 
-### 7.5 Stopping rule
+### 7.5 Stopping rule (triggered)
 
-If no preregistered `H` satisfies all assessability conditions:
+No preregistered `H` satisfied all assessability conditions:
 
 > **D1-v2 closes as a structural negative. Visual acquisition remains not
 > demonstrated. No further D1 redesign or threshold relaxation is opened. The
@@ -380,14 +387,10 @@ If no preregistered `H` satisfies all assessability conditions:
 
 `predictor-promotion-throughput-v1` remains unscheduled.
 
-### 7.6 Held-out rule
+### 7.6 Held-out rule (not entered)
 
-If an `H` passes the development assessability gate:
-
-1. that horizon is frozen;
-2. the preregistration is frozen;
-3. only then may held-out seeds `613`, `617` and `619` be authorised;
-4. predictive performance is calculated only on that frozen protocol.
+The development gate did not pass. No horizon was frozen, and no held-out
+preregistration or authorisation exists for seeds `613`, `617` and `619`.
 
 Passing assessability does not establish visual acquisition.
 
@@ -395,8 +398,9 @@ The held-out experiment must do that.
 
 ### 7.7 Pre-existing research lines during the transition
 
-D1-v2 is the only active **capability** programme allowed to advance before Phase A.
-Pre-existing observational work may only finish and freeze already-approved design data:
+Before its closure, D1-v2 was the only active **capability** programme allowed
+to advance ahead of Phase A. It is now closed. Pre-existing observational work
+may only finish and freeze already-approved design data:
 
 - **Promotion Stability v1 D1** — design data complete; confirmation and P5.2 are paused until P0/P1 close.
 - **Agency Acquisition & Executive Action v1** — FROZEN; existing mechanism becomes subject to the Phase B falsification battery.
@@ -1698,10 +1702,6 @@ Metrics remain capability-specific.
 The current execution order is:
 
 ```text
-STEP 0
-Visual Acquisition D1-v2
-    ↓
-
 P0 — SCIENTIFIC INFRASTRUCTURE
 A1 fault-injection durability gate
 A2 hermetic execution fingerprint
@@ -1739,7 +1739,6 @@ INDIVIDUAL READINESS GATE
 P6 — POPULATION / COMMUNICATION / CULTURE
 F1–F7
 ```
-
 
 ---
 

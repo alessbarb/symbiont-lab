@@ -41,7 +41,8 @@ Use:
 The launcher pins the commit in a detached worktree, archives the starting state before
 execution, checks memory/disk/concurrency and writes an execution record.
 
-The current D1-v2 run is a tracked pre-launcher exception until it completes.
+D1-v2's tracked pre-launcher exception is closed; its development result and
+closure are recorded in `docs/design/vision/visual-acquisition-v1.md` §12.
 
 ## Historical grants
 
