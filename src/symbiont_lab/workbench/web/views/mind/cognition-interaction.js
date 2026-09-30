@@ -194,15 +194,6 @@ export function createCognitionInteraction({
     window.addEventListener('mouseup', windowMouseUp);
   }
   
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Regime Compass (adapted from observatory/render/regime-compass.js)
-  // ─────────────────────────────────────────────────────────────────────────────
-  
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Snapshot ingestion (simplified projection from instance stream)
-  // ─────────────────────────────────────────────────────────────────────────────
-  
-
   function dispose() {
     if (windowMouseMove) {
       window.removeEventListener('mousemove', windowMouseMove);

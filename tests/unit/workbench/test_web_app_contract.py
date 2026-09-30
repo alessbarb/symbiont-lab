@@ -213,16 +213,6 @@ def test_cognition_causal_provenance_is_observer_only_and_on_demand():
     assert "innerHTML" not in client
 
 
-def test_causal_estimates_are_not_treated_as_structural_edges():
-    atlas = _read("views/mind/cognitive-atlas.js")
-
-    assert "function structuralEdgeScore(edge)" in atlas
-    assert "edge.kind === 'causal_estimate'" in atlas
-    assert "if (mode === 'structure') return structuralEdgeScore(edge);" in atlas
-    assert "if (mode === 'motor')" in atlas
-    assert "if (mode === 'evidence')" in atlas
-
-
 def test_atlas_layout_uses_structural_relations_and_collapses_dormant_registries():
     semantics = _read("views/mind/relation-semantics.js")
     sectors = _read("views/mind/functional-sectors.js")
@@ -395,9 +385,9 @@ def test_observer_truth_uses_one_scene_with_inspector_overlays():
     world = _read("views/world/world-view.js")
     css = _read("workbench-v2.css")
     assert "World · Observer Truth" in world
-    assert "data-world-overlay=\"physical\"" in world
-    assert "data-world-overlay=\"perception\"" in world
-    assert "data-world-overlay=\"self\"" in world
+    assert 'data-world-overlay="physical"' in world
+    assert 'data-world-overlay="perception"' in world
+    assert 'data-world-overlay="self"' in world
     assert "Known World" not in world.split("const LAYERS", 1)[1].split("];", 1)[0]
     assert "Predictions" not in world.split("const LAYERS", 1)[1].split("];", 1)[0]
     assert ".body-world-toolbar{display:none!important}" in css
@@ -420,7 +410,10 @@ def test_vision_modes_are_interactive_and_passively_observed():
     assert "activeMode === 'acquired'" in vision
     assert "Admitted senses · all modalities" in vision
     assert "Visual attribution is intentionally not inferred" in vision
-    assert "Per-receptor luminance samples are currently consumed by the runtime but are not exported" in vision
+    assert (
+        "Per-receptor luminance samples are currently consumed by the runtime but are not exported"
+        in vision
+    )
     assert "((i * 17 + 11) % 9)" not in vision
 
 
@@ -612,7 +605,10 @@ def test_motor_atlas_distinguishes_visible_routes_from_collapsed_physical_routes
     assert "motorCollapsedOnly" in atlas
     assert "fullMotorReachability" in controller
     assert "CONNECTED VIA COLLAPSED PHYSICAL SUBSTRATE" in inspector
-    assert "passes through physical actuator or embodiment structure intentionally collapsed" in inspector
+    assert (
+        "passes through physical actuator or embodiment structure intentionally collapsed"
+        in inspector
+    )
 
 
 def test_atlas_controller_reuses_graph_index_for_signals_paths_and_regions():

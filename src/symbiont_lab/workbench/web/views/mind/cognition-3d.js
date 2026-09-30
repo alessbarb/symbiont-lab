@@ -63,10 +63,14 @@ function nodeVolumeRadius(node) {
 function connectedNeighborCentroid(nodeId, edges, positions) {
   let x = 0, y = 0, z = 0, count = 0;
   for (const edge of edges) {
-    const other = edge.source?.id === nodeId
-      ? edge.target?.id
-      : edge.target?.id === nodeId
-        ? edge.source?.id
+    // Support both object-shaped edges ({source:{id}, target:{id}})
+    // and flat edges ({sourceId, targetId}).
+    const sourceId = edge.source?.id ?? edge.sourceId;
+    const targetId = edge.target?.id ?? edge.targetId;
+    const other = sourceId === nodeId
+      ? targetId
+      : targetId === nodeId
+        ? sourceId
         : null;
     if (!other) continue;
     const point = positions.get(other);
@@ -78,6 +82,8 @@ function connectedNeighborCentroid(nodeId, edges, positions) {
 
 export function ensure3DState(nodes, edges, positions, velocities) {
   const currentIds = new Set(nodes.map(node => node.id));
+  // Snapshot the key sets before deletion: modifying a Map while iterating
+  // its live iterator is not safe.
   for (const id of [...positions.keys()]) {
     if (!currentIds.has(id)) positions.delete(id);
   }
@@ -136,6 +142,20 @@ export function relaxCognition3D(
   const nodeIndex = new Map(nodes.map((node, index) => [node.id, index]));
   const maxSupport = Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.support, 0)))));
   const maxStable = Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.stableTicks, 0)))));
+  // plasticityByNode depends only on edges, which are constant across
+  // simulation iterations. Compute once here instead of O(E × iterations).
+  const plasticityByNode = new Map(
+    nodes.map(node => [node.id, { sum: 0, count: 0 }])
+  );
+  for (const edge of edges) {
+    const sourceId = edge.source?.id ?? edge.sourceId;
+    const targetId = edge.target?.id ?? edge.targetId;
+    const plasticity = finite(edge.plasticity, 0);
+    const sourceStats = plasticityByNode.get(sourceId);
+    const targetStats = plasticityByNode.get(targetId);
+    if (sourceStats) { sourceStats.sum += plasticity; sourceStats.count += 1; }
+    if (targetStats) { targetStats.sum += plasticity; targetStats.count += 1; }
+  }
 
   for (let iteration = 0; iteration < iterations; iteration++) {
     const forces = new Map(nodes.map(node => [node.id, { x: 0, y: 0, z: 0 }]));
@@ -173,19 +193,6 @@ export function relaxCognition3D(
       fa.x -= ux * magnitude; fa.y -= uy * magnitude; fa.z -= uz * magnitude;
       fb.x += ux * magnitude; fb.y += uy * magnitude; fb.z += uz * magnitude;
     });
-
-    const plasticityByNode = new Map(
-      nodes.map(node => [node.id, { sum: 0, count: 0 }])
-    );
-    for (const edge of edges) {
-      const sourceId = edge.source?.id ?? edge.sourceId;
-      const targetId = edge.target?.id ?? edge.targetId;
-      const plasticity = finite(edge.plasticity, 0);
-      const sourceStats = plasticityByNode.get(sourceId);
-      const targetStats = plasticityByNode.get(targetId);
-      if (sourceStats) { sourceStats.sum += plasticity; sourceStats.count += 1; }
-      if (targetStats) { targetStats.sum += plasticity; targetStats.count += 1; }
-    }
 
     // Actual graph edges provide all attractive topology.
     for (const edge of edges) {
@@ -241,7 +248,6 @@ export function relaxCognition3D(
       if (mode === 'physicalized') {
         // Abstract packing pressure. It is isotropic and contains no
         // brain-shaped envelope or functional direction.
-        const radius = Math.max(1, Math.hypot(point.x, point.y, point.z));
         const compactPressure = 0.0015;
         force.x -= point.x * compactPressure;
         force.y -= point.y * compactPressure;
@@ -249,11 +255,15 @@ export function relaxCognition3D(
 
         // Dense inner regions face a mild radial cost that prevents collapse
         // into a single point while still rewarding shorter wiring.
-        if (radius < 45) {
-          const outward = (45 - radius) * 0.002;
-          force.x += (point.x / radius) * outward;
-          force.y += (point.y / radius) * outward;
-          force.z += (point.z / radius) * outward;
+        // Guard: at the exact origin the outward direction is undefined;
+        // repulsion from neighbouring nodes will move the point away anyway.
+        const rawRadius = Math.hypot(point.x, point.y, point.z);
+        if (rawRadius > 1e-6 && rawRadius < 45) {
+          const outward = (45 - rawRadius) * 0.002;
+          const inv = 1 / rawRadius;
+          force.x += point.x * inv * outward;
+          force.y += point.y * inv * outward;
+          force.z += point.z * inv * outward;
         }
       }
 
@@ -389,9 +399,13 @@ export function buildCognition3DScene(
 }
 
 export function orbitCamera(camera, deltaX, deltaY) {
+  const TWO_PI = 2 * Math.PI;
+  const rawYaw = finite(camera?.yaw, -0.55) + deltaX * 0.006;
+  // Normalise to (-π, π] to prevent unbounded accumulation over long sessions.
+  const yaw = rawYaw - TWO_PI * Math.floor((rawYaw + Math.PI) / TWO_PI);
   return {
     ...camera,
-    yaw: finite(camera?.yaw, -0.55) + deltaX * 0.006,
+    yaw,
     pitch: clamp(finite(camera?.pitch, 0.34) + deltaY * 0.005, -1.35, 1.35),
   };
 }

@@ -7,6 +7,7 @@
 import { el } from '../shared/dom.js';
 import { inspectorMetric } from './components.js';
 import { provenanceTreeRows } from './causal-provenance.js';
+import { isMotorNode } from './cognitive-atlas.js';
 import { PAL } from './config.js';
 import { graphSubgraphIds } from './graph-selection.js';
 import { observerContextForNode } from './semantics.js';
@@ -85,12 +86,12 @@ export function createCognitionInspector({
     const inbound = edges.filter(edge => edge.targetId === nodeId);
     const outbound = edges.filter(edge => edge.sourceId === nodeId);
     const localIds = graphSubgraphIds(topology, nodeId, graph.pathDepth) ?? new Set([nodeId]);
-    const reachesMotor = [...localIds].some(id =>
-      String(id).startsWith('readout_motor:') ||
-      String(id).startsWith('readout_primitive:') ||
-      String(id).startsWith('motor_primitive:') ||
-      String(id).startsWith('actuator.')
-    );
+    // Use the canonical isMotorNode() predicate rather than brittle prefix checks,
+    // so that new motor kinds added to MOTOR_NODE_KINDS are covered automatically.
+    const localNodes = [...localIds]
+      .map(id => graph.nodes.find(node => node.id === id))
+      .filter(Boolean);
+    const reachesMotor = localNodes.some(isMotorNode);
     return { inbound, outbound, localIds, reachesMotor };
   }
   
@@ -238,8 +239,6 @@ export function createCognitionInspector({
         inspectorMetric(motorGroup, 'Controllability', finiteNumber(selected.controllability, 0).toFixed(3), PAL.mint);
         inspectorMetric(motorGroup, 'Confidence', finiteNumber(selected.confidence, 0).toFixed(3));
         inspectorMetric(motorGroup, 'Embodiment bound', selected.embodimentBound ? 'yes' : 'no', selected.embodimentBound ? PAL.mint : PAL.muted);
-      }
-      if (selected.kind === 'action_dimension') {
         const acquisitionGroup = inspectorGroup(panel, 'Acquisition', true);
         inspectorMetric(acquisitionGroup, 'Agentic', selected.agentic ? 'yes' : 'no', selected.agentic ? PAL.mint : PAL.muted);
         inspectorMetric(acquisitionGroup, 'Intervention families', selected.interventionSignatureCount ?? selected.intervention_signature_count ?? 0);

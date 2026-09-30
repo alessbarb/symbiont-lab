@@ -1270,7 +1270,20 @@ export function createCognitionController({
     return graph.detailLevel;
   }
 
-  function regionInternalEdgeCount(regionId) {
+  function buildInternalEdgeCounts() {
+    const counts = new Map();
+    for (const edge of graph.edges) {
+      const sc = edge.source?.community;
+      const tc = edge.target?.community;
+      if (sc && sc !== 'isolated' && sc === tc) {
+        counts.set(sc, (counts.get(sc) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }
+
+  function regionInternalEdgeCount(regionId, countMap = null) {
+    if (countMap) return countMap.get(regionId) ?? 0;
     return graph.edges.filter(edge =>
       edge.source?.community === regionId &&
       edge.target?.community === regionId
@@ -1288,7 +1301,7 @@ export function createCognitionController({
     return trail;
   }
 
-  function regionGeometry(region, points, dimension, tick) {
+  function regionGeometry(region, points, dimension, tick, internalEdgeCounts = null) {
     const previousStore = dimension === '3d'
       ? graph.regionShapeHistory3d
       : graph.regionShapeHistory2d;
@@ -1310,7 +1323,7 @@ export function createCognitionController({
     previousStore.set(stableLabel, shape);
     const center = functionalCenter(points, graph.atlasMode);
     const trail = rememberCenterTrail(trailStore, stableLabel, center, tick);
-    const internalEdges = regionInternalEdgeCount(region.id);
+    const internalEdges = regionInternalEdgeCount(region.id, internalEdgeCounts);
     return {
       ...shape,
       functionalCenter: center,
@@ -1580,9 +1593,9 @@ export function createCognitionController({
     }
   }
 
-  function drawRegionMass(ctx, region, points, dimension, tick, color) {
+  function drawRegionMass(ctx, region, points, dimension, tick, color, internalEdgeCounts = null) {
     if (points.length < 2) return null;
-    const shape = regionGeometry(region, points, dimension, tick);
+    const shape = regionGeometry(region, points, dimension, tick, internalEdgeCounts);
     const score = atlasRegionScore(region);
     const active = graph.focusedSectorId === region.id;
     const anatomy = graph.atlasMode === 'anatomy';
@@ -1783,6 +1796,8 @@ export function createCognitionController({
     graph.atlasRegionGeometry3d.clear();
     const tick = finiteNumber(graph.replayTick ?? tel.tick, 0);
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
+    // Precompute once per frame (O(E)) instead of O(E) per region.
+    const internalEdgeCounts = buildInternalEdgeCounts();
 
     for (const region of graph.atlasRegions ?? []) {
       if (sectorFocus && region.id !== sectorFocus.sectorId) continue;
@@ -1800,7 +1815,7 @@ export function createCognitionController({
       if (projected.length < 2) continue;
 
       const color = palette[hashStr(String(region.id)) % palette.length];
-      const shape = drawRegionMass(ctx, region, projected, '3d', tick, color);
+      const shape = drawRegionMass(ctx, region, projected, '3d', tick, color, internalEdgeCounts);
       if (!shape) continue;
 
       graph.atlasRegionHitAreas3d.push({ id: region.id, polygon: shape.polygon, radius: shape.radius });
@@ -1920,6 +1935,11 @@ export function createCognitionController({
       )
     );
     const atlasTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+    // Apply the same edge budget used by the 2D path so that dense 3D graphs
+    // do not render every edge regardless of detail level.
+    const sparseEdgeKeys = (!focusId && !sectorFocus)
+      ? sparseEdgeKeys2D({ edges, tick: atlasTick, visibleIds, detailLevel, atlasPath, flowTrace })
+      : null;
 
     drawAtlasRegions3D(ctx, scene, sectorFocus);
     drawPresentationRegionOverlays(ctx, now);
@@ -1961,7 +1981,6 @@ export function createCognitionController({
       const pathEdge = atlasPath.edgeKeys.has(edgeKey);
       const flowEdge = flowTrace.edgeKeys.has(edgeKey);
       if (graph.flowTraceEnabled && !flowEdge && !pathEdge) continue;
-      if (sparseEdgeKeys && !sparseEdgeKeys.has(edgeKey) && !pathEdge) continue;
       if (sparseEdgeKeys && !sparseEdgeKeys.has(edgeKey) && !pathEdge) continue;
       const endpointsVisible =
         visibleIds.has(edge.source.id) && visibleIds.has(edge.target.id);
@@ -2215,6 +2234,8 @@ export function createCognitionController({
     const regionTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
     const regionLabelItems = [];
+    // Precompute once per frame (O(E)) instead of O(E) per region.
+    const internalEdgeCounts = buildInternalEdgeCounts();
 
     for (const [communityId, s] of communityStats.entries()) {
       if (s.n < 2) continue;
@@ -2230,7 +2251,7 @@ export function createCognitionController({
         signals: node.atlasSignals,
       }));
       const color = palette[hashStr(String(communityId)) % palette.length];
-      const shape = drawRegionMass(ctx, atlasRegion, points, '2d', regionTick, color);
+      const shape = drawRegionMass(ctx, atlasRegion, points, '2d', regionTick, color, internalEdgeCounts);
       if (!shape) continue;
 
       graph.atlasRegionHitAreas2d.push({ id: communityId, polygon: shape.polygon, radius: shape.radius });
@@ -2313,16 +2334,16 @@ export function createCognitionController({
       } else if (modeScore < 0.08) {
         continue;
       }
-      const dimmed = false;
       let color;
-      if (edge.kind === 'inhibitory')  color = `rgba(255,127,131,${isConn ? .95 : dimmed ? .04 : .35})`;
-      else if (edge.kind === 'predictive') color = `rgba(255,189,84,${isConn ? .95 : dimmed ? .04 : .40})`;
-      else if (edge.kind === 'gating') color = `rgba(224,159,62,${isConn ? .95 : dimmed ? .04 : .38})`;
-      else if (edge.kind === 'invokes') color = `rgba(255,143,216,${isConn ? .98 : dimmed ? .05 : .68})`;
-      else if (edge.kind === 'motor_component') color = `rgba(143,227,255,${isConn ? .98 : dimmed ? .05 : .58})`;
-      else if (edge.kind === 'causal_effect') color = `rgba(113,233,186,${isConn ? .98 : dimmed ? .05 : .62})`;
-      else if (edge.kind === 'causal_estimate') color = `rgba(98,225,190,${isConn ? .98 : dimmed ? .05 : .56})`;
-      else                             color = `rgba(80,217,255,${isConn ? .95 : dimmed ? .04 : .28})`;
+      // Edges reaching this point are already filtered (isConn/pathEdge/modeScore).
+      if (edge.kind === 'inhibitory')      color = `rgba(255,127,131,${isConn ? .95 : .35})`;
+      else if (edge.kind === 'predictive') color = `rgba(255,189,84,${isConn ? .95 : .40})`;
+      else if (edge.kind === 'gating')     color = `rgba(224,159,62,${isConn ? .95 : .38})`;
+      else if (edge.kind === 'invokes')    color = `rgba(255,143,216,${isConn ? .98 : .68})`;
+      else if (edge.kind === 'motor_component') color = `rgba(143,227,255,${isConn ? .98 : .58})`;
+      else if (edge.kind === 'causal_effect')   color = `rgba(113,233,186,${isConn ? .98 : .62})`;
+      else if (edge.kind === 'causal_estimate') color = `rgba(98,225,190,${isConn ? .98 : .56})`;
+      else                                      color = `rgba(80,217,255,${isConn ? .95 : .28})`;
       const edgeAnim = presentation.edgePresentation(edge, now);
       const animatedTargetX = edge.source.x + (edge.target.x - edge.source.x) * edgeAnim.progress;
       const animatedTargetY = edge.source.y + (edge.target.y - edge.source.y) * edgeAnim.progress;
@@ -2335,9 +2356,7 @@ export function createCognitionController({
       ctx.strokeStyle = color;
       const baseEdgeAlpha = pathEdge
         ? 0.98
-        : dimmed
-          ? 0.12
-          : Math.max(0.08, 0.10 + modeScore * 0.72 + recency * 0.18);
+        : Math.max(0.08, 0.10 + modeScore * 0.72 + recency * 0.18);
       ctx.globalAlpha = baseEdgeAlpha * edgeAnim.opacity;
       ctx.lineWidth = pathEdge
         ? 3.1
@@ -2348,7 +2367,7 @@ export function createCognitionController({
       ctx.stroke();
       ctx.setLineDash([]);
       // Arrowhead
-      if (!dimmed && edgeAnim.progress > 0.82) {
+      if (edgeAnim.progress > 0.82) {
         const dx = animatedTargetX - edge.source.x, dy = animatedTargetY - edge.source.y;
         const dist = Math.hypot(dx, dy);
         if (dist > 14) {
@@ -2946,13 +2965,28 @@ export function createCognitionController({
     if (!panel) return;
     const source = graph.replaySnapshot ?? snap;
     renderGenerativePanel(source);
-    const topology = source.topology ?? { nodes: [], edges: [] };
+    // Mirror the canonicalAtlas detection from buildGraphModel so that the
+    // summary statistics are consistent with the rendered graph.
+    const canonicalAtlas = (
+      source.atlas?.schema_version === 2 &&
+      Array.isArray(source.atlas?.nodes)
+    ) ? source.atlas : null;
+    const topology = canonicalAtlas
+      ? { nodes: canonicalAtlas.nodes, edges: canonicalAtlas.edges ?? [] }
+      : (source.topology ?? { nodes: [], edges: [] });
     const learned = augmentLearnedGraph(
       topology,
       source.sensorimotor ?? snap.sensorimotor,
       source.observerSemantics ?? snap.observerSemantics,
       source.prospectiveAgency ?? null,
-      {
+      canonicalAtlas ? {
+        competences: [],
+        effects: [],
+        bindings: [],
+        bodySchema: null,
+        actionDimensions: [],
+        showEmbodiment: false,
+      } : {
         competences: source.motor_competences ?? snap.motor_competences ?? [],
         effects: source.effects ?? snap.effects ?? [],
         bindings: (source.embodiment ?? snap.embodiment)?.bindings ?? [],
