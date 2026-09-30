@@ -77,6 +77,8 @@ def test_durable_atomic_replacement_exception_preserves_target(tmp_path: Path) -
 @pytest.mark.parametrize(
     "fault_point",
     [
+        "before_write",
+        "during_write",
         "before_file_fsync",
         "after_file_fsync",
         "before_replace",
@@ -133,6 +135,62 @@ def test_fault_injection_after_replace_retains_new_target(tmp_path: Path, fault_
 
     # Invariant: after rename, target is the new file
     assert target.read_text() == "new_checkpoint"
+
+
+def test_fault_during_directory_fsync_keeps_complete_new_target(tmp_path: Path) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX only")
+
+    target = tmp_path / "checkpoint.json"
+    target.write_text("prior_checkpoint")
+    real_fsync = os.fsync
+
+    def fail_on_directory(fd: int) -> None:
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError("simulated directory fsync failure")
+        real_fsync(fd)
+
+    with patch("symbiont.host.durable.os.fsync", side_effect=fail_on_directory):
+        with pytest.raises(OSError, match="directory fsync failure"):
+            durable_atomic_write(target, "new_checkpoint", sync_dir=True)
+
+    assert target.read_text() == "new_checkpoint"
+    leftovers = [p for p in tmp_path.iterdir() if p.name.startswith(".checkpoint.json.")]
+    assert leftovers == []
+
+
+@pytest.mark.parametrize(
+    "fault_point,expected",
+    [
+        ("before_file_fsync", b"prior"),
+        ("after_file_fsync", b"prior"),
+        ("before_replace", b"prior"),
+        ("after_replace", b"new-model"),
+        ("before_dir_fsync", b"new-model"),
+        ("after_dir_fsync", b"new-model"),
+    ],
+)
+def test_atomic_replacement_fault_boundaries_leave_complete_state(
+    tmp_path: Path, fault_point: str, expected: bytes
+) -> None:
+    target = tmp_path / "model.bin"
+    target.write_bytes(b"prior")
+
+    def fault_hook(point: str) -> None:
+        if point == fault_point:
+            raise OSError(f"Crash simulated at {point}")
+
+    with pytest.raises(OSError, match=f"Crash simulated at {fault_point}"):
+        with durable_atomic_replacement(
+            target,
+            sync_dir=True,
+            _fault_point=fault_hook,
+        ) as tmp:
+            tmp.write_bytes(b"new-model")
+
+    assert target.read_bytes() == expected
+    leftovers = [p for p in tmp_path.iterdir() if p.name.startswith(".model.bin.")]
+    assert leftovers == []
 
 
 def test_sync_directory_calls_fsync_on_posix(tmp_path: Path) -> None:

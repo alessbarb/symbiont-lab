@@ -128,7 +128,17 @@ def durable_atomic_write(
 
     try:
         with os.fdopen(fd, "wb") as handle:
-            handle.write(payload_bytes)
+            if _fault_point:
+                _fault_point("before_write")
+                split_at = max(1, len(payload_bytes) // 2) if payload_bytes else 0
+                if split_at:
+                    handle.write(payload_bytes[:split_at])
+                    _fault_point("during_write")
+                    handle.write(payload_bytes[split_at:])
+                else:
+                    _fault_point("during_write")
+            else:
+                handle.write(payload_bytes)
             handle.flush()
             if _fault_point:
                 _fault_point("before_file_fsync")

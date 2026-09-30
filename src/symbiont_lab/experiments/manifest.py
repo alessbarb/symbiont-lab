@@ -8,7 +8,7 @@ import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from symbiont_lab import __version__ as lab_version
 
@@ -34,7 +34,7 @@ def get_git_info(repo_dir: Path | str | None = None) -> tuple[str, bool]:
 
 @dataclass(slots=True, frozen=True)
 class ExecutionFingerprint:
-    """Rigorous execution provenance capturing the active checkout and Python runtime."""
+    """Rigorous execution provenance for one declared scientific execution."""
 
     repo_root: str
     git_commit: str
@@ -43,14 +43,36 @@ class ExecutionFingerprint:
     python_version: str
     symbiont_file: str
     symbiont_lab_file: str
+    dependency_lock_hash: str
+    effective_config_hash: str
+    experiment_id: str
+    seed: int | None
 
     @classmethod
-    def capture(cls, repo_root: Path | str | None = None) -> "ExecutionFingerprint":
+    def capture(
+        cls,
+        repo_root: Path | str | None = None,
+        *,
+        effective_config: Mapping[str, Any] | None = None,
+        experiment_id: str = "",
+        seed: int | None = None,
+    ) -> "ExecutionFingerprint":
         import symbiont
         import symbiont_lab
 
         root = Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[3]
         git_sha, dirty = get_git_info(root)
+        lock_path = root / "uv.lock"
+        dependency_lock_hash = (
+            hashlib.sha256(lock_path.read_bytes()).hexdigest() if lock_path.is_file() else "missing"
+        )
+        config_payload = json.dumps(
+            dict(effective_config or {}),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
         return cls(
             repo_root=str(root.resolve()),
             git_commit=git_sha,
@@ -59,12 +81,44 @@ class ExecutionFingerprint:
             python_version=platform.python_version(),
             symbiont_file=str(Path(symbiont.__file__ or "").resolve()),
             symbiont_lab_file=str(Path(symbiont_lab.__file__ or "").resolve()),
+            dependency_lock_hash=dependency_lock_hash,
+            effective_config_hash=hashlib.sha256(config_payload).hexdigest(),
+            experiment_id=str(experiment_id),
+            seed=seed,
         )
 
     def is_hermetic_to(self, expected_root: Path | str) -> bool:
         """Verify that resolved modules originate strictly within the expected repository tree."""
-        root = str(Path(expected_root).resolve())
-        return self.symbiont_file.startswith(root) and self.symbiont_lab_file.startswith(root)
+        root = Path(expected_root).resolve()
+        return (
+            Path(self.symbiont_file).resolve().is_relative_to(root)
+            and Path(self.symbiont_lab_file).resolve().is_relative_to(root)
+        )
+
+    def mismatches(self, declared: "ExecutionFingerprint") -> tuple[str, ...]:
+        """Return execution-identity fields that differ from a declared parent identity."""
+        fields = (
+            "repo_root",
+            "git_commit",
+            "is_dirty",
+            "python_executable",
+            "python_version",
+            "symbiont_file",
+            "symbiont_lab_file",
+            "dependency_lock_hash",
+            "effective_config_hash",
+            "experiment_id",
+            "seed",
+        )
+        return tuple(name for name in fields if getattr(self, name) != getattr(declared, name))
+
+    def assert_matches_declared(self, declared: "ExecutionFingerprint") -> None:
+        """Refuse execution when the child runtime is not the declared environment."""
+        mismatches = self.mismatches(declared)
+        if mismatches:
+            raise RuntimeError(
+                "scientific execution identity mismatch: " + ", ".join(mismatches)
+            )
 
 
 @dataclass(slots=True)
