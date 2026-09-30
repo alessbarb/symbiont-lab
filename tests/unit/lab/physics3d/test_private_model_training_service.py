@@ -27,6 +27,7 @@ class _FakeRuntime:
 def _manager(tmp_path) -> PrivateModelTrainingService:
     manager = object.__new__(PrivateModelTrainingService)
     manager.models_dir = tmp_path
+    manager.paired_evaluation_file = None
     manager.train_interval = 1
     manager.device = "cpu"
     manager._executor = _FakeExecutor()

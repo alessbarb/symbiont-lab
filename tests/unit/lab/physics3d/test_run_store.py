@@ -280,7 +280,26 @@ def test_starting_state_x_is_retained_immutably(tmp_path) -> None:
 
     # The live slot evolves; the retained X never does.
     before = retained.read_bytes()
-    launch.symbiont_file.write_bytes(b"overwritten by a later run")
+    from symbiont_lab.physics3d import persistence
+
+    persistence.save_symbiont_bundle(
+        {
+            "organism_id": "symbiont:x",
+            "saved_at_tick": 6,
+            "body_kind": "anthropomorphic-v6",
+            "living_body": {"vital_state": "active"},
+            "embodiment_lifecycle": {
+                "schema_version": 1,
+                "state": "dormant",
+                "epoch": 1,
+                "current": {"body_kind": "anthropomorphic-v6", "started_tick": 0},
+                "history": [],
+            },
+        },
+        tmp_path / "models",
+        launch.symbiont_file,
+    )
+    launch.body_file.write_text('{"symbiont_ticks":6}', encoding="utf-8")
     _prepare_existing(store)
     assert retained.read_bytes() == before
 
