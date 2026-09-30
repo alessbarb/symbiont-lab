@@ -1,9 +1,9 @@
 schema_version = 2
-updated = "2026-09-29"
+updated = "2026-09-30"
 
 [[work]]
 id = "visual-acquisition-d1-v2"
-state = "RUNNING"
+state = "CLOSED"
 authority = "owner-approved"
 owner = "external-session"
 base_commit = "c00846d3499dae81b05b9b6be645be3312ae2063"
@@ -13,7 +13,7 @@ protected_paths = [
   "experiments/learning/visual-acquisition-v1/**",
   "src/symbiont_lab/studies/learning/visual_acquisition.py",
 ]
-notes = "Run began before the governed launcher existed. Do not change protocol, mechanism, inputs or dependencies until completion."
+notes = "Closed 2026-09-30 as preregistered structural negative (not_assessable); development run complete, no horizon passed, held-out disabled."
 
 [[work]]
 id = "promotion-stability-v1"

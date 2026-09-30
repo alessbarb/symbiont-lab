@@ -1,7 +1,7 @@
 schema_version = 2
-updated = "2026-09-29"
+updated = "2026-09-30"
 canonical_roadmap = "docs/roadmap.md"
-current_gate = "visual-acquisition-d1-v2"
+current_gate = "e8-label-invariance"
 
 [governance]
 mode = "enforced-control-plane-v2"
@@ -11,11 +11,13 @@ single_constitution_source = true
 scientific_run_launcher = true
 
 [programmes.visual-acquisition-d1-v2]
-state = "running"
+state = "closed-bounded"
 kind = "capability-gate"
 follow_up_positive = "freeze-horizon-then-owner-approval-for-held-out"
 follow_up_negative = "phase-a"
-notes = "Development assessability run in progress; held-out disabled."
+result = "not_assessable-structural-negative"
+closed = "2026-09-30"
+notes = "No candidate horizon met the assessability gate on all development seeds; held-out disabled."
 
 [programmes.promotion-stability-v1]
 state = "design-data-complete"
