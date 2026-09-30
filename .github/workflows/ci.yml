@@ -326,11 +326,11 @@ jobs:
         with:
           enable-cache: true
           python-version: '3.12'
-          cache-suffix: core
+          cache-suffix: physics
           cache-dependency-glob: |
             uv.lock
             pyproject.toml
-      - run: uv sync --frozen --extra dev
+      - run: uv sync --frozen --extra dev --extra physics3d
       - run: uv run --no-sync pytest -o addopts= tests -q
       - run: uv run --no-sync pytest observatory -q
 
