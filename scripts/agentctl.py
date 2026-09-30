@@ -259,14 +259,6 @@ def _load_manifest(path: str | None) -> dict[str, Any]:
         return tomllib.load(handle)
 
 
-def _index_tree() -> str:
-    return git("write-tree")
-
-
-def _validation_receipt_path() -> Path:
-    return runtime_dir() / "validation-receipt.json"
-
-
 def _validation_sections(paths: list[str]) -> list[tuple[str, dict[str, Any]]]:
     matrix = load("validation-matrix.toml")
     selected: list[tuple[str, dict[str, Any]]] = []
@@ -280,6 +272,7 @@ def _validation_sections(paths: list[str]) -> list[tuple[str, dict[str, Any]]]:
 
 
 def validate(staged_only: bool = True) -> int:
+    """Optional local reproduction of validation commands; never a publication gate."""
     paths = changed_paths(staged_only=staged_only)
     if not paths:
         print("validation: no changed paths")
@@ -295,37 +288,18 @@ def validate(staged_only: bool = True) -> int:
             if command not in commands:
                 commands.append(command)
 
+    if not commands:
+        print("validation: no local commands; CI owns technical validation")
+        return 0
+
     for command in commands:
         print(f"VALIDATE: {command}")
         result = subprocess.run(command, cwd=ROOT, shell=True)
         if result.returncode != 0:
             print(f"validation failed: {command}", file=sys.stderr)
             return result.returncode
-
-    directory = runtime_dir()
-    directory.mkdir(parents=True, exist_ok=True)
-    receipt = {
-        "schema_version": 1,
-        "index_tree": _index_tree(),
-        "head": git("rev-parse", "HEAD"),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "sections": [name for name, _ in sections],
-        "commands": commands,
-    }
-    _validation_receipt_path().write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
-    print(f"validation: PASS ({', '.join(receipt['sections'])})")
+    print("validation: PASS (manual local reproduction)")
     return 0
-
-
-def _validation_receipt_matches() -> bool:
-    path = _validation_receipt_path()
-    if not path.exists():
-        return False
-    try:
-        receipt = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return False
-    return receipt.get("index_tree") == _index_tree()
 
 
 def _staged_owner_issuance_candidate(base_ref: str, paths: list[str]) -> bool:
@@ -374,9 +348,6 @@ def check(base_ref: str, staged_only: bool, manifest_path: str | None) -> int:
                 errors.append(f"{path}: grant {grant_id!r} is absent, stale, consumed or invalid")
             elif not _grant_allows(grant, path, required):
                 errors.append(f"{path}: grant {grant_id!r} does not authorize {required}")
-
-    if paths and not _validation_receipt_matches():
-        errors.append("staged tree has no matching validation receipt; run agentctl validate --staged")
 
     if errors:
         for error in sorted(set(errors)):

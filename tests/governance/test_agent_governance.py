@@ -211,11 +211,22 @@ def test_governance_adr_must_be_accepted_inside_docs_adr(monkeypatch) -> None:
     assert not ctl._governance_adr_valid("a" * 40, "docs/adr/not-an-adr.md")
 
 
-def test_active_run_path_is_blocked_for_governance_class_commits() -> None:
+def test_active_run_path_is_blocked_for_governance_class_commits(monkeypatch) -> None:
     ctl = _agentctl()
+    monkeypatch.setattr(
+        ctl,
+        "_active_work_at",
+        lambda ref: [
+            {
+                "id": "synthetic-running-work",
+                "state": "RUNNING",
+                "protected_paths": ["src/symbiont_lab/studies/learning/**"],
+            }
+        ],
+    )
     blocked = ctl._path_blocked_by_active(
-        "src/symbiont_lab/studies/learning/visual_acquisition.py",
+        "src/symbiont_lab/studies/learning/example.py",
         "HEAD",
         None,
     )
-    assert blocked == "visual-acquisition-d1-v2"
+    assert blocked == "synthetic-running-work"

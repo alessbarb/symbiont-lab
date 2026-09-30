@@ -42,12 +42,27 @@ def test_observatory_presentation_is_ordinary() -> None:
     assert result.classification == ChangeClass.ORDINARY
 
 
-def test_active_work_conflict_is_detected() -> None:
+def test_active_work_conflict_is_detected(monkeypatch) -> None:
+    import governance.publish as publish_mod
+
+    monkeypatch.setattr(
+        publish_mod,
+        "_active_work_at",
+        lambda base: {
+            "work": [
+                {
+                    "id": "synthetic-running-work",
+                    "state": "RUNNING",
+                    "protected_paths": ["src/symbiont_lab/studies/learning/**"],
+                }
+            ]
+        },
+    )
     conflicts = _active_work_conflicts(
-        ["src/symbiont_lab/studies/learning/visual_acquisition.py"],
+        ["src/symbiont_lab/studies/learning/example.py"],
         "HEAD",
     )
-    assert any("visual-acquisition-d1-v2" in conflict for conflict in conflicts)
+    assert conflicts == ["synthetic-running-work: src/symbiont_lab/studies/learning/example.py"]
 
 
 def test_equivalence_control_plane_is_constitutional() -> None:

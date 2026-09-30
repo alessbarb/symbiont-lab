@@ -1,0 +1,72 @@
+name: Promote validated agentctl candidate
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote-main
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: promote-validated-candidate
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'agentctl/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Verify candidate is still promotable
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          git fetch origin main "$HEAD_BRANCH"
+
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          CURRENT_MAIN="$(git rev-parse origin/main)"
+          PARENT="$(git rev-parse "$HEAD_SHA^")"
+          COMMIT_COUNT="$(git rev-list --count "$CURRENT_MAIN..$HEAD_SHA")"
+
+          if [ "$PARENT" != "$CURRENT_MAIN" ] || [ "$COMMIT_COUNT" != "1" ]; then
+            echo "STALE — main advanced after candidate validation; rerun agentctl publish"
+            exit 1
+          fi
+
+          MESSAGE="$(git log -1 --pretty=%B "$HEAD_SHA")"
+          grep -q '^Governance-Class:' <<<"$MESSAGE"
+          grep -q '^Owner-Approval:' <<<"$MESSAGE"
+
+          CLASS="$(sed -n 's/^Governance-Class:[[:space:]]*//p' <<<"$MESSAGE" | tail -n1)"
+          if [ "$CLASS" = "CONSTITUTIONAL" ] || [ "$CLASS" = "FROZEN" ]; then
+            echo "REVIEW REQUIRED — $CLASS candidates are never auto-promoted"
+            exit 1
+          fi
+
+          CHANGED="$(git diff --name-only "$CURRENT_MAIN" "$HEAD_SHA")"
+          if grep -Eq '^(\.github/|docs/governance/|scripts/agentctl\.py$|scripts/governance/|tests/governance/|AGENTS\.md$|CLAUDE\.md$|\.pre-commit-config\.yaml$|pyproject\.toml$|pyrightconfig\.json$)' <<<"$CHANGED"; then
+            echo "REVIEW REQUIRED — candidate changes the trusted validation/governance control plane"
+            exit 1
+          fi
+
+      - name: Fast-forward validated candidate into main
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          git push origin "$HEAD_SHA:refs/heads/main"
+          git push origin --delete "$HEAD_BRANCH" || true
