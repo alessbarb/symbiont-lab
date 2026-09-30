@@ -863,10 +863,13 @@ def test_mind_observer_analysis_is_secondary_and_finite_safe() -> None:
     )
 
     assert "id: 'history'" in asset
-    assert "label: 'History'" in asset
+    assert "label: 'Development'" in asset
     assert "{ id: 'regime'" not in asset
     assert "Observer analysis" in asset
-    assert "Secondary analytical projection; not part of the organism." in asset
+    assert (
+        "Secondary analytical projection. It is not part of the organism and is never fed back."
+        in asset
+    )
     assert "finiteNumber" in asset
     assert "observerAnalysis?.activationClasses" in observer_model
     assert "observerAnalysis?.predictionErrors" in observer_model
@@ -911,8 +914,8 @@ def test_mind_self_is_organism_owned_self_portrait() -> None:
 def test_mind_compares_phenotype_and_self_side_by_side() -> None:
     asset = _mind_sources()
 
-    assert "id: 'phenotype'" in asset
-    assert "label: 'Identity'" in asset
+    assert "'phenotype'" in asset
+    assert "Identity and sensory renderers" in asset
     assert "mind-identity-wrap" in asset
     assert "Observed organism" in asset
     assert "Self-model" in asset
@@ -961,7 +964,7 @@ def test_mind_tracks_cognitive_structure_over_time() -> None:
     assert "export const mindHistory = []" in asset
     assert "function recordMindHistory()" in asset
     assert "Δ since t" in asset
-    assert "Cognitive structure" in asset
+    assert "Current cognitive structure" in asset
 
 
 def test_body_and_mind_use_resource_delta_as_distance_not_percent() -> None:
@@ -1151,7 +1154,7 @@ def test_mind_dual_semantics_are_explicit_in_the_ui() -> None:
 def test_mind_research_navigation_matches_telemetry_story() -> None:
     asset = _mind_sources()
 
-    for label in ("Overview", "Identity", "Sensory", "Cognition", "History"):
+    for label in ("Live", "Atlas", "Development"):
         assert f"label: '{label}'" in asset
     # Action discovery belongs to the Embodiment Experience (ADR-0008).
     assert "label: 'Motor Learning'" not in asset
@@ -1159,8 +1162,8 @@ def test_mind_research_navigation_matches_telemetry_story() -> None:
     assert "export function renderActionDiscovery(root)" in _discovery_sources()
     assert "function renderOverview()" in asset
     assert "function renderHistory()" in asset
-    assert "Learning pipeline" in asset + _discovery_sources()
-    assert "exists → learned → usable" in asset + _discovery_sources()
+    assert "learned cognitive control" in asset + _discovery_sources()
+    assert "currently usable entries" in asset + _discovery_sources()
 
 
 def test_mind_motor_funnel_distinguishes_learning_from_use() -> None:
@@ -1170,7 +1173,7 @@ def test_mind_motor_funnel_distinguishes_learning_from_use() -> None:
     assert "Motor primitives" in asset
     assert "Motor repertoire" in asset
     # Mind keeps the cognitive link to motor structure, not the acquisition surface.
-    assert "Cognition → motor edges" in _mind_sources()
+    assert "readout→motor links" in _mind_sources()
     assert "cognitive control" in asset
     assert "LEARNED AGENCY" in asset
     assert "Cognitive primitives" in asset
@@ -1649,7 +1652,10 @@ def test_cognitive_atlas_derives_observer_only_cognitive_episodes() -> None:
     asset = _mind_sources()
 
     assert "export function deriveCognitiveEpisodes(" in temporal
-    assert "Observer-derived clusters of contiguous structural change" in asset
+    assert (
+        "Observer-derived windows where structural, predictive or contextual change clustered together."
+        in asset
+    )
     assert "prediction-error changes" in asset
     assert "onOpenHistoryTick(" in asset
 
@@ -1848,10 +1854,10 @@ def test_cognitive_observatory_final_refinements_are_contractual() -> None:
     assert "cognition→motor linkage changed" in asset
 
     assert "episodeFocusTick(" in history
-    assert "← Previous" in history
-    assert "Next →" in history
+    assert "mind-development-event" in history
+    assert "mind-development-episode" in history
     assert "episodeImpact(episode)" in history
-    assert "dominant ${impact.dominant}" in history
+    assert "${impact.dominant || 'structural change'}" in history
 
     assert "export function reconcileFrontierEvolution(" in lod
     assert "enteredIds" in lod
@@ -1958,7 +1964,7 @@ def test_dynamics_mode_combines_recent_activity_learning_and_prediction() -> Non
 
     assert "id: 'dynamics'" in atlas or 'id: "dynamics"' in atlas
     assert "label: 'Dynamics'" in atlas or 'label: "Dynamics"' in atlas
-    assert "['learning','dynamics'].includes(graph.atlasMode)" in asset
+    assert "['activity','learning','prediction','dynamics'].includes(graph.atlasMode)" in asset
 
 
 def test_physicalized_3d_zoom_is_continuous_and_scene_relative() -> None:
@@ -2248,12 +2254,15 @@ def test_body_in_world_controls_and_picking_are_isolated_to_world_tab() -> None:
     # are insufficient because canvas listeners and render-time visibility can
     # otherwise force or contaminate sibling Body workspaces.
     assert "setActive(active)" in world_view
-    assert "this.toolbar.hidden = !this.active" in world_view
-    assert "this.legend.hidden = !this.active" in world_view
+    assert "this.toolbar.hidden = true" in world_view
+    assert "this.legend.hidden = !active" in world_view
     assert "pick(event) {\n    if (!this.active) return;" in world_view
     assert "update() {\n    if (!this.active) return;" in world_view
 
-    assert "classList.toggle('body-world-mode', tab === 'world')" in workspace
+    assert (
+        "classList.toggle('body-world-mode', ['acquired','compare','world'].includes(tab))"
+        in workspace
+    )
     assert "worldView?.setActive(tab === 'world')" in workspace
 
     assert ".body-view-root .body-world-toolbar[hidden]" in body_css

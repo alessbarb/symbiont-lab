@@ -192,8 +192,9 @@ def test_mind_generative_cognition_is_separate_from_atlas_topology():
     assert "Generative activity observed earlier" in controller
     assert "mind-generative-history" in controller
     assert "mind-generative-flow" in controller
-    assert "This is not evidence that generative cognition was inactive." in controller
-    assert "generative=result.generative" in physics_runtime
+    assert "Generative resident not observed" in controller
+    assert "no generative frame captured through" in controller
+    assert '"generative"' in physics_runtime
     assert 'mind_cognition["generative"]' in projection
     assert "completeTopology.nodes.push" not in controller
     assert "rawNodes.push" not in controller
@@ -324,7 +325,7 @@ def test_workbench_v2_navigation_matches_product_architecture():
 
 def test_world_epistemic_modes_are_acquired_compare_truth():
     workspace = _read("views/body/workspace.js")
-    world_tabs = workspace.split("world: [", 1)[1].split("],", 1)[0]
+    world_tabs = workspace.split("world: [", 1)[1].split("\n  ],", 1)[0]
     assert "['acquired', 'Acquired']" in world_tabs
     assert "['compare', 'Compare']" in world_tabs
     assert "['world', 'Observer Truth']" in world_tabs
@@ -398,7 +399,7 @@ def test_embodiment_apparatus_links_physical_region_to_acquired_self():
     assert "selfViewSegmentRecord" in workspace
     assert "Acquired correspondence · observer projection" in workspace
     assert "data-open-acquired-self" in workspace
-    assert "segment|" in workspace
+    assert "segment|" in _read("views/body/self-view.js")
     assert "Open in Acquired Self" in workspace
 
 
