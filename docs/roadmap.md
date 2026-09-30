@@ -417,7 +417,15 @@ required below.
 
 ### A1 — Durable persistence
 
-**Status:** IMPLEMENTED, integrity gate incomplete.
+**Status:** IMPLEMENTED, integrity gate closed.
+
+The fault-injection matrix covers pre-write, partial-write, file-fsync,
+replace and directory-fsync boundaries for both direct durable writes and
+compound atomic replacements. The branch validation executed the complete
+unit/integration suite through 2,719 passing tests; its sole software-test
+failure was the unrelated pre-existing Physics3D equivalence test attempting
+to run without the optional PyBullet dependency. No A1 fault-injection test
+failed.
 
 The durable-write implementation already provides:
 
@@ -461,8 +469,11 @@ It must never produce an accepted partial generation.
 
 **Status:** PARTIAL.
 
-`ExecutionFingerprint` exists but does not yet close the full execution
-identity.
+`ExecutionFingerprint` now represents the declared checkout, interpreter,
+module origins, dependency-lock digest, effective-configuration digest,
+experiment identifier and seed, and can reject a mismatching child identity.
+The remaining gate is integration with the governed scientific launcher so
+every spawned scientific process performs this self-verification before work.
 
 #### Required fingerprint
 
@@ -500,12 +511,14 @@ hermetic execution.
 
 ### A3 — Dependency locking
 
-**Status:** NOT STARTED.
+**Status:** PARTIAL.
+
+The repository now has a canonical `uv.lock` and a pinned scientific Python
+baseline in `.python-version`. Scientific execution identity records the lock
+digest. The remaining gate is enforcing synchronization from that lock in the
+scientific launcher while keeping the compatibility lane independent.
 
 Scientific campaigns require a reproducible dependency set.
-
-The project will adopt a canonical locked environment, preferably `uv.lock`
-unless a stronger project-specific reason requires another mechanism.
 
 Two separate lanes remain valid:
 
@@ -529,7 +542,14 @@ environment.
 
 ### A4 — Generational scientific commits
 
-**Status:** NOT STARTED.
+**Status:** PARTIAL.
+
+An isolated transactional `GenerationStore` now implements immutable
+`generation-N` directories, a digest-bearing `COMPLETE` seal and atomic
+`CURRENT` publication with crash-boundary tests. It is deliberately not yet
+wired into the active scientific launcher or D1-v2. A4 closes only after the
+governed run/checkpoint path consumes this store and recovery tests cover that
+integration.
 
 Atomic files are insufficient when one scientific state consists of multiple
 files.
