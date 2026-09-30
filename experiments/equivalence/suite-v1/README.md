@@ -1,5 +1,40 @@
 # Causal Equivalence Suite v1
 
+## Purpose
+
+This versioned suite defines bounded causal-equivalence scenarios for classifying
+software changes. It supplies evidence for the registered scenarios, not a universal
+classifier or scientific validation of organism capability.
+
+## Belongs here
+
+Immutable suite protocol material, scenario definitions, and real captured reference
+snapshots required by the suite.
+
+## Does not belong here
+
+Do not put synthetic reference states, pytest tests, mutable live organism state, or
+interpretations that exceed the registered scenarios here. Preserve captured evidence
+as versioned artifacts.
+
+## Criterion for creating a file
+
+Add a file only when it is required by this versioned protocol or is a real, provenance-
+complete reference snapshot captured through the documented tooling. Do not fabricate
+or refresh a snapshot to make a candidate pass.
+
+## Execution
+
+Use `python scripts/agentctl.py equivalence status` for status. Run a scenario only
+when the scientific-run registry and resource preflight allow it, using the command
+documented below.
+
+## Limits
+
+An absent or non-assessable reference means the required scenario is not assessable;
+it is not evidence of equivalence. PASS applies only to the covered scenarios and
+semantic surface.
+
 This suite supplies bounded evidence, not a universal classifier.
 
 A sensitive change may be downgraded to ORDINARY only when every scenario required by
