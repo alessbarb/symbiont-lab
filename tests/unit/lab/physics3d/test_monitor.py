@@ -243,6 +243,25 @@ def test_record_to_snapshot_conversion():
     assert snap["resource_progress"] == 0.75
 
 
+def test_monitor_conversion_helpers_keep_the_compatibility_exports():
+    from symbiont_lab.app import physics3d_monitor
+    from symbiont_lab.app.physics3d_monitor_converters import (
+        record_to_snapshot as converted_record_to_snapshot,
+    )
+    from symbiont_lab.app.physics3d_monitor_converters import (
+        snapshot_to_physical_state as converted_snapshot_to_physical_state,
+    )
+    from symbiont_lab.physics3d.monitor import (
+        record_to_snapshot,
+        snapshot_to_physical_state,
+    )
+
+    assert physics3d_monitor.record_to_snapshot is converted_record_to_snapshot
+    assert physics3d_monitor.snapshot_to_physical_state is converted_snapshot_to_physical_state
+    assert record_to_snapshot is converted_record_to_snapshot
+    assert snapshot_to_physical_state is converted_snapshot_to_physical_state
+
+
 def test_snapshot_to_physical_state_with_full_and_fallback_data():
     from symbiont_lab.physics3d.monitor import snapshot_to_physical_state
 

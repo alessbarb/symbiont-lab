@@ -728,7 +728,7 @@ linked to the exact result artefact it summarises.
 
 ### A9 — Maintainable experimental core and apparatus
 
-**Status:** IN PROGRESS — baseline recorded, two bounded apparatus extractions
+**Status:** IN PROGRESS — baseline recorded, three bounded apparatus extractions
 validated, and twelve subsystem-owned tests relocated with consumers updated;
 further seam mapping remains.
 

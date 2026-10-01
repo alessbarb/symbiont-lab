@@ -223,3 +223,34 @@ and has no external test-module or documentation references. It now resides in
 Across these evidence-backed test moves, twelve root-level modules now have
 explicit subsystem homes. Remaining tests are still mapped individually before
 any further relocation.
+
+## Eighth bounded apparatus extraction: monitor payload converters
+
+The monitor's two telemetry conversion functions now live in
+`src/symbiont_lab/app/physics3d_monitor_converters.py`. They translate a telemetry
+record into the `MonitorSnapshot`-compatible mapping and the evaluator-safe
+physical-state payload consumed by replay rendering. The monitor still imports
+and re-exports both functions, preserving the application and legacy
+`symbiont_lab.physics3d.monitor` import surfaces.
+
+- **Owned responsibility:** pure conversion and fallback-field reconstruction
+  for monitor/replay payloads. The extracted module has no UI, IPC, process, or
+  rendering dependencies; it imports only the humanoid schema constants used to
+  construct physical-state records.
+- **Callers:** `_viewer_main` uses both helpers on the replay path. Focused
+  conversion tests exercise complete and fallback records through the legacy
+  facade. Repository search found no other production callers.
+- **Compatibility surface:** function names, signatures, output keys, fallback
+  values, and both existing import paths remain unchanged. The application
+  module's exports are direct aliases of the extracted functions.
+- **Preserved invariants:** AST comparison against the pre-extraction
+  `origin/main` implementations was exact for both functions; no conversion
+  logic, field ordering, fallback behavior, or state schema was changed.
+- **Focused evidence:** monitor and desktop-app tests passed before extraction
+  (**31 passed, 1 skipped**) and after extraction (**32 passed, 1 skipped**).
+  Ruff check and formatting passed for the touched Python files. This does not
+  establish a full application or repository-suite result.
+
+The extraction separates a data-conversion seam only. `MonitorSnapshot`, replay
+event assembly, multiprocessing, camera state and UI remain in the monitor
+pending their own caller, compatibility and state-invariant mapping.
