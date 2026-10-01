@@ -1,63 +1,64 @@
 # Repository governance
 
-## Purpose
+## Normal agent path
 
-Keep ordinary engineering cheap while making scientific evidence and constitutional
-boundary crossings explicit.
+For ordinary work the complete operational loop is:
 
-## Normal workflow
+```text
+agentctl context
+      ↓
+implement requested change
+      ↓
+targeted local checks only when useful
+      ↓
+agentctl publish
+      ↓
+GitHub Actions
+      ↓
+auto-promote ORDINARY / external review SCIENTIFIC or CONSTITUTIONAL
+```
 
-    python scripts/agentctl.py publish --message "..."
+Start with:
 
-The command rebases onto current main, classifies the final diff, runs required bounded
-equivalence and publishes one candidate. No grant ancestry or per-commit permission
-lookup exists.
+```bash
+python scripts/agentctl.py context
+```
 
-## Operational classes
+The output is intentionally compact. It refreshes trusted `origin/main` once and
+returns base/head, worktree state, current gate, RUNNING work/conflicts and the next
+publication action. `--json` is available for agents and scripts.
 
-- ORDINARY — validate and auto-promote when current and green.
-- SCIENTIFIC — equivalence may downgrade to ORDINARY; otherwise external review.
-- FROZEN — version, never edit in place.
-- CONSTITUTIONAL — Accepted ADR + external owner review.
+Do not reconstruct governance by rereading every policy document. Read additional
+material only if the task crosses a scientific protocol, FROZEN, RUNNING or
+constitutional boundary.
 
-## Scientific execution
-
-    python scripts/agentctl.py run start --commit <sha> --id <run-id> \
-      --scope <scope> --snapshot-source <state-dir> -- <command>
-
-The launcher pins code and input, checks resources/concurrency and writes a receipt.
-Held-out, confirmation and replication remain owner decisions by policy without a grant
-or self-asserted approval flag.
-
-## Historical grants
-
-The former ledger is preserved at
-`docs/history/governance/authority-grants-v1.toml` for historical provenance only.
-No active code reads it.
-
-## Root of trust
-
-Human identity/approval lives outside the repository. Only ORDINARY candidates may
-auto-promote. SCIENTIFIC and CONSTITUTIONAL candidates require external review.
-
-## Commands
+Publish with:
 
 ```bash
 python scripts/agentctl.py publish --message "..."
-python scripts/agentctl.py equivalence status
-python scripts/agentctl.py run start ...
-python scripts/agentctl.py verify
 ```
 
-`validate` is an optional local reproduction helper; CI is the technical validation gate.
+`publish` is the single source of truth for final-diff classification and equivalence.
+CI is the sole technical validation gate; full local duplication is not required.
 
-## Constitutional publication
+## Classes
 
-CONSTITUTIONAL candidates require an Accepted ADR. `publish` records
-`Governance-ADR:` provenance; external review supplies the real approval boundary.
+- ORDINARY — green/current candidate may auto-promote.
+- SCIENTIFIC — equivalence may downgrade it; otherwise external review.
+- FROZEN — version, never rewrite.
+- CONSTITUTIONAL — Accepted ADR + external review.
 
-## Trusted run coordination
+## Scientific execution
 
-`run start` and `equivalence run` pin one trusted origin/main governance reference.
-RUNNING campaigns, immutable snapshots, resource ceilings and execution receipts remain
-enforced.
+```bash
+python scripts/agentctl.py run start --commit <sha> --id <run-id> \
+  --scope <scope> --snapshot-source <state-dir> -- <command>
+```
+
+Pinned code/input, resource ceilings, RUNNING locks and execution receipts remain
+enforced. Held-out, confirmation and replication remain explicit owner decisions.
+
+## Historical grants
+
+The old ledger remains under `docs/history/governance/` for provenance only. It is not
+part of the active control plane.

@@ -145,3 +145,87 @@ def test_active_run_path_is_blocked(monkeypatch) -> None:
         ],
     )
     assert ctl._path_blocked_by_active("src/x/a.py", "HEAD") == "running"
+
+def test_agent_contract_uses_context_as_single_normal_read() -> None:
+    contract = _contract("AGENTS.md")
+    assert "agentctl.py context" in contract
+    assert "do not reread the governance corpus" in contract
+    assert "Publish once" in contract
+
+
+def test_context_is_compact_and_defers_classification(monkeypatch, capsys) -> None:
+    ctl = _agentctl()
+    base = "a" * 40
+
+    monkeypatch.setattr(ctl, "_trusted_origin_ref", lambda: base)
+    monkeypatch.setattr(
+        ctl,
+        "_trusted_governance_at",
+        lambda ref, name: (
+            {"current_gate": "e8-label-invariance"}
+            if name == "project-state.toml"
+            else {"work": []}
+        ),
+    )
+
+    def fake_git(*args: str, **kwargs) -> str:
+        if args == ("rev-parse", "--abbrev-ref", "HEAD"):
+            return "feature/example"
+        if args == ("rev-parse", "HEAD"):
+            return "b" * 40
+        raise AssertionError(args)
+
+    monkeypatch.setattr(ctl, "git", fake_git)
+    monkeypatch.setattr(ctl, "changed_paths", lambda staged_only=False: [])
+
+    assert ctl.context() == 0
+    output = capsys.readouterr().out.splitlines()
+    assert len(output) <= 10
+    assert "worktree: clean (0 changed paths)" in output
+    assert "classification: deferred-to-publish" in output
+    assert any(line.startswith("next: ") for line in output)
+
+
+def test_context_json_reports_running_conflicts(monkeypatch, capsys) -> None:
+    ctl = _agentctl()
+    base = "a" * 40
+
+    monkeypatch.setattr(ctl, "_trusted_origin_ref", lambda: base)
+    monkeypatch.setattr(
+        ctl,
+        "_trusted_governance_at",
+        lambda ref, name: (
+            {"current_gate": "gate"}
+            if name == "project-state.toml"
+            else {
+                "work": [
+                    {
+                        "id": "study",
+                        "state": "RUNNING",
+                        "protected_paths": ["src/protected/**"],
+                    }
+                ]
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        ctl,
+        "git",
+        lambda *args, **kwargs: (
+            "feature/example"
+            if args == ("rev-parse", "--abbrev-ref", "HEAD")
+            else "b" * 40
+        ),
+    )
+    monkeypatch.setattr(
+        ctl,
+        "changed_paths",
+        lambda staged_only=False: ["src/protected/a.py"],
+    )
+
+    assert ctl.context(as_json=True) == 0
+    payload = __import__("json").loads(capsys.readouterr().out)
+    assert payload["running_work"] == ["study"]
+    assert payload["protected_conflicts"] == ["study:src/protected/a.py"]
+    assert payload["classification"] == "deferred-to-publish"
+

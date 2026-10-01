@@ -931,6 +931,75 @@ def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
     return exit_code
 
 
+def context(*, as_json: bool = False) -> int:
+    """Print the minimum trusted state needed to start one task."""
+    try:
+        base = _trusted_origin_ref()
+        state = _trusted_governance_at(base, "project-state.toml")
+        active = _trusted_governance_at(base, "active-work.toml").get("work", [])
+    except RuntimeError as exc:
+        print(f"BLOCKED — {exc}", file=sys.stderr)
+        return 3
+
+    branch = git("rev-parse", "--abbrev-ref", "HEAD")
+    head = git("rev-parse", "HEAD")
+    paths = changed_paths(staged_only=False)
+    running = [
+        str(work["id"])
+        for work in active
+        if work.get("state") == "RUNNING"
+    ]
+    conflicts = sorted(
+        {
+            f"{work['id']}:{path}"
+            for work in active
+            if work.get("state") == "RUNNING"
+            for path in paths
+            if any(
+                matches(path, pattern)
+                for pattern in work.get("protected_paths", [])
+            )
+        }
+    )
+    payload = {
+        "base": base,
+        "branch": branch,
+        "head": head,
+        "worktree": "clean" if not paths else "dirty",
+        "changed_paths": len(paths),
+        "current_gate": state.get("current_gate"),
+        "running_work": running,
+        "protected_conflicts": conflicts,
+        "publication": 'python scripts/agentctl.py publish --message "..."',
+        "classification": "deferred-to-publish",
+        "policy_read": (
+            "context-once; read deeper governance only for scientific protocol, "
+            "FROZEN, RUNNING or constitutional boundaries"
+        ),
+    }
+
+    if as_json:
+        print(json.dumps(payload, sort_keys=True))
+        return 0
+
+    running_text = ",".join(running) if running else "none"
+    conflict_text = ",".join(conflicts) if conflicts else "none"
+    print(f"base: {base[:12]}")
+    print(f"branch: {branch}")
+    print(f"head: {head[:12]}")
+    print(f"worktree: {payload['worktree']} ({len(paths)} changed paths)")
+    print(f"gate: {payload['current_gate']}")
+    print(f"running: {running_text}")
+    print(f"conflicts: {conflict_text}")
+    print("classification: deferred-to-publish")
+    print('next: work within task; publish once with agentctl publish --message "..."')
+    print(
+        "read-more: only if crossing scientific protocol, FROZEN, RUNNING "
+        "or constitutional boundaries"
+    )
+    return 0
+
+
 def status() -> int:
     state = load("project-state.toml")
     print(f"current gate: {state['current_gate']}")
@@ -947,6 +1016,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status")
+    p_context = sub.add_parser("context")
+    p_context.add_argument("--json", action="store_true")
     sub.add_parser("verify")
     p_validate = sub.add_parser("validate", help=argparse.SUPPRESS)
     p_validate.add_argument("--staged", action="store_true", default=True)
@@ -1008,6 +1079,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.command == "status":
         return status()
+    if args.command == "context":
+        return context(as_json=args.json)
     if args.command == "verify":
         return verify()
     if args.command == "publish":
