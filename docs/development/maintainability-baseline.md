@@ -300,3 +300,24 @@ Physics3D telemetry modules and supporting reader/tool modules now reside under
   observation/integrity tests, and the primitive-effects integration test
   passed: **309 passed, 1 skipped, 8 deselected**. Ruff check and format check
   passed for the touched Python files. Full-suite validation was not run.
+
+## Tenth bounded organization slice: private experience pipeline test ownership
+
+`tests/unit/test_private_experience_pipeline.py` exercises the private-modeling
+experience pipeline through `PrivateModelOrganismRuntime`, `ExperienceRecord`,
+`EpisodicProjection`, and training-corpus APIs. It now resides in
+`tests/unit/modeling/`, alongside the existing deterministic modeling contract
+tests.
+
+- **Consumers:** repository search found no imports of the test module or active
+  documentation references to its previous path.
+- **Ownership:** the tested production APIs are owned by `symbiont.modeling`;
+  the test uses `RuntimeTickResult` and `Actuation` as boundary fixtures but its
+  questions concern privacy, epistemic status, experience retention and
+  modeling/training projections.
+- **Compatibility surface:** test names, assertions and production APIs are
+  unchanged; only the test path changed.
+- **Focused evidence:** the entire modeling unit-test directory, including the
+  relocated module, passed: **88 passed**. Repository-layout and Markdown-link
+  checks passed: **5 passed**. Ruff check and format check passed for the moved
+  module. The full repository suite has not been run.
