@@ -52,11 +52,15 @@ CI is the sole technical validation gate; full local duplication is not required
 
 ```bash
 python scripts/agentctl.py run start --commit <sha> --id <run-id> \
-  --scope <scope> --snapshot-source <state-dir> -- <command>
+  --scope <scope> --snapshot-source <state-dir> --seed <seed> \
+  -- <python-script-or-module>
 ```
 
-Pinned code/input, resource ceilings, RUNNING locks and execution receipts remain
-enforced. Held-out, confirmation and replication remain explicit owner decisions.
+The launcher accepts a direct Python script, `-m` module, or `-c` entry point using
+the launcher's same interpreter. It verifies the pinned interpreter, source origins,
+lock digest, commit and run configuration before the entry point executes. Pinned
+code/input, resource ceilings, RUNNING locks and execution receipts remain enforced.
+Held-out, confirmation and replication remain explicit owner decisions.
 
 ## Historical grants
 

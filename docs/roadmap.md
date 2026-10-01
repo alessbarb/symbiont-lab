@@ -476,11 +476,15 @@ It must never produce an accepted partial generation.
 `ExecutionFingerprint` now represents the declared checkout, interpreter,
 module origins, dependency-lock digest, effective-configuration digest,
 experiment identifier and seed, and can reject a mismatching child identity.
-The child-side assertion is covered by an isolated-subprocess test; this verifies
-the comparison API across a process boundary, but does not yet enforce it for
-processes launched by `agentctl run start`.
-The remaining gate is integration with the governed scientific launcher so
-every spawned scientific process performs this self-verification before work.
+`agentctl run start` now accepts only direct Python script/module/code entry points
+using the launcher's interpreter, captures expected identity from the pinned worktree,
+and executes the target
+through a child bootstrap that rejects identity mismatches before study code runs.
+The launcher receipt includes the declared fingerprint. The CLI requires an explicit
+seed; the run ID is the default experiment identifier. This is an enforced launcher
+path, not a guarantee for Python processes spawned later by the study itself.
+Integration coverage and a full launcher-level verification are still required
+before A2 can be closed.
 
 #### Required fingerprint
 

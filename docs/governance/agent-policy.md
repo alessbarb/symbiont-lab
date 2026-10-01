@@ -60,7 +60,9 @@ investigate, not permission to weaken checks.
 ## Scientific runs
 
     python scripts/agentctl.py run start --commit <sha> --id <run-id> \
-      --scope development --snapshot-source <state-dir> -- <command>
+      --scope development --snapshot-source <state-dir> --seed <seed> \
+      -- <python-script-or-module>
 
-Runs pin code, archive/hash input and enforce resource/concurrency policy. Held-out,
-confirmation and replication remain explicit owner decisions by policy.
+Runs pin code, archive/hash input, verify the Python child identity before executing
+the study entry point, and enforce resource/concurrency policy. Held-out, confirmation
+and replication remain explicit owner decisions by policy.

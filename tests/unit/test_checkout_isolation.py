@@ -150,3 +150,167 @@ def test_isolated_subprocess_verifies_declared_execution_fingerprint() -> None:
         env=os.environ,
     )
     assert result.stdout.strip() == "verified"
+
+
+def test_verified_child_checks_identity_before_running_target(monkeypatch) -> None:
+    import json
+    from dataclasses import asdict, replace
+
+    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+    from symbiont_lab.experiments.verified_child import run_verified
+
+    config = {"case": "verified-child"}
+    declared = ExecutionFingerprint.capture(
+        REPO_ROOT,
+        effective_config=config,
+        experiment_id="verified-child",
+        seed=41,
+    )
+    monkeypatch.setenv("SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT", json.dumps(asdict(declared)))
+    monkeypatch.setenv("SYMBIONT_EFFECTIVE_CONFIG", json.dumps(config))
+    monkeypatch.setenv("SYMBIONT_EXPERIMENT_ID", "verified-child")
+    monkeypatch.setenv("SYMBIONT_SEED", "41")
+
+    run_verified(["code", "assert __name__ == '__main__'"])
+
+    monkeypatch.setenv(
+        "SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT",
+        json.dumps(asdict(replace(declared, dependency_lock_hash="0" * 64))),
+    )
+    with pytest.raises(RuntimeError, match="dependency_lock_hash"):
+        run_verified(["code", "raise AssertionError('target ran before verification')"])
+
+
+def test_verified_child_subprocess_blocks_mismatch_before_target() -> None:
+    import json
+    from dataclasses import asdict, replace
+
+    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+
+    config = {"case": "verified-child-subprocess"}
+    declared = ExecutionFingerprint.capture(
+        REPO_ROOT,
+        effective_config=config,
+        experiment_id="verified-child-subprocess",
+        seed=43,
+    )
+    env = os.environ.copy()
+    env.update(
+        {
+            "SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT": json.dumps(
+                asdict(replace(declared, dependency_lock_hash="0" * 64))
+            ),
+            "SYMBIONT_EFFECTIVE_CONFIG": json.dumps(config),
+            "SYMBIONT_EXPERIMENT_ID": "verified-child-subprocess",
+            "SYMBIONT_SEED": "43",
+        }
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.experiments.verified_child",
+            "code",
+            "print('study target executed')",
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "dependency_lock_hash" in result.stderr
+    assert "study target executed" not in result.stdout
+
+
+@pytest.mark.parametrize("mode", ["script", "module", "code"])
+def test_verified_child_preserves_python_entrypoint_semantics(tmp_path, mode: str) -> None:
+    import json
+
+    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+
+    config = {"case": "entrypoint-semantics"}
+    declared = ExecutionFingerprint.capture(
+        REPO_ROOT,
+        effective_config=config,
+        experiment_id="entrypoint-semantics",
+        seed=47,
+    )
+    target = "import json, sys; print(json.dumps({'argv': sys.argv, 'path0': sys.path[0], 'main': __name__}))"
+    expected_argv = ["-c", "arg"]
+    if mode == "script":
+        script = tmp_path / "target.py"
+        script.write_text(target, encoding="utf-8")
+        entry = ["script", str(script), "arg"]
+        expected_argv = [str(script), "arg"]
+        expected_path0 = str(tmp_path)
+    elif mode == "module":
+        module = tmp_path / "target_module.py"
+        module.write_text(target, encoding="utf-8")
+        entry = ["module", "target_module", "arg"]
+        expected_argv = [str(module), "arg"]
+        expected_path0 = str(REPO_ROOT)
+    else:
+        entry = ["code", target, "arg"]
+        expected_path0 = ""
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT": json.dumps(asdict(declared)),
+            "SYMBIONT_EFFECTIVE_CONFIG": json.dumps(config),
+            "SYMBIONT_EXPERIMENT_ID": "entrypoint-semantics",
+            "SYMBIONT_SEED": "47",
+        }
+    )
+    if mode == "module":
+        env["PYTHONPATH"] = os.pathsep.join([str(tmp_path), str(SRC_DIR)])
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.experiments.verified_child", *entry],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    import json
+
+    observed = json.loads(result.stdout.strip())
+    assert observed == {"argv": expected_argv, "path0": expected_path0, "main": "__main__"}
+
+
+def test_verified_child_propagates_target_exit_code(monkeypatch) -> None:
+    import json
+
+    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+
+    config = {"case": "exit-code"}
+    declared = ExecutionFingerprint.capture(
+        REPO_ROOT, effective_config=config, experiment_id="exit-code", seed=53
+    )
+    env = os.environ.copy()
+    env.update(
+        {
+            "SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT": json.dumps(asdict(declared)),
+            "SYMBIONT_EFFECTIVE_CONFIG": json.dumps(config),
+            "SYMBIONT_EXPERIMENT_ID": "exit-code",
+            "SYMBIONT_SEED": "53",
+        }
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "symbiont_lab.experiments.verified_child",
+            "code",
+            "raise SystemExit(19)",
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 19

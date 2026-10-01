@@ -580,6 +580,28 @@ def _scientific_preexec(memory_gb: float, wall_minutes: int, cpu: int):
     return apply_limits
 
 
+def _python_target(command: list[str]) -> tuple[str, str, list[str]]:
+    """Accept only direct Python entry points so verification precedes study code."""
+    executable = Path(command[0]).name.lower()
+    if not re.fullmatch(r"python(?:\d+(?:\.\d+)*)?", executable):
+        raise ValueError("scientific launcher requires a direct Python command")
+    resolved_executable = shutil.which(command[0])
+    if (
+        not resolved_executable
+        or Path(resolved_executable).resolve() != Path(sys.executable).resolve()
+    ):
+        raise ValueError("scientific command interpreter must match the launcher interpreter")
+    if len(command) < 2:
+        raise ValueError("scientific launcher requires a Python script, -m module, or -c code")
+    if command[1] in {"-m", "-c"}:
+        if len(command) < 3:
+            raise ValueError(f"Python {command[1]} requires a target")
+        return ("module" if command[1] == "-m" else "code", command[2], command[3:])
+    if command[1].startswith("-"):
+        raise ValueError("scientific launcher supports only script, -m module, or -c code")
+    return "script", command[1], command[2:]
+
+
 def run_pinned(
     *,
     commit: str,
@@ -588,6 +610,8 @@ def run_pinned(
     snapshot_source: Path,
     snapshot_source_commit: str | None,
     command: list[str],
+    experiment_id: str,
+    seed: int,
     wall_minutes: int,
     memory_gb: float,
     cpu: int,
@@ -597,6 +621,11 @@ def run_pinned(
 
     if scope not in SCIENTIFIC_SCOPES:
         print(f"invalid scientific scope: {scope}", file=sys.stderr)
+        return 2
+    try:
+        _python_target(command)
+    except ValueError as exc:
+        print(f"invalid scientific command: {exc}", file=sys.stderr)
         return 2
     if not commit_exists(commit):
         print(f"unknown commit: {commit}", file=sys.stderr)
@@ -732,10 +761,11 @@ def run_pinned(
     if _reserve_run_lock(payload):
         return 1
 
-    argv = [
+    resolved_command = [
         str(input_dir) if token == "{input}" else str(work_dir) if token == "{work}" else token
         for token in command
     ]
+    target = _python_target(resolved_command)
     env = os.environ.copy()
     env["SYMBIONT_RUN_INPUT"] = str(input_dir)
     env["SYMBIONT_RUN_WORK"] = str(work_dir)
@@ -748,8 +778,69 @@ def run_pinned(
     try:
         with pinned_worktree(ROOT, commit) as worktree:
             env["PYTHONPATH"] = str(worktree / "src")
+            effective_config = json.dumps(
+                {
+                    "argv": command,
+                    "scope": scope,
+                    "snapshot": {
+                        key: manifest.get(key)
+                        for key in (
+                            "source_commit",
+                            "schema_version",
+                            "organism_sha256",
+                            "body_sha256",
+                            "bundle_models_tree_sha256",
+                            "models_tree_sha256",
+                            "body_kind",
+                        )
+                    },
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            env["SYMBIONT_EFFECTIVE_CONFIG"] = effective_config
+            env["SYMBIONT_EXPERIMENT_ID"] = experiment_id
+            env["SYMBIONT_SEED"] = str(seed)
+            declaration = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "symbiont_lab.experiments.verified_child",
+                    "--capture",
+                    str(worktree),
+                    effective_config,
+                    experiment_id,
+                    str(seed),
+                ],
+                cwd=worktree,
+                env=env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if declaration.returncode:
+                raise RuntimeError(
+                    "could not declare pinned child identity: "
+                    + (declaration.stderr.strip() or declaration.stdout.strip())
+                )
+            declared_fingerprint = json.loads(declaration.stdout)
+            if declared_fingerprint.get("git_commit") != commit or declared_fingerprint.get(
+                "is_dirty"
+            ):
+                raise RuntimeError("pinned child declaration does not match the requested commit")
+            env["SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT"] = json.dumps(
+                declared_fingerprint, sort_keys=True
+            )
+            child_argv = [
+                sys.executable,
+                "-m",
+                "symbiont_lab.experiments.verified_child",
+                *target,
+            ]
             proc = subprocess.Popen(
-                argv,
+                child_argv,
                 cwd=worktree,
                 env=env,
                 start_new_session=True,
@@ -757,7 +848,10 @@ def run_pinned(
             )
             payload["child_pid"] = proc.pid
             payload["worktree_commit"] = commit
-            payload["command"] = argv
+            payload["command"] = child_argv
+            payload["execution_fingerprint"] = json.loads(
+                env["SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT"]
+            )
             payload["state"] = "running"
             _run_lock_path().write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
             try:
@@ -944,21 +1038,14 @@ def context(*, as_json: bool = False) -> int:
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
     head = git("rev-parse", "HEAD")
     paths = changed_paths(staged_only=False)
-    running = [
-        str(work["id"])
-        for work in active
-        if work.get("state") == "RUNNING"
-    ]
+    running = [str(work["id"]) for work in active if work.get("state") == "RUNNING"]
     conflicts = sorted(
         {
             f"{work['id']}:{path}"
             for work in active
             if work.get("state") == "RUNNING"
             for path in paths
-            if any(
-                matches(path, pattern)
-                for pattern in work.get("protected_paths", [])
-            )
+            if any(matches(path, pattern) for pattern in work.get("protected_paths", []))
         }
     )
     payload = {
@@ -1061,6 +1148,8 @@ def main() -> int:
     p_start = run_sub.add_parser("start")
     p_start.add_argument("--commit", required=True)
     p_start.add_argument("--id", required=True)
+    p_start.add_argument("--experiment-id")
+    p_start.add_argument("--seed", type=int, required=True)
     p_start.add_argument("--scope", choices=sorted(SCIENTIFIC_SCOPES), required=True)
     p_start.add_argument("--snapshot-source", type=Path, required=True)
     p_start.add_argument(
@@ -1132,6 +1221,8 @@ def main() -> int:
             snapshot_source=args.snapshot_source,
             snapshot_source_commit=args.snapshot_source_commit,
             command=argv,
+            experiment_id=args.experiment_id or args.id,
+            seed=args.seed,
             wall_minutes=args.wall_minutes,
             memory_gb=args.memory_gb,
             cpu=args.cpu,
