@@ -19,7 +19,7 @@ from symbiont.modeling import (
     ModelState,
     TrainingRequest,
 )
-from tests.unit.test_modeled_organism_runtime import _transition
+from tests.unit.modeling.test_modeled_organism_runtime import _transition
 
 VOCAB = ("<PAD>", "<UNK>", "<BOS>", "<EOS>", "<SEP>", "sense.test.0", "action.test.0")
 

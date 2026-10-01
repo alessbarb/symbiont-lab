@@ -130,3 +130,28 @@ compatibility facade.
 
 This isolates pure geometry only; IPC, camera behavior and widgets remain in
 the monitor until separate mappings demonstrate safe boundaries.
+
+## Third bounded organization slice: modeling unit-test ownership
+
+Six modeling-focused unit-test modules previously at `tests/unit/` root now
+reside in `tests/unit/modeling/`: modeled-organism runtime, corpus, tokenizer,
+sequence characterization/substrate, and training ancestry. Source ownership
+is the modeling subsystem, and the existing modeling test-area contract already
+defines this location for small deterministic tests.
+
+- **Callers/importers:** the three test modules that reused
+  `_transition` now import it from the moved runtime test module; no production
+  module imports tests. A repository search found no other active code
+  references to the old module path.
+- **Compatibility surface:** production APIs and fixtures are unchanged. The
+  test helper module path changed only where the three known test consumers
+  were updated.
+- **Preserved invariants:** no tests, assertions, fixtures or runtime behavior
+  were intentionally altered; files were relocated as-is apart from those
+  imports.
+- **Focused evidence:** all six moved modules and both dependent integration
+  modules passed: **42 passed, 4 deselected**. This does not establish a full
+  suite result.
+
+This only relocates the six modeling-owned tests. Other root-level tests remain
+until each has a verified owner, consumer map and regression plan.
