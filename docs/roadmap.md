@@ -728,7 +728,8 @@ linked to the exact result artefact it summarises.
 
 ### A9 — Maintainable experimental core and apparatus
 
-**Status:** PROPOSED — baseline inventory pending.
+**Status:** PROPOSED — initial source-size, test-layout, boundary and artifact
+baseline recorded; candidate seam mapping pending.
 
 Clean future experiments depend on components that can be inspected, tested, and
 changed without obscuring scientific behavior or weakening provenance. This work
@@ -736,12 +737,13 @@ covers the experimental organism (`src/symbiont`), laboratory apparatus and
 Workbench (`src/symbiont_lab`), physical/ecological world (`src/symbiont_world`),
 and the test suite. Observatory is explicitly excluded.
 
-This is an enabling engineering gate, not authorization for broad rewrites. Begin
-with a source-verified inventory of module size, dependency direction, public
-interfaces, test ownership, generated artifacts, and the scientific/state
-invariants around any proposed seam. Prioritize changes that make experimental
-behavior easier to isolate and verify; file length alone is not evidence that a
-module needs decomposition.
+This is an enabling engineering gate, not authorization for broad rewrites. The
+initial source-size, test-layout, boundary and artifact inventory is recorded in
+the [A9 maintainability baseline](development/a9-maintainability-baseline.md).
+Before any extraction, map its public interfaces, callers, test ownership, and
+scientific/state invariants. Prioritize changes that make experimental behavior
+easier to isolate and verify; file length alone is not evidence that a module
+needs decomposition.
 
 #### Deferred design to revisit
 
