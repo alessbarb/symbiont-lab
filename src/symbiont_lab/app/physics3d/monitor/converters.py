@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Mapping
+from typing import Any, Mapping
 
 from symbiont_lab.physics3d.humanoid import BODY_KIND, BODY_STATE_SCHEMA_VERSION, JOINT_LIMITS
 
 
-def snapshot_to_physical_state(record: Mapping[str, object]) -> dict[str, object]:
+def snapshot_to_physical_state(record: Mapping[str, Any]) -> dict[str, object]:
     """Reconstruct an evaluator-safe physical state payload from telemetry."""
     reconstructed_fields: list[str] = []
     joints = record.get("joints")
@@ -52,7 +52,7 @@ def snapshot_to_physical_state(record: Mapping[str, object]) -> dict[str, object
 
 
 def record_to_snapshot(
-    record: Mapping[str, object],
+    record: Mapping[str, Any],
     *,
     fallback_id: str = "subject:replay",
 ) -> dict[str, object]:

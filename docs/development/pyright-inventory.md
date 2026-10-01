@@ -1,6 +1,6 @@
-# Inventario completo de Pyright — actualizado 2026-10-01
+# Inventario completo de Pyright — actualizado 2026-10-02
 
-Esta es una fotografía reproducible del diagnóstico global de Pyright sobre `src/` y `observatory/`, regenerada el **2026-10-01**. El nombre histórico del archivo se conserva para no romper enlaces. No modifica el comportamiento del código ni convierte los diagnósticos en excepciones. Cada entrada conserva archivo, línea, severidad, regla y mensaje normalizado.
+Esta es una fotografía reproducible del diagnóstico global de Pyright sobre `src/` y `observatory/`, regenerada el **2026-10-02**. El nombre histórico del archivo se conserva para no romper enlaces. No modifica el comportamiento del código ni convierte los diagnósticos en excepciones. Cada entrada conserva archivo, línea, severidad, regla y mensaje normalizado.
 
 ## Comando y alcance
 
@@ -12,204 +12,128 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 ## Resumen
 
-- Archivos analizados: **561**
-- Archivos con diagnósticos: **167**
-- Errores: **845**
-- Warnings: **126**
+- Archivos analizados: **585**
+- Archivos con diagnósticos: **92**
+- Errores: **411**
+- Warnings: **22**
 - Informaciones: **0**
-- Duración reportada: **25.643 s**
+- Duración reportada: **23.451 s**
 
 ## Reglas por severidad
 
 | Severidad | Regla | Casos |
 |---|---|---:|
-| error | `reportArgumentType` | 529 |
-| error | `reportAttributeAccessIssue` | 123 |
-| error | `reportOptionalMemberAccess` | 52 |
-| error | `reportGeneralTypeIssues` | 37 |
-| error | `reportCallIssue` | 27 |
-| error | `reportIndexIssue` | 21 |
-| error | `reportOperatorIssue` | 19 |
-| error | `reportOptionalSubscript` | 15 |
-| error | `reportOptionalOperand` | 11 |
-| error | `reportOptionalIterable` | 6 |
-| error | `reportReturnType` | 4 |
+| error | `reportArgumentType` | 190 |
+| error | `reportAttributeAccessIssue` | 116 |
+| error | `reportOptionalMemberAccess` | 57 |
+| error | `reportOperatorIssue` | 15 |
+| error | `reportGeneralTypeIssues` | 13 |
+| error | `reportCallIssue` | 7 |
+| error | `reportOptionalOperand` | 5 |
+| error | `reportIndexIssue` | 3 |
+| error | `reportOptionalSubscript` | 3 |
 | error | `reportAssignmentType` | 1 |
-| warning | `reportMissingImports` | 111 |
+| error | `reportReturnType` | 1 |
 | warning | `reportUnsupportedDunderAll` | 14 |
+| warning | `reportMissingImports` | 7 |
 | warning | `reportUnusedExpression` | 1 |
 
 ## Archivos por volumen
 
 | Casos | Archivo |
 |---:|---|
-| 80 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
 | 33 | `src/symbiont_lab/studies/perception/sensory_specialisation.py` |
-| 31 | `src/symbiont/modeling/culture.py` |
-| 30 | `src/symbiont/actuation/binding.py` |
-| 30 | `src/symbiont_lab/physics3d/telemetry/v41.py` |
-| 28 | `src/symbiont/genetics/migration.py` |
-| 28 | `src/symbiont_lab/app/physics3d/session.py` |
-| 28 | `src/symbiont_lab/physics3d/runtime.py` |
-| 24 | `src/symbiont/core/embodiment/memory.py` |
-| 24 | `src/symbiont_lab/studies/heritage/ecological_shift.py` |
+| 28 | `src/symbiont_lab/physics3d/telemetry/v41.py` |
+| 25 | `src/symbiont_lab/physics3d/runtime.py` |
 | 21 | `src/symbiont_lab/studies/learning/emergent_symbol_grounding.py` |
-| 19 | `src/symbiont/core/signals/knowledge.py` |
-| 19 | `src/symbiont_lab/physics3d/reembodiment.py` |
-| 18 | `observatory/resident.py` |
+| 18 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
 | 17 | `src/symbiont_lab/studies/learning/emergent_structured_communication.py` |
-| 16 | `src/symbiont/modeling/symbols.py` |
-| 14 | `src/symbiont/core/embodiment/episode.py` |
-| 14 | `src/symbiont_lab/studies/campaigns/campaign.py` |
-| 14 | `src/symbiont_lab/world/adapter.py` |
-| 13 | `src/symbiont_lab/physics3d/resource.py` |
-| 12 | `src/symbiont/actuation/acquisition.py` |
-| 12 | `src/symbiont/actuation/commitment.py` |
+| 12 | `observatory/resident.py` |
 | 12 | `src/symbiont/core/__init__.py` |
-| 12 | `src/symbiont_lab/modeling/architectures.py` |
 | 12 | `src/symbiont_lab/physics3d/engine.py` |
-| 11 | `src/symbiont/core/embodiment/adaptation.py` |
 | 11 | `src/symbiont_lab/studies/learning/prospective_agency_embodied.py` |
-| 11 | `src/symbiont_lab/studies/physics3d/primitive_effects.py` |
-| 9 | `src/symbiont/cognition/structure.py` |
 | 9 | `src/symbiont/modeling/runtime.py` |
 | 9 | `src/symbiont_lab/physics3d/humanoid.py` |
-| 8 | `src/symbiont/modeling/experience.py` |
-| 8 | `src/symbiont/modeling/sequences.py` |
-| 8 | `src/symbiont_lab/cli/archive.py` |
+| 9 | `src/symbiont_lab/world/adapter.py` |
+| 8 | `src/symbiont/core/signals/knowledge.py` |
+| 7 | `src/symbiont/actuation/binding.py` |
 | 7 | `src/symbiont/core/embodiment/body_schema.py` |
-| 7 | `src/symbiont/core/social/ecology.py` |
-| 7 | `src/symbiont/modeling/registry.py` |
 | 7 | `src/symbiont_lab/studies/learning/independent_symbol_grounding.py` |
 | 7 | `src/symbiont_lab/studies/world/genesis_viability.py` |
-| 6 | `src/symbiont/core/embodiment/dynamics.py` |
-| 6 | `src/symbiont/core/social/relations.py` |
 | 6 | `src/symbiont/modeling/private_runtime.py` |
+| 6 | `src/symbiont_lab/physics3d/resource.py` |
 | 6 | `src/symbiont_lab/physics3d/telemetry/binary.py` |
 | 6 | `src/symbiont_lab/studies/attention/retrospective.py` |
-| 6 | `src/symbiont_lab/studies/learning/canonical_sensorimotor_counterfactual.py` |
-| 5 | `observatory/adapter.py` |
-| 5 | `src/symbiont/actuation/effects.py` |
-| 5 | `src/symbiont_lab/observation/physics3d.py` |
-| 5 | `src/symbiont_lab/studies/learning/canonical_sensorimotor_adaptation.py` |
+| 5 | `src/symbiont_lab/studies/campaigns/campaign.py` |
+| 5 | `src/symbiont_lab/studies/learning/canonical_sensorimotor_counterfactual.py` |
 | 5 | `src/symbiont_lab/studies/learning/generative_recombination_construction.py` |
-| 4 | `src/symbiont/actuation/sensorimotor.py` |
-| 4 | `src/symbiont/core/cognition/bridge_checkpoint.py` |
+| 4 | `src/symbiont/actuation/acquisition.py` |
 | 4 | `src/symbiont/core/orchestration/resident.py` |
+| 4 | `src/symbiont/modeling/culture.py` |
 | 4 | `src/symbiont_lab/app/run_controller.py` |
-| 4 | `src/symbiont_lab/physics3d/telemetry/v3.py` |
+| 4 | `src/symbiont_lab/observation/physics3d.py` |
 | 4 | `src/symbiont_lab/physics3d/telemetry/tools.py` |
-| 4 | `src/symbiont_lab/studies/heritage/stress.py` |
+| 4 | `src/symbiont_lab/studies/learning/canonical_sensorimotor_adaptation.py` |
 | 4 | `src/symbiont_lab/studies/learning/canonical_sensorimotor_agency.py` |
 | 4 | `src/symbiont_lab/studies/learning/embodied_model_comparison.py` |
 | 4 | `src/symbiont_lab/studies/learning/generative_counterfactual_utility.py` |
 | 4 | `src/symbiont_lab/studies/learning/structured_communication_characterization.py` |
 | 4 | `src/symbiont_lab/studies/perception/autonomous_selection.py` |
-| 3 | `observatory/server.py` |
+| 4 | `src/symbiont_lab/studies/runtime_prediction_longitudinal.py` |
 | 3 | `src/symbiont/agency/candidates.py` |
-| 3 | `src/symbiont/core/domains/action.py` |
 | 3 | `src/symbiont/core/domains/epistemic.py` |
-| 3 | `src/symbiont/core/signals/prediction.py` |
-| 3 | `src/symbiont/host/hypotheses.py` |
+| 3 | `src/symbiont/core/embodiment/memory.py` |
 | 3 | `src/symbiont_lab/kernel_characterization/runner.py` |
-| 3 | `src/symbiont_lab/modeling/gateway.py` |
 | 3 | `src/symbiont_lab/observation/projection.py` |
-| 3 | `src/symbiont_lab/physics3d/private_model_training.py` |
+| 3 | `src/symbiont_lab/physics3d/reembodiment.py` |
+| 3 | `src/symbiont_lab/physics3d/telemetry/v3.py` |
 | 3 | `src/symbiont_lab/studies/embodiment/label_invariance.py` |
-| 3 | `src/symbiont_lab/studies/learning/signal_knowledge.py` |
-| 3 | `src/symbiont_lab/studies/social_emergence.py` |
-| 3 | `src/symbiont_lab/studies/social_runtime_generations.py` |
-| 3 | `src/symbiont_lab/studies/social_runtime_lifecycle.py` |
-| 3 | `src/symbiont_lab/world/population.py` |
 | 3 | `src/symbiont_lab/world/transaction.py` |
-| 2 | `src/symbiont/actuation/composition.py` |
-| 2 | `src/symbiont/actuation/dimension.py` |
-| 2 | `src/symbiont/actuation/evidence.py` |
-| 2 | `src/symbiont/actuation/intervention.py` |
-| 2 | `src/symbiont/cognition/graph.py` |
-| 2 | `src/symbiont/core/embodiment/reachability.py` |
-| 2 | `src/symbiont/core/social/capsule.py` |
-| 2 | `src/symbiont/host/checkpoint.py` |
-| 2 | `src/symbiont/modeling/episodic.py` |
-| 2 | `src/symbiont/modeling/responsibility.py` |
+| 2 | `observatory/adapter.py` |
+| 2 | `observatory/server.py` |
+| 2 | `src/symbiont/cognition/structure.py` |
+| 2 | `src/symbiont/core/cognition/bridge_checkpoint.py` |
+| 2 | `src/symbiont/genetics/migration.py` |
 | 2 | `src/symbiont/sensory/predictive_credit.py` |
-| 2 | `src/symbiont_lab/cli/experiment.py` |
 | 2 | `src/symbiont_lab/cli/world.py` |
-| 2 | `src/symbiont_lab/integration/integrated_habitat.py` |
-| 2 | `src/symbiont_lab/modeling/outcome_metrics.py` |
-| 2 | `src/symbiont_lab/modeling/trainer.py` |
-| 2 | `src/symbiont_lab/observation/atlas.py` |
+| 2 | `src/symbiont_lab/modeling/gateway.py` |
 | 2 | `src/symbiont_lab/observation/observatory.py` |
-| 2 | `src/symbiont_lab/physics3d/telemetry/v4.py` |
 | 2 | `src/symbiont_lab/server/server.py` |
 | 2 | `src/symbiont_lab/studies/campaigns/comparative.py` |
 | 2 | `src/symbiont_lab/studies/campaigns/interpretation.py` |
-| 2 | `src/symbiont_lab/studies/embodiment/causal_revision_sequence.py` |
+| 2 | `src/symbiont_lab/studies/heritage/stress.py` |
 | 2 | `src/symbiont_lab/studies/learning/temporal_private_model_controls.py` |
-| 2 | `src/symbiont_lab/studies/physiology.py` |
-| 2 | `src/symbiont_lab/studies/reproduction_runtime.py` |
-| 2 | `src/symbiont_lab/studies/runtime_population.py` |
 | 2 | `src/symbiont_lab/studies/runtime_prediction_promotion.py` |
-| 2 | `src/symbiont_lab/studies/shared_habitat_intake.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_adaptation.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_adversarial.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_competition.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_context.py` |
 | 2 | `src/symbiont_lab/studies/social_runtime_context_replay.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_denial_revision.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_emergence.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_longitudinal.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_preference.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_regime_shift.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_replay.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_resource_adaptation.py` |
-| 2 | `src/symbiont_lab/studies/social_runtime_specialization.py` |
 | 2 | `src/symbiont_lab/workbench/runs.py` |
+| 2 | `src/symbiont_lab/world/population.py` |
 | 1 | `observatory/_node_harness.py` |
 | 1 | `observatory/provenance.py` |
+| 1 | `src/symbiont/actuation/sensorimotor.py` |
 | 1 | `src/symbiont/actuation/surface.py` |
 | 1 | `src/symbiont/cognition/generative/consolidation.py` |
 | 1 | `src/symbiont/core/cognition/agent.py` |
+| 1 | `src/symbiont/core/domains/action.py` |
 | 1 | `src/symbiont/core/domains/cognition.py` |
 | 1 | `src/symbiont/core/domains/physiology.py` |
 | 1 | `src/symbiont/core/embodiment/metabolism.py` |
 | 1 | `src/symbiont/core/embodiment/session.py` |
-| 1 | `src/symbiont/core/orchestration/canonical_birth.py` |
 | 1 | `src/symbiont/core/orchestration/runtime.py` |
 | 1 | `src/symbiont/genetics/genome.py` |
-| 1 | `src/symbiont/simulation/snapshots.py` |
-| 1 | `src/symbiont_lab/cli/capsule.py` |
-| 1 | `src/symbiont_lab/cli/organism.py` |
-| 1 | `src/symbiont_lab/evaluation/advisory_evaluation.py` |
-| 1 | `src/symbiont_lab/modeling/determinism.py` |
+| 1 | `src/symbiont/host/checkpoint.py` |
+| 1 | `src/symbiont/modeling/episodic.py` |
+| 1 | `src/symbiont_lab/app/physics3d/session.py` |
+| 1 | `src/symbiont_lab/integration/integrated_habitat.py` |
 | 1 | `src/symbiont_lab/modeling/reservoir.py` |
 | 1 | `src/symbiont_lab/physics3d/environments.py` |
 | 1 | `src/symbiont_lab/physics3d/equivalence.py` |
 | 1 | `src/symbiont_lab/physics3d/monitor.py` |
 | 1 | `src/symbiont_lab/physics3d/observer_semantics.py` |
-| 1 | `src/symbiont_lab/studies/continuity/recurrent_restoration.py` |
-| 1 | `src/symbiont_lab/studies/embodiment/heredity_leakage_challenge.py` |
-| 1 | `src/symbiont_lab/studies/embodiment/integrity_gates.py` |
-| 1 | `src/symbiont_lab/studies/embodiment/somatic_correlation_trap.py` |
-| 1 | `src/symbiont_lab/studies/embodiment/tool_body_distinction.py` |
-| 1 | `src/symbiont_lab/studies/heritage/longitudinal.py` |
+| 1 | `src/symbiont_lab/physics3d/private_model_training.py` |
+| 1 | `src/symbiont_lab/studies/heritage/ecological_shift.py` |
 | 1 | `src/symbiont_lab/studies/integrated_habitat_runtime.py` |
 | 1 | `src/symbiont_lab/studies/learning/cognitive_ecology_embodiment.py` |
-| 1 | `src/symbiont_lab/studies/learning/cognitive_graph_causal_composition.py` |
-| 1 | `src/symbiont_lab/studies/learning/embodied_intervention.py` |
-| 1 | `src/symbiont_lab/studies/learning/embodied_sensorimotor_shadow.py` |
-| 1 | `src/symbiont_lab/studies/learning/predictive_discovery.py` |
-| 1 | `src/symbiont_lab/studies/learning/predictive_utility.py` |
-| 1 | `src/symbiont_lab/studies/learning/structural_producer_fairness.py` |
 | 1 | `src/symbiont_lab/studies/perception/__init__.py` |
-| 1 | `src/symbiont_lab/studies/physics3d/constitution_audit.py` |
-| 1 | `src/symbiont_lab/studies/predictive_development_gates.py` |
-| 1 | `src/symbiont_lab/studies/runtime_prediction_longitudinal.py` |
-| 1 | `src/symbiont_lab/studies/social.py` |
-| 1 | `src/symbiont_lab/studies/social_longitudinal.py` |
-| 1 | `src/symbiont_lab/studies/social_reciprocity.py` |
-| 1 | `src/symbiont_lab/studies/social_specialization.py` |
-| 1 | `src/symbiont_lab/world/persistence.py` |
 
 ## Diagnósticos completos
 
@@ -217,26 +141,17 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `3:6` · **warning** · `reportMissingImports` — Import "observatory.tests._node_harness" could not be resolved
 
-### `observatory/adapter.py` (5)
+### `observatory/adapter.py` (2)
 
-- `984:21` · **error** · `reportOptionalOperand` — Operator ">=" not supported for "None"
-- `988:21` · **error** · `reportOptionalOperand` — Operator ">=" not supported for "None"
 - `1535:43` · **error** · `reportArgumentType` — Argument of type "CognitiveGraph \| None" cannot be assigned to parameter "graph" of type "CognitiveGraph" in function "_developmental_divergence" Type "CognitiveGraph \| None" is not assignable to type "CognitiveGraph" "None" is not assignable to "CognitiveGraph"
-- `1687:10` · **warning** · `reportMissingImports` — Import "symbiont.core.governor" could not be resolved
-- `1688:10` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
+- `1711:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "cultural_observations" for class "OrganismRuntime" Attribute "cultural_observations" is unknown
 
 ### `observatory/provenance.py` (1)
 
 - `134:77` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 
-### `observatory/resident.py` (18)
+### `observatory/resident.py` (12)
 
-- `46:12` · **error** · `reportReturnType` — Type "tuple[int, ...]" is not assignable to return type "tuple[int, int, int]" "tuple[int, ...]" is not assignable to "tuple[int, int, int]" Tuple size mismatch; expected 3 but received indeterminate
-- `175:10` · **warning** · `reportMissingImports` — Import "symbiont.core.capsule" could not be resolved
-- `176:10` · **warning** · `reportMissingImports` — Import "symbiont.core.local_habitat" could not be resolved
-- `191:14` · **warning** · `reportMissingImports` — Import "symbiont.core.cognition_bridge" could not be resolved
-- `196:51` · **error** · `reportAttributeAccessIssue` — "_running_version" is unknown import symbol
-- `239:35` · **error** · `reportArgumentType` — Argument of type "list[JournalSink] \| list[Unknown]" cannot be assigned to parameter "sinks" of type "list[Sink]" in function "__init__" Type "list[JournalSink] \| list[Unknown]" is not assignable to type "list[Sink]" "list[JournalSink]" is not assignable to "list[Sink]" Type parameter "_T@list" is invariant, but "JournalSink" is not the same as "Sink" Consider switching from "list" to "Sequence" which is covariant
 - `417:63` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
 - `417:78` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "models" for class "ModelRegistry" Attribute "models" is unknown
 - `418:32` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "experience_ledger" for class "OrganismRuntime" Attribute "experience_ledger" is unknown
@@ -250,109 +165,31 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `478:38` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
 - `482:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "attach_private_model_bridge" for class "OrganismRuntime" Attribute "attach_private_model_bridge" is unknown
 
-### `observatory/server.py` (3)
+### `observatory/server.py` (2)
 
-- `79:54` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "payload" for class "object" Attribute "payload" is unknown
-- `88:51` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "events_after" for class "object" Attribute "events_after" is unknown
-- `208:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "request" of type "_RequestType" in function "handle_error" Type "object" is not assignable to type "_RequestType" "object" is not assignable to "socket" "object" is not assignable to "tuple[bytes, socket]"
+- `80:54` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "payload" for class "object" Attribute "payload" is unknown
+- `89:51` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "events_after" for class "object" Attribute "events_after" is unknown
 
-### `src/symbiont/actuation/acquisition.py` (12)
+### `src/symbiont/actuation/acquisition.py` (4)
 
 - `745:58` · **error** · `reportOptionalMemberAccess` — "entity_id" is not a known attribute of "None"
 - `746:58` · **error** · `reportOptionalMemberAccess` — "version" is not a known attribute of "None"
 - `828:50` · **error** · `reportOptionalMemberAccess` — "entity_id" is not a known attribute of "None"
 - `828:94` · **error** · `reportOptionalMemberAccess` — "version" is not a known attribute of "None"
-- `1128:28` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `1131:59` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `1136:53` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
-- `1138:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
-- `1142:39` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "object" Attribute "get" is unknown
-- `1143:46` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "object" Attribute "get" is unknown
-- `1144:37` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "object" Attribute "get" is unknown
-- `1151:28` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
-### `src/symbiont/actuation/binding.py` (30)
+### `src/symbiont/actuation/binding.py` (7)
 
 - `151:59` · **error** · `reportOptionalMemberAccess` — "status" is not a known attribute of "None"
 - `151:76` · **error** · `reportOptionalMemberAccess` — "revision" is not a known attribute of "None"
-- `221:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `221:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `222:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
+- `221:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `222:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
+- `222:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `223:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T@list]" in function "__init__" "object" is incompatible with protocol "Iterable[_T@list]" "__iter__" is not present
-- `341:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `341:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `365:13` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
-- `367:37` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
-- `367:42` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" "object" is incompatible with protocol "Iterable[list[bytes]]" "__iter__" is not present
-- `370:37` · **error** · `reportArgumentType` — Argument of type "Literal['revision']" cannot be assigned to parameter "key" of type "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]" in function "__getitem__" "Literal['revision']" is not assignable to "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]"
-- `370:37` · **error** · `reportCallIssue` — No overloads for "__getitem__" match the provided arguments
-- `371:34` · **error** · `reportArgumentType` — Argument of type "Literal['ref_n']" cannot be assigned to parameter "key" of type "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]" in function "__getitem__" "Literal['ref_n']" is not assignable to "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]"
-- `371:34` · **error** · `reportCallIssue` — No overloads for "__getitem__" match the provided arguments
-- `372:34` · **error** · `reportArgumentType` — Argument of type "Literal['ref_k']" cannot be assigned to parameter "key" of type "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]" in function "__getitem__" "Literal['ref_k']" is not assignable to "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]"
-- `372:34` · **error** · `reportCallIssue` — No overloads for "__getitem__" match the provided arguments
-- `373:34` · **error** · `reportArgumentType` — Argument of type "Literal['new_n']" cannot be assigned to parameter "key" of type "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]" in function "__getitem__" "Literal['new_n']" is not assignable to "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]"
-- `373:34` · **error** · `reportCallIssue` — No overloads for "__getitem__" match the provided arguments
-- `374:34` · **error** · `reportArgumentType` — Argument of type "Literal['new_k']" cannot be assigned to parameter "key" of type "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]" in function "__getitem__" "Literal['new_k']" is not assignable to "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]"
-- `374:34` · **error** · `reportCallIssue` — No overloads for "__getitem__" match the provided arguments
-- `375:63` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "bytes" Attribute "get" is unknown
-- `377:37` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
-- `377:42` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" "object" is incompatible with protocol "Iterable[list[bytes]]" "__iter__" is not present
-- `380:39` · **error** · `reportArgumentType` — Argument of type "Literal['executions']" cannot be assigned to parameter "key" of type "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]" in function "__getitem__" "Literal['executions']" is not assignable to "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]"
-- `380:39` · **error** · `reportCallIssue` — No overloads for "__getitem__" match the provided arguments
-- `381:36` · **error** · `reportArgumentType` — Argument of type "Literal['windows']" cannot be assigned to parameter "key" of type "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]" in function "__getitem__" "Literal['windows']" is not assignable to "slice[SupportsIndex \| None, SupportsIndex \| None, SupportsIndex \| None]"
-- `381:36` · **error** · `reportCallIssue` — No overloads for "__getitem__" match the provided arguments
-- `382:63` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "bytes" Attribute "get" is unknown
 
-### `src/symbiont/actuation/commitment.py` (12)
+### `src/symbiont/actuation/sensorimotor.py` (1)
 
-- `114:30` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "effect_target_id" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `117:27` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "competence_id" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `120:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `120:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `123:27` · **error** · `reportArgumentType` — Argument of type "object \| str \| None" cannot be assigned to parameter "embodiment_id" of type "str \| None" in function "__init__" Type "object \| str \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `131:36` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `132:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `132:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `133:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `133:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `139:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `139:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
-### `src/symbiont/actuation/composition.py` (2)
-
-- `117:40` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `117:40` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
-### `src/symbiont/actuation/dimension.py` (2)
-
-- `358:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `358:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
-### `src/symbiont/actuation/effects.py` (5)
-
-- `324:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `324:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `325:21` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `341:21` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `348:13` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
-
-### `src/symbiont/actuation/evidence.py` (2)
-
-- `536:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `536:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
-### `src/symbiont/actuation/intervention.py` (2)
-
-- `337:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `337:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
-### `src/symbiont/actuation/sensorimotor.py` (4)
-
-- `1538:48` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `1848:48` · **error** · `reportOperatorIssue` — Operator ">" not supported for types "int" and "int \| None" Operator ">" not supported for types "int" and "None"
-- `1894:13` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
-- `1897:13` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
 
 ### `src/symbiont/actuation/surface.py` (1)
 
@@ -368,20 +205,8 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `241:17` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "value" of type "str" in function "bounded_identifier" Type "Unknown \| None" is not assignable to type "str" "None" is not assignable to "str"
 
-### `src/symbiont/cognition/graph.py` (2)
+### `src/symbiont/cognition/structure.py` (2)
 
-- `278:22` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `289:22` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-
-### `src/symbiont/cognition/structure.py` (9)
-
-- `276:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `277:26` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `278:25` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `278:25` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `286:20` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `287:19` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `288:26` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "predicts_node_id" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
 - `315:49` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `400:30` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
@@ -404,18 +229,14 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `56:31` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "host_id" for class "HostModel" Attribute "host_id" is unknown
 
-### `src/symbiont/core/cognition/bridge_checkpoint.py` (4)
+### `src/symbiont/core/cognition/bridge_checkpoint.py` (2)
 
-- `287:26` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "entered_tick" of type "int" in function "__init__" Type "Unknown \| None" is not assignable to type "int" "None" is not assignable to "int"
-- `288:33` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "last_evaluated_tick" of type "int" in function "__init__" Type "Unknown \| None" is not assignable to type "int" "None" is not assignable to "int"
-- `349:44` · **error** · `reportArgumentType` — Argument of type "str" cannot be assigned to parameter "kind" of type "MutationKind" in function "__init__" Type "str" is not assignable to type "MutationKind" "str" is not assignable to type "Literal['add_edge']" "str" is not assignable to type "Literal['add_node']" "str" is not assignable to type "Literal['quarantine_edge']" "str" is not assignable to type "Literal['remove_edge']" "str" is not assignable to type "Literal['remove_node']"
-- `359:27` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "eligible_tick" of type "int" in function "__init__" Type "Unknown \| None" is not assignable to type "int" "None" is not assignable to "int"
+- `353:44` · **error** · `reportArgumentType` — Argument of type "str" cannot be assigned to parameter "kind" of type "MutationKind" in function "__init__" Type "str" is not assignable to type "MutationKind" "str" is not assignable to type "Literal['add_edge']" "str" is not assignable to type "Literal['add_node']" "str" is not assignable to type "Literal['quarantine_edge']" "str" is not assignable to type "Literal['remove_edge']" "str" is not assignable to type "Literal['remove_node']"
+- `363:27` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "eligible_tick" of type "int" in function "__init__" Type "Unknown \| None" is not assignable to type "int" "None" is not assignable to "int"
 
-### `src/symbiont/core/domains/action.py` (3)
+### `src/symbiont/core/domains/action.py` (1)
 
-- `2404:22` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `2404:22` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `2568:69` · **error** · `reportArgumentType` — Argument of type "Mapping[Unknown, Unknown]" cannot be assigned to parameter "payload" of type "dict[str, object]" in function "restore" "Mapping[Unknown, Unknown]" is not assignable to "dict[str, object]"
+- `2568:69` · **error** · `reportArgumentType` — Argument of type "Mapping[Unknown, Unknown]" cannot be assigned to parameter "payload" of type "dict[str, Any]" in function "restore" "Mapping[Unknown, Unknown]" is not assignable to "dict[str, Any]"
 
 ### `src/symbiont/core/domains/cognition.py` (1)
 
@@ -431,20 +252,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `81:22` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "update_physiological_state" for class "object" Attribute "update_physiological_state" is unknown
 
-### `src/symbiont/core/embodiment/adaptation.py` (11)
-
-- `188:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `192:36` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `192:36` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `194:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `194:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `199:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `199:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `204:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `204:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `206:33` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `206:33` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
 ### `src/symbiont/core/embodiment/body_schema.py` (7)
 
 - `1435:17` · **error** · `reportOptionalOperand` — Operator ">" not supported for "None"
@@ -455,75 +262,19 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `1447:35` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "opportunity_count" of type "int" in function "__init__" Type "Unknown \| None" is not assignable to type "int" "None" is not assignable to "int"
 - `1448:35` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "last_support_tick" of type "int" in function "__init__" Type "Unknown \| None" is not assignable to type "int" "None" is not assignable to "int"
 
-### `src/symbiont/core/embodiment/dynamics.py` (6)
+### `src/symbiont/core/embodiment/memory.py` (3)
 
-- `164:33` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `165:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `165:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `167:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `168:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `168:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
-### `src/symbiont/core/embodiment/episode.py` (14)
-
-- `223:30` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `223:30` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `259:23` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `259:23` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `260:37` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `260:37` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `264:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `264:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `268:33` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `268:33` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `276:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, object] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, object] \| None" Type "object" is not assignable to type "Mapping[str, object] \| None" "object" is not assignable to "Mapping[str, object]" "object" is not assignable to "None"
-- `285:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, object] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, object] \| None" Type "object" is not assignable to type "Mapping[str, object] \| None" "object" is not assignable to "Mapping[str, object]" "object" is not assignable to "None"
-- `290:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, object] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, object] \| None" Type "object" is not assignable to type "Mapping[str, object] \| None" "object" is not assignable to "Mapping[str, object]" "object" is not assignable to "None"
-- `296:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, object] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, object] \| None" Type "object" is not assignable to type "Mapping[str, object] \| None" "object" is not assignable to "Mapping[str, object]" "object" is not assignable to "None"
-
-### `src/symbiont/core/embodiment/memory.py` (24)
-
-- `132:31` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "body_schema_prior" of type "dict[str, object] \| None" in function "__init__" Type "object \| None" is not assignable to type "dict[str, object] \| None" Type "object" is not assignable to type "dict[str, object] \| None" "object" is not assignable to "dict[str, object]" "object" is not assignable to "None"
-- `133:28` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "dynamics_prior" of type "dict[str, object] \| None" in function "__init__" Type "object \| None" is not assignable to type "dict[str, object] \| None" Type "object" is not assignable to type "dict[str, object] \| None" "object" is not assignable to "dict[str, object]" "object" is not assignable to "None"
-- `134:38` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "execution_binding_priors" of type "dict[str, object] \| None" in function "__init__" Type "object \| None" is not assignable to type "dict[str, object] \| None" Type "object" is not assignable to type "dict[str, object] \| None" "object" is not assignable to "dict[str, object]" "object" is not assignable to "None"
-- `221:30` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `221:30` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `225:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `225:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `226:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `226:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `292:12` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `292:12` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `313:28` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "dynamics_prior" of type "dict[str, object] \| None" in function "__init__" Type "object \| None" is not assignable to type "dict[str, object] \| None" Type "object" is not assignable to type "dict[str, object] \| None" "object" is not assignable to "dict[str, object]" "object" is not assignable to "None"
-- `316:38` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "execution_binding_priors" of type "dict[str, object] \| None" in function "__init__" Type "object \| None" is not assignable to type "dict[str, object] \| None" Type "object" is not assignable to type "dict[str, object] \| None" "object" is not assignable to "dict[str, object]" "object" is not assignable to "None"
-- `328:37` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "historical_causal_state" of type "dict[str, object] \| None" in function "__init__" Type "object \| None" is not assignable to type "dict[str, object] \| None" Type "object" is not assignable to type "dict[str, object] \| None" "object" is not assignable to "dict[str, object]" "object" is not assignable to "None"
-- `380:26` · **error** · `reportArgumentType` — Argument of type "object \| Literal[1]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[1]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `380:26` · **error** · `reportArgumentType` — Argument of type "object \| Literal[1]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[1]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `390:38` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `390:38` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `392:30` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `392:30` · **error** · `reportArgumentType` — Argument of type "object \| Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object \| Literal[0]" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `394:17` · **error** · `reportArgumentType` — Argument of type "Unknown \| object \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Unknown \| object \| None" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `394:17` · **error** · `reportArgumentType` — Argument of type "Unknown \| object \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Unknown \| object \| None" is not assignable to type "ConvertibleToInt" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `407:15` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "object" Attribute "get" is unknown
+- `394:17` · **error** · `reportArgumentType` — Argument of type "Unknown \| Any \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Unknown \| Any \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex" ...
+- `394:17` · **error** · `reportArgumentType` — Argument of type "Unknown \| Any \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Unknown \| Any \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `407:15` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 
 ### `src/symbiont/core/embodiment/metabolism.py` (1)
 
 - `63:21` · **error** · `reportGeneralTypeIssues` — Union syntax cannot be used with string operand; use quotes around entire expression
 
-### `src/symbiont/core/embodiment/reachability.py` (2)
-
-- `102:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `102:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
 ### `src/symbiont/core/embodiment/session.py` (1)
 
 - `127:44` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "port_id" for class "str" Attribute "port_id" is unknown
-
-### `src/symbiont/core/orchestration/canonical_birth.py` (1)
-
-- `25:12` · **error** · `reportReturnType` — Type "tuple[int, ...]" is not assignable to return type "tuple[int, int, int]" "tuple[int, ...]" is not assignable to "tuple[int, int, int]" Tuple size mismatch; expected 3 but received indeterminate
 
 ### `src/symbiont/core/orchestration/resident.py` (4)
 
@@ -536,153 +287,40 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `2248:28` · **error** · `reportOperatorIssue` — Operator "<" not supported for types "Literal['normal', 'elevated', 'severe', 'unrecoverable']" and "float" Operator "<" not supported for types "Literal['normal']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['elevated']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['severe']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['unrecoverable']" and "float" when expected type is "list[str]"
 
-### `src/symbiont/core/signals/knowledge.py` (19)
+### `src/symbiont/core/signals/knowledge.py` (8)
 
-- `151:44` · **error** · `reportOptionalIterable` — Object of type "None" cannot be used as iterable value
 - `183:12` · **error** · `reportOperatorIssue` — Operator "<" not supported for types "int" and "int \| None" Operator "<" not supported for types "int" and "None"
-- `235:26` · **error** · `reportOptionalIterable` — Object of type "None" cannot be used as iterable value
-- `243:17` · **error** · `reportArgumentType` — Argument of type "list[Claim] \| None" cannot be assigned to parameter "obj" of type "Sized" in function "len" Type "list[Claim] \| None" is not assignable to type "Sized" "None" is incompatible with protocol "Sized" "__len__" is not present
-- `244:24` · **error** · `reportArgumentType` — Argument of type "list[Claim] \| None" cannot be assigned to parameter "obj" of type "Sized" in function "len" Type "list[Claim] \| None" is not assignable to type "Sized" "None" is incompatible with protocol "Sized" "__len__" is not present
-- `247:49` · **error** · `reportArgumentType` — Argument of type "list[Claim] \| None" cannot be assigned to parameter "obj" of type "Sized" in function "len" Type "list[Claim] \| None" is not assignable to type "Sized" "None" is incompatible with protocol "Sized" "__len__" is not present
-- `259:18` · **error** · `reportOptionalMemberAccess` — "append" is not a known attribute of "None"
-- `268:22` · **error** · `reportOptionalIterable` — Object of type "None" cannot be used as iterable value
-- `284:50` · **error** · `reportOptionalMemberAccess` — "remove" is not a known attribute of "None"
-- `336:72` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `336:72` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `344:38` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `336:72` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `344:38` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `473:26` · **error** · `reportOptionalIterable` — Object of type "None" cannot be used as iterable value
-- `503:30` · **error** · `reportOptionalIterable` — Object of type "None" cannot be used as iterable value
-- `548:80` · **error** · `reportOptionalIterable` — Object of type "None" cannot be used as iterable value
+- `344:38` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `618:15` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "observed_opportunities" for class "SignalProfile" Expression of type "Unknown \| None" cannot be assigned to attribute "observed_opportunities" of class "SignalProfile" Type "Unknown \| None" is not assignable to type "int" "None" is not assignable to "int"
 - `618:41` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "valid_observations" for class "SignalProfile" Expression of type "Unknown \| None" cannot be assigned to attribute "valid_observations" of class "SignalProfile" Type "Unknown \| None" is not assignable to type "int" "None" is not assignable to "int"
 - `762:16` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_candidate_pairs" for class "SignalKnowledgeEngine*" Expression of type "set[tuple[str, ...]]" cannot be assigned to attribute "_candidate_pairs" of class "SignalKnowledgeEngine" "set[tuple[str, ...]]" is not assignable to "set[tuple[str, str]]" Type parameter "_T@set" is invariant, but "tuple[str, ...]" is not the same as "tuple[str, str]" Consider switching from "set" to "Container" which is covariant
-
-### `src/symbiont/core/signals/prediction.py` (3)
-
-- `194:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `194:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `195:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-
-### `src/symbiont/core/social/capsule.py` (2)
-
-- `8:6` · **warning** · `reportMissingImports` — Import "cryptography.exceptions" could not be resolved
-- `9:6` · **warning** · `reportMissingImports` — Import "cryptography.hazmat.primitives.asymmetric.ed25519" could not be resolved
-
-### `src/symbiont/core/social/ecology.py` (7)
-
-- `135:26` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `135:26` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `136:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `137:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `138:36` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `139:44` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `140:39` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-
-### `src/symbiont/core/social/relations.py` (6)
-
-- `203:40` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `203:40` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `341:40` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `341:40` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `627:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `627:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
 
 ### `src/symbiont/genetics/genome.py` (1)
 
 - `301:22` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "prefix" of type "str" in function "walk" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
 
-### `src/symbiont/genetics/migration.py` (28)
+### `src/symbiont/genetics/migration.py` (2)
 
-- `27:14` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `27:14` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `28:14` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `28:14` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `34:18` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `34:18` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `35:19` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `35:19` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `36:19` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `36:19` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `43:37` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `43:37` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `44:37` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `44:37` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `46:29` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "object" Attribute "get" is unknown
-- `46:29` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
-- `48:33` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `48:33` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `52:49` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `52:49` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `61:40` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `61:40` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `98:36` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `98:36` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `99:45` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `99:45` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `176:27` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "max_nodes" for class "object" Attribute "max_nodes" is unknown
-- `180:27` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "max_edges" for class "object" Attribute "max_edges" is unknown
+- `179:27` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "max_nodes" for class "object" Attribute "max_nodes" is unknown
+- `183:27` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "max_edges" for class "object" Attribute "max_edges" is unknown
 
-### `src/symbiont/host/checkpoint.py` (2)
+### `src/symbiont/host/checkpoint.py` (1)
 
 - `116:54` · **error** · `reportArgumentType` — Argument of type "DriftAwareBaseline" cannot be assigned to parameter "baseline" of type "CapabilityBaseline" in function "consolidate_baseline" "DriftAwareBaseline" is not assignable to "CapabilityBaseline"
-- `276:14` · **warning** · `reportMissingImports` — Import "..core.selfmodel" could not be resolved
 
-### `src/symbiont/host/hypotheses.py` (3)
+### `src/symbiont/modeling/culture.py` (4)
 
-- `174:39` · **error** · `reportArgumentType` — Argument of type "tuple[str, ...]" cannot be assigned to parameter "key" of type "tuple[str, str]" in function "setdefault" "tuple[str, ...]" is not assignable to "tuple[str, str]" Tuple size mismatch; expected 2 but received indeterminate
-- `174:61` · **error** · `reportArgumentType` — Argument of type "tuple[str, ...]" cannot be assigned to parameter "source_ids" of type "tuple[str, str]" in function "__init__" "tuple[str, ...]" is not assignable to "tuple[str, str]" Tuple size mismatch; expected 2 but received indeterminate
-- `221:13` · **error** · `reportArgumentType` — Argument of type "tuple[str, ...]" cannot be assigned to parameter "key" of type "tuple[str, str]" in function "__setitem__" "tuple[str, ...]" is not assignable to "tuple[str, str]" Tuple size mismatch; expected 2 but received indeterminate
-
-### `src/symbiont/modeling/culture.py` (31)
-
-- `118:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "decision_tick" of type "int" in function "__init__" "object" is not assignable to "int"
-- `121:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `122:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "selected_recipient_id" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `123:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "cost" of type "int" in function "__init__" "object" is not assignable to "int"
-- `390:18` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "seed" of type "int" in function "__init__" "object" is not assignable to "int"
-- `391:43` · **error** · `reportCallIssue` — Argument expression after ** must be a mapping with a "str" key type
-- `628:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `631:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `632:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `633:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "created_tick_class" of type "int" in function "__init__" "object" is not assignable to "int"
-- `634:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "received_tick_class" of type "int \| None" in function "__init__" Type "object \| None" is not assignable to type "int \| None" Type "object" is not assignable to type "int \| None" "object" is not assignable to "int" "object" is not assignable to "None"
-- `636:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "confidence_class" of type "int" in function "__init__" "object" is not assignable to "int"
-- `637:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "transmission_depth" of type "int" in function "__init__" "object" is not assignable to "int"
-- `638:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "mutation_depth" of type "int" in function "__init__" "object" is not assignable to "int"
-- `735:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "max_claims" of type "int" in function "__init__" "object" is not assignable to "int"
-- `841:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `842:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `843:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `844:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `845:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "generation" of type "int" in function "__init__" "object" is not assignable to "int"
-- `846:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "created_tick_class" of type "int" in function "__init__" "object" is not assignable to "int"
-- `947:36` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "max_composites" of type "int" in function "__init__" "object" is not assignable to "int"
 - `1182:47` · **error** · `reportOptionalMemberAccess` — "generation" is not a known attribute of "None"
 - `1232:17` · **error** · `reportArgumentType` — Argument of type "list[SocialClaim \| None]" cannot be assigned to parameter "iterable" of type "Iterable[SocialClaim]" in function "extend"
-- `1341:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "max_claims" of type "int" in function "__init__" "object" is not assignable to "int"
-- `1342:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "max_assessments" of type "int" in function "__init__" "object" is not assignable to "int"
-- `1343:28` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "max_composites" of type "int" in function "__init__" "object" is not assignable to "int"
-- `1345:44` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, object] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, object] \| None" Type "object" is not assignable to type "Mapping[str, object] \| None" "object" is not assignable to "Mapping[str, object]" "object" is not assignable to "None"
-- `1354:13` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "payload" of type "Mapping[str, object] \| None" in function "restore" Type "object \| None" is not assignable to type "Mapping[str, object] \| None" Type "object" is not assignable to type "Mapping[str, object] \| None" "object" is not assignable to "Mapping[str, object]" "object" is not assignable to "None"
 - `1428:44` · **error** · `reportOptionalMemberAccess` — "transmission_depth" is not a known attribute of "None"
 - `1431:44` · **error** · `reportOptionalMemberAccess` — "mutation_depth" is not a known attribute of "None"
 
-### `src/symbiont/modeling/episodic.py` (2)
+### `src/symbiont/modeling/episodic.py` (1)
 
-- `235:26` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "action_token" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
 - `1225:17` · **error** · `reportArgumentType` — Argument of type "float" cannot be assigned to parameter "value" of type "int" in function "__setitem__" "float" is not assignable to "int"
-
-### `src/symbiont/modeling/experience.py` (8)
-
-- `152:58` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `152:72` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `152:86` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `168:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "record_id" of type "str" in function "__init__" "object" is not assignable to "str"
-- `169:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "organism_id" of type "str" in function "__init__" "object" is not assignable to "str"
-- `171:38` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `173:38` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `175:37` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
 
 ### `src/symbiont/modeling/private_runtime.py` (6)
 
@@ -692,21 +330,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `921:17` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_pending_outcome_value_credit" for class "ModeledOrganismRuntime" Attribute "_pending_outcome_value_credit" is unknown
 - `922:20` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "_prospective_agency" for class "ModeledOrganismRuntime" Attribute "_prospective_agency" is unknown
 - `936:25` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_prospective_agency" for class "ModeledOrganismRuntime" Attribute "_prospective_agency" is unknown
-
-### `src/symbiont/modeling/registry.py` (7)
-
-- `190:26` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "model_id" of type "str" in function "__init__" "object" is not assignable to "str"
-- `191:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "organism_id" of type "str" in function "__init__" "object" is not assignable to "str"
-- `193:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "corpus_hash" of type "str" in function "__init__" "object" is not assignable to "str"
-- `194:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "tokenizer_hash" of type "str" in function "__init__" "object" is not assignable to "str"
-- `200:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "artifact_hash" of type "str" in function "__init__" "object" is not assignable to "str"
-- `204:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `209:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-
-### `src/symbiont/modeling/responsibility.py` (2)
-
-- `121:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `122:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 
 ### `src/symbiont/modeling/runtime.py` (9)
 
@@ -720,158 +343,35 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `1695:28` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 - `1698:67` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 
-### `src/symbiont/modeling/sequences.py` (8)
-
-- `122:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "decision_id" of type "str" in function "__init__" "object" is not assignable to "str"
-- `123:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "organism_id" of type "str" in function "__init__" "object" is not assignable to "str"
-- `124:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "decision_tick" of type "int" in function "__init__" "object" is not assignable to "int"
-- `125:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "candidate_set_digest" of type "str" in function "__init__" "object" is not assignable to "str"
-- `127:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "selected_sequence_id" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `129:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "selected_recipient_id" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `130:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "cost" of type "int" in function "__init__" "object" is not assignable to "int"
-- `327:52` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "max_associations" of type "int" in function "__init__" "object" is not assignable to "int"
-
-### `src/symbiont/modeling/symbols.py` (16)
-
-- `110:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "decision_tick" of type "int" in function "__init__" "object" is not assignable to "int"
-- `113:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "selected_symbol_id" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `114:17` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "selected_recipient_id" of type "str \| None" in function "__init__" Type "object \| None" is not assignable to type "str \| None" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `115:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "cost" of type "int" in function "__init__" "object" is not assignable to "int"
-- `348:20` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "obj" of type "Sized" in function "len" "object" is incompatible with protocol "Sized" "__len__" is not present
-- `353:20` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "obj" of type "Sized" in function "len" "object" is incompatible with protocol "Sized" "__len__" is not present
-- `356:52` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "max_associations" of type "int" in function "__init__" "object" is not assignable to "int"
-- `357:20` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `359:20` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `364:20` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "obj" of type "Sized" in function "len" "object" is incompatible with protocol "Sized" "__len__" is not present
-- `367:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[dict[str, object]]" in function "extend" "object" is incompatible with protocol "Iterable[dict[str, object]]" "__iter__" is not present
-- `623:16` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "obj" of type "Sized" in function "len" "object" is incompatible with protocol "Sized" "__len__" is not present
-- `627:18` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "seed" of type "int" in function "__init__" "object" is not assignable to "int"
-- `628:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
-- `629:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "max_bias_entries" of type "int" in function "__init__" "object" is not assignable to "int"
-- `631:20` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-
 ### `src/symbiont/sensory/predictive_credit.py` (2)
 
 - `110:23` · **error** · `reportArgumentType` — Argument of type "Any \| None" cannot be assigned to parameter "source_id" of type "str" in function "__init__" Type "Any \| None" is not assignable to type "str" "None" is not assignable to "str"
 - `111:23` · **error** · `reportArgumentType` — Argument of type "Any \| None" cannot be assigned to parameter "target_id" of type "str" in function "__init__" Type "Any \| None" is not assignable to type "str" "None" is not assignable to "str"
 
-### `src/symbiont/simulation/snapshots.py` (1)
+### `src/symbiont_lab/app/physics3d/monitor/viewer.py` (18)
 
-- `8:10` · **warning** · `reportMissingImports` — Import "symbiont.core.curiosity" could not be resolved
+- `328:43` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "mean" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `328:73` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "mean" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `329:29` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "control" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `329:46` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "control" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `331:39` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "mean" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `332:39` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "mean" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `335:45` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "mean" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `336:45` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "mean" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `339:38` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "mean" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `340:38` · **error** · `reportArgumentType` — Argument of type "Sequence[Mapping[str, Any]]" cannot be assigned to parameter "sample" of type "list[Mapping[str, Any]]" in function "mean" "Sequence[Mapping[str, Any]]" is not assignable to "list[Mapping[str, Any]]"
+- `377:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "Process" for class "BaseContext" Attribute "Process" is unknown
+- `2139:38` · **error** · `reportArgumentType` — Argument of type "bytearray" cannot be assigned to parameter "data" of type "bytes \| SupportsArrayInterface" in function "frombuffer" Type "bytearray" is not assignable to type "bytes \| SupportsArrayInterface" "bytearray" is not assignable to "bytes" Set disableBytesTypePromotions to false to enable type promotion behavior for "bytearray" and "memoryview" "bytearray" is incompatible with protocol "SupportsArrayInterface" "__array_interface__" is not present
+- `2245:47` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `2246:43` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `2282:37` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `2306:32` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `2437:38` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `2456:38` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
 
-### `src/symbiont_lab/app/physics3d/monitor/viewer.py` (80)
-
-- `243:16` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `243:16` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `258:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `259:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `270:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `271:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `288:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `288:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `289:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `289:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `310:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `311:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `346:37` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `355:50` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `358:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `382:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `382:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `415:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "Process" for class "BaseContext" Attribute "Process" is unknown
-- `565:51` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `565:77` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `569:26` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `570:25` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `571:26` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `571:57` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `576:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T@list]" in function "__init__" "object" is incompatible with protocol "Iterable[_T@list]" "__iter__" is not present
-- `577:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T@list]" in function "__init__" "object" is incompatible with protocol "Iterable[_T@list]" "__iter__" is not present
-- `581:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T@list]" in function "__init__" "object" is incompatible with protocol "Iterable[_T@list]" "__iter__" is not present
-- `602:15` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `603:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `604:17` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `793:16` · **warning** · `reportMissingImports` — Import "numpy" could not be resolved
-- `794:16` · **warning** · `reportMissingImports` — Import "pybullet" could not be resolved
-- `795:14` · **warning** · `reportMissingImports` — Import "PIL" could not be resolved
-- `1062:9` · **error** · `reportArgumentType` — Argument of type "tuple[Canvas, int]" cannot be assigned to parameter "value" of type "Canvas" in function "__setitem__" "tuple[Canvas, int]" is not assignable to "Canvas"
-- `2037:33` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2037:33` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2039:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2039:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2040:55` · **error** · `reportArgumentType` — Argument of type "list[dict[Unknown, Unknown]]" cannot be assigned to parameter "records" of type "list[Mapping[str, object]]" in function "_event_context" "list[dict[Unknown, Unknown]]" is not assignable to "list[Mapping[str, object]]" Type parameter "_T@list" is invariant, but "dict[Unknown, Unknown]" is not the same as "Mapping[str, object]" Consider switching from "list" to "Sequence" which is covariant
-- `2050:33` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2050:33` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2052:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2052:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2053:55` · **error** · `reportArgumentType` — Argument of type "list[dict[Unknown, Unknown]]" cannot be assigned to parameter "records" of type "list[Mapping[str, object]]" in function "_event_context" "list[dict[Unknown, Unknown]]" is not assignable to "list[Mapping[str, object]]" Type parameter "_T@list" is invariant, but "dict[Unknown, Unknown]" is not the same as "Mapping[str, object]" Consider switching from "list" to "Sequence" which is covariant
-- `2170:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2170:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2173:41` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2173:41` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2175:47` · **error** · `reportArgumentType` — Argument of type "list[dict[str, object]]" cannot be assigned to parameter "records" of type "list[Mapping[str, object]]" in function "_event_context" "list[dict[str, object]]" is not assignable to "list[Mapping[str, object]]" Type parameter "_T@list" is invariant, but "dict[str, object]" is not the same as "Mapping[str, object]" Consider switching from "list" to "Sequence" which is covariant
-- `2448:47` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `2449:43` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `2458:47` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2485:37` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `2492:33` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `2509:32` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `2521:45` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `2640:38` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `2649:26` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `2659:38` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "pos" of type "tuple[float, float, float]" in function "_project" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `2709:26` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `2775:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2776:36` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2780:54` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2801:24` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `2802:26` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
-- `2805:18` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `2877:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2877:24` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2884:79` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2884:79` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2914:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2914:30` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `2980:28` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `2980:28` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `3007:16` · **error** · `reportArgumentType` — Argument of type "list[float]" cannot be assigned to parameter "values" of type "list[float \| None]" in function "series" "list[float]" is not assignable to "list[float \| None]" Type parameter "_T@list" is invariant, but "float" is not the same as "float \| None" Consider switching from "list" to "Sequence" which is covariant
-- `3008:16` · **error** · `reportArgumentType` — Argument of type "list[float]" cannot be assigned to parameter "values" of type "list[float \| None]" in function "series" "list[float]" is not assignable to "list[float \| None]" Type parameter "_T@list" is invariant, but "float" is not the same as "float \| None" Consider switching from "list" to "Sequence" which is covariant
-- `3056:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `3056:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `3058:39` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `3058:39` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-
-### `src/symbiont_lab/app/physics3d/session.py` (28)
+### `src/symbiont_lab/app/physics3d/session.py` (1)
 
 - `88:55` · **error** · `reportArgumentType` — Argument of type "ObservationBus" cannot be assigned to parameter "sink" of type "EventSink" in function "__init__" "ObservationBus" is incompatible with protocol "EventSink" "push" is an incompatible type Type "(event: dict[str, Any]) -> int" is not assignable to type "(event: dict[str, Any]) -> None" Function return type "int" is incompatible with type "None" "int" is not assignable to "None"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "ancestry_training" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "body_file" of type "Path" in function "run" "object" is not assignable to "Path"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "body_kind" of type "str" in function "run" "object" is not assignable to "str"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "checkpoint_interval" of type "int" in function "run" "object" is not assignable to "int"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "cognition_hz" of type "int" in function "run" "object" is not assignable to "int"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "enable_slm" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "environment" of type "str \| None" in function "run" Type "object" is not assignable to type "str \| None" "object" is not assignable to "str" "object" is not assignable to "None"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "factorized_effects" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "fresh_body" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "headless" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "hz" of type "int" in function "run" "object" is not assignable to "int"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "measurement_file" of type "Path \| None" in function "run" Type "object" is not assignable to type "Path \| None" "object" is not assignable to "Path" "object" is not assignable to "None"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "mechanical_work_cost_per_joule" of type "float" in function "run" "object" is not assignable to "float"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "new_symbiont" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "observation_hz" of type "int \| None" in function "run" Type "object" is not assignable to type "int \| None" "object" is not assignable to "int" "object" is not assignable to "None"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "paired_promotion_file" of type "Path \| None" in function "run" Type "object" is not assignable to type "Path \| None" "object" is not assignable to "Path" "object" is not assignable to "None"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "provenance_journal" of type "Path \| None" in function "run" Type "object" is not assignable to type "Path \| None" "object" is not assignable to "Path" "object" is not assignable to "None"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "render_hz" of type "int \| None" in function "run" Type "object" is not assignable to type "int \| None" "object" is not assignable to "int" "object" is not assignable to "None"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "seed" of type "int" in function "run" "object" is not assignable to "int"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "show_monitor" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "slm_device" of type "str" in function "run" "object" is not assignable to "str"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "slm_synchronous" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "slm_train_interval" of type "int" in function "run" "object" is not assignable to "int"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "symbiont_file" of type "Path" in function "run" "object" is not assignable to "Path"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "telemetry_file" of type "Path" in function "run" "object" is not assignable to "Path"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "telemetry_physics_trace" of type "bool" in function "run" "object" is not assignable to "bool"
-- `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "ticks" of type "int" in function "run" "object" is not assignable to "int"
 
 ### `src/symbiont_lab/app/run_controller.py` (4)
 
@@ -880,122 +380,57 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `119:25` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_process" for class "RunController*" Type "SpawnProcess" is not assignable to type "Process \| None" "SpawnProcess" is not assignable to "Process" "SpawnProcess" is not assignable to "None"
 - `124:23` · **error** · `reportOptionalMemberAccess` — "start" is not a known attribute of "None"
 
-### `src/symbiont_lab/cli/archive.py` (8)
-
-- `63:24` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
-- `63:24` · **error** · `reportCallIssue` — No overloads for "get" match the provided arguments
-- `63:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" "object" is incompatible with protocol "Iterable[list[bytes]]" "__iter__" is not present
-- `63:60` · **error** · `reportArgumentType` — Argument of type "Literal['parameter_value']" cannot be assigned to parameter "key" of type "bytes" in function "get" "Literal['parameter_value']" is not assignable to "bytes"
-- `64:23` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
-- `64:23` · **error** · `reportCallIssue` — No overloads for "get" match the provided arguments
-- `64:28` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" "object" is incompatible with protocol "Iterable[list[bytes]]" "__iter__" is not present
-- `64:58` · **error** · `reportArgumentType` — Argument of type "Literal['parameter_value']" cannot be assigned to parameter "key" of type "bytes" in function "get" "Literal['parameter_value']" is not assignable to "bytes"
-
-### `src/symbiont_lab/cli/capsule.py` (1)
-
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.capsule" could not be resolved
-
-### `src/symbiont_lab/cli/experiment.py` (2)
-
-- `6:6` · **warning** · `reportMissingImports` — Import "rich.console" could not be resolved
-- `7:6` · **warning** · `reportMissingImports` — Import "rich.progress" could not be resolved
-
-### `src/symbiont_lab/cli/organism.py` (1)
-
-- `58:10` · **warning** · `reportMissingImports` — Import "symbiont.core.epistemic" could not be resolved
-
 ### `src/symbiont_lab/cli/world.py` (2)
 
 - `8:6` · **warning** · `reportMissingImports` — Import "observatory.config" could not be resolved
 - `9:6` · **warning** · `reportMissingImports` — Import "observatory.server" could not be resolved
 
-### `src/symbiont_lab/evaluation/advisory_evaluation.py` (1)
+### `src/symbiont_lab/integration/integrated_habitat.py` (1)
 
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.advisory" could not be resolved
-
-### `src/symbiont_lab/integration/integrated_habitat.py` (2)
-
-- `16:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `237:9` · **error** · `reportArgumentType` — Argument of type "OrganismRuntime" cannot be assigned to parameter "value" of type "ModeledOrganismRuntime" in function "__setitem__" "OrganismRuntime" is not assignable to "ModeledOrganismRuntime"
+- `236:9` · **error** · `reportArgumentType` — Argument of type "OrganismRuntime" cannot be assigned to parameter "value" of type "ModeledOrganismRuntime" in function "__setitem__" "OrganismRuntime" is not assignable to "ModeledOrganismRuntime"
 
 ### `src/symbiont_lab/kernel_characterization/runner.py` (3)
 
-- `15:6` · **warning** · `reportMissingImports` — Import "symbiont.core.consolidation" could not be resolved
-- `16:6` · **warning** · `reportMissingImports` — Import "symbiont.core.weight_stability" could not be resolved
-- `213:55` · **error** · `reportOptionalMemberAccess` — "graph" is not a known attribute of "None"
+- `216:55` · **error** · `reportOptionalMemberAccess` — "graph" is not a known attribute of "None"
+- `660:50` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "obj" of type "Sized" in function "len" "object" is incompatible with protocol "Sized" "__len__" is not present
+- `675:44` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "obj" of type "Sized" in function "len" "object" is incompatible with protocol "Sized" "__len__" is not present
 
-### `src/symbiont_lab/modeling/architectures.py` (12)
+### `src/symbiont_lab/modeling/gateway.py` (2)
 
-- `153:27` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
-- `153:27` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `154:24` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
-- `154:24` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `155:20` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
-- `155:20` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `156:19` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
-- `156:19` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `157:29` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
-- `157:29` · **error** · `reportArgumentType` — Argument of type "int \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "int \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `164:16` · **warning** · `reportMissingImports` — Import "torch" could not be resolved
-- `165:16` · **warning** · `reportMissingImports` — Import "torch.nn" could not be resolved
-
-### `src/symbiont_lab/modeling/determinism.py` (1)
-
-- `20:12` · **warning** · `reportMissingImports` — Import "torch" could not be resolved
-
-### `src/symbiont_lab/modeling/gateway.py` (3)
-
-- `14:16` · **warning** · `reportMissingImports` — Import "torch" could not be resolved
 - `119:29` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "parameters" for class "object" Attribute "parameters" is unknown
 - `123:22` · **error** · `reportCallIssue` — Object of type "object" is not callable Attribute "__call__" is unknown
-
-### `src/symbiont_lab/modeling/outcome_metrics.py` (2)
-
-- `11:16` · **warning** · `reportMissingImports` — Import "torch" could not be resolved
-- `12:16` · **warning** · `reportMissingImports` — Import "torch.nn.functional" could not be resolved
 
 ### `src/symbiont_lab/modeling/reservoir.py` (1)
 
 - `179:9` · **warning** · `reportUnusedExpression` — Expression value is unused
 
-### `src/symbiont_lab/modeling/trainer.py` (2)
-
-- `105:16` · **warning** · `reportMissingImports` — Import "torch" could not be resolved
-- `106:16` · **warning** · `reportMissingImports` — Import "torch.nn.functional" could not be resolved
-
-### `src/symbiont_lab/observation/atlas.py` (2)
-
-- `473:28` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
-- `473:33` · **error** · `reportArgumentType` — Argument of type "Unknown \| dict[Unknown, Unknown] \| None" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" Type "Unknown \| dict[Unknown, Unknown] \| None" is not assignable to type "Iterable[list[bytes]]" "None" is incompatible with protocol "Iterable[list[bytes]]" "__iter__" is not present
-
 ### `src/symbiont_lab/observation/observatory.py` (2)
 
-- `152:49` · **error** · `reportArgumentType` — Argument of type "Unknown \| float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "Unknown \| float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `152:49` · **error** · `reportArgumentType` — Argument of type "Unknown \| float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "Unknown \| float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
+- `152:49` · **error** · `reportArgumentType` — Argument of type "Unknown \| float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "Unknown \| float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 
-### `src/symbiont_lab/observation/physics3d.py` (5)
+### `src/symbiont_lab/observation/physics3d.py` (4)
 
-- `187:29` · **error** · `reportArgumentType` — Argument of type "DataclassInstance \| type[DataclassInstance]" cannot be assigned to parameter "obj" of type "DataclassInstance" in function "asdict" Type "DataclassInstance \| type[DataclassInstance]" is not assignable to type "DataclassInstance" "__dataclass_fields__" is defined as a ClassVar in protocol
-- `272:30` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Unknown \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `272:30` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Unknown \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `298:30` · **error** · `reportArgumentType` — Argument of type "Any \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Any \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `272:30` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Unknown \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `298:30` · **error** · `reportArgumentType` — Argument of type "Any \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Any \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex" ...
+- `298:30` · **error** · `reportArgumentType` — Argument of type "Any \| None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "Any \| None" is not assignable to type "ConvertibleToInt" Type "None" is not assignable to type "ConvertibleToInt" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsInt" "__int__" is not present "None" is incompatible with protocol "SupportsIndex"
 
 ### `src/symbiont_lab/observation/projection.py` (3)
 
 - `194:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `297:39` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "Unknown \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `297:39` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "Unknown \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
+- `297:39` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "Unknown \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 
 ### `src/symbiont_lab/physics3d/engine.py` (12)
 
 - `493:13` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "attach_existing" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
-- `597:38` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `597:38` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `598:47` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
+- `597:38` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `598:47` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `599:46` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
+- `598:47` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `599:46` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
+- `599:46` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `600:53` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `601:58` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `602:47` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
@@ -1014,13 +449,13 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `842:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `843:35` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `924:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `924:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
+- `924:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `925:55` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `926:53` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `927:47` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `928:37` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `928:37` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
+- `928:37` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 
 ### `src/symbiont_lab/physics3d/monitor.py` (1)
 
@@ -1030,35 +465,17 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `36:32` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "name" for class "object" Attribute "name" is unknown
 
-### `src/symbiont_lab/physics3d/private_model_training.py` (3)
+### `src/symbiont_lab/physics3d/private_model_training.py` (1)
 
-- `84:12` · **warning** · `reportMissingImports` — Import "torch" could not be resolved
-- `85:12` · **warning** · `reportMissingImports` — Import "torch.nn.functional" could not be resolved
 - `517:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "note_retirement_deferred" for class "_PrivateModelRuntime" Attribute "note_retirement_deferred" is unknown
 
-### `src/symbiont_lab/physics3d/reembodiment.py` (19)
+### `src/symbiont_lab/physics3d/reembodiment.py` (3)
 
-- `86:8` · **error** · `reportOptionalOperand` — Operator "<=" not supported for "None"
-- `86:29` · **error** · `reportOptionalOperand` — Operator "<" not supported for "None"
-- `89:20` · **error** · `reportOptionalOperand` — Operator "-" not supported for "None"
-- `95:12` · **error** · `reportOptionalOperand` — Operator "-" not supported for "None"
-- `102:16` · **error** · `reportOperatorIssue` — Operator "-" not supported for types "int" and "Unknown \| None" Operator "-" not supported for types "int" and "None" when expected type is "SupportsAbs[Unknown]"
-- `102:49` · **error** · `reportOperatorIssue` — Operator "-" not supported for types "int" and "Any \| None" Operator "-" not supported for types "int" and "None" when expected type is "SupportsAbs[Any \| Unknown]"
-- `109:20` · **error** · `reportOperatorIssue` — Operator "-" not supported for types "int" and "Unknown \| None" Operator "-" not supported for types "int" and "None" when expected type is "SupportsAbs[Unknown]"
-- `109:58` · **error** · `reportOperatorIssue` — Operator "-" not supported for types "int" and "Any \| None" Operator "-" not supported for types "int" and "None" when expected type is "SupportsAbs[Any \| Unknown]"
-- `652:13` · **error** · `reportOptionalMemberAccess` — "append" is not a known attribute of "None"
-- `668:15` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `754:5` · **error** · `reportCallIssue` — No overloads for "update" match the provided arguments
-- `754:20` · **error** · `reportArgumentType` — Argument of type "dict[str, object]" cannot be assigned to parameter "m" of type "Iterable[tuple[str, int]]" in function "update" "dict[str, object]" is not assignable to "Iterable[tuple[str, int]]" Type parameter "_T_co@Iterable" is covariant, but "str" is not a subtype of "tuple[str, int]" "str" is not assignable to "tuple[str, int]"
-- `755:5` · **error** · `reportArgumentType` — Argument of type "str" cannot be assigned to parameter "value" of type "int" in function "__setitem__" "str" is not assignable to "int"
-- `771:9` · **error** · `reportArgumentType` — Argument of type "str" cannot be assigned to parameter "value" of type "int" in function "__setitem__" "str" is not assignable to "int"
-- `782:13` · **error** · `reportArgumentType` — Argument of type "str" cannot be assigned to parameter "value" of type "int" in function "__setitem__" "str" is not assignable to "int"
-- `789:9` · **error** · `reportArgumentType` — Argument of type "dict[str, Any]" cannot be assigned to parameter "value" of type "int" in function "__setitem__" "dict[str, Any]" is not assignable to "int"
-- `796:20` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `806:21` · **error** · `reportArgumentType` — Argument of type "int \| Unknown \| dict[str, Any] \| None" cannot be assigned to parameter "metrics" of type "Mapping[str, Any] \| None" in function "build_epoch_summary" Type "int \| Unknown \| dict[str, Any] \| None" is not assignable to type "Mapping[str, Any] \| None" Type "int" is not assignable to type "Mapping[str, Any] \| None" "int" is not assignable to "Mapping[str, Any]" "int" is not assignable to "None"
-- `811:9` · **error** · `reportArgumentType` — Argument of type "dict[str, Any]" cannot be assigned to parameter "value" of type "int" in function "__setitem__" "dict[str, Any]" is not assignable to "int"
+- `656:13` · **error** · `reportOptionalMemberAccess` — "append" is not a known attribute of "None"
+- `672:15` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
+- `800:20` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
 
-### `src/symbiont_lab/physics3d/resource.py` (13)
+### `src/symbiont_lab/physics3d/resource.py` (6)
 
 - `44:28` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "createCollisionShape" for class "object" Attribute "createCollisionShape" is unknown
 - `45:20` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "GEOM_SPHERE" for class "object" Attribute "GEOM_SPHERE" is unknown
@@ -1066,24 +483,15 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `50:20` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "GEOM_SPHERE" for class "object" Attribute "GEOM_SPHERE" is unknown
 - `55:31` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "createMultiBody" for class "object" Attribute "createMultiBody" is unknown
 - `86:27` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "getContactPoints" for class "object" Attribute "getContactPoints" is unknown
-- `135:16` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `135:16` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `137:52` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `144:26` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `145:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `146:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `147:37` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 
-### `src/symbiont_lab/physics3d/runtime.py` (28)
+### `src/symbiont_lab/physics3d/runtime.py` (25)
 
-- `243:20` · **warning** · `reportMissingImports` — Import "pybullet" could not be resolved
-- `253:68` · **error** · `reportArgumentType` — Argument of type "dict[Unknown, Unknown] \| object \| None" cannot be assigned to parameter "saved" of type "dict[Unknown, Unknown] \| None" in function "resolve_environment" Type "dict[Unknown, Unknown] \| object \| None" is not assignable to type "dict[Unknown, Unknown] \| None" Type "object" is not assignable to type "dict[Unknown, Unknown] \| None" "object" is not assignable to "dict[Unknown, Unknown]" "object" is not assignable to "None"
 - `387:54` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "distance_to" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
 - `730:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 - `734:48` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
-- `764:17` · **error** · `reportArgumentType` — Argument of type "Any \| Mapping[Unknown, Unknown] \| None" cannot be assigned to parameter "payload" of type "Mapping[str, object]" in function "restore" Type "Any \| Mapping[Unknown, Unknown] \| None" is not assignable to type "Mapping[str, object]" "None" is not assignable to "Mapping[str, object]"
-- `1091:35` · **error** · `reportArgumentType` — Argument of type "object \| Any \| None" cannot be assigned to parameter "body_schema_prior" of type "Mapping[str, object] \| None" in function "archive_episode_checkpoint" Type "object \| Any \| None" is not assignable to type "Mapping[str, object] \| None" Type "object" is not assignable to type "Mapping[str, object] \| None" "object" is not assignable to "Mapping[str, object]" "object" is not assignable to "None"
-- `1094:29` · **error** · `reportArgumentType` — Argument of type "object \| Any \| None" cannot be assigned to parameter "living_body" of type "Mapping[str, object] \| None" in function "archive_episode_checkpoint" Type "object \| Any \| None" is not assignable to type "Mapping[str, object] \| None" Type "object" is not assignable to type "Mapping[str, object] \| None" "object" is not assignable to "Mapping[str, object]" "object" is not assignable to "None"
+- `764:17` · **error** · `reportArgumentType` — Argument of type "Any \| Mapping[Unknown, Unknown] \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any]" in function "restore" Type "Any \| Mapping[Unknown, Unknown] \| None" is not assignable to type "Mapping[str, Any]" "None" is not assignable to "Mapping[str, Any]"
+- `1091:35` · **error** · `reportArgumentType` — Argument of type "object \| Any \| None" cannot be assigned to parameter "body_schema_prior" of type "Mapping[str, Any] \| None" in function "archive_episode_checkpoint" Type "object \| Any \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
+- `1094:29` · **error** · `reportArgumentType` — Argument of type "object \| Any \| None" cannot be assigned to parameter "living_body" of type "Mapping[str, Any] \| None" in function "archive_episode_checkpoint" Type "object \| Any \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
 - `1523:49` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "field_at" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
 - `1744:55` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "distance_to" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
 - `1863:76` · **error** · `reportOptionalMemberAccess` — "surface_fingerprint" is not a known attribute of "None"
@@ -1103,14 +511,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `2369:50` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "last_prospective_cost" for class "ModeledOrganismRuntime" Attribute "last_prospective_cost" is unknown
 - `2459:26` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `2462:49` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `2485:16` · **warning** · `reportMissingImports` — Import "numpy" could not be resolved
-
-### `src/symbiont_lab/physics3d/telemetry/v3.py` (4)
-
-- `60:23` · **error** · `reportArgumentType` — Argument of type "DataclassInstance \| type[DataclassInstance]" cannot be assigned to parameter "obj" of type "DataclassInstance" in function "asdict" Type "DataclassInstance \| type[DataclassInstance]" is not assignable to type "DataclassInstance" "__dataclass_fields__" is defined as a ClassVar in protocol
-- `249:19` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
-- `249:24` · **error** · `reportArgumentType` — Argument of type "Mapping[str, Any] \| None" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" Type "Mapping[str, Any] \| None" is not assignable to type "Iterable[list[bytes]]" "Mapping[str, Any]" is not assignable to "Iterable[list[bytes]]" Type parameter "_T_co@Iterable" is covariant, but "str" is not a subtype of "list[bytes]" "str" is not assignable to "list[bytes]"
-- `369:57` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
 ### `src/symbiont_lab/physics3d/telemetry/binary.py` (6)
 
@@ -1128,43 +528,42 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `102:23` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "iter_records" for class "TelemetryReaderProtocol" Attribute "iter_records" is unknown
 - `180:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "iter_records" for class "TelemetryReaderProtocol" Attribute "iter_records" is unknown
 
-### `src/symbiont_lab/physics3d/telemetry/v4.py` (2)
+### `src/symbiont_lab/physics3d/telemetry/v3.py` (3)
 
-- `41:23` · **error** · `reportArgumentType` — Argument of type "DataclassInstance \| type[DataclassInstance]" cannot be assigned to parameter "obj" of type "DataclassInstance" in function "asdict" Type "DataclassInstance \| type[DataclassInstance]" is not assignable to type "DataclassInstance" "__dataclass_fields__" is defined as a ClassVar in protocol
-- `356:57` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
+- `249:19` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
+- `249:24` · **error** · `reportArgumentType` — Argument of type "Mapping[str, Any] \| None" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" Type "Mapping[str, Any] \| None" is not assignable to type "Iterable[list[bytes]]" "Mapping[str, Any]" is not assignable to "Iterable[list[bytes]]" Type parameter "_T_co@Iterable" is covariant, but "str" is not a subtype of "list[bytes]" "str" is not assignable to "list[bytes]"
+- `369:57` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
-### `src/symbiont_lab/physics3d/telemetry/v41.py` (30)
+### `src/symbiont_lab/physics3d/telemetry/v41.py` (28)
 
-- `70:23` · **error** · `reportArgumentType` — Argument of type "DataclassInstance \| type[DataclassInstance]" cannot be assigned to parameter "obj" of type "DataclassInstance" in function "asdict" Type "DataclassInstance \| type[DataclassInstance]" is not assignable to type "DataclassInstance" "__dataclass_fields__" is defined as a ClassVar in protocol
-- `856:57` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `1051:39` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "schemas" of type "BinaryFrameSchemaReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "BinaryFrameSchemaReader" "FrameSchemaRegistryReader" is not assignable to "BinaryFrameSchemaReader"
-- `1051:54` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
-- `1060:17` · **error** · `reportArgumentType` — Argument of type "BinaryPathRegistryReader \| StructuralPathRegistryReader" cannot be assigned to parameter "paths" of type "BinaryPathRegistryReader" in function "__init__" Type "BinaryPathRegistryReader \| StructuralPathRegistryReader" is not assignable to type "BinaryPathRegistryReader" "StructuralPathRegistryReader" is not assignable to "BinaryPathRegistryReader"
-- `1061:17` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
-- `1069:17` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "schemas" of type "BinaryFrameSchemaReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "BinaryFrameSchemaReader" "FrameSchemaRegistryReader" is not assignable to "BinaryFrameSchemaReader"
-- `1070:17` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
-- `1078:40` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
-- `1081:41` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
-- `1085:17` · **error** · `reportArgumentType` — Argument of type "BinaryPathRegistryReader \| StructuralPathRegistryReader" cannot be assigned to parameter "paths" of type "BinaryPathRegistryReader" in function "__init__" Type "BinaryPathRegistryReader \| StructuralPathRegistryReader" is not assignable to type "BinaryPathRegistryReader" "StructuralPathRegistryReader" is not assignable to "BinaryPathRegistryReader"
-- `1086:17` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
-- `1094:39` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "registry" of type "FrameSchemaRegistryReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "FrameSchemaRegistryReader" "BinaryFrameSchemaReader" is not assignable to "FrameSchemaRegistryReader"
-- `1103:52` · **error** · `reportArgumentType` — Argument of type "BinaryPathRegistryReader \| StructuralPathRegistryReader" cannot be assigned to parameter "registry" of type "StructuralPathRegistryReader" in function "__init__" Type "BinaryPathRegistryReader \| StructuralPathRegistryReader" is not assignable to type "StructuralPathRegistryReader" "BinaryPathRegistryReader" is not assignable to "StructuralPathRegistryReader"
-- `1107:59` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "registry" of type "FrameSchemaRegistryReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "FrameSchemaRegistryReader" "BinaryFrameSchemaReader" is not assignable to "FrameSchemaRegistryReader"
-- `1116:48` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "registry" of type "FrameSchemaRegistryReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "FrameSchemaRegistryReader" "BinaryFrameSchemaReader" is not assignable to "FrameSchemaRegistryReader"
-- `1126:42` · **error** · `reportArgumentType` — Argument of type "ObjectStore \| None" cannot be assigned to parameter "object_store" of type "ObjectStore" in function "__init__" Type "ObjectStore \| None" is not assignable to type "ObjectStore" "None" is not assignable to "ObjectStore"
-- `1191:32` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "FrameStreamReader" Attribute "decode_record" is unknown
-- `1192:43` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "FrameStreamReader" Attribute "decode_record" is unknown
-- `1193:42` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "LegacyStructuralStreamReader" Attribute "decode_record" is unknown
-- `1193:42` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "StructuralDeltaReader" Attribute "decode_record" is unknown
-- `1194:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "EventStreamReader" Attribute "decode_record" is unknown
-- `1195:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "_StaticStreamReader" Attribute "decode_record" is unknown
-- `1196:38` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "dict[str, Any]" Attribute "decode_record" is unknown
-- `1230:37` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "MethodType" Attribute "get" is unknown
-- `1286:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "apply" for class "dict[Unknown, Unknown]" Attribute "apply" is unknown
-- `1286:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "apply" for class "dict[str, Any]" Attribute "apply" is unknown
-- `1287:54` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "MethodType" Attribute "get" is unknown
-- `1319:30` · **error** · `reportArgumentType` — Argument of type "Any \| Unknown \| BinaryDeltaReader \| dict[str, Any] \| dict[Unknown, Unknown]" cannot be assigned to parameter "fallback" of type "Mapping[str, Any]" in function "reassemble_state" Type "Any \| Unknown \| BinaryDeltaReader \| dict[str, Any] \| dict[Unknown, Unknown]" is not assignable to type "Mapping[str, Any]" "BinaryDeltaReader" is not assignable to "Mapping[str, Any]"
-- `1473:41` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
+- `969:39` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "schemas" of type "BinaryFrameSchemaReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "BinaryFrameSchemaReader" "FrameSchemaRegistryReader" is not assignable to "BinaryFrameSchemaReader"
+- `969:54` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
+- `978:17` · **error** · `reportArgumentType` — Argument of type "BinaryPathRegistryReader \| StructuralPathRegistryReader" cannot be assigned to parameter "paths" of type "BinaryPathRegistryReader" in function "__init__" Type "BinaryPathRegistryReader \| StructuralPathRegistryReader" is not assignable to type "BinaryPathRegistryReader" "StructuralPathRegistryReader" is not assignable to "BinaryPathRegistryReader"
+- `979:17` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
+- `987:17` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "schemas" of type "BinaryFrameSchemaReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "BinaryFrameSchemaReader" "FrameSchemaRegistryReader" is not assignable to "BinaryFrameSchemaReader"
+- `988:17` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
+- `996:40` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
+- `999:41` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
+- `1003:17` · **error** · `reportArgumentType` — Argument of type "BinaryPathRegistryReader \| StructuralPathRegistryReader" cannot be assigned to parameter "paths" of type "BinaryPathRegistryReader" in function "__init__" Type "BinaryPathRegistryReader \| StructuralPathRegistryReader" is not assignable to type "BinaryPathRegistryReader" "StructuralPathRegistryReader" is not assignable to "BinaryPathRegistryReader"
+- `1004:17` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
+- `1012:39` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "registry" of type "FrameSchemaRegistryReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "FrameSchemaRegistryReader" "BinaryFrameSchemaReader" is not assignable to "FrameSchemaRegistryReader"
+- `1021:52` · **error** · `reportArgumentType` — Argument of type "BinaryPathRegistryReader \| StructuralPathRegistryReader" cannot be assigned to parameter "registry" of type "StructuralPathRegistryReader" in function "__init__" Type "BinaryPathRegistryReader \| StructuralPathRegistryReader" is not assignable to type "StructuralPathRegistryReader" "BinaryPathRegistryReader" is not assignable to "StructuralPathRegistryReader"
+- `1025:59` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "registry" of type "FrameSchemaRegistryReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "FrameSchemaRegistryReader" "BinaryFrameSchemaReader" is not assignable to "FrameSchemaRegistryReader"
+- `1034:48` · **error** · `reportArgumentType` — Argument of type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" cannot be assigned to parameter "registry" of type "FrameSchemaRegistryReader" in function "__init__" Type "BinaryFrameSchemaReader \| FrameSchemaRegistryReader" is not assignable to type "FrameSchemaRegistryReader" "BinaryFrameSchemaReader" is not assignable to "FrameSchemaRegistryReader"
+- `1044:42` · **error** · `reportArgumentType` — Argument of type "ObjectStore \| None" cannot be assigned to parameter "object_store" of type "ObjectStore" in function "__init__" Type "ObjectStore \| None" is not assignable to type "ObjectStore" "None" is not assignable to "ObjectStore"
+- `1109:32` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "FrameStreamReader" Attribute "decode_record" is unknown
+- `1110:43` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "FrameStreamReader" Attribute "decode_record" is unknown
+- `1111:42` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "StructuralDeltaReader" Attribute "decode_record" is unknown
+- `1111:42` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "LegacyStructuralStreamReader" Attribute "decode_record" is unknown
+- `1112:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "EventStreamReader" Attribute "decode_record" is unknown
+- `1113:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "_StaticStreamReader" Attribute "decode_record" is unknown
+- `1114:38` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "decode_record" for class "dict[str, Any]" Attribute "decode_record" is unknown
+- `1148:37` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "MethodType" Attribute "get" is unknown
+- `1204:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "apply" for class "dict[str, Any]" Attribute "apply" is unknown
+- `1204:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "apply" for class "dict[Unknown, Unknown]" Attribute "apply" is unknown
+- `1205:54` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "MethodType" Attribute "get" is unknown
+- `1237:30` · **error** · `reportArgumentType` — Argument of type "Any \| Unknown \| BinaryDeltaReader \| dict[str, Any] \| dict[Unknown, Unknown]" cannot be assigned to parameter "fallback" of type "Mapping[str, Any]" in function "reassemble_state" Type "Any \| Unknown \| BinaryDeltaReader \| dict[str, Any] \| dict[Unknown, Unknown]" is not assignable to type "Mapping[str, Any]" "BinaryDeltaReader" is not assignable to "Mapping[str, Any]"
+- `1391:41` · **error** · `reportArgumentType` — Argument of type "BinaryStringTableReader \| None" cannot be assigned to parameter "strings" of type "BinaryStringTableReader" in function "__init__" Type "BinaryStringTableReader \| None" is not assignable to type "BinaryStringTableReader" "None" is not assignable to "BinaryStringTableReader"
 
 ### `src/symbiont_lab/server/server.py` (2)
 
@@ -1180,49 +579,23 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `197:24` · **error** · `reportCallIssue` — No overloads for "get" match the provided arguments
 - `197:37` · **error** · `reportArgumentType` — Argument of type "Literal['benign:normal', 'benign:update', 'benign:backup', 'benign:build', 'pathogen:ransom_sim', 'pathogen:bot_sim', 'pathogen:stealth_sim']" cannot be assigned to parameter "key" of type "bytes" in function "get" Type "Literal['benign:normal', 'benign:update', 'benign:backup', 'benign:build', 'pathogen:ransom_sim', 'pathogen:bot_sim', 'pathogen:stealth_sim']" is not assignable to type "bytes" "Literal['benign:backup']" is not assignable to "bytes"
 
-### `src/symbiont_lab/studies/campaigns/campaign.py` (14)
+### `src/symbiont_lab/studies/campaigns/campaign.py` (5)
 
-- `44:22` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
-- `44:22` · **error** · `reportCallIssue` — No overloads for "get" match the provided arguments
-- `44:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" "object" is incompatible with protocol "Iterable[list[bytes]]" "__iter__" is not present
-- `44:58` · **error** · `reportArgumentType` — Argument of type "Literal['parameter_value']" cannot be assigned to parameter "key" of type "bytes" in function "get" "Literal['parameter_value']" is not assignable to "bytes"
-- `45:21` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
-- `45:21` · **error** · `reportCallIssue` — No overloads for "get" match the provided arguments
-- `45:26` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" "object" is incompatible with protocol "Iterable[list[bytes]]" "__iter__" is not present
-- `45:56` · **error** · `reportArgumentType` — Argument of type "Literal['parameter_value']" cannot be assigned to parameter "key" of type "bytes" in function "get" "Literal['parameter_value']" is not assignable to "bytes"
-- `46:19` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "iterable" of type "Iterable[_T_co@tuple]" in function "__new__" "object" is incompatible with protocol "Iterable[_T_co@tuple]" "__iter__" is not present
 - `52:40` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `141:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `142:31` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `144:25` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `144:25` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
+- `144:25` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 
 ### `src/symbiont_lab/studies/campaigns/comparative.py` (2)
 
-- `144:48` · **error** · `reportArgumentType` — Argument of type "object \| Any" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| Any" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex"
 - `144:48` · **error** · `reportArgumentType` — Argument of type "object \| Any" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| Any" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" ...
+- `144:48` · **error** · `reportArgumentType` — Argument of type "object \| Any" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| Any" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex"
 
 ### `src/symbiont_lab/studies/campaigns/interpretation.py` (2)
 
 - `273:13` · **error** · `reportOptionalOperand` — Operator "*" not supported for "None"
 - `273:52` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "arg2" of type "SupportsRichComparisonT@min" in function "min" Type "float \| None" is not assignable to type "float" "None" is not assignable to "float"
-
-### `src/symbiont_lab/studies/continuity/recurrent_restoration.py` (1)
-
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.cognition_bridge" could not be resolved
-
-### `src/symbiont_lab/studies/embodiment/causal_revision_sequence.py` (2)
-
-- `16:6` · **warning** · `reportMissingImports` — Import "symbiont.core.body" could not be resolved
-- `17:6` · **warning** · `reportMissingImports` — Import "symbiont.core.individual" could not be resolved
-
-### `src/symbiont_lab/studies/embodiment/heredity_leakage_challenge.py` (1)
-
-- `18:6` · **warning** · `reportMissingImports` — Import "symbiont.core.symbiont" could not be resolved
-
-### `src/symbiont_lab/studies/embodiment/integrity_gates.py` (1)
-
-- `12:6` · **warning** · `reportMissingImports` — Import "symbiont.core.symbiont" could not be resolved
 
 ### `src/symbiont_lab/studies/embodiment/label_invariance.py` (3)
 
@@ -1230,59 +603,21 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `19:6` · **warning** · `reportMissingImports` — Import "symbiont.core.individual" could not be resolved
 - `20:6` · **warning** · `reportMissingImports` — Import "symbiont.core.symbiont" could not be resolved
 
-### `src/symbiont_lab/studies/embodiment/somatic_correlation_trap.py` (1)
+### `src/symbiont_lab/studies/heritage/ecological_shift.py` (1)
 
-- `14:6` · **warning** · `reportMissingImports` — Import "symbiont.core.body" could not be resolved
+- `135:20` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "object" Attribute "get" is unknown
 
-### `src/symbiont_lab/studies/embodiment/tool_body_distinction.py` (1)
+### `src/symbiont_lab/studies/heritage/stress.py` (2)
 
-- `16:6` · **warning** · `reportMissingImports` — Import "symbiont.core.body" could not be resolved
-
-### `src/symbiont_lab/studies/heritage/ecological_shift.py` (24)
-
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.heritage" could not be resolved
-- `136:20` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "object" Attribute "get" is unknown
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "drift_fraction" of type "float" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "drift_magnitude" of type "float" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "drift_step" of type "int \| None" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "int \| None" Type "float" is not assignable to type "int \| None" "float" is not assignable to "int" "float" is not assignable to "None"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "heterogeneity" of type "float" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "hosts" of type "int" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "int" "float" is not assignable to "int"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "on_event" of type "((EventContext) -> None) \| None" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "((EventContext) -> None) \| None" Type "float" is not assignable to type "((EventContext) -> None) \| None" Type "float" is not assignable to type "(EventContext) -> None" "float" is not assignable to "None"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "on_snapshot" of type "((SimulationSnapshot) -> None) \| None" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "((SimulationSnapshot) -> None) \| None" Type "float" is not assignable to type "((SimulationSnapshot) -> None) \| None" Type "float" is not assignable to type "(SimulationSnapshot) -> None" "float" is not assignable to "None"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "poison_fraction" of type "float" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "seed" of type "int" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "int" "float" is not assignable to "int"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "steps" of type "int" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "int" "float" is not assignable to "int"
-- `188:38` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "threat_rate" of type "float" in function "run_simulation" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "drift_fraction" of type "float" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "drift_magnitude" of type "float" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "drift_step" of type "int \| None" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "int \| None" Type "float" is not assignable to type "int \| None" "float" is not assignable to "int" "float" is not assignable to "None"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "heterogeneity" of type "float" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "hosts" of type "int" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "int" "float" is not assignable to "int"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "on_event" of type "((EventContext) -> None) \| None" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "((EventContext) -> None) \| None" Type "float" is not assignable to type "((EventContext) -> None) \| None" Type "float" is not assignable to type "(EventContext) -> None" "float" is not assignable to "None"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "on_snapshot" of type "((SimulationSnapshot) -> None) \| None" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "((SimulationSnapshot) -> None) \| None" Type "float" is not assignable to type "((SimulationSnapshot) -> None) \| None" Type "float" is not assignable to type "(SimulationSnapshot) -> None" "float" is not assignable to "None"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "poison_fraction" of type "float" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "seed" of type "int" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "int" "float" is not assignable to "int"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "steps" of type "int" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "int" "float" is not assignable to "int"
-- `193:15` · **error** · `reportArgumentType` — Argument of type "float \| ((event: EventContext) -> None)" cannot be assigned to parameter "threat_rate" of type "float" in function "_run_population" Type "float \| ((event: EventContext) -> None)" is not assignable to type "float" "FunctionType" is not assignable to "float"
-
-### `src/symbiont_lab/studies/heritage/longitudinal.py` (1)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.heritage" could not be resolved
-
-### `src/symbiont_lab/studies/heritage/stress.py` (4)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.heritage" could not be resolved
-- `13:6` · **warning** · `reportMissingImports` — Import "symbiont.core.model" could not be resolved
-- `152:55` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "live_belief" for class "SocialEvidenceLedger" Attribute "live_belief" is unknown
-- `153:46` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "belief" for class "SocialEvidenceLedger" Attribute "belief" is unknown
+- `151:55` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "live_belief" for class "SocialEvidenceLedger" Attribute "live_belief" is unknown
+- `152:46` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "belief" for class "SocialEvidenceLedger" Attribute "belief" is unknown
 
 ### `src/symbiont_lab/studies/integrated_habitat_runtime.py` (1)
 
 - `80:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "telemetry" for class "IntegratedHabitatRuntime" Expression of type "_DisabledTelemetry" cannot be assigned to attribute "telemetry" of class "IntegratedHabitatRuntime" "_DisabledTelemetry" is not assignable to "CommunicationTelemetry"
 
-### `src/symbiont_lab/studies/learning/canonical_sensorimotor_adaptation.py` (5)
+### `src/symbiont_lab/studies/learning/canonical_sensorimotor_adaptation.py` (4)
 
-- `47:21` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `140:50` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "replay_primitive_id" for class "SensorimotorSnapshot" Attribute "replay_primitive_id" is unknown
 - `141:54` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "replay_primitive_id" for class "SensorimotorSnapshot" Attribute "replay_primitive_id" is unknown
 - `143:22` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
@@ -1295,37 +630,24 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `115:35` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "motor_primitives" for class "Tick3D" Attribute "motor_primitives" is unknown
 - `116:45` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "cognitive_motor_primitives" for class "Tick3D" Attribute "cognitive_motor_primitives" is unknown
 
-### `src/symbiont_lab/studies/learning/canonical_sensorimotor_counterfactual.py` (6)
+### `src/symbiont_lab/studies/learning/canonical_sensorimotor_counterfactual.py` (5)
 
 - `109:30` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "replay_primitive_id" for class "SensorimotorSnapshot" Attribute "replay_primitive_id" is unknown
 - `110:30` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "cognitive_primitives" for class "SensorimotorSnapshot" Attribute "cognitive_primitives" is unknown
 - `119:41` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "replay_primitive_id" for class "SensorimotorSnapshot" Attribute "replay_primitive_id" is unknown
 - `177:30` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "object"
 - `180:28` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "object" of type "dict[str, object]" in function "append" "object" is not assignable to "dict[str, object]"
-- `204:21` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
 ### `src/symbiont_lab/studies/learning/cognitive_ecology_embodiment.py` (1)
 
 - `90:37` · **error** · `reportOptionalMemberAccess` — "development" is not a known attribute of "None"
 
-### `src/symbiont_lab/studies/learning/cognitive_graph_causal_composition.py` (1)
-
-- `22:6` · **warning** · `reportMissingImports` — Import "symbiont.core.cognition_bridge" could not be resolved
-
-### `src/symbiont_lab/studies/learning/embodied_intervention.py` (1)
-
-- `55:16` · **warning** · `reportMissingImports` — Import "pybullet" could not be resolved
-
 ### `src/symbiont_lab/studies/learning/embodied_model_comparison.py` (4)
 
-- `102:29` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "list[float]" Attribute "value" is unknown
 - `102:29` · **error** · `reportOptionalMemberAccess` — "value" is not a known attribute of "None"
+- `102:29` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "list[float]" Attribute "value" is unknown
 - `104:42` · **error** · `reportIndexIssue` — "__getitem__" method not defined on type "TemporalPrediction[tuple[float, ...]]"
 - `104:42` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-
-### `src/symbiont_lab/studies/learning/embodied_sensorimotor_shadow.py` (1)
-
-- `101:16` · **warning** · `reportMissingImports` — Import "pybullet" could not be resolved
 
 ### `src/symbiont_lab/studies/learning/emergent_structured_communication.py` (17)
 
@@ -1336,12 +658,12 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `252:42` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `253:21` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "obj" of type "Sized" in function "len" "object" is incompatible with protocol "Sized" "__len__" is not present
 - `254:46` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `258:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `258:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
+- `258:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `262:40` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `263:34` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `264:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `264:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
+- `264:32` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `266:54` · **error** · `reportOperatorIssue` — Operator ">" not supported for types "object" and "Literal[0]"
 - `267:36` · **error** · `reportOperatorIssue` — Operator ">" not supported for types "object" and "object"
 - `268:32` · **error** · `reportOperatorIssue` — Operator ">" not supported for types "object" and "object"
@@ -1396,37 +718,19 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `272:25` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "success" of type "bool" in function "__init__" "object" is not assignable to "bool"
 - `274:31` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "report_symbol_reinforcement" for class "object" Attribute "report_symbol_reinforcement" is unknown
 
-### `src/symbiont_lab/studies/learning/predictive_discovery.py` (1)
-
-- `29:6` · **warning** · `reportMissingImports` — Import "symbiont.core.cognition_bridge" could not be resolved
-
-### `src/symbiont_lab/studies/learning/predictive_utility.py` (1)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.cognition_bridge" could not be resolved
-
 ### `src/symbiont_lab/studies/learning/prospective_agency_embodied.py` (11)
 
 - `132:33` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "attach_existing" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
 - `143:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_prospective_agency" for class "ModeledOrganismRuntime" Attribute "_prospective_agency" is unknown
-- `155:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "predict_primitive_outcome" for class "ModeledOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
 - `155:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "predict_primitive_outcome" for class "PrivateModelOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
-- `161:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "predict_primitive_outcome" for class "ModeledOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
+- `155:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "predict_primitive_outcome" for class "ModeledOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
 - `161:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "predict_primitive_outcome" for class "PrivateModelOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
+- `161:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "predict_primitive_outcome" for class "ModeledOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
 - `185:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_pending_outcome_value_credit" for class "ModeledOrganismRuntime" Attribute "_pending_outcome_value_credit" is unknown
 - `190:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_schedule_observed_outcome_value_credit" for class "ModeledOrganismRuntime" Attribute "_schedule_observed_outcome_value_credit" is unknown
 - `362:49` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "poll" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
 - `453:25` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "maybe_schedule" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
 - `460:64` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "wait_until_idle" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
-
-### `src/symbiont_lab/studies/learning/signal_knowledge.py` (3)
-
-- `13:6` · **warning** · `reportMissingImports` — Import "symbiont.core.signal_identity" could not be resolved
-- `14:6` · **warning** · `reportMissingImports` — Import "symbiont.core.signal_knowledge" could not be resolved
-- `15:6` · **warning** · `reportMissingImports` — Import "symbiont.core.signal_knowledge_types" could not be resolved
-
-### `src/symbiont_lab/studies/learning/structural_producer_fairness.py` (1)
-
-- `6:6` · **warning** · `reportMissingImports` — Import "symbiont.core.cognition_bridge" could not be resolved
 
 ### `src/symbiont_lab/studies/learning/structured_communication_characterization.py` (4)
 
@@ -1448,194 +752,61 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `172:15` · **error** · `reportCallIssue` — No overloads for "min" match the provided arguments
 - `172:38` · **error** · `reportArgumentType` — Argument of type "Overload[(key: str, default: None = None, /) -> (float \| None), (key: str, default: float, /) -> float, (key: str, default: _T@get, /) -> (float \| _T@get)]" cannot be assigned to parameter "key" of type "(_T@min) -> SupportsRichComparison" in function "min" No overloaded function matches type "(str) -> SupportsRichComparison"
-- `388:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `388:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
+- `388:22` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 
 ### `src/symbiont_lab/studies/perception/sensory_specialisation.py` (33)
 
 - `28:16` · **error** · `reportReturnType` — Type "dict[str, Any \| bool]" is not assignable to return type "dict[str, object]" "dict[str, Any \| bool]" is not assignable to "dict[str, object]" Type parameter "_VT@dict" is invariant, but "Any \| bool" is not the same as "object" Consider switching from "dict" to "Mapping" which is covariant in the value type
-- `90:33` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `90:33` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `156:43` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `90:33` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `156:43` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `157:46` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `156:43` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `157:46` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `226:37` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `157:46` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `226:37` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `227:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `226:37` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `227:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `228:37` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `227:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `228:37` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `229:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `228:37` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `229:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
+- `229:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `313:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "name" for class "object" Attribute "name" is unknown
 - `316:60` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "object" Attribute "value" is unknown
 - `317:56` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "object" Attribute "value" is unknown
-- `416:33` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `416:33` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `417:34` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `416:33` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `417:34` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
-- `420:35` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
+- `417:34` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `420:35` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
+- `420:35` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `462:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "name" for class "object" Attribute "name" is unknown
 - `465:56` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "object" Attribute "value" is unknown
 - `466:71` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "object" Attribute "value" is unknown
 - `467:71` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "object" Attribute "value" is unknown
-- `484:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `484:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
+- `484:36` · **error** · `reportArgumentType` — Argument of type "float \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "float \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 - `566:36` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `583:23` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `584:27` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 
-### `src/symbiont_lab/studies/physics3d/constitution_audit.py` (1)
+### `src/symbiont_lab/studies/runtime_prediction_longitudinal.py` (4)
 
-- `25:16` · **warning** · `reportMissingImports` — Import "pybullet" could not be resolved
-
-### `src/symbiont_lab/studies/physics3d/primitive_effects.py` (11)
-
-- `107:12` · **error** · `reportReturnType` — Type "tuple[float, ...]" is not assignable to return type "tuple[float, float, float]" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `175:13` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `175:13` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `178:13` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `178:13` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
-- `219:31` · **error** · `reportArgumentType` — Argument of type "object \| float" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| float" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `219:31` · **error** · `reportArgumentType` — Argument of type "object \| float" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| float" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `223:31` · **error** · `reportArgumentType` — Argument of type "object \| float" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| float" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `223:31` · **error** · `reportArgumentType` — Argument of type "object \| float" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| float" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-- `229:31` · **error** · `reportArgumentType` — Argument of type "object \| float" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| float" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex"
-- `229:31` · **error** · `reportArgumentType` — Argument of type "object \| float" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object \| float" is not assignable to type "ConvertibleToFloat" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" ...
-
-### `src/symbiont_lab/studies/physiology.py` (2)
-
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.homeostasis" could not be resolved
-- `9:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/predictive_development_gates.py` (1)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.attention" could not be resolved
-
-### `src/symbiont_lab/studies/reproduction_runtime.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-- `31:77` · **error** · `reportArgumentType` — Argument of type "tuple[int, ...]" cannot be assigned to parameter "running_version" of type "tuple[int, int, int]" in function "load_base_genome" "tuple[int, ...]" is not assignable to "tuple[int, int, int]" Tuple size mismatch; expected 3 but received indeterminate
-
-### `src/symbiont_lab/studies/runtime_population.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-- `32:77` · **error** · `reportArgumentType` — Argument of type "tuple[int, ...]" cannot be assigned to parameter "running_version" of type "tuple[int, int, int]" in function "load_base_genome" "tuple[int, ...]" is not assignable to "tuple[int, int, int]" Tuple size mismatch; expected 3 but received indeterminate
-
-### `src/symbiont_lab/studies/runtime_prediction_longitudinal.py` (1)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
+- `29:34` · **error** · `reportOptionalMemberAccess` — "tick" is not a known attribute of "None"
+- `81:35` · **error** · `reportOptionalMemberAccess` — "development" is not a known attribute of "None"
+- `85:34` · **error** · `reportOptionalMemberAccess` — "tick" is not a known attribute of "None"
+- `90:48` · **error** · `reportOptionalMemberAccess` — "graph" is not a known attribute of "None"
 
 ### `src/symbiont_lab/studies/runtime_prediction_promotion.py` (2)
 
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.cognition_bridge" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/shared_habitat_intake.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.ecology" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social.py` (1)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-
-### `src/symbiont_lab/studies/social_emergence.py` (3)
-
-- `10:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `50:9` · **error** · `reportArgumentType` — Argument of type "tuple[str, ...]" cannot be assigned to parameter "key" of type "tuple[str, str]" in function "__getitem__" "tuple[str, ...]" is not assignable to "tuple[str, str]" Tuple size mismatch; expected 2 but received indeterminate
-- `50:9` · **error** · `reportArgumentType` — Argument of type "tuple[str, ...]" cannot be assigned to parameter "key" of type "tuple[str, str]" in function "__setitem__" "tuple[str, ...]" is not assignable to "tuple[str, str]" Tuple size mismatch; expected 2 but received indeterminate
-
-### `src/symbiont_lab/studies/social_longitudinal.py` (1)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-
-### `src/symbiont_lab/studies/social_reciprocity.py` (1)
-
-- `12:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_adaptation.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_adversarial.py` (2)
-
-- `12:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `13:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_competition.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_context.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
+- `111:33` · **error** · `reportOptionalMemberAccess` — "tick" is not a known attribute of "None"
+- `112:32` · **error** · `reportOptionalMemberAccess` — "tick" is not a known attribute of "None"
 
 ### `src/symbiont_lab/studies/social_runtime_context_replay.py` (2)
 
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_denial_revision.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_emergence.py` (2)
-
-- `14:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `15:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_generations.py` (3)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-- `38:77` · **error** · `reportArgumentType` — Argument of type "tuple[int, ...]" cannot be assigned to parameter "running_version" of type "tuple[int, int, int]" in function "load_base_genome" "tuple[int, ...]" is not assignable to "tuple[int, int, int]" Tuple size mismatch; expected 3 but received indeterminate
-
-### `src/symbiont_lab/studies/social_runtime_lifecycle.py` (3)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-- `36:77` · **error** · `reportArgumentType` — Argument of type "tuple[int, ...]" cannot be assigned to parameter "running_version" of type "tuple[int, int, int]" in function "load_base_genome" "tuple[int, ...]" is not assignable to "tuple[int, int, int]" Tuple size mismatch; expected 3 but received indeterminate
-
-### `src/symbiont_lab/studies/social_runtime_longitudinal.py` (2)
-
-- `9:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `10:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_preference.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_regime_shift.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_replay.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_resource_adaptation.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_runtime_specialization.py` (2)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
-- `8:6` · **warning** · `reportMissingImports` — Import "symbiont.core.runtime" could not be resolved
-
-### `src/symbiont_lab/studies/social_specialization.py` (1)
-
-- `7:6` · **warning** · `reportMissingImports` — Import "symbiont.core.interactions" could not be resolved
+- `52:42` · **error** · `reportOptionalMemberAccess` — "target_id" is not a known attribute of "None"
+- `52:92` · **error** · `reportOptionalMemberAccess` — "target_id" is not a known attribute of "None"
 
 ### `src/symbiont_lab/studies/world/genesis_viability.py` (7)
 
@@ -1652,30 +823,20 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `268:20` · **error** · `reportArgumentType` — Argument of type "BaseException" cannot be assigned to parameter "exc" of type "Exception" in function "fail" "BaseException" is not assignable to "Exception"
 - `375:20` · **error** · `reportArgumentType` — Argument of type "BaseException" cannot be assigned to parameter "exc" of type "Exception" in function "fail" "BaseException" is not assignable to "Exception"
 
-### `src/symbiont_lab/world/adapter.py` (14)
+### `src/symbiont_lab/world/adapter.py` (9)
 
-- `18:6` · **warning** · `reportMissingImports` — Import "symbiont.core.ecology" could not be resolved
-- `320:25` · **error** · `reportArgumentType` — Argument of type "tuple[int, ...]" cannot be assigned to parameter "running_version" of type "tuple[int, int, int]" in function "load_base_genome" "tuple[int, ...]" is not assignable to "tuple[int, int, int]" Tuple size mismatch; expected 3 but received indeterminate
-- `525:14` · **warning** · `reportMissingImports` — Import "symbiont.core.body" could not be resolved
-- `526:14` · **warning** · `reportMissingImports` — Import "symbiont.core.individual" could not be resolved
-- `527:14` · **warning** · `reportMissingImports` — Import "symbiont.core.symbiont" could not be resolved
-- `668:34` · **error** · `reportOptionalMemberAccess` — "_habitat" is not a known attribute of "None"
-- `669:24` · **error** · `reportOptionalMemberAccess` — "_habitat" is not a known attribute of "None"
-- `677:30` · **error** · `reportOptionalMemberAccess` — "tick_count" is not a known attribute of "None"
-- `683:28` · **error** · `reportOptionalMemberAccess` — "_most_depleted_metabolic_kind" is not a known attribute of "None"
-- `684:21` · **error** · `reportOptionalMemberAccess` — "request_resource_intake" is not a known attribute of "None"
-- `752:29` · **error** · `reportOptionalMemberAccess` — "_physiology" is not a known attribute of "None"
-- `770:34` · **error** · `reportOptionalMemberAccess` — "apply_environmental_damage" is not a known attribute of "None"
-- `787:26` · **error** · `reportOptionalMemberAccess` — "tick" is not a known attribute of "None"
-- `813:38` · **error** · `reportOptionalMemberAccess` — "apply_environmental_damage" is not a known attribute of "None"
+- `667:34` · **error** · `reportOptionalMemberAccess` — "_habitat" is not a known attribute of "None"
+- `668:24` · **error** · `reportOptionalMemberAccess` — "_habitat" is not a known attribute of "None"
+- `676:30` · **error** · `reportOptionalMemberAccess` — "tick_count" is not a known attribute of "None"
+- `682:28` · **error** · `reportOptionalMemberAccess` — "_most_depleted_metabolic_kind" is not a known attribute of "None"
+- `683:21` · **error** · `reportOptionalMemberAccess` — "request_resource_intake" is not a known attribute of "None"
+- `751:29` · **error** · `reportOptionalMemberAccess` — "_physiology" is not a known attribute of "None"
+- `769:34` · **error** · `reportOptionalMemberAccess` — "apply_environmental_damage" is not a known attribute of "None"
+- `786:26` · **error** · `reportOptionalMemberAccess` — "tick" is not a known attribute of "None"
+- `812:38` · **error** · `reportOptionalMemberAccess` — "apply_environmental_damage" is not a known attribute of "None"
 
-### `src/symbiont_lab/world/persistence.py` (1)
+### `src/symbiont_lab/world/population.py` (2)
 
-- `20:6` · **warning** · `reportMissingImports` — Import "symbiont.core.ecology" could not be resolved
-
-### `src/symbiont_lab/world/population.py` (3)
-
-- `762:38` · **warning** · `reportMissingImports` — Import "symbiont.core.body" could not be resolved
 - `802:44` · **error** · `reportOptionalMemberAccess` — "tick" is not a known attribute of "None"
 - `806:80` · **error** · `reportOptionalMemberAccess` — "last_actuation" is not a known attribute of "None"
 

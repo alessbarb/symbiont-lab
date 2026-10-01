@@ -121,7 +121,7 @@ class Physics3DSession:
             if runner is None:
                 from symbiont_lab.physics3d.engine import run as runner
 
-            runner_kwargs: dict[str, object] = {
+            runner_kwargs: dict[str, Any] = {
                 "show_monitor": True,
                 "headless": False,
                 "viewer_bridge": bridge,
