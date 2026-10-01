@@ -22,3 +22,9 @@ host-safety or scientific boundary.
 ## Canonical permanent invariants
 
 Read and obey [docs/governance/constitution.md](docs/governance/constitution.md).
+
+For any task that creates, reviews, approves, implements, or reports completion
+of a design under `docs/design/`, first read the canonical
+[Design Status Register](docs/design/register.md) and keep its entry current.
+The register tracks design lifecycle; it does not override roadmap priority or
+owner/governance authorization.

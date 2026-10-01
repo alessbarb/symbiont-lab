@@ -2,6 +2,12 @@
 
 This directory contains architectural specifications, data contracts, and engineering designs governing the ontogenetic and phylogenetic development of **Symbiont**.
 
+[`register.md`](register.md) is the canonical authority for design lifecycle and
+implementation status. Read it before creating, reviewing, approving,
+implementing, or reporting completion of a design. Update it with the same
+change as any status transition. This index is navigation only; a design's
+presence here does not mean it is approved or scheduled.
+
 ---
 
 ## Canonical Design Domains
@@ -19,4 +25,9 @@ This directory contains architectural specifications, data contracts, and engine
 ## Design and Implementation Relationship
 
 > [!IMPORTANT]
-> A design document in `docs/design/` establishes formal contracts and hypotheses. For actual implementation status in source code, the canonical references are [`../architecture.md`](../architecture.md), [`../roadmap.md`](../roadmap.md), and [`../../ORGANISM.md`](../../ORGANISM.md).
+> A design document in `docs/design/` records a proposal, contract, audit, or
+> hypothesis. Its lifecycle status is defined by [`register.md`](register.md).
+> The roadmap remains canonical for research direction, priority, gates, and
+> scientific acceptance. For implementation status in source code, consult
+> [`../architecture.md`](../architecture.md), [`../roadmap.md`](../roadmap.md),
+> and [`../../ORGANISM.md`](../../ORGANISM.md).

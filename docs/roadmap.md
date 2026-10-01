@@ -743,6 +743,17 @@ invariants around any proposed seam. Prioritize changes that make experimental
 behavior easier to isolate and verify; file length alone is not evidence that a
 module needs decomposition.
 
+#### Deferred design to revisit
+
+- [Passive Runtime Audit Trace v1](design/observability/passive-runtime-audit-trace-v1.md)
+  is tracked as **Proposed / Not started** in the canonical
+  [Design Status Register](design/register.md). Revisit it after the A9
+  baseline inventory to determine whether its bounded, passive recorder fits
+  A9 scope. This reference does not change A9 status or priority, authorize
+  runtime changes, or add scientific acceptance criteria. Any change to
+  organism behavior, factual authority, or scientific protocol requires its
+  own owner and governance review.
+
 #### A9 acceptance
 
 - Record a reproducible baseline for the in-scope code and verify reported
