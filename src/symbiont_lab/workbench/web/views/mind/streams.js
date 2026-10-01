@@ -52,8 +52,49 @@ export class MindStreams {
   connect() {
     this.closed = false;
     this.emitSourceState('waiting', { reason: 'connecting' });
-    this.connectOrganism();
-    this.connectFleet();
+    void this.bootstrapRecentHistory().finally(() => {
+      if (this.closed) return;
+      this.connectOrganism();
+      this.connectFleet();
+    });
+  }
+
+  async bootstrapRecentHistory() {
+    try {
+      const response = await fetch('/api/organism/history?limit=256', { cache: 'no-store' });
+      if (!response.ok || this.closed) return;
+      const payload = await response.json();
+      const frames = Array.isArray(payload?.items) ? payload.items : [];
+      for (let index = 0; index < frames.length; index += 1) {
+        if (this.closed) return;
+        const frame = frames[index];
+        if (!frame || frame.type !== 'observed_frame') continue;
+        const frameRunId = frame.run_id ?? frame.runId ?? frame.cognition?.run_id ?? null;
+        const frameInstanceId =
+          frame.instance_id ?? frame.instanceId ?? frame.cognition?.instance_id ?? null;
+        const meta = {
+          source: 'physics3d',
+          instanceId: frameInstanceId,
+          runId: frameRunId,
+          coherentFrame: true,
+          frameTick: frame.tick ?? null,
+          historical: true,
+          historicalFinal: index === frames.length - 1,
+        };
+        for (const component of [frame.body, frame.cognition, frame.vitals]) {
+          if (component?.type) this.onTelemetry(component, meta);
+        }
+        if (frame.mind) {
+          this.onSnapshot(frame.mind, {
+            ...meta,
+            tick: frame.tick ?? null,
+          });
+        }
+      }
+    } catch {
+      // Recent history is an observer convenience only. Live observation must
+      // start even if this optional bootstrap endpoint is unavailable.
+    }
   }
 
   close() {

@@ -14,6 +14,14 @@ export const selfDependencyHistory = new Map();
 export const motorHistory = [];
 export const motorEpochEvents = [];
 
+export const developmentScope = {
+  organismId: null,
+  observedStartTick: null,
+  baselinePoint: null,
+  lastPersistedTick: null,
+  restored: false,
+};
+
 export const streamState = {
   status: 'disconnected',
   source: null,
@@ -76,6 +84,7 @@ export const tel = {
 };
 
 export const snap = {
+  tick: null,
   senses: [],
   beliefs: [],
   sensoryDevelopment: [],
@@ -232,6 +241,11 @@ export function resetMindDataState() {
   selfDependencyHistory.clear();
   motorHistory.length = 0;
   motorEpochEvents.length = 0;
+  developmentScope.organismId = null;
+  developmentScope.observedStartTick = null;
+  developmentScope.baselinePoint = null;
+  developmentScope.lastPersistedTick = null;
+  developmentScope.restored = false;
   observerUsage.startedAt = Date.now();
   observerUsage.modeChanges = {};
   observerUsage.dimensionChanges = {};

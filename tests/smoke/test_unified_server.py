@@ -230,3 +230,29 @@ def test_provenance_query_validates_reference_and_depth() -> None:
             "/api/provenance/why?kind=competence&id=competence.1&depth=999",
         )
         assert status == 400
+
+
+def test_recent_organism_history_endpoint_returns_materialized_frames() -> None:
+    stream = ObservationBus()
+    stream.push(
+        {
+            "type": "observed_frame",
+            "source": "physics3d",
+            "tick": 41,
+            "mind": {"tick": 41, "display_id": "symbiont:test"},
+        }
+    )
+    with running_server(observation_bus=stream) as server:
+        status, body = request(server, "/api/organism/history?limit=32")
+        assert status == 200
+        payload = json.loads(body)
+        assert [item["tick"] for item in payload["items"]] == [41]
+        assert payload["items"][0]["mind"]["display_id"] == "symbiont:test"
+
+
+def test_recent_organism_history_endpoint_validates_limit() -> None:
+    with running_server() as server:
+        status, _ = request(server, "/api/organism/history?limit=0")
+        assert status == 400
+        status, _ = request(server, "/api/organism/history?limit=513")
+        assert status == 400

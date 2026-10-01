@@ -4,6 +4,7 @@ import { inspectorMetric, panelSection } from './components.js';
 import { currentMotorOutputEdges, currentPhysiologyState } from './derived.js';
 import { computeObserverMapCoordinates, evaluateObserverRegime } from './observer-map-model.js';
 import {
+  developmentScope,
   historySnapshots,
   milestones,
   mindHistory,
@@ -17,6 +18,126 @@ import { deriveCognitiveEpisodes } from './cognitive-temporal.js';
 import { episodeImpact } from './cognitive-refinement.js';
 
 let activeEpisodeId = null;
+
+const DEVELOPMENT_STORAGE_PREFIX = 'symbiont-lab:mind-development:v1:';
+const DEVELOPMENT_PERSIST_INTERVAL_TICKS = 32;
+const DEVELOPMENT_SNAPSHOT_LIMIT = 160;
+const DEVELOPMENT_SNAPSHOT_MAX_GAP = 64;
+
+function developmentStorage() {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+function developmentStorageKey(organismId) {
+  return `${DEVELOPMENT_STORAGE_PREFIX}${encodeURIComponent(String(organismId))}`;
+}
+
+function clearDevelopmentBuffers() {
+  mindHistory.length = 0;
+  milestones.length = 0;
+  historySnapshots.length = 0;
+  selfRegionHistory.clear();
+  selfDependencyHistory.clear();
+  activeEpisodeId = null;
+}
+
+function boundedArray(raw, limit) {
+  return Array.isArray(raw) ? raw.slice(-limit) : [];
+}
+
+export function persistMindDevelopmentHistory({ force = false } = {}) {
+  const organismId = developmentScope.organismId;
+  if (!organismId) return false;
+  const currentTick = mindHistory.at(-1)?.tick ?? null;
+  if (
+    !force &&
+    currentTick != null &&
+    developmentScope.lastPersistedTick != null &&
+    currentTick - developmentScope.lastPersistedTick < DEVELOPMENT_PERSIST_INTERVAL_TICKS
+  ) {
+    return false;
+  }
+
+  const storage = developmentStorage();
+  if (!storage) return false;
+  const payload = {
+    schema: 1,
+    organismId,
+    observedStartTick: developmentScope.observedStartTick,
+    baselinePoint: developmentScope.baselinePoint,
+    mindHistory: mindHistory.slice(-2048),
+    milestones: milestones.slice(-128),
+    historySnapshots: historySnapshots.slice(-DEVELOPMENT_SNAPSHOT_LIMIT),
+  };
+
+  try {
+    storage.setItem(developmentStorageKey(organismId), JSON.stringify(payload));
+  } catch {
+    // Local storage is only an observer-side continuity cache. If a browser
+    // quota is tight, retain a smaller recent window rather than affecting life.
+    try {
+      storage.setItem(developmentStorageKey(organismId), JSON.stringify({
+        ...payload,
+        mindHistory: payload.mindHistory.slice(-768),
+        historySnapshots: payload.historySnapshots.slice(-32),
+      }));
+    } catch {
+      return false;
+    }
+  }
+  developmentScope.lastPersistedTick = currentTick;
+  return true;
+}
+
+export function activateMindDevelopmentHistory(organismId) {
+  const identity = String(organismId ?? '').trim();
+  if (!identity) return false;
+  if (developmentScope.organismId === identity) return false;
+
+  persistMindDevelopmentHistory({ force: true });
+  clearDevelopmentBuffers();
+  developmentScope.organismId = identity;
+  developmentScope.observedStartTick = null;
+  developmentScope.baselinePoint = null;
+  developmentScope.lastPersistedTick = null;
+  developmentScope.restored = false;
+
+  const storage = developmentStorage();
+  if (!storage) return true;
+
+  try {
+    const raw = storage.getItem(developmentStorageKey(identity));
+    if (!raw) return true;
+    const payload = JSON.parse(raw);
+    if (
+      payload?.schema !== 1 ||
+      String(payload?.organismId ?? '') !== identity
+    ) {
+      return true;
+    }
+    mindHistory.push(...boundedArray(payload.mindHistory, 2048));
+    milestones.push(...boundedArray(payload.milestones, 128));
+    historySnapshots.push(...boundedArray(payload.historySnapshots, DEVELOPMENT_SNAPSHOT_LIMIT));
+    developmentScope.baselinePoint =
+      payload.baselinePoint && Number.isFinite(Number(payload.baselinePoint.tick))
+        ? { ...payload.baselinePoint }
+        : mindHistory.at(0) ? { ...mindHistory.at(0) } : null;
+    const start = Number(payload.observedStartTick);
+    developmentScope.observedStartTick = Number.isFinite(start)
+      ? start
+      : mindHistory.at(0)?.tick ?? null;
+    developmentScope.lastPersistedTick = mindHistory.at(-1)?.tick ?? null;
+    developmentScope.restored = Boolean(mindHistory.length || historySnapshots.length);
+  } catch {
+    // Corrupt observer cache must never block the live organism.
+    clearDevelopmentBuffers();
+  }
+  return true;
+}
 
 function episodeEventWeight(event) {
   const diff = event?.diff;
@@ -93,8 +214,17 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   const observerAttached = milestones.find(item =>
     String(item?.label || '').toLowerCase().includes('observer attached')
   );
-  const observedStart = observerAttached?.tick ?? mindHistory.at(0)?.tick ?? current?.tick ?? null;
-  const observedBaseline = mindHistory.find(point => point.tick >= observedStart) ?? mindHistory.at(0) ?? null;
+  const observedStart =
+    developmentScope.observedStartTick ??
+    observerAttached?.tick ??
+    mindHistory.at(0)?.tick ??
+    current?.tick ??
+    null;
+  const observedBaseline =
+    developmentScope.baselinePoint ??
+    mindHistory.find(point => point.tick >= observedStart) ??
+    mindHistory.at(0) ??
+    null;
   const observedDelta = (key) => {
     const a = Number(current?.[key]);
     const b = Number(observedBaseline?.[key]);
@@ -108,15 +238,15 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
     <div class="mind-development-scope-block">
       <span>Current cognitive structure</span>
       <strong>${current?.concepts ?? '—'} concepts · ${current?.predictors ?? '—'} predictors · ${current?.selfRegions ?? '—'} self regions</strong>
-      <small>This structure may predate the current observer session.</small>
+      <small>This structure may predate the available observer history.</small>
     </div>
     <div class="mind-development-scope-block">
       <span>Observed since</span>
       <strong>${observedStart != null ? 't' + Number(observedStart).toLocaleString() : 'observer start unknown'}</strong>
-      <small>Only changes captured after observer attachment are narrated below.</small>
+      <small>Observer-owned history for this organism. Earlier uncaptured life is never reconstructed or invented.</small>
     </div>
     <div class="mind-development-scope-block">
-      <span>Session-observed change</span>
+      <span>Recorded change</span>
       <strong>${observedDelta('concepts')} concepts · ${observedDelta('predictors')} predictors · ${episodes.length} episodes</strong>
       <small>Zero change means stable during observation, not undeveloped.</small>
     </div>
@@ -153,7 +283,7 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   narrative.classList.add('mind-development-narrative');
   if (!milestones.length) {
     const empty = el('div', 'mind-live-empty');
-    empty.textContent = 'No developmental milestones have been observed in this browser session yet.';
+    empty.textContent = 'No developmental milestones have been captured for this organism yet.';
     narrative.appendChild(empty);
   } else {
     const line = el('div', 'mind-development-line');
@@ -274,7 +404,12 @@ function snapshotForHistory(tick) {
 
 function registerMilestone(kind, label, tick, tone = 'info') {
   if (!Number.isFinite(tick) || tick <= 0) return;
-  if (milestones.some((item) => item.kind === kind)) return;
+  const existing = milestones.find((item) => item.kind === kind);
+  if (existing) {
+    if (tick < existing.tick) existing.tick = tick;
+    milestones.sort((a, b) => a.tick - b.tick);
+    return;
+  }
   milestones.push({ kind, label, tick, tone });
   milestones.sort((a, b) => a.tick - b.tick);
 }
@@ -319,19 +454,59 @@ function recordSelfPersistence(tick) {
   }
 }
 
-export function recordMindHistory() {
+function developmentSnapshotFingerprint(snapshot) {
+  const topology = snapshot?.topology ?? {};
+  const nodeIds = (topology.nodes ?? [])
+    .map((node) => `${node.id ?? ''}:${node.kind ?? ''}`)
+    .sort();
+  const edgeIds = (topology.edges ?? [])
+    .map((edge) =>
+      `${edge.sourceId ?? edge.source_id ?? ''}>${edge.targetId ?? edge.target_id ?? ''}:${edge.kind ?? ''}`
+    )
+    .sort();
+  const predictionClasses = Object.entries(
+    snapshot?.observerAnalysis?.predictionErrors ?? {},
+  ).sort(([a], [b]) => a.localeCompare(b));
+  return JSON.stringify([
+    snapshot?.cognition?.topologyRevision ?? null,
+    nodeIds,
+    edgeIds,
+    predictionClasses,
+  ]);
+}
+
+function shouldCaptureDevelopmentSnapshot(tick, captured) {
+  const last = historySnapshots.at(-1);
+  if (!last) return true;
+  if (tick - last.tick >= DEVELOPMENT_SNAPSHOT_MAX_GAP) return true;
+  return developmentSnapshotFingerprint(last.snapshot) !==
+    developmentSnapshotFingerprint(captured.snapshot);
+}
+
+export function recordMindHistory({ captureSnapshot = true, persist = true } = {}) {
+  if (!developmentScope.organismId) return;
   const tick = finiteNumber(tel.tick ?? snap.tick, 0);
   if (tick <= 0) return;
+
+  developmentScope.observedStartTick = developmentScope.observedStartTick == null
+    ? tick
+    : Math.min(developmentScope.observedStartTick, tick);
 
   recordSelfPersistence(tick);
   const topology = snap.topology ?? { nodes: [], edges: [] };
   const nodes = topology.nodes ?? [];
   const sensorimotor = snap.sensorimotor ?? {};
   const outcome = snap.outcome ?? {};
+  const topologyConcepts = nodes.filter((node) => node.kind === 'concept').length;
+  const topologyPredictors = nodes.filter((node) => node.kind === 'predictor').length;
   const point = {
     tick,
-    concepts: nodes.filter((node) => node.kind === 'concept').length,
-    predictors: nodes.filter((node) => node.kind === 'predictor').length,
+    concepts: tel.cognitiveConcepts != null
+      ? finiteNumber(tel.cognitiveConcepts, topologyConcepts)
+      : topologyConcepts,
+    predictors: tel.predictorCount != null
+      ? finiteNumber(tel.predictorCount, topologyPredictors)
+      : topologyPredictors,
     readouts: nodes.filter((node) => node.kind === 'readout').length,
     motorEdges: finiteNumber(tel.cognitiveMotorOutputEdges ?? currentMotorOutputEdges(topology), 0),
     edges: (topology.edges ?? []).length,
@@ -356,40 +531,68 @@ export function recordMindHistory() {
     selfDependencies: (snap.bodySchema?.dependencies ?? []).length,
   };
 
-  const last = mindHistory[mindHistory.length - 1];
-  if (last?.tick === point.tick) return;
-  mindHistory.push(point);
-  while (mindHistory.length > 2048) mindHistory.shift();
-
-  if (!historySnapshots.length || tick - historySnapshots[historySnapshots.length - 1].tick >= 64) {
-    historySnapshots.push({ tick, snapshot: snapshotForHistory(tick) });
-    while (historySnapshots.length > 96) historySnapshots.shift();
+  if (
+    developmentScope.baselinePoint == null ||
+    point.tick <= developmentScope.baselinePoint.tick
+  ) {
+    developmentScope.baselinePoint = { ...point };
   }
 
-  if (!last) {
+  let pointIndex = mindHistory.findIndex((item) => item.tick >= point.tick);
+  if (pointIndex < 0) pointIndex = mindHistory.length;
+  const existingPoint = mindHistory[pointIndex]?.tick === point.tick
+    ? mindHistory[pointIndex]
+    : null;
+  const previous = pointIndex > 0 ? mindHistory[pointIndex - 1] : null;
+  if (existingPoint) {
+    Object.assign(existingPoint, point);
+  } else {
+    mindHistory.splice(pointIndex, 0, point);
+    while (mindHistory.length > 2048) mindHistory.shift();
+  }
+
+  if (captureSnapshot) {
+    const captured = { tick, snapshot: snapshotForHistory(tick) };
+    let snapshotIndex = historySnapshots.findIndex((item) => item.tick >= tick);
+    if (snapshotIndex < 0) snapshotIndex = historySnapshots.length;
+    if (historySnapshots[snapshotIndex]?.tick === tick) {
+      historySnapshots[snapshotIndex] = captured;
+    } else if (
+      snapshotIndex < historySnapshots.length ||
+      shouldCaptureDevelopmentSnapshot(tick, captured)
+    ) {
+      historySnapshots.splice(snapshotIndex, 0, captured);
+      while (historySnapshots.length > DEVELOPMENT_SNAPSHOT_LIMIT) {
+        historySnapshots.shift();
+      }
+    }
+  }
+
+  if (!previous) {
     registerMilestone('observer-attached', 'Observer attached', tick, 'info');
+    if (persist) persistMindDevelopmentHistory();
     return;
   }
 
-  if (last.concepts === 0 && point.concepts > 0) {
+  if (previous.concepts === 0 && point.concepts > 0) {
     registerMilestone('first-concept', 'First observed concept birth', tick, 'violet');
   }
-  if (last.predictors === 0 && point.predictors > 0) {
+  if (previous.predictors === 0 && point.predictors > 0) {
     registerMilestone('first-predictor', 'First observed predictor birth', tick, 'amber');
   }
-  if (last.motorCompetences === 0 && point.motorCompetences > 0) {
+  if (previous.motorCompetences === 0 && point.motorCompetences > 0) {
     registerMilestone('first-primitive', 'Motor competences became available', tick, 'cyan');
   }
-  if (last.repertoire === 0 && point.repertoire > 0) {
+  if (previous.repertoire === 0 && point.repertoire > 0) {
     registerMilestone('first-repertoire', 'Motor repertoire became available', tick, 'mint');
   }
-  if (last.motorEdges === 0 && point.motorEdges > 0) {
+  if (previous.motorEdges === 0 && point.motorEdges > 0) {
     registerMilestone('first-motor-edge', 'First observed cognition → motor edge', tick, 'mint');
   }
 
   const lastCognitiveUse =
-    ['cognition','mixed'].includes(last.motorOrigin) ||
-    String(last.motorOrigin).includes('primitive');
+    ['cognition','mixed'].includes(previous.motorOrigin) ||
+    String(previous.motorOrigin).includes('primitive');
   const cognitiveUse =
     ['cognition','mixed'].includes(point.motorOrigin) ||
     String(point.motorOrigin).includes('primitive');
@@ -402,7 +605,7 @@ export function recordMindHistory() {
     );
   }
 
-  if (last.physiology !== point.physiology) {
+  if (previous.physiology !== point.physiology) {
     if (point.physiology === 'stressed') {
       registerMilestone('stressed', 'Physiology → stressed', tick, 'coral');
     }
@@ -413,6 +616,8 @@ export function recordMindHistory() {
       registerMilestone('death', 'Death', tick, 'coral');
     }
   }
+
+  if (persist) persistMindDevelopmentHistory();
 }
 
 export function nearestHistorySnapshot(tick) {

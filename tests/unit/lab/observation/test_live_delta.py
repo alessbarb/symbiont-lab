@@ -262,3 +262,25 @@ def test_empty_replay_does_not_assume_omitted_channel_bases():
     bus.push({"type": "body", "tick": 2})
     decoded = ObservationDeltaDecoder().decode(json.loads(resumed.get_nowait().data))
     assert decoded == {"type": "body", "tick": 2}
+
+
+def test_bus_recent_materialized_returns_observed_frames_in_organism_time_order():
+    bus = ObservationBus(queue_size=16, history_size=16, anchor_interval=64)
+    first = {
+        "type": "observed_frame",
+        "source": "physics3d",
+        "tick": 10,
+        "mind": {"tick": 10, "display_id": "symbiont:alpha"},
+    }
+    second = {
+        "type": "observed_frame",
+        "source": "physics3d",
+        "tick": 11,
+        "mind": {"tick": 11, "display_id": "symbiont:alpha"},
+    }
+    bus.push(first)
+    bus.push({"type": "body_pose", "tick": 10})
+    bus.push(second)
+
+    assert bus.recent_materialized("observed_frame", limit=8) == [first, second]
+    assert bus.recent_materialized("observed_frame", limit=1) == [second]

@@ -8,6 +8,7 @@ export function applyMindSnapshot(raw) {
   const source = raw?.snapshot ?? raw;
   if (!source) return false;
 
+  snap.tick = source.tick ?? null;
   snap.senses = source.senses ?? source.percepts ?? [];
   snap.beliefs = source.beliefs ?? [];
   snap.cognition = source.cognition ?? null;

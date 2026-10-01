@@ -6,6 +6,7 @@ Routes:
   GET  /observatory/*         → static files from observatory/ package
   GET  /api/state             → JSON runs + observation source status
   GET  /api/organism          → SSE: live organism body/cognition/vitals
+  GET  /api/organism/history  → JSON: recent materialized observed frames
   GET  /api/world-scene       → materialized observer spatial snapshot
   GET  /api/provenance/why   → JSON causal ancestry for a selected reference
   GET  /fleet                 → SSE: observatory fleet (if observatory_dir set)
@@ -214,6 +215,41 @@ def make_handler(
 
             if path == "/api/organism":
                 self._stream_organism()
+                return
+
+            if path == "/api/organism/history":
+                query = parse_qs(parsed.query, keep_blank_values=False)
+                try:
+                    limit = int((query.get("limit") or ["256"])[0])
+                except ValueError:
+                    self._json(400, {"error": "invalid history limit"})
+                    return
+                if limit < 1 or limit > 512:
+                    self._json(400, {"error": "history limit must be between 1 and 512"})
+                    return
+                frames = observation_bus.recent_materialized(
+                    "observed_frame",
+                    limit=limit,
+                )
+                items = []
+                for frame in frames:
+                    item = {
+                        key: frame[key]
+                        for key in (
+                            "type",
+                            "source",
+                            "tick",
+                            "organism_id",
+                            "instance_id",
+                            "run_id",
+                            "cognition",
+                            "vitals",
+                            "mind",
+                        )
+                        if key in frame
+                    }
+                    items.append(item)
+                self._json(200, {"items": items})
                 return
 
             if path == "/api/provenance/why":

@@ -518,7 +518,7 @@ def test_mind_development_distinguishes_existing_structure_from_observed_change(
 
     assert "Current cognitive structure" in history
     assert "Observed since" in history
-    assert "Session-observed change" in history
+    assert "Recorded change" in history
     assert "Zero change means stable during observation, not undeveloped." in history
 
 
@@ -621,3 +621,23 @@ def test_atlas_controller_reuses_graph_index_for_signals_paths_and_regions():
     assert "index: atlasIndex" in controller
     assert "atlasIndex," in controller
     assert "renderedAtlasIndex" in controller
+
+
+def test_mind_development_history_is_scoped_persistent_and_bootstrapped():
+    mind = _read("views/mind.js")
+    history = _read("views/mind/history.js")
+    streams = _read("views/mind/streams.js")
+    state = _read("views/mind/state.js")
+
+    assert "developmentScope" in state
+    assert "activateMindDevelopmentHistory" in mind
+    assert "persistMindDevelopmentHistory({ force: true })" in mind
+    assert "symbiont-lab:mind-development:v1:" in history
+    assert "window.localStorage" in history
+    assert "observedStartTick" in history
+    assert "mindHistory.splice(pointIndex, 0, point)" in history
+    assert "historySnapshots.splice(snapshotIndex, 0, captured)" in history
+    assert "captureSnapshot: false, persist: !meta.historical" in mind
+    assert "/api/organism/history?limit=256" in streams
+    assert "bootstrapRecentHistory" in streams
+    assert "historicalFinal" in streams

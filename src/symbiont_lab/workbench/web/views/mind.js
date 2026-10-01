@@ -30,12 +30,19 @@ import { MindStreams } from './mind/streams.js';
 import { applyTelemetryEvent } from './mind/telemetry.js';
 import { applyMindSnapshot } from './mind/snapshot.js';
 import { renderOverview as renderOverviewPanel } from './mind/overview.js';
-import { nearestHistorySnapshot, recordMindHistory, renderHistory as renderHistoryPanel } from './mind/history.js';
+import {
+  activateMindDevelopmentHistory,
+  nearestHistorySnapshot,
+  persistMindDevelopmentHistory,
+  recordMindHistory,
+  renderHistory as renderHistoryPanel,
+} from './mind/history.js';
 import { createIdentitySensoryRenderer } from './mind/identity-sensory.js';
 import { createCognitionController } from './mind/cognition-controller.js';
 import { currentPhysiologyState } from './mind/derived.js';
 import { applyMindTab } from './mind/tab-controller.js';
 import {
+  developmentScope as _developmentScope,
   graph as _graph,
   resetMindDataState,
   snap as _snap,
@@ -250,14 +257,17 @@ function updateCoherence() {
 
 function ingestTelemetryEvent(data, meta = {}) {
   if (!applyTelemetryEvent(data)) return;
-  _streamState.lastTelemetryAt = Date.now();
+  if (!meta.historical) _streamState.lastTelemetryAt = Date.now();
   _streamState.telemetryTick = meta.frameTick ?? data.tick ?? _streamState.telemetryTick;
   updateCoherence();
-  updateTelemetryStrip();
+  recordMindHistory({ captureSnapshot: false, persist: !meta.historical });
+  if (!meta.historical) updateTelemetryStrip();
 }
 
 function updateMindSourceState(next) {
   if (next.identityChanged) {
+    persistMindDevelopmentHistory({ force: true });
+    _developmentScope.organismId = null;
     resetCurrentObservation();
     _streamState.telemetryTick = null;
     _streamState.snapshotTick = null;
@@ -360,10 +370,20 @@ export function mount(root, appState = null) {
     onTelemetry: ingestTelemetryEvent,
     onSnapshot: (snapshot, meta = {}) => {
       if (applyMindSnapshot(snapshot)) {
+        activateMindDevelopmentHistory(
+          _snap.displayId ?? _snap.instanceId ?? meta.instanceId ?? meta.runId ?? null,
+        );
         _streamState.lastSnapshotAt = Date.now();
         _streamState.snapshotTick = meta.tick ?? snapshot?.tick ?? snapshot?.snapshot?.tick ?? null;
         updateCoherence();
-        refreshSnapshotViews();
+        if (meta.historical) {
+          recordMindHistory({ captureSnapshot: true, persist: false });
+          if (meta.historicalFinal) {
+            persistMindDevelopmentHistory({ force: true });
+          }
+        } else {
+          refreshSnapshotViews();
+        }
       }
     },
     onTopology: (topology) => {
@@ -396,6 +416,8 @@ export function mount(root, appState = null) {
  * Unmount the Mind view: stop animations, close SSE streams, clear DOM.
  */
 export function unmount() {
+  persistMindDevelopmentHistory({ force: true });
+
   // Stop animations and discard observer-only presentation ghosts.
   cognition.stop();
   cognition.resetPresentation();

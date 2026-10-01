@@ -962,7 +962,7 @@ def test_mind_tracks_cognitive_structure_over_time() -> None:
     asset = _mind_sources()
 
     assert "export const mindHistory = []" in asset
-    assert "function recordMindHistory()" in asset
+    assert "export function recordMindHistory(" in asset
     assert "Δ since t" in asset
     assert "Current cognitive structure" in asset
 
@@ -1214,7 +1214,7 @@ def test_mind_history_is_bounded_clickable_and_replayable() -> None:
     asset = _mind_sources()
 
     assert "while (mindHistory.length > 2048)" in asset
-    assert "while (historySnapshots.length > 96)" in asset
+    assert "DEVELOPMENT_SNAPSHOT_LIMIT = 160" in asset
     assert "function openHistoryTick(" in asset
     assert "replaySnapshot" in asset
     assert "Return to live cognition" in asset

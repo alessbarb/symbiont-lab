@@ -161,6 +161,36 @@ class ObservationBus:
             self._queues[consumer] = based_channels
         return consumer
 
+    def recent_materialized(
+        self,
+        event_type: str,
+        *,
+        limit: int = 128,
+    ) -> list[dict[str, Any]]:
+        """Return bounded materialized observer events without exposing delta state."""
+        wanted = str(event_type)
+        bounded_limit = max(1, min(int(limit), self._history.maxlen or int(limit)))
+        with self._lock:
+            messages = list(self._history)
+
+        result: list[dict[str, Any]] = []
+        for message in messages:
+            try:
+                payload = json.loads(message.data)
+            except (TypeError, ValueError):
+                continue
+            state: Any = payload
+            if (
+                isinstance(payload, dict)
+                and payload.get("type") == "observation_delta"
+                and payload.get("kind") == "anchor"
+            ):
+                state = payload.get("state")
+            if not isinstance(state, dict) or state.get("type") != wanted:
+                continue
+            result.append(deepcopy(state))
+        return result[-bounded_limit:]
+
     def world_scene(self) -> dict | None:
         """Atomic materialized scene for initial loads and dropped-delta recovery."""
         with self._lock:
