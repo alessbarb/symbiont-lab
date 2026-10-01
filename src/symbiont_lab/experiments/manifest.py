@@ -40,6 +40,8 @@ class ExecutionFingerprint:
     git_commit: str
     is_dirty: bool
     python_executable: str
+    python_prefix: str
+    python_base_prefix: str
     python_version: str
     symbiont_file: str
     symbiont_lab_file: str
@@ -78,6 +80,8 @@ class ExecutionFingerprint:
             git_commit=git_sha,
             is_dirty=dirty,
             python_executable=str(Path(sys.executable).resolve()),
+            python_prefix=str(Path(sys.prefix).resolve()),
+            python_base_prefix=str(Path(sys.base_prefix).resolve()),
             python_version=platform.python_version(),
             symbiont_file=str(Path(symbiont.__file__ or "").resolve()),
             symbiont_lab_file=str(Path(symbiont_lab.__file__ or "").resolve()),
@@ -101,6 +105,8 @@ class ExecutionFingerprint:
             "git_commit",
             "is_dirty",
             "python_executable",
+            "python_prefix",
+            "python_base_prefix",
             "python_version",
             "symbiont_file",
             "symbiont_lab_file",

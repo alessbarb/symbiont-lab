@@ -61,8 +61,11 @@ investigate, not permission to weaken checks.
 
     python scripts/agentctl.py run start --commit <sha> --id <run-id> \
       --scope development --snapshot-source <state-dir> --seed <seed> \
+      [--extra modeling] [--extra physics3d] \
       -- <python-script-or-module>
 
-Runs pin code, archive/hash input, verify the Python child identity before executing
-the study entry point, and enforce resource/concurrency policy. Held-out, confirmation
-and replication remain explicit owner decisions by policy.
+Runs pin code, archive/hash input, create an isolated environment from the pinned
+`uv.lock` without dev dependencies, and verify the Python child identity before
+executing the study entry point. Optional dependency extras are explicit. The
+compatibility environment is not changed. Resource/concurrency policy remains
+enforced; held-out, confirmation and replication remain explicit owner decisions.

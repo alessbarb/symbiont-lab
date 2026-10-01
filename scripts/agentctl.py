@@ -8,10 +8,12 @@ import fnmatch
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from datetime import datetime, timezone
@@ -231,7 +233,12 @@ def validate(staged_only: bool = True) -> int:
 
     for command in commands:
         print(f"VALIDATE: {command}")
-        result = subprocess.run(command, cwd=ROOT, shell=True)
+        try:
+            argv = _validation_argv(command)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        result = subprocess.run(argv, cwd=ROOT, check=False, shell=False)
         if result.returncode != 0:
             print(f"validation failed: {command}", file=sys.stderr)
             return result.returncode
@@ -519,14 +526,29 @@ def _equivalence_lock_path() -> Path:
     return runtime_dir() / "equivalence-run.json"
 
 
-def _pid_alive(pid: int) -> bool:
+def _process_start_token(pid: int) -> str | None:
+    """Return Linux process start time (proc stat field 22), if available."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+        fields = stat[stat.rfind(")") + 2 :].split()
+        return fields[19]
+    except (OSError, IndexError):
+        return None
+
+
+def _pid_alive(pid: int, expected_start_token: str | None = None) -> bool:
     if pid <= 0:
         return False
     try:
         os.kill(pid, 0)
-    except (ProcessLookupError, PermissionError, OSError):
+    except ProcessLookupError:
         return False
-    return True
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    actual = _process_start_token(pid)
+    return not (expected_start_token and actual and actual != expected_start_token)
 
 
 def _tracked_running_at(ref: str) -> list[str]:
@@ -550,15 +572,17 @@ def _reserve_run_lock(payload: dict[str, Any]) -> int:
             print("scientific run lock is corrupt; owner inspection required", file=sys.stderr)
             return 1
         pid = int(existing.get("child_pid") or existing.get("owner_pid") or -1)
-        if _pid_alive(pid):
+        token = existing.get("child_start_token") or existing.get("owner_start_token")
+        if _pid_alive(pid, token):
             print(f"scientific run lock held by {existing.get('id')}", file=sys.stderr)
             return 1
         print("stale scientific run lock exists; run 'agentctl run clear-stale'", file=sys.stderr)
         return 1
-    fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2)
-        handle.write("\n")
+    try:
+        _atomic_json_write(lock, payload, exclusive=True)
+    except FileExistsError:
+        print("scientific run lock was concurrently reserved", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -602,6 +626,107 @@ def _python_target(command: list[str]) -> tuple[str, str, list[str]]:
     return "script", command[1], command[2:]
 
 
+def _scientific_python(environment: Path) -> Path:
+    executable = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    if not executable.is_file():
+        raise RuntimeError(f"locked scientific environment has no Python executable: {executable}")
+    return executable
+
+
+def _scientific_sync_command(
+    uv: str, worktree: Path, python: str, extras: list[str]
+) -> list[str]:
+    command = [
+        uv,
+        "sync",
+        "--locked",
+        "--no-dev",
+        "--project",
+        str(worktree),
+        "--python",
+        python,
+    ]
+    for extra in sorted(set(extras)):
+        command.extend(("--extra", extra))
+    return command
+
+
+_CHILD_ENV_KEYS = {
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "LANG",
+    "LC_ALL",
+    "TZ",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "SYSTEMROOT",
+    "WINDIR",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "UV_CACHE_DIR",
+}
+
+_VALIDATION_COMMAND_PREFIXES: tuple[tuple[str, ...], ...] = (
+    ("uv", "run", "--no-sync", "pytest"),
+    ("uv", "run", "--no-sync", "ruff"),
+    ("uv", "run", "--no-sync", "pyright"),
+    ("uv", "run", "--no-sync", "bandit"),
+    ("python", "scripts/agentctl.py", "verify"),
+    ("python3", "scripts/agentctl.py", "verify"),
+    ("git", "diff", "--check"),
+)
+
+
+def _validation_argv(command: str) -> list[str]:
+    argv = shlex.split(command)
+    if not argv or not any(tuple(argv[: len(prefix)]) == prefix for prefix in _VALIDATION_COMMAND_PREFIXES):
+        raise ValueError(f"validation command is not allowlisted: {command}")
+    return argv
+
+
+def _atomic_json_write(path: Path, payload: dict[str, Any], *, exclusive: bool = False) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", delete=False
+        ) as handle:
+            temporary = handle.name
+            json.dump(payload, handle, indent=2, default=str)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        if exclusive:
+            os.link(temporary, path)
+        else:
+            os.replace(temporary, path)
+            temporary = None
+        if os.name == "posix":
+            descriptor = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+    finally:
+        if temporary is not None:
+            Path(temporary).unlink(missing_ok=True)
+
+
+def _scientific_environment(*, home: Path | None = None) -> dict[str, str]:
+    env = {key: os.environ[key] for key in _CHILD_ENV_KEYS if key in os.environ}
+    if home is not None:
+        home.mkdir(parents=True, exist_ok=True)
+        env["HOME"] = str(home)
+        if os.name == "nt":
+            env["USERPROFILE"] = str(home)
+    return env
+
+
 def run_pinned(
     *,
     commit: str,
@@ -612,6 +737,7 @@ def run_pinned(
     command: list[str],
     experiment_id: str,
     seed: int,
+    extras: list[str],
     wall_minutes: int,
     memory_gb: float,
     cpu: int,
@@ -621,6 +747,9 @@ def run_pinned(
 
     if scope not in SCIENTIFIC_SCOPES:
         print(f"invalid scientific scope: {scope}", file=sys.stderr)
+        return 2
+    if any(extra not in {"modeling", "physics3d"} for extra in extras):
+        print("invalid scientific dependency extra", file=sys.stderr)
         return 2
     try:
         _python_target(command)
@@ -712,6 +841,9 @@ def run_pinned(
         print(f"run id already exists: {run_id}", file=sys.stderr)
         return 3
     run_root.mkdir(parents=True, exist_ok=False)
+    run_home = run_root / "home"
+    run_home.mkdir(parents=True, exist_ok=True)
+    attempt_started_at = datetime.now(timezone.utc).isoformat()
     input_dir = run_root / "input"
     try:
         manifest = archive_snapshot(
@@ -725,17 +857,31 @@ def run_pinned(
             ),
             scenario=scope,
         )
+        work_dir = run_root / "work"
+        shutil.copytree(input_dir, work_dir, copy_function=shutil.copy2)
+        for path in work_dir.rglob("*"):
+            if path.is_file():
+                try:
+                    path.chmod(0o644)
+                except OSError:
+                    pass
     except Exception:
-        shutil.rmtree(run_root, ignore_errors=True)
+        _atomic_json_write(
+            run_root / "execution.json",
+            {
+                "id": run_id,
+                "commit": commit,
+                "scope": scope,
+                "started_at": attempt_started_at,
+                "ended_at": datetime.now(timezone.utc).isoformat(),
+                "state": "SETUP_FAILED",
+                "failure_phase": "snapshot_or_worktree_copy",
+                "scientific_child_started": False,
+            },
+        )
+        for transient in ("input", "work", "environment", "home"):
+            shutil.rmtree(run_root / transient, ignore_errors=True)
         raise
-    work_dir = run_root / "work"
-    shutil.copytree(input_dir, work_dir, copy_function=shutil.copy2)
-    for path in work_dir.rglob("*"):
-        if path.is_file():
-            try:
-                path.chmod(0o644)
-            except OSError:
-                pass
 
     payload = {
         "id": run_id,
@@ -745,6 +891,7 @@ def run_pinned(
         "governance_ref": governance_ref,
         "authorization_model": "external-operator-policy",
         "owner_pid": os.getpid(),
+        "owner_start_token": _process_start_token(os.getpid()),
         "started_at": datetime.now(timezone.utc).isoformat(),
         "wall_minutes": wall_minutes,
         "memory_gb": memory_gb,
@@ -759,6 +906,7 @@ def run_pinned(
         "state": "launching",
     }
     if _reserve_run_lock(payload):
+        shutil.rmtree(run_root, ignore_errors=True)
         return 1
 
     resolved_command = [
@@ -766,21 +914,45 @@ def run_pinned(
         for token in command
     ]
     target = _python_target(resolved_command)
-    env = os.environ.copy()
-    env["SYMBIONT_RUN_INPUT"] = str(input_dir)
-    env["SYMBIONT_RUN_WORK"] = str(work_dir)
-    env["SYMBIONT_RUN_ID"] = run_id
-    for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
-        env[key] = str(cpu)
-
     started = time.time()
     returncode = 1
     try:
         with pinned_worktree(ROOT, commit) as worktree:
+            environment = run_root / "environment"
+            sync_env = _scientific_environment(home=run_home)
+            sync_env["UV_PROJECT_ENVIRONMENT"] = str(environment)
+            uv = shutil.which("uv")
+            if not uv:
+                raise RuntimeError("uv is required to synchronize the locked scientific environment")
+            sync_command = _scientific_sync_command(uv, worktree, sys.executable, extras)
+            sync = subprocess.run(
+                sync_command,
+                cwd=worktree,
+                env=sync_env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if sync.returncode:
+                raise RuntimeError(
+                    "could not synchronize locked scientific environment: "
+                    + (sync.stderr.strip() or sync.stdout.strip())
+                )
+            scientific_python = _scientific_python(environment)
+            env = _scientific_environment(home=run_home)
             env["PYTHONPATH"] = str(worktree / "src")
+            env["UV_PROJECT_ENVIRONMENT"] = str(environment)
+            env["SYMBIONT_RUN_INPUT"] = str(input_dir)
+            env["SYMBIONT_RUN_WORK"] = str(work_dir)
+            env["SYMBIONT_RUN_ID"] = run_id
+            for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+                env[key] = str(cpu)
+            env["PATH"] = str(scientific_python.parent) + os.pathsep + env.get("PATH", "")
+            env["SYMBIONT_RUN_ENVIRONMENT"] = str(environment)
             effective_config = json.dumps(
                 {
                     "argv": command,
+                    "dependency_extras": sorted(set(extras)),
                     "scope": scope,
                     "snapshot": {
                         key: manifest.get(key)
@@ -805,7 +977,7 @@ def run_pinned(
             env["SYMBIONT_SEED"] = str(seed)
             declaration = subprocess.run(
                 [
-                    sys.executable,
+                    str(scientific_python),
                     "-m",
                     "symbiont_lab.experiments.verified_child",
                     "--capture",
@@ -834,7 +1006,7 @@ def run_pinned(
                 declared_fingerprint, sort_keys=True
             )
             child_argv = [
-                sys.executable,
+                str(scientific_python),
                 "-m",
                 "symbiont_lab.experiments.verified_child",
                 target[0],
@@ -845,17 +1017,23 @@ def run_pinned(
                 child_argv,
                 cwd=worktree,
                 env=env,
-                start_new_session=True,
+                start_new_session=(os.name == "posix"),
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+                ),
                 preexec_fn=_scientific_preexec(memory_gb, wall_minutes, cpu),
             )
             payload["child_pid"] = proc.pid
+            payload["child_start_token"] = _process_start_token(proc.pid)
             payload["worktree_commit"] = commit
+            payload["dependency_extras"] = sorted(set(extras))
+            payload["environment_path"] = str(environment)
             payload["command"] = child_argv
             payload["execution_fingerprint"] = json.loads(
                 env["SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT"]
             )
             payload["state"] = "running"
-            _run_lock_path().write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+            _atomic_json_write(_run_lock_path(), payload)
             try:
                 returncode = proc.wait(timeout=wall_minutes * 60)
             except subprocess.TimeoutExpired:
@@ -867,21 +1045,32 @@ def run_pinned(
                         os.killpg(proc.pid, signal.SIGKILL)
                         proc.wait()
                 else:
-                    proc.terminate()
-                    proc.wait(timeout=10)
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    if proc.poll() is None:
+                        proc.terminate()
+                    try:
+                        proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.wait()
                 returncode = 124
     finally:
         receipt = {
             **payload,
-            "state": "complete",
+            "state": "complete" if "child_pid" in payload else "SETUP_FAILED",
             "ended_at": datetime.now(timezone.utc).isoformat(),
             "elapsed_seconds": time.time() - started,
             "returncode": returncode,
         }
-        (run_root / "execution.json").write_text(
-            json.dumps(receipt, indent=2, default=str) + "\n", encoding="utf-8"
-        )
+        _atomic_json_write(run_root / "execution.json", receipt)
         _run_lock_path().unlink(missing_ok=True)
+        if "child_pid" not in payload:
+            for transient in ("input", "work", "environment", "home"):
+                shutil.rmtree(run_root / transient, ignore_errors=True)
     return returncode
 
 
@@ -901,7 +1090,8 @@ def clear_stale() -> int:
         print("corrupt lock requires manual owner inspection", file=sys.stderr)
         return 1
     pid = int(payload.get("child_pid") or payload.get("owner_pid") or -1)
-    if _pid_alive(pid):
+    token = payload.get("child_start_token") or payload.get("owner_start_token")
+    if _pid_alive(pid, token):
         print("lock owner/child is still alive", file=sys.stderr)
         return 1
     lock.unlink()
@@ -953,17 +1143,16 @@ def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
 
     lock = _equivalence_lock_path()
     lock.parent.mkdir(parents=True, exist_ok=True)
+    lock_payload = {
+        "pid": os.getpid(),
+        "process_start_token": _process_start_token(os.getpid()),
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
     try:
-        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        _atomic_json_write(lock, lock_payload, exclusive=True)
     except FileExistsError:
         print("BLOCKED — another equivalence run is already active", file=sys.stderr)
         return 3
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump(
-            {"pid": os.getpid(), "started_at": datetime.now(timezone.utc).isoformat()}, handle
-        )
-        handle.write("\n")
-
     exit_code = 0
     try:
         for scenario_id in selected:
@@ -1152,6 +1341,9 @@ def main() -> int:
     p_start.add_argument("--id", required=True)
     p_start.add_argument("--experiment-id")
     p_start.add_argument("--seed", type=int, required=True)
+    p_start.add_argument(
+        "--extra", action="append", choices=("modeling", "physics3d"), default=[]
+    )
     p_start.add_argument("--scope", choices=sorted(SCIENTIFIC_SCOPES), required=True)
     p_start.add_argument("--snapshot-source", type=Path, required=True)
     p_start.add_argument(
@@ -1212,7 +1404,10 @@ def main() -> int:
     if args.run_command == "status":
         return run_status()
     if args.run_command == "start":
-        argv = args.argv[1:] if args.argv and args.argv[0] == "--" else args.argv
+        if not args.argv or args.argv[0] != "--":
+            print("run start requires -- before the Python command", file=sys.stderr)
+            return 2
+        argv = args.argv[1:]
         if not argv:
             print("missing command after --", file=sys.stderr)
             return 2
@@ -1225,6 +1420,7 @@ def main() -> int:
             command=argv,
             experiment_id=args.experiment_id or args.id,
             seed=args.seed,
+            extras=args.extra,
             wall_minutes=args.wall_minutes,
             memory_gb=args.memory_gb,
             cpu=args.cpu,

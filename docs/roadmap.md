@@ -496,6 +496,7 @@ git commit
 dirty state
 repository root
 Python executable
+Python environment prefix (`sys.prefix` and `sys.base_prefix`)
 Python version
 symbiont module origin
 symbiont_lab module origin
@@ -523,12 +524,16 @@ hermetic execution.
 
 ### A3 — Dependency locking
 
-**Status:** PARTIAL.
+**Status:** COMPLETE — the launcher synchronizes isolated locked environments, and
+ADR-0051's applicable POSIX acceptance evidence passes. Windows process-tree timeout
+behavior remains explicitly unverified and is not claimed as validated.
 
 The repository now has a canonical `uv.lock` and a pinned scientific Python
-baseline in `.python-version`. Scientific execution identity records the lock
-digest. The remaining gate is enforcing synchronization from that lock in the
-scientific launcher while keeping the compatibility lane independent.
+baseline in `.python-version`. Each governed scientific run creates its own
+environment from the pinned worktree using `uv sync --locked --no-dev`. Optional
+`modeling` and `physics3d` extras are opt-in; the compatibility environment is not
+modified. The child fingerprint and execution receipt identify the isolated
+interpreter and locked dependency digest.
 
 Scientific campaigns require a reproducible dependency set.
 
