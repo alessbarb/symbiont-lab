@@ -244,6 +244,34 @@ def test_private_receptor_ids_preserve_same_constitutional_transfer_geometry():
     assert list(values_a.values()) == pytest.approx(list(values_b.values()))
 
 
+def test_clean_receptor_transfer_geometry_ignores_source_labels():
+    from symbiont_lab.world.adapter import physical_receptor_signals
+    from symbiont_world.contracts import WorldObservation
+    from symbiont_world.genesis import GroundTruth
+    from symbiont_world.laws import PeriodicFieldLaw
+
+    laws = (
+        PeriodicFieldLaw(amplitude=0.1, bias=0.2, angular_frequency=0.0),
+        PeriodicFieldLaw(amplitude=0.3, bias=0.4, angular_frequency=0.0),
+    )
+    truth_a = GroundTruth(fields={"observer-label-a": laws[0], "observer-label-b": laws[1]})
+    truth_b = GroundTruth(fields={"renamed-x": laws[0], "renamed-y": laws[1]})
+    receptors = ("private-0", "private-1")
+
+    values_a = physical_receptor_signals(
+        truth_a,
+        WorldObservation(signals={"observer-label-a": 0.25, "observer-label-b": 0.75}),
+        receptor_ids=receptors,
+    )
+    values_b = physical_receptor_signals(
+        truth_b,
+        WorldObservation(signals={"renamed-x": 0.25, "renamed-y": 0.75}),
+        receptor_ids=receptors,
+    )
+
+    assert values_a == pytest.approx(values_b)
+
+
 def test_clean_observation_strips_structured_side_channels_after_mixing():
     from symbiont_lab.world.adapter import clean_world_observation, physical_receptor_ids
     from symbiont_world.contracts import ReceivedEmission, WorldObservation
