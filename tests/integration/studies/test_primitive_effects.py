@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import math
 
-from symbiont_lab.physics3d.telemetry import TelemetryV3Writer
-from symbiont_lab.physics3d.telemetry_v41 import TelemetryV41Writer
+from symbiont_lab.physics3d.telemetry.v3 import TelemetryV3Writer
+from symbiont_lab.physics3d.telemetry.v41 import TelemetryV41Writer
 from symbiont_lab.studies.physics3d.primitive_effects import (
     StateComparability,
     analyze_primitive_effects,

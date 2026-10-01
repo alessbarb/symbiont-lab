@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from symbiont_lab.physics3d.telemetry_binary import (
+from symbiont_lab.physics3d.telemetry.binary import (
     BinaryDeltaReader,
     BinaryDeltaWriter,
     BinaryDenseReader,
@@ -20,8 +20,8 @@ from symbiont_lab.physics3d.telemetry_binary import (
     decode_uvarint,
     encode_uvarint,
 )
-from symbiont_lab.physics3d.telemetry_compaction import canonical_json_bytes
-from symbiont_lab.physics3d.telemetry_structural import logical_view, structural_view
+from symbiont_lab.physics3d.telemetry.compaction import canonical_json_bytes
+from symbiont_lab.physics3d.telemetry.structural import logical_view, structural_view
 
 
 def test_uvarint_round_trip_boundaries():

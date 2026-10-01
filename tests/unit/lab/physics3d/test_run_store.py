@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from symbiont_lab.app.physics3d_runs import Physics3DRunStore
+from symbiont_lab.app.physics3d.runs import Physics3DRunStore
 from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyDescriptor, BodyRegistry
 
 

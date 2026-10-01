@@ -9,7 +9,7 @@ from symbiont_lab.physics3d.persistence import (
     load_telemetry_records,
     load_telemetry_transitions,
 )
-from symbiont_lab.physics3d.telemetry_v4 import (
+from symbiont_lab.physics3d.telemetry.v4 import (
     AsyncTelemetryV4Writer,
     TelemetryV4Reader,
     TelemetryV4Writer,

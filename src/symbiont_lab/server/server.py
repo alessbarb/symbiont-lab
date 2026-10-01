@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from symbiont.provenance import CausalRef
-from symbiont_lab.app.physics3d_runs import DEFAULT_LAB_STATE_ROOT, Physics3DRunStore
-from symbiont_lab.app.physics3d_session import Physics3DSession, Physics3DSessionState
+from symbiont_lab.app.physics3d.runs import DEFAULT_LAB_STATE_ROOT, Physics3DRunStore
+from symbiont_lab.app.physics3d.session import Physics3DSession, Physics3DSessionState
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
 from symbiont_lab.experience import resolve_termination

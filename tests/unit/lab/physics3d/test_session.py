@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import threading
 
-from symbiont_lab.app.physics3d_runs import Physics3DLaunchSpec
-from symbiont_lab.app.physics3d_session import (
+from symbiont_lab.app.physics3d.runs import Physics3DLaunchSpec
+from symbiont_lab.app.physics3d.session import (
     Physics3DSession,
     Physics3DSessionState,
 )

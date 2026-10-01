@@ -12,7 +12,7 @@ import inspect
 from pathlib import Path
 
 import symbiont
-from symbiont_lab.app.physics3d_runs import Physics3DRunStore
+from symbiont_lab.app.physics3d.runs import Physics3DRunStore
 from symbiont_lab.experience import RunGuard, run_definition
 
 

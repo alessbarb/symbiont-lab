@@ -660,7 +660,7 @@ class SymbiontLabWindow:
         self._mount_physics_workspace()
 
     def _mount_physics_workspace(self) -> None:
-        from .physics3d_monitor import mount_embedded_viewer
+        from .physics3d.monitor.viewer import mount_embedded_viewer
 
         if self.physics_tab is not None:
             try:

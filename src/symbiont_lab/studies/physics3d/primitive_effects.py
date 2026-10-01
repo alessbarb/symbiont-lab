@@ -21,7 +21,7 @@ from symbiont_lab.physics3d.effects import (
     physical_state_from_payload,
     state_distance,
 )
-from symbiont_lab.physics3d.telemetry_reader import open_telemetry
+from symbiont_lab.physics3d.telemetry.reader import open_telemetry
 
 
 @dataclass(frozen=True, slots=True)

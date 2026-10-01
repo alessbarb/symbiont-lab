@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from symbiont_lab.app.physics3d_monitor import _viewer_main
+from symbiont_lab.app.physics3d.monitor.viewer import _viewer_main
 
 from .engine import (
     DEFAULT_BODY_FILE,

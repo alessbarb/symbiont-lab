@@ -245,10 +245,10 @@ def test_record_to_snapshot_conversion():
 
 def test_monitor_conversion_helpers_keep_the_compatibility_exports():
     from symbiont_lab.app import physics3d_monitor
-    from symbiont_lab.app.physics3d_monitor_converters import (
+    from symbiont_lab.app.physics3d.monitor.converters import (
         record_to_snapshot as converted_record_to_snapshot,
     )
-    from symbiont_lab.app.physics3d_monitor_converters import (
+    from symbiont_lab.app.physics3d.monitor.converters import (
         snapshot_to_physical_state as converted_snapshot_to_physical_state,
     )
     from symbiont_lab.physics3d.monitor import (

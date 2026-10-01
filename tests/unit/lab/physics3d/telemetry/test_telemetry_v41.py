@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from symbiont_lab.physics3d.telemetry_binary import (
+from symbiont_lab.physics3d.telemetry.binary import (
     BinaryDeltaReader,
     BinaryDenseReader,
     BinaryEventReader,
@@ -14,9 +14,9 @@ from symbiont_lab.physics3d.telemetry_binary import (
     BinaryRecordIterator,
     BinaryStringTableReader,
 )
-from symbiont_lab.physics3d.telemetry_compaction import canonical_json_bytes
-from symbiont_lab.physics3d.telemetry_reader import open_telemetry
-from symbiont_lab.physics3d.telemetry_v41 import (
+from symbiont_lab.physics3d.telemetry.compaction import canonical_json_bytes
+from symbiont_lab.physics3d.telemetry.reader import open_telemetry
+from symbiont_lab.physics3d.telemetry.v41 import (
     AsyncTelemetryV41Writer,
     TelemetryV41Reader,
     TelemetryV41Writer,
@@ -454,7 +454,7 @@ def test_v41_state_at_rejects_self_consistent_but_divergent_anchor(tmp_path):
     payload = json.loads(anchor.read_text(encoding="utf-8"))
     payload.pop("anchor_sha256")
     payload["state"]["future_unknown"]["payload"][0] = 999999
-    from symbiont_lab.physics3d.telemetry_compaction import payload_sha256
+    from symbiont_lab.physics3d.telemetry.compaction import payload_sha256
 
     payload["anchor_sha256"] = payload_sha256(payload)
     anchor.write_text(
@@ -877,7 +877,7 @@ def test_v41_state_at_materializes_only_requested_tick(tmp_path, monkeypatch):
     )
     _write(writer)
 
-    import symbiont_lab.physics3d.telemetry_v41 as module
+    import symbiont_lab.physics3d.telemetry.v41 as module
 
     original = module.reassemble_state
     calls = 0

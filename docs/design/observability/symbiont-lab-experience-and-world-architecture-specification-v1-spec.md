@@ -2025,8 +2025,8 @@ Avoid broad core rewrites.
 ## Lab runtime
 
 ```text
-src/symbiont_lab/app/physics3d_runs.py
-src/symbiont_lab/app/physics3d_session.py
+src/symbiont_lab/app/physics3d/runs.py
+src/symbiont_lab/app/physics3d/session.py
 src/symbiont_lab/physics3d/engine.py
 src/symbiont_lab/physics3d/runtime.py
 src/symbiont_lab/physics3d/environments.py

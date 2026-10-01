@@ -208,7 +208,7 @@ At final checkpoint:
 - close epoch if body dies or re-embodies;
 - do not close epoch on stop/resume of the same body.
 
-### 10. `src/symbiont_lab/app/physics3d_runs.py`
+### 10. `src/symbiont_lab/app/physics3d/runs.py`
 
 Show relevant summary in catalog:
 

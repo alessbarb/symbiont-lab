@@ -43,13 +43,13 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 | Casos | Archivo |
 |---:|---|
-| 80 | `src/symbiont_lab/app/physics3d_monitor.py` |
+| 80 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
 | 33 | `src/symbiont_lab/studies/perception/sensory_specialisation.py` |
 | 31 | `src/symbiont/modeling/culture.py` |
 | 30 | `src/symbiont/actuation/binding.py` |
-| 30 | `src/symbiont_lab/physics3d/telemetry_v41.py` |
+| 30 | `src/symbiont_lab/physics3d/telemetry/v41.py` |
 | 28 | `src/symbiont/genetics/migration.py` |
-| 28 | `src/symbiont_lab/app/physics3d_session.py` |
+| 28 | `src/symbiont_lab/app/physics3d/session.py` |
 | 28 | `src/symbiont_lab/physics3d/runtime.py` |
 | 24 | `src/symbiont/core/embodiment/memory.py` |
 | 24 | `src/symbiont_lab/studies/heritage/ecological_shift.py` |
@@ -85,7 +85,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 6 | `src/symbiont/core/embodiment/dynamics.py` |
 | 6 | `src/symbiont/core/social/relations.py` |
 | 6 | `src/symbiont/modeling/private_runtime.py` |
-| 6 | `src/symbiont_lab/physics3d/telemetry_binary.py` |
+| 6 | `src/symbiont_lab/physics3d/telemetry/binary.py` |
 | 6 | `src/symbiont_lab/studies/attention/retrospective.py` |
 | 6 | `src/symbiont_lab/studies/learning/canonical_sensorimotor_counterfactual.py` |
 | 5 | `observatory/adapter.py` |
@@ -97,8 +97,8 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 4 | `src/symbiont/core/cognition/bridge_checkpoint.py` |
 | 4 | `src/symbiont/core/orchestration/resident.py` |
 | 4 | `src/symbiont_lab/app/run_controller.py` |
-| 4 | `src/symbiont_lab/physics3d/telemetry.py` |
-| 4 | `src/symbiont_lab/physics3d/telemetry_tools.py` |
+| 4 | `src/symbiont_lab/physics3d/telemetry/v3.py` |
+| 4 | `src/symbiont_lab/physics3d/telemetry/tools.py` |
 | 4 | `src/symbiont_lab/studies/heritage/stress.py` |
 | 4 | `src/symbiont_lab/studies/learning/canonical_sensorimotor_agency.py` |
 | 4 | `src/symbiont_lab/studies/learning/embodied_model_comparison.py` |
@@ -140,7 +140,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 2 | `src/symbiont_lab/modeling/trainer.py` |
 | 2 | `src/symbiont_lab/observation/atlas.py` |
 | 2 | `src/symbiont_lab/observation/observatory.py` |
-| 2 | `src/symbiont_lab/physics3d/telemetry_v4.py` |
+| 2 | `src/symbiont_lab/physics3d/telemetry/v4.py` |
 | 2 | `src/symbiont_lab/server/server.py` |
 | 2 | `src/symbiont_lab/studies/campaigns/comparative.py` |
 | 2 | `src/symbiont_lab/studies/campaigns/interpretation.py` |
@@ -759,7 +759,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `8:10` · **warning** · `reportMissingImports` — Import "symbiont.core.curiosity" could not be resolved
 
-### `src/symbiont_lab/app/physics3d_monitor.py` (80)
+### `src/symbiont_lab/app/physics3d/monitor/viewer.py` (80)
 
 - `243:16` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `243:16` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
@@ -842,7 +842,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `3058:39` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `3058:39` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
 
-### `src/symbiont_lab/app/physics3d_session.py` (28)
+### `src/symbiont_lab/app/physics3d/session.py` (28)
 
 - `88:55` · **error** · `reportArgumentType` — Argument of type "ObservationBus" cannot be assigned to parameter "sink" of type "EventSink" in function "__init__" "ObservationBus" is incompatible with protocol "EventSink" "push" is an incompatible type Type "(event: dict[str, Any]) -> int" is not assignable to type "(event: dict[str, Any]) -> None" Function return type "int" is incompatible with type "None" "int" is not assignable to "None"
 - `164:29` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "ancestry_training" of type "bool" in function "run" "object" is not assignable to "bool"
@@ -1105,14 +1105,14 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `2462:49` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `2485:16` · **warning** · `reportMissingImports` — Import "numpy" could not be resolved
 
-### `src/symbiont_lab/physics3d/telemetry.py` (4)
+### `src/symbiont_lab/physics3d/telemetry/v3.py` (4)
 
 - `60:23` · **error** · `reportArgumentType` — Argument of type "DataclassInstance \| type[DataclassInstance]" cannot be assigned to parameter "obj" of type "DataclassInstance" in function "asdict" Type "DataclassInstance \| type[DataclassInstance]" is not assignable to type "DataclassInstance" "__dataclass_fields__" is defined as a ClassVar in protocol
 - `249:19` · **error** · `reportCallIssue` — No overloads for "__init__" match the provided arguments
 - `249:24` · **error** · `reportArgumentType` — Argument of type "Mapping[str, Any] \| None" cannot be assigned to parameter "iterable" of type "Iterable[list[bytes]]" in function "__init__" Type "Mapping[str, Any] \| None" is not assignable to type "Iterable[list[bytes]]" "Mapping[str, Any]" is not assignable to "Iterable[list[bytes]]" Type parameter "_T_co@Iterable" is covariant, but "str" is not a subtype of "list[bytes]" "str" is not assignable to "list[bytes]"
 - `369:57` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
-### `src/symbiont_lab/physics3d/telemetry_binary.py` (6)
+### `src/symbiont_lab/physics3d/telemetry/binary.py` (6)
 
 - `185:52` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "id" for class "BinaryStringTableReader" Attribute "id" is unknown
 - `198:56` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "id" for class "BinaryStringTableReader" Attribute "id" is unknown
@@ -1121,19 +1121,19 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `233:24` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "append" for class "dict[str, Any]" Attribute "append" is unknown
 - `241:37` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "get" for class "BinaryStringTableWriter" Attribute "get" is unknown
 
-### `src/symbiont_lab/physics3d/telemetry_tools.py` (4)
+### `src/symbiont_lab/physics3d/telemetry/tools.py` (4)
 
 - `77:38` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "iter_records" for class "TelemetryReaderProtocol" Attribute "iter_records" is unknown
 - `101:23` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "iter_records" for class "TelemetryReaderProtocol" Attribute "iter_records" is unknown
 - `102:23` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "iter_records" for class "TelemetryReaderProtocol" Attribute "iter_records" is unknown
 - `180:34` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "iter_records" for class "TelemetryReaderProtocol" Attribute "iter_records" is unknown
 
-### `src/symbiont_lab/physics3d/telemetry_v4.py` (2)
+### `src/symbiont_lab/physics3d/telemetry/v4.py` (2)
 
 - `41:23` · **error** · `reportArgumentType` — Argument of type "DataclassInstance \| type[DataclassInstance]" cannot be assigned to parameter "obj" of type "DataclassInstance" in function "asdict" Type "DataclassInstance \| type[DataclassInstance]" is not assignable to type "DataclassInstance" "__dataclass_fields__" is defined as a ClassVar in protocol
 - `356:57` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
-### `src/symbiont_lab/physics3d/telemetry_v41.py` (30)
+### `src/symbiont_lab/physics3d/telemetry/v41.py` (30)
 
 - `70:23` · **error** · `reportArgumentType` — Argument of type "DataclassInstance \| type[DataclassInstance]" cannot be assigned to parameter "obj" of type "DataclassInstance" in function "asdict" Type "DataclassInstance \| type[DataclassInstance]" is not assignable to type "DataclassInstance" "__dataclass_fields__" is defined as a ClassVar in protocol
 - `856:57` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined

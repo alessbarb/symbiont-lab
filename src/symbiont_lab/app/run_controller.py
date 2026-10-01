@@ -50,7 +50,7 @@ def _run_experiment_worker(spec_path: str, event_queue) -> None:
 
 def _run_physics3d_worker(event_queue, frame_queue, command_queue) -> None:
     try:
-        from symbiont_lab.app.physics3d_monitor import QueueViewerBridge
+        from symbiont_lab.app.physics3d.monitor.viewer import QueueViewerBridge
         from symbiont_lab.physics3d.engine import run
 
         bridge = QueueViewerBridge(frame_queue, command_queue)

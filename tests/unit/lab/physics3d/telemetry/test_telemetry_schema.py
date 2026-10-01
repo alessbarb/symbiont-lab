@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from symbiont_lab.physics3d.telemetry_compaction import canonical_json_bytes
-from symbiont_lab.physics3d.telemetry_numeric import (
+from symbiont_lab.physics3d.telemetry.compaction import canonical_json_bytes
+from symbiont_lab.physics3d.telemetry.numeric import (
     FrameSchemaRegistryReader,
     FrameSchemaRegistryWriter,
 )
-from symbiont_lab.physics3d.telemetry_schema import (
+from symbiont_lab.physics3d.telemetry.schema import (
     TemporalClass,
     event_mode,
     partition_state,
     reassemble_state,
 )
-from symbiont_lab.physics3d.telemetry_structural import (
+from symbiont_lab.physics3d.telemetry.structural import (
     LegacyStructuralStreamReader,
     LegacyStructuralStreamWriter,
     logical_view,

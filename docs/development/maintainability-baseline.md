@@ -37,13 +37,13 @@ establish that any move is safe.
 
 | Lines | Module |
 |---:|---|
-| 3,589 | `src/symbiont_lab/app/physics3d_monitor.py` |
+| 3,589 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
 | 3,319 | `src/symbiont/core/orchestration/runtime.py` |
 | 2,954 | `src/symbiont/core/domains/action.py` |
 | 2,556 | `src/symbiont_lab/physics3d/runtime.py` |
 | 1,967 | `src/symbiont/actuation/sensorimotor.py` |
 | 1,859 | `src/symbiont/modeling/runtime.py` |
-| 1,658 | `src/symbiont_lab/physics3d/telemetry_v41.py` |
+| 1,658 | `src/symbiont_lab/physics3d/telemetry/v41.py` |
 | 1,590 | `src/symbiont/core/embodiment/body_schema.py` |
 | 1,509 | `src/symbiont/modeling/episodic.py` |
 | 1,459 | `src/symbiont/modeling/culture.py` |
@@ -78,7 +78,7 @@ and is not selected by this inventory.
 
 The first selected seam is the identical bounded FIFO worker lifecycle shared
 by `AsyncTelemetryV4Writer` and `AsyncTelemetryV41Writer` in
-`src/symbiont_lab/physics3d/telemetry_v4.py` and `telemetry_v41.py`. Their
+`src/symbiont_lab/physics3d/telemetry/v4.py` and `telemetry/v41.py`. Their
 `_run`, `append`, `flush`, `close`, and worker-error handling were duplicated;
 the V4.1 snapshot policy is distinct and remains in its versioned adapter.
 
@@ -86,7 +86,8 @@ the V4.1 snapshot policy is distinct and remains in its versioned adapter.
   delegation and worker-error propagation. The new private
   `physics3d/_async_telemetry.py` helper owns no telemetry format or tick policy.
 - **Callers:** the Physics3D engine constructs the V4.1 adapter; V4/V4.1 async
-  behavior is exercised in `tests/unit/lab/physics3d/test_telemetry_v4.py` and
+  behavior is exercised in
+  `tests/unit/lab/physics3d/telemetry/test_telemetry_v4.py` and
   `test_telemetry_v41.py`. Telemetry tools consume the versioned writers and
   readers; their interfaces are unchanged.
 - **Compatibility surface:** public class names, modules, constructor
@@ -110,7 +111,7 @@ own source-to-test mapping and regression evidence.
 The second selected seam is the two pure 2D geometry functions used to
 calculate the monitor's support polygon: `_convex_hull_2d` and
 `_point_in_polygon_2d`. They now live in
-`src/symbiont_lab/app/physics3d_geometry.py`; the monitor imports them and keeps
+`src/symbiont_lab/app/physics3d/geometry.py`; the monitor imports them and keeps
 its historical names available through the `symbiont_lab.physics3d.monitor`
 compatibility facade.
 
@@ -227,7 +228,7 @@ any further relocation.
 ## Eighth bounded apparatus extraction: monitor payload converters
 
 The monitor's two telemetry conversion functions now live in
-`src/symbiont_lab/app/physics3d_monitor_converters.py`. They translate a telemetry
+`src/symbiont_lab/app/physics3d/monitor/converters.py`. They translate a telemetry
 record into the `MonitorSnapshot`-compatible mapping and the evaluator-safe
 physical-state payload consumed by replay rendering. The monitor still imports
 and re-exports both functions, preserving the application and legacy
@@ -254,3 +255,48 @@ and re-exports both functions, preserving the application and legacy
 The extraction separates a data-conversion seam only. `MonitorSnapshot`, replay
 event assembly, multiprocessing, camera state and UI remain in the monitor
 pending their own caller, compatibility and state-invariant mapping.
+
+## Ninth bounded organization slice: Physics3D module families
+
+Under accepted ADR-0055, the existing application-owned Physics3D modules now
+reside under `src/symbiont_lab/app/physics3d/`; monitor presentation and
+conversion code reside under its `monitor/` subpackage. The versioned
+Physics3D telemetry modules and supporting reader/tool modules now reside under
+`src/symbiont_lab/physics3d/telemetry/`. Their unit tests reside under
+`tests/unit/lab/physics3d/telemetry/`.
+
+- **Ownership mapping:** geometry stays pure in `app/physics3d/geometry.py`;
+  run/session orchestration stays in sibling `runs.py` and `session.py`; the
+  monitor viewer and payload conversion stay separate in `monitor/viewer.py`
+  and `monitor/converters.py`. Telemetry format/version, binary encoding,
+  schema, reader, structural, and tool responsibilities remain separate
+  modules within `physics3d/telemetry/`.
+- **File mapping:** `app/physics3d_geometry.py` → `app/physics3d/geometry.py`;
+  `app/physics3d_monitor.py` → `app/physics3d/monitor/viewer.py`;
+  `app/physics3d_monitor_converters.py` →
+  `app/physics3d/monitor/converters.py`; `app/physics3d_runs.py` and
+  `app/physics3d_session.py` → `app/physics3d/runs.py` and `session.py`.
+  Telemetry files `telemetry.py`, `telemetry_binary.py`, `telemetry_cli.py`,
+  `telemetry_compaction.py`, `telemetry_events.py`, `telemetry_numeric.py`,
+  `telemetry_reader.py`, `telemetry_schema.py`, `telemetry_structural.py`,
+  `telemetry_tools.py`, `telemetry_v4.py`, `telemetry_v41.py`, and
+  `_async_telemetry.py` map to `telemetry/v3.py`, `binary.py`, `cli.py`,
+  `compaction.py`, `events.py`, `numeric.py`, `reader.py`, `schema.py`,
+  `structural.py`, `tools.py`, `v4.py`, `v41.py`, and `async_worker.py`.
+  The nine `test_telemetry_*.py` modules moved unchanged into the telemetry
+  test directory.
+- **Callers and paths:** production imports, packaging entry points, active
+  documentation references, governance path manifests, and test selectors
+  were updated. Explicit compatibility facades preserve established flat
+  module imports. Archived design records remain historical and are not
+  rewritten.
+- **Package markers:** explicit `__init__.py` files define the new app,
+  monitor, telemetry, and test packages. Telemetry's package initializer
+  exposes a curated versioned reader/writer API; it does not merge formats.
+- **Preserved invariants:** this is file organization only. No telemetry schema,
+  version policy, run/session behavior, numerical semantics, or scientific
+  state is intentionally changed.
+- **Focused evidence:** Physics3D unit tests, desktop-app tests, relevant
+  observation/integrity tests, and the primitive-effects integration test
+  passed: **309 passed, 1 skipped, 8 deselected**. Ruff check and format check
+  passed for the touched Python files. Full-suite validation was not run.

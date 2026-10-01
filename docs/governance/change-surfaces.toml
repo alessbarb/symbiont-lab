@@ -77,8 +77,8 @@ classification = "CONSTITUTIONAL"
 [[surface]]
 id = "lab-run-control"
 paths = [
-  "src/symbiont_lab/app/physics3d_runs.py",
-  "src/symbiont_lab/app/physics3d_session.py",
+  "src/symbiont_lab/app/physics3d/runs.py",
+  "src/symbiont_lab/app/physics3d/session.py",
   "src/symbiont_lab/app/run_controller.py",
   "src/symbiont_lab/workbench/runs.py",
 ]

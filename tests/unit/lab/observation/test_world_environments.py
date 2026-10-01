@@ -108,7 +108,7 @@ def test_runtime_restores_environment_without_putting_world_in_organism():
 
 
 def test_home_launch_keeps_environment_in_laboratory_run(tmp_path):
-    from symbiont_lab.app.physics3d_runs import Physics3DRunStore
+    from symbiont_lab.app.physics3d.runs import Physics3DRunStore
 
     store = Physics3DRunStore(tmp_path)
     launch = store.prepare({"environment": "contact-garden-v1"})

@@ -17,7 +17,7 @@ from typing import Any
 
 from symbiont import __version__ as symbiont_version
 from symbiont.actuation.sensorimotor import RESTORABLE_SCHEMA_VERSIONS
-from symbiont_lab.app.physics3d_monitor import (
+from symbiont_lab.app.physics3d.monitor.viewer import (
     MonitorSnapshot,
     UnifiedViewerProcess,
     strongest_outputs,

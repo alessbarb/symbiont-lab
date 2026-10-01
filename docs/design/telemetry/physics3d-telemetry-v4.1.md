@@ -337,7 +337,7 @@ mutating historical evidence.
 All consumers should use:
 
 ```python
-from symbiont_lab.physics3d.telemetry_reader import open_telemetry
+from symbiont_lab.physics3d.telemetry.reader import open_telemetry
 
 reader = open_telemetry(path)
 ```

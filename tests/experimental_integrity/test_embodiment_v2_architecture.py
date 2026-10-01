@@ -85,7 +85,7 @@ def test_core_public_api_does_not_export_retired_body_schema() -> None:
 
 def test_physics3d_run_catalog_reads_canonical_archive_not_legacy_memory() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (root / "src" / "symbiont_lab" / "app" / "physics3d_runs.py").read_text(
+    source = (root / "src" / "symbiont_lab" / "app" / "physics3d" / "runs.py").read_text(
         encoding="utf-8"
     )
 
