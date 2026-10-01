@@ -155,3 +155,22 @@ defines this location for small deterministic tests.
 
 This only relocates the six modeling-owned tests. Other root-level tests remain
 until each has a verified owner, consumer map and regression plan.
+
+## Fourth bounded organization slice: host sensing and cognition tests
+
+Two more root-level tests are now grouped by their direct source ownership:
+`test_adaptive_senses.py` moved to `tests/unit/host/`, where the adaptive sense
+model's host readings and development behavior are tested, and
+`test_shadow_prediction.py` moved to `tests/unit/cognition/`, alongside the
+related cognition learning contracts.
+
+- **Consumers:** repository search found no Python importers of either test
+  module. The active concepts source index referenced both test node IDs; its
+  paths were updated to the new locations.
+- **Compatibility surface:** test names and test function IDs are unchanged;
+  only paths changed. No production code or test assertions changed.
+- **Focused evidence:** both moved modules and the repository-layout test
+  passed: **35 passed**. Ruff check and format check passed.
+
+Other root-level tests remain unmoved pending equally direct ownership and
+reference checks.

@@ -69,7 +69,7 @@ permitted forms.
 | regime-shift-observed | empirical | 02#evidencia | tests/unit/host/test_host_drift.py::test_sustained_shift_confirms_as_regime_shift_after_run_length |
 | creep-observed | empirical | 02#evidencia | tests/unit/host/test_host_drift.py::test_slow_creep_confirms_after_creep_run_without_ever_triggering_regime_shift |
 | no-classification-surface-observed | empirical | 02#evidencia | tests/unit/host/test_acclimation.py::test_baseline_exposes_no_classification_surface |
-| redundancy-pruning-observed | empirical | 02#evidencia | tests/unit/test_adaptive_senses.py::test_highly_redundant_sense_is_skipped_when_complementary_signal_exists |
+| redundancy-pruning-observed | empirical | 02#evidencia | tests/unit/host/test_adaptive_senses.py::test_highly_redundant_sense_is_skipped_when_complementary_signal_exists |
 | node-edge-kinds | implementation | 03#mecanismo | src/symbiont/cognition/types.py::NodeKind |
 | graph-activate | implementation | 03#mecanismo | src/symbiont/cognition/graph.py::activate |
 | shadow-prediction-lifecycle | implementation | 03#mecanismo | src/symbiont/cognition/learning.py::ShadowPrediction |
@@ -116,7 +116,7 @@ permitted forms.
 | structural-plasticity | implementation | 08#mecanismo | src/symbiont/cognition/structure.py::StructuralPlasticity |
 | causal-selection-treap | implementation | 08#mecanismo | src/symbiont_lab/studies/common/causal_selection.py::OrderStatisticHistory |
 | diseno-predictivo-j | normative | 08#respaldo-formal | docs/explanation/concepts/08-predictive-development.md |
-| no-promotion-without-gain-observed | empirical | 08#evidencia | tests/unit/test_shadow_prediction.py::test_shadow_prediction_does_not_promote_without_gain |
+| no-promotion-without-gain-observed | empirical | 08#evidencia | tests/unit/cognition/test_shadow_prediction.py::test_shadow_prediction_does_not_promote_without_gain |
 | structural-memory-bounded-observed | empirical | 08#evidencia | tests/unit/cognition/test_structure.py::test_reconcile_bounds_memory_growth_over_many_distinct_pairs |
 | methodology-principles | normative | 09#metodologia | docs/methodology/README.md |
 | protocols-preregistration | normative | 09#preregistro | research/protocols/README.md |
