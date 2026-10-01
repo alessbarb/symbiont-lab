@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import pytest
@@ -117,3 +117,36 @@ def test_execution_fingerprint_in_isolated_subprocess() -> None:
     data = json.loads(result.stdout.strip())
     assert data["hermetic"] is True
     assert data["executable"] == str(Path(sys.executable).resolve())
+
+
+def test_isolated_subprocess_verifies_declared_execution_fingerprint() -> None:
+    import json
+
+    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+
+    declared = ExecutionFingerprint.capture(
+        REPO_ROOT,
+        effective_config={"case": "child-verification"},
+        experiment_id="child-verification",
+        seed=29,
+    )
+    code = (
+        "import json, sys\n"
+        "from symbiont_lab.experiments.manifest import ExecutionFingerprint\n"
+        "declared = ExecutionFingerprint(**json.loads(sys.argv[1]))\n"
+        "actual = ExecutionFingerprint.capture(\n"
+        "    declared.repo_root,\n"
+        "    effective_config={'case': 'child-verification'},\n"
+        "    experiment_id='child-verification', seed=29,\n"
+        ")\n"
+        "actual.assert_matches_declared(declared)\n"
+        "print('verified')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code, json.dumps(asdict(declared))],
+        capture_output=True,
+        text=True,
+        check=True,
+        env=os.environ,
+    )
+    assert result.stdout.strip() == "verified"

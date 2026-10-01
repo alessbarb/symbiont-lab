@@ -476,6 +476,9 @@ It must never produce an accepted partial generation.
 `ExecutionFingerprint` now represents the declared checkout, interpreter,
 module origins, dependency-lock digest, effective-configuration digest,
 experiment identifier and seed, and can reject a mismatching child identity.
+The child-side assertion is covered by an isolated-subprocess test; this verifies
+the comparison API across a process boundary, but does not yet enforce it for
+processes launched by `agentctl run start`.
 The remaining gate is integration with the governed scientific launcher so
 every spawned scientific process performs this self-verification before work.
 
