@@ -4,8 +4,9 @@ canonical_roadmap = "docs/roadmap.md"
 current_gate = "e8-label-invariance"
 
 [governance]
-mode = "enforced-control-plane-v2"
-authority_grants = true
+mode = "proportional-context-v3"
+context_entrypoint = "python scripts/agentctl.py context"
+publication_entrypoint = "python scripts/agentctl.py publish --message <message>"
 commit_ancestry_audit = true
 single_constitution_source = true
 scientific_run_launcher = true

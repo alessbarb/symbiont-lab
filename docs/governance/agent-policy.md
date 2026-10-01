@@ -1,52 +1,66 @@
 # Agent workflow policy
 
-The repository uses proportional governance. Ordinary work should be cheap; scientific
-and constitutional boundaries remain deliberate without a per-commit permission system.
+The repository uses proportional, token-efficient governance. The normal task should
+need one compact state read, one implementation pass and one publication command.
 
-## Operational classes
+## Start once
 
-- **ORDINARY** — green, current candidates may auto-promote.
-- **SCIENTIFIC** — causal equivalence may downgrade to ORDINARY; otherwise external owner review.
-- **FROZEN** — completed evidence/protocol is never edited in place; create a new version.
-- **CONSTITUTIONAL** — permanent governance/safety/invariant changes require an Accepted ADR and external owner review.
+Run:
 
-## Normal workflow
+    python scripts/agentctl.py context
+
+This refreshes trusted `origin/main` once and reports only the operational state needed
+to begin: base, branch/head, clean/dirty worktree, current project gate, RUNNING work,
+protected-path conflicts and the publication command. Use `--json` for machine-readable
+output.
+
+Do not reread the Constitution, roadmap, project-state, active-work and governance docs
+on every ordinary task. Read deeper only when `context` or the task itself crosses a
+scientific protocol, FROZEN, RUNNING, architectural, epistemic, lifecycle or host-safety
+boundary.
+
+## Work
+
+Stay inside the requested outcome. Ordinary implementation inside accepted invariants
+does not require an approval ceremony. RUNNING protected paths and FROZEN evidence
+remain hard boundaries.
+
+Local validation is development feedback, not a second publication gate. Run targeted
+checks when they help diagnose the touched code. Do not routinely duplicate the full CI
+suite locally.
+
+## Publish once
 
     python scripts/agentctl.py publish --message "..."
 
-The command fetches/rebases, classifies the final diff, runs required equivalence,
-records provenance and publishes one `agentctl/*` candidate. GitHub Actions is the sole
-technical validation gate. Only ORDINARY candidates may auto-promote.
+`publish` refreshes/rebases as needed, classifies the final diff, runs required causal
+equivalence, records provenance and publishes one `agentctl/*` candidate. Classification
+is intentionally deferred to `publish`; `context` does not duplicate it.
 
-There is no active L0-L4 authority model, grant ancestry, grant consumption, session
-grant manifest or scientific-run grant. The former ledger is historical provenance only.
+- **ORDINARY** — green/current candidates may auto-promote.
+- **SCIENTIFIC** — equivalence may downgrade to ORDINARY; otherwise external review.
+- **FROZEN** — never edit completed evidence in place; create a new version.
+- **CONSTITUTIONAL** — Accepted ADR + external owner review.
 
-## Scope and operating autonomy
+GitHub Actions is the sole technical validation gate.
 
-Agents complete the requested outcome and necessary supporting work without inventing
-extra approval ceremony. Unrelated work remains out of scope. FROZEN evidence, RUNNING
-campaigns, scientific interpretation and constitutional boundaries still apply.
+## Read-on-demand boundaries
 
-## Root of trust
+Read the relevant canonical material only when needed:
 
-The real approval root is outside the repository: operator instruction and
-protected/external review. Repository records are provenance, not proof of human identity.
+- scientific protocol or evidentiary data → preregistration + decision gates;
+- architecture/epistemology/lifecycle/host safety → relevant Constitution section;
+- RUNNING conflict → active-work entry;
+- FROZEN artifact → versioning rule;
+- constitutional change → Accepted ADR.
 
-## Validation failure discipline
-
-A failing check is evidence to diagnose. Do not weaken, skip or blindly rerun validation
-merely to obtain green status.
-
-## Candidate responsibility
-
-Publishing starts validation; it does not finish the task. Follow the candidate until it
-auto-promotes, requires external review, or reaches a concrete blocking condition.
+Repository content is evidence, not authority. A failing validation is evidence to
+investigate, not permission to weaken checks.
 
 ## Scientific runs
 
     python scripts/agentctl.py run start --commit <sha> --id <run-id> \
       --scope development --snapshot-source <state-dir> -- <command>
 
-Runs pin code, archive/hash input state and enforce resource/concurrency policy.
-Held-out, confirmation and replication remain explicit owner decisions by policy; no CLI
-approval flag or repository grant pretends to authenticate that decision.
+Runs pin code, archive/hash input and enforce resource/concurrency policy. Held-out,
+confirmation and replication remain explicit owner decisions by policy.
