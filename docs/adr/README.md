@@ -106,7 +106,7 @@ mindmap
 | **[ADR-0016](ADR-0016-bounded-counterfactual-replay-and-mental-isolation.md)** | Bounded Counterfactual Replay and Mental Isolation | Aceptado | Aislamiento epistémico del replay contrafactual; parada autónoma por progreso de aprendizaje y cero fuga de estados simulados. |
 | **[ADR-0025](ADR-0025-dual-memory-architecture-episodic-traces-vs-consolidated-semantics.md)** | Dual Memory Architecture: Bounded Episodic Traces vs Consolidated Semantics | Aceptado | Separación entre buffer episódico acotado con excreción metabólica obligatoria y atlas cognitivo semántico consolidado. |
 | **[ADR-0028](ADR-0028-domain-architecture-and-sequential-tick-choreography.md)** | Domain Architecture and Sequential Tick Choreography | Aceptado | Partición en siete dominios desacoplados sin invocaciones directas entre pares; mediación exclusiva por `TickContext` inmutable. |
-| **[ADR-0029](ADR-0029-collinearity-pruning-and-sensory-manifold-selection.md)** | Collinearity Pruning and Sensory Manifold Selection | Aceptado | Poda de canales redundantes con correlación de Pearson $|r_{xy}| \ge 0.97$ preservando el presupuesto finito de atención para dimensiones independientes. |
+| **[ADR-0029](ADR-0029-collinearity-pruning-and-sensory-manifold-selection.md)** | Collinearity Pruning and Sensory Manifold Selection | Aceptado | Poda de canales redundantes con correlación de Pearson $\lvert r_{xy} \rvert \ge 0.97$ preservando el presupuesto finito de atención para dimensiones independientes. |
 | **[ADR-0031](ADR-0031-synaptic-normalization-and-plasticity-stability-via-ojas-rule.md)** | Synaptic Normalization and Plasticity Stability via Oja's Rule | Aceptado | Normalización intrínseca de pesos plásticos mediante la regla de Oja y saturación cerrada en $[-2.0, 2.0]$ para evitar divergencia numérica. |
 | **[ADR-0037](ADR-0037-reality-authority-and-epistemic-demarcation-of-imagination.md)** | Reality Authority and Epistemic Demarcation of Imagination | Aceptado | Axioma de autoridad de la realidad: la imaginación puede proponer estados pero jamás declarar verdad factual empírica. |
 
@@ -148,14 +148,12 @@ mindmap
 | **[ADR-0039](ADR-0039-epistemic-integrity-in-visual-and-spatial-telemetry.md)** | Epistemic Integrity in Visual and Spatial Telemetry | Aceptado | Demarcación estricta entre la colocación visual del observador y la ausencia de coordenadas espaciales o mapas alocéntricos en el organismo. |
 | **[ADR-0044](ADR-0044-host-safety-and-lifecycle-invariants-in-the-constitution.md)** | Host-Safety and Lifecycle Invariants in the Constitution | Aceptado | Incorporar a la Constitución los invariantes permanentes de seguridad del anfitrión y de identidad del ciclo de vida (restore rechaza `DEAD`, clonar crea identidad nueva). |
 
-
 ### 9. Governance
 
 | ADR | Título | Estado | Invariante Central |
 | :--- | :--- | :--- | :--- |
 | **[ADR-0043](ADR-0043-agent-governance-and-repository-authority.md)** | Agent Governance and Repository Authority | Aceptado | Autoridad L0-L4 y separación entre capacidad técnica y autoridad científica. |
 | **[ADR-0045](ADR-0045-owner-root-grants-scientific-execution-and-validation.md)** | Owner-root Grants, Scientific Execution Authority and Validation Receipts | Aceptado | Emisión root de grants, auditoría completa, ejecución científica autorizada y validación ligada al árbol staged. |
-
 
 ### 10. Agent governance
 
@@ -168,3 +166,4 @@ mindmap
 | **[ADR-0049](ADR-0049-token-efficient-agent-context.md)** | Token-efficient Agent Context and Read-on-demand Governance | Aceptado | Un único `agentctl context` inicia la tarea; la lectura profunda es bajo demanda y `publish` conserva la clasificación final. |
 | **[ADR-0050](ADR-0050-verified-scientific-child-launch.md)** | Verified Scientific Child Launch | Aceptado | El hijo Python directo verifica su huella efectiva antes del target; descendientes quedan fuera del contrato. |
 | **[ADR-0051](ADR-0051-agentctl-launcher-hardening.md)** | Harden agentctl Validation and Scientific Run Lifecycle | Aceptado | Allowlist de entorno y comandos, identidad de locks, escrituras atómicas, limpieza de fallos, separación CLI y terminación de procesos. |
+| **[ADR-0052](ADR-0052-agent-branch-lifecycle-and-cleanup.md)** | Agent Branch Lifecycle and Cleanup | Aceptado | Integra ramas temporales en `main` y solo las elimina tras verificar ancestro y cierre de validación/revisión. |
