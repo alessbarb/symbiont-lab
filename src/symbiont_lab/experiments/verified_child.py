@@ -43,7 +43,12 @@ def run_verified(argv: Sequence[str]) -> None:
     elif mode == "code":
         sys.argv = ["-c", *target_args]
         sys.path[0] = ""
-        exec(compile(target, "<string>", "exec"), {"__name__": "__main__", "__file__": "<string>"})
+        # Required to reproduce Python's standard `-c` semantics after identity verification.
+        # The source is the explicit target argument, not externally constructed input.
+        exec(  # nosec B102 - explicit Python -c target required by the accepted launch contract
+            compile(target, "<string>", "exec"),
+            {"__name__": "__main__", "__file__": "<string>"},
+        )
     else:
         raise RuntimeError(f"unsupported Python target mode: {mode}")
 
