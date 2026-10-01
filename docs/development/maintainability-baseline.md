@@ -174,3 +174,23 @@ related cognition learning contracts.
 
 Other root-level tests remain unmoved pending equally direct ownership and
 reference checks.
+
+## Fifth bounded organization slice: laboratory experiment-store tests
+
+`tests/unit/test_scientific_generations.py` tests the deterministic
+`GenerationStore` software contract, not a scientific campaign. It now resides
+under `tests/unit/lab/experiments/`, whose existing README explicitly owns
+bounded tests for experiment preparation and recorded state.
+
+- **Consumers:** repository search found no external test-module imports or
+  documentation links to its old path.
+- **Compatibility surface:** test functions, assertions and production APIs are
+  unchanged; only the path changed.
+- **Focused evidence:** the complete lab experiment unit-test directory passed:
+  **30 passed**. Ruff check passed for that directory; format check passed for
+  the moved file. The directory-level format check exposed an unrelated
+  pre-existing formatting difference in `test_snapshot_archive.py`, which was
+  not modified. Repository-layout tests passed: **4 passed**.
+
+This is one lab-only test-ownership move; it does not establish scientific
+evidence or campaign validity.
