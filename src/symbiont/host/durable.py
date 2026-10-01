@@ -241,7 +241,10 @@ def durable_atomic_replacement(
         if tmp_path.exists():
             if _fault_point:
                 _fault_point("before_file_fsync")
-            tmp_fd = os.open(str(tmp_path), os.O_RDONLY)
+            # Windows' _commit (used by os.fsync) requires a writable descriptor.
+            # The temporary file is private to this operation, so opening it read/write
+            # preserves the same flush guarantee on both POSIX and Windows.
+            tmp_fd = os.open(str(tmp_path), os.O_RDWR)
             try:
                 os.fsync(tmp_fd)
             finally:

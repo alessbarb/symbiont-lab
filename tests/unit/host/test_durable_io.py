@@ -44,6 +44,8 @@ def test_durable_atomic_write_json(tmp_path: Path) -> None:
 
 
 def test_durable_atomic_write_permissions(tmp_path: Path) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX file-mode semantics only")
     target = tmp_path / "private.key"
     durable_atomic_write(target, b"secret-key", permissions=0o600, sync_dir=True)
     mode = stat.S_IMODE(target.stat().st_mode)
