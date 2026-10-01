@@ -708,6 +708,38 @@ The discrepancy must nevertheless be reconciled as a provenance/reporting
 issue. The canonical report should be mechanically derived from or explicitly
 linked to the exact result artefact it summarises.
 
+### A9 — Maintainable experimental core and apparatus
+
+**Status:** PROPOSED — baseline inventory pending.
+
+Clean future experiments depend on components that can be inspected, tested, and
+changed without obscuring scientific behavior or weakening provenance. This work
+covers the experimental organism (`src/symbiont`), laboratory apparatus and
+Workbench (`src/symbiont_lab`), physical/ecological world (`src/symbiont_world`),
+and the test suite. Observatory is explicitly excluded.
+
+This is an enabling engineering gate, not authorization for broad rewrites. Begin
+with a source-verified inventory of module size, dependency direction, public
+interfaces, test ownership, generated artifacts, and the scientific/state
+invariants around any proposed seam. Prioritize changes that make experimental
+behavior easier to isolate and verify; file length alone is not evidence that a
+module needs decomposition.
+
+#### A9 acceptance
+
+- Record a reproducible baseline for the in-scope code and verify reported
+  hotspots and cleanup claims against the checkout.
+- For each proposed extraction, identify the owned responsibility, callers,
+  public compatibility surface, and focused tests before changing structure.
+- Make structural changes in small, behavior-preserving slices with regression
+  evidence; do not change scientific mechanisms, random-number consumption,
+  ordering, checkpoint/schema semantics, provenance, or authority boundaries.
+- Move tests or consolidate modules only where ownership and import/reference
+  evidence support the change; preserve dependency direction and keep Observatory
+  out of scope.
+- Report focused and full-suite validation separately. A9 completion does not
+  itself close apparatus-equivalence or scientific acceptance gates.
+
 ---
 
 ## 9. Phase A (P1) — Apparatus equivalence and numerical stability
@@ -1721,6 +1753,7 @@ A2 hermetic execution fingerprint
 A3 dependency lock
 A4 generational scientific commits
 A8 E8 label/physical invariance
+A9 maintainable experimental core and apparatus
     ↓
 
 P1 — APPARATUS VALIDITY
