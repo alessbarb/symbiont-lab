@@ -13,12 +13,12 @@ import os
 import queue
 import signal
 import time
-from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from multiprocessing.context import BaseContext
 from pathlib import Path
 from typing import Mapping
 
+from symbiont_lab.app.physics3d_geometry import _convex_hull_2d, _point_in_polygon_2d
 from symbiont_lab.physics3d.humanoid import (
     BODY_KIND,
     BODY_STATE_SCHEMA_VERSION,
@@ -42,45 +42,6 @@ _UNIT_CIRCLE_18 = tuple(
 _UNIT_CIRCLE_24 = tuple(
     (math.cos(math.radians(deg)), math.sin(math.radians(deg))) for deg in range(0, 360, 24)
 )
-
-
-def _convex_hull_2d(points: Sequence[tuple[float, float]]) -> list[tuple[float, float]]:
-    """Compute 2D convex hull via Monotone Chain algorithm."""
-    unique_pts = sorted(set(points))
-    if len(unique_pts) <= 2:
-        return list(unique_pts)
-
-    def cross(o: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> float:
-        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-
-    lower: list[tuple[float, float]] = []
-    for p in unique_pts:
-        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0.0:
-            lower.pop()
-        lower.append(p)
-
-    upper: list[tuple[float, float]] = []
-    for p in reversed(unique_pts):
-        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0.0:
-            upper.pop()
-        upper.append(p)
-
-    return lower[:-1] + upper[:-1]
-
-
-def _point_in_polygon_2d(point: tuple[float, float], poly: Sequence[tuple[float, float]]) -> bool:
-    """Ray casting point-in-polygon containment test."""
-    if len(poly) < 3:
-        return False
-    x, y = point
-    inside = False
-    n = len(poly)
-    for i in range(n):
-        x1, y1 = poly[i]
-        x2, y2 = poly[(i + 1) % n]
-        if ((y1 > y) != (y2 > y)) and (x < (x2 - x1) * (y - y1) / (y2 - y1 + 1e-12) + x1):
-            inside = not inside
-    return inside
 
 
 @dataclass(frozen=True, slots=True)

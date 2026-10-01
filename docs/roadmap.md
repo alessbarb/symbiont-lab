@@ -728,8 +728,8 @@ linked to the exact result artefact it summarises.
 
 ### A9 — Maintainable experimental core and apparatus
 
-**Status:** IN PROGRESS — baseline recorded and one bounded apparatus worker
-lifecycle extraction validated; further seam mapping remains.
+**Status:** IN PROGRESS — baseline recorded and two bounded apparatus
+extractions validated; further seam mapping remains.
 
 Clean future experiments depend on components that can be inspected, tested, and
 changed without obscuring scientific behavior or weakening provenance. This work
@@ -739,8 +739,8 @@ and the test suite. Observatory is explicitly excluded.
 
 This is an enabling engineering gate, not authorization for broad rewrites. The
 initial source-size, test-layout, boundary and artifact inventory, along with
-the source-to-test mapping for the first bounded telemetry worker extraction,
-is recorded in the [A9 maintainability baseline](development/maintainability-baseline.md).
+the source-to-test mappings for the bounded telemetry worker and monitor
+geometry extractions, is recorded in the [A9 maintainability baseline](development/maintainability-baseline.md).
 Before each further extraction, map its public interfaces, callers, test
 ownership, and scientific/state invariants. Prioritize changes that make
 experimental behavior easier to isolate and verify; file length alone is not

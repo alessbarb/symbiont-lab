@@ -104,3 +104,29 @@ the V4.1 snapshot policy is distinct and remains in its versioned adapter.
 This is one behavior-preserving apparatus slice, not a decision to merge
 telemetry formats or move their public APIs. Further extractions require their
 own source-to-test mapping and regression evidence.
+
+## Second bounded extraction: monitor geometry primitives
+
+The second selected seam is the two pure 2D geometry functions used to
+calculate the monitor's support polygon: `_convex_hull_2d` and
+`_point_in_polygon_2d`. They now live in
+`src/symbiont_lab/app/physics3d_geometry.py`; the monitor imports them and keeps
+its historical names available through the `symbiont_lab.physics3d.monitor`
+compatibility facade.
+
+- **Owned responsibility:** convex hull and ray-casting containment over 2D
+  points. The module has no UI, IPC, PyBullet, or organism dependencies.
+- **Callers:** the monitor's support-polygon rendering path is the only source
+  caller; `tests/unit/lab/physics3d/test_monitor.py` exercises both algorithms
+  through the compatibility facade.
+- **Compatibility surface:** function names, signatures, geometry semantics,
+  import facade and rendering call sites are unchanged.
+- **Preserved invariants:** no inputs are mutated, geometric ordering and
+  containment behavior are unchanged, and the extraction does not affect
+  simulation state or the monitor's observer-only role.
+- **Focused evidence:** monitor tests passed: **13 passed, 1 skipped**. Ruff
+  check and formatting passed for both changed modules. The full Physics3D
+  directory and repository suite were not rerun for this slice.
+
+This isolates pure geometry only; IPC, camera behavior and widgets remain in
+the monitor until separate mappings demonstrate safe boundaries.
