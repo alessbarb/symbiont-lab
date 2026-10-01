@@ -1,41 +1,32 @@
-## Authority classification
+## Governance classification
 
-- [ ] L1 Maintenance
-- [ ] L2 Contract-preserving implementation
-- [ ] L3 Scientific mechanism change
-- [ ] L4 Constitutional / safety change
+- [ ] ORDINARY
+- [ ] SCIENTIFIC
+- [ ] CONSTITUTIONAL
+- [ ] FROZEN evidence is not modified in place
 
-## Authority source
+## Decision boundary
 
-For L2-L4, provide the prior owner grant and commit trailer:
-
-```text
-Grant ID:
-Authority-Grant: <grant-id>
-```
-
-Also identify the owner decision, ADR, roadmap item, preregistration or existing contract that authorises the change.
+For SCIENTIFIC or CONSTITUTIONAL work, identify the owner decision, Accepted ADR,
+preregistration, roadmap item or invariant that governs review. Do not create or
+reference a repository grant.
 
 ## Scientific impact
 
 - Protocol changed: yes / no
 - Claims changed: yes / no
-- Scientific campaign run: yes / no
+- Evidentiary run consumed: yes / no
 - Frozen artefact changed: yes / no
-
-If any answer is yes, identify the explicit authority and version boundary.
 
 ## Concurrency
 
-List active work checked in `docs/governance/active-work.toml` and confirm that no RUNNING campaign was modified.
+Confirm no RUNNING campaign protected path was modified.
 
 ## Validation
 
-List commands required by `docs/governance/validation-matrix.toml` and their results.
-For modifying work include:
+GitHub Actions is the technical validation gate. Optional local checks:
 
 ```bash
-python scripts/agentctl.py check --staged --manifest .agent-session.toml
 python scripts/agentctl.py verify
 ```
 
@@ -43,9 +34,7 @@ python scripts/agentctl.py verify
 
 State the strongest claim supported after this change and its evidence level/scope.
 
+## Scientific execution
 
-## Scientific execution grant
-
-If this change consumes or reports a scientific run, record the distinct
-`kind = "scientific-run"` grant, exact run id/scope and execution receipt. A
-code-change grant is not sufficient.
+For held-out, confirmation or replication, identify the explicit owner decision and the
+immutable execution receipt. No scientific-run grant is used.

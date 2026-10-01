@@ -2,119 +2,62 @@
 
 ## Purpose
 
-Keep ordinary engineering cheap while making scientific and constitutional boundary
-crossings explicit.
+Keep ordinary engineering cheap while making scientific evidence and constitutional
+boundary crossings explicit.
 
 ## Normal workflow
 
-Agents should use one interface:
-
     python scripts/agentctl.py publish --message "..."
 
-The command fetches/rebases onto the current main, classifies the final diff, runs any
-required bounded equivalence scenarios, derives validation, creates audit trailers and
-pushes. Agents should not reconstruct grant ancestry by hand.
+The command rebases onto current main, classifies the final diff, runs required bounded
+equivalence and publishes one candidate. No grant ancestry or per-commit permission
+lookup exists.
 
 ## Operational classes
 
-- ORDINARY — publish automatically after validation.
-- SCIENTIFIC — explicit owner approval unless required equivalence scenarios all PASS.
+- ORDINARY — validate and auto-promote when current and green.
+- SCIENTIFIC — equivalence may downgrade to ORDINARY; otherwise external review.
 - FROZEN — version, never edit in place.
-- CONSTITUTIONAL — ADR + explicit owner approval.
-
-See agent-policy.md and change-surfaces.toml.
-
-## Equivalence
-
-experiments/equivalence/suite-v1 is a versioned evidence suite. PASS is strong evidence
-only inside the declared scenario coverage. FAIL and NOT_ASSESSABLE remain SCIENTIFIC.
-
-Reference snapshots must be immutable captures of real organism states. The initial
-suite is intentionally capture-required until those inputs are archived.
+- CONSTITUTIONAL — Accepted ADR + external owner review.
 
 ## Scientific execution
 
-Use:
+    python scripts/agentctl.py run start --commit <sha> --id <run-id> \
+      --scope <scope> --snapshot-source <state-dir> -- <command>
 
-    python scripts/agentctl.py run start --commit <sha> --id <run-id>       --scope <scope> --snapshot-source <state-dir> --owner-approved -- <command>
-
-The launcher pins the commit in a detached worktree, archives the starting state before
-execution, checks memory/disk/concurrency and writes an execution record.
-
-D1-v2's tracked pre-launcher exception is closed; its development result and
-closure are recorded in `docs/design/vision/visual-acquisition-v1.md` §12.
+The launcher pins code and input, checks resources/concurrency and writes a receipt.
+Held-out, confirmation and replication remain owner decisions by policy without a grant
+or self-asserted approval flag.
 
 ## Historical grants
 
-authority-grants.toml remains historical provenance for the previous governance model.
-Per-commit grants are deprecated for ordinary publication by ADR-0046.
+The former ledger is preserved at
+`docs/history/governance/authority-grants-v1.toml` for historical provenance only.
+No active code reads it.
 
-## Root of trust and limits
+## Root of trust
 
-Human identity/approval lives outside the repository. Repository records are guardrails
-and provenance, not cryptographic identity when agents share owner credentials.
-Cross-machine locking and portable storage quotas remain external infrastructure.
+Human identity/approval lives outside the repository. Only ORDINARY candidates may
+auto-promote. SCIENTIFIC and CONSTITUTIONAL candidates require external review.
 
-
-## Low-friction operational commands
-
-Agents normally need only:
+## Commands
 
 ```bash
 python scripts/agentctl.py publish --message "..."
 python scripts/agentctl.py equivalence status
 python scripts/agentctl.py run start ...
+python scripts/agentctl.py verify
 ```
 
-The legacy `validate`, `check` and `run exec` commands remain for CI/backward
-compatibility and are hidden from normal help. `publish` owns validation and final
-classification; `run start` owns input archival, resource preflight and commit-pinned
-execution.
-
-
-### Snapshot provenance
-
-Before a pinned run, inspect/capture the exact physical input state. If the raw state
-was produced by a commit other than the code commit being executed, preserve that
-provenance explicitly:
-
-```bash
-python scripts/agentctl.py run start \
-  --commit <code-commit> \
-  --snapshot-source /path/to/raw-state \
-  --snapshot-source-commit <commit-that-produced-the-state> \
-  ...
-```
-
-If `--snapshot-source` is already an immutable archived snapshot, `run start`
-verifies it and preserves its recorded `source_commit`; a conflicting override is
-rejected.
-
+`validate` is an optional local reproduction helper; CI is the technical validation gate.
 
 ## Constitutional publication
 
-CONSTITUTIONAL changes keep deliberate friction. They require explicit owner approval
-and an Accepted ADR:
+CONSTITUTIONAL candidates require an Accepted ADR. `publish` records
+`Governance-ADR:` provenance; external review supplies the real approval boundary.
 
-```bash
-python scripts/agentctl.py publish \
-  --message "..." \
-  --owner-approved \
-  --adr ADR-0046
-```
+## Trusted run coordination
 
-If exactly one Accepted ADR is changed in the same task, `--adr` is auto-detected.
-The generated commit records `Governance-ADR:` provenance.
-
-
-### Trusted run coordination
-
-`run start` and `equivalence run` refresh **origin/main once**, pin that exact commit as the governance reference, and read active-work/resource policy from that same ref—not from an editable working-tree copy. A local agent cannot remove a
-RUNNING campaign or raise resource ceilings by changing uncommitted governance files.
-
-Any tracked RUNNING long campaign blocks a new long run, including reuse of the same
-run id; the registry must be updated after the previous execution is actually complete.
-
-
-The exact trusted commit is recorded as `governance_ref` in scientific-run receipts,
-so a later change to main cannot retroactively change the admission decision.
+`run start` and `equivalence run` pin one trusted origin/main governance reference.
+RUNNING campaigns, immutable snapshots, resource ceilings and execution receipts remain
+enforced.

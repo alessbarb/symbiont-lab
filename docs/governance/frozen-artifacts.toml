@@ -1,93 +1,91 @@
-schema_version = 3
+schema_version = 4
 
 [[artifact]]
 path_glob = "AGENTS.md"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = "CLAUDE.md"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = "docs/governance/**"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = "scripts/agentctl.py"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = "tests/governance/**"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = ".github/workflows/**"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = ".github/CODEOWNERS"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = ".github/pull_request_template.md"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = ".pre-commit-config.yaml"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = ".gitignore"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = ".agents/**"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = ".claude/**"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = ".codex/**"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = "pyproject.toml"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = "pyrightconfig.json"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = "docs/roadmap.md"
 class = "governance-control-plane"
-minimum_authority = "L4"
+rule = "external-review-required"
 
 [[artifact]]
 path_glob = "experiments/**/results.json"
 class = "scientific-result"
-minimum_authority = "L4"
 rule = "append-or-supersede; never rewrite completed evidence"
 
 [[artifact]]
 path_glob = "docs/design/vision/visual-acquisition-v1.md"
 class = "active-preregistration"
-minimum_authority = "L3"
 rule = "held-out criteria are frozen; development annotations require recorded owner authority"

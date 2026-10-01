@@ -80,14 +80,13 @@ jobs:
       - run: uv sync --frozen --extra dev
       - run: uv run --no-sync python scripts/agentctl.py verify
       - run: git diff --check
-      - name: Audit commit authority
+      - name: Audit governed publication
         env:
           EVENT_NAME: ${{ github.event_name }}
           PUSH_BASE: ${{ github.event.before }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           HEAD_SHA: ${{ github.sha }}
-          GITHUB_ACTOR_NAME: ${{ github.actor }}
         run: |
           BASE="$PUSH_BASE"
           HEAD="$HEAD_SHA"
@@ -98,7 +97,7 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
             BASE="$(git rev-parse "$HEAD^")"
           fi
-          uv run --no-sync python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD" --actor "$GITHUB_ACTOR_NAME"
+          uv run --no-sync python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD"
       - run: uv run --no-sync ruff check src/ observatory/ tests/ scripts/governance/ci_plan.py
       - run: uv run --no-sync ruff format --check src/ observatory/ tests/ scripts/governance/ci_plan.py
       - run: uv run --no-sync bandit -r src/ -ll

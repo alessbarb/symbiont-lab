@@ -1,5 +1,4 @@
-schema_version = 1
+schema_version = 2
 github_login = "alessbarb"
-grant_file = "docs/governance/authority-grants.toml"
-root_model = "server actor plus append-only single-file grant issuance"
-note = "Repository enforcement cannot distinguish an agent using the owner's GitHub credential from the owner. Protected-branch review remains the stronger external root of trust when available."
+root_model = "external operator decision plus protected/external review"
+note = "Repository metadata records provenance and policy. It does not authenticate human identity when agents share owner credentials; review outside the candidate commit is the real approval boundary."
