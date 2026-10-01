@@ -438,6 +438,15 @@ def _is_legacy_commit(commit: str, cutoff: str | None) -> bool:
     return git_result("merge-base", "--is-ancestor", commit, cutoff).returncode == 0
 
 
+def _is_redundant_merge_commit(commit: str) -> bool:
+    """Return whether a merge adds no tree content beyond one of its parents."""
+    parents = git("show", "-s", "--format=%P", commit).split()
+    if len(parents) < 2:
+        return False
+    tree = git("show", "-s", "--format=%T", commit)
+    return any(git("show", "-s", "--format=%T", parent) == tree for parent in parents)
+
+
 def ci_check(base: str, head: str) -> int:
     if not commit_exists(head):
         print(f"HEAD commit is unavailable: {head}", file=sys.stderr)
@@ -458,15 +467,26 @@ def ci_check(base: str, head: str) -> int:
     commits = [c for c in git("rev-list", "--reverse", f"{base}..{head}").splitlines() if c]
     errors: list[str] = []
     cutoff = _publication_cutoff(head)
+    audited = 0
+    redundant_merges = 0
     for commit in commits:
+        if _is_redundant_merge_commit(commit):
+            redundant_merges += 1
+            continue
         if _is_legacy_commit(commit, cutoff):
             continue
+        audited += 1
         errors.extend(_audit_commit(commit))
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print(f"commit authority audit: PASS ({len(commits)} commits)")
+    skipped = (
+        f"; {redundant_merges} redundant merge commits skipped"
+        if redundant_merges
+        else ""
+    )
+    print(f"commit governance audit: PASS ({audited} commits audited{skipped})")
     return 0
 
 
