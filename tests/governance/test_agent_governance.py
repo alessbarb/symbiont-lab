@@ -11,9 +11,7 @@ GOV = ROOT / "docs" / "governance"
 
 
 def _agentctl():
-    spec = importlib.util.spec_from_file_location(
-        "agentctl", ROOT / "scripts" / "agentctl.py"
-    )
+    spec = importlib.util.spec_from_file_location("agentctl", ROOT / "scripts" / "agentctl.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
