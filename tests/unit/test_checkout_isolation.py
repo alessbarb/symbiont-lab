@@ -314,3 +314,173 @@ def test_verified_child_propagates_target_exit_code(monkeypatch) -> None:
         check=False,
     )
     assert result.returncode == 19
+
+
+@pytest.mark.parametrize("mode", ["script", "module", "code"])
+def test_agentctl_run_start_records_verified_child_receipt(
+    tmp_path, monkeypatch, mode: str
+) -> None:
+    import contextlib
+    import importlib.util
+    import json
+    from types import SimpleNamespace
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_under_test", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    marker = tmp_path / f"{mode}.marker"
+    if mode == "script":
+        target_file = tmp_path / "study.py"
+        target_file.write_text(
+            f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')", encoding="utf-8"
+        )
+        command = [sys.executable, str(target_file)]
+    elif mode == "module":
+        command = [
+            sys.executable,
+            "-m",
+            "timeit",
+            "-n",
+            "1",
+            "-r",
+            "1",
+            f"open({str(marker)!r}, 'w').write('ran')",
+        ]
+    else:
+        command = [
+            sys.executable,
+            "-c",
+            f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+        ]
+
+    run_root = tmp_path / "runs"
+    lock_path = tmp_path / "run.lock"
+    commit = agentctl.git("rev-parse", "HEAD")
+    manifest = {
+        "source_commit": commit,
+        "schema_version": 1,
+        "organism_sha256": "a" * 64,
+        "body_sha256": "b" * 64,
+        "bundle_models_tree_sha256": "c" * 64,
+        "models_tree_sha256": "d" * 64,
+        "body_kind": "test",
+    }
+
+    @contextlib.contextmanager
+    def pinned_worktree(_root, _commit):
+        pinned = tmp_path / "pinned-checkout"
+        subprocess.run(
+            ["git", "worktree", "add", "--detach", str(pinned), commit],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        try:
+            yield pinned
+        finally:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", str(pinned)],
+                cwd=REPO_ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+    def archive_snapshot(*, destination, **_kwargs):
+        destination.mkdir(parents=True)
+        (destination / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        return manifest
+
+    monkeypatch.setattr(agentctl, "commit_exists", lambda _commit: True)
+    monkeypatch.setattr(agentctl, "git", lambda *args: commit if args[0] == "rev-parse" else "")
+    monkeypatch.setattr(
+        agentctl, "_equivalence_lock_path", lambda: tmp_path / "no-equivalence.lock"
+    )
+    monkeypatch.setattr(agentctl, "_trusted_origin_ref", lambda: commit)
+    monkeypatch.setattr(agentctl, "_trusted_governance_at", lambda *_args: {"scientific_runs": {}})
+    monkeypatch.setattr(agentctl, "_tracked_running_at", lambda _ref: [])
+    monkeypatch.setattr(agentctl, "_run_lock_path", lambda: lock_path)
+    monkeypatch.setattr(agentctl, "_reserve_run_lock", lambda _payload: 0)
+    monkeypatch.setattr(agentctl, "runtime_dir", lambda: run_root)
+    monkeypatch.setattr(
+        agentctl,
+        "assess_resources",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            allowed=True,
+            available_memory_gb=16.0,
+            free_disk_gb=16.0,
+            available_cpu_threads=4,
+            reasons=(),
+        ),
+    )
+    monkeypatch.setattr(agentctl, "archive_snapshot", archive_snapshot)
+    monkeypatch.setattr(agentctl, "pinned_worktree", pinned_worktree)
+    monkeypatch.setattr(agentctl, "_scientific_preexec", lambda *_args: None)
+
+    result = agentctl.run_pinned(
+        commit=commit,
+        run_id=f"launcher-{mode}",
+        scope="development",
+        snapshot_source=tmp_path / "input-source",
+        snapshot_source_commit=commit,
+        command=command,
+        experiment_id=f"launcher-{mode}",
+        seed=59,
+        wall_minutes=2,
+        memory_gb=4,
+        cpu=1,
+        disk_gb=1,
+    )
+    assert result == 0
+    assert marker.read_text(encoding="utf-8") == "ran"
+    receipt = json.loads((run_root / "runs" / f"launcher-{mode}" / "execution.json").read_text())
+    fingerprint = receipt["execution_fingerprint"]
+    assert fingerprint["git_commit"] == commit
+    assert fingerprint["is_dirty"] is False
+    assert fingerprint["seed"] == 59
+    assert fingerprint["experiment_id"] == f"launcher-{mode}"
+    assert len(fingerprint["effective_config_hash"]) == 64
+
+
+@pytest.mark.parametrize("invalid_kind", ["non-python", "other-interpreter"])
+def test_agentctl_run_start_rejects_invalid_command_before_preflight(
+    tmp_path, monkeypatch, invalid_kind: str
+) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_under_test", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    if invalid_kind == "non-python":
+        command = ["sh", "-c", "echo must-not-run"]
+    else:
+        alternate = tmp_path / "python3"
+        alternate.symlink_to("/bin/true")
+        command = [str(alternate), "-c", "pass"]
+
+    def unexpected_preflight(*_args, **_kwargs):
+        pytest.fail("invalid command reached scientific preflight")
+
+    monkeypatch.setattr(agentctl, "commit_exists", unexpected_preflight)
+    result = agentctl.run_pinned(
+        commit="not-inspected",
+        run_id="invalid-command",
+        scope="development",
+        snapshot_source=tmp_path,
+        snapshot_source_commit=None,
+        command=command,
+        experiment_id="invalid-command",
+        seed=61,
+        wall_minutes=1,
+        memory_gb=1,
+        cpu=1,
+        disk_gb=1,
+    )
+    assert result == 2

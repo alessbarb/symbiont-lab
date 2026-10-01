@@ -91,18 +91,19 @@ check alongside the run receipt.
 ## Acceptance criteria
 
 - [x] Project owner explicitly accepts this ADR.
-- [ ] The launcher rejects non-Python and mismatched-interpreter commands before
+- [x] The launcher rejects non-Python and mismatched-interpreter commands before
       creating or executing a scientific run.
-- [ ] The direct child verifies the declaration before running its target and
+- [x] The direct child verifies the declaration before running its target and
       refuses a deliberate mismatch.
-- [ ] The run receipt contains the full declared fingerprint.
-- [ ] Tests cover accepted script/module/code forms, invalid commands, successful
+- [x] The run receipt contains the full declared fingerprint.
+- [x] Tests cover accepted script/module/code forms, invalid commands, successful
       verification, mismatch rejection and receipt provenance.
-- [ ] Roadmap A2 remains partial until launcher-level tests demonstrate the
-      contract; it is not closed by the comparison helper alone.
+- [x] Roadmap A2 remains partial until launcher-level tests demonstrate the
+      contract; it is not closed by the comparison helper alone. Launcher-level
+      tests now demonstrate the contract.
 
 ## Decision
 
 Accepted by the project owner on 2026-10-01. Implementation and launcher-level
-validation remain outstanding; A2 stays partial until the acceptance criteria are
-met.
+validation satisfy the criteria above. The direct child is verified; descendants
+remain outside this ADR's guarantee.

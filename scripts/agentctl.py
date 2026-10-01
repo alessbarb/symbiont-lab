@@ -837,7 +837,9 @@ def run_pinned(
                 sys.executable,
                 "-m",
                 "symbiont_lab.experiments.verified_child",
-                *target,
+                target[0],
+                target[1],
+                *target[2],
             ]
             proc = subprocess.Popen(
                 child_argv,
