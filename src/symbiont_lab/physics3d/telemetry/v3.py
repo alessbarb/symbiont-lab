@@ -56,7 +56,7 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
 
 
 def _record_mapping(record: Any) -> dict[str, Any]:
-    if is_dataclass(record):
+    if is_dataclass(record) and not isinstance(record, type):
         return asdict(record)
     if isinstance(record, Mapping):
         return dict(record)

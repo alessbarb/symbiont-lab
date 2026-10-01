@@ -11,7 +11,7 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import fmean, median, pstdev
-from typing import Mapping
+from typing import Any, Mapping
 
 from symbiont_lab.physics3d.effects import (
     PhysicalConsequence,
@@ -95,7 +95,7 @@ class PrimitiveEffectReport:
     between_state_com_translation_delta_mean: float | None
 
 
-def _mapping(value: object) -> Mapping[str, object]:
+def _mapping(value: object) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
 
@@ -104,7 +104,8 @@ def _mean_vector(
 ) -> tuple[float, float, float]:
     if not vectors:
         return (0.0, 0.0, 0.0)
-    return tuple(fmean(vector[axis] for vector in vectors) for axis in range(3))
+    x, y, z = (fmean(vector[axis] for vector in vectors) for axis in range(3))
+    return (x, y, z)
 
 
 def _vector_delta(
@@ -168,8 +169,8 @@ def _directional_concentration(
 
 
 def _episode_samples(
-    transitions: list[dict[str, object]],
-    summaries: list[dict[str, object]],
+    transitions: list[dict[str, Any]],
+    summaries: list[dict[str, Any]],
 ) -> tuple[PrimitiveEffectSample, ...]:
     transition_by_tick = {
         int(item["tick"]): item for item in transitions if isinstance(item.get("tick"), int)

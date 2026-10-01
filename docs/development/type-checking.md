@@ -36,20 +36,25 @@ grupo debe validarse con pruebas enfocadas y sin relajar globalmente Pyright.
 
 ## Deuda abierta registrada
 
-Estado de la iteración del **2026-10-01**:
+Estado de la iteración del **2026-10-02**:
 
-- Pyright 1.1.414 analizó 561 archivos: **845 errores y 126 warnings** en 167
+- Pyright 1.1.414 analizó 585 archivos: **411 errores y 22 warnings** en 92
   archivos. La comparación con una ejecución anterior solo es orientativa: el
   número de diagnósticos no normaliza alcance, reglas ni distribución entre
   módulos.
 - El detalle reproducible de cada diagnóstico está en
   [`pyright-inventory.md`](pyright-inventory.md), con el comando, configuración,
   versión y diagnóstico completo de esta fotografía.
-- Las advertencias de imports de `symbiont` desde `symbiont_lab` requieren
-  revisar primero el límite entre paquetes; no se silencian globalmente.
-- Los bloques pendientes más grandes están en fronteras que reciben
-  `dict[str, object]` o APIs opcionales: monitor de Physics3D, telemetría,
-  fisiología, cultura y runtime del mundo.
+- Los imports de alias heredados `symbiont.core.<módulo>` ya usan las rutas de
+  dominio canónicas. Quedan warnings de imports de `observatory` desde `src/`,
+  que dependen de los entornos de ejecución de `pyrightconfig.json`; no se
+  silencian globalmente.
+- Los parámetros de restauración/checkpoint que recibían `Mapping[str, object]`
+  se tipan como `Mapping[str, Any]`. Los bloques pendientes más grandes son
+  deriva de API en los runtimes del organismo, valores opcionales alcanzables e
+  interfaces tipadas deliberadamente como `object`: lectores de telemetría
+  v4.1, monitor de Physics3D, runtime de Physics3D y estudios de percepción y
+  comunicación.
 - Los tests históricos de apagado de Physics3D todavía referencian
   `_save_checkpoint` y `_archive_existing_subject`, APIs que no existen en el
   CLI actual. Se mantienen como deuda de migración hasta decidir si se restaura

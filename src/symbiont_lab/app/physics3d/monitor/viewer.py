@@ -16,7 +16,7 @@ import time
 from dataclasses import asdict, dataclass
 from multiprocessing.context import BaseContext
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping, Sequence
 
 from symbiont_lab.app.physics3d.geometry import _convex_hull_2d, _point_in_polygon_2d
 from symbiont_lab.app.physics3d.monitor.converters import (
@@ -194,8 +194,8 @@ def strongest_outputs(
 
 
 def _event_transition(
-    previous: Mapping[str, object] | None,
-    current: Mapping[str, object],
+    previous: Mapping[str, Any] | None,
+    current: Mapping[str, Any],
 ) -> tuple[dict[str, object], ...]:
     """Return passive, evidence-backed events between two evaluator snapshots."""
     # TODO(pyright): replace the object-valued snapshot boundary with a
@@ -286,7 +286,7 @@ def _event_transition(
 
 
 def _event_context(
-    records: list[Mapping[str, object]],
+    records: Sequence[Mapping[str, Any]],
     index: int,
     *,
     radius: int = 12,
@@ -298,7 +298,7 @@ def _event_context(
     before = records[max(0, index - radius) : index]
     after = records[index + 1 : min(len(records), index + radius + 1)]
 
-    def mean(field: str, sample: list[Mapping[str, object]]) -> float | None:
+    def mean(field: str, sample: list[Mapping[str, Any]]) -> float | None:
         values: list[float] = []
         for record in sample:
             value = record.get(field)
@@ -310,7 +310,7 @@ def _event_context(
                 continue
         return None if not values else sum(values) / len(values)
 
-    def control(sample: list[Mapping[str, object]]) -> float | None:
+    def control(sample: list[Mapping[str, Any]]) -> float | None:
         values: list[float] = []
         for record in sample:
             try:
@@ -830,7 +830,7 @@ def _viewer_main(
     joint_names = {
         index: spec.name.replace("_", " ").title() for index, spec in enumerate(JOINT_SPECS)
     }
-    joint_canvases: dict[int, tk.Canvas] = {}
+    joint_canvases: dict[int, tuple[tk.Canvas, int]] = {}
     joint_val_vars: dict[int, tk.StringVar] = {}
 
     for row_idx, (j_id, j_name) in enumerate(joint_names.items()):
@@ -1553,9 +1553,9 @@ def _viewer_main(
 
     timing_var = tk.StringVar(value="Ciclo: — · Checkpoint: —")
 
-    event_log: list[dict[str, object]] = []
+    event_log: list[dict[str, Any]] = []
     previous_event_snapshot: dict[str, object] | None = None
-    replay_event_index: list[tuple[int, dict[str, object]]] = []
+    replay_event_index: list[tuple[int, dict[str, Any]]] = []
 
     if is_replay:
         tk.Label(
@@ -1984,7 +1984,7 @@ def _viewer_main(
     trajectory_history: list[tuple[float, float, float]] = []
     max_trajectory = 120
     footstep_history: list[tuple[float, float, float]] = []
-    pick_targets: list[dict[str, object]] = []
+    pick_targets: list[dict[str, Any]] = []
     selected_target: dict[str, object] | None = None
     physical_history: list[dict[str, object]] = []
     historical_inspection = False
@@ -2020,7 +2020,7 @@ def _viewer_main(
     last_resource_pos: tuple[float, float, float] | None = None
     last_resource_alpha: float | None = None
 
-    def render_scene(physical_state: dict[str, object]) -> None:
+    def render_scene(physical_state: dict[str, Any]) -> None:
         nonlocal photo_ref, last_resource_pos, last_resource_alpha, pick_targets
         render_body.restore_physical_state(
             physical_state,
@@ -2555,7 +2555,7 @@ def _viewer_main(
         ).bounded()
         rerender_latest()
 
-    def select_target(target: dict[str, object]) -> None:
+    def select_target(target: dict[str, Any]) -> None:
         nonlocal selected_target
         selected_target = dict(target)
         kind = str(target.get("kind", "item"))
@@ -2662,7 +2662,7 @@ def _viewer_main(
     resource_raw_history: list[float] = []
     reserve_history: list[float] = []
     tick_history: list[int] = []
-    snapshot_history: list[dict[str, object]] = []
+    snapshot_history: list[dict[str, Any]] = []
     max_history = 180
 
     def refresh_event_list() -> None:
@@ -2689,7 +2689,7 @@ def _viewer_main(
         if panel_visibility["timeline"] or event_log:
             refresh_event_list()
 
-    def show_event_context(context: Mapping[str, object]) -> None:
+    def show_event_context(context: Mapping[str, Any]) -> None:
         metrics = context.get("metrics", {})
         if not isinstance(metrics, Mapping):
             return
@@ -2783,7 +2783,7 @@ def _viewer_main(
                 chart.create_line(x, pad_t, x, pad_t + graph_h, fill=color, dash=(1, 4))
                 chart.create_oval(x - 3, pad_t - 1, x + 3, pad_t + 5, fill=color, width=0)
 
-        def series(values: list[float | None], color: str) -> None:
+        def series(values: Sequence[float | None], color: str) -> None:
             if len(values) < 2:
                 return
             segment: list[float] = []
