@@ -194,3 +194,32 @@ bounded tests for experiment preparation and recorded state.
 
 This is one lab-only test-ownership move; it does not establish scientific
 evidence or campaign validity.
+
+## Sixth bounded organization slice: private-modeling and communication tests
+
+Two more root-level modules now belong to `tests/unit/modeling/`:
+`test_private_modeling_contract.py` and `test_communication_telemetry.py`.
+Both exercise `symbiont.modeling` APIs, with no test-module consumers or active
+documentation references found for their old paths.
+
+- **Compatibility surface:** production APIs and test contents are unchanged;
+  paths only were relocated.
+- **Focused evidence:** the full modeling test directory passed: **76 passed**.
+  Ruff check passed for the directory, formatting passed for the two moved
+  modules, and repository-layout tests passed: **4 passed**.
+
+## Seventh bounded organization slice: host durable-I/O tests
+
+`tests/unit/test_durable_io.py` covers only `symbiont.host.durable` contracts
+and has no external test-module or documentation references. It now resides in
+`tests/unit/host/`, the existing owner for host capabilities and state.
+
+- **Compatibility surface:** test functions and assertions are unchanged; only
+  the path changed.
+- **Focused evidence:** all host unit tests passed: **259 passed**. Ruff check
+  passed for the host directory, format check passed for the moved test, and
+  repository-layout tests passed: **4 passed**.
+
+Across these evidence-backed test moves, twelve root-level modules now have
+explicit subsystem homes. Remaining tests are still mapped individually before
+any further relocation.
