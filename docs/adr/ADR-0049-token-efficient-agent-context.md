@@ -19,6 +19,8 @@ decision for an ordinary task, while final classification already belongs to
 2. The command refreshes trusted `origin/main` once and emits only operational state:
    base/head, branch, worktree state, current gate, RUNNING work/conflicts and the
    publication action.
+   The default human-readable form stays intentionally compact; `--json` is available
+   when a machine-readable snapshot is preferable.
 3. Final-diff classification is deliberately not duplicated in `context`; it remains
    owned by `agentctl publish`.
 4. AGENTS.md and CLAUDE.md require one normal context read. Deeper governance documents
