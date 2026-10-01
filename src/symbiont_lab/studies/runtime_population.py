@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.runtime import OrganismRuntime
-
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
@@ -28,7 +27,8 @@ class RuntimePopulationStudy:
 
 
 def run_runtime_population_study() -> RuntimePopulationStudy:
-    version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    major, minor, patch = (int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    version = (major, minor, patch)
     genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="population-study", capacity=2)
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}

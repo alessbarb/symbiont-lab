@@ -4,7 +4,7 @@ import hashlib
 import math
 from collections import deque
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 from ..capacity import CapacityPressure
 from .competence import CompetenceEvidence, CompetenceMaturity
@@ -1513,7 +1513,7 @@ class CompetenceDevelopmentEngine:
     @classmethod
     def restore(
         cls,
-        payload: Mapping[str, object],
+        payload: Mapping[str, Any],
         *,
         actuator_ids: Sequence[str],
         organism_id: str,

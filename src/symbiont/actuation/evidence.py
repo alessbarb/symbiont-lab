@@ -18,7 +18,7 @@ import hashlib
 import math
 from collections import Counter
 from dataclasses import dataclass, replace
-from typing import Callable, Iterable, Mapping, Protocol
+from typing import Any, Callable, Iterable, Mapping, Protocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -523,7 +523,7 @@ class CausalEvidenceLedger:
         }
 
     @classmethod
-    def restore(cls, payload: dict[str, object]) -> "CausalEvidenceLedger":
+    def restore(cls, payload: dict[str, Any]) -> "CausalEvidenceLedger":
         """Restore v3, or migrate v1/v2 motor evidence.
 
         Historical evidence predates attempts and intervention families; those

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.ecology import SharedHabitat
-from symbiont.core.runtime import OrganismRuntime
+from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.social.ecology import SharedHabitat
 
 
 @dataclass(frozen=True, slots=True)

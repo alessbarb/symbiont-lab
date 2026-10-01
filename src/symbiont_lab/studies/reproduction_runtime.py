@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.runtime import OrganismRuntime
-
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
@@ -27,7 +26,8 @@ class RuntimeReproductionStudy:
 def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStudy:
     if ticks < 1:
         raise ValueError("ticks must be positive")
-    version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    major, minor, patch = (int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    version = (major, minor, patch)
     genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="runtime-study", capacity=2)
     parent = OrganismRuntime(

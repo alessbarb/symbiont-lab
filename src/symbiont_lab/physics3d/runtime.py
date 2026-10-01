@@ -235,7 +235,7 @@ class PyBulletEmbodimentRuntime:
         body_kind: str = "anthropomorphic-v6",
         environment: str | None = None,
         runtime_checkpoint: Mapping[str, Any] | None = None,
-        physical_state: Mapping[str, object] | None = None,
+        physical_state: Mapping[str, Any] | None = None,
         organism_id: str | None = None,
         kernel_limits: KernelLimits | None = None,
     ) -> None:

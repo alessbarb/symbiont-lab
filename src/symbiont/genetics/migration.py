@@ -10,7 +10,7 @@ from typing import Any, Mapping
 from .genome import Genome, GenomeCodec
 
 
-def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
+def migrate_v1_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     if payload.get("schema_version") != 1:
         raise ValueError("migrate_v1_payload requires schema_version == 1")
 
@@ -18,8 +18,11 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
     plasticity = payload.get("plasticity")
     structure = payload.get("structure")
     mutation = payload.get("mutation_policy")
-    if not all(
-        isinstance(value, Mapping) for value in (development, plasticity, structure, mutation)
+    if not (
+        isinstance(development, Mapping)
+        and isinstance(plasticity, Mapping)
+        and isinstance(structure, Mapping)
+        and isinstance(mutation, Mapping)
     ):
         raise ValueError("malformed Genome v1 payload")
 
@@ -114,7 +117,7 @@ def migrate_v1_payload(payload: Mapping[str, object]) -> dict[str, Any]:
 
 def apply_legacy_heritable_payload(
     genome: Genome,
-    payload: Mapping[str, object],
+    payload: Mapping[str, Any],
     *,
     kernel_limits: object,
 ) -> Genome:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Mapping
+from typing import Any, Mapping
 
 
 class EvidenceProvenance(StrEnum):
@@ -155,7 +155,7 @@ class SensorimotorDynamicsModel:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None) -> "SensorimotorDynamicsModel":
+    def restore(cls, payload: Mapping[str, Any] | None) -> "SensorimotorDynamicsModel":
         if payload is None:
             return cls()
         if payload.get("schema_version") != cls.SCHEMA_VERSION:

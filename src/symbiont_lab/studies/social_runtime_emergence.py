@@ -11,10 +11,9 @@ import math
 from collections import Counter
 from dataclasses import asdict, dataclass
 
-from symbiont.core.interactions import EcologicalResourcePool
-from symbiont.core.runtime import OrganismRuntime
-
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.social import SocialHabitat
+from symbiont.core.social.interactions import EcologicalResourcePool
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +52,12 @@ def run_social_runtime_emergence_study(
                 runtime.tick()
                 continue
             touched.update((runtime.organism_id, outcome.target_id))
-            pairs[tuple(sorted((runtime.organism_id, outcome.target_id)))] += 1
+            pairs[
+                (
+                    min(runtime.organism_id, outcome.target_id),
+                    max(runtime.organism_id, outcome.target_id),
+                )
+            ] += 1
             runtime.tick()
     interactions = sum(pairs.values())
     entropy = 0.0

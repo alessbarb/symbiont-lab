@@ -78,9 +78,13 @@ def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
     saved_tick = result.get("saved_at_tick")
     started_tick = current.get("started_tick")
     stored_age = living.get("age_ticks")
-    if any(
-        isinstance(v, bool) or not isinstance(v, int)
-        for v in (saved_tick, started_tick, stored_age)
+    if (
+        isinstance(saved_tick, bool)
+        or not isinstance(saved_tick, int)
+        or isinstance(started_tick, bool)
+        or not isinstance(started_tick, int)
+        or isinstance(stored_age, bool)
+        or not isinstance(stored_age, int)
     ):
         return result
     if started_tick <= 0 or saved_tick < started_tick:
@@ -745,7 +749,7 @@ def update_lifecycle_for_checkpoint(
         epoch = max(1, int(raw.get("epoch") or 1))
         history = deepcopy(raw.get("history")) if isinstance(raw.get("history"), list) else []
         current_raw = raw.get("current")
-        current = dict(current_raw) if isinstance(current_raw, Mapping) else {}
+        current: dict[str, Any] = dict(current_raw) if isinstance(current_raw, Mapping) else {}
     else:
         epoch = 1
         history = []

@@ -5,7 +5,7 @@ import json
 import math
 from collections import Counter
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from ..cognition.limits import KernelLimits
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
@@ -215,7 +215,7 @@ class EpisodicProjection:
         )
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "EpisodicProjection":
+    def restore(cls, payload: Mapping[str, Any]) -> "EpisodicProjection":
         def values(name: str, maximum: int) -> tuple[str, ...]:
             raw = payload.get(name, [])
             if not isinstance(raw, list) or len(raw) > maximum:

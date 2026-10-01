@@ -26,13 +26,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
 
-from symbiont.core.cognition_bridge import CognitiveBridge
-
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticNode
 from symbiont.cognition.learning import huber_loss
 from symbiont.cognition.metaplasticity import SafetyState
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge
 from symbiont_lab.evaluation.holdout import DevelopmentPhase, FrozenEvaluationPhase, SeedLedger
 
 _SOURCE = Path(__file__)

@@ -6,7 +6,7 @@ import hashlib
 import json
 from collections import deque
 from dataclasses import dataclass
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 from .symbols import MAX_HISTORY, SymbolAction, SymbolPolicy, _id
 from .telemetry import CommunicationEvent, CommunicationTelemetry, GroundingEvent
@@ -109,7 +109,7 @@ class SequenceDecisionRecord:
             raise ValueError("silence cannot select sequence or recipient")
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "SequenceDecisionRecord":
+    def restore(cls, payload: Mapping[str, Any]) -> "SequenceDecisionRecord":
         if not isinstance(payload, Mapping):
             raise ValueError("invalid sequence decision")
         try:
@@ -313,7 +313,7 @@ class SequenceGroundingLedger:
 
     @classmethod
     def restore(
-        cls, payload: Mapping[str, object] | None, *, organism_id: str
+        cls, payload: Mapping[str, Any] | None, *, organism_id: str
     ) -> "SequenceGroundingLedger":
         if payload is None:
             return cls(organism_id)

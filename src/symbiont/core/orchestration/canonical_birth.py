@@ -22,7 +22,8 @@ from .runtime import OrganismRuntime
 
 def _running_version() -> tuple[int, int, int]:
     parts = (_symbiont_version.split(".") + ["0", "0"])[:3]
-    return tuple(int(part) for part in parts)
+    major, minor, patch = (int(part) for part in parts)
+    return major, minor, patch
 
 
 def restore_resident_with_canonical_cognition(

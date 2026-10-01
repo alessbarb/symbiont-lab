@@ -17,8 +17,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
-from symbiont.core.ecology import SharedHabitat
-
+from symbiont.core.social.ecology import SharedHabitat
 from symbiont.host.durable import durable_atomic_write, sync_directory
 from symbiont.modeling.runtime import ModeledOrganismRuntime
 from symbiont_world.constitution import WorldConstitution

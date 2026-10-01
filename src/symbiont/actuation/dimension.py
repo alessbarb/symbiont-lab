@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 from .evidence import OpportunityView
 
@@ -341,7 +341,7 @@ class ActionDimensionRegistry:
     @classmethod
     def restore(
         cls,
-        payload: Mapping[str, object] | None,
+        payload: Mapping[str, Any] | None,
         *,
         policy: ActionDimensionDiscoveryPolicy | None = None,
     ) -> "ActionDimensionRegistry":

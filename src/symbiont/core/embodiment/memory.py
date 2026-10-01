@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 from .history import EmbodimentEpisodeSummary
 
@@ -100,7 +100,7 @@ class EmbodimentPrior:
     @classmethod
     def restore(
         cls,
-        payload: Mapping[str, object] | None,
+        payload: Mapping[str, Any] | None,
     ) -> "EmbodimentPrior":
         if payload is None:
             return cls.novel()
@@ -215,7 +215,7 @@ class EmbodimentArchive:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None) -> "EmbodimentArchive":
+    def restore(cls, payload: Mapping[str, Any] | None) -> "EmbodimentArchive":
         if payload is None:
             return cls()
         archive_schema = int(payload.get("schema_version") or 0)
@@ -273,14 +273,14 @@ class EmbodimentArchive:
 
 def archive_episode_checkpoint(
     archive: EmbodimentArchive,
-    episode_payload: Mapping[str, object],
+    episode_payload: Mapping[str, Any],
     *,
-    body_schema_prior: Mapping[str, object] | None,
-    living_body: Mapping[str, object] | None,
+    body_schema_prior: Mapping[str, Any] | None,
+    living_body: Mapping[str, Any] | None,
     symbiont_tick: int,
     end_reason: str,
-    historical_motor_candidates: tuple[Mapping[str, object], ...] = (),
-    motor_cognitive_surface: Mapping[str, object] | None = None,
+    historical_motor_candidates: tuple[Mapping[str, Any], ...] = (),
+    motor_cognitive_surface: Mapping[str, Any] | None = None,
     private_model_ids: tuple[str, ...] = (),
 ) -> EmbodimentEpisodeSummary:
     """Close one persisted episode into bounded longitudinal memory.

@@ -137,24 +137,28 @@ def resolve_architecture_spec(
 
 def architecture_spec_from_manifest(manifest: ModelArtifactManifest) -> ArchitectureSpec:
     base = architecture_spec(manifest.architecture_id)
-    values = (
-        manifest.resolved_embedding_dim,
-        manifest.resolved_hidden_dim,
-        manifest.resolved_layers,
-        manifest.resolved_heads,
-        manifest.resolved_feedforward_dim,
-    )
-    if all(value is None for value in values):
+    embedding_dim = manifest.resolved_embedding_dim
+    hidden_dim = manifest.resolved_hidden_dim
+    layers = manifest.resolved_layers
+    heads = manifest.resolved_heads
+    feedforward_dim = manifest.resolved_feedforward_dim
+    if all(value is None for value in (embedding_dim, hidden_dim, layers, heads, feedforward_dim)):
         return base
-    if any(value is None for value in values):
+    if (
+        embedding_dim is None
+        or hidden_dim is None
+        or layers is None
+        or heads is None
+        or feedforward_dim is None
+    ):
         raise ValueError("artifact contains incomplete resolved architecture shape")
     return ArchitectureSpec(
         manifest.architecture_id,
-        embedding_dim=int(manifest.resolved_embedding_dim),
-        hidden_dim=int(manifest.resolved_hidden_dim),
-        layers=int(manifest.resolved_layers),
-        heads=int(manifest.resolved_heads),
-        feedforward_dim=int(manifest.resolved_feedforward_dim),
+        embedding_dim=int(embedding_dim),
+        hidden_dim=int(hidden_dim),
+        layers=int(layers),
+        heads=int(heads),
+        feedforward_dim=int(feedforward_dim),
         dropout=base.dropout,
     )
 

@@ -4,14 +4,13 @@ from dataclasses import asdict, dataclass
 from hashlib import sha256
 from statistics import mean
 
-from symbiont.core.heritage import (
+from symbiont.core.foundation.model import fingerprint
+from symbiont.core.lineage.heritage import (
     HeritagePattern,
     SpeciesHeritage,
     apply_heritage,
     distill_heritage,
 )
-from symbiont.core.model import fingerprint
-
 from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.simulation import EventContext, _run_population, run_simulation
 

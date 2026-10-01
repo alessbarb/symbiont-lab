@@ -4,12 +4,11 @@ import random
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
-from symbiont.core.cognition_bridge import CognitiveBridge
-
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticEdge, PlasticNode
 from symbiont.cognition.learning import huber_loss
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge
 
 
 @dataclass(slots=True, frozen=True)

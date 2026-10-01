@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +128,7 @@ class SharedHabitat:
         }
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, object]) -> "SharedHabitat":
+    def from_checkpoint(cls, payload: dict[str, Any]) -> "SharedHabitat":
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("invalid habitat checkpoint")
         habitat = cls(

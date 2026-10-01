@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -111,7 +112,7 @@ class CompositionEngine:
         }
 
     @classmethod
-    def restore(cls, payload: dict[str, object]) -> "CompositionEngine":
+    def restore(cls, payload: dict[str, Any]) -> "CompositionEngine":
         if payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("unsupported composition checkpoint")
         engine = cls(max_relations=int(payload.get("max_relations", 512)))

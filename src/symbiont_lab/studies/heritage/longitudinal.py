@@ -4,8 +4,7 @@ from dataclasses import asdict, dataclass
 from statistics import mean
 from typing import Iterable
 
-from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
-
+from symbiont.core.lineage.heritage import SpeciesHeritage, apply_heritage, distill_heritage
 from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.simulation import SimulationResult, _run_population, run_simulation
 

@@ -331,7 +331,7 @@ class CompetenceExecutionBindingRegistry:
     @classmethod
     def restore(
         cls,
-        payload: Mapping[str, object] | None,
+        payload: Mapping[str, Any] | None,
     ) -> "CompetenceExecutionBindingRegistry":
         if payload is None:
             return cls()

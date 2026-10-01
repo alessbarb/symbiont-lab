@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.attention import AttentionBudget, AttentionCandidate
-
 from symbiont.cognition.checkpoint import WEIGHT_DEADBAND, dequantize_weight, quantize_weight
+from symbiont.core.cognition.attention import AttentionBudget, AttentionCandidate
 from symbiont.host.hypotheses import HypothesisStatus, HypothesisTracker
 
 from .prediction_promotion import run_prediction_promotion_study

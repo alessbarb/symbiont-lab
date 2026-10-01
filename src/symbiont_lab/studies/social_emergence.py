@@ -7,9 +7,8 @@ import random
 from collections import Counter
 from dataclasses import asdict, dataclass
 
-from symbiont.core.interactions import EcologicalResourcePool
-
 from symbiont.core.social import RelationValence, SocialHabitat
+from symbiont.core.social.interactions import EcologicalResourcePool
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +46,7 @@ def run_social_emergence_study(
         source, target = rng.sample(ids, 2)
         touched.update((source, target))
         interactions += 1
-        pair_counts[tuple(sorted((source, target)))] += 1
+        pair_counts[(min(source, target), max(source, target))] += 1
         if rng.random() < 0.5:
             habitat.exchange(source, target, "food", 1.0)
         else:

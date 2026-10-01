@@ -4,15 +4,14 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.interactions import EcologicalResourcePool
-from symbiont.core.runtime import OrganismRuntime
-
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.social import SocialHabitat
+from symbiont.core.social.interactions import EcologicalResourcePool
 from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
@@ -32,7 +31,8 @@ class SocialRuntimeLifecycleStudy:
 
 def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
     """Check social checkpoint/restart alongside bounded birth and death."""
-    version = tuple(int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    major, minor, patch = (int(part) for part in (symbiont_version.split(".") + ["0", "0"])[:3])
+    version = (major, minor, patch)
     genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="social-lifecycle", capacity=2)
     social = SocialHabitat(EcologicalResourcePool({"food": 4.0}), max_members=3)

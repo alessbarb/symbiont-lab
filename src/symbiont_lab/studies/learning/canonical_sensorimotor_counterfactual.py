@@ -145,7 +145,7 @@ def _rollout(
     *,
     seed: int,
     checkpoint: dict[str, Any],
-    physical_state: dict[str, object],
+    physical_state: dict[str, Any],
     target_effector_id: str,
     horizon_ticks: int,
     intervene: bool,
@@ -195,7 +195,7 @@ def _position_distance(
     return sum((left[index] - right[index]) ** 2 for index in range(3)) ** 0.5
 
 
-def _target_delivered(action: Mapping[str, object], target_actuator_id: str) -> bool:
+def _target_delivered(action: Mapping[str, Any], target_actuator_id: str) -> bool:
     actuations = action.get("actuations", [])
     return any(
         isinstance(item, Mapping)
