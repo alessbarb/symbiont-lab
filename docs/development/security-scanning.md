@@ -1,4 +1,8 @@
-# Seguridad y análisis Bandit
+# Seguridad y análisis estático
+
+**Última comprobación local:** 2026-10-01, sobre el código de producción en
+`main` (`a54df2662099c54731a23a913fb30980ad19f0ca`). Las modificaciones
+documentales locales no cambian ese alcance.
 
 ## Alcance actual
 
@@ -9,8 +13,8 @@ Bandit se ejecuta sobre `src/` y `observatory/` con la configuración de
 .venv/bin/bandit -r src observatory -c pyproject.toml -q
 ```
 
-La ejecución validada en el commit `739363ed` termina con código `0` y sin
-hallazgos activos.
+Con Bandit **1.9.4**, la ejecución actual termina con código `0` y sin
+hallazgos activos. `ruff check` **0.16.9** también termina limpio.
 
 Esto significa que el resultado es limpio **dentro de la política configurada**;
 no equivale a una auditoría de seguridad completa ni a la ausencia de riesgos
@@ -75,8 +79,12 @@ obtenido ocultando el problema.
 
 ## Evidencia relacionada
 
-- `pip-audit` no detectó vulnerabilidades conocidas en las dependencias
-  instaladas.
-- `ruff check` permanece limpio después del cambio.
+- `pip-audit` **2.10.1** terminó sin vulnerabilidades conocidas entre las
+  dependencias instaladas que pudo auditar. La distribución local
+  `symbiont-lab` (`0.90.0`) no está publicada en PyPI y quedó expresamente sin
+  auditar; por tanto, este resultado no cubre las dependencias declaradas por
+  el propio proyecto si no están instaladas o resueltas por separado.
+- `pip-audit` consulta PyPI; la comprobación del 2026-10-01 se ejecutó con
+  acceso a red. Un fallo de red no debe registrarse como un resultado limpio.
 - La política y las excepciones están versionadas junto con el código para
   evitar que el resultado limpio pierda contexto.

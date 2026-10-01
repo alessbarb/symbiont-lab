@@ -66,9 +66,10 @@ This ledger ensures that the existing documentation corpus is not silently disca
 | world-ecology | `design/world/symbiont-world-v4.md` | 183 |
 | world-ecology | `design/world/world-ecology-v1.md` | 132 |
 | world-ecology | `design/world/world-ecology-v2.md` | 190 |
-| history-development | `development/pyright-inventory-2026-09-25.md` | 1546 |
-| history-development | `development/security-scanning.md` | 82 |
-| history-development | `development/type-checking.md` | 56 |
+| history-development | `development/maintainability-baseline.md` | 75 |
+| history-development | `development/pyright-inventory.md` | 1692 |
+| history-development | `development/security-scanning.md` | 90 |
+| history-development | `development/type-checking.md` | 60 |
 | other | `explanation/01-anatomy-macro-boundaries.md` | 13 |
 | other | `explanation/02-temporal-domains.md` | 13 |
 | other | `explanation/03-anatomy-cognitive-tick.md` | 19 |

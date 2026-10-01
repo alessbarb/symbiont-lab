@@ -739,7 +739,7 @@ and the test suite. Observatory is explicitly excluded.
 
 This is an enabling engineering gate, not authorization for broad rewrites. The
 initial source-size, test-layout, boundary and artifact inventory is recorded in
-the [A9 maintainability baseline](development/a9-maintainability-baseline.md).
+the [A9 maintainability baseline](development/maintainability-baseline.md).
 Before any extraction, map its public interfaces, callers, test ownership, and
 scientific/state invariants. Prioritize changes that make experimental behavior
 easier to isolate and verify; file length alone is not evidence that a module

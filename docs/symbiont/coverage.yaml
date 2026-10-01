@@ -187,15 +187,18 @@ sources:
 - path: design/world/world-ecology-v2.md
   area: world-ecology
   lines: 190
-- path: development/pyright-inventory-2026-09-25.md
+- path: development/maintainability-baseline.md
   area: history-development
-  lines: 1546
+  lines: 75
+- path: development/pyright-inventory.md
+  area: history-development
+  lines: 1692
 - path: development/security-scanning.md
   area: history-development
-  lines: 82
+  lines: 90
 - path: development/type-checking.md
   area: history-development
-  lines: 56
+  lines: 60
 - path: explanation/01-anatomy-macro-boundaries.md
   area: other
   lines: 13
