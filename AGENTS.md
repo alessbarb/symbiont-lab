@@ -11,6 +11,7 @@ Repository-wide operating contract for intelligent coding agents.
 5. Only a green/current ORDINARY candidate may auto-promote. SCIENTIFIC and CONSTITUTIONAL candidates require external review. If `agentctl` says BLOCKED, do not bypass it.
 6. Investigate validation failures rather than weakening or blindly rerunning checks. Follow a published candidate until promotion, review requirement or a concrete blocking condition.
 7. Do not leave agent-created task or `agentctl/*` candidate branches hanging after completion. First verify each branch's commit is an ancestor of trusted `origin/main`; then delete the corresponding local and remote branch. Never delete an unmerged branch, or one awaiting required review/promotion; report its state and retain it until integration is confirmed.
+8. Immediately after creating/pushing an agent-owned branch, open a GitHub PR targeting `main` and report its URL. A PR is the handoff for review; do not ask the user to inspect a raw branch. Opening a PR does not imply approval, merge or permission to delete the branch. If promotion wins the race and the branch has no diff against `main`, verify integration and report why GitHub cannot open a PR.
 
 Permanent architectural invariants remain canonical in `docs/governance/constitution.md`;
 read the relevant section when the task crosses an architectural, epistemic, lifecycle,

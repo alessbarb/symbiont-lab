@@ -24,7 +24,12 @@ review or owner attention.
 3. Never delete an unmerged branch or a branch still awaiting required CI promotion,
    external review or another explicit integration step. Retain it and report why it
    remains.
-4. Before finishing, report the integration commit and confirm that completed
+4. Immediately after creating/pushing an agent-owned branch, open a GitHub PR targeting
+   `main` and report its URL. The PR is the review handoff; its existence does not imply
+   approval, merge or permission to delete the branch. If auto-promotion wins the race
+   and no diff remains against `main`, verify integration and report why a PR cannot be
+   opened.
+5. Before finishing, report the integration commit and confirm that completed
    agent-created branches were removed. Do not delete unrelated user branches.
 
 ## Consequences
