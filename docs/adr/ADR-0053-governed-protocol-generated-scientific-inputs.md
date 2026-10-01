@@ -143,8 +143,8 @@ the launcher is not an input artifact.
   not prove that assertion automatically or establish that study code is
   scientifically valid. Misdeclaring a study with external starting-state
   dependencies is provenance fraud. Existing host-safety limits still apply.
-- Ten governed E8 runs and their evidence aggregation remain required after
-  implementation; accepting this ADR alone does not close A8.
+- Ten governed E8 runs and their evidence aggregation were required after
+  implementation; accepting this ADR alone did not close A8.
 
 ## Acceptance criteria
 
@@ -157,17 +157,20 @@ the launcher is not an input artifact.
   resource controls, isolation and timeout behavior.
 - [x] Tests cover protocol-generated provenance and verification, rejection of
   a supplied snapshot in that mode, and unchanged snapshot behavior.
-- [ ] Implement and integrate the control-plane change in a separate PR; do not
+- [x] Implement and integrate the control-plane change in a separate PR; do not
   modify PR #212. Merge the launcher change to `main` before starting the E8
   campaign, then pin every governed run to the same reviewed scientific
-  candidate commit from #212.
+  candidate commit from #212. The merged candidate is
+  `0a901ea273ac8cbcf8c165419e9120033f09c1f0`.
 - [x] A single-seed E8 runner uses the preregistered protocol and `steps=300`;
   launcher seed equals the seed consumed by the study.
-- [ ] All ten governed E8 results and receipts are preserved and aggregated;
+- [x] All ten governed E8 results and receipts are preserved and aggregated;
   aggregation verifies the exact preregistered seeds, no duplicates/missing
   results, one common candidate commit, receipt/result seed equality, and
   `integrity_pass` plus replay determinism for each run; A8 closes only if all
-  ten per-seed invariant rates are `1.0`.
+  ten per-seed invariant rates are `1.0`. The campaign record is at
+  `experiments/embodiment/label-invariance-governed-20261001-0a901ea/` and all
+  ten rates are `1.0`.
 - [x] Focused and governance/static checks pass; the canonical suite and
   campaign results are reported separately.
 

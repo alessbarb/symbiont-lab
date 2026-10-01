@@ -601,33 +601,37 @@ Mixed generations are invalid.
 
 ### A8 — Label and apparatus invariance / E8 remediation
 
-**Status:** P0 OPEN.
+**Status:** P0 COMPLETE — governed confirmation campaign passed; evidence
+publication remains subject to external review.
 
 E8 is an experimental-integrity failure and therefore belongs in Phase A before
 the causal programme.
 
 #### Existing result
 
-The preregistered E8 label-invariance campaign has already been executed across
-its ten seeds.
+The historical E8 label-invariance campaign failed across its ten seeds.
 
-The World arm fails.
+The historical World arm failed.
 
-Renaming evaluator-side resource or hazard identifiers changes the subject
-trace.
+In that historical run, renaming evaluator-side resource or hazard identifiers
+changed the subject trace.
 
-Therefore label invariance is currently **not established**.
+Therefore label invariance was not established by that historical campaign.
 
-The previous `APP-006: execution pending` status is stale and must be corrected.
+The prior `APP-006: execution pending` status is superseded by the governed
+confirmation result recorded below.
 
 #### Remediation state
 
-The current implementation candidate derives receptor-transfer geometry from
+The reviewed implementation candidate derives receptor-transfer geometry from
 apparatus-assigned source ordinals and hazard RNG namespaces from hazard slots,
-not evaluator-facing labels. Focused development tests now require E8 invariance
-and deterministic replay. The preregistered ten-seed campaign has **not** been
-rerun; A8 remains open until that governed run records `invariant_rate = 1.0`
-and deterministic replay.
+not evaluator-facing labels. Focused development tests require E8 invariance
+and deterministic replay. The governed confirmation campaign was run after the
+candidate merged to `main`, using the unchanged preregistered ten-seed set and
+300-step horizon. All ten results report `invariant_rate = 1.0`,
+`integrity_pass = true`, and deterministic replay. Receipts, per-seed results,
+and validated aggregation are preserved under
+`experiments/embodiment/label-invariance-governed-20261001-0a901ea/`.
 
 #### Identified contamination
 
@@ -687,7 +691,12 @@ the evaluator-facing name under test.
 
 #### E8 acceptance
 
-After the apparatus fix:
+The governed confirmation campaign passed on candidate
+`0a901ea273ac8cbcf8c165419e9120033f09c1f0`. The campaign record is bounded to
+the preregistered protocol and seed set; external review of its scientific
+evidence remains a publication requirement.
+
+The preregistered acceptance criteria are:
 
 1. preserve the existing preregistered E8 protocol;
 2. do not change its success threshold;
@@ -895,7 +904,7 @@ time.
 | E5 — Somatic Correlation Trap | B1 | H1 not supported |
 | E6 — Hidden Common Cause | B4 | H1 not supported |
 | E7 — Heredity Leakage | C1 | no learned-state leakage observed |
-| E8 — Label Invariance | Phase A integrity | failed; P0 open |
+| E8 — Label Invariance | Phase A integrity | governed confirmation passed; see A8 evidence record |
 
 E1–E6 therefore form a **unified falsification battery** for the next agency
 architecture.

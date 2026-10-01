@@ -1,0 +1,86 @@
+{
+  "a8_pass": true,
+  "candidate_commit": "0a901ea273ac8cbcf8c165419e9120033f09c1f0",
+  "seeds": [
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-101.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-101.json",
+      "seed": 101
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-127.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-127.json",
+      "seed": 127
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-149.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-149.json",
+      "seed": 149
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-173.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-173.json",
+      "seed": 173
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-211.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-211.json",
+      "seed": 211
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-257.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-257.json",
+      "seed": 257
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-307.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-307.json",
+      "seed": 307
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-353.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-353.json",
+      "seed": 353
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-401.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-401.json",
+      "seed": 401
+    },
+    {
+      "integrity_pass": true,
+      "invariant_rate": 1.0,
+      "receipt": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/receipt-457.json",
+      "replay_deterministic": true,
+      "result": "experiments/embodiment/label-invariance-governed-20261001-0a901ea/seed-457.json",
+      "seed": 457
+    }
+  ]
+}

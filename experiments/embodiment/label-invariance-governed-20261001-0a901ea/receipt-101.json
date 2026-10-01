@@ -1,0 +1,58 @@
+{
+  "id": "e8-label-invariance-20261001-seed-101",
+  "scope": "confirmation",
+  "commit": "0a901ea273ac8cbcf8c165419e9120033f09c1f0",
+  "experiment_id": "embodiment.label-invariance",
+  "seed": 101,
+  "scientific_input": {
+    "mode": "protocol-generated",
+    "external_state": false
+  },
+  "governance_ref": "0a901ea273ac8cbcf8c165419e9120033f09c1f0",
+  "authorization_model": "external-operator-policy",
+  "owner_pid": 996918,
+  "owner_start_token": "8485687",
+  "started_at": "2026-10-01T16:40:56.958995+00:00",
+  "wall_minutes": 30,
+  "memory_gb": 1.0,
+  "cpu_threads": 1,
+  "disk_gb": 2.0,
+  "resource_preflight": {
+    "available_memory_gb": 2.309619903564453,
+    "free_disk_gb": 16.463912963867188,
+    "available_cpu_threads": 8
+  },
+  "state": "complete",
+  "child_pid": 997075,
+  "child_start_token": "8486070",
+  "worktree_commit": "0a901ea273ac8cbcf8c165419e9120033f09c1f0",
+  "dependency_extras": [],
+  "environment_path": "/home/alessbarb/workspace/repos/incubating/symbiont-lab/.git/symbiont-agent/runs/e8-label-invariance-20261001-seed-101/environment",
+  "command": [
+    "/home/alessbarb/workspace/repos/incubating/symbiont-lab/.git/symbiont-agent/runs/e8-label-invariance-20261001-seed-101/environment/bin/python",
+    "-m",
+    "symbiont_lab.experiments.verified_child",
+    "script",
+    "scripts/run_e8_label_invariance.py",
+    "--seed",
+    "101"
+  ],
+  "execution_fingerprint": {
+    "dependency_lock_hash": "9ca56bd1c6103c0cec3d5933fff4a8416cc05027c54896f2a927d8b664cf43b1",
+    "effective_config_hash": "9a4b18bd9e258329599f68e14b410907b96ee40dd7b1ba6285700b48360e1cb5",
+    "experiment_id": "embodiment.label-invariance",
+    "git_commit": "0a901ea273ac8cbcf8c165419e9120033f09c1f0",
+    "is_dirty": false,
+    "python_base_prefix": "/home/alessbarb/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu",
+    "python_executable": "/home/alessbarb/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+    "python_prefix": "/home/alessbarb/workspace/repos/incubating/symbiont-lab/.git/symbiont-agent/runs/e8-label-invariance-20261001-seed-101/environment",
+    "python_version": "3.12.13",
+    "repo_root": "/tmp/symbiont-lab-worktrees/run-0a901ea273-10l3fakl",
+    "seed": 101,
+    "symbiont_file": "/tmp/symbiont-lab-worktrees/run-0a901ea273-10l3fakl/src/symbiont/__init__.py",
+    "symbiont_lab_file": "/tmp/symbiont-lab-worktrees/run-0a901ea273-10l3fakl/src/symbiont_lab/__init__.py"
+  },
+  "ended_at": "2026-10-01T16:41:35.104642+00:00",
+  "elapsed_seconds": 38.141098976135254,
+  "returncode": 0
+}

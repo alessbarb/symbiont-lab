@@ -1,0 +1,33 @@
+{
+  "a8_pass": true,
+  "acceptance": {
+    "integrity_pass": true,
+    "invariant_rate": 1.0,
+    "replay_deterministic": true
+  },
+  "aggregate_file": "aggregate.json",
+  "aggregator": "scripts/aggregate_e8_label_invariance.py",
+  "aggregator_sha256": "11feac7f9359514e79abb02bf59b17498a3302ddb81c296fa61e3157d7ed2775",
+  "campaign": "E8 governed label-invariance confirmation",
+  "candidate_commit": "0a901ea273ac8cbcf8c165419e9120033f09c1f0",
+  "external_state": false,
+  "input_mode": "protocol-generated",
+  "protocol_file": "../label-invariance/experiment.toml",
+  "protocol_sha256": "c691c12095b9bad6fb3c449db9000376882d46569f4db949ee53ec23a78db833",
+  "runner": "scripts/run_e8_label_invariance.py",
+  "runner_sha256": "f1c03301edf6bc38cc792239cab5ab2d4dade6176edc5573387c039afad956d2",
+  "seeds": [
+    101,
+    127,
+    149,
+    173,
+    211,
+    257,
+    307,
+    353,
+    401,
+    457
+  ],
+  "status": "completed",
+  "steps": 300
+}

@@ -138,7 +138,7 @@ Baseline reviewed after apparatus remediation: `aa1a77b55fddd33da094d901bbd48e78
 | APP-003 | **RESOLVED IN CODE** | E2 now uses a real Body effector, physically attached tool dynamics, detached controllable object, uncontrolled control and explicit decoupling phase. |
 | APP-004 | **RESOLVED IN CODE** | E4 now reports prediction shock, first revision latency, recovery latency, causal mapping signatures and Body-A return reacquisition comparison. |
 | APP-005 | **RESOLVED IN CODE** | E7 now tests birth-state isolation plus same/permuted/renamed/expanded-morphology/reversed offspring learning conditions. |
-| APP-006 | **RESOLVED IN CODE / EXECUTION PENDING** | E8 now tests both physical port-label invariance and paired canonical clean Worlds with renamed world/resource/hazard identifiers. |
+| APP-006 | **RESOLVED IN CODE / GOVERNED CONFIRMATION PASSED** | The governed E8 ten-seed confirmation passed on candidate `0a901ea273ac8cbcf8c165419e9120033f09c1f0`; receipts and per-seed results are preserved in `experiments/embodiment/label-invariance-governed-20261001-0a901ea/`. |
 | APP-007 | **RESOLVED IN CODE** | Shared `run_embodiment_integrity_gates()` exists and `ExperimentRunner` attaches its result plus `scientifically_valid` to every `embodiment.*` run. |
 | APP-008 | **OPEN INFRASTRUCTURE LIMITATION** | GitHub Actions currently terminates without usable execution logs/steps. CI must not be used as scientific run evidence until account/workflow infrastructure is restored. |
 
