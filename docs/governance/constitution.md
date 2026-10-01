@@ -9,13 +9,12 @@ may summarize these constraints but does not redefine them.
 ## Governance authority
 
 The project owner chooses scientific direction, authorises held-out and confirmation
-execution, accepts constitutional changes, opens or closes programmes and grants L2-L4
-authority.
+execution, accepts constitutional changes and opens or closes programmes.
 
 Technical ability to edit a file does not confer scientific authority. Agents may
-analyse freely, but modifying work is bounded by `agent-policy.md`,
-`decision-gates.md`, the active roadmap, frozen experiment contracts and explicit
-owner grants.
+analyse and implement freely inside the requested task and accepted invariants, while
+`agent-policy.md`, `decision-gates.md`, the active roadmap, frozen experiment
+contracts and external owner decisions define the boundaries that require review.
 
 A constitutional change follows only this order:
 

@@ -47,11 +47,10 @@ jobs:
 
           MESSAGE="$(git log -1 --pretty=%B "$HEAD_SHA")"
           grep -q '^Governance-Class:' <<<"$MESSAGE"
-          grep -q '^Owner-Approval:' <<<"$MESSAGE"
 
           CLASS="$(sed -n 's/^Governance-Class:[[:space:]]*//p' <<<"$MESSAGE" | tail -n1)"
-          if [ "$CLASS" = "CONSTITUTIONAL" ] || [ "$CLASS" = "FROZEN" ]; then
-            echo "REVIEW REQUIRED — $CLASS candidates are never auto-promoted"
+          if [ "$CLASS" = "SCIENTIFIC" ] || [ "$CLASS" = "CONSTITUTIONAL" ] || [ "$CLASS" = "FROZEN" ]; then
+            echo "REVIEW REQUIRED — only ORDINARY candidates are auto-promoted"
             exit 1
           fi
 

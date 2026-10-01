@@ -1,5 +1,5 @@
-schema_version = 1
-mode = "ci-gated-candidate-v2"
+schema_version = 2
+mode = "ci-gated-candidate-v3"
 legacy_cutoff_commit = "9fa3b78c3d903edb1112492e74154e95c7c56280"
 normal_entrypoint = "python scripts/agentctl.py publish --message <message>"
-note = "agentctl publishes one governed agentctl/* candidate; GitHub Actions is the sole technical validation gate and only a successful, still-current candidate that leaves the trusted control plane unchanged may be fast-forward promoted into main; CONSTITUTIONAL/FROZEN candidates require explicit review. Commits at or before legacy_cutoff_commit predate ADR-0046 activation."
+note = "Only a successful, still-current ORDINARY candidate may auto-promote. SCIENTIFIC and CONSTITUTIONAL candidates require external review; FROZEN evidence is versioned rather than modified."

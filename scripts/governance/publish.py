@@ -297,7 +297,6 @@ def _resolve_constitutional_adr(
 def _evaluate(
     base: str,
     *,
-    owner_approved: bool,
     adr_ref: str | None,
 ) -> tuple[Assessment, ChangeClass, dict[str, dict], str | None]:
     paths, assessment = _classify(base)
@@ -320,8 +319,6 @@ def _evaluate(
 
     constitutional_adr: str | None = None
     if assessment.classification == ChangeClass.CONSTITUTIONAL:
-        if not owner_approved:
-            raise PermissionError("CONSTITUTIONAL: explicit owner approval required")
         constitutional_adr = _resolve_constitutional_adr(paths, adr_ref=adr_ref)
 
     eq_pass, evidence = run_equivalence(base, assessment.equivalence_scenarios)
@@ -330,9 +327,8 @@ def _evaluate(
         if assessment.equivalence_scenarios and eq_pass:
             effective = ChangeClass.ORDINARY
             print("equivalence: PASS — causally transparent within declared scenario coverage")
-        elif not owner_approved:
-            detail = json.dumps(evidence, indent=2) if evidence else "no covering equivalence scenario"
-            raise PermissionError(f"SCIENTIFIC: explicit owner decision required\n{detail}")
+        else:
+            print("scientific candidate: external owner review required before promotion")
     return assessment, effective, evidence, constitutional_adr
 
 
@@ -340,14 +336,10 @@ def _publication_message(
     message: str,
     *,
     effective: ChangeClass,
-    owner_approved: bool,
     evidence: dict[str, dict],
     constitutional_adr: str | None,
 ) -> str:
-    trailers = [
-        f"Governance-Class: {effective}",
-        f"Owner-Approval: {'explicit' if owner_approved else 'not-required'}",
-    ]
+    trailers = [f"Governance-Class: {effective}"]
     if constitutional_adr:
         trailers.append(f"Governance-ADR: {constitutional_adr}")
     if evidence:
@@ -418,7 +410,6 @@ def _stage_commit(
     message: str,
     *,
     effective: ChangeClass,
-    owner_approved: bool,
     evidence: dict[str, dict],
     constitutional_adr: str | None,
 ) -> str:
@@ -427,7 +418,6 @@ def _stage_commit(
     full_message = _publication_message(
         message,
         effective=effective,
-        owner_approved=owner_approved,
         evidence=evidence,
         constitutional_adr=constitutional_adr,
     )
@@ -442,7 +432,6 @@ def _candidate_branch(commit: str) -> str:
 def publish(
     *,
     message: str,
-    owner_approved: bool = False,
     adr_ref: str | None = None,
     retries: int = 3,
 ) -> int:
@@ -467,13 +456,11 @@ def publish(
         _git("add", "-A")
         _, effective, evidence, constitutional_adr = _evaluate(
             remote,
-            owner_approved=owner_approved,
             adr_ref=adr_ref,
         )
         _stage_commit(
             message,
             effective=effective,
-            owner_approved=owner_approved,
             evidence=evidence,
             constitutional_adr=constitutional_adr,
         )
@@ -487,13 +474,11 @@ def publish(
                 _git("add", "-A")
                 _, effective, evidence, constitutional_adr = _evaluate(
                     remote,
-                    owner_approved=owner_approved,
                     adr_ref=adr_ref,
                 )
                 _stage_commit(
                     message,
                     effective=effective,
-                    owner_approved=owner_approved,
                     evidence=evidence,
                     constitutional_adr=constitutional_adr,
                 )
