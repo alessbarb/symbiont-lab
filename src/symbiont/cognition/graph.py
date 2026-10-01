@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 from .limits import KernelLimits
 from .types import (
@@ -256,7 +256,7 @@ class CognitiveGraph:
 
 
 def load_graph_definition(
-    payload: Mapping[str, object], *, kernel_limits: KernelLimits
+    payload: Mapping[str, Any], *, kernel_limits: KernelLimits
 ) -> CognitiveGraph:
     """Constructs a graph from an explicit, owner-authored JSON-shaped
     definition -- raw floats throughout, not quantized. Unlike

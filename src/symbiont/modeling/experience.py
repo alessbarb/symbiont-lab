@@ -5,6 +5,7 @@ import json
 import re
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 _MAX_CONTEXT_TOKENS = 512
 _MAX_OUTCOME_TOKENS = 128
@@ -131,7 +132,7 @@ class ExperienceRecord:
         return payload
 
     @classmethod
-    def restore(cls, payload: dict[str, object]) -> "ExperienceRecord":
+    def restore(cls, payload: dict[str, Any]) -> "ExperienceRecord":
         if not isinstance(payload, dict):
             raise ValueError("experience checkpoint entry must be an object")
         try:

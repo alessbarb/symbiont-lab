@@ -15,8 +15,6 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from symbiont.core.ecology import SharedHabitat
-
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.actuation.types import Actuation
@@ -24,6 +22,7 @@ from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController, VitalState
+from symbiont.core.social.ecology import SharedHabitat
 from symbiont.genetics.genome import Genome
 from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope
 from symbiont.host.discovery import HostDiscovery
@@ -314,7 +313,8 @@ def _load_base_genome() -> Genome:
     from symbiont import __version__ as symbiont_version
 
     parts = (symbiont_version.split(".") + ["0", "0"])[:3]
-    running_version = tuple(int(part) for part in parts)
+    major, minor, patch = (int(part) for part in parts)
+    running_version = (major, minor, patch)
     return load_base_genome(
         kernel_limits=KernelLimits(),
         running_version=running_version,
@@ -522,11 +522,10 @@ def _construct_organism(
     )
 
     if experimental_clean:
-        from symbiont.core.body import create_standard_body
-        from symbiont.core.individual import Individual
-        from symbiont.core.symbiont import Symbiont
-
         from symbiont.core.embodiment import implant_body
+        from symbiont.core.embodiment.body import create_standard_body
+        from symbiont.core.orchestration.individual import Individual
+        from symbiont.core.orchestration.symbiont import Symbiont
         from symbiont.genetics.germline import GermlineState
 
         num_rec = len(receptor_ids) if receptor_ids else 8

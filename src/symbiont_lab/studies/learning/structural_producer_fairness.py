@@ -3,13 +3,12 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
-from symbiont.core.cognition_bridge import CognitiveBridge
-
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import Mutation
 from symbiont.cognition.types import NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge
 
 
 @dataclass(frozen=True, slots=True)

@@ -123,7 +123,7 @@ class SignalProfile:
     observed_opportunities: int = 0
     valid_observations: int = 0
     last_observed_tick: int | None = None
-    claims: list[Claim] | None = None
+    claims: list[Claim] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.claims is None:

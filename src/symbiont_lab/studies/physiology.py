@@ -5,11 +5,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
-from symbiont.core.homeostasis import HomeostaticController
-from symbiont.core.runtime import OrganismRuntime
-
+from symbiont.core.embodiment.homeostasis import HomeostaticController
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import LivingBodyState, PhysiologyController, VitalState
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 @dataclass(frozen=True, slots=True)

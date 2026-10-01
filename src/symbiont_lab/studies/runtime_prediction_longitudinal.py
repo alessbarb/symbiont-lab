@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.runtime import OrganismRuntime
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 from .runtime_prediction_promotion import _runtime
 

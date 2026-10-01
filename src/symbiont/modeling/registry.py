@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Mapping
+from typing import Any, Mapping
 
 from .authority import ArchitectureId, ModelArtifactManifest, ModelObjective
 
@@ -152,7 +152,7 @@ class ModelRecord:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "ModelRecord":
+    def restore(cls, payload: Mapping[str, Any]) -> "ModelRecord":
         if not isinstance(payload, Mapping):
             raise ValueError("model record checkpoint must be an object")
         try:

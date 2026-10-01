@@ -268,7 +268,7 @@ def _edge_key(payload: Mapping[str, object]) -> tuple[str, str, object]:
     return (str(payload["source_id"]), str(payload["target_id"]), EdgeKind(payload["kind"]))
 
 
-def _edge_from_payload(payload: Mapping[str, object]) -> PlasticEdge:
+def _edge_from_payload(payload: Mapping[str, Any]) -> PlasticEdge:
     return PlasticEdge(
         source_id=str(payload["source_id"]),
         target_id=str(payload["target_id"]),
@@ -279,7 +279,7 @@ def _edge_from_payload(payload: Mapping[str, object]) -> PlasticEdge:
     )
 
 
-def _node_from_payload(payload: Mapping[str, object]) -> PlasticNode:
+def _node_from_payload(payload: Mapping[str, Any]) -> PlasticNode:
     return PlasticNode(
         node_id=str(payload["node_id"]),
         kind=NodeKind(payload["kind"]),

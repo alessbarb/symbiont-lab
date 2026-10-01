@@ -170,7 +170,8 @@ class HypothesisTracker:
             raise ValueError("source_ids must be non-empty bounded strings")
         if source_ids[0] == source_ids[1]:
             raise ValueError("source_ids must identify two distinct sources")
-        key = tuple(sorted(source_ids))
+        low, high = sorted(source_ids)
+        key = (low, high)
         item = self._items.setdefault(key, SignalHypothesis(key, tick))
         item.update(correlation=correlation, samples=samples, min_samples=min_samples, tick=tick)
 
@@ -215,7 +216,8 @@ class HypothesisTracker:
             if not isinstance(raw, dict):
                 raise ValueError("hypothesis entry must be an object")
             item = SignalHypothesis.from_payload(raw)
-            key = tuple(sorted(item.source_ids))
+            low, high = sorted(item.source_ids)
+            key = (low, high)
             if key in tracker._items:
                 raise ValueError("duplicate hypothesis source pair")
             tracker._items[key] = item

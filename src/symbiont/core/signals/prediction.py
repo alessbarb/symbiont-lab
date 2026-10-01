@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 from collections import deque
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,7 +190,7 @@ class RidgePredictor:
         }
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, object]) -> "RidgePredictor":
+    def from_checkpoint(cls, payload: dict[str, Any]) -> "RidgePredictor":
         predictor = cls(
             history_limit=int(payload.get("history_limit", 64)),
             regularization=float(payload.get("regularization", 1e-6)),

@@ -759,7 +759,7 @@ class PopulationGenesisRuntime:
 
                             if actual_withdrawn > 0.0:
                                 # 2. World issues MaterialTransfer for actually granted physical matter
-                                from symbiont.core.body import MaterialTransfer
+                                from symbiont.core.embodiment.body import MaterialTransfer
 
                                 transfer = MaterialTransfer(
                                     source_id=f"world:{cell.q},{cell.r}",

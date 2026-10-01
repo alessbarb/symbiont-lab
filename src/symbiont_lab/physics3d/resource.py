@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Mapping
+from typing import Any, Mapping
 
 from .humanoid import SurfaceMaterial, apply_surface_material
 
@@ -127,9 +127,7 @@ class PhysicalResource:
         }
 
     @classmethod
-    def from_state(
-        cls, p, client_id: int, payload: Mapping[str, object] | None
-    ) -> "PhysicalResource":
+    def from_state(cls, p, client_id: int, payload: Mapping[str, Any] | None) -> "PhysicalResource":
         if payload is None:
             return cls(p, client_id)
         if int(payload.get("schema_version", -1)) != 1:

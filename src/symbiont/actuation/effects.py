@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 from ..capacity import CapacityPressure
 
@@ -318,7 +318,7 @@ class EffectSpace:
         }
 
     @classmethod
-    def restore(cls, payload: dict[str, object]) -> "EffectSpace":
+    def restore(cls, payload: dict[str, Any]) -> "EffectSpace":
         if payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("unsupported effect-space checkpoint")
         obj = cls(max_effects=int(payload.get("max_effects", 512)))

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,7 +112,7 @@ class TemporalResponsibilityTracker:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "TemporalResponsibilityTracker":
+    def restore(cls, payload: Mapping[str, Any]) -> "TemporalResponsibilityTracker":
         raw_ids = payload.get("mechanism_ids")
         if not isinstance(raw_ids, list):
             raise ValueError("mechanism_ids must be a list")

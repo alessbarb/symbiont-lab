@@ -3,10 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from statistics import mean, pstdev
-from typing import Iterable
+from typing import Any, Iterable
 
-from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
-
+from symbiont.core.lineage.heritage import SpeciesHeritage, apply_heritage, distill_heritage
 from symbiont.core.social.ledger import SocialEvidenceLedger
 from symbiont.simulation import EventContext, SimulationResult, _run_population, run_simulation
 
@@ -171,7 +170,7 @@ def _run_target(
     def capture(event: EventContext) -> None:
         _digest_event(digest, event)
 
-    common = dict(
+    common: dict[str, Any] = dict(
         hosts=hosts,
         steps=steps,
         seed=seed,

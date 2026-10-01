@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 from .dynamics import PredictionResidual
 
@@ -168,7 +168,7 @@ class EmbodimentAdaptation:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None) -> "EmbodimentAdaptation":
+    def restore(cls, payload: Mapping[str, Any] | None) -> "EmbodimentAdaptation":
         obj = cls()
         if payload is None:
             return obj

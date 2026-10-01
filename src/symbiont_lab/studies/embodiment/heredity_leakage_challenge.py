@@ -15,8 +15,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
-from symbiont.core.symbiont import Symbiont
-
 from symbiont.core.lineage.germline import (
     EpigeneticMark,
     GermlineState,
@@ -24,6 +22,7 @@ from symbiont.core.lineage.germline import (
     SymbiontGenome,
     create_standard_genome,
 )
+from symbiont.core.orchestration.symbiont import Symbiont
 from symbiont.genetics.germline import EpigeneticProtocol
 from symbiont.genetics.schema import DEFAULT_GENOME_SCHEMA
 from symbiont_lab.evolution.reproduction import create_offspring_package

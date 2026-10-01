@@ -12,7 +12,7 @@ import json
 from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 MAX_SYMBOLS = 32
 MAX_ID = 96
@@ -102,7 +102,7 @@ class SymbolDecisionRecord:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "SymbolDecisionRecord":
+    def restore(cls, payload: Mapping[str, Any]) -> "SymbolDecisionRecord":
         try:
             return cls(
                 str(payload["decision_id"]),
@@ -334,7 +334,7 @@ class SymbolGroundingLedger:
 
     @classmethod
     def restore(
-        cls, payload: Mapping[str, object] | None, *, organism_id: str
+        cls, payload: Mapping[str, Any] | None, *, organism_id: str
     ) -> "SymbolGroundingLedger":
         if payload is None:
             return cls(organism_id)
@@ -610,7 +610,7 @@ class SymbolPolicy:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None, *, organism_id: str) -> "SymbolPolicy":
+    def restore(cls, payload: Mapping[str, Any] | None, *, organism_id: str) -> "SymbolPolicy":
         if payload is None:
             return cls(organism_id)
         version = payload.get("schema_version")

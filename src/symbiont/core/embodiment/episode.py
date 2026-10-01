@@ -6,7 +6,7 @@ import hashlib
 import uuid
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Mapping
+from typing import Any, Mapping
 
 from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.evidence import CausalEvidenceLedger
@@ -202,7 +202,7 @@ class EmbodimentEpisode:
     @classmethod
     def restore(
         cls,
-        payload: Mapping[str, object],
+        payload: Mapping[str, Any],
         *,
         contract: EmbodimentContract,
         body_schema: BodySchemaEngine,

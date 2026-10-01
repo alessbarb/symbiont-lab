@@ -6,10 +6,9 @@ import math
 from collections import Counter
 from dataclasses import asdict, dataclass
 
-from symbiont.core.interactions import EcologicalResourcePool
-from symbiont.core.runtime import OrganismRuntime
-
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.social import SocialHabitat
+from symbiont.core.social.interactions import EcologicalResourcePool
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +74,10 @@ def run_social_runtime_longitudinal_study(
                 runtime.tick()
                 continue
             touched.update((runtime.organism_id, outcome.target_id))
-            pair = tuple(sorted((runtime.organism_id, outcome.target_id)))
+            pair = (
+                min(runtime.organism_id, outcome.target_id),
+                max(runtime.organism_id, outcome.target_id),
+            )
             pairs[pair] += 1
             if tick >= replay_start:
                 post_pairs.append(pair)
@@ -92,7 +94,12 @@ def run_social_runtime_longitudinal_study(
         for runtime in replay_runtimes:
             outcome = runtime.autonomous_social_step()
             if outcome is not None and outcome.granted > 0.0:
-                replay_pairs.append(tuple(sorted((runtime.organism_id, outcome.target_id))))
+                replay_pairs.append(
+                    (
+                        min(runtime.organism_id, outcome.target_id),
+                        max(runtime.organism_id, outcome.target_id),
+                    )
+                )
             runtime.tick()
     continuation_replay_equal = post_pairs == replay_pairs
     interactions = sum(pairs.values())

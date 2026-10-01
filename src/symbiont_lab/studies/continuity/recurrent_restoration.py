@@ -5,10 +5,9 @@ import random
 from dataclasses import asdict, dataclass
 from typing import Iterable, Sequence
 
-from symbiont.core.cognition_bridge import CognitiveBridge
-
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticEdge, PlasticNode
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge
 from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 
 _BASE_GENOME_PAYLOAD = {

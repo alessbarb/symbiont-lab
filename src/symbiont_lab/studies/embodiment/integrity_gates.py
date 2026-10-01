@@ -9,8 +9,7 @@ from __future__ import annotations
 import inspect
 from dataclasses import asdict, dataclass
 
-from symbiont.core.symbiont import Symbiont
-
+from symbiont.core.orchestration.symbiont import Symbiont
 from symbiont.genetics.genome import flatten_genes
 from symbiont.genetics.germline import GermlineState
 from symbiont_lab.world.adapter import _construct_organism

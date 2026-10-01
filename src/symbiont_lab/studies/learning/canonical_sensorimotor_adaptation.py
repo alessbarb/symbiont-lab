@@ -39,7 +39,7 @@ def _mapping_distance(left: Mapping[str, float], right: Mapping[str, float]) -> 
     return sum(abs(left.get(key, 0.0) - right.get(key, 0.0)) for key in keys) / max(1, len(keys))
 
 
-def _target_delivered(action: Mapping[str, object], target_actuator_id: str) -> bool:
+def _target_delivered(action: Mapping[str, Any], target_actuator_id: str) -> bool:
     return any(
         isinstance(item, Mapping)
         and item.get("actuator_id") == target_actuator_id
@@ -114,7 +114,7 @@ def _rollout(
     *,
     seed: int,
     checkpoint: dict[str, Any],
-    physical_state: dict[str, object],
+    physical_state: dict[str, Any],
     target_actuator_id: str,
     horizon_ticks: int,
     damage: bool,

@@ -14,7 +14,7 @@ import math
 from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 MAX_CLAIMS = 2048
 MAX_ROOTS = 32
@@ -106,7 +106,7 @@ class CulturalDecisionRecord:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "CulturalDecisionRecord":
+    def restore(cls, payload: Mapping[str, Any]) -> "CulturalDecisionRecord":
         # TODO(pyright): replace dynamic payload access with a validated
         # checkpoint model shared by the culture persistence boundaries.
         if not isinstance(payload, Mapping):
@@ -377,7 +377,7 @@ class CulturalPolicy:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None, *, organism_id: str) -> "CulturalPolicy":
+    def restore(cls, payload: Mapping[str, Any] | None, *, organism_id: str) -> "CulturalPolicy":
         if payload is None:
             return cls(organism_id)
         if (
@@ -619,7 +619,7 @@ class SocialClaim:
         )
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "SocialClaim":
+    def restore(cls, payload: Mapping[str, Any]) -> "SocialClaim":
         if not isinstance(payload, Mapping):
             raise ValueError("invalid social claim checkpoint entry")
         try:
@@ -727,7 +727,7 @@ class ClaimGraph:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None) -> "ClaimGraph":
+    def restore(cls, payload: Mapping[str, Any] | None) -> "ClaimGraph":
         if payload is None:
             return cls()
         if payload.get("schema_version") != cls.SCHEMA_VERSION:
@@ -832,7 +832,7 @@ class CulturalComposite:
         ).hexdigest()
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "CulturalComposite":
+    def restore(cls, payload: Mapping[str, Any]) -> "CulturalComposite":
         if not isinstance(payload, Mapping):
             raise ValueError("invalid cultural composite checkpoint entry")
         try:
@@ -938,7 +938,7 @@ class CompositeGraph:
 
     @classmethod
     def restore(
-        cls, payload: Mapping[str, object] | None, *, claim_graph: ClaimGraph
+        cls, payload: Mapping[str, Any] | None, *, claim_graph: ClaimGraph
     ) -> "CompositeGraph":
         if payload is None:
             return cls()
@@ -1327,7 +1327,7 @@ class SocialEvidenceLedger:
 
     @classmethod
     def restore(
-        cls, payload: Mapping[str, object] | None, *, organism_id: str
+        cls, payload: Mapping[str, Any] | None, *, organism_id: str
     ) -> "SocialEvidenceLedger":
         if payload is None:
             return cls(organism_id)

@@ -2388,7 +2388,7 @@ class ActionDomain:
 
     def restore_v2(
         self,
-        payload: Mapping[str, object],
+        payload: Mapping[str, Any],
         *,
         body_schema: BodySchemaEngine,
         fingerprint_migration: tuple[str, str] | None = None,

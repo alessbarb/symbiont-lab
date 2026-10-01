@@ -13,8 +13,8 @@ import random
 from dataclasses import asdict, dataclass
 from typing import Mapping, Sequence
 
-from symbiont.core.body import Body, create_standard_body
-from symbiont.core.individual import Individual, create_individual
+from symbiont.core.embodiment.body import Body, create_standard_body
+from symbiont.core.orchestration.individual import Individual, create_individual
 
 _STUDY_ID = "embodiment.causal-revision-sequence"
 

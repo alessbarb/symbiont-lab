@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 from .communication import ConsentBoundChannel, SignedMessage
 
@@ -197,7 +198,7 @@ class ResourceEvidenceLedger:
         }
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, object]) -> "ResourceEvidenceLedger":
+    def from_checkpoint(cls, payload: dict[str, Any]) -> "ResourceEvidenceLedger":
         if not isinstance(payload, dict) or payload.get("schema_version") not in (1, 2):
             raise ValueError("invalid resource evidence checkpoint")
         ledger = cls(max_resources=int(payload.get("max_resources", 64)))
@@ -335,7 +336,7 @@ class RelationLedger:
         }
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, object]) -> "RelationLedger":
+    def from_checkpoint(cls, payload: dict[str, Any]) -> "RelationLedger":
         if not isinstance(payload, dict) or payload.get("schema_version") not in (1, 2, 3, 4):
             raise ValueError("invalid relation checkpoint")
         ledger = cls(max_relations=int(payload.get("max_relations", 1024)))
@@ -612,7 +613,7 @@ class SocialHabitat:
         }
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, object]) -> "SocialHabitat":
+    def from_checkpoint(cls, payload: dict[str, Any]) -> "SocialHabitat":
         from .interactions import EcologicalResourcePool
 
         if not isinstance(payload, dict) or payload.get("schema_version") not in (1, 2):

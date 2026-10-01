@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 
 class CommitmentStatus(StrEnum):
@@ -98,7 +99,7 @@ class ActionCommitment:
     @classmethod
     def restore(
         cls,
-        payload: dict[str, object],
+        payload: dict[str, Any],
         *,
         fallback_surface_fingerprint: str | None = None,
         fallback_embodiment_id: str | None = None,

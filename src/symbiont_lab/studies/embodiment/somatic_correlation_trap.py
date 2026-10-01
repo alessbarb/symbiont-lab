@@ -11,10 +11,9 @@ import random
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
-from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
-
 from symbiont.core.embodiment import implant_body
 from symbiont.core.embodiment.agency import AgencyModel, InferredBodySchema, PerceptualStructure
+from symbiont.core.embodiment.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
 
 # Component-level falsification specimen marker (see §62 of
 # docs/design/herencia-evolutiva-multidimensional.md). This module

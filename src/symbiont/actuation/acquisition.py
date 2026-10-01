@@ -19,7 +19,7 @@ from __future__ import annotations
 import hashlib
 from collections import deque
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from ..provenance import CausalEvent, CausalRef, ProvenanceLog
 from .action import MotorCommand
@@ -1089,9 +1089,9 @@ class AgencyAcquisition:
     def restore_causal_state(
         self,
         *,
-        effect_space: Mapping[str, object] | None,
-        causal_evidence: Mapping[str, object] | None,
-        acquisition: Mapping[str, object] | None,
+        effect_space: Mapping[str, Any] | None,
+        causal_evidence: Mapping[str, Any] | None,
+        acquisition: Mapping[str, Any] | None,
         body_schema: "BodySchemaEngine | None",
     ) -> None:
         if effect_space is not None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 
 @dataclass(slots=True)
@@ -94,7 +94,7 @@ class ReachabilityModel:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None) -> "ReachabilityModel":
+    def restore(cls, payload: Mapping[str, Any] | None) -> "ReachabilityModel":
         if payload is None:
             return cls()
         if payload.get("schema_version") != cls.SCHEMA_VERSION:

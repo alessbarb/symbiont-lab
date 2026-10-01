@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.interactions import EcologicalResourcePool
-from symbiont.core.runtime import OrganismRuntime
-
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.social import SocialHabitat
+from symbiont.core.social.interactions import EcologicalResourcePool
 
 
 @dataclass(frozen=True, slots=True)

@@ -277,9 +277,13 @@ def restore_predictor_retirement(
         last_evaluated_tick = entry.get("last_evaluated_tick")
         if not isinstance(predictor_id, str) or predictor_id not in allowed:
             continue
-        if any(
-            isinstance(value, bool) or not isinstance(value, int) or value < 0
-            for value in (entered_tick, last_evaluated_tick)
+        if (
+            isinstance(entered_tick, bool)
+            or not isinstance(entered_tick, int)
+            or entered_tick < 0
+            or isinstance(last_evaluated_tick, bool)
+            or not isinstance(last_evaluated_tick, int)
+            or last_evaluated_tick < 0
         ):
             raise GraphError("predictor retirement ticks must be non-negative")
         restored[predictor_id] = PredictorRetirement(

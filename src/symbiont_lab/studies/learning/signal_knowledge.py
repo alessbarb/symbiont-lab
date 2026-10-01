@@ -10,9 +10,9 @@ import random
 import tracemalloc
 from dataclasses import asdict, dataclass
 
-from symbiont.core.signal_identity import SignalIdentity
-from symbiont.core.signal_knowledge import SignalKnowledgeEngine
-from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
+from symbiont.core.signals.identity import SignalIdentity
+from symbiont.core.signals.knowledge import SignalKnowledgeEngine
+from symbiont.core.signals.knowledge_types import SignalObservation, SignalObservationBatch
 
 
 @dataclass(frozen=True, slots=True)

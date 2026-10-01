@@ -18,7 +18,7 @@ import hashlib
 import math
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 from .action import MotorCommand
 
@@ -329,7 +329,7 @@ class InterventionSignatureRegistry:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object] | None) -> "InterventionSignatureRegistry":
+    def restore(cls, payload: Mapping[str, Any] | None) -> "InterventionSignatureRegistry":
         if payload is None:
             return cls()
         if payload.get("schema_version") != cls.SCHEMA_VERSION:

@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.cognition_bridge import CognitiveBridge
-from symbiont.core.runtime import OrganismRuntime
-
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 
 _GENOME = {

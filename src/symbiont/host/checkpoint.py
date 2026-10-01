@@ -273,7 +273,7 @@ def _migrate_v5_to_v6(payload: dict[str, Any]) -> dict[str, Any]:
 
     raw_self_model = migrated.get("self_model")
     if isinstance(raw_self_model, dict):
-        from ..core.selfmodel import (
+        from ..core.cognition.host_self_model import (
             RecencyClass,  # local import: avoids a host->core module-load cycle
         )
 
