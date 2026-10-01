@@ -89,7 +89,13 @@ def test_experiment_runner_executes_ecological_shift_protocol(tmp_path):
     assert manifest.protocol == "heritage.ecological-shift"
     assert manifest.world_digest == result.world_digest
     assert manifest.world_digest != "na"
+    assert manifest.execution_fingerprint is not None
+    assert manifest.execution_fingerprint.experiment_id == spec.experiment_id
+    assert manifest.execution_fingerprint.seed == spec.seed
+    assert manifest.execution_fingerprint.effective_config_hash
     assert len(result.comparisons) == 2
     assert (run_dir / "manifest.json").is_file()
+    loaded = type(manifest).load(run_dir / "manifest.json")
+    assert loaded.execution_fingerprint == manifest.execution_fingerprint
     assert (run_dir / "metrics.json").is_file()
     assert manifest.metrics["result"]["analysis_split_step"] == result.analysis_split_step

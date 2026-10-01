@@ -90,10 +90,9 @@ class ExecutionFingerprint:
     def is_hermetic_to(self, expected_root: Path | str) -> bool:
         """Verify that resolved modules originate strictly within the expected repository tree."""
         root = Path(expected_root).resolve()
-        return (
-            Path(self.symbiont_file).resolve().is_relative_to(root)
-            and Path(self.symbiont_lab_file).resolve().is_relative_to(root)
-        )
+        return Path(self.symbiont_file).resolve().is_relative_to(root) and Path(
+            self.symbiont_lab_file
+        ).resolve().is_relative_to(root)
 
     def mismatches(self, declared: "ExecutionFingerprint") -> tuple[str, ...]:
         """Return execution-identity fields that differ from a declared parent identity."""
@@ -116,9 +115,7 @@ class ExecutionFingerprint:
         """Refuse execution when the child runtime is not the declared environment."""
         mismatches = self.mismatches(declared)
         if mismatches:
-            raise RuntimeError(
-                "scientific execution identity mismatch: " + ", ".join(mismatches)
-            )
+            raise RuntimeError("scientific execution identity mismatch: " + ", ".join(mismatches))
 
 
 @dataclass(slots=True)
@@ -141,6 +138,7 @@ class RunManifest:
     world_digest: str
     schema_version: int = 1
     software: SoftwareEnvironment = field(default_factory=SoftwareEnvironment)
+    execution_fingerprint: ExecutionFingerprint | None = None
     selection_digests: dict[str, str] = field(default_factory=dict)
     config: dict[str, Any] = field(default_factory=dict)
     metrics: dict[str, Any] = field(default_factory=dict)
@@ -174,6 +172,10 @@ class RunManifest:
             dirty=sw.get("dirty", False),
             python=sw.get("python", sys.version),
         )
+        fingerprint_data = data.get("execution_fingerprint")
+        execution_fingerprint = (
+            ExecutionFingerprint(**fingerprint_data) if fingerprint_data is not None else None
+        )
         return cls(
             run_id=data["run_id"],
             experiment_id=data.get("experiment_id", "custom"),
@@ -185,6 +187,7 @@ class RunManifest:
             world_digest=data.get("world_digest", ""),
             schema_version=data.get("schema_version", 1),
             software=software,
+            execution_fingerprint=execution_fingerprint,
             selection_digests=data.get("selection_digests", {}),
             config=data.get("config", {}),
             metrics=data.get("metrics", {}),

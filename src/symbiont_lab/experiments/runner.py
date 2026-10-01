@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from symbiont_lab.studies.common.digests import compute_world_digest
 
-from .manifest import RunManifest, SoftwareEnvironment, get_git_info
+from .manifest import ExecutionFingerprint, RunManifest, SoftwareEnvironment, get_git_info
 from .registry import get_protocol
 from .spec import ExperimentSpec
 
@@ -477,6 +477,11 @@ class ExperimentRunner:
             seed=spec.seed,
             world_digest=world_digest,
             software=SoftwareEnvironment(git_sha=sha, dirty=dirty),
+            execution_fingerprint=ExecutionFingerprint.capture(
+                effective_config=spec.as_dict(),
+                experiment_id=spec.experiment_id,
+                seed=spec.seed,
+            ),
             config=spec.as_dict(),
             metrics={"result": raw_metrics},
             config_digest="",
