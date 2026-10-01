@@ -146,6 +146,7 @@ def test_active_run_path_is_blocked(monkeypatch) -> None:
     )
     assert ctl._path_blocked_by_active("src/x/a.py", "HEAD") == "running"
 
+
 def test_agent_contract_uses_context_as_single_normal_read() -> None:
     contract = _contract("AGENTS.md")
     assert "agentctl.py context" in contract
